@@ -228,9 +228,15 @@ class TestRunLocally:
 
         assert pipeline == ["ride.fit", "ride.fit"]
 
+    def test_the_unbudgeted_pass_reports_nothing_left(self, tmp_path, factory, storage, pipeline):
+        job_id = self._accept(tmp_path, factory, storage, {"a.fit": b"1", "b.gpx": b"2"})
+
+        with patch.object(bulk.core_config.settings, "JOBS_ENABLED", False):
+            assert bulk.run_bulk_import_job(job_id, storage) is False
+
 
 class TestBatches:
-    """On the durable profile a batch yields: it records progress and queues the next."""
+    """On the durable profile a batch yields: it records progress and reports that files are left."""
 
     def _accept(self, tmp_path, factory, storage, members):
         archive = _zip(tmp_path, members)
@@ -244,7 +250,9 @@ class TestBatches:
         ):
             return bulk.accept_archive(_USER, "export.zip", _saver(archive), "generic", storage, factory()).id
 
-    def test_a_batch_stops_at_its_budget_and_queues_its_continuation(self, tmp_path, factory, storage, pipeline):
+    def test_a_batch_stops_at_its_budget_and_reports_files_left_without_publishing(
+        self, tmp_path, factory, storage, pipeline
+    ):
         job_id = self._accept(tmp_path, factory, storage, {f"{n}.fit": b"x" for n in "abcde"})
 
         with (
@@ -256,14 +264,14 @@ class TestBatches:
                 side_effect=_commit_through,
             ) as publish,
         ):
-            bulk.run_bulk_import_job(job_id, storage)
+            more = bulk.run_bulk_import_job(job_id, storage)
 
         row = _job(factory, job_id)
+        assert more is True
         assert (row.status, row.files_done, row.cursor) == ("pending", 2, "b.fit")
         assert pipeline == ["a.fit", "b.fit"]
-        # The progress and the continuation are one transaction.
-        publish.assert_called_once()
-        assert publish.call_args.args[1] == {"job_id": job_id}
+        # The same job runs the next batch, so no event is queued for it.
+        publish.assert_not_called()
         assert storage.exists(upload_entry_service.UPLOAD_STAGING_STORAGE_AREA, f"upload_staging/{row.staged_key}")
 
     def test_the_next_batch_resumes_after_the_cursor_and_finishes(self, tmp_path, factory, storage, pipeline):
@@ -278,10 +286,10 @@ class TestBatches:
                 side_effect=_commit_through,
             ),
         ):
-            for _ in range(3):
-                bulk.run_bulk_import_job(job_id, storage)
+            results = [bulk.run_bulk_import_job(job_id, storage) for _ in range(3)]
 
         row = _job(factory, job_id)
+        assert results == [True, True, False]
         assert (row.status, row.files_done, row.files_failed) == ("completed", 5, 0)
         # Each file exactly once, in order, however the batches fell.
         assert pipeline == ["a.fit", "b.fit", "c.fit", "d.fit", "e.fit"]

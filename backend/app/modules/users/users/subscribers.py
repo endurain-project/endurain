@@ -8,6 +8,7 @@ stored files in bulk and does not belong on a request thread. The channel is dur
 import jasil.event_versioning as platform_event_versioning
 import jasil.runtime as platform_runtime
 from jasil.events import Event
+from jasil.jobs import ContinueJob
 from jasil.jobs.registry import JobHandlerRegistry
 
 import core.logger as core_logger
@@ -23,17 +24,23 @@ DELETION_REQUESTED_SUBSCRIBER_ID = "users.deletion_requested"
 def process_deletion_requested_for_event(event: Event) -> None:
     """Durable handler: erase one account; raises on a failure so the worker retries.
 
+    A pass that spends its time budget with activities left ends with ``ContinueJob``, so the same job
+    erases the rest.
+
     Args:
         event: The ``users.deletion_requested`` event.
     """
     payload = platform_event_versioning.parse_payload(users_events.DeletionRequestedPayload, event)
     platform = platform_runtime.get_active_platform()
-    users_deletion_job_service.run_deletion(
+    activities_left = users_deletion_job_service.run_deletion(
         payload,
         users_deletion_state_store.UserDeletionStateStore(platform.state),
         platform.storage,
         will_retry=not event.is_last_attempt,
+        time_budget=users_deletion_job_service.durable_pass_seconds(),
     )
+    if activities_left:
+        raise ContinueJob(reason="account deletion pass finished with activities left")
     logger.debug("Account deletion job finished", extra=core_logger.context(user_id=payload.user_id))
 
 

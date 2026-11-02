@@ -6,11 +6,11 @@ user dropped files into on the server. The archive is staged in the platform
 does constant work however many files it holds, and any worker can run it.
 
 The job is processed in short batches rather than as one long task. Each batch
-imports files until a time or count budget is spent, records how far it got on the
-job row and, on the durable profile, queues its own continuation in the same
-transaction, which sends it to the back of the queue. A large import therefore
-interleaves with everyone else's work instead of holding a worker, never outlives a
-job lease, and resumes from its cursor after a crash. Importing a file is idempotent
+imports files until a time or count budget is spent and records how far it got on the
+job row. A batch that leaves files over reports it to its caller, and the durable
+subscriber ends the pass with ``ContinueJob`` so the same job runs the next batch.
+A large import therefore interleaves with everyone else's work instead of holding a
+worker, never outlives a job lease, and resumes from its cursor after a crash. Importing a file is idempotent
 (a content-derived dedup key), so a batch that is repeated after a crash costs
 nothing but time.
 
@@ -514,23 +514,26 @@ def _job_view(job_id: str, user_id: int, db: Session) -> activity_ingestion_sche
     return job
 
 
-def run_bulk_import_job(job_id: str, storage: platform_providers.StorageProvider) -> None:
+def run_bulk_import_job(job_id: str, storage: platform_providers.StorageProvider) -> bool:
     """Work one batch of a bulk import, recording the outcome on the job row.
 
     The job body for both executors. On the durable profile a batch that leaves
-    files over has already queued its continuation, in the same transaction that
-    recorded its progress, and returns so the worker is free; otherwise the single
-    unbudgeted pass finishes the import.
+    files over has recorded its progress and released the job, and returns True so
+    the caller can run the next batch; otherwise the single unbudgeted pass finishes
+    the import.
 
     Args:
         job_id: The ``activity_ingestion_jobs`` row to continue.
         storage: The blob-storage provider the archive is staged in.
 
+    Returns:
+        True when the batch stopped at its budget with files left to import.
+
     Raises:
         Exception: Whatever the batch raised, so the durable runner can retry.
     """
     try:
-        _run_batch(job_id, storage)
+        return _run_batch(job_id, storage)
     except Exception:
         if not activity_ingestion_dispatch_service.worker_retries():
             activity_ingestion_service.fail_ingestion_job(
@@ -554,28 +557,31 @@ def _batch_budget() -> tuple[int, float | None]:
     return _BATCH_MAX_FILES, float(max(_MIN_BATCH_SECONDS, lease // _LEASE_FRACTION))
 
 
-def _run_batch(job_id: str, storage: platform_providers.StorageProvider) -> None:
+def _run_batch(job_id: str, storage: platform_providers.StorageProvider) -> bool:
     """Import files from the job's archive until the batch budget is spent.
 
     Args:
         job_id: The job to continue.
         storage: The blob-storage provider.
+
+    Returns:
+        True when files are left over after a checkpoint; False when the import ended or was not run.
     """
     with core_database.SessionLocal() as db:
         state = activity_ingestion_crud.get_bulk_import_state(job_id, db)
         if state is None or state.finished:
             logger.debug("Skipping a bulk import that is unknown or finished", extra=core_logger.context(job_id=job_id))
-            return
+            return False
         if state.staged_key is None:
             # The folder is still being packed; the continuation is queued once it is.
-            return
+            return False
         if not activity_ingestion_crud.mark_processing(
             job_id, db, lease=activity_ingestion_dispatch_service.claim_lease()
         ):
             logger.debug(
                 "Skipping a bulk import batch that is claimed elsewhere", extra=core_logger.context(job_id=job_id)
             )
-            return
+            return False
         db.commit()
 
     try:
@@ -584,7 +590,7 @@ def _run_batch(job_id: str, storage: platform_providers.StorageProvider) -> None
         activity_ingestion_service.fail_ingestion_job(
             job_id, activity_ingestion_constants.IngestionJobErrorCode.PROCESSING_FAILED, storage, state.staged_key
         )
-        return
+        return False
 
     max_files, seconds = _batch_budget()
     deadline = None if seconds is None else time.monotonic() + seconds
@@ -600,7 +606,7 @@ def _run_batch(job_id: str, storage: platform_providers.StorageProvider) -> None
             activity_ingestion_service.fail_ingestion_job(
                 job_id, activity_ingestion_constants.IngestionJobErrorCode.INVALID_FILE, storage, state.staged_key
             )
-            return
+            return False
 
         members = sorted(
             member.name
@@ -620,7 +626,7 @@ def _run_batch(job_id: str, storage: platform_providers.StorageProvider) -> None
                 activity_ingestion_service.fail_ingestion_job(
                     job_id, activity_ingestion_service.error_code_for(err), storage, state.staged_key
                 )
-                return
+                return False
 
             done, failed, cursor, handled = state.files_done, state.files_failed, state.cursor, 0
             for name in pending:
@@ -636,8 +642,8 @@ def _run_batch(job_id: str, storage: platform_providers.StorageProvider) -> None
                     _save_progress(job_id, cursor, done, failed)
 
     if handled < len(pending):
-        _checkpoint_and_continue(job_id, state.user_id, cursor, done, failed)
-        return
+        _checkpoint(job_id, cursor, done, failed)
+        return True
 
     with core_database.SessionLocal() as db:
         activity_ingestion_crud.mark_bulk_completed(job_id, cursor, done, failed, db)
@@ -647,6 +653,7 @@ def _run_batch(job_id: str, storage: platform_providers.StorageProvider) -> None
         "Bulk import finished",
         extra=core_logger.context(console=True, user_id=state.user_id, job_id=job_id, done=done, failed=failed),
     )
+    return False
 
 
 def _member_reader(archive: zipfile.ZipFile) -> activity_ingestion_contracts.ArchiveMemberReader:
@@ -790,27 +797,20 @@ def _save_progress(job_id: str, cursor: str | None, done: int, failed: int) -> N
     logger.debug("Bulk import progress saved", extra=core_logger.context(job_id=job_id, done=done, failed=failed))
 
 
-def _checkpoint_and_continue(job_id: str, user_id: int, cursor: str | None, done: int, failed: int) -> None:
-    """End a batch that left files over: record progress and queue the next batch.
+def _checkpoint(job_id: str, cursor: str | None, done: int, failed: int) -> None:
+    """End a batch that left files over: record progress and release the job's claim.
 
-    On the durable profile the progress and the continuation event are one
-    transaction. Without durable jobs the budget is unbounded, so a batch only
-    reaches here if it stopped for another reason, and the next scheduled attempt
-    is the stale-job reaper.
+    Releasing returns the job to ``pending`` so the next batch can claim it. Without
+    durable jobs the budget is unbounded, so a batch only reaches here if it stopped
+    for another reason, and the next attempt is the stale-job reaper.
 
     Args:
         job_id: The job identifier.
-        user_id: The importing user.
         cursor: The last member handled.
         done: Files imported so far.
         failed: Files that failed.
     """
     with core_database.SessionLocal() as db:
         activity_ingestion_crud.record_bulk_progress(job_id, cursor, done, failed, db, release=True)
-        activity_ingestion_dispatch_service.commit_or_publish(
-            db,
-            publish=lambda commit: activity_ingestion_event_publishers.publish_bulk_import_continue(
-                job_id, user_id, db, commit=commit
-            ),
-        )
-    logger.debug("Bulk import batch finished; continuation queued", extra=core_logger.context(job_id=job_id))
+        db.commit()
+    logger.debug("Bulk import batch finished; files left", extra=core_logger.context(job_id=job_id))

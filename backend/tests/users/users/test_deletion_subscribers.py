@@ -5,6 +5,7 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 from jasil.events import Event, new_event
+from jasil.jobs import ContinueJob
 
 import modules.users.users.events as users_events
 import modules.users.users.subscribers as users_subscribers
@@ -25,7 +26,7 @@ def platform():
 
 
 def test_the_durable_handler_runs_the_deletion_the_event_names(platform):
-    with patch(f"{_MODULE}.users_deletion_job_service.run_deletion") as run:
+    with patch(f"{_MODULE}.users_deletion_job_service.run_deletion", return_value=False) as run:
         users_subscribers.process_deletion_requested_for_event(_event())
 
     assert run.call_args.args[0].user_id == 4
@@ -34,10 +35,30 @@ def test_the_durable_handler_runs_the_deletion_the_event_names(platform):
 
 @pytest.mark.parametrize(("retry_count", "max_attempts", "will_retry"), [(0, 3, True), (3, 3, False)])
 def test_only_an_attempt_with_attempts_left_asks_to_be_retried(platform, retry_count, max_attempts, will_retry):
-    with patch(f"{_MODULE}.users_deletion_job_service.run_deletion") as run:
+    with patch(f"{_MODULE}.users_deletion_job_service.run_deletion", return_value=False) as run:
         users_subscribers.process_deletion_requested_for_event(_event(retry_count, max_attempts))
 
     assert run.call_args.kwargs["will_retry"] is will_retry
+
+
+def test_a_pass_runs_under_the_durable_time_budget(platform):
+    with (
+        patch(f"{_MODULE}.users_deletion_job_service.durable_pass_seconds", return_value=42.0),
+        patch(f"{_MODULE}.users_deletion_job_service.run_deletion", return_value=False) as run,
+    ):
+        users_subscribers.process_deletion_requested_for_event(_event())
+
+    assert run.call_args.kwargs["time_budget"] == 42.0
+
+
+def test_a_pass_that_leaves_activities_continues_the_same_job(platform):
+    with (
+        patch(f"{_MODULE}.users_deletion_job_service.run_deletion", return_value=True),
+        pytest.raises(ContinueJob) as continued,
+    ):
+        users_subscribers.process_deletion_requested_for_event(_event())
+
+    assert continued.value.delay_seconds == 0
 
 
 def test_a_dead_lettered_deletion_is_closed(platform):

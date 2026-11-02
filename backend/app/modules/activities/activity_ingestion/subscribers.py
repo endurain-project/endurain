@@ -5,7 +5,7 @@ a file is seconds of pure CPU and a provider refresh is a chain of third-party
 HTTP round-trips, neither of which belongs on a request thread.
 
 A bulk import is one job over one staged archive, worked through in short batches
-that each queue the next, so a large import interleaves with other work and resumes
+that each continue the same job, so a large import interleaves with other work and resumes
 from its cursor after a crash.
 
 Every channel is durable-delivery only: the routes publish them exclusively when
@@ -22,6 +22,7 @@ import jasil.event_versioning as platform_event_versioning
 import jasil.runtime as platform_runtime
 from jasil.event_versioning import VersionedPayload
 from jasil.events import Event
+from jasil.jobs import ContinueJob
 from jasil.jobs.registry import JobHandlerRegistry
 
 import core.logger as core_logger
@@ -71,9 +72,9 @@ def process_refresh_requested_for_event(event: Event) -> None:
 def process_bulk_import_for_event(event: Event) -> None:
     """Durable handler: work one batch of a bulk import; raises so the runner retries.
 
-    The batch records its progress on the job row, and queues its own continuation
-    when it leaves files over, so a retry resumes from the cursor rather than from
-    the start.
+    The batch records its progress on the job row and releases it. When files are
+    left over the pass ends with ``ContinueJob``, so the same job runs the next
+    batch, and a retry resumes from the cursor rather than from the start.
 
     Args:
         event: The ``activity.bulk_import_continue`` event (payload
@@ -81,8 +82,9 @@ def process_bulk_import_for_event(event: Event) -> None:
     """
     payload = platform_event_versioning.parse_payload(activity_ingestion_events.BulkImportContinuePayload, event)
     storage = platform_runtime.get_active_platform().storage
-    activity_ingestion_bulk_import_service.run_bulk_import_job(payload.job_id, storage)
-    logger.debug("Bulk import batch finished", extra=core_logger.context(job_id=payload.job_id))
+    if activity_ingestion_bulk_import_service.run_bulk_import_job(payload.job_id, storage):
+        raise ContinueJob(reason="bulk import batch finished with files left")
+    logger.debug("Bulk import finished", extra=core_logger.context(job_id=payload.job_id))
 
 
 def _close_dead_lettered_job(

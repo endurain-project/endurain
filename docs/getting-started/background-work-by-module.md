@@ -253,7 +253,7 @@ These are commands. Their state lives on an ingestion job row, which the client 
 | | |
 | --- | --- |
 | Local | After the job row is committed, the work runs on a 2-worker pool that holds up to 100 jobs. A full pool refuses the request with `503` before a job row exists |
-| Distributed | The job row and the outbox event commit together and a worker runs the job. A bulk import runs in short batches and queues its own continuation so large imports interleave with other work. A crash resumes from the saved position |
+| Distributed | The job row and the outbox event commit together and a worker runs the job. A bulk import runs in bounded passes (a time and file budget) and continues itself as the same job, so large imports interleave with other work. A crash resumes from the saved position |
 | Fan-out | Every hour one refresh job is queued per user who linked Strava or Garmin Connect. A user whose previous refresh is still running is skipped |
 | If dropped | A job that stops progressing is failed by the hourly reaper (after 24 hours without progress). A dead-lettered job is closed as failed. The user uploads or starts the import again. Re-running is safe: duplicate detection skips what was already imported |
 
@@ -275,6 +275,16 @@ These are commands with a state record the client polls (an import's state lives
 | Local | Run on a dedicated pool of 1 worker holding 3 jobs, apart from the subscriber pool, because an archive can take minutes. A full pool refuses the request with `503` before the archive is staged |
 | Distributed | Durable job. The staged archive is in the bucket, so any worker can take it |
 | If dropped | A job the pool could not take is closed as failed and its archive removed. Unused staged archives are swept every 6 hours. The user starts again |
+
+### Account deletion
+
+This is a command with a state record that an administrator polls (the state lives 2 hours).
+
+| | |
+| --- | --- |
+| Local | Runs on a dedicated pool of 1 worker holding 5 deletions, in one pass to the end. A full pool refuses the request with `503` |
+| Distributed | Durable job. It runs in bounded passes (a third of the job lease, at least 30 seconds) and continues itself as the same job until the activities are gone, then erases the photo and the user. Between passes the deletion stays `running` and a reactivation still cancels it |
+| If dropped | A dead-lettered deletion is closed as failed. The hourly sweep queues a stalled one again, up to 5 times, then an administrator deletes the account again |
 
 ### Server settings
 
@@ -323,7 +333,7 @@ Every durable job is one subscriber reacting to one event. The **subscriber id**
 | `users.profile_export_requested` | `users.profile_export_requested` | Bus, then the profile transfer pool | The user starts again | Export state closed as failed |
 | `activity_ingestion.uploaded_file` | `activity.file_uploaded` | Ingestion command pool | The user uploads again | Job marked failed |
 | `activity_ingestion.refresh_requested` | `activity.refresh_requested` | Ingestion command pool | The hourly refresh fan-out, or the user | Job marked failed |
-| `activity_ingestion.bulk_import` | `activity.bulk_import_continue` | Ingestion command pool | Resumes from its saved position. The stale-job reaper closes one that stops progressing | Job marked failed |
+| `activity_ingestion.bulk_import` | `activity.bulk_import_continue` | Ingestion command pool | Continues itself in bounded passes and resumes from its saved position. The stale-job reaper closes one that stops progressing | Job marked failed |
 | `garmin.sync_requested` | `garmin.sync_requested` | Garmin sync pool | The 4-hourly health pull, or the user | Sync state marked failed |
 
 Three things follow from the table:

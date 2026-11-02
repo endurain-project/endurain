@@ -42,6 +42,13 @@ DELETION_STATE_TTL_SECONDS = 2 * 60 * 60
 #: the database cascade, so a batch is small enough to hold its row locks briefly.
 DELETION_BATCH_SIZE = 100
 
+#: Shortest time budget of one durable deletion pass, in seconds. The budget is a fraction of the job lease, so
+#: a pass is never mistaken for a dead worker.
+DELETION_PASS_MIN_SECONDS = 30
+
+#: A durable deletion pass lasts at most this fraction of the job lease.
+DELETION_PASS_LEASE_FRACTION = 3
+
 #: Deletions the in-process pool runs at once when no durable worker does.
 DELETION_POOL_WORKERS = 1
 

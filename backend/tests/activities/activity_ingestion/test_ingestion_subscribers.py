@@ -137,12 +137,44 @@ class TestBulkImportHandler:
 
         with (
             patch.object(subscribers.platform_runtime, "get_active_platform") as platform,
-            patch.object(subscribers.activity_ingestion_bulk_import_service, "run_bulk_import_job") as run,
+            patch.object(
+                subscribers.activity_ingestion_bulk_import_service, "run_bulk_import_job", return_value=False
+            ) as run,
         ):
             platform.return_value = MagicMock(storage="storage")
             subscribers.process_bulk_import_for_event(self._event())
 
         run.assert_called_once_with("job-1", "storage")
+
+    def test_a_batch_that_leaves_files_continues_the_same_job(self):
+        from unittest.mock import MagicMock, patch
+
+        import pytest
+        from jasil.jobs import ContinueJob
+
+        import modules.activities.activity_ingestion.subscribers as subscribers
+
+        with (
+            patch.object(subscribers.platform_runtime, "get_active_platform") as platform,
+            patch.object(subscribers.activity_ingestion_bulk_import_service, "run_bulk_import_job", return_value=True),
+            pytest.raises(ContinueJob) as continued,
+        ):
+            platform.return_value = MagicMock(storage="storage")
+            subscribers.process_bulk_import_for_event(self._event())
+
+        assert continued.value.delay_seconds == 0
+
+    def test_a_batch_that_finishes_the_import_does_not_continue(self):
+        from unittest.mock import MagicMock, patch
+
+        import modules.activities.activity_ingestion.subscribers as subscribers
+
+        with (
+            patch.object(subscribers.platform_runtime, "get_active_platform") as platform,
+            patch.object(subscribers.activity_ingestion_bulk_import_service, "run_bulk_import_job", return_value=False),
+        ):
+            platform.return_value = MagicMock(storage="storage")
+            subscribers.process_bulk_import_for_event(self._event())
 
     def test_a_failed_batch_is_left_to_the_retry_and_the_dead_letter_callback(self):
         from unittest.mock import MagicMock, patch

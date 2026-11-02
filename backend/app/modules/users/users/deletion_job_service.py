@@ -6,12 +6,14 @@ while the data is erased, then answers 202. On the durable profile (``JOBS_ENABL
 runs on a small in-process pool that is not the request threadpool. Either way the state in the shared
 state store is what an administrator polls, and its claim stops a user being queued twice.
 
-The job erases the activities a batch per transaction, so no transaction holds the whole account, then
-the profile photo, then deletes the user row, which removes everything else through the database
-cascade. Every step can be repeated, so a job a worker died in is simply run again, and every step
+The job erases the activities a batch per transaction, so no transaction holds the whole account. On the
+durable profile a pass stops at a time budget with activities left and the worker continues the same job
+(see :func:`durable_pass_seconds`). Once no activities are left it erases the profile photo, then deletes
+the user row, which removes everything else through the database cascade. Every step can be repeated, so a job a worker died in is simply run again, and every step
 that can fail runs while the row still marks the deletion, so the stalled-deletion sweep finds it.
 """
 
+import time
 from datetime import timedelta
 
 import jasil.audit as jasil_audit
@@ -212,13 +214,25 @@ def get_deletion_status(
     return users_schema.UserDeletionStatus(status=state.status)
 
 
+def durable_pass_seconds() -> float:
+    """Return the time budget of one deletion pass on the durable profile.
+
+    Returns:
+        A fraction of ``JOBS_LEASE_SECONDS``, never below ``DELETION_PASS_MIN_SECONDS``, so a pass cannot
+        outlive the lease it holds.
+    """
+    lease = core_config.settings.JOBS_LEASE_SECONDS
+    return float(max(users_constants.DELETION_PASS_MIN_SECONDS, lease // users_constants.DELETION_PASS_LEASE_FRACTION))
+
+
 def run_deletion(
     payload: users_events.DeletionRequestedPayload,
     states: users_deletion_state_store.UserDeletionStateStore,
     storage: platform_providers.StorageProvider,
     *,
     will_retry: bool = False,
-) -> None:
+    time_budget: float | None = None,
+) -> bool:
     """Erase one account and record the outcome. Blocking; call it from a worker, never a request.
 
     A deletion that raised and will be retried by a durable worker stays ``QUEUED`` with its claim held:
@@ -226,11 +240,19 @@ def run_deletion(
     because there is no worker or this was the last attempt, is ``FAILED`` and its claim is released;
     the account stays deactivated and an administrator deletes it again.
 
+    A pass that spends ``time_budget`` with activities left returns True and leaves the deletion
+    ``RUNNING`` with its claim held, so the caller runs it again; the next pass starts from what is left.
+
     Args:
         payload: Whose account to erase.
         states: Shared store of the deletion's state.
         storage: The platform storage provider.
         will_retry: Whether a durable worker runs this again if it raises.
+        time_budget: Seconds after which the activity erasure stops for the caller to continue, or ``None`` to
+            run to the end.
+
+    Returns:
+        True when activities are left and the caller must run the deletion again; otherwise False.
 
     Raises:
         Exception: Whatever the deletion raised, when ``will_retry``, so the worker runs it again.
@@ -239,17 +261,20 @@ def run_deletion(
     state = states.get(user_id, _Kind.ACCOUNT)
     if state is None or state.status not in (_Status.QUEUED, _Status.RUNNING):
         logger.debug("Skipped an account deletion that is not pending", extra=core_logger.context(user_id=user_id))
-        return
+        return False
 
     states.set_status(user_id, _Kind.ACCOUNT, _Status.RUNNING)
     try:
-        activities = _erase_activities(user_id)
+        activities, activities_left = _erase_activities(user_id, time_budget)
+        if activities_left:
+            logger.debug("Account deletion pass ended with activities left", extra=core_logger.context(user_id=user_id))
+            return True
         _erase_photo(user_id, storage)
         _delete_user_row(user_id)
     except _DeletionCancelledError:
         states.discard(user_id, _Kind.ACCOUNT)
         logger.info("Account deletion cancelled by a reactivation", extra=core_logger.context(user_id=user_id))
-        return
+        return False
     except Exception as err:
         if will_retry:
             logger.warning(
@@ -259,26 +284,31 @@ def run_deletion(
             raise
         logger.error("Account deletion failed", exc_info=err, extra=core_logger.context(user_id=user_id))
         states.set_status(user_id, _Kind.ACCOUNT, _Status.FAILED)
-        return
+        return False
 
     users_contributor_registry.erasers().delete_staged_files(user_id, storage)
     states.set_status(user_id, _Kind.ACCOUNT, _Status.COMPLETED)
     logger.info("User deleted", extra=core_logger.context(user_id=user_id, activities=activities))
+    return False
 
 
-def _erase_activities(user_id: int) -> int:
-    """Delete a user's activities one batch per transaction.
+def _erase_activities(user_id: int, time_budget: float | None) -> tuple[int, bool]:
+    """Delete a user's activities one batch per transaction, until none are left or the time budget is spent.
+
+    At least one batch runs, so every pass makes progress.
 
     Args:
         user_id: The user whose activities to delete.
+        time_budget: Seconds after which to stop, or ``None`` to delete them all.
 
     Returns:
-        How many activities were deleted.
+        How many activities were deleted, and whether more may be left.
 
     Raises:
         _DeletionCancelledError: When the account was reactivated before a batch.
     """
     delete_batch = users_contributor_registry.erasers().delete_activities
+    deadline = None if time_budget is None else time.monotonic() + time_budget
     total = 0
     while True:
         with core_database.SessionLocal() as db:
@@ -286,12 +316,14 @@ def _erase_activities(user_id: int) -> int:
             deleted = delete_batch(user_id, users_constants.DELETION_BATCH_SIZE, db)
             db.commit()
         if not deleted:
-            return total
+            return total, False
         total += deleted
         logger.debug(
             "Erased a batch of a user's activities",
             extra=core_logger.context(user_id=user_id, batch=deleted, total=total),
         )
+        if deadline is not None and time.monotonic() >= deadline:
+            return total, True
 
 
 def _require_not_cancelled(user_id: int, db: Session) -> None:

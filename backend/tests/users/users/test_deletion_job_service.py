@@ -305,6 +305,96 @@ class TestRunDeletion:
         assert states.begin(1, _Kind) is False
 
 
+class TestRunDeletionInPasses:
+    """On the durable profile a pass is bounded by a time budget and the job continues itself."""
+
+    def _pass(self, states, erasers, *, time_budget, cancelled=False, clock=(0.0, 10.0)):
+        with (
+            patch(f"{_MODULE}.core_database.SessionLocal"),
+            patch(f"{_MODULE}.users_contributor_registry.erasers", return_value=erasers),
+            patch(f"{_MODULE}.users_crud") as users_crud,
+            patch(f"{_MODULE}.users_photo_service") as photos,
+            patch(f"{_MODULE}.time", MagicMock(monotonic=_repeat_last(clock))),
+        ):
+            users_crud.get_user_by_id.return_value = MagicMock()
+            users_crud.is_deletion_cancelled.return_value = cancelled
+            more = job_service.run_deletion(_payload(), states, MagicMock(), time_budget=time_budget)
+        return more, users_crud, photos
+
+    def test_a_pass_that_spends_its_budget_with_activities_left_asks_to_continue(self, states):
+        states.begin(1, _Kind)
+        erasers = MagicMock()
+        erasers.delete_activities.side_effect = [100, 100, 40, 0]
+
+        more, users_crud, photos = self._pass(states, erasers, time_budget=5.0)
+
+        assert more is True
+        assert erasers.delete_activities.call_count == 1
+        users_crud.delete_user.assert_not_called()
+        photos.delete_photo_files.assert_not_called()
+        erasers.delete_staged_files.assert_not_called()
+        # Still the same deletion: running, with its claim held.
+        assert states.get(1, _Kind).status == _Status.RUNNING
+        assert states.begin(1, _Kind) is False
+
+    def test_the_next_pass_deletes_what_is_left_then_the_photo_and_the_row(self, states):
+        states.begin(1, _Kind)
+        erasers = MagicMock()
+        erasers.delete_activities.side_effect = [100, 40, 0]
+
+        first, *_ = self._pass(states, erasers, time_budget=5.0)
+        second, users_crud, photos = self._pass(states, erasers, time_budget=5.0, clock=(0.0,))
+
+        assert (first, second) == (True, False)
+        assert erasers.delete_activities.call_count == 3
+        photos.delete_photo_files.assert_called_once()
+        users_crud.delete_user.assert_called_once()
+        assert states.get(1, _Kind).status == _Status.COMPLETED
+
+    def test_a_pass_that_finishes_inside_its_budget_does_not_continue(self, states):
+        states.begin(1, _Kind)
+        erasers = MagicMock()
+        erasers.delete_activities.side_effect = [40, 0]
+
+        more, users_crud, _ = self._pass(states, erasers, time_budget=5.0, clock=(0.0,))
+
+        assert more is False
+        users_crud.delete_user.assert_called_once()
+        assert states.get(1, _Kind).status == _Status.COMPLETED
+
+    def test_a_reactivation_between_passes_cancels_the_deletion(self, states):
+        states.begin(1, _Kind)
+        erasers = MagicMock()
+        erasers.delete_activities.side_effect = [100, 100, 0]
+        first, *_ = self._pass(states, erasers, time_budget=5.0)
+
+        second, users_crud, photos = self._pass(states, erasers, time_budget=5.0, cancelled=True)
+
+        assert (first, second) == (True, False)
+        assert erasers.delete_activities.call_count == 1
+        users_crud.delete_user.assert_not_called()
+        photos.delete_photo_files.assert_not_called()
+        assert states.get(1, _Kind) is None
+
+    def test_without_a_budget_every_batch_runs_in_one_pass(self, states):
+        states.begin(1, _Kind)
+        erasers = MagicMock()
+        erasers.delete_activities.side_effect = [100, 100, 40, 0]
+
+        more, users_crud, _ = self._pass(states, erasers, time_budget=None, clock=(0.0,))
+
+        assert more is False
+        assert erasers.delete_activities.call_count == 4
+        users_crud.delete_user.assert_called_once()
+
+    @pytest.mark.parametrize(
+        ("lease", "seconds"), [(300, 100.0), (30, float(users_constants.DELETION_PASS_MIN_SECONDS))]
+    )
+    def test_the_pass_budget_is_a_third_of_the_lease_with_a_floor(self, lease, seconds):
+        with patch(f"{_MODULE}.core_config.settings", MagicMock(JOBS_LEASE_SECONDS=lease)):
+            assert job_service.durable_pass_seconds() == seconds
+
+
 class TestStatusAndDeadLetter:
     def test_status_is_not_found_when_none_is_recorded(self, states):
         with pytest.raises(core_exceptions.NotFoundError):
