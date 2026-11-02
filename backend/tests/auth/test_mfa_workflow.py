@@ -173,7 +173,12 @@ class TestEnableMfa:
             action=identity_providers_constants.StepUpAction.MFA_ENABLE,
         )
         mock_enable.assert_called_once_with(
-            7, "pending-secret", "123456", credentials_integration.get_password_hasher(), mock_db
+            7,
+            "pending-secret",
+            "123456",
+            credentials_integration.get_password_hasher(),
+            mock_db,
+            replay_guard=step_up_store,
         )
         mfa_secret_store.delete_secret.assert_called_once_with(7)
         assert len(mock_log.method_calls) == 1

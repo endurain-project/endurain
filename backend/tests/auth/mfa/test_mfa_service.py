@@ -24,21 +24,6 @@ class TestGenerateTOTPSecret:
         mock_random_base32.assert_called_once()
 
 
-class TestVerifyTOTP:
-    """Test suite for verify_totp function."""
-
-    def test_verify_valid_token(self):
-        secret = pyotp.random_base32()
-
-        assert mfa_service.verify_totp(secret, pyotp.TOTP(secret).now()) is True
-
-    def test_verify_invalid_token(self):
-        secret = pyotp.random_base32()
-        wrong = "000000" if pyotp.TOTP(secret).now() != "000000" else "111111"
-
-        assert mfa_service.verify_totp(secret, wrong) is False
-
-
 class TestVerifyUserMfaTotpReplay:
     """A TOTP step is accepted once per user, so an observed code cannot be replayed."""
 
@@ -201,12 +186,17 @@ class TestEnableUserMFA:
         mock_create_backup.return_value = ["CODE1", "CODE2"]
 
         mock_password_verifier = MagicMock()
+        guard = MagicMock()
+        guard.claim_totp_step.return_value = True
 
         mock_db = MagicMock()
         with patch("modules.auth.mfa.service.is_mfa_enabled_for_user", return_value=False):
-            result = mfa_service.enable_user_mfa(1, "secret", "123456", mock_password_verifier, mock_db)
+            result = mfa_service.enable_user_mfa(
+                1, "secret", "123456", mock_password_verifier, mock_db, replay_guard=guard
+            )
 
         assert result == ["CODE1", "CODE2"]
+        guard.claim_totp_step.assert_called_once_with(1, 7)
         mock_update_mfa.assert_called_once()
         mock_create_backup.assert_called_once_with(1, mock_password_verifier, mock_create_backup.call_args[0][2])
         mock_db.commit.assert_not_called()
@@ -216,7 +206,7 @@ class TestEnableUserMFA:
         mock_get_user.side_effect = core_exceptions.NotFoundError("User not found")
 
         with pytest.raises(core_exceptions.NotFoundError):
-            mfa_service.enable_user_mfa(1, "secret", "123456", MagicMock(), MagicMock())
+            mfa_service.enable_user_mfa(1, "secret", "123456", MagicMock(), MagicMock(), replay_guard=MagicMock())
 
     @patch("modules.auth.mfa.service.users_integration.require_user")
     def test_mfa_already_enabled(self, mock_get_user):
@@ -228,7 +218,7 @@ class TestEnableUserMFA:
             patch("modules.auth.mfa.service.is_mfa_enabled_for_user", return_value=True),
             pytest.raises(core_exceptions.InvalidInputError),
         ):
-            mfa_service.enable_user_mfa(1, "secret", "123456", MagicMock(), MagicMock())
+            mfa_service.enable_user_mfa(1, "secret", "123456", MagicMock(), MagicMock(), replay_guard=MagicMock())
 
     @patch("modules.auth.mfa.service.mfa_totp_replay_store.matching_totp_step")
     @patch("modules.auth.mfa.service.users_integration.require_user")
@@ -242,7 +232,22 @@ class TestEnableUserMFA:
             patch("modules.auth.mfa.service.is_mfa_enabled_for_user", return_value=False),
             pytest.raises(core_exceptions.InvalidInputError),
         ):
-            mfa_service.enable_user_mfa(1, "secret", "000000", MagicMock(), MagicMock())
+            mfa_service.enable_user_mfa(1, "secret", "000000", MagicMock(), MagicMock(), replay_guard=MagicMock())
+
+    @patch("modules.auth.mfa.service.mfa_totp_replay_store.matching_totp_step", return_value=7)
+    @patch("modules.auth.mfa.service.users_integration.require_user")
+    def test_replayed_enrolment_code_is_rejected(self, mock_get_user, mock_verify):
+        guard = MagicMock()
+        guard.claim_totp_step.return_value = False
+
+        with (
+            patch("modules.auth.mfa.service.is_mfa_enabled_for_user", return_value=False),
+            patch("modules.auth.mfa.service.auth_mfa_crud.update_user_mfa") as mock_update_mfa,
+            pytest.raises(core_exceptions.InvalidMfaCodeError),
+        ):
+            mfa_service.enable_user_mfa(1, "secret", "123456", MagicMock(), MagicMock(), replay_guard=guard)
+
+        mock_update_mfa.assert_not_called()
 
     @patch("modules.auth.mfa.service.mfa_totp_replay_store.matching_totp_step")
     @patch("modules.auth.mfa.service.core_cryptography.encrypt_token_fernet")
@@ -258,7 +263,7 @@ class TestEnableUserMFA:
             patch("modules.auth.mfa.service.is_mfa_enabled_for_user", return_value=False),
             pytest.raises(core_exceptions.ProcessingError),
         ):
-            mfa_service.enable_user_mfa(1, "secret", "123456", MagicMock(), MagicMock())
+            mfa_service.enable_user_mfa(1, "secret", "123456", MagicMock(), MagicMock(), replay_guard=MagicMock())
 
 
 class TestDisableUserMFA:

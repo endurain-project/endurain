@@ -140,7 +140,7 @@ class TestEnableUserMFAReadSwitch:
             patch("modules.auth.mfa.service.is_mfa_enabled_for_user", return_value=True),
             pytest.raises(core_exceptions.InvalidInputError) as exc,
         ):
-            mfa_service.enable_user_mfa(1, "secret", "123456", MagicMock(), mock_db)
+            mfa_service.enable_user_mfa(1, "secret", "123456", MagicMock(), mock_db, replay_guard=MagicMock())
 
         assert "already enabled" in exc.value.detail
 

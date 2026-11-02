@@ -46,9 +46,11 @@ def enable_user_mfa(
     mfa_code: str,
     password_hasher: credentials_contracts.SupportsHashPassword,
     db: Session,
+    *,
+    replay_guard: mfa_contracts.SupportsClaimTotpStep,
 ) -> list[str]:
-    """Enable MFA and create replacement backup codes."""
-    return mfa_service.enable_user_mfa(user_id, secret, mfa_code, password_hasher, db)
+    """Enable MFA and create replacement backup codes; the enrolment TOTP step is accepted once."""
+    return mfa_service.enable_user_mfa(user_id, secret, mfa_code, password_hasher, db, replay_guard=replay_guard)
 
 
 def disable_user_mfa(user_id: int, db: Session) -> None:

@@ -157,6 +157,7 @@ def enable_mfa(
             request.mfa_code,
             credentials_integration.get_password_hasher(),
             db,
+            replay_guard=step_up_store,
         )
         _stage_security_change(
             account_security_audit_actions.MFA_ENABLE,

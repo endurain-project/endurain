@@ -3,8 +3,7 @@
 Module layering (where MFA logic lives):
 
 - ``modules.auth.mfa.service`` (this module): pure TOTP/QR helpers
-  (:func:`generate_totp_secret`, :func:`verify_totp`,
-  :func:`generate_qr_code`) and the per-user workflow helpers that read/write
+  (:func:`generate_totp_secret`, :func:`generate_qr_code`) and the per-user workflow helpers that read/write
   MFA state (:func:`setup_user_mfa`, :func:`enable_user_mfa`,
   :func:`disable_user_mfa`, :func:`verify_user_mfa`,
   :func:`is_mfa_enabled_for_user`). No HTTP request/response shapes here.
@@ -50,19 +49,6 @@ def generate_totp_secret() -> str:
         Base32-encoded secret string.
     """
     return pyotp.random_base32()
-
-
-def verify_totp(secret: str, token: str) -> bool:
-    """Verify TOTP token against secret.
-
-    Args:
-        secret: Base32-encoded TOTP secret.
-        token: TOTP token to verify.
-
-    Returns:
-        True if token is valid, False otherwise.
-    """
-    return mfa_totp_replay_store.matching_totp_step(secret, token, datetime.now(UTC)) is not None
 
 
 def generate_qr_code(secret: str, username: str, app_name: str = "Endurain") -> str:
@@ -133,6 +119,8 @@ def enable_user_mfa(
     mfa_code: str,
     password_hasher: credentials_contracts.SupportsHashPassword,
     db: Session,
+    *,
+    replay_guard: mfa_contracts.SupportsClaimTotpStep,
 ) -> list[str]:
     """Enable MFA for user after verification.
 
@@ -142,6 +130,7 @@ def enable_user_mfa(
         mfa_code: MFA code to verify.
         password_hasher: Hasher used to store backup codes.
         db: Database session.
+        replay_guard: Records the accepted TOTP step, so the enrolment code cannot be used again.
 
     Returns:
         List of generated backup codes.
@@ -158,7 +147,8 @@ def enable_user_mfa(
     if is_mfa_enabled_for_user(user_id, db):
         raise core_exceptions.InvalidInputError("MFA is already enabled for this user")
 
-    if not verify_totp(secret, mfa_code):
+    step = mfa_totp_replay_store.matching_totp_step(secret, mfa_code, datetime.now(UTC))
+    if step is None or not replay_guard.claim_totp_step(user_id, step):
         raise core_exceptions.InvalidMfaCodeError()
 
     encrypted_secret = core_cryptography.encrypt_token_fernet(secret)
