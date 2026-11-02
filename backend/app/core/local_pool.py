@@ -15,6 +15,7 @@ from typing import Any
 
 import core.exceptions as core_exceptions
 import core.logger as core_logger
+import core.request_context as core_request_context
 
 logger = core_logger.get_logger(__name__)
 
@@ -26,7 +27,9 @@ class PoolFullError(core_exceptions.ServiceUnavailableError):
 class BoundedPool:
     """Thread pool that holds at most ``max_pending`` jobs, running and queued together.
 
-    Jobs run under the submitter's ``contextvars`` context, so the request id reaches their logs.
+    Jobs run under a copy of the submitter's ``contextvars`` context without its HTTP request, so the request id
+    still reaches their logs and audit rows, while the audit trail names the system as the actor, as it does for a
+    job on a durable worker.
     The threads start on the first job, and :meth:`shutdown` lets a later job start them again.
 
     Attributes:
@@ -92,8 +95,10 @@ class BoundedPool:
             executor = self._executor
             if executor is None:
                 executor = self._executor = ThreadPoolExecutor(max_workers=self._workers, thread_name_prefix=self.name)
+        context = contextvars.copy_context()
+        context.run(core_request_context.forget_current_request)
         try:
-            future = executor.submit(contextvars.copy_context().run, run, *args, **kwargs)
+            future = executor.submit(context.run, run, *args, **kwargs)
         except BaseException:
             self._release()
             raise

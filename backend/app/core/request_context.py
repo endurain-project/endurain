@@ -24,6 +24,11 @@ def get_current_request() -> Request | None:
     return _current_request.get()
 
 
+def forget_current_request() -> None:
+    """Unpublish the HTTP request in the current context, for work that runs after the request (a pool job)."""
+    _current_request.set(None)
+
+
 class RequestContextMiddleware:
     """ASGI middleware that publishes the current HTTP request in a context variable."""
 

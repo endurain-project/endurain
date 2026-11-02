@@ -2,9 +2,15 @@ import contextvars
 import threading
 
 import pytest
+from starlette.applications import Starlette
+from starlette.responses import PlainTextResponse
+from starlette.routing import Route
+from starlette.testclient import TestClient
 
 import core.exceptions as core_exceptions
 import core.local_pool as core_local_pool
+import core.middleware_request_id as core_middleware_request_id
+import core.request_context as core_request_context
 
 
 @pytest.fixture
@@ -91,3 +97,27 @@ def test_jobs_run_under_the_submitters_context(pool):
     var.set("req-1")
 
     assert pool.submit(var.get).result(timeout=5) == "req-1"
+
+
+def test_a_job_keeps_the_request_id_but_not_the_request(pool):
+    seen = {}
+
+    def handler(request):
+        seen["in_request"] = core_request_context.get_current_request() is not None
+        seen["in_job"] = pool.submit(
+            lambda: (core_request_context.get_current_request(), core_middleware_request_id.get_request_id())
+        ).result(timeout=5)
+        return PlainTextResponse("OK")
+
+    app = Starlette(routes=[Route("/queue", handler)])
+    app.add_middleware(core_request_context.RequestContextMiddleware)
+    app.add_middleware(core_middleware_request_id.RequestIdMiddleware)
+
+    response = TestClient(app).get("/queue", headers={"X-Request-ID": "req-42"})
+
+    assert response.status_code == 200
+    assert seen["in_request"] is True
+    # The job is the system's own work, as on a durable worker, yet its logs and rows still name the request.
+    assert seen["in_job"] == (None, "req-42")
+    # Clearing the job's copy leaves the submitter's request in place.
+    assert core_request_context.get_current_request() is None
