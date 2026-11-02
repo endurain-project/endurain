@@ -68,9 +68,14 @@ async function mountDialog(edited: ProfileDetails = profile) {
 }
 
 async function saveBody(wrapper: Awaited<ReturnType<typeof mountDialog>>) {
+  vi.mocked(apiFetch).mockClear()
   await wrapper.find('form').trigger('submit')
+  // Wait for the save request itself rather than assuming it is the last call made.
+  await vi.waitFor(() =>
+    expect(apiFetch).toHaveBeenCalledWith('/profile', expect.objectContaining({ method: 'PATCH' })),
+  )
   await flushPromises()
-  const [, init] = vi.mocked(apiFetch).mock.calls.slice(-1)[0]!
+  const [, init] = vi.mocked(apiFetch).mock.calls.find(([, i]) => i?.method === 'PATCH')!
   return JSON.parse(String(init?.body)) as Record<string, unknown>
 }
 

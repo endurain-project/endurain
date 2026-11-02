@@ -171,12 +171,16 @@ describe('UserFormDialog height', () => {
     // Regression: 172 cm displays as 5 ft 8 in, which converted back to 173 cm on save.
     vi.mocked(apiFetch).mockResolvedValue({ ...user })
     const wrapper = await mountDialog(false, { ...user, height: 172 })
+    vi.mocked(apiFetch).mockClear()
 
     await unitsSelect(wrapper).setValue('imperial')
     await wrapper.find('form').trigger('submit')
-    await flushPromises()
 
-    const [, init] = vi.mocked(apiFetch).mock.calls.slice(-1)[0]!
+    // Wait for the save request itself rather than assuming it is the last call made.
+    await vi.waitFor(() =>
+      expect(apiFetch).toHaveBeenCalledWith('/users/1', expect.objectContaining({ method: 'PUT' })),
+    )
+    const [, init] = vi.mocked(apiFetch).mock.calls.find(([, i]) => i?.method === 'PUT')!
     expect(JSON.parse(String(init?.body))).toMatchObject({ units: 'imperial', height: 172 })
   })
 })
