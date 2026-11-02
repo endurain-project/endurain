@@ -61,6 +61,12 @@ class TestMFALoginRequest:
             auth_schema.MFALoginRequest(mfa_challenge="c" * 43, mfa_code="12345a")
         assert "mfa_code" in str(exc_info.value)
 
+    def test_mfa_login_request_invalid_code_non_ascii_digits(self):
+        """Test MFA login request with digits outside ASCII."""
+        with pytest.raises(ValidationError) as exc_info:
+            auth_schema.MFALoginRequest(mfa_challenge="c" * 43, mfa_code="\u0661\u0662\u0663\u0664\u0665\u0666")
+        assert "mfa_code" in str(exc_info.value)
+
     def test_mfa_login_request_invalid_code_too_short(self):
         """Test MFA login request with code less than 6 digits."""
         with pytest.raises(ValidationError) as exc_info:

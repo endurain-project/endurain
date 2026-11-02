@@ -48,7 +48,7 @@ class MFARequest(BaseModel):
         """
         normalized = v.strip().upper()
         # 6-digit TOTP
-        if len(normalized) == 6 and normalized.isdigit():
+        if len(normalized) == 6 and normalized.isascii() and normalized.isdecimal():
             return normalized
         # 9-char backup code (XXXX-XXXX)
         if len(normalized) == 9 and normalized[4] == "-":
@@ -124,7 +124,7 @@ class MFASetupRequest(BaseModel):
         ...,
         min_length=6,
         max_length=6,
-        pattern=r"^\d{6}$",
+        pattern=r"^[0-9]{6}$",
         description="6-digit TOTP code",
     )
     current_password: StrictStr | None = Field(

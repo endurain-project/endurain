@@ -240,7 +240,7 @@ def verify_user_mfa(
     normalized_code = mfa_code.strip().upper()
 
     # Try TOTP first (6 digits)
-    if len(normalized_code) == 6 and normalized_code.isdigit():
+    if len(normalized_code) == 6 and normalized_code.isascii() and normalized_code.isdecimal():
         try:
             secret = core_cryptography.decrypt_token_fernet(mfa_row.mfa_secret)
             if not secret:

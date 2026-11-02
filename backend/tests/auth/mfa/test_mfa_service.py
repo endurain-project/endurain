@@ -77,6 +77,13 @@ class TestVerifyUserMfaTotpReplay:
         assert self._verify(wrong, guard) is False
         guard.claim_totp_step.assert_not_called()
 
+    @pytest.mark.parametrize("code", ["12345\u00b2", "\u0661\u0662\u0663\u0664\u0665\u0666"])
+    def test_a_code_with_non_ascii_digits_is_rejected(self, code):
+        guard = MagicMock()
+
+        assert self._verify(code, guard) is False
+        guard.claim_totp_step.assert_not_called()
+
 
 class TestGenerateQRCode:
     """Test suite for generate_qr_code function."""

@@ -25,6 +25,17 @@ class TestTokenExchangeRequest:
         # Assert
         assert request.code_verifier == code_verifier
 
+    def test_mfa_code_rejects_non_ascii_digits(self):
+        """Test mfa_code rejects digits outside ASCII.
+
+        Asserts:
+            - ValidationError is raised for a 6-digit code in Arabic-Indic digits
+        """
+        with pytest.raises(ValidationError) as exc_info:
+            TokenExchangeRequest(code_verifier="a" * 43, mfa_code="\u0661\u0662\u0663\u0664\u0665\u0666")
+
+        assert "mfa_code" in str(exc_info.value)
+
     def test_code_verifier_min_length(self):
         """Test code_verifier minimum length validation.
 

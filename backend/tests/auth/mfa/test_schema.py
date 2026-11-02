@@ -33,6 +33,11 @@ class TestMFARequest:
         with pytest.raises(ValidationError):
             mfa_schema.MFARequest(mfa_code="ABCD-EFGHI")
 
+    @pytest.mark.parametrize("code", ["12345\u00b2", "\u0661\u0662\u0663\u0664\u0665\u0666"])
+    def test_rejects_non_ascii_digits(self, code):
+        with pytest.raises(ValidationError, match="MFA code must be"):
+            mfa_schema.MFARequest(mfa_code=code)
+
     def test_rejects_code_without_dash_at_position_4(self):
         with pytest.raises(ValidationError, match="MFA code must be"):
             mfa_schema.MFARequest(mfa_code="ABCDEFGHI")
@@ -95,6 +100,10 @@ class TestMFASetupRequest:
         with pytest.raises(ValidationError):
             mfa_schema.MFASetupRequest(mfa_code="ABCDEF")
 
+    def test_rejects_non_ascii_digits(self):
+        with pytest.raises(ValidationError):
+            mfa_schema.MFASetupRequest(mfa_code="\u0661\u0662\u0663\u0664\u0665\u0666")
+
     def test_rejects_code_shorter_than_6(self):
         with pytest.raises(ValidationError):
             mfa_schema.MFASetupRequest(mfa_code="12345")
@@ -113,7 +122,7 @@ class TestMFASetupRequest:
 
     def test_code_field_has_pattern_digits(self):
         json_schema = mfa_schema.MFASetupRequest.model_json_schema()
-        assert json_schema["properties"]["mfa_code"]["pattern"] == "^\\d{6}$"
+        assert json_schema["properties"]["mfa_code"]["pattern"] == "^[0-9]{6}$"
 
     def test_empty_password_rejected(self):
         with pytest.raises(ValidationError):

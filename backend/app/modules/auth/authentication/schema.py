@@ -43,7 +43,7 @@ class MFALoginRequest(BaseModel):
     mfa_challenge: StrictStr = Field(..., min_length=43, max_length=64)
     mfa_code: StrictStr = Field(
         ...,
-        pattern=r"^(\d{6}|[A-Z0-9]{4}-[A-Z0-9]{4})$",
+        pattern=r"^([0-9]{6}|[A-Z0-9]{4}-[A-Z0-9]{4})$",
     )
 
 
@@ -161,7 +161,7 @@ class TokenExchangeRequest(BaseModel):
     )
     mfa_code: StrictStr | None = Field(
         default=None,
-        pattern=r"^(\d{6}|[A-Z0-9]{4}-[A-Z0-9]{4})$",
+        pattern=r"^([0-9]{6}|[A-Z0-9]{4}-[A-Z0-9]{4})$",
         description="MFA code, required for an identity-provider session of an account with MFA enabled",
     )
 
