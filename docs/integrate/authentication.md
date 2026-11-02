@@ -36,6 +36,8 @@ Endurain implements an OAuth 2.1 compliant hybrid token storage model that provi
 
 - **XSS Protection:** Access tokens stored in memory cannot be exfiltrated via XSS attacks
 - **CSRF Protection:** Protected routes authenticate with the `Authorization` header, which a browser never sends on its own, and the refresh token is an httpOnly `SameSite=Strict` cookie limited to `/api/v1/auth`. The `X-CSRF-Token` header is a presence check on top of that, and `/auth/refresh` also validates its value when the client sends it and the session has a stored CSRF binding.
+- **Content Security Policy:** HTML responses carry a CSP whose `script-src` and `style-src` include `'unsafe-inline'`, so the policy does not stop an injected inline script. This is an accepted risk. The defences that remain are never rendering user data with `v-html`, keeping the access token in memory only, and the `SameSite=Strict`, path-limited refresh cookie. The policy has no `frame-ancestors` directive; clickjacking is blocked by `X-Frame-Options: DENY` on every response.
+- **Self-declared client type:** `X-Client-Type` is chosen by the caller, so it selects the response shape and whether the CSRF header is required but proves nothing about who is calling. This is an accepted risk: a caller that omits `web` only skips a presence check that is not the CSRF defence, and it still needs a valid access token.
 - **Session Persistence:** Page reload triggers `/auth/refresh` with httpOnly cookie to restore tokens
 - **Multi-tab Support:** httpOnly cookie shared across browser tabs
 

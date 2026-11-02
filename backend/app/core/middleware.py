@@ -161,6 +161,8 @@ class SecurityHeadersMiddleware(BaseHTTPMiddleware):
             if extra_connect_src:
                 connect_src = f"{connect_src} {' '.join(extra_connect_src)}"
 
+            # Accepted risks (docs/integrate/authentication.md): inline scripts and styles are allowed, and
+            # framing is blocked by X-Frame-Options rather than frame-ancestors.
             response.headers["Content-Security-Policy"] = (
                 "default-src 'self'; "
                 f"img-src 'self' data: {tile_domains_str}{blob_src} "
