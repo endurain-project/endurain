@@ -3,11 +3,13 @@
 from unittest.mock import MagicMock, patch
 
 import garminconnect
+import jasil.testing as jasil_testing
 import pytest
 from jasil.backends.state_memory import MemoryState
 
 import core.exceptions as core_exceptions
 import core.sync_runner as core_sync_runner
+import modules.garmin.audit_actions as garmin_audit_actions
 import modules.garmin.constants as garmin_constants
 import modules.garmin.link_service as garmin_link_service
 import modules.garmin.link_state_store as link_state_store
@@ -111,11 +113,33 @@ class TestLinkGarminconnect:
             raise garminconnect.GarminConnectAuthenticationError("MFA verification failed")
 
         garmin.login.side_effect = login
-        with patch.object(garmin_link_service, "wait_for_mfa_code", return_value=None):
+        with patch.object(garmin_link_service, "wait_for_mfa_code", return_value="123456"):
             _link(stores, garmin)
 
-        assert prompts == [None]
+        assert prompts == ["123456"]
         assert link_states.get(1).reason == Failure.INCORRECT_MFA
+
+    def test_an_mfa_code_that_never_arrives_fails_without_reaching_garmin(self, stores):
+        link_states = stores[1]
+        garmin = _garmin()
+        sent = []
+
+        def login():
+            sent.append(garmin_link_service.garminconnect.Garmin.call_args.kwargs["prompt_mfa"]())
+
+        garmin.login.side_effect = login
+        with (
+            patch.object(garmin_constants, "MFA_WAIT_SECONDS", 1),
+            patch.object(garmin_link_service.time, "sleep"),
+            jasil_testing.capture_audit() as audit,
+        ):
+            _, save = _link(stores, garmin)
+
+        assert sent == []
+        assert link_states.get(1) == link_state_store.LinkState(status=Status.FAILED, reason=Failure.INCORRECT_MFA)
+        save.assert_not_called()
+        entry = audit.assert_audited(garmin_audit_actions.ACCOUNT_LINK.id, outcome="failure")
+        assert entry.details == {"reason": "incorrect_mfa"}
 
     def test_a_rejection_without_an_mfa_prompt_is_invalid_credentials(self, stores):
         _link(stores, _garmin(login=garminconnect.GarminConnectAuthenticationError("bad password")))
@@ -153,12 +177,16 @@ class TestWaitForMfaCode:
         assert garmin_link_service.wait_for_mfa_code(1, mfa_codes, link_states) == "123456"
         assert states == [Status.MFA_REQUIRED, Status.PENDING]
 
-    def test_no_code_in_time_returns_none_and_stays_waiting(self, stores):
+    def test_no_code_in_time_raises_and_stays_waiting(self, stores):
         mfa_codes, link_states = stores
         link_states.begin(1)
 
-        with patch.object(garmin_constants, "MFA_WAIT_SECONDS", 2), patch.object(garmin_link_service.time, "sleep"):
-            assert garmin_link_service.wait_for_mfa_code(1, mfa_codes, link_states) is None
+        with (
+            patch.object(garmin_constants, "MFA_WAIT_SECONDS", 2),
+            patch.object(garmin_link_service.time, "sleep"),
+            pytest.raises(garmin_link_service._MfaCodeTimeoutError),
+        ):
+            garmin_link_service.wait_for_mfa_code(1, mfa_codes, link_states)
 
         assert link_states.get(1).status == Status.MFA_REQUIRED
 

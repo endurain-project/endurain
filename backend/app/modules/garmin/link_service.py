@@ -29,6 +29,10 @@ logger = core_logger.get_logger(__name__)
 _link_pool = core_sync_runner.link_pool("garmin-link")
 
 
+class _MfaCodeTimeoutError(Exception):
+    """No MFA code arrived within ``MFA_WAIT_SECONDS``, so the login is abandoned before Garmin is asked."""
+
+
 def shutdown_link_pool(*, wait: bool = False) -> None:
     """Stop accepting link attempts and release the login threads.
 
@@ -42,7 +46,7 @@ def wait_for_mfa_code(
     user_id: int,
     mfa_codes: garmin_mfa_code_store.GarminMFACodeStore,
     link_states: garmin_link_state_store.GarminLinkStateStore,
-) -> str | None:
+) -> str:
     """Ask for an MFA code through the shared link state and wait for the user to submit it.
 
     The prompt is the ``mfa_required`` state the browser polls, so it reaches the user on
@@ -55,7 +59,10 @@ def wait_for_mfa_code(
         link_states: Shared store of the link attempt's state.
 
     Returns:
-        The code, or None when none arrived within ``MFA_WAIT_SECONDS``.
+        The submitted code.
+
+    Raises:
+        _MfaCodeTimeoutError: When no code arrived within ``MFA_WAIT_SECONDS``.
     """
     link_states.set_status(user_id, garmin_constants.LinkStatus.MFA_REQUIRED)
     websocket_integration.push_job_changed(user_id, garmin_constants.LINK_JOB)
@@ -65,7 +72,7 @@ def wait_for_mfa_code(
             link_states.set_status(user_id, garmin_constants.LinkStatus.PENDING)
             return code
         time.sleep(1)
-    return None
+    raise _MfaCodeTimeoutError
 
 
 def start_link(
@@ -136,11 +143,14 @@ def link_garminconnect(
     mfa_codes.delete_code(user_id)
     mfa_prompted = False
 
-    def prompt_mfa() -> str | None:
+    def prompt_mfa() -> str:
         """Mark the login as prompted and wait for the user's MFA code.
 
         Returns:
-            The submitted code, or ``None`` when none arrived in time.
+            The submitted code.
+
+        Raises:
+            _MfaCodeTimeoutError: When none arrived in time; it propagates out of the library's login.
         """
         nonlocal mfa_prompted
         mfa_prompted = True
@@ -180,6 +190,13 @@ def link_garminconnect(
         )
         link_states.set_status(user_id, garmin_constants.LinkStatus.FAILED, reason)
         _record_refused_link(user_id, garmin_audit_actions.LinkFailureReason(reason))
+    except _MfaCodeTimeoutError:
+        # Recorded as an incorrect code, the reason that covers a code that did not arrive in time.
+        logger.warning(
+            "Garmin Connect link abandoned: no MFA code arrived in time", extra=core_logger.context(user_id=user_id)
+        )
+        link_states.set_status(user_id, garmin_constants.LinkStatus.FAILED, garmin_constants.LinkFailure.INCORRECT_MFA)
+        _record_refused_link(user_id, garmin_audit_actions.LinkFailureReason.INCORRECT_MFA)
     except garminconnect.GarminConnectTooManyRequestsError:
         logger.warning(
             "Garmin Connect refused the link attempt: too many requests",

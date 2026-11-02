@@ -38,7 +38,7 @@ def _link(stores, *, login=None, has_token=True, prompt_mfa=False):
         patch.object(garmin_link_service.garminconnect, "Garmin", return_value=garmin),
         patch.object(garmin_link_service.core_database, "SessionLocal"),
         patch.object(garmin_link_service.user_integrations_integration, "link_garminconnect_account"),
-        patch.object(garmin_link_service, "wait_for_mfa_code", return_value=None),
+        patch.object(garmin_link_service, "wait_for_mfa_code", return_value="123456"),
         patch.object(
             garmin_link_service.garmin_token_utils, "serialize_garmin_token", return_value={"di_token": "enc"}
         ),
