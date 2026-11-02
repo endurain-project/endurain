@@ -1,5 +1,7 @@
 """Fernet token encryption helpers."""
 
+from typing import overload
+
 from cryptography.fernet import Fernet, InvalidToken
 
 import core.config as core_config
@@ -59,6 +61,18 @@ def encrypt_token_fernet(token: object | None) -> str | None:
         logger.debug("Error in encrypt_token_fernet", exc_info=err)
 
         raise core_exceptions.CryptographyError() from err
+
+
+@overload
+def decrypt_token_fernet(encrypted_token: str) -> str: ...
+
+
+@overload
+def decrypt_token_fernet(encrypted_token: None) -> None: ...
+
+
+@overload
+def decrypt_token_fernet(encrypted_token: str | None) -> str | None: ...
 
 
 def decrypt_token_fernet(encrypted_token: str | None) -> str | None:

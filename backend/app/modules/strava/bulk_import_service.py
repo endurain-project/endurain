@@ -167,7 +167,7 @@ def build_metadata_dict(
     if not row:
         # In a Strava import but with no data on the file: just the basic import record.
         strava_activity_metadata["metadata_found_in_csv"] = False
-        strava_activity_metadata["import_dict"] = build_import_dictionary(file_base_name, import_initiated_time, False)
+        strava_activity_metadata["import_dict"] = build_import_dictionary(file_base_name, import_initiated_time)
         logger.debug(
             "Bulk file import: no data in activities.csv for activity",
             extra=core_logger.context(console=True, file_name=file_base_name),
@@ -193,9 +193,7 @@ def build_metadata_dict(
             extra=core_logger.context(console=True, file_name=file_base_name, gear=activity_gear),
         )
 
-    strava_activity_metadata["import_dict"] = build_import_dictionary(
-        file_base_name, import_initiated_time, True, strava_activities
-    )
+    strava_activity_metadata["import_dict"] = build_import_dictionary(file_base_name, import_initiated_time, row)
     strava_activity_metadata["metadata_found_in_csv"] = True
     logger.debug(
         "Bulk file import: activities.csv metadata extracted",
@@ -207,27 +205,25 @@ def build_metadata_dict(
 def build_import_dictionary(
     file_base_name: str,
     import_initiated_time: str,
-    is_strava_bulk_import: bool = False,
-    strava_activities: dict | None = None,
+    strava_row: dict | None = None,
 ) -> dict:
     """Creates the "import_info" dictionary that is added to all activities that are imported from files.
 
-    Functions both for Strava imports and generic bulk imports, depending on whether ``is_strava_bulk_import`` is set.
+    Functions both for Strava imports and generic bulk imports, depending on whether ``strava_row`` is given.
 
     Args:
-        file_base_name: The base filename being processed, also the key into ``strava_activities``.
+        file_base_name: The base filename being processed, named in the log of an invalid Strava activity id.
         import_initiated_time: ISO timestamp of when the bulk import was initiated.
-        is_strava_bulk_import: Whether this is a Strava export import.
-        strava_activities: The parsed ``activities.csv`` rows keyed by filename; required for a Strava import.
+        strava_row: The file's ``activities.csv`` row in a Strava export import, or ``None`` for a generic import.
 
     Returns:
         The import record stored on the activity as its ``import_info``.
     """
-    if not is_strava_bulk_import:
+    if strava_row is None:
         return activity_ingestion_integration.build_import_record(import_initiated_time)
 
     import_dict = activity_ingestion_integration.build_import_record(import_initiated_time, "Strava bulk import")
-    activity_id_value = strava_activities[file_base_name].get("Activity ID", "")
+    activity_id_value = strava_row.get("Activity ID", "")
     if activity_id_value:
         try:
             import_dict["strava_activity_id"] = int(activity_id_value)

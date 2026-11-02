@@ -9,6 +9,7 @@ from sqlalchemy.orm import Session
 import core.cryptography as core_cryptography
 import core.etag as core_etag
 import core.exceptions as core_exceptions
+import modules.users.users_integrations.contracts as user_integrations_contracts
 import modules.users.users_integrations.models as user_integrations_models
 import modules.users.users_integrations.schema as user_integrations_schema
 import modules.users.users_integrations.serializers as user_integrations_serializers
@@ -152,15 +153,14 @@ def create_user_integrations(user_id: int, db: Session) -> user_integrations_sch
 
 def link_strava_account(
     user_id: int,
-    tokens: dict,
+    tokens: user_integrations_contracts.StravaTokens,
     db: Session,
 ) -> None:
     """Link a Strava account by storing OAuth tokens (flushed, not committed).
 
     Args:
         user_id: The ID of the user to update.
-        tokens: Dictionary containing access_token,
-            refresh_token, and expires_at.
+        tokens: The tokens Strava returned.
         db: SQLAlchemy database session.
     """
     # Get the user integrations by the user id
@@ -175,7 +175,9 @@ def link_strava_account(
     db.refresh(db_user_integrations)
 
 
-def replace_strava_tokens_if_refresh_token(user_id: int, old_refresh_token: str, tokens: dict, db: Session) -> bool:
+def replace_strava_tokens_if_refresh_token(
+    user_id: int, old_refresh_token: str, tokens: user_integrations_contracts.StravaTokens, db: Session
+) -> bool:
     """Store refreshed Strava tokens only while the stored refresh token is still the one they came from.
 
     Strava rotates the refresh token on every refresh. The row is locked while the token is
@@ -185,7 +187,7 @@ def replace_strava_tokens_if_refresh_token(user_id: int, old_refresh_token: str,
     Args:
         user_id: The ID of the user.
         old_refresh_token: The stored (encrypted) refresh token the new tokens were refreshed from.
-        tokens: Dictionary containing access_token, refresh_token, and expires_at.
+        tokens: The tokens Strava returned.
         db: SQLAlchemy database session.
 
     Returns:

@@ -2,7 +2,6 @@
 
 import jasil.audit as jasil_audit
 
-import core.cryptography as core_cryptography
 import core.database as core_database
 import core.exceptions as core_exceptions
 import core.logger as core_logger
@@ -128,12 +127,15 @@ def run_link(user_id: int, code: str, states: strava_sync_state_store.StravaSync
     states.set_status(user_id, kind, strava_constants.SyncStatus.RUNNING)
     try:
         with core_database.SessionLocal() as db:
-            user_integrations = user_integrations_integration.get_user_integrations(user_id, db)
-        tokens = strava_client_service.create_strava_client(user_integrations).exchange_code_for_token(
-            client_id=core_cryptography.decrypt_token_fernet(user_integrations.strava_client_id),
-            client_secret=core_cryptography.decrypt_token_fernet(user_integrations.strava_client_secret),
+            user_integrations = user_integrations_integration.require_user_integrations(user_id, db)
+        answer = strava_client_service.create_strava_client(user_integrations).exchange_code_for_token(
+            # Stored from the positive integer the credentials form accepts.
+            client_id=int(strava_client_service.get_client_id(user_integrations)),
+            client_secret=strava_client_service.get_client_secret(user_integrations),
             code=code,
         )
+        # stravalib also types the answer to a request for the athlete; this one asks only for the tokens.
+        tokens = answer[0] if isinstance(answer, tuple) else answer
         with core_database.SessionLocal() as db:
             user_integrations_integration.link_strava_account(user_id, tokens, db)
             jasil_audit.stage(

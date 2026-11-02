@@ -134,7 +134,7 @@ class TestStartLink:
 
 def _run(states, *, exchange_error=None):
     states.begin(1, LINK)
-    integrations = SimpleNamespace(strava_client_id="id", strava_client_secret="stored")
+    integrations = SimpleNamespace(strava_client_id="123", strava_client_secret="stored")
     client = MagicMock()
     client.exchange_code_for_token.return_value = {"access_token": "t"}
     if exchange_error:
@@ -145,11 +145,13 @@ def _run(states, *, exchange_error=None):
     with (
         patch.object(strava_link_service.core_database, "SessionLocal", sessions),
         patch.object(
-            strava_link_service.user_integrations_integration, "get_user_integrations", return_value=integrations
+            strava_link_service.user_integrations_integration, "require_user_integrations", return_value=integrations
         ),
         patch.object(strava_link_service.user_integrations_integration, "link_strava_account") as link,
         patch.object(strava_link_service.strava_client_service, "create_strava_client", return_value=client),
-        patch.object(strava_link_service.core_cryptography, "decrypt_token_fernet", return_value="x"),
+        patch.object(
+            strava_link_service.strava_client_service.core_cryptography, "decrypt_token_fernet", side_effect=str
+        ),
     ):
         strava_link_service.run_link(1, "c", states)
     return link, db

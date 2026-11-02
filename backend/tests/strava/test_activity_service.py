@@ -418,7 +418,7 @@ class TestStreamsConversion:
 class TestFetchAndProcessActivitiesIsolation:
     """One activity that cannot be processed does not stop the rest of the window, and the window then fails."""
 
-    def _run(self, monkeypatch, rate_limits, process):
+    def _run(self, monkeypatch, rate_limits, process, *, has_privacy_settings=True):
         monkeypatch.setattr(rate_limits, "is_rate_limited", lambda client_id: False)
         monkeypatch.setattr(activity_utils, "logger", Mock())
         monkeypatch.setattr(activity_utils.core_database, "SessionLocal", lambda: MagicMock())
@@ -426,7 +426,9 @@ class TestFetchAndProcessActivitiesIsolation:
             activity_utils.users_integration, "get_user", lambda *_a: Mock(id=1, timezone="Europe/Lisbon")
         )
         monkeypatch.setattr(
-            activity_utils.users_privacy_settings_integration, "get_privacy_settings", lambda *_a: Mock()
+            activity_utils.users_privacy_settings_integration,
+            "get_privacy_settings",
+            lambda *_a: Mock() if has_privacy_settings else None,
         )
         monkeypatch.setattr(activity_utils, "process_activity", process)
         client = Mock()
@@ -465,6 +467,19 @@ class TestFetchAndProcessActivitiesIsolation:
         self._run(monkeypatch, rate_limits, process)
 
         assert seen == ["Europe/Lisbon"] * 3
+
+    def test_a_user_without_privacy_settings_is_refused_before_any_activity(self, monkeypatch, rate_limits):
+        processed = []
+
+        with pytest.raises(core_exceptions.NotFoundError):
+            self._run(
+                monkeypatch,
+                rate_limits,
+                lambda activity, *_a: processed.append(activity.id),
+                has_privacy_settings=False,
+            )
+
+        assert processed == []
 
 
 class TestARejectedTokenUnlinksTheAccount:
@@ -616,7 +631,56 @@ class TestParseActivity:
 
         assert parsed["activity_to_store"].name == "Workout"
 
+    def test_an_activity_without_an_elapsed_time_is_refused_as_a_strava_failure(self, rate_limits):
+        with pytest.raises(core_exceptions.DependencyFailedError):
+            self._parse(rate_limits, elapsed_time=None)
+
     def test_a_fractional_max_cadence_is_rounded(self, rate_limits):
         parsed = self._parse(rate_limits, streams={"time": [0, 1, 2], "cadence": [80, 87.6, 85]})
 
         assert parsed["activity_to_store"].max_cad == 88
+
+
+class TestIncompleteLaps:
+    """A lap Strava returns with fields missing is left out or stored without what it lacks, never crashes."""
+
+    def _laps(self, rate_limits, **fields):
+        from stravalib.model import Lap
+
+        import modules.activities.activity_streams.constants as activity_streams_constants
+
+        lap = {
+            "id": 1,
+            "start_index": 0,
+            "end_index": 1,
+            "start_date_local": "2026-01-01T07:00:00",
+            "elapsed_time": 60,
+            "moving_time": 60,
+            "distance": 100.0,
+        }
+        lap.update(fields)
+        client = Mock()
+        client.get_activity_laps.return_value = [Lap.model_validate(lap)]
+        cadence = [{"cad": 80}, {"cad": 90}]
+        return activity_utils.fetch_and_process_activity_laps(
+            client,
+            1,
+            1,
+            [(True, activity_streams_constants.STREAM_TYPE_CADENCE, cadence)],
+            _integrations(),
+            rate_limits,
+        )
+
+    def test_a_lap_with_its_streams_gets_their_metrics(self, rate_limits):
+        laps = self._laps(rate_limits)
+
+        assert laps[0]["avg_cadence"] == 85
+
+    def test_a_lap_without_a_start_time_is_left_out(self, rate_limits):
+        assert self._laps(rate_limits, start_date_local=None) == []
+
+    def test_a_lap_without_stream_indexes_is_stored_without_stream_metrics(self, rate_limits):
+        laps = self._laps(rate_limits, start_index=None, end_index=None)
+
+        assert laps[0]["start_time"] == "2026-01-01T07:00:00"
+        assert laps[0]["avg_cadence"] is None

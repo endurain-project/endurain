@@ -2,6 +2,7 @@
 
 import calendar
 from datetime import UTC, datetime, timedelta
+from typing import NamedTuple
 
 import jasil.audit as jasil_audit
 import requests
@@ -48,6 +49,25 @@ def get_client_id(user_integrations: user_integrations_schema.UsersIntegrationsR
             "Strava client ID not configured. Please reconnect your Strava account."
         )
     return core_cryptography.decrypt_token_fernet(user_integrations.strava_client_id)
+
+
+def get_client_secret(user_integrations: user_integrations_schema.UsersIntegrationsRead) -> str:
+    """Get the secret of the Strava application a user's integration belongs to.
+
+    Args:
+        user_integrations: The user's integration settings.
+
+    Returns:
+        The decrypted client secret.
+
+    Raises:
+        DependencyFailedError: When the user has no Strava client secret stored.
+    """
+    if user_integrations.strava_client_secret is None:
+        raise core_exceptions.DependencyFailedError(
+            "Strava client secret not configured. Please reconnect your Strava account."
+        )
+    return core_cryptography.decrypt_token_fernet(user_integrations.strava_client_secret)
 
 
 def _fault_status(err: Exception) -> int | None:
@@ -265,14 +285,28 @@ def _noop_rate_limiter(response_headers: dict, method: str) -> None:
     """
 
 
-def _token_refresh_due(user_integrations: user_integrations_schema.UsersIntegrationsRead | None) -> bool:
-    """Whether a user's Strava token is linked and about to expire.
+class _LinkedToken(NamedTuple):
+    """A user's linked Strava token, with the stored values its refresh needs.
+
+    Attributes:
+        integrations: The user's integration settings, with every Strava credential stored.
+        refresh_token: The stored (encrypted) refresh token.
+        expires_at: When the access token expires.
+    """
+
+    integrations: user_integrations_schema.UsersIntegrationsRead
+    refresh_token: str
+    expires_at: datetime
+
+
+def _linked_token(user_integrations: user_integrations_schema.UsersIntegrationsRead | None) -> _LinkedToken | None:
+    """Return a user's Strava token when it is linked.
 
     Args:
         user_integrations: The user's integration settings, or ``None``.
 
     Returns:
-        True when every credential is stored and the token expires within the hour.
+        The linked token, or ``None`` when a token, its expiry or an application credential is not stored.
     """
     if (
         user_integrations is None
@@ -282,21 +316,34 @@ def _token_refresh_due(user_integrations: user_integrations_schema.UsersIntegrat
         or user_integrations.strava_client_id is None
         or user_integrations.strava_client_secret is None
     ):
-        return False
-    refresh_time = user_integrations.strava_token_expires_at.replace(tzinfo=UTC) - timedelta(minutes=60)
-    return datetime.now(UTC) > refresh_time
+        return None
+    return _LinkedToken(
+        user_integrations, user_integrations.strava_refresh_token, user_integrations.strava_token_expires_at
+    )
 
 
-def _token_expired(user_integrations: user_integrations_schema.UsersIntegrationsRead) -> bool:
+def _token_refresh_due(token: _LinkedToken) -> bool:
+    """Whether a linked Strava token expires within the hour.
+
+    Args:
+        token: The user's linked token.
+
+    Returns:
+        True when the token expires within the hour.
+    """
+    return datetime.now(UTC) > token.expires_at.replace(tzinfo=UTC) - timedelta(minutes=60)
+
+
+def _token_expired(token: _LinkedToken) -> bool:
     """Whether a user's Strava access token has already expired.
 
     Args:
-        user_integrations: The user's integration settings, with a stored expiry.
+        token: The user's linked token.
 
     Returns:
         True when the token's expiry has passed.
     """
-    return datetime.now(UTC) >= user_integrations.strava_token_expires_at.replace(tzinfo=UTC)
+    return datetime.now(UTC) >= token.expires_at.replace(tzinfo=UTC)
 
 
 def refresh_user_strava_token(user_id: int, rate_limits: strava_rate_limit_store.StravaRateLimitStore) -> None:
@@ -324,20 +371,20 @@ def refresh_user_strava_token(user_id: int, rate_limits: strava_rate_limit_store
         DependencyFailedError: When the token has expired and Strava could not refresh it.
     """
     with core_database.SessionLocal() as db:
-        user_integrations = user_integrations_integration.get_user_integrations(user_id, db)
+        linked = _linked_token(user_integrations_integration.get_user_integrations(user_id, db))
 
-    if not _token_refresh_due(user_integrations):
+    if linked is None or not _token_refresh_due(linked):
         logger.debug("No Strava token refresh due", extra=core_logger.context(user_id=user_id))
         return
 
-    client_id = get_client_id(user_integrations)
+    client_id = get_client_id(linked.integrations)
     if rate_limits.is_rate_limited(client_id):
         logger.warning("Strava rate limit active, skipping token refresh", extra=core_logger.context(user_id=user_id))
         return
 
     if not rate_limits.claim_token_refresh(user_id):
         logger.debug("Another process is refreshing the Strava token", extra=core_logger.context(user_id=user_id))
-        if _token_expired(user_integrations):
+        if _token_expired(linked):
             raise core_exceptions.TooManyRequestsError(
                 "Another process is refreshing the Strava token",
                 retry_at=datetime.now(UTC) + timedelta(seconds=strava_constants.TOKEN_REFRESH_CLAIM_TTL_SECONDS),
@@ -345,15 +392,16 @@ def refresh_user_strava_token(user_id: int, rate_limits: strava_rate_limit_store
         return
 
     with core_database.SessionLocal() as db:
-        user_integrations = user_integrations_integration.get_user_integrations(user_id, db)
-    if not _token_refresh_due(user_integrations):
+        linked = _linked_token(user_integrations_integration.get_user_integrations(user_id, db))
+    if linked is None or not _token_refresh_due(linked):
         return
 
     try:
-        tokens = create_strava_client(user_integrations).refresh_access_token(
-            client_id=client_id,
-            client_secret=core_cryptography.decrypt_token_fernet(user_integrations.strava_client_secret),
-            refresh_token=core_cryptography.decrypt_token_fernet(user_integrations.strava_refresh_token),
+        tokens = create_strava_client(linked.integrations).refresh_access_token(
+            # Stored from the positive integer the credentials form accepts.
+            client_id=int(client_id),
+            client_secret=get_client_secret(linked.integrations),
+            refresh_token=core_cryptography.decrypt_token_fernet(linked.refresh_token),
         )
     except Exception as err:
         try:
@@ -362,14 +410,14 @@ def refresh_user_strava_token(user_id: int, rate_limits: strava_rate_limit_store
             logger.warning("Strava rate limit hit during token refresh", extra=core_logger.context(user_id=user_id))
             return
         logger.error("Error refreshing the Strava token", extra=core_logger.context(user_id=user_id), exc_info=err)
-        if _token_expired(user_integrations):
+        if _token_expired(linked):
             raise core_exceptions.DependencyFailedError("The Strava token could not be refreshed") from err
         return
 
     try:
         with core_database.SessionLocal() as db:
             if not user_integrations_integration.replace_strava_tokens_if_refresh_token(
-                user_id, user_integrations.strava_refresh_token, tokens, db
+                user_id, linked.refresh_token, tokens, db
             ):
                 db.rollback()
                 logger.warning(
@@ -405,9 +453,7 @@ def fetch_user_integrations_and_validate_token(
     Raises:
         NotFoundError: When the user has no integrations row.
     """
-    user_integrations = user_integrations_integration.get_user_integrations(user_id, db)
-    if user_integrations is None:
-        raise core_exceptions.NotFoundError("User information not found")
+    user_integrations = user_integrations_integration.require_user_integrations(user_id, db)
     if user_integrations.strava_token_expires_at is None:
         return None
     return user_integrations

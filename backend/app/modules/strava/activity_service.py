@@ -39,7 +39,7 @@ def fetch_and_process_activities_by_dates(
     user_id: int,
     user_integrations: user_integrations_schema.UsersIntegrationsRead,
     rate_limits: strava_rate_limit_store.StravaRateLimitStore,
-) -> list[activity_schema.ActivityRead | None] | None:
+) -> list[activity_schema.ActivityRead] | None:
     """Fetch a user's Strava activities in a window and store the new ones.
 
     Runs on a worker thread. The Strava round trips happen with no database
@@ -55,11 +55,11 @@ def fetch_and_process_activities_by_dates(
         rate_limits: The shared Strava rate-limit state.
 
     Returns:
-        One entry per activity Strava returned (``None`` for one already stored),
-        or ``None`` when Strava returned nothing or the user is rate limited.
+        The activities stored from the window, or ``None`` when Strava returned nothing or the user is rate
+        limited.
 
     Raises:
-        DomainError: When Strava rejects the request or the user is missing.
+        DomainError: When Strava rejects the request, or the user or their privacy settings are missing.
         Exception: The first failure of an activity, once the rest of the window was processed.
     """
     client_id = strava_client_service.get_client_id(user_integrations)
@@ -86,11 +86,13 @@ def fetch_and_process_activities_by_dates(
         if user is None:
             raise core_exceptions.NotFoundError("User not found")
         user_privacy_settings = users_privacy_settings_integration.get_privacy_settings(user.id, db)
+        if user_privacy_settings is None:
+            raise core_exceptions.NotFoundError("User privacy settings not found")
     # Fallback for activities with no GPS track (indoor rides, treadmill runs): prefer
     # the athlete's own timezone over the server's, which is meaningless on another continent.
     timezone = user.timezone or core_config.settings.TZ
 
-    return activity_ingestion_integration.run_provider_window(
+    processed = activity_ingestion_integration.run_provider_window(
         strava_activities,
         lambda activity: process_activity(
             activity, user_id, user_privacy_settings, timezone, strava_client, user_integrations, rate_limits
@@ -100,6 +102,8 @@ def fetch_and_process_activities_by_dates(
         describe=lambda activity: {"strava_activity_id": activity.id},
         propagate=(core_exceptions.TooManyRequestsError, strava_client_service.StravaTokenRejectedError),
     )
+    # An activity that was already stored is processed as None.
+    return [stored for stored in processed if stored is not None]
 
 
 def parse_activity(
@@ -127,8 +131,8 @@ def parse_activity(
 
     Raises:
         TooManyRequestsError: When Strava's rate limit is active or was just hit.
-        DependencyFailedError: When Strava cannot return the activity, or returns it without a start date or
-            sport type.
+        DependencyFailedError: When Strava cannot return the activity, or returns it without a start date, sport
+            type or elapsed time.
     """
     client_id = strava_client_service.get_client_id(user_integrations)
     strava_client_service.raise_if_rate_limit_active(client_id, user_id, rate_limits)
@@ -165,6 +169,14 @@ def parse_activity(
         )
         raise core_exceptions.DependencyFailedError("Strava activity has no sport type")
     sport_type = detailed_activity.sport_type.root
+
+    # Without an elapsed time the activity has no end to be stored with.
+    if detailed_activity.elapsed_time is None:
+        logger.warning(
+            "Strava activity has no elapsed time, skipping",
+            extra=core_logger.context(user_id=user_id, strava_activity_id=activity.id),
+        )
+        raise core_exceptions.DependencyFailedError("Strava activity has no elapsed time")
 
     # Ensure activity.elapsed_time is a numerical value
     total_elapsed_time = (
@@ -276,7 +288,7 @@ def parse_activity(
 
     gear_id = None
 
-    if user_integrations.strava_sync_gear:
+    if user_integrations.strava_sync_gear and detailed_activity.gear_id is not None:
         # set the gear id for the activity
         with core_database.SessionLocal() as db:
             gear = gears_integration.get_gear_by_strava_id(detailed_activity.gear_id, user_id, db)
@@ -546,7 +558,7 @@ def fetch_and_process_activity_streams(
         Returns:
             The stream's values.
         """
-        return streams[name].data if name in streams else []
+        return list(streams[name].data or []) if name in streams else []
 
     time = stream_data("time")
 
@@ -648,29 +660,43 @@ def fetch_and_process_activity_laps(
 
     # Process the laps
     for lap in laps:
+        # A lap is stored at its start time, so one Strava sent without it is left out.
+        if lap.start_date_local is None:
+            logger.warning(
+                "Strava lap has no start time, skipping it",
+                extra=core_logger.context(user_id=user_id, strava_activity_id=strava_activity_id),
+            )
+            continue
+
         cad_avg, cad_max = None, None
         power_avg, power_max = None, None
         np = None
         ele_gain, ele_loss = None, None
 
-        # filter the stream data based on the lap's start and end times
-        filtered_stream_data = [
-            (enabled, stream_id, waypoints[lap.start_index : lap.end_index + 1])
-            for enabled, stream_id, waypoints in stream_data
-            if enabled
-        ]
+        # The stream indexes cut the lap out of the activity's streams; a lap without them has no stream metrics.
+        filtered_stream_data = (
+            [
+                (enabled, stream_id, waypoints[lap.start_index : lap.end_index + 1])
+                for enabled, stream_id, waypoints in stream_data
+                if enabled
+            ]
+            if lap.start_index is not None and lap.end_index is not None
+            else []
+        )
 
         lat_lon_stream = _lap_stream(filtered_stream_data, activity_streams_constants.STREAM_TYPE_MAP)
 
         cad_stream = _lap_stream(filtered_stream_data, activity_streams_constants.STREAM_TYPE_CADENCE)
 
         if cad_stream:
-            cad_avg, cad_max = activities_computation.calculate_avg_and_max(cad_stream, "cad")
+            avg, peak = activities_computation.calculate_avg_and_max(cad_stream, "cad")
+            cad_avg, cad_max = round(avg), round(peak)
 
         power_stream = _lap_stream(filtered_stream_data, activity_streams_constants.STREAM_TYPE_POWER)
 
         if power_stream:
-            power_avg, power_max = activities_computation.calculate_avg_and_max(power_stream, "power")
+            avg, peak = activities_computation.calculate_avg_and_max(power_stream, "power")
+            power_avg, power_max = round(avg), round(peak)
             np = activities_computation.calculate_np(power_stream)
 
         ele_stream = _lap_stream(filtered_stream_data, activity_streams_constants.STREAM_TYPE_ELEVATION)
@@ -690,10 +716,10 @@ def fetch_and_process_activity_laps(
                 "total_distance": lap.distance,
                 "avg_heart_rate": (round(lap.average_heartrate) if lap.average_heartrate else None),
                 "max_heart_rate": (round(lap.max_heartrate) if lap.max_heartrate else None),
-                "avg_cadence": round(cad_avg) if cad_stream else None,
-                "max_cadence": round(cad_max) if cad_stream else None,
-                "avg_power": round(power_avg) if power_stream else None,
-                "max_power": round(power_max) if power_stream else None,
+                "avg_cadence": cad_avg,
+                "max_cadence": cad_max,
+                "avg_power": power_avg,
+                "max_power": power_max,
                 "total_ascent": round(ele_gain) if ele_gain is not None else None,
                 "total_descent": round(ele_loss) if ele_loss is not None else None,
                 "normalized_power": round(np) if np else None,
@@ -715,7 +741,7 @@ def get_user_strava_activities_by_dates(
     start_date: datetime,
     end_date: datetime,
     rate_limits: strava_rate_limit_store.StravaRateLimitStore,
-) -> list[activity_schema.ActivityRead | None] | None:
+) -> list[activity_schema.ActivityRead] | None:
     """Fetch and store one user's Strava activities recorded in a window.
 
     Refreshes the user's access token first when it is about to expire, so the
@@ -729,8 +755,7 @@ def get_user_strava_activities_by_dates(
         rate_limits: The shared Strava rate-limit state.
 
     Returns:
-        The activities Strava returned, or ``None`` when Strava is not linked or
-        nothing came back.
+        The activities stored from the window, or ``None`` when Strava is not linked or nothing came back.
 
     Raises:
         DomainError: When Strava rejects the request or the account is missing.
@@ -752,6 +777,6 @@ def get_user_strava_activities_by_dates(
 
     logger.info(
         "Strava activities processed",
-        extra=core_logger.context(user_id=user_id, count=len([a for a in processed or [] if a])),
+        extra=core_logger.context(user_id=user_id, count=len(processed or [])),
     )
     return processed

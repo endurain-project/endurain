@@ -6,6 +6,8 @@ stage; the caller owns the commit.
 
 from sqlalchemy.orm import Session
 
+import core.exceptions as core_exceptions
+import modules.users.users_integrations.contracts as user_integrations_contracts
 import modules.users.users_integrations.crud as user_integrations_crud
 import modules.users.users_integrations.schema as user_integrations_schema
 
@@ -23,13 +25,34 @@ def get_user_integrations(user_id: int, db: Session) -> user_integrations_schema
     return user_integrations_crud.get_user_integrations_by_user_id(user_id, db)
 
 
-def replace_strava_tokens_if_refresh_token(user_id: int, old_refresh_token: str, tokens: dict, db: Session) -> bool:
+def require_user_integrations(user_id: int, db: Session) -> user_integrations_schema.UsersIntegrationsRead:
+    """Return a user's integrations.
+
+    Args:
+        user_id: The user to look up.
+        db: Database session.
+
+    Returns:
+        The user's integrations.
+
+    Raises:
+        NotFoundError: When the user has no integrations.
+    """
+    user_integrations = get_user_integrations(user_id, db)
+    if user_integrations is None:
+        raise core_exceptions.NotFoundError("User information not found")
+    return user_integrations
+
+
+def replace_strava_tokens_if_refresh_token(
+    user_id: int, old_refresh_token: str, tokens: user_integrations_contracts.StravaTokens, db: Session
+) -> bool:
     """Store refreshed Strava tokens only while the stored refresh token is still the one they came from.
 
     Args:
         user_id: The user whose tokens were refreshed.
         old_refresh_token: The stored (encrypted) refresh token the new tokens were refreshed from.
-        tokens: Dictionary containing access_token, refresh_token, and expires_at.
+        tokens: The tokens Strava returned.
         db: Database session.
 
     Returns:
@@ -164,7 +187,7 @@ def edit_integrations(
     return user_integrations_crud.edit_user_integrations(user_integrations, user_id, db)
 
 
-def link_strava_account(user_id: int, tokens: dict, db: Session) -> None:
+def link_strava_account(user_id: int, tokens: user_integrations_contracts.StravaTokens, db: Session) -> None:
     """Store a user's Strava tokens (encrypted).
 
     Args:

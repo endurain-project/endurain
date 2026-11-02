@@ -107,6 +107,17 @@ class TestGetClientId:
             strava_utils.get_client_id(Mock(strava_client_id=None))
 
 
+class TestGetClientSecret:
+    def test_returns_the_decrypted_client_secret(self, monkeypatch):
+        monkeypatch.setattr(strava_utils.core_cryptography, "decrypt_token_fernet", lambda value: f"plain-{value}")
+
+        assert strava_utils.get_client_secret(Mock(strava_client_secret="enc")) == "plain-enc"
+
+    def test_a_missing_client_secret_fails_loudly(self):
+        with pytest.raises(core_exceptions.DependencyFailedError):
+            strava_utils.get_client_secret(Mock(strava_client_secret=None))
+
+
 class TestRefreshUserStravaToken:
     @pytest.fixture
     def rate_limits(self):
@@ -119,7 +130,7 @@ class TestRefreshUserStravaToken:
             user_id=1,
             strava_token="t",
             strava_refresh_token="r",
-            strava_client_id="c",
+            strava_client_id="123",
             strava_client_secret="s",
             strava_token_expires_at=datetime.now(UTC) + timedelta(minutes=expires_in_minutes),
         )
@@ -228,7 +239,7 @@ class TestRefreshUserStravaToken:
 
         strava_utils.refresh_user_strava_token(1, rate_limits)
 
-        assert rate_limits.is_rate_limited("c") is True
+        assert rate_limits.is_rate_limited("123") is True
         assert rate_limits.is_rate_limited("another-app") is False
         replace.assert_not_called()
 
@@ -256,7 +267,7 @@ class TestRefreshUserStravaToken:
             Mock(return_value=self._integrations(expires_in_minutes=10)),
         )
         monkeypatch.setattr(strava_utils.core_cryptography, "decrypt_token_fernet", lambda value: value)
-        rate_limits.mark_rate_limited("c", is_long_term=True)
+        rate_limits.mark_rate_limited("123", is_long_term=True)
         create_client = Mock()
         monkeypatch.setattr(strava_utils, "create_strava_client", create_client)
 
@@ -479,7 +490,7 @@ class TestTokenRefreshClaim:
         return Mock(
             strava_token="t",
             strava_refresh_token="r",
-            strava_client_id="c",
+            strava_client_id="123",
             strava_client_secret="s",
             strava_token_expires_at=datetime.now(UTC) + timedelta(minutes=10),
         )
