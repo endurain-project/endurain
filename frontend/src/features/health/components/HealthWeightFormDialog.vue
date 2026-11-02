@@ -14,6 +14,7 @@ import { useForm } from '@/composables/useForm'
 import { isStaleWrite } from '@/services/ifMatch'
 import { todayIsoDate } from '@/utils/datetime'
 import { toNumberOrNull } from '@/utils/number'
+import { bmiToSave } from '@/features/health/utils/healthFormat'
 import { kgToLbs, lbsToKg } from '@/utils/units'
 import { compose, required } from '@/utils/validators'
 import {
@@ -85,11 +86,16 @@ function displayMassFromKg(kg: number | null): string {
   return String(Math.round(value * 100) / 100)
 }
 
-/** Converts a validated display-unit mass string back to kilograms for the wire. */
-function massToKg(raw: string): number {
-  const value = Number(raw.trim())
+/** Converts a validated display-unit mass back to kilograms for the wire. A typed `type=number` value is a number. */
+function massToKg(raw: string | number): number {
+  const value = toNumberOrNull(raw) ?? 0
   const kg = props.weightUnits === 'imperial' ? lbsToKg(value) : value
   return Math.round(kg * 1000) / 1000
+}
+
+/** Like {@link massToKg}, but a blank optional field stays `null` instead of becoming 0 kg. */
+function optionalMassToKg(raw: string | number): number | null {
+  return toNumberOrNull(raw) === null ? null : massToKg(raw)
 }
 
 /** Converts the string-based form values into the clean {@link WeightEntryInput}. */
@@ -97,11 +103,16 @@ function buildInput(values: WeightFormValues): WeightEntryInput {
   return {
     date: values.date || null,
     weightKg: massToKg(values.weight),
-    bmi: toNumberOrNull(values.bmi),
+    bmi: bmiToSave(
+      toNumberOrNull(values.bmi),
+      props.entry?.bmi ?? null,
+      toNumberOrNull(values.weight) !==
+        toNumberOrNull(displayMassFromKg(props.entry?.weightKg ?? null)),
+    ),
     bodyFatPct: toNumberOrNull(values.bodyFat),
     bodyWaterPct: toNumberOrNull(values.bodyWater),
-    boneMassKg: massToKg(values.boneMass),
-    muscleMassKg: massToKg(values.muscleMass),
+    boneMassKg: optionalMassToKg(values.boneMass),
+    muscleMassKg: optionalMassToKg(values.muscleMass),
   }
 }
 

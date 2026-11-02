@@ -159,6 +159,28 @@ export function formatBmi(bmi: number): string {
 }
 
 /**
+ * Picks the BMI to send when saving a weight entry.
+ *
+ * The edit form is seeded with the stored BMI, so an untouched field echoes a value derived from the
+ * old weight. The backend derives the BMI when none is sent, so an echoed value is left out whenever
+ * the weight changed, and a cleared field asks for a derived one.
+ *
+ * @param typed - The BMI in the form, or `null` when the field is empty.
+ * @param stored - The BMI the entry had when the form opened, or `null` for a new entry.
+ * @param weightChanged - Whether the weight differs from the one the form opened with.
+ * @returns The BMI to send, or `null` to have the backend derive it from the weight and height.
+ */
+export function bmiToSave(
+  typed: number | null,
+  stored: number | null,
+  weightChanged: boolean,
+): number | null {
+  if (typed === null) return null
+  if (typed === stored && weightChanged) return null
+  return typed
+}
+
+/**
  * Formats a step count with locale-aware thousands separators.
  *
  * @param steps - The step count.

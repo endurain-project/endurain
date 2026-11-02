@@ -1657,6 +1657,20 @@ def _listed_page_sql(mock_db, *, owner: bool, **kwargs) -> str:
     return _compiled(mock_db.execute.call_args.args[0])
 
 
+class TestNameSearchKeepsTheTermAsTyped:
+    """The term arrives already URL-decoded, so a plus sign or percent sequence is literal text."""
+
+    def test_a_plus_sign_is_matched_literally(self):
+        sql = _compiled(activity_query.name_search_condition("Z2 + 6XACE", mask_hidden_location=False))
+
+        assert "LIKE '%z2 + 6xace%'" in sql
+
+    def test_a_percent_sequence_is_not_decoded_again(self):
+        sql = _compiled(activity_query.name_search_condition("100%41", mask_hidden_location=False))
+
+        assert "100\\%41" in sql
+
+
 class TestHiddenLocationDoesNotLeakThroughSearch:
     """A follower sees a hidden location as null, so a search must not match it either."""
 
