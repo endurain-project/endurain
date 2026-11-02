@@ -1,4 +1,4 @@
-"""Registration surface and reconciliation declarations for account-security emails."""
+"""Registration surface and reconciliation declarations for account-security and new-device sign-in emails."""
 
 from jasil.jobs.reconciliation import DurableSubscriberNet
 from jasil.jobs.registry import JobHandlerRegistry
@@ -32,6 +32,14 @@ DURABLE_SUBSCRIBER_NETS: tuple[DurableSubscriberNet, ...] = (
         exempt_reason=(
             "A link notice is a one-off reaction to a link row that is already stored; "
             "nothing is left to backfill once the link is made."
+        ),
+    ),
+    DurableSubscriberNet(
+        account_security_subscribers.NEW_DEVICE_SIGN_IN_EMAIL_SUBSCRIBER_ID,
+        None,
+        exempt_reason=(
+            "A sign-in notice is a one-off reaction to a sign-in that is already audited; it is only useful at "
+            "the time, so nothing is left to backfill."
         ),
     ),
 )

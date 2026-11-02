@@ -124,6 +124,7 @@ class TestAuthRouterErrors:
                 password_hasher=object(),
                 token_manager=object(),
                 db=object(),
+                device_id=None,
                 code_challenge="challenge",
                 code_challenge_method=None,
             )
@@ -154,6 +155,7 @@ class TestAuthRouterErrors:
                 password_hasher=object(),
                 token_manager=object(),
                 db=object(),
+                device_id=None,
                 code_challenge=None,
                 code_challenge_method="S256",
             )
@@ -223,6 +225,7 @@ class TestAuthRouterErrors:
                 password_hasher=object(),
                 token_manager=object(),
                 db=object(),
+                device_id=None,
             )
 
         assert exc_info.value.status_code == 400
@@ -278,6 +281,7 @@ class TestAuthRouterErrors:
                 password_hasher=object(),
                 token_manager=object(),
                 db=MagicMock(),
+                device_id=None,
             )
 
         assert exc_info.value.status_code == 400

@@ -96,4 +96,10 @@ Deleting an account signs you out at once and deletes its data in the background
 
 Endurain tells you when the way you sign in changes: your password is changed, reset, or set by an administrator; two-step verification is turned on or off; new backup codes are generated; an API key is created; or an identity provider is linked or unlinked. You get an email at your current address, if the server has mail configured, and a notification in the app. If you did not make the change, reset your password and review **Settings → Security**, or contact your administrator for a change made by one.
 
-The email is the notice that counts: someone who has taken over a session can read and dismiss in-app notifications, but not your mailbox. Signing in does not send one.
+The email is the notice that counts: someone who has taken over a session can read and dismiss in-app notifications, but not your mailbox.
+
+Signing in from a new device sends the same pair of notices: when it happened, the browser and operating system, the IP address, and whether you used your password or a sign-in provider. If it was not you, change your password and sign out of your other sessions in **Settings → Security**.
+
+- **Web:** Endurain recognises a browser by a random id it keeps in an `endurain_device` cookie (HttpOnly, `SameSite=Strict`, sent only to the API, kept for 400 days from the last sign-in). The server stores only a hash of it. Signing in again from a browser you have used before sends nothing. A browser without the cookie, after clearing cookies or in a private window, counts as new. A device unused for 400 days is forgotten.
+- **First device:** a user with no recorded device gets no notice for the first one. This also covers the first sign-in after upgrading to this version, so existing users are not all emailed at once; that first sign-in is the one sign-in not announced.
+- **Mobile app:** the app keeps no device cookie, so every sign-in from the app sends a notice, including the first.

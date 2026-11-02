@@ -53,6 +53,7 @@ import modules.auth.identity_provider_link_tokens.scheduled_jobs as identity_pro
 import modules.auth.identity_providers.audit_actions as identity_providers_audit_actions
 import modules.auth.identity_providers.constants as identity_providers_constants
 import modules.auth.identity_providers.subscriber_registry as identity_providers_subscriber_registry
+import modules.auth.known_devices.scheduled_jobs as known_devices_scheduled_jobs
 import modules.auth.oauth_state.scheduled_jobs as oauth_state_scheduled_jobs
 import modules.auth.onboarding.scheduled_jobs as onboarding_scheduled_jobs
 import modules.auth.password_reset_tokens.audit_actions as password_reset_tokens_audit_actions
@@ -302,6 +303,7 @@ MODULES: tuple[RuntimeModule, ...] = (
     ),
     RuntimeModule(name="sessions", recurring_jobs=auth_sessions_scheduled_jobs.recurring_jobs),
     RuntimeModule(name="rotated_refresh_tokens", recurring_jobs=rotated_refresh_tokens_scheduled_jobs.recurring_jobs),
+    RuntimeModule(name="known_devices", recurring_jobs=known_devices_scheduled_jobs.recurring_jobs),
     RuntimeModule(
         name="identity_providers",
         register_bus=identity_providers_subscriber_registry.register_bus_subscribers,

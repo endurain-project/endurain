@@ -1,5 +1,8 @@
 """Tests for the account-security change email builder."""
 
+from datetime import datetime
+from zoneinfo import ZoneInfo
+
 import pytest
 
 import modules.auth.account_security.email_messages as email_messages
@@ -76,3 +79,61 @@ class TestGetAccountSecurityChangedEmail:
     def test_an_unknown_change_is_refused(self):
         with pytest.raises(ValueError):
             email_messages.get_account_security_changed_email("Alice", "nope", None, HOST, "en")
+
+
+class TestGetNewDeviceSignInEmail:
+    def _build(self, **overrides):
+        values = {
+            "user_name": "Alice",
+            "browser": "Firefox",
+            "operating_system": "Linux",
+            "ip_address": "203.0.113.7",
+            "method": "password",
+            "signed_in_at": datetime(2026, 11, 1, 13, 5, tzinfo=ZoneInfo("Europe/Lisbon")),
+            "frontend_host": HOST,
+            "locale": "en",
+        }
+        values.update(overrides)
+        return email_messages.get_new_device_sign_in_email(**values)
+
+    def test_says_when_from_what_browser_and_address_and_how(self):
+        subject, html_body, text_body = self._build()
+
+        assert subject.startswith("Endurain - ")
+        for body in (html_body, text_body):
+            assert "Hi Alice," in body
+            assert "2026-11-01 13:05 WET" in body
+            assert "Firefox on Linux" in body
+            assert "203.0.113.7" in body
+            assert "Password" in body
+            assert "new_device_sign_in." not in body
+
+    def test_names_a_sign_in_provider(self):
+        _, html_body, text_body = self._build(method="identity_provider")
+
+        assert "sign-in provider" in html_body
+        assert "sign-in provider" in text_body
+
+    def test_tells_the_reader_to_change_the_password_and_sign_out_other_sessions(self):
+        _, html_body, text_body = self._build()
+
+        for body in (html_body, text_body):
+            assert "change your password" in body
+            assert "sign out of your other sessions" in body
+
+    def test_escapes_everything_it_interpolates(self):
+        _, html_body, _ = self._build(
+            user_name="<b>Al</b>",
+            browser="<script>b</script>",
+            operating_system="<i>os</i>",
+            ip_address="<img src=x>",
+        )
+
+        for raw in ("<b>Al</b>", "<script>b</script>", "<i>os</i>", "<img src=x>"):
+            assert raw not in html_body
+        assert "&lt;script&gt;b&lt;/script&gt; on &lt;i&gt;os&lt;/i&gt;" in html_body
+        assert "&lt;img src=x&gt;" in html_body
+
+    def test_an_unknown_method_is_refused(self):
+        with pytest.raises(ValueError):
+            self._build(method="carrier_pigeon")

@@ -24,6 +24,7 @@ import modules.auth.authentication.failed_login_store as failed_login_store
 import modules.auth.authentication.schema as auth_schema
 import modules.auth.authentication.service as auth_service
 import modules.auth.credentials.integration_service as credentials_integration
+import modules.auth.known_devices.dependencies as known_devices_dependencies
 import modules.auth.mfa.dependencies as mfa_dependencies
 
 logger = core_logger.get_logger(__name__)
@@ -64,6 +65,7 @@ def login_for_access_token(
         Depends(access_tokens_integration.get_token_manager),
     ],
     db: core_dependencies.DbSession,
+    device_id: known_devices_dependencies.DeviceId,
     code_challenge: Annotated[str | None, Query()] = None,
     code_challenge_method: Annotated[str | None, Query()] = None,
 ):
@@ -99,6 +101,7 @@ def login_for_access_token(
         password_hasher: The password hasher instance used for verifying passwords
         token_manager: The token manager instance used for token operations
         db: Database session
+        device_id: Device id from the browser's device cookie, or None when it sent no valid one
         code_challenge: PKCE code challenge (base64url-encoded SHA256, optional for mobile)
         code_challenge_method: PKCE method (must be S256 if provided, optional for mobile)
 
@@ -124,6 +127,7 @@ def login_for_access_token(
         db,
         code_challenge,
         code_challenge_method,
+        device_id=device_id,
     )
     return authentication_dependencies.deliver_auth_outcome(response, outcome)
 
@@ -155,6 +159,7 @@ def verify_mfa_and_login(
         Depends(access_tokens_integration.get_token_manager),
     ],
     db: core_dependencies.DbSession,
+    device_id: known_devices_dependencies.DeviceId,
     code_challenge: Annotated[str | None, Query()] = None,
     code_challenge_method: Annotated[str | None, Query()] = None,
 ):
@@ -179,6 +184,7 @@ def verify_mfa_and_login(
         password_hasher: The password hasher instance used for verifying passwords
         token_manager: The token manager instance used for token operations
         db: Database session
+        device_id: Device id from the browser's device cookie, or None when it sent no valid one
         code_challenge: PKCE code challenge (base64url-encoded SHA256, optional for mobile)
         code_challenge_method: PKCE method (must be S256 if provided, optional for mobile)
 
@@ -200,6 +206,7 @@ def verify_mfa_and_login(
         db,
         code_challenge,
         code_challenge_method,
+        device_id=device_id,
     )
     return authentication_dependencies.deliver_auth_outcome(response, outcome)
 

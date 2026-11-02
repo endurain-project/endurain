@@ -80,7 +80,7 @@ def test_an_mfa_user_whose_hash_was_updated_has_it_committed_before_the_challeng
         failed = MagicMock()
         failed.is_locked_out.return_value = False
         outcome = authentication_service.login_for_access_token(
-            "1.2.3.4", "ua", "alice", "pw", "mobile", failed, pending, hasher, MagicMock(), mock_db
+            "1.2.3.4", "ua", "alice", "pw", "mobile", failed, pending, hasher, MagicMock(), mock_db, device_id=None
         )
 
     assert outcome is not None
@@ -99,7 +99,7 @@ def test_a_refused_mfa_login_commits_nothing(mock_db):
         failed = MagicMock()
         failed.is_locked_out.return_value = False
         authentication_service.login_for_access_token(
-            "1.2.3.4", "ua", "alice", "pw", "mobile", failed, MagicMock(), hasher, MagicMock(), mock_db
+            "1.2.3.4", "ua", "alice", "pw", "mobile", failed, MagicMock(), hasher, MagicMock(), mock_db, device_id=None
         )
 
     mock_db.commit.assert_not_called()

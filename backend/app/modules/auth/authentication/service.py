@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import dataclasses
 from collections.abc import Callable
 from contextlib import AbstractContextManager
 from datetime import UTC, datetime
@@ -21,6 +22,8 @@ import modules.auth.authentication.schema as auth_schema
 import modules.auth.computation as auth_computation
 import modules.auth.credentials.integration_service as credentials_integration
 import modules.auth.identity_providers.integration_service as identity_providers_integration
+import modules.auth.known_devices.events as known_devices_events
+import modules.auth.known_devices.integration_service as known_devices_integration
 import modules.auth.lockout.contracts as lockout_contracts
 import modules.auth.lockout.integration_service as lockout_integration
 import modules.auth.mfa.dependencies as mfa_dependencies
@@ -644,8 +647,11 @@ def _finish_login(
     db: Session,
     *,
     mfa: bool,
+    device_id: str | None,
 ) -> auth_schema.AuthOutcome:
     """Complete a verified login with tokens or, for a mobile PKCE client, a session to exchange.
+
+    The sign-in is recorded against the user's known devices in the same transaction as its audit row and session.
 
     Args:
         ip_address: Client address, recorded on the session.
@@ -658,9 +664,11 @@ def _finish_login(
         token_manager: Token manager that signs the tokens.
         db: Database session.
         mfa: Whether a second factor was verified for this sign-in.
+        device_id: Device id from the browser's device cookie, or None when it sent no valid one.
 
     Returns:
-        The outcome of :func:`complete_login`, or the PKCE session body for a mobile PKCE client.
+        The outcome of :func:`complete_login` with the device id a web browser keeps, or the PKCE session body for
+        a mobile PKCE client.
     """
     # The sign-in is audited in the transaction that the session creation below commits. The user has no
     # principal yet, so the context names them.
@@ -675,6 +683,9 @@ def _finish_login(
                 method=authentication_audit_actions.LoginMethod.PASSWORD, mfa=mfa
             ),
         )
+    issued_device_id = known_devices_integration.record_sign_in(
+        user.id, client_type, device_id, ip_address, user_agent, known_devices_events.SignInMethod.PASSWORD, db
+    )
 
     # Mobile clients with PKCE use secure token exchange flow
     # Web clients don't need PKCE - they have httpOnly cookies and same-origin protection
@@ -687,7 +698,8 @@ def _finish_login(
         )
 
     # Web clients and mobile without PKCE get tokens directly
-    return complete_login(ip_address, user_agent, user, client_type, password_hasher, token_manager, db)
+    outcome = complete_login(ip_address, user_agent, user, client_type, password_hasher, token_manager, db)
+    return dataclasses.replace(outcome, device_id=issued_device_id)
 
 
 def login_for_access_token(
@@ -703,6 +715,8 @@ def login_for_access_token(
     db: Session,
     code_challenge: str | None = None,
     code_challenge_method: str | None = None,
+    *,
+    device_id: str | None,
 ) -> auth_schema.AuthOutcome:
     """Handles user login and access token generation, including Multi-Factor Authentication (MFA) flow.
 
@@ -739,6 +753,7 @@ def login_for_access_token(
         db: Database session
         code_challenge: PKCE code challenge (base64url-encoded SHA256, optional for mobile)
         code_challenge_method: PKCE method (must be S256 if provided, optional for mobile)
+        device_id: Device id from the browser's device cookie, or None when it sent no valid one
 
     Returns:
         The outcome whose body is:
@@ -871,6 +886,7 @@ def login_for_access_token(
         token_manager,
         db,
         mfa=False,
+        device_id=device_id,
     )
 
 
@@ -886,6 +902,8 @@ def verify_mfa_and_login(
     db: Session,
     code_challenge: str | None = None,
     code_challenge_method: str | None = None,
+    *,
+    device_id: str | None,
 ) -> auth_schema.AuthOutcome:
     """Verify MFA code and complete login process.
 
@@ -910,6 +928,7 @@ def verify_mfa_and_login(
         db: Database session
         code_challenge: PKCE code challenge (base64url-encoded SHA256, optional for mobile)
         code_challenge_method: PKCE method (must be S256 if provided, optional for mobile)
+        device_id: Device id from the browser's device cookie, or None when it sent no valid one
 
     Returns:
         The outcome of complete_login() or the PKCE session response
@@ -979,6 +998,7 @@ def verify_mfa_and_login(
         token_manager,
         db,
         mfa=True,
+        device_id=device_id,
     )
 
 
@@ -1350,10 +1370,14 @@ def exchange_tokens_for_session(
     code_verifier: str,
     mfa_code: str | None,
     header_client_type: str | None,
+    ip_address: str,
+    user_agent: str,
     pending_mfa_store: mfa_dependencies.PendingMFAStore,
     password_hasher: credentials_integration.PasswordHasher,
     token_manager: access_tokens_integration.TokenManager,
     db: Session,
+    *,
+    device_id: str | None,
 ) -> auth_schema.AuthOutcome:
     """Exchange a PKCE code verifier for the tokens of an SSO session.
 
@@ -1370,13 +1394,17 @@ def exchange_tokens_for_session(
         code_verifier: PKCE verifier sent by the client.
         mfa_code: TOTP or backup code, if the client has one.
         header_client_type: ``X-Client-Type`` header of the exchange request, if any.
+        ip_address: Client address of the exchange request.
+        user_agent: Client user agent of the exchange request.
         pending_mfa_store: Store for the MFA lockout and the TOTP replay guard.
         password_hasher: Hasher for the stored refresh token.
         token_manager: Token manager that signs the tokens.
         db: Database session.
+        device_id: Device id from the browser's device cookie, or None when it sent no valid one.
 
     Returns:
-        The tokens; web clients get the refresh token as a cookie in the outcome, mobile clients in the body.
+        The tokens; web clients get the refresh token as a cookie in the outcome, mobile clients in the body. A web
+        SSO sign-in also carries the device id the browser keeps.
 
     Raises:
         NotFoundError: If the session does not exist or has no OAuth state.
@@ -1487,9 +1515,10 @@ def exchange_tokens_for_session(
     ):
         logger.warning("Token exchange lost race for session <value_1>", extra=core_logger.context(value_1=fingerprint))
         raise core_exceptions.ConflictError("Tokens already exchanged for this session")
+    issued_device_id = None
     if oauth_state.idp_id is not None:
-        # An SSO sign-in is complete once its tokens are issued; a password sign-in was audited when its
-        # session was created.
+        # An SSO sign-in is complete once its tokens are issued; a password sign-in was audited, and its device
+        # recorded, when its session was created.
         with jasil_audit.audit_context(
             actor_type=jasil_audit.ActorType.USER, actor_id=str(user.id), credential_type="oauth"
         ):
@@ -1501,6 +1530,15 @@ def exchange_tokens_for_session(
                     method=authentication_audit_actions.LoginMethod.IDENTITY_PROVIDER, mfa=mfa_verified
                 ),
             )
+        issued_device_id = known_devices_integration.record_sign_in(
+            user.id,
+            client_type,
+            device_id,
+            ip_address,
+            user_agent,
+            known_devices_events.SignInMethod.IDENTITY_PROVIDER,
+            db,
+        )
     db.commit()
 
     logger.info(
@@ -1523,6 +1561,7 @@ def exchange_tokens_for_session(
                 token_type="Bearer",
             ),
             auth_schema.RefreshCookie(refresh_token, refresh_token_exp),
+            device_id=issued_device_id,
         )
     return auth_schema.AuthOutcome(
         auth_schema.TokenExchangeRead(

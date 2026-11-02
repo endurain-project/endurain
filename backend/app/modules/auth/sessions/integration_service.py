@@ -11,6 +11,7 @@ import modules.auth.sessions.contracts as sessions_contracts
 import modules.auth.sessions.crud as sessions_crud
 import modules.auth.sessions.schema as sessions_schema
 import modules.auth.sessions.service as sessions_service
+import modules.auth.sessions.utils as sessions_utils
 import modules.server_settings.contracts as server_settings_contracts
 import modules.users.users.schema as users_schema
 
@@ -22,6 +23,11 @@ def list_user_sessions(
 ) -> sessions_schema.UsersSessionsPage:
     """Return one page of a user's sessions."""
     return sessions_service.list_user_sessions(user_id, page, db)
+
+
+def parse_user_agent(user_agent: str) -> sessions_utils.DeviceInfo:
+    """Return the device type, operating system and browser a user-agent string names, as sessions record them."""
+    return sessions_utils.parse_user_agent(user_agent)
 
 
 def get_session_by_id_not_expired(session_id: str, db: Session) -> sessions_contracts.SessionRead | None:

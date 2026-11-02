@@ -659,6 +659,7 @@ export interface paths {
          *         password_hasher: The password hasher instance used for verifying passwords
          *         token_manager: The token manager instance used for token operations
          *         db: Database session
+         *         device_id: Device id from the browser's device cookie, or None when it sent no valid one
          *         code_challenge: PKCE code challenge (base64url-encoded SHA256, optional for mobile)
          *         code_challenge_method: PKCE method (must be S256 if provided, optional for mobile)
          *
@@ -748,6 +749,7 @@ export interface paths {
          *         password_hasher: The password hasher instance used for verifying passwords
          *         token_manager: The token manager instance used for token operations
          *         db: Database session
+         *         device_id: Device id from the browser's device cookie, or None when it sent no valid one
          *         code_challenge: PKCE code challenge (base64url-encoded SHA256, optional for mobile)
          *         code_challenge_method: PKCE method (must be S256 if provided, optional for mobile)
          *
@@ -4158,13 +4160,14 @@ export interface paths {
          *
          *     Args:
          *         session_id: Session created by the identity-provider callback.
-         *         request: Incoming request, read for the ``X-Client-Type`` header.
-         *         response: Response that receives the refresh cookie for web clients.
+         *         request: Incoming request, read for the ``X-Client-Type`` header, the client address and the user agent.
+         *         response: Response that receives the refresh and device cookies for web clients.
          *         token_exchange: Body carrying the PKCE code verifier and, when MFA applies, the MFA code.
          *         pending_mfa_store: Store for the MFA lockout and the TOTP replay guard.
          *         password_hasher: Hasher for the stored refresh token.
          *         token_manager: Token manager that signs the tokens.
          *         db: Database session.
+         *         device_id: Device id from the browser's device cookie, or None when it sent no valid one.
          *
          *     Returns:
          *         The access token and, per client type, the CSRF token or the refresh token.

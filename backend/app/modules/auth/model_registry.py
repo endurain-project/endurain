@@ -5,6 +5,7 @@ import modules.auth.credentials.model_registry as credentials_model_registry
 import modules.auth.identity_provider_link_tokens.model_registry as identity_provider_link_tokens_model_registry
 import modules.auth.identity_provider_links.model_registry as identity_provider_links_model_registry
 import modules.auth.identity_providers.model_registry as identity_providers_model_registry
+import modules.auth.known_devices.model_registry as known_devices_model_registry
 import modules.auth.mfa.model_registry as mfa_model_registry
 import modules.auth.mfa_backup_codes.model_registry as mfa_backup_codes_model_registry
 import modules.auth.oauth_state.model_registry as oauth_state_model_registry
@@ -19,6 +20,7 @@ MODEL_MODULES = (
     *identity_provider_link_tokens_model_registry.MODEL_MODULES,
     *identity_provider_links_model_registry.MODEL_MODULES,
     *identity_providers_model_registry.MODEL_MODULES,
+    *known_devices_model_registry.MODEL_MODULES,
     *mfa_model_registry.MODEL_MODULES,
     *mfa_backup_codes_model_registry.MODEL_MODULES,
     *oauth_state_model_registry.MODEL_MODULES,

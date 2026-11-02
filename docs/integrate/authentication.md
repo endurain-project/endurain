@@ -30,6 +30,7 @@ Endurain implements an OAuth 2.1 compliant hybrid token storage model that provi
 | **Access Token** | In-memory (JavaScript) | 15 minutes | Short-lived, XSS-resistant (not persisted) |
 | **Refresh Token** | httpOnly cookie | 7 days | CSRF-protected, auto-sent by browser |
 | **CSRF Token** | In-memory (JavaScript) | Session | Prevents CSRF attacks on state-changing requests |
+| **Device id** | httpOnly cookie (`endurain_device`, path `/api/v1`, `SameSite=Strict`) | 400 days from the last sign-in | Recognises the browser, so a sign-in from a new one sends a [security notice](../features/accounts-and-sign-in.md#security-notifications). Not a credential; the server stores only its SHA-256 hash |
 
 **Security Properties:**
 
@@ -43,6 +44,7 @@ Endurain implements an OAuth 2.1 compliant hybrid token storage model that provi
 - **For web apps:** 
     - Access token and CSRF token returned in JSON response body (stored in-memory)
     - Refresh token set as httpOnly cookie (`endurain_refresh_token`)
+    - Password login, MFA verification and the SSO token exchange also set the `endurain_device` cookie, which names the browser for new-device sign-in notices
     - On page reload, call `/auth/refresh` to restore in-memory tokens
 
 - **For mobile apps:** 

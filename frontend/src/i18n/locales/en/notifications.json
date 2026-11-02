@@ -87,6 +87,10 @@
         "body": "A security setting of your account changed. If this wasn't you, reset your password and review your security settings."
       }
     },
+    "newDeviceSignIn": {
+      "title": "New sign-in",
+      "body": "New sign-in from {browser} on {os} ({ip}). If this wasn't you, change your password and sign out of your other sessions."
+    },
     "adminSignUpApproval": {
       "title": "New sign-up needs approval",
       "body": "{name} ({'@'}{username}) is waiting for account approval."

@@ -5,6 +5,7 @@ import {
   CopyCheck,
   KeyRound,
   LockKeyhole,
+  LogIn,
   ShieldAlert,
   UserCheck,
   UserPlus,
@@ -157,6 +158,18 @@ describe('presentNotification', () => {
     expect(result.icon).toBe(LockKeyhole)
     expect(result.titleKey).toBe('notifications.types.accountSecurityChanged.unknown.title')
     expect(result.bodyKey).toBe('notifications.types.accountSecurityChanged.unknown.body')
+    expect(result.to).toEqual({ name: 'settings-security' })
+  })
+
+  it('presents a sign-in from a new device with its browser and system', () => {
+    const result = presentNotification(
+      make(33, { browser: 'Firefox', operating_system: 'Linux', ip_address: '203.0.113.7' }),
+    )
+
+    expect(result.icon).toBe(LogIn)
+    expect(result.titleKey).toBe('notifications.types.newDeviceSignIn.title')
+    expect(result.bodyKey).toBe('notifications.types.newDeviceSignIn.body')
+    expect(result.bodyParams).toEqual({ browser: 'Firefox', os: 'Linux', ip: '203.0.113.7' })
     expect(result.to).toEqual({ name: 'settings-security' })
   })
 

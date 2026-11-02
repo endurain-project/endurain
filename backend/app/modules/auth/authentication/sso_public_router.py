@@ -5,6 +5,7 @@ from typing import Annotated
 from fastapi import APIRouter, Depends, Request, Response
 
 import core.dependencies as core_dependencies
+import core.network as core_network
 import core.rate_limit as core_rate_limit
 import modules.auth.access_tokens.integration_service as access_tokens_integration
 import modules.auth.authentication.dependencies as authentication_dependencies
@@ -12,6 +13,7 @@ import modules.auth.authentication.schema as auth_schema
 import modules.auth.authentication.service as authentication_service
 import modules.auth.credentials.integration_service as credentials_integration
 import modules.auth.dependencies as auth_dependencies
+import modules.auth.known_devices.dependencies as known_devices_dependencies
 import modules.auth.mfa.dependencies as mfa_dependencies
 
 router = APIRouter()
@@ -40,6 +42,7 @@ def exchange_tokens_for_session(
         Depends(access_tokens_integration.get_token_manager),
     ],
     db: core_dependencies.DbSession,
+    device_id: known_devices_dependencies.DeviceId,
 ) -> auth_schema.TokenExchangeRead:
     """Exchange a PKCE code verifier for the JWT tokens of an SSO session.
 
@@ -50,13 +53,14 @@ def exchange_tokens_for_session(
 
     Args:
         session_id: Session created by the identity-provider callback.
-        request: Incoming request, read for the ``X-Client-Type`` header.
-        response: Response that receives the refresh cookie for web clients.
+        request: Incoming request, read for the ``X-Client-Type`` header, the client address and the user agent.
+        response: Response that receives the refresh and device cookies for web clients.
         token_exchange: Body carrying the PKCE code verifier and, when MFA applies, the MFA code.
         pending_mfa_store: Store for the MFA lockout and the TOTP replay guard.
         password_hasher: Hasher for the stored refresh token.
         token_manager: Token manager that signs the tokens.
         db: Database session.
+        device_id: Device id from the browser's device cookie, or None when it sent no valid one.
 
     Returns:
         The access token and, per client type, the CSRF token or the refresh token.
@@ -66,9 +70,12 @@ def exchange_tokens_for_session(
         token_exchange.code_verifier,
         token_exchange.mfa_code,
         request.headers.get("X-Client-Type"),
+        core_network.get_ip_address(request),
+        core_network.get_user_agent(request),
         pending_mfa_store,
         password_hasher,
         token_manager,
         db,
+        device_id=device_id,
     )
     return authentication_dependencies.deliver_auth_outcome(response, outcome)

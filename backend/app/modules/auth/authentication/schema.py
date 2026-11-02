@@ -232,7 +232,10 @@ class AuthOutcome:
         body: Response body for the client.
         refresh_cookie: Cookie the router sets for a web client; ``None`` when the refresh token is not delivered
             as a cookie.
+        device_id: Device id the router keeps in the browser's device cookie after a web sign-in; ``None`` for any
+            other outcome.
     """
 
     body: Any
     refresh_cookie: RefreshCookie | None = None
+    device_id: str | None = None

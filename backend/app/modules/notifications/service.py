@@ -424,3 +424,40 @@ def create_account_security_changed_notification(
         source_event_id,
         db,
     )
+
+
+def create_new_device_sign_in_notification(
+    user_id: int,
+    browser: str,
+    operating_system: str,
+    ip_address: str,
+    source_event_id: str,
+    db: Session,
+) -> tuple[notifications_schema.NotificationRead, str, bool]:
+    """Record the notification that the account was signed in to from a new device.
+
+    Args:
+        user_id: The user who signed in, who owns the notification row.
+        browser: The browser family the sign-in's user agent names.
+        operating_system: The operating-system family the sign-in's user agent names.
+        ip_address: The client address of the sign-in.
+        source_event_id: Stable durable event identifier.
+        db: Database session.
+
+    Returns:
+        The notification, the websocket message type the caller should push, and
+        whether this call created it.
+
+    Raises:
+        NotFoundError: When the user no longer exists.
+    """
+    if users_integration.get_user(user_id, db) is None:
+        raise core_exceptions.NotFoundError("User not found")
+    return _record_event_notification(
+        user_id,
+        notifications_constants.NotificationType.NEW_DEVICE_SIGN_IN,
+        notifications_constants.NEW_DEVICE_SIGN_IN_WS_MESSAGE,
+        {"browser": browser, "operating_system": operating_system, "ip_address": ip_address},
+        source_event_id,
+        db,
+    )

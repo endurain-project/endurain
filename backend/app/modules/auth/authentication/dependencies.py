@@ -15,6 +15,7 @@ import modules.auth.access_tokens.integration_service as access_tokens_integrati
 import modules.auth.authentication.schema as auth_schema
 import modules.auth.computation as auth_computation
 import modules.auth.constants as auth_constants
+import modules.auth.known_devices.dependencies as known_devices_dependencies
 
 REFRESH_TOKEN_COOKIE_NAME = "endurain" + "_refresh_token"
 REFRESH_TOKEN_COOKIE_PATH = "/api/v1/" + "auth"
@@ -49,10 +50,10 @@ def set_refresh_token_cookie(
 
 
 def deliver_auth_outcome(response: Response, outcome: auth_schema.AuthOutcome) -> Any:
-    """Set the outcome's refresh cookie on the response and return its body.
+    """Set the outcome's refresh and device cookies on the response and return its body.
 
     Args:
-        response: Response that receives the refresh cookie.
+        response: Response that receives the cookies.
         outcome: Result of an authentication workflow.
 
     Returns:
@@ -65,6 +66,8 @@ def deliver_auth_outcome(response: Response, outcome: auth_schema.AuthOutcome) -
             outcome.refresh_cookie.expires_at,
             environment=core_config.settings.ENVIRONMENT,
         )
+    if outcome.device_id is not None:
+        known_devices_dependencies.set_device_cookie(response, outcome.device_id)
     return outcome.body
 
 

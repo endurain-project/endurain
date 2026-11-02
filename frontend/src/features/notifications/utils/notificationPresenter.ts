@@ -4,6 +4,7 @@ import {
   CopyCheck,
   KeyRound,
   LockKeyhole,
+  LogIn,
   ShieldAlert,
   UserCheck,
   Unplug,
@@ -30,6 +31,7 @@ const NOTIFICATION_TYPE = {
   STRAVA_TOKEN_EXPIRED: 22,
   IDP_LINKED: 31,
   ACCOUNT_SECURITY_CHANGED: 32,
+  NEW_DEVICE_SIGN_IN: 33,
   ADMIN_NEW_SIGN_UP_APPROVAL_REQUEST: 101,
 } as const
 
@@ -209,6 +211,19 @@ export function presentNotification(
             ? `${prefix}.bodyGeneric`
             : `${prefix}.body`,
         bodyParams: { name },
+        to: { name: 'settings-security' },
+      }
+    }
+    case NOTIFICATION_TYPE.NEW_DEVICE_SIGN_IN: {
+      return {
+        icon: LogIn,
+        titleKey: `${base}.newDeviceSignIn.title`,
+        bodyKey: `${base}.newDeviceSignIn.body`,
+        bodyParams: {
+          browser: readString(options, 'browser'),
+          os: readString(options, 'operating_system'),
+          ip: readString(options, 'ip_address'),
+        },
         to: { name: 'settings-security' },
       }
     }

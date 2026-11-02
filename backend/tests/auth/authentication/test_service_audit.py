@@ -28,6 +28,7 @@ def _login(db, *, failed_attempts=None, pending_mfa_store=None, username="alice"
         MagicMock(),
         MagicMock(),
         db,
+        device_id=None,
         **kwargs,
     )
 
@@ -187,6 +188,7 @@ class TestMfaSignIn:
                 MagicMock(),
                 MagicMock(),
                 db,
+                device_id=None,
             )
 
     def test_a_wrong_code_is_a_failure_that_targets_the_user(self, mock_db):
@@ -208,7 +210,16 @@ class TestMfaSignIn:
             pytest.raises(core_exceptions.TooManyRequestsError),
         ):
             authentication_service.verify_mfa_and_login(
-                "127.0.0.1", "agent", request, "web", MagicMock(), store, MagicMock(), MagicMock(), mock_db
+                "127.0.0.1",
+                "agent",
+                request,
+                "web",
+                MagicMock(),
+                store,
+                MagicMock(),
+                MagicMock(),
+                mock_db,
+                device_id=None,
             )
 
         entry = audit.assert_audited(_LOGIN, outcome="denied", target_id="5")
@@ -345,10 +356,13 @@ class TestSsoSignIn:
                 "verifier",
                 mfa_code,
                 "web",
+                "127.0.0.1",
+                "agent",
                 MagicMock(is_locked_out=MagicMock(return_value=False)),
                 hasher,
                 MagicMock(),
                 db,
+                device_id=None,
             )
 
     def test_an_sso_sign_in_is_audited_when_its_tokens_are_issued(self, mock_db):

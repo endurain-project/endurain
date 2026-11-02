@@ -2,7 +2,9 @@
 
 from __future__ import annotations
 
+from datetime import datetime
 from typing import TYPE_CHECKING
+from zoneinfo import ZoneInfo
 
 import jasil.audit as jasil_audit
 from sqlalchemy.orm import Session
@@ -12,6 +14,7 @@ import core.hashing as core_hashing
 import core.i18n as core_i18n
 import core.logger as core_logger
 import core.pagination as core_pagination
+import core.timezone as core_timezone
 import modules.auth.account_security.audit_actions as account_security_audit_actions
 import modules.auth.account_security.email_messages as account_security_email_messages
 import modules.auth.account_security.event_publishers as account_security_event_publishers
@@ -345,5 +348,51 @@ def prepare_security_change_email(
         user.email,
         *account_security_email_messages.get_account_security_changed_email(
             user.name, change, idp.name if idp is not None else None, frontend_host, locale
+        ),
+    )
+
+
+def prepare_new_device_sign_in_email(
+    user_id: int,
+    browser: str,
+    operating_system: str,
+    ip_address: str,
+    method: str,
+    signed_in_at: datetime,
+    frontend_host: str,
+    db: Session,
+) -> tuple[str, str, str, str] | None:
+    """Return the notice of a sign-in from a new device for delivery after the database session closes.
+
+    The time is given in the user's timezone, or the server's when the user has none.
+
+    Args:
+        user_id: The user who signed in.
+        browser: The browser family the sign-in's user agent names.
+        operating_system: The operating-system family the sign-in's user agent names.
+        ip_address: The client address of the sign-in.
+        method: How the user signed in, a ``SignInMethod`` value.
+        signed_in_at: When the sign-in happened.
+        frontend_host: Base URL of the frontend.
+        db: Database session.
+
+    Returns:
+        The recipient, subject, HTML and text, or None when the user is missing or inactive.
+    """
+    user = users_integration.get_user(user_id, db)
+    if user is None or not user.active:
+        return None
+    local_time = signed_in_at.astimezone(ZoneInfo(core_timezone.or_default(user.timezone)))
+    return (
+        user.email,
+        *account_security_email_messages.get_new_device_sign_in_email(
+            user.name,
+            browser,
+            operating_system,
+            ip_address,
+            method,
+            local_time,
+            frontend_host,
+            core_i18n.normalize_locale(user.preferred_language),
         ),
     )
