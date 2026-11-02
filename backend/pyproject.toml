@@ -96,7 +96,7 @@ docs = [
 
 [tool.uv]
 required-version = "0.13.5"
-exclude-newer = "30 days"
+exclude-newer = "7 days"
 # jasil and safeuploads are first-party (endurain-project) and published through
 # PyPI Trusted Publishing with PEP 740 attestations, so they are exempt from the
 # quarantine the cutoff applies to third-party releases. Every other dependency
