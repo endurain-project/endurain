@@ -115,6 +115,9 @@ _TIERED_ENDPOINTS = [
     pytest.param(sign_up_tokens_router.signup, core_rate_limit.SENSITIVE, id="signup"),
     pytest.param(sign_up_tokens_router.verify_email, core_rate_limit.SENSITIVE, id="verify-email"),
     pytest.param(
+        sign_up_tokens_router.resend_verification_email, core_rate_limit.SENSITIVE, id="resend-sign-up-verification"
+    ),
+    pytest.param(
         password_reset_router.request_password_reset,
         core_rate_limit.SENSITIVE,
         id="password-reset-request",

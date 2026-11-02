@@ -36,6 +36,7 @@
   "closeForgotPassword": "Close password reset dialog",
   "cancel": "Cancel",
   "signUpLink": "Create an account",
+  "resendVerification": "Didn't get the email?",
   "ssoSection": "Single sign-on",
   "loadingSsoProviders": "Loading sign-on providers",
   "ssoButton": "Continue with {provider}",

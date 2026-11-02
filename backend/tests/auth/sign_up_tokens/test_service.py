@@ -122,6 +122,81 @@ class TestSignupCommitsTheAccountAndItsEventTogether:
         assert ("event" in names) is verification
 
 
+class TestSignUpVerificationResend:
+    def _resend(self, state, db, *, user, mail=True, verification=True, deactivated=False):
+        with (
+            patch(
+                f"{_MODULE}.server_settings_integration.get_server_settings",
+                return_value=_settings(verification=verification),
+            ),
+            patch(f"{_MODULE}.server_settings_integration.is_mail_configured", return_value=mail),
+            patch(f"{_MODULE}.users_integration") as users,
+            patch(f"{_MODULE}.sign_up_event_publishers") as publishers,
+        ):
+            users.get_user_by_email.return_value = user
+            users.is_deactivated.return_value = deactivated
+            body = sign_up_service.resend_sign_up_verification_email("u@example.com", state, db)
+        return body, publishers.publish_sign_up_verification_requested
+
+    def test_sends_a_new_email_to_an_account_awaiting_verification(self, mock_db, state):
+        _, publish = self._resend(state, mock_db, user=MagicMock(id=7, active=False, email_verified=False))
+
+        publish.assert_called_once_with(7, mock_db)
+        mock_db.commit.assert_called_once()
+
+    def test_a_second_request_within_the_cooldown_sends_nothing(self, mock_db, state):
+        user = MagicMock(id=7, active=False, email_verified=False)
+        self._resend(state, mock_db, user=user)
+        _, publish = self._resend(state, mock_db, user=user)
+
+        publish.assert_not_called()
+
+    @pytest.mark.parametrize(
+        "user",
+        [
+            None,
+            MagicMock(id=7, active=True, email_verified=True),
+            MagicMock(id=7, active=False, email_verified=True),
+        ],
+    )
+    def test_an_address_that_is_not_awaiting_verification_sends_nothing(self, mock_db, state, user):
+        _, publish = self._resend(state, mock_db, user=user)
+
+        publish.assert_not_called()
+
+    def test_a_deactivated_account_gets_nothing(self, mock_db, state):
+        _, publish = self._resend(
+            state, mock_db, user=MagicMock(id=7, active=False, email_verified=False), deactivated=True
+        )
+
+        publish.assert_not_called()
+
+    @pytest.mark.parametrize(("mail", "verification"), [(False, True), (True, False)])
+    def test_nothing_is_sent_without_mail_or_without_verification(self, mock_db, state, mail, verification):
+        _, publish = self._resend(
+            state,
+            mock_db,
+            user=MagicMock(id=7, active=False, email_verified=False),
+            mail=mail,
+            verification=verification,
+        )
+
+        publish.assert_not_called()
+
+    def test_an_unreachable_cooldown_store_skips_the_send(self, mock_db):
+        state = MagicMock()
+        state.set_if_absent.side_effect = StateBackendUnavailableError("down")
+        _, publish = self._resend(state, mock_db, user=MagicMock(id=7, active=False, email_verified=False))
+
+        publish.assert_not_called()
+
+    def test_every_outcome_answers_the_same(self, mock_db, state):
+        sent, _ = self._resend(state, mock_db, user=MagicMock(id=7, active=False, email_verified=False))
+        unknown, _ = self._resend(MemoryState(), mock_db, user=None)
+
+        assert sent == unknown
+
+
 class TestExistingAccountNoticeCooldown:
     def _signup_with_a_taken_email(self, state, db, *, owner_id=3):
         with (

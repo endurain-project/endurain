@@ -1,4 +1,9 @@
-import type { SignUpConfirm, SignUpRequest, SignUpResponse } from '@/features/auth/types'
+import type {
+  SignUpConfirm,
+  SignUpRequest,
+  SignUpResend,
+  SignUpResponse,
+} from '@/features/auth/types'
 
 import { apiFetch } from '@/services/http'
 
@@ -31,6 +36,23 @@ export function requestSignUp(request: SignUpRequest): Promise<SignUpResponse> {
  */
 export function confirmSignUp(request: SignUpConfirm): Promise<SignUpResponse> {
   return apiFetch<SignUpResponse>('/sign-up/confirm', {
+    method: 'POST',
+    body: JSON.stringify(request),
+    auth: false,
+    retryOnUnauthorized: false,
+  })
+}
+
+/**
+ * Asks for a sign-up's verification email to be sent again. The backend answers
+ * the same whether or not the address is awaiting verification.
+ *
+ * @param request - The address the sign-up used.
+ * @returns The backend's fixed acknowledgement.
+ * @throws {HttpError} 422 when the address is malformed, 429 when rate limited.
+ */
+export function resendSignUpVerification(request: SignUpResend): Promise<SignUpResponse> {
+  return apiFetch<SignUpResponse>('/sign-up/resend', {
     method: 'POST',
     body: JSON.stringify(request),
     auth: false,

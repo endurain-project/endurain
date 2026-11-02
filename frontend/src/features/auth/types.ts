@@ -111,6 +111,9 @@ export type SignUpResponse = Schemas['SignUpRead']
 /** Body of `POST /sign-up/confirm`; `password` is only sent for a sign-up link. */
 export type SignUpConfirm = Schemas['SignUpConfirm']
 
+/** Body of `POST /sign-up/resend`. */
+export type SignUpResend = Schemas['SignUpResend']
+
 /**
  * Whether the installation still needs its first administrator.
  *

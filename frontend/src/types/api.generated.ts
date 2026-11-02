@@ -4716,6 +4716,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/sign-up/resend": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Resend Verification Email
+         * @description Send a sign-up's verification email again; the answer is the same whether or not the address is registered.
+         */
+        post: operations["resend_verification_email_api_v1_sign_up_resend_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/strava/activities": {
         parameters: {
             query?: never;
@@ -11190,6 +11210,21 @@ export interface components {
              * @description Human-readable result message
              */
             message: string;
+        };
+        /**
+         * SignUpResend
+         * @description Request schema for sending a sign-up's verification email again.
+         *
+         *     Attributes:
+         *         email: The address the sign-up used.
+         */
+        SignUpResend: {
+            /**
+             * Email
+             * Format: email
+             * @description User's email address
+             */
+            email: string;
         };
         /**
          * SleepScore
@@ -20695,6 +20730,48 @@ export interface operations {
         responses: {
             /** @description Successful Response */
             201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SignUpRead"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Unexpected error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+        };
+    };
+    resend_verification_email_api_v1_sign_up_resend_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SignUpResend"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
                 headers: {
                     [name: string]: unknown;
                 };

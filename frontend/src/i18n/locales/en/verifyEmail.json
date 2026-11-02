@@ -15,5 +15,13 @@
   "errorNotFound": "We couldn't find an account for this link.",
   "errorGeneral": "We couldn't verify your email. Please try again.",
   "retry": "Try again",
-  "backToLogin": "Back to sign in"
+  "backToLogin": "Back to sign in",
+  "resendTitle": "Need a new link?",
+  "resendBody": "Enter the address you signed up with and we'll send a new verification email if it is still waiting.",
+  "resendEmail": "Email address",
+  "resendButton": "Send a new email",
+  "resendSending": "Sending",
+  "resendSent": "If that address is awaiting verification, a new email is on its way.",
+  "resendTooManyAttempts": "Too many attempts. Please wait before trying again.",
+  "resendError": "We couldn't send the email. Please try again."
 }

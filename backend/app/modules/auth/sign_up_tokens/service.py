@@ -34,6 +34,7 @@ logger = core_logger.get_logger(__name__)
 
 EXISTING_ACCOUNT_NOTICE_COOLDOWN_SECONDS = 3600
 EMAIL_CHANGE_RESEND_COOLDOWN_SECONDS = 3600
+SIGN_UP_RESEND_COOLDOWN_SECONDS = 3600
 
 
 def _stage_sign_up_token(
@@ -185,6 +186,42 @@ def request_email_change_resend(user_id: int, state: StateProvider, db: Session)
         )
         return
     sign_up_event_publishers.publish_email_change_verification_requested(user_id, db)
+
+
+def resend_sign_up_verification_email(email: str, state: StateProvider, db: Session) -> sign_up_schema.SignUpRead:
+    """Send a new verification email to the account a sign-up created, without revealing whether one exists.
+
+    An email goes out only when mail is configured, the server requires verification, the address belongs to an
+    inactive account that was never deactivated and whose address is unverified, and none went out within the
+    cooldown. The answer is the same for every outcome, so it does not reveal which addresses are registered. An
+    unreachable cooldown store skips the resend instead of failing the request.
+
+    Args:
+        email: The address the sign-up used.
+        state: The platform state provider, for the resend cooldown.
+        db: Database session.
+
+    Returns:
+        The same message for every outcome.
+    """
+    response = sign_up_schema.SignUpRead(
+        message="If the address is awaiting verification, a new verification email was sent."
+    )
+    server_settings = server_settings_integration.get_server_settings(db)
+    if not (server_settings.signup_require_email_verification and server_settings_integration.is_mail_configured(db)):
+        return response
+    user = users_integration.get_user_by_email(email, db)
+    if user is None or user.active or user.email_verified or users_integration.is_deactivated(user.id, db):
+        return response
+    try:
+        if not core_email_cooldown.claim_email(state, "sign_up_verification", user.id, SIGN_UP_RESEND_COOLDOWN_SECONDS):
+            return response
+    except StateBackendUnavailableError as err:
+        logger.error("Sign-up resend cooldown unavailable", exc_info=err, extra=core_logger.context(user_id=user.id))
+        return response
+    sign_up_event_publishers.publish_sign_up_verification_requested(user.id, db)
+    db.commit()
+    return response
 
 
 def request_sign_up_admin_approval_emails(user_id: int, db: Session) -> None:

@@ -179,6 +179,10 @@ _UNAUDITED_WRITES: dict[tuple[str, str], str] = {
     ("activities/activity_ingestion/router.py", "create_activity_with_uploaded_file"): _PERSONAL,
     ("activities/activity_ingestion/router.py", "refresh_activities"): _ROUTINE,
     ("auth/account_security/mfa_router.py", "setup_mfa"): _MFA_SETUP,
+    (
+        "auth/sign_up_tokens/public_router.py",
+        "resend_verification_email",
+    ): "resends the verification email of a pending sign-up; the sign-up is audited when it is confirmed",
     ("followers/router.py", "reject_follow_request"): _NO_ACCESS,
     ("followers/user_router.py", "follow_user"): _NO_ACCESS,
     (

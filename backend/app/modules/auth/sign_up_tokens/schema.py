@@ -85,6 +85,18 @@ class SignUpConfirm(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
 
+class SignUpResend(BaseModel):
+    """Request schema for sending a sign-up's verification email again.
+
+    Attributes:
+        email: The address the sign-up used.
+    """
+
+    email: users_schema.UserEmail
+
+    model_config = ConfigDict(extra="forbid")
+
+
 class SignUpRead(BaseModel):
     """Response schema for sign-up operations.
 

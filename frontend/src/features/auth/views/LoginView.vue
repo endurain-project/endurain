@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, onMounted, reactive, ref } from 'vue'
-import { RouterLink } from 'vue-router'
+import { RouterLink, useRoute } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import { LoaderCircle } from '@lucide/vue'
 
@@ -34,7 +34,11 @@ const { serverSettings, ssoProviders, isSettingsLoading, isSsoLoading, loginImag
   usePublicServerSettings()
 const { startSsoLogin, processSsoCallback, completeSsoMfa, maybeAutoRedirect } = useSsoLogin()
 const { navigateAfterLogin } = useSafeRedirect()
+const route = useRoute()
 const { resolveInitialAlert, shouldForceLocalLogin } = useLoginRouteMessages()
+
+/** Whether the user just signed up and was told to check their email. */
+const verificationEmailSent = computed(() => route.query.emailVerificationSent === 'true')
 const toasts = useToasts()
 
 const username = ref('')
@@ -319,6 +323,14 @@ onMounted(async () => {
           class="self-center text-meta text-muted-foreground hover:text-foreground"
         >
           {{ t('login.signUpLink') }}
+        </RouterLink>
+
+        <RouterLink
+          v-if="verificationEmailSent"
+          :to="{ name: 'verify-email' }"
+          class="self-center text-meta text-muted-foreground hover:text-foreground"
+        >
+          {{ t('login.resendVerification') }}
         </RouterLink>
       </div>
 

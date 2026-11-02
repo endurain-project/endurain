@@ -6,15 +6,18 @@ import i18n from '@/i18n'
 import EmailVerificationView from '@/features/auth/views/EmailVerificationView.vue'
 import { HttpError } from '@/services/http'
 
-const { confirmSignUp } = vi.hoisted(() => ({
+const { confirmSignUp, resendSignUpVerification, toastSuccess } = vi.hoisted(() => ({
   confirmSignUp: vi.fn<(request: unknown) => Promise<unknown>>(),
+  resendSignUpVerification: vi.fn<(request: unknown) => Promise<unknown>>(),
+  toastSuccess: vi.fn<(message: string) => void>(),
 }))
 
 vi.mock('vue-router', () => ({
   useRoute: () => ({ query: { token: 'tok' } }),
   RouterLink: { template: '<a><slot /></a>' },
 }))
-vi.mock('@/features/auth/services/signUp', () => ({ confirmSignUp }))
+vi.mock('@/features/auth/services/signUp', () => ({ confirmSignUp, resendSignUpVerification }))
+vi.mock('@/composables/useToasts', () => ({ useToasts: () => ({ success: toastSuccess }) }))
 vi.mock('@/features/config/composables/usePublicServerSettings', () => ({
   usePublicServerSettings: () => ({
     serverSettings: ref({ password_length_regular_users: 8 }),
@@ -39,6 +42,8 @@ async function mountView() {
 describe('EmailVerificationView', () => {
   beforeEach(() => {
     confirmSignUp.mockReset()
+    resendSignUpVerification.mockReset()
+    toastSuccess.mockReset()
   })
 
   it('confirms on mount and shows success without a password form', async () => {
@@ -109,5 +114,41 @@ describe('EmailVerificationView', () => {
 
     expect(wrapper.find('input[name="new-password"]').exists()).toBe(false)
     expect(wrapper.text()).toContain(i18n.global.t('verifyEmail.errorInvalidToken'))
+  })
+
+  it('offers a new verification email when the link failed, and sends it for the typed address', async () => {
+    confirmSignUp.mockRejectedValue(
+      new HttpError(400, 'Bad Request', null, 'urn:endurain:error:invalid-input'),
+    )
+    resendSignUpVerification.mockResolvedValue({ message: 'ok' })
+    const wrapper = await mountView()
+
+    await wrapper.get('input[name="email"]').setValue('  New@Example.com ')
+    await wrapper.get('form').trigger('submit')
+    await flushPromises()
+
+    expect(resendSignUpVerification).toHaveBeenCalledWith({ email: 'new@example.com' })
+    expect(toastSuccess).toHaveBeenCalledWith(i18n.global.t('verifyEmail.resendSent'))
+  })
+
+  it('tells the user to wait when resending is rate limited', async () => {
+    confirmSignUp.mockRejectedValue(
+      new HttpError(400, 'Bad Request', null, 'urn:endurain:error:invalid-input'),
+    )
+    resendSignUpVerification.mockRejectedValue(new HttpError(429, 'Too Many Requests', null))
+    const wrapper = await mountView()
+
+    await wrapper.get('input[name="email"]').setValue('new@example.com')
+    await wrapper.get('form').trigger('submit')
+    await flushPromises()
+
+    expect(wrapper.text()).toContain(i18n.global.t('verifyEmail.resendTooManyAttempts'))
+  })
+
+  it('does not offer a resend once the email is verified', async () => {
+    confirmSignUp.mockResolvedValue({ admin_approval_required: false })
+    const wrapper = await mountView()
+
+    expect(wrapper.find('input[name="email"]').exists()).toBe(false)
   })
 })

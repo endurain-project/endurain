@@ -11,6 +11,7 @@ import { ErrorState } from '@/components/ui/error-state'
 import { FormField } from '@/components/ui/form-field'
 import { LoadingState } from '@/components/ui/loading-state'
 import { useForm } from '@/composables/useForm'
+import ResendVerificationForm from '@/features/auth/components/ResendVerificationForm.vue'
 import PasswordInput from '@/features/security/components/PasswordInput.vue'
 import PasswordStrengthMeter from '@/features/security/components/PasswordStrengthMeter.vue'
 import {
@@ -230,6 +231,8 @@ onMounted(() => {
           </div>
         </template>
       </ErrorState>
+
+      <ResendVerificationForm v-if="status === 'error'" class="mt-6 border-t border-border pt-6" />
     </div>
   </section>
 </template>

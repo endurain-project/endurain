@@ -13,6 +13,7 @@ import core.dependencies as core_dependencies
 import core.exceptions as core_exceptions
 import modules.auth.credentials.password_hasher as auth_password_hasher
 import modules.auth.sign_up_tokens.public_router as sign_up_tokens_router
+import modules.auth.sign_up_tokens.schema as sign_up_schema
 
 # ---------------------------------------------------------------------------
 # Fixtures
@@ -766,3 +767,22 @@ class TestSignUpPasswordOverHttp:
 
         assert response.status_code == status.HTTP_400_BAD_REQUEST
         assert response.json()["type"] == "urn:endurain:error:password-required"
+
+
+class TestResendEndpoint:
+    """Tests for POST /sign-up/sign-up/resend."""
+
+    @patch("modules.auth.sign_up_tokens.public_router.sign_up_service.resend_sign_up_verification_email")
+    def test_answers_with_the_service_message(self, mock_resend, signup_client):
+        mock_resend.return_value = sign_up_schema.SignUpRead(message="If it is awaiting verification, sent.")
+
+        response = signup_client.post("/sign-up/sign-up/resend", json={"email": "u@example.com"})
+
+        assert response.status_code == status.HTTP_200_OK
+        assert response.json()["message"] == "If it is awaiting verification, sent."
+        assert mock_resend.call_args.args[0] == "u@example.com"
+
+    def test_rejects_an_invalid_email(self, signup_client):
+        response = signup_client.post("/sign-up/sign-up/resend", json={"email": "nope"})
+
+        assert response.status_code == status.HTTP_422_UNPROCESSABLE_ENTITY

@@ -39,3 +39,18 @@ def verify_email(
 ) -> sign_up_schema.SignUpRead:
     """Verify an account's email address using its one-time token; a sign-up also chooses its password."""
     return sign_up_service.verify_email(confirm_data.token, confirm_data.password, db)
+
+
+@router.post(
+    "/sign-up/resend",
+    response_model=sign_up_schema.SignUpRead,
+)
+@core_rate_limit.limiter.limit(core_rate_limit.SENSITIVE)
+def resend_verification_email(
+    request: Request,
+    resend_data: sign_up_schema.SignUpResend,
+    state: core_dependencies.PlatformState,
+    db: core_dependencies.DbSession,
+) -> sign_up_schema.SignUpRead:
+    """Send a sign-up's verification email again; the answer is the same whether or not the address is registered."""
+    return sign_up_service.resend_sign_up_verification_email(resend_data.email, state, db)
