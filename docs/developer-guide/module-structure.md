@@ -745,57 +745,10 @@ one pattern. Recorded here so a review does not reopen them.
   hand their contributor plain dicts, so they have none.
 - **`activity_file_storage` has no `service.py`.** It is a leaf over
   `StorageProvider` with no decision to arrange, so a service would only forward.
-
-## Known debt
-
-Tracked here so it is visible rather than discovered. Each item is enumerated in
-the conformance test's allowlist.
-
-### Runtime rules not yet met
-
-- **Storage lifecycle.** The `bulk_import_errors` area has no sweep, retention or account-deletion
-  removal, and the thumbnail reconciliation lists its whole area each pass.
-- **Timeouts.** The pool size, its overflow and the `statement_timeout` are operator settings
-  (`DB_POOL_SIZE`, `DB_MAX_OVERFLOW`, `DB_STATEMENT_TIMEOUT_SECONDS`), and the statement timeout is
-  off by default. The 30 s pool wait and the 30 s lock timeout are still constants in `core/database.py`.
-- **Observability.** Logs are the only signal; queue depth, job
-  duration and dead-letter counts are not exported as metrics.
-- **Creates carry no `Location` and no `Idempotency-Key`.** The 25 `POST` routes that answer `201` return the new
-  resource but not a `Location` header, and only the activity upload accepts an `Idempotency-Key`, so a client
-  that retries a create after a lost response can make a duplicate. A general key needs a stored-result design
-  (a shared store through the platform `StateProvider`, replay and conflict rules, expiry) per create route, and
-  `Location` is additive but should land with it, so both are left for their own change.
-- **Broad exception handling.** `except Exception` and `BaseException` handlers are concentrated in `users`
-  (the profile export), `auth` (the identity-provider service) and `activities`, and in the provider sync and
-  link services of `strava` and `garmin`; `followers`, `gears`, `health` and `notifications` have none. Many are
-  deliberate boundaries (a job records a failure and re-raises, a provider call degrades to a warning), but each
-  should name the errors it expects. Narrowing them in bulk risks hiding a real failure as an expected one, so
-  they are narrowed as the code around them is touched.
-- **Oversized services and `*_utils.py` files.** `auth/authentication/service.py` and
-  `users/users_profile/export_service.py` each hold several jobs, and a dozen
-  `utils.py` or `*_utils.py` files (in `auth`, `users_profile`, `users_goals`, `garmin`, `server_settings` and
-  the activity file parsers) name no role. The guide asks that a file's name state its role; splitting these is a
-  refactor with no behaviour change, so it is left until a feature needs the code apart.
-- **Visibility across modules.** The followee set reaches `activity.crud` as an id list, which
-  grows with the follow count. A peer-published, read-only query fragment (a followee subquery)
-  would avoid the list but needs its own allowed-import entry and test, so it is undecided.
-
-### Accepted limitations
-
-These constraints remain visible until a coordinated design change resolves them:
-
-- **Top-level cycles.** `users` ⇄ `auth`: users account workflows call auth integration surfaces, while auth
-  credential, session and identity-provider flows read or update users through `users.integration_service`.
-  `users` ⇄ `activities`: goal progress reads activities, and profile export/import consumes them (the contributor
-  registry is listed in `_LAYER_EXCEPTIONS`), while activities consumes `users.integration_service`. Account
-  deletion no longer closes the latter cycle: `users` asks for activity erasure through `users/contributors.py`,
-  and `module_registry.configure_user_contributors` installs the answer, so erasure runs in the deletion's own
-  transaction. `gears` sits below activities (`_MUST_NOT_IMPORT`) and declares its usage questions in
-  `gears/contributors.py`; `module_registry.configure_gear_contributors` installs the activities answers.
-- **Registration seams.** `RuntimeModule` in `app/module_registry.py` is the per-module manifest for subscribers,
-  durable handlers, nets, recurring jobs, startup tasks and the shutdown of the module's in-process pools. Routers (`api.py`) and models (`model_registry.py`)
-  remain separate composition surfaces for the HTTP app and Alembic.
-
+- **Registration seams.** `RuntimeModule` in `app/module_registry.py` is the per-module manifest for bus,
+  realtime and durable subscribers, nets, recurring jobs, startup tasks, audit actions and the shutdown of the
+  module's in-process pools. Routers (`api.py`) and models (`model_registry.py`) remain separate composition
+  surfaces for the HTTP app and Alembic.
 - **Namespace-level code in `health`.** `health` publishes `constants.py` (the shared `Interval`),
   `computation.py` (pure date helpers, the unexecuted `select` builders for a user's records by id, existence,
   count and list, the generic `to_read_schema`/`to_read_schemas` that replace a per-package `serializers.py`,
@@ -810,30 +763,81 @@ These constraints remain visible until a coordinated design change resolves them
   `crud`-role file directly under its own namespace (`_PERSISTENCE_NAMESPACE_ROLES`): neither declares a table.
   Anything that resolves a value through another module, such as the user's "today", stays in the
   package `service` that calls these helpers.
+
+## Known debt
+
+Tracked here so it is visible rather than discovered. No test records these items, so an entry is updated
+by hand when the code it describes changes.
+
+### Runtime rules not yet met
+
+- **Storage lifecycle.** The `bulk_import_errors` area (`<user_id>/<job_id>/<file>`) has no sweep, retention
+  or account-deletion removal, so a deleted user's failed files stay. The hourly thumbnail reconciliation and
+  the daily orphan sweep each walk the whole thumbnail area: its keys are flat `{id}.webp`, so no prefix
+  narrows the walk.
+- **Timeouts.** The pool size, its overflow and the `statement_timeout` are operator settings
+  (`DB_POOL_SIZE`, `DB_MAX_OVERFLOW`, `DB_STATEMENT_TIMEOUT_SECONDS`), and the statement timeout is
+  off by default. The 30 s pool wait and the 30 s lock timeout are still constants in `core/database.py`.
+- **Observability.** Logs, the two health endpoints and the job tables are the only signals; queue depth, job
+  duration and dead-letter counts are not exported as metrics. `jasil.admin.get_jobs_summary` computes them,
+  but no route exposes it.
+- **Creates carry no `Location` and no `Idempotency-Key`.** The 27 `POST` routes that answer `201` return the new
+  resource but not a `Location` header, and only the activity upload accepts an `Idempotency-Key`, so a client
+  that retries a create after a lost response can make a duplicate. The upload keeps its key on the ingestion
+  job row, with no expiry, and its fingerprint and replay are specific to an uploaded file. A general key needs
+  a stored-result design (a shared store through the platform `StateProvider`, replay and conflict rules,
+  expiry) per create route, and `Location` is additive but should land with it, so both are left for their
+  own change.
+- **Broad exception handling.** The 143 `except Exception` and `BaseException` handlers outside the migrations
+  sit in `users` (33, mostly the profile export), `activities` (31, mostly ingestion), `core` and `main.py`
+  (31), `auth` (28, mostly the identity providers) and the provider services of `strava` (12) and `garmin` (6);
+  `websocket` and `server_settings` hold one each, and `followers`, `gears`, `health` and `notifications` have
+  none. The migrations hold 38 more. ruff's `BLE` rules are not selected. Many are deliberate boundaries (a
+  job records a failure and re-raises, a provider call degrades to a warning), but each should name the errors
+  it expects. Narrowing them in bulk risks hiding a real failure as an expected one, so they are narrowed as
+  the code around them is touched.
+- **Oversized services and `*_utils.py` files.** `auth/authentication/service.py` and
+  `users/users_profile/export_service.py` each hold several jobs, and a dozen
+  `utils.py` or `*_utils.py` files (in `auth`, `users_profile`, `users_goals`, `garmin`, `server_settings` and
+  the activity file parsers) name no role. The guide asks that a file's name state its role; splitting these is a
+  refactor with no behaviour change, so it is left until a feature needs the code apart.
+- **Visibility across modules.** The followee set reaches `activity.crud` as an id list, which grows with the
+  follow count and is sent again for every page of the following feed. Accepting a follow enforces
+  `MAX_ACCEPTED_FOLLOWEES` (1000), but relationships accepted before the cap existed may exceed it. A
+  peer-published, read-only query fragment (a followee subquery) would avoid the list but needs its own
+  allowed-import entry and test, so it is undecided.
+
+### Accepted limitations
+
+These constraints remain visible until a coordinated design change resolves them:
+
+- **Top-level cycles.** `users` ⇄ `auth`: users account workflows call auth integration surfaces, while auth
+  credential, session and identity-provider flows read or update users through `users.integration_service`.
+  `users` ⇄ `activities`: goal progress reads activities, and profile export/import consumes them (through
+  `activities.contributor_registry`, listed in `_LAYER_EXCEPTIONS`, and directly through the activity, file
+  storage and media surfaces), while activities consumes `users.integration_service`. Account
+  deletion no longer closes the latter cycle: `users` asks for activity erasure through `users/contributors.py`,
+  and `module_registry.configure_user_contributors` installs the answer, so erasure runs in the deletion's own
+  transaction. `gears` sits below activities (`_MUST_NOT_IMPORT`) and declares its usage questions in
+  `gears/contributors.py`; `module_registry.configure_gear_contributors` installs the activities answers.
+  Smaller two-way edges also remain: `auth` ⇄ `notifications` (sign-up sends through notifications, which reads
+  identity providers), `auth` ⇄ `server_settings` and `users` ⇄ `server_settings` (password reset, sign-up and
+  user creation read server settings, whose routers and mail use auth dependencies and users surfaces), and
+  `users` ⇄ `followers` (the profile reads followers, which reads users).
 - **`users` ⇄ `health`.** `health` services read the user's height, timezone and "today" through
-  `users.integration_service`, and `users` creates default targets, recalculates BMI and exports and
-  imports health records through the `health_targets` and `health_weight` surfaces. Only the
-  contributor pattern described under *Top-level cycles* removes the second half.
-- **Persistence layers calling other modules.** Converted modules ask nothing of
-  another bounded context below `service` (`TestLayerRules`).
-- **Persistence ending transactions.** Converted modules stage with `flush()` and
-  let `service` (or the job, importer or `migration_service` that owns the unit of
-  work) commit.
-- **Subscribers reaching past a surface.** Followers holds no subscribers; its
-  notification handlers live in `modules/notifications` and subscribe to
-  `followers.events` (`TestLayerRules`).
+  `users.integration_service`, and `users` creates default targets when it creates a user, recalculates BMI
+  when the height changes (through the `health_targets` and `health_weight` surfaces) and exports and imports
+  the seven health packages directly. The contributor pattern described under *Top-level cycles* would remove
+  that half; `users/contributors.py` declares no health contribution yet.
 - **Profile import runs its own event loop.** `users_profile.import_job_service` calls `asyncio.run` on the
   worker's thread, because `ImportService` awaits `core.file_uploads.validate_bytes` for each activity file,
-  media file and user image (storage writes already run through `asyncio.to_thread`). The importer shares no
-  loop-bound resource, so this is safe, but the importer should become synchronous once `core.file_uploads`
-  has a synchronous form of `validate_bytes`; the other validators already have one.
-- **Legacy model scan.** Phase 11 removed the filesystem scan for unconverted
-  modules. `app/model_registry.py` now imports exactly the explicit model
-  contributions declared by each module; ORM relationships remain replaced by
-  scalar foreign keys with database `ON DELETE` behaviour.
-
-- **Auth collections are not paginated.** `GET /profile/api-keys`, `GET /identity-providers` and
-  `GET /profile/identity-providers` return bare arrays, against the convention that a list a
+  media file and user image (storage writes already run through `asyncio.to_thread`). The validators come from
+  `safeuploads`, which is async only, and each synchronous form in `core.file_uploads` runs one through
+  `asyncio.run`. A synchronous importer would therefore move the loop into `core.file_uploads` and start one
+  per file instead of one per import. The importer shares no loop-bound resource, so the single loop is safe.
+- **Collections that are not paginated.** `GET /identity-providers`, `GET /identity-providers/templates`,
+  `GET /profile/identity-providers`, `GET /users/{user_id}/identity-providers`, `GET /public/idp` and
+  `GET /public/server-settings/tile-maps-templates` return bare arrays, against the convention that a list a
   client receives is a `core.pagination.Page`. Changing these shapes breaks
   existing API clients, including the mobile app, so it waits for a coordinated
   client release.
