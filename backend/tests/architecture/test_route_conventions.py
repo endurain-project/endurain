@@ -9,6 +9,7 @@ import ast
 import pathlib
 
 from tests._helpers.module_roles import CONVERTED_MODULES, files_with_role, role_of
+from tests._helpers.routes import WRITE_METHODS, route_decorators, router_functions
 
 import modules.auth.constants as auth_constants
 
@@ -26,34 +27,10 @@ _DEPENDENCY_ALIASES = {
     "core_dependencies.get_platform_state": "core_dependencies.PlatformState",
 }
 
-_HTTP_METHODS = frozenset({"get", "post", "put", "patch", "delete"})
-_WRITE_METHODS = frozenset({"post", "put", "patch", "delete"})
 
 #: Roles whose functions are FastAPI handlers or dependencies. FastAPI reads their parameters by
 #: name, so they order them by dependency and are outside the ``db``-position rule.
 _FRAMEWORK_ROLES = frozenset({"router", "public_router", "dependencies"})
-
-
-def _route_decorators(function: ast.AST):
-    """Yield ``(method, call)`` for each HTTP route decorator on a function."""
-    for decorator in getattr(function, "decorator_list", []):
-        if (
-            isinstance(decorator, ast.Call)
-            and isinstance(decorator.func, ast.Attribute)
-            and decorator.func.attr in _HTTP_METHODS
-        ):
-            yield decorator.func.attr, decorator
-
-
-def _router_functions() -> list[tuple[pathlib.Path, ast.FunctionDef]]:
-    """Return every route handler of every converted module."""
-    found: list[tuple[pathlib.Path, ast.FunctionDef]] = []
-    for role in ("router", "public_router"):
-        for path in files_with_role(_CONVERTED, role):
-            for node in ast.parse(path.read_text()).body:
-                if isinstance(node, ast.FunctionDef) and any(True for _ in _route_decorators(node)):
-                    found.append((path, node))
-    return found
 
 
 def _limits(function: ast.FunctionDef) -> bool:
@@ -78,8 +55,8 @@ class TestRouteConventions:
         """
         offenders = [
             f"{path.relative_to(_ROOT).as_posix()}::{function.name}"
-            for path, function in _router_functions()
-            for _, call in _route_decorators(function)
+            for path, function in router_functions()
+            for _, call in route_decorators(function)
             if not {"response_model", "response_class", "responses"} & {keyword.arg for keyword in call.keywords}
         ]
 
@@ -94,8 +71,8 @@ class TestRouteConventions:
         """
         offenders = [
             f"{path.relative_to(_ROOT).as_posix()}::{function.name}"
-            for path, function in _router_functions()
-            for _, call in _route_decorators(function)
+            for path, function in router_functions()
+            for _, call in route_decorators(function)
             for keyword in call.keywords
             if keyword.arg == "status_code" and ast.unparse(keyword.value) in {"200", "status.HTTP_200_OK"}
         ]
@@ -110,8 +87,8 @@ class TestRouteConventions:
         """
         offenders = [
             f"{path.relative_to(_ROOT).as_posix()}::{function.name}"
-            for path, function in _router_functions()
-            if any(method in _WRITE_METHODS for method, _ in _route_decorators(function)) and not _limits(function)
+            for path, function in router_functions()
+            if any(method in WRITE_METHODS for method, _ in route_decorators(function)) and not _limits(function)
         ]
 
         assert offenders == [], "Add a @core_rate_limit.limiter.limit(<tier>) to:\n  " + "\n  ".join(offenders)
@@ -138,8 +115,8 @@ class TestRouteConventions:
         A bare ``int`` accepts ``0`` and negative ids, and publishes no constraint in OpenAPI.
         """
         offenders: list[str] = []
-        for path, function in _router_functions():
-            for _, call in _route_decorators(function):
+        for path, function in router_functions():
+            for _, call in route_decorators(function):
                 if not call.args or not isinstance(call.args[0], ast.Constant):
                     continue
                 route_params = {
@@ -201,10 +178,10 @@ class TestRouteConventions:
         }
         scope_checks = {"check_scopes", "check_auth_scopes"}
         offenders = []
-        for path, function in _router_functions():
+        for path, function in router_functions():
             if role_of(path.stem) != "router" or path.name in credentialed_by_url:
                 continue
-            for _, call in _route_decorators(function):
+            for _, call in route_decorators(function):
                 declared = {
                     node.attr
                     for keyword in call.keywords
@@ -328,8 +305,8 @@ class TestActionRoutes:
         approve, revoke, read, enable, disable and unlink left clients guessing the verb of each.
         """
         offenders = []
-        for path, function in _router_functions():
-            for method, call in _route_decorators(function):
+        for path, function in router_functions():
+            for method, call in route_decorators(function):
                 route = call.args[0].value if call.args and isinstance(call.args[0], ast.Constant) else ""
                 if route.rsplit("/", 1)[-1] in _ACTION_SEGMENTS and method != "post":
                     offenders.append(
@@ -347,14 +324,14 @@ class TestVersionedAndOwnedRoutes:
         actions are not versioned; the exceptions are listed with their reason.
         """
         offenders = []
-        for path, function in _router_functions():
+        for path, function in router_functions():
             models = path.parent / "models.py"
             if not models.exists() or "version_id_col" not in models.read_text():
                 continue
             relative = path.relative_to(_ROOT).as_posix()
             if (relative, function.name) in _UNVERSIONED_WRITES:
                 continue
-            edits = any(method in {"put", "patch"} for method, _ in _route_decorators(function))
+            edits = any(method in {"put", "patch"} for method, _ in route_decorators(function))
             if edits and "IfMatch" not in _parameter_aliases(function):
                 offenders.append(f"{relative}::{function.name}")
 
@@ -373,11 +350,11 @@ class TestVersionedAndOwnedRoutes:
             scope for name, scopes in vars(auth_constants).items() if name.endswith("_ADMIN_SCOPE") for scope in scopes
         }
         offenders = []
-        for path, function in _router_functions():
+        for path, function in router_functions():
             relative = path.relative_to(_ROOT).as_posix()
             if role_of(path.stem) != "router" or (relative, function.name) in _USER_PATH_WITHOUT_OWNER:
                 continue
-            for _, call in _route_decorators(function):
+            for _, call in route_decorators(function):
                 if not call.args or not isinstance(call.args[0], ast.Constant) or "{user_id}" not in call.args[0].value:
                     continue
                 scopes = _declared_scopes(call)
