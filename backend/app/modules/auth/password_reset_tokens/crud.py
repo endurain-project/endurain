@@ -7,6 +7,7 @@ from sqlalchemy import select
 from sqlalchemy import update as sa_update
 from sqlalchemy.orm import Session
 
+import core.database as core_database
 import modules.auth.password_reset_tokens.contracts as password_reset_contracts
 import modules.auth.password_reset_tokens.models as password_reset_models
 import modules.auth.password_reset_tokens.schema as password_reset_schema
@@ -66,15 +67,15 @@ def mark_user_password_reset_tokens_used(user_id: int, db: Session) -> int:
         )
         .values(used=True)
     )
-    result = db.execute(stmt)
+    matched = core_database.rowcount(db, stmt)
     db.flush()
-    return result.rowcount or 0
+    return matched
 
 
 def delete_expired_password_reset_tokens(now: datetime, limit: int, db: Session) -> int:
     """Stage deletion of up to ``limit`` reset tokens that expired before ``now`` and return the row count."""
     model = password_reset_models.PasswordResetToken
     expired = select(model.id).where(model.expires_at < now).limit(limit)
-    result = db.execute(sa_delete(model).where(model.id.in_(expired)))
+    matched = core_database.rowcount(db, sa_delete(model).where(model.id.in_(expired)))
     db.flush()
-    return result.rowcount or 0
+    return matched

@@ -2,9 +2,10 @@
 
 from datetime import UTC, datetime
 
-from sqlalchemy import CursorResult, Select, delete, func, select, update
+from sqlalchemy import Select, delete, func, select, update
 from sqlalchemy.orm import Session
 
+import core.database as core_database
 import core.exceptions as core_exceptions
 import modules.auth.sessions.contracts as sessions_contracts
 import modules.auth.sessions.models as sessions_models
@@ -99,15 +100,16 @@ def set_session_refresh_token_hash(
 
 def claim_session_for_token_exchange(session_id: str, hashed_refresh_token: str, db: Session) -> bool:
     """Atomically claim a session for one-shot token exchange."""
-    result: CursorResult[object] = db.execute(
+    matched = core_database.rowcount(
+        db,
         update(sessions_models.UsersSessions)
         .where(
             sessions_models.UsersSessions.id == session_id,
             sessions_models.UsersSessions.tokens_exchanged.is_(False),
         )
-        .values(tokens_exchanged=True, refresh_token=hashed_refresh_token)
+        .values(tokens_exchanged=True, refresh_token=hashed_refresh_token),
     )
-    return result.rowcount == 1
+    return matched == 1
 
 
 def clear_oauth_state_reference(session_id: str, db: Session) -> None:
@@ -137,12 +139,13 @@ def edit_session(
 
 def update_session_csrf_hash(session_id: str, csrf_token_hash: str, db: Session) -> None:
     """Stage a CSRF-token hash update."""
-    result = db.execute(
+    matched = core_database.rowcount(
+        db,
         update(sessions_models.UsersSessions)
         .where(sessions_models.UsersSessions.id == session_id)
-        .values(csrf_token_hash=csrf_token_hash)
+        .values(csrf_token_hash=csrf_token_hash),
     )
-    if result.rowcount != 1:
+    if matched != 1:
         raise core_exceptions.NotFoundError("Session not found")
 
 
@@ -184,18 +187,17 @@ def _delete_sessions(session_ids: Select[tuple[str]], db: Session) -> int:
     Returns:
         The number of sessions staged for deletion.
     """
-    result: CursorResult[object] = db.execute(
-        delete(sessions_models.UsersSessions).where(sessions_models.UsersSessions.id.in_(session_ids))
+    return core_database.rowcount(
+        db, delete(sessions_models.UsersSessions).where(sessions_models.UsersSessions.id.in_(session_ids))
     )
-    return result.rowcount or 0
 
 
 def delete_sessions_by_family(token_family_id: str, db: Session) -> int:
     """Stage deletion of sessions in a token family."""
-    result: CursorResult[object] = db.execute(
-        delete(sessions_models.UsersSessions).where(sessions_models.UsersSessions.token_family_id == token_family_id)
+    return core_database.rowcount(
+        db,
+        delete(sessions_models.UsersSessions).where(sessions_models.UsersSessions.token_family_id == token_family_id),
     )
-    return result.rowcount or 0
 
 
 def delete_sessions_by_user(user_id: int, db: Session, exclude_session_id: str | None = None) -> int:
@@ -203,5 +205,4 @@ def delete_sessions_by_user(user_id: int, db: Session, exclude_session_id: str |
     stmt = delete(sessions_models.UsersSessions).where(sessions_models.UsersSessions.user_id == user_id)
     if exclude_session_id is not None:
         stmt = stmt.where(sessions_models.UsersSessions.id != exclude_session_id)
-    result: CursorResult[object] = db.execute(stmt)
-    return result.rowcount or 0
+    return core_database.rowcount(db, stmt)

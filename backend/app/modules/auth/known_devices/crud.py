@@ -6,6 +6,7 @@ from sqlalchemy import delete, exists, select, update
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
+import core.database as core_database
 import core.exceptions as core_exceptions
 import modules.auth.known_devices.models as known_devices_models
 
@@ -29,11 +30,11 @@ def touch_device(user_id: int, device_hash: str, seen_at: datetime, db: Session)
         True when the device is known for the user, False when there is no row to update.
     """
     model = known_devices_models.KnownDevice
-    result = db.execute(
-        update(model).where(model.user_id == user_id, model.device_hash == device_hash).values(last_seen_at=seen_at)
+    matched = core_database.rowcount(
+        db, update(model).where(model.user_id == user_id, model.device_hash == device_hash).values(last_seen_at=seen_at)
     )
     db.flush()
-    return result.rowcount == 1
+    return matched == 1
 
 
 def create_device(user_id: int, device_hash: str, seen_at: datetime, db: Session) -> None:
@@ -67,6 +68,6 @@ def delete_unseen_since(cutoff: datetime, limit: int, db: Session) -> int:
     """Stage deletion of up to ``limit`` devices last seen before ``cutoff``."""
     model = known_devices_models.KnownDevice
     unseen = select(model.id).where(model.last_seen_at < cutoff).limit(limit)
-    result = db.execute(delete(model).where(model.id.in_(unseen)))
+    matched = core_database.rowcount(db, delete(model).where(model.id.in_(unseen)))
     db.flush()
-    return result.rowcount or 0
+    return matched

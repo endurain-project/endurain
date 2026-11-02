@@ -3,10 +3,9 @@
 from collections import defaultdict
 from collections.abc import Sequence
 from datetime import UTC, date, datetime
-from typing import Any, cast
+from typing import Any
 
 from sqlalchemy import (
-    CursorResult,
     and_,
     case,
     desc,
@@ -24,6 +23,7 @@ from sqlalchemy import (
 )
 from sqlalchemy.orm import Session
 
+import core.database as core_database
 import core.etag as core_etag
 import core.exceptions as core_exceptions
 import core.logger as core_logger
@@ -1237,9 +1237,9 @@ def set_activity_thumbnail_key(
     stmt = sa_update(activity_models.Activity).where(activity_models.Activity.id == activity_id)
     if expected_key is not None:
         stmt = stmt.where(activity_models.Activity.map_thumbnail_path == expected_key)
-    result = cast("CursorResult[Any]", db.execute(stmt.values(map_thumbnail_path=thumbnail_path)))
+    matched = core_database.rowcount(db, stmt.values(map_thumbnail_path=thumbnail_path))
     db.flush()
-    if result.rowcount == 0:
+    if matched == 0:
         logger.warning(
             "Activity not found when setting the thumbnail path",
             extra=core_logger.context(activity_id=activity_id),
@@ -1273,21 +1273,19 @@ def update_activity_location(
         True when the location was written, False when the activity was not found
         or already has a location.
     """
-    result = cast(
-        "CursorResult[Any]",
-        db.execute(
-            sa_update(activity_models.Activity)
-            .where(
-                activity_models.Activity.id == activity_id,
-                activity_models.Activity.city.is_(None),
-                activity_models.Activity.town.is_(None),
-                activity_models.Activity.country.is_(None),
-            )
-            .values(city=city, town=town, country=country)
-        ),
+    matched = core_database.rowcount(
+        db,
+        sa_update(activity_models.Activity)
+        .where(
+            activity_models.Activity.id == activity_id,
+            activity_models.Activity.city.is_(None),
+            activity_models.Activity.town.is_(None),
+            activity_models.Activity.country.is_(None),
+        )
+        .values(city=city, town=town, country=country),
     )
     db.flush()
-    return result.rowcount == 1
+    return matched == 1
 
 
 def get_activities_missing_location(

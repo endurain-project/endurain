@@ -7,7 +7,6 @@ from unittest.mock import MagicMock, patch
 import pytest
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
-from sqlalchemy.orm import Session
 
 import core.database as core_database
 import core.exceptions as core_exceptions
@@ -104,12 +103,6 @@ class FakePendingMFAStore:
     def reset_attempts(self, username: str) -> None:
         """Reset MFA failed attempts."""
         pass
-
-
-@pytest.fixture
-def mock_db():
-    """Return a mock SQLAlchemy session."""
-    return MagicMock(spec=Session)
 
 
 @pytest.fixture

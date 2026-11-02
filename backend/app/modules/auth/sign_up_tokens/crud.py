@@ -8,6 +8,7 @@ from sqlalchemy import select
 from sqlalchemy import update as sa_update
 from sqlalchemy.orm import Session
 
+import core.database as core_database
 import modules.auth.sign_up_tokens.contracts as sign_up_contracts
 import modules.auth.sign_up_tokens.models as sign_up_models
 import modules.auth.sign_up_tokens.schema as sign_up_schema
@@ -105,15 +106,15 @@ def mark_user_sign_up_tokens_used(user_id: int, db: Session) -> int:
         .where(sign_up_models.SignUpToken.user_id == user_id, sign_up_models.SignUpToken.used.is_(False))
         .values(used=True)
     )
-    result = db.execute(stmt)
+    matched = core_database.rowcount(db, stmt)
     db.flush()
-    return result.rowcount or 0
+    return matched
 
 
 def delete_expired_sign_up_tokens(now: datetime, limit: int, db: Session) -> int:
     """Stage deletion of up to ``limit`` sign-up tokens that expired before ``now`` and return the row count."""
     model = sign_up_models.SignUpToken
     expired = select(model.id).where(model.expires_at < now).limit(limit)
-    result = db.execute(sa_delete(model).where(model.id.in_(expired)))
+    matched = core_database.rowcount(db, sa_delete(model).where(model.id.in_(expired)))
     db.flush()
-    return result.rowcount or 0
+    return matched

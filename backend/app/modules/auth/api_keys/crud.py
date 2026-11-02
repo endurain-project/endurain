@@ -6,6 +6,7 @@ from datetime import UTC, datetime
 from sqlalchemy import delete, func, select
 from sqlalchemy.orm import Session
 
+import core.database as core_database
 import core.exceptions as core_exceptions
 import modules.auth.api_keys.models as api_keys_models
 import modules.auth.api_keys.schema as api_keys_schema
@@ -106,12 +107,13 @@ def revoke_api_key(api_key_id: str, user_id: int, db: Session) -> None:
 
 def delete_api_key(api_key_id: str, user_id: int, db: Session) -> None:
     """Stage deletion of an API key owned by the user."""
-    result = db.execute(
+    matched = core_database.rowcount(
+        db,
         delete(api_keys_models.UsersApiKeys).where(
             api_keys_models.UsersApiKeys.id == api_key_id,
             api_keys_models.UsersApiKeys.user_id == user_id,
-        )
+        ),
     )
-    if result.rowcount == 0:
+    if matched == 0:
         raise core_exceptions.NotFoundError(f"API key {api_key_id} not found for user {user_id}")
     db.flush()

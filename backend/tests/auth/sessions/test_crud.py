@@ -5,6 +5,7 @@ from types import SimpleNamespace
 from unittest.mock import MagicMock, patch
 
 import pytest
+from sqlalchemy import CursorResult
 from sqlalchemy.exc import SQLAlchemyError
 
 import core.exceptions as core_exceptions
@@ -39,7 +40,7 @@ def _row(**updates):
 
 
 def _result(value=None, *, rowcount=1):
-    result = MagicMock()
+    result = MagicMock(spec=CursorResult)
     result.scalar_one_or_none.return_value = value
     result.scalars.return_value = value or []
     result.rowcount = rowcount

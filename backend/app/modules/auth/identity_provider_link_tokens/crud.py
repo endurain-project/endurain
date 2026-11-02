@@ -2,9 +2,10 @@
 
 from datetime import UTC, datetime
 
-from sqlalchemy import CursorResult, delete, select, update
+from sqlalchemy import delete, select, update
 from sqlalchemy.orm import Session
 
+import core.database as core_database
 import modules.auth.identity_provider_link_tokens.models as idp_link_token_models
 import modules.auth.identity_provider_link_tokens.schema as idp_link_token_schema
 import modules.auth.identity_provider_link_tokens.serializers as idp_link_token_serializers
@@ -46,13 +47,11 @@ def mark_token_as_used(token_hash: str, db: Session) -> bool:
         )
         .values(used=True)
     )
-    result: CursorResult[object] = db.execute(stmt)
-    return result.rowcount == 1
+    return core_database.rowcount(db, stmt) == 1
 
 
 def delete_expired_tokens(now: datetime, limit: int, db: Session) -> int:
     """Stage deletion of up to ``limit`` tokens that expired before ``now``."""
     model = idp_link_token_models.IdpLinkToken
     expired = select(model.id).where(model.expires_at < now).limit(limit)
-    result: CursorResult[object] = db.execute(delete(model).where(model.id.in_(expired)))
-    return result.rowcount or 0
+    return core_database.rowcount(db, delete(model).where(model.id.in_(expired)))

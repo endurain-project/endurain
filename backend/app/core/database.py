@@ -5,7 +5,7 @@ from collections.abc import Callable, Generator, Mapping
 from datetime import datetime
 
 import jasil.orm as jasil_orm
-from sqlalchemy import DateTime, create_engine, func, text
+from sqlalchemy import CursorResult, DateTime, Executable, create_engine, func, text
 from sqlalchemy.engine.url import URL
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import (
@@ -270,6 +270,28 @@ def violated_constraint(err: IntegrityError) -> str | None:
         in which case a caller has only the error text to go on.
     """
     return getattr(getattr(err.orig, "diag", None), "constraint_name", None)
+
+
+def rowcount(db: Session, statement: Executable) -> int:
+    """Execute an ``UPDATE`` or ``DELETE`` and return how many rows it matched.
+
+    ``Session.execute`` is typed to return a plain ``Result``; a DML statement without ``RETURNING`` yields a
+    ``CursorResult``, which carries the count.
+
+    Args:
+        db: The session the statement runs in.
+        statement: The ``UPDATE`` or ``DELETE`` to execute.
+
+    Returns:
+        The number of rows the statement matched.
+
+    Raises:
+        TypeError: If the statement returns rows instead of a count.
+    """
+    result = db.execute(statement)
+    if not isinstance(result, CursorResult):
+        raise TypeError(f"{type(statement).__name__} returned rows, not a row count")
+    return result.rowcount
 
 
 def delete_in_batches(stage_batch: Callable[[int], int], db: Session) -> int:

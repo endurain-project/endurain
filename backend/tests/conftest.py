@@ -6,6 +6,7 @@ from unittest.mock import MagicMock
 import pytest
 from fastapi import FastAPI, Request
 from fastapi.testclient import TestClient
+from sqlalchemy import CursorResult
 from sqlalchemy.orm import Session
 
 import core.exceptions as core_exceptions
@@ -103,6 +104,8 @@ def mock_db() -> MagicMock:
         MagicMock: A mock object with the specification of a SQLAlchemy Session.
     """
     db = MagicMock(spec=Session)
+    # A DML statement yields a CursorResult, which carries the row count; it also answers every Result read.
+    db.execute.return_value = MagicMock(spec=CursorResult)
     # A real savepoint rolls back and re-raises; a bare mock context manager would swallow the error.
     db.begin_nested.return_value.__exit__.return_value = False
     return db

@@ -6,6 +6,7 @@ from sqlalchemy import delete, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
+import core.database as core_database
 import core.exceptions as core_exceptions
 import modules.auth.rotated_refresh_tokens.models as rotated_token_models
 import modules.auth.rotated_refresh_tokens.schema as rotated_token_schema
@@ -56,17 +57,18 @@ def delete_expired_tokens(now: datetime, limit: int, db: Session) -> int:
     """Stage deletion of up to ``limit`` rotated-token records whose refresh token expired before ``now``."""
     model = rotated_token_models.RotatedRefreshToken
     expired = select(model.id).where(model.refresh_token_exp < now).limit(limit)
-    result = db.execute(delete(model).where(model.id.in_(expired)))
+    matched = core_database.rowcount(db, delete(model).where(model.id.in_(expired)))
     db.flush()
-    return result.rowcount or 0
+    return matched
 
 
 def delete_by_family(token_family_id: str, db: Session) -> int:
     """Stage deletion of rotated tokens in a family."""
-    result = db.execute(
+    matched = core_database.rowcount(
+        db,
         delete(rotated_token_models.RotatedRefreshToken).where(
             rotated_token_models.RotatedRefreshToken.token_family_id == token_family_id
-        )
+        ),
     )
     db.flush()
-    return result.rowcount or 0
+    return matched

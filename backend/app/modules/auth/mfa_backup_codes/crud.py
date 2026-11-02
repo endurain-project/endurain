@@ -5,6 +5,7 @@ from datetime import UTC, datetime
 from sqlalchemy import delete, or_, select, update
 from sqlalchemy.orm import Session
 
+import core.database as core_database
 import core.exceptions as core_exceptions
 import modules.auth.mfa_backup_codes.contracts as mfa_backup_codes_contracts
 import modules.auth.mfa_backup_codes.models as mfa_backup_codes_models
@@ -83,8 +84,9 @@ def mark_backup_code_as_used(code_id: int, user_id: int, db: Session) -> None:
 
 def delete_user_backup_codes(user_id: int, db: Session) -> int:
     """Stage deletion of all backup codes for a user."""
-    result = db.execute(
-        delete(mfa_backup_codes_models.MFABackupCode).where(mfa_backup_codes_models.MFABackupCode.user_id == user_id)
+    matched = core_database.rowcount(
+        db,
+        delete(mfa_backup_codes_models.MFABackupCode).where(mfa_backup_codes_models.MFABackupCode.user_id == user_id),
     )
     db.flush()
-    return result.rowcount or 0
+    return matched

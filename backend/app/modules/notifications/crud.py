@@ -277,15 +277,16 @@ def delete_user_reference_notifications(
     Returns:
         Number of notifications staged for deletion.
     """
-    result = db.execute(
+    matched = core_database.rowcount(
+        db,
         delete(notifications_models.Notification).where(
             notifications_models.Notification.user_id == user_id,
             notifications_models.Notification.type == notification_type,
             notifications_models.Notification.options["user_id"].as_integer() == referenced_user_id,
-        )
+        ),
     )
     db.flush()
-    return result.rowcount
+    return matched
 
 
 def delete_read_notifications_before(cutoff: datetime, limit: int, db: Session) -> int:
@@ -307,8 +308,8 @@ def delete_read_notifications_before(cutoff: datetime, limit: int, db: Session) 
         )
         .limit(limit)
     )
-    result = db.execute(
-        delete(notifications_models.Notification).where(notifications_models.Notification.id.in_(stale_ids))
+    matched = core_database.rowcount(
+        db, delete(notifications_models.Notification).where(notifications_models.Notification.id.in_(stale_ids))
     )
     db.flush()
-    return result.rowcount
+    return matched

@@ -3,8 +3,11 @@
 from unittest.mock import MagicMock, call, patch
 
 import pytest
+from sqlalchemy import delete, select, update
 
 import core.database as core_database
+import modules.users.users.models as users_models
+from tests._helpers.db import create_sqlite_session_factory, ensure_user
 
 
 class TestGetDb:
@@ -183,3 +186,31 @@ class TestDeleteInBatches:
         core_database.delete_in_batches(stage_batch, db)
 
         assert order == ["stage", "commit", "stage", "commit"]
+
+
+class TestRowcount:
+    """rowcount executes a DML statement and returns how many rows it matched."""
+
+    @pytest.fixture
+    def session_factory(self):
+        factory = create_sqlite_session_factory()
+        ensure_user(factory, 1)
+        ensure_user(factory, 2)
+        yield factory
+        factory.kw["bind"].dispose()
+
+    def test_an_update_returns_the_rows_it_matched(self, session_factory):
+        with session_factory() as db:
+            stmt = update(users_models.Users).where(users_models.Users.id == 1).values(height=180)
+
+            assert core_database.rowcount(db, stmt) == 1
+
+    def test_a_delete_that_matches_nothing_returns_zero(self, session_factory):
+        with session_factory() as db:
+            stmt = delete(users_models.Users).where(users_models.Users.id == 99)
+
+            assert core_database.rowcount(db, stmt) == 0
+
+    def test_a_statement_that_returns_rows_is_refused(self, session_factory):
+        with session_factory() as db, pytest.raises(TypeError):
+            core_database.rowcount(db, select(users_models.Users))

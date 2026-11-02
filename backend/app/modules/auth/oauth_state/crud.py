@@ -1,11 +1,11 @@
 """Persistence operations for OAuth state."""
 
 from datetime import UTC, datetime, timedelta
-from typing import Any
 
-from sqlalchemy import CursorResult, delete, select, update
+from sqlalchemy import delete, select, update
 from sqlalchemy.orm import Session
 
+import core.database as core_database
 import modules.auth.oauth_state.constants as oauth_state_constants
 import modules.auth.oauth_state.models as oauth_state_models
 import modules.auth.oauth_state.schema as oauth_state_schema
@@ -86,21 +86,18 @@ def mark_oauth_state_used(state_id: str, db: Session) -> bool:
         )
         .values(used=True)
     )
-    result: CursorResult[Any] = db.execute(stmt)
-    return result.rowcount == 1
+    return core_database.rowcount(db, stmt) == 1
 
 
 def delete_oauth_state(oauth_state_id: str, db: Session) -> int:
     """Stage deletion of an OAuth state."""
-    result: CursorResult[Any] = db.execute(
-        delete(oauth_state_models.OAuthState).where(oauth_state_models.OAuthState.id == oauth_state_id)
+    return core_database.rowcount(
+        db, delete(oauth_state_models.OAuthState).where(oauth_state_models.OAuthState.id == oauth_state_id)
     )
-    return result.rowcount or 0
 
 
 def delete_expired_oauth_states(now: datetime, limit: int, db: Session) -> int:
     """Stage deletion of up to ``limit`` OAuth states that expired before ``now``."""
     model = oauth_state_models.OAuthState
     expired = select(model.id).where(model.expires_at < now).limit(limit)
-    result: CursorResult[Any] = db.execute(delete(model).where(model.id.in_(expired)))
-    return result.rowcount or 0
+    return core_database.rowcount(db, delete(model).where(model.id.in_(expired)))

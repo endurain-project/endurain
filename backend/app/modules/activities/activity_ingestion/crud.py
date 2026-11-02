@@ -6,11 +6,11 @@ so this module never touches the filesystem and never publishes events.
 
 from collections.abc import Sequence
 from datetime import UTC, datetime, timedelta
-from typing import Any, cast
 
-from sqlalchemy import CursorResult, and_, delete, func, or_, select, update
+from sqlalchemy import and_, delete, func, or_, select, update
 from sqlalchemy.orm import Session
 
+import core.database as core_database
 import modules.activities.activity_ingestion.constants as activity_ingestion_constants
 import modules.activities.activity_ingestion.contracts as activity_ingestion_contracts
 import modules.activities.activity_ingestion.models as activity_ingestion_models
@@ -453,9 +453,9 @@ def mark_processing(job_id: str, db: Session, *, lease: timedelta) -> bool:
             updated_at=func.now(),
         )
     )
-    result = cast("CursorResult[Any]", db.execute(stmt))
+    matched = core_database.rowcount(db, stmt)
     db.flush()
-    return result.rowcount == 1
+    return matched == 1
 
 
 def release_job(job_id: str, db: Session) -> None:
@@ -684,7 +684,7 @@ def fail_open_refresh_jobs(error_code: activity_ingestion_constants.IngestionJob
             completed_at=now,
         )
     )
-    return cast(CursorResult[Any], db.execute(stmt)).rowcount
+    return core_database.rowcount(db, stmt)
 
 
 def get_referenced_staged_keys(staged_keys: Sequence[str], db: Session) -> set[str]:
@@ -719,6 +719,6 @@ def delete_jobs_before(cutoff: datetime, db: Session) -> int:
         activity_ingestion_models.ActivityIngestionJob.completed_at.is_not(None),
         activity_ingestion_models.ActivityIngestionJob.completed_at < cutoff,
     )
-    result = cast("CursorResult[Any]", db.execute(stmt))
+    matched = core_database.rowcount(db, stmt)
     db.flush()
-    return result.rowcount
+    return matched

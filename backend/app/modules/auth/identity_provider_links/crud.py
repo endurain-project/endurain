@@ -2,10 +2,11 @@
 
 from datetime import UTC, datetime
 
-from sqlalchemy import CursorResult, delete, exists, func, select, update
+from sqlalchemy import delete, exists, func, select, update
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
+import core.database as core_database
 import core.exceptions as core_exceptions
 import modules.auth.identity_provider_links.contracts as identity_link_contracts
 import modules.auth.identity_provider_links.models as identity_link_models
@@ -161,16 +162,17 @@ def replace_refresh_token_if_unchanged(
         True when the token was replaced, False when the link holds another one now.
     """
     model = identity_link_models.IdentityLink
-    result: CursorResult[object] = db.execute(
+    matched = core_database.rowcount(
+        db,
         update(model)
         .where(model.user_id == user_id, model.idp_id == idp_id, model.idp_refresh_token == expected_refresh_token)
         .values(
             idp_refresh_token=encrypted_refresh_token,
             idp_access_token_expires_at=access_token_expires_at,
             idp_refresh_token_updated_at=datetime.now(UTC),
-        )
+        ),
     )
-    return result.rowcount == 1
+    return matched == 1
 
 
 def clear_refresh_token_if_unchanged(user_id: int, idp_id: int, expected_refresh_token: str, db: Session) -> bool:
@@ -186,24 +188,26 @@ def clear_refresh_token_if_unchanged(user_id: int, idp_id: int, expected_refresh
         True when the token was cleared, False when the link holds another one now.
     """
     model = identity_link_models.IdentityLink
-    result: CursorResult[object] = db.execute(
+    matched = core_database.rowcount(
+        db,
         update(model)
         .where(model.user_id == user_id, model.idp_id == idp_id, model.idp_refresh_token == expected_refresh_token)
-        .values(idp_refresh_token=None, idp_access_token_expires_at=None, idp_refresh_token_updated_at=None)
+        .values(idp_refresh_token=None, idp_access_token_expires_at=None, idp_refresh_token_updated_at=None),
     )
-    return result.rowcount == 1
+    return matched == 1
 
 
 def delete_user_identity_provider(user_id: int, idp_id: int, db: Session) -> bool:
     """Stage deletion of a user's identity-provider link."""
-    result = db.execute(
+    matched = core_database.rowcount(
+        db,
         delete(identity_link_models.IdentityLink).where(
             identity_link_models.IdentityLink.user_id == user_id,
             identity_link_models.IdentityLink.idp_id == idp_id,
-        )
+        ),
     )
     db.flush()
-    return bool(result.rowcount)
+    return bool(matched)
 
 
 def get_identity_link_counts_for_users(user_ids: list[int], db: Session) -> dict[int, int]:
