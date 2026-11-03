@@ -74,3 +74,12 @@ class TestUserDefaultGearUpdate:
     def test_update_refuses_identity_fields(self, field):
         with pytest.raises(ValidationError):
             user_default_gear_schema.UsersDefaultGearUpdate(**{field: 1})
+
+
+class TestDefaultGearIdsFitIntegerColumns:
+    """A gear id above the int4 range would reach PostgreSQL and answer 500."""
+
+    @pytest.mark.parametrize("field", list(user_default_gear_schema.UsersDefaultGearBase.model_fields))
+    def test_an_id_above_int32_is_rejected(self, field):
+        with pytest.raises(ValidationError):
+            user_default_gear_schema.UsersDefaultGearBase(**{field: 2**31})

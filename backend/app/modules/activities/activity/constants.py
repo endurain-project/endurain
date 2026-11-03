@@ -6,6 +6,11 @@ the ingestion/parsing machinery.
 """
 
 from enum import IntEnum, StrEnum
+from typing import Annotated
+
+from pydantic import AfterValidator, Field
+
+import core.types as core_types
 
 
 class ActivityVisibilityLevel(IntEnum):
@@ -127,6 +132,27 @@ ACTIVITY_ID_TO_NAME = {
     # "Workout",
     # "Yoga"
 }
+
+
+def _known_activity_type(activity_type: int) -> int:
+    """Reject an activity type that is not in the vocabulary.
+
+    Args:
+        activity_type: The requested type.
+
+    Returns:
+        The type, unchanged.
+
+    Raises:
+        ValueError: When the type is not a known activity type.
+    """
+    if activity_type not in ACTIVITY_ID_TO_NAME:
+        raise ValueError("Unknown activity type")
+    return activity_type
+
+
+#: An activity type id of the vocabulary, for a request field or query parameter.
+ActivityTypeId = Annotated[int, Field(ge=1, le=core_types.INT32_MAX), AfterValidator(_known_activity_type)]
 
 # Global Activity Type Mappings (Name to ID) - Case Insensitive Keys
 ACTIVITY_NAME_TO_ID = {name.lower(): activity_type_id for activity_type_id, name in ACTIVITY_ID_TO_NAME.items()}

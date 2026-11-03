@@ -18,6 +18,8 @@ from pydantic import (
 )
 
 import core.pagination as core_pagination
+import core.partial_update as core_partial_update
+import core.types as core_types
 import modules.auth.identity_providers.schema as idp_schema
 import modules.server_settings.schema as server_settings_schema
 import modules.users.users.constants as users_constants
@@ -200,7 +202,7 @@ class UsersBase(BaseModel):
         max_length=250,
         description="User's city",
     )
-    birthdate: datetime_date | None = Field(
+    birthdate: core_types.RecordDate | None = Field(
         default=None,
         description="User's birthdate",
     )
@@ -705,7 +707,7 @@ class EmailChange(StepUpVerification):
     )
 
 
-class ProfileUpdate(BaseModel):
+class ProfileUpdate(core_partial_update.NotClearable, BaseModel):
     """Schema for self-service profile updates.
 
     Strict allow-list of fields the authenticated user is
@@ -741,6 +743,16 @@ class ProfileUpdate(BaseModel):
         repoint their avatar at another user's blob.
     """
 
+    not_clearable = (
+        "name",
+        "username",
+        "preferred_language",
+        "gender",
+        "units",
+        "first_day_of_week",
+        "currency",
+    )
+
     name: StrictStr | None = Field(default=None, min_length=1, max_length=250)
     username: StrictStr | None = Field(
         default=None,
@@ -749,7 +761,7 @@ class ProfileUpdate(BaseModel):
         pattern=r"^[a-zA-Z0-9._-]+$",
     )
     city: StrictStr | None = Field(default=None, max_length=250)
-    birthdate: datetime_date | None = None
+    birthdate: core_types.RecordDate | None = None
     preferred_language: Language | None = None
     gender: Gender | None = None
     units: server_settings_schema.Units | None = None

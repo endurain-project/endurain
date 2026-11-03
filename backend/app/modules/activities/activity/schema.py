@@ -8,47 +8,30 @@ stays exactly what the API serializes.
 from __future__ import annotations
 
 from datetime import datetime
-from typing import Annotated, Any, Self
+from typing import Annotated, Any
 
 from pydantic import (
     BaseModel,
     ConfigDict,
     Field,
+    Strict,
     StrictBool,
     StrictInt,
     StrictStr,
     field_validator,
-    model_validator,
 )
 
 import core.pagination as core_pagination
+import core.partial_update as core_partial_update
 import core.timezone as core_timezone
+import core.types as core_types
 import modules.activities.activity.bulk_edit_constants as bulk_edit_constants
+import modules.activities.activity.constants as activity_constants
 import modules.users.users.schema as users_schema
 
-PositiveInt = Annotated[StrictInt, Field(ge=1)]
 VisibilityValue = Annotated[StrictInt, Field(ge=0, le=2)]
 LongText = Annotated[StrictStr, Field(max_length=2500)]
 ActivityName = Annotated[StrictStr, Field(max_length=250)]
-
-#: Edit fields whose column is NOT NULL: a partial update may omit them but not clear them.
-_NOT_CLEARABLE_FIELDS: tuple[str, ...] = (
-    "activity_type",
-    "visibility",
-    "is_hidden",
-    "hide_start_time",
-    "hide_location",
-    "hide_map",
-    "hide_hr",
-    "hide_power",
-    "hide_cadence",
-    "hide_elevation",
-    "hide_speed",
-    "hide_pace",
-    "hide_laps",
-    "hide_workout_sets_steps",
-    "hide_gear",
-)
 
 
 class ActivityBase(BaseModel):
@@ -126,12 +109,12 @@ class ActivityBase(BaseModel):
 
     model_config = ConfigDict(from_attributes=True, extra="forbid")
 
-    user_id: int | None = Field(default=None, ge=1)
+    user_id: core_types.RecordId | None = None
     description: str | None = Field(default=None, max_length=2500)
     private_notes: str | None = Field(default=None, max_length=2500)
     distance: int = Field(ge=0)
     name: str = Field(max_length=250)
-    activity_type: int = Field(ge=1)
+    activity_type: core_types.RecordId
     start_time: datetime | None = None
     end_time: datetime | None = None
     timezone: str | None = Field(default=None, max_length=250)
@@ -157,7 +140,7 @@ class ActivityBase(BaseModel):
     workout_rpe: int | None = Field(default=None, ge=10, le=100)
     calories: int | None = Field(default=None, ge=0)
     visibility: int | None = Field(default=None, ge=0, le=2)
-    gear_id: int | None = Field(default=None, ge=1)
+    gear_id: core_types.RecordId | None = None
     strava_gear_id: str | None = Field(default=None, max_length=45)
     strava_activity_id: int | None = None
     garminconnect_activity_id: int | None = None
@@ -328,7 +311,7 @@ class ActivitiesBulkEditStatus(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
 
-class ActivitiesBulkEdit(BaseModel):
+class ActivitiesBulkEdit(core_partial_update.NotClearable):
     """Schema for a bulk (PATCH) update across the caller's own activities.
 
     Every field is optional and only the fields present in the request body are
@@ -344,10 +327,12 @@ class ActivitiesBulkEdit(BaseModel):
 
     model_config = ConfigDict(extra="forbid")
 
+    not_clearable = ("visibility",)
+
     visibility: int | None = Field(default=None, ge=0, le=2)
 
 
-class ActivityEdit(BaseModel):
+class ActivityEdit(core_partial_update.NotClearable, BaseModel):
     """Schema for partial (PATCH) updates to an activity.
 
     Every field is optional: only the fields present in the request body are
@@ -376,15 +361,34 @@ class ActivityEdit(BaseModel):
         hide_gear: Hide gear from others.
     """
 
+    not_clearable = (
+        "name",
+        "activity_type",
+        "visibility",
+        "is_hidden",
+        "hide_start_time",
+        "hide_location",
+        "hide_map",
+        "hide_hr",
+        "hide_power",
+        "hide_cadence",
+        "hide_elevation",
+        "hide_speed",
+        "hide_pace",
+        "hide_laps",
+        "hide_workout_sets_steps",
+        "hide_gear",
+    )
+
     model_config = ConfigDict(extra="forbid")
 
     description: LongText | None = None
     private_notes: LongText | None = None
     name: ActivityName | None = None
-    activity_type: PositiveInt | None = None
+    activity_type: Annotated[activity_constants.ActivityTypeId, Strict()] | None = None
     visibility: VisibilityValue | None = None
     is_hidden: StrictBool | None = None
-    gear_id: PositiveInt | None = None
+    gear_id: core_types.RecordId | None = None
     hide_start_time: StrictBool | None = None
     hide_location: StrictBool | None = None
     hide_map: StrictBool | None = None
@@ -397,20 +401,3 @@ class ActivityEdit(BaseModel):
     hide_laps: StrictBool | None = None
     hide_workout_sets_steps: StrictBool | None = None
     hide_gear: StrictBool | None = None
-
-    @model_validator(mode="after")
-    def _reject_clearing_required_fields(self) -> Self:
-        """Reject an explicit null for a field the activity must always have.
-
-        Returns:
-            The validated edit.
-
-        Raises:
-            ValueError: If a required field is sent as null.
-        """
-        cleared = [
-            name for name in _NOT_CLEARABLE_FIELDS if name in self.model_fields_set and getattr(self, name) is None
-        ]
-        if cleared:
-            raise ValueError(f"{', '.join(cleared)} cannot be null")
-        return self

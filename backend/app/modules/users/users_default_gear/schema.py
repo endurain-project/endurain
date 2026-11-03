@@ -7,6 +7,8 @@ from pydantic import (
     StrictInt,
 )
 
+import core.types as core_types
+
 
 class UsersDefaultGearBase(BaseModel):
     """Base schema for users default gear assignments.
@@ -37,79 +39,64 @@ class UsersDefaultGearBase(BaseModel):
         windsurf_gear_id: Default gear for windsurf activities.
     """
 
-    run_gear_id: StrictInt | None = Field(
+    run_gear_id: core_types.RecordId | None = Field(
         default=None,
-        ge=1,
         description="Default gear for run activities",
     )
-    trail_run_gear_id: StrictInt | None = Field(
+    trail_run_gear_id: core_types.RecordId | None = Field(
         default=None,
-        ge=1,
         description="Default gear for trail run activities",
     )
-    virtual_run_gear_id: StrictInt | None = Field(
+    virtual_run_gear_id: core_types.RecordId | None = Field(
         default=None,
-        ge=1,
         description="Default gear for virtual run activities",
     )
-    ride_gear_id: StrictInt | None = Field(
+    ride_gear_id: core_types.RecordId | None = Field(
         default=None,
-        ge=1,
         description="Default gear for ride activities",
     )
-    gravel_ride_gear_id: StrictInt | None = Field(
+    gravel_ride_gear_id: core_types.RecordId | None = Field(
         default=None,
-        ge=1,
         description="Default gear for gravel ride activities",
     )
-    mtb_ride_gear_id: StrictInt | None = Field(
+    mtb_ride_gear_id: core_types.RecordId | None = Field(
         default=None,
-        ge=1,
         description="Default gear for MTB ride activities",
     )
-    virtual_ride_gear_id: StrictInt | None = Field(
+    virtual_ride_gear_id: core_types.RecordId | None = Field(
         default=None,
-        ge=1,
         description="Default gear for virtual ride activities",
     )
-    ows_gear_id: StrictInt | None = Field(
+    ows_gear_id: core_types.RecordId | None = Field(
         default=None,
-        ge=1,
         description="Default gear for OWS activities",
     )
-    walk_gear_id: StrictInt | None = Field(
+    walk_gear_id: core_types.RecordId | None = Field(
         default=None,
-        ge=1,
         description="Default gear for walk activities",
     )
-    hike_gear_id: StrictInt | None = Field(
+    hike_gear_id: core_types.RecordId | None = Field(
         default=None,
-        ge=1,
         description="Default gear for hike activities",
     )
-    tennis_gear_id: StrictInt | None = Field(
+    tennis_gear_id: core_types.RecordId | None = Field(
         default=None,
-        ge=1,
         description="Default gear for tennis activities",
     )
-    alpine_ski_gear_id: StrictInt | None = Field(
+    alpine_ski_gear_id: core_types.RecordId | None = Field(
         default=None,
-        ge=1,
         description="Default gear for alpine ski activities",
     )
-    nordic_ski_gear_id: StrictInt | None = Field(
+    nordic_ski_gear_id: core_types.RecordId | None = Field(
         default=None,
-        ge=1,
         description="Default gear for nordic ski activities",
     )
-    snowboard_gear_id: StrictInt | None = Field(
+    snowboard_gear_id: core_types.RecordId | None = Field(
         default=None,
-        ge=1,
         description="Default gear for snowboard activities",
     )
-    windsurf_gear_id: StrictInt | None = Field(
+    windsurf_gear_id: core_types.RecordId | None = Field(
         default=None,
-        ge=1,
         description="Default gear for windsurf activities",
     )
 

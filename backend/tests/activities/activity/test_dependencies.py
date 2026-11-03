@@ -43,6 +43,9 @@ class TestActivityTypeFilter:
         assert response.status_code == 422
         assert response.json()["errors"][0]["field"] == "query.type"
 
+    def test_an_id_beyond_the_column_range_is_a_validation_error(self):
+        assert _client().get("/list", params={"type": 2**31}).status_code == 422
+
 
 class TestSortParameters:
     def test_known_sort_keys_and_directions_are_accepted(self):

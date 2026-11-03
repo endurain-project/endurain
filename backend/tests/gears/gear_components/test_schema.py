@@ -1,7 +1,7 @@
 import pytest
 from pydantic import ValidationError
 
-from tests._helpers.gears import component_update
+from tests._helpers.gears import component_create, component_update
 
 
 @pytest.mark.parametrize("field", ["type", "brand", "model", "purchase_date", "active"])
@@ -15,3 +15,8 @@ def test_an_update_may_omit_required_fields_or_clear_the_retired_date():
 
     assert "purchase_date" not in update.model_fields_set
     assert update.retired_date is None
+
+
+def test_a_create_rejects_a_gear_id_above_int32():
+    with pytest.raises(ValidationError):
+        component_create(2**31)

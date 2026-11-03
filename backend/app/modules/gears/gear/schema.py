@@ -2,7 +2,7 @@
 
 from datetime import datetime as datetime_type
 from enum import IntEnum
-from typing import Annotated, Self
+from typing import Annotated
 
 from pydantic import (
     AfterValidator,
@@ -13,8 +13,9 @@ from pydantic import (
     StrictFloat,
     StrictInt,
     StrictStr,
-    model_validator,
 )
+
+import core.partial_update as core_partial_update
 
 
 class GearType(IntEnum):
@@ -43,9 +44,6 @@ class GearType(IntEnum):
 
 #: The largest value of a ``Numeric(11, 2)`` column (``initial_kms``, ``purchase_value``).
 MAX_AMOUNT = 999_999_999.99
-
-#: Update fields whose column is NOT NULL: a partial update may omit them but not clear them.
-_NOT_CLEARABLE_FIELDS: tuple[str, ...] = ("nickname", "gear_type", "created_at", "active", "initial_kms")
 
 
 def _require_nickname(value: str) -> str:
@@ -245,31 +243,16 @@ class GearDetailRead(GearRead):
     )
 
 
-class GearUpdate(GearBase):
+class GearUpdate(core_partial_update.NotClearable, GearBase):
     """Partial update of a gear: omit a field to keep it, send null to clear a nullable one.
 
     The gear comes from the path; provider gear IDs cannot be changed.
     """
+
+    not_clearable = ("nickname", "gear_type", "created_at", "active", "initial_kms")
 
     nickname: RequiredNickname | None = Field(
         default=None,
         max_length=250,
         description="Gear display nickname",
     )
-
-    @model_validator(mode="after")
-    def _reject_clearing_required_fields(self) -> Self:
-        """Reject an explicit null for a field the gear must always have.
-
-        Returns:
-            The validated update.
-
-        Raises:
-            ValueError: If a required field is sent as null.
-        """
-        cleared = [
-            name for name in _NOT_CLEARABLE_FIELDS if name in self.model_fields_set and getattr(self, name) is None
-        ]
-        if cleared:
-            raise ValueError(f"{', '.join(cleared)} cannot be null")
-        return self

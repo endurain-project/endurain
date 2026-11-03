@@ -10,6 +10,8 @@ from pydantic import (
     StrictInt,
 )
 
+import core.partial_update as core_partial_update
+
 
 class ActivityVisibility(Enum):
     """Activity visibility levels.
@@ -86,12 +88,28 @@ class UsersPrivacySettingsCreate(UsersPrivacySettingsBase):
     """
 
 
-class UsersPrivacySettingsUpdate(UsersPrivacySettingsBase):
+class UsersPrivacySettingsUpdate(core_partial_update.NotClearable, UsersPrivacySettingsBase):
     """Schema for updating user privacy settings.
 
     Inherits all validation from UsersPrivacySettingsBase.
     All fields are optional for partial updates.
     """
+
+    not_clearable = (
+        "default_activity_visibility",
+        "hide_activity_start_time",
+        "hide_activity_location",
+        "hide_activity_map",
+        "hide_activity_hr",
+        "hide_activity_power",
+        "hide_activity_cadence",
+        "hide_activity_elevation",
+        "hide_activity_speed",
+        "hide_activity_pace",
+        "hide_activity_laps",
+        "hide_activity_workout_sets_steps",
+        "hide_activity_gear",
+    )
 
 
 class UsersPrivacySettingsRead(UsersPrivacySettingsBase):

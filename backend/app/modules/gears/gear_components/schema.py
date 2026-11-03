@@ -1,7 +1,6 @@
 """Gear components schema definitions."""
 
 from datetime import date
-from typing import Self
 
 from pydantic import (
     BaseModel,
@@ -11,17 +10,16 @@ from pydantic import (
     StrictFloat,
     StrictInt,
     StrictStr,
-    model_validator,
 )
+
+import core.partial_update as core_partial_update
+import core.types as core_types
 
 #: The largest value of the ``purchase_value`` column, a ``Numeric(11, 2)``.
 MAX_PURCHASE_VALUE = 999_999_999.99
 
 #: The largest value of the ``expected_kms`` column, a 32-bit integer.
-MAX_EXPECTED_KMS = 2_147_483_647
-
-#: Update fields whose column is NOT NULL: a partial update may omit them but not clear them.
-_NOT_CLEARABLE_FIELDS: tuple[str, ...] = ("type", "brand", "model", "purchase_date", "active")
+MAX_EXPECTED_KMS = core_types.INT32_MAX
 
 
 def is_retired_after_purchase(purchase_date: date | None, retired_date: date | None) -> bool:
@@ -120,7 +118,7 @@ class GearComponentCreate(GearComponentBase):
         max_length=250,
         description="Gear component model",
     )
-    gear_id: StrictInt = Field(
+    gear_id: core_types.RecordId = Field(
         ...,
         description="Foreign key to gear",
     )
@@ -162,28 +160,13 @@ class GearComponentRead(GearComponentCreate):
     )
 
 
-class GearComponentUpdate(GearComponentBase):
+class GearComponentUpdate(core_partial_update.NotClearable, GearComponentBase):
     """Partial update of a gear component: omit a field to keep it, send null to clear a nullable one.
 
     The component and its gear come from the path and cannot be changed.
     """
 
-    @model_validator(mode="after")
-    def _reject_clearing_required_fields(self) -> Self:
-        """Reject an explicit null for a field the component must always have.
-
-        Returns:
-            The validated update.
-
-        Raises:
-            ValueError: If a required field is sent as null.
-        """
-        cleared = [
-            name for name in _NOT_CLEARABLE_FIELDS if name in self.model_fields_set and getattr(self, name) is None
-        ]
-        if cleared:
-            raise ValueError(f"{', '.join(cleared)} cannot be null")
-        return self
+    not_clearable = ("type", "brand", "model", "purchase_date", "active")
 
 
 class GearComponentTypesRead(BaseModel):
