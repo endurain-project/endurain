@@ -2,8 +2,8 @@
 
 from datetime import UTC, datetime
 
+from sqlalchemy import ColumnElement, select
 from sqlalchemy import delete as sa_delete
-from sqlalchemy import select
 from sqlalchemy import update as sa_update
 from sqlalchemy.orm import Session
 
@@ -40,15 +40,23 @@ def password_reset_token_exists(token_hash: str, db: Session) -> bool:
     return db.execute(stmt).first() is not None
 
 
+def _usable_token_conditions(token_hash: str) -> tuple[ColumnElement[bool], ...]:
+    """Return the conditions under which a token is unused and unexpired."""
+    model = password_reset_models.PasswordResetToken
+    return (model.token_hash == token_hash, model.used.is_(False), model.expires_at > datetime.now(UTC))
+
+
+def get_usable_password_reset_token_user_id(token_hash: str, db: Session) -> int | None:
+    """Return the owning user id when the token is unused and unexpired, without consuming it."""
+    stmt = select(password_reset_models.PasswordResetToken.user_id).where(*_usable_token_conditions(token_hash))
+    return db.execute(stmt).scalar_one_or_none()
+
+
 def claim_password_reset_token(token_hash: str, db: Session) -> int | None:
     """Stage an atomic claim and return the owning user id when the token is valid."""
     stmt = (
         sa_update(password_reset_models.PasswordResetToken)
-        .where(
-            password_reset_models.PasswordResetToken.token_hash == token_hash,
-            password_reset_models.PasswordResetToken.used.is_(False),
-            password_reset_models.PasswordResetToken.expires_at > datetime.now(UTC),
-        )
+        .where(*_usable_token_conditions(token_hash))
         .values(used=True)
         .returning(password_reset_models.PasswordResetToken.user_id)
     )

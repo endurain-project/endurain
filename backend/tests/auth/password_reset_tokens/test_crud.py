@@ -35,3 +35,21 @@ def test_claim_token_stages_atomic_update_without_committing(mock_db):
     assert user_id == 42
     mock_db.flush.assert_called_once()
     mock_db.commit.assert_not_called()
+
+
+def test_usable_token_lookup_is_read_only_and_matches_the_claim_conditions(mock_db):
+    mock_db.execute.return_value.scalar_one_or_none.return_value = 42
+
+    assert password_reset_crud.get_usable_password_reset_token_user_id("hash", mock_db) == 42
+
+    mock_db.flush.assert_not_called()
+    mock_db.commit.assert_not_called()
+    stmt = str(mock_db.execute.call_args.args[0].compile(compile_kwargs={"literal_binds": False}))
+    assert stmt.lstrip().upper().startswith("SELECT")
+    assert "used" in stmt and "expires_at" in stmt
+
+
+def test_usable_token_lookup_is_none_when_nothing_matches(mock_db):
+    mock_db.execute.return_value.scalar_one_or_none.return_value = None
+
+    assert password_reset_crud.get_usable_password_reset_token_user_id("hash", mock_db) is None

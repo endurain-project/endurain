@@ -183,6 +183,10 @@ _UNAUDITED_WRITES: dict[tuple[str, str], str] = {
         "auth/sign_up_tokens/public_router.py",
         "resend_verification_email",
     ): "resends the verification email of a pending sign-up; the sign-up is audited when it is confirmed",
+    (
+        "auth/password_reset_tokens/public_router.py",
+        "validate_password_reset_token",
+    ): "checks that a reset token is still usable and changes nothing; the reset is audited by confirm_password_reset",
     ("followers/router.py", "reject_follow_request"): _NO_ACCESS,
     ("followers/user_router.py", "follow_user"): _NO_ACCESS,
     (

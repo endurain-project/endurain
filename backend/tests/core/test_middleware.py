@@ -70,6 +70,10 @@ def app_with_csrf():
     async def test_sign_up_resend():
         return {"message": "Resend success"}
 
+    @app.post("/api/v1/password-reset/validate")
+    async def test_password_reset_validate():
+        return {"message": "Validate success"}
+
     return app
 
 
@@ -252,6 +256,12 @@ class TestCSRFMiddlewareExemptPaths:
         response = client.post("/api/v1/sign-up/resend", headers={"X-Client-Type": "web"})
         assert response.status_code == 200
         assert response.json() == {"message": "Resend success"}
+
+    def test_password_reset_validate_exempt_no_csrf_required(self, client):
+        """A visitor on the logged-out reset page has no CSRF token, so the validate route is exempt."""
+        response = client.post("/api/v1/password-reset/validate", headers={"X-Client-Type": "web"})
+        assert response.status_code == 200
+        assert response.json() == {"message": "Validate success"}
 
     def test_onboarding_exempt_no_csrf_required(self, client):
         """

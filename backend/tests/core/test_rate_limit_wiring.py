@@ -128,6 +128,11 @@ _TIERED_ENDPOINTS = [
         core_rate_limit.SENSITIVE,
         id="password-reset-confirm",
     ),
+    pytest.param(
+        password_reset_router.validate_password_reset_token,
+        core_rate_limit.SENSITIVE,
+        id="password-reset-validate",
+    ),
     pytest.param(server_settings_router.send_test_email, core_rate_limit.SENSITIVE, id="server-settings-test-email"),
     pytest.param(server_settings_router.edit_server_settings, core_rate_limit.WRITE, id="server-settings-edit"),
     pytest.param(server_settings_router.edit_mail_settings, core_rate_limit.WRITE, id="server-settings-edit-mail"),

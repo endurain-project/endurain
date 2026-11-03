@@ -30,6 +30,7 @@ import modules.users.users.schema as users_schema
 logger = core_logger.get_logger(__name__)
 
 RESET_EMAIL_COOLDOWN_SECONDS = 300
+UNUSABLE_RESET_MESSAGE = "Invalid or expired password reset token"
 
 
 def create_password_reset_token(user_id: int, event_id: str, db: Session) -> str:
@@ -79,6 +80,11 @@ def _may_reset_password(user: users_schema.UsersRead, db: Session) -> bool:
     return credentials_integration.has_local_password(user.id, db) and credentials_integration.allows_password_sign_in(
         server_settings_integration.get_server_settings(db), users_schema.normalize_access_type(user.access_type)
     )
+
+
+def _can_reset_password(user: users_schema.UsersRead, db: Session) -> bool:
+    """Tell whether an active account may set its password through a reset link."""
+    return user.active and _may_reset_password(user, db)
 
 
 def _record_reset_request_denied(user_id: int) -> None:
@@ -183,6 +189,25 @@ def prepare_password_reset_email(
     return user.email, subject, html_content, text_content
 
 
+def validate_password_reset_token(token: str, db: Session) -> None:
+    """Check that confirm would accept a reset token, without consuming it or recording anything.
+
+    Unknown, used and expired tokens, and tokens of an account that may not reset its password, fail
+    identically, so the answer reveals nothing about the token or its owner.
+
+    Args:
+        token: The raw reset token.
+        db: Database session.
+
+    Raises:
+        InvalidInputError: If the token is unknown, used or expired, or the account is inactive or may not
+            reset its password.
+    """
+    token_user_id = password_reset_crud.get_usable_password_reset_token_user_id(token_hashing.sha256_hex(token), db)
+    if token_user_id is None or not _can_reset_password(users_integration.require_user(token_user_id, db), db):
+        raise core_exceptions.InvalidInputError(UNUSABLE_RESET_MESSAGE)
+
+
 def use_password_reset_token(token: str, new_password: str, db: Session) -> None:
     """Consume a valid reset token and atomically change the password and revoke sessions.
 
@@ -198,11 +223,11 @@ def use_password_reset_token(token: str, new_password: str, db: Session) -> None
     token_user_id = password_reset_crud.claim_password_reset_token(token_hashing.sha256_hex(token), db)
     if token_user_id is None:
         jasil_audit.record_detached(password_reset_audit_actions.PASSWORD_RESET, outcome=jasil_audit.Outcome.FAILURE)
-        raise core_exceptions.InvalidInputError("Invalid or expired password reset token")
+        raise core_exceptions.InvalidInputError(UNUSABLE_RESET_MESSAGE)
 
     server_settings = server_settings_integration.get_server_settings(db)
     user = users_integration.require_user(token_user_id, db)
-    if not (user.active and _may_reset_password(user, db)):
+    if not _can_reset_password(user, db):
         logger.warning(
             "Password reset refused for user <user_id>: the account is inactive or may not use a local password",
             extra=core_logger.context(user_id=token_user_id),
@@ -214,7 +239,7 @@ def use_password_reset_token(token: str, new_password: str, db: Session) -> None
             target_id=str(token_user_id),
             target_owner_id=str(token_user_id),
         )
-        raise core_exceptions.InvalidInputError("Invalid or expired password reset token")
+        raise core_exceptions.InvalidInputError(UNUSABLE_RESET_MESSAGE)
     hashed_password = credentials_integration.validate_and_hash_password_for_user(
         server_settings,
         users_schema.normalize_access_type(user.access_type),

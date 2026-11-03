@@ -66,6 +66,23 @@ class PasswordResetRequest(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
 
+class PasswordResetValidate(BaseModel):
+    """Request schema for checking that a reset token is still usable.
+
+    Attributes:
+        token: The reset token received by the user.
+    """
+
+    token: StrictStr = Field(
+        ...,
+        description="The reset token received by the user",
+        min_length=1,
+        max_length=256,
+    )
+
+    model_config = ConfigDict(extra="forbid")
+
+
 class PasswordResetConfirm(BaseModel):
     """Request schema for confirming a password reset.
 

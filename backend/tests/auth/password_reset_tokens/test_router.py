@@ -239,3 +239,28 @@ class TestConfirmPasswordReset:
         )
 
         assert response.status_code == status.HTTP_500_INTERNAL_SERVER_ERROR
+
+
+class TestValidatePasswordResetToken:
+    """Test suite for POST /password-reset/validate endpoint."""
+
+    @patch("modules.auth.password_reset_tokens.public_router.password_reset_service.validate_password_reset_token")
+    def test_validate_returns_204_without_body(self, mock_validate, fast_api_client) -> None:
+        """Returns 204 with an empty body when the token is usable."""
+        response = fast_api_client.post("/password-reset/validate", json={"token": "valid-reset-token-value"})
+
+        assert response.status_code == status.HTTP_204_NO_CONTENT
+        assert response.content == b""
+        assert mock_validate.call_args.args[0] == "valid-reset-token-value"
+
+    def test_validate_missing_token(self, fast_api_client) -> None:
+        """Returns 422 when the token field is absent."""
+        assert fast_api_client.post("/password-reset/validate", json={}).status_code == (
+            status.HTTP_422_UNPROCESSABLE_CONTENT
+        )
+
+    def test_validate_rejects_extra_fields(self, fast_api_client) -> None:
+        """Returns 422 when the body carries anything but the token."""
+        response = fast_api_client.post("/password-reset/validate", json={"token": "t", "new_password": "x" * 12})
+
+        assert response.status_code == status.HTTP_422_UNPROCESSABLE_CONTENT

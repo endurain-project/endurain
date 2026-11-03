@@ -1,6 +1,7 @@
 """Tests for password-reset workflows after their move to service.py."""
 
 import hashlib
+from datetime import UTC, datetime, timedelta
 from unittest.mock import MagicMock, patch
 
 import pytest
@@ -11,6 +12,7 @@ import core.exceptions as core_exceptions
 import modules.auth.computation as token_hashing
 import modules.auth.credentials.contracts as credentials_contracts
 import modules.auth.password_reset_tokens.crud as password_reset_crud
+import modules.auth.password_reset_tokens.schema as password_reset_schema
 import modules.auth.password_reset_tokens.service as password_reset_service
 from tests._helpers.db import create_sqlite_session_factory, ensure_user
 
@@ -312,3 +314,91 @@ class TestRetriedResetEvent:
         self._prepare(factory, "event-1")
 
         assert self._claim(factory, newer) == 5
+
+
+class TestValidateToken:
+    """Validation reports usability without consuming the token or revealing why it failed."""
+
+    @pytest.fixture
+    def factory(self):
+        session_factory = create_sqlite_session_factory()
+        ensure_user(session_factory, 5)
+        yield session_factory
+        session_factory.kw["bind"].dispose()
+
+    def _store(self, factory, token: str, *, used: bool = False, expires_in: timedelta = timedelta(hours=1)) -> None:
+        now = datetime.now(UTC)
+        with factory() as db:
+            password_reset_crud.create_password_reset_token(
+                password_reset_schema.PasswordResetToken(
+                    id=token,
+                    user_id=5,
+                    token_hash=token_hashing.sha256_hex(token),
+                    created_at=now,
+                    expires_at=now + expires_in,
+                    used=used,
+                ),
+                db,
+            )
+            db.commit()
+
+    def test_a_usable_token_validates_and_can_still_be_claimed(self, factory):
+        self._store(factory, "good")
+
+        user = MagicMock(id=5, active=True, access_type="regular")
+        with (
+            patch("modules.auth.password_reset_tokens.service.users_integration.require_user", return_value=user),
+            patch("modules.auth.password_reset_tokens.service._may_reset_password", return_value=True),
+            factory() as db,
+        ):
+            password_reset_service.validate_password_reset_token("good", db)
+            password_reset_service.validate_password_reset_token("good", db)
+            assert password_reset_crud.claim_password_reset_token(token_hashing.sha256_hex("good"), db) == 5
+
+    @pytest.mark.parametrize("state", ["used", "expired", "unknown"])
+    def test_every_unusable_token_fails_with_the_same_error(self, factory, state):
+        if state == "used":
+            self._store(factory, "tok", used=True)
+        elif state == "expired":
+            self._store(factory, "tok", expires_in=timedelta(seconds=-5))
+
+        with factory() as db, pytest.raises(core_exceptions.InvalidInputError) as raised:
+            password_reset_service.validate_password_reset_token("tok", db)
+
+        assert str(raised.value) == "Invalid or expired password reset token"
+
+    @pytest.mark.parametrize("reason", ["inactive", "no_local_password"])
+    def test_a_token_confirm_would_refuse_fails_the_same_and_stays_unconsumed(self, factory, reason):
+        self._store(factory, "tok")
+        user = MagicMock(id=5, active=reason != "inactive", access_type="regular")
+
+        with (
+            patch("modules.auth.password_reset_tokens.service.users_integration.require_user", return_value=user),
+            patch(
+                "modules.auth.password_reset_tokens.service.credentials_integration.has_local_password",
+                return_value=reason != "no_local_password",
+            ),
+            patch(
+                "modules.auth.password_reset_tokens.service.credentials_integration.allows_password_sign_in",
+                return_value=True,
+            ),
+            patch("modules.auth.password_reset_tokens.service.server_settings_integration.get_server_settings"),
+            patch("modules.auth.password_reset_tokens.service.jasil_audit.record_detached") as record,
+            factory() as db,
+        ):
+            with pytest.raises(core_exceptions.InvalidInputError) as raised:
+                password_reset_service.validate_password_reset_token("tok", db)
+
+            assert str(raised.value) == "Invalid or expired password reset token"
+            record.assert_not_called()
+            assert password_reset_crud.get_usable_password_reset_token_user_id(token_hashing.sha256_hex("tok"), db) == 5
+
+    def test_validation_records_no_audit_row(self, factory):
+        with (
+            patch("modules.auth.password_reset_tokens.service.jasil_audit.record_detached") as record,
+            factory() as db,
+            pytest.raises(core_exceptions.InvalidInputError),
+        ):
+            password_reset_service.validate_password_reset_token("nope", db)
+
+        record.assert_not_called()
