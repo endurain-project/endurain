@@ -3,7 +3,6 @@ import { describe, expect, it, vi } from 'vitest'
 import type { UnitKey } from '@/i18n'
 
 import {
-  bmiToSave,
   dateTimeLocalToIso,
   formatHealthChartLabel,
   formatHoursMinutes,
@@ -127,29 +126,5 @@ describe('formatHealthChartLabel', () => {
 
   it('returns an empty string for an unparseable date', () => {
     expect(formatHealthChartLabel('nonsense', 'month', 'en')).toBe('')
-  })
-})
-
-describe('bmiToSave', () => {
-  it('sends a BMI the user typed', () => {
-    expect(bmiToSave(21.5, 22.7, true)).toBe(21.5)
-    expect(bmiToSave(21.5, null, false)).toBe(21.5)
-  })
-
-  it('lets the backend derive the BMI when only the weight changed', () => {
-    expect(bmiToSave(22.7, 22.7, true)).toBeNull()
-  })
-
-  it('keeps the stored BMI when nothing about the entry changed', () => {
-    expect(bmiToSave(22.7, 22.7, false)).toBe(22.7)
-  })
-
-  it('lets the backend derive the BMI when the user cleared it', () => {
-    expect(bmiToSave(null, 22.7, false)).toBeNull()
-    expect(bmiToSave(null, 22.7, true)).toBeNull()
-  })
-
-  it('sends no BMI for a new entry left blank', () => {
-    expect(bmiToSave(null, null, true)).toBeNull()
   })
 })

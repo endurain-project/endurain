@@ -2633,6 +2633,28 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/password-reset/validate": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Validate Password Reset Token
+         * @description Answer 204 when a reset token is still usable, else the same 400 as the confirm route.
+         *
+         *     Sent as a body so the token stays out of URLs and logs. Does not consume the token.
+         */
+        post: operations["validate_password_reset_token_api_v1_password_reset_validate_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/profile": {
         parameters: {
             query?: never;
@@ -7389,11 +7411,6 @@ export interface components {
          */
         HealthFastingCreate: {
             /**
-             * Actual Duration Seconds
-             * @description Actual fasting duration in seconds
-             */
-            actual_duration_seconds?: number | null;
-            /**
              * Fast End Time
              * @description End time of fast (null if ongoing)
              */
@@ -7467,11 +7484,12 @@ export interface components {
          *     Attributes:
          *         id: Unique identifier for the fasting record.
          *         user_id: Foreign key reference to the user.
+         *         actual_duration_seconds: Seconds between the start and end time, derived by the server.
          */
         HealthFastingRead: {
             /**
              * Actual Duration Seconds
-             * @description Actual fasting duration in seconds
+             * @description Seconds between the start and the end time, derived by the server; null while the fast has no end
              */
             actual_duration_seconds?: number | null;
             /**
@@ -7570,11 +7588,6 @@ export interface components {
          *     fields present are changed.
          */
         HealthFastingUpdate: {
-            /**
-             * Actual Duration Seconds
-             * @description Actual fasting duration in seconds
-             */
-            actual_duration_seconds?: number | null;
             /**
              * Fast End Time
              * @description End time of fast (null if ongoing)
@@ -7887,7 +7900,7 @@ export interface components {
              * Sleep Stages
              * @description List of sleep stages
              */
-            sleep_stages?: components["schemas"]["HealthSleepStage"][] | null;
+            sleep_stages?: components["schemas"]["HealthSleepStageWrite"][] | null;
             /**
              * Sleep Start Time Gmt
              * @description Start time of sleep in GMT
@@ -8175,6 +8188,29 @@ export interface components {
             start_time_gmt?: string | null;
         };
         /**
+         * HealthSleepStageWrite
+         * @description A sleep stage a client writes: its times are bounded, which a stored stage read back need not be.
+         */
+        HealthSleepStageWrite: {
+            /**
+             * Duration Seconds
+             * @description Duration of the stage in seconds
+             */
+            duration_seconds?: number | null;
+            /**
+             * End Time Gmt
+             * @description End time of the stage in GMT
+             */
+            end_time_gmt?: string | null;
+            /** @description Type of sleep stage */
+            stage_type?: components["schemas"]["SleepStageType"] | null;
+            /**
+             * Start Time Gmt
+             * @description Start time of the stage in GMT
+             */
+            start_time_gmt?: string | null;
+        };
+        /**
          * HealthSleepUpdate
          * @description Schema for the fields a PATCH changes on a sleep record.
          *
@@ -8325,7 +8361,7 @@ export interface components {
              * Sleep Stages
              * @description List of sleep stages
              */
-            sleep_stages?: components["schemas"]["HealthSleepStage"][] | null;
+            sleep_stages?: components["schemas"]["HealthSleepStageWrite"][] | null;
             /**
              * Sleep Start Time Gmt
              * @description Start time of sleep in GMT
@@ -8645,7 +8681,7 @@ export interface components {
         HealthWeightCreate: {
             /**
              * Bmi
-             * @description Body Mass Index
+             * @description Body Mass Index; a manually entered record ignores a value sent and derives it from the weight and height
              */
             bmi?: number | null;
             /**
@@ -8730,7 +8766,7 @@ export interface components {
         HealthWeightRead: {
             /**
              * Bmi
-             * @description Body Mass Index
+             * @description Body Mass Index; a manually entered record ignores a value sent and derives it from the weight and height
              */
             bmi?: number | null;
             /**
@@ -8807,7 +8843,7 @@ export interface components {
         HealthWeightUpdate: {
             /**
              * Bmi
-             * @description Body Mass Index
+             * @description Body Mass Index; a manually entered record ignores a value sent and derives it from the weight and height
              */
             bmi?: number | null;
             /**
@@ -10598,6 +10634,20 @@ export interface components {
              * @description Email address for the reset
              */
             email: string;
+        };
+        /**
+         * PasswordResetValidate
+         * @description Request schema for checking that a reset token is still usable.
+         *
+         *     Attributes:
+         *         token: The reset token received by the user.
+         */
+        PasswordResetValidate: {
+            /**
+             * Token
+             * @description The reset token received by the user
+             */
+            token: string;
         };
         /**
          * ProblemDetail
@@ -18022,6 +18072,46 @@ export interface operations {
                 content: {
                     "application/json": components["schemas"]["PasswordResetRead"];
                 };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Unexpected error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+        };
+    };
+    validate_password_reset_token_api_v1_password_reset_validate_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PasswordResetValidate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
             /** @description Validation Error */
             422: {

@@ -122,7 +122,6 @@ function makeWeightDto(
 const input: WeightEntryInput = {
   date: '2026-06-25',
   weightKg: 72.5,
-  bmi: 22.1,
   bodyFatPct: 18.4,
   bodyWaterPct: 55.2,
   boneMassKg: 3.2,
@@ -214,7 +213,6 @@ describe('weight service requests', () => {
       body: JSON.stringify({
         date: '2026-06-25',
         weight: 72.5,
-        bmi: 22.1,
         body_fat: 18.4,
         body_water: 55.2,
         bone_mass: 3.2,
@@ -234,7 +232,6 @@ describe('weight service requests', () => {
       body: JSON.stringify({
         date: '2026-06-25',
         weight: 72.5,
-        bmi: 22.1,
         body_fat: 18.4,
         body_water: 55.2,
         bone_mass: 3.2,
@@ -781,7 +778,6 @@ const fastingInput: FastingEntryInput = {
   fastEndTime: '2026-06-25T22:00:00.000Z',
   fastingType: '16:8',
   targetDurationSeconds: 57600,
-  actualDurationSeconds: 50400,
   status: 'completed',
   notes: 'Felt good',
 }
@@ -902,7 +898,6 @@ describe('fasting service requests', () => {
         fast_end_time: '2026-06-25T22:00:00.000Z',
         fasting_type: '16:8',
         target_duration_seconds: 57600,
-        actual_duration_seconds: 50400,
         status: 'completed',
         notes: 'Felt good',
       }),

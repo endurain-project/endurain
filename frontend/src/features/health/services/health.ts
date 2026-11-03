@@ -343,7 +343,6 @@ function toWeightWireFields(input: WeightEntryInput): Schemas['HealthWeightCreat
   return {
     date: input.date,
     weight: input.weightKg,
-    bmi: input.bmi,
     body_fat: input.bodyFatPct,
     body_water: input.bodyWaterPct,
     bone_mass: input.boneMassKg,
@@ -634,7 +633,6 @@ export async function updateFastingEntry(
     fast_end_time: input.fastEndTime,
     fasting_type: input.fastingType,
     target_duration_seconds: input.targetDurationSeconds,
-    actual_duration_seconds: input.actualDurationSeconds,
     status: input.status,
     notes: input.notes,
   }

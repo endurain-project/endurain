@@ -11,6 +11,7 @@ import { FormDialog } from '@/components/ui/form-dialog'
 import { FormField } from '@/components/ui/form-field'
 import { inputFieldClass } from '@/components/ui/input/fieldClasses'
 import { useForm } from '@/composables/useForm'
+import { HttpError } from '@/services/http'
 import { isStaleWrite } from '@/services/ifMatch'
 import { todayIsoDate } from '@/utils/datetime'
 import { toNumberOrNull } from '@/utils/number'
@@ -122,8 +123,12 @@ async function submitForm(values: WaterFormValues): Promise<void> {
   } catch (error) {
     if (isStaleWrite(error)) {
       open.value = false
+      emit('error', t('app.staleError'))
+    } else if (!props.entry && error instanceof HttpError && error.status === 409) {
+      emit('error', t('health.water.form.dailyLimitError'))
+    } else {
+      emit('error', t('health.water.form.saveError'))
     }
-    emit('error', isStaleWrite(error) ? t('app.staleError') : t('health.water.form.saveError'))
   }
 }
 
@@ -189,6 +194,7 @@ watch(open, (isOpen) => {
             :aria-describedby="describedBy"
             :aria-invalid="invalid"
             type="date"
+            :max="todayIsoDate()"
             :disabled="isSubmitting"
             @blur="handleBlur('date')"
           />

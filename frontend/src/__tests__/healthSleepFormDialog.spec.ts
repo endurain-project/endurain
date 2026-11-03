@@ -3,7 +3,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { flushPromises, mount } from '@vue/test-utils'
 import { QueryClient, VueQueryPlugin } from '@tanstack/vue-query'
 
-import { apiFetch } from '@/services/http'
+import { HttpError, apiFetch } from '@/services/http'
 import i18n from '@/i18n'
 import HealthSleepFormDialog from '@/features/health/components/HealthSleepFormDialog.vue'
 
@@ -118,5 +118,57 @@ describe('HealthSleepFormDialog validation', () => {
     await setInput(wrapper, 'input[type="number"]', '7')
     await submit(wrapper)
     expect(apiFetch).toHaveBeenCalledTimes(1)
+  })
+})
+
+describe('HealthSleepFormDialog stage consistency', () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+    vi.mocked(apiFetch).mockResolvedValue({})
+  })
+
+  /** Fills total sleep, then deep, light and REM hours (inputs 0, 2, 4, 6 of the number inputs). */
+  async function fill(wrapper: Wrapper, total: string, deep: string, light: string, rem: string) {
+    await setInput(wrapper, 'input[type="number"]', total, 0)
+    await setInput(wrapper, 'input[type="number"]', deep, 2)
+    await setInput(wrapper, 'input[type="number"]', light, 4)
+    await setInput(wrapper, 'input[type="number"]', rem, 6)
+  }
+
+  it('refuses stages that add up to more than the total and does not save', async () => {
+    const wrapper = await openDialog()
+    await fill(wrapper, '7', '4', '3', '1')
+    await submit(wrapper)
+
+    expect(wrapper.text()).toContain('Deep, light and REM sleep add up to more than the total.')
+    expect(apiFetch).not.toHaveBeenCalled()
+  })
+
+  it('accepts stages that match the total', async () => {
+    const wrapper = await openDialog()
+    await fill(wrapper, '8', '4', '3', '1')
+    await submit(wrapper)
+
+    expect(apiFetch).toHaveBeenCalledTimes(1)
+  })
+
+  it('accepts stages that exceed the total by exactly a minute', async () => {
+    const wrapper = await openDialog()
+    await fill(wrapper, '7', '4', '3', '')
+    await setInput(wrapper, 'input[type="number"]', '1', 7)
+    await submit(wrapper)
+
+    expect(apiFetch).toHaveBeenCalledTimes(1)
+  })
+
+  it('shows a specific message when the server refuses the figures', async () => {
+    vi.mocked(apiFetch).mockRejectedValue(new HttpError(400, 'Bad Request'))
+    const wrapper = await openDialog()
+    await setInput(wrapper, 'input[type="number"]', '7')
+    await submit(wrapper)
+
+    expect(wrapper.emitted('error')?.[0]).toEqual([
+      "These sleep figures don't add up. Check that the stages and the total fit within the sleep times.",
+    ])
   })
 })

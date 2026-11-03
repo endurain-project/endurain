@@ -1,0 +1,68 @@
+import { beforeEach, describe, expect, it, vi } from 'vitest'
+
+import { flushPromises, mount } from '@vue/test-utils'
+import { QueryClient, VueQueryPlugin } from '@tanstack/vue-query'
+
+import { HttpError, apiFetch } from '@/services/http'
+import i18n from '@/i18n'
+import HealthWaterFormDialog from '@/features/health/components/HealthWaterFormDialog.vue'
+
+// Only the network seam is replaced; the real `HttpError` stays so `instanceof` checks hold.
+vi.mock('@/services/http', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('@/services/http')>()),
+  apiFetch: vi.fn<typeof apiFetch>(),
+}))
+
+/** Passthrough stub so the reka-ui portal/focus-trap is skipped and the form renders inline. */
+const passthrough = { template: '<div><slot /></div>' }
+
+async function openDialog() {
+  const wrapper = mount(HealthWaterFormDialog, {
+    props: { open: false, entry: null, units: 'metric' },
+    global: {
+      plugins: [i18n, [VueQueryPlugin, { queryClient: new QueryClient() }]],
+      stubs: {
+        Dialog: passthrough,
+        DialogContent: passthrough,
+        DialogHeader: passthrough,
+        DialogTitle: passthrough,
+        DialogDescription: passthrough,
+        DialogFooter: passthrough,
+      },
+    },
+  })
+  await wrapper.setProps({ open: true })
+  return wrapper
+}
+
+describe('HealthWaterFormDialog', () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+  })
+
+  it('shows a specific message when the day would pass the daily cap', async () => {
+    vi.mocked(apiFetch).mockRejectedValue(
+      new HttpError(409, 'Conflict', null, 'urn:endurain:error:conflict'),
+    )
+    const wrapper = await openDialog()
+    await wrapper.get('input[type="number"]').setValue('500')
+    await wrapper.find('form').trigger('submit')
+    await flushPromises()
+
+    expect(wrapper.emitted('error')?.[0]).toEqual([
+      "That would take the day's water intake past the 20,000 ml limit.",
+    ])
+  })
+
+  it('keeps the generic message for other failures', async () => {
+    vi.mocked(apiFetch).mockRejectedValue(new HttpError(500, 'Server Error'))
+    const wrapper = await openDialog()
+    await wrapper.get('input[type="number"]').setValue('500')
+    await wrapper.find('form').trigger('submit')
+    await flushPromises()
+
+    expect(wrapper.emitted('error')?.[0]).toEqual([
+      "Couldn't save your water entry. Please try again.",
+    ])
+  })
+})

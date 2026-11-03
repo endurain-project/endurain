@@ -163,6 +163,7 @@ watch(open, (isOpen) => {
             :aria-describedby="describedBy"
             :aria-invalid="invalid"
             type="date"
+            :max="todayIsoDate()"
             :disabled="isSubmitting"
             @blur="handleBlur('date')"
           />

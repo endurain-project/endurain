@@ -13,11 +13,13 @@ import { FormDialog } from '@/components/ui/form-dialog'
 import { FormField } from '@/components/ui/form-field'
 import { inputFieldClass } from '@/components/ui/input/fieldClasses'
 import { useForm } from '@/composables/useForm'
+import { HttpError } from '@/services/http'
 import { isStaleWrite } from '@/services/ifMatch'
 import {
   dateTimeLocalToIso,
   nowDateTimeLocalInput,
   requiredDateTimeLocalToIso,
+  todayDateTimeLocalMax,
   toDateTimeLocalInput,
 } from '@/features/health/utils/healthFormat'
 import { toNumberOrNull } from '@/utils/number'
@@ -124,19 +126,11 @@ function buildInput(formValues: FastingFormValues): FastingEntryInput {
   const end = isEditing.value ? dateTimeLocalToIso(formValues.endTime) : null
   const notes = formValues.notes.trim()
 
-  // When editing a finished fast, derive the actual length from the bounds.
-  let actualDurationSeconds: number | null = null
-  if (start && end) {
-    const diff = Math.floor((new Date(end).getTime() - new Date(start).getTime()) / 1000)
-    actualDurationSeconds = diff > 0 ? diff : null
-  }
-
   return {
     fastStartTime: start,
     fastEndTime: end,
     fastingType: (formValues.type as FastingType) || null,
     targetDurationSeconds: targetSeconds.value,
-    actualDurationSeconds,
     status: isEditing.value ? (formValues.status as FastingStatus) || null : null,
     notes: notes ? notes : null,
   }
@@ -167,19 +161,38 @@ async function submitForm(formValues: FastingFormValues): Promise<void> {
   } catch (error) {
     if (isStaleWrite(error)) {
       open.value = false
+      emit('error', t('app.staleError'))
+    } else if (error instanceof HttpError && error.status === 409) {
+      emit('error', t('health.fasting.form.overlapError'))
+    } else if (error instanceof HttpError && error.status === 400) {
+      emit('error', t('health.fasting.form.invalidTimesError'))
+    } else {
+      emit('error', t('health.fasting.form.saveError'))
     }
-    emit('error', isStaleWrite(error) ? t('app.staleError') : t('health.fasting.form.saveError'))
   }
 }
 
-const { values, errors, isValid, isSubmitting, handleSubmit, handleBlur, reset } =
+const { values, errors, isValid, isSubmitting, handleSubmit, handleBlur, validateField, reset } =
   useForm<FastingFormValues>({
     initialValues: defaultValues(),
     validators: {
       startTime: required<string>(t('health.fasting.form.startTimeRequired')),
+      // The end must not precede the start when both are provided.
+      endTime: (end: string): string | null =>
+        values.startTime && end && end < values.startTime
+          ? t('health.fasting.form.endBeforeStart')
+          : null,
     },
     onSubmit: submitForm,
   })
+
+/** Validates the end time too, since its rule depends on the start time. */
+function blurStart(): void {
+  handleBlur('startTime')
+  if (values.endTime) {
+    validateField('endTime')
+  }
+}
 
 // A custom protocol needs a valid hours value before the fast can be saved.
 const canSubmit = computed(() => isValid.value && targetSeconds.value !== null)
@@ -274,21 +287,26 @@ watch(open, (isOpen) => {
             :aria-describedby="describedBy"
             :aria-invalid="invalid"
             type="datetime-local"
+            :max="todayDateTimeLocalMax()"
             :disabled="isSubmitting"
-            @blur="handleBlur('startTime')"
+            @blur="blurStart"
           />
         </template>
       </FormField>
 
       <template v-if="isEditing">
-        <FormField :label="t('health.fasting.form.endTime')">
-          <template #default="{ fieldId }">
+        <FormField :label="t('health.fasting.form.endTime')" :error="errors.endTime">
+          <template #default="{ fieldId, describedBy, invalid }">
             <input
               :id="fieldId"
               v-model="values.endTime"
               :class="inputFieldClass"
+              :aria-describedby="describedBy"
+              :aria-invalid="invalid"
               type="datetime-local"
+              :max="todayDateTimeLocalMax()"
               :disabled="isSubmitting"
+              @blur="handleBlur('endTime')"
             />
           </template>
         </FormField>

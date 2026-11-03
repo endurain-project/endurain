@@ -67,7 +67,7 @@ async function openDialog(props: Parameters<typeof mountDialog>[0] = {}) {
   return wrapper
 }
 
-/** The inputs in form order: date, weight, bmi, body fat, body water, bone mass, muscle mass. */
+/** The inputs in form order: date, weight, body fat, body water, bone mass, muscle mass. */
 const inputs = (wrapper: Wrapper) => wrapper.findAll('input')
 
 async function save(wrapper: Wrapper): Promise<Record<string, unknown>> {
@@ -95,31 +95,15 @@ describe('HealthWeightFormDialog submit', () => {
     expect(wrapper.emitted('success')).toBeTruthy()
   })
 
-  it('lets the backend derive the BMI when only the weight is edited', async () => {
+  it('offers no BMI input and sends no BMI', async () => {
     const wrapper = await openDialog({ entry })
 
     await inputs(wrapper)[1]!.setValue('77.2')
 
+    expect(inputs(wrapper)).toHaveLength(6)
     const body = await save(wrapper)
     expect(body.weight).toBe(77.2)
-    expect(body.bmi).toBeNull()
-  })
-
-  it('keeps the stored BMI when the weight is not edited', async () => {
-    const wrapper = await openDialog({ entry })
-
-    await inputs(wrapper)[3]!.setValue('18')
-
-    expect((await save(wrapper)).bmi).toBe(22.7)
-  })
-
-  it('sends a BMI the user typed', async () => {
-    const wrapper = await openDialog({ entry })
-
-    await inputs(wrapper)[1]!.setValue('77.2')
-    await inputs(wrapper)[2]!.setValue('25.5')
-
-    expect((await save(wrapper)).bmi).toBe(25.5)
+    expect(body).not.toHaveProperty('bmi')
   })
 
   it('sends no bone or muscle mass when those fields are blank', async () => {
@@ -136,8 +120,8 @@ describe('HealthWeightFormDialog submit', () => {
     const wrapper = await openDialog({ weightUnits: 'imperial' })
 
     await inputs(wrapper)[1]!.setValue('170')
-    await inputs(wrapper)[5]!.setValue('6.6')
-    await inputs(wrapper)[6]!.setValue('66')
+    await inputs(wrapper)[4]!.setValue('6.6')
+    await inputs(wrapper)[5]!.setValue('66')
 
     const body = await save(wrapper)
     expect(body.weight).toBeCloseTo(77.111, 3)

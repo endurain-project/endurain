@@ -15,7 +15,6 @@ import { applyServerFieldErrors } from '@/services/fieldErrors'
 import { isStaleWrite } from '@/services/ifMatch'
 import { todayIsoDate } from '@/utils/datetime'
 import { toNumberOrNull } from '@/utils/number'
-import { bmiToSave } from '@/features/health/utils/healthFormat'
 import { baseValueUnlessEdited, kgToLbs, lbsToKg } from '@/utils/units'
 import { compose, required } from '@/utils/validators'
 import {
@@ -50,7 +49,6 @@ const updateMutation = useUpdateWeightEntryMutation()
 interface WeightFormValues {
   date: string
   weight: string
-  bmi: string
   bodyFat: string
   bodyWater: string
   boneMass: string
@@ -70,7 +68,6 @@ function defaultValues(): WeightFormValues {
   return {
     date: todayIsoDate(),
     weight: '',
-    bmi: '',
     bodyFat: '',
     bodyWater: '',
     boneMass: '',
@@ -109,12 +106,6 @@ function buildInput(values: WeightFormValues): WeightEntryInput {
   return {
     date: values.date || null,
     weightKg: massToKgUnlessEdited(values.weight, props.entry?.weightKg),
-    bmi: bmiToSave(
-      toNumberOrNull(values.bmi),
-      props.entry?.bmi ?? null,
-      toNumberOrNull(values.weight) !==
-        toNumberOrNull(displayMassFromKg(props.entry?.weightKg ?? null)),
-    ),
     bodyFatPct: toNumberOrNull(values.bodyFat),
     bodyWaterPct: toNumberOrNull(values.bodyWater),
     boneMassKg: optionalMassToKg(values.boneMass, props.entry?.boneMassKg),
@@ -155,15 +146,7 @@ async function submitForm(values: WeightFormValues): Promise<void> {
   }
 }
 
-const FORM_KEYS = [
-  'date',
-  'weight',
-  'bmi',
-  'bodyFat',
-  'bodyWater',
-  'boneMass',
-  'muscleMass',
-] as const
+const FORM_KEYS = ['date', 'weight', 'bodyFat', 'bodyWater', 'boneMass', 'muscleMass'] as const
 
 const { values, errors, isValid, isSubmitting, handleSubmit, handleBlur, reset, setErrors } =
   useForm<WeightFormValues>({
@@ -199,7 +182,6 @@ function populate(): void {
   }
   values.date = entry.date ?? todayIsoDate()
   values.weight = displayMassFromKg(entry.weightKg)
-  values.bmi = entry.bmi !== null ? String(entry.bmi) : ''
   values.bodyFat = entry.bodyFatPct !== null ? String(entry.bodyFatPct) : ''
   values.bodyWater = entry.bodyWaterPct !== null ? String(entry.bodyWaterPct) : ''
   values.boneMass = displayMassFromKg(entry.boneMassKg)
@@ -236,6 +218,7 @@ watch(open, (isOpen) => {
             :aria-describedby="describedBy"
             :aria-invalid="invalid"
             type="date"
+            :max="todayIsoDate()"
             :disabled="isSubmitting"
             @blur="handleBlur('date')"
           />
@@ -267,26 +250,6 @@ watch(open, (isOpen) => {
         {{ t('health.weight.form.bodyComposition') }}
       </summary>
       <div class="mt-2 grid grid-cols-1 gap-2 sm:grid-cols-2">
-        <FormField
-          :label="t('health.weight.form.bmi')"
-          :error="errors.bmi"
-          :placeholder="t('health.weight.form.bmi')"
-        >
-          <template #default="{ fieldId, placeholder }">
-            <input
-              :id="fieldId"
-              v-model="values.bmi"
-              :class="inputFieldClass"
-              :placeholder="placeholder"
-              type="number"
-              min="0"
-              step="0.1"
-              inputmode="decimal"
-              :disabled="isSubmitting"
-            />
-          </template>
-        </FormField>
-
         <FormField
           :label="t('health.weight.form.bodyFat')"
           :error="errors.bodyFat"

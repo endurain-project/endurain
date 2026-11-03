@@ -93,7 +93,6 @@
       "weightRequired": "Please enter your weight.",
       "weightInvalid": "Enter a weight greater than zero.",
       "bodyComposition": "Body composition (optional)",
-      "bmi": "BMI",
       "bodyFat": "Body fat (%)",
       "bodyWater": "Body water (%)",
       "boneMass": "Bone mass",
@@ -357,7 +356,9 @@
       "updateSuccess": "Sleep entry updated.",
       "saveError": "Couldn't save your sleep entry. Please try again.",
       "numberRange": "Enter a value between {min} and {max}.",
-      "numberMin": "Enter {min} or more."
+      "numberMin": "Enter {min} or more.",
+      "stagesExceedTotal": "Deep, light and REM sleep add up to more than the total.",
+      "inconsistentError": "These sleep figures don't add up. Check that the stages and the total fit within the sleep times."
     },
     "target": {
       "title": "Set sleep target",
@@ -426,7 +427,8 @@
       "close": "Close",
       "createSuccess": "Water logged.",
       "updateSuccess": "Water entry updated.",
-      "saveError": "Couldn't save your water entry. Please try again."
+      "saveError": "Couldn't save your water entry. Please try again.",
+      "dailyLimitError": "That would take the day's water intake past the 20,000 ml limit."
     },
     "target": {
       "title": "Set water target",
@@ -603,6 +605,7 @@
       "startTime": "Start time",
       "startTimeRequired": "Please choose a start time.",
       "endTime": "End time",
+      "endBeforeStart": "The end time must not be before the start time.",
       "status": "Status",
       "notes": "Notes",
       "create": "Start",
@@ -611,7 +614,9 @@
       "close": "Close",
       "createSuccess": "Fast started.",
       "updateSuccess": "Fasting session updated.",
-      "saveError": "Couldn't save your fasting session. Please try again."
+      "saveError": "Couldn't save your fasting session. Please try again.",
+      "overlapError": "This fast overlaps another fasting session, or another fast is already in progress.",
+      "invalidTimesError": "A fast cannot end before it starts, and a completed or broken fast needs an end time."
     },
     "target": {
       "title": "Set fasting target",

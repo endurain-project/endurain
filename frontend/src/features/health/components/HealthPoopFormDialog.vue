@@ -17,6 +17,7 @@ import {
 import {
   nowDateTimeLocalInput,
   requiredDateTimeLocalToIso,
+  todayDateTimeLocalMax,
   toDateTimeLocalInput,
 } from '@/features/health/utils/healthFormat'
 
@@ -180,6 +181,7 @@ watch(open, (isOpen) => {
             :aria-describedby="describedBy"
             :aria-invalid="invalid"
             type="datetime-local"
+            :max="todayDateTimeLocalMax()"
             :disabled="isSubmitting"
             @blur="handleBlur('dateTime')"
           />

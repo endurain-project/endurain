@@ -10,10 +10,12 @@ import { FormDialog } from '@/components/ui/form-dialog'
 import { FormField } from '@/components/ui/form-field'
 import { inputFieldClass } from '@/components/ui/input/fieldClasses'
 import { useForm } from '@/composables/useForm'
+import { HttpError } from '@/services/http'
 import { isStaleWrite } from '@/services/ifMatch'
+import { todayDateTimeLocalMax } from '@/features/health/utils/healthFormat'
 import { todayIsoDate } from '@/utils/datetime'
 import { toNumberOrNull } from '@/utils/number'
-import { compose, required, type Validator } from '@/utils/validators'
+import { compose, numberBetween, required, type Validator } from '@/utils/validators'
 import {
   useCreateSleepEntryMutation,
   useUpdateSleepEntryMutation,
@@ -224,8 +226,12 @@ async function submitForm(values: SleepFormValues): Promise<void> {
   } catch (error) {
     if (isStaleWrite(error)) {
       open.value = false
+      emit('error', t('app.staleError'))
+    } else if (error instanceof HttpError && error.status === 400) {
+      emit('error', t('health.sleep.form.inconsistentError'))
+    } else {
+      emit('error', t('health.sleep.form.saveError'))
     }
-    emit('error', isStaleWrite(error) ? t('app.staleError') : t('health.sleep.form.saveError'))
   }
 }
 
@@ -243,24 +249,39 @@ function onToggle(name: SectionName, event: Event): void {
 }
 
 /**
- * Bounds a numeric text field; blank values pass so optional fields stay optional.
+ * Bounds a numeric text field with a translated message; blank values pass so optional fields stay optional.
  *
  * @param min - Smallest accepted value.
  * @param max - Largest accepted value, or `undefined` for no upper bound.
  * @returns A validator returning the range message when the value is out of bounds.
  */
-function numberBetween(min: number, max?: number): Validator<string> {
-  const message =
+function bounded(min: number, max?: number): Validator<string> {
+  return numberBetween(
+    min,
+    max,
     max === undefined
       ? t('health.sleep.form.numberMin', { min })
-      : t('health.sleep.form.numberRange', { min, max })
-  return (value) => {
-    const parsed = toNumberOrNull(value)
-    if (parsed === null) {
-      return null
-    }
-    return parsed < min || (max !== undefined && parsed > max) ? message : null
+      : t('health.sleep.form.numberRange', { min, max }),
+  )
+}
+
+/** Seconds the stage breakdown may exceed the total by (the backend's tolerance). */
+const STAGE_TOLERANCE_SECONDS = 60
+
+/** Rejects deep, light and REM sleep that add up to more than the total (mirrors the backend rule). */
+function stagesWithinTotal(): string | null {
+  const total = hmToSeconds(values.totalHours, values.totalMinutes)
+  if (total === null) {
+    return null
   }
+  const stagesTotal = [
+    hmToSeconds(values.deepHours, values.deepMinutes),
+    hmToSeconds(values.lightHours, values.lightMinutes),
+    hmToSeconds(values.remHours, values.remMinutes),
+  ].reduce<number>((sum, seconds) => sum + (seconds ?? 0), 0)
+  return stagesTotal > total + STAGE_TOLERANCE_SECONDS
+    ? t('health.sleep.form.stagesExceedTotal')
+    : null
 }
 
 /** Number fields with backend bounds (`health_sleep/schema.py`). */
@@ -296,7 +317,7 @@ const boundedFields = {
 const boundedValidators = Object.fromEntries(
   (Object.entries(boundedFields) as [string, Bounds][]).map(([key, [min, max]]) => [
     key,
-    numberBetween(min, max),
+    bounded(min, max),
   ]),
 ) as Partial<Record<keyof SleepFormValues, Validator<string>>>
 
@@ -312,7 +333,8 @@ const { values, errors, isSubmitting, handleSubmit, handleBlur, validateField, r
           hmToSeconds(values.totalHours, values.totalMinutes) === null
             ? t('health.sleep.form.totalSleepRequired')
             : null,
-        numberBetween(0),
+        bounded(0),
+        stagesWithinTotal,
       ),
       // Sleep start must precede sleep end when both times are provided.
       sleepEndTimeLocal: (end: string): string | null =>
@@ -378,6 +400,9 @@ function pairError(
 function blurPair(hours: keyof SleepFormValues, minutes: keyof SleepFormValues): void {
   handleBlur(hours)
   handleBlur(minutes)
+  if (hmToSeconds(values.totalHours, values.totalMinutes) !== null) {
+    validateField('totalHours')
+  }
 }
 
 /** Validates the end time too, since its rule depends on the start time. */
@@ -390,8 +415,8 @@ function blurStart(): void {
 /** Per-row stage duration errors; stage rows live outside the form values. */
 const stageErrors = computed(() =>
   stages.value.map((row) => {
-    const hours = numberBetween(0)(row.durationHours)
-    return hours ?? numberBetween(0, MAX_MINUTES)(row.durationMinutes)
+    const hours = bounded(0)(row.durationHours)
+    return hours ?? bounded(0, MAX_MINUTES)(row.durationMinutes)
   }),
 )
 
@@ -502,6 +527,7 @@ watch(open, (isOpen) => {
             :aria-describedby="describedBy"
             :aria-invalid="invalid"
             type="date"
+            :max="todayIsoDate()"
             :disabled="isSubmitting"
             @blur="handleBlur('date')"
           />
@@ -562,6 +588,7 @@ watch(open, (isOpen) => {
               v-model="values.sleepStartTimeLocal"
               :class="fieldClass"
               type="datetime-local"
+              :max="todayDateTimeLocalMax()"
               :disabled="isSubmitting"
               @blur="blurStart"
             />
@@ -577,6 +604,7 @@ watch(open, (isOpen) => {
               :aria-describedby="describedBy"
               :aria-invalid="invalid"
               type="datetime-local"
+              :max="todayDateTimeLocalMax()"
               :disabled="isSubmitting"
               @blur="handleBlur('sleepEndTimeLocal')"
             />

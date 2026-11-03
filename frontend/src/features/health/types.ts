@@ -138,8 +138,6 @@ export interface WeightEntryInput {
   date: string | null
   /** Body weight in kilograms. */
   weightKg: number
-  /** Body Mass Index, or `null`. */
-  bmi: number | null
   /** Body fat as a percentage, or `null`. */
   bodyFatPct: number | null
   /** Body water as a percentage, or `null`. */
@@ -327,7 +325,7 @@ export interface FastingEntry {
 
 /**
  * Fields captured by the start/edit fasting form, decoupled from the wire
- * payload. The end time, status, and actual duration are only meaningful when
+ * payload. The end time and status are only meaningful when
  * editing an existing fast (a freshly started fast is still in progress).
  */
 export interface FastingEntryInput {
@@ -339,8 +337,6 @@ export interface FastingEntryInput {
   fastingType: FastingType | null
   /** Target fasting duration in seconds, or `null`. */
   targetDurationSeconds: number | null
-  /** Actual elapsed duration in seconds, or `null`. */
-  actualDurationSeconds: number | null
   /** Lifecycle status, or `null` (only set when editing). */
   status: FastingStatus | null
   /** Optional free-text notes, or `null`. */
