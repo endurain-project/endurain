@@ -8,18 +8,17 @@ RFC 9457 handlers were installed.
 
 import json
 
-from fastapi import FastAPI, Query
+from fastapi import Query
 
 import core.problem_details as core_problem_details
 
 
-def _schema_of(app: FastAPI) -> dict:
-    core_problem_details.install_problem_schema(app)
+def _schema_of(app: core_problem_details.ProblemDetailsFastAPI) -> dict:
     return app.openapi()
 
 
-def _app_with_validated_route() -> FastAPI:
-    app = FastAPI()
+def _app_with_validated_route() -> core_problem_details.ProblemDetailsFastAPI:
+    app = core_problem_details.ProblemDetailsFastAPI()
 
     @app.get("/thing")
     def _thing(count: int = Query()):

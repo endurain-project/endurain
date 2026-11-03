@@ -14,14 +14,13 @@ import core.pagination as core_pagination
 
 
 class ActivitySetsBase(BaseModel):
-    """Base schema for activity workout sets.
+    """Base schema for activity workout sets: the fields a stored set and a read set share.
 
     Attributes:
         duration: Set duration.
         repetitions: Repetitions count.
         weight: Exercise weight.
         set_type: Workout set type string.
-        start_time: Set start time ISO string.
         category: Category identifier.
         category_subtype: Category sub type.
     """
@@ -30,7 +29,6 @@ class ActivitySetsBase(BaseModel):
     repetitions: StrictInt | None = None
     weight: StrictFloat | None = None
     set_type: StrictStr
-    start_time: StrictStr
     category: StrictInt | None = None
     category_subtype: StrictInt | None = None
 
@@ -57,7 +55,7 @@ class ActivitySetsRead(ActivitySetsBase):
 
     id: StrictInt
     activity_id: StrictInt
-    start_time: datetime | None  # type: ignore[assignment]
+    start_time: datetime | None
 
     model_config = ConfigDict(
         from_attributes=True,

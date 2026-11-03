@@ -243,12 +243,13 @@ class TestStorageOutageFallback:
         from fastapi.testclient import TestClient
         from slowapi.errors import RateLimitExceeded
 
+        import core.exceptions as core_exceptions
         from core.rate_limit import RateLimitMiddleware, build_limiter, rate_limit_exceeded_handler
 
         limiter = build_limiter(storage_uri="memory://", enabled=True)
         app = FastAPI()
         app.state.limiter = limiter
-        app.add_exception_handler(RateLimitExceeded, rate_limit_exceeded_handler)
+        core_exceptions.register_sync_handler(app, RateLimitExceeded, rate_limit_exceeded_handler)
         app.add_middleware(RateLimitMiddleware)
 
         @app.get("/limited")
@@ -287,6 +288,7 @@ class TestRateLimitMiddleware:
         from fastapi import FastAPI
         from slowapi.errors import RateLimitExceeded
 
+        import core.exceptions as core_exceptions
         import core.rate_limit as core_rate_limit
 
         monkeypatch.setattr(core_rate_limit, "DEFAULT", default)
@@ -302,7 +304,7 @@ class TestRateLimitMiddleware:
 
         app = FastAPI()
         app.state.limiter = limiter
-        app.add_exception_handler(RateLimitExceeded, core_rate_limit.rate_limit_exceeded_handler)
+        core_exceptions.register_sync_handler(app, RateLimitExceeded, core_rate_limit.rate_limit_exceeded_handler)
         app.add_middleware(core_rate_limit.RateLimitMiddleware)
 
         @app.get("/open")

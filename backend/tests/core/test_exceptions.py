@@ -73,3 +73,48 @@ class TestUnhandledErrorBoundary:
         assert response.status_code == 500
         assert response.headers["content-type"].startswith("application/problem+json")
         assert "secret internals" not in response.text
+
+
+class TestRegisterHandler:
+    @staticmethod
+    def _client(handled: list[Exception], *, sync: bool = False):
+        from fastapi import FastAPI, Request
+        from fastapi.responses import JSONResponse
+        from fastapi.testclient import TestClient
+
+        import core.exceptions as core_exceptions
+
+        def render(request: Request, exc: LookupError) -> JSONResponse:
+            handled.append(exc)
+            return JSONResponse({"path": request.url.path}, status_code=418)
+
+        async def handler(request: Request, exc: LookupError) -> JSONResponse:
+            return render(request, exc)
+
+        app = FastAPI()
+        if sync:
+            core_exceptions.register_sync_handler(app, LookupError, render)
+        else:
+            core_exceptions.register_handler(app, LookupError, handler)
+
+        @app.get("/missing")
+        def _missing():
+            raise KeyError("absent")
+
+        return TestClient(app)
+
+    def test_a_subclass_of_the_registered_class_reaches_its_handler(self):
+        handled: list[Exception] = []
+
+        response = self._client(handled).get("/missing")
+
+        assert (response.status_code, response.json()) == (418, {"path": "/missing"})
+        assert [type(exc) for exc in handled] == [KeyError]
+
+    def test_a_synchronous_handler_receives_the_exception_too(self):
+        handled: list[Exception] = []
+
+        response = self._client(handled, sync=True).get("/missing")
+
+        assert (response.status_code, response.json()) == (418, {"path": "/missing"})
+        assert [type(exc) for exc in handled] == [KeyError]

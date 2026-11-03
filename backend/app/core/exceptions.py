@@ -28,9 +28,10 @@ Every error leaves the API as an RFC 9457 problem document — see
 """
 
 import http
+from collections.abc import Awaitable, Callable
 from datetime import datetime
 
-from fastapi import FastAPI, HTTPException, Request, status
+from fastapi import FastAPI, HTTPException, Request, Response, status
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
 from sqlalchemy.exc import IntegrityError, OperationalError, SQLAlchemyError
@@ -541,7 +542,7 @@ async def unhandled_error_handler(request: Request, exc: Exception) -> JSONRespo
     )
 
 
-async def http_exception_handler(request: Request, exc: HTTPException) -> JSONResponse:
+async def http_exception_handler(request: Request, exc: StarletteHTTPException) -> JSONResponse:
     """Render a bare ``HTTPException`` as a problem document.
 
     Registered so that a module which has not yet moved to domain errors still
@@ -617,6 +618,51 @@ def _slug(phrase: str) -> str:
     return phrase.lower().replace(" ", "-")
 
 
+def register_handler[E: Exception](
+    app: FastAPI, exc_class: type[E], handler: Callable[[Request, E], Awaitable[Response]]
+) -> None:
+    """Register an exception handler typed by the exception class it renders.
+
+    Starlette types every handler as taking any ``Exception``, though it only calls one with an instance
+    of the class it was registered for. The registered function checks that instance once, so each
+    handler can name the exception it actually receives.
+
+    Args:
+        app: The FastAPI application to register the handler on.
+        exc_class: The exception class, subclasses included, the handler renders.
+        handler: The coroutine that renders the exception as a response.
+    """
+
+    async def handle(request: Request, exc: Exception) -> Response:
+        if not isinstance(exc, exc_class):
+            raise exc
+        return await handler(request, exc)
+
+    app.add_exception_handler(exc_class, handle)
+
+
+def register_sync_handler[E: Exception](
+    app: FastAPI, exc_class: type[E], handler: Callable[[Request, E], Response]
+) -> None:
+    """Register a synchronous exception handler typed by the exception class it renders.
+
+    The registered function stays synchronous, so Starlette runs it in the threadpool and the rate-limit
+    middleware, which only calls a synchronous handler, can still call it.
+
+    Args:
+        app: The FastAPI application to register the handler on.
+        exc_class: The exception class, subclasses included, the handler renders.
+        handler: The function that renders the exception as a response.
+    """
+
+    def handle(request: Request, exc: Exception) -> Response:
+        if not isinstance(exc, exc_class):
+            raise exc
+        return handler(request, exc)
+
+    app.add_exception_handler(exc_class, handle)
+
+
 def register_exception_handlers(app: FastAPI) -> None:
     """Wire the RFC 9457 error boundary onto a FastAPI application.
 
@@ -632,9 +678,9 @@ def register_exception_handlers(app: FastAPI) -> None:
     Returns:
         None.
     """
-    app.add_exception_handler(DomainError, domain_error_handler)  # type: ignore[arg-type]
-    app.add_exception_handler(SQLAlchemyError, database_error_handler)  # type: ignore[arg-type]
-    app.add_exception_handler(HTTPException, http_exception_handler)  # type: ignore[arg-type]
-    app.add_exception_handler(StarletteHTTPException, http_exception_handler)  # type: ignore[arg-type]
-    app.add_exception_handler(RequestValidationError, validation_error_handler)  # type: ignore[arg-type]
-    app.add_exception_handler(Exception, unhandled_error_handler)
+    register_handler(app, DomainError, domain_error_handler)
+    register_handler(app, SQLAlchemyError, database_error_handler)
+    register_handler(app, HTTPException, http_exception_handler)
+    register_handler(app, StarletteHTTPException, http_exception_handler)
+    register_handler(app, RequestValidationError, validation_error_handler)
+    register_handler(app, Exception, unhandled_error_handler)

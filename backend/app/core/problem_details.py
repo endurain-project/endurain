@@ -159,27 +159,20 @@ def _rewrite_error_responses(schema: dict[str, Any]) -> dict[str, Any]:
     return schema
 
 
-def install_problem_schema(app: FastAPI) -> None:
-    """Make ``app.openapi()`` describe the errors the app actually returns.
+class ProblemDetailsFastAPI(FastAPI):
+    """A FastAPI application whose ``openapi()`` describes the errors it actually returns.
 
-    Wraps the generator rather than annotating ~30 ``include_router`` calls with
-    ``responses=``: the rule is global, so stating it once is both less noise and
-    impossible to forget on a new router.
-
-    Args:
-        app: The FastAPI application whose schema generator to wrap.
-
-    Returns:
-        None.
+    Overrides the generator rather than annotating ~30 ``include_router`` calls with ``responses=``: the
+    rule is global, so stating it once is both less noise and impossible to forget on a new router.
     """
-    generate = app.openapi
 
-    def patched() -> dict[str, Any]:
-        if app.openapi_schema:
-            return app.openapi_schema
-        # ``generate()`` populates and returns ``app.openapi_schema``; mutating it
-        # in place means the cached document is the patched one.
-        app.openapi_schema = _rewrite_error_responses(generate())
-        return app.openapi_schema
+    def openapi(self) -> dict[str, Any]:
+        """Return the OpenAPI document with every error response pointing at :class:`ProblemDetail`.
 
-    app.openapi = patched  # type: ignore[method-assign]
+        Returns:
+            The cached document, rewritten once when it is first generated.
+        """
+        if self.openapi_schema:
+            return self.openapi_schema
+        self.openapi_schema = _rewrite_error_responses(super().openapi())
+        return self.openapi_schema

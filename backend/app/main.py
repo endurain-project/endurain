@@ -347,7 +347,7 @@ def create_app() -> FastAPI:
     redoc_url = f"{core_config.ROOT_PATH}/redoc" if is_development_or_demo else None
 
     # Define the FastAPI object
-    fastapi_app = FastAPI(
+    fastapi_app = core_problem_details.ProblemDetailsFastAPI(
         lifespan=lifespan,
         docs_url=docs_url,
         redoc_url=redoc_url,
@@ -399,13 +399,13 @@ def create_app() -> FastAPI:
 
     # Add rate limiting
     fastapi_app.state.limiter = core_rate_limit.limiter
-    fastapi_app.add_exception_handler(
-        core_rate_limit.RateLimitExceeded,
-        core_rate_limit.rate_limit_exceeded_handler,  # type: ignore[arg-type]
+    core_exceptions.register_sync_handler(
+        fastapi_app, core_rate_limit.RateLimitExceeded, core_rate_limit.rate_limit_exceeded_handler
     )
-    fastapi_app.add_exception_handler(
+    core_exceptions.register_handler(
+        fastapi_app,
         auth_dependencies.ClearRefreshTokenCookieError,
-        auth_dependencies.clear_refresh_token_cookie_exception_handler,  # type: ignore[arg-type]
+        auth_dependencies.clear_refresh_token_cookie_exception_handler,
     )
     # Single API boundary for the transport-agnostic domain errors raised by the
     # application layers (services, ingestion pipeline, file parsers). Those
@@ -413,9 +413,6 @@ def create_app() -> FastAPI:
     # status code and renders the same ``{"detail": ...}`` body HTTPException
     # produces, so the client-visible contract is unchanged.
     core_exceptions.register_exception_handlers(fastapi_app)
-    # Keep the generated schema describing the problem documents those handlers
-    # emit, rather than FastAPI's defaults.
-    core_problem_details.install_problem_schema(fastapi_app)
     fastapi_app.add_middleware(core_rate_limit.RateLimitMiddleware)
 
     # Publishes the request so the audit context provider can read who is acting.

@@ -30,8 +30,6 @@ if str(_APP_DIR) not in sys.path:
 os.environ.setdefault("DB_PASSWORD", "openapi-export-placeholder")
 os.environ.setdefault("SECRET_KEY", "openapi-export-placeholder")
 
-from fastapi import FastAPI  # noqa: E402
-
 import core.config as core_config  # noqa: E402
 import core.problem_details as core_problem_details  # noqa: E402
 from api import router as api_router  # noqa: E402
@@ -45,7 +43,7 @@ def build_openapi() -> dict:
         schemas to the production app (middleware and static mounts do not
         contribute to the schema).
     """
-    app = FastAPI(
+    app = core_problem_details.ProblemDetailsFastAPI(
         title="Endurain",
         summary="Endurain API for the Endurain app",
         version=core_config.API_VERSION,
@@ -56,7 +54,6 @@ def build_openapi() -> dict:
         },
     )
     app.include_router(api_router)
-    core_problem_details.install_problem_schema(app)
     return app.openapi()
 
 

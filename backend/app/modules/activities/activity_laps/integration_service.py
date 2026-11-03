@@ -56,7 +56,7 @@ def _parse_profile_record(record: dict[str, Any], _activity_id: int) -> dict[str
         The validated lap as a dict.
     """
     data = {key: value for key, value in record.items() if key != "activity_id"}
-    return activity_laps_schema.ActivityLapsBase.model_validate(data).model_dump()
+    return activity_laps_schema.ActivityLapsCreate.model_validate(data).model_dump()
 
 
 def ingestion_contributor() -> activities_contributors.ActivityIngestionContributor:

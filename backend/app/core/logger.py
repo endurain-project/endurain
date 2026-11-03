@@ -119,7 +119,8 @@ class RequestIdFilter(logging.Filter):
         Returns:
             Always True so the record is never suppressed.
         """
-        record.request_id = jasil_correlation.get_correlation_id() or ""  # type: ignore[attr-defined]
+        # A record's fields beyond the stdlib ones live in its ``__dict__``, which is where ``extra=`` puts them too.
+        record.__dict__["request_id"] = jasil_correlation.get_correlation_id() or ""
         return True
 
 

@@ -39,10 +39,9 @@ _FLOAT_FIELDS: tuple[str, ...] = (
 
 
 class ActivityLapsBase(BaseModel):
-    """Base schema for activity laps.
+    """Base schema for activity laps: the fields a stored lap and a read lap share.
 
     Attributes:
-        start_time: Lap start time ISO string.
         start_position_lat: Start latitude.
         start_position_long: Start longitude.
         end_position_lat: End latitude.
@@ -80,7 +79,6 @@ class ActivityLapsBase(BaseModel):
         avg_step_length: Average step length.
     """
 
-    start_time: StrictStr
     start_position_lat: StrictFloat | None = None
     start_position_long: StrictFloat | None = None
     end_position_lat: StrictFloat | None = None
@@ -143,6 +141,16 @@ class ActivityLapsBase(BaseModel):
         return value
 
 
+class ActivityLapsCreate(ActivityLapsBase):
+    """A parsed or archived lap to persist for an activity.
+
+    Attributes:
+        start_time: Lap start time ISO string.
+    """
+
+    start_time: StrictStr
+
+
 class ActivityLapsRead(ActivityLapsBase):
     """Schema for reading activity laps.
 
@@ -160,7 +168,7 @@ class ActivityLapsRead(ActivityLapsBase):
 
     id: StrictInt
     activity_id: StrictInt
-    start_time: datetime | None  # type: ignore[assignment]
+    start_time: datetime | None
 
     model_config = ConfigDict(
         from_attributes=True,

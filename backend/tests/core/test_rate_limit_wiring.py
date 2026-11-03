@@ -30,6 +30,7 @@ from joserfc.jwk import OctKey
 from limits import parse as parse_limit
 from slowapi.errors import RateLimitExceeded
 
+import core.exceptions as core_exceptions
 import core.rate_limit as core_rate_limit
 import modules.activities.activity.public_router as activity_public_router
 import modules.activities.activity.router as activity_router
@@ -432,10 +433,7 @@ def _app_with(tier: str, probe_name: str) -> FastAPI:
     """
     app = FastAPI()
     app.state.limiter = core_rate_limit.limiter
-    app.add_exception_handler(
-        RateLimitExceeded,
-        core_rate_limit.rate_limit_exceeded_handler,  # type: ignore[arg-type]
-    )
+    core_exceptions.register_sync_handler(app, RateLimitExceeded, core_rate_limit.rate_limit_exceeded_handler)
     app.add_middleware(core_rate_limit.RateLimitMiddleware)
 
     def probe(request: Request) -> dict[str, bool]:
