@@ -39,6 +39,7 @@ import modules.activities.activity_file_storage.integration_service as activity_
 import modules.activities.activity_ingestion.contracts as activity_ingestion_contracts
 import modules.activities.activity_ingestion.enrichment_service as activity_ingestion_enrichment_service
 import modules.activities.contributor_registry as activities_contributor_registry
+import modules.server_settings.schema as server_settings_schema
 import modules.users.users.integration_service as users_integration
 import modules.users.users_privacy_settings.integration_service as users_privacy_settings_integration
 
@@ -51,6 +52,7 @@ def parse_file(
     filename: str,
     activity_name: str | None = None,
     default_timezone: str | None = None,
+    units: server_settings_schema.Units = server_settings_schema.Units.METRIC,
 ) -> activity_contracts.ParsedFile | None:
     """Parse one activity file into its activities.
 
@@ -61,6 +63,8 @@ def parse_file(
         activity_name: Optional override for the parsed activity's name.
         default_timezone: The owner's IANA timezone, used only when the file
             yields no timezone of its own.
+        units: The owner's measurement units; they set the length of an automatic lap
+            for formats that carry no device laps.
 
     Returns:
         The parsed file, or ``None`` for the bulk-import package marker file.
@@ -89,7 +93,12 @@ def parse_file(
             )
         # The parsers are pure and cannot read settings, so the server timezone
         # fallback for a file with no zone of its own is applied here.
-        return parser(filename, token_user_id, activity_name, default_timezone or core_config.settings.TZ)
+        lap_distance_km = activity_file_import_integration.auto_lap_distance_km(
+            units is server_settings_schema.Units.IMPERIAL
+        )
+        return parser(
+            filename, token_user_id, activity_name, default_timezone or core_config.settings.TZ, lap_distance_km
+        )
     except core_exceptions.DomainError:
         raise
     except (EOFError, gzip.BadGzipFile, ValueError, KeyError, TypeError) as err:
@@ -221,6 +230,7 @@ def store_activities_from_file(
         # a GPS-less activity (treadmill, turbo, pool) inherits the *server's*
         # timezone, which is meaningless for an athlete on another continent.
         user.timezone,
+        server_settings_schema.Units(user.units),
     )
 
     if parsed_file is None:

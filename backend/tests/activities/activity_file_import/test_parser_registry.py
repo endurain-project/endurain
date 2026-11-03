@@ -33,12 +33,12 @@ class TestAdapters:
         mock_adapter.parsed_info_to_parsed_activity.return_value = "parsed-gpx"
         parser = registry.get_parser(".gpx")
 
-        result = parser("/f.gpx", 7, "Name", "Asia/Tokyo")
+        result = parser("/f.gpx", 7, "Name", "Asia/Tokyo", 1.609344)
 
         assert result.activities == ["parsed-gpx"]
         assert result.components == {}
         mock_gpx.parse_gpx_file.assert_called_once_with(
-            "/f.gpx", 7, activity_name_input="Name", default_timezone="Asia/Tokyo"
+            "/f.gpx", 7, activity_name_input="Name", default_timezone="Asia/Tokyo", distance_per_lap_km=1.609344
         )
         mock_adapter.parsed_info_to_parsed_activity.assert_called_once_with({"activity": "gpx"})
 
@@ -49,7 +49,7 @@ class TestAdapters:
         mock_adapter.parsed_info_to_parsed_activity.return_value = "parsed-tcx"
         parser = registry.get_parser(".tcx")
 
-        result = parser("/f.tcx", 7, "Name", "Asia/Tokyo")
+        result = parser("/f.tcx", 7, "Name", "Asia/Tokyo", 1.0)
 
         assert result.activities == ["parsed-tcx"]
         mock_tcx.parse_tcx_file.assert_called_once_with(
@@ -63,8 +63,10 @@ class TestAdapters:
         parser = registry.get_parser(".gpx")
         with pytest.raises(TypeError):
             parser("/f.gpx", 7)
-        parser("/f.gpx", 7, None, "UTC")
-        mock_gpx.parse_gpx_file.assert_called_once_with("/f.gpx", 7, activity_name_input=None, default_timezone="UTC")
+        parser("/f.gpx", 7, None, "UTC", 1.0)
+        mock_gpx.parse_gpx_file.assert_called_once_with(
+            "/f.gpx", 7, activity_name_input=None, default_timezone="UTC", distance_per_lap_km=1.0
+        )
 
     @patch("modules.activities.activity_file_import.parser_registry.activity_file_import_adapter")
     @patch("modules.activities.activity_file_import.parser_registry.activity_file_import_fit_utils")
@@ -78,7 +80,7 @@ class TestAdapters:
         mock_adapter.parsed_info_to_parsed_activity.side_effect = lambda info: f"parsed-{info}"
         parser = registry.get_parser(".fit")
 
-        result = parser("/f.fit", 7, "Name", "Asia/Tokyo")
+        result = parser("/f.fit", 7, "Name", "Asia/Tokyo", 1.0)
 
         assert result.activities == ["parsed-info-a", "parsed-info-b"]
         assert result.components == {"exercise_titles": ["title"]}
@@ -96,7 +98,7 @@ class TestAdapters:
         mock_fit.create_activity_objects.return_value = ["i1", "i2", "i3"]
         mock_adapter.parsed_info_to_parsed_activity.side_effect = lambda info: info
 
-        result = registry.get_parser(".fit")("/f.fit", 7, None, "UTC")
+        result = registry.get_parser(".fit")("/f.fit", 7, None, "UTC", 1.0)
 
         assert result.activities == ["i1", "i2", "i3"]
         assert result.components == {"exercise_titles": None}

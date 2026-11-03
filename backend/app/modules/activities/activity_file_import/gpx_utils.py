@@ -500,6 +500,7 @@ def parse_gpx_file(
     *,
     activity_name_input: str | None = None,
     default_timezone: str,
+    distance_per_lap_km: float = activity_file_import_parser_utils.DEFAULT_LAP_DISTANCE_KM,
 ) -> activity_file_import_parser_utils.ActivityFilePayload[activity_file_import_parser_utils.LapMetrics]:
     """Parse a GPX file into structured activity data.
 
@@ -509,6 +510,7 @@ def parse_gpx_file(
         activity_name_input: Optional override for the activity name.
         default_timezone: The owner's IANA timezone, used only when the file yields
             none of its own.
+        distance_per_lap_km: Distance in km after which an automatic lap closes (a GPX file carries no device laps).
 
     Returns:
         The payload with the ActivityCore contract, waypoint arrays, lap data, and boolean stream flags; it
@@ -588,6 +590,7 @@ def parse_gpx_file(
                     state.hr_waypoints,
                     state.cad_waypoints,
                     state.vel_waypoints,
+                    distance_per_lap_km=distance_per_lap_km,
                     measured_vel_times=state.measured_vel_times,
                     smoothed_ele_waypoints=smoothed_ele_waypoints,
                 )

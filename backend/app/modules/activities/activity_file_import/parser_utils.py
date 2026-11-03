@@ -24,6 +24,9 @@ if TYPE_CHECKING:
 # ISO 8601 datetime format used throughout the import pipeline
 _DT_FMT = "%Y-%m-%dT%H:%M:%S"
 
+KM_PER_MILE = 1.609344
+DEFAULT_LAP_DISTANCE_KM = 1.0
+
 # Minimum gap in seconds between two consecutive trackpoints that counts as a
 # recording pause. GPS devices record every 1-5 s (smart recording modes
 # occasionally stretch further), so 15 s tolerates dropped fixes while real
@@ -477,7 +480,7 @@ def generate_activity_laps(
     hr_waypoints: Sequence[Mapping[str, Any]],
     cad_waypoints: Sequence[Mapping[str, Any]],
     vel_waypoints: Sequence[Mapping[str, Any]],
-    distance_per_lap_km: float = 1.0,
+    distance_per_lap_km: float = DEFAULT_LAP_DISTANCE_KM,
     measured_vel_times: set[str] | None = None,
     smoothed_ele_waypoints: Sequence[Mapping[str, Any]] | None = None,
 ) -> list[LapMetrics]:
@@ -492,7 +495,7 @@ def generate_activity_laps(
         hr_waypoints: List of heart rate dicts.
         cad_waypoints: List of cadence dicts.
         vel_waypoints: List of velocity dicts.
-        distance_per_lap_km: Km per lap (default 1.0).
+        distance_per_lap_km: Km per lap (default 1 km).
         measured_vel_times: Timestamps of velocity samples that are real
             measurements, for sources that emit placeholder samples; ``None``
             treats every sample as measured.

@@ -47,6 +47,41 @@ def _patch_parser_side_effects(monkeypatch) -> None:
 _SERVER_TZ = "UTC"
 
 
+def _six_km_track(tmp_path) -> str:
+    """Write a straight ~6 km east-west track of 100 m hops at the equator."""
+    start = datetime(2025, 1, 1, tzinfo=UTC)
+    points = "".join(
+        f'<trkpt lat="0.0" lon="{i * 0.0009:.4f}"><time>{(start + timedelta(seconds=i * 30)).strftime("%Y-%m-%dT%H:%M:%SZ")}</time></trkpt>'
+        for i in range(61)
+    )
+    return _write_gpx(
+        tmp_path,
+        f'<gpx version="1.1" creator="pytest"><trk><name>Run</name><type>Run</type><trkseg>{points}</trkseg></trk></gpx>',
+    )
+
+
+class TestAutoLapDistance:
+    """GPX carries no device laps, so laps close at the caller's lap distance."""
+
+    def test_metric_laps_close_every_km(self, tmp_path, monkeypatch):
+        _patch_parser_side_effects(monkeypatch)
+        result = gpx_utils.parse_gpx_file(_six_km_track(tmp_path), user_id=1, default_timezone=_SERVER_TZ)
+
+        full = [lap for lap in result["laps"] if lap["total_distance"] >= 990]
+        assert len(full) == 6
+
+    def test_imperial_laps_close_every_mile(self, tmp_path, monkeypatch):
+        _patch_parser_side_effects(monkeypatch)
+        result = gpx_utils.parse_gpx_file(
+            _six_km_track(tmp_path), user_id=1, default_timezone=_SERVER_TZ, distance_per_lap_km=1.609344
+        )
+
+        distances = [lap["total_distance"] for lap in result["laps"]]
+        assert len(distances) == 4
+        assert all(1609 <= d < 1720 for d in distances[:3])
+        assert distances[3] < 1609
+
+
 class TestParseGpxFile:
     """Test suite for full GPX parser behavior."""
 

@@ -49,6 +49,7 @@ class FileParser(Protocol):
         user_id: int,
         activity_name: str | None,
         default_timezone: str,
+        lap_distance_km: float,
     ) -> activity_contracts.ParsedFile:
         """Parse the file at ``path`` for ``user_id``.
 
@@ -62,6 +63,7 @@ class FileParser(Protocol):
             user_id: ID of the user the file belongs to.
             activity_name: Optional activity name override.
             default_timezone: Timezone to assume when the file carries none.
+            lap_distance_km: Distance of an automatic lap; only used by formats without device laps.
 
         Returns:
             The parsed file.
@@ -74,6 +76,7 @@ def _parse_gpx(
     user_id: int,
     activity_name: str | None,
     default_timezone: str,
+    lap_distance_km: float,
 ) -> activity_contracts.ParsedFile:
     """Adapter: parse a GPX file into the single activity it describes.
 
@@ -82,12 +85,17 @@ def _parse_gpx(
         user_id: ID of the user the file belongs to.
         activity_name: Optional activity name override.
         default_timezone: Timezone to assume when the file carries none.
+        lap_distance_km: Distance of an automatic lap; only GPX uses it, as TCX and FIT carry device laps.
 
     Returns:
         The parsed file.
     """
     parsed_info = activity_file_import_gpx_utils.parse_gpx_file(
-        path, user_id, activity_name_input=activity_name, default_timezone=default_timezone
+        path,
+        user_id,
+        activity_name_input=activity_name,
+        default_timezone=default_timezone,
+        distance_per_lap_km=lap_distance_km,
     )
     return activity_contracts.ParsedFile(
         activities=[activity_file_import_adapter.parsed_info_to_parsed_activity(parsed_info)]
@@ -99,6 +107,7 @@ def _parse_tcx(
     user_id: int,
     activity_name: str | None,
     default_timezone: str,
+    lap_distance_km: float,
 ) -> activity_contracts.ParsedFile:
     """Adapter: parse a TCX file into the single activity it describes.
 
@@ -107,6 +116,7 @@ def _parse_tcx(
         user_id: ID of the user the file belongs to.
         activity_name: Optional activity name override.
         default_timezone: Timezone to assume when the file carries none.
+        lap_distance_km: Distance of an automatic lap; only GPX uses it, as TCX and FIT carry device laps.
 
     Returns:
         The parsed file.
@@ -124,6 +134,7 @@ def _parse_fit(
     user_id: int,
     activity_name: str | None,
     default_timezone: str,
+    lap_distance_km: float,
 ) -> activity_contracts.ParsedFile:
     """Adapter: parse a FIT file into the one *or more* activities it describes.
 
@@ -138,6 +149,7 @@ def _parse_fit(
         user_id: ID of the user the file belongs to.
         activity_name: Optional activity name override.
         default_timezone: Timezone to assume when the file carries none.
+        lap_distance_km: Distance of an automatic lap; only GPX uses it, as TCX and FIT carry device laps.
 
     Returns:
         The parsed file, one entry per activity.

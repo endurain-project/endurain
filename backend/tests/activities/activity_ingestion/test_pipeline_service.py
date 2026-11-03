@@ -150,7 +150,7 @@ class TestStoreActivitiesFromFile:
         db = MagicMock()
 
         with (
-            patch.object(pipeline.users_integration, "get_user"),
+            patch.object(pipeline.users_integration, "get_user", return_value=MagicMock(units="metric")),
             patch.object(pipeline.users_privacy_settings_integration, "get_privacy_settings"),
             patch.object(
                 pipeline,
@@ -188,7 +188,7 @@ class TestStoreActivitiesFromFile:
         source_file.write_bytes(b"\x00")
 
         with (
-            patch.object(pipeline.users_integration, "get_user"),
+            patch.object(pipeline.users_integration, "get_user", return_value=MagicMock(units="metric")),
             patch.object(pipeline.users_privacy_settings_integration, "get_privacy_settings"),
             patch.object(
                 pipeline,
@@ -216,7 +216,7 @@ class TestStoreActivitiesFromFile:
         source.write_bytes(b"\x00")
 
         with (
-            patch.object(pipeline.users_integration, "get_user"),
+            patch.object(pipeline.users_integration, "get_user", return_value=MagicMock(units="metric")),
             patch.object(pipeline.users_privacy_settings_integration, "get_privacy_settings"),
             patch.object(pipeline, "parse_file", return_value=activity_contracts.ParsedFile()),
             patch.object(pipeline.core_file_uploads, "sha256_file", return_value="hash"),
@@ -241,7 +241,7 @@ class TestStoreActivitiesFromFile:
         source.write_bytes(b"<gpx/>")
 
         with (
-            patch.object(pipeline.users_integration, "get_user"),
+            patch.object(pipeline.users_integration, "get_user", return_value=MagicMock(units="metric")),
             patch.object(pipeline.users_privacy_settings_integration, "get_privacy_settings"),
             patch.object(pipeline, "parse_file", return_value=None),
         ):
@@ -273,6 +273,43 @@ class TestParseFileTimezoneFallback:
             pipeline_service.parse_file(1, ".gpx", "/f.gpx")
 
         assert parser.call_args.args[3] == core_config.settings.TZ
+
+    def test_an_imperial_owner_gets_mile_laps(self):
+        from unittest.mock import MagicMock, patch
+
+        import modules.activities.activity_ingestion.pipeline_service as pipeline_service
+        import modules.server_settings.schema as server_settings_schema
+
+        parser = MagicMock(return_value="parsed")
+        with patch.object(pipeline_service.activity_file_import_integration, "get_parser", return_value=parser):
+            pipeline_service.parse_file(1, ".gpx", "/f.gpx", units=server_settings_schema.Units.IMPERIAL)
+            assert parser.call_args.args[4] == pytest.approx(1.609344)
+            pipeline_service.parse_file(1, ".gpx", "/f.gpx", units=server_settings_schema.Units.METRIC)
+            assert parser.call_args.args[4] == 1.0
+
+    def test_the_stored_owner_units_reach_the_parser(self, tmp_path):
+        import modules.activities.activity_ingestion.pipeline_service as pipeline_service
+        import modules.server_settings.schema as server_settings_schema
+
+        source_file = tmp_path / "a.gpx"
+        source_file.write_bytes(b"x")
+        user = MagicMock(units="imperial")
+        with (
+            patch.object(pipeline_service.users_integration, "get_user", return_value=user),
+            patch.object(pipeline_service.users_privacy_settings_integration, "get_privacy_settings"),
+            patch.object(pipeline_service, "parse_file", return_value=None) as parse_file,
+        ):
+            pipeline_service.store_activities_from_file(
+                1,
+                str(source_file),
+                ".gpx",
+                "a.gpx",
+                MagicMock(),
+                source=sources.UploadSource(),
+                storage=MagicMock(),
+            )
+
+        assert parse_file.call_args.args[5] is server_settings_schema.Units.IMPERIAL
 
 
 class TestGzipArtifacts:
