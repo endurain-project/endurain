@@ -31,6 +31,13 @@ class SignUpTokenClaim(BaseModel):
     model_config = ConfigDict(from_attributes=True, frozen=True)
 
 
+class EmailChangeClaim(SignUpTokenClaim):
+    """A claimed email-change token, which confirms ``email`` in place of ``previous_email``."""
+
+    email: str
+    previous_email: str
+
+
 class PendingEmailChange(BaseModel):
     """An unconfirmed change of a user's email address."""
 

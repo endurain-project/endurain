@@ -79,3 +79,11 @@ class OAuthStateRead(BaseModel):
     purpose: oauth_state_constants.OAuthStatePurpose = Field(..., description="Flow the state belongs to")
     session_id: StrictStr | None = Field(None, description="Session that started a step-up flow")
     action: StrictStr | None = Field(None, description="Operation a step-up flow authorises")
+
+
+class StepUpOAuthStateRead(OAuthStateRead):
+    """An OAuth state of a step-up flow, which is always stored with its session, challenge and action."""
+
+    code_challenge: StrictStr = Field(..., description="PKCE challenge")
+    session_id: StrictStr = Field(..., description="Session that started a step-up flow")
+    action: StrictStr = Field(..., description="Operation a step-up flow authorises")

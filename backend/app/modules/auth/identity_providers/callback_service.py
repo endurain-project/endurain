@@ -199,7 +199,8 @@ class CallbackService:
             )
             return self._failure_url(oauth_state)
         if oauth_state.purpose == oauth_state_constants.OAuthStatePurpose.STEP_UP:
-            return self.complete_step_up_callback(idp, code, oauth_state, db)
+            step_up_state = oauth_state_schema.StepUpOAuthStateRead.model_validate(oauth_state, from_attributes=True)
+            return self.complete_step_up_callback(idp, code, step_up_state, db)
         try:
             result = self.handle_callback(idp, code, state, oauth_state, db)
             user = result["user"]
@@ -592,7 +593,7 @@ class CallbackService:
         self,
         idp: identity_provider_contracts.IdentityProviderState,
         code: str,
-        oauth_state: oauth_state_schema.OAuthStateRead,
+        oauth_state: oauth_state_schema.StepUpOAuthStateRead,
         db: Session,
     ) -> str:
         """Finish a step-up: prove a fresh sign-in of the linked provider account and hand back a ticket.

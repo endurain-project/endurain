@@ -2,8 +2,11 @@
 
 from datetime import UTC, datetime, timedelta
 
+import pytest
+from pydantic import ValidationError
 from sqlalchemy.orm import sessionmaker
 
+import modules.auth.sign_up_tokens.contracts as sign_up_contracts
 import modules.auth.sign_up_tokens.crud as sign_up_crud
 import modules.auth.sign_up_tokens.schema as sign_up_schema
 from tests._helpers.db import create_sqlite_session, ensure_user
@@ -83,6 +86,22 @@ class TestClaimSignUpToken:
         claim = sign_up_crud.claim_sign_up_token("hash", db)
 
         assert (claim.email, claim.previous_email) == ("new@example.com", "old@example.com")
+
+    def test_a_token_that_replaces_an_address_is_claimed_as_an_email_change(self):
+        db = self._db_with_token(email="new@example.com", previous_email="old@example.com")
+
+        assert isinstance(sign_up_crud.claim_sign_up_token("hash", db), sign_up_contracts.EmailChangeClaim)
+
+    def test_a_sign_up_token_is_not_claimed_as_an_email_change(self):
+        db = self._db_with_token()
+
+        assert not isinstance(sign_up_crud.claim_sign_up_token("hash", db), sign_up_contracts.EmailChangeClaim)
+
+    def test_an_email_change_without_the_address_it_confirms_fails_where_it_is_read(self):
+        db = self._db_with_token(previous_email="old@example.com")
+
+        with pytest.raises(ValidationError):
+            sign_up_crud.claim_sign_up_token("hash", db)
 
     def test_an_expired_token_is_not_claimed(self):
         db = self._db_with_token(expires_in=timedelta(hours=-1))

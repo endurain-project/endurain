@@ -12,5 +12,10 @@ def to_state(row: sign_up_models.SignUpToken) -> sign_up_contracts.SignUpTokenSt
 
 
 def to_claim(row: Row) -> sign_up_contracts.SignUpTokenClaim:
-    """Return the claim contract for the columns a token claim returned."""
+    """Return the claim contract for the columns a token claim returned.
+
+    A token that replaces an address is an email change, which must also name the address it confirms.
+    """
+    if row.previous_email is not None:
+        return sign_up_contracts.EmailChangeClaim.model_validate(row, from_attributes=True)
     return sign_up_contracts.SignUpTokenClaim.model_validate(row, from_attributes=True)

@@ -541,7 +541,7 @@ def verify_email(token: str, password: str | None, db: Session) -> sign_up_schem
     server_settings = server_settings_integration.get_server_settings(db)
     claim = verify_sign_up_token(token, db)
     user_id = claim.user_id
-    if claim.previous_email is not None:
+    if isinstance(claim, sign_up_contracts.EmailChangeClaim):
         users_integration.stage_confirmed_email_change(user_id, claim.email, db)
         sign_up_event_publishers.publish_email_changed(user_id, claim.id, db)
     user = users_integration.get_user(user_id, db)

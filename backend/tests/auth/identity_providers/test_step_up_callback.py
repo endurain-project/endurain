@@ -7,9 +7,11 @@ from urllib.parse import parse_qs, urlsplit
 
 import pytest
 from jasil.backends.state_memory import MemoryState
+from pydantic import ValidationError
 
 import modules.auth.identity_providers.callback_service as callback_service
 import modules.auth.oauth_state.constants as oauth_state_constants
+import modules.auth.oauth_state.schema as oauth_state_schema
 from modules.auth.identity_providers.step_up_ticket_store import StepUpTicketStore
 
 HOST = "https://app.example.com"
@@ -58,10 +60,13 @@ def _oauth_state(started_at=NOW, **overrides):
         "nonce": "n" * 32,
         "idp_code_verifier": "i" * 86,
         "redirect_path": "/settings/security",
+        "client_type": "web",
+        "created_at": started_at,
         "expires_at": started_at + timedelta(seconds=oauth_state_constants.STATE_TTL_SECONDS),
+        "used": True,
     }
     values.update(overrides)
-    return SimpleNamespace(**values)
+    return oauth_state_schema.StepUpOAuthStateRead(**values)
 
 
 def _fragment(url: str) -> dict[str, list[str]]:
@@ -224,6 +229,16 @@ class TestDispatch:
         assert url == "step-up-url"
         step_up.assert_called_once()
         handle.assert_not_called()
+
+    def test_a_step_up_state_stored_without_its_session_fails_where_it_is_read(self, service):
+        state = oauth_state_schema.OAuthStateRead.model_validate(_oauth_state().model_dump() | {"session_id": None})
+
+        with patch.object(service, "complete_step_up_callback") as step_up, pytest.raises(ValidationError):
+            service.complete_callback(
+                _idp(), "code", None, "state-id", state, "1.2.3.4", "ua", MagicMock(), MagicMock()
+            )
+
+        step_up.assert_not_called()
 
     @pytest.mark.parametrize(
         ("purpose", "expected"),
