@@ -82,10 +82,23 @@ class TestGetDailyStats:
         for name in ("sleep", "steps", "water", "poop"):
             assert peers[name].call_args.args == (1, "2024-01-15", mock_db)
 
-    def test_sleep_without_hrv_status_is_left_out(self, peers, mock_db):
-        peers["sleep"].return_value = MagicMock(hrv_status=None)
+    def test_sleep_without_hrv_status_is_still_shown(self, peers, mock_db):
+        peers["sleep"].return_value = MagicMock(
+            total_sleep_seconds=27000, resting_heart_rate=None, hrv_status=None, avg_skin_temp_deviation=None
+        )
 
-        assert health_dashboard_service.get_daily_stats(1, mock_db).sleep is None
+        sleep = health_dashboard_service.get_daily_stats(1, mock_db).sleep
+
+        assert sleep is not None
+        assert sleep.total_sleep_seconds == 27000
+        assert sleep.hrv_status is None
+
+    def test_sleep_with_hrv_status_carries_it(self, peers, mock_db):
+        peers["sleep"].return_value = MagicMock(
+            total_sleep_seconds=27000, resting_heart_rate=48, hrv_status="BALANCED", avg_skin_temp_deviation=0.2
+        )
+
+        assert health_dashboard_service.get_daily_stats(1, mock_db).sleep.hrv_status == "BALANCED"
 
     def test_water_without_an_amount_is_left_out(self, peers, mock_db):
         peers["water"].return_value = MagicMock(amount_ml=None)
