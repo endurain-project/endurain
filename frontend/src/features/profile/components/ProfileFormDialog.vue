@@ -17,11 +17,10 @@ import { applyServerFieldErrors } from '@/services/fieldErrors'
 import { isStaleWrite } from '@/services/ifMatch'
 import { toNumberOrNull } from '@/utils/number'
 import { cmToFeetInches } from '@/utils/units'
-import { compose, maxLength, pattern, required } from '@/utils/validators'
+import { compose, maxLength, numberBetween, pattern, required } from '@/utils/validators'
 import {
   CURRENCY_OPTIONS,
   GENDER_OPTIONS,
-  numberBetween,
   numberRange,
   resolveHeightCm,
   sortLanguageCodes,

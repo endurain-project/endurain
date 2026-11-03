@@ -4,27 +4,10 @@ import {
   CURRENCY_OPTIONS,
   GENDER_OPTIONS,
   LANGUAGE_CODES,
-  numberBetween,
   numberRange,
   resolveHeightCm,
   WEEKDAY_OPTIONS,
 } from '@/features/users/utils/userFieldOptions'
-
-describe('numberBetween', () => {
-  const validate = numberBetween(1, 300, 'out of range')
-
-  it('passes an empty value and values within the inclusive range', () => {
-    expect(validate(null)).toBeNull()
-    expect(validate('' as unknown as number)).toBeNull()
-    expect(validate(1)).toBeNull()
-    expect(validate(300)).toBeNull()
-  })
-
-  it('rejects values below the minimum and above the maximum', () => {
-    expect(validate(0)).toBe('out of range')
-    expect(validate(301)).toBe('out of range')
-  })
-})
 
 describe('numberRange', () => {
   const validate = numberRange(10, 'out of range')

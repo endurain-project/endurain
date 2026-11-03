@@ -9,7 +9,7 @@ import type { Schemas } from '@/types'
 
 import { toNumberOrNull } from '@/utils/number'
 import { cmToFeetInches, feetAndInchesToCm } from '@/utils/units'
-import type { Validator } from '@/utils/validators'
+import { numberBetween, type Validator } from '@/utils/validators'
 
 /** Maximum length for free-text account fields (name, username, email, city). */
 export const TEXT_MAX = 250
@@ -78,30 +78,6 @@ export const WEEKDAY_OPTIONS: ReadonlyArray<Schemas['WeekDay']> = [
 
 /** Currency options offered in the selector. */
 export const CURRENCY_OPTIONS: ReadonlyArray<Schemas['Currency']> = ['euro', 'dollar', 'pound']
-
-/**
- * Builds a validator for an optional numeric field: an empty value passes,
- * otherwise it must fall within an inclusive `min..max` range.
- *
- * `value` is typed `number | null`, but `<input type="number">` with
- * `v-model.number` actually yields the raw string back when it can't parse to
- * a finite number (e.g. the field was just cleared), so it's coerced through
- * `toNumberOrNull` rather than compared directly.
- *
- * @param min - Smallest allowed value.
- * @param max - Largest allowed value.
- * @param message - Error message when out of range.
- * @returns A validator for the numeric field.
- */
-export function numberBetween(min: number, max: number, message: string): Validator<number | null> {
-  return (value) => {
-    const parsed = toNumberOrNull(value ?? '')
-    if (parsed === null) {
-      return null
-    }
-    return parsed >= min && parsed <= max ? null : message
-  }
-}
 
 /**
  * Builds a validator for an optional whole-number field within `0..max`.
