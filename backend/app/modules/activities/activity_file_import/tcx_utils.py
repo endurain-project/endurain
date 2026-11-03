@@ -1,6 +1,9 @@
 """Utilities for parsing TCX files into activity data."""
 
+from collections.abc import Mapping, Sequence
+from datetime import datetime
 from pathlib import Path
+from typing import Any, TypedDict
 from xml.etree import ElementTree
 
 import tcxreader
@@ -13,9 +16,88 @@ import core.timezone as core_timezone
 import modules.activities.activity.constants as activity_constants
 import modules.activities.activity.contracts as activity_contracts
 import modules.activities.activity_file_import.parser_utils as activity_file_import_parser_utils
+import modules.activities.activity_streams.contracts as activity_streams_contracts
 import modules.activities.computation as activities_computation
 
 logger = core_logger.get_logger(__name__)
+
+
+class TcxLap(TypedDict):
+    """A TCX lap converted to the fields a stored lap has.
+
+    Attributes:
+        start_time: When the lap started, as a UTC-aware datetime.
+        start_position_lat: Latitude of the lap's first trackpoint.
+        start_position_long: Longitude of the lap's first trackpoint.
+        end_position_lat: Latitude of the lap's last trackpoint.
+        end_position_long: Longitude of the lap's last trackpoint.
+        total_elapsed_time: Elapsed seconds, or None without an end time.
+        total_timer_time: Moving seconds, falling back to the elapsed time.
+        total_distance: Distance in meters.
+        total_calories: Calories.
+        avg_heart_rate: Average heart rate in bpm.
+        max_heart_rate: Maximum heart rate in bpm.
+        avg_cadence: Average cadence.
+        max_cadence: Maximum cadence.
+        avg_power: Average power in watts.
+        max_power: Maximum power in watts.
+        total_ascent: Ascent in meters, from the smoothed elevation stream.
+        total_descent: Descent in meters, from the smoothed elevation stream.
+        normalized_power: Normalized power in watts.
+        enhanced_avg_pace: Average pace in s/m.
+        enhanced_avg_speed: Average speed in m/s.
+        enhanced_max_pace: Pace at the maximum speed, in s/m.
+        enhanced_max_speed: Maximum speed in m/s.
+    """
+
+    start_time: datetime
+    start_position_lat: float | None
+    start_position_long: float | None
+    end_position_lat: float | None
+    end_position_long: float | None
+    total_elapsed_time: float | None
+    total_timer_time: float | None
+    total_distance: int | None
+    total_calories: int | None
+    avg_heart_rate: int | None
+    max_heart_rate: int | None
+    avg_cadence: int | None
+    max_cadence: int | None
+    avg_power: int | None
+    max_power: int | None
+    total_ascent: int | None
+    total_descent: int | None
+    normalized_power: int | None
+    enhanced_avg_pace: float | None
+    enhanced_avg_speed: float | None
+    enhanced_max_pace: float | None
+    enhanced_max_speed: float | None
+
+
+class TcxWaypoints(TypedDict):
+    """The waypoint streams extracted from a TCX file's trackpoints.
+
+    Attributes:
+        lat_lon_waypoints: GPS waypoints.
+        lat_lon_segments: The GPS track split at recording pauses, each run of at least two points.
+        moving_time: Seconds between trackpoints, without the pauses.
+        hr_waypoints: Heart-rate waypoints.
+        cad_waypoints: Cadence waypoints.
+        ele_waypoints: Elevation waypoints.
+        power_waypoints: Power waypoints.
+        vel_waypoints: Speed waypoints.
+        pace_waypoints: Pace waypoints.
+    """
+
+    lat_lon_waypoints: list[activity_streams_contracts.LatLonWaypoint]
+    lat_lon_segments: list[list[activity_streams_contracts.LatLonWaypoint]]
+    moving_time: float
+    hr_waypoints: list[activity_streams_contracts.HeartRateWaypoint]
+    cad_waypoints: list[activity_streams_contracts.CadenceWaypoint]
+    ele_waypoints: list[activity_streams_contracts.ElevationWaypoint]
+    power_waypoints: list[activity_streams_contracts.PowerWaypoint]
+    vel_waypoints: list[activity_streams_contracts.VelocityWaypoint]
+    pace_waypoints: list[activity_streams_contracts.PaceWaypoint]
 
 
 def _parse_lap_power(
@@ -30,7 +112,7 @@ def _parse_lap_power(
         Tuple of (avg_power, max_power, normalized_power),
         each None when no power data is available.
     """
-    power_waypoints: list[dict] = []
+    power_waypoints: list[activity_streams_contracts.PowerWaypoint] = []
     for trackpoint in lap.trackpoints:
         if hasattr(trackpoint, "tpx_ext") and "Watts" in trackpoint.tpx_ext and trackpoint.time is not None:
             power_waypoints.append(
@@ -48,8 +130,8 @@ def _parse_lap_power(
 
 def _parse_laps(
     tcx_file: TCXExercise,
-    smoothed_ele_waypoints: list[dict],
-) -> list[dict]:
+    smoothed_ele_waypoints: Sequence[Mapping[str, Any]],
+) -> list[TcxLap]:
     """Parse all TCX laps into structured dicts.
 
     Args:
@@ -60,7 +142,7 @@ def _parse_laps(
     Returns:
         List of lap dicts with metrics.
     """
-    laps: list[dict] = []
+    laps: list[TcxLap] = []
 
     for lap in tcx_file.laps:
         if lap.start_time is None:
@@ -122,14 +204,15 @@ def _parse_laps(
 
 
 def _extract_waypoints(
-    trackpoints: list[dict],
+    trackpoints: list[dict[str, Any]],
     tcx_file: TCXExercise,
-) -> dict:
+) -> TcxWaypoints:
     """Extract typed waypoint lists from trackpoints.
 
     Args:
         trackpoints: Trackpoints as dicts from
-            tcx_file.trackpoints_to_dict().
+            tcx_file.trackpoints_to_dict(): tcxreader's untyped rows, which also carry one key per TPX
+            extension the file names.
         tcx_file: Parsed TCX file object.
 
     Returns:
@@ -137,16 +220,16 @@ def _extract_waypoints(
         lists, plus pause-split ``lat_lon_segments`` and the accumulated
         ``moving_time`` in seconds.
     """
-    hr_waypoints = [
+    hr_waypoints: list[activity_streams_contracts.HeartRateWaypoint] = [
         {
             "time": core_timezone.format_utc(tp["time"]),
             "hr": tp["hr_value"],
         }
         for tp in trackpoints
-        if "hr_value" in tp and tp.get("time") is not None
+        if tp.get("hr_value") is not None and tp.get("time") is not None
     ]
 
-    cad_waypoints = [
+    cad_waypoints: list[activity_streams_contracts.CadenceWaypoint] = [
         {
             "time": core_timezone.format_utc(tp["time"]),
             "cad": tp["cadence"],
@@ -164,7 +247,7 @@ def _extract_waypoints(
             if (hasattr(tp, "tpx_ext") and "RunCadence" in tp.tpx_ext and tp.time is not None)
         ]
 
-    ele_waypoints = [
+    ele_waypoints: list[activity_streams_contracts.ElevationWaypoint] = [
         {
             "time": core_timezone.format_utc(tp["time"]),
             "ele": tp["elevation"],
@@ -173,7 +256,7 @@ def _extract_waypoints(
         if tp.get("elevation") is not None and tp.get("time") is not None
     ]
 
-    power_waypoints = [
+    power_waypoints: list[activity_streams_contracts.PowerWaypoint] = [
         {
             "time": core_timezone.format_utc(tp.time),
             "power": tp.tpx_ext["Watts"],
@@ -182,10 +265,10 @@ def _extract_waypoints(
         if (hasattr(tp, "tpx_ext") and "Watts" in tp.tpx_ext and tp.time is not None)
     ]
 
-    lat_lon_waypoints: list[dict] = []
-    lat_lon_segments: list[list[dict]] = []
-    vel_waypoints: list[dict] = []
-    pace_waypoints: list[dict] = []
+    lat_lon_waypoints: list[activity_streams_contracts.LatLonWaypoint] = []
+    lat_lon_segments: list[list[activity_streams_contracts.LatLonWaypoint]] = []
+    vel_waypoints: list[activity_streams_contracts.VelocityWaypoint] = []
+    pace_waypoints: list[activity_streams_contracts.PaceWaypoint] = []
     moving_time = 0.0
     pause_threshold = activity_file_import_parser_utils.pause_threshold_seconds(
         [tp["time"] for tp in trackpoints if tp["time"] is not None]
@@ -246,18 +329,8 @@ def _extract_waypoints(
 
         instant_pace = 1 / instant_speed if instant_speed > 0 else 0
 
-        activities_computation.append_if_not_none(
-            vel_waypoints,
-            timestamp,
-            instant_speed,
-            "vel",
-        )
-        activities_computation.append_if_not_none(
-            pace_waypoints,
-            timestamp,
-            instant_pace,
-            "pace",
-        )
+        vel_waypoints.append({"time": timestamp, "vel": instant_speed})
+        pace_waypoints.append({"time": timestamp, "pace": instant_pace})
 
         if last_time is None or time_val > last_time:
             prev_lat, prev_lon, last_time = (
@@ -372,7 +445,7 @@ def parse_tcx_file(
     *,
     activity_name_input: str | None = None,
     default_timezone: str,
-) -> dict:
+) -> activity_file_import_parser_utils.ActivityFilePayload[TcxLap]:
     """Parse a TCX file and return activity data.
 
     Args:
@@ -425,10 +498,10 @@ def parse_tcx_file(
 
         lat_lon_wp = waypoints["lat_lon_waypoints"]
         power_wp = waypoints["power_waypoints"]
-        # Pause-derived values are parser-internal: keep them out of the
+        # Pause-derived values are parser-internal: they stay out of the
         # payload's waypoint streams.
-        lat_lon_segments = waypoints.pop("lat_lon_segments")
-        moving_time = waypoints.pop("moving_time", 0.0)
+        lat_lon_segments = waypoints["lat_lon_segments"]
+        moving_time = waypoints.get("moving_time", 0.0)
 
         distance = round(tcx_file.distance) if tcx_file.distance else 0
         if not distance and lat_lon_wp:
@@ -495,10 +568,14 @@ def parse_tcx_file(
             timer_time=moving_time,
         )
 
-        waypoints_combined = {
-            **waypoints,
-            "power_waypoints": power_wp,
+        waypoints_combined: activity_file_import_parser_utils.ActivityWaypoints = {
             "lat_lon_waypoints": lat_lon_wp,
+            "hr_waypoints": hr_wp,
+            "cad_waypoints": waypoints.get("cad_waypoints", []),
+            "ele_waypoints": ele_wp,
+            "power_waypoints": power_wp,
+            "vel_waypoints": waypoints.get("vel_waypoints", []),
+            "pace_waypoints": waypoints.get("pace_waypoints", []),
         }
         logger.debug(
             "TCX parse complete",

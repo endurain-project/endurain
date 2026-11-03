@@ -6,6 +6,7 @@ from datetime import UTC, date, datetime
 from typing import Any
 
 from sqlalchemy import (
+    Select,
     and_,
     case,
     desc,
@@ -116,7 +117,7 @@ def _sort_order_by(
     return clauses
 
 
-def _is_not_live_strava_api_activity():
+def _is_not_live_strava_api_activity() -> ColumnElement[bool]:
     """Return the policy predicate excluding live Strava API data.
 
     Returns:
@@ -125,7 +126,7 @@ def _is_not_live_strava_api_activity():
     return activity_models.Activity.strava_activity_id.is_(None)
 
 
-def _visible_to_requester_condition(followee_ids: Sequence[int] | None):
+def _visible_to_requester_condition(followee_ids: Sequence[int] | None) -> ColumnElement[bool]:
     """Build the non-owner activity visibility condition.
 
     Live Strava API data is owner-only under the Strava API Policy, regardless
@@ -162,12 +163,12 @@ def _visible_to_requester_condition(followee_ids: Sequence[int] | None):
     )
 
 
-def _apply_activity_visibility_filter(
-    stmt,
+def _apply_activity_visibility_filter[RowT: tuple[object, ...]](
+    stmt: Select[RowT],
     *,
     user_is_owner: bool,
     followee_ids: Sequence[int] | None,
-):
+) -> Select[RowT]:
     """Apply non-owner visibility filtering to an activity query.
 
     Args:
@@ -186,8 +187,8 @@ def _apply_activity_visibility_filter(
     return stmt.where(_visible_to_requester_condition(followee_ids))
 
 
-def _apply_user_activity_filters(
-    stmt,
+def _apply_user_activity_filters[RowT: tuple[object, ...]](
+    stmt: Select[RowT],
     *,
     activity_type: int | None,
     start_date: date | None,
@@ -195,7 +196,7 @@ def _apply_user_activity_filters(
     name_search: str | None,
     user_is_owner: bool,
     followee_ids: Sequence[int] | None,
-):
+) -> Select[RowT]:
     """Apply the filters shared by the activity list, page and count queries.
 
     One definition, so a page and its total cannot disagree on what matched.

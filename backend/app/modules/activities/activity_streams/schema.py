@@ -1,5 +1,7 @@
 """Pydantic schemas for activity stream data."""
 
+from typing import Any
+
 from pydantic import (
     BaseModel,
     ConfigDict,
@@ -16,7 +18,7 @@ class ActivityStreamsBase(BaseModel):
         id: Unique stream identifier.
         activity_id: Parent activity identifier.
         stream_type: Stream type code (1-8).
-        stream_waypoints: Waypoint data points.
+        stream_waypoints: Waypoint data points, as stored: JSON objects with a ``time`` and the stream's value key(s).
         strava_activity_stream_id: Strava stream ID.
     """
 
@@ -27,7 +29,7 @@ class ActivityStreamsBase(BaseModel):
 
     activity_id: StrictInt
     stream_type: StrictInt
-    stream_waypoints: list[dict]
+    stream_waypoints: list[dict[str, Any]]
     strava_activity_stream_id: StrictInt | None = None
 
 
@@ -42,7 +44,7 @@ class ActivityStreamsRead(ActivityStreamsBase):
     """
 
     id: StrictInt
-    zone_percentages: dict | None = None
+    zone_percentages: dict[str, object] | None = None
 
 
 #: The envelope every activity child collection answers with. Streams are bounded

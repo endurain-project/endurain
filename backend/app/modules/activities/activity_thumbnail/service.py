@@ -10,9 +10,9 @@ Sessions are opened by the entry point (``integration_service``) and passed down
 """
 
 import functools
-from collections.abc import Iterator
+from collections.abc import Iterator, Mapping, Sequence
 from datetime import datetime, timedelta
-from typing import Protocol
+from typing import Any, Protocol
 
 import jasil.jobs as platform_jobs
 import jasil.providers as platform_providers
@@ -129,7 +129,7 @@ def resolve_tile_settings(db: Session) -> tuple[str, str, str | None]:
 
 def generate_and_store_thumbnail(
     activity_id: int,
-    waypoints: list[dict],
+    waypoints: Sequence[Mapping[str, Any]],
     storage: platform_providers.StorageProvider,
     db: Session,
     *,

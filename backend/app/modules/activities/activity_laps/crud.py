@@ -1,5 +1,7 @@
 """Activity laps CRUD operations."""
 
+from collections.abc import Mapping, Sequence
+
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
@@ -88,15 +90,14 @@ def get_activities_laps(
 
 
 def create_activity_laps(
-    activity_laps: list[dict],
+    activity_laps: Sequence[Mapping[str, object]],
     activity_id: int,
     db: Session,
 ) -> None:
     """Stage activity laps for an activity (flushed, not committed).
 
     Args:
-        activity_laps: List of lap dicts from
-            file parsers.
+        activity_laps: Lap rows from a parser, a provider or a profile archive.
         activity_id: The parent activity ID.
         db: Database session.
     """

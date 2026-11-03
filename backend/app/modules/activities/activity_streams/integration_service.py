@@ -68,7 +68,8 @@ def _persist_ingestion_component(
         activity_streams_contracts.ActivityStreamsCreate(
             activity_id=activity.id,
             stream_type=stream.stream_type,
-            stream_waypoints=stream.stream_waypoints,
+            # A parsed sample is any mapping (a parser's typed sample, a provider's dict); the row stores a dict.
+            stream_waypoints=[dict(waypoint) for waypoint in stream.stream_waypoints],
             strava_activity_stream_id=None,
         )
         for stream in _PAYLOAD.validate_python(data)
@@ -162,7 +163,7 @@ def get_stream_for_derivation(
     return activity_streams_crud.get_activity_stream_by_type(activity_id, stream_type, db)
 
 
-def get_gps_waypoints_for_activities(activity_ids: list[int], db: Session) -> dict[int, list]:
+def get_gps_waypoints_for_activities(activity_ids: list[int], db: Session) -> dict[int, list[dict[str, Any]]]:
     """Return GPS waypoints for several activities in one query.
 
     Activities with no GPS stream are absent from the result.

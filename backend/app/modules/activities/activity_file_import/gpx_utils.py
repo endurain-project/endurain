@@ -4,7 +4,6 @@ from dataclasses import dataclass, field
 from datetime import datetime
 from math import isfinite
 from pathlib import Path
-from typing import TypedDict
 
 import gpxpy
 import gpxpy.gpx
@@ -15,6 +14,7 @@ import core.timezone as core_timezone
 import modules.activities.activity.constants as activity_constants
 import modules.activities.activity.contracts as activity_contracts
 import modules.activities.activity_file_import.parser_utils as activity_file_import_parser_utils
+import modules.activities.activity_streams.contracts as activity_streams_contracts
 import modules.activities.computation as activities_computation
 
 logger = core_logger.get_logger(__name__)
@@ -59,18 +59,18 @@ class ParseState:
     city: str | None = None
     town: str | None = None
     country: str | None = None
-    lat_lon_waypoints: list[dict] = field(default_factory=list)
-    ele_waypoints: list[dict] = field(default_factory=list)
-    hr_waypoints: list[dict] = field(default_factory=list)
-    cad_waypoints: list[dict] = field(default_factory=list)
-    power_waypoints: list[dict] = field(default_factory=list)
-    vel_waypoints: list[dict] = field(default_factory=list)
+    lat_lon_waypoints: list[activity_streams_contracts.LatLonWaypoint] = field(default_factory=list)
+    ele_waypoints: list[activity_streams_contracts.ElevationWaypoint] = field(default_factory=list)
+    hr_waypoints: list[activity_streams_contracts.HeartRateWaypoint] = field(default_factory=list)
+    cad_waypoints: list[activity_streams_contracts.CadenceWaypoint] = field(default_factory=list)
+    power_waypoints: list[activity_streams_contracts.PowerWaypoint] = field(default_factory=list)
+    vel_waypoints: list[activity_streams_contracts.VelocityWaypoint] = field(default_factory=list)
     measured_vel_times: set[str] = field(default_factory=set)
-    pace_waypoints: list[dict] = field(default_factory=list)
+    pace_waypoints: list[activity_streams_contracts.PaceWaypoint] = field(default_factory=list)
     prev_latitude: float | None = None
     prev_longitude: float | None = None
     prev_waypoint_time: datetime | None = None
-    lat_lon_segments: list[list[dict]] = field(default_factory=list)
+    lat_lon_segments: list[list[activity_streams_contracts.LatLonWaypoint]] = field(default_factory=list)
     segment_start_idx: int = 0
     is_lat_lon_set: bool = False
     is_elevation_set: bool = False
@@ -109,44 +109,6 @@ class ParseState:
         if self.first_waypoint_time is None or self.last_waypoint_time is None:
             return 0.0
         return (self.last_waypoint_time - self.first_waypoint_time).total_seconds()
-
-
-class ParsedGpxData(TypedDict):
-    """Typed dictionary for parsed GPX file output.
-
-    Attributes:
-        activity: The parsed ingestion contract.
-        is_elevation_set: Whether elevation data exists.
-        ele_waypoints: List of elevation waypoints.
-        is_power_set: Whether power data exists.
-        power_waypoints: List of power waypoints.
-        is_heart_rate_set: Whether HR data exists.
-        hr_waypoints: List of heart rate waypoints.
-        is_velocity_set: Whether velocity data exists.
-        vel_waypoints: List of velocity waypoints.
-        pace_waypoints: List of pace waypoints.
-        is_cadence_set: Whether cadence data exists.
-        cad_waypoints: List of cadence waypoints.
-        is_lat_lon_set: Whether GPS data exists.
-        lat_lon_waypoints: List of GPS waypoints.
-        laps: List of computed lap metrics.
-    """
-
-    activity: activity_contracts.ActivityCore
-    is_elevation_set: bool
-    ele_waypoints: list[dict]
-    is_power_set: bool
-    power_waypoints: list[dict]
-    is_heart_rate_set: bool
-    hr_waypoints: list[dict]
-    is_velocity_set: bool
-    vel_waypoints: list[dict]
-    pace_waypoints: list[dict]
-    is_cadence_set: bool
-    cad_waypoints: list[dict]
-    is_lat_lon_set: bool
-    lat_lon_waypoints: list[dict]
-    laps: list[activity_file_import_parser_utils.LapMetrics]
 
 
 def _extension_local_name(tag: str) -> str:
@@ -399,42 +361,16 @@ def _process_trackpoint(
         )
         state.is_lat_lon_set = True
 
-    activities_computation.append_if_not_none(
-        state.ele_waypoints,
-        timestamp,
-        elevation,
-        "ele",
-    )
-    activities_computation.append_if_not_none(
-        state.hr_waypoints,
-        timestamp,
-        heart_rate,
-        "hr",
-    )
-    activities_computation.append_if_not_none(
-        state.cad_waypoints,
-        timestamp,
-        cadence,
-        "cad",
-    )
-    activities_computation.append_if_not_none(
-        state.power_waypoints,
-        timestamp,
-        power,
-        "power",
-    )
-    activities_computation.append_if_not_none(
-        state.vel_waypoints,
-        timestamp,
-        instant_speed,
-        "vel",
-    )
-    activities_computation.append_if_not_none(
-        state.pace_waypoints,
-        timestamp,
-        instant_pace,
-        "pace",
-    )
+    if elevation is not None:
+        state.ele_waypoints.append({"time": timestamp, "ele": elevation})
+    if heart_rate is not None:
+        state.hr_waypoints.append({"time": timestamp, "hr": heart_rate})
+    if cadence is not None:
+        state.cad_waypoints.append({"time": timestamp, "cad": cadence})
+    if power is not None:
+        state.power_waypoints.append({"time": timestamp, "power": power})
+    state.vel_waypoints.append({"time": timestamp, "vel": instant_speed})
+    state.pace_waypoints.append({"time": timestamp, "pace": instant_pace})
 
     if state.prev_waypoint_time is None or time > state.prev_waypoint_time:
         state.prev_latitude = latitude
@@ -564,7 +500,7 @@ def parse_gpx_file(
     *,
     activity_name_input: str | None = None,
     default_timezone: str,
-) -> ParsedGpxData:
+) -> activity_file_import_parser_utils.ActivityFilePayload[activity_file_import_parser_utils.LapMetrics]:
     """Parse a GPX file into structured activity data.
 
     Args:
@@ -575,8 +511,8 @@ def parse_gpx_file(
             none of its own.
 
     Returns:
-        ParsedGpxData with Activity schema, waypoint
-        arrays, lap data, and boolean stream flags.
+        The payload with the ActivityCore contract, waypoint arrays, lap data, and boolean stream flags; it
+        carries no temperature stream, which GPX does not record.
 
     Raises:
         InvalidInputError: If the content is not valid GPX, or has no tracks, no segments, or no valid
@@ -642,7 +578,7 @@ def parse_gpx_file(
         activity = _build_activity_schema(state, user_id)
 
         smoothed_ele_waypoints = activities_computation.smooth_elevation_stream(state.ele_waypoints)
-        laps = []
+        laps: list[activity_file_import_parser_utils.LapMetrics] = []
         for segment_waypoints in state.lat_lon_segments:
             laps.extend(
                 activity_file_import_parser_utils.generate_activity_laps(
@@ -674,23 +610,23 @@ def parse_gpx_file(
             ),
         )
 
-        return ParsedGpxData(
-            activity=activity,
-            is_elevation_set=bool(state.ele_waypoints),
-            ele_waypoints=state.ele_waypoints,
-            is_power_set=bool(state.power_waypoints),
-            power_waypoints=state.power_waypoints,
-            is_heart_rate_set=state.is_heart_rate_set,
-            hr_waypoints=state.hr_waypoints,
-            is_velocity_set=bool(state.vel_waypoints),
-            vel_waypoints=state.vel_waypoints,
-            pace_waypoints=state.pace_waypoints,
-            is_cadence_set=state.is_cadence_set,
-            cad_waypoints=state.cad_waypoints,
-            is_lat_lon_set=bool(state.lat_lon_waypoints),
-            lat_lon_waypoints=state.lat_lon_waypoints,
-            laps=laps,
-        )
+        return {
+            "activity": activity,
+            "is_elevation_set": bool(state.ele_waypoints),
+            "ele_waypoints": state.ele_waypoints,
+            "is_power_set": bool(state.power_waypoints),
+            "power_waypoints": state.power_waypoints,
+            "is_heart_rate_set": state.is_heart_rate_set,
+            "hr_waypoints": state.hr_waypoints,
+            "is_velocity_set": bool(state.vel_waypoints),
+            "vel_waypoints": state.vel_waypoints,
+            "pace_waypoints": state.pace_waypoints,
+            "is_cadence_set": state.is_cadence_set,
+            "cad_waypoints": state.cad_waypoints,
+            "is_lat_lon_set": bool(state.lat_lon_waypoints),
+            "lat_lon_waypoints": state.lat_lon_waypoints,
+            "laps": laps,
+        }
 
     except core_exceptions.DomainError:
         raise

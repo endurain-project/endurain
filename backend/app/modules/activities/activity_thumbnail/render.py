@@ -7,6 +7,8 @@ key, signed URL) lives in ``signing.py``. Keeping this module purely
 bytes-in/bytes-out means the read path never has to import the rendering stack.
 """
 
+from collections.abc import Mapping, Sequence
+from typing import Any
 from urllib.parse import urlparse
 
 import core.exceptions as core_exceptions
@@ -65,7 +67,7 @@ DEFAULT_USER_AGENT = "Endurain - StaticMap backend thumbnail generator"
 
 def render_activity_thumbnail(
     activity_id: int,
-    waypoints: list[dict],
+    waypoints: Sequence[Mapping[str, Any]],
     *,
     tile_url: str = server_settings_constants.DEFAULT_TILE_URL,
     background_color: str = DEFAULT_BG_COLOR,
@@ -82,7 +84,7 @@ def render_activity_thumbnail(
 
     Args:
         activity_id: The activity ID (used only for logging).
-        waypoints: List of dicts with 'lat' and 'lon' keys.
+        waypoints: The stored GPS stream: JSON samples with 'lat' and 'lon' keys.
         tile_url: Leaflet-style tile URL template. {s} subdomains
             are normalised to 'a' automatically.
         background_color: Hex background color for the map canvas.

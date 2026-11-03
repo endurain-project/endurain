@@ -721,6 +721,19 @@ class TestParseFrameLap:
         assert lap.get("enhanced_avg_pace") is None
 
 
+class TestCalculatePace:
+    """Active time and pace of a pool swim from its split summaries."""
+
+    def test_split_summary_without_timer_time_adds_no_active_time(self):
+        """A split summary that carries no timer time counts no seconds instead of failing the whole file."""
+        split_summary = [
+            {"split_type": "interval_active", "total_timer_time": None},
+            {"split_type": "interval_active", "total_timer_time": 40.0},
+        ]
+
+        assert fit_frames.calculate_pace(100.0, 50.0, "lap_swimming", split_summary, []) == (40.0, 0.4)
+
+
 class TestActivityLocalTimestampOffset:
     """A GPS-less session resolves its timezone from the FIT activity message offset."""
 

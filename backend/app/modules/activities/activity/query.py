@@ -13,7 +13,7 @@ fetched, no ORM instances returned.
 
 from datetime import UTC, date, datetime, time, timedelta
 
-from sqlalchemy import and_, func, or_
+from sqlalchemy import ColumnElement, and_, func, or_
 
 import core.sanitization as core_sanitization
 import core.timezone as core_timezone
@@ -23,7 +23,7 @@ import modules.activities.activity.models as activity_models
 MAX_UTC_OFFSET = core_timezone.MAX_UTC_OFFSET
 
 
-def name_search_condition(name_search: str, *, mask_hidden_location: bool):
+def name_search_condition(name_search: str, *, mask_hidden_location: bool) -> ColumnElement[bool]:
     """A case-insensitive LIKE search across an activity's name and location.
 
     Args:
@@ -48,7 +48,7 @@ def name_search_condition(name_search: str, *, mask_hidden_location: bool):
     return or_(func.lower(activity_models.Activity.name).like(pattern, escape="\\"), location_match)
 
 
-def local_start_time_expression():
+def local_start_time_expression() -> ColumnElement[datetime]:
     """``Activity.start_time`` as a naive wall clock in the activity's own timezone.
 
     "Which day did this activity happen on?" is a *local* question: a 07:00 ride
@@ -78,7 +78,7 @@ def local_date_range_conditions(
     end_date: date | None,
     *,
     end_exclusive: bool,
-) -> list:
+) -> list[ColumnElement[bool]]:
     """Restrict rows to a date range evaluated in each activity's *local* timezone.
 
     Pairs the exact local-time predicate with an indexable pre-filter on the raw
@@ -97,7 +97,7 @@ def local_date_range_conditions(
         ``None``.
     """
     local = local_start_time_expression()
-    conditions: list = []
+    conditions: list[ColumnElement[bool]] = []
 
     if start_date is not None:
         start_dt = datetime.combine(start_date, time.min)

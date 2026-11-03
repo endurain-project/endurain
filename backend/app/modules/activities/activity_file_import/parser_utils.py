@@ -5,8 +5,9 @@ from __future__ import annotations
 import bisect
 import itertools
 import statistics
+from collections.abc import Mapping, Sequence
 from datetime import UTC, datetime
-from typing import TYPE_CHECKING, TypedDict
+from typing import TYPE_CHECKING, Any, NotRequired, TypedDict
 
 from geopy.distance import geodesic
 
@@ -14,9 +15,11 @@ import core.timezone as core_timezone
 
 if TYPE_CHECKING:
     # Annotation-only: the module already uses postponed evaluation, so the
-    # contract is never imported at runtime and this file stays free of any
+    # contracts are never imported at runtime and this file stays free of any
     # import the parsers do not actually execute.
     import modules.activities.activity.contracts as activity_contracts
+    import modules.activities.activity_streams.contracts as activity_streams_contracts
+    import modules.activities.activity_workout_steps.contracts as activity_workout_steps_contracts
 
 # ISO 8601 datetime format used throughout the import pipeline
 _DT_FMT = "%Y-%m-%dT%H:%M:%S"
@@ -55,12 +58,89 @@ STREAM_KEYS: tuple[str, ...] = (
 )
 
 
-def build_activity_file_payload(
+class ActivityWaypoints(TypedDict, total=False):
+    """The waypoint streams a parser hands to ``build_activity_file_payload``, keyed by stream name.
+
+    A stream the format does not record is absent.
+    """
+
+    ele_waypoints: list[activity_streams_contracts.ElevationWaypoint]
+    power_waypoints: list[activity_streams_contracts.PowerWaypoint]
+    hr_waypoints: list[activity_streams_contracts.HeartRateWaypoint]
+    vel_waypoints: list[activity_streams_contracts.VelocityWaypoint]
+    pace_waypoints: list[activity_streams_contracts.PaceWaypoint]
+    cad_waypoints: list[activity_streams_contracts.CadenceWaypoint]
+    lat_lon_waypoints: list[activity_streams_contracts.LatLonWaypoint]
+    temp_waypoints: list[activity_streams_contracts.TemperatureWaypoint]
+
+
+class ActivityFileExtras(TypedDict):
+    """Format-specific components a FIT activity carries besides its streams and laps.
+
+    Attributes:
+        sets: The workout sets, each the raw row the FIT parser emits (see ``fit_frames.parse_frame_set``).
+        workout_steps: The planned workout steps.
+    """
+
+    sets: list[list[object]]
+    workout_steps: list[activity_workout_steps_contracts.ActivityWorkoutStepsCreate]
+
+
+class ActivityFilePayload[LapT](TypedDict):
+    """One parsed activity as a file parser hands it to the adapter.
+
+    Generic over the lap row, whose fields differ by format (``LapMetrics`` for GPX, ``TcxLap``,
+    ``FitLap``).
+
+    Attributes:
+        activity: The parsed ingestion contract.
+        is_elevation_set: Whether elevation data exists.
+        ele_waypoints: Elevation waypoints.
+        is_power_set: Whether power data exists.
+        power_waypoints: Power waypoints.
+        is_heart_rate_set: Whether heart-rate data exists.
+        hr_waypoints: Heart-rate waypoints.
+        is_velocity_set: Whether speed data exists (speed and pace share the flag).
+        vel_waypoints: Speed waypoints.
+        pace_waypoints: Pace waypoints.
+        is_cadence_set: Whether cadence data exists.
+        cad_waypoints: Cadence waypoints.
+        is_lat_lon_set: Whether GPS data exists.
+        lat_lon_waypoints: GPS waypoints.
+        is_temperature_set: Whether temperature data exists; absent for formats that record none (GPX).
+        temp_waypoints: Temperature waypoints; absent for formats that record none (GPX).
+        laps: The activity's laps.
+        sets: FIT workout sets; absent for other formats.
+        workout_steps: FIT workout steps; absent for other formats.
+    """
+
+    activity: activity_contracts.ActivityCore
+    is_elevation_set: bool
+    ele_waypoints: list[activity_streams_contracts.ElevationWaypoint]
+    is_power_set: bool
+    power_waypoints: list[activity_streams_contracts.PowerWaypoint]
+    is_heart_rate_set: bool
+    hr_waypoints: list[activity_streams_contracts.HeartRateWaypoint]
+    is_velocity_set: bool
+    vel_waypoints: list[activity_streams_contracts.VelocityWaypoint]
+    pace_waypoints: list[activity_streams_contracts.PaceWaypoint]
+    is_cadence_set: bool
+    cad_waypoints: list[activity_streams_contracts.CadenceWaypoint]
+    is_lat_lon_set: bool
+    lat_lon_waypoints: list[activity_streams_contracts.LatLonWaypoint]
+    is_temperature_set: NotRequired[bool]
+    temp_waypoints: NotRequired[list[activity_streams_contracts.TemperatureWaypoint]]
+    laps: list[LapT]
+    sets: NotRequired[list[list[object]]]
+    workout_steps: NotRequired[list[activity_workout_steps_contracts.ActivityWorkoutStepsCreate]]
+
+
+def build_activity_file_payload[LapT](
     activity: activity_contracts.ActivityCore,
-    waypoints: dict[str, list[dict]],
-    laps: list[dict],
-    extras: dict | None = None,
-) -> dict:
+    waypoints: ActivityWaypoints,
+    laps: list[LapT],
+    extras: ActivityFileExtras | None = None,
+) -> ActivityFilePayload[LapT]:
     """Build normalized activity file import payload.
 
     Args:
@@ -71,15 +151,14 @@ def build_activity_file_payload(
         waypoints: Dict keyed by stream name (e.g. ``'lat_lon_waypoints'``,
             ``'ele_waypoints'``, …) mapping to lists of waypoint dicts.
         laps: List of lap dicts for the activity.
-        extras: Optional format-specific extras (e.g. FIT sets /
-            workout_steps).
+        extras: Optional format-specific extras (FIT sets and workout steps).
 
     Returns:
         A dict containing the activity, all stream flags/lists, laps, and
         any extras — matching the structure expected by
         ``activities/activity/utils.py`` callers.
     """
-    payload: dict = {
+    payload: ActivityFilePayload[LapT] = {
         "activity": activity,
         "is_elevation_set": bool(waypoints.get("ele_waypoints")),
         "ele_waypoints": waypoints.get("ele_waypoints", []),
@@ -99,7 +178,8 @@ def build_activity_file_payload(
         "laps": laps,
     }
     if extras:
-        payload.update(extras)
+        payload["sets"] = extras["sets"]
+        payload["workout_steps"] = extras["workout_steps"]
     return payload
 
 
@@ -177,7 +257,7 @@ class _TimedStream:
         waypoints: The stream's waypoint dicts, in their original order.
     """
 
-    def __init__(self, waypoints: list[dict]) -> None:
+    def __init__(self, waypoints: Sequence[Mapping[str, Any]]) -> None:
         """Parse every timestamp of the stream once.
 
         Args:
@@ -204,7 +284,7 @@ class _TimedStream:
             return range(bisect.bisect_left(self._times, start_dt), bisect.bisect_right(self._times, end_dt))
         return [i for i, time in enumerate(self._times) if start_dt <= time <= end_dt]
 
-    def between(self, start_time: str, end_time: str) -> list[dict]:
+    def between(self, start_time: str, end_time: str) -> list[Mapping[str, Any]]:
         """Return the waypoints whose time falls within [start_time, end_time].
 
         Args:
@@ -217,7 +297,7 @@ class _TimedStream:
         indices = self.indices_between(_parse_utc(start_time), _parse_utc(end_time))
         return [self.waypoints[i] for i in indices]
 
-    def lap_elevation(self, start_time: str, end_time: str) -> list[dict]:
+    def lap_elevation(self, start_time: str, end_time: str) -> Sequence[Mapping[str, Any]]:
         """Return a lap's slice of this once-smoothed elevation stream (see ``slice_lap_elevation``).
 
         Args:
@@ -238,10 +318,10 @@ class _TimedStream:
 
 
 def filter_waypoints_by_time_range(
-    waypoints: list[dict],
+    waypoints: Sequence[Mapping[str, Any]],
     start_time: str,
     end_time: str,
-) -> list[dict]:
+) -> list[Mapping[str, Any]]:
     """Return waypoints whose time falls within [start_time, end_time].
 
     Args:
@@ -257,10 +337,10 @@ def filter_waypoints_by_time_range(
 
 
 def slice_lap_elevation(
-    smoothed_ele_waypoints: list[dict],
+    smoothed_ele_waypoints: Sequence[Mapping[str, Any]],
     start_time: str,
     end_time: str,
-) -> list[dict]:
+) -> Sequence[Mapping[str, Any]]:
     """Return a lap's slice of the once-smoothed elevation stream.
 
     The slice is ``[start_time, end_time]`` plus the sample just before it when
@@ -283,8 +363,8 @@ def slice_lap_elevation(
 def _compute_lap_metrics(
     start_time: str,
     end_time: str,
-    start_point: dict,
-    end_point: dict,
+    start_point: Mapping[str, Any],
+    end_point: Mapping[str, Any],
     total_distance: float,
     smoothed_ele: _TimedStream,
     power: _TimedStream,
@@ -391,17 +471,19 @@ def _compute_lap_metrics(
 
 
 def generate_activity_laps(
-    lat_lon_waypoints: list[dict],
-    ele_waypoints: list[dict],
-    power_waypoints: list[dict],
-    hr_waypoints: list[dict],
-    cad_waypoints: list[dict],
-    vel_waypoints: list[dict],
+    lat_lon_waypoints: Sequence[Mapping[str, Any]],
+    ele_waypoints: Sequence[Mapping[str, Any]],
+    power_waypoints: Sequence[Mapping[str, Any]],
+    hr_waypoints: Sequence[Mapping[str, Any]],
+    cad_waypoints: Sequence[Mapping[str, Any]],
+    vel_waypoints: Sequence[Mapping[str, Any]],
     distance_per_lap_km: float = 1.0,
     measured_vel_times: set[str] | None = None,
-    smoothed_ele_waypoints: list[dict] | None = None,
+    smoothed_ele_waypoints: Sequence[Mapping[str, Any]] | None = None,
 ) -> list[LapMetrics]:
     """Split waypoints into distance-based laps and compute metrics.
+
+    Reads the streams a parser just built and, in data migrations, the streams stored as JSON.
 
     Args:
         lat_lon_waypoints: List of lat/lon dicts.
@@ -488,26 +570,24 @@ def generate_activity_laps(
     return laps
 
 
-def filter_streams_by_time_range(
-    streams: dict[str, list[dict]],
+def filter_waypoints_by_datetime_range[WaypointT: activity_streams_contracts.TimedWaypoint](
+    waypoints: Sequence[WaypointT],
     start_time: datetime,
     end_time: datetime,
-) -> dict[str, list[dict]]:
-    """Filter all waypoint streams to a time range.
+) -> list[WaypointT]:
+    """Filter a waypoint stream to a time range.
 
     Handles both tz-naive and tz-aware ``start_time`` / ``end_time``.
     Waypoint ``'time'`` values are parsed as ISO 8601 strings and treated
     as UTC when no timezone info is present.
 
     Args:
-        streams: Dict keyed by stream name mapping to lists of waypoint
-            dicts, each containing a ``'time'`` key.
+        waypoints: The stream's waypoints, each containing a ``'time'`` key.
         start_time: Inclusive lower bound (tz-aware or tz-naive UTC).
         end_time: Inclusive upper bound (tz-aware or tz-naive UTC).
 
     Returns:
-        New dict with the same keys, each stream filtered to the given
-        time range.
+        The waypoints within the given time range, in their original order.
     """
     # Normalise bounds to UTC-aware for consistent comparisons.
     if start_time.tzinfo is None:
@@ -515,21 +595,7 @@ def filter_streams_by_time_range(
     if end_time.tzinfo is None:
         end_time = end_time.replace(tzinfo=UTC)
 
-    def _parse_wp_time(time_str: str) -> datetime:
-        """Parse a waypoint timestamp string to an aware UTC datetime.
-
-        Args:
-            time_str: The waypoint timestamp string.
-
-        Returns:
-            The parsed datetime.
-        """
-        return _parse_utc(time_str)
-
-    return {
-        key: [wp for wp in waypoints if start_time <= _parse_wp_time(wp["time"]) <= end_time]
-        for key, waypoints in streams.items()
-    }
+    return [wp for wp in waypoints if start_time <= _parse_utc(wp["time"]) <= end_time]
 
 
 def resolve_timezone_from_lat_lon(
@@ -552,7 +618,7 @@ def resolve_timezone_from_lat_lon(
 
 
 def calculate_power_metrics(
-    power_waypoints: list[dict],
+    power_waypoints: Sequence[Mapping[str, Any]],
 ) -> tuple[float | None, float | None, float | None]:
     """Calculate average, max, and normalised power from a power stream.
 
@@ -572,7 +638,7 @@ def calculate_power_metrics(
     return avg_power, max_power, normalized_power
 
 
-def compute_distance_from_waypoints(lat_lon_waypoints: list[dict]) -> float:
+def compute_distance_from_waypoints(lat_lon_waypoints: Sequence[activity_streams_contracts.LatLonWaypoint]) -> float:
     """Compute total distance in metres from a GPS track.
 
     Sums the geodesic distance between consecutive waypoints. Used as a

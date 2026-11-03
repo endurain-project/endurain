@@ -1,5 +1,7 @@
 """ORM models for activity stream data."""
 
+from typing import Any
+
 from sqlalchemy import JSON, ForeignKey
 from sqlalchemy.orm import (
     Mapped,
@@ -39,7 +41,7 @@ class ActivityStreams(Base):
         nullable=False,
         comment=("Stream type (1-HR, 2-Power, 3-Cadence, 4-Elevation, 5-Velocity, 6-Pace, 7-lat/lon)"),
     )
-    stream_waypoints: Mapped[list] = mapped_column(
+    stream_waypoints: Mapped[list[dict[str, Any]]] = mapped_column(
         JSON,
         nullable=False,
         comment="Store waypoints data",

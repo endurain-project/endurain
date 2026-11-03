@@ -5,6 +5,7 @@ from types import SimpleNamespace
 from unittest.mock import patch
 
 import pytest
+from tcxreader.tcx_track_point import TCXTrackPoint
 
 import core.exceptions as core_exceptions
 import modules.activities.activity_file_import.tcx_utils as tcx_utils
@@ -113,6 +114,26 @@ class TestUtilsTcx:
 
         assert waypoints["lat_lon_waypoints"][0]["time"] == "2026-03-28T15:19:19"
         assert waypoints["hr_waypoints"][0]["time"] == "2026-03-28T15:19:19"
+
+    def test_extract_waypoints_has_no_heart_rate_stream_without_heart_rate(self):
+        """A file recorded without a heart-rate sensor yields no heart-rate samples.
+
+        tcxreader's ``to_dict`` always carries an ``hr_value`` key, ``None`` when the trackpoint has no reading.
+        """
+        start = datetime(2026, 4, 1, 10, 0, 0, tzinfo=UTC)
+        trackpoints = [
+            TCXTrackPoint(
+                latitude=38.7 + i * 0.0002, longitude=-9.1, elevation=10.0, time=start + timedelta(seconds=10 * i)
+            )
+            for i in range(3)
+        ]
+
+        waypoints = tcx_utils._extract_waypoints(
+            [trackpoint.to_dict() for trackpoint in trackpoints], SimpleNamespace(trackpoints=trackpoints)
+        )
+
+        assert waypoints["hr_waypoints"] == []
+        assert len(waypoints["lat_lon_waypoints"]) == 3
 
     def test_build_activity_converts_offset_start_end_to_utc(self):
         """Activity start/end with offset are stored as UTC (issue #588)."""

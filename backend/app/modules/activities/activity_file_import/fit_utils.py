@@ -4,9 +4,11 @@ Pure: file bytes in, parsed activity data out, with no database, provider or
 crud coupling, so a parser is unit-testable with a file alone.
 """
 
+from collections.abc import Sequence
 from dataclasses import dataclass, field
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
+from typing import TypedDict
 
 import fitdecode
 
@@ -15,14 +17,197 @@ import core.logger as core_logger
 import core.timezone as core_timezone
 import modules.activities.activity.constants as activity_constants
 import modules.activities.activity.contracts as activity_contracts
+import modules.activities.activity_exercise_titles.contracts as activity_exercise_titles_contracts
 import modules.activities.activity_file_import.fit_frames as activity_file_import_fit_frames
 import modules.activities.activity_file_import.parser_utils as activity_file_import_parser_utils
+import modules.activities.activity_streams.contracts as activity_streams_contracts
+import modules.activities.activity_workout_steps.contracts as activity_workout_steps_contracts
 import modules.activities.computation as activities_computation
 
 logger = core_logger.get_logger(__name__)
 
 
-def _fill_missing_lap_elevation(laps: list[dict], ele_waypoints: list[dict]) -> None:
+class FitSession(TypedDict):
+    """A FIT session's summary, as the activity is built from it.
+
+    Attributes:
+        initial_latitude: Start latitude in degrees; the first GPS waypoint's when the session has none.
+        initial_longitude: Start longitude in degrees; the first GPS waypoint's when the session has none.
+        city: City of the activity; resolved after parsing.
+        town: Town of the activity; resolved after parsing.
+        country: Country of the activity; resolved after parsing.
+        activity_type: The FIT sport, or the sub-sport that names the activity better.
+        first_waypoint_time: When the session started.
+        last_waypoint_time: Start plus the elapsed time.
+        total_elapsed_time: Elapsed seconds.
+        total_timer_time: Timer seconds.
+        calories: Calories.
+        distance: Distance in meters.
+        avg_hr: Average heart rate in bpm.
+        max_hr: Maximum heart rate in bpm.
+        avg_cadence: Average cadence.
+        max_cadence: Maximum cadence.
+        avg_power: Average power in watts.
+        max_power: Maximum power in watts.
+        ele_gain: Ascent in meters.
+        ele_loss: Descent in meters.
+        np: Normalized power in watts.
+        avg_speed: Average speed in m/s.
+        max_speed: Maximum speed in m/s.
+        workout_feeling: Workout feel, 0-100.
+        workout_rpe: Workout RPE, 10-100.
+        total_cycles: Cycles (strokes, strides).
+    """
+
+    initial_latitude: float | None
+    initial_longitude: float | None
+    city: str | None
+    town: str | None
+    country: str | None
+    activity_type: activity_file_import_fit_frames.FitEnum
+    first_waypoint_time: datetime
+    last_waypoint_time: datetime
+    total_elapsed_time: float
+    total_timer_time: float
+    calories: int | None
+    distance: float | None
+    avg_hr: int | None
+    max_hr: int | None
+    avg_cadence: int | None
+    max_cadence: int | None
+    avg_power: int | None
+    max_power: int | None
+    ele_gain: int | None
+    ele_loss: int | None
+    np: int | None
+    avg_speed: float | None
+    max_speed: float | None
+    workout_feeling: int | None
+    workout_rpe: int | None
+    total_cycles: int | None
+
+
+class FitSplit(TypedDict):
+    """A FIT split message's fields, the positions in semicircles as decoded."""
+
+    split_type: activity_file_import_fit_frames.FitEnum | None
+    total_elapsed_time: float | None
+    total_timer_time: float | None
+    total_distance: float | None
+    avg_speed: float | None
+    start_time: datetime | None
+    total_ascent: int | None
+    total_descent: int | None
+    start_position_lat: int | None
+    start_position_long: int | None
+    end_position_lat: int | None
+    end_position_long: int | None
+    max_speed: float | None
+    end_time: datetime | None
+    total_calories: int | None
+    start_elevation: float | None
+
+
+class FitParsePayload(TypedDict):
+    """Everything the first FIT stage read from a file, before it is split into activities.
+
+    Attributes:
+        sessions: The session summaries, one per activity.
+        time_offset: The signed ``device_settings`` UTC offset in seconds.
+        activity_time_offset: The ``activity`` message's UTC offset in seconds, when it carries one.
+        activity_name: The workout name, or the override.
+        laps: Every lap of the file.
+        splits: Every split of the file.
+        split_summary: Every split summary of the file.
+        sets: Every workout set, as raw rows.
+        workout_steps: Every planned workout step.
+        lengths: Every pool length.
+        file_id: The file's identification.
+        intraday_steps: Monitoring step samples.
+        intraday_heart_rate: Monitoring heart-rate samples.
+        resting_heart_rate: The monitoring resting heart rate, when the file has one.
+        exercise_titles: The file's exercise titles.
+    """
+
+    sessions: list[FitSession]
+    time_offset: int | None
+    activity_time_offset: int | None
+    activity_name: str
+    is_elevation_set: bool
+    ele_waypoints: list[activity_streams_contracts.ElevationWaypoint]
+    is_power_set: bool
+    power_waypoints: list[activity_streams_contracts.PowerWaypoint]
+    is_heart_rate_set: bool
+    hr_waypoints: list[activity_streams_contracts.HeartRateWaypoint]
+    is_velocity_set: bool
+    vel_waypoints: list[activity_streams_contracts.VelocityWaypoint]
+    pace_waypoints: list[activity_streams_contracts.PaceWaypoint]
+    is_temperature_set: bool
+    temp_waypoints: list[activity_streams_contracts.TemperatureWaypoint]
+    is_cadence_set: bool
+    cad_waypoints: list[activity_streams_contracts.CadenceWaypoint]
+    is_lat_lon_set: bool
+    lat_lon_waypoints: list[activity_streams_contracts.LatLonWaypoint]
+    laps: list[activity_file_import_fit_frames.FitLap]
+    splits: list[FitSplit]
+    split_summary: list[activity_file_import_fit_frames.FitSplitSummary]
+    sets: list[list[object]]
+    workout_steps: list[activity_workout_steps_contracts.ActivityWorkoutStepsCreate]
+    lengths: list[activity_file_import_fit_frames.FitLength]
+    file_id: activity_file_import_fit_frames.FitFileId
+    intraday_steps: list[activity_file_import_fit_frames.FitMonitoringSteps]
+    intraday_heart_rate: list[activity_file_import_fit_frames.FitMonitoringHeartRate]
+    resting_heart_rate: activity_file_import_fit_frames.FitRestingHeartRate | None
+    exercise_titles: list[activity_exercise_titles_contracts.ActivityExerciseTitlesCreate]
+
+
+class FitSessionRecord(TypedDict):
+    """One activity of a FIT file: its session and the file's data within the session's time range.
+
+    Attributes:
+        session: The session summary.
+        time_offset: The file's ``device_settings`` UTC offset in seconds.
+        activity_time_offset: The file's ``activity`` message UTC offset in seconds, when it carries one.
+        activity_name: The workout name, or the override.
+        laps: The laps that start within the session.
+        split_summary: The file's split summaries.
+        workout_steps: The file's workout steps.
+        sets: The file's workout sets.
+        lengths: The file's pool lengths.
+        file_id: The file's identification.
+    """
+
+    session: FitSession
+    time_offset: int | None
+    activity_time_offset: int | None
+    activity_name: str
+    lat_lon_waypoints: list[activity_streams_contracts.LatLonWaypoint]
+    is_lat_lon_set: bool
+    ele_waypoints: list[activity_streams_contracts.ElevationWaypoint]
+    is_elevation_set: bool
+    hr_waypoints: list[activity_streams_contracts.HeartRateWaypoint]
+    is_heart_rate_set: bool
+    cad_waypoints: list[activity_streams_contracts.CadenceWaypoint]
+    is_cadence_set: bool
+    power_waypoints: list[activity_streams_contracts.PowerWaypoint]
+    is_power_set: bool
+    vel_waypoints: list[activity_streams_contracts.VelocityWaypoint]
+    pace_waypoints: list[activity_streams_contracts.PaceWaypoint]
+    is_velocity_set: bool
+    temp_waypoints: list[activity_streams_contracts.TemperatureWaypoint]
+    is_temperature_set: bool
+    laps: list[activity_file_import_fit_frames.FitLap]
+    split_summary: list[activity_file_import_fit_frames.FitSplitSummary]
+    workout_steps: list[activity_workout_steps_contracts.ActivityWorkoutStepsCreate]
+    sets: list[list[object]]
+    lengths: list[activity_file_import_fit_frames.FitLength]
+    file_id: activity_file_import_fit_frames.FitFileId
+
+
+def _fill_missing_lap_elevation(
+    laps: list[activity_file_import_fit_frames.FitLap],
+    ele_waypoints: Sequence[activity_streams_contracts.ElevationWaypoint],
+) -> None:
     """Fill lap ascent/descent missing from the FIT lap frames.
 
     Some exporters (e.g. Health Sync) omit total_ascent/total_descent from lap
@@ -38,20 +223,19 @@ def _fill_missing_lap_elevation(laps: list[dict], ele_waypoints: list[dict]) -> 
         return
 
     laps_to_fill = [
-        lap
+        (lap, start, elapsed)
         for lap in laps
         if (lap.get("total_ascent") is None or lap.get("total_descent") is None)
-        and lap.get("start_time") is not None
-        and lap.get("total_elapsed_time") is not None
+        and (start := lap.get("start_time")) is not None
+        and (elapsed := lap.get("total_elapsed_time")) is not None
     ]
     if not laps_to_fill:
         return
 
     smoothed = activities_computation.smooth_elevation_stream(ele_waypoints)
 
-    for lap in laps_to_fill:
-        start = lap["start_time"]
-        end = start + timedelta(seconds=lap["total_elapsed_time"])
+    for lap, start, elapsed in laps_to_fill:
+        end = start + timedelta(seconds=elapsed)
         lap_ele = activity_file_import_parser_utils.slice_lap_elevation(
             smoothed,
             core_timezone.format_utc(start),
@@ -67,10 +251,10 @@ def _fill_missing_lap_elevation(laps: list[dict], ele_waypoints: list[dict]) -> 
 
 
 def create_activity_objects(
-    sessions_records: list[dict],
+    sessions_records: list[FitSessionRecord],
     user_id: int,
     default_timezone: str,
-) -> list:
+) -> list[activity_file_import_parser_utils.ActivityFilePayload[activity_file_import_fit_frames.FitLap]]:
     """Build per-activity parsed payloads from the split FIT session records.
 
     Pure: derives everything from the FIT bytes. Privacy defaults, gear, and the
@@ -94,13 +278,15 @@ def create_activity_objects(
         # offset (indoor rides, treadmill runs, pool swims).
         timezone = default_timezone
 
-        activities = []
+        activities: list[
+            activity_file_import_parser_utils.ActivityFilePayload[activity_file_import_fit_frames.FitLap]
+        ] = []
 
         for session_record in sessions_records:
             # Define default values
             activity_type = 10
             activity_name = activity_constants.DEFAULT_ACTIVITY_NAME
-            pace = 0
+            pace: float = 0
             # Resolve each session's timezone from scratch. Reusing the loop
             # variable let a session with neither GPS nor a time offset inherit
             # the PREVIOUS session's timezone, which silently mislabelled every
@@ -109,7 +295,7 @@ def create_activity_objects(
 
             if session_record["session"]["activity_type"]:
                 # Set the activity type based on the session record
-                activity_type = activity_constants.define_activity_type(session_record["session"]["activity_type"])
+                activity_type = activity_constants.define_activity_type(str(session_record["session"]["activity_type"]))
 
             if (
                 session_record["activity_name"]
@@ -148,8 +334,8 @@ def create_activity_objects(
                         session_record["lat_lon_waypoints"][0]["lon"],
                         timezone,
                     )
-                elif session_record.get("activity_time_offset") is not None and (
-                    session_record["activity_time_offset"] != 0 or not session_record["time_offset"]
+                elif (activity_time_offset := session_record.get("activity_time_offset")) is not None and (
+                    activity_time_offset != 0 or not session_record["time_offset"]
                 ):
                     # activity.local_timestamp - activity.timestamp is the
                     # canonical FIT offset and is present in GPS-less files,
@@ -158,22 +344,22 @@ def create_activity_objects(
                     # unknown, so a 0 offset yields to a non-zero
                     # device_settings.time_offset.
                     session_timezone = activity_file_import_fit_frames._timezone_from_offset(
-                        session_record["activity_time_offset"],
+                        activity_time_offset,
                         session_record["session"]["first_waypoint_time"],
                         default_timezone,
                         timezone,
                     )
-                elif session_record["time_offset"]:
+                elif time_offset := session_record["time_offset"]:
                     session_timezone = activity_file_import_fit_frames._timezone_from_offset(
-                        session_record["time_offset"],
+                        time_offset,
                         session_record["session"]["first_waypoint_time"],
                         default_timezone,
                         timezone,
                     )
 
-            avg_power = session_record["session"]["avg_power"]
-            max_power = session_record["session"]["max_power"]
-            np_power = session_record["session"]["np"]
+            avg_power: float | None = session_record["session"]["avg_power"]
+            max_power: float | None = session_record["session"]["max_power"]
+            np_power: float | None = session_record["session"]["np"]
             if session_record["is_power_set"] and (avg_power is None or np_power is None):
                 calc_avg, calc_max, calc_np = activity_file_import_parser_utils.calculate_power_metrics(
                     session_record["power_waypoints"]
@@ -293,7 +479,7 @@ def create_activity_objects(
                 session_record["ele_waypoints"],
             )
 
-            waypoints = {
+            waypoints: activity_file_import_parser_utils.ActivityWaypoints = {
                 "ele_waypoints": session_record["ele_waypoints"],
                 "power_waypoints": session_record["power_waypoints"],
                 "hr_waypoints": session_record["hr_waypoints"],
@@ -303,7 +489,7 @@ def create_activity_objects(
                 "lat_lon_waypoints": session_record["lat_lon_waypoints"],
                 "temp_waypoints": session_record.get("temp_waypoints", []),
             }
-            extras = {
+            extras: activity_file_import_parser_utils.ActivityFileExtras = {
                 "sets": session_record["sets"],
                 "workout_steps": session_record["workout_steps"],
             }
@@ -332,7 +518,7 @@ def create_activity_objects(
         raise core_exceptions.InvalidInputError("Can't parse FIT file sessions") from err
 
 
-def split_records_by_activity(parsed_data: dict) -> list[dict]:
+def split_records_by_activity(parsed_data: FitParsePayload) -> list[FitSessionRecord]:
     """Split parsed FIT records into one payload per session.
 
     Args:
@@ -360,25 +546,10 @@ def split_records_by_activity(parsed_data: dict) -> list[dict]:
     is_velocity_set = parsed_data.get("is_velocity_set", False)
     is_temperature_set = parsed_data.get("is_temperature_set", False)
 
-    # Dictionary to hold split waypoints per activity
-    activity_waypoints: dict[int, dict[str, list[dict] | None]] = {
-        i: {
-            "lat_lon_waypoints": [] if is_lat_lon_set else None,
-            "ele_waypoints": [] if is_elevation_set else None,
-            "hr_waypoints": [] if is_heart_rate_set else None,
-            "cad_waypoints": [] if is_cadence_set else None,
-            "power_waypoints": [] if is_power_set else None,
-            "vel_waypoints": [] if is_velocity_set else None,
-            "pace_waypoints": [] if is_velocity_set else None,
-            "temp_waypoints": [] if is_temperature_set else None,
-        }
-        for i in range(len(sessions))
-    }
-
-    sessions_records: list[dict] = []
+    sessions_records: list[FitSessionRecord] = []
 
     # Convert session times to datetime objects for easier comparison
-    for i, session in enumerate(sessions):
+    for session in sessions:
         # Use the time as is if it is already a datetime object; otherwise, parse it
         start_time = session["first_waypoint_time"]
         if not isinstance(start_time, datetime):
@@ -393,20 +564,21 @@ def split_records_by_activity(parsed_data: dict) -> list[dict]:
         if end_time.tzinfo is None:
             end_time = end_time.replace(tzinfo=UTC)
 
-        laps_records = []
+        laps_records: list[activity_file_import_fit_frames.FitLap] = []
 
         if parsed_data["laps"]:
             for lap in parsed_data["laps"]:
                 # Skip laps with no start time
-                if lap["start_time"] is None:
+                lap_start_time = lap["start_time"]
+                if lap_start_time is None:
                     continue
                 # Check if the lap's start time is within the session's start and end times
-                if start_time <= lap["start_time"] <= end_time:
+                if start_time <= lap_start_time <= end_time:
                     # Append the lap to the session's laps
                     laps_records.append(lap)
 
         # Initialize a parsed session dictionary
-        parsed_session = {
+        parsed_session: FitSessionRecord = {
             "session": session,
             "time_offset": parsed_data["time_offset"],
             "activity_time_offset": parsed_data.get("activity_time_offset"),
@@ -434,87 +606,80 @@ def split_records_by_activity(parsed_data: dict) -> list[dict]:
             "file_id": parsed_data["file_id"],
         }
 
-        # Build the streams dict for streams that are flagged as set,
-        # then filter all of them in one call.
-        raw_streams: dict[str, list[dict]] = {}
-        if is_lat_lon_set:
-            raw_streams["lat_lon_waypoints"] = lat_lon_waypoints
-        if is_elevation_set:
-            raw_streams["ele_waypoints"] = ele_waypoints
-        if is_heart_rate_set:
-            raw_streams["hr_waypoints"] = hr_waypoints
-        if is_cadence_set:
-            raw_streams["cad_waypoints"] = cad_waypoints
-        if is_power_set:
-            raw_streams["power_waypoints"] = power_waypoints
-        if is_velocity_set:
-            raw_streams["vel_waypoints"] = vel_waypoints
-            raw_streams["pace_waypoints"] = pace_waypoints
-        if is_temperature_set:
-            raw_streams["temp_waypoints"] = temp_waypoints
+        # Each stream flagged as set is cut to the session's time range.
+        # If there are waypoints, set the parsed session's waypoints and flag
+        if is_lat_lon_set and (
+            session_lat_lon := activity_file_import_parser_utils.filter_waypoints_by_datetime_range(
+                lat_lon_waypoints, start_time, end_time
+            )
+        ):
+            parsed_session["lat_lon_waypoints"] = session_lat_lon
+            parsed_session["is_lat_lon_set"] = True
 
-        filtered = activity_file_import_parser_utils.filter_streams_by_time_range(raw_streams, start_time, end_time)
+            # If initial latitude and longitude are not set, set them
+            # to the first waypoint's coordinates
+            if (
+                parsed_session["session"]["initial_latitude"] is None
+                or parsed_session["session"]["initial_longitude"] is None
+            ):
+                parsed_session["session"]["initial_latitude"] = session_lat_lon[0]["lat"]
+                parsed_session["session"]["initial_longitude"] = session_lat_lon[0]["lon"]
 
-        if is_lat_lon_set:
-            activity_waypoints[i]["lat_lon_waypoints"] = filtered["lat_lon_waypoints"]
-            # If there are waypoints, set the parsed session's waypoints and flag
-            if filtered["lat_lon_waypoints"]:
-                parsed_session["lat_lon_waypoints"] = filtered["lat_lon_waypoints"]
-                parsed_session["is_lat_lon_set"] = True
+        if is_elevation_set and (
+            session_ele := activity_file_import_parser_utils.filter_waypoints_by_datetime_range(
+                ele_waypoints, start_time, end_time
+            )
+        ):
+            parsed_session["ele_waypoints"] = session_ele
+            parsed_session["is_elevation_set"] = True
 
-                # If initial latitude and longitude are not set, set them
-                # to the first waypoint's coordinates
-                if (
-                    parsed_session["session"]["initial_latitude"] is None
-                    or parsed_session["session"]["initial_longitude"] is None
-                ):
-                    parsed_session["session"]["initial_latitude"] = filtered["lat_lon_waypoints"][0]["lat"]
-                    parsed_session["session"]["initial_longitude"] = filtered["lat_lon_waypoints"][0]["lon"]
+        if is_heart_rate_set and (
+            session_hr := activity_file_import_parser_utils.filter_waypoints_by_datetime_range(
+                hr_waypoints, start_time, end_time
+            )
+        ):
+            parsed_session["hr_waypoints"] = session_hr
+            parsed_session["is_heart_rate_set"] = True
 
-        if is_elevation_set:
-            activity_waypoints[i]["ele_waypoints"] = filtered["ele_waypoints"]
-            if filtered["ele_waypoints"]:
-                parsed_session["ele_waypoints"] = filtered["ele_waypoints"]
-                parsed_session["is_elevation_set"] = True
+        if is_cadence_set and (
+            session_cad := activity_file_import_parser_utils.filter_waypoints_by_datetime_range(
+                cad_waypoints, start_time, end_time
+            )
+        ):
+            parsed_session["cad_waypoints"] = session_cad
+            parsed_session["is_cadence_set"] = True
 
-        if is_heart_rate_set:
-            activity_waypoints[i]["hr_waypoints"] = filtered["hr_waypoints"]
-            if filtered["hr_waypoints"]:
-                parsed_session["hr_waypoints"] = filtered["hr_waypoints"]
-                parsed_session["is_heart_rate_set"] = True
-
-        if is_cadence_set:
-            activity_waypoints[i]["cad_waypoints"] = filtered["cad_waypoints"]
-            if filtered["cad_waypoints"]:
-                parsed_session["cad_waypoints"] = filtered["cad_waypoints"]
-                parsed_session["is_cadence_set"] = True
-
-        if is_power_set:
-            activity_waypoints[i]["power_waypoints"] = filtered["power_waypoints"]
-            if filtered["power_waypoints"]:
-                parsed_session["power_waypoints"] = filtered["power_waypoints"]
-                parsed_session["is_power_set"] = True
+        if is_power_set and (
+            session_power := activity_file_import_parser_utils.filter_waypoints_by_datetime_range(
+                power_waypoints, start_time, end_time
+            )
+        ):
+            parsed_session["power_waypoints"] = session_power
+            parsed_session["is_power_set"] = True
 
         if is_velocity_set:
-            activity_waypoints[i]["vel_waypoints"] = filtered["vel_waypoints"]
-            if filtered["vel_waypoints"]:
-                parsed_session["vel_waypoints"] = filtered["vel_waypoints"]
+            if session_vel := activity_file_import_parser_utils.filter_waypoints_by_datetime_range(
+                vel_waypoints, start_time, end_time
+            ):
+                parsed_session["vel_waypoints"] = session_vel
                 parsed_session["is_velocity_set"] = True
-            activity_waypoints[i]["pace_waypoints"] = filtered["pace_waypoints"]
-            if filtered["pace_waypoints"]:
-                parsed_session["pace_waypoints"] = filtered["pace_waypoints"]
+            if session_pace := activity_file_import_parser_utils.filter_waypoints_by_datetime_range(
+                pace_waypoints, start_time, end_time
+            ):
+                parsed_session["pace_waypoints"] = session_pace
                 parsed_session["is_velocity_set"] = True
 
-        if is_temperature_set:
-            activity_waypoints[i]["temp_waypoints"] = filtered["temp_waypoints"]
-            if filtered["temp_waypoints"]:
-                parsed_session["temp_waypoints"] = filtered["temp_waypoints"]
-                parsed_session["is_temperature_set"] = True
+        if is_temperature_set and (
+            session_temp := activity_file_import_parser_utils.filter_waypoints_by_datetime_range(
+                temp_waypoints, start_time, end_time
+            )
+        ):
+            parsed_session["temp_waypoints"] = session_temp
+            parsed_session["is_temperature_set"] = True
 
         # Append the parsed session to the sessions list
         sessions_records.append(parsed_session)
 
-    # Return dictionary with each activity's waypoints
     return sessions_records
 
 
@@ -528,29 +693,34 @@ class FitParseState:
     """
 
     activity_name: str = activity_constants.DEFAULT_ACTIVITY_NAME
-    time_offset: int = 0
+    time_offset: int | None = 0
     activity_time_offset: int | None = None
     last_waypoint_time: datetime | None = None
-    resting_heart_rate: dict | None = None
-    sessions: list[dict] = field(default_factory=list)
-    laps: list[dict] = field(default_factory=list)
-    splits: list[dict] = field(default_factory=list)
-    split_summary: list[dict] = field(default_factory=list)
-    sets: list[list] = field(default_factory=list)
-    workout_steps: list = field(default_factory=list)
-    exercises_titles: list = field(default_factory=list)
-    lengths: list[dict] = field(default_factory=list)
-    intraday_steps: list[dict] = field(default_factory=list)
-    intraday_heart_rate: list[dict] = field(default_factory=list)
-    file_id: dict = field(default_factory=dict)
-    lat_lon_waypoints: list[dict] = field(default_factory=list)
-    ele_waypoints: list[dict] = field(default_factory=list)
-    hr_waypoints: list[dict] = field(default_factory=list)
-    cad_waypoints: list[dict] = field(default_factory=list)
-    power_waypoints: list[dict] = field(default_factory=list)
-    vel_waypoints: list[dict] = field(default_factory=list)
-    pace_waypoints: list[dict] = field(default_factory=list)
-    temp_waypoints: list[dict] = field(default_factory=list)
+    resting_heart_rate: activity_file_import_fit_frames.FitRestingHeartRate | None = None
+    sessions: list[FitSession] = field(default_factory=list)
+    laps: list[activity_file_import_fit_frames.FitLap] = field(default_factory=list)
+    splits: list[FitSplit] = field(default_factory=list)
+    split_summary: list[activity_file_import_fit_frames.FitSplitSummary] = field(default_factory=list)
+    sets: list[list[object]] = field(default_factory=list)
+    workout_steps: list[activity_workout_steps_contracts.ActivityWorkoutStepsCreate] = field(default_factory=list)
+    exercises_titles: list[activity_exercise_titles_contracts.ActivityExerciseTitlesCreate] = field(
+        default_factory=list
+    )
+    lengths: list[activity_file_import_fit_frames.FitLength] = field(default_factory=list)
+    intraday_steps: list[activity_file_import_fit_frames.FitMonitoringSteps] = field(default_factory=list)
+    intraday_heart_rate: list[activity_file_import_fit_frames.FitMonitoringHeartRate] = field(default_factory=list)
+    # Empty until the file's file_id message is read.
+    file_id: activity_file_import_fit_frames.FitFileId = field(
+        default_factory=activity_file_import_fit_frames.FitFileId
+    )
+    lat_lon_waypoints: list[activity_streams_contracts.LatLonWaypoint] = field(default_factory=list)
+    ele_waypoints: list[activity_streams_contracts.ElevationWaypoint] = field(default_factory=list)
+    hr_waypoints: list[activity_streams_contracts.HeartRateWaypoint] = field(default_factory=list)
+    cad_waypoints: list[activity_streams_contracts.CadenceWaypoint] = field(default_factory=list)
+    power_waypoints: list[activity_streams_contracts.PowerWaypoint] = field(default_factory=list)
+    vel_waypoints: list[activity_streams_contracts.VelocityWaypoint] = field(default_factory=list)
+    pace_waypoints: list[activity_streams_contracts.PaceWaypoint] = field(default_factory=list)
+    temp_waypoints: list[activity_streams_contracts.TemperatureWaypoint] = field(default_factory=list)
     prev_latitude: float | None = None
     prev_longitude: float | None = None
     is_lat_lon_set: bool = False
@@ -567,7 +737,7 @@ class FitParseState:
         self.prev_longitude = None
         self.last_waypoint_time = None
 
-    def to_payload(self) -> dict:
+    def to_payload(self) -> FitParsePayload:
         """Return the parser output dict expected by downstream callers.
 
         Returns:
@@ -607,27 +777,7 @@ class FitParseState:
         }
 
 
-_SPLIT_KEYS = (
-    "split_type",
-    "total_elapsed_time",
-    "total_timer_time",
-    "total_distance",
-    "avg_speed",
-    "start_time",
-    "total_ascent",
-    "total_descent",
-    "start_position_lat",
-    "start_position_long",
-    "end_position_lat",
-    "end_position_long",
-    "max_speed",
-    "end_time",
-    "total_calories",
-    "start_elevation",
-)
-
-
-def _handle_session_frame(frame, state: FitParseState) -> None:
+def _handle_session_frame(frame: fitdecode.FitDataMessage, state: FitParseState) -> None:
     """Parse a session frame, geocode it, and reset per-record cursors.
 
     Args:
@@ -698,18 +848,54 @@ def _handle_session_frame(frame, state: FitParseState) -> None:
     state.reset_record_cursor()
 
 
-def _handle_split_frame(frame, state: FitParseState) -> None:
+def _handle_split_frame(frame: fitdecode.FitDataMessage, state: FitParseState) -> None:
     """Parse a split frame and append it to state.
 
     Args:
         frame: The decoded FIT split message.
         state: Mutable parse state for the current file.
     """
-    split_data = activity_file_import_fit_frames.parse_frame_split(frame)
-    state.splits.append(dict(zip(_SPLIT_KEYS, split_data, strict=False)))
+    (
+        split_type,
+        total_elapsed_time,
+        total_timer_time,
+        total_distance,
+        avg_speed,
+        start_time,
+        total_ascent,
+        total_descent,
+        start_position_lat,
+        start_position_long,
+        end_position_lat,
+        end_position_long,
+        max_speed,
+        end_time,
+        total_calories,
+        start_elevation,
+    ) = activity_file_import_fit_frames.parse_frame_split(frame)
+    state.splits.append(
+        {
+            "split_type": split_type,
+            "total_elapsed_time": total_elapsed_time,
+            "total_timer_time": total_timer_time,
+            "total_distance": total_distance,
+            "avg_speed": avg_speed,
+            "start_time": start_time,
+            "total_ascent": total_ascent,
+            "total_descent": total_descent,
+            "start_position_lat": start_position_lat,
+            "start_position_long": start_position_long,
+            "end_position_lat": end_position_lat,
+            "end_position_long": end_position_long,
+            "max_speed": max_speed,
+            "end_time": end_time,
+            "total_calories": total_calories,
+            "start_elevation": start_elevation,
+        }
+    )
 
 
-def _handle_split_summary_frame(frame, state: FitParseState) -> None:
+def _handle_split_summary_frame(frame: fitdecode.FitDataMessage, state: FitParseState) -> None:
     """Parse a split_summary frame and append it to state.
 
     Args:
@@ -725,7 +911,7 @@ def _handle_split_summary_frame(frame, state: FitParseState) -> None:
     )
 
 
-def _handle_record_frame(frame, state: FitParseState) -> None:
+def _handle_record_frame(frame: fitdecode.FitDataMessage, state: FitParseState) -> None:
     """Process a record frame into waypoint streams and presence flags.
 
     Args:
@@ -781,20 +967,27 @@ def _handle_record_frame(frame, state: FitParseState) -> None:
         state.lat_lon_waypoints.append({"time": timestamp, "lat": latitude, "lon": longitude})
         state.is_lat_lon_set = True
 
-    activities_computation.append_if_not_none(state.ele_waypoints, timestamp, elevation, "ele")
-    activities_computation.append_if_not_none(state.hr_waypoints, timestamp, heart_rate, "hr")
-    activities_computation.append_if_not_none(state.cad_waypoints, timestamp, cadence, "cad")
-    activities_computation.append_if_not_none(state.power_waypoints, timestamp, power, "power")
-    activities_computation.append_if_not_none(state.vel_waypoints, timestamp, instant_speed, "vel")
-    activities_computation.append_if_not_none(state.pace_waypoints, timestamp, instant_pace, "pace")
-    activities_computation.append_if_not_none(state.temp_waypoints, timestamp, temperature, "temp")
+    if elevation is not None:
+        state.ele_waypoints.append({"time": timestamp, "ele": elevation})
+    if heart_rate is not None:
+        state.hr_waypoints.append({"time": timestamp, "hr": heart_rate})
+    if cadence is not None:
+        state.cad_waypoints.append({"time": timestamp, "cad": cadence})
+    if power is not None:
+        state.power_waypoints.append({"time": timestamp, "power": power})
+    if instant_speed is not None:
+        state.vel_waypoints.append({"time": timestamp, "vel": instant_speed})
+    if instant_pace is not None:
+        state.pace_waypoints.append({"time": timestamp, "pace": instant_pace})
+    if temperature is not None:
+        state.temp_waypoints.append({"time": timestamp, "temp": temperature})
 
     state.prev_latitude = latitude
     state.prev_longitude = longitude
     state.last_waypoint_time = time
 
 
-def _handle_monitoring_frame(frame, state: FitParseState, last_timestamp) -> None:
+def _handle_monitoring_frame(frame: fitdecode.FitDataMessage, state: FitParseState, last_timestamp: int) -> None:
     """Parse a monitoring frame and extend intraday collections.
 
     Args:
@@ -807,7 +1000,7 @@ def _handle_monitoring_frame(frame, state: FitParseState, last_timestamp) -> Non
     state.intraday_heart_rate.extend(heart_rate)
 
 
-def _dispatch_data_message(frame, state: FitParseState, last_timestamp) -> None:
+def _dispatch_data_message(frame: fitdecode.FitDataMessage, state: FitParseState, last_timestamp: int) -> None:
     """Route a FIT data message to the appropriate handler.
 
     Args:
@@ -852,7 +1045,7 @@ def _dispatch_data_message(frame, state: FitParseState, last_timestamp) -> None:
         state.resting_heart_rate = activity_file_import_fit_frames.parse_frame_monitoring_hr_data(frame)
 
 
-def parse_fit_file(file: str, activity_name_input: str | None = None) -> dict:
+def parse_fit_file(file: str, activity_name_input: str | None = None) -> FitParsePayload:
     """Parse a FIT file into the parser's payload dict.
 
     Args:

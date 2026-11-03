@@ -8,7 +8,7 @@ stays exactly what the API serializes.
 from __future__ import annotations
 
 from datetime import datetime
-from typing import Annotated, Self
+from typing import Annotated, Any, Self
 
 from pydantic import (
     BaseModel,
@@ -162,7 +162,7 @@ class ActivityBase(BaseModel):
     strava_activity_id: int | None = None
     garminconnect_activity_id: int | None = None
     garminconnect_gear_id: str | None = Field(default=None, max_length=45)
-    import_info: dict | None = None
+    import_info: dict[str, Any] | None = None
     is_hidden: bool = False
     hide_start_time: bool | None = None
     hide_location: bool | None = None

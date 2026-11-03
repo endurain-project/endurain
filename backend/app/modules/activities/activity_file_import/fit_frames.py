@@ -12,7 +12,9 @@ grown to 1278 lines holding both. The dependency is one-way by construction: the
 dispatch imports these, and nothing here imports back.
 """
 
+from collections.abc import Sequence
 from datetime import UTC, datetime
+from typing import Any, NotRequired, TypedDict
 from zoneinfo import ZoneInfo, available_timezones
 
 import fitdecode
@@ -24,8 +26,226 @@ import modules.activities.activity_workout_steps.contracts as activity_workout_s
 
 logger = core_logger.get_logger(__name__)
 
+#: A FIT enum field decodes to its profile name, or to the raw number when the profile has no name for it.
+type FitEnum = str | int
 
-def parse_frame_session(frame):
+#: The session summary fields, in the order ``parse_frame_session`` returns them: start latitude and longitude,
+#: activity type, start time, elapsed and timer seconds, calories, distance, average and maximum heart rate,
+#: cadence and power, ascent, descent, normalized power, average and maximum speed, workout feel, RPE and cycles.
+type FitSessionFields = tuple[
+    float | None,
+    float | None,
+    FitEnum,
+    datetime,
+    float,
+    float,
+    int | None,
+    float | None,
+    int | None,
+    int | None,
+    int | None,
+    int | None,
+    int | None,
+    int | None,
+    int | None,
+    int | None,
+    int | None,
+    float | None,
+    float | None,
+    int | None,
+    int | None,
+    int | None,
+]
+
+#: One record sample: latitude, longitude, elevation, time, heart rate, cadence, power and temperature.
+type FitRecordFields = tuple[
+    float | None,
+    float | None,
+    float | None,
+    datetime,
+    int | None,
+    int | None,
+    int | None,
+    int | None,
+]
+
+#: The split fields, in the order ``parse_frame_split`` returns them: split type, elapsed and timer seconds,
+#: distance, average speed, start time, ascent, descent, start and end position (semicircles), maximum speed,
+#: end time, calories and start elevation.
+type FitSplitFields = tuple[
+    FitEnum | None,
+    float | None,
+    float | None,
+    float | None,
+    float | None,
+    datetime | None,
+    int | None,
+    int | None,
+    int | None,
+    int | None,
+    int | None,
+    int | None,
+    float | None,
+    datetime | None,
+    int | None,
+    float | None,
+]
+
+
+class FitLap(TypedDict):
+    """A FIT lap message's fields, the coordinates in degrees.
+
+    The keys are the stored lap's columns. ``enhanced_avg_pace`` and ``enhanced_max_pace`` are present only when
+    the lap has the matching speed.
+    """
+
+    start_time: datetime | None
+    start_position_lat: float | None
+    start_position_long: float | None
+    end_position_lat: float | None
+    end_position_long: float | None
+    total_elapsed_time: float | None
+    total_timer_time: float | None
+    total_distance: float | None
+    total_cycles: int | None
+    total_calories: int | None
+    avg_heart_rate: int | None
+    max_heart_rate: int | None
+    avg_cadence: int | None
+    max_cadence: int | None
+    avg_power: int | None
+    max_power: int | None
+    total_ascent: int | None
+    total_descent: int | None
+    intensity: FitEnum | None
+    lap_trigger: FitEnum | None
+    sport: FitEnum | None
+    sub_sport: FitEnum | None
+    normalized_power: int | None
+    total_work: int | None
+    avg_vertical_oscillation: float | None
+    avg_stance_time: float | None
+    avg_fractional_cadence: float | None
+    max_fractional_cadence: float | None
+    enhanced_avg_speed: float | None
+    enhanced_max_speed: float | None
+    enhanced_min_altitude: float | None
+    enhanced_max_altitude: float | None
+    avg_vertical_ratio: float | None
+    avg_step_length: float | None
+    enhanced_avg_pace: NotRequired[float]
+    enhanced_max_pace: NotRequired[float]
+
+
+class FitSplitSummary(TypedDict):
+    """A FIT split-summary message's fields.
+
+    Attributes:
+        split_type: The split type.
+        total_timer_time: Working seconds, or None when the message carries none.
+    """
+
+    split_type: FitEnum | None
+    total_timer_time: float | None
+
+
+class FitLength(TypedDict):
+    """A FIT pool-length message's fields.
+
+    Attributes:
+        message_index: Index of the length in the file.
+        start_time: When the length started.
+        total_elapsed_time: Elapsed seconds.
+        total_timer_time: Timer seconds.
+        total_strokes: Strokes.
+        avg_speed: Average speed in m/s.
+        swim_stroke: The stroke.
+        avg_swimming_cadence: Average cadence in strokes per minute.
+        length_type: ``active`` or ``idle``.
+    """
+
+    message_index: int | None
+    start_time: datetime | None
+    total_elapsed_time: float | None
+    total_timer_time: float
+    total_strokes: int | None
+    avg_speed: float | None
+    swim_stroke: FitEnum | None
+    avg_swimming_cadence: int | None
+    length_type: FitEnum | None
+
+
+class FitFileId(TypedDict, total=False):
+    """A FIT file-id message's fields; all present once the message is read, none for a file without one.
+
+    Attributes:
+        type: The file type.
+        manufacturer: The device manufacturer.
+        product: The device product.
+        serial_number: The device serial number.
+        time_created: When the file was created.
+    """
+
+    type: FitEnum | None
+    manufacturer: FitEnum | None
+    product: FitEnum | None
+    serial_number: int | None
+    time_created: datetime | None
+
+
+class FitMonitoringSteps(TypedDict):
+    """A step sample of a FIT monitoring message.
+
+    Attributes:
+        steps: Steps.
+        active_time: Active seconds.
+        active_calories: Active calories.
+        current_activity_type_intensity: The packed activity type and intensity.
+        activity_type: The activity type.
+        intensity: The intensity.
+        distance: Distance in meters.
+        duration_min: Duration in minutes.
+        timestamp: When the sample was taken, UTC.
+    """
+
+    steps: int | None
+    active_time: float | None
+    active_calories: int | None
+    current_activity_type_intensity: int | None
+    activity_type: FitEnum | None
+    intensity: int | None
+    distance: float | None
+    duration_min: int | None
+    timestamp: datetime
+
+
+class FitMonitoringHeartRate(TypedDict):
+    """A heart-rate sample of a FIT monitoring message.
+
+    Attributes:
+        heart_rate: Heart rate in bpm.
+        timestamp: When the sample was taken, UTC.
+    """
+
+    heart_rate: int | None
+    timestamp: datetime
+
+
+class FitRestingHeartRate(TypedDict):
+    """A FIT monitoring heart-rate-data message's fields.
+
+    Attributes:
+        timestamp: When the message was recorded.
+        resting_heart_rate: Resting heart rate in bpm.
+        current_day_resting_heart_rate: The day's resting heart rate in bpm.
+    """
+
+    timestamp: datetime | None
+    resting_heart_rate: int | None
+    current_day_resting_heart_rate: int | None
+
+
+def parse_frame_session(frame: fitdecode.FitDataMessage) -> FitSessionFields:
     """Extract the session summary fields from a FIT session frame.
 
     Args:
@@ -92,7 +312,7 @@ def parse_frame_session(frame):
     )
 
 
-def parse_frame_workout(frame):
+def parse_frame_workout(frame: fitdecode.FitDataMessage) -> str:
     """Extract the workout name from a FIT workout frame.
 
     Args:
@@ -105,7 +325,7 @@ def parse_frame_workout(frame):
     return get_value_from_frame(frame, "wkt_name", activity_constants.DEFAULT_ACTIVITY_NAME)
 
 
-def parse_frame_record(frame):
+def parse_frame_record(frame: fitdecode.FitDataMessage) -> FitRecordFields:
     """Extract the sample fields from a FIT record frame.
 
     Args:
@@ -130,7 +350,7 @@ def parse_frame_record(frame):
     return latitude, longitude, elevation, time, heart_rate, cadence, power, temperature
 
 
-def parse_frame_lap(frame):
+def parse_frame_lap(frame: fitdecode.FitDataMessage) -> FitLap:
     """Extract the lap fields from a FIT lap frame.
 
     Args:
@@ -139,45 +359,42 @@ def parse_frame_lap(frame):
     Returns:
         The lap fields as a dict.
     """
-    keys = [
-        "start_time",
-        "start_position_lat",
-        "start_position_long",
-        "end_position_lat",
-        "end_position_long",
-        "total_elapsed_time",
-        "total_timer_time",
-        "total_distance",
-        "total_cycles",
-        "total_calories",
-        "avg_heart_rate",
-        "max_heart_rate",
-        "avg_cadence",
-        "max_cadence",
-        "avg_power",
-        "max_power",
-        "total_ascent",
-        "total_descent",
-        "intensity",
-        "lap_trigger",
-        "sport",
-        "sub_sport",
-        "normalized_power",
-        "total_work",
-        "avg_vertical_oscillation",
-        "avg_stance_time",
-        "avg_fractional_cadence",
-        "max_fractional_cadence",
-        "enhanced_avg_speed",
-        "enhanced_max_speed",
-        "enhanced_min_altitude",
-        "enhanced_max_altitude",
-        "avg_vertical_ratio",
-        "avg_step_length",
-    ]
-
-    lap_data = tuple(get_value_from_frame(frame, key) for key in keys)
-    lap_dict = dict(zip(keys, lap_data, strict=False))
+    lap_dict: FitLap = {
+        "start_time": get_value_from_frame(frame, "start_time"),
+        "start_position_lat": get_value_from_frame(frame, "start_position_lat"),
+        "start_position_long": get_value_from_frame(frame, "start_position_long"),
+        "end_position_lat": get_value_from_frame(frame, "end_position_lat"),
+        "end_position_long": get_value_from_frame(frame, "end_position_long"),
+        "total_elapsed_time": get_value_from_frame(frame, "total_elapsed_time"),
+        "total_timer_time": get_value_from_frame(frame, "total_timer_time"),
+        "total_distance": get_value_from_frame(frame, "total_distance"),
+        "total_cycles": get_value_from_frame(frame, "total_cycles"),
+        "total_calories": get_value_from_frame(frame, "total_calories"),
+        "avg_heart_rate": get_value_from_frame(frame, "avg_heart_rate"),
+        "max_heart_rate": get_value_from_frame(frame, "max_heart_rate"),
+        "avg_cadence": get_value_from_frame(frame, "avg_cadence"),
+        "max_cadence": get_value_from_frame(frame, "max_cadence"),
+        "avg_power": get_value_from_frame(frame, "avg_power"),
+        "max_power": get_value_from_frame(frame, "max_power"),
+        "total_ascent": get_value_from_frame(frame, "total_ascent"),
+        "total_descent": get_value_from_frame(frame, "total_descent"),
+        "intensity": get_value_from_frame(frame, "intensity"),
+        "lap_trigger": get_value_from_frame(frame, "lap_trigger"),
+        "sport": get_value_from_frame(frame, "sport"),
+        "sub_sport": get_value_from_frame(frame, "sub_sport"),
+        "normalized_power": get_value_from_frame(frame, "normalized_power"),
+        "total_work": get_value_from_frame(frame, "total_work"),
+        "avg_vertical_oscillation": get_value_from_frame(frame, "avg_vertical_oscillation"),
+        "avg_stance_time": get_value_from_frame(frame, "avg_stance_time"),
+        "avg_fractional_cadence": get_value_from_frame(frame, "avg_fractional_cadence"),
+        "max_fractional_cadence": get_value_from_frame(frame, "max_fractional_cadence"),
+        "enhanced_avg_speed": get_value_from_frame(frame, "enhanced_avg_speed"),
+        "enhanced_max_speed": get_value_from_frame(frame, "enhanced_max_speed"),
+        "enhanced_min_altitude": get_value_from_frame(frame, "enhanced_min_altitude"),
+        "enhanced_max_altitude": get_value_from_frame(frame, "enhanced_max_altitude"),
+        "avg_vertical_ratio": get_value_from_frame(frame, "avg_vertical_ratio"),
+        "avg_step_length": get_value_from_frame(frame, "avg_step_length"),
+    }
 
     (
         lap_dict["start_position_lat"],
@@ -217,7 +434,7 @@ def parse_frame_lap(frame):
     return lap_dict
 
 
-def parse_frame_split(frame):
+def parse_frame_split(frame: fitdecode.FitDataMessage) -> FitSplitFields:
     """Extract the split fields from a FIT split frame.
 
     Args:
@@ -252,7 +469,7 @@ def parse_frame_split(frame):
     return tuple(values)
 
 
-def parse_frame_split_summary(frame):
+def parse_frame_split_summary(frame: fitdecode.FitDataMessage) -> tuple[FitEnum | None, float | None]:
     """Extract the split type and working time from a FIT split-summary frame.
 
     Args:
@@ -275,7 +492,7 @@ def parse_frame_split_summary(frame):
     return split_type, total_timer_time
 
 
-def parse_frame_set(frame):
+def parse_frame_set(frame: fitdecode.FitDataMessage) -> list[object]:
     """Extract the set fields from a FIT set frame.
 
     Args:
@@ -307,7 +524,9 @@ def parse_frame_set(frame):
     return list(set_data)
 
 
-def parse_frame_workout_step(frame):
+def parse_frame_workout_step(
+    frame: fitdecode.FitDataMessage,
+) -> activity_workout_steps_contracts.ActivityWorkoutStepsCreate:
     """Build a workout step from a FIT workout-step frame.
 
     Args:
@@ -368,7 +587,9 @@ def parse_frame_workout_step(frame):
     )
 
 
-def parse_frame_exercise_title(frame):
+def parse_frame_exercise_title(
+    frame: fitdecode.FitDataMessage,
+) -> activity_exercise_titles_contracts.ActivityExerciseTitlesCreate | None:
     """Build an exercise title from a FIT exercise-title frame.
 
     Args:
@@ -402,7 +623,7 @@ def parse_frame_exercise_title(frame):
     )
 
 
-def parse_frame_device_settings(frame):
+def parse_frame_device_settings(frame: fitdecode.FitDataMessage) -> int | None:
     """Extract the time offset from a FIT device-settings frame.
 
     Args:
@@ -419,7 +640,7 @@ _MIN_UTC_OFFSET_SECONDS = -12 * 3600
 _MAX_UTC_OFFSET_SECONDS = 14 * 3600
 
 
-def parse_frame_activity(frame):
+def parse_frame_activity(frame: fitdecode.FitDataMessage) -> int | None:
     """Extract the device UTC offset from a FIT activity frame.
 
     The activity message carries ``timestamp`` (UTC) and ``local_timestamp``
@@ -445,7 +666,7 @@ def parse_frame_activity(frame):
     return offset
 
 
-def parse_frame_length(frame):
+def parse_frame_length(frame: fitdecode.FitDataMessage) -> FitLength:
     """Extract the pool-length fields from a FIT length frame.
 
     Args:
@@ -467,7 +688,7 @@ def parse_frame_length(frame):
     }
 
 
-def parse_frame_file_id(frame):
+def parse_frame_file_id(frame: fitdecode.FitDataMessage) -> FitFileId:
     """Extract the file identification fields from a FIT file-id frame.
 
     Args:
@@ -485,7 +706,10 @@ def parse_frame_file_id(frame):
     }
 
 
-def parse_frame_monitoring(frame, last_timestamp):
+def parse_frame_monitoring(
+    frame: fitdecode.FitDataMessage,
+    last_timestamp: int,
+) -> tuple[list[FitMonitoringSteps], list[FitMonitoringHeartRate]]:
     """Extract step and heart-rate samples from a FIT monitoring frame.
 
     Args:
@@ -495,10 +719,11 @@ def parse_frame_monitoring(frame, last_timestamp):
     Returns:
         A tuple of step samples and heart-rate samples.
     """
-    steps = []
-    heart_rate = []
+    steps: list[FitMonitoringSteps] = []
+    heart_rate: list[FitMonitoringHeartRate] = []
 
-    data = {}
+    # Field name -> decoded value, subfields included; the fields a frame carries vary by device.
+    data: dict[str, Any] = {}
     for frame_field in frame.fields:
         data.update({frame_field.name: frame_field.value})
         for sf in getattr(frame_field.field, "subfields", []) or []:
@@ -544,7 +769,7 @@ def parse_frame_monitoring(frame, last_timestamp):
     return steps, heart_rate
 
 
-def parse_frame_monitoring_hr_data(frame):
+def parse_frame_monitoring_hr_data(frame: fitdecode.FitDataMessage) -> FitRestingHeartRate:
     """Extract the resting heart-rate fields from a FIT monitoring frame.
 
     Args:
@@ -560,7 +785,7 @@ def parse_frame_monitoring_hr_data(frame):
     }
 
 
-def interpret_time_offset(raw_offset):
+def interpret_time_offset(raw_offset: int | None) -> int | None:
     """Convert a raw FIT time offset from two's complement to a signed value.
 
     Args:
@@ -575,8 +800,12 @@ def interpret_time_offset(raw_offset):
     return raw_offset
 
 
-def get_value_from_frame(frame, key, default=None):
+def get_value_from_frame(frame: fitdecode.FitDataMessage, key: str | int, default: object = None) -> Any:
     """Read a field's value from a FIT frame.
+
+    fitdecode is untyped and a field's value type is set by the FIT profile at decode time (a scaled number, a
+    datetime, an enum name or its raw number, a tuple for array fields), so the value is returned as decoded and
+    each caller stores it under the type the profile gives that field.
 
     Args:
         frame: The decoded FIT data message.
@@ -595,8 +824,8 @@ def get_value_from_frame(frame, key, default=None):
         return default
 
 
-def get_raw_value_from_frame(frame, key, default=None):
-    """Read a field's raw value from a FIT frame.
+def get_raw_value_from_frame(frame: fitdecode.FitDataMessage, key: str | int, default: object = None) -> Any:
+    """Read a field's raw value from a FIT frame, untyped like ``get_value_from_frame``.
 
     Args:
         frame: The decoded FIT data message.
@@ -614,7 +843,9 @@ def get_raw_value_from_frame(frame, key, default=None):
         return default
 
 
-def convert_coordinates_to_degrees(latitude, longitude):
+def convert_coordinates_to_degrees(
+    latitude: float | None, longitude: float | None
+) -> tuple[float | None, float | None]:
     """Convert FIT semicircle coordinates to degrees.
 
     Args:
@@ -632,7 +863,13 @@ def convert_coordinates_to_degrees(latitude, longitude):
     return latitude, longitude
 
 
-def calculate_pace(distance, total_timer_time, activity_type, split_summary, lengths):
+def calculate_pace(
+    distance: float | None,
+    total_timer_time: float,
+    activity_type: FitEnum | None,
+    split_summary: Sequence[FitSplitSummary],
+    lengths: Sequence[FitLength],
+) -> tuple[float, float]:
     """Compute the active time and pace for an activity.
 
     Args:
@@ -650,7 +887,7 @@ def calculate_pace(distance, total_timer_time, activity_type, split_summary, len
             return total_timer_time, total_timer_time / distance
         if activity_type == "lap_swimming" and lengths:
             # Swimming pace calculation based on lengths
-            time_active = 0
+            time_active: float = 0
             for length in lengths:
                 if length["length_type"] == "active":
                     time_active += length["total_timer_time"]
@@ -659,8 +896,10 @@ def calculate_pace(distance, total_timer_time, activity_type, split_summary, len
         # Swimming pace calculation based on split summary
         time_active = 0
         for split in split_summary:
-            if split["split_type"] != 4:
-                time_active += split["total_timer_time"]
+            # A summary without a timer time has no working seconds to add.
+            split_timer_time = split["total_timer_time"]
+            if split["split_type"] != 4 and split_timer_time is not None:
+                time_active += split_timer_time
 
         return time_active, time_active / distance
     return total_timer_time, 0
@@ -668,7 +907,7 @@ def calculate_pace(distance, total_timer_time, activity_type, split_summary, len
 
 def _timezone_from_offset(
     offset_seconds: int,
-    reference_date,
+    reference_date: datetime,
     athlete_timezone: str | None,
     fallback: str,
 ) -> str:
@@ -710,7 +949,7 @@ def _timezone_from_offset(
     return find_timezone_name(offset_seconds, reference_date) or fallback
 
 
-def find_timezone_name(offset_seconds, reference_date):
+def find_timezone_name(offset_seconds: int, reference_date: datetime) -> str | None:
     """Name a timezone for a FIT file that reports only a UTC offset.
 
     A bare offset does not identify a zone — dozens share any given offset, and

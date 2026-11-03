@@ -1,5 +1,7 @@
 """CRUD operations for activity stream data."""
 
+from typing import Any
+
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
@@ -100,7 +102,7 @@ def get_activity_stream_by_type(
 def get_gps_stream_waypoints_for_activities(
     activity_ids: list[int],
     db: Session,
-) -> dict[int, list]:
+) -> dict[int, list[dict[str, Any]]]:
     """Return each activity's GPS (map) stream waypoints, keyed by activity id.
 
     Batch helper for the reverse-geocoding backfill: it fetches only the

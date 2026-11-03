@@ -142,7 +142,7 @@ def serialize_and_mask(
     return result
 
 
-def to_update_values(activity_attributes: pydantic.BaseModel) -> dict:
+def to_update_values(activity_attributes: pydantic.BaseModel) -> dict[str, object]:
     """Build the column values an edit writes from the fields the caller set.
 
     Only fields the caller explicitly set are returned, so a nullable field can be
