@@ -19,6 +19,7 @@ import { Select } from '@/components/ui/select'
 import { Switch } from '@/components/ui/switch'
 import { useForm } from '@/composables/useForm'
 import { HttpError } from '@/services/http'
+import { applyServerFieldErrors } from '@/services/fieldErrors'
 import { isStaleWrite } from '@/services/ifMatch'
 import { toNumberOrNull } from '@/utils/number'
 import { cmToFeetInches } from '@/utils/units'
@@ -182,6 +183,13 @@ async function submitForm(formValues: UserFormValues): Promise<void> {
     open.value = false
   } catch (error) {
     const passwordProblem = policyError(error)
+    if (
+      applyServerFieldErrors(error, setErrors, t, FORM_KEYS, {
+        height: formValues.units === 'metric' ? 'heightCm' : 'heightFeet',
+      })
+    ) {
+      return
+    }
     if (passwordProblem) {
       emit('error', passwordProblem)
     } else if (isStaleWrite(error)) {
@@ -219,7 +227,20 @@ const {
   policyError,
 } = usePasswordPolicy(activeAccessType)
 
-const { values, errors, isValid, isSubmitting, handleSubmit, handleBlur, reset } =
+const FORM_KEYS = [
+  'name',
+  'username',
+  'email',
+  'password',
+  'accessType',
+  'city',
+  'birthdate',
+  'heightCm',
+  'heightFeet',
+  'maxHeartRate',
+] as const
+
+const { values, errors, isValid, isSubmitting, handleSubmit, handleBlur, reset, setErrors } =
   useForm<UserFormValues>({
     initialValues: defaultValues(),
     validators: {
@@ -492,6 +513,7 @@ watch(open, (isOpen) => {
 
       <FormField
         :label="t('settings.users.form.city')"
+        :error="errors.city"
         :placeholder="t('settings.users.form.city')"
       >
         <template #default="{ fieldId, placeholder }">
@@ -508,7 +530,7 @@ watch(open, (isOpen) => {
         </template>
       </FormField>
 
-      <FormField :label="t('settings.users.form.birthdate')">
+      <FormField :label="t('settings.users.form.birthdate')" :error="errors.birthdate">
         <template #default="{ fieldId }">
           <input
             :id="fieldId"
@@ -563,6 +585,7 @@ watch(open, (isOpen) => {
       <FormField
         v-if="isMetric"
         :label="`${t('settings.users.form.height')} (${t('units.cm')})`"
+        :error="errors.heightCm"
         :placeholder="`${t('settings.users.form.height')} (${t('units.cm')})`"
       >
         <template #default="{ fieldId, placeholder }">
@@ -631,6 +654,7 @@ watch(open, (isOpen) => {
 
       <FormField
         :label="`${t('settings.users.form.maxHeartRate')} (${t('units.bpm')})`"
+        :error="errors.maxHeartRate"
         :placeholder="`${t('settings.users.form.maxHeartRate')} (${t('units.bpm')})`"
       >
         <template #default="{ fieldId, placeholder }">

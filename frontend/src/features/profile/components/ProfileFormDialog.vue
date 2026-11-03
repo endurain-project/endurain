@@ -13,6 +13,7 @@ import { inputFieldClass } from '@/components/ui/input/fieldClasses'
 import { Select } from '@/components/ui/select'
 import { useForm } from '@/composables/useForm'
 import { HttpError } from '@/services/http'
+import { applyServerFieldErrors } from '@/services/fieldErrors'
 import { isStaleWrite } from '@/services/ifMatch'
 import { toNumberOrNull } from '@/utils/number'
 import { cmToFeetInches } from '@/utils/units'
@@ -20,6 +21,7 @@ import { compose, maxLength, pattern, required } from '@/utils/validators'
 import {
   CURRENCY_OPTIONS,
   GENDER_OPTIONS,
+  numberBetween,
   numberRange,
   resolveHeightCm,
   sortLanguageCodes,
@@ -119,6 +121,13 @@ async function submitForm(values: ProfileFormValues): Promise<void> {
     emit('success', t('settings.profile.edit.success'))
     open.value = false
   } catch (error) {
+    if (
+      applyServerFieldErrors(error, setErrors, t, FORM_KEYS, {
+        height: values.units === 'metric' ? 'heightCm' : 'heightFeet',
+      })
+    ) {
+      return
+    }
     if (isStaleWrite(error)) {
       open.value = false
       emit('error', t('app.staleError'))
@@ -136,7 +145,18 @@ async function submitForm(values: ProfileFormValues): Promise<void> {
 // a circular reference TypeScript rejects.
 const activeUnits = ref<Schemas['Units']>('metric')
 
-const { values, errors, isValid, isSubmitting, handleSubmit, handleBlur, reset } =
+const FORM_KEYS = [
+  'name',
+  'username',
+  'city',
+  'birthdate',
+  'heightCm',
+  'heightFeet',
+  'maxHeartRate',
+  'timezone',
+] as const
+
+const { values, errors, isValid, isSubmitting, handleSubmit, handleBlur, reset, setErrors } =
   useForm<ProfileFormValues>({
     initialValues: {
       name: '',
@@ -165,6 +185,8 @@ const { values, errors, isValid, isSubmitting, handleSubmit, handleBlur, reset }
         maxLength(TEXT_MAX, t('settings.users.form.usernameTooLong')),
         pattern(/^[a-zA-Z0-9._-]+$/, t('settings.users.form.usernameInvalid')),
       ),
+      heightCm: numberBetween(1, 300, t('settings.users.form.heightInvalid')),
+      maxHeartRate: numberBetween(30, 250, t('settings.users.form.maxHeartRateInvalid')),
       // Height is captured per unit system and only the active system's inputs
       // are rendered. Skip the imperial validators in metric mode (and vice
       // versa) so a hidden field's seed value can't silently fail validation and
@@ -293,7 +315,7 @@ watch(open, (isOpen) => {
         </template>
       </FormField>
 
-      <FormField :label="t('settings.users.form.city')">
+      <FormField :label="t('settings.users.form.city')" :error="errors.city">
         <template #default="{ fieldId }">
           <Input
             :id="fieldId"
@@ -307,7 +329,7 @@ watch(open, (isOpen) => {
         </template>
       </FormField>
 
-      <FormField :label="t('settings.users.form.birthdate')">
+      <FormField :label="t('settings.users.form.birthdate')" :error="errors.birthdate">
         <template #default="{ fieldId }">
           <input
             :id="fieldId"
@@ -352,6 +374,7 @@ watch(open, (isOpen) => {
 
       <FormField
         :label="t('settings.users.form.timezone')"
+        :error="errors.timezone"
         :hint="t('settings.users.form.timezoneHint')"
       >
         <template #default="{ fieldId }">
@@ -392,17 +415,21 @@ watch(open, (isOpen) => {
         </template>
       </FormField>
 
-      <FormField v-if="isMetric" :label="t('settings.users.form.height')">
-        <template #default="{ fieldId }">
+      <FormField v-if="isMetric" :label="t('settings.users.form.height')" :error="errors.heightCm">
+        <template #default="{ fieldId, describedBy, invalid }">
           <input
             :id="fieldId"
             v-model.number="values.heightCm"
             :class="inputFieldClass"
+            :aria-describedby="describedBy"
+            :aria-invalid="invalid"
             name="heightCm"
             type="number"
-            min="0"
+            min="1"
+            max="300"
             :placeholder="t('units.cm')"
             :disabled="isSubmitting"
+            @blur="handleBlur('heightCm')"
           />
         </template>
       </FormField>
@@ -448,17 +475,21 @@ watch(open, (isOpen) => {
         </FormField>
       </div>
 
-      <FormField :label="t('settings.users.form.maxHeartRate')">
-        <template #default="{ fieldId }">
+      <FormField :label="t('settings.users.form.maxHeartRate')" :error="errors.maxHeartRate">
+        <template #default="{ fieldId, describedBy, invalid }">
           <input
             :id="fieldId"
             v-model.number="values.maxHeartRate"
             :class="inputFieldClass"
+            :aria-describedby="describedBy"
+            :aria-invalid="invalid"
             name="maxHeartRate"
             type="number"
-            min="0"
+            min="30"
+            max="250"
             :placeholder="t('units.bpm')"
             :disabled="isSubmitting"
+            @blur="handleBlur('maxHeartRate')"
           />
         </template>
       </FormField>

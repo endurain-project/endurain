@@ -121,6 +121,8 @@
       "weightUnitsMetric": "Kilograms (kg)",
       "weightUnitsImperial": "Pounds (lb)",
       "height": "Height",
+      "heightInvalid": "Height must be between 1 and 300 cm",
+      "maxHeartRateInvalid": "Maximum heart rate must be between 30 and 250 bpm",
       "feetInvalid": "Feet must be between 0 and 10",
       "inchesInvalid": "Inches must be between 0 and 11",
       "maxHeartRate": "Max heart rate",

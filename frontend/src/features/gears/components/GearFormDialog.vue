@@ -14,10 +14,11 @@ import { inputFieldClass } from '@/components/ui/input/fieldClasses'
 import { useForm } from '@/composables/useForm'
 import { useUnitFormat } from '@/composables/useUnitFormat'
 import { HttpError } from '@/services/http'
+import { applyServerFieldErrors } from '@/services/fieldErrors'
 import { isStaleWrite } from '@/services/ifMatch'
 import { todayIsoDate } from '@/utils/datetime'
 import { toNumberOrNull } from '@/utils/number'
-import { kmToMiles, milesToKm } from '@/utils/units'
+import { baseValueUnlessEdited, kmToMiles, milesToKm } from '@/utils/units'
 import { compose, maxLength, required } from '@/utils/validators'
 import { currencySymbol } from '@/features/gears/utils/format'
 import { GEAR_TYPE, GEAR_TYPE_VALUES, presentGearType } from '@/features/gears/utils/gearType'
@@ -91,8 +92,15 @@ function buildInput(values: GearFormValues): GearInput {
   const distanceValue = toNumberOrNull(values.initialDistance)
   let initialKms: number | null = null
   if (!isRacquet && distanceValue !== null) {
-    const km = props.units === 'imperial' ? milesToKm(distanceValue) : distanceValue
-    initialKms = Math.round(km * 1000) / 1000
+    initialKms = baseValueUnlessEdited(
+      values.initialDistance,
+      displayDistanceFromKm(props.gear?.initialKms ?? null),
+      props.gear?.initialKms,
+      () => {
+        const km = props.units === 'imperial' ? milesToKm(distanceValue) : distanceValue
+        return Math.round(km * 1000) / 1000
+      },
+    )
   }
   const brand = values.brand.trim()
   const model = values.model.trim()
@@ -128,6 +136,11 @@ async function submitForm(values: GearFormValues): Promise<void> {
     }
     open.value = false
   } catch (error) {
+    if (
+      applyServerFieldErrors(error, setErrors, t, FORM_KEYS, { initial_kms: 'initialDistance' })
+    ) {
+      return
+    }
     if (isStaleWrite(error)) {
       open.value = false
       emit('error', t('app.staleError'))
@@ -139,7 +152,18 @@ async function submitForm(values: GearFormValues): Promise<void> {
   }
 }
 
-const { values, errors, isValid, isSubmitting, handleSubmit, handleBlur, reset } =
+const FORM_KEYS = [
+  'nickname',
+  'gearType',
+  'brand',
+  'model',
+  'active',
+  'createdAt',
+  'initialDistance',
+  'purchaseValue',
+] as const
+
+const { values, errors, isValid, isSubmitting, handleSubmit, handleBlur, reset, setErrors } =
   useForm<GearFormValues>({
     initialValues: defaultValues(),
     validators: {
@@ -229,7 +253,7 @@ watch(open, (isOpen) => {
         </template>
       </FormField>
 
-      <FormField :label="t('gears.form.gearType')">
+      <FormField :label="t('gears.form.gearType')" :error="errors.gearType">
         <template #default="{ fieldId }">
           <Select :id="fieldId" v-model="values.gearType" :disabled="isSubmitting">
             <option v-for="type in GEAR_TYPE_VALUES" :key="type" :value="type">
@@ -294,7 +318,12 @@ watch(open, (isOpen) => {
         </template>
       </FormField>
 
-      <FormField v-if="showDistance" :label="distanceLabel" :placeholder="distanceLabel">
+      <FormField
+        v-if="showDistance"
+        :label="distanceLabel"
+        :error="errors.initialDistance"
+        :placeholder="distanceLabel"
+      >
         <template #default="{ fieldId, placeholder }">
           <input
             :id="fieldId"
@@ -310,7 +339,11 @@ watch(open, (isOpen) => {
         </template>
       </FormField>
 
-      <FormField :label="purchaseValueLabel" :placeholder="purchaseValueLabel">
+      <FormField
+        :label="purchaseValueLabel"
+        :error="errors.purchaseValue"
+        :placeholder="purchaseValueLabel"
+      >
         <template #default="{ fieldId, placeholder }">
           <input
             :id="fieldId"

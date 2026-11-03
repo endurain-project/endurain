@@ -19,6 +19,7 @@ import { useForm } from '@/composables/useForm'
 import { useUnitFormat } from '@/composables/useUnitFormat'
 import { isStaleWrite } from '@/services/ifMatch'
 import { toNumberOrNull } from '@/utils/number'
+import { baseValueUnlessEdited } from '@/utils/units'
 import {
   ACTIVITY_TYPE_LABEL_KEYS,
   GOAL_ACTIVITY_TYPES,
@@ -107,7 +108,15 @@ function targetBaseUnits(values: GoalFormValues): number | null {
       return toIntOrNull(values.activitiesNumber)
     case 'distance': {
       const parsed = toNumberOrNull(values.distance)
-      return parsed === null ? null : distanceValueToMeters(parsed, props.units)
+      const stored = props.goal?.distanceMeters
+      return parsed === null
+        ? null
+        : baseValueUnlessEdited(
+            values.distance,
+            stored != null ? String(metersToDistanceValue(stored, props.units)) : '',
+            stored,
+            () => distanceValueToMeters(parsed, props.units),
+          )
     }
     case 'elevation': {
       const parsed = toNumberOrNull(values.elevation)
@@ -118,7 +127,15 @@ function targetBaseUnits(values: GoalFormValues): number | null {
         toNumberOrNull(values.durationHours) ?? 0,
         toNumberOrNull(values.durationMinutes) ?? 0,
       )
-      return seconds > 0 ? seconds : null
+      const stored = props.goal?.durationSeconds
+      const seeded = stored != null ? secondsToHoursMinutes(stored) : null
+      const target = baseValueUnlessEdited(
+        `${values.durationHours}:${values.durationMinutes}`,
+        seeded ? `${seeded.hours}:${seeded.minutes}` : '',
+        stored,
+        () => seconds,
+      )
+      return target > 0 ? target : null
     }
   }
   return null

@@ -115,3 +115,37 @@ describe('ProfileFormDialog height', () => {
     expect(await saveBody(wrapper)).toMatchObject({ height: 175 })
   })
 })
+
+describe('ProfileFormDialog number validation', () => {
+  it('rejects a metric height outside 1-300 cm and blocks saving', async () => {
+    const wrapper = await mountDialog()
+    const height = wrapper.find('input[name="heightCm"]')
+
+    await height.setValue('301')
+    await height.trigger('blur')
+
+    expect(wrapper.text()).toContain(i18n.global.t('settings.users.form.heightInvalid'))
+    expect(wrapper.find('button[type="submit"]').attributes('disabled')).toBeDefined()
+  })
+
+  it('rejects a maximum heart rate outside 30-250 bpm', async () => {
+    const wrapper = await mountDialog()
+    const heartRate = wrapper.find('input[name="maxHeartRate"]')
+
+    await heartRate.setValue('20')
+    await heartRate.trigger('blur')
+
+    expect(wrapper.text()).toContain(i18n.global.t('settings.users.form.maxHeartRateInvalid'))
+  })
+
+  it('accepts values on the limits', async () => {
+    const wrapper = await mountDialog()
+
+    await wrapper.find('input[name="heightCm"]').setValue('300')
+    await wrapper.find('input[name="maxHeartRate"]').setValue('30')
+    await wrapper.find('input[name="maxHeartRate"]').trigger('blur')
+
+    expect(wrapper.text()).not.toContain(i18n.global.t('settings.users.form.maxHeartRateInvalid'))
+    expect(wrapper.find('button[type="submit"]').attributes('disabled')).toBeUndefined()
+  })
+})

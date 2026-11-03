@@ -1,4 +1,4 @@
-import type { AuthTokenResponse } from '@/types'
+import type { AuthTokenResponse, Schemas } from '@/types'
 
 import { clearAuthTokens, getAccessToken, getCsrfToken, setAuthTokens } from './authTokens'
 import { getApiBaseUrl } from './runtime'
@@ -42,6 +42,7 @@ export class HttpError extends Error {
    *   different 409s.
    * @param requestId - The backend's `X-Request-ID` for this failure. Quoting it
    *   in a bug report resolves to the exact server log line.
+   * @param errors - Per-field validation failures of a 422 response; empty otherwise.
    */
   constructor(
     readonly status: number,
@@ -49,6 +50,7 @@ export class HttpError extends Error {
     readonly detail: unknown = null,
     readonly type: string | null = null,
     readonly requestId: string | null = null,
+    readonly errors: readonly Schemas['FieldError'][] = [],
   ) {
     super(getErrorMessage(status, statusText, detail))
     this.name = 'HttpError'
@@ -60,6 +62,7 @@ interface ProblemDocument {
   type?: unknown
   detail?: unknown
   request_id?: unknown
+  errors?: unknown
 }
 
 /** The parsed pieces of a failed response the client keeps. */
@@ -67,6 +70,7 @@ interface ParsedError {
   detail: unknown
   type: string | null
   requestId: string | null
+  errors: Schemas['FieldError'][]
 }
 
 /**
@@ -95,7 +99,7 @@ function getErrorMessage(status: number, statusText: string, detail: unknown): s
  * @returns The problem type, detail and request id, as far as they are present.
  */
 async function parseError(response: Response): Promise<ParsedError> {
-  const empty: ParsedError = { detail: null, type: null, requestId: null }
+  const empty: ParsedError = { detail: null, type: null, requestId: null, errors: [] }
   const text = await response.text()
   if (!text) {
     return empty
@@ -106,6 +110,7 @@ async function parseError(response: Response): Promise<ParsedError> {
       detail: parsed.detail ?? parsed,
       type: typeof parsed.type === 'string' ? parsed.type : null,
       requestId: typeof parsed.request_id === 'string' ? parsed.request_id : null,
+      errors: Array.isArray(parsed.errors) ? (parsed.errors as Schemas['FieldError'][]) : [],
     }
   } catch {
     return { ...empty, detail: text }
@@ -225,6 +230,7 @@ async function rawApiFetch<T>(path: string, init: ApiFetchOptions = {}): Promise
       parsed.detail,
       parsed.type,
       parsed.requestId,
+      parsed.errors,
     )
   }
 

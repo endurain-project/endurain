@@ -14,7 +14,7 @@ import { useForm } from '@/composables/useForm'
 import { isStaleWrite } from '@/services/ifMatch'
 import { todayIsoDate } from '@/utils/datetime'
 import { toNumberOrNull } from '@/utils/number'
-import { flOzToMl, mlToFlOz } from '@/utils/units'
+import { baseValueUnlessEdited, flOzToMl, mlToFlOz } from '@/utils/units'
 import { compose, required } from '@/utils/validators'
 import {
   useCreateWaterEntryMutation,
@@ -88,7 +88,12 @@ function amountToMl(raw: string): number {
 function buildInput(values: WaterFormValues): WaterEntryInput {
   return {
     date: values.date || null,
-    amountMl: amountToMl(values.amount),
+    amountMl: baseValueUnlessEdited(
+      values.amount,
+      displayAmountFromMl(props.entry?.amountMl ?? null),
+      props.entry?.amountMl,
+      (raw) => amountToMl(String(raw)),
+    ),
   }
 }
 

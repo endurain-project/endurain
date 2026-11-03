@@ -11,11 +11,12 @@ import { FormDialog } from '@/components/ui/form-dialog'
 import { FormField } from '@/components/ui/form-field'
 import { inputFieldClass } from '@/components/ui/input/fieldClasses'
 import { useForm } from '@/composables/useForm'
+import { applyServerFieldErrors } from '@/services/fieldErrors'
 import { isStaleWrite } from '@/services/ifMatch'
 import { todayIsoDate } from '@/utils/datetime'
 import { toNumberOrNull } from '@/utils/number'
 import { bmiToSave } from '@/features/health/utils/healthFormat'
-import { kgToLbs, lbsToKg } from '@/utils/units'
+import { baseValueUnlessEdited, kgToLbs, lbsToKg } from '@/utils/units'
 import { compose, required } from '@/utils/validators'
 import {
   useCreateWeightEntryMutation,
@@ -93,16 +94,21 @@ function massToKg(raw: string | number): number {
   return Math.round(kg * 1000) / 1000
 }
 
-/** Like {@link massToKg}, but a blank optional field stays `null` instead of becoming 0 kg. */
-function optionalMassToKg(raw: string | number): number | null {
-  return toNumberOrNull(raw) === null ? null : massToKg(raw)
+/** Converts a mass field to kilograms, keeping the stored value when the field was not edited. */
+function massToKgUnlessEdited(raw: string | number, stored: number | null | undefined): number {
+  return baseValueUnlessEdited(raw, displayMassFromKg(stored ?? null), stored, massToKg)
+}
+
+/** Like {@link massToKgUnlessEdited}, but a blank optional field stays `null` instead of becoming 0 kg. */
+function optionalMassToKg(raw: string | number, stored: number | null | undefined): number | null {
+  return toNumberOrNull(raw) === null ? null : massToKgUnlessEdited(raw, stored)
 }
 
 /** Converts the string-based form values into the clean {@link WeightEntryInput}. */
 function buildInput(values: WeightFormValues): WeightEntryInput {
   return {
     date: values.date || null,
-    weightKg: massToKg(values.weight),
+    weightKg: massToKgUnlessEdited(values.weight, props.entry?.weightKg),
     bmi: bmiToSave(
       toNumberOrNull(values.bmi),
       props.entry?.bmi ?? null,
@@ -111,8 +117,8 @@ function buildInput(values: WeightFormValues): WeightEntryInput {
     ),
     bodyFatPct: toNumberOrNull(values.bodyFat),
     bodyWaterPct: toNumberOrNull(values.bodyWater),
-    boneMassKg: optionalMassToKg(values.boneMass),
-    muscleMassKg: optionalMassToKg(values.muscleMass),
+    boneMassKg: optionalMassToKg(values.boneMass, props.entry?.boneMassKg),
+    muscleMassKg: optionalMassToKg(values.muscleMass, props.entry?.muscleMassKg),
   }
 }
 
@@ -139,6 +145,9 @@ async function submitForm(values: WeightFormValues): Promise<void> {
     }
     open.value = false
   } catch (error) {
+    if (applyServerFieldErrors(error, setErrors, t, FORM_KEYS)) {
+      return
+    }
     if (isStaleWrite(error)) {
       open.value = false
     }
@@ -146,7 +155,17 @@ async function submitForm(values: WeightFormValues): Promise<void> {
   }
 }
 
-const { values, errors, isValid, isSubmitting, handleSubmit, handleBlur, reset } =
+const FORM_KEYS = [
+  'date',
+  'weight',
+  'bmi',
+  'bodyFat',
+  'bodyWater',
+  'boneMass',
+  'muscleMass',
+] as const
+
+const { values, errors, isValid, isSubmitting, handleSubmit, handleBlur, reset, setErrors } =
   useForm<WeightFormValues>({
     initialValues: defaultValues(),
     validators: {
@@ -248,7 +267,11 @@ watch(open, (isOpen) => {
         {{ t('health.weight.form.bodyComposition') }}
       </summary>
       <div class="mt-2 grid grid-cols-1 gap-2 sm:grid-cols-2">
-        <FormField :label="t('health.weight.form.bmi')" :placeholder="t('health.weight.form.bmi')">
+        <FormField
+          :label="t('health.weight.form.bmi')"
+          :error="errors.bmi"
+          :placeholder="t('health.weight.form.bmi')"
+        >
           <template #default="{ fieldId, placeholder }">
             <input
               :id="fieldId"
@@ -266,6 +289,7 @@ watch(open, (isOpen) => {
 
         <FormField
           :label="t('health.weight.form.bodyFat')"
+          :error="errors.bodyFat"
           :placeholder="t('health.weight.form.bodyFat')"
         >
           <template #default="{ fieldId, placeholder }">
@@ -286,6 +310,7 @@ watch(open, (isOpen) => {
 
         <FormField
           :label="t('health.weight.form.bodyWater')"
+          :error="errors.bodyWater"
           :placeholder="t('health.weight.form.bodyWater')"
         >
           <template #default="{ fieldId, placeholder }">
@@ -304,7 +329,7 @@ watch(open, (isOpen) => {
           </template>
         </FormField>
 
-        <FormField :label="boneMassLabel" :placeholder="boneMassLabel">
+        <FormField :label="boneMassLabel" :error="errors.boneMass" :placeholder="boneMassLabel">
           <template #default="{ fieldId, placeholder }">
             <input
               :id="fieldId"
@@ -320,7 +345,11 @@ watch(open, (isOpen) => {
           </template>
         </FormField>
 
-        <FormField :label="muscleMassLabel" :placeholder="muscleMassLabel">
+        <FormField
+          :label="muscleMassLabel"
+          :error="errors.muscleMass"
+          :placeholder="muscleMassLabel"
+        >
           <template #default="{ fieldId, placeholder }">
             <input
               :id="fieldId"

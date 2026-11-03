@@ -19,6 +19,15 @@
     "reload": "Reload"
   },
   "staleError": "This was changed elsewhere while you were looking at it, so nothing was saved. The current version has been loaded. Review it and try again.",
+  "fieldError": {
+    "required": "This field is required",
+    "tooShort": "This value is too short",
+    "tooLong": "This value is too long",
+    "tooLarge": "This value is too large",
+    "tooSmall": "This value is too small",
+    "invalidFormat": "This value has an invalid format",
+    "invalid": "This value is invalid"
+  },
   "dismiss": "Dismiss",
   "language": "Language",
   "theme": {

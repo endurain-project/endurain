@@ -80,26 +80,38 @@ export const WEEKDAY_OPTIONS: ReadonlyArray<Schemas['WeekDay']> = [
 export const CURRENCY_OPTIONS: ReadonlyArray<Schemas['Currency']> = ['euro', 'dollar', 'pound']
 
 /**
- * Builds a validator for an optional whole-number field: an empty value passes,
- * otherwise it must fall within an inclusive `0..max` range.
+ * Builds a validator for an optional numeric field: an empty value passes,
+ * otherwise it must fall within an inclusive `min..max` range.
  *
  * `value` is typed `number | null`, but `<input type="number">` with
  * `v-model.number` actually yields the raw string back when it can't parse to
  * a finite number (e.g. the field was just cleared), so it's coerced through
  * `toNumberOrNull` rather than compared directly.
  *
+ * @param min - Smallest allowed value.
  * @param max - Largest allowed value.
  * @param message - Error message when out of range.
  * @returns A validator for the numeric field.
  */
-export function numberRange(max: number, message: string): Validator<number | null> {
+export function numberBetween(min: number, max: number, message: string): Validator<number | null> {
   return (value) => {
     const parsed = toNumberOrNull(value ?? '')
     if (parsed === null) {
       return null
     }
-    return parsed >= 0 && parsed <= max ? null : message
+    return parsed >= min && parsed <= max ? null : message
   }
+}
+
+/**
+ * Builds a validator for an optional whole-number field within `0..max`.
+ *
+ * @param max - Largest allowed value.
+ * @param message - Error message when out of range.
+ * @returns A validator for the numeric field.
+ */
+export function numberRange(max: number, message: string): Validator<number | null> {
+  return numberBetween(0, max, message)
 }
 
 /** The unit-aware height fields shared by the account/profile edit forms. */

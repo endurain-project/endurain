@@ -17,7 +17,7 @@ import { HttpError } from '@/services/http'
 import { isStaleWrite } from '@/services/ifMatch'
 import { todayIsoDate } from '@/utils/datetime'
 import { toNumberOrNull } from '@/utils/number'
-import { kmToMiles, milesToKm } from '@/utils/units'
+import { baseValueUnlessEdited, kmToMiles, milesToKm } from '@/utils/units'
 import { compose, maxLength, required } from '@/utils/validators'
 import { currencySymbol } from '@/features/gears/utils/format'
 import { humanizeComponentType, isTimeBasedGear } from '@/features/gears/utils/gearComponentType'
@@ -117,6 +117,7 @@ function defaultValues(): ComponentFormValues {
 
 /** Converts the string-based form values into the clean {@link GearComponentInput}. */
 function buildInput(values: ComponentFormValues): GearComponentInput {
+  const expected = expectedToBaseUnits(values.expected)
   return {
     gearId: props.gearId,
     type: values.type,
@@ -125,7 +126,15 @@ function buildInput(values: ComponentFormValues): GearComponentInput {
     purchaseDate: values.purchaseDate || null,
     retiredDate: values.retiredDate || null,
     active: values.active,
-    expectedBaseUnits: expectedToBaseUnits(values.expected),
+    expectedBaseUnits:
+      expected === null
+        ? null
+        : baseValueUnlessEdited(
+            values.expected,
+            expectedFromBaseUnits(props.component?.expectedBaseUnits ?? null),
+            props.component?.expectedBaseUnits,
+            () => expected,
+          ),
     purchaseValue: toNumberOrNull(values.purchaseValue),
   }
 }
