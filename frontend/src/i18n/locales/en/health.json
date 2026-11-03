@@ -355,7 +355,9 @@
       "close": "Close",
       "createSuccess": "Sleep logged.",
       "updateSuccess": "Sleep entry updated.",
-      "saveError": "Couldn't save your sleep entry. Please try again."
+      "saveError": "Couldn't save your sleep entry. Please try again.",
+      "numberRange": "Enter a value between {min} and {max}.",
+      "numberMin": "Enter {min} or more."
     },
     "target": {
       "title": "Set sleep target",
