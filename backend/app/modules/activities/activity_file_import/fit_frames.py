@@ -896,9 +896,9 @@ def calculate_pace(
         # Swimming pace calculation based on split summary
         time_active = 0
         for split in split_summary:
-            # A summary without a timer time has no working seconds to add.
+            # A rest split, or a summary without a timer time, has no working seconds to add.
             split_timer_time = split["total_timer_time"]
-            if split["split_type"] != 4 and split_timer_time is not None:
+            if split["split_type"] != "interval_rest" and split_timer_time is not None:
                 time_active += split_timer_time
 
         return time_active, time_active / distance

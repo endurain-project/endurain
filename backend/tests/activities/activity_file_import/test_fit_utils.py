@@ -733,6 +733,15 @@ class TestCalculatePace:
 
         assert fit_frames.calculate_pace(100.0, 50.0, "lap_swimming", split_summary, []) == (40.0, 0.4)
 
+    def test_rest_split_summary_adds_no_active_time(self):
+        """fitdecode names a rest split ``interval_rest``; its seconds are rest, not working time."""
+        split_summary = [
+            {"split_type": "interval_active", "total_timer_time": 40.0},
+            {"split_type": "interval_rest", "total_timer_time": 10.0},
+        ]
+
+        assert fit_frames.calculate_pace(100.0, 50.0, "lap_swimming", split_summary, []) == (40.0, 0.4)
+
 
 class TestActivityLocalTimestampOffset:
     """A GPS-less session resolves its timezone from the FIT activity message offset."""
