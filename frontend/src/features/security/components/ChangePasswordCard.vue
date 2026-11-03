@@ -145,7 +145,7 @@ async function submit(): Promise<void> {
     </div>
 
     <div v-if="mfaEnabled" class="flex flex-col gap-1.5">
-      <Label for="security-password-mfa">{{ t('settings.security.password.mfaCode') }}</Label>
+      <Label for="security-password-mfa">{{ t('settings.security.mfaCode') }}</Label>
       <Input
         id="security-password-mfa"
         v-model="mfaCode"

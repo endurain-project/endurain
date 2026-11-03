@@ -61,6 +61,17 @@ describe('ChangePasswordCard', () => {
     expect(hint.classes()).not.toContain('text-hint')
   })
 
+  it('labels the authentication code field with a translated string', () => {
+    const wrapper = mount(ChangePasswordCard, {
+      props: { mfaEnabled: true, accessType: 'regular' },
+      global: { plugins: [i18n] },
+    })
+
+    expect(wrapper.get('label[for="security-password-mfa"]').text()).toBe(
+      i18n.global.t('settings.security.mfaCode'),
+    )
+  })
+
   it('renders the sign-out-of-other-devices switch checked by default', () => {
     const wrapper = mount(ChangePasswordCard, {
       props: { mfaEnabled: false, accessType: 'regular' },
