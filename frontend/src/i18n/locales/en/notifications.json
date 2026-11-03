@@ -8,7 +8,7 @@
   "seeAll": "See all",
   "loadMore": "Load more",
   "loading": "Loading…",
-  "badge": "{count} unread notifications",
+  "badge": "{count} unread notification | {count} unread notifications",
   "empty": {
     "title": "You're all caught up",
     "description": "Updates about your activities, followers and integrations will show up here."

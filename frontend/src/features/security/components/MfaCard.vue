@@ -152,6 +152,7 @@ function confirmRegenerate(input: StepUpInput): void {
             t('settings.security.mfa.backupRemaining', {
               unused: backupStatusQuery.data.value.unused,
               total: backupStatusQuery.data.value.total,
+              count: backupStatusQuery.data.value.total,
             })
           }}
         </p>

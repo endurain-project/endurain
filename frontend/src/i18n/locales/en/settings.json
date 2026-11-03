@@ -574,7 +574,7 @@
     "title": "My goals",
     "subtitle": "Set targets for your activities and track your progress",
     "buttonAdd": "Add goal",
-    "count": "There is a total of {count} goal(s):",
+    "count": "There is a total of {count} goal: | There is a total of {count} goals:",
     "filters": "Filters",
     "filter": {
       "all": "All",
@@ -682,7 +682,7 @@
       "disabledDescription": "Two-factor authentication is off. Turn it on to better protect your account.",
       "enable": "Enable two-factor",
       "enabledDescription": "Two-factor authentication is on.",
-      "backupRemaining": "{unused} of {total} backup codes remaining.",
+      "backupRemaining": "{unused} of {total} backup code remaining. | {unused} of {total} backup codes remaining.",
       "regenerate": "Regenerate backup codes",
       "disable": "Disable",
       "setupTitle": "Enable two-factor authentication",
