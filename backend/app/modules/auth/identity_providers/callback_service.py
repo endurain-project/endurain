@@ -1,8 +1,9 @@
 """The end of an SSO login, link or step-up flow: the provider's callback, user matching and session creation."""
 
 import hmac
+from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
-from typing import Any
+from typing import Any, Literal
 from urllib.parse import quote
 from uuid import uuid4
 
@@ -38,6 +39,23 @@ import modules.users.users.integration_service as users_integration
 import modules.users.users.schema as users_schema
 
 logger = core_logger.get_logger(__name__)
+
+
+@dataclass(frozen=True)
+class CallbackResult:
+    """The outcome of a sign-in or link callback.
+
+    Attributes:
+        user: The user who signed in, or whose account the provider was linked to.
+        userinfo: The claims the provider returned for the user.
+        mode: Whether the callback signed the user in or linked the provider.
+        redirect_path: Where the frontend sends the user after a sign-in, when the flow named one.
+    """
+
+    user: users_schema.UsersRead
+    userinfo: dict[str, Any]
+    mode: Literal["login", "link"]
+    redirect_path: str | None = None
 
 
 class CallbackService:
@@ -203,9 +221,9 @@ class CallbackService:
             return self.complete_step_up_callback(idp, code, step_up_state, db)
         try:
             result = self.handle_callback(idp, code, state, oauth_state, db)
-            user = result["user"]
+            user = result.user
 
-            if result.get("mode") == "link":
+            if result.mode == "link":
                 logger.info(
                     "IdP link successful for user <username_log_id>, IdP <name>",
                     extra=core_logger.context(
@@ -219,7 +237,7 @@ class CallbackService:
             # Login: a session without tokens, which the token exchange completes after PKCE.
             session_id = self.create_callback_session(user, ip_address, user_agent, password_hasher, oauth_state.id, db)
             redirect_url = f"{self._frontend_host}/login?sso=success&session_id={session_id}"
-            redirect_path = result.get("redirect_path")
+            redirect_path = result.redirect_path
             if redirect_path:
                 # Encoded so a "&" or "#" in the path cannot start another query parameter; "/" and ":" stay
                 # readable and the frontend decodes the value back.
@@ -286,7 +304,7 @@ class CallbackService:
         state: str,
         oauth_state: oauth_state_schema.OAuthStateRead,
         db: Session,
-    ) -> dict[str, Any]:
+    ) -> CallbackResult:
         """Handle the OAuth2/OIDC callback from an identity provider.
 
         This method processes the authorization code received from an identity provider,
@@ -303,11 +321,8 @@ class CallbackService:
             oauth_state (oauth_state_schema.OAuthStateRead): OAuth-state data.
 
         Returns:
-            dict[str, Any]: A dictionary containing:
-                - user: The authenticated or linked user object
-                - token_data: OAuth2 token response (access_token, refresh_token, etc.)
-                - userinfo: User information claims from the identity provider
-                - mode (optional): "link" if this was a link operation (not present for login)
+            CallbackResult: The user, the provider's claims, whether the callback signed in or linked, and the
+                sign-in's redirect path.
 
         Raises:
             domain error: With appropriate status codes for various error conditions:
@@ -540,12 +555,7 @@ class CallbackService:
                 db.commit()
 
                 # Return special structure for link mode (no new session created)
-                return {
-                    "user": user,
-                    "token_data": token_response,
-                    "userinfo": userinfo,
-                    "mode": "link",  # Indicate this was a link operation
-                }
+                return CallbackResult(user=user, userinfo=userinfo, mode="link")
             else:
                 # LOGIN MODE: Find or create user and establish session
                 user = user_provisioning_service.find_or_create_user(idp, subject, userinfo, db)
@@ -563,13 +573,7 @@ class CallbackService:
                     ),
                 )
 
-                return {
-                    "user": user,
-                    "token_data": token_response,
-                    "userinfo": userinfo,
-                    "redirect_path": redirect_path,
-                    "client_type": client_type,
-                }
+                return CallbackResult(user=user, userinfo=userinfo, mode="login", redirect_path=redirect_path)
 
         except core_exceptions.DomainError:
             # Re-raise domain errors as-is (already have proper status codes and messages)
@@ -733,7 +737,7 @@ class CallbackService:
 
     def create_callback_session(
         self,
-        user: Any,
+        user: users_schema.UsersRead,
         ip_address: str,
         user_agent: str,
         password_hasher: credentials_integration.PasswordHasher,

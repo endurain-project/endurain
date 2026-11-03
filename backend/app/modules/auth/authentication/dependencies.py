@@ -1,12 +1,13 @@
 """Authentication transport dependencies and refresh-cookie helpers."""
 
 from datetime import UTC, datetime
-from typing import Annotated, Any
+from typing import Annotated
 
 from fastapi import Depends, Request, Response
 from fastapi.responses import JSONResponse
 from fastapi.security import APIKeyCookie, APIKeyHeader, OAuth2PasswordBearer
 from joserfc.errors import MissingClaimError
+from pydantic import BaseModel
 
 import core.config as core_config
 import core.exceptions as core_exceptions
@@ -49,7 +50,7 @@ def set_refresh_token_cookie(
     )
 
 
-def deliver_auth_outcome(response: Response, outcome: auth_schema.AuthOutcome) -> Any:
+def deliver_auth_outcome[BodyT: BaseModel](response: Response, outcome: auth_schema.AuthOutcome[BodyT]) -> BodyT:
     """Set the outcome's refresh and device cookies on the response and return its body.
 
     The response carries ``Cache-Control: no-store`` and ``Pragma: no-cache`` so no cache keeps the tokens

@@ -1,7 +1,5 @@
 """CRUD operations for user default gear."""
 
-from typing import Any
-
 from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
@@ -103,8 +101,7 @@ def edit_user_default_gear(
         raise core_exceptions.NotFoundError("User default gear not found")
     core_etag.require_if_match(if_match, db_default_gear.version, "default gear")
 
-    changes: dict[str, Any] = user_default_gear.model_dump(exclude_unset=True)
-    for key, value in changes.items():
+    for key, value in user_default_gear.model_dump(exclude_unset=True).items():
         setattr(db_default_gear, key, value)
 
     db.flush()

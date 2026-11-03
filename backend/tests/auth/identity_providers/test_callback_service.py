@@ -95,6 +95,12 @@ class TestPrepareCallback:
         assert self._prepare(service, idp=idp, oauth_state=oauth_state) == (idp, oauth_state)
 
 
+def _login(redirect_path=None):
+    return callback_service.CallbackResult(
+        user=SimpleNamespace(username="a"), userinfo={}, mode="login", redirect_path=redirect_path
+    )
+
+
 class TestCompleteCallback:
     def _complete(self, service, result, oauth_state, *, session_id="session-1", error=None):
         with (
@@ -116,7 +122,7 @@ class TestCompleteCallback:
 
         url, create_session = self._complete(
             service,
-            {"user": user, "mode": "link"},
+            callback_service.CallbackResult(user=user, userinfo={}, mode="link"),
             self._state(redirect_path="/settings/security", user_id=7, purpose=_LINK),
         )
 
@@ -124,15 +130,13 @@ class TestCompleteCallback:
         create_session.assert_not_called()
 
     def test_a_login_returns_the_session_id_for_the_token_exchange(self, service):
-        url, create_session = self._complete(service, {"user": SimpleNamespace(username="a")}, self._state())
+        url, create_session = self._complete(service, _login(), self._state())
 
         assert url == f"{HOST}/login?sso=success&session_id=session-1"
         assert create_session.call_args.args[4] == "state-id"
 
     def test_a_login_carries_a_relative_return_path(self, service):
-        url, _ = self._complete(
-            service, {"user": SimpleNamespace(username="a"), "redirect_path": "/activities?x=1"}, self._state()
-        )
+        url, _ = self._complete(service, _login(redirect_path="/activities?x=1"), self._state())
 
         assert url.endswith("&redirect=/activities%3Fx%3D1")
         assert "external_redirect" not in url
@@ -140,7 +144,7 @@ class TestCompleteCallback:
     def test_a_custom_scheme_return_path_is_flagged_for_the_native_client(self, service):
         url, _ = self._complete(
             service,
-            {"user": SimpleNamespace(username="a"), "redirect_path": "gadgetbridge://done"},
+            _login(redirect_path="gadgetbridge://done"),
             self._state(),
         )
 
@@ -148,7 +152,7 @@ class TestCompleteCallback:
 
     def test_the_session_id_is_not_logged_in_the_clear(self, service, caplog):
         with caplog.at_level(logging.DEBUG):
-            self._complete(service, {"user": SimpleNamespace(username="a")}, self._state(), session_id="secret-session")
+            self._complete(service, _login(), self._state(), session_id="secret-session")
 
         assert "secret-session" not in caplog.text
 
@@ -237,8 +241,8 @@ class TestHandleCallback:
             result = service.handle_callback(idp, "code", "state", oauth_state, MagicMock())
 
         get_userinfo.assert_called_once()
-        assert result["userinfo"] == userinfo
-        assert result["user"] is user
+        assert result.userinfo == userinfo
+        assert result.user is user
         assert oauth_client.fetch_token.call_args.kwargs["code_verifier"] is oauth_state.idp_code_verifier
 
     @pytest.mark.parametrize(("active", "stored"), [(True, 1), (False, 0)])
@@ -437,7 +441,7 @@ class TestOauth2LoginKeepsUserinfo:
 
         discovery.assert_not_called()
         assert get_userinfo.call_args.kwargs["require_id_token"] is False
-        assert result["user"] is user
+        assert result.user is user
 
 
 class TestTokenExchangeRefusal:

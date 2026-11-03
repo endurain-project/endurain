@@ -14,8 +14,9 @@ field, its mask — and this owns *how* the read runs.
 
 from collections.abc import Callable, Mapping
 from dataclasses import dataclass, field
-from typing import Any
+from typing import Protocol
 
+from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
 import core.logger as core_logger
@@ -25,8 +26,26 @@ import modules.activities.activity.schema as activity_schema
 logger = core_logger.get_logger(__name__)
 
 
+class FetchChildPage[ItemT](Protocol):
+    """Read one page of a child collection's rows for an activity."""
+
+    def __call__(self, activity_id: int, db: Session, *, page_number: int, num_records: int) -> list[ItemT]:
+        """Return one page of rows.
+
+        Args:
+            activity_id: ID of the parent activity.
+            db: Database session.
+            page_number: 1-based page number.
+            num_records: Page size.
+
+        Returns:
+            The rows of the page.
+        """
+        ...
+
+
 @dataclass(frozen=True)
-class ChildCollection[PageT]:
+class ChildCollection[ItemT: BaseModel, PageT]:
     """A child collection's identity: what to read, and what guards it.
 
     Attributes:
@@ -43,9 +62,9 @@ class ChildCollection[PageT]:
 
     name: str
     hide_attr: str
-    fetch: Callable[..., list[Any]]
+    fetch: FetchChildPage[ItemT]
     count: Callable[[int, Session], int]
-    build: Callable[[list[Any], int, int, int], PageT]
+    build: Callable[[list[ItemT], int, int, int], PageT]
     fields_by_hide_flag: Mapping[str, tuple[str, ...]] = field(default_factory=dict)
 
     def _empty(self, page_number: int, num_records: int) -> PageT:
@@ -60,7 +79,7 @@ class ChildCollection[PageT]:
         """
         return self.build([], 0, page_number, num_records)
 
-    def _mask(self, items: list[Any], activity: activity_schema.ActivityRead) -> list[Any]:
+    def _mask(self, items: list[ItemT], activity: activity_schema.ActivityRead) -> list[ItemT]:
         """Clear what the parent's ``hide_*`` flags withhold from a viewer who is not the owner.
 
         Args:

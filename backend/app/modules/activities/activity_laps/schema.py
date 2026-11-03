@@ -2,7 +2,6 @@
 
 from datetime import datetime
 from decimal import Decimal
-from typing import Any
 
 from pydantic import (
     BaseModel,
@@ -122,7 +121,7 @@ class ActivityLapsBase(BaseModel):
 
     @field_validator(*_FLOAT_FIELDS, mode="before")
     @classmethod
-    def _coerce_decimal_to_float(cls, value: Any) -> Any:
+    def _coerce_decimal_to_float(cls, value: object) -> object:
         """Coerce ``Decimal`` values from the ORM to ``float``.
 
         SQLAlchemy returns ``Decimal`` for ``DECIMAL`` columns, but the

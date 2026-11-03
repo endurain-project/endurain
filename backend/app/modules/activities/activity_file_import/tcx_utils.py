@@ -1,10 +1,11 @@
 """Utilities for parsing TCX files into activity data."""
 
 from pathlib import Path
-from typing import Any
 from xml.etree import ElementTree
 
 import tcxreader
+from tcxreader.tcx_exercise import TCXExercise
+from tcxreader.tcx_lap import TCXLap
 
 import core.exceptions as core_exceptions
 import core.logger as core_logger
@@ -18,7 +19,7 @@ logger = core_logger.get_logger(__name__)
 
 
 def _parse_lap_power(
-    lap: Any,
+    lap: TCXLap,
 ) -> tuple[float | None, float | None, float | None]:
     """Extract power metrics from a single TCX lap.
 
@@ -46,7 +47,7 @@ def _parse_lap_power(
 
 
 def _parse_laps(
-    tcx_file: Any,
+    tcx_file: TCXExercise,
     smoothed_ele_waypoints: list[dict],
 ) -> list[dict]:
     """Parse all TCX laps into structured dicts.
@@ -122,7 +123,7 @@ def _parse_laps(
 
 def _extract_waypoints(
     trackpoints: list[dict],
-    tcx_file: Any,
+    tcx_file: TCXExercise,
 ) -> dict:
     """Extract typed waypoint lists from trackpoints.
 
@@ -281,7 +282,7 @@ def _extract_waypoints(
 
 
 def _build_activity(
-    tcx_file: Any,
+    tcx_file: TCXExercise,
     user_id: int,
     activity_name: str,
     activity_type: int,

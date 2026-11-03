@@ -3,11 +3,11 @@
 import asyncio
 import time
 from collections.abc import Awaitable, Callable
-from typing import Any
 
 from fastapi import FastAPI, Request, status
 from fastapi.concurrency import run_in_threadpool
 from fastapi.responses import JSONResponse
+from starlette.datastructures import State
 from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.middleware.gzip import GZipMiddleware
 from starlette.responses import Response
@@ -52,7 +52,7 @@ CORS_ALLOW_HEADERS: tuple[str, ...] = (
 CORS_EXPOSE_HEADERS: tuple[str, ...] = ("ETag", "X-Request-ID")
 
 
-async def _reload_allowed_tile_domains(state: Any, loader: Callable[[], list[str]]) -> None:
+async def _reload_allowed_tile_domains(state: State, loader: Callable[[], list[str]]) -> None:
     """Run the loader on a worker thread and keep its result as the cached domains.
 
     A failure keeps the previous value, so a database hiccup never breaks a response.

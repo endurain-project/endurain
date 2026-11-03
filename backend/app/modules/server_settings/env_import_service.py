@@ -94,7 +94,9 @@ def _import_mail_env(db: Session) -> ImportResult:
         changes[server_settings_constants.MAIL_CREDENTIAL_FIELD] = server_settings_change_utils.encrypt_secret(password)
     if changes:
         # Only the differing fields are written; the values were validated above.
-        server_settings_crud.edit_mail_settings(server_settings_schema.MailSettingsEdit.model_construct(**changes), db)
+        server_settings_crud.edit_mail_settings(
+            server_settings_schema.MailSettingsEdit.model_construct(set(changes), **changes), db
+        )
         logger.info(
             "Mail settings imported from the environment", extra=core_logger.context(changed_fields=sorted(changes))
         )
@@ -171,7 +173,7 @@ def _import_geocoding_env(db: Session) -> ImportResult:
     if changes:
         # Only the differing fields are written; the values were validated above.
         server_settings_crud.edit_server_settings(
-            server_settings_schema.ServerSettingsEdit.model_construct(**changes), db
+            server_settings_schema.ServerSettingsEdit.model_construct(set(changes), **changes), db
         )
         logger.info(
             "Geocoding settings imported from the environment",
@@ -223,7 +225,7 @@ def _import_session_env(db: Session) -> ImportResult:
     if changes:
         # Only the differing fields are written; the values were validated by the settings model.
         server_settings_crud.edit_server_settings(
-            server_settings_schema.ServerSettingsEdit.model_construct(**changes), db
+            server_settings_schema.ServerSettingsEdit.model_construct(set(changes), **changes), db
         )
         logger.info(
             "Session policy imported from the environment",

@@ -63,7 +63,7 @@ def capture_running_loop() -> None:
     set_main_loop(asyncio.get_running_loop())
 
 
-def dispatch(coro: Coroutine[Any, Any, Any]) -> Future[Any] | None:
+def dispatch[T](coro: Coroutine[Any, Any, T]) -> Future[T] | None:
     """Schedule ``coro`` on the main event loop from any thread; fire-and-forget.
 
     Thread-safe. Intended for synchronous callers (sync routes, in-process
@@ -89,7 +89,7 @@ def dispatch(coro: Coroutine[Any, Any, Any]) -> Future[Any] | None:
 
     future = asyncio.run_coroutine_threadsafe(coro, loop)
 
-    def _log_failure(completed: Future[Any]) -> None:
+    def _log_failure(completed: Future[T]) -> None:
         # Runs on the loop thread once the coroutine finishes. Surface any error
         # to the log; a cancelled future has no exception to report.
         if completed.cancelled():

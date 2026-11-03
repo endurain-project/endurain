@@ -1,8 +1,7 @@
 """CRUD operations for users."""
 
-from collections.abc import Collection
+from collections.abc import Collection, Mapping
 from datetime import datetime
-from typing import Any
 
 from sqlalchemy import exists, func, or_, select, text
 from sqlalchemy.exc import IntegrityError
@@ -383,7 +382,7 @@ def get_stored_photo_keys(db: Session) -> list[tuple[int, str | None]]:
     return [(row[0], row[1]) for row in rows]
 
 
-def create_user(fields: dict[str, Any], db: Session) -> users_schema.UsersRead:
+def create_user(fields: Mapping[str, object], db: Session) -> users_schema.UsersRead:
     """Stage a new user row (flushed, not committed).
 
     Args:
@@ -408,7 +407,7 @@ def create_user(fields: dict[str, Any], db: Session) -> users_schema.UsersRead:
 
 
 def update_user(
-    user_id: int, changes: dict[str, Any], db: Session, *, if_match: str | None = None
+    user_id: int, changes: Mapping[str, object], db: Session, *, if_match: str | None = None
 ) -> users_schema.UsersRead:
     """Stage column changes on a user (flushed, not committed).
 

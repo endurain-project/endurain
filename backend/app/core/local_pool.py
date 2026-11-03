@@ -11,7 +11,6 @@ import functools
 import threading
 from collections.abc import Callable
 from concurrent.futures import Future, ThreadPoolExecutor
-from typing import Any
 
 import core.exceptions as core_exceptions
 import core.logger as core_logger
@@ -73,13 +72,31 @@ class BoundedPool:
         if not self.has_capacity():
             raise PoolFullError(f"Too many {self.name} jobs in progress; try again shortly")
 
-    def submit(self, run: Callable[..., Any], *args: Any, wait_seconds: float = 0, **kwargs: Any) -> Future:
-        """Run a job on the pool, or refuse it when the pool holds its limit.
+    def submit[**P, R](self, run: Callable[P, R], /, *args: P.args, **kwargs: P.kwargs) -> Future[R]:
+        """Run a job on the pool, or refuse it at once when the pool holds its limit.
 
         Args:
             run: The job body.
             *args: Arguments for the job body.
+            **kwargs: Keyword arguments for the job body.
+
+        Returns:
+            The job's future. A failure is logged when the job ends, so nobody has to read it.
+
+        Raises:
+            PoolFullError: When the pool holds ``max_pending`` jobs.
+        """
+        return self.submit_waiting(0, run, *args, **kwargs)
+
+    def submit_waiting[**P, R](
+        self, wait_seconds: float, run: Callable[P, R], /, *args: P.args, **kwargs: P.kwargs
+    ) -> Future[R]:
+        """Run a job on the pool, waiting for a slot when the pool holds its limit.
+
+        Args:
             wait_seconds: How long to wait for a slot when the pool is full; ``0`` refuses at once.
+            run: The job body.
+            *args: Arguments for the job body.
             **kwargs: Keyword arguments for the job body.
 
         Returns:
@@ -97,8 +114,12 @@ class BoundedPool:
                 executor = self._executor = ThreadPoolExecutor(max_workers=self._workers, thread_name_prefix=self.name)
         context = contextvars.copy_context()
         context.run(core_request_context.forget_current_request)
+
+        def job() -> R:
+            return context.run(run, *args, **kwargs)
+
         try:
-            future = executor.submit(context.run, run, *args, **kwargs)
+            future = executor.submit(job)
         except BaseException:
             self._release()
             raise
@@ -122,7 +143,7 @@ class BoundedPool:
             self._pending -= 1
             self._changed.notify()
 
-    def _finished(self, job: str, future: Future) -> None:
+    def _finished[T](self, job: str, future: Future[T]) -> None:
         """Give the job's slot back and log an exception that escaped it.
 
         Args:

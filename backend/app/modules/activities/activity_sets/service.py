@@ -26,15 +26,15 @@ _FIELDS_BY_HIDE_FLAG: dict[str, tuple[str, ...]] = {
 }
 
 
-_COLLECTION: activity_integration.ChildCollection[activity_sets_schema.ActivitySetsPage] = (
-    activity_integration.ChildCollection(
-        name="workout sets",
-        hide_attr="hide_workout_sets_steps",
-        fetch=activity_sets_crud.get_activity_sets,
-        count=activity_sets_crud.count_activity_sets,
-        build=activity_sets_schema.ActivitySetsPage.build,
-        fields_by_hide_flag=_FIELDS_BY_HIDE_FLAG,
-    )
+_COLLECTION: activity_integration.ChildCollection[
+    activity_sets_schema.ActivitySetsRead, activity_sets_schema.ActivitySetsPage
+] = activity_integration.ChildCollection(
+    name="workout sets",
+    hide_attr="hide_workout_sets_steps",
+    fetch=activity_sets_crud.get_activity_sets,
+    count=activity_sets_crud.count_activity_sets,
+    build=activity_sets_schema.ActivitySetsPage.build,
+    fields_by_hide_flag=_FIELDS_BY_HIDE_FLAG,
 )
 
 

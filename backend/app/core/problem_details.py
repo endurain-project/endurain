@@ -55,6 +55,20 @@ def problem_type(code: str) -> str:
     return f"{_TYPE_PREFIX}:{code}"
 
 
+class FieldError(BaseModel):
+    """One field of a request that failed validation.
+
+    Attributes:
+        field: Dotted location of the field, e.g. ``body.name``.
+        message: Human-readable reason the field was refused.
+        type: Machine-readable kind of the failure, e.g. ``missing``.
+    """
+
+    field: str
+    message: str
+    type: str
+
+
 class ProblemDetail(BaseModel):
     """An RFC 9457 problem document, as returned for every API error.
 
@@ -85,7 +99,7 @@ class ProblemDetail(BaseModel):
     detail: str
     instance: str | None = None
     request_id: str | None = None
-    errors: list[dict[str, Any]] | None = Field(default=None)
+    errors: list[FieldError] | None = Field(default=None)
 
 
 # FastAPI generates these from its own default 422 handler, which no longer runs.
@@ -123,7 +137,10 @@ def _rewrite_error_responses(schema: dict[str, Any]) -> dict[str, Any]:
         The same document.
     """
     components = schema.setdefault("components", {}).setdefault("schemas", {})
-    components[ProblemDetail.__name__] = ProblemDetail.model_json_schema(ref_template="#/components/schemas/{model}")
+    problem_schema = ProblemDetail.model_json_schema(ref_template="#/components/schemas/{model}")
+    # The models ProblemDetail nests are referenced as components, so they are listed there too.
+    components.update(problem_schema.pop("$defs", {}))
+    components[ProblemDetail.__name__] = problem_schema
 
     for path_item in schema.get("paths", {}).values():
         for operation in path_item.values():

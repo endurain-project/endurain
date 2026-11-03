@@ -6616,6 +6616,23 @@ export interface components {
          */
         FastingType: "16:8" | "18:6" | "20:4" | "OMAD" | "24h" | "36h" | "48h" | "72h" | "custom";
         /**
+         * FieldError
+         * @description One field of a request that failed validation.
+         *
+         *     Attributes:
+         *         field: Dotted location of the field, e.g. ``body.name``.
+         *         message: Human-readable reason the field was refused.
+         *         type: Machine-readable kind of the failure, e.g. ``missing``.
+         */
+        FieldError: {
+            /** Field */
+            field: string;
+            /** Message */
+            message: string;
+            /** Type */
+            type: string;
+        };
+        /**
          * FollowRelationshipPage
          * @description One page of follow relationships, in the envelope the activities lists use.
          *
@@ -10576,9 +10593,7 @@ export interface components {
              * Errors
              * @default null
              */
-            errors: {
-                [key: string]: unknown;
-            }[] | null;
+            errors: components["schemas"]["FieldError"][] | null;
             /**
              * Instance
              * @default null

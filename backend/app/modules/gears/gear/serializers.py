@@ -3,8 +3,6 @@
 ``crud`` calls these at its edges so ORM rows never leave the persistence layer.
 """
 
-from typing import Any
-
 import modules.gears.gear.models as gears_models
 import modules.gears.gear.schema as gears_schema
 
@@ -24,7 +22,7 @@ def to_read_schema(gear: gears_models.Gear) -> gears_schema.GearRead:
     return gears_schema.GearRead.model_validate(gear)
 
 
-def _normalize_payload(data: dict[str, Any]) -> dict[str, Any]:
+def _normalize_payload(data: dict[str, object]) -> dict[str, object]:
     """Normalize a gear payload mapping for persistence.
 
     Args:
@@ -57,7 +55,7 @@ def to_orm(gear: gears_schema.GearCreateRequest | gears_schema.GearCreate, user_
     return gears_models.Gear(**{**data, "user_id": user_id})
 
 
-def to_update_values(gear: gears_schema.GearUpdate) -> dict[str, Any]:
+def to_update_values(gear: gears_schema.GearUpdate) -> dict[str, object]:
     """Return the columns an update payload changes.
 
     Args:

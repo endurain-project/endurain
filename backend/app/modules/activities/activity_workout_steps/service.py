@@ -19,14 +19,14 @@ import modules.activities.activity.schema as activity_schema
 import modules.activities.activity_workout_steps.crud as activity_workout_steps_crud
 import modules.activities.activity_workout_steps.schema as activity_workout_steps_schema
 
-_COLLECTION: activity_integration.ChildCollection[activity_workout_steps_schema.ActivityWorkoutStepsPage] = (
-    activity_integration.ChildCollection(
-        name="workout steps",
-        hide_attr="hide_workout_sets_steps",
-        fetch=activity_workout_steps_crud.get_activity_workout_steps,
-        count=activity_workout_steps_crud.count_activity_workout_steps,
-        build=activity_workout_steps_schema.ActivityWorkoutStepsPage.build,
-    )
+_COLLECTION: activity_integration.ChildCollection[
+    activity_workout_steps_schema.ActivityWorkoutStepsRead, activity_workout_steps_schema.ActivityWorkoutStepsPage
+] = activity_integration.ChildCollection(
+    name="workout steps",
+    hide_attr="hide_workout_sets_steps",
+    fetch=activity_workout_steps_crud.get_activity_workout_steps,
+    count=activity_workout_steps_crud.count_activity_workout_steps,
+    build=activity_workout_steps_schema.ActivityWorkoutStepsPage.build,
 )
 
 

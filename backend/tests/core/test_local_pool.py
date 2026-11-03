@@ -70,7 +70,7 @@ def test_waits_for_a_slot_when_asked_to(pool):
     timer = threading.Timer(0.2, release.set)
     timer.start()
 
-    assert pool.submit(lambda: "late", wait_seconds=5).result(timeout=5) == "late"
+    assert pool.submit_waiting(5, lambda: "late").result(timeout=5) == "late"
 
 
 def test_a_failing_job_frees_its_slot(pool):

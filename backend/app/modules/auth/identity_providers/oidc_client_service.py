@@ -205,7 +205,9 @@ class OidcClientService:
             raise core_exceptions.ProcessingError("Failed to retrieve signing keys from identity provider") from err
 
     @staticmethod
-    def _issuer_matches(idp: identity_provider_contracts.IdentityProviderState, issuer_url: str, config: Any) -> bool:
+    def _issuer_matches(
+        idp: identity_provider_contracts.IdentityProviderState, issuer_url: str, config: object
+    ) -> bool:
         """Check that a discovery document names the issuer the provider is configured with.
 
         A trailing slash on either side is ignored.

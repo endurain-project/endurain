@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import dataclasses
 from collections.abc import Callable
 from contextlib import AbstractContextManager
 from datetime import UTC, datetime
@@ -304,8 +303,8 @@ def build_token_response(
     access_token_exp: datetime,
     refresh_token: str,
     refresh_token_exp: datetime,
-    csrf_token: str | None,
-) -> auth_schema.AuthOutcome:
+    csrf_token: str,
+) -> auth_schema.AuthOutcome[auth_schema.TokenRead]:
     """Build the OAuth 2.1 token-response body for login and refresh.
 
     Single source of truth for token delivery, shared by the password
@@ -327,31 +326,41 @@ def build_token_response(
         access_token_exp: Access-token expiry datetime.
         refresh_token: Newly minted refresh token.
         refresh_token_exp: Refresh-token expiry datetime.
-        csrf_token: CSRF token, returned only to web clients; ``None`` for a mobile client.
+        csrf_token: CSRF token, returned only to web clients.
 
     Returns:
         The response body and, for a web client, the refresh cookie the router sets.
     """
     now = datetime.now(UTC)
-    body = {
-        "session_id": session_id,
-        "access_token": access_token,
-        "token_type": "bearer",
-        "expires_in": int((access_token_exp - now).total_seconds()),
-        "refresh_token_expires_in": int((refresh_token_exp - now).total_seconds()),
-    }
+    expires_in = int((access_token_exp - now).total_seconds())
+    refresh_token_expires_in = int((refresh_token_exp - now).total_seconds())
 
     if client_type == "web":
         # Web: Refresh token as httpOnly cookie (XSS protection); CSRF
         # token in body for in-memory storage. The router sets the cookie
         # through deliver_auth_outcome so login, /refresh, and SSO token
         # exchange stay in lockstep.
-        body["csrf_token"] = csrf_token
-        return auth_schema.AuthOutcome(body, auth_schema.RefreshCookie(refresh_token, refresh_token_exp))
+        return auth_schema.AuthOutcome(
+            auth_schema.TokenWebRead(
+                session_id=session_id,
+                access_token=access_token,
+                csrf_token=csrf_token,
+                expires_in=expires_in,
+                refresh_token_expires_in=refresh_token_expires_in,
+            ),
+            auth_schema.RefreshCookie(refresh_token, refresh_token_exp),
+        )
 
     # Mobile: All tokens in JSON body for secure platform storage.
-    body["refresh_token"] = refresh_token
-    return auth_schema.AuthOutcome(body)
+    return auth_schema.AuthOutcome(
+        auth_schema.TokenMobileRead(
+            session_id=session_id,
+            access_token=access_token,
+            refresh_token=refresh_token,
+            expires_in=expires_in,
+            refresh_token_expires_in=refresh_token_expires_in,
+        )
+    )
 
 
 def complete_login(
@@ -362,7 +371,7 @@ def complete_login(
     password_hasher: credentials_integration.PasswordHasher,
     token_manager: access_tokens_integration.TokenManager,
     db: Session,
-) -> auth_schema.AuthOutcome:
+) -> auth_schema.AuthOutcome[auth_schema.TokenRead]:
     """Handles the completion of the login process by generating session and authentication tokens,.
 
     storing the session in the database, and returning tokens in response body.
@@ -682,7 +691,7 @@ def _finish_login(
     *,
     mfa: bool,
     device_id: str | None,
-) -> auth_schema.AuthOutcome:
+) -> auth_schema.AuthOutcome[auth_schema.LoginRead]:
     """Complete a verified login with tokens or, for a mobile PKCE client, a session to exchange.
 
     The sign-in is recorded against the user's known devices in the same transaction as its audit row and session.
@@ -733,7 +742,7 @@ def _finish_login(
 
     # Web clients and mobile without PKCE get tokens directly
     outcome = complete_login(ip_address, user_agent, user, client_type, password_hasher, token_manager, db)
-    return dataclasses.replace(outcome, device_id=sign_in.device_id)
+    return auth_schema.AuthOutcome(outcome.body, outcome.refresh_cookie, device_id=sign_in.device_id)
 
 
 def login_for_access_token(
@@ -751,7 +760,7 @@ def login_for_access_token(
     code_challenge_method: str | None = None,
     *,
     device_id: str | None,
-) -> auth_schema.AuthOutcome:
+) -> auth_schema.AuthOutcome[auth_schema.LoginRead]:
     """Handles user login and access token generation, including Multi-Factor Authentication (MFA) flow.
 
     Protection Mechanisms:
@@ -894,12 +903,12 @@ def login_for_access_token(
             )
         if client_type == "mobile":
             return auth_schema.AuthOutcome(
-                {
-                    "mfa_required": True,
-                    "username": username,
-                    "mfa_challenge": mfa_challenge,
-                    "message": "MFA verification required",
-                }
+                auth_schema.MFARequiredRead(
+                    mfa_required=True,
+                    username=username,
+                    mfa_challenge=mfa_challenge,
+                    message="MFA verification required",
+                )
             )
 
     # Password authentication successful and no MFA required
@@ -938,7 +947,7 @@ def verify_mfa_and_login(
     code_challenge_method: str | None = None,
     *,
     device_id: str | None,
-) -> auth_schema.AuthOutcome:
+) -> auth_schema.AuthOutcome[auth_schema.LoginRead]:
     """Verify MFA code and complete login process.
 
     This endpoint verifies the MFA code for a pending login and completes
@@ -1059,7 +1068,7 @@ def _replay_rotation(
     token_manager: access_tokens_integration.TokenManager,
     policy: server_settings_contracts.SessionPolicy,
     db: Session,
-) -> auth_schema.AuthOutcome:
+) -> auth_schema.AuthOutcome[auth_schema.TokenRead]:
     """Answer a refresh whose token was already rotated with the replacement minted by that rotation.
 
     The session is not rotated again (no new rotated record, no ``rotation_count`` bump), so duplicate
@@ -1124,10 +1133,10 @@ def _replay_rotation(
 
     # Web clients lost their CSRF token along with the rotation response, so
     # mint a fresh one and bind it to the session (the refresh token itself
-    # is unchanged). Mobile clients do not use CSRF.
-    replay_csrf_token: str | None = None
+    # is unchanged). Mobile clients do not use CSRF, so as on login the token
+    # is minted but never bound or returned.
+    replay_csrf_token = token_manager.create_csrf_token()
     if client_type == "web":
-        replay_csrf_token = token_manager.create_csrf_token()
         sessions_integration.update_session_csrf_token(session.id, replay_csrf_token, db)
         db.commit()
 
@@ -1155,7 +1164,7 @@ def refresh_token(
     client_type: str,
     db: Session,
     x_csrf_token: str | None = None,
-) -> auth_schema.AuthOutcome:
+) -> auth_schema.AuthOutcome[auth_schema.TokenRead]:
     r"""Handles the refresh token process for user sessions.
 
     This endpoint validates the provided refresh token, checks session status,
@@ -1481,7 +1490,7 @@ def exchange_tokens_for_session(
     db: Session,
     *,
     device_id: str | None,
-) -> auth_schema.AuthOutcome:
+) -> auth_schema.AuthOutcome[auth_schema.TokenExchangeRead]:
     """Exchange a PKCE code verifier for the tokens of an SSO session.
 
     The session was created by the identity-provider callback and holds no tokens yet. The caller proves it holds the

@@ -39,15 +39,15 @@ _FIELDS_BY_HIDE_FLAG: dict[str, tuple[str, ...]] = {
 }
 
 
-_COLLECTION: activity_integration.ChildCollection[activity_laps_schema.ActivityLapsPage] = (
-    activity_integration.ChildCollection(
-        name="laps",
-        hide_attr="hide_laps",
-        fetch=activity_laps_crud.get_activity_laps,
-        count=activity_laps_crud.count_activity_laps,
-        build=activity_laps_schema.ActivityLapsPage.build,
-        fields_by_hide_flag=_FIELDS_BY_HIDE_FLAG,
-    )
+_COLLECTION: activity_integration.ChildCollection[
+    activity_laps_schema.ActivityLapsRead, activity_laps_schema.ActivityLapsPage
+] = activity_integration.ChildCollection(
+    name="laps",
+    hide_attr="hide_laps",
+    fetch=activity_laps_crud.get_activity_laps,
+    count=activity_laps_crud.count_activity_laps,
+    build=activity_laps_schema.ActivityLapsPage.build,
+    fields_by_hide_flag=_FIELDS_BY_HIDE_FLAG,
 )
 
 

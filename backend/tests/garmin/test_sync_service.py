@@ -60,8 +60,8 @@ def durable():
 def test_a_gear_sync_goes_to_the_pool_without_durable_jobs(rate_limits, local, states):
     result = garmin_sync_service.request_gear_sync(1, states, rate_limits, MagicMock())
 
-    local.submit.assert_called_once()
-    assert local.submit.call_args.args[1].kind == Kind.GEAR
+    local.submit_waiting.assert_called_once()
+    assert local.submit_waiting.call_args.args[2].kind == Kind.GEAR
     assert result.status == Status.QUEUED
     assert states.get(1, Kind.GEAR).status == Status.QUEUED
 
@@ -84,7 +84,7 @@ def test_a_second_sync_of_a_kind_while_one_is_pending_is_a_conflict(rate_limits,
     with pytest.raises(core_exceptions.ConflictError):
         garmin_sync_service.request_gear_sync(1, states, rate_limits, MagicMock())
 
-    local.submit.assert_called_once()
+    local.submit_waiting.assert_called_once()
 
 
 def test_other_kinds_and_other_users_are_not_blocked(rate_limits, local, states):
@@ -93,14 +93,14 @@ def test_other_kinds_and_other_users_are_not_blocked(rate_limits, local, states)
     garmin_sync_service.request_health_sync(1, DAY, DAY, states, rate_limits, MagicMock())
     garmin_sync_service.request_gear_sync(2, states, rate_limits, MagicMock())
 
-    assert local.submit.call_count == 3
+    assert local.submit_waiting.call_count == 3
 
 
 def test_a_sync_that_cannot_be_queued_does_not_block_a_retry(rate_limits, local, states):
-    local.submit.side_effect = RuntimeError("shut down")
+    local.submit_waiting.side_effect = RuntimeError("shut down")
     with pytest.raises(RuntimeError):
         garmin_sync_service.request_gear_sync(1, states, rate_limits, MagicMock())
-    local.submit.side_effect = None
+    local.submit_waiting.side_effect = None
 
     garmin_sync_service.request_gear_sync(1, states, rate_limits, MagicMock())
 
@@ -129,14 +129,14 @@ def test_a_reversed_range_is_refused_and_nothing_is_queued(rate_limits, local, s
     with pytest.raises(core_exceptions.InvalidInputError):
         garmin_sync_service.request_health_sync(1, date(2026, 1, 2), DAY, states, rate_limits, MagicMock())
 
-    local.submit.assert_not_called()
+    local.submit_waiting.assert_not_called()
 
 
 def test_a_range_beyond_the_cap_is_refused_and_nothing_is_queued(rate_limits, local, states):
     with pytest.raises(core_exceptions.InvalidInputError):
         garmin_sync_service.request_health_sync(1, DAY, date(2026, 3, 1), states, rate_limits, MagicMock())
 
-    local.submit.assert_not_called()
+    local.submit_waiting.assert_not_called()
 
 
 def test_the_longest_allowed_range_is_accepted(rate_limits, local, states, users_today):
@@ -145,7 +145,7 @@ def test_the_longest_allowed_range_is_accepted(rate_limits, local, states, users
 
     garmin_sync_service.request_health_sync(1, DAY, last, states, rate_limits, MagicMock())
 
-    local.submit.assert_called_once()
+    local.submit_waiting.assert_called_once()
 
 
 def test_an_activities_range_beyond_the_cap_is_refused():
@@ -183,7 +183,7 @@ def test_a_range_ending_after_the_users_today_is_refused(rate_limits, local, sta
         garmin_sync_service.request_health_sync(1, DAY, tomorrow, states, rate_limits, MagicMock())
 
     request.assert_not_called()
-    local.submit.assert_not_called()
+    local.submit_waiting.assert_not_called()
 
 
 def test_a_reversed_activities_range_is_refused():
@@ -359,7 +359,7 @@ class TestRecentHealth:
             garmin_sync_service.sync_recent_health(states, rate_limits)
 
         run.assert_not_called()
-        assert local.submit.call_count == 2
+        assert local.submit_waiting.call_count == 2
         assert states.get(1, Kind.HEALTH).status == Status.QUEUED
         assert states.get(2, Kind.HEALTH).status == Status.QUEUED
 
@@ -379,7 +379,7 @@ class TestRecentHealth:
 
         local_today.side_effect = read_today
         held_at_submit = []
-        local.submit.side_effect = lambda *_, **__: held_at_submit.extend(s.holds_connection for s in sessions)
+        local.submit_waiting.side_effect = lambda *_, **__: held_at_submit.extend(s.holds_connection for s in sessions)
         with (
             patch.object(garmin_sync_service.garmin_service, "linked_user_ids", side_effect=[[1], []]),
             patch.object(garmin_sync_service.core_database, "SessionLocal", side_effect=new_session),

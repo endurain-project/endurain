@@ -11,7 +11,6 @@ it enforces.
 import re
 from dataclasses import dataclass
 from io import BytesIO
-from typing import Any
 from urllib.parse import urlparse, urlunparse
 
 from staticmap import CircleMarker, Line, StaticMap
@@ -136,12 +135,29 @@ def _pinned_get(url: str, address: str, *, timeout: float, headers: dict[str, st
 class _GuardedStaticMap(StaticMap):
     """StaticMap variant that validates every request and refuses redirects."""
 
-    def get(self, url: str, **kwargs: Any) -> tuple[int, bytes]:
-        """Fetch one validated tile without following redirects."""
+    def get(
+        self,
+        url: str,
+        *,
+        timeout: float | None = None,
+        headers: dict[str, str] | None = None,
+        **requests_options: object,
+    ) -> tuple[int, bytes]:
+        """Fetch one validated tile without following redirects.
+
+        Args:
+            url: The tile URL.
+            timeout: The tile request timeout ``StaticMap`` was built with, when it has one.
+            headers: The request headers ``StaticMap`` was built with.
+            **requests_options: Other ``requests.get`` options the base fetch takes; the pinned fetch has none.
+
+        Returns:
+            The status code and body of the tile response.
+        """
         addresses = _ensure_safe_url(url)
-        timeout = kwargs.pop("timeout", None) or _DEFAULT_TILE_REQUEST_TIMEOUT_SECONDS
-        headers = kwargs.pop("headers", {})
-        return _pinned_get(url, addresses[0], timeout=timeout, headers=headers)
+        return _pinned_get(
+            url, addresses[0], timeout=timeout or _DEFAULT_TILE_REQUEST_TIMEOUT_SECONDS, headers=headers or {}
+        )
 
 
 def render(request: RouteMapRenderRequest) -> bytes:

@@ -50,7 +50,6 @@ import logging.handlers
 import sys
 from collections.abc import Mapping
 from datetime import UTC, datetime
-from typing import Any
 
 import jasil.correlation as jasil_correlation
 
@@ -212,7 +211,7 @@ _STDLIB_RECORD_ATTRS: frozenset[str] = frozenset(
 _NON_CONTEXT_ATTRS: frozenset[str] = _STDLIB_RECORD_ATTRS | {CONSOLE_FIELD}
 
 
-def _record_context(record: logging.LogRecord) -> dict[str, Any]:
+def _record_context(record: logging.LogRecord) -> dict[str, object]:
     """
     Extract the caller-supplied structured fields from a record.
 
@@ -251,7 +250,7 @@ def get_logger(name: str | None = None) -> logging.Logger:
     return logging.getLogger(f"{ROOT_LOGGER_NAME}.{name}")
 
 
-def _normalize_fields(fields: Mapping[str, Any]) -> dict[str, Any]:
+def _normalize_fields(fields: Mapping[str, object]) -> dict[str, object]:
     """
     Build a safe ``extra`` mapping from caller-supplied fields.
 
@@ -266,7 +265,7 @@ def _normalize_fields(fields: Mapping[str, Any]) -> dict[str, Any]:
     Returns:
         A mapping safe to pass as ``extra=``.
     """
-    normalized: dict[str, Any] = {}
+    normalized: dict[str, object] = {}
     for key, value in fields.items():
         if value is None:
             continue
@@ -276,8 +275,8 @@ def _normalize_fields(fields: Mapping[str, Any]) -> dict[str, Any]:
 
 
 def context(
-    fields: Mapping[str, object] | None = None, /, *, console: bool = False, **keyword_fields: Any
-) -> dict[str, Any]:
+    fields: Mapping[str, object] | None = None, /, *, console: bool = False, **keyword_fields: object
+) -> dict[str, object]:
     """
     Build the ``extra`` mapping for a structured log record.
 

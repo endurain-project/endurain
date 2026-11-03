@@ -22,6 +22,7 @@ from sqlalchemy import (
     update as sa_update,
 )
 from sqlalchemy.orm import Session
+from sqlalchemy.sql.elements import ColumnElement
 
 import core.database as core_database
 import core.etag as core_etag
@@ -84,7 +85,9 @@ _TEXT_SORT_COLUMNS = {
 }
 
 
-def _sort_order_by(sort_by: str | None, sort_order: str | None, *, mask_hidden_values: bool = False) -> list[Any]:
+def _sort_order_by(
+    sort_by: str | None, sort_order: str | None, *, mask_hidden_values: bool = False
+) -> list[ColumnElement[Any]]:
     """Build the ORDER BY clauses for an activity list request.
 
     Args:
@@ -99,7 +102,7 @@ def _sort_order_by(sort_by: str | None, sort_order: str | None, *, mask_hidden_v
     """
     ascending = bool(sort_order and sort_order.lower() == "asc")
     columns = SORT_MAP.get(sort_by or "", _DEFAULT_SORT_COLUMNS)
-    clauses = []
+    clauses: list[ColumnElement[Any]] = []
     for column in columns:
         ordered = column
         if mask_hidden_values and column in _HIDEABLE_SORT_COLUMNS:

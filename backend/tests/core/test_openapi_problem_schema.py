@@ -47,6 +47,13 @@ class TestErrorResponsesAreProblemDocuments:
             "$ref": "#/components/schemas/ProblemDetail"
         }
 
+    def test_the_field_error_schema_is_a_component_the_problem_detail_references(self):
+        """A nested ``$defs`` entry would leave the ``$ref`` to it unresolvable for the generated client."""
+        schemas = _schema_of(_app_with_validated_route())["components"]["schemas"]
+
+        assert "FieldError" in schemas
+        assert "$defs" not in schemas["ProblemDetail"]
+
     def test_superseded_schemas_are_removed(self):
         """Left behind they would generate dead types in the frontend client."""
         schema = _schema_of(_app_with_validated_route())

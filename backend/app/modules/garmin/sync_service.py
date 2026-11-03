@@ -178,12 +178,12 @@ def _queue(
         publish=lambda: garmin_event_publishers.publish_sync_requested(
             user_id, kind, start_date, end_date, db, commit=db.commit, source=source
         ),
-        submit=lambda: _sync_pool.submit(
+        submit=lambda: _sync_pool.submit_waiting(
+            wait_seconds,
             run_sync,
             garmin_events.SyncRequestedPayload(user_id=user_id, kind=kind, start_date=start_date, end_date=end_date),
             states,
             rate_limits,
-            wait_seconds=wait_seconds,
         ),
     )
     logger.info(

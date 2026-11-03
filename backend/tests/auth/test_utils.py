@@ -251,7 +251,7 @@ class TestCompleteLogin:
                 token_manager,
                 mock_db,
             )
-            result = authentication_dependencies.deliver_auth_outcome(response, outcome)
+            result = authentication_dependencies.deliver_auth_outcome(response, outcome).model_dump()
 
         # Assert
         assert "session_id" in result
@@ -285,7 +285,7 @@ class TestCompleteLogin:
                 token_manager,
                 mock_db,
             )
-            result = authentication_dependencies.deliver_auth_outcome(response, outcome)
+            result = authentication_dependencies.deliver_auth_outcome(response, outcome).model_dump()
 
         # Assert
         assert "session_id" in result
@@ -314,7 +314,7 @@ class TestCompleteLogin:
                 token_manager,
                 mock_db,
             )
-            result = authentication_dependencies.deliver_auth_outcome(response, outcome)
+            result = authentication_dependencies.deliver_auth_outcome(response, outcome).model_dump()
 
         # Assert
         mock_create_session.assert_called_once()
@@ -347,7 +347,7 @@ class TestCompleteLogin:
             outcome = auth_utils.complete_login(
                 "127.0.0.1", "pytest-agent", sample_user_read, "web", password_hasher, token_manager, mock_db
             )
-            result = authentication_dependencies.deliver_auth_outcome(response, outcome)
+            result = authentication_dependencies.deliver_auth_outcome(response, outcome).model_dump()
 
         assert result["expires_in"] == pytest.approx(300, abs=2)
         assert result["refresh_token_expires_in"] == pytest.approx(3 * 86400, abs=2)
@@ -531,7 +531,7 @@ class TestCompleteLogin:
                 token_manager,
                 mock_db,
             )
-            result1 = authentication_dependencies.deliver_auth_outcome(response1, outcome)
+            result1 = authentication_dependencies.deliver_auth_outcome(response1, outcome).model_dump()
 
             outcome = auth_utils.complete_login(
                 "127.0.0.1",
@@ -542,7 +542,7 @@ class TestCompleteLogin:
                 token_manager,
                 mock_db,
             )
-            result2 = authentication_dependencies.deliver_auth_outcome(response2, outcome)
+            result2 = authentication_dependencies.deliver_auth_outcome(response2, outcome).model_dump()
 
         # Assert
         assert result1["session_id"] != result2["session_id"]

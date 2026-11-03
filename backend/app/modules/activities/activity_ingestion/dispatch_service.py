@@ -16,7 +16,6 @@ read the setting. The job bodies are identical in both profiles.
 
 from collections.abc import Callable
 from datetime import timedelta
-from typing import Any
 
 from sqlalchemy.orm import Session
 
@@ -101,7 +100,7 @@ def require_node_capacity() -> None:
     activity_ingestion_background.require_capacity()
 
 
-def run_in_background(run: Callable[..., Any], *args: Any) -> None:
+def run_in_background[**P](run: Callable[P, object], /, *args: P.args, **kwargs: P.kwargs) -> None:
     """Run a job body on the in-process pool, unless a durable worker will.
 
     Call after the job row is committed.
@@ -109,12 +108,13 @@ def run_in_background(run: Callable[..., Any], *args: Any) -> None:
     Args:
         run: The job body.
         *args: Arguments for the job body.
+        **kwargs: Keyword arguments for the job body.
     """
     if not worker_retries():
-        activity_ingestion_background.submit(run, *args)
+        activity_ingestion_background.submit(run, *args, **kwargs)
 
 
-def run_on_this_node(run: Callable[..., Any], *args: Any) -> None:
+def run_on_this_node[**P](run: Callable[P, object], /, *args: P.args, **kwargs: P.kwargs) -> None:
     """Run node-bound work on the in-process pool, whatever the profile.
 
     For work that needs something only this process can see — a folder the user
@@ -123,5 +123,6 @@ def run_on_this_node(run: Callable[..., Any], *args: Any) -> None:
     Args:
         run: The job body.
         *args: Arguments for the job body.
+        **kwargs: Keyword arguments for the job body.
     """
-    activity_ingestion_background.submit(run, *args)
+    activity_ingestion_background.submit(run, *args, **kwargs)

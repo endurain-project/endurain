@@ -3,7 +3,7 @@
 import re
 from dataclasses import dataclass
 from datetime import datetime
-from typing import Any, Literal
+from typing import Literal
 
 from pydantic import (
     BaseModel,
@@ -224,8 +224,15 @@ class RefreshCookie:
     expires_at: datetime
 
 
+#: The token body of a password login or a refresh, by client type.
+type TokenRead = TokenWebRead | TokenMobileRead
+
+#: The body of a password login: an MFA challenge, a mobile PKCE session, or the tokens.
+type LoginRead = MFARequiredRead | MobileSessionRead | TokenWebRead | TokenMobileRead
+
+
 @dataclass(frozen=True)
-class AuthOutcome:
+class AuthOutcome[BodyT: BaseModel]:
     """Result of an authentication workflow, before the transport delivers it.
 
     Attributes:
@@ -236,6 +243,6 @@ class AuthOutcome:
             other outcome.
     """
 
-    body: Any
+    body: BodyT
     refresh_cookie: RefreshCookie | None = None
     device_id: str | None = None

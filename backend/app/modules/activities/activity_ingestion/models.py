@@ -1,7 +1,6 @@
 """SQLAlchemy ORM model for user-facing activity ingestion jobs."""
 
 from datetime import datetime
-from typing import Any
 
 from sqlalchemy import (
     JSON,
@@ -192,7 +191,7 @@ class ActivityIngestionJob(Base):
         nullable=True,
         comment="Sanitized failure reason when status is failed",
     )
-    activity_ids: Mapped[list[Any] | None] = mapped_column(
+    activity_ids: Mapped[list[int] | None] = mapped_column(
         JSON().with_variant(JSONB(), "postgresql"),
         nullable=True,
         comment="Ids of the activities the import created",

@@ -13,7 +13,6 @@ durable-job path — see ``activity_ingestion.subscribers``.
 
 from collections.abc import Callable
 from concurrent.futures import Future
-from typing import Any
 
 import core.local_pool as core_local_pool
 
@@ -37,7 +36,7 @@ def require_capacity() -> None:
     _pool.require_capacity()
 
 
-def submit(run: Callable[..., Any], *args: Any) -> Future:
+def submit[**P, R](run: Callable[P, R], /, *args: P.args, **kwargs: P.kwargs) -> Future[R]:
     """Run a job body on the background pool.
 
     The body is passed in rather than imported here: the service owns the job
@@ -46,6 +45,7 @@ def submit(run: Callable[..., Any], *args: Any) -> Future:
     Args:
         run: The job body (``run_upload_job``, ``run_refresh_job``, ...).
         *args: Arguments for the job body.
+        **kwargs: Keyword arguments for the job body.
 
     Returns:
         The scheduled future (a failure is logged when the job ends).
@@ -53,7 +53,7 @@ def submit(run: Callable[..., Any], *args: Any) -> Future:
     Raises:
         PoolFullError: When the pool holds its limit of jobs.
     """
-    return _pool.submit(run, *args)
+    return _pool.submit(run, *args, **kwargs)
 
 
 def shutdown(wait: bool = False) -> None:

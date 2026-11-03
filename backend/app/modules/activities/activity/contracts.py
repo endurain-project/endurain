@@ -198,19 +198,21 @@ class ActivityCore(activity_schema.ActivityBase):
 
     @field_validator("start_time", "end_time", mode="before")
     @classmethod
-    def _require_utc_aware(cls, value: Any) -> datetime:
+    def _require_utc_aware(cls, value: object) -> datetime:
         """Coerce parser/provider datetime output to aware UTC; reject null values.
 
         Args:
-            value: The datetime to coerce, or None.
+            value: The datetime or ISO string to coerce.
 
         Returns:
             The aware UTC datetime.
+
+        Raises:
+            ValueError: When the value is neither a datetime nor an ISO string.
         """
-        aware = core_timezone.to_utc_aware(value)
-        if aware is None:
+        if not isinstance(value, datetime | str):
             raise ValueError("must be a valid, non-null datetime")
-        return aware
+        return core_timezone.to_utc_aware(value)
 
 
 @dataclass(frozen=True)

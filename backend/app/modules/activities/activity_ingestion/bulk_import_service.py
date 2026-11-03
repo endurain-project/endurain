@@ -28,7 +28,6 @@ import time
 import uuid
 import zipfile
 from collections.abc import Iterator
-from typing import Any
 
 import jasil.audit as jasil_audit
 import jasil.providers as platform_providers
@@ -719,7 +718,7 @@ def _member_reader(archive: zipfile.ZipFile) -> activity_ingestion_contracts.Arc
     return read
 
 
-def _log_bulk_failure(message: str, err: Exception, **fields: Any) -> None:
+def _log_bulk_failure(message: str, err: Exception, **fields: object) -> None:
     """Log why a bulk import step failed, at the level its cause calls for.
 
     A file the pipeline or the archive checks refuse is the user's input and is a warning without a

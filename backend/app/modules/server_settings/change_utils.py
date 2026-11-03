@@ -3,8 +3,7 @@
 Pure: no session, no configuration and no I/O.
 """
 
-from collections.abc import Iterable
-from typing import Any
+from collections.abc import Iterable, Mapping
 
 from pydantic import BaseModel
 
@@ -99,7 +98,7 @@ def changed_fields(
     return changed
 
 
-def differing(current: BaseModel, target: dict[str, Any]) -> dict[str, Any]:
+def differing[V](current: BaseModel, target: Mapping[str, V]) -> dict[str, V]:
     """Return the target fields whose value differs from the stored one.
 
     Args:

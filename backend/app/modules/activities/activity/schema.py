@@ -8,7 +8,7 @@ stays exactly what the API serializes.
 from __future__ import annotations
 
 from datetime import datetime
-from typing import Annotated, Any, Self
+from typing import Annotated, Self
 
 from pydantic import (
     BaseModel,
@@ -195,7 +195,7 @@ class ActivityBase(BaseModel):
 
     @field_validator("start_time", "end_time", "created_at", mode="before")
     @classmethod
-    def _normalize_to_utc_aware(cls, value: Any) -> Any:
+    def _normalize_to_utc_aware(cls, value: object) -> object:
         """Accept the ingestion producers' ISO strings, expose an aware UTC datetime.
 
         The field type is ``datetime | None`` so the API promises a ``date-time``

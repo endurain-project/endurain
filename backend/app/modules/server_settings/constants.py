@@ -1,6 +1,6 @@
 """Constants for server settings."""
 
-from typing import Any
+from typing import TypedDict
 
 #: Storage area and key of the custom login-page photo. The area matches the legacy
 #: ``{DATA_DIR}/server_images`` directory, so a photo uploaded before the
@@ -81,7 +81,19 @@ DEPRECATED_ENV_WARNING = (
     "and from v0.22.0 Endurain refuses to start while any of them is set."
 )
 
-TILE_MAPS_TEMPLATES: dict[str, dict[str, Any]] = {
+
+class TileMapsTemplateFields(TypedDict):
+    """The fields of a built-in tile map template, keyed by its template id in ``TILE_MAPS_TEMPLATES``."""
+
+    name: str
+    url_template: str
+    attribution: str
+    map_background_color: str
+    requires_api_key_frontend: bool
+    requires_api_key_backend: bool
+
+
+TILE_MAPS_TEMPLATES: dict[str, TileMapsTemplateFields] = {
     "openstreetmap": {
         "name": "OpenStreetMap",
         "url_template": DEFAULT_TILE_URL,

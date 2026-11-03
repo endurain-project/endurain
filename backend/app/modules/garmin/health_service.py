@@ -3,7 +3,7 @@
 from collections.abc import Callable, Iterator
 from datetime import UTC, date, datetime, timedelta
 from enum import Enum
-from typing import Any
+from typing import Protocol
 
 import garminconnect
 from pydantic import BaseModel
@@ -54,13 +54,22 @@ def _sleep_score(score: dict | None) -> health_sleep_schema.SleepScore | None:
     return health_sleep_schema.SleepScore(key) if key in health_sleep_schema.SleepScore._value2member_map_ else None
 
 
-def _store(
+class _SourcedRecord(Protocol):
+    """A stored health record that names the source that wrote it."""
+
+    @property
+    def source(self) -> object:
+        """The source that wrote the record."""
+        ...
+
+
+def _store[CreateT: BaseModel](
     user_id: int,
     record: BaseModel,
     *,
     label: str,
-    upsert: Callable[[int, Any, Session], Any],
-    create_schema: type[BaseModel],
+    upsert: Callable[[int, CreateT, Session], object],
+    create_schema: type[CreateT],
     keep_existing: Callable[[int, str, Session], bool] | None = None,
 ) -> bool:
     """Store a health record in a short session of its own: create the day's record, or update it.
@@ -94,7 +103,7 @@ def _store(
 
 
 def _keep_other_source(
-    get_by_date: Callable[[int, str, Session], Any], garmin_source: Enum
+    get_by_date: Callable[[int, str, Session], _SourcedRecord | None], garmin_source: Enum
 ) -> Callable[[int, str, Session], bool]:
     """Build the check that leaves a day's record alone unless Garmin Connect wrote it.
 
