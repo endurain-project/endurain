@@ -7,8 +7,10 @@ transaction boundary. What other modules may consume lives in
 
 from sqlalchemy.orm import Session
 
+import core.exceptions as core_exceptions
 import core.logger as core_logger
 import core.pagination as core_pagination
+import core.timezone as core_timezone
 import modules.health.constants as health_constants
 import modules.health.health_sleep.crud as health_sleep_crud
 import modules.health.health_sleep.schema as health_sleep_schema
@@ -18,6 +20,47 @@ import modules.health.schema as health_schema
 import modules.users.users.integration_service as users_integration
 
 logger = core_logger.get_logger(__name__)
+
+#: Minute rounding a provider applies to the stage durations and to the total.
+_TOLERANCE_SECONDS = 60
+
+
+def _require_consistent(sleep: health_sleep_schema.HealthSleepBase) -> None:
+    """Refuse a sleep record whose stages or total contradict each other.
+
+    The total is the time asleep, as Garmin Connect reports it: deep, light and REM sleep, with awake time
+    counted apart. So the sleeping stages cannot add up to more than the total, and the total cannot be
+    longer than the span from falling asleep to waking. The GMT times bound the total, or the local times
+    when there are no GMT times. Only manual writes are checked; a provider's record is stored as it is.
+
+    Args:
+        sleep: The record a manual write produces, whole.
+
+    Raises:
+        InvalidInputError: If the stages add up to more than the total, or the total is longer than the span.
+    """
+    total = sleep.total_sleep_seconds
+    if total is None:
+        return
+    stages = (sleep.deep_sleep_seconds, sleep.light_sleep_seconds, sleep.rem_sleep_seconds)
+    if sum(seconds or 0 for seconds in stages) > total + _TOLERANCE_SECONDS:
+        raise core_exceptions.InvalidInputError(
+            "The deep, light and REM sleep cannot add up to more than the total sleep"
+        )
+    start, end = (
+        (sleep.sleep_start_time_gmt, sleep.sleep_end_time_gmt)
+        if sleep.sleep_start_time_gmt is not None and sleep.sleep_end_time_gmt is not None
+        else (sleep.sleep_start_time_local, sleep.sleep_end_time_local)
+    )
+    if (
+        start is not None
+        and end is not None
+        and total
+        > (core_timezone.to_utc_aware(end) - core_timezone.to_utc_aware(start)).total_seconds() + _TOLERANCE_SECONDS
+    ):
+        raise core_exceptions.InvalidInputError(
+            "The total sleep cannot be longer than the time between the start and the end"
+        )
 
 
 def list_health_sleep(
@@ -125,9 +168,11 @@ def create_health_sleep(
 
     Raises:
         ConflictError: If the user already has a record for that date.
+        InvalidInputError: If the stages or the total contradict each other.
     """
     if health_sleep.date is None:
         health_sleep.date = users_integration.local_today(user_id, db)
+    _require_consistent(health_sleep)
     health_sleep_sleep_scoring.calculate_and_set_sleep_scores(health_sleep)
     created = health_sleep_crud.create_health_sleep(user_id, health_sleep, db)
     db.commit()
@@ -135,12 +180,12 @@ def create_health_sleep(
     return created
 
 
-def _score_edit(
+def _check_and_score_edit(
     user_id: int, health_sleep_id: int, health_sleep: health_sleep_schema.HealthSleepUpdate, db: Session
 ) -> None:
-    """Set the scores of an update from the record the update produces.
+    """Refuse an update that makes the record contradict itself, and set the scores it produces.
 
-    The scores follow the stored record with the update's fields laid over it. An update that sends no
+    The update is checked as the stored record with its fields laid over it. The scores follow the stored record with the update's fields laid over it. An update that sends no
     scoring input keeps the stored scores, and scores the client sends never reach the record.
 
     Args:
@@ -151,13 +196,15 @@ def _score_edit(
 
     Raises:
         NotFoundError: If the user has no such record.
+        InvalidInputError: If the stages or the total contradict each other.
     """
     stored = health_sleep_crud.get_health_sleep_by_id(user_id, health_sleep_id, db)
     health_sleep.model_fields_set.difference_update(health_sleep_sleep_scoring.SCORE_FIELDS)
     sent = health_sleep.model_dump(exclude_unset=True)
+    merged = stored.model_copy(update=sent)
+    _require_consistent(merged)
     if not health_sleep_sleep_scoring.SCORING_INPUT_FIELDS & sent.keys():
         return
-    merged = stored.model_copy(update=sent)
     health_sleep_sleep_scoring.calculate_and_set_sleep_scores(merged)
     for field in health_sleep_sleep_scoring.SCORE_FIELDS:
         setattr(health_sleep, field, getattr(merged, field))
@@ -185,11 +232,12 @@ def edit_health_sleep(
 
     Raises:
         NotFoundError: If the user has no such record.
+        InvalidInputError: If the stages or the total contradict each other.
         PreconditionFailedError: If the record changed since the client read it.
     """
 
     def stage() -> health_sleep_schema.HealthSleepRead:
-        _score_edit(user_id, health_sleep_id, health_sleep, db)
+        _check_and_score_edit(user_id, health_sleep_id, health_sleep, db)
         return stage_edit_health_sleep(user_id, health_sleep_id, health_sleep, db, if_match=if_match)
 
     updated = health_record_service.commit_write(
