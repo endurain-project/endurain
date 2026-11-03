@@ -67,6 +67,20 @@ function hexToRgba(hex: string, alpha: number): string {
  */
 const AREA_FILL_ALPHA = 0.15
 
+/** Radius of the marker drawn when a series has a single point (a line needs two to show). */
+const SINGLE_POINT_RADIUS = 4
+
+/**
+ * Point marker radius for a series: hidden on lines with several points, but
+ * visible when there is only one so it still renders.
+ *
+ * @param data - The series values.
+ * @returns The Chart.js `pointRadius`.
+ */
+function pointRadiusFor(data: readonly number[]): number {
+  return data.length === 1 ? SINGLE_POINT_RADIUS : 0
+}
+
 /**
  * Translates seam {@link ChartRenderOptions} into a Chart.js configuration.
  * Pure and deterministic so it can be unit-tested without a canvas.
@@ -97,7 +111,7 @@ export function buildChartConfiguration(
         borderDash: [6, 6],
         fill: false,
         tension: 0,
-        pointRadius: 0,
+        pointRadius: pointRadiusFor(series.data),
       }
     }
     // Line/area charts get a flat translucent fill below the line (a calm tint,
@@ -111,7 +125,7 @@ export function buildChartConfiguration(
       borderWidth: 2,
       fill: filled,
       tension: 0.3,
-      pointRadius: 0,
+      pointRadius: pointRadiusFor(series.data),
     }
   })
 
