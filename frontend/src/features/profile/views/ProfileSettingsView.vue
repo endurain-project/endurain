@@ -65,7 +65,8 @@ const profile = computed(() => profileQuery.data.value ?? null)
     <template v-else-if="profile">
       <ProfileInfoCard :profile="profile" />
       <DefaultGearCard />
-      <PrivacySettingsCard :privacy="profile.privacy" />
+      <!-- Keyed on the version: a refetch that changes it rebuilds the form, so its If-Match is the one it shows. -->
+      <PrivacySettingsCard :key="profile.privacy.version" :privacy="profile.privacy" />
       <DataTransferCard :user-id="profile.id" />
     </template>
   </div>

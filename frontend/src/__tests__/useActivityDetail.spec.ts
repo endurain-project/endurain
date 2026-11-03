@@ -281,4 +281,16 @@ describe('useDeleteActivityMutation', () => {
     expect(queryClient.getQueryState(queryKeys.activities.detail(ACTIVITY_ID))).toBeDefined()
     expect(queryClient.getQueryState(UNAFFECTED_ACTIVITY_KEYS.streams)).toBeDefined()
   })
+
+  it('refetches only the activity when the delete fails, so a stale version is replaced', async () => {
+    const queryClient = seededClient()
+    vi.mocked(deleteActivity).mockRejectedValue(new Error('412'))
+    const mutation = mountMutation(queryClient, useDeleteActivityMutation)
+
+    await expect(mutation.mutateAsync({ id: ACTIVITY_ID, version: 4 })).rejects.toThrow('412')
+    await flushPromises()
+
+    expect(isInvalidated(queryClient, queryKeys.activities.detail(ACTIVITY_ID))).toBe(true)
+    expect(invalidatedNames(queryClient, UNAFFECTED_ACTIVITY_KEYS)).toEqual([])
+  })
 })

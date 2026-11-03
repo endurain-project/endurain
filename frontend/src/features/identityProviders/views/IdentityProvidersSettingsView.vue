@@ -13,6 +13,7 @@ import { EmptyState } from '@/components/ui/empty-state'
 import { ListPanel } from '@/components/ui/list-panel'
 import { useToasts } from '@/composables/useToasts'
 import { HttpError } from '@/services/http'
+import { isStaleWrite } from '@/services/ifMatch'
 import { toProviderInput } from '@/features/identityProviders/services/identityProviders'
 import {
   useDeleteIdentityProviderMutation,
@@ -77,7 +78,12 @@ function confirmDelete(): void {
         isDeleteOpen.value = false
         toasts.success(t('settings.idp.delete.success'))
       },
-      onError: () => toasts.error(t('settings.idp.delete.error')),
+      onError: (error) => {
+        if (isStaleWrite(error)) {
+          isDeleteOpen.value = false
+        }
+        toasts.error(isStaleWrite(error) ? t('app.staleError') : t('settings.idp.delete.error'))
+      },
     },
   )
 }

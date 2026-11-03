@@ -18,6 +18,7 @@ import { useForm } from '@/composables/useForm'
 import ProviderIconPicker from '@/features/identityProviders/components/ProviderIconPicker.vue'
 import PasswordInput from '@/features/security/components/PasswordInput.vue'
 import { HttpError } from '@/services/http'
+import { isStaleWrite } from '@/services/ifMatch'
 import {
   ICON_ACCEPTED_TYPES,
   ICON_MAX_BYTES,
@@ -185,8 +186,9 @@ async function submitForm(values: ProviderFormValues): Promise<void> {
     }
     open.value = false
   } catch (error) {
-    if (error instanceof HttpError && error.status === 412) {
-      emit('error', t('settings.idp.form.staleError'))
+    if (isStaleWrite(error)) {
+      open.value = false
+      emit('error', t('app.staleError'))
     } else if (error instanceof HttpError && error.status === 409) {
       emit('error', t('settings.idp.form.slugConflict'))
     } else if (error instanceof HttpError && error.status === 400) {

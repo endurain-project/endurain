@@ -116,8 +116,12 @@ function confirmDelete(): void {
         isDeleteOpen.value = false
         toasts.success(t('settings.goals.delete.success'))
       },
-      onError: (error) =>
-        toasts.error(isStaleWrite(error) ? t('app.staleError') : t('settings.goals.delete.error')),
+      onError: (error) => {
+        if (isStaleWrite(error)) {
+          isDeleteOpen.value = false
+        }
+        toasts.error(isStaleWrite(error) ? t('app.staleError') : t('settings.goals.delete.error'))
+      },
     },
   )
 }

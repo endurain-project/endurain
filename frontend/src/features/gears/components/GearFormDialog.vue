@@ -129,6 +129,7 @@ async function submitForm(values: GearFormValues): Promise<void> {
     open.value = false
   } catch (error) {
     if (isStaleWrite(error)) {
+      open.value = false
       emit('error', t('app.staleError'))
     } else if (error instanceof HttpError && error.status === 409) {
       emit('error', t('gears.form.nicknameTaken'))

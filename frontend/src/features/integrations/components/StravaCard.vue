@@ -69,9 +69,10 @@ async function connectStrava(input: StravaClientInput): Promise<void> {
   } catch (error) {
     isConnecting.value = false
     if (isStaleWrite(error)) {
-      // The integrations row changed since the profile was read; reload it so the retry carries the
-      // current version.
+      // The integrations row changed since the profile was read; reload it and close the dialog so
+      // the retry starts from the current version.
       void queryClient.invalidateQueries({ queryKey: queryKeys.profile.all() })
+      isConnectOpen.value = false
       toasts.error(t('app.staleError'))
     } else {
       toasts.error(t('settings.integrations.strava.connectError'))

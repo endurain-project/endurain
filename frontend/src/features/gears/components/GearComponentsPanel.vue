@@ -115,10 +115,12 @@ function confirmDeleteComponent(): void {
         isComponentDeleteOpen.value = false
         toasts.success(t('gears.components.delete.success'))
       },
-      onError: (error) =>
-        toasts.error(
-          isStaleWrite(error) ? t('app.staleError') : t('gears.components.delete.error'),
-        ),
+      onError: (error) => {
+        if (isStaleWrite(error)) {
+          isComponentDeleteOpen.value = false
+        }
+        toasts.error(isStaleWrite(error) ? t('app.staleError') : t('gears.components.delete.error'))
+      },
     },
   )
 }

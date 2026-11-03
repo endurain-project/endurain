@@ -57,6 +57,9 @@ async function submitForm(formValues: TargetFormValues): Promise<void> {
     emit('success', t('health.fasting.target.saveSuccess'))
     open.value = false
   } catch (error) {
+    if (isStaleWrite(error)) {
+      open.value = false
+    }
     emit('error', isStaleWrite(error) ? t('app.staleError') : t('health.fasting.target.saveError'))
   }
 }

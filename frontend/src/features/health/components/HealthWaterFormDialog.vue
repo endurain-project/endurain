@@ -115,6 +115,9 @@ async function submitForm(values: WaterFormValues): Promise<void> {
     }
     open.value = false
   } catch (error) {
+    if (isStaleWrite(error)) {
+      open.value = false
+    }
     emit('error', isStaleWrite(error) ? t('app.staleError') : t('health.water.form.saveError'))
   }
 }

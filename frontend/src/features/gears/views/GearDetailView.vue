@@ -79,8 +79,12 @@ function confirmDelete(): void {
         toasts.success(t('gears.delete.success'))
         void router.push({ name: 'gears' })
       },
-      onError: (error) =>
-        toasts.error(isStaleWrite(error) ? t('app.staleError') : t('gears.delete.error')),
+      onError: (error) => {
+        if (isStaleWrite(error)) {
+          isDeleteOpen.value = false
+        }
+        toasts.error(isStaleWrite(error) ? t('app.staleError') : t('gears.delete.error'))
+      },
     },
   )
 }

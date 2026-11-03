@@ -113,6 +113,9 @@ async function submitForm(values: PoopFormValues): Promise<void> {
     }
     open.value = false
   } catch (error) {
+    if (isStaleWrite(error)) {
+      open.value = false
+    }
     emit('error', isStaleWrite(error) ? t('app.staleError') : t('health.poop.form.saveError'))
   }
 }

@@ -13,6 +13,7 @@ import { FormDialog } from '@/components/ui/form-dialog'
 import { FormField } from '@/components/ui/form-field'
 import { inputFieldClass } from '@/components/ui/input/fieldClasses'
 import { useToasts } from '@/composables/useToasts'
+import { isStaleWrite } from '@/services/ifMatch'
 import {
   useActivityGearOptionsQuery,
   useSetActivityGearMutation,
@@ -66,8 +67,11 @@ async function submitGear(): Promise<void> {
     await setGearMutation.mutateAsync({ activity: props.activity, gearId: selectedGearId.value })
     isPickerOpen.value = false
     toasts.success(t('activities.gear.saveSuccess'))
-  } catch {
-    toasts.error(t('activities.gear.saveError'))
+  } catch (error) {
+    if (isStaleWrite(error)) {
+      isPickerOpen.value = false
+    }
+    toasts.error(isStaleWrite(error) ? t('app.staleError') : t('activities.gear.saveError'))
   }
 }
 
@@ -77,8 +81,11 @@ async function removeGear(): Promise<void> {
     await setGearMutation.mutateAsync({ activity: props.activity, gearId: null })
     isRemoveOpen.value = false
     toasts.success(t('activities.gear.removeSuccess'))
-  } catch {
-    toasts.error(t('activities.gear.removeError'))
+  } catch (error) {
+    if (isStaleWrite(error)) {
+      isRemoveOpen.value = false
+    }
+    toasts.error(isStaleWrite(error) ? t('app.staleError') : t('activities.gear.removeError'))
   }
 }
 </script>

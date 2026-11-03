@@ -139,6 +139,9 @@ async function submitForm(values: WeightFormValues): Promise<void> {
     }
     open.value = false
   } catch (error) {
+    if (isStaleWrite(error)) {
+      open.value = false
+    }
     emit('error', isStaleWrite(error) ? t('app.staleError') : t('health.weight.form.saveError'))
   }
 }

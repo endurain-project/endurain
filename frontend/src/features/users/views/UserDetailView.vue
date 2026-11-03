@@ -89,8 +89,12 @@ function confirmDelete(): void {
         toasts.success(t('settings.users.delete.success'))
         void router.push({ name: 'settings-users' })
       },
-      onError: (error) =>
-        toasts.error(isStaleWrite(error) ? t('app.staleError') : t('settings.users.delete.error')),
+      onError: (error) => {
+        if (isStaleWrite(error)) {
+          isDeleteOpen.value = false
+        }
+        toasts.error(isStaleWrite(error) ? t('app.staleError') : t('settings.users.delete.error'))
+      },
     },
   )
 }
@@ -175,10 +179,14 @@ function reject(): void {
         toasts.success(t('settings.users.approval.rejectSuccess'))
         void router.push({ name: 'settings-users' })
       },
-      onError: (error) =>
+      onError: (error) => {
+        if (isStaleWrite(error)) {
+          isRejectOpen.value = false
+        }
         toasts.error(
           isStaleWrite(error) ? t('app.staleError') : t('settings.users.approval.rejectError'),
-        ),
+        )
+      },
     },
   )
 }

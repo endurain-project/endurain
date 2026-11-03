@@ -159,6 +159,7 @@ async function submitForm(values: ComponentFormValues): Promise<void> {
     open.value = false
   } catch (error) {
     if (isStaleWrite(error)) {
+      open.value = false
       emit('error', t('app.staleError'))
     } else if (error instanceof HttpError && error.status === 400) {
       emit('error', t('gears.components.form.retiredBeforePurchase'))

@@ -185,6 +185,7 @@ async function submitForm(formValues: UserFormValues): Promise<void> {
     if (passwordProblem) {
       emit('error', passwordProblem)
     } else if (isStaleWrite(error)) {
+      open.value = false
       emit('error', t('app.staleError'))
     } else if (error instanceof HttpError && error.status === 409) {
       emit('error', t('settings.users.form.conflict'))

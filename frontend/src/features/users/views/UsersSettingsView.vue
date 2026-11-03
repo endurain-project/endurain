@@ -207,8 +207,12 @@ function confirmDelete(): void {
         isDeleteOpen.value = false
         toasts.success(t('settings.users.delete.success'))
       },
-      onError: (error) =>
-        toasts.error(isStaleWrite(error) ? t('app.staleError') : t('settings.users.delete.error')),
+      onError: (error) => {
+        if (isStaleWrite(error)) {
+          isDeleteOpen.value = false
+        }
+        toasts.error(isStaleWrite(error) ? t('app.staleError') : t('settings.users.delete.error'))
+      },
     },
   )
 }
@@ -243,10 +247,14 @@ function confirmReject(): void {
         isRejectOpen.value = false
         toasts.success(t('settings.users.approval.rejectSuccess'))
       },
-      onError: (error) =>
+      onError: (error) => {
+        if (isStaleWrite(error)) {
+          isRejectOpen.value = false
+        }
         toasts.error(
           isStaleWrite(error) ? t('app.staleError') : t('settings.users.approval.rejectError'),
-        ),
+        )
+      },
     },
   )
 }

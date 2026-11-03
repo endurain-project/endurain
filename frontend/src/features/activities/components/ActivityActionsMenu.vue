@@ -15,6 +15,7 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
 import { useToasts } from '@/composables/useToasts'
+import { isStaleWrite } from '@/services/ifMatch'
 import {
   useDeleteActivityMutation,
   useUploadActivityMediaMutation,
@@ -71,8 +72,11 @@ async function confirmDelete(): Promise<void> {
     isDeleteOpen.value = false
     toasts.success(t('activities.actions.deleteSuccess'))
     await router.push({ name: 'home' })
-  } catch {
-    toasts.error(t('activities.actions.deleteError'))
+  } catch (error) {
+    if (isStaleWrite(error)) {
+      isDeleteOpen.value = false
+    }
+    toasts.error(isStaleWrite(error) ? t('app.staleError') : t('activities.actions.deleteError'))
   }
 }
 </script>

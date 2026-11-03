@@ -165,6 +165,9 @@ async function submitForm(formValues: FastingFormValues): Promise<void> {
     }
     open.value = false
   } catch (error) {
+    if (isStaleWrite(error)) {
+      open.value = false
+    }
     emit('error', isStaleWrite(error) ? t('app.staleError') : t('health.fasting.form.saveError'))
   }
 }

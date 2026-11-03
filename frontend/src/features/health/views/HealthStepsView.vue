@@ -130,8 +130,12 @@ function confirmDelete(): void {
         isDeleteOpen.value = false
         toasts.success(t('health.steps.delete.success'))
       },
-      onError: (error) =>
-        toasts.error(isStaleWrite(error) ? t('app.staleError') : t('health.steps.delete.error')),
+      onError: (error) => {
+        if (isStaleWrite(error)) {
+          isDeleteOpen.value = false
+        }
+        toasts.error(isStaleWrite(error) ? t('app.staleError') : t('health.steps.delete.error'))
+      },
     },
   )
 }

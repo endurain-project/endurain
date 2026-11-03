@@ -354,6 +354,7 @@ export function useDeleteActivityMutation() {
       client.removeQueries({ queryKey: queryKeys.activities.detail(id) })
       unpinActivity(id)
     },
+    onError: (_error, { id }) => refetchActivity(client, id),
     onSettled: () => {
       invalidateActivityAggregates(client)
       invalidateGearUsage(client)
