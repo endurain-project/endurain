@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
 import { ErrorState } from '@/components/ui/error-state'
 import HealthDashboardCard from '@/features/health/components/HealthDashboardCard.vue'
+import { useNow } from '@/composables/useNow'
 import { useCurrentUser } from '@/features/auth/composables/useCurrentUser'
 import { useHealthDashboardQuery } from '@/features/health/composables/useHealth'
 import { useUnitFormat } from '@/composables/useUnitFormat'
@@ -36,6 +37,9 @@ const { data: user } = useCurrentUser()
 const units = computed(() => user.value?.units ?? 'metric')
 const weightUnits = computed(() => user.value?.weightUnits ?? 'metric')
 const dashboard = computed(() => dashboardQuery.data.value ?? null)
+
+// The fasting card shows minutes, so a once-a-minute clock keeps an in-progress fast current.
+const now = useNow(() => (dashboard.value?.fasting?.status === 'in_progress' ? 60_000 : null))
 const targets = computed(() => dashboard.value?.targets ?? null)
 
 const isLoading = computed(() => dashboardQuery.isPending.value)
@@ -116,7 +120,7 @@ const cards = computed<CardModel[]>(() => {
   const u = units.value
   const wu = weightUnits.value
   const noData = t('health.dashboard.labelNoData')
-  const fastingSeconds = d?.fasting ? fastingElapsedSeconds(d.fasting) : null
+  const fastingSeconds = d?.fasting ? fastingElapsedSeconds(d.fasting, now.value) : null
   const bmi = d?.bmi ?? null
 
   return [
@@ -143,7 +147,7 @@ const cards = computed<CardModel[]>(() => {
       title: t('health.dashboard.avgSkinTemperatureDeviation'),
       value:
         d?.skinTempDeviation != null
-          ? formatSkinTempDeviation(d.skinTempDeviation, unitLabel)
+          ? formatSkinTempDeviation(d.skinTempDeviation, u, unitLabel)
           : null,
       noDataLabel: noData,
     },

@@ -65,13 +65,22 @@ export function formatRestingHeartRate(bpm: number, unitLabel: UnitLabel): strin
 }
 
 /**
- * Formats a skin-temperature deviation to one decimal place in °C.
+ * Formats a skin-temperature deviation to one decimal place. A deviation is a
+ * temperature difference, so the Fahrenheit value scales by 9/5 with no offset.
  *
  * @param celsius - Deviation in degrees Celsius (may be negative).
+ * @param units - The unit system the user reads temperatures in.
  * @param unitLabel - The unit symbol resolver.
- * @returns The formatted deviation.
+ * @returns The formatted deviation (`-1.2 °C` or `-2.2 °F`).
  */
-export function formatSkinTempDeviation(celsius: number, unitLabel: UnitLabel): string {
+export function formatSkinTempDeviation(
+  celsius: number,
+  units: Units,
+  unitLabel: UnitLabel,
+): string {
+  if (units === 'imperial') {
+    return `${((celsius * 9) / 5).toFixed(1)} ${unitLabel('fahrenheit')}`
+  }
   return `${celsius.toFixed(1)} ${unitLabel('celsius')}`
 }
 

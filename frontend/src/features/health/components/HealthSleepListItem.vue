@@ -9,6 +9,7 @@ import { Button } from '@/components/ui/button'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { INTEGRATION_LOGOS } from '@/constants/integrationLogos'
 import { useUnitFormat } from '@/composables/useUnitFormat'
+import { useCurrentUser } from '@/features/auth/composables/useCurrentUser'
 import {
   formatHealthEntryDate,
   formatHoursMinutes,
@@ -28,6 +29,8 @@ const emit = defineEmits<{ edit: [entry: SleepEntry]; delete: [entry: SleepEntry
 
 const { t, locale } = useI18n()
 const { duration, unitLabel, percent } = useUnitFormat()
+const { data: user } = useCurrentUser()
+const units = computed(() => user.value?.units ?? 'metric')
 
 const expanded = ref(false)
 
@@ -292,7 +295,7 @@ const hrvLabel = computed(() => {
                 <div v-if="entry.avgSkinTempDeviation !== null">
                   <dt class="text-caption">{{ t('health.sleep.detail.skinTempDeviation') }}</dt>
                   <dd class="text-hint">
-                    {{ formatSkinTempDeviation(entry.avgSkinTempDeviation, unitLabel) }}
+                    {{ formatSkinTempDeviation(entry.avgSkinTempDeviation, units, unitLabel) }}
                   </dd>
                 </div>
                 <div v-if="entry.avgSleepStress !== null">

@@ -37,7 +37,12 @@ describe('unit-bearing formatters', () => {
   })
 
   it('formatSkinTempDeviation takes the Celsius symbol from the resolver', () => {
-    expect(formatSkinTempDeviation(-1.24, label)).toBe('-1.2 <celsius>')
+    expect(formatSkinTempDeviation(-1.24, 'metric', label)).toBe('-1.2 <celsius>')
+  })
+
+  it('formatSkinTempDeviation scales a delta to Fahrenheit without the +32 offset', () => {
+    expect(formatSkinTempDeviation(1, 'imperial', label)).toBe('1.8 <fahrenheit>')
+    expect(formatSkinTempDeviation(-0.5, 'imperial', label)).toBe('-0.9 <fahrenheit>')
   })
 
   it('formatWeight picks kg or lb by unit system', () => {

@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
+import { computed } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { Ban, Check, Clock, Square } from '@lucide/vue'
 
@@ -8,6 +8,7 @@ import type { FastingEntry, FastingStatus } from '@/features/health/types'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
+import { useNow } from '@/composables/useNow'
 import { useUnitFormat } from '@/composables/useUnitFormat'
 import { formatElapsedClock, formatHoursMinutes } from '@/features/health/utils/healthFormat'
 import { formatMediumDateTime } from '@/utils/datetime'
@@ -24,20 +25,8 @@ const emit = defineEmits<{ complete: [status: FastingStatus] }>()
 const { t, locale } = useI18n()
 const { duration, percent } = useUnitFormat()
 
-// Ticking clock: a 1s interval drives `now` so the elapsed time updates live.
-const now = ref(Date.now())
-let timer: ReturnType<typeof setInterval> | undefined
-
-onMounted(() => {
-  timer = setInterval(() => {
-    now.value = Date.now()
-  }, 1000)
-})
-onBeforeUnmount(() => {
-  if (timer) {
-    clearInterval(timer)
-  }
-})
+// The card only renders while a fast is in progress, so the clock ticks every second.
+const now = useNow(1000)
 
 /** Epoch milliseconds of the fast's start, or `null` when unparseable. */
 const startMs = computed(() => {
