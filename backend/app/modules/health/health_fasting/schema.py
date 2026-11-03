@@ -17,6 +17,9 @@ from pydantic import (
     model_validator,
 )
 
+import core.partial_update as core_partial_update
+import core.types as core_types
+
 
 class Source(Enum):
     """Enumeration of data sources for fasting records.
@@ -79,7 +82,6 @@ class HealthFastingBase(BaseModel):
         fast_start_time: Start time of fast.
         fast_end_time: End time of fast.
         target_duration_seconds: Target fasting duration in seconds.
-        actual_duration_seconds: Actual fasting duration in seconds.
         fasting_type: Type of fasting protocol.
         status: Current status of the fasting session.
         notes: Optional notes about the fasting session.
@@ -99,11 +101,6 @@ class HealthFastingBase(BaseModel):
         ge=0,
         le=259200,  # Max 72 hours
         description="Target fasting duration in seconds (max 72h)",
-    )
-    actual_duration_seconds: StrictInt | None = Field(
-        default=None,
-        ge=0,
-        description="Actual fasting duration in seconds",
     )
     fasting_type: FastingType | None = Field(
         default=None,
@@ -131,13 +128,26 @@ class HealthFastingBase(BaseModel):
     )
 
 
-class HealthFastingCreate(HealthFastingBase):
+class HealthFastingWrite(HealthFastingBase):
+    """Fasting fields a client writes: the times are bounded, which a stored row read back need not be."""
+
+    fast_start_time: core_types.RecordDateTime | None = Field(
+        default=None,
+        description="Start time of fast",
+    )
+    fast_end_time: core_types.RecordDateTime | None = Field(
+        default=None,
+        description="End time of fast (null if ongoing)",
+    )
+
+
+class HealthFastingCreate(HealthFastingWrite):
     """Schema for creating a new fasting session.
 
     Requires start time and sets defaults for status.
     """
 
-    fast_start_time: datetime = Field(
+    fast_start_time: core_types.RecordDateTime = Field(
         ...,
         description="Start time of fast",
     )
@@ -162,6 +172,7 @@ class HealthFastingRead(HealthFastingBase):
     Attributes:
         id: Unique identifier for the fasting record.
         user_id: Foreign key reference to the user.
+        actual_duration_seconds: Seconds between the start and end time, derived by the server.
     """
 
     id: StrictInt = Field(
@@ -176,15 +187,22 @@ class HealthFastingRead(HealthFastingBase):
         ...,
         description="Foreign key reference to the user",
     )
+    actual_duration_seconds: StrictInt | None = Field(
+        default=None,
+        ge=0,
+        description="Seconds between the start and the end time, derived by the server; null while the fast has no end",
+    )
     version: StrictInt = Field(default=1, ge=1, description="Optimistic-concurrency counter, also sent as the ETag")
 
 
-class HealthFastingUpdate(HealthFastingBase):
+class HealthFastingUpdate(core_partial_update.NotClearable, HealthFastingWrite):
     """Schema for the fields a PATCH changes on a fasting record.
 
     The record is named by the path, so the body carries neither an id nor an owner; only the
     fields present are changed.
     """
+
+    not_clearable = ("fast_start_time", "status")
 
 
 class HealthFastingComplete(BaseModel):

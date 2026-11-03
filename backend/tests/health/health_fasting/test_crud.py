@@ -109,9 +109,10 @@ class TestCreateHealthFasting:
         record = health_fasting_schema.HealthFastingCreate(fast_start_time=datetime(2024, 1, 15, 8, 0, 0))
 
         with stub_model(health_fasting_crud, _row()) as model:
-            health_fasting_crud.create_health_fasting(1, record, mock_db)
+            health_fasting_crud.create_health_fasting(1, record, mock_db, actual_duration_seconds=None)
 
         assert model.call_args.kwargs["user_id"] == 1
+        assert model.call_args.kwargs["actual_duration_seconds"] is None
         mock_db.flush.assert_called_once()
         mock_db.commit.assert_not_called()
 
@@ -123,7 +124,7 @@ class TestCreateHealthFasting:
             stub_model(health_fasting_crud, _row()),
             pytest.raises(core_exceptions.ConflictError),
         ):
-            health_fasting_crud.create_health_fasting(1, record, mock_db)
+            health_fasting_crud.create_health_fasting(1, record, mock_db, actual_duration_seconds=None)
 
 
 class TestEditHealthFasting:
@@ -132,9 +133,10 @@ class TestEditHealthFasting:
         _returns_one(mock_db, row)
         update = health_fasting_schema.HealthFastingUpdate(notes="felt good")
 
-        health_fasting_crud.edit_health_fasting(1, 1, update, mock_db, if_match="*")
+        health_fasting_crud.edit_health_fasting(1, 1, update, mock_db, actual_duration_seconds=None, if_match="*")
 
         assert row.notes == "felt good"
+        assert row.actual_duration_seconds is None
         mock_db.flush.assert_called_once()
         mock_db.commit.assert_not_called()
 
@@ -144,14 +146,14 @@ class TestEditHealthFasting:
         update = health_fasting_schema.HealthFastingUpdate(status="in_progress")
 
         with pytest.raises(core_exceptions.ConflictError):
-            health_fasting_crud.edit_health_fasting(1, 1, update, mock_db, if_match="*")
+            health_fasting_crud.edit_health_fasting(1, 1, update, mock_db, actual_duration_seconds=None, if_match="*")
 
     def test_unknown_record_is_not_found(self, mock_db):
         _returns_one(mock_db, None)
         update = health_fasting_schema.HealthFastingUpdate(notes="x")
 
         with pytest.raises(core_exceptions.NotFoundError, match="Health fasting not found"):
-            health_fasting_crud.edit_health_fasting(1, 9, update, mock_db, if_match="*")
+            health_fasting_crud.edit_health_fasting(1, 9, update, mock_db, actual_duration_seconds=None, if_match="*")
 
 
 class TestEndHealthFasting:

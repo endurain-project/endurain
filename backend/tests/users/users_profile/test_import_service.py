@@ -8,6 +8,7 @@ from typing import Any, ClassVar
 from unittest.mock import AsyncMock, MagicMock, PropertyMock, patch
 
 import pytest
+from pydantic import ValidationError
 from sqlalchemy.orm import Session
 
 import core.exceptions as core_exceptions
@@ -796,6 +797,23 @@ class TestImportServiceHealthRecords:
         assert writers["health_sleep"].call_args.args[1].total_sleep_seconds == 28800
         assert writers["health_steps"].call_args.args[1].steps == 9000
         assert all(service.counts[name] == 1 for name in records)
+
+    async def test_a_value_the_server_derives_is_dropped_from_an_archived_row(self) -> None:
+        service = self._service()
+        archived = {"fast_start_time": "2024-01-15T20:00:00Z", "actual_duration_seconds": 57600, "status": "completed"}
+        writers, patched = self._writers()
+
+        with patched:
+            await service.collect_and_import_health_records({"health_fasting": [archived]})
+
+        writers["health_fasting"].assert_called_once()
+        assert service.counts["health_fasting"] == 1
+
+    def test_the_create_schema_refuses_a_derived_value(self) -> None:
+        with pytest.raises(ValidationError):
+            health_fasting_schema.HealthFastingCreate.model_validate(
+                {"fast_start_time": "2024-01-15T20:00:00Z", "actual_duration_seconds": 57600}
+            )
 
     async def test_a_skipped_duplicate_is_not_counted(self) -> None:
         service = self._service()

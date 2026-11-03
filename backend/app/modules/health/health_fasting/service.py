@@ -6,6 +6,8 @@ boundary. What other modules may consume lives in
 :mod:`modules.health.health_fasting.integration_service`.
 """
 
+from datetime import datetime
+
 from sqlalchemy.orm import Session
 
 import core.exceptions as core_exceptions
@@ -20,6 +22,94 @@ import modules.health.record_service as health_record_service
 import modules.users.users.integration_service as users_integration
 
 logger = core_logger.get_logger(__name__)
+
+_OVERLAP_MESSAGE = "Another fasting session overlaps these times"
+
+_ENDED_STATUSES = frozenset(
+    {health_fasting_schema.FastingStatus.COMPLETED.value, health_fasting_schema.FastingStatus.BROKEN.value}
+)
+
+
+def _seconds_between(fast_start_time: datetime, fast_end_time: datetime) -> int:
+    """Return how long a fast lasted.
+
+    Args:
+        fast_start_time: When the fast started.
+        fast_end_time: When the fast ended.
+
+    Returns:
+        The seconds between the two times.
+    """
+    return int(
+        (core_timezone.to_utc_aware(fast_end_time) - core_timezone.to_utc_aware(fast_start_time)).total_seconds()
+    )
+
+
+def _duration_seconds(fast_start_time: datetime, fast_end_time: datetime | None) -> int | None:
+    """Return the duration a fast stores.
+
+    Args:
+        fast_start_time: When the fast started.
+        fast_end_time: When the fast ended, or ``None`` while it has not.
+
+    Returns:
+        The seconds between the two times, or ``None`` without an end time.
+    """
+    return None if fast_end_time is None else _seconds_between(fast_start_time, fast_end_time)
+
+
+def _check_times(fast_start_time: datetime, fast_end_time: datetime | None, status: str | None) -> None:
+    """Refuse times and a status that cannot describe one fast.
+
+    Args:
+        fast_start_time: When the fast started.
+        fast_end_time: When the fast ended, or ``None``.
+        status: The fast's status.
+
+    Raises:
+        InvalidInputError: If the fast ends before it started, or is completed or broken without an end.
+    """
+    if fast_end_time is None:
+        if status in _ENDED_STATUSES:
+            raise core_exceptions.InvalidInputError("A completed or broken fasting session needs an end time")
+    elif core_timezone.to_utc_aware(fast_end_time) < core_timezone.to_utc_aware(fast_start_time):
+        raise core_exceptions.InvalidInputError("Fasting session cannot end before it started")
+
+
+def _overlaps(
+    user_id: int,
+    fast_start_time: datetime,
+    fast_end_time: datetime | None,
+    status: str | None,
+    db: Session,
+    *,
+    exclude_id: int | None = None,
+) -> bool:
+    """Tell whether another fast of the user overlaps the times.
+
+    A fast without an end time lasts indefinitely only while it is in progress; a cancelled one has no
+    extent to overlap with.
+
+    Args:
+        user_id: The fast's owner.
+        fast_start_time: When the fast started.
+        fast_end_time: When the fast ended, or ``None``.
+        status: The fast's status.
+        db: Database session.
+        exclude_id: The fast being edited, which does not overlap itself.
+
+    Returns:
+        True when another fast overlaps.
+    """
+    if fast_end_time is None and status != health_fasting_schema.FastingStatus.IN_PROGRESS.value:
+        return False
+    return health_fasting_crud.fasting_overlaps(
+        user_id,
+        core_timezone.to_utc_aware(fast_start_time),
+        core_timezone.to_utc_aware(fast_end_time),
+        db,
+        exclude_id=exclude_id,
+    )
 
 
 def list_health_fasting(
@@ -130,14 +220,23 @@ def create_health_fasting(
         The created session.
 
     Raises:
-        ConflictError: If the user already has an active fasting session.
+        ConflictError: If the user already has an active fasting session, or another session overlaps the times.
+        InvalidInputError: If the session ends before it started, or is completed or broken without an end.
     """
     if health_fasting_crud.get_active_fasting_by_user_id(user_id, db) is not None:
         raise core_exceptions.ConflictError(
             "User already has an active fasting session. Complete or cancel it before starting a new one."
         )
+    _check_times(health_fasting.fast_start_time, health_fasting.fast_end_time, health_fasting.status)
+    if _overlaps(user_id, health_fasting.fast_start_time, health_fasting.fast_end_time, health_fasting.status, db):
+        raise core_exceptions.ConflictError(_OVERLAP_MESSAGE)
 
-    created = health_fasting_crud.create_health_fasting(user_id, health_fasting, db)
+    created = health_fasting_crud.create_health_fasting(
+        user_id,
+        health_fasting,
+        db,
+        actual_duration_seconds=_duration_seconds(health_fasting.fast_start_time, health_fasting.fast_end_time),
+    )
     db.commit()
     logger.info("Stored a fasting session", extra=core_logger.context(user_id=user_id))
     return created
@@ -148,8 +247,9 @@ def stage_import_health_fasting(
 ) -> bool:
     """Stage an imported fasting session unless the user already has it.
 
-    A session counts as already there when the user has one that started at the same time. A running
-    fast is skipped when the user already has one running, since only one may run at a time.
+    A session counts as already there when the user has one that started at the same time. A session is
+    also skipped when its times are invalid or overlap another session, and a running fast when the user
+    already has one running, since only one may run at a time.
 
     Args:
         user_id: The session's owner.
@@ -159,11 +259,20 @@ def stage_import_health_fasting(
     Returns:
         True when the session was staged, False when it was skipped.
     """
-    if health_fasting_crud.health_fasting_exists_at(user_id, health_fasting.fast_start_time, db):
+    start, end = health_fasting.fast_start_time, health_fasting.fast_end_time
+    if health_fasting_crud.health_fasting_exists_at(user_id, start, db):
+        return False
+    try:
+        _check_times(start, end, health_fasting.status)
+    except core_exceptions.InvalidInputError:
+        return False
+    if _overlaps(user_id, start, end, health_fasting.status, db):
         return False
     try:
         with db.begin_nested():
-            health_fasting_crud.create_health_fasting(user_id, health_fasting, db)
+            health_fasting_crud.create_health_fasting(
+                user_id, health_fasting, db, actual_duration_seconds=_duration_seconds(start, end)
+            )
     except core_exceptions.ConflictError:
         return False
     return True
@@ -191,19 +300,37 @@ def edit_health_fasting(
 
     Raises:
         NotFoundError: If the user has no such record.
+        InvalidInputError: If the changed record ends before it started, or is completed or broken without an end.
+        ConflictError: If the changed record overlaps another session or would leave two running.
         PreconditionFailedError: If the record changed since the client read it.
     """
-    updated = health_record_service.commit_write(
+
+    def stage() -> health_fasting_schema.HealthFastingRead:
+        merged = get_health_fasting(user_id, health_fasting_id, db).model_copy(
+            update=health_fasting.model_dump(exclude_unset=True)
+        )
+        _check_times(merged.fast_start_time, merged.fast_end_time, merged.status)
+        if _overlaps(
+            user_id, merged.fast_start_time, merged.fast_end_time, merged.status, db, exclude_id=health_fasting_id
+        ):
+            raise core_exceptions.ConflictError(_OVERLAP_MESSAGE)
+        return health_fasting_crud.edit_health_fasting(
+            user_id,
+            health_fasting_id,
+            health_fasting,
+            db,
+            actual_duration_seconds=_duration_seconds(merged.fast_start_time, merged.fast_end_time),
+            if_match=if_match,
+        )
+
+    return health_record_service.commit_write(
         health_fasting_crud.SPEC,
         health_fasting_id,
         user_id,
-        lambda: health_fasting_crud.edit_health_fasting(
-            user_id, health_fasting_id, health_fasting, db, if_match=if_match
-        ),
+        stage,
         db,
         log_message="Edited a fasting session",
     )
-    return updated
 
 
 def complete_health_fasting(
@@ -250,7 +377,7 @@ def complete_health_fasting(
             health_fasting_id,
             end_time,
             complete_data.status,
-            int((end_time - start_time).total_seconds()),
+            _seconds_between(start_time, end_time),
             complete_data.notes,
             db,
             if_match=if_match,

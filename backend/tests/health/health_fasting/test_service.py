@@ -32,9 +32,10 @@ class TestGetHealthFasting:
 
 
 class TestCreateHealthFasting:
+    @patch(f"{_CRUD}.fasting_overlaps", return_value=False)
     @patch(f"{_CRUD}.create_health_fasting")
     @patch(f"{_CRUD}.get_active_fasting_by_user_id", return_value=None)
-    def test_starts_a_fast_and_commits(self, _active, mock_create, mock_db):
+    def test_starts_a_fast_and_commits(self, _active, mock_create, _overlaps, mock_db):
         record = health_fasting_schema.HealthFastingCreate(fast_start_time=datetime(2024, 1, 15, 8, 0, 0))
 
         assert health_fasting_service.create_health_fasting(1, record, mock_db) is mock_create.return_value
@@ -53,8 +54,13 @@ class TestCreateHealthFasting:
 
 
 class TestEditAndDelete:
+    @patch(f"{_CRUD}.fasting_overlaps", return_value=False)
+    @patch(f"{_CRUD}.get_health_fasting_by_id_and_user_id")
     @patch(f"{_CRUD}.edit_health_fasting")
-    def test_edit_commits(self, _edit, mock_db):
+    def test_edit_commits(self, _edit, mock_get, _overlaps, mock_db):
+        mock_get.return_value = health_fasting_schema.HealthFastingRead(
+            id=7, user_id=1, fast_start_time=datetime(2024, 1, 15, 8, tzinfo=UTC), status="in_progress"
+        )
         health_fasting_service.edit_health_fasting(
             1, 7, health_fasting_schema.HealthFastingUpdate(), mock_db, if_match="*"
         )
@@ -194,17 +200,20 @@ class TestListHealthFasting:
 class TestStageImportHealthFasting:
     def _record(self) -> health_fasting_schema.HealthFastingCreate:
         return health_fasting_schema.HealthFastingCreate(
-            fast_start_time=datetime(2024, 1, 15, 20, 0, tzinfo=UTC), status="completed"
+            fast_start_time=datetime(2024, 1, 15, 20, 0, tzinfo=UTC),
+            fast_end_time=datetime(2024, 1, 16, 8, 0, tzinfo=UTC),
+            status="completed",
         )
 
+    @patch(f"{_CRUD}.fasting_overlaps", return_value=False)
     @patch(f"{_CRUD}.create_health_fasting")
     @patch(f"{_CRUD}.health_fasting_exists_at", return_value=False)
-    def test_stages_a_session_the_user_does_not_have(self, _exists, mock_create, mock_db):
+    def test_stages_a_session_the_user_does_not_have(self, _exists, mock_create, _overlaps, mock_db):
         record = self._record()
 
         assert health_fasting_service.stage_import_health_fasting(1, record, mock_db) is True
 
-        mock_create.assert_called_once_with(1, record, mock_db)
+        mock_create.assert_called_once_with(1, record, mock_db, actual_duration_seconds=43200)
         mock_db.commit.assert_not_called()
 
     @patch(f"{_CRUD}.create_health_fasting")

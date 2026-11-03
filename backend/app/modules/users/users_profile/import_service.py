@@ -78,6 +78,9 @@ logger = core_logger.get_logger(__name__)
 #: What an archive carries of a row's identity: the exporting account's id, owner and version, none of which an import writes.
 _ROW_IDENTITY = frozenset({"id", "user_id", "version"})
 
+#: Fields an archive carries that the server derives on write, per health record kind; they are dropped on import.
+_SERVER_DERIVED_FIELDS: dict[str, frozenset[str]] = {"health_fasting": frozenset({"actual_duration_seconds"})}
+
 
 def _without_row_identity(data: dict[str, Any]) -> dict[str, Any]:
     """Drop the row identity an archive carries, leaving the fields an import writes.
@@ -116,8 +119,10 @@ def _health_record_import[CreateT: BaseModel](
         Returns:
             True when the record was stored; False when it was invalid or the user already has it.
         """
+        derived = _SERVER_DERIVED_FIELDS.get(kind, frozenset())
+        fields = {key: value for key, value in _without_row_identity(row).items() if key not in derived}
         try:
-            record = schema.model_validate(_without_row_identity(row))
+            record = schema.model_validate(fields)
         except ValidationError:
             logger.warning("Skipped an invalid health record", extra=core_logger.context(kind=kind))
             return False

@@ -3,7 +3,7 @@
 from datetime import date, datetime
 from decimal import Decimal
 
-from sqlalchemy import desc, func, select
+from sqlalchemy import and_, desc, func, or_, select
 from sqlalchemy.orm import Session
 
 import core.etag as core_etag
@@ -220,7 +220,11 @@ def health_fasting_exists_at(user_id: int, fast_start_time: datetime, db: Sessio
 
 
 def create_health_fasting(
-    user_id: int, health_fasting: health_fasting_schema.HealthFastingCreate, db: Session
+    user_id: int,
+    health_fasting: health_fasting_schema.HealthFastingCreate,
+    db: Session,
+    *,
+    actual_duration_seconds: int | None,
 ) -> health_fasting_schema.HealthFastingRead:
     """Stage a new fasting session for a user.
 
@@ -228,6 +232,7 @@ def create_health_fasting(
         user_id: The session's owner.
         health_fasting: The session to create.
         db: Database session.
+        actual_duration_seconds: The duration the service derived from the session's times.
 
     Returns:
         The staged session.
@@ -235,7 +240,8 @@ def create_health_fasting(
     Raises:
         ConflictError: If the user already has a running fast.
     """
-    return health_record_crud.create(SPEC, user_id, health_fasting, db, conflict=_ACTIVE_FAST_MESSAGE)
+    row = SPEC.model(**health_fasting.model_dump(), actual_duration_seconds=actual_duration_seconds, user_id=user_id)
+    return health_record_crud.add(SPEC, row, db, conflict=_ACTIVE_FAST_MESSAGE)
 
 
 def edit_health_fasting(
@@ -244,6 +250,7 @@ def edit_health_fasting(
     health_fasting: health_fasting_schema.HealthFastingUpdate,
     db: Session,
     *,
+    actual_duration_seconds: int | None,
     if_match: str,
 ) -> health_fasting_schema.HealthFastingRead:
     """Stage an update to a user's fasting record.
@@ -253,6 +260,7 @@ def edit_health_fasting(
         health_fasting_id: The record to change.
         health_fasting: The fields to change.
         db: Database session.
+        actual_duration_seconds: The duration the service derived from the record's times once changed.
         if_match: The ``If-Match`` precondition.
 
     Returns:
@@ -263,9 +271,14 @@ def edit_health_fasting(
         PreconditionFailedError: When ``if_match`` does not name the row's version.
         ConflictError: If the change would leave the user with two running fasts.
     """
-    return health_record_crud.edit(
-        SPEC, health_fasting_id, user_id, health_fasting, db, if_match=if_match, conflict=_ACTIVE_FAST_MESSAGE
-    )
+    db_health_fasting = health_record_crud.get_owned(SPEC, health_fasting_id, user_id, db)
+    core_etag.require_if_match(if_match, db_health_fasting.version, SPEC.etag_label)
+
+    for key, value in health_fasting.model_dump(exclude_unset=True).items():
+        setattr(db_health_fasting, key, value)
+    db_health_fasting.actual_duration_seconds = actual_duration_seconds
+
+    return health_record_crud.save(SPEC, db_health_fasting, db, conflict=_ACTIVE_FAST_MESSAGE)
 
 
 def end_health_fasting(
@@ -324,3 +337,38 @@ def delete_health_fasting(user_id: int, health_fasting_id: int, db: Session, *, 
         PreconditionFailedError: When ``if_match`` does not name the row's version.
     """
     health_record_crud.delete(SPEC, health_fasting_id, user_id, db, if_match=if_match)
+
+
+def fasting_overlaps(
+    user_id: int,
+    fast_start_time: datetime,
+    fast_end_time: datetime | None,
+    db: Session,
+    *,
+    exclude_id: int | None = None,
+) -> bool:
+    """Tell whether a user has a fasting session that overlaps a time span.
+
+    A running session (no end, status in progress) lasts indefinitely; a cancelled one without an end has
+    no extent and overlaps nothing. Sessions that only touch at an endpoint do not overlap.
+
+    Args:
+        user_id: The sessions' owner.
+        fast_start_time: Start of the span.
+        fast_end_time: End of the span, or ``None`` when it has none.
+        db: Database session.
+        exclude_id: A session to leave out, the one being edited.
+
+    Returns:
+        True when another session of the user overlaps the span.
+    """
+    model = health_fasting_models.HealthFasting
+    conditions = [
+        model.user_id == user_id,
+        or_(model.fast_end_time > fast_start_time, and_(model.fast_end_time.is_(None), model.status == _IN_PROGRESS)),
+    ]
+    if fast_end_time is not None:
+        conditions.append(model.fast_start_time < fast_end_time)
+    if exclude_id is not None:
+        conditions.append(model.id != exclude_id)
+    return bool(db.execute(select(select(model.id).where(*conditions).exists())).scalar())

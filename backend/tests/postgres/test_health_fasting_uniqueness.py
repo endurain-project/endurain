@@ -78,7 +78,9 @@ def test_a_finished_fast_does_not_block_a_new_one(factory):
             db,
             if_match=core_etag.format_etag(first.version),
         )
-        fasting_service.create_health_fasting(1, fasting_schema.HealthFastingCreate(fast_start_time=_START), db)
+        fasting_service.create_health_fasting(
+            1, fasting_schema.HealthFastingCreate(fast_start_time=datetime(2026, 10, 1, 20, 0, 0)), db
+        )
 
         assert db.scalar(select(func.count()).select_from(fasting_models.HealthFasting)) == 2
 
