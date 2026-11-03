@@ -319,7 +319,7 @@ class TestRunImporter:
             async def import_from_zip_data(self, data):
                 self.on_database_committed()
                 seen.append(states.get(1).status)
-                return {"imported": {"gears": 2}}
+                return {"gears": 2}
 
         with (
             patch(f"{_MODULE}.core_database.SessionLocal"),

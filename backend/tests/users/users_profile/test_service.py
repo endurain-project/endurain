@@ -197,7 +197,7 @@ class TestStageExport:
     @patch(f"{_MODULE}.profile_utils")
     @patch(f"{_MODULE}.users_integration")
     def test_server_managed_fields_never_reach_the_archive(self, mock_users, mock_utils, mock_export, mock_db):
-        mock_utils.sqlalchemy_obj_to_dict.return_value = {
+        mock_utils.model_to_dict.return_value = {
             "name": "Test",
             "weight_units": "imperial",
             "password": "secret",
@@ -226,7 +226,7 @@ class TestStageExport:
     @patch(f"{_MODULE}.profile_utils")
     @patch(f"{_MODULE}.users_integration")
     def test_a_failed_build_stages_nothing_and_is_a_domain_error(self, mock_users, mock_utils, mock_export, mock_db):
-        mock_utils.sqlalchemy_obj_to_dict.return_value = {}
+        mock_utils.model_to_dict.return_value = {}
         mock_export.ExportService.return_value.build_export_archive.side_effect = (
             profile_exceptions.DataCollectionError("boom")
         )

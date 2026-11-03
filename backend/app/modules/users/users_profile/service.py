@@ -405,7 +405,7 @@ def stage_export(user_id: int, storage: platform_providers.StorageProvider, db: 
     """
     user = users_integration.require_user(user_id, db)
 
-    user_dict = profile_utils.sqlalchemy_obj_to_dict(user)
+    user_dict = profile_utils.model_to_dict(user)
     for field in _NON_EXPORTED_USER_FIELDS:
         user_dict.pop(field, None)
 

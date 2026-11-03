@@ -245,6 +245,16 @@ class TestImportServiceLoadSingleJson:
                 result = service._load_single_json(z, "data/test.json")
             assert result == [], f"Expected [] for {type(non_list_data).__name__}"
 
+    def test_an_entry_that_is_not_an_object_is_skipped(self) -> None:
+        service = profile_import_service.ImportService(user_id=1, storage=MagicMock(), db=MagicMock(spec=Session))
+        service.performance_config.enable_memory_monitoring = False
+
+        zip_data = _make_zip_with_json({"data/gears.json": [{"id": 1}, 7, "gear", None, {"id": 2}]})
+        with zipfile.ZipFile(BytesIO(zip_data)) as z:
+            result = service._load_single_json(z, "data/gears.json")
+
+        assert result == [{"id": 1}, {"id": 2}]
+
     def test_load_single_json_missing_file_returns_empty(self) -> None:
         mock_db = MagicMock(spec=Session)
         service = profile_import_service.ImportService(
@@ -321,6 +331,23 @@ class TestImportServiceGears:
             mapping = await service.collect_and_import_gears_data([{"id": 5, "nickname": "Garmin", "gear_type": 1}])
 
         assert mapping == {5: 10}
+
+    async def test_a_gear_archived_without_an_id_is_imported_but_names_no_mapping(self) -> None:
+        service = profile_import_service.ImportService(user_id=1, storage=MagicMock(), db=MagicMock(spec=Session))
+        created = MagicMock()
+        created.id = 10
+
+        with (
+            patch(
+                "modules.users.users_profile.import_service.gear_integration.get_gear_user_by_nickname",
+                return_value=None,
+            ),
+            patch("modules.users.users_profile.import_service.gear_integration.create_gear", return_value=created),
+        ):
+            mapping = await service.collect_and_import_gears_data([{"nickname": "Garmin", "gear_type": 1}])
+
+        assert mapping == {}
+        assert service.counts["gears"] == 1
 
     async def test_import_maps_onto_a_gear_with_the_same_nickname(self) -> None:
         service = profile_import_service.ImportService(user_id=1, storage=MagicMock(), db=MagicMock(spec=Session))
@@ -719,7 +746,7 @@ class TestImportServiceUserData:
         ) as mock_edit_profile:
             result = await service.import_from_zip_data(zip_data)
 
-        assert result["detail"] == "Import completed"
+        assert result is service.counts
         mock_edit_profile.assert_called_once()
         assert service.counts["user"] == 1
         assert service.counts.get("user_identity_providers", 0) == 0
@@ -741,7 +768,10 @@ class TestImportServiceHealthRecords:
         writers = {name: MagicMock(return_value=stored) for name in self._SCHEMAS}
         patched = patch.dict(
             profile_import_service._HEALTH_RECORD_IMPORTS,
-            {name: (schema, writers[name]) for name, schema in self._SCHEMAS.items()},
+            {
+                name: profile_import_service._health_record_import(name, schema, writers[name])
+                for name, schema in self._SCHEMAS.items()
+            },
         )
         return writers, patched
 
@@ -1056,7 +1086,7 @@ class TestImportServiceFromZip:
         ):
             result = await service.import_from_zip_data(zip_data)
 
-        assert "imported" in result
+        assert result is service.counts
 
     @staticmethod
     def _atomic_service():

@@ -2,8 +2,7 @@
 
 import base64
 import json
-from collections.abc import Callable
-from typing import Any
+from typing import Any, Protocol
 
 from joserfc import jwt
 from joserfc.errors import (
@@ -59,8 +58,24 @@ def _find_key(jwks: dict[str, Any], kid: str) -> dict[str, Any] | None:
     return None
 
 
+class FetchJwks(Protocol):
+    """Return a provider's JWKS document."""
+
+    def __call__(self, jwks_uri: str, *, refresh: bool = False) -> dict[str, Any]:
+        """Return the JWKS published at a URI.
+
+        Args:
+            jwks_uri: The provider's JWKS URI.
+            refresh: Whether to fetch the document again instead of reading the cached one.
+
+        Returns:
+            The JWKS document.
+        """
+        ...
+
+
 def verify_id_token(
-    fetch_jwks: Callable[..., dict[str, Any]],
+    fetch_jwks: FetchJwks,
     id_token: str,
     jwks_uri: str,
     expected_issuer: str,

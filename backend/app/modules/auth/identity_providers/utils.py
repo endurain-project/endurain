@@ -1,6 +1,6 @@
 """Utility helpers and pre-configured templates for identity providers."""
 
-from typing import Any
+from typing import TypedDict
 from urllib.parse import parse_qsl, urlencode, urlsplit, urlunsplit
 
 import core.exceptions as core_exceptions
@@ -143,7 +143,20 @@ def build_step_up_result_url(host: str, redirect_path: str | None, result: dict[
 
 
 # Pre-configured templates for common IdPs
-IDP_TEMPLATES: dict[str, dict[str, Any]] = {
+class IdentityProviderTemplate(TypedDict):
+    """A built-in identity provider template, keyed by its template id in ``IDP_TEMPLATES``."""
+
+    name: str
+    provider_type: str
+    issuer_url: str
+    scopes: str
+    icon: str
+    user_mapping: dict[str, list[str]]
+    description: str
+    configuration_notes: str
+
+
+IDP_TEMPLATES: dict[str, IdentityProviderTemplate] = {
     "authelia": {
         "name": "Authelia",
         "provider_type": "oidc",
@@ -246,14 +259,14 @@ def get_idp_templates() -> list[idp_schema.IdentityProviderTemplateRead]:
     return templates
 
 
-def get_idp_template(template_id: str) -> dict[str, Any] | None:
+def get_idp_template(template_id: str) -> IdentityProviderTemplate | None:
     """Retrieve an identity provider template by its template ID.
 
     Args:
         template_id (str): The unique identifier of the identity provider template.
 
     Returns:
-        dict[str, Any] | None: The template dictionary if found, otherwise None.
+        IdentityProviderTemplate | None: The template if found, otherwise None.
     """
     return IDP_TEMPLATES.get(template_id)
 

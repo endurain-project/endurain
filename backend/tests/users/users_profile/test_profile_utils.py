@@ -1,8 +1,11 @@
 """Tests for profile utility functions."""
 
+from datetime import date
+from decimal import Decimal
 from unittest.mock import MagicMock, patch
 
 import pytest
+from pydantic import BaseModel
 
 import modules.users.users_profile.utils as profile_utils
 from modules.users.users_profile.exceptions import MemoryAllocationError
@@ -44,7 +47,7 @@ class TestBasePerformanceConfig:
         class TestConfig(profile_utils.BasePerformanceConfig):
             @classmethod
             def _get_tier_configs(cls):
-                return {"high": {"batch_size": 5000, "max_memory_mb": 2048}}
+                return {"high": cls(batch_size=5000, max_memory_mb=2048)}
 
         config = TestConfig.get_auto_config()
         assert config.batch_size == 5000
@@ -57,7 +60,7 @@ class TestBasePerformanceConfig:
         class TestConfig(profile_utils.BasePerformanceConfig):
             @classmethod
             def _get_tier_configs(cls):
-                return {"high": {"batch_size": 5000}}
+                return {"high": cls(batch_size=5000)}
 
         config = TestConfig.get_auto_config()
         assert config.batch_size == 1000
@@ -69,39 +72,22 @@ class TestBasePerformanceConfig:
         class TestConfig(profile_utils.BasePerformanceConfig):
             @classmethod
             def _get_tier_configs(cls):
-                return {"high": {"batch_size": 5000}}
+                return {"high": cls(batch_size=5000)}
 
         config = TestConfig.get_auto_config()
         assert config.batch_size == 1000
 
 
-class TestSQLAlchemyObjToDict:
-    """Test suite for sqlalchemy_obj_to_dict function."""
+class TestModelToDict:
+    def test_a_schema_is_dumped_as_json(self):
+        class Record(BaseModel):
+            day: date
+            amount: Decimal
 
-    def test_with_sqlalchemy_object(self):
-        col_id = MagicMock()
-        col_id.name = "id"
-        col_name = MagicMock()
-        col_name.name = "name"
-
-        table_mock = MagicMock()
-        table_mock.columns.__iter__.return_value = iter([col_id, col_name])
-
-        obj = MagicMock()
-        obj.__table__ = table_mock
-        obj.id = 1
-        obj.name = "Test"
-
-        result = profile_utils.sqlalchemy_obj_to_dict(obj)
-        assert result == {"id": 1, "name": "Test"}
-
-    def test_without_table_attribute(self):
-        result = profile_utils.sqlalchemy_obj_to_dict("not_an_sa_obj")
-        assert result == "not_an_sa_obj"
-
-    def test_with_dict(self):
-        result = profile_utils.sqlalchemy_obj_to_dict({"key": "value"})
-        assert result == {"key": "value"}
+        assert profile_utils.model_to_dict(Record(day=date(2026, 1, 2), amount=Decimal("1.5"))) == {
+            "day": "2026-01-02",
+            "amount": "1.5",
+        }
 
 
 class TestWriteJsonToZip:

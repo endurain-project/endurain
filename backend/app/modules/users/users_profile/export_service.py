@@ -16,15 +16,17 @@ import os
 import tempfile
 import time
 import zipfile
-from collections.abc import Callable, Iterator
-from typing import IO, Any, BinaryIO
+from collections.abc import Callable, Iterator, Sequence
+from typing import IO, Any, BinaryIO, Self
 
 import jasil.providers as platform_providers
+from pydantic import BaseModel
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import Session
 
 import core.logger as core_logger
 import modules.activities.activity.integration_service as activity_integration
+import modules.activities.activity.schema as activity_schema
 import modules.activities.activity_file_storage.integration_service as activity_file_storage_integration
 import modules.activities.activity_media.integration_service as activity_media_integration
 import modules.activities.contributor_registry as activities_contributor_registry
@@ -57,7 +59,7 @@ from modules.users.users_profile.exceptions import (
 logger = core_logger.get_logger(__name__)
 
 #: The health record kinds exported beside weight, each with the call that lists a user's records.
-_HEALTH_RECORD_LISTERS: dict[str, Callable[[int, Session], list[Any]]] = {
+_HEALTH_RECORD_LISTERS: dict[str, Callable[[int, Session], Sequence[BaseModel]]] = {
     "health_sleep": health_sleep_integration.list_health_sleep,
     "health_steps": health_steps_integration.list_health_steps,
     "health_water": health_water_integration.list_health_water,
@@ -88,39 +90,44 @@ class ExportPerformanceConfig(users_profile_utils.BasePerformanceConfig):
         timeout_seconds: int = 3600,
     ):
         """Set the export limits; unset values come from the auto-detected tier."""
-        super().__init__(batch_size, max_memory_mb, enable_memory_monitoring, timeout_seconds)
+        super().__init__(
+            batch_size=batch_size,
+            max_memory_mb=max_memory_mb,
+            timeout_seconds=timeout_seconds,
+            chunk_size=chunk_size,
+            enable_memory_monitoring=enable_memory_monitoring,
+        )
         self.compression_level = compression_level
-        self.chunk_size = chunk_size
 
     @classmethod
-    def _get_tier_configs(cls) -> dict[str, dict[str, Any]]:
-        """Get tier-specific configuration dictionaries.
+    def _get_tier_configs(cls) -> dict[str, Self]:
+        """Get the tier-specific configurations.
 
         Returns:
-            Dictionary mapping tier names to config dicts.
+            Dictionary mapping tier names to their configs.
         """
         return {
-            "high": {
-                "batch_size": 250,
-                "max_memory_mb": 2048,
-                "compression_level": 6,
-                "chunk_size": 16384,
-                "timeout_seconds": 7200,
-            },
-            "medium": {
-                "batch_size": 125,
-                "max_memory_mb": 1024,
-                "compression_level": 6,
-                "chunk_size": 8192,
-                "timeout_seconds": 3600,
-            },
-            "low": {
-                "batch_size": 50,
-                "max_memory_mb": 512,
-                "compression_level": 6,
-                "chunk_size": 4096,
-                "timeout_seconds": 1800,
-            },
+            "high": cls(
+                batch_size=250,
+                max_memory_mb=2048,
+                compression_level=6,
+                chunk_size=16384,
+                timeout_seconds=7200,
+            ),
+            "medium": cls(
+                batch_size=125,
+                max_memory_mb=1024,
+                compression_level=6,
+                chunk_size=8192,
+                timeout_seconds=3600,
+            ),
+            "low": cls(
+                batch_size=50,
+                max_memory_mb=512,
+                compression_level=6,
+                chunk_size=4096,
+                timeout_seconds=1800,
+            ),
         }
 
 
@@ -237,20 +244,20 @@ class ExportService:
                 "Collected a batch of activities",
                 extra=core_logger.context(batch_count=len(batch), total_count=len(activity_ids)),
             )
-            yield [users_profile_utils.sqlalchemy_obj_to_dict(activity) for activity in batch]
+            yield [users_profile_utils.model_to_dict(activity) for activity in batch]
 
     def _collect_and_write_global_activity_components(self, zipf: zipfile.ZipFile) -> None:
         """Collect and write file-global activity package records once."""
         for contributor in activities_contributor_registry.profile_global_contributors():
             try:
                 records = contributor.export(self.db)
-                record_dicts = [users_profile_utils.sqlalchemy_obj_to_dict(record) for record in records]
+                record_dicts = [users_profile_utils.model_to_dict(record) for record in records]
                 users_profile_utils.write_json_to_zip(zipf, contributor.archive_path, record_dicts, self.counts)
                 self.counts[contributor.count_key] = len(record_dicts)
             except Exception as err:
                 raise DataCollectionError(f"Failed to collect {contributor.key}: {err}") from err
 
-    def _get_activities_batch(self, offset: int, limit: int) -> list[Any]:
+    def _get_activities_batch(self, offset: int, limit: int) -> list[activity_schema.ActivityRead]:
         """Get batch of activities using pagination.
 
         Args:
@@ -347,7 +354,7 @@ class ExportService:
                 data = crud_func(batch_ids, self.db)
                 if data:
                     # Convert to dicts and add to chunk buffer
-                    batch_dicts = [users_profile_utils.sqlalchemy_obj_to_dict(item) for item in data]
+                    batch_dicts = [users_profile_utils.model_to_dict(item) for item in data]
                     chunk_buffer.extend(batch_dicts)
                     total_items += len(batch_dicts)
 
@@ -465,7 +472,7 @@ class ExportService:
 
         # Write all component data to ZIP
         if all_component_data:
-            component_dicts = [users_profile_utils.sqlalchemy_obj_to_dict(item) for item in all_component_data]
+            component_dicts = [users_profile_utils.model_to_dict(item) for item in all_component_data]
             users_profile_utils.write_json_to_zip(zipf, base_filename, component_dicts, self.counts)
             logger.debug(
                 "Written component items to ZIP",
@@ -495,7 +502,7 @@ class ExportService:
             try:
                 gears = gear_integration.get_gear_user(self.user_id, self.db)
                 if gears:
-                    gears_dicts = [users_profile_utils.sqlalchemy_obj_to_dict(g) for g in gears]
+                    gears_dicts = [users_profile_utils.model_to_dict(g) for g in gears]
                     users_profile_utils.write_json_to_zip(zipf, "data/gears.json", gears_dicts, self.counts)
                 else:
                     users_profile_utils.write_json_to_zip(zipf, "data/gears.json", [], self.counts)
@@ -506,7 +513,7 @@ class ExportService:
             try:
                 gear_components = gear_components_integration.get_gear_components_user(self.user_id, self.db)
                 if gear_components:
-                    gear_components_dicts = [users_profile_utils.sqlalchemy_obj_to_dict(gc) for gc in gear_components]
+                    gear_components_dicts = [users_profile_utils.model_to_dict(gc) for gc in gear_components]
                     users_profile_utils.write_json_to_zip(
                         zipf,
                         "data/gear_components.json",
@@ -535,7 +542,7 @@ class ExportService:
             try:
                 health_weight = health_weight_integration.list_health_weight(self.user_id, self.db)
                 if health_weight:
-                    health_weight_dicts = [users_profile_utils.sqlalchemy_obj_to_dict(hd) for hd in health_weight]
+                    health_weight_dicts = [users_profile_utils.model_to_dict(hd) for hd in health_weight]
                     users_profile_utils.write_json_to_zip(
                         zipf,
                         "data/health_weight.json",
@@ -552,7 +559,7 @@ class ExportService:
                 health_targets = health_targets_integration.get_health_targets(self.user_id, self.db)
                 if health_targets:
                     # health_targets is a single object, not a list
-                    health_targets_dict = users_profile_utils.sqlalchemy_obj_to_dict(health_targets)
+                    health_targets_dict = users_profile_utils.model_to_dict(health_targets)
                     users_profile_utils.write_json_to_zip(
                         zipf,
                         "data/health_targets.json",
@@ -580,9 +587,7 @@ class ExportService:
         try:
             for name, list_records in _HEALTH_RECORD_LISTERS.items():
                 try:
-                    records = [
-                        users_profile_utils.sqlalchemy_obj_to_dict(r) for r in list_records(self.user_id, self.db)
-                    ]
+                    records = [users_profile_utils.model_to_dict(r) for r in list_records(self.user_id, self.db)]
                 except SQLAlchemyError:
                     raise
                 except Exception as err:
@@ -655,7 +660,7 @@ class ExportService:
             try:
                 user_privacy_settings = users_privacy_settings_integration.get_privacy_settings(self.user_id, self.db)
                 if user_privacy_settings:
-                    privacy_dict = [users_profile_utils.sqlalchemy_obj_to_dict(user_privacy_settings)]
+                    privacy_dict = [users_profile_utils.model_to_dict(user_privacy_settings)]
                     users_profile_utils.write_json_to_zip(
                         zipf,
                         "data/user_privacy_settings.json",

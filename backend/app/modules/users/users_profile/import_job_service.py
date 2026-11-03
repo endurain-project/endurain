@@ -294,7 +294,7 @@ def _run_importer(
         )
         # The importer awaits file validation, so it needs a loop; this runs on a worker thread
         # with none, and the importer shares no loop-bound resources.
-        return asyncio.run(importer.import_from_zip_data(zip_data))["imported"]
+        return asyncio.run(importer.import_from_zip_data(zip_data))
 
 
 def run_import(

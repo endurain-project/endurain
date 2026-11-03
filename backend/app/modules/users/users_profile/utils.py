@@ -11,7 +11,7 @@ import json
 import time
 import zipfile
 from collections.abc import Iterable, Sequence
-from typing import Any, TypeVar
+from typing import Any, Self
 
 import psutil
 from pydantic import BaseModel
@@ -22,9 +22,6 @@ from modules.users.users_profile.exceptions import (
 )
 
 logger = core_logger.get_logger(__name__)
-
-# Type variable for performance config classes
-T_PerformanceConfig = TypeVar("T_PerformanceConfig", bound="BasePerformanceConfig")
 
 
 class BasePerformanceConfig:
@@ -54,11 +51,11 @@ class BasePerformanceConfig:
         self.enable_memory_monitoring = enable_memory_monitoring
 
     @classmethod
-    def _get_tier_configs(cls) -> dict[str, dict[str, Any]]:
+    def _get_tier_configs(cls) -> dict[str, Self]:
         """Get configuration tiers for different memory levels.
 
         Returns:
-            Dictionary mapping tier names to config dicts.
+            Dictionary mapping tier names to their configs.
 
         Raises:
             NotImplementedError: Must be implemented by subclass.
@@ -66,7 +63,7 @@ class BasePerformanceConfig:
         raise NotImplementedError("Subclasses must implement _get_tier_configs")
 
     @classmethod
-    def get_auto_config(cls: type[T_PerformanceConfig]) -> T_PerformanceConfig:
+    def get_auto_config(cls) -> Self:
         """Create config automatically based on system memory.
 
         Returns:
@@ -77,8 +74,7 @@ class BasePerformanceConfig:
             tier_configs = cls._get_tier_configs()
 
             if tier in tier_configs:
-                config_dict = tier_configs[tier]
-                return cls(**config_dict)
+                return tier_configs[tier]
             else:
                 logger.warning("Unknown memory tier, using the default config", extra=core_logger.context(tier=tier))
                 return cls()
@@ -88,26 +84,22 @@ class BasePerformanceConfig:
 
 
 # Export utility functions
-def sqlalchemy_obj_to_dict(obj: Any) -> dict[str, Any]:
-    """Convert a SQLAlchemy model or Pydantic schema to a dictionary.
+def model_to_dict(model: BaseModel) -> dict[str, Any]:
+    """Return a schema as the JSON object an archive stores.
 
     Args:
-        obj: SQLAlchemy model instance, Pydantic model, or other object.
+        model: The schema to export.
 
     Returns:
-        Dictionary with column/field names and values.
+        The schema's fields, with dates and decimals as their JSON form.
     """
-    if hasattr(obj, "__table__"):
-        return {c.name: getattr(obj, c.name) for c in obj.__table__.columns}
-    if isinstance(obj, BaseModel):
-        return obj.model_dump(mode="json")
-    return obj
+    return model.model_dump(mode="json")
 
 
 def write_json_to_zip(
     zipf: zipfile.ZipFile,
     filename: str,
-    data: list[dict[str, Any]] | dict[str, Any] | list[Any] | None,
+    data: list[dict[str, Any]] | dict[str, Any] | None,
     counts: dict[str, int],
     ensure_ascii: bool = False,
 ) -> None:
@@ -132,7 +124,7 @@ def write_json_to_zip(
 def write_json_array_to_zip(
     zipf: zipfile.ZipFile,
     filename: str,
-    batches: Iterable[Sequence[Any]],
+    batches: Iterable[Sequence[dict[str, Any]]],
     counts: dict[str, int],
     ensure_ascii: bool = False,
 ) -> None:

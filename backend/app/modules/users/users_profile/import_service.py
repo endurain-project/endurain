@@ -18,7 +18,7 @@ import time
 import zipfile
 from collections.abc import Callable
 from io import BytesIO
-from typing import Any
+from typing import Any, Self
 
 import jasil.providers as platform_providers
 from pydantic import BaseModel, ValidationError
@@ -78,19 +78,6 @@ logger = core_logger.get_logger(__name__)
 #: What an archive carries of a row's identity: the exporting account's id, owner and version, none of which an import writes.
 _ROW_IDENTITY = frozenset({"id", "user_id", "version"})
 
-#: The health record kinds imported beside weight, each with its schema and the call that stages one
-#: for a user. The call returns whether it stored the record, so a record the user already has is not counted.
-_HEALTH_RECORD_IMPORTS: dict[str, tuple[type[BaseModel], Callable[[int, Any, Session], Any]]] = {
-    "health_sleep": (health_sleep_schema.HealthSleepCreate, health_sleep_integration.upsert_health_sleep),
-    "health_steps": (health_steps_schema.HealthStepsCreate, health_steps_integration.upsert_health_steps),
-    "health_water": (health_water_schema.HealthWaterCreate, health_water_integration.upsert_health_water),
-    "health_fasting": (health_fasting_schema.HealthFastingCreate, health_fasting_integration.import_health_fasting),
-    "health_poop": (health_poop_schema.HealthPoopCreate, health_poop_integration.import_health_poop),
-}
-
-#: Archive folders holding the files written after the database rows are committed.
-_FILE_FOLDERS = ("activity_files/", "activity_media/", "user_images/")
-
 
 def _without_row_identity(data: dict[str, Any]) -> dict[str, Any]:
     """Drop the row identity an archive carries, leaving the fields an import writes.
@@ -102,6 +89,64 @@ def _without_row_identity(data: dict[str, Any]) -> dict[str, Any]:
         The row without its id, owner and version.
     """
     return {key: value for key, value in data.items() if key not in _ROW_IDENTITY}
+
+
+def _health_record_import[CreateT: BaseModel](
+    kind: str, schema: type[CreateT], stage: Callable[[int, CreateT, Session], bool | BaseModel]
+) -> Callable[[int, dict[str, Any], Session], bool]:
+    """Build the import of one archived health record of a kind.
+
+    Args:
+        kind: The record kind, for the log.
+        schema: The schema an archived record of the kind is validated as.
+        stage: Stages a record for a user; returns ``False`` when it kept a record the user already has.
+
+    Returns:
+        The import, which tells whether it stored the record.
+    """
+
+    def import_record(user_id: int, row: dict[str, Any], db: Session) -> bool:
+        """Validate one archived record and stage it for the user.
+
+        Args:
+            user_id: The importing user.
+            row: The archived record.
+            db: Database session.
+
+        Returns:
+            True when the record was stored; False when it was invalid or the user already has it.
+        """
+        try:
+            record = schema.model_validate(_without_row_identity(row))
+        except ValidationError:
+            logger.warning("Skipped an invalid health record", extra=core_logger.context(kind=kind))
+            return False
+        return stage(user_id, record, db) is not False
+
+    return import_record
+
+
+#: The health record kinds imported beside weight, each with the import of one archived record.
+_HEALTH_RECORD_IMPORTS: dict[str, Callable[[int, dict[str, Any], Session], bool]] = {
+    "health_sleep": _health_record_import(
+        "health_sleep", health_sleep_schema.HealthSleepCreate, health_sleep_integration.upsert_health_sleep
+    ),
+    "health_steps": _health_record_import(
+        "health_steps", health_steps_schema.HealthStepsCreate, health_steps_integration.upsert_health_steps
+    ),
+    "health_water": _health_record_import(
+        "health_water", health_water_schema.HealthWaterCreate, health_water_integration.upsert_health_water
+    ),
+    "health_fasting": _health_record_import(
+        "health_fasting", health_fasting_schema.HealthFastingCreate, health_fasting_integration.import_health_fasting
+    ),
+    "health_poop": _health_record_import(
+        "health_poop", health_poop_schema.HealthPoopCreate, health_poop_integration.import_health_poop
+    ),
+}
+
+#: Archive folders holding the files written after the database rows are committed.
+_FILE_FOLDERS = ("activity_files/", "activity_media/", "user_images/")
 
 
 class ImportPerformanceConfig(profile_utils.BasePerformanceConfig):
@@ -150,40 +195,40 @@ class ImportPerformanceConfig(profile_utils.BasePerformanceConfig):
         self.max_uncompressed_mb = max_uncompressed_mb
 
     @classmethod
-    def _get_tier_configs(cls) -> dict[str, dict[str, Any]]:
-        """Get tier-specific configuration dictionaries.
+    def _get_tier_configs(cls) -> dict[str, Self]:
+        """Get the tier-specific configurations.
 
         Returns:
-            Dictionary mapping tier names to config dicts.
+            Dictionary mapping tier names to their configs.
         """
         return {
-            "high": {
-                "batch_size": 250,
-                "max_memory_mb": 2048,
-                "max_json_mb": 256,
-                "max_activities": 20000,
-                "timeout_seconds": 7200,
-                "chunk_size": 8192,
-                "enable_memory_monitoring": True,
-            },
-            "medium": {
-                "batch_size": 125,
-                "max_memory_mb": 1024,
-                "max_json_mb": 128,
-                "max_activities": 10000,
-                "timeout_seconds": 3600,
-                "chunk_size": 8192,
-                "enable_memory_monitoring": True,
-            },
-            "low": {
-                "batch_size": 50,
-                "max_memory_mb": 512,
-                "max_json_mb": 64,
-                "max_activities": 5000,
-                "timeout_seconds": 1800,
-                "chunk_size": 8192,
-                "enable_memory_monitoring": True,
-            },
+            "high": cls(
+                batch_size=250,
+                max_memory_mb=2048,
+                max_json_mb=256,
+                max_activities=20000,
+                timeout_seconds=7200,
+                chunk_size=8192,
+                enable_memory_monitoring=True,
+            ),
+            "medium": cls(
+                batch_size=125,
+                max_memory_mb=1024,
+                max_json_mb=128,
+                max_activities=10000,
+                timeout_seconds=3600,
+                chunk_size=8192,
+                enable_memory_monitoring=True,
+            ),
+            "low": cls(
+                batch_size=50,
+                max_memory_mb=512,
+                max_json_mb=64,
+                max_activities=5000,
+                timeout_seconds=1800,
+                chunk_size=8192,
+                enable_memory_monitoring=True,
+            ),
         }
 
 
@@ -236,7 +281,7 @@ class ImportService:
             ),
         )
 
-    async def import_from_zip_data(self, zip_data: bytes) -> dict[str, Any]:
+    async def import_from_zip_data(self, zip_data: bytes) -> dict[str, int]:
         """Import profile data from ZIP file bytes.
 
         The database part is one transaction, committed once before the files are written, so a
@@ -247,7 +292,7 @@ class ImportService:
             zip_data: ZIP file content as bytes.
 
         Returns:
-            Dictionary with import results and counts.
+            The number of items imported, by kind.
 
         Raises:
             FileSizeError: If file exceeds size limit.
@@ -383,9 +428,11 @@ class ImportService:
                     "Profile import rolled back; nothing was imported", extra=core_logger.context(user_id=self.user_id)
                 )
 
-        return {"detail": "Import completed", "imported": self.counts}
+        return self.counts
 
-    def _load_single_json(self, zipf: zipfile.ZipFile, filename: str, check_memory: bool = True) -> list[Any]:
+    def _load_single_json(
+        self, zipf: zipfile.ZipFile, filename: str, check_memory: bool = True
+    ) -> list[dict[str, Any]]:
         """Load and parse JSON file from ZIP archive.
 
         Args:
@@ -394,7 +441,7 @@ class ImportService:
             check_memory: Whether to check memory usage.
 
         Returns:
-            Parsed JSON data as list.
+            The JSON objects the file lists; an entry that is not an object is skipped with a warning.
 
         Raises:
             JSONParseError: If JSON parsing fails.
@@ -416,7 +463,16 @@ class ImportService:
                 )
                 return []
 
-            logger.debug("Loaded items from a data file", extra=core_logger.context(count=len(data), filename=filename))
+            records = [item for item in data if isinstance(item, dict)]
+            if len(records) != len(data):
+                logger.warning(
+                    "Skipped data file entries that are not objects",
+                    extra=core_logger.context(filename=filename, skipped=len(data) - len(records)),
+                )
+
+            logger.debug(
+                "Loaded items from a data file", extra=core_logger.context(count=len(records), filename=filename)
+            )
 
             if check_memory:
                 profile_utils.check_memory_usage(
@@ -425,7 +481,7 @@ class ImportService:
                     self.performance_config.enable_memory_monitoring,
                 )
 
-            return data
+            return records
         except json.JSONDecodeError as err:
             raise JSONParseError(f"Failed to parse JSON from {filename}: {err}") from err
 
@@ -490,7 +546,7 @@ class ImportService:
                 chunks.append(chunk)
         return b"".join(chunks)
 
-    async def collect_and_import_gears_data(self, gears_data: list[Any]) -> dict[int, int]:
+    async def collect_and_import_gears_data(self, gears_data: list[dict[str, Any]]) -> dict[int, int]:
         """Import gear data and create ID mappings.
 
         Args:
@@ -507,8 +563,7 @@ class ImportService:
 
         for gear_data in gears_data:
             gear_data["user_id"] = self.user_id
-            original_id = gear_data.get("id")
-            gear_data.pop("id", None)
+            original_id = gear_data.pop("id", None)
             gear_data.pop("version", None)
 
             try:
@@ -516,7 +571,10 @@ class ImportService:
             except ValidationError:
                 logger.warning("Skipped an invalid gear")
                 continue
-            gears_id_mapping[original_id] = self._import_gear(gear)
+            new_id = self._import_gear(gear)
+            # Only an archived id can be named by the archive's components and default gear.
+            if isinstance(original_id, int):
+                gears_id_mapping[original_id] = new_id
             self.counts["gears"] += 1
 
         logger.debug("Imported gears", extra=core_logger.context(count=self.counts["gears"]))
@@ -551,7 +609,7 @@ class ImportService:
             return gear_integration.create_gear(without_ids, self.user_id, self.db).id
 
     async def collect_and_import_gear_components_data(
-        self, gear_components_data: list[Any], gears_id_mapping: dict[int, int]
+        self, gear_components_data: list[dict[str, Any]], gears_id_mapping: dict[int, int]
     ) -> None:
         """Import gear components data with ID remapping.
 
@@ -564,7 +622,8 @@ class ImportService:
             return
 
         for gear_component_data in gear_components_data:
-            new_gear_id = gears_id_mapping.get(gear_component_data.get("gear_id"))
+            archived_gear_id = gear_component_data.get("gear_id")
+            new_gear_id = gears_id_mapping.get(archived_gear_id) if isinstance(archived_gear_id, int) else None
             if new_gear_id is None:
                 logger.warning("Skipped a gear component whose gear is not in the archive")
                 continue
@@ -590,11 +649,11 @@ class ImportService:
 
     async def collect_and_import_user_data(
         self,
-        user_data: list[Any],
-        user_default_gear_data: list[Any],
-        user_goals_data: list[Any],
-        user_integrations_data: list[Any],
-        user_privacy_settings_data: list[Any],
+        user_data: list[dict[str, Any]],
+        user_default_gear_data: list[dict[str, Any]],
+        user_goals_data: list[dict[str, Any]],
+        user_integrations_data: list[dict[str, Any]],
+        user_privacy_settings_data: list[dict[str, Any]],
         gears_id_mapping: dict[int, int],
     ) -> None:
         """Import user profile and related settings.
@@ -637,7 +696,7 @@ class ImportService:
         await self.collect_and_import_user_privacy_settings(user_privacy_settings_data)
 
     async def collect_and_import_user_default_gear(
-        self, user_default_gear_data: list[Any], gears_id_mapping: dict[int, int]
+        self, user_default_gear_data: list[dict[str, Any]], gears_id_mapping: dict[int, int]
     ) -> None:
         """Import user default gear settings with ID remapping.
 
@@ -689,7 +748,7 @@ class ImportService:
         logger.debug("Imported user default gear")
         self.counts["user_default_gear"] += 1
 
-    async def collect_and_import_user_integrations(self, user_integrations_data: list[Any]) -> None:
+    async def collect_and_import_user_integrations(self, user_integrations_data: list[dict[str, Any]]) -> None:
         """Import user integration settings.
 
         Args:
@@ -720,7 +779,7 @@ class ImportService:
         logger.debug("Imported user integrations")
         self.counts["user_integrations"] += 1
 
-    async def collect_and_import_user_goals(self, user_goals_data: list[Any]) -> None:
+    async def collect_and_import_user_goals(self, user_goals_data: list[dict[str, Any]]) -> None:
         """Import user goals data.
 
         Args:
@@ -748,7 +807,7 @@ class ImportService:
 
         logger.debug("Imported user goals", extra=core_logger.context(count=self.counts["user_goals"]))
 
-    async def collect_and_import_user_privacy_settings(self, user_privacy_settings_data: list[Any]) -> None:
+    async def collect_and_import_user_privacy_settings(self, user_privacy_settings_data: list[dict[str, Any]]) -> None:
         """Import user privacy settings.
 
         Args:
@@ -835,7 +894,7 @@ class ImportService:
 
         contributors = activities_contributor_registry.profile_activity_contributors()
         component_files: dict[str, list[str]] = {}
-        component_records: dict[str, list[Any]] = {}
+        component_records: dict[str, list[dict[str, Any]]] = {}
         for contributor in contributors:
             if contributor.split:
                 component_files[contributor.key] = self._get_split_files_list(
@@ -925,8 +984,8 @@ class ImportService:
 
     @staticmethod
     def _filter_components_for_batch(
-        records: list[Any],
-        activities_batch: list[Any],
+        records: list[dict[str, Any]],
+        activities_batch: list[dict[str, Any]],
     ) -> list[dict[str, Any]]:
         """Filter in-memory component records to the current activity batch."""
         activity_ids = {
@@ -959,9 +1018,9 @@ class ImportService:
         self,
         zipf: zipfile.ZipFile,
         component_files: list[str],
-        activities_batch: list[Any],
+        activities_batch: list[dict[str, Any]],
         component_name: str,
-    ) -> list[Any]:
+    ) -> list[dict[str, Any]]:
         """Load components only for activities in current batch.
 
         Args:
@@ -1021,7 +1080,7 @@ class ImportService:
         return all_components
 
     async def collect_and_import_health_weight(
-        self, health_weight_data: list[Any], health_targets_data: list[Any]
+        self, health_weight_data: list[dict[str, Any]], health_targets_data: list[dict[str, Any]]
     ) -> None:
         """Import health data and targets.
 
@@ -1106,21 +1165,16 @@ class ImportService:
         else:
             logger.debug("No health targets to import")
 
-    async def collect_and_import_health_records(self, records: dict[str, list[Any]]) -> None:
+    async def collect_and_import_health_records(self, records: dict[str, list[dict[str, Any]]]) -> None:
         """Import sleep, steps, water, fasting and poop records.
 
         Args:
             records: The exported rows of each kind, keyed by kind (``health_sleep``, ...).
         """
         for name, rows in records.items():
-            schema, stage = _HEALTH_RECORD_IMPORTS[name]
+            import_record = _HEALTH_RECORD_IMPORTS[name]
             for row in rows:
-                try:
-                    record = schema.model_validate(_without_row_identity(row))
-                except ValidationError:
-                    logger.warning("Skipped an invalid health record", extra=core_logger.context(kind=name))
-                    continue
-                if stage(self.user_id, record, self.db):
+                if import_record(self.user_id, row, self.db):
                     self.counts[name] += 1
             logger.debug("Imported health records", extra=core_logger.context(kind=name, count=self.counts[name]))
 

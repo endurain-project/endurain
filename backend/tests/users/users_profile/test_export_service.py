@@ -8,6 +8,7 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 from jasil.backends.storage_local import LocalStorage
+from pydantic import BaseModel
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import Session
 
@@ -54,6 +55,14 @@ def _make_activity_mock(activity_id: int) -> MagicMock:
     return m
 
 
+class _Record(BaseModel):
+    """A stored record as a lister returns it."""
+
+    id: int
+    user_id: int
+    version: int
+
+
 class TestExportPerformanceConfig:
     def test_tier_configs(self) -> None:
         configs = profile_export_service.ExportPerformanceConfig._get_tier_configs()
@@ -67,6 +76,11 @@ class TestExportPerformanceConfig:
         assert config.max_memory_mb == 1024
         assert config.compression_level == 6
         assert config.chunk_size == 8192
+
+    def test_each_limit_is_kept_as_given(self) -> None:
+        config = profile_export_service.ExportPerformanceConfig(timeout_seconds=7200, enable_memory_monitoring=False)
+
+        assert (config.timeout_seconds, config.enable_memory_monitoring, config.chunk_size) == (7200, False, 8192)
 
     def test_get_auto_config_uses_low_tier(self, monkeypatch) -> None:
         monkeypatch.setattr(
@@ -146,7 +160,7 @@ class TestExportServiceCollectUserActivities:
         with (
             zipfile.ZipFile(buf, "w", zipfile.ZIP_DEFLATED, compresslevel=6) as z,
             patch.object(service, "_get_activities_batch", side_effect=batches),
-            patch.object(profile_utils, "sqlalchemy_obj_to_dict", side_effect=lambda a: {"id": a.id}),
+            patch.object(profile_utils, "model_to_dict", side_effect=lambda a: {"id": a.id}),
             patch.object(service, "_collect_and_write_activity_components") as components,
             patch.object(service, "_collect_and_write_global_activity_components"),
         ):
@@ -166,7 +180,7 @@ class TestExportServiceCollectUserActivities:
         with (
             zipfile.ZipFile(buf, "w", zipfile.ZIP_DEFLATED, compresslevel=6) as z,
             patch.object(service, "_get_activities_batch", side_effect=batches),
-            patch.object(profile_utils, "sqlalchemy_obj_to_dict", side_effect=lambda a: rows[a.id - 1]),
+            patch.object(profile_utils, "model_to_dict", side_effect=lambda a: rows[a.id - 1]),
             patch.object(service, "_collect_and_write_activity_components"),
             patch.object(service, "_collect_and_write_global_activity_components"),
         ):
@@ -194,7 +208,7 @@ class TestExportServiceCollectUserActivities:
         with (
             zipfile.ZipFile(buf, "w", zipfile.ZIP_DEFLATED, compresslevel=6) as z,
             patch.object(service, "_get_activities_batch", side_effect=fetch),
-            patch.object(profile_utils, "sqlalchemy_obj_to_dict", side_effect=convert),
+            patch.object(profile_utils, "model_to_dict", side_effect=convert),
             patch.object(service, "_collect_and_write_activity_components"),
             patch.object(service, "_collect_and_write_global_activity_components"),
         ):
@@ -240,7 +254,7 @@ class TestExportServiceCollectUserActivities:
                 "_get_activities_batch",
                 side_effect=[[_make_activity_mock(1), _make_activity_mock(2)], ValueError("bad page")],
             ),
-            patch.object(profile_utils, "sqlalchemy_obj_to_dict", side_effect=lambda a: {"id": a.id}),
+            patch.object(profile_utils, "model_to_dict", side_effect=lambda a: {"id": a.id}),
             patch.object(service, "_collect_and_write_activity_components") as components,
             pytest.raises(DataCollectionError, match="bad page"),
         ):
@@ -301,7 +315,7 @@ class TestExportServiceCollectUserActivities:
 
             with (
                 patch.object(service, "_get_activities_batch", side_effect=[[activity], []]),
-                patch.object(profile_utils, "sqlalchemy_obj_to_dict", return_value={"id": 1}),
+                patch.object(profile_utils, "model_to_dict", return_value={"id": 1}),
                 patch.object(
                     service,
                     "_collect_and_write_activity_components",
@@ -342,7 +356,7 @@ class TestExportServiceCollectGearData:
                     "modules.users.users_profile.export_service.gear_integration.get_gear_user",
                     return_value=mock_gears,
                 ),
-                patch.object(profile_utils, "sqlalchemy_obj_to_dict", return_value={"id": 1}),
+                patch.object(profile_utils, "model_to_dict", return_value={"id": 1}),
             ):
                 service.collect_gear_data(z)
 
@@ -419,7 +433,7 @@ class TestExportServiceCollectHealthWeight:
                     "modules.users.users_profile.export_service.health_targets_integration.get_health_targets",
                     return_value=MagicMock(),
                 ),
-                patch.object(profile_utils, "sqlalchemy_obj_to_dict", return_value={"id": 1}),
+                patch.object(profile_utils, "model_to_dict", return_value={"id": 1}),
             ):
                 service.collect_health_weight(z)
 
@@ -480,14 +494,14 @@ class TestExportServiceCollectHealthRecords:
     def test_writes_every_record_kind_to_its_own_file(self) -> None:
         buf = io.BytesIO()
         service = self._service()
-        rows = {name: [{"id": 1, "user_id": 1, "version": 1}] for name in self._NAMES}
+        rows = {name: [_Record(id=1, user_id=1, version=1)] for name in self._NAMES}
 
         with zipfile.ZipFile(buf, "w", zipfile.ZIP_DEFLATED) as z, self._listers(rows):
             service.collect_health_records(z)
 
         with zipfile.ZipFile(buf) as z:
             for name in self._NAMES:
-                assert json.loads(z.read(f"data/{name}.json")) == rows[name]
+                assert json.loads(z.read(f"data/{name}.json")) == [{"id": 1, "user_id": 1, "version": 1}]
         assert all(service.counts[name] == 1 for name in self._NAMES)
 
     def test_a_kind_without_records_still_gets_an_empty_file(self) -> None:
@@ -571,7 +585,7 @@ class TestExportServiceCollectUserSettings:
                     "modules.users.users_profile.export_service.users_privacy_settings_integration.get_privacy_settings",
                     return_value=MagicMock(),
                 ),
-                patch.object(profile_utils, "sqlalchemy_obj_to_dict", return_value={"id": 1}),
+                patch.object(profile_utils, "model_to_dict", return_value={"id": 1}),
             ):
                 service.collect_user_settings_data(z)
 
@@ -897,7 +911,7 @@ class TestExportServiceCollectUserActivitiesEdgeCases:
 
             with (
                 patch.object(service, "_get_activities_batch", side_effect=[[activity], []]),
-                patch.object(profile_utils, "sqlalchemy_obj_to_dict", return_value={"id": None}),
+                patch.object(profile_utils, "model_to_dict", return_value={"id": None}),
                 patch.object(service, "_collect_and_write_activity_components") as components,
             ):
                 result = service.collect_user_activities_data(z)
@@ -933,7 +947,7 @@ class TestExportServiceCollectUserActivitiesEdgeCases:
                     "profile_global_contributors",
                     return_value=(contributor,),
                 ),
-                patch.object(profile_utils, "sqlalchemy_obj_to_dict", return_value={"title": "t"}),
+                patch.object(profile_utils, "model_to_dict", return_value={"title": "t"}),
             ):
                 service.collect_user_activities_data(z)
 
@@ -1012,7 +1026,7 @@ class TestExportServiceCollectComponentChunkedDetailed:
             service = self._make_service(batch_size=10)
 
             with (
-                patch.object(profile_utils, "sqlalchemy_obj_to_dict", return_value={"id": 1}),
+                patch.object(profile_utils, "model_to_dict", return_value={"id": 1}),
                 patch.object(profile_utils, "write_json_to_zip") as mock_write,
             ):
                 service._collect_and_write_component_chunked(
@@ -1035,7 +1049,7 @@ class TestExportServiceCollectComponentChunkedDetailed:
             service = self._make_service(batch_size=10)
 
             with (
-                patch.object(profile_utils, "sqlalchemy_obj_to_dict", return_value={"id": 1}),
+                patch.object(profile_utils, "model_to_dict", return_value={"id": 1}),
                 patch.object(profile_utils, "write_json_to_zip") as mock_write,
             ):
                 service._collect_and_write_component_chunked(
@@ -1056,7 +1070,7 @@ class TestExportServiceCollectComponentChunkedDetailed:
             service = self._make_service(batch_size=4)
 
             with (
-                patch.object(profile_utils, "sqlalchemy_obj_to_dict", return_value={"id": 1}),
+                patch.object(profile_utils, "model_to_dict", return_value={"id": 1}),
                 patch.object(profile_utils, "write_json_to_zip") as mock_write,
             ):
                 service._collect_and_write_component_chunked(
@@ -1100,7 +1114,7 @@ class TestExportServiceCollectComponentChunkedDetailed:
             service = self._make_service(batch_size=10)
 
             with (
-                patch.object(profile_utils, "sqlalchemy_obj_to_dict", return_value={"id": 1}),
+                patch.object(profile_utils, "model_to_dict", return_value={"id": 1}),
                 patch.object(profile_utils, "write_json_to_zip"),
                 pytest.raises(DataCollectionError),
             ):
@@ -1156,7 +1170,7 @@ class TestExportServiceCollectComponentSimpleDetailed:
                 captured[:] = data
 
             with (
-                patch.object(profile_utils, "sqlalchemy_obj_to_dict", return_value={"id": 1}),
+                patch.object(profile_utils, "model_to_dict", return_value={"id": 1}),
                 patch.object(profile_utils, "write_json_to_zip", side_effect=capture_write) as mock_write,
             ):
                 service._collect_and_write_component_simple(
@@ -1182,7 +1196,7 @@ class TestExportServiceCollectComponentSimpleDetailed:
             service.performance_config.enable_memory_monitoring = False
 
             with (
-                patch.object(profile_utils, "sqlalchemy_obj_to_dict", return_value={"id": 1}),
+                patch.object(profile_utils, "model_to_dict", return_value={"id": 1}),
                 patch.object(profile_utils, "write_json_to_zip"),
                 pytest.raises(DataCollectionError),
             ):
