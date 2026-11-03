@@ -580,7 +580,7 @@ def parse_frame_workout_step(
         intensity=workout_set_data[5] if isinstance(workout_set_data[5], str) else None,
         notes=workout_set_data[6],
         exercise_category=workout_set_data[9],
-        exercise_name=workout_set_data[10] if workout_set_data[10] else None,
+        exercise_name=workout_set_data[10],
         exercise_weight=workout_set_data[7],
         weight_display_unit=workout_set_data[8],
         secondary_target_value=secondary_target_value,

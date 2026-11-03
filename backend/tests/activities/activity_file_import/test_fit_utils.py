@@ -943,6 +943,20 @@ class TestParseFrameExerciseTitle:
         assert title.exercise_name == 7
 
 
+class TestParseFrameWorkoutStep:
+    """parse_frame_workout_step keeps the FIT exercise codes so the step resolves its exercise title."""
+
+    def test_exercise_name_zero_keeps_zero(self):
+        frame = _ExerciseTitleFrame(duration_type="reps", exercise_category=28, exercise_name=0)
+        step = fit_frames.parse_frame_workout_step(frame)
+        assert step.exercise_category == 28
+        assert step.exercise_name == 0
+
+    def test_missing_exercise_name_is_none(self):
+        frame = _ExerciseTitleFrame(duration_type="reps", exercise_category=28)
+        assert fit_frames.parse_frame_workout_step(frame).exercise_name is None
+
+
 class TestExerciseTitleDispatch:
     """_dispatch_data_message keeps only the exercise titles that parse to a value."""
 
