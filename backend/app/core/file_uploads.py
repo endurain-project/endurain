@@ -37,6 +37,7 @@ from typing import Any
 import aiofiles
 import aiofiles.os
 from fastapi import UploadFile
+from PIL import Image, UnidentifiedImageError
 from safeuploads import (
     FileSecurityConfig,
     FileValidator,
@@ -81,6 +82,9 @@ _MAX_FILES_SAME_TYPE = 2000
 # Default 20 MiB image cap from safeuploads is kept; explicitly
 # stated here so it appears alongside the other ceilings.
 _MAX_IMAGE_BYTES = 20 * 1024 * 1024
+
+# A compressed image can be tiny on disk and still decode to gigabytes, so the byte cap is not enough.
+_MAX_IMAGE_PIXELS = 100_000_000
 
 
 def _build_security_config() -> FileSecurityConfig:
@@ -199,6 +203,31 @@ def _to_domain_error(err: FileSecurityError) -> core_exceptions.DomainError:
 # ---------------------------------------------------------------------------
 
 
+def _check_image_pixels(file: UploadFile) -> None:
+    """Refuse an image that would decode to more than :data:`_MAX_IMAGE_PIXELS`.
+
+    Only the header is read, so the check costs no decode. The file is rewound afterwards.
+
+    Args:
+        file: The image upload, already accepted by the byte-level validator.
+
+    Raises:
+        PayloadTooLargeError: When the image has too many pixels.
+        InvalidInputError: When the image header cannot be read.
+    """
+    try:
+        with Image.open(file.file) as image:
+            width, height = image.size
+    except Image.DecompressionBombError as err:
+        raise core_exceptions.PayloadTooLargeError("Image dimensions are too large") from err
+    except (UnidentifiedImageError, OSError, ValueError) as err:
+        raise core_exceptions.InvalidInputError("The image could not be read") from err
+    finally:
+        file.file.seek(0)
+    if width * height > _MAX_IMAGE_PIXELS:
+        raise core_exceptions.PayloadTooLargeError("Image dimensions are too large")
+
+
 async def validate_upload(file: UploadFile, *, kind: UploadKind) -> None:
     """Validate an upload's content without persisting it to disk.
 
@@ -220,6 +249,8 @@ async def validate_upload(file: UploadFile, *, kind: UploadKind) -> None:
     except FileSecurityError as err:
         logger.warning("Upload validation failed", exc_info=err, extra=core_logger.context(kind=kind.value))
         raise _to_domain_error(err) from err
+    if kind is UploadKind.IMAGE:
+        _check_image_pixels(file)
 
 
 async def validate_local_file(

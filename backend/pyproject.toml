@@ -31,6 +31,7 @@ dependencies = [
     "pydantic[email]>=2.13.5",
     "pyotp>=2.10.0",
     "qrcode[pil]>=8.2",
+    "pillow>=13.0.0",
     "psutil>=7.2.2",
     "python-magic>=0.4.27",
     "pwdlib[argon2,bcrypt]>=0.3.1",
