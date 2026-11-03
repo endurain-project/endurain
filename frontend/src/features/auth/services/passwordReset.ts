@@ -45,3 +45,18 @@ export function confirmPasswordReset(
     retryOnUnauthorized: false,
   })
 }
+
+/**
+ * Checks that a password reset token is still usable, without consuming it.
+ *
+ * @param token - The reset token from the emailed link.
+ * @throws {HttpError} 400 when the token is invalid or expired.
+ */
+export async function validatePasswordResetToken(token: string): Promise<void> {
+  await apiFetch<void>('/password-reset/validate', {
+    method: 'POST',
+    body: JSON.stringify({ token } satisfies Schemas['PasswordResetValidate']),
+    auth: false,
+    retryOnUnauthorized: false,
+  })
+}

@@ -6,7 +6,8 @@ import i18n from '@/i18n'
 import ResetPasswordView from '@/features/auth/views/ResetPasswordView.vue'
 import { HttpError } from '@/services/http'
 
-const { confirmPasswordReset, route } = vi.hoisted(() => ({
+const { confirmPasswordReset, validatePasswordResetToken, route } = vi.hoisted(() => ({
+  validatePasswordResetToken: vi.fn<(token: string) => Promise<void>>(),
   confirmPasswordReset: vi.fn<(request: unknown) => Promise<unknown>>(),
   route: { path: '/reset-password', query: {} as Record<string, unknown> },
 }))
@@ -16,7 +17,10 @@ vi.mock('vue-router', () => ({
   useRouter: () => ({ replace: vi.fn<() => Promise<void>>() }),
   RouterLink: { template: '<a><slot /></a>' },
 }))
-vi.mock('@/features/auth/services/passwordReset', () => ({ confirmPasswordReset }))
+vi.mock('@/features/auth/services/passwordReset', () => ({
+  confirmPasswordReset,
+  validatePasswordResetToken,
+}))
 vi.mock('@/features/config/composables/usePublicServerSettings', () => ({
   usePublicServerSettings: () => ({
     serverSettings: ref({ password_length_regular_users: 8 }),
@@ -31,6 +35,7 @@ vi.mock('@/features/config/composables/usePublicServerSettings', () => ({
  */
 async function submitFilled() {
   const wrapper = mount(ResetPasswordView, { global: { plugins: [i18n] } })
+  await flushPromises()
   await wrapper.get('#new-password').setValue('long-enough-pass')
   await wrapper
     .get('input[autocomplete="new-password"]:not(#new-password)')
@@ -43,6 +48,8 @@ async function submitFilled() {
 describe('ResetPasswordView weak password', () => {
   beforeEach(() => {
     confirmPasswordReset.mockReset()
+    validatePasswordResetToken.mockReset()
+    validatePasswordResetToken.mockResolvedValue(undefined)
     route.query = { token: 'tok' }
     sessionStorage.clear()
   })
@@ -67,6 +74,7 @@ describe('ResetPasswordView weak password', () => {
 
   it('shows the strength meter under the new password only once it is typed', async () => {
     const wrapper = mount(ResetPasswordView, { global: { plugins: [i18n] } })
+    await flushPromises()
     expect(wrapper.find('[data-strength-bar]').exists()).toBe(false)
 
     await wrapper.get('#new-password').setValue('long-enough-pass')
@@ -77,12 +85,16 @@ describe('ResetPasswordView weak password', () => {
 describe('ResetPasswordView token across a reload', () => {
   beforeEach(() => {
     confirmPasswordReset.mockReset()
+    validatePasswordResetToken.mockReset()
+    validatePasswordResetToken.mockResolvedValue(undefined)
     route.query = { token: 'tok' }
     sessionStorage.clear()
   })
 
   it('still resets with the token after a reload dropped it from the URL', async () => {
-    mount(ResetPasswordView, { global: { plugins: [i18n] } }).unmount()
+    const first = mount(ResetPasswordView, { global: { plugins: [i18n] } })
+    await flushPromises()
+    first.unmount()
 
     route.query = {}
     confirmPasswordReset.mockResolvedValue({})
@@ -110,5 +122,52 @@ describe('ResetPasswordView token across a reload', () => {
     await submitFilled()
 
     expect(sessionStorage.length).toBe(1)
+  })
+})
+
+describe('ResetPasswordView token validation', () => {
+  beforeEach(() => {
+    confirmPasswordReset.mockReset()
+    validatePasswordResetToken.mockReset()
+    route.query = { token: 'tok' }
+    sessionStorage.clear()
+  })
+
+  it('shows a loading state, without the form, while the token is checked', async () => {
+    validatePasswordResetToken.mockReturnValue(new Promise<void>(() => undefined))
+    const wrapper = mount(ResetPasswordView, { global: { plugins: [i18n] } })
+    await flushPromises()
+
+    expect(validatePasswordResetToken).toHaveBeenCalledWith('tok')
+    expect(wrapper.find('form').exists()).toBe(false)
+    expect(wrapper.text()).toContain(i18n.global.t('resetPassword.checkingLink'))
+  })
+
+  it('shows the form once the token is valid', async () => {
+    validatePasswordResetToken.mockResolvedValue(undefined)
+    const wrapper = mount(ResetPasswordView, { global: { plugins: [i18n] } })
+    await flushPromises()
+
+    expect(wrapper.find('form').exists()).toBe(true)
+    expect(sessionStorage.length).toBe(1)
+  })
+
+  it('shows the invalid-link state and forgets the token when it is refused', async () => {
+    validatePasswordResetToken.mockRejectedValue(new HttpError(400, 'Bad Request'))
+    const wrapper = mount(ResetPasswordView, { global: { plugins: [i18n] } })
+    await flushPromises()
+
+    expect(wrapper.find('form').exists()).toBe(false)
+    expect(wrapper.text()).toContain(i18n.global.t('resetPassword.invalidLinkTitle'))
+    expect(sessionStorage.length).toBe(0)
+  })
+
+  it('does not validate when the link carries no token', async () => {
+    route.query = {}
+    const wrapper = mount(ResetPasswordView, { global: { plugins: [i18n] } })
+    await flushPromises()
+
+    expect(validatePasswordResetToken).not.toHaveBeenCalled()
+    expect(wrapper.text()).toContain(i18n.global.t('resetPassword.invalidLinkTitle'))
   })
 })

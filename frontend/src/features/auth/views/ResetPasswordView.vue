@@ -10,6 +10,7 @@ import { Alert } from '@/components/ui/alert'
 import { Button } from '@/components/ui/button'
 import { ErrorState } from '@/components/ui/error-state'
 import { Label } from '@/components/ui/label'
+import { LoadingState } from '@/components/ui/loading-state'
 import { usePublicServerSettings } from '@/features/config/composables/usePublicServerSettings'
 import PasswordInput from '@/features/security/components/PasswordInput.vue'
 import PasswordStrengthMeter from '@/features/security/components/PasswordStrengthMeter.vue'
@@ -18,7 +19,10 @@ import {
   usePasswordPolicy,
 } from '@/features/security/composables/usePasswordPolicy'
 import { HttpError } from '@/services/http'
-import { confirmPasswordReset } from '@/features/auth/services/passwordReset'
+import {
+  confirmPasswordReset,
+  validatePasswordResetToken,
+} from '@/features/auth/services/passwordReset'
 
 const router = useRouter()
 const { t } = useI18n()
@@ -27,6 +31,11 @@ const { load } = usePublicServerSettings()
 /** Reset token from the emailed link; empty when absent or malformed. */
 const resetCredential = useQueryCredential('token')
 const token = ref(resetCredential.value)
+
+/** Whether the emailed token is being checked, usable, or refused. */
+const linkStatus = ref<'checking' | 'valid' | 'invalid'>(
+  token.value.length > 0 ? 'checking' : 'invalid',
+)
 
 const password = ref('')
 const confirmPassword = ref('')
@@ -86,16 +95,40 @@ async function submitForm(): Promise<void> {
   }
 }
 
+/**
+ * Asks the backend whether the emailed token is still usable. Only a refusal
+ * (400) invalidates the link; other failures keep the form, since the submit
+ * answers authoritatively.
+ */
+async function checkLink(): Promise<void> {
+  try {
+    await validatePasswordResetToken(token.value)
+    linkStatus.value = 'valid'
+  } catch (error) {
+    if (error instanceof HttpError && error.status === 400) {
+      resetCredential.clear()
+      linkStatus.value = 'invalid'
+      return
+    }
+    linkStatus.value = 'valid'
+  }
+}
+
 onMounted(() => {
   void load()
+  if (linkStatus.value === 'checking') {
+    void checkLink()
+  }
 })
 </script>
 
 <template>
   <section class="mx-auto w-full max-w-md">
     <div class="rounded-card border border-border bg-card p-6 sm:p-8">
+      <LoadingState v-if="linkStatus === 'checking'" :label="t('resetPassword.checkingLink')" />
+
       <ErrorState
-        v-if="token.length === 0"
+        v-else-if="linkStatus === 'invalid'"
         :title="t('resetPassword.invalidLinkTitle')"
         :description="t('resetPassword.invalidLinkBody')"
       >
