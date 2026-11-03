@@ -49,7 +49,7 @@ jobs:
         run: uv run --no-sync ruff format --check .
 
   typecheck-backend:
-    name: Backend (${{ matrix.tool }}, non-blocking)
+    name: Backend (${{ matrix.tool }})
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
@@ -75,6 +75,5 @@ jobs:
         run: uv sync --frozen --no-dev --group typecheck --no-install-project
 
       - name: Type check
-        continue-on-error: true
         working-directory: backend
         run: uv run --no-sync ${{ matrix.command }}
