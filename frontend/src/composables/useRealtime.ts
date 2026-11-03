@@ -61,6 +61,9 @@ const ACTIVITIES: Invalidation = {
   coalesceMs: 1_000,
 }
 
+/** Goal progress counts activities, so a stored activity changes it too. */
+const GOAL_RESULTS: Invalidation = { queryKey: queryKeys.goals.results(), coalesceMs: 1_000 }
+
 /** A provider gear sync changes the gears; the component-type catalogue is static. */
 const GEARS: Invalidation = {
   queryKey: queryKeys.gears.all(),
@@ -77,8 +80,8 @@ const HEALTH: Invalidation = { queryKey: queryKeys.health.all() }
  * queries; invalidating a key with no active query is a harmless no-op.
  */
 const EVENT_QUERY_INVALIDATIONS: Record<string, ReadonlyArray<Invalidation>> = {
-  NEW_ACTIVITY_NOTIFICATION: [NOTIFICATIONS, ACTIVITIES],
-  NEW_DUPLICATE_ACTIVITY_START_TIME_NOTIFICATION: [NOTIFICATIONS, ACTIVITIES],
+  NEW_ACTIVITY_NOTIFICATION: [NOTIFICATIONS, ACTIVITIES, GOAL_RESULTS],
+  NEW_DUPLICATE_ACTIVITY_START_TIME_NOTIFICATION: [NOTIFICATIONS, ACTIVITIES, GOAL_RESULTS],
   NEW_FOLLOWER_REQUEST_NOTIFICATION: [NOTIFICATIONS],
   NEW_FOLLOWER_REQUEST_REMOVED_NOTIFICATION: [NOTIFICATIONS],
   NEW_FOLLOWER_REQUEST_ACCEPTED_NOTIFICATION: [NOTIFICATIONS],

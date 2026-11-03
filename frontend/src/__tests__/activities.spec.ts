@@ -1,8 +1,9 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import type { ActivityDto, ActivityLapDto, ActivityStreamDto } from '@/features/activities/types'
 
 import { apiFetch } from '@/services/http'
+import { queryKeys } from '@/services/queryKeys'
 import {
   deleteActivity,
   editActivity,
@@ -280,6 +281,14 @@ describe('searchActivitiesByName', () => {
   })
 })
 
+describe('week activities query key', () => {
+  it('differs by first day of the week, so a changed setting refetches', () => {
+    expect(queryKeys.activities.weekActivities(7, 1, 'monday')).not.toEqual(
+      queryKeys.activities.weekActivities(7, 1, 'sunday'),
+    )
+  })
+})
+
 describe('fetchUserWeekActivities', () => {
   it('requests the user week endpoint and maps the results', async () => {
     vi.mocked(apiFetch).mockResolvedValueOnce({
@@ -289,7 +298,7 @@ describe('fetchUserWeekActivities', () => {
       num_records: 200,
       next: null,
     })
-    const result = await fetchUserWeekActivities(7, 3)
+    const result = await fetchUserWeekActivities(7, 3, 'monday')
     expect(apiFetch).toHaveBeenCalledWith(
       expect.stringMatching(
         /^\/users\/7\/activities\?start_date=\d{4}-\d{2}-\d{2}&end_date=\d{4}-\d{2}-\d{2}&num_records=200$/,
@@ -300,6 +309,36 @@ describe('fetchUserWeekActivities', () => {
     expect(result[0]?.id).toBe(5)
   })
 
+  describe('with a fixed date', () => {
+    beforeEach(() => {
+      vi.useFakeTimers()
+      // A Wednesday.
+      vi.setSystemTime(new Date(2026, 10, 4, 12))
+      vi.mocked(apiFetch).mockResolvedValue({ items: [] })
+    })
+    afterEach(() => {
+      vi.useRealTimers()
+    })
+
+    const requestedParams = (): URLSearchParams => {
+      const url = vi.mocked(apiFetch).mock.calls[0]?.[0] as string
+      return new URLSearchParams(url.split('?')[1])
+    }
+
+    it("starts the week on the viewer's first day of the week", async () => {
+      await fetchUserWeekActivities(7, 0, 'sunday')
+      expect(requestedParams().get('start_date')).toBe('2026-11-01')
+      expect(requestedParams().get('end_date')).toBe('2026-11-07')
+    })
+
+    it('leaves the oldest bucket open-ended, ending before week 50 starts', async () => {
+      await fetchUserWeekActivities(7, 51, 'monday')
+      // Week 50 starts 2025-11-17 (a Monday), so the bucket ends the day before.
+      expect(requestedParams().has('start_date')).toBe(false)
+      expect(requestedParams().get('end_date')).toBe('2025-11-16')
+    })
+  })
+
   it('treats an empty page as no activities', async () => {
     vi.mocked(apiFetch).mockResolvedValueOnce({
       items: [],
@@ -308,7 +347,7 @@ describe('fetchUserWeekActivities', () => {
       num_records: 200,
       next: null,
     })
-    await expect(fetchUserWeekActivities(7, 0)).resolves.toEqual([])
+    await expect(fetchUserWeekActivities(7, 0, 'monday')).resolves.toEqual([])
   })
 })
 
@@ -729,7 +768,7 @@ describe('local-calendar period anchoring', () => {
     try {
       vi.setSystemTime(new Date('2026-01-05T13:30:00Z'))
       vi.mocked(apiFetch).mockResolvedValueOnce([])
-      await fetchUserWeekActivities(7, 0)
+      await fetchUserWeekActivities(7, 0, 'monday')
 
       const url = vi.mocked(apiFetch).mock.calls[0]?.[0] as string
       const params = new URLSearchParams(url.split('?')[1])

@@ -194,6 +194,23 @@ export function shiftWeeks(iso: string, delta: number): string {
 }
 
 /**
+ * Returns the configured week a number of weeks before the current one.
+ *
+ * @param weekOffset - Whole weeks back from the current week (0 = this week).
+ * @param firstDayOfWeek - User's configured first weekday.
+ * @param today - The `YYYY-MM-DD` date that counts as today.
+ * @returns The week's first and last dates as `YYYY-MM-DD`.
+ */
+export function pastWeekRange(
+  weekOffset: number,
+  firstDayOfWeek: Schemas['WeekDay'],
+  today: string = todayIsoDate(),
+): { start: string; end: string } {
+  const start = shiftWeeks(weekStart(today, firstDayOfWeek), -weekOffset)
+  return { start, end: weekEnd(start, firstDayOfWeek) }
+}
+
+/**
  * Formats an ISO timestamp as a localized medium-style date (e.g. "Jun 25,
  * 2026"), or an empty string when the value cannot be parsed. Shared by list
  * rows that show a creation, link, or last-used date without a time component.

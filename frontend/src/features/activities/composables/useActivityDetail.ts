@@ -12,7 +12,7 @@ import type { Gear } from '@/features/gears/types'
 import type { Units } from '@/features/activities/utils/format'
 
 import { ACTIVITY_ROW_INDEPENDENT_KEYS, queryKeys } from '@/services/queryKeys'
-import { invalidateExcept } from '@/composables/useInvalidatingMutation'
+import { invalidateActivityData } from '@/composables/useInvalidatingMutation'
 import { useCurrentUser } from '@/features/auth/composables/useCurrentUser'
 import {
   DEFAULT_PUBLIC_SERVER_SETTINGS,
@@ -252,7 +252,7 @@ export function useActivityGearOptionsQuery(gearType: MaybeRefOrGetter<number | 
  * @param client - The active query client.
  */
 function invalidateActivityAggregates(client: QueryClient): void {
-  void invalidateExcept(client, queryKeys.activities.all(), ACTIVITY_ROW_INDEPENDENT_KEYS)
+  void invalidateActivityData(client, ACTIVITY_ROW_INDEPENDENT_KEYS)
 }
 
 /**

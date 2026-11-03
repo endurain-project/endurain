@@ -4,6 +4,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/vue-query'
 
 import type { ProfileExportStatus, ProfileImportStatus } from '@/features/profile/types'
 
+import { invalidateActivityData } from '@/composables/useInvalidatingMutation'
 import { queryKeys } from '@/services/queryKeys'
 import { useAuthStore } from '@/features/auth/stores/auth'
 import { isTerminalProfileExport, isTerminalProfileImport } from '@/features/profile/types'
@@ -77,7 +78,7 @@ function invalidateImportedData(client: ReturnType<typeof useQueryClient>): void
   void client.invalidateQueries({ queryKey: queryKeys.profile.detail() })
   void client.invalidateQueries({ queryKey: queryKeys.profile.defaultGear() })
   void client.invalidateQueries({ queryKey: queryKeys.gears.all() })
-  void client.invalidateQueries({ queryKey: queryKeys.activities.all() })
+  void invalidateActivityData(client)
   void client.invalidateQueries({ queryKey: queryKeys.notifications.all() })
   void client.invalidateQueries({ queryKey: queryKeys.currentUser() })
 }

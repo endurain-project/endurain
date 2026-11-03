@@ -18,7 +18,8 @@ import { Skeleton } from '@/components/ui/skeleton'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { useCurrentUser } from '@/features/auth/composables/useCurrentUser'
 import { useDisplayUnits } from '@/features/activities/composables/useActivityDetail'
-import { shiftWeeks, todayIsoDate, weekEnd, weekStart } from '@/utils/datetime'
+import { OLDEST_WEEK_BUCKET as OLDEST_WEEK } from '@/features/activities/services/activities'
+import { pastWeekRange } from '@/utils/datetime'
 import { useUserProfileOverviewQuery } from '@/features/users/composables/usePublicUser'
 import {
   useGoalResultsQuery,
@@ -77,14 +78,13 @@ function refetchUser(): void {
 // --- Activities (week-by-week browser, v1 parity) ---
 /** Number of past weeks reachable as dated buttons before the oldest bucket. */
 const TOTAL_WEEKS = 50
-/** The "one year ago" bucket index (everything older than {@link TOTAL_WEEKS}). */
-const OLDEST_WEEK = 51
 /** Selected week offset: 0 = this week, 1..50 = prior weeks, 51 = one year ago. */
 const week = ref(0)
 
 const weekActivitiesQuery = useUserWeekActivitiesQuery(
   profileId,
   week,
+  firstDayOfWeek,
   () => activeTab.value === 'activities',
 )
 const activities = computed(() => weekActivitiesQuery.data.value ?? [])
@@ -109,11 +109,9 @@ function setWeek(value: number): void {
 
 /** Formats a week offset as its configured `DD/MM-DD/MM` range. */
 function formatWeekRange(weekNumber: number): string {
-  const currentWeekStart = weekStart(todayIsoDate(), firstDayOfWeek.value)
-  const startOfWeek = shiftWeeks(currentWeekStart, -weekNumber)
-  const endOfWeek = weekEnd(startOfWeek, firstDayOfWeek.value)
+  const { start, end } = pastWeekRange(weekNumber, firstDayOfWeek.value)
   const formatDate = (iso: string): string => `${iso.slice(8, 10)}/${iso.slice(5, 7)}`
-  return `${formatDate(startOfWeek)}-${formatDate(endOfWeek)}`
+  return `${formatDate(start)}-${formatDate(end)}`
 }
 
 /** Refetches the current week's activities after an error. */

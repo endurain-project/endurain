@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from 'vitest'
 
 import {
+  pastWeekRange,
   formatMediumDate,
   formatMediumDateTime,
   formatRelativeTime,
@@ -139,5 +140,18 @@ describe('formatMediumDateTime', () => {
 
   it('returns an empty string for an invalid date', () => {
     expect(formatMediumDateTime('not-a-date', 'en')).toBe('')
+  })
+})
+
+describe('pastWeekRange', () => {
+  // 2026-11-04 is a Wednesday.
+  it.each([
+    ['monday', 0, '2026-11-02', '2026-11-08'],
+    ['sunday', 0, '2026-11-01', '2026-11-07'],
+    ['saturday', 0, '2026-10-31', '2026-11-06'],
+    ['monday', 2, '2026-10-19', '2026-10-25'],
+    ['sunday', 1, '2026-10-25', '2026-10-31'],
+  ] as const)('%s week, %i weeks back', (firstDay, offset, start, end) => {
+    expect(pastWeekRange(offset, firstDay, '2026-11-04')).toEqual({ start, end })
   })
 })

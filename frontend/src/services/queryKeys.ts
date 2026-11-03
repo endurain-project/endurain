@@ -244,10 +244,11 @@ export const queryKeys = {
      *
      * @param userId - The profile owner's user id.
      * @param week - Week offset (0 = this week).
+     * @param firstDayOfWeek - The viewer's first weekday, which sets the week's bounds.
      * @returns A list query key for that week's activities.
      */
-    weekActivities: (userId: number, week: number) =>
-      ['activities', 'list', { scope: 'user-week', userId, week }] as const,
+    weekActivities: (userId: number, week: number, firstDayOfWeek: string) =>
+      ['activities', 'list', { scope: 'user-week', userId, week, firstDayOfWeek }] as const,
   },
 
   /**

@@ -1,11 +1,12 @@
 import { computed, type MaybeRefOrGetter, toValue } from 'vue'
 import { storeToRefs } from 'pinia'
-import { useInfiniteQuery, useQuery, useQueryClient } from '@tanstack/vue-query'
+import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from '@tanstack/vue-query'
 
 import type { Activity, ActivityFeedSlice, ActivityStats } from '@/features/activities/types'
+import type { Schemas } from '@/types'
 import type { GoalProgress } from '@/features/goals/types'
 
-import { useInvalidatingMutation } from '@/composables/useInvalidatingMutation'
+import { invalidateActivityData } from '@/composables/useInvalidatingMutation'
 import { queryKeys } from '@/services/queryKeys'
 import { useAuthStore } from '@/features/auth/stores/auth'
 import {
@@ -85,21 +86,27 @@ export function useUserActivitiesFeed(
  *
  * @param userId - Reactive id of the profile owner.
  * @param week - Reactive week offset (0 = this week).
+ * @param firstDayOfWeek - Reactive first weekday of the viewer's weeks.
  * @param enabled - Reactive gate ANDed with the auth/id gate.
  * @returns The TanStack query result for that week's activities.
  */
 export function useUserWeekActivitiesQuery(
   userId: MaybeRefOrGetter<number | null>,
   week: MaybeRefOrGetter<number>,
+  firstDayOfWeek: MaybeRefOrGetter<Schemas['WeekDay']>,
   enabled: MaybeRefOrGetter<boolean> = true,
 ) {
   const { isAuthenticated } = storeToRefs(useAuthStore())
   const id = computed(() => resolveUserId(userId))
   const weekValue = computed(() => toValue(week))
+  const firstDay = computed(() => toValue(firstDayOfWeek))
 
   return useQuery<Activity[]>({
-    queryKey: computed(() => queryKeys.activities.weekActivities(id.value, weekValue.value)),
-    queryFn: ({ signal }) => fetchUserWeekActivities(id.value, weekValue.value, signal),
+    queryKey: computed(() =>
+      queryKeys.activities.weekActivities(id.value, weekValue.value, firstDay.value),
+    ),
+    queryFn: ({ signal }) =>
+      fetchUserWeekActivities(id.value, weekValue.value, firstDay.value, signal),
     enabled: computed(() => toValue(enabled) && isAuthenticated.value && id.value > 0),
     staleTime: 5 * 60_000,
   })
@@ -222,11 +229,16 @@ export function useGoalResultsQuery(enabled: MaybeRefOrGetter<boolean> = true) {
  * @returns The TanStack mutation for refreshing integration activities.
  */
 export function useRefreshActivitiesMutation() {
-  return useInvalidatingMutation<ActivityIngestionJob, void>({
+  const client = useQueryClient()
+
+  return useMutation<ActivityIngestionJob, Error, void>({
     mutationKey: queryKeys.activities.all(),
     mutationFn: async () => {
       const job = await refreshActivities()
       return pollIngestionJob(job.id)
+    },
+    onSettled: () => {
+      void invalidateActivityData(client)
     },
   })
 }

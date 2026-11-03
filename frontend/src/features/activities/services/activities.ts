@@ -3,7 +3,7 @@ import type { Schemas } from '@/types'
 import { apiFetch, HttpError } from '@/services/http'
 import { ifMatchHeaders, rowVersion } from '@/services/ifMatch'
 import { mapEmbeddedUsers } from '@/features/users/services/publicUsers'
-import { todayIsoDate } from '@/utils/datetime'
+import { pastWeekRange, todayIsoDate } from '@/utils/datetime'
 
 import { mapActivityOwner } from './activityOwner'
 
@@ -390,25 +390,10 @@ function isoDate(date: Date): string {
 }
 
 /**
- * Computes the inclusive Monday–Sunday date range for an ISO-week offset, where
- * `0` is the current week and each increment steps one week into the past.
- *
- * Uses the viewer's **local** calendar. Reading UTC fields meant a user far
- * enough east or west was shown the neighbouring week for part of every day —
- * for someone at UTC+13, all of Monday morning belonged to "last week".
+ * The week-browser bucket that holds everything older than the dated weeks: it
+ * has no start date, only an end date just before the previous bucket begins.
  */
-function weekDateRange(weekOffset: number): { startDate: string; endDate: string } {
-  const now = new Date()
-  const mondayIndex = (now.getDay() + 6) % 7 // 0 = Monday
-  const monday = new Date(
-    now.getFullYear(),
-    now.getMonth(),
-    now.getDate() - mondayIndex - weekOffset * 7,
-  )
-  const sunday = new Date(monday)
-  sunday.setDate(monday.getDate() + 6)
-  return { startDate: isoDate(monday), endDate: isoDate(sunday) }
-}
+export const OLDEST_WEEK_BUCKET = 51
 
 /** Computes the inclusive first-of-month → today date range in the viewer's local calendar. */
 function currentMonthRange(): { startDate: string; endDate: string } {
@@ -418,13 +403,16 @@ function currentMonthRange(): { startDate: string; endDate: string } {
 }
 
 /**
- * Fetches a user's activities for a single ISO week, newest first. Week `0` is
- * the current week and each increment steps one week into the past (mirrors
- * v1's public-profile week browser). Authenticated-only; the backend applies
- * the viewer's visibility rules.
+ * Fetches a user's activities for a single week, newest first. Week `0` is the
+ * current week and each increment steps one week into the past (mirrors v1's
+ * public-profile week browser). Weeks begin on the viewer's first day of the
+ * week, using the viewer's local calendar; {@link OLDEST_WEEK_BUCKET} reaches
+ * back without limit. Authenticated-only; the backend applies the viewer's
+ * visibility rules.
  *
  * @param userId - The profile owner's user id.
  * @param week - Week offset (0 = this week).
+ * @param firstDayOfWeek - The viewer's configured first weekday.
  * @param signal - Optional abort signal for cancellation.
  * @returns That week's activities, mapped to the clean model.
  * @throws {HttpError} When the request fails.
@@ -432,14 +420,16 @@ function currentMonthRange(): { startDate: string; endDate: string } {
 export async function fetchUserWeekActivities(
   userId: number,
   week: number,
+  firstDayOfWeek: Schemas['WeekDay'],
   signal?: AbortSignal,
 ): Promise<Activity[]> {
-  const { startDate, endDate } = weekDateRange(week)
-  const params = new URLSearchParams({
-    start_date: startDate,
-    end_date: endDate,
-    num_records: '200',
-  })
+  const { start, end } = pastWeekRange(week, firstDayOfWeek)
+  const params = new URLSearchParams()
+  if (week < OLDEST_WEEK_BUCKET) {
+    params.set('start_date', start)
+  }
+  params.set('end_date', end)
+  params.set('num_records', '200')
   const page_ = await apiFetch<Schemas['Page_ActivityRead_']>(
     `/users/${userId}/activities?${params.toString()}`,
     { signal },

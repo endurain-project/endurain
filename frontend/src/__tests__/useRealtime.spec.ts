@@ -259,6 +259,18 @@ describe('useRealtime', () => {
       ])
     })
 
+    it('refetches goal results, once per burst, when a new activity arrives', async () => {
+      vi.useFakeTimers()
+      const socket = await openSocket()
+
+      for (let hint = 0; hint < 5; hint += 1) {
+        send(socket, 'NEW_ACTIVITY_NOTIFICATION')
+      }
+      await vi.advanceTimersByTimeAsync(1_000)
+
+      expect(invalidationsOf('goals')).toEqual([{ queryKey: ['goals', 'results'] }])
+    })
+
     it('coalesces a burst of new-activity hints, as a bulk import sends, into one refetch', async () => {
       vi.useFakeTimers()
       const socket = await openSocket()
