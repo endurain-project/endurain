@@ -26,6 +26,7 @@ import type { IdentityProviderPublic } from '@/types'
 import { resolveProviderLogo } from '@/features/identityProviders/utils/providerIcon'
 import { HttpError } from '@/services/http'
 import { useAuthStore } from '@/features/auth/stores/auth'
+import { normalizeMfaCode } from '@/features/auth/utils/mfaCode'
 
 const auth = useAuthStore()
 const { t } = useI18n()
@@ -92,7 +93,7 @@ function getAuthErrorMessage(error: unknown, duringMfa: boolean): string {
     return t('login.genericError')
   }
 
-  if (duringMfa && [400, 401].includes(error.status)) {
+  if (duringMfa && [400, 401, 422].includes(error.status)) {
     return t('login.invalidMfa')
   }
 
@@ -124,12 +125,12 @@ async function submitForm(): Promise<void> {
 
   try {
     if (isSsoMfaPending.value) {
-      await completeSsoMfa(mfaCode.value.trim().toUpperCase())
+      await completeSsoMfa(normalizeMfaCode(mfaCode.value))
       return
     }
 
     const result = duringMfa
-      ? await auth.verifyMfa(pendingChallenge.value, mfaCode.value.trim().toUpperCase())
+      ? await auth.verifyMfa(pendingChallenge.value, normalizeMfaCode(mfaCode.value))
       : await auth.login(username.value.trim(), password.value)
 
     if (result.status === 'mfa-required') {

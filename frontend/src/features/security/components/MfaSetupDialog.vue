@@ -78,7 +78,7 @@ async function onSubmit(): Promise<void> {
   }
   try {
     const codes = await enableMutation.mutateAsync({
-      mfaCode: code.value.trim(),
+      mfaCode: code.value.replace(/\s+/g, ''),
       currentPassword: props.requirePassword ? password.value : null,
       idpReauth: props.requirePassword ? null : reauth.value,
     })
@@ -157,6 +157,7 @@ async function onSubmit(): Promise<void> {
             id="mfa-enable-code"
             v-model="code"
             inputmode="numeric"
+            maxlength="7"
             autocomplete="one-time-code"
             :placeholder="t('settings.security.mfaCodePlaceholder')"
             :disabled="enableMutation.isPending.value"
