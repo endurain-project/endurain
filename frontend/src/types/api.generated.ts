@@ -6262,14 +6262,24 @@ export interface components {
             windsurf?: components["schemas"]["ActivitySportStats"];
         };
         /**
+         * ActivityStreamZones
+         * @description A stream's zone breakdowns, by metric.
+         *
+         *     Attributes:
+         *         hr: The heart-rate zone breakdown.
+         */
+        ActivityStreamZones: {
+            hr: components["schemas"]["HrZoneBreakdown"];
+        };
+        /**
          * ActivityStreamsRead
          * @description Schema for activity stream reading.
          *
          *     Attributes:
          *         id: Unique stream identifier.
-         *         zone_percentages: Zone breakdowns keyed by metric (e.g. 'hr'). Computed
-         *             when the stream is served, from the owner's current thresholds; never
-         *             stored, so it cannot go stale.
+         *         zone_percentages: The stream's zone breakdowns. Computed when the stream
+         *             is served, from the owner's current thresholds; never stored, so it
+         *             cannot go stale.
          */
         ActivityStreamsRead: {
             /** Activity Id */
@@ -6284,10 +6294,7 @@ export interface components {
             stream_waypoints: {
                 [key: string]: unknown;
             }[];
-            /** Zone Percentages */
-            zone_percentages?: {
-                [key: string]: unknown;
-            } | null;
+            zone_percentages?: components["schemas"]["ActivityStreamZones"] | null;
         };
         /**
          * ActivityType
@@ -8850,6 +8857,34 @@ export interface components {
              * @description Weight in kilograms
              */
             weight?: number | null;
+        };
+        /**
+         * HrZone
+         * @description One heart-rate zone of a breakdown.
+         *
+         *     Attributes:
+         *         percent: Share of the heart-rate samples in the zone, 0-100.
+         *         hr: The zone's heart-rate range, e.g. ``"120 - 139"``.
+         *         time_seconds: Timer time spent in the zone, in seconds.
+         */
+        HrZone: {
+            /** Hr */
+            hr: string;
+            /** Percent */
+            percent: number;
+            /** Time Seconds */
+            time_seconds: number;
+        };
+        /**
+         * HrZoneBreakdown
+         * @description An activity's time in each of the five heart-rate zones.
+         */
+        HrZoneBreakdown: {
+            zone_1: components["schemas"]["HrZone"];
+            zone_2: components["schemas"]["HrZone"];
+            zone_3: components["schemas"]["HrZone"];
+            zone_4: components["schemas"]["HrZone"];
+            zone_5: components["schemas"]["HrZone"];
         };
         /**
          * IdentityProviderCreate

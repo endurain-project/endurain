@@ -157,37 +157,23 @@ export function mapActivity(dto: ActivityDto): Activity {
 }
 
 /**
- * Decodes the HR stream's `zone_percentages.hr` block into ordered zone buckets
- * (zones 1–5). Returns `null` when the payload is absent or malformed.
+ * Flattens the HR stream's `zone_percentages.hr` breakdown into ordered zone
+ * buckets (zones 1–5). Returns `null` when the stream carries no breakdown.
  *
- * Wire shape: `{ hr: { zone_1: { percent, hr, time_seconds }, … } }`.
- *
- * @param zonePercentages - The stream's raw `zone_percentages` field.
+ * @param zonePercentages - The stream's `zone_percentages` field.
  * @returns Ordered zone buckets, or `null`.
  */
 function mapHrZones(zonePercentages: ActivityStreamDto['zone_percentages']): HrZoneBucket[] | null {
-  if (!zonePercentages || typeof zonePercentages !== 'object') {
+  if (!zonePercentages) {
     return null
   }
-  const hr = (zonePercentages as Record<string, unknown>).hr
-  if (!hr || typeof hr !== 'object') {
-    return null
-  }
-  const block = hr as Record<string, unknown>
-  const buckets: HrZoneBucket[] = []
-  for (let zone = 1; zone <= 5; zone += 1) {
-    const entry = block[`zone_${zone}`]
-    if (entry && typeof entry === 'object') {
-      const record = entry as Record<string, unknown>
-      buckets.push({
-        zone,
-        percent: typeof record.percent === 'number' ? record.percent : 0,
-        hrRange: typeof record.hr === 'string' ? record.hr : '',
-        timeSeconds: typeof record.time_seconds === 'number' ? record.time_seconds : 0,
-      })
-    }
-  }
-  return buckets.length > 0 ? buckets : null
+  const { hr } = zonePercentages
+  return [hr.zone_1, hr.zone_2, hr.zone_3, hr.zone_4, hr.zone_5].map((entry, index) => ({
+    zone: index + 1,
+    percent: entry.percent,
+    hrRange: entry.hr,
+    timeSeconds: entry.time_seconds,
+  }))
 }
 
 /**

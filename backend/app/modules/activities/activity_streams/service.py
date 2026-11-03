@@ -202,7 +202,9 @@ def _with_zones(
                 activity.total_timer_time,
             )
             if breakdown:
-                stream = stream.model_copy(update={"zone_percentages": {"hr": breakdown}})
+                stream = stream.model_copy(
+                    update={"zone_percentages": activity_streams_schema.ActivityStreamZones(hr=breakdown)}
+                )
         with_zones.append(stream)
     return with_zones
 

@@ -340,7 +340,7 @@ class TestZonesAreComputedWhenServed:
 
         stream = service.get_activity_stream(5, 1, 1, MagicMock())
 
-        hr = stream.zone_percentages["hr"]
+        hr = stream.zone_percentages.hr
         # 100 < 120 (zone 1), 150 in [140,160) (zone 3), 180 >= 180 (zone 5)
         assert [hr[f"zone_{n}"]["percent"] for n in range(1, 6)] == [33.33, 0.0, 33.33, 0.0, 33.33]
 

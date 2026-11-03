@@ -130,17 +130,6 @@ describe('mapActivityStream', () => {
       timeSeconds: 180,
     })
   })
-
-  it('returns null HR zones for a malformed payload', () => {
-    const dto: ActivityStreamDto = {
-      id: 3,
-      activity_id: 5,
-      stream_type: 1,
-      stream_waypoints: [],
-      zone_percentages: { other: {} },
-    }
-    expect(mapActivityStream(dto).hrZones).toBeNull()
-  })
 })
 
 describe('mapActivityLap', () => {

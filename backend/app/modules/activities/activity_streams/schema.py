@@ -9,6 +9,7 @@ from pydantic import (
 )
 
 import core.pagination as core_pagination
+import modules.activities.activity_streams.hr_zones as activity_streams_hr_zones
 
 
 class ActivityStreamsBase(BaseModel):
@@ -33,18 +34,28 @@ class ActivityStreamsBase(BaseModel):
     strava_activity_stream_id: StrictInt | None = None
 
 
+class ActivityStreamZones(BaseModel):
+    """A stream's zone breakdowns, by metric.
+
+    Attributes:
+        hr: The heart-rate zone breakdown.
+    """
+
+    hr: activity_streams_hr_zones.HrZoneBreakdown
+
+
 class ActivityStreamsRead(ActivityStreamsBase):
     """Schema for activity stream reading.
 
     Attributes:
         id: Unique stream identifier.
-        zone_percentages: Zone breakdowns keyed by metric (e.g. 'hr'). Computed
-            when the stream is served, from the owner's current thresholds; never
-            stored, so it cannot go stale.
+        zone_percentages: The stream's zone breakdowns. Computed when the stream
+            is served, from the owner's current thresholds; never stored, so it
+            cannot go stale.
     """
 
     id: StrictInt
-    zone_percentages: dict[str, object] | None = None
+    zone_percentages: ActivityStreamZones | None = None
 
 
 #: The envelope every activity child collection answers with. Streams are bounded
