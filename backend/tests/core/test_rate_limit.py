@@ -2,6 +2,7 @@
 
 import time
 from unittest.mock import MagicMock, patch
+from urllib.parse import parse_qs, urlsplit
 
 import pytest
 
@@ -355,3 +356,37 @@ class TestRateLimitMiddleware:
 
         assert kwargs["socket_connect_timeout"] == core_rate_limit.STORE_TIMEOUT_SECONDS
         assert kwargs["socket_timeout"] == core_rate_limit.STORE_TIMEOUT_SECONDS
+
+    @pytest.mark.parametrize(
+        "uri",
+        ["rediss://:secret@cache.example:6380/1?ssl_cert_reqs=none", "unix:///run/redis.sock?db=2"],
+        ids=["rediss", "unix"],
+    )
+    def test_every_redis_scheme_carries_the_store_timeouts(self, uri):
+        import core.rate_limit as core_rate_limit
+
+        query = parse_qs(urlsplit(core_rate_limit.with_store_timeouts(uri)).query)
+
+        assert (
+            query["socket_connect_timeout"] == query["socket_timeout"] == [str(core_rate_limit.STORE_TIMEOUT_SECONDS)]
+        )
+
+    def test_the_rest_of_a_redis_uri_is_kept(self):
+        import core.rate_limit as core_rate_limit
+
+        uri = core_rate_limit.with_store_timeouts("rediss://:secret@cache.example:6380/1?ssl_cert_reqs=none")
+
+        assert uri.startswith("rediss://:secret@cache.example:6380/1?ssl_cert_reqs=none&")
+
+    def test_a_timeout_the_operator_set_wins(self):
+        import core.rate_limit as core_rate_limit
+
+        query = parse_qs(urlsplit(core_rate_limit.with_store_timeouts("redis://cache:6379/0?socket_timeout=5")).query)
+
+        assert query["socket_timeout"] == ["5"]
+        assert query["socket_connect_timeout"] == [str(core_rate_limit.STORE_TIMEOUT_SECONDS)]
+
+    def test_an_in_memory_store_is_left_as_it_is(self):
+        import core.rate_limit as core_rate_limit
+
+        assert core_rate_limit.with_store_timeouts("memory://") == "memory://"

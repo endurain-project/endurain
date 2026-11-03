@@ -25,6 +25,8 @@ Architecture
    and document it in this module.
 """
 
+from urllib.parse import parse_qsl, urlencode, urlsplit, urlunsplit
+
 from fastapi import Request
 from joserfc import jwt
 from joserfc.errors import JoseError
@@ -85,6 +87,10 @@ PROVIDER_SYNC: str = "6/minute"
 #: Seconds a connect or a read on the shared counter store may take before the limiter treats the
 #: store as down and counts in memory instead.
 STORE_TIMEOUT_SECONDS: float = 2.0
+
+#: State URI schemes the shared counters live in Redis for. The Redis client reads its socket timeouts
+#: from the query of such a URI.
+_REDIS_SCHEMES = frozenset({"redis", "rediss", "unix"})
 
 
 #: Expiry and type a token must carry to name a bucket; a refresh or expired token would let one
@@ -157,10 +163,32 @@ def build_limiter(*, storage_uri: str, enabled: bool) -> Limiter:
         key_func=_get_rate_limit_key,
         default_limits=[DEFAULT],
         enabled=enabled,
-        storage_uri=storage_uri,
+        storage_uri=with_store_timeouts(storage_uri),
         in_memory_fallback_enabled=True,
-        storage_options={"socket_connect_timeout": STORE_TIMEOUT_SECONDS, "socket_timeout": STORE_TIMEOUT_SECONDS},
     )
+
+
+def with_store_timeouts(storage_uri: str) -> str:
+    """Return a Redis state URI that carries the store timeouts, unless it already sets them.
+
+    The timeouts go in the URI's query, which the Redis client parses into floats; a timeout the
+    operator set in the URI is kept. Any other store is returned unchanged.
+
+    Args:
+        storage_uri: Where the shared counters live.
+
+    Returns:
+        The URI the limiter connects with.
+    """
+    parts = urlsplit(storage_uri)
+    if parts.scheme not in _REDIS_SCHEMES:
+        return storage_uri
+    query = parse_qsl(parts.query, keep_blank_values=True)
+    named = {name for name, _ in query}
+    query += [
+        (name, str(STORE_TIMEOUT_SECONDS)) for name in ("socket_connect_timeout", "socket_timeout") if name not in named
+    ]
+    return urlunsplit(parts._replace(query=urlencode(query)))
 
 
 class RateLimitMiddleware(SlowAPIMiddleware):
