@@ -25,7 +25,8 @@ const { t } = useI18n()
 const { load } = usePublicServerSettings()
 
 /** Reset token from the emailed link; empty when absent or malformed. */
-const token = ref(useQueryCredential('token'))
+const resetCredential = useQueryCredential('token')
+const token = ref(resetCredential.value)
 
 const password = ref('')
 const confirmPassword = ref('')
@@ -61,6 +62,7 @@ async function submitForm(): Promise<void> {
 
   try {
     await confirmPasswordReset({ token: token.value, new_password: password.value })
+    resetCredential.clear()
     await router.replace({ name: 'login', query: { passwordResetSuccess: 'true' } })
   } catch (error) {
     // The client only knows the regular-user length policy (the token's
@@ -72,6 +74,7 @@ async function submitForm(): Promise<void> {
     let message = t('resetPassword.errorGeneral')
     if (error instanceof HttpError) {
       if (error.status === 400) {
+        resetCredential.clear()
         message = t('resetPassword.errorInvalidToken')
       } else if (error.status === 422) {
         message = policyError(error) ?? t('resetPassword.errorWeakPassword')

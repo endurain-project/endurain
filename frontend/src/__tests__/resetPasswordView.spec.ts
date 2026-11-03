@@ -6,12 +6,13 @@ import i18n from '@/i18n'
 import ResetPasswordView from '@/features/auth/views/ResetPasswordView.vue'
 import { HttpError } from '@/services/http'
 
-const { confirmPasswordReset } = vi.hoisted(() => ({
+const { confirmPasswordReset, route } = vi.hoisted(() => ({
   confirmPasswordReset: vi.fn<(request: unknown) => Promise<unknown>>(),
+  route: { path: '/reset-password', query: {} as Record<string, unknown> },
 }))
 
 vi.mock('vue-router', () => ({
-  useRoute: () => ({ query: { token: 'tok' } }),
+  useRoute: () => route,
   useRouter: () => ({ replace: vi.fn<() => Promise<void>>() }),
   RouterLink: { template: '<a><slot /></a>' },
 }))
@@ -42,6 +43,8 @@ async function submitFilled() {
 describe('ResetPasswordView weak password', () => {
   beforeEach(() => {
     confirmPasswordReset.mockReset()
+    route.query = { token: 'tok' }
+    sessionStorage.clear()
   })
 
   it('shows the specific message for a password built from the account details', async () => {
@@ -68,5 +71,44 @@ describe('ResetPasswordView weak password', () => {
 
     await wrapper.get('#new-password').setValue('long-enough-pass')
     await vi.waitFor(() => expect(wrapper.find('[data-strength-bar]').exists()).toBe(true))
+  })
+})
+
+describe('ResetPasswordView token across a reload', () => {
+  beforeEach(() => {
+    confirmPasswordReset.mockReset()
+    route.query = { token: 'tok' }
+    sessionStorage.clear()
+  })
+
+  it('still resets with the token after a reload dropped it from the URL', async () => {
+    mount(ResetPasswordView, { global: { plugins: [i18n] } }).unmount()
+
+    route.query = {}
+    confirmPasswordReset.mockResolvedValue({})
+    await submitFilled()
+
+    expect(confirmPasswordReset).toHaveBeenCalledWith(expect.objectContaining({ token: 'tok' }))
+  })
+
+  it('forgets the token once the password was reset', async () => {
+    confirmPasswordReset.mockResolvedValue({})
+    await submitFilled()
+
+    expect(sessionStorage.length).toBe(0)
+  })
+
+  it('forgets the token when the link is refused as invalid', async () => {
+    confirmPasswordReset.mockRejectedValue(new HttpError(400, 'Bad Request'))
+    await submitFilled()
+
+    expect(sessionStorage.length).toBe(0)
+  })
+
+  it('keeps the token while the password is only too weak', async () => {
+    confirmPasswordReset.mockRejectedValue(new HttpError(422, 'Unprocessable'))
+    await submitFilled()
+
+    expect(sessionStorage.length).toBe(1)
   })
 })

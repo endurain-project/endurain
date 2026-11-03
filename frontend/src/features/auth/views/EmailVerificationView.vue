@@ -41,7 +41,8 @@ const errorMessage = ref('')
 const adminApprovalRequired = ref(false)
 
 /** Verification token from the emailed link; empty when absent or malformed. */
-const token = ref(useQueryCredential('token'))
+const verifyCredential = useQueryCredential('token')
+const token = ref(verifyCredential.value)
 
 // The account tier is unknown before submitting, so the regular policy applies;
 // a stricter server-side policy answers 422 (see `submitPassword`).
@@ -57,12 +58,14 @@ async function submitPassword(formValues: ChoosePasswordValues): Promise<void> {
   try {
     const response = await confirmSignUp({ token: token.value, password: formValues.password })
     adminApprovalRequired.value = response.admin_approval_required === true
+    verifyCredential.clear()
     status.value = 'success'
   } catch (error) {
     if (error instanceof HttpError && error.status === 422) {
       throw new Error(policyError(error) ?? t('resetPassword.errorWeakPassword'))
     }
     if (error instanceof HttpError && error.status === 400) {
+      verifyCredential.clear()
       showError(t('verifyEmail.errorInvalidToken'))
       return
     }
@@ -110,13 +113,16 @@ async function verify(): Promise<void> {
   try {
     const response = await confirmSignUp({ token: token.value })
     adminApprovalRequired.value = response.admin_approval_required === true
+    verifyCredential.clear()
     status.value = 'success'
   } catch (error) {
     if (error instanceof HttpError && error.type === PASSWORD_REQUIRED_TYPE) {
       status.value = 'password'
     } else if (error instanceof HttpError && error.status === 404) {
+      verifyCredential.clear()
       showError(t('verifyEmail.errorNotFound'))
     } else if (error instanceof HttpError && error.status === 400) {
+      verifyCredential.clear()
       showError(t('verifyEmail.errorInvalidToken'))
     } else if (error instanceof HttpError && error.status === 409) {
       showError(t('verifyEmail.errorEmailTaken'))

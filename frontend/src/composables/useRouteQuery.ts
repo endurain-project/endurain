@@ -44,21 +44,76 @@ export function dropQueryParam(
   void router.replace({ query, hash: route.hash })
 }
 
+/** A one-time credential read from the URL, and a way to forget it. */
+export interface QueryCredential {
+  /** The credential, or an empty string when absent or malformed. */
+  value: string
+  /** Forgets the stored copy once the credential was used or refused for good. */
+  clear: () => void
+}
+
 /**
- * Reads a one-time credential from the URL once and removes it from the address bar, so it does not stay in
- * the history, a bookmark or a shared screenshot.
+ * Reads a one-time credential from the URL and removes it from the address bar, so it does not stay in
+ * the history, a bookmark or a shared screenshot. The tab's session storage keeps a copy, so a reload
+ * (which no longer has it in the URL) still finds it; it goes away with the tab or when cleared.
  *
  * @param key - The query parameter that carries the credential.
- * @returns The credential, or an empty string when absent or malformed.
+ * @returns The credential and a function that forgets it.
  */
-export function useQueryCredential(key: string): string {
+export function useQueryCredential(key: string): QueryCredential {
   const route = useRoute()
   const router = useRouter()
-  const value = getScalarQueryString(route.query[key])
-  if (value) {
+  const storageKey = `endurain:credential:${route.path}:${key}`
+  const fromUrl = getScalarQueryString(route.query[key])
+  if (fromUrl) {
     dropQueryParam(route, router, key)
+    writeSession(storageKey, fromUrl)
   }
-  return value
+  return {
+    value: fromUrl || readSession(storageKey),
+    clear: () => removeSession(storageKey),
+  }
+}
+
+/**
+ * Reads a session-storage value, treating blocked storage as empty.
+ *
+ * @param key - The storage key.
+ * @returns The stored value, or an empty string.
+ */
+function readSession(key: string): string {
+  try {
+    return sessionStorage.getItem(key) ?? ''
+  } catch {
+    return ''
+  }
+}
+
+/**
+ * Writes a session-storage value; best-effort when storage is blocked.
+ *
+ * @param key - The storage key.
+ * @param value - The value to keep.
+ */
+function writeSession(key: string, value: string): void {
+  try {
+    sessionStorage.setItem(key, value)
+  } catch {
+    // Without storage the credential lives only for this page load.
+  }
+}
+
+/**
+ * Removes a session-storage value; best-effort when storage is blocked.
+ *
+ * @param key - The storage key.
+ */
+function removeSession(key: string): void {
+  try {
+    sessionStorage.removeItem(key)
+  } catch {
+    // Nothing to forget if storage is blocked.
+  }
 }
 
 /**

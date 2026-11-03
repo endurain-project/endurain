@@ -6,15 +6,18 @@ import i18n from '@/i18n'
 import EmailVerificationView from '@/features/auth/views/EmailVerificationView.vue'
 import { HttpError } from '@/services/http'
 
-const { confirmSignUp, resendSignUpVerification, toastSuccess, routerReplace } = vi.hoisted(() => ({
-  routerReplace: vi.fn<(to: unknown) => Promise<void>>(() => Promise.resolve()),
-  confirmSignUp: vi.fn<(request: unknown) => Promise<unknown>>(),
-  resendSignUpVerification: vi.fn<(request: unknown) => Promise<unknown>>(),
-  toastSuccess: vi.fn<(message: string) => void>(),
-}))
+const { confirmSignUp, resendSignUpVerification, toastSuccess, routerReplace, route } = vi.hoisted(
+  () => ({
+    route: { path: '/verify-email', query: {} as Record<string, unknown> },
+    routerReplace: vi.fn<(to: unknown) => Promise<void>>(() => Promise.resolve()),
+    confirmSignUp: vi.fn<(request: unknown) => Promise<unknown>>(),
+    resendSignUpVerification: vi.fn<(request: unknown) => Promise<unknown>>(),
+    toastSuccess: vi.fn<(message: string) => void>(),
+  }),
+)
 
 vi.mock('vue-router', () => ({
-  useRoute: () => ({ query: { token: 'tok', other: 'kept' } }),
+  useRoute: () => route,
   useRouter: () => ({ replace: routerReplace }),
   RouterLink: { template: '<a><slot /></a>' },
 }))
@@ -43,6 +46,8 @@ async function mountView() {
 
 describe('EmailVerificationView', () => {
   beforeEach(() => {
+    route.query = { token: 'tok', other: 'kept' }
+    sessionStorage.clear()
     confirmSignUp.mockReset()
     resendSignUpVerification.mockReset()
     toastSuccess.mockReset()
@@ -169,5 +174,38 @@ describe('EmailVerificationView', () => {
     const wrapper = await mountView()
 
     expect(wrapper.find('input[name="email"]').exists()).toBe(false)
+  })
+
+  it('still confirms with the token after a reload dropped it from the URL', async () => {
+    confirmSignUp.mockRejectedValueOnce(new HttpError(500, 'Server Error'))
+    ;(await mountView()).unmount()
+    confirmSignUp.mockReset()
+    confirmSignUp.mockResolvedValue({ admin_approval_required: false })
+
+    route.query = {}
+    await mountView()
+
+    expect(confirmSignUp).toHaveBeenCalledWith({ token: 'tok' })
+  })
+
+  it('forgets the token once the sign-up was confirmed', async () => {
+    confirmSignUp.mockResolvedValue({ admin_approval_required: false })
+    await mountView()
+
+    expect(sessionStorage.length).toBe(0)
+  })
+
+  it.each([400, 404])('forgets the token when the link is refused with %i', async (status) => {
+    confirmSignUp.mockRejectedValue(new HttpError(status, 'Refused', null, 'urn:endurain:error:x'))
+    await mountView()
+
+    expect(sessionStorage.length).toBe(0)
+  })
+
+  it('keeps the token while a password is still being chosen', async () => {
+    confirmSignUp.mockRejectedValue(passwordRequired())
+    await mountView()
+
+    expect(sessionStorage.length).toBe(1)
   })
 })
