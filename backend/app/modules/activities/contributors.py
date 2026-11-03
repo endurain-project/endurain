@@ -6,9 +6,11 @@ archive names and how one archived record becomes a stored row; the parent-id
 guard and the re-keying filter live here once.
 """
 
+from collections.abc import Sequence
 from dataclasses import dataclass
 from typing import Any, Protocol
 
+from pydantic import BaseModel, TypeAdapter
 from sqlalchemy.orm import Session
 
 import modules.activities.activity.schema as activity_schema
@@ -23,14 +25,14 @@ class PersistActivityComponent(Protocol):
 
     def __call__(
         self,
-        data: Any,
+        data: object,
         activity: activity_schema.ActivityRead,
         db: Session,
     ) -> None:
         """Stage the component for a newly created activity.
 
         Args:
-            data: The parsed component payload.
+            data: The parsed component payload, which the contributor checks is the shape it stores.
             activity: The newly created activity.
             db: Database session.
         """
@@ -39,11 +41,11 @@ class PersistActivityComponent(Protocol):
 class PersistFileComponent(Protocol):
     """Persist one file-scoped parsed component."""
 
-    def __call__(self, data: Any, db: Session) -> None:
+    def __call__(self, data: object, db: Session) -> None:
         """Persist the file-scoped component.
 
         Args:
-            data: The parsed component payload.
+            data: The parsed component payload, which the contributor checks is the shape it stores.
             db: Database session.
         """
 
@@ -51,7 +53,7 @@ class PersistFileComponent(Protocol):
 class ExportActivityRecords(Protocol):
     """Export profile records scoped to activity identifiers."""
 
-    def __call__(self, activity_ids: list[int], db: Session) -> list[Any]:
+    def __call__(self, activity_ids: list[int], db: Session) -> Sequence[BaseModel]:
         """Return the records for the given activities.
 
         Args:
@@ -89,7 +91,7 @@ class RestoreActivityRecords(Protocol):
 class ExportGlobalRecords(Protocol):
     """Export file-global profile records."""
 
-    def __call__(self, db: Session) -> list[Any]:
+    def __call__(self, db: Session) -> Sequence[BaseModel]:
         """Return the file-global records.
 
         Args:
@@ -197,30 +199,35 @@ class ParseChildRecord[R](Protocol):
         """
 
 
-def child_ingestion_contributor(
+def child_ingestion_contributor[R](
     *,
     key: str,
-    store: StoreChildRecords[Any],
+    payload: TypeAdapter[R],
+    store: StoreChildRecords[R],
 ) -> ActivityIngestionContributor:
     """Build the ingestion contribution for a plain child collection.
 
     Args:
         key: The parsed component key the contribution persists.
+        payload: The shape of the parsed rows ``store`` takes.
         store: Stages the parsed rows for an activity.
 
     Returns:
         The contributor.
     """
 
-    def persist(data: Any, activity: activity_schema.ActivityRead, db: Session) -> None:
+    def persist(data: object, activity: activity_schema.ActivityRead, db: Session) -> None:
         """Stage the parsed rows for the stored activity.
 
         Args:
             data: The parsed component rows.
             activity: The stored activity they belong to.
             db: Database session.
+
+        Raises:
+            ValidationError: When the parser handed rows of another shape, before anything is staged.
         """
-        store(data, activity.id, db)
+        store(payload.validate_python(data), activity.id, db)
 
     return ActivityIngestionContributor(key=key, persist=persist)
 

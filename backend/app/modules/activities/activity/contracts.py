@@ -21,7 +21,6 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 from datetime import datetime
-from typing import Any
 
 from pydantic import Field, field_validator
 
@@ -257,7 +256,7 @@ class ParsedActivity:
     """
 
     activity: ActivityCore
-    components: dict[str, Any] = field(default_factory=dict)
+    components: dict[str, object] = field(default_factory=dict)
     source: ImportSource | None = None
 
 
@@ -279,4 +278,4 @@ class ParsedFile:
     """
 
     activities: list[ParsedActivity] = field(default_factory=list)
-    components: dict[str, Any] = field(default_factory=dict)
+    components: dict[str, object] = field(default_factory=dict)

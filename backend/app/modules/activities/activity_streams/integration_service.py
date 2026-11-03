@@ -2,6 +2,7 @@
 
 from typing import Any
 
+from pydantic import InstanceOf, TypeAdapter
 from sqlalchemy.orm import Session
 
 import modules.activities.activity.schema as activity_schema
@@ -42,8 +43,14 @@ def _store_streams(
     activity_streams_crud.create_activity_streams(streams, activity, db)
 
 
+#: The parsed streams.
+_PAYLOAD: TypeAdapter[list[activity_streams_contracts.ParsedStream]] = TypeAdapter(
+    list[InstanceOf[activity_streams_contracts.ParsedStream]]
+)
+
+
 def _persist_ingestion_component(
-    data: Any,
+    data: object,
     activity: activity_schema.ActivityRead,
     db: Session,
 ) -> None:
@@ -53,6 +60,9 @@ def _persist_ingestion_component(
         data: The parsed component payload.
         activity: The newly created parent activity.
         db: Database session.
+
+    Raises:
+        ValidationError: When the parser handed something other than parsed streams, before anything is staged.
     """
     streams = [
         activity_streams_contracts.ActivityStreamsCreate(
@@ -61,7 +71,7 @@ def _persist_ingestion_component(
             stream_waypoints=stream.stream_waypoints,
             strava_activity_stream_id=None,
         )
-        for stream in data
+        for stream in _PAYLOAD.validate_python(data)
     ]
     _store_streams(streams, activity, db)
 

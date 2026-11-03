@@ -3,6 +3,7 @@
 from collections.abc import Sequence
 from typing import Any
 
+from pydantic import InstanceOf, TypeAdapter
 from sqlalchemy.orm import Session
 
 import modules.activities.activity.schema as activity_schema
@@ -29,8 +30,14 @@ def _list_sets_for_activities(
     return activity_sets_crud.get_activities_sets(activity_ids, db)
 
 
+#: The parsed sets: schemas, or the raw rows the FIT parser emits.
+_PAYLOAD: TypeAdapter[list[activity_sets_contracts.ActivitySetsCreate | list[object]]] = TypeAdapter(
+    list[InstanceOf[activity_sets_contracts.ActivitySetsCreate] | list[object]]
+)
+
+
 def _store_sets(
-    sets: Sequence[activity_sets_contracts.ActivitySetsCreate | list],
+    sets: Sequence[activity_sets_contracts.ActivitySetsCreate | list[object]],
     activity_id: int,
     db: Session,
 ) -> None:
@@ -63,7 +70,7 @@ def ingestion_contributor() -> activities_contributors.ActivityIngestionContribu
     Returns:
         The contributor.
     """
-    return activities_contributors.child_ingestion_contributor(key="sets", store=_store_sets)
+    return activities_contributors.child_ingestion_contributor(key="sets", payload=_PAYLOAD, store=_store_sets)
 
 
 def profile_contributor() -> activities_contributors.ProfileActivityContributor:

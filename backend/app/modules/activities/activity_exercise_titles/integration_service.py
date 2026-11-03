@@ -2,7 +2,7 @@
 
 from typing import Any
 
-from pydantic import ValidationError
+from pydantic import InstanceOf, TypeAdapter, ValidationError
 from sqlalchemy.orm import Session
 
 import core.logger as core_logger
@@ -13,14 +13,23 @@ import modules.activities.contributors as activities_contributors
 logger = core_logger.get_logger(__name__)
 
 
-def _persist_file_ingestion_component(data: Any, db: Session) -> None:
+#: The parsed exercise titles.
+_PAYLOAD: TypeAdapter[list[activity_exercise_titles_contracts.ActivityExerciseTitlesCreate]] = TypeAdapter(
+    list[InstanceOf[activity_exercise_titles_contracts.ActivityExerciseTitlesCreate]]
+)
+
+
+def _persist_file_ingestion_component(data: object, db: Session) -> None:
     """Persist exercise titles through the generic file-ingestion contract.
 
     Args:
         data: The parsed exercise titles.
         db: Database session.
+
+    Raises:
+        ValidationError: When the parser handed something other than exercise titles, before anything is stored.
     """
-    activity_exercise_titles_crud.create_activity_exercise_titles(data, db)
+    activity_exercise_titles_crud.create_activity_exercise_titles(_PAYLOAD.validate_python(data), db)
 
 
 def ingestion_contributor() -> activities_contributors.FileIngestionContributor:

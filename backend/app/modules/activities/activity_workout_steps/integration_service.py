@@ -2,6 +2,7 @@
 
 from typing import Any
 
+from pydantic import InstanceOf, TypeAdapter
 from sqlalchemy.orm import Session
 
 import modules.activities.activity.schema as activity_schema
@@ -26,6 +27,12 @@ def _list_workout_steps_for_activities(
         Workout steps for activity IDs already scoped by the caller.
     """
     return activity_workout_steps_crud.get_activities_workout_steps(activity_ids, db)
+
+
+#: The parsed workout steps.
+_PAYLOAD: TypeAdapter[list[activity_workout_steps_contracts.ActivityWorkoutStepsCreate]] = TypeAdapter(
+    list[InstanceOf[activity_workout_steps_contracts.ActivityWorkoutStepsCreate]]
+)
 
 
 def _store_workout_steps(
@@ -68,7 +75,9 @@ def ingestion_contributor() -> activities_contributors.ActivityIngestionContribu
     Returns:
         The contributor.
     """
-    return activities_contributors.child_ingestion_contributor(key="workout_steps", store=_store_workout_steps)
+    return activities_contributors.child_ingestion_contributor(
+        key="workout_steps", payload=_PAYLOAD, store=_store_workout_steps
+    )
 
 
 def profile_contributor() -> activities_contributors.ProfileActivityContributor:

@@ -2,6 +2,7 @@
 
 from typing import Any
 
+from pydantic import TypeAdapter
 from sqlalchemy.orm import Session
 
 import modules.activities.activity.schema as activity_schema
@@ -27,8 +28,12 @@ def _list_laps_for_activities(
     return activity_laps_crud.get_activities_laps(activity_ids, db)
 
 
+#: The parsed laps: one row of lap fields per lap, in recorded order.
+_PAYLOAD: TypeAdapter[list[dict[str, object]]] = TypeAdapter(list[dict[str, object]])
+
+
 def _store_laps(
-    laps: list[dict],
+    laps: list[dict[str, object]],
     activity_id: int,
     db: Session,
 ) -> None:
@@ -42,7 +47,7 @@ def _store_laps(
     activity_laps_crud.create_activity_laps(laps, activity_id, db)
 
 
-def _parse_profile_record(record: dict[str, Any], _activity_id: int) -> dict[str, Any]:
+def _parse_profile_record(record: dict[str, Any], _activity_id: int) -> dict[str, object]:
     """Validate one archived lap record.
 
     Laps are stored from plain dicts and carry no parent id of their own, so the
@@ -65,7 +70,7 @@ def ingestion_contributor() -> activities_contributors.ActivityIngestionContribu
     Returns:
         The contributor.
     """
-    return activities_contributors.child_ingestion_contributor(key="laps", store=_store_laps)
+    return activities_contributors.child_ingestion_contributor(key="laps", payload=_PAYLOAD, store=_store_laps)
 
 
 def profile_contributor() -> activities_contributors.ProfileActivityContributor:
