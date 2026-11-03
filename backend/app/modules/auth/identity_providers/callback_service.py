@@ -366,15 +366,15 @@ class CallbackService:
                 userinfo_endpoint = userinfo_endpoint or config.get("userinfo_endpoint")
             elif idp.issuer_url:
                 try:
-                    config = self._oidc.get_oidc_configuration(idp)
-                    if config:
+                    discovered = self._oidc.get_oidc_configuration(idp)
+                    if discovered:
                         # Get userinfo endpoint if not manually configured
                         if not userinfo_endpoint:
-                            userinfo_endpoint = config.get("userinfo_endpoint")
+                            userinfo_endpoint = discovered.get("userinfo_endpoint")
 
                         # Get JWKS URI for ID token verification
-                        jwks_uri = config.get("jwks_uri")
-                        expected_issuer = config.get("issuer")
+                        jwks_uri = discovered.get("jwks_uri")
+                        expected_issuer = discovered.get("issuer")
                 except Exception as err:
                     logger.warning(
                         "OIDC discovery failed for IdP <name>: <err>",

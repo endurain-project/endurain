@@ -1,7 +1,7 @@
 """CRUD operations for activities."""
 
 from collections import defaultdict
-from collections.abc import Sequence
+from collections.abc import Mapping, Sequence
 from datetime import UTC, date, datetime
 from typing import Any
 
@@ -1599,7 +1599,7 @@ def edit_user_activities_visibility_batch(user_id: int, visibility: int, limit: 
 
 def bulk_set_activities_gear_id(
     user_id: int,
-    gear_assignments: dict[int, int | None],
+    gear_assignments: Mapping[int, int | None],
     db: Session,
 ) -> list[int]:
     """Stage a bulk ``gear_id`` update for many activities owned by a user.

@@ -96,11 +96,7 @@ def build_summary(
     # timezone, so the server cannot derive it); when it does not, the caller's
     # configured timezone is the same frame of reference it would have sent.
     # One user read serves both the fallback anchor and the week/month first day.
-    user = None
-    if anchor is None or period in ("week", "month"):
-        user = users_integration.get_user(user_id, db)
-        if user is None:
-            raise core_exceptions.NotFoundError("User not found")
+    user = users_integration.require_user(user_id, db)
     today = anchor or core_timezone.today_in(users_integration.timezone_or_default(user.timezone))
 
     # Which day the server thinks "today" is drives every bucket boundary, so log

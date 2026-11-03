@@ -62,7 +62,7 @@ def run_window[ItemT, ResultT](
             logger.warning(
                 "An activity could not be processed; the rest of the window continues and the window is retried",
                 exc_info=err,
-                extra=core_logger.context(provider=provider, user_id=user_id, **describe(item)),
+                extra=core_logger.context(describe(item), provider=provider, user_id=user_id),
             )
     if first_failure is not None:
         logger.warning(

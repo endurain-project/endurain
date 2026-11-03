@@ -274,7 +274,9 @@ def _normalize_fields(fields: Mapping[str, Any]) -> dict[str, Any]:
     return normalized
 
 
-def context(*, console: bool = False, **fields: Any) -> dict[str, Any]:
+def context(
+    fields: Mapping[str, object] | None = None, /, *, console: bool = False, **keyword_fields: Any
+) -> dict[str, Any]:
     """
     Build the ``extra`` mapping for a structured log record.
 
@@ -286,15 +288,17 @@ def context(*, console: bool = False, **fields: Any) -> dict[str, Any]:
         )
 
     Args:
+        fields: Structured fields whose names are known only at run time, such as a provider's
+            description of the item a record is about.
         console: Mirror this record to the console as well as the log file.
             No-op in deployed environments, where every record already reaches
             stdout.
-        **fields: Structured fields to attach. ``None`` values are dropped.
+        **keyword_fields: Structured fields to attach. ``None`` values are dropped.
 
     Returns:
         A mapping to pass as the ``extra=`` argument of a logging call.
     """
-    extra = _normalize_fields(fields)
+    extra = _normalize_fields({**(fields or {}), **keyword_fields})
     if console:
         extra[CONSOLE_FIELD] = True
     return extra

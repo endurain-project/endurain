@@ -98,8 +98,10 @@ def read_logs(
         return logs_schema.LogPage(entries=[], cursor=0)
 
     # A cursor always sits on a line boundary; any other start may fall mid-line.
-    at_line_start = after is not None and after <= size
-    start = after if at_line_start else max(0, size - MAX_READ_BYTES)
+    if after is not None and after <= size:
+        start, at_line_start = after, True
+    else:
+        start, at_line_start = max(0, size - MAX_READ_BYTES), False
     if size - start > MAX_READ_BYTES:
         start, at_line_start = size - MAX_READ_BYTES, False
     with path.open("rb") as log_file:

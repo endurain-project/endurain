@@ -205,24 +205,25 @@ class OidcClientService:
             raise core_exceptions.ProcessingError("Failed to retrieve signing keys from identity provider") from err
 
     @staticmethod
-    def _issuer_matches(idp: identity_provider_contracts.IdentityProviderState, config: Any) -> bool:
+    def _issuer_matches(idp: identity_provider_contracts.IdentityProviderState, issuer_url: str, config: Any) -> bool:
         """Check that a discovery document names the issuer the provider is configured with.
 
         A trailing slash on either side is ignored.
 
         Args:
-            idp: The provider whose issuer URL the document must name.
+            idp: The provider the document was fetched for.
+            issuer_url: The issuer URL the provider is configured with.
             config: The discovery document.
 
         Returns:
             True when the document's ``issuer`` equals the configured issuer URL.
         """
         issuer = config.get("issuer") if isinstance(config, dict) else None
-        if isinstance(issuer, str) and issuer.removesuffix("/") == idp.issuer_url.removesuffix("/"):
+        if isinstance(issuer, str) and issuer.removesuffix("/") == issuer_url.removesuffix("/"):
             return True
         logger.warning(
             "OIDC discovery document for <name> names issuer <issuer>, expected <expected>",
-            extra=core_logger.context(name=idp.name, issuer=issuer, expected=idp.issuer_url),
+            extra=core_logger.context(name=idp.name, issuer=issuer, expected=issuer_url),
         )
         return False
 
@@ -247,16 +248,17 @@ class OidcClientService:
         Raises:
             Does not raise exceptions directly; logs errors and returns None on failure.
         """
-        if not idp.issuer_url:
+        issuer_url = idp.issuer_url
+        if not issuer_url:
             return None
 
         # Check cache
         cached = self._read_cache(self._discovery_key(idp.id))
         if cached is not None:
-            return cached if self._issuer_matches(idp, cached) else None
+            return cached if self._issuer_matches(idp, issuer_url, cached) else None
 
         # Construct the discovery URL
-        discovery_url = f"{idp.issuer_url.rstrip('/')}/.well-known/openid-configuration"
+        discovery_url = f"{issuer_url.rstrip('/')}/.well-known/openid-configuration"
 
         try:
             # SSRF guard for the admin-supplied issuer
@@ -269,7 +271,7 @@ class OidcClientService:
             response.raise_for_status()
             config = response.json()
 
-            if not self._issuer_matches(idp, config):
+            if not self._issuer_matches(idp, issuer_url, config):
                 return None
 
             self._write_cache(self._discovery_key(idp.id), config)

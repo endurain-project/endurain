@@ -9,8 +9,15 @@ from pydantic import BaseModel, ConfigDict
 class SessionTimeoutPolicy(Protocol):
     """Timeout values consumed by pure session validation."""
 
-    idle_timeout: timedelta | None
-    absolute_timeout: timedelta
+    @property
+    def idle_timeout(self) -> timedelta | None:
+        """Inactivity after which a session ends, or ``None`` when it never ends for inactivity."""
+        ...
+
+    @property
+    def absolute_timeout(self) -> timedelta:
+        """Age after which a session ends whatever its activity."""
+        ...
 
 
 class SessionRead(BaseModel):

@@ -4,6 +4,7 @@ import garminconnect
 from sqlalchemy.orm import Session
 
 import core.database as core_database
+import core.exceptions as core_exceptions
 import core.logger as core_logger
 import modules.activities.activity.contracts as activity_contracts
 import modules.activities.activity.integration_service as activity_integration
@@ -14,6 +15,25 @@ import modules.gears.gear.schema as gears_schema
 import modules.users.users_integrations.integration_service as user_integrations_integration
 
 logger = core_logger.get_logger(__name__)
+
+
+def gear_list(answer: object) -> list[dict]:
+    """Return the gear Garmin Connect answered with.
+
+    garminconnect types its gear answers as a JSON object, but Garmin answers with a list of gear pieces.
+
+    Args:
+        answer: What garminconnect returned for a gear request.
+
+    Returns:
+        The gear pieces.
+
+    Raises:
+        DependencyFailedError: When Garmin Connect answered with something other than a list.
+    """
+    if not isinstance(answer, list):
+        raise core_exceptions.DependencyFailedError("Garmin Connect answered a gear request in an unexpected shape")
+    return answer
 
 
 def fetch_and_process_gear(garminconnect_client: garminconnect.Garmin, user_id: int) -> int:
@@ -29,7 +49,7 @@ def fetch_and_process_gear(garminconnect_client: garminconnect.Garmin, user_id: 
         The number of gear pieces that were not stored yet.
     """
     last_used_device = garminconnect_client.get_device_last_used()
-    gears = garminconnect_client.get_gear(last_used_device["userProfileNumber"])
+    gears = gear_list(garminconnect_client.get_gear(last_used_device["userProfileNumber"]))
 
     with core_database.SessionLocal() as db:
         new_gears = [new_gear for gear in gears if (new_gear := process_gear(gear, user_id, db)) is not None]

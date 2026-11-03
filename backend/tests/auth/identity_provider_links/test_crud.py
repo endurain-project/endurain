@@ -47,7 +47,7 @@ def test_get_link_by_subject_returns_contract(mock_db):
 def test_check_linked_provider_and_counts(mock_db):
     mock_db.execute.return_value.scalar.return_value = True
     assert identity_links_crud.check_user_identity_providers_by_idp_id(3, mock_db) is True
-    mock_db.execute.return_value.all.return_value = [SimpleNamespace(user_id=7, count=2)]
+    mock_db.execute.return_value.all.return_value = [(7, 2)]
     assert identity_links_crud.get_identity_link_counts_for_users([7], mock_db) == {7: 2}
 
 

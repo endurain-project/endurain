@@ -5,7 +5,7 @@ including validation rules and enumerations for fasting types and statuses.
 """
 
 from datetime import datetime
-from enum import Enum
+from enum import Enum, StrEnum
 
 from pydantic import (
     BaseModel,
@@ -56,7 +56,7 @@ class FastingType(Enum):
     CUSTOM = "custom"
 
 
-class FastingStatus(Enum):
+class FastingStatus(StrEnum):
     """Enumeration of fasting session statuses.
 
     Attributes:

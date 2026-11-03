@@ -647,9 +647,11 @@ def compute_moving_time_from_times(times: list[datetime]) -> float:
     Returns:
         Moving time in seconds. ``0.0`` if fewer than two timestamps.
     """
+    if not times:
+        return 0.0
     threshold = pause_threshold_seconds(times)
     moving_time = 0.0
-    baseline = times[0] if times else None
+    baseline = times[0]
     for time in times[1:]:
         delta = (time - baseline).total_seconds()
         if delta <= 0:

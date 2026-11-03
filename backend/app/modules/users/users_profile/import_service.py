@@ -678,7 +678,7 @@ class ImportService:
 
         for field in gear_fields:
             old_gear_id = gear_data.get(field)
-            gear_data[field] = gears_id_mapping.get(old_gear_id)
+            gear_data[field] = gears_id_mapping.get(old_gear_id) if old_gear_id is not None else None
 
         try:
             user_default_gear = user_default_gear_schema.UsersDefaultGearUpdate(**gear_data)

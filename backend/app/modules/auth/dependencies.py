@@ -181,20 +181,19 @@ def audit_context_from_request() -> jasil_audit.AuditContext:
     if request is None:
         return jasil_audit.AuditContext(actor_type=jasil_audit.ActorType.SYSTEM, source=jasil_audit.Source.WORKER)
     ip_address = core_network.get_ip_address(request)
-    client = {
-        "ip_address": None if ip_address == "unknown" else ip_address,
-        "user_agent": core_network.get_user_agent(request) or None,
-    }
+    client_ip = None if ip_address == "unknown" else ip_address
+    user_agent = core_network.get_user_agent(request) or None
     principal: auth_contracts.Principal | None = getattr(request.state, "principal", None)
     if principal is None:
-        return jasil_audit.AuditContext(**client)
+        return jasil_audit.AuditContext(ip_address=client_ip, user_agent=user_agent)
     credential_id = principal.credential_id()
     return jasil_audit.AuditContext(
         actor_type=jasil_audit.ActorType.API_KEY if principal.is_api_key() else jasil_audit.ActorType.USER,
         actor_id=str(principal.user_id),
         credential_type=principal.credential_type(),
         credential_id=None if credential_id is None else str(credential_id),
-        **client,
+        ip_address=client_ip,
+        user_agent=user_agent,
     )
 
 

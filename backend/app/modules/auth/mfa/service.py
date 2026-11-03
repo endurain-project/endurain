@@ -22,6 +22,7 @@ from io import BytesIO
 
 import pyotp
 import qrcode
+from qrcode.image.pil import PilImage
 from sqlalchemy.orm import Session
 
 import core.cryptography as core_cryptography
@@ -74,7 +75,7 @@ def generate_qr_code(secret: str, username: str, app_name: str = "Endurain") -> 
     qr.add_data(provisioning_uri)
     qr.make(fit=True)
 
-    img = qr.make_image(fill_color="black", back_color="white")
+    img = qr.make_image(image_factory=PilImage, fill_color="black", back_color="white")
 
     buffer = BytesIO()
     img.save(buffer, format="PNG")

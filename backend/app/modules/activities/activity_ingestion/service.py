@@ -693,7 +693,7 @@ def defer_ingestion_job(job_id: str, retry_at: datetime) -> None:
 
 
 def run_in_background_or_fail(
-    run: Callable[[str, platform_providers.StorageProvider], None],
+    run: Callable[[str, platform_providers.StorageProvider], object],
     job_id: str,
     storage: platform_providers.StorageProvider,
 ) -> None:

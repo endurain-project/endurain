@@ -20,7 +20,6 @@ dead-letters. The outcome a client reads is recorded on the
 
 import jasil.event_versioning as platform_event_versioning
 import jasil.runtime as platform_runtime
-from jasil.event_versioning import VersionedPayload
 from jasil.events import Event
 from jasil.jobs import ContinueJob
 from jasil.jobs.registry import JobHandlerRegistry
@@ -89,7 +88,9 @@ def process_bulk_import_for_event(event: Event) -> None:
 
 def _close_dead_lettered_job(
     event: Event,
-    payload_type: type[VersionedPayload],
+    payload_type: type[activity_ingestion_events.UploadedFilePayload]
+    | type[activity_ingestion_events.RefreshRequestedPayload]
+    | type[activity_ingestion_events.BulkImportContinuePayload],
     error_code: activity_ingestion_constants.IngestionJobErrorCode,
     error: str | None,
 ) -> None:

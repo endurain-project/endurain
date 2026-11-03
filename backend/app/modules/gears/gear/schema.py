@@ -106,13 +106,13 @@ class GearBase(BaseModel):
         max_length=250,
         description="Gear model name",
     )
-    nickname: StrictStr = Field(
-        ...,
+    nickname: StrictStr | None = Field(
+        default=None,
         max_length=250,
         description="Gear display nickname",
     )
-    gear_type: GearType = Field(
-        ...,
+    gear_type: GearType | None = Field(
+        default=None,
         description="Gear type identifier",
     )
     created_at: datetime_type | None = Field(
@@ -155,6 +155,10 @@ class GearCreateRequest(GearBase):
         max_length=250,
         description="Gear display nickname",
     )
+    gear_type: GearType = Field(
+        ...,
+        description="Gear type identifier",
+    )
 
 
 class GearCreate(GearBase):
@@ -166,6 +170,15 @@ class GearCreate(GearBase):
         garminconnect_gear_id: Garmin Connect gear ID.
     """
 
+    nickname: StrictStr = Field(
+        ...,
+        max_length=250,
+        description="Gear display nickname",
+    )
+    gear_type: GearType = Field(
+        ...,
+        description="Gear type identifier",
+    )
     user_id: StrictInt | None = Field(
         default=None,
         description="Foreign key to user",
@@ -242,10 +255,6 @@ class GearUpdate(GearBase):
         default=None,
         max_length=250,
         description="Gear display nickname",
-    )
-    gear_type: GearType | None = Field(
-        default=None,
-        description="Gear type identifier",
     )
 
     @model_validator(mode="after")

@@ -9,12 +9,35 @@ from pydantic import BaseModel, ConfigDict
 class IdentityProviderDetails(Protocol):
     """Display data required to enrich a linked identity provider."""
 
-    id: int
-    name: str
-    slug: str
-    icon: str | None
-    icon_uploaded: bool
-    provider_type: str
+    @property
+    def id(self) -> int:
+        """The provider's id."""
+        ...
+
+    @property
+    def name(self) -> str:
+        """The provider's display name."""
+        ...
+
+    @property
+    def slug(self) -> str:
+        """The provider's URL slug."""
+        ...
+
+    @property
+    def icon(self) -> str | None:
+        """The provider's icon, or ``None``."""
+        ...
+
+    @property
+    def icon_uploaded(self) -> bool:
+        """Whether the icon is an uploaded file."""
+        ...
+
+    @property
+    def provider_type(self) -> str:
+        """The protocol the provider speaks."""
+        ...
 
 
 class IdentityLinkRead(BaseModel):

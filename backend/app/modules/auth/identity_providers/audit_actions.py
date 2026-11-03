@@ -4,11 +4,13 @@ Ids are stable forever: rows outlive the code. ``details`` carry ids only, never
 """
 
 from enum import StrEnum
-from typing import ClassVar, Literal
+from typing import ClassVar
 
 import jasil.audit as jasil_audit
 from jasil.event_versioning import VersionedPayload
 from pydantic import ConfigDict
+
+import modules.auth.identity_providers.contracts as identity_providers_contracts
 
 
 class IdentityLinkRefusal(StrEnum):
@@ -36,7 +38,7 @@ class IdentityProviderDetails(VersionedPayload):
 
     SCHEMA_VERSION: ClassVar[int] = 1
 
-    provider_type: Literal["oidc", "oauth2", "saml"]
+    provider_type: identity_providers_contracts.ProviderType
 
 
 class IdentityProviderUpdateDetails(VersionedPayload):

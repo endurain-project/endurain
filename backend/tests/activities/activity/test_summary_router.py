@@ -27,7 +27,7 @@ def stub_user_local_today():
 def stub_user_preferences():
     """Provide the configured week start used by summary buckets."""
     with patch(
-        f"{_SERVICE}.users_integration.get_user",
+        f"{_SERVICE}.users_integration.require_user",
         return_value=SimpleNamespace(first_day_of_week="sunday", timezone="UTC"),
     ) as mock:
         yield mock

@@ -51,18 +51,18 @@ class GearComponentBase(BaseModel):
         purchase_value: Purchase value.
     """
 
-    type: StrictStr = Field(
-        ...,
+    type: StrictStr | None = Field(
+        default=None,
         max_length=250,
         description="Type of gear component",
     )
-    brand: StrictStr = Field(
-        ...,
+    brand: StrictStr | None = Field(
+        default=None,
         max_length=250,
         description="Gear component brand",
     )
-    model: StrictStr = Field(
-        ...,
+    model: StrictStr | None = Field(
+        default=None,
         max_length=250,
         description="Gear component model",
     )
@@ -105,6 +105,21 @@ class GearComponentCreate(GearComponentBase):
         gear_id: Foreign key to gear table.
     """
 
+    type: StrictStr = Field(
+        ...,
+        max_length=250,
+        description="Type of gear component",
+    )
+    brand: StrictStr = Field(
+        ...,
+        max_length=250,
+        description="Gear component brand",
+    )
+    model: StrictStr = Field(
+        ...,
+        max_length=250,
+        description="Gear component model",
+    )
     gear_id: StrictInt = Field(
         ...,
         description="Foreign key to gear",
@@ -152,22 +167,6 @@ class GearComponentUpdate(GearComponentBase):
 
     The component and its gear come from the path and cannot be changed.
     """
-
-    type: StrictStr | None = Field(
-        default=None,
-        max_length=250,
-        description="Type of gear component",
-    )
-    brand: StrictStr | None = Field(
-        default=None,
-        max_length=250,
-        description="Gear component brand",
-    )
-    model: StrictStr | None = Field(
-        default=None,
-        max_length=250,
-        description="Gear component model",
-    )
 
     @model_validator(mode="after")
     def _reject_clearing_required_fields(self) -> Self:

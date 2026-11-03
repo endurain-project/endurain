@@ -250,10 +250,11 @@ def rate_limit_exceeded_handler(
     # which is inert unless ``headers_enabled`` is set on the limiter — see the
     # note there for why it cannot be.
     try:
-        breached = exc.limit.limit
-        response.headers["Retry-After"] = str(breached.get_expiry())
-        response.headers["X-RateLimit-Limit"] = str(breached.amount)
-        response.headers["X-RateLimit-Remaining"] = "0"
+        if exc.limit is not None:
+            breached = exc.limit.limit
+            response.headers["Retry-After"] = str(breached.get_expiry())
+            response.headers["X-RateLimit-Limit"] = str(breached.amount)
+            response.headers["X-RateLimit-Remaining"] = "0"
     except Exception as header_err:
         # Headers are informational — never let a missing attribute break the
         # 429 response itself.

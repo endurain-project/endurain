@@ -78,6 +78,8 @@ def visibility_to_int(
         Integer representation (0=public, 1=followers, 2=private). An unset or unrecognized
         value resolves to private, never to public.
     """
+    if visibility is None:
+        return users_privacy_settings_constants.FALLBACK_VISIBILITY_LEVEL
     value = visibility.value if isinstance(visibility, users_privacy_settings_schema.ActivityVisibility) else visibility
     return users_privacy_settings_constants.VISIBILITY_LEVELS.get(
         value, users_privacy_settings_constants.FALLBACK_VISIBILITY_LEVEL

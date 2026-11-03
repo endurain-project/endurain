@@ -163,6 +163,7 @@ def verify_id_token(
         # Step 4: Import the key based on type
         key_type = matching_key.get("kty")
 
+        key: RSAKey | ECKey
         if key_type == "RSA":
             key = RSAKey.import_key(matching_key)
         elif key_type == "EC":

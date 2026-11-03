@@ -15,6 +15,7 @@ one owner.
 """
 
 import calendar
+from collections.abc import Mapping
 from datetime import UTC, date, datetime, time, timedelta
 
 import jasil.audit as jasil_audit
@@ -812,7 +813,7 @@ def delete_activity(activity_id: int, user_id: int, db: Session, *, if_match: st
 
 def bulk_set_activities_gear(
     user_id: int,
-    gear_assignments: dict[int, int | None],
+    gear_assignments: Mapping[int, int | None],
     db: Session,
     *,
     source: str,

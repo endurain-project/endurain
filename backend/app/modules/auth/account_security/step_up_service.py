@@ -264,7 +264,7 @@ def verify_step_up_credentials(
             )
 
     # The ticket pays for one request: of two that raced past the checks above, only one redeems it.
-    if ticket is not None and step_up_store.redeem_ticket(idp_reauth.ticket) != ticket:
+    if idp_reauth is not None and ticket is not None and step_up_store.redeem_ticket(idp_reauth.ticket) != ticket:
         _refuse_step_up(
             step_up_store,
             key,

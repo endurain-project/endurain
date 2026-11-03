@@ -1,7 +1,5 @@
 """Additional identity-provider link persistence tests."""
 
-from types import SimpleNamespace
-
 import modules.auth.identity_provider_links.crud as identity_links_crud
 
 
@@ -16,5 +14,5 @@ def test_missing_link_returns_none(mock_db):
 
 
 def test_link_counts_are_grouped_by_user(mock_db):
-    mock_db.execute.return_value.all.return_value = [SimpleNamespace(user_id=7, count=2)]
+    mock_db.execute.return_value.all.return_value = [(7, 2)]
     assert identity_links_crud.get_identity_link_counts_for_users([7, 8], mock_db) == {7: 2}

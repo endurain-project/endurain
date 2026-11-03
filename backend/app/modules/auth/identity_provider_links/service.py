@@ -1,5 +1,7 @@
 """Utility functions for user identity provider links."""
 
+from collections.abc import Sequence
+
 from sqlalchemy.orm import Session
 
 import core.logger as core_logger
@@ -43,7 +45,7 @@ def get_user_identity_provider_refresh_token_by_user_id_and_idp_id(
 
 def enrich_user_identity_providers(
     idp_links: list[auth_identity_links_contracts.IdentityLinkRead],
-    idps: list[auth_identity_links_contracts.IdentityProviderDetails],
+    idps: Sequence[auth_identity_links_contracts.IdentityProviderDetails],
     user_id: int,
 ) -> list[auth_identity_links_schema.IdentityProviderLinkRead]:
     """Enrich identity provider links with IDP details.

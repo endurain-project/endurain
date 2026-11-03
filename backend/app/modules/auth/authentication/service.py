@@ -6,7 +6,7 @@ import dataclasses
 from collections.abc import Callable
 from contextlib import AbstractContextManager
 from datetime import UTC, datetime
-from typing import NoReturn
+from typing import NoReturn, TypedDict
 from uuid import uuid4
 
 import jasil.audit as jasil_audit
@@ -71,7 +71,15 @@ def _record_login_refusal(
     )
 
 
-def _user_target(user_id: int | None) -> dict[str, str]:
+class _AuditTarget(TypedDict, total=False):
+    """The audit target keywords that name a user."""
+
+    target_type: str
+    target_id: str
+    target_owner_id: str
+
+
+def _user_target(user_id: int | None) -> _AuditTarget:
     """Name the user an audit row is about, in the keywords the audit calls take.
 
     Args:
@@ -296,7 +304,7 @@ def build_token_response(
     access_token_exp: datetime,
     refresh_token: str,
     refresh_token_exp: datetime,
-    csrf_token: str,
+    csrf_token: str | None,
 ) -> auth_schema.AuthOutcome:
     """Build the OAuth 2.1 token-response body for login and refresh.
 
@@ -319,7 +327,7 @@ def build_token_response(
         access_token_exp: Access-token expiry datetime.
         refresh_token: Newly minted refresh token.
         refresh_token_exp: Refresh-token expiry datetime.
-        csrf_token: CSRF token (only returned to web clients).
+        csrf_token: CSRF token, returned only to web clients; ``None`` for a mobile client.
 
     Returns:
         The response body and, for a web client, the refresh cookie the router sets.

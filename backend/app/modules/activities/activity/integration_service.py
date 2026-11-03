@@ -6,7 +6,7 @@ Writes that publish events (bulk deletes, bulk re-gearing, ingestion) delegate t
 ``activity.service``, which owns their transaction.
 """
 
-from collections.abc import Sequence
+from collections.abc import Mapping, Sequence
 from datetime import date, datetime
 
 from sqlalchemy.orm import Session
@@ -85,7 +85,7 @@ def list_garminconnect_gear_activity_refs(
 
 def bulk_set_activities_gear(
     user_id: int,
-    gear_assignments: dict[int, int | None],
+    gear_assignments: Mapping[int, int | None],
     db: Session,
 ) -> int:
     """Assign gear to many of a user's activities at once.

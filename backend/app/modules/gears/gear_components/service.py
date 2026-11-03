@@ -210,7 +210,8 @@ def edit_gear_component(
         gear_component.purchase_date if "purchase_date" in changed else current.purchase_date,
         gear_component.retired_date if "retired_date" in changed else current.retired_date,
     )
-    if "type" in changed and gear_component.type != current.type:
+    # The update refuses a null type, so a type is set exactly when the request sent one.
+    if gear_component.type is not None and gear_component.type != current.type:
         gear = gears_integration.get_gear_user_by_id(user_id, current.gear_id, db)
         if gear is None:
             raise core_exceptions.NotFoundError("Gear not found")

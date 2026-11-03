@@ -245,7 +245,7 @@ class Settings(BaseSettings):
     # cleanup (daily). Unread notifications are never purged. Set to 0 to disable
     # pruning and keep them forever.
     # Deprecated: imported into ``server_settings`` on boot, removed in v0.22.0.
-    READ_NOTIFICATION_RETENTION_DAYS: int = Field(90, ge=0, le=3650)
+    READ_NOTIFICATION_RETENTION_DAYS: int = Field(default=90, ge=0, le=3650)
 
     # --- API key delivery ---
     # Allow API keys to be passed as a ``?api_key=`` query parameter.
@@ -257,11 +257,11 @@ class Settings(BaseSettings):
     # --- Session and token policy ---
     # Deprecated: imported into ``server_settings`` on boot, removed in v0.22.0.
     # The bounds are the ones the database schema enforces, so whatever is accepted here is storable.
-    ACCESS_TOKEN_EXPIRE_MINUTES: int = Field(15, ge=1, le=1440)
-    REFRESH_TOKEN_EXPIRE_DAYS: int = Field(7, ge=1, le=365)
+    ACCESS_TOKEN_EXPIRE_MINUTES: int = Field(default=15, ge=1, le=1440)
+    REFRESH_TOKEN_EXPIRE_DAYS: int = Field(default=7, ge=1, le=365)
     SESSION_IDLE_TIMEOUT_ENABLED: bool = False
-    SESSION_IDLE_TIMEOUT_HOURS: int = Field(1, ge=1, le=8760)
-    SESSION_ABSOLUTE_TIMEOUT_HOURS: int = Field(24, ge=1, le=8760)
+    SESSION_IDLE_TIMEOUT_HOURS: int = Field(default=1, ge=1, le=8760)
+    SESSION_ABSOLUTE_TIMEOUT_HOURS: int = Field(default=24, ge=1, le=8760)
 
     # --- Reverse-geocoding providers ---
     # Deprecated: imported into ``server_settings`` on boot, removed in v0.22.0.

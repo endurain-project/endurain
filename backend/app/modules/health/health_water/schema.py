@@ -5,7 +5,7 @@ tracking, including validation rules and source enumeration.
 """
 
 from datetime import date as datetime_date
-from enum import Enum
+from enum import StrEnum
 
 from pydantic import (
     BaseModel,
@@ -17,7 +17,7 @@ from pydantic import (
 )
 
 
-class Source(Enum):
+class Source(StrEnum):
     """Enumeration of data sources for water intake records.
 
     Attributes:

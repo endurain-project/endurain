@@ -115,7 +115,7 @@ def stage_add_health_water(
             if existing is None:
                 raise
     return health_water_crud.add_health_water_amount(
-        user_id, existing.id, health_water.amount_ml or Decimal(0), health_water.source, db
+        user_id, existing.id, Decimal(str(health_water.amount_ml)), health_water.source, db
     )
 
 

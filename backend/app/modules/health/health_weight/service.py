@@ -34,7 +34,7 @@ def _user_height_cm(user_id: int, db: Session) -> float | None:
     return float(user.height) if user is not None and user.height is not None else None
 
 
-def _with_bmi[RecordT: health_weight_schema.HealthWeightCreate | health_weight_schema.HealthWeightUpdate](
+def _with_bmi[RecordT: (health_weight_schema.HealthWeightCreate, health_weight_schema.HealthWeightUpdate)](
     health_weight: RecordT, user_id: int, db: Session
 ) -> RecordT:
     """Return the record with its BMI derived from the user's height.

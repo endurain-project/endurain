@@ -44,10 +44,17 @@ def list_gears(
     Returns:
         The gears on the page. ``total`` counts every gear matching the filters.
     """
-    filters = {"show_inactive": show_inactive, "gear_type": gear_type, "nickname_contains": nickname_contains}
-    total = gears_crud.get_gears_number(user_id, db, **filters)
+    total = gears_crud.get_gears_number(
+        user_id, db, show_inactive=show_inactive, gear_type=gear_type, nickname_contains=nickname_contains
+    )
     records = gears_crud.get_gear_users_with_pagination(
-        user_id, db, page_number=page_number, num_records=num_records, **filters
+        user_id,
+        db,
+        page_number=page_number,
+        num_records=num_records,
+        show_inactive=show_inactive,
+        gear_type=gear_type,
+        nickname_contains=nickname_contains,
     )
     return core_pagination.Page.build(records, total, page_number, num_records)
 

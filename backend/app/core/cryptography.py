@@ -32,6 +32,18 @@ def create_fernet_cipher() -> Fernet:
         raise core_exceptions.CryptographyError() from err
 
 
+@overload
+def encrypt_token_fernet(token: str) -> str: ...
+
+
+@overload
+def encrypt_token_fernet(token: None) -> None: ...
+
+
+@overload
+def encrypt_token_fernet(token: object | None) -> str | None: ...
+
+
 def encrypt_token_fernet(token: object | None) -> str | None:
     """
     Encrypt a token with Fernet symmetric encryption.

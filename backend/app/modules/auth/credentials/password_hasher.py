@@ -9,6 +9,7 @@ from collections.abc import Iterable
 
 from pwdlib import PasswordHash
 from pwdlib.hashers.argon2 import Argon2Hasher
+from pwdlib.hashers.base import HasherProtocol
 from pwdlib.hashers.bcrypt import BcryptHasher
 
 
@@ -34,12 +35,12 @@ class PasswordHasher:
 
     def __init__(
         self,
-        hasher: (Argon2Hasher | BcryptHasher | Iterable[object] | PasswordHash | None) = None,
+        hasher: (Argon2Hasher | BcryptHasher | Iterable[HasherProtocol] | PasswordHash | None) = None,
     ):
         """Initialize the password hasher configuration.
 
         Args:
-            hasher (Argon2Hasher | BcryptHasher | Iterable[object] | PasswordHash | None, optional):
+            hasher (Argon2Hasher | BcryptHasher | Iterable[HasherProtocol] | PasswordHash | None, optional):
                 The hasher(s) to use for password hashing. Can be:
                 - None: Uses the strongest recommended configuration.
                 - PasswordHash: Uses the provided PasswordHash instance.

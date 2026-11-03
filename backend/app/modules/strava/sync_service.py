@@ -148,10 +148,8 @@ def _queue(
         PoolFullError: When the in-process pool is full.
     """
     durable = core_config.settings.JOBS_ENABLED
-    target = {"target_type": "user", "target_id": str(user_id), "target_owner_id": str(user_id)}
-
     if audit is not None and durable:
-        jasil_audit.stage(db, audit, **target)
+        jasil_audit.stage(db, audit, target_type="user", target_id=str(user_id), target_owner_id=str(user_id))
     core_sync_runner.queue_sync(
         states,
         user_id,
@@ -166,7 +164,13 @@ def _queue(
         ),
     )
     if audit is not None and not durable:
-        jasil_audit.record_detached(audit, outcome=jasil_audit.Outcome.SUCCESS, **target)
+        jasil_audit.record_detached(
+            audit,
+            outcome=jasil_audit.Outcome.SUCCESS,
+            target_type="user",
+            target_id=str(user_id),
+            target_owner_id=str(user_id),
+        )
     logger.info(
         "Strava sync queued",
         extra=core_logger.context(user_id=user_id, kind=kind, durable=durable),

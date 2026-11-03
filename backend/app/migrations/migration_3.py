@@ -74,7 +74,7 @@ def process_migration_3(db: Session) -> None:
                     if (
                         activity_fit_file_path is None or not os.path.exists(activity_fit_file_path)
                     ) and activity.garminconnect_activity_id is not None:
-                        get_fit_file_from_garminconnect(activity, db)
+                        get_fit_file_from_garminconnect(activity, activity.garminconnect_activity_id, db)
                         activity_fit_file_path = find_activity_fit_file(activity.id)
 
                     # if .gpx and .fit for activity do not exist, skip
@@ -173,6 +173,7 @@ def find_activity_fit_file(activity_id: int) -> str | None:
 
 def get_fit_file_from_garminconnect(
     activity: activities_contracts.ActivityMigrationRef,
+    garminconnect_activity_id: int,
     db: Session,
 ) -> str:
     """
@@ -180,6 +181,7 @@ def get_fit_file_from_garminconnect(
 
     Args:
         activity: ORM Activity instance.
+        garminconnect_activity_id: The activity's id on Garmin Connect.
         db: Active database session.
 
     Returns:
@@ -207,8 +209,9 @@ def get_fit_file_from_garminconnect(
         return os.path.join(core_config.FILES_PROCESSED_DIR, f"{activity.id}.fit")
 
     # Download the activity in original format (.zip file)
+    gc_id = str(garminconnect_activity_id)
     zip_data = garminconnect_client.download_activity(
-        activity.garminconnect_activity_id,
+        gc_id,
         dl_fmt=garminconnect_client.ActivityDownloadFormat.ORIGINAL,
     )
 
@@ -216,7 +219,6 @@ def get_fit_file_from_garminconnect(
     # synchronous, so we drive the async helpers via a single
     # ``asyncio.run`` over both calls — one event-loop setup per
     # archive instead of two.
-    gc_id = str(activity.garminconnect_activity_id)
     zip_filename = f"{gc_id}.zip"
     files_dir = core_config.settings.FILES_DIR
     fallback_path = os.path.join(core_config.FILES_PROCESSED_DIR, f"{activity.id}.fit")

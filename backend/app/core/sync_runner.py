@@ -137,7 +137,7 @@ def run_recorded(
 
 
 def start_claimed(
-    claim: Callable[[], bool], conflict: str, start: Callable[[], None], release: Callable[[], None]
+    claim: Callable[[], bool], conflict: str, start: Callable[[], object], release: Callable[[], None]
 ) -> None:
     """Take a claim and start the work it guards, giving the claim back when the work never started.
 
@@ -168,7 +168,7 @@ def queue_sync(
     *,
     durable: bool,
     publish: Callable[[], None],
-    submit: Callable[[], None],
+    submit: Callable[[], object],
 ) -> None:
     """Claim a sync and hand it to a durable worker, or to the in-process pool without durable jobs.
 

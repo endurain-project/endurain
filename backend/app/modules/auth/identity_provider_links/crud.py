@@ -222,4 +222,4 @@ def get_identity_link_counts_for_users(user_ids: list[int], db: Session) -> dict
         .where(identity_link_models.IdentityLink.user_id.in_(user_ids))
         .group_by(identity_link_models.IdentityLink.user_id)
     )
-    return {row.user_id: row.count for row in db.execute(statement).all()}
+    return {user_id: count for user_id, count in db.execute(statement).all()}

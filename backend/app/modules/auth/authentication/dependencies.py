@@ -122,9 +122,22 @@ oauth2_scheme = OAuth2PasswordBearer(
 class ClientTypeHeader(APIKeyHeader):
     """Required X-Client-Type header that reports missing input as a 400."""
 
-    def make_not_authenticated_error(self) -> core_exceptions.InvalidInputError:
-        """Return the client-facing error for a missing client type."""
-        return core_exceptions.InvalidInputError("Missing required X-Client-Type header (web or mobile)")
+    async def __call__(self, request: Request) -> str:
+        """Return the request's client type.
+
+        Args:
+            request: The incoming request.
+
+        Returns:
+            The ``X-Client-Type`` header's value.
+
+        Raises:
+            InvalidInputError: When the header is missing or empty.
+        """
+        client_type = request.headers.get(self.model.name)
+        if not client_type:
+            raise core_exceptions.InvalidInputError("Missing required X-Client-Type header (web or mobile)")
+        return client_type
 
 
 header_client_type_scheme = ClientTypeHeader(name="X-Client-Type")

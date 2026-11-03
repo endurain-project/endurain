@@ -447,7 +447,7 @@ def get_user_garminconnect_health_by_dates(
                 )
             logger.info(
                 "Garmin Connect health processing finished",
-                extra=core_logger.context(user_id=user_id, **counts),
+                extra=core_logger.context(counts, user_id=user_id),
             )
         except garminconnect.GarminConnectAuthenticationError as err:
             garmin_service.handle_rejected_token(user_id, session, err)

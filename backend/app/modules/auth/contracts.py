@@ -85,7 +85,7 @@ class ApiKeyCred:
             audit logs.
     """
 
-    api_key_id: int
+    api_key_id: str
     key_prefix: str
 
 
@@ -173,7 +173,7 @@ class Principal:
         """
         return isinstance(self.credential, ApiKeyCred)
 
-    def credential_id(self) -> str | int | None:
+    def credential_id(self) -> str | None:
         """Return a stable identifier for the active credential.
 
         The returned value is suitable for audit logging and
@@ -182,12 +182,12 @@ class Principal:
 
         - :class:`AccessTokenCred` → ``session_id`` (str)
         - :class:`SessionCookieCred` → ``session_id`` (str)
-        - :class:`ApiKeyCred` → ``api_key_id`` (int)
+        - :class:`ApiKeyCred` → ``api_key_id`` (str)
         - :class:`OAuthCred` → ``"<provider>:<external_id>"`` (str)
         - :class:`PasswordCred` → ``None``
 
         Returns:
-            str | int | None: The credential identifier, or
+            str | None: The credential identifier, or
                 ``None`` when not applicable.
         """
         if isinstance(self.credential, AccessTokenCred):

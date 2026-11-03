@@ -3,7 +3,9 @@
 from unittest.mock import MagicMock, patch
 
 import garminconnect
+import pytest
 
+import core.exceptions as core_exceptions
 import modules.garmin.gear_service as garmin_gear_service
 from tests._helpers import garmin as garmin_helpers
 
@@ -124,3 +126,12 @@ def test_activities_are_matched_page_by_page_and_each_page_is_committed():
     assert [call.kwargs["after_id"] for call in list_refs.call_args_list] == [0, 2, 3]
     assert [call.args[1] for call in bulk_set.call_args_list] == [{1: 10}, {3: 11}]
     assert db.commit.call_count == 2
+
+
+def test_a_gear_answer_is_the_list_garmin_sent():
+    assert garmin_gear_service.gear_list([{"uuid": "a"}]) == [{"uuid": "a"}]
+
+
+def test_a_gear_answer_that_is_not_a_list_is_a_garmin_failure():
+    with pytest.raises(core_exceptions.DependencyFailedError):
+        garmin_gear_service.gear_list({"uuid": "a"})

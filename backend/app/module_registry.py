@@ -156,7 +156,7 @@ class _DeferredSubscriptions:
         """Stop the wrapped bus."""
         self._events.stop()
 
-    def subscribe(self, event_type: str, handler: Callable) -> None:
+    def subscribe(self, event_type: str, handler: Callable[[Event], None]) -> None:
         """Subscribe a handler that runs off the publishing thread.
 
         Args:
@@ -164,16 +164,19 @@ class _DeferredSubscriptions:
             handler: The subscriber to run.
         """
 
-        def deferred(event) -> None:
+        # A callable need not have a name; the event bus names one the same way.
+        handler_name = getattr(handler, "__name__", repr(handler))
+
+        def deferred(event: Event) -> None:
             try:
                 _deferred_pool.submit(handler, event)
             except core_local_pool.PoolFullError:
                 logger.warning(
                     "Dropped an event subscriber: the subscriber pool is full; its reconciliation net repairs it",
-                    extra=core_logger.context(handler=handler.__name__, event_type=event_type),
+                    extra=core_logger.context(handler=handler_name, event_type=event_type),
                 )
 
-        deferred.__name__ = handler.__name__
+        deferred.__name__ = handler_name
         self._events.subscribe(event_type, deferred)
 
 

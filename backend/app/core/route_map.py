@@ -108,6 +108,7 @@ def _pinned_get(url: str, address: str, *, timeout: float, headers: dict[str, st
     request_headers["Host"] = parsed.netloc.rsplit("@", maxsplit=1)[-1]
     target = urlunparse(("", "", parsed.path or "/", parsed.params, parsed.query, ""))
     port = parsed.port or (443 if parsed.scheme.lower() == "https" else 80)
+    pool: HTTPConnectionPool
     if parsed.scheme.lower() == "https":
         pool = HTTPSConnectionPool(
             address,

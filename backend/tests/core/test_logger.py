@@ -361,6 +361,11 @@ class TestContext:
     def test_console_absent_by_default(self):
         assert core_logger.CONSOLE_FIELD not in core_logger.context(user_id=1)
 
+    def test_fields_named_at_run_time_are_attached_like_keyword_fields(self):
+        extra = core_logger.context({"strava_activity_id": 9, "lap": None, "module": "strava"}, user_id=1)
+
+        assert extra == {"strava_activity_id": 9, "ctx_module": "strava", "user_id": 1}
+
 
 class TestConsoleMirrorFilter:
     """Tests for ConsoleMirrorFilter class."""

@@ -219,8 +219,9 @@ def is_transient(error: BaseException) -> bool:
         True for a database, storage or availability failure; the archive's own faults and resource
         limits are final.
     """
-    while error is not None:
-        if isinstance(error, SQLAlchemyError | OSError | core_exceptions.ServiceUnavailableError):
+    cause: BaseException | None = error
+    while cause is not None:
+        if isinstance(cause, SQLAlchemyError | OSError | core_exceptions.ServiceUnavailableError):
             return True
-        error = error.__cause__
+        cause = cause.__cause__
     return False

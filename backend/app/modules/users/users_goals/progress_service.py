@@ -138,8 +138,8 @@ def calculate_goal_progress_by_activity_type(
         percentage_completed: float = 0
         total_calories = 0
         total_activities_number = 0
-        total_distance = 0
-        total_elevation = 0
+        total_distance: float = 0
+        total_elevation: float = 0
         total_duration: float = 0
 
         if totals.count:

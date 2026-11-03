@@ -17,7 +17,7 @@ import tempfile
 import time
 import zipfile
 from collections.abc import Callable, Iterator
-from typing import IO, Any
+from typing import IO, Any, BinaryIO
 
 import jasil.providers as platform_providers
 from sqlalchemy.exc import SQLAlchemyError
@@ -796,7 +796,7 @@ class ExportService:
             except Exception as err:
                 logger.warning("Unexpected error adding user image", exc_info=err, extra=core_logger.context(key=key))
 
-    def build_export_archive(self, user_dict: dict[str, Any], timeout_seconds: int | None = 300) -> IO[bytes]:
+    def build_export_archive(self, user_dict: dict[str, Any], timeout_seconds: int | None = 300) -> BinaryIO:
         """Build the export ZIP in a temporary file and return it, rewound to the start.
 
         Everything that can fail (database reads, storage reads, the timeout) happens here, before

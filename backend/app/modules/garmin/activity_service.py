@@ -43,7 +43,7 @@ def _download_and_ingest_activity(
     activity_id = activity["activityId"]
     activity_name = activity["activityName"]
 
-    activity_gear = garminconnect_client.get_activity_gear(activity_id)
+    activity_gear = garmin_gear_service.gear_list(garminconnect_client.get_activity_gear(activity_id))
     zip_data = garminconnect_client.download_activity(
         activity_id,
         dl_fmt=garminconnect_client.ActivityDownloadFormat.ORIGINAL,

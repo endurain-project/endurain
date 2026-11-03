@@ -105,14 +105,14 @@ def get_user_garminconnect_session(user_id: int, db: Session) -> GarminSession |
         logger.debug("Garmin Connect user has no integrations record", extra=core_logger.context(user_id=user_id))
         return None
 
-    if user_integrations is None:
+    token = user_integrations.garminconnect_token if user_integrations is not None else None
+    if token is None:
         logger.debug(
             "Garmin Connect not linked",
             extra=core_logger.context(user_id=user_id),
         )
         return None
 
-    token = user_integrations.garminconnect_token
     client = garmin_token_utils.login_garminconnect_using_tokens(token)
     return GarminSession(client, token) if client is not None else None
 

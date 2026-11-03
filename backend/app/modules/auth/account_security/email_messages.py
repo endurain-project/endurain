@@ -49,8 +49,7 @@ def get_account_security_changed_email(
     def tr(key: str, **kwargs: str) -> str:
         return core_i18n.t(f"security_change.{key}", locale, **kwargs)
 
-    named = change in _PROVIDER_CHANGES and idp_name is not None
-    if named:
+    if change in _PROVIDER_CHANGES and idp_name is not None:
         intro = tr(f"{change}.intro_named", provider=idp_name)
         safe_intro = tr(f"{change}.intro_named", provider=html.escape(idp_name))
     else:
