@@ -4,7 +4,6 @@ from collections.abc import Sequence
 from datetime import date as datetime_date
 from datetime import datetime
 from enum import Enum
-from typing import Any
 
 from pydantic import (
     BaseModel,
@@ -13,12 +12,15 @@ from pydantic import (
     StrictFloat,
     StrictInt,
     StrictStr,
+    TypeAdapter,
     field_serializer,
     model_validator,
 )
 
 import core.partial_update as core_partial_update
 import core.types as core_types
+
+_DATETIME = TypeAdapter(datetime)
 
 
 class Source(Enum):
@@ -103,6 +105,18 @@ class HealthSleepStage(BaseModel):
         validate_assignment=True,
         use_enum_values=True,
     )
+
+    @field_serializer("start_time_gmt", "end_time_gmt")
+    def serialize_time(self, value: datetime | None) -> str | None:
+        """Dump a stage time as ISO 8601 text in every mode, as the JSON column that stores the stages requires.
+
+        Args:
+            value: The time, or ``None``.
+
+        Returns:
+            The time as the API writes it in JSON, or ``None``.
+        """
+        return None if value is None else _DATETIME.dump_python(value, mode="json")
 
 
 class HealthSleepBase(BaseModel):
@@ -221,20 +235,6 @@ class HealthSleepBase(BaseModel):
         validate_assignment=True,
         use_enum_values=True,
     )
-
-    @field_serializer("sleep_stages")
-    def serialize_sleep_stages(self, sleep_stages: Sequence[HealthSleepStage] | None) -> list[dict[str, Any]] | None:
-        """Dump the stages JSON-safe in every mode, as the JSON column that stores them requires.
-
-        Args:
-            sleep_stages: The stages, or ``None``.
-
-        Returns:
-            The stages as JSON-compatible dicts, or ``None``.
-        """
-        if sleep_stages is None:
-            return None
-        return [stage.model_dump(mode="json") for stage in sleep_stages]
 
     @model_validator(mode="after")
     def validate_sleep_times(self) -> "HealthSleepBase":

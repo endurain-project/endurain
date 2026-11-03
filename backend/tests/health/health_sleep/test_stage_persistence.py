@@ -86,5 +86,11 @@ class TestSleepStagesDump:
 
         assert dumped["sleep_stages"][0]["start_time_gmt"] == _START.isoformat().replace("+00:00", "Z")
 
+    def test_the_response_schema_keeps_the_stage_model(self):
+        schema = health_sleep_schema.HealthSleepRead.model_json_schema(mode="serialization")
+
+        array = next(option for option in schema["properties"]["sleep_stages"]["anyOf"] if option["type"] == "array")
+        assert array["items"] == {"$ref": "#/$defs/HealthSleepStage"}
+
     def test_no_stages_dump_as_none(self):
         assert health_sleep_schema.HealthSleepCreate().model_dump()["sleep_stages"] is None
