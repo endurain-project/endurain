@@ -15,8 +15,8 @@ import {
   useUpdatePoopEntryMutation,
 } from '@/features/health/composables/useHealth'
 import {
-  dateTimeLocalToIso,
   nowDateTimeLocalInput,
+  requiredDateTimeLocalToIso,
   toDateTimeLocalInput,
 } from '@/features/health/utils/healthFormat'
 
@@ -83,7 +83,7 @@ function buildInput(values: PoopFormValues): PoopEntryInput {
     // The input yields an offset-less local wall clock; convert it to a real
     // UTC instant so the backend stores the moment the user meant rather than
     // reading their wall clock as if it were UTC.
-    dateTime: dateTimeLocalToIso(values.dateTime),
+    dateTime: requiredDateTimeLocalToIso(values.dateTime),
     bristolType: values.bristolType ? (Number(values.bristolType) as BristolType) : null,
     color: values.color ? (values.color as PoopColor) : null,
     notes: notes ? notes : null,

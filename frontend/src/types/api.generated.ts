@@ -7376,9 +7376,10 @@ export interface components {
             fast_end_time?: string | null;
             /**
              * Fast Start Time
+             * Format: date-time
              * @description Start time of fast
              */
-            fast_start_time?: string | null;
+            fast_start_time: string;
             /** @description Type of fasting protocol */
             fasting_type?: components["schemas"]["FastingType"] | null;
             /**
@@ -7456,9 +7457,10 @@ export interface components {
             fast_end_time?: string | null;
             /**
              * Fast Start Time
+             * Format: date-time
              * @description Start time of fast
              */
-            fast_start_time?: string | null;
+            fast_start_time: string;
             /** @description Type of fasting protocol */
             fasting_type?: components["schemas"]["FastingType"] | null;
             /**
@@ -7589,9 +7591,10 @@ export interface components {
             color?: components["schemas"]["Color"] | null;
             /**
              * Date Time
+             * Format: date-time
              * @description Date and time of the bowel movement
              */
-            date_time?: string | null;
+            date_time: string;
             /**
              * Notes
              * @description Optional notes about the bowel movement
@@ -7629,9 +7632,10 @@ export interface components {
             color?: components["schemas"]["Color"] | null;
             /**
              * Date Time
+             * Format: date-time
              * @description Date and time of the bowel movement
              */
-            date_time?: string | null;
+            date_time: string;
             /**
              * Id
              * @description Unique identifier for the poop record

@@ -331,6 +331,18 @@ export function dateTimeLocalToIso(local: string): string | null {
 }
 
 /**
+ * Converts a `datetime-local` value a form requires back to a UTC ISO instant,
+ * read as local time like {@link dateTimeLocalToIso}.
+ *
+ * @param local - The `yyyy-mm-ddTHH:mm` input value, already validated as present.
+ * @returns A UTC ISO string.
+ * @throws {RangeError} When the value is not a date-time.
+ */
+export function requiredDateTimeLocalToIso(local: string): string {
+  return new Date(local).toISOString()
+}
+
+/**
  * The viewer's local calendar day (`yyyy-mm-dd`) for a stored UTC instant.
  *
  * Slicing the ISO string yields the **UTC** day, which puts a late-evening entry

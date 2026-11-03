@@ -10,6 +10,7 @@ import {
   formatRestingHeartRate,
   formatSkinTempDeviation,
   formatWater,
+  requiredDateTimeLocalToIso,
   formatWeight,
   localDayOf,
   nowDateTimeLocalInput,
@@ -51,6 +52,16 @@ describe('unit-bearing formatters', () => {
 })
 
 describe('datetime-local round trip', () => {
+  it('converts a required local wall clock to the same instant', () => {
+    expect(requiredDateTimeLocalToIso('2024-01-15T09:00')).toBe(
+      dateTimeLocalToIso('2024-01-15T09:00'),
+    )
+  })
+
+  it('refuses a required value that is not a date-time', () => {
+    expect(() => requiredDateTimeLocalToIso('nonsense')).toThrow(RangeError)
+  })
+
   it('converts a local wall clock to a real UTC instant', () => {
     const iso = dateTimeLocalToIso('2024-01-15T09:00')
     // Whatever the runner's zone, the instant must correspond to 09:00 local.

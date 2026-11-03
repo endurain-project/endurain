@@ -1,3 +1,4 @@
+from datetime import UTC, datetime
 from unittest.mock import patch
 
 from fastapi import FastAPI
@@ -9,6 +10,9 @@ from modules.health.health_fasting.schema import (
     HealthFastingRead,
     HealthFastingStatsResponse,
 )
+
+# A stored record always has its start time.
+_STARTED = datetime(2026, 1, 1, 7, 0, tzinfo=UTC)
 
 _SERVICE = "modules.health.health_fasting.router.health_fasting_service"
 _HEADERS = {"Authorization": "Bearer x"}
@@ -45,7 +49,7 @@ class TestReadHealthFastingAllPagination:
     @patch(f"{_SERVICE}.list_health_fasting")
     def test_list_success(self, mock_list, mock_db):
         mock_list.return_value = core_pagination.Page(
-            items=[HealthFastingRead(id=1, user_id=1)], total=1, page=1, num_records=25
+            items=[HealthFastingRead(id=1, user_id=1, fast_start_time=_STARTED)], total=1, page=1, num_records=25
         )
 
         response = _client(mock_db).get("/health_fasting", headers=_HEADERS)
@@ -68,7 +72,7 @@ class TestReadHealthFastingAllPagination:
 class TestReadActiveFasting:
     @patch(f"{_SERVICE}.get_active_fasting")
     def test_active(self, mock_active, mock_db):
-        mock_active.return_value = HealthFastingRead(id=1, user_id=1)
+        mock_active.return_value = HealthFastingRead(id=1, user_id=1, fast_start_time=_STARTED)
 
         response = _client(mock_db).get("/health_fasting/active", headers=_HEADERS)
 
@@ -104,7 +108,7 @@ class TestReadFastingStats:
 class TestReadFastingById:
     @patch(f"{_SERVICE}.get_health_fasting")
     def test_success(self, mock_get, mock_db):
-        mock_get.return_value = HealthFastingRead(id=1, user_id=1)
+        mock_get.return_value = HealthFastingRead(id=1, user_id=1, fast_start_time=_STARTED)
 
         response = _client(mock_db).get("/health_fasting/1", headers=_HEADERS)
 
@@ -121,7 +125,7 @@ class TestReadFastingById:
 class TestCreateHealthFasting:
     @patch(f"{_SERVICE}.create_health_fasting")
     def test_create_success(self, mock_create, mock_db):
-        mock_create.return_value = HealthFastingRead(id=1, user_id=1)
+        mock_create.return_value = HealthFastingRead(id=1, user_id=1, fast_start_time=_STARTED)
 
         assert _client(mock_db).post("/health_fasting", json=_START, headers=_HEADERS).status_code == 201
 
@@ -135,7 +139,7 @@ class TestCreateHealthFasting:
 class TestEditHealthFasting:
     @patch(f"{_SERVICE}.edit_health_fasting")
     def test_edit_success(self, mock_edit, mock_db):
-        mock_edit.return_value = HealthFastingRead(id=1, user_id=1)
+        mock_edit.return_value = HealthFastingRead(id=1, user_id=1, fast_start_time=_STARTED)
 
         response = _client(mock_db).patch("/health_fasting/1", json={}, headers={**_HEADERS, "If-Match": '"1"'})
 
@@ -145,7 +149,7 @@ class TestEditHealthFasting:
 class TestCompleteHealthFasting:
     @patch(f"{_SERVICE}.complete_health_fasting")
     def test_complete_success(self, mock_complete, mock_db):
-        mock_complete.return_value = HealthFastingRead(id=1, user_id=1)
+        mock_complete.return_value = HealthFastingRead(id=1, user_id=1, fast_start_time=_STARTED)
 
         response = _client(mock_db).post(
             "/health_fasting/1/complete",
@@ -190,7 +194,7 @@ class TestDeleteHealthFasting:
 class TestReadSendsTheETag:
     @patch(f"{_SERVICE}.get_health_fasting")
     def test_a_record_read_by_id_carries_its_version(self, mock_get, mock_db):
-        mock_get.return_value = HealthFastingRead(id=1, user_id=1, version=5)
+        mock_get.return_value = HealthFastingRead(id=1, user_id=1, fast_start_time=_STARTED, version=5)
 
         response = _client(mock_db).get("/health_fasting/1", headers=_HEADERS)
 
@@ -198,7 +202,7 @@ class TestReadSendsTheETag:
 
     @patch(f"{_SERVICE}.get_active_fasting")
     def test_the_active_fast_carries_its_version(self, mock_active, mock_db):
-        mock_active.return_value = HealthFastingRead(id=1, user_id=1, version=3)
+        mock_active.return_value = HealthFastingRead(id=1, user_id=1, fast_start_time=_STARTED, version=3)
 
         response = _client(mock_db).get("/health_fasting/active", headers=_HEADERS)
 

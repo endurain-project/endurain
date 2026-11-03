@@ -137,18 +137,18 @@ class HealthFastingCreate(HealthFastingBase):
     Requires start time and sets defaults for status.
     """
 
+    fast_start_time: datetime = Field(
+        ...,
+        description="Start time of fast",
+    )
+
     @model_validator(mode="after")
     def set_defaults_and_validate(self) -> "HealthFastingCreate":
-        """Validate required fields and set defaults.
+        """Set the defaults of the fields left out.
 
         Returns:
             The validated model instance with defaults set.
-
-        Raises:
-            ValueError: If fast_start_time is not provided.
         """
-        if self.fast_start_time is None:
-            raise ValueError("fast_start_time is required")
         if self.status is None:
             self.status = FastingStatus.IN_PROGRESS
         if self.source is None:
@@ -167,6 +167,10 @@ class HealthFastingRead(HealthFastingBase):
     id: StrictInt = Field(
         ...,
         description="Unique identifier for the fasting record",
+    )
+    fast_start_time: datetime = Field(
+        ...,
+        description="Start time of fast",
     )
     user_id: StrictInt = Field(
         ...,

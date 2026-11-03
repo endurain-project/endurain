@@ -3,6 +3,9 @@ from datetime import UTC, datetime
 import pytest
 from pydantic import ValidationError
 
+# A stored record always has its start time.
+_STARTED = datetime(2026, 1, 1, 7, 0, tzinfo=UTC)
+
 
 class TestHealthFastingCreateSchema:
     def test_valid_full_data(self):
@@ -27,7 +30,7 @@ class TestHealthFastingReadSchema:
     def test_valid(self):
         from modules.health.health_fasting.schema import HealthFastingRead
 
-        data = HealthFastingRead(id=1, user_id=1)
+        data = HealthFastingRead(id=1, user_id=1, fast_start_time=_STARTED)
         assert data.id == 1
         assert data.user_id == 1
 

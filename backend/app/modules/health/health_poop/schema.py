@@ -121,20 +121,20 @@ class HealthPoopCreate(HealthPoopBase):
     Requires date_time and sets defaults for source.
     """
 
+    date_time: datetime = Field(
+        ...,
+        description="Date and time of the bowel movement",
+    )
+
     @model_validator(mode="after")
     def set_defaults_and_validate(
         self,
     ) -> "HealthPoopCreate":
-        """Validate required fields and set defaults.
+        """Set the defaults of the fields left out.
 
         Returns:
             The validated model instance with defaults set.
-
-        Raises:
-            ValueError: If date_time is not provided.
         """
-        if self.date_time is None:
-            raise ValueError("date_time is required")
         if self.source is None:
             self.source = Source.MANUAL
         return self
@@ -151,6 +151,10 @@ class HealthPoopRead(HealthPoopBase):
     id: StrictInt = Field(
         ...,
         description=("Unique identifier for the poop record"),
+    )
+    date_time: datetime = Field(
+        ...,
+        description="Date and time of the bowel movement",
     )
     user_id: StrictInt = Field(
         ...,

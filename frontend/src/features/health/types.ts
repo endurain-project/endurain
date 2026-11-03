@@ -247,8 +247,8 @@ export interface PoopEntry {
 
 /** Fields captured by the add/edit poop form, decoupled from the wire payload. */
 export interface PoopEntryInput {
-  /** ISO timestamp of the bowel movement, or `null`. */
-  dateTime: string | null
+  /** ISO timestamp of the bowel movement. */
+  dateTime: string
   /** Bristol Stool Scale type (1–7), or `null`. */
   bristolType: BristolType | null
   /** Stool colour, or `null`. */
@@ -331,8 +331,8 @@ export interface FastingEntry {
  * editing an existing fast (a freshly started fast is still in progress).
  */
 export interface FastingEntryInput {
-  /** ISO start timestamp of the fast, or `null`. */
-  fastStartTime: string | null
+  /** ISO start timestamp of the fast. */
+  fastStartTime: string
   /** ISO end timestamp of the fast, or `null`. */
   fastEndTime: string | null
   /** The fasting protocol, or `null`. */

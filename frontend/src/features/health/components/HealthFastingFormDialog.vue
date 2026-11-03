@@ -17,6 +17,7 @@ import { isStaleWrite } from '@/services/ifMatch'
 import {
   dateTimeLocalToIso,
   nowDateTimeLocalInput,
+  requiredDateTimeLocalToIso,
   toDateTimeLocalInput,
 } from '@/features/health/utils/healthFormat'
 import { toNumberOrNull } from '@/utils/number'
@@ -119,7 +120,7 @@ const targetSeconds = computed<number | null>(() => {
 
 /** Converts the string-based form values into the clean {@link FastingEntryInput}. */
 function buildInput(formValues: FastingFormValues): FastingEntryInput {
-  const start = dateTimeLocalToIso(formValues.startTime)
+  const start = requiredDateTimeLocalToIso(formValues.startTime)
   const end = isEditing.value ? dateTimeLocalToIso(formValues.endTime) : null
   const notes = formValues.notes.trim()
 
