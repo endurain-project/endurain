@@ -4,8 +4,9 @@ from datetime import UTC, datetime
 from typing import Annotated
 
 from fastapi import Depends, Request, Response
+from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
-from fastapi.security import APIKeyCookie, APIKeyHeader, OAuth2PasswordBearer
+from fastapi.security import APIKeyCookie, APIKeyHeader, OAuth2PasswordBearer, OAuth2PasswordRequestForm
 from joserfc.errors import MissingClaimError
 from pydantic import BaseModel
 
@@ -22,6 +23,37 @@ REFRESH_TOKEN_COOKIE_NAME = "endurain" + "_refresh_token"
 REFRESH_TOKEN_COOKIE_PATH = "/api/v1/" + "auth"
 LEGACY_REFRESH_TOKEN_COOKIE_PATHS = ("/",)
 REFRESH_TOKEN_COOKIE_CLEAR_PATHS = (*LEGACY_REFRESH_TOKEN_COOKIE_PATHS, REFRESH_TOKEN_COOKIE_PATH)
+
+
+def reject_nul_in_login_form(form_data: Annotated[OAuth2PasswordRequestForm, Depends()]) -> OAuth2PasswordRequestForm:
+    """Refuse a NUL character in any field of the login form.
+
+    PostgreSQL text cannot hold NUL. The NUL middleware reads urlencoded and JSON bodies but leaves multipart
+    ones streaming, and FastAPI parses this form from multipart too, so the fields are checked here.
+
+    Args:
+        form_data: The parsed login form.
+
+    Returns:
+        The form, unchanged.
+
+    Raises:
+        RequestValidationError: When a field holds a NUL (422).
+    """
+    errors = [
+        {"type": "value_error", "loc": ("body", name), "msg": "NUL characters are not allowed"}
+        for name, value in vars(form_data).items()
+        if isinstance(value, str) and "\x00" in value
+    ]
+    if isinstance(form_data.scopes, list) and any("\x00" in scope for scope in form_data.scopes):
+        errors.append({"type": "value_error", "loc": ("body", "scope"), "msg": "NUL characters are not allowed"})
+    if errors:
+        raise RequestValidationError(errors)
+    return form_data
+
+
+#: The login form, with NUL characters refused.
+LoginForm = Annotated[OAuth2PasswordRequestForm, Depends(reject_nul_in_login_form)]
 
 
 class ClearRefreshTokenCookieError(core_exceptions.UnauthenticatedError):

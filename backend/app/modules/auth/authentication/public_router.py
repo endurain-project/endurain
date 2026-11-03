@@ -10,7 +10,6 @@ from fastapi import (
     Request,
     Response,
 )
-from fastapi.security import OAuth2PasswordRequestForm
 
 import core.config as core_config
 import core.dependencies as core_dependencies
@@ -45,7 +44,7 @@ router = APIRouter()
 def login_for_access_token(
     response: Response,
     request: Request,
-    form_data: Annotated[OAuth2PasswordRequestForm, Depends()],
+    form_data: authentication_dependencies.LoginForm,
     client_type: Annotated[str, Depends(authentication_dependencies.header_client_type_scheme)],
     failed_attempts: Annotated[
         failed_login_store.FailedLoginStore,

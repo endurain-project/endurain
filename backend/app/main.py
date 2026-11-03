@@ -27,6 +27,7 @@ import core.exceptions as core_exceptions
 import core.logger as core_logger
 import core.middleware as core_middleware
 import core.middleware_body_limit as core_middleware_body_limit
+import core.middleware_nul_bytes as core_middleware_nul_bytes
 import core.middleware_request_id as core_middleware_request_id
 import core.network as core_network
 import core.platform_settings as core_platform_settings
@@ -364,6 +365,10 @@ def create_app() -> FastAPI:
     # The security-headers middleware reads the CSP tile domains from app.state, so
     # seed the built-in providers here; startup replaces them with the configured list.
     fastapi_app.state.allowed_tile_domains = server_settings_constants.DEFAULT_ALLOWED_TILE_DOMAINS.copy()
+
+    # Refuse a NUL character, which a text column cannot store. Added before the body cap, so it sits inside it and
+    # reads the body through the cap.
+    fastapi_app.add_middleware(core_middleware_nul_bytes.NulByteMiddleware)
 
     # Refuse an oversized body before anything reads it. Added before CORS, so the 413 still carries CORS headers.
     fastapi_app.add_middleware(core_middleware_body_limit.BodySizeLimitMiddleware)
