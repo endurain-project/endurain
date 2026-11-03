@@ -629,6 +629,20 @@
       "success": "Fast ended.",
       "error": "Couldn't end your fast. Please try again."
     },
+    "endConfirm": {
+      "broken": {
+        "title": "Break this fast?",
+        "body": "The fast ends now and is saved as broken. This cannot be undone.",
+        "confirm": "Break fast"
+      },
+      "cancelled": {
+        "title": "Cancel this fast?",
+        "body": "The fast ends now and is saved as cancelled. This cannot be undone.",
+        "confirm": "Cancel fast"
+      },
+      "cancel": "Keep fasting",
+      "close": "Close"
+    },
     "empty": {
       "title": "No fasts yet",
       "description": "Start a fast to begin tracking your fasting history."
