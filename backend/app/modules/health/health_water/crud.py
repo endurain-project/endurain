@@ -6,6 +6,7 @@ from decimal import Decimal
 from sqlalchemy import func, select, update
 from sqlalchemy.orm import Session
 
+import core.exceptions as core_exceptions
 import modules.health.computation as health_computation
 import modules.health.constants as health_constants
 import modules.health.health_water.models as health_water_models
@@ -144,8 +145,9 @@ def add_health_water_amount(
 ) -> health_water_schema.HealthWaterRead:
     """Stage an intake added to the total of a user's water intake record.
 
-    The addition is one ``UPDATE``, so intakes added at the same moment, by this replica or
-    another, are all counted.
+    The addition is one ``UPDATE`` that also checks the new total against ``MAX_WATER_ML``, so intakes
+    added at the same moment, by this replica or another, are all counted and none can push the day
+    past the cap.
 
     Args:
         user_id: The record's owner.
@@ -159,11 +161,15 @@ def add_health_water_amount(
 
     Raises:
         NotFoundError: If the user has no such record.
+        ConflictError: If the new total would exceed ``MAX_WATER_ML``; the record is left as it was.
     """
     db_health_water = health_record_crud.get_owned(SPEC, health_water_id, user_id, db)
-    db.execute(
+    updated_id = db.execute(
         update(health_water_models.HealthWater)
-        .where(health_water_models.HealthWater.id == health_water_id)
+        .where(
+            health_water_models.HealthWater.id == health_water_id,
+            health_water_models.HealthWater.amount_ml + amount_ml <= health_water_schema.MAX_WATER_ML,
+        )
         .values(
             amount_ml=health_water_models.HealthWater.amount_ml + amount_ml,
             source=source,
@@ -171,7 +177,12 @@ def add_health_water_amount(
             version=health_water_models.HealthWater.version + 1,
         )
         .execution_options(synchronize_session=False)
-    )
+        .returning(health_water_models.HealthWater.id)
+    ).scalar_one_or_none()
+    if updated_id is None:
+        raise core_exceptions.ConflictError(
+            f"A day's water intake cannot exceed {health_water_schema.MAX_WATER_ML:,} ml"
+        )
     db.refresh(db_health_water)
 
     return health_computation.to_read_schema(health_water_schema.HealthWaterRead, db_health_water)

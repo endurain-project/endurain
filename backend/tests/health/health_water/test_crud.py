@@ -131,6 +131,7 @@ class TestAddHealthWaterAmount:
     @patch.object(health_record_crud, "get_owned")
     def test_adds_in_one_update_and_returns_the_refreshed_record(self, mock_get_model, mock_db):
         mock_get_model.return_value = _row(7)
+        mock_db.execute.return_value.scalar_one_or_none.return_value = 7
 
         result = health_water_crud.add_health_water_amount(1, 7, Decimal(250), "web", mock_db)
 
