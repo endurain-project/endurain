@@ -35,7 +35,7 @@ def test_a_reused_refresh_token_keeps_the_family_invalidated_although_the_reques
         pytest.raises(core_exceptions.UnauthenticatedError),
     ):
         authentication_service.refresh_token(
-            "127.0.0.1", "agent", lambda: None, 1, "sid", "old", _OLD_EXP, MagicMock(), MagicMock(), "mobile", mock_db
+            "127.0.0.1", "agent", 1, "sid", "old", _OLD_EXP, MagicMock(), MagicMock(), "mobile", mock_db
         )
 
     invalidate.assert_called_once_with("family", mock_db)
@@ -60,7 +60,7 @@ def test_a_rotation_records_the_presented_tokens_own_expiry(mock_db):
         patch(f"{_SERVICE}.identity_providers_integration.request_idp_token_refresh"),
     ):
         authentication_service.refresh_token(
-            "127.0.0.1", "agent", lambda: None, 1, "sid", "old", _OLD_EXP, hasher, MagicMock(), "mobile", mock_db
+            "127.0.0.1", "agent", 1, "sid", "old", _OLD_EXP, hasher, MagicMock(), "mobile", mock_db
         )
 
     assert store.call_args.kwargs["refresh_token_exp"] == _OLD_EXP
@@ -74,7 +74,7 @@ def test_logout_commits_the_session_deletion(mock_db):
         patch(f"{_SERVICE}.sessions_integration.delete_session") as delete_session,
         patch(f"{_SERVICE}.identity_providers_integration.clear_all_idp_tokens"),
     ):
-        authentication_service.logout(lambda: None, "sid", "rt", "mobile", 1, hasher, mock_db)
+        authentication_service.logout("sid", "rt", "mobile", 1, hasher, mock_db)
 
     delete_session.assert_called_once_with("sid", 1, mock_db)
     assert mock_db.commit.call_count == 2

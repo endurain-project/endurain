@@ -3,6 +3,7 @@
 from datetime import date as date_type
 from datetime import datetime
 from decimal import Decimal
+from typing import Any
 
 from sqlalchemy import JSON, DateTime, ForeignKey, Numeric, String, UniqueConstraint
 from sqlalchemy.orm import Mapped, mapped_column
@@ -190,7 +191,7 @@ class HealthSleep(Base):
         nullable=True,
         comment="External Garmin Connect sleep ID",
     )
-    sleep_stages: Mapped[dict | None] = mapped_column(
+    sleep_stages: Mapped[list[dict[str, Any]] | None] = mapped_column(
         JSON,
         nullable=True,
         comment="List of sleep stage intervals as JSON",

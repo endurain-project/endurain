@@ -3,6 +3,7 @@
 import asyncio
 from collections.abc import Sequence
 from functools import lru_cache
+from typing import Any
 
 from fastapi import WebSocket
 
@@ -23,7 +24,9 @@ MAX_CONNECTIONS_PER_USER = 5
 EVICTED_CLOSE_CODE = 4001
 
 
-async def send_json_to_all(websockets: Sequence[WebSocket], message: dict) -> list[tuple[WebSocket, BaseException]]:
+async def send_json_to_all(
+    websockets: Sequence[WebSocket], message: dict[str, Any]
+) -> list[tuple[WebSocket, BaseException]]:
     """Send a JSON message to several connections, isolating each one's failure.
 
     The sends run concurrently and each is bounded by ``SEND_TIMEOUT_SECONDS``, so a

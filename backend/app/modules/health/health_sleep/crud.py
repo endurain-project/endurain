@@ -2,7 +2,7 @@
 
 from datetime import date as date_type
 
-from sqlalchemy import func, select
+from sqlalchemy import SQLColumnExpression, func, select
 from sqlalchemy.orm import Session
 
 import modules.health.computation as health_computation
@@ -173,7 +173,11 @@ def delete_health_sleep(user_id: int, health_sleep_id: int, db: Session, *, if_m
 
 
 def _average_by_bucket(
-    column, user_id: int, since: date_type, bucket: health_constants.ChartBucket, db: Session
+    column: SQLColumnExpression[int | None],
+    user_id: int,
+    since: date_type,
+    bucket: health_constants.ChartBucket,
+    db: Session,
 ) -> list[health_schema.HealthChartPoint]:
     """Average a sleep column per chart bucket.
 

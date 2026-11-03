@@ -1,6 +1,6 @@
 """CRUD operations for user goals."""
 
-from sqlalchemy import func, select
+from sqlalchemy import Select, func, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
@@ -56,13 +56,13 @@ def _select_goal(user_id: int, goal_id: int, db: Session) -> user_goals_models.U
     return db_goal
 
 
-def _filtered_goals(
-    stmt,
+def _filtered_goals[RowT: tuple[object, ...]](
+    stmt: Select[RowT],
     user_id: int,
     interval: user_goals_schema.Interval | None,
     activity_type: user_goals_schema.ActivityType | None,
     goal_type: user_goals_schema.GoalType | None,
-):
+) -> Select[RowT]:
     """Restrict a goals statement to one user's goals and the optional filters.
 
     Args:

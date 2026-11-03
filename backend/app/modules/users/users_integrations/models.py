@@ -1,6 +1,7 @@
 """User integrations database models."""
 
 from datetime import datetime
+from typing import Any
 
 from sqlalchemy import JSON, DateTime, ForeignKey, String
 from sqlalchemy.orm import Mapped, mapped_column
@@ -75,7 +76,7 @@ class UsersIntegrations(Base):
         default=False,
         comment="Whether Strava gear is to be synced",
     )
-    garminconnect_token: Mapped[dict | None] = mapped_column(
+    garminconnect_token: Mapped[dict[str, Any] | None] = mapped_column(
         JSON,
         default=None,
         nullable=True,

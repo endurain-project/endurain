@@ -321,7 +321,7 @@ class ExportService:
         zipf: zipfile.ZipFile,
         component_key: str,
         base_filename: str,
-        crud_func,
+        crud_func: Callable[[list[int], Session], Sequence[BaseModel]],
         activity_ids: list[int],
         batch_size: int,
     ) -> None:
@@ -430,7 +430,7 @@ class ExportService:
         zipf: zipfile.ZipFile,
         component_key: str,
         base_filename: str,
-        crud_func,
+        crud_func: Callable[[list[int], Session], Sequence[BaseModel]],
         activity_ids: list[int],
         batch_size: int,
     ) -> None:
@@ -444,7 +444,7 @@ class ExportService:
             activity_ids: List of activity IDs.
             batch_size: Number of items per batch.
         """
-        all_component_data = []
+        all_component_data: list[BaseModel] = []
 
         # Collect component data in batches
         for i in range(0, len(activity_ids), batch_size):
@@ -675,7 +675,7 @@ class ExportService:
         except SQLAlchemyError as err:
             raise DatabaseConnectionError("Failed to collect user settings") from err
 
-    def add_activity_files_to_zip(self, zipf: zipfile.ZipFile, activity_ids: list[int]):
+    def add_activity_files_to_zip(self, zipf: zipfile.ZipFile, activity_ids: list[int]) -> None:
         """Add activity files to ZIP archive.
 
         Reads each activity's retained source file through the platform
@@ -713,7 +713,7 @@ class ExportService:
                 )
                 continue
 
-    def add_activity_media_to_zip(self, zipf: zipfile.ZipFile, activity_ids: list[int]):
+    def add_activity_media_to_zip(self, zipf: zipfile.ZipFile, activity_ids: list[int]) -> None:
         """Add activity media files to ZIP archive.
 
         Read through the platform ``StorageProvider`` rather than by walking a
@@ -754,7 +754,7 @@ class ExportService:
                     )
                     continue
 
-    def add_user_images_to_zip(self, zipf: zipfile.ZipFile):
+    def add_user_images_to_zip(self, zipf: zipfile.ZipFile) -> None:
         """Add the user's profile image to the ZIP archive.
 
         Read through the platform ``StorageProvider`` rather than by walking a

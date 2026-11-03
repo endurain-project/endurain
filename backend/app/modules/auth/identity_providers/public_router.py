@@ -74,7 +74,7 @@ def initiate_login(
             description="Frontend redirect path after successful login",
         ),
     ] = None,
-):
+) -> RedirectResponse:
     """Initiates the login process for a given identity provider using OAuth.
 
     PKCE (Proof Key for Code Exchange) is REQUIRED for all clients (OAuth 2.1 compliance).
@@ -124,7 +124,7 @@ def handle_callback(
     code: str | None = Query(None, description="Authorization code from IdP"),
     error: str | None = Query(None, max_length=128, description="Error the IdP returned instead of a code"),
     state: str = Query(..., description="State parameter for CSRF protection"),
-):
+) -> RedirectResponse:
     """Handle OAuth callback from an identity provider.
 
     This endpoint processes the OAuth authorization callback from external identity providers.

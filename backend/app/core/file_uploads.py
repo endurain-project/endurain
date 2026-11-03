@@ -223,7 +223,7 @@ async def validate_upload(file: UploadFile, *, kind: UploadKind) -> None:
 
 
 async def validate_local_file(
-    path: str | os.PathLike,
+    path: str | os.PathLike[str],
     *,
     kind: UploadKind,
     filename: str | None = None,
@@ -282,7 +282,7 @@ def _run_validator_sync(coro: Coroutine[Any, Any, None]) -> None:
 
 
 def validate_local_file_sync(
-    path: str | os.PathLike,
+    path: str | os.PathLike[str],
     *,
     kind: UploadKind,
     filename: str | None = None,
@@ -1002,9 +1002,9 @@ def _promote_extracted_files_sync(
 
 
 async def extract_validated_zip(
-    zip_path: str | os.PathLike,
+    zip_path: str | os.PathLike[str],
     *,
-    dest_dir: str | os.PathLike,
+    dest_dir: str | os.PathLike[str],
     per_entry_kind: UploadKind | None = None,
     max_entries: int | None = None,
 ) -> list[Path]:
@@ -1092,7 +1092,7 @@ async def extract_validated_zip(
 # ---------------------------------------------------------------------------
 
 
-def _resolve_within(path: str | os.PathLike, base_dir: Path) -> Path:
+def _resolve_within(path: str | os.PathLike[str], base_dir: Path) -> Path:
     """Resolve ``path`` and verify it stays under ``base_dir``.
 
     Symlinks are followed via ``Path.resolve``; the resolved target
@@ -1117,11 +1117,11 @@ def _resolve_within(path: str | os.PathLike, base_dir: Path) -> Path:
 
 
 def move_within(
-    src: str | os.PathLike,
-    dest_dir: str | os.PathLike,
+    src: str | os.PathLike[str],
+    dest_dir: str | os.PathLike[str],
     *,
     filename: str,
-    src_base_dir: str | os.PathLike | None = None,
+    src_base_dir: str | os.PathLike[str] | None = None,
     overwrite: bool = False,
 ) -> Path:
     """Move ``src`` into ``dest_dir`` as ``filename`` safely.
@@ -1171,9 +1171,9 @@ def move_within(
 
 
 def safe_remove_within(
-    path: str | os.PathLike,
+    path: str | os.PathLike[str],
     *,
-    base_dir: str | os.PathLike,
+    base_dir: str | os.PathLike[str],
 ) -> bool:
     """Remove ``path`` only if it resolves under ``base_dir``.
 
@@ -1210,7 +1210,7 @@ def safe_remove_within(
 # ---------------------------------------------------------------------------
 
 
-def sha256_file(file_path: str | os.PathLike) -> str:
+def sha256_file(file_path: str | os.PathLike[str]) -> str:
     """Return the hex SHA-256 of a file's contents, streamed in chunks.
 
     Streaming (rather than reading the whole file) keeps memory bounded for the
@@ -1230,7 +1230,7 @@ def sha256_file(file_path: str | os.PathLike) -> str:
     return digest.hexdigest()
 
 
-def remove_files(file_paths: Iterable[str | os.PathLike]) -> None:
+def remove_files(file_paths: Iterable[str | os.PathLike[str]]) -> None:
     """Best-effort removal of files, logging (not raising) on failure.
 
     Used to clean up artifacts left behind by a failed multi-step operation, where
@@ -1254,7 +1254,7 @@ def remove_files(file_paths: Iterable[str | os.PathLike]) -> None:
             )
 
 
-def decompress_gzip(file_path: str | os.PathLike) -> tuple[str, str]:
+def decompress_gzip(file_path: str | os.PathLike[str]) -> tuple[str, str]:
     """Decompress a ``.gz`` file to a temp file with a bounded output size.
 
     The output is capped at the same limit a direct activity upload gets, so a
@@ -1319,9 +1319,9 @@ def decompress_gzip(file_path: str | os.PathLike) -> tuple[str, str]:
 
 
 def extract_validated_zip_sync(
-    zip_path: str | os.PathLike,
+    zip_path: str | os.PathLike[str],
     *,
-    dest_dir: str | os.PathLike,
+    dest_dir: str | os.PathLike[str],
     per_entry_kind: UploadKind | None = None,
     max_entries: int | None = None,
 ) -> list[Path]:
@@ -1395,7 +1395,7 @@ def save_text_upload_sync(file: UploadFile, *, upload_dir: str, filename: str, m
     return str(destination)
 
 
-def list_zip_members(zip_path: str | os.PathLike, *, max_entries: int | None = None) -> list[ZipMember]:
+def list_zip_members(zip_path: str | os.PathLike[str], *, max_entries: int | None = None) -> list[ZipMember]:
     """List an archive's regular files after checking it is safe to read by name.
 
     Rejects what extraction would reject (traversal and absolute names, symlinks,
@@ -1457,7 +1457,7 @@ def list_zip_members(zip_path: str | os.PathLike, *, max_entries: int | None = N
 def copy_zip_member(
     zip_ref: zipfile.ZipFile,
     member_name: str,
-    destination: str | os.PathLike,
+    destination: str | os.PathLike[str],
     *,
     max_bytes: int | None = None,
 ) -> int:

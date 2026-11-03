@@ -2,6 +2,7 @@
 
 from sqlalchemy.orm import Session
 
+import modules.auth.credentials.contracts as credentials_contracts
 import modules.auth.credentials.crud as credentials_crud
 import modules.auth.credentials.password_hasher as credentials_password_hasher
 import modules.auth.credentials.password_policy as credentials_password_policy
@@ -31,7 +32,7 @@ def allows_password_sign_in(server_settings: server_settings_schema.ServerSettin
     return server_settings.local_login_enabled or access_type == "admin"
 
 
-def get_credential(user_id: int, db: Session):
+def get_credential(user_id: int, db: Session) -> credentials_contracts.CredentialRead | None:
     """Return a user's local credential, if present."""
     return credentials_crud.get_credential(user_id, db)
 

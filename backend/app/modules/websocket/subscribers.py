@@ -1,5 +1,7 @@
 """Receives realtime hints on this process and pushes them to the sockets it holds."""
 
+from typing import Any
+
 import core.async_bridge as core_async_bridge
 import core.logger as core_logger
 import modules.websocket.keys as websocket_keys
@@ -9,7 +11,7 @@ import modules.websocket.service as websocket_service
 logger = core_logger.get_logger(__name__)
 
 
-def on_realtime_hint(key: str, hint: dict) -> None:
+def on_realtime_hint(key: str, hint: dict[str, Any]) -> None:
     """Handle one hint from the realtime channel.
 
     Every started process receives every hint, so most are for a user whose socket is

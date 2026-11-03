@@ -51,7 +51,7 @@ def _enforce_size(path: Path, max_bytes: int) -> None:
 
 
 def read_bounded_csv(
-    path: str | os.PathLike,
+    path: str | os.PathLike[str],
     *,
     max_bytes: int = _DEFAULT_MAX_BYTES,
     max_rows: int = _DEFAULT_MAX_ROWS,

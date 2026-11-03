@@ -6,12 +6,12 @@ package's ``crud`` executes it. The serializers turn an ORM row into the read sc
 """
 
 import calendar
-from collections.abc import Callable
-from datetime import date, timedelta
+from collections.abc import Callable, Sequence
+from datetime import date, datetime, timedelta
 from typing import Protocol
 
 from pydantic import BaseModel
-from sqlalchemy import Date, Select, cast, desc, func, select
+from sqlalchemy import Date, Select, SQLColumnExpression, cast, desc, func, select
 from sqlalchemy.orm import Mapped, QueryableAttribute, Session, declared_attr
 from sqlalchemy.orm.exc import StaleDataError
 
@@ -59,7 +59,7 @@ def to_read_schema[SchemaT: BaseModel](schema: type[SchemaT], row: object) -> Sc
     return schema.model_validate(row)
 
 
-def to_read_schemas[SchemaT: BaseModel](schema: type[SchemaT], rows: list) -> list[SchemaT]:
+def to_read_schemas[SchemaT: BaseModel](schema: type[SchemaT], rows: Sequence[object]) -> list[SchemaT]:
     """Convert ORM rows into their serialized schemas.
 
     Args:
@@ -152,7 +152,7 @@ def owned_record_exists_statement[ModelT: OwnedRecord](
 
 
 def user_record_count_statement[ModelT: OwnedRecord](
-    model: type[ModelT], user_id: int, since_column: QueryableAttribute[date], since: date | None
+    model: type[ModelT], user_id: int, since_column: SQLColumnExpression[date], since: date | None
 ) -> Select[tuple[int]]:
     """Build the query that counts a user's records.
 
@@ -175,7 +175,7 @@ def user_records_statement[ModelT: OwnedRecord](
     model: type[ModelT],
     user_id: int,
     order_column: QueryableAttribute[date],
-    since_column: QueryableAttribute[date],
+    since_column: SQLColumnExpression[date],
     since: date | None,
     page_number: int | None,
     num_records: int | None,
@@ -203,7 +203,7 @@ def user_records_statement[ModelT: OwnedRecord](
     return stmt
 
 
-def local_date_expression(column, tz_name: str):
+def local_date_expression(column: SQLColumnExpression[datetime], tz_name: str) -> SQLColumnExpression[date]:
     """Return ``column`` (a ``timestamptz``) truncated to a calendar date in ``tz_name``.
 
     ``func.date()`` on a ``timestamptz`` truncates in the *session* timezone,
@@ -223,7 +223,9 @@ def local_date_expression(column, tz_name: str):
     return func.date(func.timezone(tz_name, column))
 
 
-def chart_bucket_expression(day_column, bucket: health_constants.ChartBucket, since: date):
+def chart_bucket_expression(
+    day_column: SQLColumnExpression[date], bucket: health_constants.ChartBucket, since: date
+) -> SQLColumnExpression[date]:
     """Return ``day_column`` (a date) truncated to the first day of its chart bucket, within the window.
 
     The bucket the window opens in is dated the window's first day rather than its own first day, so a

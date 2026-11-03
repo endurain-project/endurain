@@ -8,6 +8,8 @@ the laps, workout steps, and sets tables.
 import asyncio
 import glob
 import os
+from collections.abc import Mapping, Sequence
+from pathlib import Path
 
 import fitdecode
 import jasil.runtime as platform_runtime
@@ -19,6 +21,7 @@ import core.logger as core_logger
 import migrations.service as migrations_service
 import modules.activities.activity.contracts as activities_contracts
 import modules.activities.activity.migration_service as activities_crud
+import modules.activities.activity_exercise_titles.contracts as activity_exercise_titles_contracts
 import modules.activities.activity_exercise_titles.migration_service as activity_exercise_titles_crud
 import modules.activities.activity_file_import.migration_service as activity_file_import_utils
 import modules.activities.activity_file_import.migration_service as fit_utils
@@ -26,6 +29,7 @@ import modules.activities.activity_laps.migration_service as activity_laps_crud
 import modules.activities.activity_sets.migration_service as activity_sets_migration_service
 import modules.activities.activity_streams.constants as activity_streams_constants
 import modules.activities.activity_streams.migration_service as activity_streams_crud
+import modules.activities.activity_workout_steps.contracts as activity_workout_steps_contracts
 import modules.activities.activity_workout_steps.migration_service as activity_workout_steps_crud
 import modules.garmin.migration_service as garmin_migration_service
 import modules.strava.migration_service as strava_migration
@@ -223,7 +227,7 @@ def get_fit_file_from_garminconnect(
     files_dir = core_config.settings.FILES_DIR
     fallback_path = os.path.join(core_config.FILES_PROCESSED_DIR, f"{activity.id}.fit")
 
-    async def _save_and_extract() -> tuple[str, list]:
+    async def _save_and_extract() -> tuple[str, list[Path]]:
         saved = await file_uploads.save_validated_bytes(
             zip_data,
             kind=file_uploads.UploadKind.ZIP,
@@ -341,15 +345,32 @@ def process_fit_file(
 
                     # Extract exercise title data
                     if frame.name == "exercise_title":
-                        exercises_titles.append(fit_utils.parse_frame_exercise_title(frame))
+                        exercise_title = fit_utils.parse_frame_exercise_title(frame)
+                        if exercise_title is not None:
+                            exercises_titles.append(exercise_title)
 
                     # Extract set data
                     if frame.name == "set":
                         sets.append(fit_utils.parse_frame_set(frame))
+
+        # A file with several sessions keeps only the laps inside this activity's time window; a lap
+        # without a start time cannot be placed in it and is skipped, as the FIT parser does
+        if len(sessions) > 1:
+            filtered_laps = []
+            for lap in laps:
+                lap_start_time = lap["start_time"]
+                if lap_start_time is not None and activity.start_time <= lap_start_time <= activity.end_time:
+                    logger.info(
+                        f"start_time: {activity.start_time}, lap_start_time: {lap_start_time}, "
+                        f"end_time: {activity.end_time}",
+                        extra=core_logger.context(console=True),
+                    )
+                    filtered_laps.append(lap)
+            laps = filtered_laps
+
         # Store data in the database
         store_data_in_db(
             activity,
-            sessions,
             laps,
             workout_steps,
             exercises_titles,
@@ -400,7 +421,7 @@ def process_activity_using_streams(
             stream_map.get(activity_streams_constants.STREAM_TYPE_SPEED) or [],
         )
 
-        store_data_in_db(activity, [], laps, [], [], [], db)
+        store_data_in_db(activity, laps, [], [], [], db)
     except Exception as err:
         logger.error(
             f"Migration 3 - Failed to process activity {activity.id} file: {err}",
@@ -508,11 +529,10 @@ def process_strava_activity(
 
 def store_data_in_db(
     activity: activities_contracts.ActivityMigrationRef,
-    sessions: list,
-    laps: list,
-    workout_steps: list,
-    exercises_titles: list,
-    sets: list,
+    laps: Sequence[Mapping[str, object]],
+    workout_steps: list[activity_workout_steps_contracts.ActivityWorkoutStepsCreate],
+    exercises_titles: list[activity_exercise_titles_contracts.ActivityExerciseTitlesCreate],
+    sets: Sequence[list[object]],
     db: Session,
 ) -> None:
     """
@@ -520,8 +540,7 @@ def store_data_in_db(
 
     Args:
         activity: ORM Activity instance.
-        sessions: Parsed session records from the FIT file.
-        laps: Parsed lap records from the FIT file.
+        laps: Lap records to store.
         workout_steps: Parsed workout-step records.
         exercises_titles: Parsed exercise-title records.
         sets: Parsed set records from the FIT file.
@@ -533,46 +552,20 @@ def store_data_in_db(
     Raises:
         None.
     """
-    laps_to_store = []
-    workout_steps_to_store = workout_steps if workout_steps else []
-    exercises_titles_to_store = exercises_titles if exercises_titles else []
-    sets_to_store = sets if sets else []
-
-    if sessions and len(sessions) > 1:
-        if laps:
-            filtered_laps = []  # Temporary list to store filtered laps
-            for lap in laps:
-                start_time = activity.start_time
-                end_time = activity.end_time
-                lap_start_time = lap["start_time"]
-
-                if start_time <= lap_start_time <= end_time:
-                    # Append the lap to the temporary list
-                    logger.info(
-                        f"start_time: {start_time}, lap_start_time: {lap_start_time}, end_time: {end_time}",
-                        extra=core_logger.context(console=True),
-                    )
-                    filtered_laps.append(lap)
-
-            # Extend laps_to_store with the filtered laps
-            laps_to_store.extend(filtered_laps)
-    else:
-        laps_to_store = laps if laps else []
-
     # Create activity laps in the database
-    if laps_to_store:
-        activity_laps_crud.create_activity_laps(laps_to_store, activity.id, db)
+    if laps:
+        activity_laps_crud.create_activity_laps(laps, activity.id, db)
 
     # Create activity workout steps in the database
-    if workout_steps_to_store:
-        activity_workout_steps_crud.create_activity_workout_steps(workout_steps_to_store, activity.id, db)
+    if workout_steps:
+        activity_workout_steps_crud.create_activity_workout_steps(workout_steps, activity.id, db)
 
     # Create activity exercise titles in the database
-    if exercises_titles_to_store:
-        activity_exercise_titles_crud.create_activity_exercise_titles(exercises_titles_to_store, db)
+    if exercises_titles:
+        activity_exercise_titles_crud.create_activity_exercise_titles(exercises_titles, db)
 
     # Create activity sets in the database
-    if sets_to_store:
-        activity_sets_migration_service.create_activity_sets(sets_to_store, activity.id, db)
+    if sets:
+        activity_sets_migration_service.create_activity_sets(sets, activity.id, db)
 
     logger.info("Migration 3 - Activity processed", extra=core_logger.context(console=True, activity_id=activity.id))

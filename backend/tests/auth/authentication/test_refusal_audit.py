@@ -117,7 +117,6 @@ def _refresh(db, *, session, x_csrf_token=None, hasher=None, token_user_id=5):
         return authentication_service.refresh_token(
             "127.0.0.1",
             "agent",
-            lambda: None,
             token_user_id,
             "sid",
             "old-token",

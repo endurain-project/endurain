@@ -98,7 +98,7 @@ def _pool_options(env: Mapping[str, str]) -> dict[str, int]:
     }
 
 
-def _connect_args(env: Mapping[str, str]) -> dict:
+def _connect_args(env: Mapping[str, str]) -> dict[str, str]:
     """Build the connection arguments.
 
     Pins the session timezone to UTC. The import parsers emit naive UTC wall-clock timestamps and
@@ -119,7 +119,7 @@ def _connect_args(env: Mapping[str, str]) -> dict:
     statement_timeout = _int_env(env, "DB_STATEMENT_TIMEOUT_SECONDS", 0, minimum=0)
     if statement_timeout:
         options += f" -c statement_timeout={statement_timeout}s"
-    connect_args: dict = {"options": options}
+    connect_args: dict[str, str] = {"options": options}
     sslmode = env.get("DB_SSLMODE", "").strip().lower()
     if sslmode:
         connect_args["sslmode"] = sslmode

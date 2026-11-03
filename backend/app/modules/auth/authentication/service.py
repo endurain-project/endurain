@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-from collections.abc import Callable
 from contextlib import AbstractContextManager
 from datetime import UTC, datetime
 from typing import NoReturn, TypedDict
@@ -1154,7 +1153,6 @@ def _replay_rotation(
 def refresh_token(
     ip_address: str,
     user_agent: str,
-    _validate_refresh_token: Callable,
     token_user_id: int,
     token_session_id: str,
     refresh_token_value: str,
@@ -1180,7 +1178,6 @@ def refresh_token(
     Args:
         ip_address: Client address, recorded on the session.
         user_agent: Client user agent, recorded on the session.
-        _validate_refresh_token: Dependency to validate the refresh token.
         token_user_id: User ID extracted from the refresh token.
         token_session_id: Session ID extracted from the refresh token.
         refresh_token_value: The raw refresh token value.
@@ -1413,18 +1410,16 @@ def refresh_token(
 
 
 def logout(
-    _validate_refresh_token: Callable,
     token_session_id: str,
     refresh_token_value: str,
     client_type: str,
     token_user_id: int,
     password_hasher: credentials_integration.PasswordHasher,
     db: Session,
-):
+) -> auth_schema.LogoutRead:
     """Log out a user by validating and deleting their session.
 
     Args:
-        _validate_refresh_token: Dependency to validate the refresh token.
         token_session_id: The session ID extracted from the refresh token.
         refresh_token_value: The refresh token value from the request.
         client_type: The type of client ("web" or "mobile").
@@ -1433,7 +1428,7 @@ def logout(
         db: Database session for CRUD operations.
 
     Returns:
-        dict: A message indicating successful logout.
+        The logout confirmation.
 
     Raises:
         UnauthenticatedError: If the refresh token is invalid.
@@ -1472,7 +1467,7 @@ def logout(
         db.commit()
 
     if client_type in ("web", "mobile"):
-        return {"message": "Logout successful"}
+        return auth_schema.LogoutRead(message="Logout successful")
     logger.warning("Logout refused for an unsupported client type")
     raise core_exceptions.PermissionDeniedError("Invalid client type")
 

@@ -122,14 +122,14 @@ def get_gear_user_by_id(user_id: int, gear_id: int, db: Session) -> gears_schema
     return gears_serializers.to_read_schema(db_gear) if db_gear is not None else None
 
 
-def _filter_gears(
-    stmt: Select,
+def _filter_gears[RowT: tuple[object, ...]](
+    stmt: Select[RowT],
     user_id: int,
     *,
     show_inactive: bool | None,
     gear_type: gears_schema.GearType | None,
     nickname_contains: str | None,
-) -> Select:
+) -> Select[RowT]:
     """Scope a gear statement to a user and the list filters.
 
     Args:

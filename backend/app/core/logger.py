@@ -325,7 +325,7 @@ class JsonFormatter(logging.Formatter):
         Returns:
             Single-line JSON string representing the record.
         """
-        entry: dict = {
+        entry: dict[str, object] = {
             "timestamp": datetime.fromtimestamp(record.created, tz=UTC).isoformat(),
             "level": record.levelname,
             "logger": record.name,
@@ -488,7 +488,7 @@ class _SlowapiLimitExceededFilter(logging.Filter):
         return not str(record.msg).startswith("ratelimit ")
 
 
-def setup_main_logger():
+def setup_main_logger() -> logging.Logger:
     """
     Set up the main application logger.
 

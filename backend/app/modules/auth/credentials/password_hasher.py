@@ -134,7 +134,7 @@ class PasswordHasher:
         self._password_hash.verify(secrets.token_urlsafe(32), self._dummy_hash)
 
 
-def get_password_hasher():
+def get_password_hasher() -> PasswordHasher:
     """Returns the password hasher instance.
 
     This function provides access to the application's password hasher, which is used for securely hashing and verifying passwords.

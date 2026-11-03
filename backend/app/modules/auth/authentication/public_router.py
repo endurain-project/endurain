@@ -1,6 +1,5 @@
 """Public login, refresh, MFA-login and logout routes."""
 
-from collections.abc import Callable
 from datetime import datetime
 from typing import Annotated
 
@@ -68,7 +67,7 @@ def login_for_access_token(
     device_id: known_devices_dependencies.DeviceId,
     code_challenge: Annotated[str | None, Query()] = None,
     code_challenge_method: Annotated[str | None, Query()] = None,
-):
+) -> auth_schema.LoginRead:
     """Handles user login and access token generation, including Multi-Factor Authentication (MFA) flow.
 
     Protection Mechanisms:
@@ -162,7 +161,7 @@ def verify_mfa_and_login(
     device_id: known_devices_dependencies.DeviceId,
     code_challenge: Annotated[str | None, Query()] = None,
     code_challenge_method: Annotated[str | None, Query()] = None,
-):
+) -> auth_schema.LoginRead:
     """Verify MFA code and complete login process.
 
     This endpoint verifies the MFA code for a pending login and completes
@@ -219,7 +218,7 @@ def verify_mfa_and_login(
 def refresh_token(
     response: Response,
     request: Request,
-    _validate_refresh_token: Annotated[Callable, Depends(authentication_dependencies.validate_refresh_token)],
+    _validate_refresh_token: Annotated[None, Depends(authentication_dependencies.validate_refresh_token)],
     token_user_id: Annotated[
         int,
         Depends(authentication_dependencies.get_sub_from_refresh_token),
@@ -247,7 +246,7 @@ def refresh_token(
     db: core_dependencies.DbSession,
     client_type: Annotated[str, Depends(authentication_dependencies.header_client_type_scheme)],
     x_csrf_token: Annotated[str | None, Depends(authentication_dependencies.header_csrf_token_scheme)] = None,
-):
+) -> auth_schema.TokenRead:
     r"""Handles the refresh token process for user sessions.
 
     This endpoint validates the provided refresh token, checks session status,
@@ -284,7 +283,6 @@ def refresh_token(
     outcome = auth_service.refresh_token(
         core_network.get_ip_address(request),
         core_network.get_user_agent(request),
-        _validate_refresh_token,
         token_user_id,
         token_session_id,
         refresh_token_value,
@@ -303,7 +301,7 @@ def refresh_token(
 def logout(
     response: Response,
     request: Request,
-    _validate_refresh_token: Annotated[Callable, Depends(authentication_dependencies.validate_refresh_token)],
+    _validate_refresh_token: Annotated[None, Depends(authentication_dependencies.validate_refresh_token)],
     token_session_id: Annotated[
         str,
         Depends(authentication_dependencies.get_sid_from_refresh_token),
@@ -322,7 +320,7 @@ def logout(
         Depends(credentials_integration.get_password_hasher),
     ],
     db: core_dependencies.DbSession,
-):
+) -> auth_schema.LogoutRead:
     """Log out a user by validating and deleting their session.
 
     Args:
@@ -337,14 +335,13 @@ def logout(
         db: Database session for CRUD operations.
 
     Returns:
-        dict: A message indicating successful logout.
+        The logout confirmation.
 
     Raises:
         HTTPException: If refresh token is invalid (401 Unauthorized).
         HTTPException: If client type is invalid (403 Forbidden).
     """
     message = auth_service.logout(
-        _validate_refresh_token,
         token_session_id,
         refresh_token_value,
         client_type,

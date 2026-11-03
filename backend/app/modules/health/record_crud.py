@@ -11,7 +11,7 @@ from datetime import date
 from typing import Protocol
 
 from pydantic import BaseModel
-from sqlalchemy import func, select
+from sqlalchemy import SQLColumnExpression, func, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Mapped, QueryableAttribute, Session, declared_attr
 
@@ -155,7 +155,7 @@ def find_by_date[ModelT: _DatedRow, ReadT: BaseModel](
 def count[ModelT: Row, ReadT: BaseModel](
     spec: RecordSpec[ModelT, ReadT],
     user_id: int,
-    since_column: QueryableAttribute[date],
+    since_column: SQLColumnExpression[date],
     since: date | None,
     db: Session,
 ) -> int:
@@ -179,7 +179,7 @@ def list_page[ModelT: Row, ReadT: BaseModel](
     spec: RecordSpec[ModelT, ReadT],
     user_id: int,
     order_column: QueryableAttribute[date],
-    since_column: QueryableAttribute[date],
+    since_column: SQLColumnExpression[date],
     since: date | None,
     page_number: int | None,
     num_records: int | None,

@@ -19,7 +19,7 @@ import modules.websocket.keys as websocket_keys
 logger = core_logger.get_logger(__name__)
 
 
-def push_to_user(user_id: int, message: dict) -> None:
+def push_to_user(user_id: int, message: dict[str, str | int]) -> None:
     """Publish a hint for one user to every process, from any thread.
 
     Safe from a process that holds no sockets, such as the job worker. A transport

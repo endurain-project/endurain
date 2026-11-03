@@ -1,6 +1,7 @@
 """Pydantic schemas for notification entities."""
 
 from datetime import datetime
+from typing import Any
 
 from pydantic import (
     BaseModel,
@@ -22,7 +23,7 @@ class NotificationBase(BaseModel):
         options: Additional metadata for the notification.
     """
 
-    options: dict | None = Field(
+    options: dict[str, Any] | None = Field(
         default=None,
         description="Additional notification metadata",
     )

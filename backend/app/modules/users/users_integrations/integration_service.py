@@ -4,6 +4,8 @@ Everything here returns schemas or primitives; no ORM row crosses the boundary. 
 stage; the caller owns the commit.
 """
 
+from typing import Any
+
 from sqlalchemy.orm import Session
 
 import core.exceptions as core_exceptions
@@ -75,7 +77,7 @@ def unlink_strava_tokens_if_refresh_token(user_id: int, refresh_token: str, db: 
     return user_integrations_crud.unlink_strava_tokens_if_refresh_token(user_id, refresh_token, db)
 
 
-def link_garminconnect_account(user_id: int, token: dict, db: Session) -> None:
+def link_garminconnect_account(user_id: int, token: dict[str, Any], db: Session) -> None:
     """Store a user's Garmin Connect token.
 
     Args:
@@ -96,7 +98,7 @@ def unlink_garminconnect_account(user_id: int, db: Session) -> None:
     user_integrations_crud.unlink_garminconnect_account(user_id, db)
 
 
-def unlink_garminconnect_account_if_token(user_id: int, token: dict, db: Session) -> bool:
+def unlink_garminconnect_account_if_token(user_id: int, token: dict[str, Any], db: Session) -> bool:
     """Clear a user's Garmin Connect token only while it is still the given one.
 
     Args:
@@ -110,7 +112,9 @@ def unlink_garminconnect_account_if_token(user_id: int, token: dict, db: Session
     return user_integrations_crud.unlink_garminconnect_account_if_token(user_id, token, db)
 
 
-def replace_garminconnect_token_if_token(user_id: int, old_token: dict, new_token: dict, db: Session) -> bool:
+def replace_garminconnect_token_if_token(
+    user_id: int, old_token: dict[str, Any], new_token: dict[str, Any], db: Session
+) -> bool:
     """Store a refreshed Garmin Connect token only while the stored one is still ``old_token``.
 
     Args:

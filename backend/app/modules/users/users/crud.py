@@ -3,7 +3,7 @@
 from collections.abc import Collection, Mapping
 from datetime import datetime
 
-from sqlalchemy import exists, func, or_, select, text
+from sqlalchemy import Select, exists, func, or_, select, text
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
@@ -43,13 +43,13 @@ def _get_user_model_by_id(user_id: int, db: Session) -> users_models.Users:
     return db_user
 
 
-def _filtered(
-    stmt,
+def _filtered[RowT: tuple[object, ...]](
+    stmt: Select[RowT],
     show_inactive: bool | None,
     show_email_unverified: bool | None,
     show_pending_approval: bool | None,
     username: str | None = None,
-):
+) -> Select[RowT]:
     """Apply the optional list filters to a users statement.
 
     Args:

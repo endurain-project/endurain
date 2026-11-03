@@ -31,7 +31,7 @@ class ClearRefreshTokenCookieError(core_exceptions.UnauthenticatedError):
 def set_refresh_token_cookie(
     response: Response,
     refresh_token: str,
-    expires_at,
+    expires_at: datetime,
     *,
     cookie_name: str = REFRESH_TOKEN_COOKIE_NAME,
     cookie_path: str = REFRESH_TOKEN_COOKIE_PATH,

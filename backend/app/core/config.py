@@ -17,6 +17,7 @@ working unchanged.
 import ipaddress
 import os
 import stat
+from collections.abc import Iterable
 from pathlib import Path
 from tempfile import gettempdir
 from typing import Annotated, Self
@@ -301,13 +302,15 @@ class Settings(BaseSettings):
 
     @field_validator("DEPLOYMENT_PROFILE", mode="before")
     @classmethod
-    def _parse_deployment_profile(cls, v):
+    def _parse_deployment_profile(
+        cls, v: str | platform_profile.DeploymentProfile | None
+    ) -> platform_profile.DeploymentProfile:
         """Normalise DEPLOYMENT_PROFILE to a DeploymentProfile (raises on typo)."""
         return platform_profile.parse_profile(v)
 
     @field_validator("WEB_WORKERS", mode="before")
     @classmethod
-    def _parse_web_workers(cls, v):
+    def _parse_web_workers(cls, v: str | int | None) -> int:
         """Coerce WEB_WORKERS to an int >= 1, tolerating blank/invalid input."""
         if v is None or v == "":
             return 1
@@ -328,7 +331,7 @@ class Settings(BaseSettings):
 
     @field_validator("SMTP_SECURE_TYPE", mode="before")
     @classmethod
-    def _smtp_secure_type_lower(cls, v):
+    def _smtp_secure_type_lower(cls, v: object) -> str:
         """Normalise to lower-case and validate against the
         allowed connection types (``starttls``, ``ssl``). Falls
         back to ``starttls`` on garbage input with a warning
@@ -349,7 +352,7 @@ class Settings(BaseSettings):
 
     @field_validator("ALLOWED_REDIRECT_SCHEMES", mode="before")
     @classmethod
-    def _parse_allowed_schemes(cls, v):
+    def _parse_allowed_schemes(cls, v: str | Iterable[object] | None) -> set[str]:
         """Accept comma-separated env value or already-parsed iterable."""
         if v is None or v == "":
             return set()
@@ -359,7 +362,7 @@ class Settings(BaseSettings):
 
     @field_validator("TRUSTED_PROXIES", mode="before")
     @classmethod
-    def _parse_trusted_proxies(cls, v):
+    def _parse_trusted_proxies(cls, v: str | list[str] | None) -> list[str]:
         """Accept comma-separated env value or already-parsed iterable."""
         if v is None or v == "":
             return []
@@ -369,7 +372,7 @@ class Settings(BaseSettings):
 
     @field_validator("TRUSTED_PROXIES", mode="after")
     @classmethod
-    def _validate_trusted_proxies(cls, v):
+    def _validate_trusted_proxies(cls, v: list[str]) -> list[str]:
         """Validate TRUSTED_PROXIES entries are valid IPs, CIDRs, hostnames, or '*'.
 
         Entries may be:
@@ -411,7 +414,7 @@ class Settings(BaseSettings):
 
     @field_validator("CSP_ADDITIONAL_CONNECT_SRC", mode="before")
     @classmethod
-    def _parse_csp_additional_connect_src(cls, v):
+    def _parse_csp_additional_connect_src(cls, v: str | Iterable[object] | None) -> list[str]:
         """Parse the extra CSP ``connect-src`` origins.
 
         Accepts a comma-separated env value or an already
@@ -461,7 +464,7 @@ class Settings(BaseSettings):
 
     @field_validator("SSRF_ALLOWED_HOSTS", mode="before")
     @classmethod
-    def _parse_ssrf_allowed_hosts(cls, v):
+    def _parse_ssrf_allowed_hosts(cls, v: str | Iterable[object] | None) -> list[str]:
         """Parse and validate the SSRF allowlist.
 
         Accepts a comma-separated env value or an already
@@ -547,7 +550,7 @@ class Settings(BaseSettings):
 
     @field_validator("REVERSE_GEO_RATE_LIMIT", mode="before")
     @classmethod
-    def _parse_geo_rate(cls, v):
+    def _parse_geo_rate(cls, v: str | float | None) -> float:
         """Tolerate non-numeric strings instead of failing startup."""
         if v is None or v == "":
             return 1.0
@@ -1024,7 +1027,7 @@ def validate_log_level(log_level: str) -> bool:
         return False
 
 
-def check_required_env_vars():
+def check_required_env_vars() -> None:
     """
     Validate required environment variables are set.
 
@@ -1147,7 +1150,7 @@ def check_deprecated_env_vars() -> None:
     raise OSError(message)
 
 
-def check_required_dirs():
+def check_required_dirs() -> None:
     """
     Ensure required directories exist and are valid.
 

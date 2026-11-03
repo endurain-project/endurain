@@ -1,6 +1,7 @@
 """Serving websocket connections and delivering hints to them."""
 
 import asyncio
+from typing import Any
 
 from fastapi import WebSocket, WebSocketDisconnect, status
 
@@ -14,7 +15,7 @@ logger = core_logger.get_logger(__name__)
 MAX_CONNECTION_SECONDS = 900
 
 
-async def deliver_hint(user_id: int, message: dict, manager: websocket_manager.WebSocketManager) -> bool:
+async def deliver_hint(user_id: int, message: dict[str, Any], manager: websocket_manager.WebSocketManager) -> bool:
     """Send a hint to each of a user's websockets held by this process.
 
     A connection that fails is dropped from the registry, and the others still get

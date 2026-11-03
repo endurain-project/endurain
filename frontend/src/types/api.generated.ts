@@ -704,7 +704,7 @@ export interface paths {
          *         db: Database session for CRUD operations.
          *
          *     Returns:
-         *         dict: A message indicating successful logout.
+         *         The logout confirmation.
          *
          *     Raises:
          *         HTTPException: If refresh token is invalid (401 Unauthorized).

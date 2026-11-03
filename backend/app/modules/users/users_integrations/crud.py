@@ -1,6 +1,7 @@
 """CRUD operations for user integrations."""
 
 from datetime import UTC, datetime
+from typing import Any
 
 from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
@@ -316,7 +317,7 @@ def set_user_strava_sync_gear(user_id: int, strava_sync_gear: bool, db: Session)
 
 def link_garminconnect_account(
     user_id: int,
-    token: dict,
+    token: dict[str, Any],
     db: Session,
 ) -> None:
     """Link a Garmin Connect account by storing token.
@@ -380,7 +381,7 @@ def unlink_garminconnect_account(user_id: int, db: Session) -> None:
     db_user_integrations.garminconnect_sync_gear = False
 
 
-def unlink_garminconnect_account_if_token(user_id: int, token: dict, db: Session) -> bool:
+def unlink_garminconnect_account_if_token(user_id: int, token: dict[str, Any], db: Session) -> bool:
     """Unlink a Garmin Connect account only while it still holds the given token.
 
     The row is locked while the token is compared, so a link made in the meantime is
@@ -410,7 +411,9 @@ def unlink_garminconnect_account_if_token(user_id: int, token: dict, db: Session
     return True
 
 
-def replace_garminconnect_token_if_token(user_id: int, old_token: dict, new_token: dict, db: Session) -> bool:
+def replace_garminconnect_token_if_token(
+    user_id: int, old_token: dict[str, Any], new_token: dict[str, Any], db: Session
+) -> bool:
     """Replace a Garmin Connect token only while it is still the given one.
 
     The row is locked while the token is compared, so a token refreshed by a finished sync never

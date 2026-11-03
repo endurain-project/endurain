@@ -1181,7 +1181,7 @@ class ImportService:
     async def add_activity_files_from_zip(
         self,
         zipf: zipfile.ZipFile,
-        file_list: set,
+        file_list: set[str],
         activities_id_mapping: dict[int, int],
     ) -> None:
         """Extract and import activity files from ZIP.
@@ -1249,7 +1249,7 @@ class ImportService:
     async def add_activity_media_from_zip(
         self,
         zipf: zipfile.ZipFile,
-        file_list: set,
+        file_list: set[str],
         activities_id_mapping: dict[int, int],
     ) -> None:
         """Extract and import activity media from ZIP.
@@ -1320,7 +1320,7 @@ class ImportService:
     async def add_user_images_from_zip(
         self,
         zipf: zipfile.ZipFile,
-        file_list: set,
+        file_list: set[str],
     ) -> None:
         """Extract and import user images from ZIP.
 
