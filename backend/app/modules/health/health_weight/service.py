@@ -1,6 +1,6 @@
 """Application logic for health weight records.
 
-Owns the BMI rule (it needs the user's height), the ownership check, the
+Owns the BMI rule (it needs the user's height; a manual write always derives it), the ownership check, the
 interval-to-date resolution and the transaction boundary. What other modules may
 consume lives in :mod:`modules.health.health_weight.integration_service`.
 """
@@ -85,7 +85,30 @@ def list_health_weight(
 def stage_create_health_weight(
     user_id: int, health_weight: health_weight_schema.HealthWeightCreate, db: Session
 ) -> health_weight_schema.HealthWeightRead:
-    """Stage a new weight record, deriving the BMI when it is not given.
+    """Stage a new manually entered weight record, deriving its BMI from the user's height.
+
+    A BMI the client sent is ignored: it could contradict the weight and height the record is made of.
+
+    Args:
+        user_id: The record's owner.
+        health_weight: The record to create.
+        db: Database session.
+
+    Returns:
+        The staged record.
+
+    Raises:
+        ConflictError: If the user already has a record for that date.
+    """
+    return health_weight_crud.create_health_weight(user_id, _with_bmi(health_weight, user_id, db), db)
+
+
+def _stage_upsert_create(
+    user_id: int, health_weight: health_weight_schema.HealthWeightCreate, db: Session
+) -> health_weight_schema.HealthWeightRead:
+    """Stage a new weight record from a provider or an archive, which carry their own BMI.
+
+    The BMI is derived only when the record has none.
 
     Args:
         user_id: The record's owner.
@@ -111,7 +134,10 @@ def stage_edit_health_weight(
     *,
     if_match: str,
 ) -> health_weight_schema.HealthWeightRead:
-    """Stage an update to a weight record, deriving the BMI when it is not given.
+    """Stage an update to a manually entered weight record, deriving its BMI from the user's height.
+
+    A BMI the client sent is ignored: it could contradict the weight and height the record is made of. An
+    update without a weight leaves the stored BMI as it is.
 
     Args:
         user_id: The record's owner.
@@ -127,15 +153,46 @@ def stage_edit_health_weight(
         NotFoundError: If the user has no such record.
         PreconditionFailedError: If the record changed since the client read it.
     """
+    if health_weight.weight is not None:
+        health_weight = _with_bmi(health_weight, user_id, db)
+    else:
+        health_weight.model_fields_set.discard("bmi")
+    return health_weight_crud.edit_health_weight(user_id, health_weight_id, health_weight, db, if_match=if_match)
+
+
+def _stage_upsert_edit(
+    user_id: int,
+    health_weight_id: int,
+    health_weight: health_weight_schema.HealthWeightUpdate,
+    db: Session,
+) -> health_weight_schema.HealthWeightRead:
+    """Stage an update to a weight record from a provider or an archive, which carry their own BMI.
+
+    The BMI is derived only when the update carries a weight and no BMI.
+
+    Args:
+        user_id: The record's owner.
+        health_weight_id: The record to change.
+        health_weight: The fields to change.
+        db: Database session.
+
+    Returns:
+        The updated record.
+
+    Raises:
+        NotFoundError: If the user has no such record.
+    """
     if health_weight.bmi is None and health_weight.weight is not None:
         health_weight = _with_bmi(health_weight, user_id, db)
-    return health_weight_crud.edit_health_weight(user_id, health_weight_id, health_weight, db, if_match=if_match)
+    return health_weight_crud.edit_health_weight(user_id, health_weight_id, health_weight, db, if_match="*")
 
 
 def stage_upsert_health_weight(
     user_id: int, health_weight: health_weight_schema.HealthWeightCreate, db: Session
 ) -> health_weight_schema.HealthWeightRead:
     """Stage a weight record, or an update to the user's record for the same date.
+
+    The record comes from a provider or an archive, so its own BMI is kept.
 
     A writer that creates the date first, on this replica or another, is not an error: the
     record it created is updated instead.
@@ -156,8 +213,8 @@ def stage_upsert_health_weight(
         health_weight,
         health_weight_schema.HealthWeightUpdate,
         lambda day: health_weight_crud.get_health_weight_by_date_and_user_id(user_id, day, db),
-        lambda record: stage_create_health_weight(user_id, record, db),
-        lambda record_id, update: stage_edit_health_weight(user_id, record_id, update, db, if_match="*"),
+        lambda record: _stage_upsert_create(user_id, record, db),
+        lambda record_id, update: _stage_upsert_edit(user_id, record_id, update, db),
         db,
     )
 

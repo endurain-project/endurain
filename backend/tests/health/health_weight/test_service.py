@@ -16,6 +16,13 @@ def _user(height):
     return MagicMock(height=height)
 
 
+@pytest.fixture(autouse=True)
+def _known_user():
+    """Give the user a height, as every manual write derives its BMI from it."""
+    with patch(f"{_PREFIX}.users_integration.get_user", return_value=_user(175)):
+        yield
+
+
 class TestStageCreate:
     @patch(f"{_PREFIX}.health_weight_crud.create_health_weight")
     @patch(f"{_PREFIX}.users_integration.get_user", return_value=_user(175))
@@ -51,14 +58,12 @@ class TestStageCreate:
         assert mock_create.call_args.args[1].bmi is None
 
     @patch(f"{_PREFIX}.health_weight_crud.create_health_weight")
-    @patch(f"{_PREFIX}.users_integration.get_user")
-    def test_keeps_a_given_bmi(self, mock_get_user, mock_create, mock_db):
+    def test_ignores_a_given_bmi(self, mock_create, mock_db):
         record = health_weight_schema.HealthWeightCreate(date=datetime_date(2024, 1, 15), weight=75.0, bmi=22.0)
 
         health_weight_service.stage_create_health_weight(1, record, mock_db)
 
-        mock_get_user.assert_not_called()
-        assert mock_create.call_args.args[1].bmi == 22.0
+        assert mock_create.call_args.args[1].bmi == pytest.approx(75.0 / 1.75**2)
 
 
 class TestStageEdit:
