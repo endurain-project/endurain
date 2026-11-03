@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, reactive, watch } from 'vue'
+import { computed, reactive, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 
 import type { Activity, ActivityEditInput } from '@/features/activities/types'
@@ -12,6 +12,7 @@ import { MarkdownEditor } from '@/components/ui/markdown-editor'
 import { Switch } from '@/components/ui/switch'
 import { isStaleWrite } from '@/services/ifMatch'
 import { useToasts } from '@/composables/useToasts'
+import { required } from '@/utils/validators'
 import { useEditActivityMutation } from '@/features/activities/composables/useActivityDetail'
 import { ACTIVITY_TYPE_LABEL_KEYS } from '@/features/activities/utils/activityType'
 
@@ -59,6 +60,7 @@ const form = reactive<ActivityEditInput>(toFormValues(props.activity))
 watch(open, (isOpen) => {
   if (isOpen) {
     Object.assign(form, toFormValues(props.activity))
+    nameTouched.value = false
   }
 })
 
@@ -91,10 +93,16 @@ const privacyFields = [
   { key: 'hideGear', labelKey: 'activities.edit.hideGear' },
 ] as const
 
-const canSubmit = computed(() => form.name.trim().length > 0)
+const validateName = required<string>(t('activities.edit.nameRequired'))
+const nameTouched = ref(false)
+const nameError = computed(() =>
+  nameTouched.value ? (validateName(form.name) ?? undefined) : undefined,
+)
+const canSubmit = computed(() => validateName(form.name) === null)
 
 /** Persists the edited fields, then closes the dialog. */
 async function submit(): Promise<void> {
+  nameTouched.value = true
   if (!canSubmit.value) {
     return
   }
@@ -133,14 +141,17 @@ async function submit(): Promise<void> {
     @submit="submit"
   >
     <div class="flex flex-col gap-3">
-      <FormField :label="t('activities.edit.name')">
-        <template #default="{ fieldId }">
+      <FormField :label="t('activities.edit.name')" :error="nameError" required>
+        <template #default="{ fieldId, describedBy, invalid }">
           <Input
             :id="fieldId"
             v-model="form.name"
+            :aria-describedby="describedBy"
+            :aria-invalid="invalid"
             class="w-full"
             :maxlength="45"
             :disabled="isSaving"
+            @blur="nameTouched = true"
           />
         </template>
       </FormField>
