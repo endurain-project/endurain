@@ -12,6 +12,9 @@ from pydantic import (
     field_validator,
 )
 
+MAX_BMI = 100
+"""Highest BMI a record may carry; a calculated value above it is unusable and not stored."""
+
 
 class Source(Enum):
     """Enumeration of data sources for health weight records.
@@ -51,7 +54,7 @@ class HealthWeightBase(BaseModel):
 
     date: datetime_date | None = Field(default=None, description="Health weight date (date)")
     weight: StrictFloat | None = Field(default=None, ge=0, le=500, description="Weight in kilograms")
-    bmi: StrictFloat | None = Field(default=None, ge=0, le=100, description="Body Mass Index")
+    bmi: StrictFloat | None = Field(default=None, ge=0, le=MAX_BMI, description="Body Mass Index")
     body_fat: StrictFloat | None = Field(default=None, ge=0, le=100, description="Body fat percentage")
     body_water: StrictFloat | None = Field(default=None, ge=0, le=100, description="Body water percentage")
     bone_mass: StrictFloat | None = Field(default=None, ge=0, le=500, description="Bone mass in kilograms")

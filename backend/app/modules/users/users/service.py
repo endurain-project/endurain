@@ -587,7 +587,7 @@ def create_sso_user(
 def _recalculate_bmi_if_height_changed(
     before: users_schema.UsersRead, after: users_schema.UsersRead, db: Session
 ) -> None:
-    """Stage a BMI recalculation of the user's weight records when their height changed.
+    """Stage a BMI recalculation of the user's manual weight records when their height changed.
 
     Args:
         before: The user before the edit.

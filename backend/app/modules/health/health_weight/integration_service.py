@@ -70,7 +70,9 @@ def upsert_health_weight(
 
 
 def recalculate_bmi_for_user(user_id: int, height_cm: float | None, db: Session) -> None:
-    """Stage a BMI recalculation for all of a user's weight records.
+    """Stage a BMI recalculation for a user's manually entered weight records.
+
+    Provider records keep the BMI the provider reported.
 
     Args:
         user_id: The records' owner.

@@ -29,6 +29,19 @@ class TestStageCreate:
         mock_db.commit.assert_not_called()
 
     @patch(f"{_PREFIX}.health_weight_crud.create_health_weight")
+    @patch(f"{_PREFIX}.users_integration.get_user", return_value=_user(70))
+    def test_bmi_is_none_when_the_height_gives_an_out_of_range_value(self, _get_user, mock_create, mock_db):
+        record = health_weight_schema.HealthWeightCreate(date=datetime_date(2024, 1, 15), weight=80.0)
+
+        health_weight_service.stage_create_health_weight(1, record, mock_db)
+
+        stored = mock_create.call_args.args[1]
+        assert stored.bmi is None
+        health_weight_schema.HealthWeightRead.model_validate(
+            {**stored.model_dump(), "id": 1, "user_id": 1, "version": 1}
+        )
+
+    @patch(f"{_PREFIX}.health_weight_crud.create_health_weight")
     @patch(f"{_PREFIX}.users_integration.get_user", return_value=None)
     def test_bmi_is_none_for_unknown_user(self, _get_user, mock_create, mock_db):
         record = health_weight_schema.HealthWeightCreate(date=datetime_date(2024, 1, 15), weight=75.0)

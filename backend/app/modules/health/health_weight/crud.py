@@ -1,8 +1,9 @@
 """CRUD operations for health weight records."""
 
 from datetime import date as date_type
+from decimal import Decimal
 
-from sqlalchemy import desc, func, select, update
+from sqlalchemy import case, desc, func, select, update
 from sqlalchemy.orm import Session
 
 import modules.health.computation as health_computation
@@ -199,27 +200,32 @@ def edit_health_weight(
 
 
 def recalculate_bmi_for_user(user_id: int, height_cm: float | None, db: Session) -> None:
-    """Stage a BMI recalculation for all of a user's weight records in one statement.
+    """Stage a BMI recalculation for a user's manually entered weight records in one statement.
 
     A single bulk UPDATE keeps the work to a constant number of round trips
-    regardless of how many records exist.
+    regardless of how many records exist. Records from a provider (``source`` set)
+    keep the BMI the provider reported. A result outside ``0`` to ``MAX_BMI`` is
+    stored as ``NULL``, as :func:`modules.health.health_weight.bmi.calculate_bmi` does.
 
     Args:
         user_id: The records' owner.
         height_cm: The user's height in centimeters, or ``None`` if unknown.
         db: Database session.
     """
+    model = health_weight_models.HealthWeight
     if height_cm and height_cm > 0:
-        # bmi = weight (kg) / (height (m))^2
-        new_bmi = health_weight_models.HealthWeight.weight / (height_cm / 100.0) ** 2
+        # bmi = weight (kg) * 10000 / height (cm) ** 2; the squared height is bound unrounded
+        # (a metre value would be rounded to the weight column's scale and could be zero).
+        calculated = model.weight * 10000 / (Decimal(str(height_cm)) ** 2)
+        new_bmi = case((calculated.between(0, health_weight_schema.MAX_BMI), calculated), else_=None)
     else:
         # Without a usable height, BMI cannot be derived, so clear it.
         new_bmi = None
 
     stmt = (
-        update(health_weight_models.HealthWeight)
-        .where(health_weight_models.HealthWeight.user_id == user_id)
-        .values(bmi=new_bmi, version=health_weight_models.HealthWeight.version + 1)
+        update(model)
+        .where(model.user_id == user_id, model.source.is_(None))
+        .values(bmi=new_bmi, version=model.version + 1)
     )
     db.execute(stmt)
     db.flush()

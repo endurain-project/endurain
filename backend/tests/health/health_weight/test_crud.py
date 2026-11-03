@@ -1,10 +1,14 @@
 from datetime import date as datetime_date
+from decimal import Decimal
 from unittest.mock import MagicMock
 
 import pytest
+from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
+from tests._helpers.db import create_sqlite_session
 
 import core.exceptions as core_exceptions
+import modules.health.health_weight.bmi as health_weight_bmi
 import modules.health.health_weight.crud as health_weight_crud
 import modules.health.health_weight.models as health_weight_models
 import modules.health.health_weight.schema as health_weight_schema
@@ -170,3 +174,70 @@ class TestRecalculateBmiForUser:
         mock_db.execute.assert_called_once()
         mock_db.flush.assert_called_once()
         mock_db.commit.assert_not_called()
+
+
+def _seed(db, rows):
+    for weight_date, weight, bmi, source in rows:
+        db.add(
+            health_weight_models.HealthWeight(
+                user_id=1, date=weight_date, weight=Decimal(weight), bmi=bmi, source=source
+            )
+        )
+    db.commit()
+
+
+def _bmis(db):
+    return {
+        row.date: row.bmi
+        for row in db.scalars(
+            select(health_weight_models.HealthWeight).order_by(health_weight_models.HealthWeight.date)
+        )
+    }
+
+
+class TestRecalculateBmiForUserStored:
+    @pytest.fixture
+    def db(self):
+        session = create_sqlite_session()
+        yield session
+        session.close()
+
+    def test_matches_the_per_record_value(self, db):
+        _seed(db, [(datetime_date(2024, 1, 1), "70.5", None, None)])
+
+        health_weight_crud.recalculate_bmi_for_user(1, 178, db)
+        db.commit()
+        db.expire_all()
+
+        expected = round(health_weight_bmi.calculate_bmi(70.5, 178), 2)
+        assert float(_bmis(db)[datetime_date(2024, 1, 1)]) == pytest.approx(expected, abs=1e-9)
+
+    def test_a_provider_row_keeps_its_bmi_when_the_height_changes_or_is_cleared(self, db):
+        _seed(
+            db,
+            [
+                (datetime_date(2024, 1, 1), "70", Decimal("19.5"), "garmin"),
+                (datetime_date(2024, 1, 2), "70", Decimal("1.0"), None),
+            ],
+        )
+
+        health_weight_crud.recalculate_bmi_for_user(1, 175, db)
+        db.commit()
+        db.expire_all()
+        assert float(_bmis(db)[datetime_date(2024, 1, 1)]) == 19.5
+        assert float(_bmis(db)[datetime_date(2024, 1, 2)]) == pytest.approx(22.86)
+
+        health_weight_crud.recalculate_bmi_for_user(1, None, db)
+        db.commit()
+        db.expire_all()
+        assert float(_bmis(db)[datetime_date(2024, 1, 1)]) == 19.5
+        assert _bmis(db)[datetime_date(2024, 1, 2)] is None
+
+    def test_an_out_of_range_result_is_cleared(self, db):
+        _seed(db, [(datetime_date(2024, 1, 1), "80", Decimal("20"), None)])
+
+        health_weight_crud.recalculate_bmi_for_user(1, 70, db)
+        db.commit()
+        db.expire_all()
+
+        assert _bmis(db)[datetime_date(2024, 1, 1)] is None
