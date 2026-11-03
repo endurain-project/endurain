@@ -1,6 +1,7 @@
 """Garmin Connect token storage format and session restore."""
 
 import json
+from typing import Any
 
 import garminconnect
 
@@ -10,7 +11,7 @@ import core.logger as core_logger
 logger = core_logger.get_logger(__name__)
 
 
-def login_garminconnect_using_tokens(token: dict) -> garminconnect.Garmin | None:
+def login_garminconnect_using_tokens(token: dict[str, Any]) -> garminconnect.Garmin | None:
     """Restore a Garmin Connect client from a stored token.
 
     Args:
@@ -39,7 +40,7 @@ def login_garminconnect_using_tokens(token: dict) -> garminconnect.Garmin | None
         return None
 
 
-def refreshed_token(token: dict, client) -> dict | None:
+def refreshed_token(token: dict[str, Any], client: garminconnect.client.Client) -> dict[str, Any] | None:
     """Build the storable form of a client's token when the client has refreshed it.
 
     Args:
@@ -55,7 +56,7 @@ def refreshed_token(token: dict, client) -> dict | None:
     return serialize_garmin_token(client, token.get("is_cn", False))
 
 
-def serialize_garmin_token(client, is_cn: bool = False) -> dict:
+def serialize_garmin_token(client: garminconnect.client.Client, is_cn: bool = False) -> dict[str, Any]:
     """Build the storable form of a logged-in client's token, encrypting its secrets.
 
     Args:
@@ -78,7 +79,7 @@ def serialize_garmin_token(client, is_cn: bool = False) -> dict:
     }
 
 
-def deserialize_garmin_token(data: dict) -> str:
+def deserialize_garmin_token(data: dict[str, Any]) -> str:
     """Build the JSON a client loads from a stored token, decrypting its secrets.
 
     Args:

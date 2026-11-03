@@ -7,7 +7,7 @@ Linking lives in :mod:`modules.garmin.link_service`. The activity, gear and heal
 
 from collections.abc import Iterator
 from contextlib import contextmanager
-from typing import NamedTuple
+from typing import Any, NamedTuple
 
 import garminconnect
 import jasil.audit as jasil_audit
@@ -82,7 +82,7 @@ class GarminSession(NamedTuple):
     """
 
     client: garminconnect.Garmin
-    token: dict
+    token: dict[str, Any]
 
 
 def get_user_garminconnect_session(user_id: int, db: Session) -> GarminSession | None:
@@ -273,7 +273,7 @@ def handle_rejected_token(user_id: int, session: GarminSession, err: Exception) 
         unlink_expired_account(user_id, session.token, db)
 
 
-def unlink_expired_account(user_id: int, token: dict, db: Session) -> None:
+def unlink_expired_account(user_id: int, token: dict[str, Any], db: Session) -> None:
     """Unlink an account whose Garmin Connect token expired and tell the user.
 
     The unlink and the notification row commit together; the live push is published after.

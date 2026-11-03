@@ -50,6 +50,9 @@ MEDIA_FOLDER = "media"
 #: How ``activities.csv`` writes an activity's start, e.g. ``Oct 21, 2023, 8:13:28 AM``.
 _STRAVA_CSV_DATE_FORMAT = "%b %d, %Y, %I:%M:%S %p"
 
+#: The ``activities.csv`` rows keyed by each activity's filename, each row keyed by column header.
+type StravaActivitiesManifest = dict[str, dict[str, str]]
+
 _STRAVA_ACTIVITIES_HEADERS = {
     "Filename",
     "Activity Description",
@@ -62,7 +65,7 @@ _STRAVA_ACTIVITIES_HEADERS = {
 }
 
 
-def parse_activities_manifest(manifest_path: str) -> dict | None:
+def parse_activities_manifest(manifest_path: str) -> StravaActivitiesManifest | None:
     """Parses a Strava ``activities.csv`` manifest.
 
     Args:
@@ -74,7 +77,7 @@ def parse_activities_manifest(manifest_path: str) -> dict | None:
     """
     strava_activities_file_name = os.path.basename(manifest_path)
     try:
-        strava_activities_dict = {}
+        strava_activities_dict: StravaActivitiesManifest = {}
         for row in core_text_imports.read_bounded_csv(manifest_path):
             # Check to see if file has headers that will be used during parsing of the file.
             missing_headers = _STRAVA_ACTIVITIES_HEADERS - row.keys()
@@ -145,10 +148,10 @@ def create_gear_dictionary_for_bulk_import(user_id: int, db: Session) -> dict[st
 
 def build_metadata_dict(
     file_base_name: str,
-    strava_activities: dict | None,
+    strava_activities: StravaActivitiesManifest | None,
     import_initiated_time: str,
     users_existing_gear_nickname_to_id: dict[str, list[int]] | None = None,
-) -> dict:
+) -> dict[str, Any]:
     """Creates a dictionary with metadata information pulled from a Strava activities file.
 
     ``metadata_found_in_csv`` tells whether the ``activities.csv`` file had an entry for this activity.
@@ -205,8 +208,8 @@ def build_metadata_dict(
 def build_import_dictionary(
     file_base_name: str,
     import_initiated_time: str,
-    strava_row: dict | None = None,
-) -> dict:
+    strava_row: dict[str, str] | None = None,
+) -> dict[str, Any]:
     """Creates the "import_info" dictionary that is added to all activities that are imported from files.
 
     Functions both for Strava imports and generic bulk imports, depending on whether ``strava_row`` is given.
@@ -238,7 +241,7 @@ def build_import_dictionary(
 def does_activity_start_time_match_the_data_in_strava_activities_csv(
     activity: activity_contracts.ActivityCore,  # A parsed activity about to be added to Endurain
     # A dictionary containing parsed information from a Strava activities.csv file
-    activity_metadata_dict: dict,
+    activity_metadata_dict: dict[str, Any],
 ) -> bool:
     """Strava includes each multi-activity .fit file once for each activity inside the fit file.
 
@@ -269,7 +272,7 @@ def does_activity_start_time_match_the_data_in_strava_activities_csv(
 
 
 def import_media_from_strava_bulk_export(
-    strava_activities: dict,
+    strava_activities: StravaActivitiesManifest,
     created_activity: activity_schema.ActivityRead,
     file_base_name: str,
     read_member: Callable[[str], bytes | None],
@@ -382,11 +385,11 @@ class StravaBulkImportSource(activity_ingestion_integration.BulkImportSource):
         read_member: Reads a member of the archive by name, to reach the photos.
     """
 
-    strava_activities: dict | None = None
-    gear_nickname_to_id: dict | None = None
+    strava_activities: StravaActivitiesManifest | None = None
+    gear_nickname_to_id: dict[str, list[int]] | None = None
     read_member: activity_ingestion_integration.ArchiveMemberReader | None = None
 
-    def metadata_for(self, file_base_name: str) -> dict:
+    def metadata_for(self, file_base_name: str) -> dict[str, Any]:
         """Build the supplemental metadata from the matching ``activities.csv`` row.
 
         Args:
@@ -410,7 +413,7 @@ class StravaBulkImportSource(activity_ingestion_integration.BulkImportSource):
     def should_import(
         self,
         activity: activity_contracts.ActivityCore,
-        activity_metadata: dict,
+        activity_metadata: dict[str, Any],
         *,
         activities_in_file: int,
     ) -> bool:

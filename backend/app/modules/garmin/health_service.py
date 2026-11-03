@@ -3,7 +3,7 @@
 from collections.abc import Callable, Iterator
 from datetime import UTC, date, datetime, timedelta
 from enum import Enum
-from typing import Protocol
+from typing import Any, Protocol
 
 import garminconnect
 from pydantic import BaseModel
@@ -41,7 +41,7 @@ def _each_day(start_date: datetime, end_date: datetime) -> Iterator[date]:
         day += timedelta(days=1)
 
 
-def _sleep_score(score: dict | None) -> health_sleep_schema.SleepScore | None:
+def _sleep_score(score: dict[str, Any] | None) -> health_sleep_schema.SleepScore | None:
     """Return the sleep score a Garmin Connect score entry names, or ``None`` when it names none.
 
     Args:
@@ -247,7 +247,7 @@ def fetch_and_process_ds_by_dates(
     return count_processed
 
 
-def _parse_sleep_stages(sleep_levels: list[dict] | None) -> list[health_sleep_schema.HealthSleepStage]:
+def _parse_sleep_stages(sleep_levels: list[dict[str, Any]] | None) -> list[health_sleep_schema.HealthSleepStage]:
     """Build the sleep stages a Garmin Connect ``sleepLevels`` payload names.
 
     Args:
@@ -282,7 +282,7 @@ def _parse_sleep_stages(sleep_levels: list[dict] | None) -> list[health_sleep_sc
     return sleep_stages
 
 
-def _build_sleep(garmin_sleep: dict, sleep_dto: dict) -> health_sleep_schema.HealthSleepBase:
+def _build_sleep(garmin_sleep: dict[str, Any], sleep_dto: dict[str, Any]) -> health_sleep_schema.HealthSleepBase:
     """Build the sleep record a day's Garmin Connect sleep payload describes.
 
     Args:

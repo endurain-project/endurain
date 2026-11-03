@@ -187,15 +187,15 @@ class TestSetActivitiesGear:
         bulk.assert_not_called()
 
 
-def _linked_sync(athlete, *, existing_ids=(), gear_error=None):
+def _linked_sync(athlete, *, existing_ids=(), gear_error=None, fetched_gear=None):
     """Run ``get_user_gear`` against a fake Strava; returns what it stored."""
     client = MagicMock()
     client.get_athlete.return_value = athlete
     if gear_error:
         client.get_gear.side_effect = gear_error
     else:
-        client.get_gear.side_effect = lambda gear_id: SimpleNamespace(
-            brand_name="B", model_name="M", name=f"n-{gear_id}"
+        client.get_gear.side_effect = lambda gear_id: (
+            fetched_gear or SimpleNamespace(brand_name="B", model_name="M", name=f"n-{gear_id}")
         )
     rate_limits = MagicMock()
     rate_limits.is_rate_limited.return_value = False
@@ -269,6 +269,25 @@ class TestGetUserGear:
         athlete = SimpleNamespace(bikes=[SimpleNamespace(id="b1")], shoes=[])
 
         _result, error, create, sync_pref, *_ = _linked_sync(athlete, gear_error=RuntimeError("boom"))
+
+        assert isinstance(error, core_exceptions.DependencyFailedError)
+        create.assert_not_called()
+        sync_pref.assert_not_called()
+
+    def test_a_gear_piece_strava_sent_without_an_id_fails_the_sync_and_stores_nothing(self):
+        athlete = SimpleNamespace(bikes=[SimpleNamespace(id=None)], shoes=[])
+
+        _result, error, create, sync_pref, *_ = _linked_sync(athlete)
+
+        assert isinstance(error, core_exceptions.DependencyFailedError)
+        create.assert_not_called()
+        sync_pref.assert_not_called()
+
+    def test_a_gear_piece_strava_sent_without_a_name_fails_the_sync_and_stores_nothing(self):
+        athlete = SimpleNamespace(bikes=[SimpleNamespace(id="b1")], shoes=[])
+        nameless = SimpleNamespace(brand_name="B", model_name="M", name=None)
+
+        _result, error, create, sync_pref, *_ = _linked_sync(athlete, fetched_gear=nameless)
 
         assert isinstance(error, core_exceptions.DependencyFailedError)
         create.assert_not_called()

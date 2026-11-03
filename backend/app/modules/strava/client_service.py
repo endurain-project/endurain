@@ -2,7 +2,7 @@
 
 import calendar
 from datetime import UTC, datetime, timedelta
-from typing import NamedTuple
+from typing import TYPE_CHECKING, NamedTuple
 
 import jasil.audit as jasil_audit
 import requests
@@ -21,6 +21,22 @@ import modules.strava.constants as strava_constants
 import modules.strava.rate_limit_store as strava_rate_limit_store
 import modules.users.users_integrations.integration_service as user_integrations_integration
 import modules.users.users_integrations.schema as user_integrations_schema
+
+if TYPE_CHECKING:
+    from requests.cookies import RequestsCookieJar
+    from requests.models import _JSON
+    from requests.sessions import (
+        _Auth,
+        _Cert,
+        _Data,
+        _Files,
+        _HeadersUpdateMapping,
+        _HooksInput,
+        _Params,
+        _TextMapping,
+        _Timeout,
+        _Verify,
+    )
 
 logger = core_logger.get_logger(__name__)
 
@@ -270,13 +286,69 @@ def raise_if_rate_limit_active(
 class _TimeoutSession(requests.Session):
     """A requests session that gives every call a timeout, as stravalib sets none."""
 
-    def request(self, *args, **kwargs):
-        """Send a request, bounded by :data:`strava_constants.HTTP_TIMEOUT_SECONDS` unless one is given."""
-        kwargs.setdefault("timeout", strava_constants.HTTP_TIMEOUT_SECONDS)
-        return super().request(*args, **kwargs)
+    def request(
+        self,
+        method: str | bytes,
+        url: str | bytes,
+        params: "_Params | None" = None,
+        data: "_Data | None" = None,
+        headers: "_HeadersUpdateMapping | None" = None,
+        cookies: "RequestsCookieJar | _TextMapping | None" = None,
+        files: "_Files | None" = None,
+        auth: "_Auth | None" = None,
+        timeout: "_Timeout | None" = strava_constants.HTTP_TIMEOUT_SECONDS,
+        allow_redirects: bool = True,
+        proxies: "_TextMapping | None" = None,
+        hooks: "_HooksInput | None" = None,
+        stream: bool | None = None,
+        verify: "_Verify | None" = None,
+        cert: "_Cert | None" = None,
+        json: "_JSON | None" = None,
+    ) -> requests.Response:
+        """Send a request, bounded by :data:`strava_constants.HTTP_TIMEOUT_SECONDS` unless one is given.
+
+        Args:
+            method: The HTTP method.
+            url: The URL to request.
+            params: The query parameters.
+            data: The request body.
+            headers: The request headers.
+            cookies: The cookies to send.
+            files: The files to upload.
+            auth: The authentication to apply.
+            timeout: How long to wait for the server, in seconds.
+            allow_redirects: Whether to follow redirects.
+            proxies: The proxies by protocol.
+            hooks: The hooks by event.
+            stream: Whether to stream the response body.
+            verify: Whether, or against which CA bundle, to verify TLS.
+            cert: The client certificate.
+            json: The JSON body.
+
+        Returns:
+            The response.
+        """
+        return super().request(
+            method,
+            url,
+            params=params,
+            data=data,
+            headers=headers,
+            cookies=cookies,
+            files=files,
+            auth=auth,
+            timeout=timeout,
+            allow_redirects=allow_redirects,
+            proxies=proxies,
+            hooks=hooks,
+            stream=stream,
+            verify=verify,
+            cert=cert,
+            json=json,
+        )
 
 
-def _noop_rate_limiter(response_headers: dict, method: str) -> None:
+def _noop_rate_limiter(response_headers: dict[str, str], method: str) -> None:
     """No-op rate limiter replacement for stravalib.
 
     Args:

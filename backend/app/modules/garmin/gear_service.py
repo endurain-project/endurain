@@ -1,5 +1,7 @@
 """Garmin Connect gear sync: store the user's gear and assign it to their activities."""
 
+from typing import Any
+
 import garminconnect
 from sqlalchemy.orm import Session
 
@@ -17,7 +19,7 @@ import modules.users.users_integrations.integration_service as user_integrations
 logger = core_logger.get_logger(__name__)
 
 
-def gear_list(answer: object) -> list[dict]:
+def gear_list(answer: object) -> list[dict[str, Any]]:
     """Return the gear Garmin Connect answered with.
 
     garminconnect types its gear answers as a JSON object, but Garmin answers with a list of gear pieces.
@@ -63,7 +65,7 @@ def fetch_and_process_gear(garminconnect_client: garminconnect.Garmin, user_id: 
     return len(new_gears)
 
 
-def process_gear(gear: dict, user_id: int, db: Session) -> gears_schema.GearCreate | None:
+def process_gear(gear: dict[str, Any], user_id: int, db: Session) -> gears_schema.GearCreate | None:
     """Build the local gear for a Garmin Connect gear piece.
 
     Args:
@@ -111,7 +113,7 @@ def match_gear_for_activity(
     return None
 
 
-def resolve_synced_gear_id(user_id: int, garminconnect_gear: list | None, db: Session) -> int | None:
+def resolve_synced_gear_id(user_id: int, garminconnect_gear: list[dict[str, Any]] | None, db: Session) -> int | None:
     """Resolve a downloaded activity's Garmin gear to a local gear ID.
 
     Resolved here, before the file reaches ingestion, so the ingestion seam never

@@ -1,12 +1,15 @@
 """Strava gear: syncing the athlete's gear and importing a Strava export's gear CSVs."""
 
 import csv
+import functools
 import tempfile
+from collections.abc import Callable
 
 import jasil.audit as jasil_audit
 from fastapi import UploadFile
 from sqlalchemy.orm import Session
 from stravalib.client import Client
+from stravalib.strava_model import SummaryGear
 
 import core.database as core_database
 import core.exceptions as core_exceptions
@@ -22,6 +25,7 @@ import modules.strava.client_service as strava_client_service
 import modules.strava.constants as strava_constants
 import modules.strava.rate_limit_store as strava_rate_limit_store
 import modules.users.users_integrations.integration_service as user_integrations_integration
+import modules.users.users_integrations.schema as user_integrations_schema
 
 logger = core_logger.get_logger(__name__)
 
@@ -41,7 +45,14 @@ _IMPORT_TYPES = {
 }
 
 
-def _call_strava(call, description: str, client_id: str, user_id: int, user_integrations, rate_limits):
+def _call_strava[ResultT](
+    call: Callable[[], ResultT | None],
+    description: str,
+    client_id: str,
+    user_id: int,
+    user_integrations: user_integrations_schema.UsersIntegrationsRead,
+    rate_limits: strava_rate_limit_store.StravaRateLimitStore,
+) -> ResultT:
     """Make one Strava call, turning its failures into domain errors.
 
     Args:
@@ -73,6 +84,27 @@ def _call_strava(call, description: str, client_id: str, user_id: int, user_inte
     if result is None:
         raise core_exceptions.DependencyFailedError(f"Not able to fetch {description}")
     return result
+
+
+def _strava_gear_id(gear: SummaryGear, user_id: int) -> str:
+    """Return the id of a gear piece Strava listed on the athlete.
+
+    stravalib types the id as optional; without it the gear can be neither fetched nor matched to activities.
+
+    Args:
+        gear: The gear piece as listed on the athlete.
+        user_id: The gear's owner, for the log.
+
+    Returns:
+        The gear's Strava id.
+
+    Raises:
+        DependencyFailedError: When Strava listed the gear without an id.
+    """
+    if gear.id is None:
+        logger.warning("Strava gear has no id", extra=core_logger.context(user_id=user_id))
+        raise core_exceptions.DependencyFailedError("Strava gear has no id")
+    return gear.id
 
 
 #: Activities read per page when matching a user's history to their gear.
@@ -143,7 +175,7 @@ def get_user_gear(user_id: int, rate_limits: strava_rate_limit_store.StravaRateL
 
     Raises:
         TooManyRequestsError: When Strava's rate limit is active or was just hit.
-        DependencyFailedError: When Strava cannot return the gear.
+        DependencyFailedError: When Strava cannot return the gear, or returns a piece without an id or name.
     """
     strava_client_service.refresh_user_strava_token(user_id, rate_limits)
 
@@ -160,27 +192,31 @@ def get_user_gear(user_id: int, rate_limits: strava_rate_limit_store.StravaRateL
     athlete = _call_strava(
         strava_client.get_athlete, "Strava athlete", client_id, user_id, user_integrations, rate_limits
     )
-    summaries = [(gears_schema.GearType.BIKE, gear) for gear in athlete.bikes or []] + [
-        (gears_schema.GearType.SHOES, gear) for gear in athlete.shoes or []
+    summaries = [(gears_schema.GearType.BIKE, _strava_gear_id(gear, user_id)) for gear in athlete.bikes or []] + [
+        (gears_schema.GearType.SHOES, _strava_gear_id(gear, user_id)) for gear in athlete.shoes or []
     ]
 
     with core_database.SessionLocal() as db:
         new_summaries = [
-            (gear_type, gear)
-            for gear_type, gear in summaries
-            if gears_integration.get_gear_by_strava_id(gear.id, user_id, db) is None
+            (gear_type, gear_id)
+            for gear_type, gear_id in summaries
+            if gears_integration.get_gear_by_strava_id(gear_id, user_id, db) is None
         ]
 
     new_gear = []
-    for gear_type, summary in new_summaries:
+    for gear_type, strava_gear_id in new_summaries:
         strava_gear = _call_strava(
-            lambda gear_id=summary.id: strava_client.get_gear(gear_id),
+            functools.partial(strava_client.get_gear, strava_gear_id),
             "Strava gear",
             client_id,
             user_id,
             user_integrations,
             rate_limits,
         )
+        # stravalib types the name as optional too; without it the gear has no nickname to be stored with.
+        if strava_gear.name is None:
+            logger.warning("Strava gear has no name", extra=core_logger.context(user_id=user_id))
+            raise core_exceptions.DependencyFailedError("Strava gear has no name")
         new_gear.append(
             gears_schema.GearCreate(
                 brand=strava_gear.brand_name,
@@ -189,7 +225,7 @@ def get_user_gear(user_id: int, rate_limits: strava_rate_limit_store.StravaRateL
                 gear_type=gear_type,
                 user_id=user_id,
                 active=True,
-                strava_gear_id=summary.id,
+                strava_gear_id=strava_gear_id,
             )
         )
 
@@ -323,7 +359,7 @@ def transform_csv_shoe_gear_to_schema_gear(
     return shoes
 
 
-def _save_gear_csv(file: UploadFile) -> tuple[tempfile.TemporaryDirectory, str]:
+def _save_gear_csv(file: UploadFile) -> tuple[tempfile.TemporaryDirectory[str], str]:
     """Stream an uploaded gear CSV to a private temp directory.
 
     Args:

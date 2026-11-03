@@ -3,6 +3,7 @@
 import os
 import tempfile
 from datetime import datetime
+from typing import Any
 
 import garminconnect
 
@@ -23,7 +24,7 @@ logger = core_logger.get_logger(__name__)
 
 def _download_and_ingest_activity(
     garminconnect_client: garminconnect.Garmin,
-    activity: dict,
+    activity: dict[str, Any],
     user_id: int,
 ) -> list[activity_schema.ActivityRead]:
     """Download one Garmin activity, and ingest the files it contains.
@@ -107,7 +108,7 @@ def _download_and_ingest_activity(
 
 def _process_listed_activity(
     session: garmin_service.GarminSession,
-    activity: dict,
+    activity: dict[str, Any],
     user_id: int,
     rate_limits: garmin_rate_limit_store.GarminRateLimitStore,
 ) -> list[activity_schema.ActivityRead]:

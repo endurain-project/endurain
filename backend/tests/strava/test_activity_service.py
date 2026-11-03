@@ -285,6 +285,21 @@ class TestProcessActivity:
         # The store gets its own short session.
         assert seen["during_save"] == 1
 
+    def test_an_activity_without_an_id_is_refused_before_it_is_looked_up_or_fetched(self, monkeypatch):
+        from stravalib.model import SummaryActivity
+
+        seen = self._setup(monkeypatch)
+        lookup = Mock(return_value=None)
+        monkeypatch.setattr(activity_utils.activity_integration, "get_activity_by_strava_id", lookup)
+
+        with pytest.raises(core_exceptions.DependencyFailedError):
+            activity_utils.process_activity(
+                SummaryActivity.model_validate({}), 1, Mock(), "UTC", Mock(), Mock(), Mock()
+            )
+
+        lookup.assert_not_called()
+        assert seen == {}
+
     def test_an_activity_already_stored_is_skipped_without_calling_strava(self, monkeypatch):
         seen = self._setup(monkeypatch, already_stored=True)
 
@@ -596,7 +611,7 @@ class TestParseActivity:
         yield
         factory.kw["bind"].dispose()
 
-    def _parse(self, rate_limits, *, streams=None, **fields):
+    def _parse(self, rate_limits, *, streams=None, summary=None, **fields):
         from stravalib.model import DetailedActivity
 
         import modules.users.users_integrations.schema as integrations_schema
@@ -613,7 +628,7 @@ class TestParseActivity:
         }
         detailed.update(fields)
         return activity_utils.parse_activity(
-            Mock(id=42),
+            summary if summary is not None else Mock(id=42),
             1,
             privacy_schema.UsersPrivacySettingsRead(id=1, user_id=1),
             "UTC",
@@ -621,6 +636,12 @@ class TestParseActivity:
             integrations_schema.UsersIntegrationsRead(id=1, user_id=1, strava_client_id="app-a"),
             rate_limits,
         )
+
+    def test_an_activity_without_an_id_is_refused_as_a_strava_failure(self, rate_limits):
+        from stravalib.model import SummaryActivity
+
+        with pytest.raises(core_exceptions.DependencyFailedError):
+            self._parse(rate_limits, summary=SummaryActivity.model_validate({}))
 
     def test_an_activity_without_a_sport_type_is_refused_as_a_strava_failure(self, rate_limits):
         with pytest.raises(core_exceptions.DependencyFailedError):
