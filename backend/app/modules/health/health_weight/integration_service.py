@@ -3,6 +3,8 @@
 The writes stage; the caller owns the unit of work and commits.
 """
 
+from datetime import date
+
 from sqlalchemy.orm import Session
 
 import modules.health.health_weight.crud as health_weight_crud
@@ -10,17 +12,20 @@ import modules.health.health_weight.schema as health_weight_schema
 import modules.health.health_weight.service as health_weight_service
 
 
-def get_latest_health_weight(user_id: int, db: Session) -> health_weight_schema.HealthWeightRead | None:
-    """Return a user's most recent weight record, or ``None``.
+def get_latest_health_weight(
+    user_id: int, on_or_before: date, db: Session
+) -> health_weight_schema.HealthWeightRead | None:
+    """Return a user's most recent weight record dated no later than a day, or ``None``.
 
     Args:
         user_id: The record's owner.
+        on_or_before: The last day a record may be dated, the user's today.
         db: Database session.
 
     Returns:
         The latest record, or ``None``.
     """
-    return health_weight_crud.get_latest_weight_by_user_id(user_id, db)
+    return health_weight_crud.get_latest_weight_by_user_id(user_id, on_or_before, db)
 
 
 def get_health_weight_by_date(user_id: int, date: str, db: Session) -> health_weight_schema.HealthWeightRead | None:

@@ -13,8 +13,13 @@ from pydantic import (
     Field,
     StrictFloat,
     StrictInt,
-    field_validator,
 )
+
+import core.partial_update as core_partial_update
+import core.types as core_types
+
+#: The most water, in milliliters, one day can total.
+MAX_WATER_ML = 20000
 
 
 class Source(StrEnum):
@@ -45,7 +50,7 @@ class HealthWaterBase(BaseModel):
     amount_ml: StrictFloat | None = Field(
         default=None,
         ge=0,
-        le=20000,
+        le=MAX_WATER_ML,
         description="Water consumed in milliliters",
     )
     source: Source | None = Field(
@@ -61,13 +66,19 @@ class HealthWaterBase(BaseModel):
     )
 
 
-class HealthWaterCreate(HealthWaterBase):
+class HealthWaterWrite(HealthWaterBase):
+    """Water fields a client writes: the date is bounded, which a stored row read back need not be."""
+
+    date: core_types.RecordDate | None = Field(default=None, description="Calendar date of the water intake")
+
+
+class HealthWaterCreate(HealthWaterWrite):
     """Schema for creating a new water intake record.
 
     The date is optional; ``service`` fills it in when the client sends none.
     """
 
-    amount_ml: StrictFloat = Field(..., ge=0, le=20000, description="Water consumed in milliliters")
+    amount_ml: StrictFloat = Field(..., ge=0, le=MAX_WATER_ML, description="Water consumed in milliliters")
 
 
 class HealthWaterRead(HealthWaterBase):
@@ -89,27 +100,11 @@ class HealthWaterRead(HealthWaterBase):
     version: StrictInt = Field(default=1, ge=1, description="Optimistic-concurrency counter, also sent as the ETag")
 
 
-class HealthWaterUpdate(HealthWaterBase):
+class HealthWaterUpdate(core_partial_update.NotClearable, HealthWaterWrite):
     """Schema for the fields a PATCH changes on a water record.
 
     The record is named by the path, so the body carries neither an id nor an owner; only the
     fields present are changed.
     """
 
-    @field_validator("amount_ml")
-    @classmethod
-    def _amount_ml_is_not_cleared(cls, value: object) -> object:
-        """Refuse to clear the amount, which every record has.
-
-        Args:
-            value: The amount in the edit.
-
-        Returns:
-            The amount.
-
-        Raises:
-            ValueError: When the edit sets the amount to null.
-        """
-        if value is None:
-            raise ValueError("amount_ml cannot be cleared")
-        return value
+    not_clearable = ("date", "amount_ml")

@@ -1,5 +1,6 @@
 """Pydantic request and response shapes for health sleep records."""
 
+from collections.abc import Sequence
 from datetime import date as datetime_date
 from datetime import datetime
 from enum import Enum
@@ -15,6 +16,9 @@ from pydantic import (
     field_serializer,
     model_validator,
 )
+
+import core.partial_update as core_partial_update
+import core.types as core_types
 
 
 class Source(Enum):
@@ -199,7 +203,7 @@ class HealthSleepBase(BaseModel):
     garminconnect_sleep_id: StrictStr | None = Field(
         default=None, min_length=1, description="Garmin Connect sleep record ID"
     )
-    sleep_stages: list[HealthSleepStage] | None = Field(default=None, description="List of sleep stages")
+    sleep_stages: Sequence[HealthSleepStage] | None = Field(default=None, description="List of sleep stages")
     source: Source | None = Field(default=None, description="Source of the sleep data")
     hrv_status: HRVStatus | None = Field(default=None, description="Heart rate variability status")
     resting_heart_rate: StrictInt | None = Field(default=None, ge=20, le=220, description="Resting heart rate")
@@ -219,7 +223,7 @@ class HealthSleepBase(BaseModel):
     )
 
     @field_serializer("sleep_stages")
-    def serialize_sleep_stages(self, sleep_stages: list[HealthSleepStage] | None) -> list[dict[str, Any]] | None:
+    def serialize_sleep_stages(self, sleep_stages: Sequence[HealthSleepStage] | None) -> list[dict[str, Any]] | None:
         """Dump the stages JSON-safe in every mode, as the JSON column that stores them requires.
 
         Args:
@@ -250,7 +254,31 @@ class HealthSleepBase(BaseModel):
         return self
 
 
-class HealthSleepCreate(HealthSleepBase):
+class HealthSleepStageWrite(HealthSleepStage):
+    """A sleep stage a client writes: its times are bounded, which a stored stage read back need not be."""
+
+    start_time_gmt: core_types.RecordDateTime | None = Field(default=None, description="Start time of the stage in GMT")
+    end_time_gmt: core_types.RecordDateTime | None = Field(default=None, description="End time of the stage in GMT")
+
+
+class HealthSleepWrite(HealthSleepBase):
+    """Sleep fields a client writes: the date and times are bounded, which a stored row read back need not be."""
+
+    date: core_types.RecordDate | None = Field(default=None, description="Calendar date of the sleep session")
+    sleep_start_time_gmt: core_types.RecordDateTime | None = Field(
+        default=None, description="Start time of sleep in GMT"
+    )
+    sleep_end_time_gmt: core_types.RecordDateTime | None = Field(default=None, description="End time of sleep in GMT")
+    sleep_start_time_local: core_types.RecordDateTime | None = Field(
+        default=None, description="Start time of sleep in local time"
+    )
+    sleep_end_time_local: core_types.RecordDateTime | None = Field(
+        default=None, description="End time of sleep in local time"
+    )
+    sleep_stages: list[HealthSleepStageWrite] | None = Field(default=None, description="List of sleep stages")
+
+
+class HealthSleepCreate(HealthSleepWrite):
     """Schema for creating a health sleep record.
 
     The date is optional; ``service`` fills it in when the client sends none.
@@ -273,9 +301,11 @@ class HealthSleepRead(HealthSleepBase):
     version: StrictInt = Field(default=1, ge=1, description="Optimistic-concurrency counter, also sent as the ETag")
 
 
-class HealthSleepUpdate(HealthSleepBase):
+class HealthSleepUpdate(core_partial_update.NotClearable, HealthSleepWrite):
     """Schema for the fields a PATCH changes on a sleep record.
 
     The record is named by the path, so the body carries neither an id nor an owner; only the
     fields present are changed.
     """
+
+    not_clearable = ("date",)

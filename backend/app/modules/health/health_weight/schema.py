@@ -9,8 +9,10 @@ from pydantic import (
     Field,
     StrictFloat,
     StrictInt,
-    field_validator,
 )
+
+import core.partial_update as core_partial_update
+import core.types as core_types
 
 MAX_BMI = 100
 """Highest BMI a record may carry; a calculated value above it is unusable and not stored."""
@@ -54,7 +56,12 @@ class HealthWeightBase(BaseModel):
 
     date: datetime_date | None = Field(default=None, description="Health weight date (date)")
     weight: StrictFloat | None = Field(default=None, ge=0, le=500, description="Weight in kilograms")
-    bmi: StrictFloat | None = Field(default=None, ge=0, le=MAX_BMI, description="Body Mass Index")
+    bmi: StrictFloat | None = Field(
+        default=None,
+        ge=0,
+        le=MAX_BMI,
+        description="Body Mass Index; a manually entered record ignores a value sent and derives it from the weight and height",
+    )
     body_fat: StrictFloat | None = Field(default=None, ge=0, le=100, description="Body fat percentage")
     body_water: StrictFloat | None = Field(default=None, ge=0, le=100, description="Body water percentage")
     bone_mass: StrictFloat | None = Field(default=None, ge=0, le=500, description="Bone mass in kilograms")
@@ -72,7 +79,13 @@ class HealthWeightBase(BaseModel):
     )
 
 
-class HealthWeightCreate(HealthWeightBase):
+class HealthWeightWrite(HealthWeightBase):
+    """Weight fields a client writes: the date is bounded, which a stored row read back need not be."""
+
+    date: core_types.RecordDate | None = Field(default=None, description="Health weight date (date)")
+
+
+class HealthWeightCreate(HealthWeightWrite):
     """Schema for creating a health weight record.
 
     The date is optional; ``service`` fills it in when the client sends none.
@@ -97,27 +110,11 @@ class HealthWeightRead(HealthWeightBase):
     version: StrictInt = Field(default=1, ge=1, description="Optimistic-concurrency counter, also sent as the ETag")
 
 
-class HealthWeightUpdate(HealthWeightBase):
+class HealthWeightUpdate(core_partial_update.NotClearable, HealthWeightWrite):
     """Schema for the fields a PATCH changes on a weight record.
 
     The record is named by the path, so the body carries neither an id nor an owner; only the
     fields present are changed.
     """
 
-    @field_validator("weight")
-    @classmethod
-    def _weight_is_not_cleared(cls, value: object) -> object:
-        """Refuse to clear the weight, which every record has.
-
-        Args:
-            value: The weight in the edit.
-
-        Returns:
-            The weight.
-
-        Raises:
-            ValueError: When the edit sets the weight to null.
-        """
-        if value is None:
-            raise ValueError("weight cannot be cleared")
-        return value
+    not_clearable = ("date", "weight")

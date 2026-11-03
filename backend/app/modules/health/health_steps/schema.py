@@ -3,7 +3,10 @@
 from datetime import date as datetime_date
 from enum import Enum
 
-from pydantic import BaseModel, ConfigDict, Field, StrictInt, field_validator
+from pydantic import BaseModel, ConfigDict, Field, StrictInt
+
+import core.partial_update as core_partial_update
+import core.types as core_types
 
 #: The largest value of the ``steps`` column, a 32-bit integer.
 MAX_STEPS = 2_147_483_647
@@ -49,7 +52,13 @@ class HealthStepsBase(BaseModel):
     )
 
 
-class HealthStepsCreate(HealthStepsBase):
+class HealthStepsWrite(HealthStepsBase):
+    """Steps fields a client writes: the date is bounded, which a stored row read back need not be."""
+
+    date: core_types.RecordDate | None = Field(default=None, description="Calendar date of the steps")
+
+
+class HealthStepsCreate(HealthStepsWrite):
     """Schema for creating a health steps record.
 
     The date is optional; ``service`` fills it in when the client sends none.
@@ -74,27 +83,11 @@ class HealthStepsRead(HealthStepsBase):
     version: StrictInt = Field(default=1, ge=1, description="Optimistic-concurrency counter, also sent as the ETag")
 
 
-class HealthStepsUpdate(HealthStepsBase):
+class HealthStepsUpdate(core_partial_update.NotClearable, HealthStepsWrite):
     """Schema for the fields a PATCH changes on a steps record.
 
     The record is named by the path, so the body carries neither an id nor an owner; only the
     fields present are changed.
     """
 
-    @field_validator("steps")
-    @classmethod
-    def _steps_is_not_cleared(cls, value: object) -> object:
-        """Refuse to clear the step count, which every record has.
-
-        Args:
-            value: The step count in the edit.
-
-        Returns:
-            The step count.
-
-        Raises:
-            ValueError: When the edit sets the step count to null.
-        """
-        if value is None:
-            raise ValueError("steps cannot be cleared")
-        return value
+    not_clearable = ("date", "steps")

@@ -95,12 +95,12 @@ class TestSingleReads:
     def test_latest_found(self, mock_db):
         _returns_one(mock_db, _row(5))
 
-        assert health_weight_crud.get_latest_weight_by_user_id(1, mock_db).id == 5
+        assert health_weight_crud.get_latest_weight_by_user_id(1, datetime_date(2024, 1, 15), mock_db).id == 5
 
     def test_latest_not_found(self, mock_db):
         _returns_one(mock_db, None)
 
-        assert health_weight_crud.get_latest_weight_by_user_id(1, mock_db) is None
+        assert health_weight_crud.get_latest_weight_by_user_id(1, datetime_date(2024, 1, 15), mock_db) is None
 
 
 class TestCreateHealthWeight:
@@ -241,3 +241,31 @@ class TestRecalculateBmiForUserStored:
         db.expire_all()
 
         assert _bmis(db)[datetime_date(2024, 1, 1)] is None
+
+
+class TestLatestWeightIgnoresTheFuture:
+    @pytest.fixture
+    def db(self):
+        session = create_sqlite_session()
+        yield session
+        session.close()
+
+    def test_a_row_dated_after_today_is_not_the_latest(self, db):
+        _seed(
+            db,
+            [
+                (datetime_date(2024, 1, 10), "70", None, None),
+                (datetime_date(2024, 1, 15), "71", None, None),
+                (datetime_date(9999, 1, 1), "99", None, None),
+            ],
+        )
+
+        latest = health_weight_crud.get_latest_weight_by_user_id(1, datetime_date(2024, 1, 15), db)
+
+        assert latest is not None
+        assert latest.date == datetime_date(2024, 1, 15)
+
+    def test_only_future_rows_leave_no_latest(self, db):
+        _seed(db, [(datetime_date(2024, 1, 20), "70", None, None)])
+
+        assert health_weight_crud.get_latest_weight_by_user_id(1, datetime_date(2024, 1, 15), db) is None

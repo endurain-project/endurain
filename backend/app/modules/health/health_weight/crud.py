@@ -117,11 +117,16 @@ def get_health_weight_by_date_and_user_id(
     return health_record_crud.find_by_date(SPEC, user_id, date, db)
 
 
-def get_latest_weight_by_user_id(user_id: int, db: Session) -> health_weight_schema.HealthWeightRead | None:
-    """Retrieve a user's most recent weight record.
+def get_latest_weight_by_user_id(
+    user_id: int, on_or_before: date_type, db: Session
+) -> health_weight_schema.HealthWeightRead | None:
+    """Retrieve a user's most recent weight record dated no later than a day.
+
+    A record dated after the day is not current, so it never shows as the latest weight.
 
     Args:
         user_id: The record's owner.
+        on_or_before: The last day a record may be dated, the user's today.
         db: Database session.
 
     Returns:
@@ -129,7 +134,10 @@ def get_latest_weight_by_user_id(user_id: int, db: Session) -> health_weight_sch
     """
     stmt = (
         select(health_weight_models.HealthWeight)
-        .where(health_weight_models.HealthWeight.user_id == user_id)
+        .where(
+            health_weight_models.HealthWeight.user_id == user_id,
+            health_weight_models.HealthWeight.date <= on_or_before,
+        )
         .order_by(desc(health_weight_models.HealthWeight.date))
         .limit(1)
     )

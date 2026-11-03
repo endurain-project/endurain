@@ -197,3 +197,23 @@ def test_every_interval_charts_its_whole_range(db):
         health_constants.Interval.ALL_TIME: (_BUCKET.WEEK, len(sizes[health_constants.Interval.ALL_TIME].points)),
     }
     assert 71 <= len(sizes[health_constants.Interval.ALL_TIME].points) <= 73
+
+
+def test_poop_all_time_chart_reaches_the_earliest_allowed_time_in_a_negative_offset_zone(db):
+    """1900-01-01 00:30 UTC is 1899-12-31 in Los Angeles; the chart still finds it and buckets it."""
+    import modules.health.health_poop.service as poop_service
+
+    db.add_all(
+        poop_models.HealthPoop(user_id=1, date_time=moment)
+        for moment in (datetime(1900, 1, 1, 0, 30, tzinfo=UTC), datetime(2026, 3, 9, 12, 0, tzinfo=UTC))
+    )
+    db.commit()
+
+    with (
+        patch("modules.users.users.integration_service.local_today", return_value=date(2026, 3, 10)),
+        patch("modules.users.users.integration_service.resolve_timezone", return_value="America/Los_Angeles"),
+    ):
+        series = poop_service.get_health_poop_chart(1, health_constants.Interval.ALL_TIME, db)
+
+    assert series.points[0].date == date(1899, 12, 31)
+    assert len(series.points) == 2

@@ -29,10 +29,11 @@ def get_daily_stats(user_id: int, db: Session) -> health_dashboard_schema.Health
     Returns:
         The consolidated dashboard; a metric without data is ``None``.
     """
-    today = str(users_integration.local_today(user_id, db))
+    local_today = users_integration.local_today(user_id, db)
+    today = str(local_today)
 
     today_sleep = health_sleep_integration.get_health_sleep_by_date(user_id, today, db)
-    latest_weight = health_weight_integration.get_latest_health_weight(user_id, db)
+    latest_weight = health_weight_integration.get_latest_health_weight(user_id, local_today, db)
     today_steps = health_steps_integration.get_health_steps_by_date(user_id, today, db)
     active_fasting = health_fasting_integration.get_active_fasting(user_id, db)
     today_water = health_water_integration.get_health_water_by_date(user_id, today, db)

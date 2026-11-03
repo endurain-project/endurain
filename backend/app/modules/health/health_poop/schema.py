@@ -17,6 +17,9 @@ from pydantic import (
     model_validator,
 )
 
+import core.partial_update as core_partial_update
+import core.types as core_types
+
 
 class Source(Enum):
     """Enumeration of data sources for poop records.
@@ -115,13 +118,22 @@ class HealthPoopBase(BaseModel):
     )
 
 
-class HealthPoopCreate(HealthPoopBase):
+class HealthPoopWrite(HealthPoopBase):
+    """Poop fields a client writes: the time is bounded, which a stored row read back need not be."""
+
+    date_time: core_types.RecordDateTime | None = Field(
+        default=None,
+        description="Date and time of the bowel movement",
+    )
+
+
+class HealthPoopCreate(HealthPoopWrite):
     """Schema for creating a new poop record.
 
     Requires date_time and sets defaults for source.
     """
 
-    date_time: datetime = Field(
+    date_time: core_types.RecordDateTime = Field(
         ...,
         description="Date and time of the bowel movement",
     )
@@ -163,9 +175,11 @@ class HealthPoopRead(HealthPoopBase):
     version: StrictInt = Field(default=1, ge=1, description="Optimistic-concurrency counter, also sent as the ETag")
 
 
-class HealthPoopUpdate(HealthPoopBase):
+class HealthPoopUpdate(core_partial_update.NotClearable, HealthPoopWrite):
     """Schema for the fields a PATCH changes on a poop record.
 
     The record is named by the path, so the body carries neither an id nor an owner; only the
     fields present are changed.
     """
+
+    not_clearable = ("date_time",)

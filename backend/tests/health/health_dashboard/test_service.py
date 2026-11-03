@@ -68,6 +68,7 @@ class TestGetDailyStats:
         assert result.fasting.status == "in_progress"
         assert result.water.amount_ml == 1500.0
         assert result.poop.count == 2
+        peers["weight"].assert_called_once_with(1, date(2024, 1, 15), mock_db)
         assert result.targets == targets
         peers["targets"].assert_called_once_with(1, mock_db)
 
