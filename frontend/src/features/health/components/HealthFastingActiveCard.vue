@@ -10,6 +10,7 @@ import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
 import { useNow } from '@/composables/useNow'
 import { useUnitFormat } from '@/composables/useUnitFormat'
+import { fastingTypeLabel } from '@/features/health/utils/fastingType'
 import { formatElapsedClock, formatHoursMinutes } from '@/features/health/utils/healthFormat'
 import { formatMediumDateTime } from '@/utils/datetime'
 
@@ -80,7 +81,9 @@ const targetLabel = computed(() =>
         <Clock class="size-4 text-brand-mid" aria-hidden="true" />
         <h2 class="text-section-heading">{{ t('health.fasting.active.title') }}</h2>
       </div>
-      <Badge v-if="entry.fastingType" variant="info">{{ entry.fastingType }}</Badge>
+      <Badge v-if="entry.fastingType" variant="info">{{
+        fastingTypeLabel(t, entry.fastingType)
+      }}</Badge>
     </div>
 
     <div class="flex flex-col items-center gap-1 py-2">

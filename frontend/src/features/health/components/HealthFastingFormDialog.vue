@@ -22,6 +22,7 @@ import {
   todayDateTimeLocalMax,
   toDateTimeLocalInput,
 } from '@/features/health/utils/healthFormat'
+import { fastingTypeLabel } from '@/features/health/utils/fastingType'
 import { toNumberOrNull } from '@/utils/number'
 import { required } from '@/utils/validators'
 import {
@@ -260,7 +261,7 @@ watch(open, (isOpen) => {
             :disabled="isSubmitting"
           >
             <option v-for="type in FASTING_TYPES" :key="type" :value="type">
-              {{ t(`health.fasting.types.${type}`) }}
+              {{ fastingTypeLabel(t, type) }}
             </option>
           </select>
         </template>

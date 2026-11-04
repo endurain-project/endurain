@@ -9,6 +9,7 @@ import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { INTEGRATION_LOGOS } from '@/constants/integrationLogos'
 import { useUnitFormat } from '@/composables/useUnitFormat'
+import { fastingTypeLabel } from '@/features/health/utils/fastingType'
 import { formatHoursMinutes } from '@/features/health/utils/healthFormat'
 import { formatMediumDateTime } from '@/utils/datetime'
 
@@ -63,7 +64,7 @@ const fromGarmin = computed(() => props.entry.source === 'garmin')
       <div class="flex min-w-0 flex-col gap-1">
         <div class="flex flex-wrap items-center gap-1.5">
           <p class="text-item-title">
-            {{ entry.fastingType ?? '—' }}
+            {{ entry.fastingType ? fastingTypeLabel(t, entry.fastingType) : '—' }}
             <span v-if="durationLabel" class="text-hint">({{ durationLabel }})</span>
           </p>
           <Badge v-if="entry.status" :variant="statusVariant">
