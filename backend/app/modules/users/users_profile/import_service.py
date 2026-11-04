@@ -26,13 +26,6 @@ from sqlalchemy.orm import Session
 import core.exceptions as core_exceptions
 import core.file_uploads as file_uploads
 import core.logger as core_logger
-import modules.activities.activity.contracts as activity_contracts
-import modules.activities.activity.integration_service as activity_integration
-import modules.activities.activity.schema as activity_schema
-import modules.activities.activity_file_storage.integration_service as activity_file_storage_integration
-import modules.activities.activity_media.integration_service as activity_media_integration
-import modules.activities.contributor_registry as activities_contributor_registry
-import modules.gears.gear.constants as gear_constants
 import modules.health.health_fasting.integration_service as health_fasting_integration
 import modules.health.health_fasting.schema as health_fasting_schema
 import modules.health.health_poop.integration_service as health_poop_integration
@@ -74,9 +67,6 @@ logger = core_logger.get_logger(__name__)
 
 #: Fields an archive carries that the server derives on write, per health record kind; they are dropped on import.
 _SERVER_DERIVED_FIELDS: dict[str, frozenset[str]] = {"health_fasting": frozenset({"actual_duration_seconds"})}
-
-#: Fields an archived activity carries that a read resolves for the viewer; they are dropped on import.
-_ACTIVITY_READ_FIELDS = frozenset({"map_thumbnail_url", "media"})
 
 
 def _health_record_import[CreateT: BaseModel](
@@ -136,9 +126,6 @@ _HEALTH_RECORD_IMPORTS: dict[str, Callable[[int, dict[str, Any], Session], bool]
         "health_poop", health_poop_schema.HealthPoopCreate, health_poop_integration.import_health_poop
     ),
 }
-
-#: Archive folders holding the files written after the database rows are committed.
-_FILE_FOLDERS = ("activity_files/", "activity_media/", "user_images/")
 
 
 class ImportPerformanceConfig(profile_utils.BasePerformanceConfig):
@@ -351,19 +338,6 @@ class ImportService:
                 # The registered sections, in order; a section reads only the ids of those before it.
                 section_files = self.restore_profile_sections(archive, ids, check_import_timeout)
 
-                self._restore_global_activity_components(archive)
-
-                # Load and import activities with their components
-                check_import_timeout()
-
-                # Import activities and components using batched approach to avoid memory issues
-                activities_id_mapping = await self.collect_and_import_activities_data_batched(
-                    archive,
-                    ids.get(gear_constants.PROFILE_ARCHIVE_KEY, {}),
-                    start_time,
-                    timeout_seconds,
-                )
-
                 # Load and import health data
                 check_import_timeout()
                 health_weight_data = archive.load_json("data/health_weight.json")
@@ -382,7 +356,7 @@ class ImportService:
 
                 # Guard: if nothing was imported and there are no files to write, fail visibly
                 # instead of returning a misleading "success" with zero counts.
-                has_files = bool(section_files) or any(name.startswith(_FILE_FOLDERS) for name in archive.names)
+                has_files = bool(section_files) or any(name.startswith("user_images/") for name in archive.names)
                 if not has_files and all(v == 0 for v in self.counts.values()):
                     raise FileFormatError(
                         "Import completed with zero items imported. The ZIP file contains no importable data."
@@ -403,8 +377,6 @@ class ImportService:
                 check_import_timeout()
                 for restore_files in section_files:
                     await restore_files()
-                await self.add_activity_files_from_zip(archive, activities_id_mapping)
-                await self.add_activity_media_from_zip(archive, activities_id_mapping)
                 await self.add_user_images_from_zip(archive)
 
         except zipfile.BadZipFile as e:
@@ -442,14 +414,6 @@ class ImportService:
         same_email = bool(email) and str(email).casefold() == account.email.casefold()
         if not (same_username or same_email):
             raise ImportAccountMismatchError("The archive was exported from a different account")
-
-    def _restore_global_activity_components(self, archive: profile_utils.ZipArchiveReader) -> None:
-        """Load and restore every global activity contribution once."""
-        for contributor in activities_contributor_registry.profile_global_contributors():
-            records = archive.load_json(contributor.archive_path, check_memory=False)
-            restored = contributor.restore(records, self.db)
-            self.counts[contributor.count_key] += restored
-        logger.debug("Restored the global activity components", extra=core_logger.context(user_id=self.user_id))
 
     async def collect_and_import_user_data(
         self,
@@ -664,235 +628,6 @@ class ImportService:
         logger.debug("Imported user privacy settings")
         self.counts["user_privacy_settings"] += 1
 
-    async def collect_and_import_activity_components(
-        self,
-        component_data: dict[str, list[dict[str, Any]]],
-        original_activity_id: int,
-        new_activity: activity_schema.ActivityRead,
-    ) -> None:
-        """Import contributed components for a single restored activity.
-
-        Args:
-            component_data: Records keyed by profile contributor key.
-            original_activity_id: Old activity ID.
-            new_activity: New activity object.
-        """
-        for contributor in activities_contributor_registry.profile_activity_contributors():
-            restored = contributor.restore(
-                component_data.get(contributor.key, []),
-                original_activity_id,
-                new_activity,
-                self.db,
-            )
-            self.counts[contributor.count_key] += restored
-
-    async def collect_and_import_activities_data_batched(
-        self,
-        archive: profile_utils.ZipArchiveReader,
-        gears_id_mapping: dict[int, int],
-        start_time: float,
-        timeout_seconds: int,
-    ) -> dict[int, int]:
-        """Import activities in batches to manage memory.
-
-        Args:
-            archive: The archive to read from.
-            gears_id_mapping: Mapping of old to new gear IDs.
-            start_time: Import operation start time.
-            timeout_seconds: Timeout limit in seconds.
-
-        Returns:
-            Dictionary mapping old activity IDs to new IDs.
-
-        Raises:
-            ActivityLimitError: If too many activities.
-            ImportTimeoutError: If operation times out.
-        """
-        activities_id_mapping: dict[int, int] = {}
-
-        # Load activities list
-        activities_data = archive.load_json("data/activities.json")
-        if not activities_data:
-            logger.debug("No activities data to import")
-            return activities_id_mapping
-
-        # Check activity count limit
-        if len(activities_data) > self.performance_config.max_activities:
-            raise ActivityLimitError(
-                f"Too many activities ({len(activities_data)}). "
-                f"Maximum allowed: {self.performance_config.max_activities}"
-            )
-
-        contributors = activities_contributor_registry.profile_activity_contributors()
-        component_files: dict[str, list[str]] = {}
-        component_records: dict[str, list[dict[str, Any]]] = {}
-        for contributor in contributors:
-            if contributor.split:
-                component_files[contributor.key] = self._get_split_files_list(
-                    archive.names,
-                    contributor.archive_path.removesuffix(".json"),
-                )
-            else:
-                component_records[contributor.key] = archive.load_json(
-                    contributor.archive_path,
-                    check_memory=False,
-                )
-
-        logger.debug(
-            "Importing activities with batched component loading", extra=core_logger.context(count=len(activities_data))
-        )
-
-        # Process activities in batches
-        batch_size = self.performance_config.batch_size
-        for batch_start in range(0, len(activities_data), batch_size):
-            profile_utils.check_timeout(timeout_seconds, start_time, ImportTimeoutError, "Import")
-
-            batch_end = min(batch_start + batch_size, len(activities_data))
-            activities_batch = activities_data[batch_start:batch_end]
-
-            logger.debug(
-                "Processing an activities batch",
-                extra=core_logger.context(
-                    batch_number=batch_start // batch_size + 1, batch_start=batch_start, batch_end=batch_end
-                ),
-            )
-
-            batch_components: dict[str, list[dict[str, Any]]] = {}
-            for contributor in contributors:
-                if contributor.split:
-                    batch_components[contributor.key] = self._load_components_for_batch(
-                        archive,
-                        component_files[contributor.key],
-                        activities_batch,
-                        contributor.key,
-                    )
-                else:
-                    batch_components[contributor.key] = self._filter_components_for_batch(
-                        component_records.get(contributor.key, []),
-                        activities_batch,
-                    )
-
-            # Import activities in this batch
-            for activity_data in activities_batch:
-                activity_data["gear_id"] = (
-                    gears_id_mapping.get(activity_data["gear_id"])
-                    if activity_data.get("gear_id") in gears_id_mapping
-                    else None
-                )
-
-                original_activity_id = activity_data.get("id")
-                fields = {
-                    key: value
-                    for key, value in users_profile_contracts.without_row_identity(activity_data).items()
-                    if key not in _ACTIVITY_READ_FIELDS
-                }
-
-                activity = activity_contracts.ActivityCore(**fields, user_id=self.user_id)
-                # Bulk restore deliberately does not publish activity.created;
-                # see integration_service.restore_activity for why.
-                new_activity = activity_integration.restore_activity(activity, self.db)
-
-                if original_activity_id is not None and new_activity.id is not None:
-                    activities_id_mapping[original_activity_id] = new_activity.id
-
-                    # Import activity components using batch-loaded data
-                    await self.collect_and_import_activity_components(
-                        batch_components,
-                        original_activity_id,
-                        new_activity,
-                    )
-
-                self.counts["activities"] += 1
-
-            # Clear batch data from memory
-            del batch_components
-            profile_utils.check_memory_usage(
-                f"activities batch {batch_start // batch_size + 1}",
-                self.performance_config.max_memory_mb,
-                self.performance_config.enable_memory_monitoring,
-            )
-
-        logger.debug("Imported activities", extra=core_logger.context(count=self.counts["activities"]))
-        return activities_id_mapping
-
-    @staticmethod
-    def _filter_components_for_batch(
-        records: list[dict[str, Any]],
-        activities_batch: list[dict[str, Any]],
-    ) -> list[dict[str, Any]]:
-        """Filter in-memory component records to the current activity batch."""
-        activity_ids = {
-            activity.get("id")
-            for activity in activities_batch
-            if isinstance(activity, dict) and activity.get("id") is not None
-        }
-        return [record for record in records if isinstance(record, dict) and record.get("activity_id") in activity_ids]
-
-    def _get_split_files_list(self, file_list: frozenset[str], base_filename: str) -> list[str]:
-        """Get list of split component files from ZIP.
-
-        Args:
-            file_list: Set of all file paths in ZIP.
-            base_filename: Base filename without extension.
-
-        Returns:
-            Sorted list of matching file paths.
-        """
-        split_files = sorted([f for f in file_list if f.startswith(f"{base_filename}_") and f.endswith(".json")])
-        if split_files:
-            return split_files
-        # Fall back to single file if no split files found
-        single_file = f"{base_filename}.json"
-        if single_file in file_list:
-            return [single_file]
-        return []
-
-    def _load_components_for_batch(
-        self,
-        archive: profile_utils.ZipArchiveReader,
-        component_files: list[str],
-        activities_batch: list[dict[str, Any]],
-        component_name: str,
-    ) -> list[dict[str, Any]]:
-        """Load components only for activities in current batch.
-
-        Args:
-            archive: The archive to read from.
-            component_files: List of component file paths.
-            activities_batch: Activities in current batch.
-            component_name: Name of component type.
-
-        Returns:
-            List of component data for batch activities.
-        """
-        if not component_files:
-            return []
-
-        # Get activity IDs in this batch
-        batch_activity_ids = set(activity.get("id") for activity in activities_batch if activity.get("id") is not None)
-
-        all_components = []
-
-        # Load and filter components from each file
-        for filename in component_files:
-            components = archive.load_json_part(filename)
-            # Only keep components for activities in this batch
-            filtered = [component for component in components if component.get("activity_id") in batch_activity_ids]
-            all_components.extend(filtered)
-
-            if filtered:
-                logger.debug(
-                    "Loaded components for the batch",
-                    extra=core_logger.context(
-                        count=len(filtered),
-                        total_count=len(components),
-                        component_name=component_name,
-                        filename=filename,
-                    ),
-                )
-
-        return all_components
-
     async def collect_and_import_health_weight(
         self, health_weight_data: list[dict[str, Any]], health_targets_data: list[dict[str, Any]]
     ) -> None:
@@ -991,141 +726,6 @@ class ImportService:
                 if import_record(self.user_id, row, self.db):
                     self.counts[name] += 1
             logger.debug("Imported health records", extra=core_logger.context(kind=name, count=self.counts[name]))
-
-    async def add_activity_files_from_zip(
-        self,
-        archive: profile_utils.ZipArchiveReader,
-        activities_id_mapping: dict[int, int],
-    ) -> None:
-        """Extract and import activity files from ZIP.
-
-        Args:
-            archive: The archive to read from.
-            activities_id_mapping: Mapping of old to new IDs.
-        """
-        profile_utils.check_memory_usage(
-            "activity files import",
-            self.performance_config.max_memory_mb,
-            self.performance_config.enable_memory_monitoring,
-        )
-
-        for file_path in archive.names:
-            path = file_path.replace("\\", "/")
-
-            # Import activity files
-            if path.lower().endswith((".gpx", ".fit", ".tcx")) and path.startswith("activity_files/"):
-                file_id_str = os.path.splitext(os.path.basename(path))[0]
-                ext = os.path.splitext(path)[1]
-                try:
-                    file_id_int = int(file_id_str)
-                except ValueError:
-                    logger.debug(
-                        "Skipped an archive file without an activity id", extra=core_logger.context(file_path=path)
-                    )
-                    continue
-                new_id = activities_id_mapping.get(file_id_int)
-
-                if new_id is None:
-                    continue
-
-                new_file_name = f"{new_id}{ext}"
-
-                # Read bytes from ZIP, validate as an activity file, then
-                # persist through the platform StorageProvider (the same store
-                # the ingestion path writes to) rather than the local
-                # processed directory. The blocking save is offloaded so it
-                # never stalls the import's event loop.
-                activity_limit = file_uploads.file_validator.config.limits.max_activity_file_size
-                file_bytes = archive.read_bytes(file_path, max_bytes=activity_limit)
-                try:
-                    await file_uploads.validate_bytes(
-                        file_bytes,
-                        kind=file_uploads.UploadKind.ACTIVITY,
-                        filename=new_file_name,
-                    )
-                except core_exceptions.DomainError as err:
-                    logger.warning(
-                        "Profile import dropped an invalid activity file",
-                        extra=core_logger.context(file_name=new_file_name, detail=err.detail),
-                    )
-                    continue
-                await asyncio.to_thread(
-                    activity_file_storage_integration.store_activity_file,
-                    new_id,
-                    ext,
-                    file_bytes,
-                    self.storage,
-                )
-                self.counts["activity_files"] += 1
-
-    async def add_activity_media_from_zip(
-        self,
-        archive: profile_utils.ZipArchiveReader,
-        activities_id_mapping: dict[int, int],
-    ) -> None:
-        """Extract and import activity media from ZIP.
-
-        Args:
-            archive: The archive to read from.
-            activities_id_mapping: Mapping of old to new IDs.
-        """
-        profile_utils.check_memory_usage(
-            "activity media import",
-            self.performance_config.max_memory_mb,
-            self.performance_config.enable_memory_monitoring,
-        )
-
-        for file_path in archive.names:
-            path = file_path.replace("\\", "/")
-
-            # Import activity media
-            if path.lower().endswith((".png", ".jpg", ".jpeg")) and path.startswith("activity_media/"):
-                file_name = os.path.basename(path)
-                base_name, ext = os.path.splitext(file_name)
-
-                if "_" in base_name:
-                    orig_id_str, suffix = base_name.split("_", 1)
-                    try:
-                        orig_id_int = int(orig_id_str)
-                    except ValueError:
-                        logger.debug(
-                            "Skipped an archive file without an activity id", extra=core_logger.context(file_path=path)
-                        )
-                        continue
-                    new_id = activities_id_mapping.get(orig_id_int)
-
-                    if new_id is None:
-                        continue
-
-                    new_file_name = f"{new_id}_{suffix}{ext}"
-
-                    # Read bytes from ZIP and validate them as an image
-                    # before storing, then write through the platform
-                    # StorageProvider under the media area (the same place
-                    # an upload lands) rather than to a local directory.
-                    image_limit = file_uploads.file_validator.config.limits.max_image_size
-                    file_bytes = archive.read_bytes(file_path, max_bytes=image_limit)
-                    try:
-                        await file_uploads.validate_bytes(
-                            file_bytes,
-                            kind=file_uploads.UploadKind.IMAGE,
-                            filename=new_file_name,
-                        )
-                    except core_exceptions.DomainError as err:
-                        logger.warning(
-                            "Profile import dropped invalid activity media",
-                            extra=core_logger.context(file_name=new_file_name, detail=err.detail),
-                        )
-                        continue
-                    await asyncio.to_thread(
-                        activity_media_integration.store_media_blob,
-                        new_id,
-                        suffix,
-                        ext,
-                        file_bytes,
-                        self.storage,
-                    )
-                    self.counts["media"] += 1
 
     async def add_user_images_from_zip(
         self,

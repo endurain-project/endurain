@@ -264,10 +264,9 @@ class TestInitializeOperationCounts:
 
     def test_all_counts_initialized_to_zero(self):
         counts = profile_utils.initialize_operation_counts()
-        assert counts["media"] == 0
-        assert counts["activities"] == 0
+        assert counts["user_images"] == 0
         assert counts["user"] == 0
-        assert len(counts) == 23
+        assert len(counts) == 14
 
     def test_with_user_count(self):
         counts = profile_utils.initialize_operation_counts(include_user_count=True)
@@ -276,15 +275,6 @@ class TestInitializeOperationCounts:
     def test_all_expected_keys_present(self):
         counts = profile_utils.initialize_operation_counts()
         expected_keys = {
-            "media",
-            "activity_files",
-            "activities",
-            "activity_laps",
-            "activity_sets",
-            "activity_streams",
-            "activity_workout_steps",
-            "activity_media",
-            "activity_exercise_titles",
             "health_weight",
             "health_targets",
             "health_sleep",

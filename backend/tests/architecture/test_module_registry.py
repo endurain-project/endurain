@@ -173,7 +173,7 @@ class TestConfigureUserContributors:
         runtime_module_registry.configure_user_contributors()
 
         sections = users_contributor_registry.profile_sections()
-        assert [section.key for section in sections] == ["gears", "gear_components"]
+        assert [section.key for section in sections] == ["gears", "gear_components", "activities"]
         assert len({section.key for section in sections}) == len(sections)
 
 

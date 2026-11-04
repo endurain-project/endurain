@@ -185,24 +185,24 @@ def test_core_database_does_not_discover_domain_models() -> None:
     ("relative_path", "allowed_child_imports", "uses_contributor_registry"),
     [
         ("activities/activity/ingestion_service.py", set(), True),
-        ("users/users_profile/export_activity_service.py", set(), True),
         (
-            "users/users_profile/export_media_service.py",
-            {
-                "modules.activities.activity_file_storage.integration_service",
-                "modules.activities.activity_media.integration_service",
-            },
-            False,
-        ),
-        ("users/users_profile/export_service.py", set(), False),
-        (
-            "users/users_profile/import_service.py",
+            "activities/activity_profile_transfer/export_service.py",
             {
                 "modules.activities.activity_file_storage.integration_service",
                 "modules.activities.activity_media.integration_service",
             },
             True,
         ),
+        (
+            "activities/activity_profile_transfer/import_service.py",
+            {
+                "modules.activities.activity_file_storage.integration_service",
+                "modules.activities.activity_media.integration_service",
+            },
+            True,
+        ),
+        ("users/users_profile/export_service.py", set(), False),
+        ("users/users_profile/import_service.py", set(), False),
     ],
 )
 def test_activity_orchestrators_do_not_enumerate_child_packages(
@@ -219,6 +219,7 @@ def test_activity_orchestrators_do_not_enumerate_child_packages(
         and not imported.startswith("modules.activities.activity.contracts")
         and not imported.startswith("modules.activities.activity.integration_service")
         and not imported.startswith("modules.activities.activity.schema")
+        and not imported.startswith("modules.activities.activity_profile_transfer")
     }
     assert child_imports == allowed_child_imports
     assert ("modules.activities.contributor_registry" in _absolute_imports(path)) is uses_contributor_registry

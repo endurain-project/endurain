@@ -1,8 +1,7 @@
 """Storage-backed file writers for the profile data export.
 
-Adds the activities' retained source files, the activities' media and the user's profile image to
-the export ZIP. Everything is read through the platform ``StorageProvider``, so an export is complete
-whichever storage backend is configured.
+Adds the user's profile image to the export ZIP. It is read through the platform ``StorageProvider``,
+so an export is complete whichever storage backend is configured.
 """
 
 import os
@@ -11,103 +10,11 @@ import zipfile
 import jasil.providers as platform_providers
 
 import core.logger as core_logger
-import modules.activities.activity_file_storage.integration_service as activity_file_storage_integration
-import modules.activities.activity_media.integration_service as activity_media_integration
 import modules.users.users.constants as users_constants
 import modules.users.users_profile.utils as users_profile_utils
 from modules.users.users_profile.exceptions import MemoryAllocationError
 
 logger = core_logger.get_logger(__name__)
-
-
-def add_activity_files_to_zip(
-    zipf: zipfile.ZipFile,
-    activity_ids: list[int],
-    storage: platform_providers.StorageProvider,
-    counts: dict[str, int],
-) -> None:
-    """Add activity files to ZIP archive.
-
-    Reads each activity's retained source file through the platform
-    ``StorageProvider`` (local disk or object storage) and writes it into the
-    archive under ``activity_files/{id}{ext}``.
-
-    Args:
-        zipf: ZipFile instance to write to.
-        activity_ids: IDs of the exported activities.
-        storage: The platform storage provider.
-        counts: Exported item counts, updated as items are written.
-    """
-    if not activity_ids:
-        return
-
-    for activity_id in activity_ids:
-        try:
-            stored = activity_file_storage_integration.get_activity_file(activity_id, storage)
-            if stored is None:
-                continue
-            key, data = stored
-            zipf.writestr(os.path.join("activity_files", key), data)
-            counts["activity_files"] += 1
-        except MemoryAllocationError:
-            raise
-        except OSError as err:
-            logger.warning(
-                "Failed to add activity file", exc_info=err, extra=core_logger.context(activity_id=activity_id)
-            )
-            continue
-        except Exception as err:
-            logger.warning(
-                "Unexpected error adding activity file",
-                exc_info=err,
-                extra=core_logger.context(activity_id=activity_id),
-            )
-            continue
-
-
-def add_activity_media_to_zip(
-    zipf: zipfile.ZipFile,
-    activity_ids: list[int],
-    storage: platform_providers.StorageProvider,
-    counts: dict[str, int],
-) -> None:
-    """Add activity media files to ZIP archive.
-
-    Read through the platform ``StorageProvider`` rather than by walking a
-    local directory, so an export is complete regardless of which storage
-    backend is configured. Keys are ``{activity_id}_{uuid}{ext}``, so each
-    activity's blobs are listed by its own prefix instead of scanning every
-    stored file and filtering.
-
-    Args:
-        zipf: ZipFile instance to write to.
-        activity_ids: IDs of the exported activities.
-        storage: The platform storage provider.
-        counts: Exported item counts, updated as items are written.
-    """
-    if not activity_ids:
-        return
-
-    for activity_id in activity_ids:
-        try:
-            blobs = activity_media_integration.list_media_blobs(activity_id, storage)
-        except Exception as err:
-            logger.warning(
-                "Failed to list media for activity",
-                exc_info=err,
-                extra=core_logger.context(activity_id=activity_id),
-            )
-            continue
-
-        for key, data in blobs:
-            try:
-                zipf.writestr(os.path.join("activity_media", key), data)
-                counts["media"] += 1
-            except MemoryAllocationError:
-                raise
-            except Exception as err:
-                logger.warning("Unexpected error adding media file", exc_info=err, extra=core_logger.context(key=key))
-                continue
 
 
 def add_user_images_to_zip(

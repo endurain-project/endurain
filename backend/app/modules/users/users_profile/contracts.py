@@ -134,6 +134,7 @@ class ProfileExportContext:
         counts: Exported item counts, by key.
         batch_size: How many records to hold at a time.
         check_memory: Raises when the memory limit is exceeded; takes a description of the operation.
+        check_timeout: Raises when the export is out of time.
     """
 
     user_id: int
@@ -143,6 +144,7 @@ class ProfileExportContext:
     counts: dict[str, int]
     batch_size: int
     check_memory: Callable[[str], None]
+    check_timeout: Callable[[], None]
 
 
 @dataclass(frozen=True, kw_only=True)

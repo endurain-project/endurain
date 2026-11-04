@@ -286,22 +286,6 @@ _LAYER_EXCEPTIONS: dict[tuple[str, str], str] = {
         "A provider adapter converts Strava's streams into activity metrics with the pure maths the file parsers "
         "share; the namespace publishes it for that, and it owns no table and calls no module."
     ),
-    (
-        "modules.users.users_profile.export_activity_service",
-        "modules.activities.contributor_registry",
-    ): (
-        "The activities packages answer their own section of a profile export through the contributors "
-        "installed in this registry, so the profile does not enumerate or import them. The registry holds "
-        "typed callbacks only: it owns no table and runs no query."
-    ),
-    (
-        "modules.users.users_profile.import_service",
-        "modules.activities.contributor_registry",
-    ): (
-        "The activities packages restore their own section of a profile import through the contributors "
-        "installed in this registry, so the profile does not enumerate or import them. The registry holds "
-        "typed callbacks only: it owns no table and runs no query."
-    ),
 }
 
 #: Top-level modules that sit below another, as ``{module: modules it may not import}``.

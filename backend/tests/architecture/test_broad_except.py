@@ -28,6 +28,7 @@ _EXEMPT_DIRS = frozenset({"migrations", "alembic"})
 _SWALLOWING_BROAD_EXCEPTS: dict[str, int] = {
     "core/middleware.py": 1,  # detached tile-domain refresh task nothing awaits
     "main.py": 3,  # best-effort startup tasks (_safe_run, _safe_run_async) and engine dispose at shutdown
+    "modules/activities/activity_profile_transfer/export_service.py": 3,  # known debt: name the storage errors each writer expects
     "modules/activities/activity_ingestion/bulk_import_service.py": 2,  # folder-feed job records any failure; per-file
     "modules/activities/activity_ingestion/refresh_entry_service.py": 1,  # per provider; re-raises the first failure
     "modules/activities/activity_ingestion/window_service.py": 1,  # per activity; re-raises the first failure
@@ -36,7 +37,7 @@ _SWALLOWING_BROAD_EXCEPTS: dict[str, int] = {
     "modules/garmin/sync_service.py": 1,  # one user's health pull must not stop the rest
     "modules/strava/link_service.py": 1,  # link thread must always record a terminal state
     "modules/users/users/deletion_job_service.py": 1,  # one stalled deletion must not stop the sweep
-    "modules/users/users_profile/export_media_service.py": 5,  # known debt: name the storage errors each writer expects
+    "modules/users/users_profile/export_media_service.py": 2,  # known debt: name the storage errors each writer expects
     "modules/users/users_profile/utils.py": 2,  # known debt: name the psutil errors memory detection expects
 }
 

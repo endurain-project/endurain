@@ -38,6 +38,7 @@ import modules.activities.activity_media.constants as activity_media_constants
 import modules.activities.activity_media.integration_service as activity_media_integration
 import modules.activities.activity_media.scheduled_jobs as activity_media_scheduled_jobs
 import modules.activities.activity_media.subscriber_registry as activity_media_subscriber_registry
+import modules.activities.activity_profile_transfer.integration_service as activity_profile_transfer_integration
 import modules.activities.activity_sets.integration_service as activity_sets_integration
 import modules.activities.activity_streams.integration_service as activity_streams_integration
 import modules.activities.activity_thumbnail.constants as activity_thumbnail_constants
@@ -559,6 +560,7 @@ def configure_user_contributors() -> None:
             restore=gear_components_integration.restore_profile_gear_components,
         )
     )
+    users_contributor_registry.register_profile_section(activity_profile_transfer_integration.profile_section())
 
 
 def register_bus_subscribers(events: EventBusProvider) -> None:

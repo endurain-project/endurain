@@ -13,7 +13,6 @@ from sqlalchemy.orm import Session
 
 import modules.users.contributor_registry as users_contributor_registry
 import modules.users.users_profile.contracts as users_profile_contracts
-import modules.users.users_profile.export_activity_service as export_activity_service
 import modules.users.users_profile.export_media_service as export_media_service
 import modules.users.users_profile.export_service as profile_export_service
 import modules.users.users_profile.utils as profile_utils
@@ -49,12 +48,6 @@ class _FakeZipBytes:
     def assert_contains(self, name: str) -> None:
         z = self.zipf
         assert name in z.namelist(), f"ZIP missing {name}, got {z.namelist()}"
-
-
-def _make_activity_mock(activity_id: int) -> MagicMock:
-    m = MagicMock()
-    m.id = activity_id
-    return m
 
 
 class _Record(BaseModel):
@@ -111,7 +104,7 @@ class TestExportServiceInit:
         service = profile_export_service.ExportService(user_id=1, storage=MagicMock(), db=mock_db)
         assert service.user_id == 1
         assert service.db is mock_db
-        assert "activities" in service.counts
+        assert "user" in service.counts
 
     def test_init_with_custom_config(self) -> None:
         mock_db = MagicMock(spec=Session)
@@ -500,16 +493,9 @@ class TestExportServiceGenerateExportArchive:
         user_dict = {"id": 1, "username": "test"}
 
         with (
-            patch.object(
-                export_activity_service,
-                "collect_user_activities_data",
-                return_value=[_make_activity_mock(1)],
-            ),
             patch.object(service, "collect_profile_sections", return_value=[]),
             patch.object(service, "collect_health_weight"),
             patch.object(service, "collect_user_settings_data"),
-            patch.object(export_media_service, "add_activity_files_to_zip"),
-            patch.object(export_media_service, "add_activity_media_to_zip"),
             patch.object(export_media_service, "add_user_images_to_zip"),
         ):
             archive = service.build_export_archive(user_dict, timeout_seconds=60)
@@ -527,9 +513,7 @@ class TestExportServiceGenerateExportArchive:
 
         with (
             patch.object(service, "collect_profile_sections", return_value=[]),
-            patch.object(
-                export_activity_service, "collect_user_activities_data", side_effect=MemoryAllocationError("oom")
-            ),
+            patch.object(service, "collect_health_weight", side_effect=MemoryAllocationError("oom")),
             pytest.raises(MemoryAllocationError),
         ):
             service.build_export_archive(user_dict)
@@ -665,11 +649,7 @@ class TestExportServiceGenerateExportArchiveEdgeCases:
 
         with (
             patch.object(service, "collect_profile_sections", return_value=[]),
-            patch.object(
-                export_activity_service,
-                "collect_user_activities_data",
-                side_effect=DataCollectionError("collect failed"),
-            ),
+            patch.object(service, "collect_health_weight", side_effect=DataCollectionError("collect failed")),
             pytest.raises(DataCollectionError),
         ):
             service.build_export_archive({"id": 1}, timeout_seconds=60)
@@ -687,12 +667,9 @@ class TestExportServiceGenerateExportArchiveEdgeCases:
                 "check_timeout",
                 side_effect=ExportTimeoutError("timed out"),
             ),
-            patch.object(export_activity_service, "collect_user_activities_data", return_value=[]),
             patch.object(service, "collect_profile_sections", return_value=[]),
             patch.object(service, "collect_health_weight"),
             patch.object(service, "collect_user_settings_data"),
-            patch.object(export_media_service, "add_activity_files_to_zip"),
-            patch.object(export_media_service, "add_activity_media_to_zip"),
             patch.object(export_media_service, "add_user_images_to_zip"),
             pytest.raises(ExportTimeoutError),
         ):
@@ -706,7 +683,7 @@ class TestExportServiceGenerateExportArchiveEdgeCases:
 
         with (
             patch.object(service, "collect_profile_sections", return_value=[]),
-            patch.object(export_activity_service, "collect_user_activities_data", side_effect=OSError("disk full")),
+            patch.object(service, "collect_health_weight", side_effect=OSError("disk full")),
             pytest.raises(FileSystemError),
         ):
             service.build_export_archive({"id": 1}, timeout_seconds=60)
@@ -719,7 +696,7 @@ class TestExportServiceGenerateExportArchiveEdgeCases:
 
         with (
             patch.object(service, "collect_profile_sections", return_value=[]),
-            patch.object(export_activity_service, "collect_user_activities_data", side_effect=MemoryError("OOM")),
+            patch.object(service, "collect_health_weight", side_effect=MemoryError("OOM")),
             pytest.raises(MemoryAllocationError),
         ):
             service.build_export_archive({"id": 1}, timeout_seconds=60)
@@ -768,13 +745,10 @@ def test_the_database_phase_ends_before_the_storage_phase() -> None:
     order.attach_mock(mock_db.commit, "commit")
 
     with (
-        patch.object(export_activity_service, "collect_user_activities_data", return_value=[]),
         patch.object(service, "collect_profile_sections", return_value=[]),
         patch.object(service, "collect_health_weight"),
         patch.object(service, "collect_user_settings_data") as settings,
-        patch.object(export_media_service, "add_activity_files_to_zip") as files,
-        patch.object(export_media_service, "add_activity_media_to_zip"),
-        patch.object(export_media_service, "add_user_images_to_zip"),
+        patch.object(export_media_service, "add_user_images_to_zip") as files,
     ):
         order.attach_mock(settings, "last_db_read")
         order.attach_mock(files, "first_storage_read")
@@ -797,7 +771,7 @@ def test_a_failed_build_leaves_no_archive_open() -> None:
     with (
         patch.object(service, "collect_profile_sections", return_value=[]),
         patch("modules.users.users_profile.export_service.tempfile.TemporaryFile", side_effect=tracking),
-        patch.object(export_activity_service, "collect_user_activities_data", side_effect=DataCollectionError("boom")),
+        patch.object(service, "collect_health_weight", side_effect=DataCollectionError("boom")),
         pytest.raises(DataCollectionError),
     ):
         service.build_export_archive({"id": 1})

@@ -3,8 +3,7 @@
 This module provides the ExportService class for exporting
 user profile data including activities, health records, gear,
 and settings to a downloadable ZIP archive with streaming. The
-activity collection and the storage-backed file writers live in
-``export_activity_service`` and ``export_media_service``.
+user's profile image is written by ``export_media_service``.
 
 Key Features:
 - Batched data collection for memory efficiency
@@ -41,7 +40,6 @@ import modules.users.users_integrations.constants as user_integrations_constants
 import modules.users.users_integrations.integration_service as user_integrations_integration
 import modules.users.users_privacy_settings.integration_service as users_privacy_settings_integration
 import modules.users.users_profile.contracts as users_profile_contracts
-import modules.users.users_profile.export_activity_service as export_activity_service
 import modules.users.users_profile.export_media_service as export_media_service
 import modules.users.users_profile.utils as users_profile_utils
 from modules.users.users_profile.exceptions import (
@@ -193,6 +191,7 @@ class ExportService:
             counts=self.counts,
             batch_size=self.performance_config.batch_size,
             check_memory=self._check_memory,
+            check_timeout=check_timeout,
         )
         files: list[users_profile_contracts.ExportFiles] = []
         for section in users_contributor_registry.profile_sections():
@@ -444,14 +443,9 @@ class ExportService:
                 def check_export_timeout() -> None:
                     users_profile_utils.check_timeout(timeout_seconds, start_time, ExportTimeoutError, "Export")
 
-                # Database phase first: the registered sections, activities, health and settings.
+                # Database phase first: the registered sections, health and settings.
                 writer = users_profile_utils.ZipArchiveWriter(zipf, self.counts)
                 section_files = self.collect_profile_sections(writer, check_export_timeout)
-
-                users_profile_utils.check_timeout(timeout_seconds, start_time, ExportTimeoutError, "Export")
-                activity_ids = export_activity_service.collect_user_activities_data(
-                    zipf, self.user_id, self.counts, self.performance_config, self.db
-                )
 
                 users_profile_utils.check_timeout(timeout_seconds, start_time, ExportTimeoutError, "Export")
                 self.collect_health_weight(zipf)
@@ -472,12 +466,6 @@ class ExportService:
                 for write_files in section_files:
                     check_export_timeout()
                     write_files()
-
-                users_profile_utils.check_timeout(timeout_seconds, start_time, ExportTimeoutError, "Export")
-                export_media_service.add_activity_files_to_zip(zipf, activity_ids, self.storage, self.counts)
-
-                users_profile_utils.check_timeout(timeout_seconds, start_time, ExportTimeoutError, "Export")
-                export_media_service.add_activity_media_to_zip(zipf, activity_ids, self.storage, self.counts)
 
                 users_profile_utils.check_timeout(timeout_seconds, start_time, ExportTimeoutError, "Export")
                 export_media_service.add_user_images_to_zip(

@@ -469,15 +469,6 @@ def initialize_operation_counts(include_user_count: bool = False) -> dict[str, i
         Dictionary with all count keys initialized to 0.
     """
     return {
-        "media": 0,
-        "activity_files": 0,
-        "activities": 0,
-        "activity_laps": 0,
-        "activity_sets": 0,
-        "activity_streams": 0,
-        "activity_workout_steps": 0,
-        "activity_media": 0,
-        "activity_exercise_titles": 0,
         "health_weight": 0,
         "health_targets": 0,
         "health_sleep": 0,
