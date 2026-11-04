@@ -48,3 +48,10 @@ def test_a_clean_form_reaches_the_route(client, encode):
     request = {"data": fields} if encode == "data" else {"files": {k: (None, v) for k, v in fields.items()}}
 
     assert client.post("/login", **request).json() == {"username": "bob"}
+
+
+def test_the_username_is_trimmed_and_the_password_is_not(client):
+    response = client.post("/login", data={"username": "  bob  ", "password": " x "})
+
+    assert response.json() == {"username": "bob"}
+    assert client.post("/login", data={"username": "bob", "password": " x "}).status_code == 200

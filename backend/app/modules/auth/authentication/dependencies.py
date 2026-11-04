@@ -26,16 +26,18 @@ REFRESH_TOKEN_COOKIE_CLEAR_PATHS = (*LEGACY_REFRESH_TOKEN_COOKIE_PATHS, REFRESH_
 
 
 def reject_nul_in_login_form(form_data: Annotated[OAuth2PasswordRequestForm, Depends()]) -> OAuth2PasswordRequestForm:
-    """Refuse a NUL character in any field of the login form.
+    """Refuse a NUL character in any field of the login form and trim the username.
 
     PostgreSQL text cannot hold NUL. The NUL middleware reads urlencoded and JSON bodies but leaves multipart
     ones streaming, and FastAPI parses this form from multipart too, so the fields are checked here.
+
+    The username loses surrounding whitespace, as the web form does; the password is kept exactly as sent.
 
     Args:
         form_data: The parsed login form.
 
     Returns:
-        The form, unchanged.
+        The form, with the username trimmed.
 
     Raises:
         RequestValidationError: When a field holds a NUL (422).
@@ -49,10 +51,11 @@ def reject_nul_in_login_form(form_data: Annotated[OAuth2PasswordRequestForm, Dep
         errors.append({"type": "value_error", "loc": ("body", "scope"), "msg": "NUL characters are not allowed"})
     if errors:
         raise RequestValidationError(errors)
+    form_data.username = form_data.username.strip()
     return form_data
 
 
-#: The login form, with NUL characters refused.
+#: The login form, with NUL characters refused and the username trimmed.
 LoginForm = Annotated[OAuth2PasswordRequestForm, Depends(reject_nul_in_login_form)]
 
 
