@@ -4,6 +4,7 @@ from time import time
 from unittest.mock import MagicMock, patch
 
 import pytest
+from jasil.providers import StorageBackendUnavailableError
 
 import core.blob_sweep as blob_sweep
 
@@ -141,7 +142,7 @@ class TestSweepAgedBlobs:
     def test_a_failing_delete_does_not_stop_the_sweep(self):
         storage = MagicMock()
         storage.iter_objects.return_value = iter([("a", time() - 7200), ("b", time() - 7200)])
-        storage.delete.side_effect = [OSError("busy"), None]
+        storage.delete.side_effect = [StorageBackendUnavailableError("busy"), None]
 
         assert blob_sweep.sweep_aged_blobs(storage, "area", 3600) == 1
         assert storage.delete.call_count == 2

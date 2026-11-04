@@ -145,7 +145,7 @@ def sweep_unreferenced_blobs(
 def sweep_aged_blobs(storage: platform_providers.StorageProvider, area: str, older_than_seconds: float) -> int:
     """Delete blobs in ``area`` last modified more than ``older_than_seconds`` ago.
 
-    A blob that cannot be deleted is logged and left for the next run; it does not stop the sweep.
+    A blob the storage backend cannot delete is logged and left for the next run; it does not stop the sweep.
 
     Args:
         storage: The blob-storage provider.
@@ -161,7 +161,7 @@ def sweep_aged_blobs(storage: platform_providers.StorageProvider, area: str, old
     for key in stale:
         try:
             storage.delete(area, key)
-        except Exception as err:
+        except platform_providers.StorageBackendUnavailableError as err:
             logger.warning("Could not delete a stale blob", exc_info=err, extra=core_logger.context(area=area))
         else:
             removed += 1

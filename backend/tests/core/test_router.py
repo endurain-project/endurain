@@ -8,6 +8,7 @@ from fastapi import FastAPI
 from fastapi.responses import FileResponse
 from fastapi.testclient import TestClient
 from jasil.providers import StateBackendUnavailableError
+from sqlalchemy.exc import OperationalError
 
 import core.dependencies as core_dependencies
 from core.database import get_db
@@ -172,8 +173,9 @@ class TestHealth:
         assert response.json() == {"status": "ok", "state": "ok", "audit": "ok"}
         self.healthy.assert_not_called()
 
-    def test_an_unreadable_audit_health_is_degraded_not_a_failure(self, caplog):
-        self.healthy.side_effect = RuntimeError("no sessionmaker")
+    @pytest.mark.parametrize("error", [RuntimeError("no sessionmaker"), OperationalError("SELECT 1", {}, Exception())])
+    def test_an_unreadable_audit_health_is_degraded_not_a_failure(self, caplog, error):
+        self.healthy.side_effect = error
 
         with caplog.at_level("WARNING"):
             response = self._get(MagicMock(), MagicMock())

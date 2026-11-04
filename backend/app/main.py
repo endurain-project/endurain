@@ -19,6 +19,7 @@ import jasil.runtime as platform_runtime
 import jasil.settings as jasil_settings
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from sqlalchemy.exc import SQLAlchemyError
 
 import core.async_bridge as core_async_bridge
 import core.config as core_config
@@ -108,7 +109,7 @@ def _init_allowed_tile_domains(fastapi_app: FastAPI) -> None:
         fastapi_app.state.allowed_tile_domains = _read_allowed_tile_domains()
         allowed_tile_domains = fastapi_app.state.allowed_tile_domains
         logger.info("Allowed tile domains", extra=core_logger.context(console=True, domains=allowed_tile_domains))
-    except Exception as err:
+    except SQLAlchemyError as err:
         logger.error("Error initializing tile domains, using defaults", exc_info=err)
         # Fallback to built-in providers so CSP
         # remains restrictive but functional.

@@ -254,7 +254,8 @@ def start_scheduler(jobs: Sequence[ScheduledJob] = ()) -> None:
         None.
 
     Raises:
-        None.
+        LookupError: When a job's trigger is unknown.
+        ValueError: When the scheduler rejects a job's arguments.
     """
     if not scheduler.running:
         scheduler.start()
@@ -298,25 +299,20 @@ def run_once(func: Callable[..., object], *, job_id: str, description: str, lock
         None.
 
     Raises:
-        None.
+        ValueError: When the scheduler rejects the job's arguments.
     """
     args: tuple[object, ...] = ()
     if lock_name is not None:
         func, args = run_locked_job, (lock_name, func)
-    try:
-        scheduler.add_job(
-            func,
-            "date",
-            args=args,
-            id=job_id,
-            replace_existing=True,
-            misfire_grace_time=None,
-        )
-        logger.info("Scheduled a one-shot job", extra=core_logger.context(description=description))
-    except Exception as err:
-        logger.error(
-            "Failed to schedule a one-shot job", exc_info=err, extra=core_logger.context(description=description)
-        )
+    scheduler.add_job(
+        func,
+        "date",
+        args=args,
+        id=job_id,
+        replace_existing=True,
+        misfire_grace_time=None,
+    )
+    logger.info("Scheduled a one-shot job", extra=core_logger.context(description=description))
 
 
 def _scheduler_job_id(description: str) -> str:
@@ -356,20 +352,18 @@ def add_scheduler_job(
         None.
 
     Raises:
-        None.
+        LookupError: When ``interval`` names no APScheduler trigger.
+        ValueError: When the scheduler rejects the job's arguments.
     """
-    try:
-        logger.info("Added a scheduler job", extra=core_logger.context(description=description, minutes=minutes))
-        scheduler.add_job(
-            func,
-            interval,
-            minutes=minutes,
-            args=list(args),
-            id=_scheduler_job_id(description),
-            replace_existing=True,
-        )
-    except Exception as err:
-        logger.error("Failed to add a scheduler job", exc_info=err, extra=core_logger.context(description=description))
+    scheduler.add_job(
+        func,
+        interval,
+        minutes=minutes,
+        args=list(args),
+        id=_scheduler_job_id(description),
+        replace_existing=True,
+    )
+    logger.info("Added a scheduler job", extra=core_logger.context(description=description, minutes=minutes))
 
 
 def stop_scheduler() -> None:

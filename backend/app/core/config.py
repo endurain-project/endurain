@@ -994,13 +994,6 @@ def validate_fernet_key(fernet_key: str | None) -> bool:
             extra=core_logger.context(console=True),
         )
         return False
-    except Exception as err:
-        logger.error(
-            "FERNET_KEY validation failed: Unexpected error",
-            exc_info=err,
-            extra=core_logger.context(console=True),
-        )
-        return False
 
 
 def validate_log_level(log_level: str) -> bool:

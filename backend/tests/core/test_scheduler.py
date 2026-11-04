@@ -157,24 +157,30 @@ class TestAddSchedulerJob:
                 id="endurain_test_job_every_60_minutes",
                 replace_existing=True,
             )
-            assert len(mock_log.method_calls) == 1
+            mock_log.info.assert_called_once()
 
-    def test_logs_error_when_add_job_fails(self):
+    def test_logs_the_job_only_after_it_was_added(self):
+        calls = MagicMock()
         with (
             patch("core.scheduler.scheduler") as mock_scheduler,
             patch("core.scheduler.logger") as mock_log,
         ):
-            mock_scheduler.add_job.side_effect = ValueError("something went wrong")
+            calls.attach_mock(mock_scheduler.add_job, "add_job")
+            calls.attach_mock(mock_log.info, "info")
             from core.scheduler import add_scheduler_job
 
-            def dummy():
-                pass
+            add_scheduler_job(print, "interval", 60, [], "ordered job")
 
-            add_scheduler_job(dummy, "interval", 60, [], "failing job")
-            args, kwargs = mock_log.error.call_args
-            assert args == ("Failed to add a scheduler job",)
-            assert kwargs["exc_info"] is mock_scheduler.add_job.side_effect
-            assert kwargs["extra"]["description"] == "failing job"
+        assert [c[0] for c in calls.mock_calls] == ["add_job", "info"]
+
+    def test_a_bad_trigger_raises_and_logs_nothing(self):
+        with patch("core.scheduler.logger") as mock_log:
+            from core.scheduler import add_scheduler_job
+
+            with pytest.raises(LookupError):
+                add_scheduler_job(print, "no-such-trigger", 60, [], "bad trigger job")
+
+        mock_log.info.assert_not_called()
 
 
 class TestLockedSchedulerJobs:
@@ -250,6 +256,16 @@ def test_run_once_with_a_lock_runs_the_job_only_under_that_lock():
 
     assert add_job.call_args.args[0] is core_scheduler.run_locked_job
     assert add_job.call_args.kwargs["args"] == ("lock", print)
+
+
+def test_run_once_lets_a_scheduler_failure_propagate():
+    import core.scheduler as core_scheduler
+
+    with (
+        patch.object(core_scheduler.scheduler, "add_job", side_effect=ValueError("bad job")),
+        pytest.raises(ValueError, match="bad job"),
+    ):
+        core_scheduler.run_once(print, job_id="job", description="job")
 
 
 class TestRunDueJob:

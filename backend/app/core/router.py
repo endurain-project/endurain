@@ -10,6 +10,7 @@ from fastapi.responses import FileResponse
 from jasil.providers import StateBackendUnavailableError
 from pydantic import BaseModel, ConfigDict
 from sqlalchemy import text
+from sqlalchemy.exc import SQLAlchemyError
 
 import core.config as core_config
 import core.dependencies as core_dependencies
@@ -123,7 +124,7 @@ def _audit_degraded_reason() -> str | None:
         return None
     try:
         audit_health = jasil_audit.get_audit_health()
-    except Exception as err:
+    except (SQLAlchemyError, RuntimeError) as err:
         return f"the audit health could not be read ({type(err).__name__})"
     now = datetime.now(UTC)
     furthest_partition_date = audit_health["furthest_partition_date"]

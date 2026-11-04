@@ -644,13 +644,6 @@ class TestValidateFernetKey:
 
         assert validate_fernet_key("not-a-valid-fernet-key") is False
 
-    def test_unexpected_exception_during_fernet_validation_returns_false(self):
-        from core.config import validate_fernet_key
-
-        with patch("core.config.logger"):
-            result = validate_fernet_key(b"some bytes")
-        assert result is False
-
 
 class TestValidateLogLevel:
     """validate_log_level: log level string validation."""
