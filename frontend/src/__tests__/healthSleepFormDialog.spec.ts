@@ -172,3 +172,17 @@ describe('HealthSleepFormDialog stage consistency', () => {
     ])
   })
 })
+
+describe('HealthSleepFormDialog hours/minutes names', () => {
+  it.each(['Total sleep', 'Deep sleep', 'Light sleep', 'REM sleep', 'Awake'])(
+    'names both inputs of the %s pair',
+    async (field) => {
+      const wrapper = await openDialog()
+      for (const unit of ['hours', 'minutes']) {
+        const input = wrapper.find(`input[aria-label="${field}, ${unit}"]`)
+        expect(input.exists()).toBe(true)
+        expect(input.attributes('type')).toBe('number')
+      }
+    },
+  )
+})

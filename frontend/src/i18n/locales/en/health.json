@@ -313,6 +313,8 @@
       "totalSleepRequired": "Please enter how long you slept.",
       "hours": "Hours",
       "minutes": "Minutes",
+      "hoursOf": "{field}, hours",
+      "minutesOf": "{field}, minutes",
       "stageBreakdown": "Stage breakdown (optional)",
       "deep": "Deep sleep",
       "light": "Light sleep",

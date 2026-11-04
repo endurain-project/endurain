@@ -547,6 +547,9 @@ watch(open, (isOpen) => {
               :class="fieldClass"
               :aria-describedby="describedBy"
               :aria-invalid="invalid"
+              :aria-label="
+                t('health.sleep.form.hoursOf', { field: t('health.sleep.form.totalSleep') })
+              "
               :placeholder="t('health.sleep.form.hours')"
               type="number"
               min="0"
@@ -561,6 +564,9 @@ watch(open, (isOpen) => {
               :class="fieldClass"
               :aria-describedby="describedBy"
               :aria-invalid="invalid"
+              :aria-label="
+                t('health.sleep.form.minutesOf', { field: t('health.sleep.form.totalSleep') })
+              "
               :placeholder="t('health.sleep.form.minutes')"
               type="number"
               min="0"
@@ -636,6 +642,9 @@ watch(open, (isOpen) => {
                 :class="fieldClass"
                 :aria-describedby="describedBy"
                 :aria-invalid="invalid"
+                :aria-label="
+                  t('health.sleep.form.hoursOf', { field: t(`health.sleep.form.${field.label}`) })
+                "
                 :placeholder="t('health.sleep.form.hours')"
                 type="number"
                 min="0"
@@ -650,6 +659,9 @@ watch(open, (isOpen) => {
                 :class="fieldClass"
                 :aria-describedby="describedBy"
                 :aria-invalid="invalid"
+                :aria-label="
+                  t('health.sleep.form.minutesOf', { field: t(`health.sleep.form.${field.label}`) })
+                "
                 :placeholder="t('health.sleep.form.minutes')"
                 type="number"
                 min="0"
@@ -870,6 +882,11 @@ watch(open, (isOpen) => {
                     :class="fieldClass"
                     :aria-describedby="describedBy"
                     :aria-invalid="invalid"
+                    :aria-label="
+                      t('health.sleep.form.hoursOf', {
+                        field: t('health.sleep.form.stageDuration'),
+                      })
+                    "
                     :placeholder="t('health.sleep.form.hours')"
                     type="number"
                     min="0"
@@ -883,6 +900,11 @@ watch(open, (isOpen) => {
                     :class="fieldClass"
                     :aria-describedby="describedBy"
                     :aria-invalid="invalid"
+                    :aria-label="
+                      t('health.sleep.form.minutesOf', {
+                        field: t('health.sleep.form.stageDuration'),
+                      })
+                    "
                     :placeholder="t('health.sleep.form.minutes')"
                     type="number"
                     min="0"
