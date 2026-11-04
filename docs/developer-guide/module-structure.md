@@ -773,9 +773,6 @@ by hand when the code it describes changes.
 
 - **Storage lifecycle.** The hourly thumbnail reconciliation and the daily orphan sweep each walk the whole
   thumbnail area: its keys are flat `{id}.webp`, so no prefix narrows the walk.
-- **Observability.** Logs, the two health endpoints and the job tables are the only signals; queue depth, job
-  duration and dead-letter counts are not exported as metrics. `jasil.admin.get_jobs_summary` computes them,
-  but no route exposes it.
 - **Creates carry no `Location` and no `Idempotency-Key`.** The 27 `POST` routes that answer `201` return the new
   resource but not a `Location` header, and only the activity upload accepts an `Idempotency-Key`, so a client
   that retries a create after a lost response can make a duplicate. The upload keeps its key on the ingestion
