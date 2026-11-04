@@ -136,3 +136,33 @@ describe('LoginView MFA step', () => {
     expect(wrapper.text()).toContain(i18n.global.t('login.invalidMfa'))
   })
 })
+
+describe('LoginView password step errors', () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+    sso.processSsoCallback.mockResolvedValue({ status: 'none' })
+  })
+
+  async function submitPassword(status: number) {
+    auth.login.mockRejectedValue(new HttpError(status, 'Refused'))
+    const wrapper = mountView()
+    await wrapper.find('input[name="username"]').setValue('user')
+    await wrapper.find('input[type="password"]').setValue('secret')
+    await wrapper.find('form').trigger('submit')
+    await flushPromises()
+    return wrapper
+  }
+
+  it('hints at a pending account when the credentials are refused', async () => {
+    const wrapper = await submitPassword(401)
+
+    expect(wrapper.text()).toContain(i18n.global.t('login.invalidCredentials'))
+    expect(wrapper.text()).toContain(i18n.global.t('login.invalidCredentialsPendingHint'))
+  })
+
+  it.each([403, 429])('does not add the hint to a %i', async (status) => {
+    const wrapper = await submitPassword(status)
+
+    expect(wrapper.text()).not.toContain(i18n.global.t('login.invalidCredentialsPendingHint'))
+  })
+})

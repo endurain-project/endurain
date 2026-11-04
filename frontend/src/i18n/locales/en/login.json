@@ -20,6 +20,7 @@
   "adminApprovalRequired": "Your account is waiting for administrator approval",
   "verifyEmailInvalidLink": "That email verification link is invalid or expired",
   "invalidCredentials": "Username or password is incorrect",
+  "invalidCredentialsPendingHint": "If you signed up recently, your account may still be waiting for email verification or administrator approval.",
   "invalidMfa": "Authentication code is invalid or expired",
   "forbidden": "This account cannot sign in",
   "tooManyAttempts": "Too many attempts. Please wait before trying again.",

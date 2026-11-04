@@ -99,7 +99,8 @@ function getAuthErrorMessage(error: unknown, duringMfa: boolean): string {
 
   switch (error.status) {
     case 401:
-      return t('login.invalidCredentials')
+      // The server answers a pending account like a wrong password, so the hint covers both.
+      return `${t('login.invalidCredentials')}\n${t('login.invalidCredentialsPendingHint')}`
     case 403:
       return t('login.forbidden')
     case 429:
@@ -251,7 +252,7 @@ onMounted(async () => {
         {{ t('login.subtitle') }}
       </p>
 
-      <Alert v-if="alert" :kind="alert.kind" class="mt-5">
+      <Alert v-if="alert" :kind="alert.kind" class="mt-5 whitespace-pre-line">
         {{ alert.message }}
       </Alert>
 
