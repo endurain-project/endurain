@@ -25,7 +25,7 @@ def list_user_sessions(
     return sessions_service.list_user_sessions(user_id, page, db)
 
 
-def parse_user_agent(user_agent: str) -> sessions_utils.DeviceInfo:
+def parse_user_agent(user_agent: str) -> sessions_contracts.DeviceInfo:
     """Return the device type, operating system and browser a user-agent string names, as sessions record them."""
     return sessions_utils.parse_user_agent(user_agent)
 

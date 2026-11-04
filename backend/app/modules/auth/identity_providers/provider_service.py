@@ -11,13 +11,13 @@ import core.logger as core_logger
 import core.network as core_network
 import modules.auth.identity_provider_links.integration_service as identity_provider_links_integration
 import modules.auth.identity_providers.audit_actions as idp_audit_actions
+import modules.auth.identity_providers.constants as identity_provider_constants
 import modules.auth.identity_providers.contracts as identity_provider_contracts
 import modules.auth.identity_providers.crud as idp_crud
 import modules.auth.identity_providers.icon_service as idp_icon_service
 import modules.auth.identity_providers.oidc_client_service as oidc_client_service
 import modules.auth.identity_providers.schema as identity_provider_schema
 import modules.auth.identity_providers.serializers as identity_provider_serializers
-import modules.auth.identity_providers.utils as identity_provider_utils
 
 logger = core_logger.get_logger(__name__)
 
@@ -40,8 +40,15 @@ def get_enabled_identity_providers(db: Session) -> list[identity_provider_schema
 
 
 def get_idp_templates() -> list[identity_provider_schema.IdentityProviderTemplateRead]:
-    """Return the configured provider templates."""
-    return identity_provider_utils.get_idp_templates()
+    """Return the built-in provider templates.
+
+    Returns:
+        One ``IdentityProviderTemplateRead`` per entry of ``IDP_TEMPLATES``.
+    """
+    return [
+        identity_provider_schema.IdentityProviderTemplateRead(template_id=template_id, **template_data)
+        for template_id, template_data in identity_provider_constants.IDP_TEMPLATES.items()
+    ]
 
 
 def _reject_unsafe_urls(values: dict[str, object]) -> None:

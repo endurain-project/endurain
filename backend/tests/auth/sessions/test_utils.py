@@ -43,25 +43,20 @@ def _session(*, last_activity_at: datetime, created_at: datetime) -> sessions_co
 
 
 def test_device_type_values():
-    assert [value.value for value in sessions_utils.DeviceType] == ["Mobile", "Tablet", "PC"]
+    assert [value.value for value in sessions_contracts.DeviceType] == ["Mobile", "Tablet", "PC"]
 
 
 def test_device_info_fields():
-    info = sessions_utils.DeviceInfo(sessions_utils.DeviceType.PC, "Linux", "1", "Firefox", "1")
+    info = sessions_contracts.DeviceInfo(sessions_contracts.DeviceType.PC, "Linux", "1", "Firefox", "1")
     assert info.operating_system == "Linux"
     assert info.browser == "Firefox"
-
-
-def test_get_user_agent_returns_header_or_empty():
-    assert sessions_utils.get_user_agent({"user-agent": "Firefox"}) == "Firefox"
-    assert sessions_utils.get_user_agent({}) == ""
 
 
 def test_parse_user_agent_desktop():
     info = sessions_utils.parse_user_agent(
         "Mozilla/5.0 (X11; Ubuntu; Linux x86_64; rv:120.0) Gecko/20100101 Firefox/120.0"
     )
-    assert info.device_type is sessions_utils.DeviceType.PC
+    assert info.device_type is sessions_contracts.DeviceType.PC
     assert info.browser == "Firefox"
 
 
@@ -69,7 +64,7 @@ def test_parse_user_agent_mobile():
     info = sessions_utils.parse_user_agent(
         "Mozilla/5.0 (iPhone; CPU iPhone OS 16_0 like Mac OS X) AppleWebKit/605.1.15 Mobile/15E148"
     )
-    assert info.device_type is sessions_utils.DeviceType.MOBILE
+    assert info.device_type is sessions_contracts.DeviceType.MOBILE
 
 
 def test_parse_user_agent_unknown_values():

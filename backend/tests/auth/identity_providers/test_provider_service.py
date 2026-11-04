@@ -169,3 +169,83 @@ class TestDiscoveryCacheEviction:
             crud.delete_identity_provider.return_value = True
             provider_service.delete_identity_provider(3, MagicMock(), oidc, mock_db, if_match='"1"')
         assert order.mock_calls == [call.commit(), call.forget(3)]
+
+
+class TestGetIdpTemplates:
+    """Test suite for get_idp_templates function."""
+
+    def test_get_idp_templates_returns_list(self):
+        """Test get_idp_templates returns a list.
+
+        Asserts:
+            - Returns a list of idp_schema.IdentityProviderTemplateRead objects
+        """
+        # Act
+        templates = provider_service.get_idp_templates()
+
+        # Assert
+        assert isinstance(templates, list)
+        assert len(templates) > 0
+        assert all(isinstance(t, idp_schema.IdentityProviderTemplateRead) for t in templates)
+
+    def test_get_idp_templates_contains_expected_providers(self):
+        """Test get_idp_templates contains expected providers.
+
+        Asserts:
+            - List contains Keycloak, Authentik, Authelia, Casdoor, Pocket ID
+        """
+        # Act
+        templates = provider_service.get_idp_templates()
+
+        # Assert
+        template_ids = [t.template_id for t in templates]
+        assert "keycloak" in template_ids
+        assert "authentik" in template_ids
+        assert "authelia" in template_ids
+        assert "casdoor" in template_ids
+        assert "pocketid" in template_ids
+
+    def test_get_idp_templates_structure(self):
+        """Test each template has required structure.
+
+        Asserts:
+            - Each template has required fields
+        """
+        # Act
+        templates = provider_service.get_idp_templates()
+
+        # Assert
+        for template in templates:
+            assert hasattr(template, "template_id")
+            assert hasattr(template, "name")
+            assert hasattr(template, "provider_type")
+            assert hasattr(template, "scopes")
+            assert hasattr(template, "description")
+
+    def test_get_idp_templates_all_oidc(self):
+        """Test all templates are OIDC providers.
+
+        Asserts:
+            - All templates have provider_type 'oidc'
+        """
+        # Act
+        templates = provider_service.get_idp_templates()
+
+        # Assert
+        for template in templates:
+            assert template.provider_type == "oidc"
+
+    def test_get_idp_templates_has_user_mapping(self):
+        """Test templates include user mapping configuration.
+
+        Asserts:
+            - Each template has user_mapping with username and email
+        """
+        # Act
+        templates = provider_service.get_idp_templates()
+
+        # Assert
+        for template in templates:
+            assert template.user_mapping is not None
+            assert "username" in template.user_mapping
+            assert "email" in template.user_mapping

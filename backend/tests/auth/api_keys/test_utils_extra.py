@@ -1,5 +1,6 @@
 """Tests for users_api_keys utility functions."""
 
+import modules.auth.api_keys.constants as auth_api_keys_constants
 import modules.auth.api_keys.utils as auth_api_keys_utils
 
 
@@ -70,7 +71,7 @@ class TestSupportedApiKeyScopes:
 
     def test_supported_api_key_scopes_constant(self):
         """Test that the API-key scope allow-list is centralized."""
-        assert frozenset({"activities:upload"}) == auth_api_keys_utils.SUPPORTED_API_KEY_SCOPES
+        assert frozenset({"activities:upload"}) == auth_api_keys_constants.SUPPORTED_API_KEY_SCOPES
 
 
 class TestScopesJsonRoundTrip:

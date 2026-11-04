@@ -1,10 +1,8 @@
-"""Utility helpers and pre-configured templates for identity providers."""
+"""Utility helpers for identity providers."""
 
-from typing import TypedDict
 from urllib.parse import parse_qsl, urlencode, urlsplit, urlunsplit
 
 import core.exceptions as core_exceptions
-import modules.auth.identity_providers.schema as idp_schema
 
 
 def validate_redirect_url(redirect: str | None, allowed_schemes: set[str]) -> None:
@@ -140,135 +138,6 @@ def build_step_up_result_url(host: str, redirect_path: str | None, result: dict[
     """
     parts = urlsplit(redirect_path or "/settings/security")
     return f"{host}{urlunsplit(('', '', parts.path, parts.query, urlencode(result)))}"
-
-
-# Pre-configured templates for common IdPs
-class IdentityProviderTemplate(TypedDict):
-    """A built-in identity provider template, keyed by its template id in ``IDP_TEMPLATES``."""
-
-    name: str
-    provider_type: str
-    issuer_url: str
-    scopes: str
-    icon: str
-    user_mapping: dict[str, list[str]]
-    description: str
-    configuration_notes: str
-
-
-IDP_TEMPLATES: dict[str, IdentityProviderTemplate] = {
-    "authelia": {
-        "name": "Authelia",
-        "provider_type": "oidc",
-        "issuer_url": "https://{your-authelia-domain}",
-        "scopes": "openid profile email",
-        "icon": "authelia",
-        "user_mapping": {
-            "username": ["preferred_username", "username", "email"],
-            "email": ["email"],
-            "name": ["name"],
-        },
-        "description": "Authelia - Open-source authentication and authorization server",
-        "configuration_notes": (
-            "Replace {your-authelia-domain} with your Authelia server domain (e.g., auth.example.com). "
-            "Configure an OIDC client in your Authelia configuration file."
-        ),
-    },
-    "authentik": {
-        "name": "Authentik",
-        "provider_type": "oidc",
-        "issuer_url": "https://{your-authentik-domain}/application/o/{slug}/",
-        "scopes": "openid profile email",
-        "icon": "authentik",
-        "user_mapping": {
-            "username": ["preferred_username", "username", "email"],
-            "email": ["email", "mail"],
-            "name": ["name", "display_name"],
-        },
-        "description": "Authentik - Open-source Identity Provider",
-        "configuration_notes": (
-            "Replace {your-authentik-domain} with your Authentik server domain (e.g., authentik.example.com) "
-            "and {slug} with your application slug. Create an OAuth2/OIDC provider in Authentik."
-        ),
-    },
-    "casdoor": {
-        "name": "Casdoor",
-        "provider_type": "oidc",
-        "issuer_url": "https://{your-casdoor-domain}",
-        "scopes": "openid profile email",
-        "icon": "casdoor",
-        "user_mapping": {
-            "username": ["preferred_username", "username", "name"],
-            "email": ["email"],
-            "name": ["name", "displayName"],
-        },
-        "description": "Casdoor - Open-source Identity and Access Management (IAM) / Single-Sign-On (SSO) platform",
-        "configuration_notes": (
-            "Replace {your-casdoor-domain} with your Casdoor server domain (e.g., casdoor.example.com). "
-            "Create an OAuth2/OIDC application in Casdoor admin console."
-        ),
-    },
-    "keycloak": {
-        "name": "Keycloak",
-        "provider_type": "oidc",
-        "issuer_url": "https://{your-keycloak-domain}/realms/{realm}",
-        "scopes": "openid profile email",
-        "icon": "keycloak",
-        "user_mapping": {
-            "username": ["preferred_username", "username", "email"],
-            "email": ["email", "mail"],
-            "name": ["name", "display_name", "full_name"],
-        },
-        "description": "Keycloak - Open Source Identity and Access Management",
-        "configuration_notes": (
-            "Replace {your-keycloak-domain} with your Keycloak server domain (e.g., keycloak.example.com) "
-            "and {realm} with your realm name. Create an OIDC client in Keycloak admin console."
-        ),
-    },
-    "pocketid": {
-        "name": "Pocket ID",
-        "provider_type": "oidc",
-        "issuer_url": "https://{your-pocketid-domain}",
-        "scopes": "openid profile email",
-        "icon": "pocketid",
-        "user_mapping": {
-            "username": ["preferred_username", "username", "email"],
-            "email": ["email"],
-            "name": ["name"],
-        },
-        "description": "Pocket ID - Simple OIDC provider for passwordless passkey authentication",
-        "configuration_notes": (
-            "Replace {your-pocketid-domain} with your Pocket ID server domain (e.g., auth.example.com). "
-            "Create a new OIDC client in Pocket ID admin panel and copy the Client ID, Client Secret, and "
-            "OIDC Discovery URL."
-        ),
-    },
-}
-
-
-def get_idp_templates() -> list[idp_schema.IdentityProviderTemplateRead]:
-    """Retrieve a list of identity provider templates, excluding specific providers.
-
-    Returns:
-        list[idp_schema.IdentityProviderTemplateRead]:
-            A list of IdentityProviderTemplateRead objects for all identity providers.
-    """
-    templates = []
-    for template_id, template_data in IDP_TEMPLATES.items():
-        templates.append(idp_schema.IdentityProviderTemplateRead(template_id=template_id, **template_data))
-    return templates
-
-
-def get_idp_template(template_id: str) -> IdentityProviderTemplate | None:
-    """Retrieve an identity provider template by its template ID.
-
-    Args:
-        template_id (str): The unique identifier of the identity provider template.
-
-    Returns:
-        IdentityProviderTemplate | None: The template if found, otherwise None.
-    """
-    return IDP_TEMPLATES.get(template_id)
 
 
 def build_redirect_uri(frontend_host: str, idp_slug: str) -> str:

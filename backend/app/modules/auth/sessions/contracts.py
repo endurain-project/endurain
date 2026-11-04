@@ -1,6 +1,8 @@
 """Internal data contracts for auth sessions."""
 
+from dataclasses import dataclass
 from datetime import datetime, timedelta
+from enum import Enum
 from typing import Protocol
 
 from pydantic import BaseModel, ConfigDict
@@ -43,3 +45,22 @@ class SessionRead(BaseModel):
     rotation_count: int
     last_rotation_at: datetime | None
     csrf_token_hash: str | None
+
+
+class DeviceType(Enum):
+    """Normalized device classes from a user-agent string."""
+
+    MOBILE = "Mobile"
+    TABLET = "Tablet"
+    PC = "PC"
+
+
+@dataclass
+class DeviceInfo:
+    """Parsed user-agent information."""
+
+    device_type: DeviceType
+    operating_system: str
+    operating_system_version: str
+    browser: str
+    browser_version: str

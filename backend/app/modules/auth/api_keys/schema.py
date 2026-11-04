@@ -13,6 +13,7 @@ from pydantic import (
 
 import core.pagination as core_pagination
 import core.timezone as core_timezone
+import modules.auth.api_keys.constants as api_keys_constants
 import modules.auth.api_keys.utils as api_keys_utils
 import modules.auth.identity_providers.schema as idp_schema
 
@@ -85,11 +86,11 @@ class UsersApiKeyCreate(BaseModel):
         Raises:
             ValueError: If any scope is not supported.
         """
-        unsupported = set(v) - api_keys_utils.SUPPORTED_API_KEY_SCOPES
+        unsupported = set(v) - api_keys_constants.SUPPORTED_API_KEY_SCOPES
         if unsupported:
             raise ValueError(
                 f"Unsupported API key scopes: {', '.join(sorted(unsupported))}. "
-                f"Valid scopes: {', '.join(sorted(api_keys_utils.SUPPORTED_API_KEY_SCOPES))}"
+                f"Valid scopes: {', '.join(sorted(api_keys_constants.SUPPORTED_API_KEY_SCOPES))}"
             )
         return v
 

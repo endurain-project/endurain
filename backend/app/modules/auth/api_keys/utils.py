@@ -5,8 +5,6 @@ import secrets
 
 import modules.auth.computation as token_hashing
 
-SUPPORTED_API_KEY_SCOPES = frozenset({"activities:upload"})
-
 
 def generate_api_key() -> str:
     """Generate a new raw API key.
