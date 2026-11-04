@@ -182,28 +182,33 @@ def test_core_database_does_not_discover_domain_models() -> None:
 
 
 @pytest.mark.parametrize(
-    ("relative_path", "allowed_child_imports"),
+    ("relative_path", "allowed_child_imports", "uses_contributor_registry"),
     [
-        ("activities/activity/ingestion_service.py", set()),
+        ("activities/activity/ingestion_service.py", set(), True),
+        ("users/users_profile/export_activity_service.py", set(), True),
         (
-            "users/users_profile/export_service.py",
+            "users/users_profile/export_media_service.py",
             {
                 "modules.activities.activity_file_storage.integration_service",
                 "modules.activities.activity_media.integration_service",
             },
+            False,
         ),
+        ("users/users_profile/export_service.py", set(), False),
         (
             "users/users_profile/import_service.py",
             {
                 "modules.activities.activity_file_storage.integration_service",
                 "modules.activities.activity_media.integration_service",
             },
+            True,
         ),
     ],
 )
 def test_activity_orchestrators_do_not_enumerate_child_packages(
     relative_path: str,
     allowed_child_imports: set[str],
+    uses_contributor_registry: bool,
 ) -> None:
     """Root orchestration depends on contributors, not child JSON packages."""
     path = _MODULES_DIR / relative_path
@@ -216,7 +221,7 @@ def test_activity_orchestrators_do_not_enumerate_child_packages(
         and not imported.startswith("modules.activities.activity.schema")
     }
     assert child_imports == allowed_child_imports
-    assert "modules.activities.contributor_registry" in _absolute_imports(path)
+    assert ("modules.activities.contributor_registry" in _absolute_imports(path)) is uses_contributor_registry
 
 
 def test_installed_activity_contributor_keys_are_unique_per_kind() -> None:

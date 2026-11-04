@@ -287,7 +287,7 @@ _LAYER_EXCEPTIONS: dict[tuple[str, str], str] = {
         "share; the namespace publishes it for that, and it owns no table and calls no module."
     ),
     (
-        "modules.users.users_profile.export_service",
+        "modules.users.users_profile.export_activity_service",
         "modules.activities.contributor_registry",
     ): (
         "The activities packages answer their own section of a profile export through the contributors "

@@ -790,11 +790,6 @@ by hand when the code it describes changes.
   The ones that swallow the error (no `raise` in the handler) are counted per file in
   `tests/architecture/test_broad_except.py`, which fails on a new one and on a count that is not lowered when
   a handler is narrowed; ruff's `BLE001` is not used because it accepts a handler that logs with `exc_info`.
-- **Oversized services and `*_utils.py` files.** `auth/authentication/service.py` and
-  `users/users_profile/export_service.py` each hold several jobs, and a dozen
-  `utils.py` or `*_utils.py` files (in `auth`, `users_profile`, `users_goals`, `garmin`, `server_settings` and
-  the activity file parsers) name no role. The guide asks that a file's name state its role; splitting these is a
-  refactor with no behaviour change, so it is left until a feature needs the code apart.
 - **Visibility across modules.** The followee set reaches `activity.crud` as an id list, which grows with the
   follow count and is sent again for every page of the following feed. Accepting a follow enforces
   `MAX_ACCEPTED_FOLLOWEES` (1000), but relationships accepted before the cap existed may exceed it. A
