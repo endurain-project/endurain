@@ -32,4 +32,21 @@ describe('useLoginRouteMessages', () => {
       message: 'login.ssoErrorUndefined',
     })
   })
+
+  it('says both when verification and administrator approval are pending', () => {
+    mocks.route.query = { emailVerificationSent: 'true', adminApprovalRequired: 'true' }
+
+    expect(useLoginRouteMessages().resolveInitialAlert()).toEqual({
+      kind: 'info',
+      message: 'login.emailVerificationAndApprovalRequired',
+    })
+  })
+
+  it('keeps the single-flag messages', () => {
+    mocks.route.query = { adminApprovalRequired: 'true' }
+
+    expect(useLoginRouteMessages().resolveInitialAlert()?.message).toBe(
+      'login.adminApprovalRequired',
+    )
+  })
 })

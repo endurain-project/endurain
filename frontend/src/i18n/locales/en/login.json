@@ -16,6 +16,7 @@
   "passwordResetInvalidLink": "That password reset link is invalid or expired",
   "onboardingComplete": "Your administrator account is ready. Sign in to get started.",
   "emailVerificationSent": "Verification email sent. Check your inbox to continue.",
+  "emailVerificationAndApprovalRequired": "Verification email sent. After you verify your email, an administrator must approve your account before you can sign in.",
   "adminApprovalRequired": "Your account is waiting for administrator approval",
   "verifyEmailInvalidLink": "That email verification link is invalid or expired",
   "invalidCredentials": "Username or password is incorrect",

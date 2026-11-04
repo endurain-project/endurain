@@ -64,6 +64,13 @@ export function useLoginRouteMessages() {
       return { kind: 'info', message: t('login.forceLocalLogin') }
     }
 
+    if (
+      route.query.emailVerificationSent === 'true' &&
+      route.query.adminApprovalRequired === 'true'
+    ) {
+      return { kind: 'info', message: t('login.emailVerificationAndApprovalRequired') }
+    }
+
     const statusMatch = STATUS_FLAG_ALERTS.find((entry) => route.query[entry.query] === 'true')
     if (statusMatch) {
       return { kind: statusMatch.kind, message: t(statusMatch.key) }
