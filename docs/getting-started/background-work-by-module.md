@@ -320,7 +320,8 @@ Every durable job is one subscriber reacting to one event. The **subscriber id**
 | `auth.send_sign_up_verification_email` | `auth.sign_up_verification_requested` | Bus | The user signs up again, or an administrator helps | Nothing |
 | `auth.send_email_change_verification_email` | `auth.email_change_verification_requested` | Bus | The user resends the confirmation from Settings, or an administrator helps | Nothing |
 | `auth.send_email_changed_email` | `auth.email_changed` | Bus | Nothing: the notice is a courtesy | Nothing |
-| `auth.send_sign_up_approval_request_email` | `auth.sign_up_approval_requested` | Bus | Administrators also see the pending user and a notification | Nothing |
+| `auth.send_sign_up_approval_request_email` | `auth.sign_up_approval_requested` | Bus | Administrators also see the pending user | Nothing |
+| `auth.notify_admin_sign_up_approval` | `auth.sign_up_approval_requested` | Bus | Administrators also see the pending user | Nothing |
 | `auth.send_sign_up_approved_email` | `auth.sign_up_approved` | Bus | Nothing: the email is a courtesy | Nothing |
 | `auth.send_sign_up_existing_account_email` | `auth.sign_up_existing_account` | Bus | Nothing: the email is a courtesy | Nothing |
 | `auth.send_password_reset_email` | `auth.password_reset_requested` | Bus | The user requests another reset | Nothing |

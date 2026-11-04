@@ -121,18 +121,6 @@ def get_user_by_username(username: str, db: Session) -> users_schema.UsersRead |
     return users_crud.get_user_by_username(username, db)
 
 
-def list_admin_users(db: Session) -> list[users_schema.UsersRead]:
-    """Return every admin user.
-
-    Args:
-        db: Database session.
-
-    Returns:
-        The admin users, empty when there are none.
-    """
-    return users_crud.get_users_admin(db)
-
-
 def require_admin_users(db: Session) -> list[users_schema.UsersRead]:
     """Return every admin user, of which there must be at least one.
 

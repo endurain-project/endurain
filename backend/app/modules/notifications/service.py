@@ -322,6 +322,37 @@ def create_follow_accepted_notification(
     )
 
 
+def create_admin_sign_up_approval_notification(
+    user_id: int,
+    admin_user_id: int,
+    source_event_id: str,
+    db: Session,
+) -> tuple[notifications_schema.NotificationRead, str, bool]:
+    """Record the notification asking an admin to approve a sign-up.
+
+    Args:
+        user_id: The user who signed up, named in the notification.
+        admin_user_id: The admin to notify, who owns the notification row.
+        source_event_id: Stable durable event identifier.
+        db: Database session.
+
+    Returns:
+        The notification, the websocket message type the caller should push, and
+        whether this call created it.
+
+    Raises:
+        NotFoundError: When the user who signed up no longer exists.
+    """
+    return _create_user_reference_notification(
+        user_id,
+        admin_user_id,
+        notifications_constants.NotificationType.ADMIN_NEW_SIGN_UP_APPROVAL_REQUEST,
+        notifications_constants.ADMIN_NEW_SIGN_UP_APPROVAL_REQUEST_WS_MESSAGE,
+        source_event_id,
+        db,
+    )
+
+
 def remove_follow_request_notifications(requester_user_id: int, target_user_id: int, db: Session) -> bool:
     """Delete the "wants to follow you" notifications a removed follow request left behind.
 

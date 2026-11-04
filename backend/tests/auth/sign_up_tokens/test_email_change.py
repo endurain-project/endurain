@@ -308,7 +308,6 @@ class TestVerifyEmailOnAnInactiveAccount:
         with (
             self._settings(verification=verification, approval=approval),
             patch(_PUBLISH) as publish,
-            patch(f"{_SERVICE}.notifications_integration") as notifications,
         ):
             result = sign_up_service.verify_email("plain", None, db)
 
@@ -319,8 +318,6 @@ class TestVerifyEmailOnAnInactiveAccount:
         assert (user.email, user.email_verified, user.active) == ("new@example.com", True, False)
         assert user.deactivated_at is not None
         assert [call.args[0] for call in publish.call_args_list] == ["auth.email_changed"]
-        notifications.create_admin_sign_up_approval_notifications.assert_not_called()
-        notifications.push_notification.assert_not_called()
 
     def test_a_verification_link_marks_a_deactivated_account_verified_without_activating_it(self, db, mail_configured):
         self._make_inactive(db, deactivated=True)
@@ -329,7 +326,6 @@ class TestVerifyEmailOnAnInactiveAccount:
         with (
             self._settings(verification=False, approval=False),
             patch(_PUBLISH) as publish,
-            patch(f"{_SERVICE}.notifications_integration") as notifications,
         ):
             result = sign_up_service.verify_email("plain", None, db)
 
@@ -338,7 +334,6 @@ class TestVerifyEmailOnAnInactiveAccount:
         user = db.get(users_models.Users, 7)
         assert (user.email_verified, user.active) == (True, False)
         publish.assert_not_called()
-        notifications.create_admin_sign_up_approval_notifications.assert_not_called()
 
     def test_a_sign_up_awaiting_verification_is_activated_without_admin_approval(self, db, mail_configured):
         self._make_inactive(db, deactivated=False)
@@ -347,7 +342,6 @@ class TestVerifyEmailOnAnInactiveAccount:
         with (
             self._settings(verification=True, approval=False),
             patch(_PUBLISH) as publish,
-            patch(f"{_SERVICE}.notifications_integration") as notifications,
         ):
             result = sign_up_service.verify_email("plain", "ChosenPass1!", db)
 
@@ -356,7 +350,6 @@ class TestVerifyEmailOnAnInactiveAccount:
         user = db.get(users_models.Users, 7)
         assert (user.active, user.email_verified, user.pending_admin_approval) == (True, True, False)
         publish.assert_not_called()
-        notifications.create_admin_sign_up_approval_notifications.assert_not_called()
 
     def test_a_sign_up_awaiting_verification_goes_to_admin_approval_when_required(self, db, mail_configured):
         self._make_inactive(db, deactivated=False, pending_approval=True)
@@ -365,9 +358,7 @@ class TestVerifyEmailOnAnInactiveAccount:
         with (
             self._settings(verification=True, approval=True),
             patch(f"{_SERVICE}.request_sign_up_admin_approval_emails") as approval_emails,
-            patch(f"{_SERVICE}.notifications_integration") as notifications,
         ):
-            notifications.create_admin_sign_up_approval_notifications.return_value = []
             result = sign_up_service.verify_email("plain", "ChosenPass1!", db)
 
         assert result.admin_approval_required is True
@@ -375,7 +366,6 @@ class TestVerifyEmailOnAnInactiveAccount:
         user = db.get(users_models.Users, 7)
         assert (user.active, user.email_verified, user.pending_admin_approval) == (False, True, True)
         approval_emails.assert_called_once_with(7, db)
-        notifications.create_admin_sign_up_approval_notifications.assert_called_once()
 
 
 class TestGetPendingEmailChanges:

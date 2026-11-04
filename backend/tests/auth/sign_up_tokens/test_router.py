@@ -369,7 +369,6 @@ class TestVerifyEmailEndpoint:
             credentials.validate_and_hash_password_for_user.return_value = "hashed"
             yield credentials
 
-    @patch("modules.auth.sign_up_tokens.service.notifications_integration.create_admin_sign_up_approval_notifications")
     @patch("modules.auth.sign_up_tokens.service.request_sign_up_admin_approval_emails")
     @patch("modules.auth.sign_up_tokens.service.users_integration.get_user")
     @patch("modules.auth.sign_up_tokens.service.users_integration.stage_email_verification")
@@ -382,7 +381,6 @@ class TestVerifyEmailEndpoint:
         mock_verify_email,
         mock_get_user,
         mock_send_admin_email,
-        mock_notify,
         signup_client,
         mock_email_service,
     ) -> None:
@@ -398,7 +396,6 @@ class TestVerifyEmailEndpoint:
         mock_verify_email.return_value = None
         mock_get_user.return_value = MagicMock(id=10, active=False)
         mock_send_admin_email.return_value = None
-        mock_notify.return_value = []
         mock_email_service.return_value = True
 
         response = signup_client.post(
@@ -438,7 +435,6 @@ class TestVerifyEmailEndpoint:
 
         assert response.status_code == status.HTTP_400_BAD_REQUEST
 
-    @patch("modules.auth.sign_up_tokens.service.notifications_integration.create_admin_sign_up_approval_notifications")
     @patch("modules.auth.sign_up_tokens.service.request_sign_up_admin_approval_emails")
     @patch("modules.auth.sign_up_tokens.service.users_integration.get_user")
     @patch("modules.auth.sign_up_tokens.service.users_integration.stage_email_verification")
@@ -451,7 +447,6 @@ class TestVerifyEmailEndpoint:
         mock_verify_email,
         mock_get_user,
         mock_send_admin_email,
-        mock_notify,
         signup_client,
     ) -> None:
         """
@@ -474,7 +469,6 @@ class TestVerifyEmailEndpoint:
         assert response.json()["admin_approval_required"] is None
         mock_verify_email.assert_called_once()
         mock_send_admin_email.assert_not_called()
-        mock_notify.assert_not_called()
 
     @patch("modules.auth.sign_up_tokens.service.users_integration.get_user")
     @patch("modules.auth.sign_up_tokens.service.verify_sign_up_token")
@@ -523,7 +517,6 @@ class TestVerifyEmailEndpoint:
 
         assert response.status_code == status.HTTP_422_UNPROCESSABLE_CONTENT
 
-    @patch("modules.auth.sign_up_tokens.service.notifications_integration.create_admin_sign_up_approval_notifications")
     @patch("modules.auth.sign_up_tokens.service.request_sign_up_admin_approval_emails")
     @patch("modules.auth.sign_up_tokens.service.users_integration.get_user")
     @patch("modules.auth.sign_up_tokens.service.users_integration.stage_email_verification")
@@ -536,7 +529,6 @@ class TestVerifyEmailEndpoint:
         mock_verify_email,
         mock_get_user,
         mock_send_admin_email,
-        mock_notify,
         signup_client,
         mock_email_service,
     ) -> None:
@@ -552,7 +544,6 @@ class TestVerifyEmailEndpoint:
         mock_verify_email.return_value = None
         mock_get_user.return_value = MagicMock(id=11, active=False)
         mock_send_admin_email.return_value = None
-        mock_notify.return_value = []
         mock_email_service.return_value = True
 
         response = signup_client.post(
@@ -640,88 +631,6 @@ class TestVerifyEmailEndpoint:
         )
 
         assert response.status_code == status.HTTP_404_NOT_FOUND
-
-    @patch("modules.auth.sign_up_tokens.service.notifications_integration.create_admin_sign_up_approval_notifications")
-    @patch("modules.auth.sign_up_tokens.service.request_sign_up_admin_approval_emails")
-    @patch("modules.auth.sign_up_tokens.service.users_integration.get_user")
-    @patch("modules.auth.sign_up_tokens.service.users_integration.stage_email_verification")
-    @patch("modules.auth.sign_up_tokens.service.verify_sign_up_token")
-    @patch("modules.auth.sign_up_tokens.service.server_settings_integration.get_server_settings")
-    def test_verify_email_returns_500_when_notification_raises_http500(
-        self,
-        mock_settings,
-        mock_use_token,
-        mock_verify_email,
-        mock_get_user,
-        mock_send_admin_email,
-        mock_notify,
-        signup_client,
-        mock_email_service,
-    ) -> None:
-        """
-        Returns 500 when create_admin_sign_up_approval_notifications raises HTTPException 500.
-        """
-        mock_settings.return_value = MagicMock(
-            signup_require_email_verification=True,
-            signup_require_admin_approval=True,
-        )
-        mock_use_token.return_value = MagicMock(user_id=30, previous_email=None)
-        mock_verify_email.return_value = None
-        mock_get_user.return_value = MagicMock(id=30, active=False)
-        mock_send_admin_email.return_value = None
-        mock_email_service.return_value = True
-        mock_notify.side_effect = HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Notification creation failed",
-        )
-
-        response = signup_client.post(
-            "/sign-up/sign-up/confirm",
-            json={"token": "valid-token", "password": "ChosenPass1!"},
-        )
-
-        assert response.status_code == status.HTTP_500_INTERNAL_SERVER_ERROR
-
-    @patch("modules.auth.sign_up_tokens.service.notifications_integration.create_admin_sign_up_approval_notifications")
-    @patch("modules.auth.sign_up_tokens.service.request_sign_up_admin_approval_emails")
-    @patch("modules.auth.sign_up_tokens.service.users_integration.get_user")
-    @patch("modules.auth.sign_up_tokens.service.users_integration.stage_email_verification")
-    @patch("modules.auth.sign_up_tokens.service.verify_sign_up_token")
-    @patch("modules.auth.sign_up_tokens.service.server_settings_integration.get_server_settings")
-    def test_verify_email_returns_500_when_notification_raises_runtime(
-        self,
-        mock_settings,
-        mock_use_token,
-        mock_verify_email,
-        mock_get_user,
-        mock_send_admin_email,
-        mock_notify,
-        signup_client,
-        mock_email_service,
-    ) -> None:
-        """
-        Returns 500 when create_admin_sign_up_approval_notifications raises RuntimeError (e.g. websocket failure).
-
-        FastAPI converts unhandled RuntimeError to a 500 response;
-        raise_server_exceptions=False allows asserting the status.
-        """
-        mock_settings.return_value = MagicMock(
-            signup_require_email_verification=True,
-            signup_require_admin_approval=True,
-        )
-        mock_use_token.return_value = MagicMock(user_id=31, previous_email=None)
-        mock_verify_email.return_value = None
-        mock_get_user.return_value = MagicMock(id=31, active=False)
-        mock_send_admin_email.return_value = None
-        mock_email_service.return_value = True
-        mock_notify.side_effect = RuntimeError("WebSocket broadcast failed")
-
-        response = signup_client.post(
-            "/sign-up/sign-up/confirm",
-            json={"token": "valid-token", "password": "ChosenPass1!"},
-        )
-
-        assert response.status_code == status.HTTP_500_INTERNAL_SERVER_ERROR
 
 
 class TestSignUpPasswordOverHttp:

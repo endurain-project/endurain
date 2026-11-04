@@ -62,7 +62,6 @@ def test_an_approval_sign_up_with_mail_is_audited_once(deps, mock_db):
         patch(f"{_MODULE}.server_settings_integration.get_server_settings", return_value=_settings(approval=True)),
         patch(f"{_MODULE}.server_settings_integration.is_mail_configured", return_value=True),
         patch(f"{_MODULE}.request_sign_up_admin_approval_emails"),
-        patch(f"{_MODULE}.notifications_integration.create_admin_sign_up_approval_notifications", return_value=[]),
         jasil_testing.capture_audit() as audit,
     ):
         sign_up_service.verify_email("tok", "ChosenPass1!", mock_db)

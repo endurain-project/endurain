@@ -14,9 +14,6 @@ from sqlalchemy.orm import Session
 import modules.notifications.constants as notifications_constants
 import modules.notifications.crud as notifications_crud
 import modules.notifications.schema as notifications_schema
-import modules.notifications.service as notifications_service
-import modules.users.users.integration_service as users_integration
-import modules.users.users.schema as users_schema
 import modules.websocket.integration_service as websocket_integration
 
 
@@ -79,33 +76,3 @@ def create_strava_token_expired_notification(
         db,
     )
     return notification, notifications_constants.STRAVA_UNLINKED_WS_MESSAGE
-
-
-def create_admin_sign_up_approval_notifications(
-    user: users_schema.UsersRead,
-    db: Session,
-) -> list[tuple[notifications_schema.NotificationRead, str]]:
-    """Stage a sign-up approval request notification for every admin.
-
-    Args:
-        user: The user requesting sign-up, named in each notification.
-        db: Database session.
-
-    Returns:
-        One staged notification per admin, each with the websocket message type
-        the caller should push once it has committed.
-    """
-    return [
-        (
-            notifications_crud.create_notification(
-                notifications_schema.NotificationCreate(
-                    user_id=admin.id,
-                    type=notifications_constants.NotificationType.ADMIN_NEW_SIGN_UP_APPROVAL_REQUEST,
-                    options=notifications_service.user_reference_options(user),
-                ),
-                db,
-            ),
-            notifications_constants.ADMIN_NEW_SIGN_UP_APPROVAL_REQUEST_WS_MESSAGE,
-        )
-        for admin in users_integration.list_admin_users(db)
-    ]

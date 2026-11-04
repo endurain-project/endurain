@@ -12,17 +12,14 @@ def test_reads_reach_the_crud():
         patch.object(crud, "get_user_by_id", return_value="user") as by_id,
         patch.object(crud, "get_user_by_email", return_value="email-user") as by_email,
         patch.object(crud, "get_user_by_username", return_value="name-user") as by_name,
-        patch.object(crud, "get_users_admin", return_value=["admin"]) as admins,
     ):
         assert users_integration.get_user(1, db) == "user"
         assert users_integration.get_user_by_email("a@b.c", db) == "email-user"
         assert users_integration.get_user_by_username("a", db) == "name-user"
-        assert users_integration.list_admin_users(db) == ["admin"]
 
     by_id.assert_called_once_with(1, db)
     by_email.assert_called_once_with("a@b.c", db)
     by_name.assert_called_once_with("a", db)
-    admins.assert_called_once_with(db)
 
 
 def test_public_profiles_reach_the_service():

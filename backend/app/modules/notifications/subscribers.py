@@ -1,4 +1,4 @@
-"""Consume activity, follower, identity-provider and sign-in events to create user notifications."""
+"""Consume activity, follower, identity-provider, sign-up and sign-in events to create user notifications."""
 
 from collections.abc import Callable
 
@@ -16,6 +16,7 @@ import modules.activities.activity.events as activity_events
 import modules.auth.account_security.events as account_security_events
 import modules.auth.identity_providers.events as idp_events
 import modules.auth.known_devices.events as known_devices_events
+import modules.auth.sign_up_tokens.events as sign_up_events
 import modules.followers.events as followers_events
 import modules.notifications.constants as notifications_constants
 import modules.notifications.integration_service as notifications_integration
@@ -32,6 +33,7 @@ FOLLOWER_REQUEST_REMOVED_NOTIFICATION_SUBSCRIBER_ID = "followers.clear_request_n
 IDP_LINKED_NOTIFICATION_SUBSCRIBER_ID = "auth.notify_idp_linked"
 ACCOUNT_SECURITY_CHANGED_NOTIFICATION_SUBSCRIBER_ID = "auth.notify_account_security_changed"
 NEW_DEVICE_SIGN_IN_NOTIFICATION_SUBSCRIBER_ID = "auth.notify_new_device_sign_in"
+ADMIN_SIGN_UP_APPROVAL_NOTIFICATION_SUBSCRIBER_ID = "auth.notify_admin_sign_up_approval"
 
 
 def _notify_and_push(
@@ -186,6 +188,23 @@ def notify_new_device_sign_in_for_event(event: Event) -> None:
         logger.debug("Created new-device sign-in notification", extra=core_logger.context(user_id=payload.user_id))
 
 
+def notify_admin_sign_up_approval_for_event(event: Event) -> None:
+    """Notify an admin that a new sign-up awaits their approval."""
+    payload = platform_event_versioning.parse_payload(sign_up_events.SignUpApprovalRequestedPayload, event)
+    created = _notify_and_push(
+        event,
+        payload.admin_user_id,
+        lambda db: notifications_service.create_admin_sign_up_approval_notification(
+            payload.user_id, payload.admin_user_id, event.event_id, db
+        ),
+    )
+    if created:
+        logger.debug(
+            "Created sign-up approval notification",
+            extra=core_logger.context(user_id=payload.user_id, admin_user_id=payload.admin_user_id),
+        )
+
+
 def clear_follower_request_notification_for_event(event: Event) -> None:
     """Take back the follow-request notification once the request is gone unaccepted.
 
@@ -217,6 +236,7 @@ on_follower_request_removed_clear = best_effort(clear_follower_request_notificat
 on_idp_linked_notify = best_effort(notify_idp_linked_for_event)
 on_account_security_changed_notify = best_effort(notify_account_security_changed_for_event)
 on_new_device_sign_in_notify = best_effort(notify_new_device_sign_in_for_event)
+on_admin_sign_up_approval_notify = best_effort(notify_admin_sign_up_approval_for_event)
 
 
 def register_bus_subscribers(events: EventBusProvider) -> None:
@@ -228,6 +248,7 @@ def register_bus_subscribers(events: EventBusProvider) -> None:
     events.subscribe(idp_events.IDP_LINKED, on_idp_linked_notify)
     events.subscribe(account_security_events.ACCOUNT_SECURITY_CHANGED, on_account_security_changed_notify)
     events.subscribe(known_devices_events.NEW_DEVICE_SIGN_IN, on_new_device_sign_in_notify)
+    events.subscribe(sign_up_events.SIGN_UP_APPROVAL_REQUESTED, on_admin_sign_up_approval_notify)
 
 
 def register_durable_handlers(registry: JobHandlerRegistry) -> None:
@@ -266,4 +287,9 @@ def register_durable_handlers(registry: JobHandlerRegistry) -> None:
         known_devices_events.NEW_DEVICE_SIGN_IN,
         NEW_DEVICE_SIGN_IN_NOTIFICATION_SUBSCRIBER_ID,
         notify_new_device_sign_in_for_event,
+    )
+    registry.register(
+        sign_up_events.SIGN_UP_APPROVAL_REQUESTED,
+        ADMIN_SIGN_UP_APPROVAL_NOTIFICATION_SUBSCRIBER_ID,
+        notify_admin_sign_up_approval_for_event,
     )

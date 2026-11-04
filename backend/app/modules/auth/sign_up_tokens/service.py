@@ -24,7 +24,6 @@ import modules.auth.sign_up_tokens.crud as sign_up_crud
 import modules.auth.sign_up_tokens.email_messages as sign_up_email_messages
 import modules.auth.sign_up_tokens.event_publishers as sign_up_event_publishers
 import modules.auth.sign_up_tokens.schema as sign_up_schema
-import modules.notifications.integration_service as notifications_integration
 import modules.server_settings.integration_service as server_settings_integration
 import modules.server_settings.schema as server_settings_schema
 import modules.users.users.integration_service as users_integration
@@ -596,10 +595,7 @@ def verify_email(token: str, password: str | None, db: Session) -> sign_up_schem
 
     if server_settings_integration.is_mail_configured(db):
         request_sign_up_admin_approval_emails(user.id, db)
-        notifications = notifications_integration.create_admin_sign_up_approval_notifications(user, db)
         _commit_sign_up(user_id, db)
-        for notification, ws_message in notifications:
-            notifications_integration.push_notification(notification.user_id, notification, ws_message)
     else:
         _commit_sign_up(user_id, db)
 
