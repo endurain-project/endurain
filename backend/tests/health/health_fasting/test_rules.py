@@ -53,6 +53,10 @@ class TestCreateTimes:
         assert _fast(db, _hours(0), None, "cancelled").actual_duration_seconds is None
         assert _fast(db, _hours(2), None, "in_progress").actual_duration_seconds is None
 
+    def test_an_in_progress_fast_with_an_end_time_is_refused(self, db):
+        with pytest.raises(core_exceptions.InvalidInputError, match="in progress"):
+            _fast(db, _hours(0), _hours(6), "in_progress")
+
     def test_the_duration_is_derived_from_the_times(self, db):
         created = _fast(db, _hours(0), _hours(6))
 
@@ -161,6 +165,19 @@ class TestEdit:
         with pytest.raises(core_exceptions.InvalidInputError):
             self._edit(db, record, status="completed")
 
+    def test_an_end_time_on_an_in_progress_fast_is_refused(self, db):
+        record = _fast(db, _hours(0), None, "in_progress")
+
+        with pytest.raises(core_exceptions.InvalidInputError, match="in progress"):
+            self._edit(db, record, fast_end_time=_hours(6))
+
+    def test_an_end_time_with_an_ended_status_is_accepted(self, db):
+        record = _fast(db, _hours(0), None, "in_progress")
+
+        edited = self._edit(db, record, fast_end_time=_hours(6), status="completed")
+
+        assert (edited.status, edited.actual_duration_seconds) == ("completed", 6 * 3600)
+
     def test_an_edit_into_another_fast_is_a_conflict(self, db):
         _fast(db, _hours(0), _hours(10))
         later = _fast(db, _hours(20), _hours(30))
@@ -228,6 +245,10 @@ class TestImport:
 
     def test_a_session_ending_before_it_starts_is_skipped(self, db):
         assert self._import(db, _hours(10), _hours(2)) is False
+
+    def test_an_in_progress_session_with_an_end_is_skipped(self, db):
+        assert self._import(db, _hours(0), _hours(4), "in_progress") is False
+        assert fasting_crud.get_health_fasting_by_user_id(1, db) == []
 
     def test_a_completed_session_without_an_end_is_skipped(self, db):
         assert self._import(db, _hours(0), None) is False

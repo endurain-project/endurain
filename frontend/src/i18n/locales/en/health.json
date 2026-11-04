@@ -606,6 +606,7 @@
       "startTimeRequired": "Please choose a start time.",
       "endTime": "End time",
       "endBeforeStart": "The end time must not be before the start time.",
+      "endWhileInProgress": "A fast in progress cannot have an end time.",
       "status": "Status",
       "notes": "Notes",
       "create": "Start",
@@ -616,7 +617,7 @@
       "updateSuccess": "Fasting session updated.",
       "saveError": "Couldn't save your fasting session. Please try again.",
       "overlapError": "This fast overlaps another fasting session, or another fast is already in progress.",
-      "invalidTimesError": "A fast cannot end before it starts, and a completed or broken fast needs an end time."
+      "invalidTimesError": "A fast cannot end before it starts, a completed or broken fast needs an end time, and a fast in progress cannot have one."
     },
     "target": {
       "title": "Set fasting target",

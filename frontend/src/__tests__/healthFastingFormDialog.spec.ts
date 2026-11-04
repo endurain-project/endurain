@@ -61,6 +61,12 @@ async function submit(wrapper: Wrapper) {
 /** The datetime inputs in form order: start, end (edit only). */
 const dateTimes = (wrapper: Wrapper) => wrapper.findAll('input[type="datetime-local"]')
 
+/** The status select, the last select in the form (edit only). */
+const statusSelect = (wrapper: Wrapper) => {
+  const selects = wrapper.findAll('select')
+  return selects[selects.length - 1]!
+}
+
 describe('HealthFastingFormDialog', () => {
   beforeEach(() => {
     vi.clearAllMocks()
@@ -104,7 +110,42 @@ describe('HealthFastingFormDialog', () => {
     await submit(wrapper)
 
     expect(wrapper.emitted('error')?.[0]).toEqual([
-      'A fast cannot end before it starts, and a completed or broken fast needs an end time.',
+      'A fast cannot end before it starts, a completed or broken fast needs an end time, and a fast in progress cannot have one.',
     ])
+  })
+
+  it('refuses an end time on an in-progress fast beside the end field and does not save', async () => {
+    const wrapper = await openDialog({ entry })
+    await statusSelect(wrapper).setValue('in_progress')
+    await submit(wrapper)
+
+    expect(wrapper.text()).toContain('A fast in progress cannot have an end time.')
+    expect(apiFetch).not.toHaveBeenCalled()
+  })
+
+  it('clears the in-progress error once the status is no longer in progress', async () => {
+    const wrapper = await openDialog({ entry })
+    const status = statusSelect(wrapper)
+    await status.setValue('in_progress')
+    expect(wrapper.text()).toContain('A fast in progress cannot have an end time.')
+
+    await status.setValue('completed')
+
+    expect(wrapper.text()).not.toContain('A fast in progress cannot have an end time.')
+  })
+
+  it('refuses setting an end time on a running fast until the status changes too', async () => {
+    const wrapper = await openDialog({
+      entry: { ...entry, fastEndTime: null, status: 'in_progress' },
+    })
+    await dateTimes(wrapper)[1]!.setValue('2026-06-25T22:00')
+    await dateTimes(wrapper)[1]!.trigger('blur')
+
+    expect(wrapper.text()).toContain('A fast in progress cannot have an end time.')
+
+    await statusSelect(wrapper).setValue('completed')
+    await submit(wrapper)
+
+    expect(apiFetch).toHaveBeenCalledTimes(1)
   })
 })

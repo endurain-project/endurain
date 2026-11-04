@@ -177,21 +177,29 @@ const { values, errors, isValid, isSubmitting, handleSubmit, handleBlur, validat
     initialValues: defaultValues(),
     validators: {
       startTime: required<string>(t('health.fasting.form.startTimeRequired')),
-      // The end must not precede the start when both are provided.
-      endTime: (end: string): string | null =>
-        values.startTime && end && end < values.startTime
+      // The end must not precede the start, and a fast in progress has no end.
+      endTime: (end: string): string | null => {
+        if (end && values.status === 'in_progress') {
+          return t('health.fasting.form.endWhileInProgress')
+        }
+        return values.startTime && end && end < values.startTime
           ? t('health.fasting.form.endBeforeStart')
-          : null,
+          : null
+      },
     },
     onSubmit: submitForm,
   })
 
-/** Validates the end time too, since its rule depends on the start time. */
-function blurStart(): void {
-  handleBlur('startTime')
+/** Validates the end time again, since its rules depend on the start time and the status. */
+function revalidateEndTime(): void {
   if (values.endTime) {
     validateField('endTime')
   }
+}
+
+function blurStart(): void {
+  handleBlur('startTime')
+  revalidateEndTime()
 }
 
 // A custom protocol needs a valid hours value before the fast can be saved.
@@ -318,6 +326,7 @@ watch(open, (isOpen) => {
               v-model="values.status"
               :class="inputFieldClass"
               :disabled="isSubmitting"
+              @change="revalidateEndTime"
             >
               <option v-for="status in FASTING_STATUSES" :key="status" :value="status">
                 {{ t(`health.fasting.status.${status}`) }}

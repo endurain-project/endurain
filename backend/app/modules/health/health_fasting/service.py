@@ -61,17 +61,22 @@ def _duration_seconds(fast_start_time: datetime, fast_end_time: datetime | None)
 def _check_times(fast_start_time: datetime, fast_end_time: datetime | None, status: str | None) -> None:
     """Refuse times and a status that cannot describe one fast.
 
+    A running fast has no end time, and a completed or broken one has one; a cancelled one may have either.
+
     Args:
         fast_start_time: When the fast started.
         fast_end_time: When the fast ended, or ``None``.
         status: The fast's status.
 
     Raises:
-        InvalidInputError: If the fast ends before it started, or is completed or broken without an end.
+        InvalidInputError: If the fast ends before it started, is completed or broken without an end, or is
+            in progress with an end.
     """
     if fast_end_time is None:
         if status in _ENDED_STATUSES:
             raise core_exceptions.InvalidInputError("A completed or broken fasting session needs an end time")
+    elif status == health_fasting_schema.FastingStatus.IN_PROGRESS.value:
+        raise core_exceptions.InvalidInputError("A fasting session in progress cannot have an end time")
     elif core_timezone.to_utc_aware(fast_end_time) < core_timezone.to_utc_aware(fast_start_time):
         raise core_exceptions.InvalidInputError("Fasting session cannot end before it started")
 
@@ -221,7 +226,8 @@ def create_health_fasting(
 
     Raises:
         ConflictError: If the user already has an active fasting session, or another session overlaps the times.
-        InvalidInputError: If the session ends before it started, or is completed or broken without an end.
+        InvalidInputError: If the session ends before it started, is completed or broken without an end, or is
+            in progress with an end.
     """
     if health_fasting_crud.get_active_fasting_by_user_id(user_id, db) is not None:
         raise core_exceptions.ConflictError(
@@ -300,7 +306,8 @@ def edit_health_fasting(
 
     Raises:
         NotFoundError: If the user has no such record.
-        InvalidInputError: If the changed record ends before it started, or is completed or broken without an end.
+        InvalidInputError: If the changed record ends before it started, is completed or broken without an end, or
+            is in progress with an end.
         ConflictError: If the changed record overlaps another session or would leave two running.
         PreconditionFailedError: If the record changed since the client read it.
     """
