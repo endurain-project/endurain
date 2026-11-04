@@ -280,6 +280,7 @@
     "envLocked": "Set by {name}",
     "envSection": "Some settings here are set by environment variables ({names}). Remove them from the environment to edit those settings here.",
     "unsaved": "Unsaved changes",
+    "fixErrors": "Fix the errors above to save",
     "discard": "Discard",
     "tabs": {
       "label": "Server settings sections",

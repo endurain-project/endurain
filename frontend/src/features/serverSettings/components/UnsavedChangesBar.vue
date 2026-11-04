@@ -27,7 +27,12 @@ const { t } = useI18n()
     :aria-label="t('settings.server.unsaved')"
     class="sticky bottom-[calc(5rem+env(safe-area-inset-bottom))] z-10 lg:bottom-3 flex flex-col gap-2 rounded-input border border-border bg-card p-3 shadow-md sm:flex-row sm:items-center sm:justify-between"
   >
-    <p class="text-item-title">{{ t('settings.server.unsaved') }}</p>
+    <div class="flex flex-col gap-0.5">
+      <p class="text-item-title">{{ t('settings.server.unsaved') }}</p>
+      <p v-if="!canSave" class="text-field-error" role="alert">
+        {{ t('settings.server.fixErrors') }}
+      </p>
+    </div>
     <div class="flex flex-col gap-2 sm:flex-row">
       <Button type="button" variant="ghost" :disabled="saving" @click="$emit('discard')">
         {{ t('settings.server.discard') }}
