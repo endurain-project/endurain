@@ -85,6 +85,21 @@ class TestCreateHealthSleep:
 
         assert response.status_code == 409
 
+    @patch(f"{_SERVICE}.create_health_sleep")
+    def test_an_inverted_mixed_offset_pair_is_422(self, mock_create, fast_api_client, fast_api_app):
+        response = fast_api_client.post(
+            "/health_sleep",
+            json={
+                "date": "2024-01-15",
+                "sleep_start_time_gmt": "2024-01-15T22:00:00Z",
+                "sleep_end_time_gmt": "2024-01-15T06:00:00",
+            },
+            headers=_HEADERS,
+        )
+
+        assert response.status_code == 422
+        mock_create.assert_not_called()
+
 
 class TestEditHealthSleep:
     @patch(f"{_SERVICE}.edit_health_sleep")

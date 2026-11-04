@@ -1,5 +1,5 @@
+from datetime import UTC, datetime
 from datetime import date as datetime_date
-from datetime import datetime
 
 import pytest
 from pydantic import ValidationError
@@ -312,3 +312,34 @@ class TestHRVStatusEnum:
         assert health_sleep_schema.HRVStatus.UNBALANCED.value == "UNBALANCED"
         assert health_sleep_schema.HRVStatus.LOW.value == "LOW"
         assert health_sleep_schema.HRVStatus.POOR.value == "POOR"
+
+
+class TestSleepTimeOrdering:
+    """The start must precede the end, whether the times carry an offset or not."""
+
+    _AWARE_START = datetime(2026, 1, 1, 22, tzinfo=UTC)
+    _AWARE_END = datetime(2026, 1, 2, 6, tzinfo=UTC)
+    _NAIVE_START = datetime(2026, 1, 1, 22)
+    _NAIVE_END = datetime(2026, 1, 2, 6)
+
+    @pytest.mark.parametrize("pair", ["gmt", "local"])
+    @pytest.mark.parametrize("aware_first", [True, False])
+    def test_a_mixed_pair_in_order_is_accepted(self, pair, aware_first):
+        start, end = (self._AWARE_START, self._NAIVE_END) if aware_first else (self._NAIVE_START, self._AWARE_END)
+
+        health_sleep_schema.HealthSleepCreate(**{f"sleep_start_time_{pair}": start, f"sleep_end_time_{pair}": end})
+
+    @pytest.mark.parametrize("pair", ["gmt", "local"])
+    @pytest.mark.parametrize(
+        ("start", "end"),
+        [
+            (_AWARE_END, _NAIVE_START),
+            (_NAIVE_END, _AWARE_START),
+            (_AWARE_START, _NAIVE_START),
+            (_NAIVE_START, _AWARE_START),
+        ],
+        ids=["aware-after-naive", "naive-after-aware", "aware-equals-naive", "naive-equals-aware"],
+    )
+    def test_a_mixed_pair_not_in_order_is_a_validation_error(self, pair, start, end):
+        with pytest.raises(ValidationError):
+            health_sleep_schema.HealthSleepCreate(**{f"sleep_start_time_{pair}": start, f"sleep_end_time_{pair}": end})

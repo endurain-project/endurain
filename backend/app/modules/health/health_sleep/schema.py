@@ -18,6 +18,7 @@ from pydantic import (
 )
 
 import core.partial_update as core_partial_update
+import core.timezone as core_timezone
 import core.types as core_types
 
 _DATETIME = TypeAdapter(datetime)
@@ -238,17 +239,21 @@ class HealthSleepBase(BaseModel):
 
     @model_validator(mode="after")
     def validate_sleep_times(self) -> "HealthSleepBase":
-        """Validate sleep start < end."""
-        # Validate sleep start < sleep end (GMT)
+        """Validate sleep start < end, reading a time without an offset as UTC."""
         if (
-            self.sleep_start_time_gmt is not None and self.sleep_end_time_gmt is not None
-        ) and self.sleep_start_time_gmt >= self.sleep_end_time_gmt:
+            self.sleep_start_time_gmt is not None
+            and self.sleep_end_time_gmt is not None
+            and core_timezone.to_utc_aware(self.sleep_start_time_gmt)
+            >= core_timezone.to_utc_aware(self.sleep_end_time_gmt)
+        ):
             raise ValueError("Sleep start time must be before sleep end time")
 
-        # Validate sleep start < sleep end (Local)
         if (
-            self.sleep_start_time_local is not None and self.sleep_end_time_local is not None
-        ) and self.sleep_start_time_local >= self.sleep_end_time_local:
+            self.sleep_start_time_local is not None
+            and self.sleep_end_time_local is not None
+            and core_timezone.to_utc_aware(self.sleep_start_time_local)
+            >= core_timezone.to_utc_aware(self.sleep_end_time_local)
+        ):
             raise ValueError("Sleep start time (local) must be before sleep end time (local)")
 
         return self
