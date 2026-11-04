@@ -18,8 +18,11 @@ def _user(height):
 
 @pytest.fixture(autouse=True)
 def _known_user():
-    """Give the user a height, as every manual write derives its BMI from it."""
-    with patch(f"{_PREFIX}.users_integration.get_user", return_value=_user(175)):
+    """Give the user a height, as every manual write derives its BMI from it, and a local today."""
+    with (
+        patch(f"{_PREFIX}.users_integration.get_user", return_value=_user(175)),
+        patch(f"{_PREFIX}.users_integration.local_today", return_value=datetime_date(2024, 1, 15)),
+    ):
         yield
 
 
@@ -189,3 +192,34 @@ class TestMissingDate:
 
         assert mock_create.call_args.args[1].date == datetime_date(2024, 1, 15)
         mock_today.assert_called_once_with(1, mock_db)
+
+
+class TestFutureDate:
+    @patch(f"{_PREFIX}.health_weight_crud.create_health_weight")
+    @patch(f"{_PREFIX}.users_integration.local_today", return_value=datetime_date(2024, 1, 15))
+    def test_create_refuses_a_date_after_the_local_today(self, _today, mock_create, mock_db):
+        record = health_weight_schema.HealthWeightCreate(date=datetime_date(2024, 1, 16), weight=75.0)
+
+        with pytest.raises(core_exceptions.InvalidInputError):
+            health_weight_service.create_health_weight(1, record, mock_db)
+
+        mock_create.assert_not_called()
+
+    @patch(f"{_PREFIX}.health_weight_crud.create_health_weight")
+    @patch(f"{_PREFIX}.users_integration.local_today", return_value=datetime_date(2024, 1, 15))
+    def test_create_accepts_the_local_today(self, _today, mock_create, mock_db):
+        record = health_weight_schema.HealthWeightCreate(date=datetime_date(2024, 1, 15), weight=75.0)
+
+        health_weight_service.create_health_weight(1, record, mock_db)
+
+        mock_create.assert_called_once()
+
+    @patch(f"{_PREFIX}.health_weight_crud.edit_health_weight")
+    @patch(f"{_PREFIX}.users_integration.local_today", return_value=datetime_date(2024, 1, 15))
+    def test_edit_refuses_a_date_after_the_local_today(self, _today, mock_edit, mock_db):
+        update = health_weight_schema.HealthWeightUpdate(date=datetime_date(2024, 1, 16))
+
+        with pytest.raises(core_exceptions.InvalidInputError):
+            health_weight_service.edit_health_weight(1, 5, update, mock_db, if_match="1")
+
+        mock_edit.assert_not_called()

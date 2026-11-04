@@ -5,8 +5,11 @@ interval-to-date resolution and the transaction boundary. What other modules may
 consume lives in :mod:`modules.health.health_weight.integration_service`.
 """
 
+from datetime import date as datetime_date
+
 from sqlalchemy.orm import Session
 
+import core.exceptions as core_exceptions
 import core.logger as core_logger
 import core.pagination as core_pagination
 import modules.health.constants as health_constants
@@ -32,6 +35,21 @@ def _user_height_cm(user_id: int, db: Session) -> float | None:
     """
     user = users_integration.get_user(user_id, db)
     return float(user.height) if user is not None and user.height is not None else None
+
+
+def _require_not_future(user_id: int, day: datetime_date | None, db: Session) -> None:
+    """Refuse a manual weight dated after the user's local today.
+
+    Args:
+        user_id: The record's owner.
+        day: The date the client sent, or ``None`` when it sent none.
+        db: Database session.
+
+    Raises:
+        InvalidInputError: If the date is after the user's local today.
+    """
+    if day is not None and day > users_integration.local_today(user_id, db):
+        raise core_exceptions.InvalidInputError("A weight cannot be dated in the future")
 
 
 def _with_bmi[RecordT: (health_weight_schema.HealthWeightCreate, health_weight_schema.HealthWeightUpdate)](
@@ -234,9 +252,12 @@ def create_health_weight(
 
     Raises:
         ConflictError: If the user already has a record for that date.
+        InvalidInputError: If the date is after the user's local today.
     """
     if health_weight.date is None:
         health_weight.date = users_integration.local_today(user_id, db)
+    else:
+        _require_not_future(user_id, health_weight.date, db)
     created = stage_create_health_weight(user_id, health_weight, db)
     db.commit()
     logger.info("Stored a weight record", extra=core_logger.context(user_id=user_id))
@@ -265,8 +286,10 @@ def edit_health_weight(
 
     Raises:
         NotFoundError: If the user has no such record.
+        InvalidInputError: If the new date is after the user's local today.
         PreconditionFailedError: If the record changed since the client read it.
     """
+    _require_not_future(user_id, health_weight.date, db)
     updated = health_record_service.commit_write(
         health_weight_crud.SPEC,
         health_weight_id,
