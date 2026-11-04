@@ -22,7 +22,7 @@ from datetime import UTC, datetime, timedelta
 from itertools import batched
 
 import jasil.providers as platform_providers
-from sqlalchemy.exc import IntegrityError
+from sqlalchemy.exc import IntegrityError, SQLAlchemyError
 from sqlalchemy.orm import Session
 
 import core.config as core_config
@@ -668,7 +668,7 @@ def release_ingestion_job(job_id: str) -> None:
         with core_database.SessionLocal() as db:
             activity_ingestion_crud.release_job(job_id, db)
             db.commit()
-    except Exception as err:
+    except SQLAlchemyError as err:
         logger.error(
             "Could not release an ingestion job for retry",
             exc_info=err,
@@ -735,7 +735,9 @@ def fail_ingestion_job(
 ) -> None:
     """Record a terminal failure on a job and drop its staged upload.
 
-    Separate session because the caller's may be in a failed transaction.
+    Separate session because the caller's may be in a failed transaction. A
+    database failure is logged, not raised, so it never masks the failure being
+    recorded; the staged upload is then kept, because its row still names it.
 
     Args:
         job_id: The job identifier.
@@ -751,16 +753,17 @@ def fail_ingestion_job(
                 staged_key = work_item[1] if work_item else None
             owner = activity_ingestion_crud.mark_failed(job_id, error_code, db)
             db.commit()
-        if owner is not None:
-            _announce_job(owner, job_id)
-    except Exception as err:
+    except SQLAlchemyError as err:
         # Never mask the original failure with a bookkeeping one.
         logger.error(
             "Could not mark an upload job failed",
             exc_info=err,
             extra=core_logger.context(job_id=job_id),
         )
+        return
 
+    if owner is not None:
+        _announce_job(owner, job_id)
     # After the row is terminal, so a crash in between leaves a readable blob
     # rather than a job pointing at bytes that are gone.
     if staged_key is not None:

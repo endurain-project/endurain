@@ -311,7 +311,7 @@ def discard_staged_upload(staged_key: str, storage: platform_providers.StoragePr
             UPLOAD_STAGING_STORAGE_AREA,
             upload_staging_storage_key(staged_key),
         )
-    except Exception as err:
+    except platform_providers.StorageBackendUnavailableError as err:
         logger.warning(
             "Could not remove a staged upload",
             exc_info=err,

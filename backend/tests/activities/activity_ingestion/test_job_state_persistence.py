@@ -98,7 +98,7 @@ class TestUploadJob:
                 ingestion_jobs.activity_ingestion_upload_entry_service, "process_staged_upload", return_value=created
             ),
         ):
-            ingestion_jobs.run_upload_job("job-1", "storage")
+            ingestion_jobs.run_upload_job("job-1", MagicMock())
 
         job = _read_job(factory)
         assert job.status == "completed"
@@ -114,7 +114,7 @@ class TestUploadJob:
                 ingestion_jobs.activity_ingestion_upload_entry_service, "process_staged_upload", return_value=[]
             ),
         ):
-            ingestion_jobs.run_upload_job("job-1", "storage")
+            ingestion_jobs.run_upload_job("job-1", MagicMock())
 
         job = _read_job(factory)
         assert job.status == "failed"
@@ -135,7 +135,7 @@ class TestUploadJob:
                 ingestion_jobs.activity_ingestion_upload_entry_service, "process_staged_upload", side_effect=_import
             ),
         ):
-            ingestion_jobs.run_upload_job("job-1", "storage")
+            ingestion_jobs.run_upload_job("job-1", MagicMock())
 
         assert seen == ["processing"]
 

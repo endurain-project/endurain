@@ -14,8 +14,9 @@ event, so they are covered too.
 Cleanup is keyed on the activity id rather than the stored paths, because the
 rows holding those paths are already gone by the time the event is handled.
 
-There is deliberately no reconciliation net: like the sibling cleanups this is an
-idempotent teardown keyed by activity id, and a stray orphaned file is harmless.
+A failed delete raises, so the durable runner retries it. The scheduled
+``sweep_orphaned_media`` job is the reconciliation net for blobs left behind when
+the event is lost or exhausts its retries.
 """
 
 import jasil.event_versioning as platform_event_versioning

@@ -228,7 +228,7 @@ class TestDeleteAndRegenerateThumbnails:
 
         mock_db = MagicMock()
         storage = MagicMock()
-        storage.delete.side_effect = OSError("boom")
+        storage.delete.side_effect = platform_providers.StorageBackendUnavailableError("boom")
         platform = MagicMock()
         platform.storage = storage
 

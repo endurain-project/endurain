@@ -21,17 +21,19 @@ Provider exports register a :class:`BulkImportFormat`; this module names none.
 """
 
 import contextlib
+import lzma
 import os
 import tempfile
 import threading
 import time
 import uuid
 import zipfile
+import zlib
 from collections.abc import Iterator
 
 import jasil.audit as jasil_audit
 import jasil.providers as platform_providers
-from sqlalchemy.exc import IntegrityError
+from sqlalchemy.exc import IntegrityError, InterfaceError, OperationalError, SQLAlchemyError
 from sqlalchemy.orm import Session
 
 import core.config as core_config
@@ -63,6 +65,20 @@ _OPERATOR_ERRORS = (
     core_exceptions.ServiceUnavailableError,
     core_exceptions.DependencyFailedError,
     core_exceptions.UpstreamError,
+)
+
+#: Failures of the database or the storage backend, not of one file: a batch that meets one is retried.
+_OUTAGE_ERRORS = (OperationalError, InterfaceError, platform_providers.StorageBackendUnavailableError)
+
+#: What reading a damaged, unsupported or encrypted archive member raises besides ``DomainError``
+#: (``RuntimeError`` is an encrypted member, and the base of ``StorageBackendUnavailableError``).
+_UNREADABLE_MEMBER_ERRORS = (
+    zipfile.BadZipFile,
+    zlib.error,
+    lzma.LZMAError,
+    EOFError,
+    NotImplementedError,
+    RuntimeError,
 )
 
 _ARCHIVE_KEY_PREFIX = "bulk-"
@@ -100,7 +116,7 @@ def _heartbeat(job_id: str) -> Iterator[None]:
                 with core_database.SessionLocal() as db:
                     activity_ingestion_crud.touch_job(job_id, db)
                     db.commit()
-            except Exception as err:
+            except SQLAlchemyError as err:
                 logger.warning(
                     "Could not touch a bulk import that is being packed",
                     exc_info=err,
@@ -743,7 +759,11 @@ def _import_member(
     job_id: str,
     storage: platform_providers.StorageProvider,
 ) -> bool:
-    """Import one archive member, never raising: one bad file must not stop the rest.
+    """Import one archive member; a bad file is counted failed, an outage is raised.
+
+    One bad file must not stop the rest, so any failure of the file itself is logged and its bytes are
+    kept. A database or storage outage is not the file's fault and would fail every following file
+    too, so it is raised for the batch's caller to retry from its cursor.
 
     Args:
         archive: The open archive.
@@ -755,6 +775,11 @@ def _import_member(
 
     Returns:
         True when the file was imported (or was already), False when it failed.
+
+    Raises:
+        OperationalError: When the database is unreachable.
+        InterfaceError: When the database connection is unusable.
+        StorageBackendUnavailableError: When the storage backend is unreachable.
     """
     base_name = os.path.basename(member_name)
     with tempfile.TemporaryDirectory(prefix="bulk-member-") as member_dir:
@@ -768,6 +793,8 @@ def _import_member(
                 activity_ingestion_pipeline_service.validate_prepare_and_store_file(
                     user_id, path, db, source=source, storage=storage
                 )
+        except _OUTAGE_ERRORS:
+            raise
         except Exception as err:
             _log_bulk_failure(
                 "Bulk import: a file could not be imported", err, user_id=user_id, job_id=job_id, file=base_name
@@ -803,7 +830,13 @@ def _keep_failed_member(
                     f"{int(user_id)}/{job_id}/{os.path.basename(member_name)}",
                     handle,
                 )
-    except Exception as err:
+    except (
+        core_exceptions.DomainError,
+        *_UNREADABLE_MEMBER_ERRORS,
+        OSError,
+        ValueError,
+    ) as err:
+        # Best-effort: an escape here would abort the batch for one file's leftovers.
         logger.warning(
             "Bulk import: could not keep a failed file",
             exc_info=err,

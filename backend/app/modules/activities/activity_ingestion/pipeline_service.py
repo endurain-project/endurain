@@ -365,9 +365,9 @@ def validate_prepare_and_store_file(
 ) -> list[activity_schema.ActivityRead] | None:
     """Validate, decompress, and store one on-disk activity file — **raising** on failure.
 
-    The shared raising core behind the swallowing provider entry
+    The shared raising core behind the provider entry
     (:func:`~modules.activities.activity_ingestion.provider_entry_service.store_activity_file`,
-    which logs and returns ``None``) and the bulk import's per-file step, which
+    which logs a refused file and returns ``None``) and the bulk import's per-file step, which
     counts the failure and keeps the file. Does no failure handling itself — the
     caller owns the policy.
 

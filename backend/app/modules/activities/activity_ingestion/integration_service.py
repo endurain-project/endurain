@@ -48,9 +48,10 @@ def ingest_activity_file(
 ) -> list[activity_schema.ActivityRead] | None:
     """Validate one on-disk activity file and persist the activities it yields.
 
-    The background entry point: it never raises to its caller. A failure is
-    logged and returned as ``None`` so the provider's sync moves on to the next
-    activity.
+    The background entry point: a file the pipeline refuses is logged and
+    returned as ``None`` so the provider's sync moves on to the next activity. Any
+    other failure (a database or storage outage, a bug) is raised, for the
+    provider's window to record and retry.
 
     Must be called from a worker thread with no running event loop (a Starlette
     threadpool, the bulk-import executor, or ``asyncio.to_thread``), because the
@@ -63,8 +64,11 @@ def ingest_activity_file(
         source: Where the file came from, and any source-specific metadata.
 
     Returns:
-        The stored activities, or ``None`` when the file could not be parsed or
-        persisted.
+        The stored activities, or ``None`` when the file was refused as
+        unparseable or invalid.
+
+    Raises:
+        Exception: Any failure that is not a refusal of the file.
     """
     return activity_ingestion_provider_entry_service.store_activity_file(
         user_id, file_path, platform_runtime.get_active_platform().storage, db, source=source

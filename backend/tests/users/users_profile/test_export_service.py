@@ -8,6 +8,7 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 from jasil.backends.storage_local import LocalStorage
+from jasil.providers import StorageBackendUnavailableError
 from pydantic import BaseModel
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import Session
@@ -1390,7 +1391,7 @@ class TestExportServiceActivityMediaEdgeCases:
             with _storage_of(service) as runtime:
                 storage = runtime.get_active_platform.return_value.storage
                 storage.list_keys.return_value = ["1_bad.jpg", "1_good.jpg"]
-                storage.get.side_effect = [OSError("backend down"), b"good-bytes"]
+                storage.get.side_effect = [StorageBackendUnavailableError("backend down"), b"good-bytes"]
                 service.add_activity_media_to_zip(z, [1])
 
         assert service.counts.get("media", 0) == 1
@@ -1404,7 +1405,7 @@ class TestExportServiceActivityMediaEdgeCases:
 
             with _storage_of(service) as runtime:
                 storage = runtime.get_active_platform.return_value.storage
-                storage.list_keys.side_effect = OSError("permission denied")
+                storage.list_keys.side_effect = StorageBackendUnavailableError("permission denied")
                 service.add_activity_media_to_zip(z, [1])
 
         assert service.counts.get("media", 0) == 0

@@ -6,15 +6,19 @@ what is counted, where a batch stops, and what survives a crash.
 """
 
 import logging
+import lzma
 import os
 import time
 import zipfile
+import zlib
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
+import jasil.providers as platform_providers
 import pytest
 from jasil.backends.storage_local import LocalStorage
+from sqlalchemy.exc import InterfaceError, OperationalError
 from tests._helpers.db import create_sqlite_session_factory, ensure_user
 
 import core.exceptions as core_exceptions
@@ -234,6 +238,23 @@ class TestRunLocally:
         with patch.object(bulk.core_config.settings, "JOBS_ENABLED", False):
             assert bulk.run_bulk_import_job(job_id, storage) is False
 
+    def test_an_outage_fails_the_job_and_drops_the_archive_since_nothing_retries(self, tmp_path, factory, storage):
+        job_id = self._accept(tmp_path, factory, storage, {"a.fit": b"1"})
+
+        with (
+            patch.object(bulk.core_config.settings, "JOBS_ENABLED", False),
+            patch.object(
+                bulk.activity_ingestion_pipeline_service,
+                "validate_prepare_and_store_file",
+                side_effect=OperationalError("stmt", {}, Exception("db down")),
+            ),
+            pytest.raises(OperationalError),
+        ):
+            bulk.run_bulk_import_job(job_id, storage)
+
+        assert _job(factory, job_id).status == "failed"
+        assert list(storage.iter_objects(upload_entry_service.UPLOAD_STAGING_STORAGE_AREA, "")) == []
+
 
 class TestBatches:
     """On the durable profile a batch yields: it records progress and reports that files are left."""
@@ -307,14 +328,43 @@ class TestBatches:
         job_id = self._accept(tmp_path, factory, storage, {"a.fit": b"x"})
         with (
             patch.object(bulk.core_config.settings, "JOBS_ENABLED", True),
-            patch.object(bulk, "_import_member", side_effect=RuntimeError("storage down")),
-            pytest.raises(RuntimeError),
+            patch.object(
+                bulk, "_import_member", side_effect=platform_providers.StorageBackendUnavailableError("storage down")
+            ),
+            pytest.raises(platform_providers.StorageBackendUnavailableError),
         ):
             bulk.run_bulk_import_job(job_id, storage)
 
         # Durable: the runner retries it, so it is not closed here, and it is
         # released so the retry can claim it.
         assert _job(factory, job_id).status == "pending"
+
+    def test_an_outage_resumes_from_the_cursor_without_counting_the_file_twice(self, tmp_path, factory, storage):
+        job_id = self._accept(tmp_path, factory, storage, {"a.fit": b"1", "b.fit": b"2", "c.fit": b"3"})
+        seen: list[str] = []
+        outage = [True]
+
+        def fake(user_id, file_path, db, *, source, storage):
+            name = os.path.basename(file_path)
+            if name == "b.fit" and outage:
+                raise OperationalError("stmt", {}, Exception("db down"))
+            seen.append(name)
+            return []
+
+        with (
+            patch.object(bulk.core_config.settings, "JOBS_ENABLED", True),
+            patch.object(bulk.activity_ingestion_pipeline_service, "validate_prepare_and_store_file", side_effect=fake),
+        ):
+            with pytest.raises(OperationalError):
+                bulk.run_bulk_import_job(job_id, storage)
+            assert _job(factory, job_id).status == "pending"
+
+            outage.clear()
+            assert bulk.run_bulk_import_job(job_id, storage) is False
+
+        row = _job(factory, job_id)
+        assert (row.status, row.files_done, row.files_failed) == ("completed", 3, 0)
+        assert seen == ["a.fit", "a.fit", "b.fit", "c.fit"]
 
 
 class TestProviderFormat:
@@ -621,7 +671,7 @@ class TestFailureLogLevels:
 
     @pytest.mark.parametrize(
         "error",
-        [RuntimeError("storage down"), core_exceptions.ProcessingError("failed to save")],
+        [RuntimeError("bug"), core_exceptions.ProcessingError("failed to save")],
         ids=lambda error: type(error).__name__,
     )
     def test_an_internal_failure_is_an_error_with_a_traceback(self, tmp_path, caplog, error):
@@ -650,3 +700,124 @@ class TestFailureLogLevels:
         records = self._feed(caplog, OSError("disk full"))
 
         assert [record.levelno for record in records] == [logging.ERROR]
+
+
+class TestImportMemberOutage:
+    """A bad file is counted failed; an outage ends the batch so it is retried from its cursor."""
+
+    @staticmethod
+    def _import(tmp_path, error):
+        path = tmp_path / "export.zip"
+        with zipfile.ZipFile(path, "w") as writer:
+            writer.writestr("a.fit", b"x")
+        with (
+            zipfile.ZipFile(path) as archive,
+            patch.object(
+                bulk.activity_ingestion_pipeline_service, "validate_prepare_and_store_file", side_effect=error
+            ),
+            patch.object(bulk, "_keep_failed_member") as keep,
+        ):
+            return bulk._import_member(archive, "a.fit", _USER, MagicMock(), "job-1", MagicMock()), keep
+
+    @pytest.mark.parametrize(
+        "error",
+        [
+            OperationalError("stmt", {}, Exception("db down")),
+            InterfaceError("stmt", {}, Exception("connection closed")),
+            platform_providers.StorageBackendUnavailableError("storage down"),
+        ],
+        ids=lambda error: type(error).__name__,
+    )
+    def test_an_outage_is_raised_and_the_file_is_neither_counted_nor_kept(self, tmp_path, error):
+        path = tmp_path / "export.zip"
+        with zipfile.ZipFile(path, "w") as writer:
+            writer.writestr("a.fit", b"x")
+        with (
+            zipfile.ZipFile(path) as archive,
+            patch.object(
+                bulk.activity_ingestion_pipeline_service, "validate_prepare_and_store_file", side_effect=error
+            ),
+            patch.object(bulk, "_keep_failed_member") as keep,
+            pytest.raises(type(error)),
+        ):
+            bulk._import_member(archive, "a.fit", _USER, MagicMock(), "job-1", MagicMock())
+
+        keep.assert_not_called()
+
+    @pytest.mark.parametrize(
+        "error",
+        [core_exceptions.InvalidInputError("bad"), ValueError("bad"), RuntimeError("bug")],
+        ids=lambda error: type(error).__name__,
+    )
+    def test_a_bad_file_is_still_counted_failed_and_kept(self, tmp_path, error):
+        imported, keep = self._import(tmp_path, error)
+
+        assert imported is False
+        keep.assert_called_once()
+
+
+class TestKeepFailedMember:
+    @staticmethod
+    def _keep(tmp_path, storage_error=None, copy_error=None):
+        path = tmp_path / "export.zip"
+        with zipfile.ZipFile(path, "w") as writer:
+            writer.writestr("a.fit", b"x")
+        storage = MagicMock()
+        storage.save_stream.side_effect = storage_error
+        with (
+            zipfile.ZipFile(path) as archive,
+            patch.object(bulk.core_file_uploads, "copy_zip_member", side_effect=copy_error),
+        ):
+            bulk._keep_failed_member(archive, "a.fit", _USER, "job-1", storage)
+
+    @pytest.mark.parametrize(
+        "error",
+        [
+            platform_providers.StorageBackendUnavailableError("down"),
+            OSError("disk full"),
+            ValueError("bad key"),
+        ],
+        ids=lambda error: type(error).__name__,
+    )
+    def test_a_storage_failure_is_logged_not_raised(self, tmp_path, error):
+        self._keep(tmp_path, storage_error=error)
+
+    @pytest.mark.parametrize(
+        "error",
+        [
+            core_exceptions.PayloadTooLargeError("big"),
+            zipfile.BadZipFile("bad crc"),
+            zlib.error("bad data"),
+            EOFError(),
+            NotImplementedError("compression"),
+            RuntimeError("encrypted"),
+            lzma.LZMAError("bad data"),
+        ],
+        ids=lambda error: type(error).__name__,
+    )
+    def test_a_member_that_cannot_be_read_is_logged_not_raised(self, tmp_path, error):
+        self._keep(tmp_path, copy_error=error)
+
+    def test_a_bug_is_not_swallowed(self, tmp_path):
+        with pytest.raises(AttributeError):
+            self._keep(tmp_path, copy_error=AttributeError("bug"))
+
+
+class TestHeartbeatFailure:
+    def test_a_database_failure_is_logged_and_the_beat_goes_on(self, tmp_path, factory, storage):
+        calls: list[int] = []
+
+        def touch(*_args):
+            calls.append(1)
+            raise OperationalError("stmt", {}, Exception("db down"))
+
+        with (
+            patch.object(bulk, "_HEARTBEAT_SECONDS", 0.01),
+            patch.object(bulk.activity_ingestion_crud, "touch_job", side_effect=touch),
+            bulk._heartbeat("job-1"),
+        ):
+            deadline = time.monotonic() + 5
+            while len(calls) < 2 and time.monotonic() < deadline:
+                time.sleep(0.02)
+
+        assert len(calls) >= 2

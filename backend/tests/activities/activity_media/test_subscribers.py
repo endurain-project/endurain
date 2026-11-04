@@ -7,6 +7,7 @@ athlete deleting an activity expects its photos to go too.
 
 from unittest.mock import MagicMock, patch
 
+import jasil.providers as platform_providers
 import pytest
 from jasil.backends.storage_local import LocalStorage
 
@@ -102,14 +103,29 @@ class TestDeleteMediaFilesForActivity:
         assert removed == 0
         assert outside.exists()
 
-    def test_an_unremovable_blob_does_not_abort_the_rest(self, tmp_path):
+    def test_a_storage_failure_propagates_so_the_runner_retries(self):
         storage = MagicMock()
         storage.list_keys.return_value = ["42_aaa.jpeg", "42_bbb.jpeg"]
-        storage.delete.side_effect = [OSError("permission denied"), None]
+        storage.delete.side_effect = platform_providers.StorageBackendUnavailableError("storage down")
 
-        removed = media_service.delete_media_files_for_activity(42, storage)
+        with pytest.raises(platform_providers.StorageBackendUnavailableError):
+            media_service.delete_media_files_for_activity(42, storage)
 
-        assert removed == 1
+
+class TestListMediaBlobs:
+    def test_a_listing_failure_propagates(self):
+        storage = MagicMock()
+        storage.list_keys.side_effect = platform_providers.StorageBackendUnavailableError("storage down")
+
+        with pytest.raises(platform_providers.StorageBackendUnavailableError):
+            media_service.list_media_blobs(42, storage)
+
+    def test_an_unreadable_blob_is_skipped(self):
+        storage = MagicMock()
+        storage.list_keys.return_value = ["42_aaa.jpeg", "42_bbb.jpeg"]
+        storage.get.side_effect = [platform_providers.StorageBackendUnavailableError("storage down"), b"x"]
+
+        assert media_service.list_media_blobs(42, storage) == [("42_bbb.jpeg", b"x")]
 
 
 class TestCleanupSubscriber:

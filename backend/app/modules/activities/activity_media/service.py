@@ -154,7 +154,7 @@ def _cleanup_orphaned_blob(storage: platform_providers.StorageProvider, storage_
     """
     try:
         storage.delete(activity_media_constants.MEDIA_STORAGE_AREA, storage_key)
-    except Exception as storage_err:
+    except platform_providers.StorageBackendUnavailableError as storage_err:
         logger.warning(
             "Failed to clean up an orphaned activity media blob",
             exc_info=storage_err,
@@ -500,7 +500,7 @@ def delete_activity_media(
         # harmless because nothing serves it without a signed token.
         try:
             storage.delete(activity_media_constants.MEDIA_STORAGE_AREA, media.media_path)
-        except Exception as storage_err:
+        except platform_providers.StorageBackendUnavailableError as storage_err:
             logger.warning(
                 "Failed to remove the stored blob for a deleted activity media record",
                 exc_info=storage_err,
@@ -523,7 +523,8 @@ def delete_media_files_for_activity(activity_id: int, storage: platform_provider
     gone. Keys are ``{activity_id}_{uuid}{ext}``, so the id is enough to list them
     back off the provider.
 
-    Idempotent, and safe to run for an activity that never had media.
+    Idempotent, and safe to run for an activity that never had media. A storage
+    failure propagates so the durable runner retries the remaining blobs.
 
     Args:
         activity_id: The deleted activity whose media blobs to remove.
@@ -531,18 +532,14 @@ def delete_media_files_for_activity(activity_id: int, storage: platform_provider
 
     Returns:
         The number of blobs removed.
+
+    Raises:
+        StorageBackendUnavailableError: When the backend cannot list or delete.
     """
     removed = 0
     for key in storage.list_keys(activity_media_constants.MEDIA_STORAGE_AREA, _key_prefix(activity_id)):
-        try:
-            storage.delete(activity_media_constants.MEDIA_STORAGE_AREA, key)
-            removed += 1
-        except Exception as storage_err:
-            logger.warning(
-                "Failed to remove an activity media blob",
-                exc_info=storage_err,
-                extra=core_logger.context(activity_id=activity_id, storage_key=key),
-            )
+        storage.delete(activity_media_constants.MEDIA_STORAGE_AREA, key)
+        removed += 1
 
     if removed:
         logger.info(
@@ -555,9 +552,9 @@ def delete_media_files_for_activity(activity_id: int, storage: platform_provider
 def list_media_blobs(activity_id: int, storage: platform_providers.StorageProvider) -> list[tuple[str, bytes]]:
     """Return every readable media blob attached to an activity.
 
-    Best-effort for the profile export: a storage failure listing the keys yields
-    an empty result, and a blob that cannot be read is skipped, so one bad object
-    never aborts the whole export.
+    Best-effort per blob for the profile export: a blob that cannot be read is
+    skipped, so one bad object never aborts the whole export. A failure listing
+    the keys propagates; the export caller skips that activity's media.
 
     Args:
         activity_id: The activity whose blobs to read.
@@ -565,22 +562,17 @@ def list_media_blobs(activity_id: int, storage: platform_providers.StorageProvid
 
     Returns:
         ``(storage_key, bytes)`` pairs for the blobs that could be read.
+
+    Raises:
+        StorageBackendUnavailableError: When the backend cannot list the keys.
     """
-    try:
-        keys = storage.list_keys(activity_media_constants.MEDIA_STORAGE_AREA, _key_prefix(activity_id))
-    except Exception as err:
-        logger.warning(
-            "Could not list an activity's media blobs",
-            exc_info=err,
-            extra=core_logger.context(activity_id=activity_id),
-        )
-        return []
+    keys = storage.list_keys(activity_media_constants.MEDIA_STORAGE_AREA, _key_prefix(activity_id))
 
     blobs: list[tuple[str, bytes]] = []
     for key in keys:
         try:
             data = storage.get(activity_media_constants.MEDIA_STORAGE_AREA, key)
-        except Exception as err:
+        except platform_providers.StorageBackendUnavailableError as err:
             logger.warning(
                 "Could not read a media blob; skipping it",
                 exc_info=err,

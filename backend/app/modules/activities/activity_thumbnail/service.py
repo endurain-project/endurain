@@ -345,7 +345,7 @@ def _delete_all_thumbnails(storage: platform_providers.StorageProvider, db: Sess
             try:
                 storage.delete(activity_thumbnail_constants.THUMBNAIL_STORAGE_AREA, key)
                 deleted += 1
-            except Exception as err:
+            except platform_providers.StorageBackendUnavailableError as err:
                 logger.warning(
                     "Thumbnail regeneration: could not delete the existing thumbnail",
                     exc_info=err,

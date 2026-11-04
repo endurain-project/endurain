@@ -2,6 +2,7 @@
 
 from unittest.mock import MagicMock, patch
 
+import jasil.providers as platform_providers
 import pytest
 
 import core.exceptions as core_exceptions
@@ -368,7 +369,7 @@ class TestDeleteActivityMedia:
         mock_media_crud.get_activity_media_by_id.return_value = MagicMock(activity_id=1, media_path="1_abc.jpg")
         mock_activities_service.owns_activity.return_value = True
         storage = MagicMock()
-        storage.delete.side_effect = OSError("backend down")
+        storage.delete.side_effect = platform_providers.StorageBackendUnavailableError("backend down")
 
         delete_activity_media(1, 5, 2, storage, MagicMock())
 

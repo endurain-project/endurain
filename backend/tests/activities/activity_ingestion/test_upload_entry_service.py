@@ -4,6 +4,7 @@ import io
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
+import jasil.providers as platform_providers
 import pytest
 from jasil.backends.storage_local import LocalStorage
 
@@ -273,7 +274,7 @@ class TestDiscardStagedUpload:
     def test_a_storage_failure_never_propagates(self):
         """Cleanup must not turn a finished import into a failed one."""
         platform = _platform()
-        platform.storage.delete.side_effect = RuntimeError("bucket down")
+        platform.storage.delete.side_effect = platform_providers.StorageBackendUnavailableError("bucket down")
         upload_entry_service.discard_staged_upload("abc.gpx", platform.storage)
 
 

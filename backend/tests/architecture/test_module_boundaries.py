@@ -445,7 +445,7 @@ _SURFACE_UNITS_OF_WORK: dict[str, str] = {
     ),
     "activity_ingestion.integration_service.ingest_activity_file": (
         "The background ingestion entry for provider syncs: it commits each activity and rolls back "
-        "a failed file so the rest of the batch continues on the same session."
+        "a refused file so the caller can keep using the session; any other failure is raised."
     ),
     "activity_ingestion.integration_service.request_range_sync": (
         "Creates the refresh job row and publishes its work event in one commit, so the job and the "
