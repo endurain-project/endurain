@@ -170,11 +170,19 @@ class TestSettings:
         assert s.DATA_DIR == "/custom/data"
         assert s.FILES_DIR == "/custom/data/activity_files"
 
-    def test_development_trusted_proxies_default(self):
+    def test_development_trusts_no_proxy_by_default(self, monkeypatch):
         from core.config import Settings
 
+        monkeypatch.delenv("TRUSTED_PROXIES", raising=False)
         s = Settings(_env_file=None, ENVIRONMENT="development")
-        assert s.TRUSTED_PROXIES == ["*"]
+        assert s.TRUSTED_PROXIES == []
+
+    def test_development_trusted_proxies_can_be_set_explicitly(self, monkeypatch):
+        from core.config import Settings
+
+        monkeypatch.setenv("TRUSTED_PROXIES", "10.0.0.0/8")
+        s = Settings(_env_file=None, ENVIRONMENT="development")
+        assert s.TRUSTED_PROXIES == ["10.0.0.0/8"]
 
     def test_trusted_proxies_with_hostname(self):
         from core.config import Settings

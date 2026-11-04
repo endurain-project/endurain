@@ -268,9 +268,9 @@ def get_ip_address(request: Request) -> str:
     case for ``TRUSTED_PROXIES=["*"]``) the leftmost entry is used, which a
     client can forge.
 
-    When ``TRUSTED_PROXIES`` is ``["*"]`` all peers are trusted; that is the
-    default in development only, and an empty list (the default elsewhere)
-    trusts no proxy.
+    When ``TRUSTED_PROXIES`` is ``["*"]`` all peers are trusted, which is only
+    safe when nothing but a proxy can reach the application. An empty list (the
+    default in every environment) trusts no proxy.
 
     Args:
         request: Request object with headers and client info.

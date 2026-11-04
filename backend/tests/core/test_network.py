@@ -329,6 +329,16 @@ class TestGetIpAddress:
             result = core_network.get_ip_address(request)
             assert result == "1.2.3.4"
 
+    def test_development_default_ignores_a_forged_forwarded_for(self, monkeypatch):
+        monkeypatch.delenv("TRUSTED_PROXIES", raising=False)
+        settings = core_network.core_config.Settings(_env_file=None, ENVIRONMENT="development")
+        request = MagicMock(spec=Request)
+        request.client.host = "203.0.113.5"
+        request.headers = {"X-Forwarded-For": "198.51.100.1"}
+        with patch.object(core_network.core_config, "settings", settings):
+            result = core_network.get_ip_address(request)
+        assert result == "203.0.113.5"
+
     def test_empty_x_forwarded_for_falls_back_to_x_real_ip(self):
         request = MagicMock(spec=Request)
         request.client.host = "10.0.0.1"

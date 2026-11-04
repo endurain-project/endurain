@@ -575,8 +575,6 @@ class Settings(BaseSettings):
             self.LOGS_DIR = f"{self.BACKEND_DIR}/logs"
         if not self.FILES_DIR:
             self.FILES_DIR = f"{self.DATA_DIR}/activity_files"
-        if not self.TRUSTED_PROXIES and self.ENVIRONMENT == "development" and "TRUSTED_PROXIES" not in os.environ:
-            self.TRUSTED_PROXIES = ["*"]
         return self
 
     @property
