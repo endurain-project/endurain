@@ -14,6 +14,8 @@ needs no database.
 
 import pytest
 
+import module_registry
+import modules.users.contributor_registry as users_contributor_registry
 from tests._helpers.db import (
     POSTGRES_TEST_URL_ENV,
     create_postgres_session_factory,
@@ -27,6 +29,14 @@ def pytest_collection_modifyitems(items):
     for item in items:
         if "tests/postgres/" in str(item.fspath).replace("\\", "/"):
             item.add_marker(pytest.mark.postgres)
+
+
+@pytest.fixture(autouse=True)
+def _user_contributors():
+    """Install the callbacks the users service reaches when it creates a user, as the entry points do."""
+    module_registry.configure_user_contributors()
+    yield
+    users_contributor_registry.clear()
 
 
 @pytest.fixture

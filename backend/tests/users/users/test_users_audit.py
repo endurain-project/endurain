@@ -37,7 +37,7 @@ def boundaries():
         patch("modules.users.users.service.sign_up_tokens_integration") as sign_up,
         patch("modules.users.users.service.credentials_integration"),
         patch("modules.users.users.service.account_security_integration"),
-        patch("modules.users.users.service.health_weight_integration"),
+        patch("modules.users.users.service.users_contributor_registry"),
         patch("modules.users.users.service._stage_default_data"),
         patch(_SETTINGS),
     ):

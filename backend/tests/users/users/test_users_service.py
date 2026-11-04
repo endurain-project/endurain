@@ -493,7 +493,7 @@ class TestAccountCreationIsOneUnit:
     """The user row, credential, MFA row and default rows commit together, once, last."""
 
     @patch("modules.users.users.service.users_default_gear_integration")
-    @patch("modules.users.users.service.health_targets_integration")
+    @patch("modules.users.users.service.users_contributor_registry")
     @patch("modules.users.users.service.users_privacy_settings_integration")
     @patch("modules.users.users.service.user_integrations_integration")
     @patch(_SETTINGS)
@@ -686,7 +686,7 @@ class TestCreateSignupUser:
 
 class TestStageDefaultData:
     @patch("modules.users.users.service.users_default_gear_integration")
-    @patch("modules.users.users.service.health_targets_integration")
+    @patch("modules.users.users.service.users_contributor_registry")
     @patch("modules.users.users.service.users_privacy_settings_integration")
     @patch("modules.users.users.service.user_integrations_integration")
     def test_stages_every_default_row_without_committing(
@@ -698,13 +698,13 @@ class TestStageDefaultData:
 
         mock_integrations.create_integrations.assert_called_once_with(5, mock_db)
         mock_privacy.create_privacy_settings.assert_called_once_with(5, mock_db)
-        mock_targets.create_health_targets.assert_called_once_with(5, mock_db)
+        mock_targets.lifecycle_hooks.return_value.stage_new_user.assert_called_once_with(5, mock_db)
         mock_gear.create_default_gear.assert_called_once_with(5, mock_db)
         mock_db.commit.assert_not_called()
         identity.initialize_user_mfa.assert_called_once_with(5)
 
 
-@patch("modules.users.users.service.health_weight_integration")
+@patch("modules.users.users.service.users_contributor_registry")
 @patch(_CRUD)
 class TestEdits:
     def test_admin_edit_lowercases_and_drops_response_only_fields(self, mock_crud, mock_weight, mock_db):
@@ -717,7 +717,7 @@ class TestEdits:
         assert changes["username"] == "mixedcase"
         assert "photo_path" not in changes
         assert "mfa_enabled" not in changes
-        mock_weight.recalculate_bmi_for_user.assert_not_called()
+        mock_weight.lifecycle_hooks.return_value.stage_height_change.assert_not_called()
 
     def test_admin_edit_recalculates_bmi_when_height_changes(self, mock_crud, mock_weight, mock_db):
         mock_crud.get_user_by_id.return_value = _user(1, height=170)
@@ -725,7 +725,7 @@ class TestEdits:
 
         users_service.stage_user_edit(1, _edit(1, height=180), mock_db, if_match="*")
 
-        mock_weight.recalculate_bmi_for_user.assert_called_once_with(1, 180.0, mock_db)
+        mock_weight.lifecycle_hooks.return_value.stage_height_change.assert_called_once_with(1, 180.0, mock_db)
 
     def test_deactivating_a_user_revokes_their_pending_verification_links(self, mock_crud, mock_weight, mock_db):
         mock_crud.get_user_by_id.return_value = _user(1)
@@ -968,7 +968,7 @@ class TestEdits:
 
         users_service.stage_profile_edit(1, users_schema.ProfileUpdate(height=175), mock_db, if_match="*")
 
-        mock_weight.recalculate_bmi_for_user.assert_called_once_with(1, 175.0, mock_db)
+        mock_weight.lifecycle_hooks.return_value.stage_height_change.assert_called_once_with(1, 175.0, mock_db)
 
     def test_profile_without_height_never_recalculates(self, mock_crud, mock_weight, mock_db):
         mock_crud.get_user_by_id.return_value = _user(1, height=170)
@@ -976,7 +976,7 @@ class TestEdits:
 
         users_service.stage_profile_edit(1, users_schema.ProfileUpdate(name="Only"), mock_db, if_match="*")
 
-        mock_weight.recalculate_bmi_for_user.assert_not_called()
+        mock_weight.lifecycle_hooks.return_value.stage_height_change.assert_not_called()
 
 
 @patch(_CRUD)
@@ -1125,7 +1125,7 @@ class TestLastAdminIsProtected:
 
         mock_crud.update_user.assert_not_called()
 
-    @patch("modules.users.users.service.health_weight_integration")
+    @patch("modules.users.users.service.users_contributor_registry")
     @patch(_CRUD)
     def test_one_of_several_administrators_can_be_demoted(self, mock_crud, _weight, mock_db):
         mock_crud.get_user_by_id.return_value = _user(1, access_type="admin")
@@ -1136,7 +1136,7 @@ class TestLastAdminIsProtected:
 
         mock_crud.update_user.assert_called_once()
 
-    @patch("modules.users.users.service.health_weight_integration")
+    @patch("modules.users.users.service.users_contributor_registry")
     @patch(_CRUD)
     def test_an_edit_that_keeps_the_admin_takes_no_lock(self, mock_crud, _weight, mock_db):
         mock_crud.get_user_by_id.return_value = _user(1, access_type="admin")
@@ -1151,7 +1151,7 @@ class TestLastAdminIsProtected:
         mock_crud.get_user_by_id.return_value = _user(1, access_type="regular")
         mock_crud.update_user.return_value = _user(1)
 
-        with patch("modules.users.users.service.health_weight_integration"):
+        with patch("modules.users.users.service.users_contributor_registry"):
             users_service.stage_user_edit(1, _edit(1, access_type="regular", active=False), mock_db, if_match="*")
 
         mock_crud.lock_active_admin_ids.assert_not_called()
@@ -1253,7 +1253,7 @@ class TestStageConfirmedEmailChange:
 
 
 class TestAdminEditNormalizesIdentity:
-    @patch("modules.users.users.service.health_weight_integration")
+    @patch("modules.users.users.service.users_contributor_registry")
     @patch(_CRUD)
     def test_email_is_lower_cased_like_the_username(self, mock_crud, _weight, mock_db):
         mock_crud.get_user_by_id.return_value = _user(1)

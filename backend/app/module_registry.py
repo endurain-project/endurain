@@ -71,6 +71,7 @@ import modules.auth.sign_up_tokens.audit_actions as sign_up_tokens_audit_actions
 import modules.auth.sign_up_tokens.scheduled_jobs as sign_up_tokens_scheduled_jobs
 import modules.auth.sign_up_tokens.subscriber_registry as sign_up_tokens_subscriber_registry
 import modules.followers.audit_actions as followers_audit_actions
+import modules.followers.integration_service as followers_integration
 import modules.garmin.audit_actions as garmin_audit_actions
 import modules.garmin.integration_service as garmin_integration
 import modules.garmin.scheduled_jobs as garmin_scheduled_jobs
@@ -78,6 +79,8 @@ import modules.garmin.subscriber_registry as garmin_subscriber_registry
 import modules.gears.contributor_registry as gears_contributor_registry
 import modules.gears.contributors as gears_contributors
 import modules.gears.gear_components.integration_service as gear_components_integration
+import modules.health.health_targets.integration_service as health_targets_integration
+import modules.health.health_weight.integration_service as health_weight_integration
 import modules.notifications.scheduled_jobs as notifications_scheduled_jobs
 import modules.notifications.subscriber_registry as notifications_subscriber_registry
 import modules.server_settings.audit_actions as server_settings_audit_actions
@@ -519,13 +522,23 @@ def configure_audit() -> None:
 
 
 def configure_user_contributors() -> None:
-    """Install the erasures the users namespace asks the activities and profile modules to answer."""
+    """Install what the users namespace asks other modules to answer: erasures, lifecycle staging and profile reads."""
+    users_contributor_registry.clear()
     users_contributor_registry.register(
         users_contributors.UserErasers(
             delete_activities=activity_integration.delete_activities_batch_for_user,
             delete_staged_files=users_profile_integration.delete_staged_transfers,
             delete_bulk_import_errors=activity_ingestion_integration.delete_bulk_import_errors,
         )
+    )
+    users_contributor_registry.register_lifecycle_hooks(
+        users_contributors.UserLifecycleHooks(
+            stage_new_user=health_targets_integration.create_health_targets,
+            stage_height_change=health_weight_integration.recalculate_bmi_for_user,
+        )
+    )
+    users_contributor_registry.register_profile_readers(
+        users_contributors.ProfileReaders(follow_counts=followers_integration.get_profile_follow_counts)
     )
 
 

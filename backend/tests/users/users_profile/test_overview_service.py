@@ -1,7 +1,7 @@
 """Tests for the aggregated user-profile overview."""
 
 from types import SimpleNamespace
-from unittest.mock import patch
+from unittest.mock import MagicMock, patch
 
 import modules.activities.activity.schema as activity_schema
 import modules.followers.contracts as followers_contracts
@@ -15,16 +15,16 @@ def test_overview_assembles_public_profile_and_summary_data(mock_db):
     month_stats = activity_schema.ActivityStatsRead()
     activity_summary = SimpleNamespace(week_stats=week_stats, month_stats=month_stats, month_activity_count=4)
     follow_counts = followers_contracts.ProfileFollowCounts(followers=12, following=8)
+    counts = MagicMock(return_value=follow_counts)
 
     with (
         patch.object(profile_service.users_integration, "get_public_profile", return_value=user) as get_user,
         patch.object(
             profile_service.activities_integration, "get_user_profile_summary", return_value=activity_summary
         ) as stats,
-        patch.object(
-            profile_service.followers_integration, "get_profile_follow_counts", return_value=follow_counts
-        ) as counts,
+        patch.object(profile_service.users_contributor_registry, "profile_readers") as readers,
     ):
+        readers.return_value.follow_counts = counts
         overview = profile_service.get_user_profile_overview(7, 3, mock_db, anchor_date=None)
 
     get_user.assert_called_once_with(7, mock_db)
@@ -47,8 +47,9 @@ def test_overview_keeps_profile_available_when_follow_network_is_private(mock_db
     with (
         patch.object(profile_service.users_integration, "get_public_profile", return_value=user),
         patch.object(profile_service.activities_integration, "get_user_profile_summary", return_value=activity_summary),
-        patch.object(profile_service.followers_integration, "get_profile_follow_counts", return_value=None),
+        patch.object(profile_service.users_contributor_registry, "profile_readers") as readers,
     ):
+        readers.return_value.follow_counts.return_value = None
         overview = profile_service.get_user_profile_overview(7, 3, mock_db, anchor_date=None)
 
     assert overview.user == user

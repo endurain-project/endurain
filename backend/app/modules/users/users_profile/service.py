@@ -21,7 +21,7 @@ import modules.auth.credentials.integration_service as credentials_integration
 import modules.auth.identity_providers.constants as identity_providers_constants
 import modules.auth.identity_providers.contracts as identity_provider_contracts
 import modules.auth.sign_up_tokens.integration_service as sign_up_tokens_integration
-import modules.followers.integration_service as followers_integration
+import modules.users.contributor_registry as users_contributor_registry
 import modules.users.users.integration_service as users_integration
 import modules.users.users.schema as users_schema
 import modules.users.users_integrations.integration_service as user_integrations_integration
@@ -137,7 +137,7 @@ def get_user_profile_overview(
     activity_summary = activities_integration.get_user_profile_summary(
         user_id, requester_user_id, db, anchor=anchor_date
     )
-    follow_counts = followers_integration.get_profile_follow_counts(user_id, requester_user_id, db)
+    follow_counts = users_contributor_registry.profile_readers().follow_counts(user_id, requester_user_id, db)
     return users_profile_schema.UserProfileOverviewRead(
         user=user,
         week_stats=activity_summary.week_stats,

@@ -150,6 +150,23 @@ class TestConfigureApplication:
             installed.assert_called_once_with()
 
 
+class TestConfigureUserContributors:
+    """Composition installs the users namespace's callbacks, and installing twice is harmless."""
+
+    def test_installs_erasers_hooks_and_readers_idempotently(self):
+        import modules.users.contributor_registry as users_contributor_registry
+
+        runtime_module_registry.configure_user_contributors()
+        runtime_module_registry.configure_user_contributors()
+
+        assert users_contributor_registry.erasers() is not None
+        hooks = users_contributor_registry.lifecycle_hooks()
+        assert hooks.stage_new_user is runtime_module_registry.health_targets_integration.create_health_targets
+        assert hooks.stage_height_change is runtime_module_registry.health_weight_integration.recalculate_bmi_for_user
+        readers = users_contributor_registry.profile_readers()
+        assert readers.follow_counts is runtime_module_registry.followers_integration.get_profile_follow_counts
+
+
 class TestConfigureAudit:
     """Every module's audit actions are registered, and the auth provider says who is acting."""
 
