@@ -4,6 +4,7 @@ import jasil.audit as jasil_audit
 import jasil.providers as platform_providers
 from sqlalchemy.orm import Session
 
+import core.blob_sweep as core_blob_sweep
 import core.exceptions as core_exceptions
 import core.file_uploads as core_file_uploads
 import core.logger as core_logger
@@ -84,7 +85,7 @@ def delete_icon(idp_id: int, storage: platform_providers.StorageProvider, db: Se
 
     The flag is cleared and committed first, so the icon stops being served at once and the provider row is not
     locked while storage is called. The blob is deleted afterwards; if that fails it is an unreferenced leftover
-    that the next upload overwrites.
+    that the next upload overwrites or the icon sweep removes.
 
     Args:
         idp_id: The provider the icon belongs to.
@@ -104,6 +105,8 @@ def delete_icon(idp_id: int, storage: platform_providers.StorageProvider, db: Se
 
 def delete_blob(idp_id: int, storage: platform_providers.StorageProvider) -> None:
     """Delete an icon blob, logging a storage outage instead of failing: the flag decides whether it is served.
+
+    A blob left behind is removed by the next upload over it or by the icon sweep.
 
     Args:
         idp_id: The provider the icon belongs to.
@@ -135,6 +138,42 @@ def get_public_icon(slug: str, db: Session) -> tuple[int, int] | None:
     if state is None or not state.icon_uploaded:
         return None
     return state.id, state.version
+
+
+def sweep_unreferenced_icons(storage: platform_providers.StorageProvider) -> int:
+    """Delete icon blobs no provider names any more.
+
+    The reconciliation net of the icon area: it removes what a failed best-effort delete left after a provider
+    or its icon was removed, and an upload that lost a race with the provider's deletion.
+
+    Args:
+        storage: The platform storage provider.
+
+    Returns:
+        The number of blobs deleted.
+    """
+    removed = core_blob_sweep.sweep_unreferenced_blobs(storage, idp_constants.ICON_STORAGE_AREA, _referenced_icon_keys)
+    if removed:
+        logger.info("Removed identity provider icons no provider names", extra=core_logger.context(removed=removed))
+    return removed
+
+
+def _referenced_icon_keys(keys: list[str], db: Session) -> set[str]:
+    """Tell which of the given icon-area keys must be kept.
+
+    A key is ``{idp_id}``. It is kept while that provider exists and has an uploaded icon. A key that is not
+    a provider id is not this area's to judge and is kept too.
+
+    Args:
+        keys: Keys found in the icon area.
+        db: Database session.
+
+    Returns:
+        The keys to keep.
+    """
+    owners = {key: int(key) if key.isascii() and key.isdecimal() else None for key in keys}
+    with_icon = idp_crud.get_ids_with_icon(sorted({owner for owner in owners.values() if owner is not None}), db)
+    return {key for key, owner in owners.items() if owner is None or owner in with_icon}
 
 
 def read_icon(idp_id: int, storage: platform_providers.StorageProvider) -> tuple[bytes, str] | None:

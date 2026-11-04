@@ -8,6 +8,9 @@ BUILTIN_ICONS = frozenset({"authelia", "authentik", "casdoor", "keycloak", "pock
 #: Storage area of the uploaded provider icons, keyed by identity-provider id.
 ICON_STORAGE_AREA = "identity_provider_icons"
 
+#: How often the icon area is swept for blobs no provider names.
+ICON_SWEEP_INTERVAL_MINUTES = 1440
+
 #: Largest accepted icon upload, in bytes. A provider logo is a small image shown to every visitor of the login page.
 ICON_MAX_BYTES = 1024 * 1024
 

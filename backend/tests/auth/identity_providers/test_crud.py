@@ -5,7 +5,9 @@ from types import SimpleNamespace
 from unittest.mock import patch
 
 import modules.auth.identity_providers.crud as idp_crud
+import modules.auth.identity_providers.models as idp_models
 import modules.auth.identity_providers.schema as idp_schema
+from tests._helpers.db import create_sqlite_session
 
 
 def _row(**overrides):
@@ -151,3 +153,21 @@ def test_set_icon_uploaded_on_a_missing_row_is_none(mock_db):
     mock_db.execute.return_value.scalar_one_or_none.return_value = None
 
     assert idp_crud.set_icon_uploaded(1, True, mock_db) is None
+
+
+def test_get_ids_with_icon_returns_only_the_given_providers_that_have_an_uploaded_icon():
+    db = create_sqlite_session()
+    for idp_id, icon_uploaded in ((1, True), (2, False), (3, True)):
+        db.add(
+            idp_models.IdentityProvider(
+                id=idp_id,
+                name=f"Provider {idp_id}",
+                slug=f"provider-{idp_id}",
+                provider_type="oidc",
+                icon_uploaded=icon_uploaded,
+            )
+        )
+    db.commit()
+
+    assert idp_crud.get_ids_with_icon([1, 2, 4], db) == {1}
+    db.close()

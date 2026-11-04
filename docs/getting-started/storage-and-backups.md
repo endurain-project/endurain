@@ -71,6 +71,7 @@ Leftovers do not pile up forever. Scheduled sweeps remove:
 | Staged upload and bulk-import archives that no job references | After about 2 days |
 | Staged profile import archives that were never used | A sweep every 6 hours |
 | Profile export archives past their download window | A sweep every 6 hours (the download itself is available for 2 hours) |
+| Identity provider icons whose provider is gone or has no icon | Daily |
 | Ingestion job records past their retention | Daily |
 | Audit trail days older than the audit trail retention in Settings > Server > General (90 days by default) | Checked every 5 minutes, unless a legal hold is on |
 

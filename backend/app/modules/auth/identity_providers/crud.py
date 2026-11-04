@@ -181,6 +181,23 @@ def delete_identity_provider(idp_id: int, db: Session, *, if_match: str) -> bool
     return True
 
 
+def get_ids_with_icon(idp_ids: list[int], db: Session) -> set[int]:
+    """Return which of the given providers have an uploaded icon.
+
+    Args:
+        idp_ids: The providers to look up.
+        db: Database session.
+
+    Returns:
+        The ids of the providers that exist and have an uploaded icon.
+    """
+    stmt = select(identity_provider_models.IdentityProvider.id).where(
+        identity_provider_models.IdentityProvider.id.in_(idp_ids),
+        identity_provider_models.IdentityProvider.icon_uploaded.is_(True),
+    )
+    return set(db.execute(stmt).scalars().all())
+
+
 def set_icon_uploaded(idp_id: int, is_set: bool, db: Session) -> int | None:
     """Stage whether a provider has an uploaded icon.
 

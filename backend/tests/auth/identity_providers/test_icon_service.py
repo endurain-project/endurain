@@ -131,6 +131,25 @@ class TestUploadIconTransaction:
         assert [call[0] for call in order.mock_calls] == ["rollback", "save", "rollback", "delete"]
 
 
+class TestReferencedIconKeys:
+    def test_keeps_a_key_whose_provider_has_an_icon_and_any_key_that_is_not_an_id(self):
+        db = MagicMock()
+        with patch.object(icon_service.idp_crud, "get_ids_with_icon", return_value={1}) as ids:
+            kept = icon_service._referenced_icon_keys(["1", "2", "3", "notes.txt", "٣"], db)
+
+        assert kept == {"1", "notes.txt", "٣"}
+        ids.assert_called_once_with([1, 2, 3], db)
+
+
+class TestSweepUnreferencedIcons:
+    @patch("modules.auth.identity_providers.icon_service.core_blob_sweep.sweep_unreferenced_blobs", return_value=2)
+    def test_the_sweep_walks_the_icon_area(self, mock_sweep):
+        storage = MagicMock()
+
+        assert icon_service.sweep_unreferenced_icons(storage) == 2
+        mock_sweep.assert_called_once_with(storage, "identity_provider_icons", icon_service._referenced_icon_keys)
+
+
 class TestDeleteIcon:
     def test_clears_the_flag_before_deleting_the_blob(self):
         storage, db = MagicMock(), MagicMock()
