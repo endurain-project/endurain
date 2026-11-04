@@ -8,6 +8,7 @@ stages writes with ``flush`` and never commits.
 
 from dataclasses import dataclass
 from datetime import date
+from decimal import Decimal
 from typing import Protocol
 
 from pydantic import BaseModel
@@ -276,6 +277,26 @@ def add[ModelT: Row, ReadT: BaseModel](
     return save(spec, row, db, conflict=conflict)
 
 
+def _is_stored_value(current: object, value: object) -> bool:
+    """Tell whether a value to write is what a column already holds.
+
+    A numeric column loads as a ``Decimal`` of fixed scale while the request carries a float, so the two never
+    compare equal and a write that changes nothing would still bump the version. A number is compared at the
+    scale the column stores.
+
+    Args:
+        current: The value the row holds.
+        value: The value to write.
+
+    Returns:
+        True when writing ``value`` leaves the stored value as it is.
+    """
+    if isinstance(current, Decimal) and isinstance(value, (int, float, Decimal)) and not isinstance(value, bool):
+        number = Decimal(str(value))
+        return number.is_finite() and number.quantize(current) == current
+    return current == value
+
+
 def edit_row[ModelT: Row, ReadT: BaseModel](
     spec: RecordSpec[ModelT, ReadT],
     row: ModelT,
@@ -305,7 +326,8 @@ def edit_row[ModelT: Row, ReadT: BaseModel](
     """
     core_etag.require_if_match(if_match, row.version, spec.etag_label)
     for key, value in changes.model_dump(exclude_unset=True).items():
-        setattr(row, key, value)
+        if not _is_stored_value(getattr(row, key), value):
+            setattr(row, key, value)
     return save(spec, row, db, conflict=conflict)
 
 

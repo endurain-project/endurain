@@ -70,6 +70,14 @@ class TestManualEdit:
 
         assert edited.bmi == pytest.approx(75.0 / 1.75**2, abs=0.01)
 
+    @pytest.mark.parametrize("weight", [75.0, 70.3, 82.35])
+    def test_an_edit_that_changes_nothing_keeps_the_version(self, db, weight):
+        record = _create(db, weight=weight)
+
+        edited = self._edit(db, record, weight=weight)
+
+        assert edited.version == record.version
+
     def test_an_edit_of_the_date_keeps_the_stored_bmi(self, db):
         record = _create(db)
 
