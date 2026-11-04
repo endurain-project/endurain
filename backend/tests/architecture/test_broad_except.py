@@ -21,45 +21,23 @@ _APP = pathlib.Path("app")
 #: carry on, and ``alembic`` holds the schema revisions.
 _EXEMPT_DIRS = frozenset({"migrations", "alembic"})
 
-#: Files that still swallow a broad exception, as ``{path relative to app/: number of swallowing handlers}``. This
-#: is known debt (see ``docs/developer-guide/module-structure.md`` -> Known debt -> broad exception handling):
-#: narrow a handler to the exceptions the code really raises and lower its count; a correct new boundary is added
-#: here in review.
+#: Files that swallow a broad exception, as ``{path relative to app/: number of swallowing handlers}``. Each is
+#: either a boundary that must outlive any failure (the comment says why) or known debt (see
+#: ``docs/developer-guide/module-structure.md`` -> Known debt -> broad exception handling). Narrow a handler to the
+#: exceptions the code really raises and lower its count; a correct new boundary is added here in review.
 _SWALLOWING_BROAD_EXCEPTS: dict[str, int] = {
-    "core/blob_sweep.py": 1,
-    "core/config.py": 1,
-    "core/middleware.py": 1,
-    "core/router.py": 1,
-    "core/scheduler.py": 2,
-    "main.py": 4,
-    "modules/activities/activity_ingestion/bulk_import_service.py": 4,
-    "modules/activities/activity_ingestion/provider_entry_service.py": 1,
-    "modules/activities/activity_ingestion/refresh_entry_service.py": 1,
-    "modules/activities/activity_ingestion/service.py": 2,
-    "modules/activities/activity_ingestion/upload_entry_service.py": 1,
-    "modules/activities/activity_ingestion/window_service.py": 1,
-    "modules/activities/activity_media/service.py": 5,
-    "modules/activities/activity_thumbnail/service.py": 1,
-    "modules/auth/identity_providers/callback_service.py": 3,
-    "modules/auth/identity_providers/icon_service.py": 1,
-    "modules/auth/identity_providers/oidc_client_service.py": 3,
-    "modules/auth/identity_providers/token_service.py": 2,
-    "modules/garmin/activity_service.py": 2,
-    "modules/garmin/link_service.py": 1,
-    "modules/garmin/service.py": 1,
-    "modules/garmin/sync_service.py": 2,
-    "modules/server_settings/login_photo_service.py": 1,
-    "modules/strava/bulk_import_service.py": 2,
-    "modules/strava/client_service.py": 1,
-    "modules/strava/link_service.py": 1,
-    "modules/strava/service.py": 1,
-    "modules/users/users/deletion_job_service.py": 1,
-    "modules/users/users/photo_service.py": 1,
-    "modules/users/users_profile/export_job_service.py": 1,
-    "modules/users/users_profile/export_service.py": 5,
-    "modules/users/users_profile/import_job_service.py": 2,
-    "modules/users/users_profile/utils.py": 2,
-    "modules/websocket/manager.py": 1,
+    "core/middleware.py": 1,  # detached tile-domain refresh task nothing awaits
+    "main.py": 3,  # best-effort startup tasks (_safe_run, _safe_run_async) and engine dispose at shutdown
+    "modules/activities/activity_ingestion/bulk_import_service.py": 2,  # folder-feed job records any failure; per-file
+    "modules/activities/activity_ingestion/refresh_entry_service.py": 1,  # per provider; re-raises the first failure
+    "modules/activities/activity_ingestion/window_service.py": 1,  # per activity; re-raises the first failure
+    "modules/auth/identity_providers/callback_service.py": 2,  # browser callbacks always redirect to the failure page
+    "modules/garmin/link_service.py": 1,  # link thread must always record a terminal state
+    "modules/garmin/sync_service.py": 1,  # one user's health pull must not stop the rest
+    "modules/strava/link_service.py": 1,  # link thread must always record a terminal state
+    "modules/users/users/deletion_job_service.py": 1,  # one stalled deletion must not stop the sweep
+    "modules/users/users_profile/export_service.py": 5,  # known debt, narrowed when the file is split
+    "modules/users/users_profile/utils.py": 2,  # known debt, narrowed when the file is split
 }
 
 
