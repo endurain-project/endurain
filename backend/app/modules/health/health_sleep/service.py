@@ -26,19 +26,27 @@ _TOLERANCE_SECONDS = 60
 
 
 def _require_consistent(sleep: health_sleep_schema.HealthSleepBase) -> None:
-    """Refuse a sleep record whose stages or total contradict each other.
+    """Refuse a sleep record whose stages, total or readings contradict each other.
 
     The total is the time asleep, as Garmin Connect reports it: deep, light and REM sleep, with awake time
     counted apart. So the sleeping stages cannot add up to more than the total, and the total cannot be
     longer than the span from falling asleep to waking. The GMT times bound the total, or the local times
-    when there are no GMT times. Only manual writes are checked; a provider's record is stored as it is.
+    when there are no GMT times. The lowest reading of a pair cannot exceed its highest. Only manual writes are
+    checked; a provider's record is stored as it is.
 
     Args:
         sleep: The record a manual write produces, whole.
 
     Raises:
-        InvalidInputError: If the stages add up to more than the total, or the total is longer than the span.
+        InvalidInputError: If the stages add up to more than the total, the total is longer than the span,
+            or a minimum reading is above its maximum.
     """
+    for low, high, name in (
+        (sleep.min_heart_rate, sleep.max_heart_rate, "heart rate"),
+        (sleep.lowest_spo2, sleep.highest_spo2, "SpO2"),
+    ):
+        if low is not None and high is not None and low > high:
+            raise core_exceptions.InvalidInputError(f"The lowest {name} cannot be above the highest")
     total = sleep.total_sleep_seconds
     if total is None:
         return
@@ -168,7 +176,7 @@ def create_health_sleep(
 
     Raises:
         ConflictError: If the user already has a record for that date.
-        InvalidInputError: If the stages or the total contradict each other.
+        InvalidInputError: If the stages, the total or the readings contradict each other.
     """
     if health_sleep.date is None:
         health_sleep.date = users_integration.local_today(user_id, db)
@@ -196,7 +204,7 @@ def _check_and_score_edit(
 
     Raises:
         NotFoundError: If the user has no such record.
-        InvalidInputError: If the stages or the total contradict each other.
+        InvalidInputError: If the stages, the total or the readings contradict each other.
     """
     stored = health_sleep_crud.get_health_sleep_by_id(user_id, health_sleep_id, db)
     health_sleep.model_fields_set.difference_update(health_sleep_sleep_scoring.SCORE_FIELDS)
@@ -232,7 +240,7 @@ def edit_health_sleep(
 
     Raises:
         NotFoundError: If the user has no such record.
-        InvalidInputError: If the stages or the total contradict each other.
+        InvalidInputError: If the stages, the total or the readings contradict each other.
         PreconditionFailedError: If the record changed since the client read it.
     """
 

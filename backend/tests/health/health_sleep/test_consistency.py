@@ -86,6 +86,27 @@ class TestCreate:
         assert sleep_service.list_health_sleep(1, db).total == 0
 
 
+class TestReadingRanges:
+    def test_a_min_heart_rate_above_the_max_is_refused(self, db):
+        with pytest.raises(core_exceptions.InvalidInputError):
+            _create(db, min_heart_rate=90, max_heart_rate=50)
+
+    def test_a_lowest_spo2_above_the_highest_is_refused(self, db):
+        with pytest.raises(core_exceptions.InvalidInputError):
+            _create(db, lowest_spo2=98, highest_spo2=90)
+
+    def test_equal_or_one_sided_readings_are_accepted(self, db):
+        assert _create(db, min_heart_rate=50, max_heart_rate=50).min_heart_rate == 50
+
+    def test_an_edit_is_checked_against_the_stored_other_side(self, db):
+        record = _create(db, min_heart_rate=50, max_heart_rate=80, lowest_spo2=90, highest_spo2=97)
+
+        with pytest.raises(core_exceptions.InvalidInputError):
+            _edit(db, record, min_heart_rate=90)
+        with pytest.raises(core_exceptions.InvalidInputError):
+            _edit(db, record, highest_spo2=85)
+
+
 class TestEdit:
     def test_a_stage_beyond_the_stored_total_is_refused(self, db):
         record = _create(db, **_GARMIN_NIGHT)
