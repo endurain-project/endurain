@@ -11,7 +11,7 @@
     "subtitle": "Răsfoiește, filtrează și sortează toate activitățile tale.",
     "searchPlaceholder": "Caută după nume sau locație",
     "clearSearch": "Șterge căutarea",
-    "resultCount": "{count} activitate | {count} activități",
+    "resultCount": "{count} activitate | {count} activități | {count} de activități",
     "filters": {
       "type": "Tipul activității",
       "allTypes": "Toate tipurile",

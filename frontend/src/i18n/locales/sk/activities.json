@@ -11,7 +11,7 @@
     "subtitle": "Prehliadajte, filtrujte a zoraďte všetky svoje aktivity.",
     "searchPlaceholder": "Hľadať podľa názvu alebo miesta",
     "clearSearch": "Vymazať hľadanie",
-    "resultCount": "{count} aktivita | {count} aktivity",
+    "resultCount": "{count} aktivita | {count} aktivity | {count} aktivít",
     "filters": {
       "type": "Typ aktivity",
       "allTypes": "Všetky typy",

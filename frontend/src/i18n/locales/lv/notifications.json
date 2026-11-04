@@ -8,7 +8,7 @@
   "seeAll": "Skatīt visus",
   "loadMore": "Ielādēt vairāk",
   "loading": "Notiek ielāde…",
-  "badge": "{count} nelasīts paziņojums | {count} nelasīti paziņojumi",
+  "badge": "{count} nelasīti paziņojumi | {count} nelasīts paziņojums | {count} nelasīti paziņojumi",
   "empty": {
     "title": "Viss ir izskatīts",
     "description": "Šeit parādīsies atjauninājumi par jūsu aktivitātēm, sekotājiem un integrācijām."

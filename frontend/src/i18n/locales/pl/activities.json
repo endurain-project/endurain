@@ -11,7 +11,7 @@
     "subtitle": "Przeglądaj, filtruj i sortuj wszystkie swoje aktywności.",
     "searchPlaceholder": "Szukaj według nazwy lub lokalizacji",
     "clearSearch": "Wyczyść wyszukiwanie",
-    "resultCount": "{count} aktywność | {count} aktywności",
+    "resultCount": "{count} aktywność | {count} aktywności | {count} aktywności",
     "filters": {
       "type": "Typ aktywności",
       "allTypes": "Wszystkie typy",

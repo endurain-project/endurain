@@ -574,7 +574,7 @@
     "title": "Moje cele",
     "subtitle": "Ustaw cele dla swoich aktywności i śledź swoje postępy",
     "buttonAdd": "Dodaj cel",
-    "count": "Łącznie jest {count} cel: | Łącznie są {count} cele:",
+    "count": "Łącznie jest {count} cel: | Łącznie są {count} cele: | Łącznie jest {count} celów:",
     "filters": "Filtry",
     "filter": {
       "all": "Wszystkie",
@@ -682,7 +682,7 @@
       "disabledDescription": "Uwierzytelnianie dwuskładnikowe jest wyłączone. Włącz je, aby lepiej chronić swoje konto.",
       "enable": "Włącz uwierzytelnianie dwuskładnikowe",
       "enabledDescription": "Uwierzytelnianie dwuskładnikowe jest włączone.",
-      "backupRemaining": "Pozostał {unused} z {total} kodu zapasowego. | Pozostały {unused} z {total} kodów zapasowych.",
+      "backupRemaining": "Pozostało {unused} z {total} kodu zapasowego. | Pozostało {unused} z {total} kodów zapasowych. | Pozostało {unused} z {total} kodów zapasowych.",
       "regenerate": "Wygeneruj ponownie kody zapasowe",
       "disable": "Wyłącz",
       "setupTitle": "Włącz uwierzytelnianie dwuskładnikowe",

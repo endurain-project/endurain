@@ -8,7 +8,7 @@
   "seeAll": "Žiūrėti visus",
   "loadMore": "Įkelti daugiau",
   "loading": "Įkeliama…",
-  "badge": "{count} neperskaitytas pranešimas | {count} neperskaitytų pranešimų",
+  "badge": "{count} neperskaitytas pranešimas | {count} neperskaityti pranešimai | {count} neperskaitytų pranešimų",
   "empty": {
     "title": "Viskas perskaityta",
     "description": "Naujienos apie jūsų veiklas, sekėjus ir integracijas bus rodomos čia."

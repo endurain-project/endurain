@@ -8,7 +8,7 @@
   "seeAll": "Pokaži vse",
   "loadMore": "Naloži več",
   "loading": "Nalaganje…",
-  "badge": "{count} neprebrano obvestilo | {count} neprebrana obvestila",
+  "badge": "{count} neprebrano obvestilo | {count} neprebrani obvestili | {count} neprebrana obvestila | {count} neprebranih obvestil",
   "empty": {
     "title": "Vse si prebralo",
     "description": "Tukaj se bodo prikazovale posodobitve o tvojih aktivnostih, sledilcih in integracijah."

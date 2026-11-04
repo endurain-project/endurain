@@ -8,7 +8,7 @@
   "seeAll": "Prikaži sve",
   "loadMore": "Učitaj još",
   "loading": "Učitavanje…",
-  "badge": "{count} nepročitano obaveštenje | {count} nepročitana obaveštenja",
+  "badge": "{count} nepročitano obaveštenje | {count} nepročitana obaveštenja | {count} nepročitanih obaveštenja",
   "empty": {
     "title": "Sve ste pregledali",
     "description": "Ažuriranja o vašim aktivnostima, pratiocima i integracijama pojaviće se ovde."

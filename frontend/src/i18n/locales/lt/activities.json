@@ -11,7 +11,7 @@
     "subtitle": "Naršykite, filtruokite ir rūšiuokite visas savo veiklas.",
     "searchPlaceholder": "Ieškoti pagal pavadinimą ar vietą",
     "clearSearch": "Išvalyti paiešką",
-    "resultCount": "{count} veikla | {count} veiklų",
+    "resultCount": "{count} veikla | {count} veiklos | {count} veiklų",
     "filters": {
       "type": "Veiklos tipas",
       "allTypes": "Visi tipai",

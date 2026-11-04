@@ -574,7 +574,7 @@
     "title": "Moji ciljevi",
     "subtitle": "Postavite ciljeve za svoje aktivnosti i pratite svoj napredak",
     "buttonAdd": "Dodaj cilj",
-    "count": "Ukupno je {count} cilj: | Ukupno su {count} cilja:",
+    "count": "Ukupno je {count} cilj: | Ukupno su {count} cilja: | Ukupno je {count} ciljeva:",
     "filters": "Filtri",
     "filter": {
       "all": "Svi",
@@ -682,7 +682,7 @@
       "disabledDescription": "Dvofaktorska autentifikacija je isključena. Uključite je za bolju zaštitu svog računa.",
       "enable": "Omogući dvofaktorsku autentifikaciju",
       "enabledDescription": "Dvofaktorska autentifikacija je uključena.",
-      "backupRemaining": "Preostao je {unused} od {total} sigurnosnih kodova. | Preostala su {unused} od {total} sigurnosna koda.",
+      "backupRemaining": "Preostalo je {unused} od {total} sigurnosnog koda. | Preostalo je {unused} od {total} sigurnosna koda. | Preostalo je {unused} od {total} sigurnosnih kodova.",
       "regenerate": "Ponovno generiraj sigurnosne kodove",
       "disable": "Onemogući",
       "setupTitle": "Omogući dvofaktorsku autentifikaciju",

@@ -11,7 +11,7 @@
     "subtitle": "Переглядайте, фільтруйте та сортуйте всі свої активності.",
     "searchPlaceholder": "Пошук за назвою або місцем",
     "clearSearch": "Очистити пошук",
-    "resultCount": "{count} активність | {count} активності",
+    "resultCount": "{count} активність | {count} активності | {count} активностей",
     "filters": {
       "type": "Тип активності",
       "allTypes": "Усі типи",

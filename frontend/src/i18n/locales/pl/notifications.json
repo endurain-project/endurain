@@ -8,7 +8,7 @@
   "seeAll": "Zobacz wszystkie",
   "loadMore": "Wczytaj więcej",
   "loading": "Ładowanie…",
-  "badge": "{count} nieprzeczytane powiadomienie | {count} nieprzeczytane powiadomienia",
+  "badge": "{count} nieprzeczytane powiadomienie | {count} nieprzeczytane powiadomienia | {count} nieprzeczytanych powiadomień",
   "empty": {
     "title": "Wszystko na bieżąco",
     "description": "Aktualizacje dotyczące Twoich aktywności, obserwujących i integracji pojawią się tutaj."

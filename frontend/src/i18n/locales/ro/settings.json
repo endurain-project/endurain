@@ -574,7 +574,7 @@
     "title": "Obiectivele mele",
     "subtitle": "Setează ținte pentru activitățile tale și urmărește-ți progresul",
     "buttonAdd": "Adaugă obiectiv",
-    "count": "Există un total de {count} obiectiv: | Există un total de {count} obiective:",
+    "count": "Există un total de {count} obiectiv: | Există un total de {count} obiective: | Există un total de {count} de obiective:",
     "filters": "Filtre",
     "filter": {
       "all": "Toate",
@@ -682,7 +682,7 @@
       "disabledDescription": "Autentificarea în doi pași este dezactivată. Activeaz-o pentru a-ți proteja mai bine contul.",
       "enable": "Activează autentificarea în doi pași",
       "enabledDescription": "Autentificarea în doi pași este activată.",
-      "backupRemaining": "{unused} din {total} cod de rezervă rămas. | {unused} din {total} coduri de rezervă rămase.",
+      "backupRemaining": "Rămase: {unused} din {total} cod de rezervă. | Rămase: {unused} din {total} coduri de rezervă. | Rămase: {unused} din {total} de coduri de rezervă.",
       "regenerate": "Regenerează codurile de rezervă",
       "disable": "Dezactivează",
       "setupTitle": "Activează autentificarea în doi pași",

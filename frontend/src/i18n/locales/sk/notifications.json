@@ -8,7 +8,7 @@
   "seeAll": "Zobraziť všetky",
   "loadMore": "Načítať viac",
   "loading": "Načítavanie…",
-  "badge": "{count} neprečítané upozornenie | {count} neprečítané upozornenia",
+  "badge": "{count} neprečítané upozornenie | {count} neprečítané upozornenia | {count} neprečítaných upozornení",
   "empty": {
     "title": "Máte všetko prečítané",
     "description": "Aktualizácie o vašich aktivitách, sledovateľoch a integráciách sa zobrazia tu."

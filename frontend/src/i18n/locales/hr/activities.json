@@ -11,7 +11,7 @@
     "subtitle": "Pregledavajte, filtrirajte i sortirajte sve svoje aktivnosti.",
     "searchPlaceholder": "Pretraži po nazivu ili lokaciji",
     "clearSearch": "Očisti pretraživanje",
-    "resultCount": "{count} aktivnost | {count} aktivnosti",
+    "resultCount": "{count} aktivnost | {count} aktivnosti | {count} aktivnosti",
     "filters": {
       "type": "Vrsta aktivnosti",
       "allTypes": "Sve vrste",

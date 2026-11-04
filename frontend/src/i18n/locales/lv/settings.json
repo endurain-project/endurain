@@ -574,7 +574,7 @@
     "title": "Mani mērķi",
     "subtitle": "Iestatiet mērķus savām aktivitātēm un izsekojiet savu progresu",
     "buttonAdd": "Pievienot mērķi",
-    "count": "Kopā ir {count} mērķis: | Kopā ir {count} mērķi:",
+    "count": "Kopā ir {count} mērķi: | Kopā ir {count} mērķis: | Kopā ir {count} mērķi:",
     "filters": "Filtri",
     "filter": {
       "all": "Visi",
@@ -682,7 +682,7 @@
       "disabledDescription": "Divfaktoru autentifikācija ir izslēgta. Ieslēdziet to, lai labāk aizsargātu savu kontu.",
       "enable": "Iespējot divfaktoru",
       "enabledDescription": "Divfaktoru autentifikācija ir ieslēgta.",
-      "backupRemaining": "Atlicis {unused} no {total} rezerves koda. | Atlikuši {unused} no {total} rezerves kodiem.",
+      "backupRemaining": "Atlikuši: {unused} no {total} rezerves kodiem. | Atlikuši: {unused} no {total} rezerves koda. | Atlikuši: {unused} no {total} rezerves kodiem.",
       "regenerate": "Atkārtoti ģenerēt rezerves kodus",
       "disable": "Atspējot",
       "setupTitle": "Iespējot divfaktoru autentifikāciju",

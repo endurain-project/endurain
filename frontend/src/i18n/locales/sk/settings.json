@@ -574,7 +574,7 @@
     "title": "Moje ciele",
     "subtitle": "Nastavte ciele pre svoje aktivity a sledujte svoj pokrok",
     "buttonAdd": "Pridať cieľ",
-    "count": "Celkovo je {count} cieľ: | Celkovo sú {count} ciele:",
+    "count": "Celkovo je {count} cieľ: | Celkovo sú {count} ciele: | Celkovo je {count} cieľov:",
     "filters": "Filtre",
     "filter": {
       "all": "Všetko",
@@ -682,7 +682,7 @@
       "disabledDescription": "Dvojfaktorové overovanie je vypnuté. Zapnite ho pre lepšiu ochranu svojho účtu.",
       "enable": "Povoliť dvojfaktorové overovanie",
       "enabledDescription": "Dvojfaktorové overovanie je zapnuté.",
-      "backupRemaining": "Zostáva {unused} z {total} záložného kódu. | Zostávajú {unused} z {total} záložných kódov.",
+      "backupRemaining": "Zostáva {unused} z {total} záložného kódu. | Zostáva {unused} z {total} záložných kódov. | Zostáva {unused} z {total} záložných kódov.",
       "regenerate": "Znova vygenerovať záložné kódy",
       "disable": "Zakázať",
       "setupTitle": "Povoliť dvojfaktorové overovanie",

@@ -574,7 +574,7 @@
     "title": "Mano tikslai",
     "subtitle": "Nustatykite savo veiklų tikslus ir stebėkite pažangą",
     "buttonAdd": "Pridėti tikslą",
-    "count": "Iš viso yra {count} tikslas: | Iš viso yra {count} tikslų:",
+    "count": "Iš viso yra {count} tikslas: | Iš viso yra {count} tikslai: | Iš viso yra {count} tikslų:",
     "filters": "Filtrai",
     "filter": {
       "all": "Visi",
@@ -682,7 +682,7 @@
       "disabledDescription": "Dviejų veiksnių autentifikavimas išjungtas. Įjunkite jį, kad geriau apsaugotumėte savo paskyrą.",
       "enable": "Įjungti dviejų veiksnių",
       "enabledDescription": "Dviejų veiksnių autentifikavimas įjungtas.",
-      "backupRemaining": "Liko {unused} iš {total} atsarginio kodo. | Liko {unused} iš {total} atsarginių kodų.",
+      "backupRemaining": "Liko {unused} iš {total} atsarginio kodo. | Liko {unused} iš {total} atsarginių kodų. | Liko {unused} iš {total} atsarginių kodų.",
       "regenerate": "Iš naujo generuoti atsarginius kodus",
       "disable": "Išjungti",
       "setupTitle": "Įjungti dviejų veiksnių autentifikavimą",

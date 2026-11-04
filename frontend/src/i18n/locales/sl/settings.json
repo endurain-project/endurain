@@ -574,7 +574,7 @@
     "title": "Moji cilji",
     "subtitle": "Nastavi cilje za aktivnosti in sledi napredku",
     "buttonAdd": "Dodaj cilj",
-    "count": "Skupaj je {count} cilj: | Skupaj so {count} cilji:",
+    "count": "Skupaj je {count} cilj: | Skupaj sta {count} cilja: | Skupaj so {count} cilji: | Skupaj je {count} ciljev:",
     "filters": "Filtri",
     "filter": {
       "all": "Vsi",
@@ -682,7 +682,7 @@
       "disabledDescription": "Dvostopenjska avtentikacija je izklopljena. Vklopi jo za boljšo zaščito računa.",
       "enable": "Omogoči dvostopenjsko avtentikacijo",
       "enabledDescription": "Dvostopenjska avtentikacija je vklopljena.",
-      "backupRemaining": "Preostala je {unused} od {total} varnostne kode. | Preostale so {unused} od {total} varnostnih kod.",
+      "backupRemaining": "Preostalo: {unused} od {total} varnostne kode. | Preostalo: {unused} od {total} varnostnih kod. | Preostalo: {unused} od {total} varnostnih kod. | Preostalo: {unused} od {total} varnostnih kod.",
       "regenerate": "Znova ustvari varnostne kode",
       "disable": "Onemogoči",
       "setupTitle": "Omogoči dvostopenjsko avtentikacijo",

@@ -8,7 +8,7 @@
   "seeAll": "Vezi toate",
   "loadMore": "Încarcă mai multe",
   "loading": "Se încarcă…",
-  "badge": "{count} notificare necitită | {count} notificări necitite",
+  "badge": "{count} notificare necitită | {count} notificări necitite | {count} de notificări necitite",
   "empty": {
     "title": "Ești la zi cu toate",
     "description": "Actualizările despre activitățile, urmăritorii și integrările tale vor apărea aici."
