@@ -92,6 +92,7 @@ import modules.users.users.constants as users_constants
 import modules.users.users.integration_service as users_integration
 import modules.users.users.scheduled_jobs as users_scheduled_jobs
 import modules.users.users.subscriber_registry as users_subscriber_registry
+import modules.users.users_default_gear.integration_service as users_default_gear_integration
 import modules.users.users_profile.audit_actions as users_profile_audit_actions
 import modules.users.users_profile.constants as users_profile_constants
 import modules.users.users_profile.integration_service as users_profile_integration
@@ -477,6 +478,7 @@ def configure_gear_contributors() -> None:
             usage_by_window=activity_integration.get_gear_usage_totals_by_window,
             components_cost=gear_components_integration.get_gear_components_total_cost,
             clear_activities_gear=activity_integration.clear_activities_gear,
+            clear_default_gear=users_default_gear_integration.clear_default_gears,
         )
     )
 

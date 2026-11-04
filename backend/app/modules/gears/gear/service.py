@@ -206,9 +206,22 @@ def delete_gear(gear_id: int, user_id: int, db: Session, *, if_match: str) -> No
         # Locked first, so an activity cannot be assigned the gear between the clear and the delete.
         gears_crud.lock_gear(gear_id, user_id, db)
         gears_contributor_registry.readers().clear_activities_gear(gear_id, user_id, db)
+        gears_contributor_registry.readers().clear_default_gear([gear_id], user_id, db)
         gears_crud.delete_gear(gear_id, user_id, db, if_match=if_match)
         db.commit()
     logger.info("Deleted a gear", extra=core_logger.context(user_id=user_id, gear_id=gear_id))
+
+
+def delete_all_strava_gear_for_user(user_id: int, db: Session) -> None:
+    """Stage the deletion of every Strava-linked gear a user has, unassigning it from their default gear first.
+
+    Args:
+        user_id: Owner user ID.
+        db: Database session.
+    """
+    gear_ids = gears_crud.get_strava_gear_ids_for_user(user_id, db)
+    gears_contributor_registry.readers().clear_default_gear(gear_ids, user_id, db)
+    gears_crud.delete_all_strava_gear_for_user(user_id, db)
 
 
 def require_owned_gears(user_id: int, gear_ids: Iterable[int | None], db: Session) -> None:

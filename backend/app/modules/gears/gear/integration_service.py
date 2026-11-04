@@ -123,7 +123,7 @@ def delete_all_strava_gear_for_user(user_id: int, db: Session) -> None:
         user_id: Owner user ID.
         db: Database session.
     """
-    gears_crud.delete_all_strava_gear_for_user(user_id, db)
+    gears_service.delete_all_strava_gear_for_user(user_id, db)
 
 
 def require_owned_gears(user_id: int, gear_ids: Iterable[int | None], db: Session) -> None:

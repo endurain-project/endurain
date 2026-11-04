@@ -32,6 +32,7 @@ def install_readers(
     usage_by_window: gears_contributors.GearUsageByWindowReader = lambda gear_id, user_id, windows, db: {},
     components_cost: gears_contributors.ComponentsCostReader = lambda gear_id, user_id, db: 0.0,
     clear_activities_gear: gears_contributors.ActivitiesGearClearer = lambda gear_id, user_id, db: 0,
+    clear_default_gear: gears_contributors.DefaultGearClearer = lambda gear_ids, user_id, db: None,
 ) -> None:
     """Install gears readers, zero-valued unless overridden."""
     gears_contributor_registry.register(
@@ -40,5 +41,6 @@ def install_readers(
             usage_by_window=usage_by_window,
             components_cost=components_cost,
             clear_activities_gear=clear_activities_gear,
+            clear_default_gear=clear_default_gear,
         )
     )

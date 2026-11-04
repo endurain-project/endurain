@@ -3,6 +3,8 @@
 Writes stage; the caller owns the commit.
 """
 
+from collections.abc import Collection
+
 from sqlalchemy.orm import Session
 
 import modules.users.users_default_gear.constants as users_default_gear_constants
@@ -82,3 +84,14 @@ def edit_default_gear(
         PreconditionFailedError: When ``if_match`` does not name the row's version.
     """
     return users_default_gear_service.stage_default_gear_edit(user_default_gear, user_id, db, if_match=if_match)
+
+
+def clear_default_gears(gear_ids: Collection[int], user_id: int, db: Session) -> None:
+    """Unassign gears from the user's default-gear settings; the caller commits.
+
+    Args:
+        gear_ids: The gears being removed.
+        user_id: The owning user ID.
+        db: Database session.
+    """
+    users_default_gear_crud.clear_gears(gear_ids, user_id, db)

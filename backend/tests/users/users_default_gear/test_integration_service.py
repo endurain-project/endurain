@@ -33,3 +33,12 @@ class TestGetDefaultGearForActivityType:
         mock_crud.get_user_default_gear_by_user_id.return_value = row
 
         assert user_default_gear_integration.get_default_gear_for_activity_type(1, 4, MagicMock()) is None
+
+
+@patch("modules.users.users_default_gear.integration_service.users_default_gear_crud")
+def test_clear_default_gears_stages_through_the_crud(mock_crud):
+    db = MagicMock()
+
+    user_default_gear_integration.clear_default_gears([3, 4], 1, db)
+
+    mock_crud.clear_gears.assert_called_once_with([3, 4], 1, db)

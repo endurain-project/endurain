@@ -4,7 +4,7 @@ Gears sits below the activities module, so it states the questions it needs answ
 and ``app/module_registry.py`` installs the answers.
 """
 
-from collections.abc import Callable, Sequence
+from collections.abc import Callable, Collection, Sequence
 from dataclasses import dataclass
 
 from sqlalchemy.orm import Session
@@ -27,6 +27,9 @@ ComponentsCostReader = Callable[[int, int, Session], float]
 #: returns how many it touched.
 ActivitiesGearClearer = Callable[[int, int, Session], int]
 
+#: ``(gear_ids, user_id, db)`` -> stages unassigning the gears from the user's default gear settings.
+DefaultGearClearer = Callable[[Collection[int], int, Session], None]
+
 
 @dataclass(frozen=True, kw_only=True)
 class GearReaders:
@@ -37,9 +40,11 @@ class GearReaders:
         usage_by_window: Totals a gear's usage per date window.
         components_cost: Sums the purchase value of a gear's components.
         clear_activities_gear: Stages unassigning a gear from the activities that carry it.
+        clear_default_gear: Stages unassigning gears from the user's default gear settings.
     """
 
     usage: GearUsageReader
     usage_by_window: GearUsageByWindowReader
     components_cost: ComponentsCostReader
     clear_activities_gear: ActivitiesGearClearer
+    clear_default_gear: DefaultGearClearer

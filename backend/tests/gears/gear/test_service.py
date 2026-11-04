@@ -137,6 +137,15 @@ class TestEditAndDelete:
 
         clear.assert_called_once_with(created.id, 1, db)
 
+    def test_delete_unassigns_the_default_gear_before_removing_the_gear(self, db):
+        created = crud.create_gear(gear_create(), 1, db)
+        clear = MagicMock()
+        install_readers(clear_default_gear=clear)
+
+        service.delete_gear(created.id, 1, db, if_match="*")
+
+        clear.assert_called_once_with([created.id], 1, db)
+
     def test_delete_of_a_foreign_gear_is_not_found_and_not_committed(self, db, commit_spy):
         created = crud.create_gear(gear_create(), 8, db)
         install_readers()
@@ -145,6 +154,19 @@ class TestEditAndDelete:
             service.delete_gear(created.id, 2, db, if_match="*")
 
         commit_spy.assert_not_called()
+
+
+class TestDeleteAllStravaGearForUser:
+    def test_unassigns_the_default_gear_of_the_strava_gears_only(self, db):
+        strava = crud.create_gear(gear_create("S", strava_gear_id="b1"), 1, db)
+        crud.create_gear(gear_create("G", garminconnect_gear_id="g1"), 1, db)
+        clear = MagicMock()
+        install_readers(clear_default_gear=clear)
+
+        service.delete_all_strava_gear_for_user(1, db)
+
+        clear.assert_called_once_with([strava.id], 1, db)
+        assert [g.nickname for g in crud.get_gear_user(1, db)] == ["G"]
 
 
 class TestRequireOwnedGears:

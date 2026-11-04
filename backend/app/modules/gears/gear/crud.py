@@ -428,6 +428,23 @@ def delete_gear(gear_id: int, user_id: int, db: Session, *, if_match: str) -> No
     db.flush()
 
 
+def get_strava_gear_ids_for_user(user_id: int, db: Session) -> list[int]:
+    """Return the IDs of every Strava-linked gear a user has.
+
+    Args:
+        user_id: Owner user ID.
+        db: Database session.
+
+    Returns:
+        The gear IDs.
+    """
+    stmt = select(gears_models.Gear.id).where(
+        gears_models.Gear.user_id == user_id,
+        gears_models.Gear.strava_gear_id.isnot(None),
+    )
+    return sorted(db.scalars(stmt).all())
+
+
 def delete_all_strava_gear_for_user(user_id: int, db: Session) -> None:
     """Stage the deletion of every Strava-linked gear a user has.
 

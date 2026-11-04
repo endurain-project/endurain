@@ -79,3 +79,19 @@ class TestEditUserDefaultGear:
 
         with pytest.raises(core_exceptions.NotFoundError):
             user_default_gear_crud.edit_user_default_gear(update, 1, mock_db, if_match="*")
+
+
+class TestClearGears:
+    def test_stages_one_update_that_bumps_the_version(self, mock_db):
+        user_default_gear_crud.clear_gears([3], 1, mock_db)
+
+        stmt = mock_db.execute.call_args.args[0]
+        compiled = str(stmt.compile())
+        assert "version=" in compiled.replace(" ", "") or "version = " in compiled
+        assert "run_gear_id" in compiled and "windsurf_gear_id" in compiled
+        mock_db.flush.assert_called_once()
+
+    def test_does_nothing_without_gears(self, mock_db):
+        user_default_gear_crud.clear_gears([], 1, mock_db)
+
+        mock_db.execute.assert_not_called()

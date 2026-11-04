@@ -1,11 +1,15 @@
 """CRUD operations for user default gear."""
 
-from sqlalchemy import select
+from collections.abc import Collection
+
+from sqlalchemy import case, or_, select
+from sqlalchemy import update as sa_update
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 import core.etag as core_etag
 import core.exceptions as core_exceptions
+import modules.users.users_default_gear.constants as users_default_gear_constants
 import modules.users.users_default_gear.models as users_default_gear_models
 import modules.users.users_default_gear.schema as users_default_gear_schema
 import modules.users.users_default_gear.serializers as users_default_gear_serializers
@@ -108,3 +112,41 @@ def edit_user_default_gear(
     db.refresh(db_default_gear)
 
     return users_default_gear_serializers.to_read_schema(db_default_gear)
+
+
+def clear_gears(gear_ids: Collection[int], user_id: int, db: Session) -> None:
+    """Stage unassigning gears from every default-gear column of a user that names them.
+
+    The gear foreign keys null a column when the gear is deleted, but they do not touch
+    ``version``, so the statement nulls the columns and bumps the version itself. It changes
+    nothing, version included, when no column names one of the gears.
+
+    Args:
+        gear_ids: The gears being removed.
+        user_id: The owning user ID.
+        db: Database session.
+    """
+    if not gear_ids:
+        return
+    columns = [
+        getattr(users_default_gear_models.UsersDefaultGear, name)
+        for name in sorted(set(users_default_gear_constants.ACTIVITY_TYPE_TO_GEAR_ATTR.values()))
+    ]
+    stmt = (
+        sa_update(users_default_gear_models.UsersDefaultGear)
+        .where(
+            users_default_gear_models.UsersDefaultGear.user_id == user_id,
+            or_(*(column.in_(gear_ids) for column in columns)),
+        )
+        .values(
+            {
+                **{column.key: case((column.in_(gear_ids), None), else_=column) for column in columns},
+                # Core UPDATEs bypass the ORM version bump, so an ETag would survive a
+                # change it should have invalidated.
+                "version": users_default_gear_models.UsersDefaultGear.version + 1,
+            }
+        )
+        .execution_options(synchronize_session=False)
+    )
+    db.execute(stmt)
+    db.flush()

@@ -3,10 +3,11 @@ import pytest
 import core.exceptions as core_exceptions
 import modules.gears.gear.crud as crud
 import modules.gears.gear.integration_service as integration
-from tests._helpers.gears import gear_create
+from tests._helpers.gears import gear_create, install_readers
 
 
 def test_surface_writes_stage_and_leave_the_commit_to_the_caller(db, commit_spy):
+    install_readers()
     created = integration.create_gear(gear_create("One"), 1, db)
     integration.create_multiple_gears([gear_create("Two", strava_gear_id="b1")], 1, db)
     integration.delete_all_strava_gear_for_user(1, db)

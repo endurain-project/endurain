@@ -6,6 +6,7 @@ import module_registry
 import modules.activities.activity.integration_service as activity_integration
 import modules.gears.contributor_registry as registry
 import modules.gears.gear_components.integration_service as gear_components_integration
+import modules.users.users_default_gear.integration_service as users_default_gear_integration
 from tests._helpers.gears import install_readers
 
 
@@ -35,3 +36,4 @@ def test_composition_installs_the_activities_and_component_readers():
     assert readers.usage_by_window is activity_integration.get_gear_usage_totals_by_window
     assert readers.components_cost is gear_components_integration.get_gear_components_total_cost
     assert readers.clear_activities_gear is activity_integration.clear_activities_gear
+    assert readers.clear_default_gear is users_default_gear_integration.clear_default_gears
