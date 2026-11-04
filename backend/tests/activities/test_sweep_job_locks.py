@@ -22,6 +22,7 @@ def test_each_ingestion_pass_declares_its_lock():
         "redispatch_deferred_refreshes": ingestion_jobs.DEFERRED_REDISPATCH_LOCK_NAME,
         "fail_stale_ingestion_jobs": ingestion_jobs.STALE_JOBS_LOCK_NAME,
         "sweep_stale_staged_blobs": ingestion_jobs.STAGED_SWEEP_LOCK_NAME,
+        "sweep_stale_bulk_import_errors": ingestion_jobs.BULK_IMPORT_ERRORS_SWEEP_LOCK_NAME,
     }
     assert len(set(locks.values())) == len(locks), "two passes share a lock, so one would starve the other"
 

@@ -34,7 +34,7 @@ The blob store is `local://` by default, which means subfolders of `DATA_DIR` (`
 | `server_images` | The login photo | No, but an admin can upload it again |
 | `activity_thumbnails` | Map previews | Yes. A job re-renders any that are missing |
 | `profile_import_staging`, `profile_export_staging` | Archives waiting to be imported or downloaded | Temporary |
-| `bulk_import_errors` | Files that failed in a bulk import, under `<user id>/<import id>/` | They are kept for you to inspect |
+| `bulk_import_errors` | Files that failed in a bulk import, under `<user id>/<import id>/` | Kept for you to inspect, then removed after `JOBS_RETENTION_DAYS` (90 days by default) or when the account is deleted |
 
 The activity data itself (route, streams, laps, heart rate and so on) is in the database. The original file is retained alongside it and is what a profile export includes.
 
@@ -73,9 +73,10 @@ Leftovers do not pile up forever. Scheduled sweeps remove:
 | Profile export archives past their download window | A sweep every 6 hours (the download itself is available for 2 hours) |
 | Identity provider icons whose provider is gone or has no icon | Daily |
 | Ingestion job records past their retention | Daily |
+| Failed bulk-import files past the job retention (`JOBS_RETENTION_DAYS`) | Daily |
 | Audit trail days older than the audit trail retention in Settings > Server > General (90 days by default) | Checked every 5 minutes, unless a legal hold is on |
 
-`bulk_import_errors` has no automatic cleanup, so delete it yourself when you no longer need the failed files.
+Failed bulk-import files in `bulk_import_errors` are removed after `JOBS_RETENTION_DAYS` (90 days by default), so copy out any you still need before then. Setting `JOBS_RETENTION_DAYS` to `0` keeps them until the account is deleted.
 
 Deleting an activity or an account removes its blobs too, so you rarely need to touch the folders by hand. Do not delete files from `activity_files` or `activity_media` directly: the database would still point to them.
 

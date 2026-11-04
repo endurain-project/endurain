@@ -199,6 +199,7 @@ class TestRunDeletion:
         photos.delete_photo_files.assert_called_once_with(1, storage)
         users_crud.delete_user.assert_called_once()
         erasers.delete_staged_files.assert_called_once_with(1, storage)
+        erasers.delete_bulk_import_errors.assert_called_once_with(1, storage)
         assert states.get(1, _Kind).status == _Status.COMPLETED
         # Every batch, the cleared photo reference and the row commit in a transaction of their own.
         assert session_local.return_value.__enter__.return_value.commit.call_count == 5
@@ -333,6 +334,7 @@ class TestRunDeletionInPasses:
         users_crud.delete_user.assert_not_called()
         photos.delete_photo_files.assert_not_called()
         erasers.delete_staged_files.assert_not_called()
+        erasers.delete_bulk_import_errors.assert_not_called()
         # Still the same deletion: running, with its claim held.
         assert states.get(1, _Kind).status == _Status.RUNNING
         assert states.begin(1, _Kind) is False

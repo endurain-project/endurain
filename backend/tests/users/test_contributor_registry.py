@@ -22,7 +22,9 @@ def test_an_uninstalled_registry_fails_loudly():
 
 
 def test_installed_erasers_are_returned():
-    erasers = users_contributors.UserErasers(delete_activities=MagicMock(), delete_staged_files=MagicMock())
+    erasers = users_contributors.UserErasers(
+        delete_activities=MagicMock(), delete_staged_files=MagicMock(), delete_bulk_import_errors=MagicMock()
+    )
 
     users_contributor_registry.register(erasers)
 

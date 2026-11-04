@@ -524,6 +524,7 @@ def configure_user_contributors() -> None:
         users_contributors.UserErasers(
             delete_activities=activity_integration.delete_activities_batch_for_user,
             delete_staged_files=users_profile_integration.delete_staged_transfers,
+            delete_bulk_import_errors=activity_ingestion_integration.delete_bulk_import_errors,
         )
     )
 

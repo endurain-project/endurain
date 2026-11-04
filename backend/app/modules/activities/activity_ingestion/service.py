@@ -25,6 +25,7 @@ import jasil.providers as platform_providers
 from sqlalchemy.exc import IntegrityError, SQLAlchemyError
 from sqlalchemy.orm import Session
 
+import core.blob_sweep as core_blob_sweep
 import core.config as core_config
 import core.database as core_database
 import core.exceptions as core_exceptions
@@ -811,6 +812,35 @@ def prune_expired_ingestion_jobs(
         )
     else:
         logger.debug("Ingestion job prune: nothing to delete")
+
+
+def sweep_stale_bulk_import_errors(storage: platform_providers.StorageProvider) -> int:
+    """Delete failed bulk-import files kept past the job retention window.
+
+    The files are kept for the user to inspect, so they follow ``JOBS_RETENTION_DAYS``
+    like the job history they belong to. A non-positive setting keeps them.
+
+    Args:
+        storage: The platform storage provider.
+
+    Returns:
+        How many files were removed.
+    """
+    retention_days = core_config.settings.JOBS_RETENTION_DAYS
+    if retention_days <= 0:
+        return 0
+
+    removed = core_blob_sweep.sweep_aged_blobs(
+        storage, activity_ingestion_constants.BULK_IMPORT_ERROR_STORAGE_AREA, retention_days * 86400
+    )
+    if removed:
+        logger.info(
+            "Removed stale failed bulk-import files",
+            extra=core_logger.context(removed=removed, retention_days=retention_days),
+        )
+    else:
+        logger.debug("Failed bulk-import file sweep: nothing to delete")
+    return removed
 
 
 # A pending or processing job that has not changed state for this long is no

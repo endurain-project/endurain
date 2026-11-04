@@ -17,6 +17,7 @@ import core.logger as core_logger
 import core.sync_runner as core_sync_runner
 import modules.activities.activity.schema as activity_schema
 import modules.activities.activity_ingestion.background as activity_ingestion_background
+import modules.activities.activity_ingestion.constants as activity_ingestion_constants
 import modules.activities.activity_ingestion.contracts as activity_ingestion_contracts
 import modules.activities.activity_ingestion.provider_entry_service as activity_ingestion_provider_entry_service
 import modules.activities.activity_ingestion.provider_registry as activity_ingestion_provider_registry
@@ -191,3 +192,23 @@ def shutdown_background_ingestion(*, wait: bool = False) -> None:
         wait: Whether to wait for running ingestion tasks.
     """
     activity_ingestion_background.shutdown(wait=wait)
+
+
+def delete_bulk_import_errors(user_id: int, storage: platform_providers.StorageProvider) -> None:
+    """Delete a user's failed bulk-import files, leaving the retention sweep to catch them if storage fails.
+
+    Runs after the account deletion is committed, so an unavailable storage backend is logged
+    rather than raised.
+
+    Args:
+        user_id: The user whose failed bulk-import files to remove.
+        storage: The platform storage provider.
+    """
+    try:
+        storage.delete_prefix(activity_ingestion_constants.BULK_IMPORT_ERROR_STORAGE_AREA, str(user_id))
+    except platform_providers.StorageBackendUnavailableError as err:
+        logger.warning(
+            "Could not delete a user's failed bulk-import files",
+            exc_info=err,
+            extra=core_logger.context(user_id=user_id),
+        )

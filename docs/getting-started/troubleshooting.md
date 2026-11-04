@@ -71,7 +71,7 @@ Statuses are `published`, `queued`, `processing`, `completed`, `failed` and `dea
 
 ## Importing problems
 
-- A file that failed in a bulk import is counted as failed and its bytes are kept in the `bulk_import_errors` storage area. See [Importing data](../features/importing.md).
+- A file that failed in a bulk import is counted as failed and its bytes are kept in the `bulk_import_errors` storage area until the job retention (`JOBS_RETENTION_DAYS`, 90 days by default) passes. See [Importing data](../features/importing.md).
 - An import that never finishes is closed by a reaper after 24 hours, and staged uploads nobody references are removed after 2 days.
 - A profile import is limited by available memory. See [Exporting and importing your data](../features/export-import.md#limits).
 

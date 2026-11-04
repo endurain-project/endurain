@@ -771,10 +771,8 @@ by hand when the code it describes changes.
 
 ### Runtime rules not yet met
 
-- **Storage lifecycle.** The `bulk_import_errors` area (`<user_id>/<job_id>/<file>`) has no sweep, retention
-  or account-deletion removal, so a deleted user's failed files stay. The hourly thumbnail reconciliation and
-  the daily orphan sweep each walk the whole thumbnail area: its keys are flat `{id}.webp`, so no prefix
-  narrows the walk.
+- **Storage lifecycle.** The hourly thumbnail reconciliation and the daily orphan sweep each walk the whole
+  thumbnail area: its keys are flat `{id}.webp`, so no prefix narrows the walk.
 - **Timeouts.** The pool size, its overflow and the `statement_timeout` are operator settings
   (`DB_POOL_SIZE`, `DB_MAX_OVERFLOW`, `DB_STATEMENT_TIMEOUT_SECONDS`), and the statement timeout is
   off by default. The 30 s pool wait and the 30 s lock timeout are still constants in `core/database.py`.

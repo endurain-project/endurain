@@ -12,6 +12,7 @@ DEFERRED_REDISPATCH_LOCK_NAME = "activity_ingestion_deferred_refresh"
 PRUNE_LOCK_NAME = "activity_ingestion_jobs_prune"
 STALE_JOBS_LOCK_NAME = "activity_ingestion_jobs_fail_stale"
 STAGED_SWEEP_LOCK_NAME = "activity_ingestion_staged_blob_sweep"
+BULK_IMPORT_ERRORS_SWEEP_LOCK_NAME = "activity_ingestion_bulk_import_errors_sweep"
 
 
 def prune_expired_ingestion_jobs() -> None:
@@ -79,6 +80,16 @@ def sweep_stale_staged_blobs() -> None:
     activity_ingestion_service.sweep_stale_staged_blobs(platform.clock, platform.storage)
 
 
+def sweep_stale_bulk_import_errors() -> None:
+    """Delete failed bulk-import files kept past the job retention window.
+
+    Scheduler-invoked, with no request to carry the providers, so this entry
+    point resolves them.
+    """
+    platform = platform_runtime.get_active_platform()
+    activity_ingestion_service.sweep_stale_bulk_import_errors(platform.storage)
+
+
 def recurring_jobs() -> tuple[core_scheduler.ScheduledJob, ...]:
     """Return ingestion retention and stale-job jobs.
 
@@ -115,5 +126,11 @@ def recurring_jobs() -> tuple[core_scheduler.ScheduledJob, ...]:
             1440,
             "remove staged ingestion blobs nothing will read",
             lock_name=STAGED_SWEEP_LOCK_NAME,
+        ),
+        core_scheduler.ScheduledJob(
+            sweep_stale_bulk_import_errors,
+            1440,
+            "remove failed bulk-import files past the job retention",
+            lock_name=BULK_IMPORT_ERRORS_SWEEP_LOCK_NAME,
         ),
     )

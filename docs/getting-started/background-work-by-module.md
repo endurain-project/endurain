@@ -183,6 +183,7 @@ Recurring jobs are declared by each module and run by the scheduler of the API p
 | Fail ingestion jobs that stopped progressing | 60 min | no | Closes jobs stuck in processing |
 | Prune ingestion job records | 24 h | no | Retention |
 | Remove staged ingestion blobs nothing reads | 24 h | no | Cleanup |
+| Remove failed bulk-import files past `JOBS_RETENTION_DAYS` | 24 h | yes | Retention |
 | Pull the last day of Garmin Connect health data | 4 h | yes | One sync per linked user |
 | Remove staged profile imports and exports | 6 h each | yes | Cleanup |
 | Purge read notifications past retention | 24 h | yes | Retention |

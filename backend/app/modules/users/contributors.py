@@ -16,7 +16,7 @@ from sqlalchemy.orm import Session
 #: is what lets it clean up the blobs stored per activity.
 ActivitiesEraser = Callable[[int, int, Session], int]
 
-#: ``(user_id, storage)`` -> removes the files other modules staged for the user. Housekeeping that
+#: ``(user_id, storage)`` -> removes files other modules stored for the user. Housekeeping that
 #: runs after the deletion is committed, so it logs a failure instead of raising.
 StagedFilesEraser = Callable[[int, platform_providers.StorageProvider], None]
 
@@ -28,7 +28,9 @@ class UserErasers:
     Attributes:
         delete_activities: Stages the deletion of a batch of a user's activities and their stored files.
         delete_staged_files: Removes the archives staged for the user's profile export and imports.
+        delete_bulk_import_errors: Removes the failed bulk-import files kept for the user.
     """
 
     delete_activities: ActivitiesEraser
     delete_staged_files: StagedFilesEraser
+    delete_bulk_import_errors: StagedFilesEraser

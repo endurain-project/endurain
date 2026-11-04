@@ -287,6 +287,7 @@ def run_deletion(
         return False
 
     users_contributor_registry.erasers().delete_staged_files(user_id, storage)
+    users_contributor_registry.erasers().delete_bulk_import_errors(user_id, storage)
     states.set_status(user_id, _Kind.ACCOUNT, _Status.COMPLETED)
     logger.info("User deleted", extra=core_logger.context(user_id=user_id, activities=activities))
     return False
