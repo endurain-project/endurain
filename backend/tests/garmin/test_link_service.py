@@ -141,6 +141,27 @@ class TestLinkGarminconnect:
         entry = audit.assert_audited(garmin_audit_actions.ACCOUNT_LINK.id, outcome="failure")
         assert entry.details == {"reason": "incorrect_mfa"}
 
+    def test_an_mfa_timeout_is_an_incorrect_code_through_the_librarys_login_wrapping(self, stores):
+        mfa_codes, link_states = stores
+        link_states.begin(1)
+
+        def client_login(_self, _email, _password, prompt_mfa=None, **_kwargs):
+            prompt_mfa()
+
+        # The real Garmin.login runs, so its final handler rewraps the timeout as a connection error.
+        with (
+            patch.object(garminconnect.client.Client, "login", client_login),
+            patch.object(garmin_constants, "MFA_WAIT_SECONDS", 1),
+            patch.object(garmin_link_service.time, "sleep"),
+            patch.object(garmin_link_service.websocket_integration, "push_job_changed"),
+            jasil_testing.capture_audit() as audit,
+        ):
+            garmin_link_service.link_garminconnect(1, "me@example.com", "pw", mfa_codes, link_states, False)
+
+        assert link_states.get(1) == link_state_store.LinkState(status=Status.FAILED, reason=Failure.INCORRECT_MFA)
+        entry = audit.assert_audited(garmin_audit_actions.ACCOUNT_LINK.id, outcome="failure")
+        assert entry.details == {"reason": "incorrect_mfa"}
+
     def test_a_rejection_without_an_mfa_prompt_is_invalid_credentials(self, stores):
         _link(stores, _garmin(login=garminconnect.GarminConnectAuthenticationError("bad password")))
 

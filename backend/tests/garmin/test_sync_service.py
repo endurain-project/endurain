@@ -339,6 +339,13 @@ class TestRecentHealth:
         assert [call.args[0] for call in publish.call_args_list] == [1, 2, 5]
         assert [call.args[0] for call in listing.call_args_list] == [0, 2, 5]
 
+    def test_a_failure_reading_the_linked_users_propagates_so_the_run_is_retried(self, rate_limits, durable, states):
+        with (
+            patch.object(garmin_sync_service.garmin_service, "linked_user_ids", side_effect=RuntimeError("db down")),
+            pytest.raises(RuntimeError),
+        ):
+            garmin_sync_service.sync_recent_health(states, rate_limits)
+
     def test_a_user_with_a_pending_sync_is_skipped(self, rate_limits, durable, states):
         publish, _ = durable
         states.begin(1, Kind.HEALTH)

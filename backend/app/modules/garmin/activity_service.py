@@ -61,7 +61,7 @@ def _download_and_ingest_activity(
                 upload_dir=work_dir,
                 filename=f"{int(activity_id)}.zip",
             )
-        except Exception as err:
+        except core_exceptions.DomainError as err:
             logger.warning(
                 "Garmin ZIP for activity failed validation",
                 exc_info=err,
@@ -77,7 +77,7 @@ def _download_and_ingest_activity(
                 dest_dir=os.path.join(work_dir, "extracted"),
                 per_entry_kind=file_uploads.UploadKind.ACTIVITY,
             )
-        except Exception as err:
+        except core_exceptions.DomainError as err:
             logger.warning(
                 "Garmin ZIP extraction failed for activity",
                 exc_info=err,
@@ -100,7 +100,7 @@ def _download_and_ingest_activity(
                         activity_name=activity_name,
                     ),
                 )
-            # Ingestion logs a file it could not store and answers None, so the window moves on.
+            # Ingestion logs a file it refuses and answers None, so the window moves on; an outage is raised.
             if parsed_result:
                 stored.extend(parsed_result)
     return stored
@@ -163,7 +163,7 @@ def fetch_and_process_activities_by_dates(
     duplicate check and the store each open a short one. An activity failing does
     not stop the rest of the window, but the first failure is raised once the
     window is done, so the refresh job fails and is retried, as for any provider. A file ingestion
-    could not store is logged by ingestion and skipped, and does not fail the window.
+    refuses is logged by ingestion and skipped, and does not fail the window.
 
     Args:
         session: The user's authenticated Garmin Connect session.

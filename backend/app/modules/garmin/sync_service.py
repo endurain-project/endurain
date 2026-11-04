@@ -354,11 +354,7 @@ def sync_recent_health(
     """
     after_id = 0
     while True:
-        try:
-            user_ids = garmin_service.linked_user_ids(after_id, _USERS_PAGE_SIZE)
-        except Exception as err:
-            logger.error("Error getting the users linked to Garmin Connect", exc_info=err)
-            return
+        user_ids = garmin_service.linked_user_ids(after_id, _USERS_PAGE_SIZE)
         if not user_ids:
             return
         for user_id in user_ids:

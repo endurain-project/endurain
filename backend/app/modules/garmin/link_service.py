@@ -142,6 +142,7 @@ def link_garminconnect(
     # A code left by an earlier attempt must not answer this one's prompt.
     mfa_codes.delete_code(user_id)
     mfa_prompted = False
+    mfa_timed_out = False
 
     def prompt_mfa() -> str:
         """Mark the login as prompted and wait for the user's MFA code.
@@ -150,11 +151,16 @@ def link_garminconnect(
             The submitted code.
 
         Raises:
-            _MfaCodeTimeoutError: When none arrived in time; it propagates out of the library's login.
+            _MfaCodeTimeoutError: When none arrived in time; the library's login may rewrap it, so the
+                timeout is also flagged for :func:`link_garminconnect`.
         """
-        nonlocal mfa_prompted
+        nonlocal mfa_prompted, mfa_timed_out
         mfa_prompted = True
-        return wait_for_mfa_code(user_id, mfa_codes, link_states)
+        try:
+            return wait_for_mfa_code(user_id, mfa_codes, link_states)
+        except _MfaCodeTimeoutError:
+            mfa_timed_out = True
+            raise
 
     try:
         garmin = garminconnect.Garmin(email=email, password=password, is_cn=is_cn, prompt_mfa=prompt_mfa)
@@ -190,13 +196,6 @@ def link_garminconnect(
         )
         link_states.set_status(user_id, garmin_constants.LinkStatus.FAILED, reason)
         _record_refused_link(user_id, garmin_audit_actions.LinkFailureReason(reason))
-    except _MfaCodeTimeoutError:
-        # Recorded as an incorrect code, the reason that covers a code that did not arrive in time.
-        logger.warning(
-            "Garmin Connect link abandoned: no MFA code arrived in time", extra=core_logger.context(user_id=user_id)
-        )
-        link_states.set_status(user_id, garmin_constants.LinkStatus.FAILED, garmin_constants.LinkFailure.INCORRECT_MFA)
-        _record_refused_link(user_id, garmin_audit_actions.LinkFailureReason.INCORRECT_MFA)
     except garminconnect.GarminConnectTooManyRequestsError:
         logger.warning(
             "Garmin Connect refused the link attempt: too many requests",
@@ -207,10 +206,25 @@ def link_garminconnect(
         )
         _record_refused_link(user_id, garmin_audit_actions.LinkFailureReason.TOO_MANY_REQUESTS)
     except Exception as err:
-        logger.error(
-            "Internal error while linking Garmin Connect", exc_info=err, extra=core_logger.context(user_id=user_id)
-        )
-        link_states.set_status(user_id, garmin_constants.LinkStatus.FAILED, garmin_constants.LinkFailure.INTERNAL)
+        if mfa_timed_out:
+            # The library rewraps the timeout, so it is told apart by the flag. Recorded as an incorrect
+            # code, the reason that covers a code that did not arrive in time.
+            logger.warning(
+                "Garmin Connect link abandoned: no MFA code arrived in time",
+                exc_info=err,
+                extra=core_logger.context(user_id=user_id),
+            )
+            link_states.set_status(
+                user_id, garmin_constants.LinkStatus.FAILED, garmin_constants.LinkFailure.INCORRECT_MFA
+            )
+            _record_refused_link(user_id, garmin_audit_actions.LinkFailureReason.INCORRECT_MFA)
+        else:
+            logger.error(
+                "Internal error while linking Garmin Connect",
+                exc_info=err,
+                extra=core_logger.context(user_id=user_id),
+            )
+            link_states.set_status(user_id, garmin_constants.LinkStatus.FAILED, garmin_constants.LinkFailure.INTERNAL)
     else:
         link_states.set_status(user_id, garmin_constants.LinkStatus.COMPLETED)
     finally:

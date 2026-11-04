@@ -4,6 +4,7 @@ from unittest.mock import MagicMock, patch
 
 import garminconnect
 import pytest
+import sqlalchemy.exc
 
 import core.exceptions as core_exceptions
 import modules.garmin.service as garmin_service
@@ -106,6 +107,29 @@ class TestSaveRefreshedToken:
             garmin_service.save_refreshed_token(1, self._session())
 
         session_local.return_value.__enter__.return_value.commit.assert_not_called()
+
+
+class TestSaveRefreshedTokenFailures:
+    def _save(self, error):
+        session = garmin_service.GarminSession(MagicMock(), {"di_token": "enc"})
+        with (
+            patch.object(garmin_service.garmin_token_utils, "refreshed_token", return_value={"di_token": "new"}),
+            patch.object(garmin_service.core_database, "SessionLocal"),
+            patch.object(
+                garmin_service.user_integrations_integration, "replace_garminconnect_token_if_token", side_effect=error
+            ),
+        ):
+            garmin_service.save_refreshed_token(1, session)
+
+    @pytest.mark.parametrize(
+        "error", [sqlalchemy.exc.OperationalError("s", {}, Exception("db")), core_exceptions.CryptographyError()]
+    )
+    def test_a_storage_failure_is_logged_not_raised(self, error):
+        self._save(error)
+
+    def test_a_bug_is_not_swallowed(self):
+        with pytest.raises(RuntimeError):
+            self._save(RuntimeError("bug"))
 
 
 def test_a_rejected_token_unlinks_the_account_it_was_stored_as():

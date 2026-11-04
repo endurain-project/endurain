@@ -11,6 +11,7 @@ from typing import Any, NamedTuple
 
 import garminconnect
 import jasil.audit as jasil_audit
+import sqlalchemy.exc
 from sqlalchemy.orm import Session
 
 import core.database as core_database
@@ -191,7 +192,7 @@ def save_refreshed_token(user_id: int, session: GarminSession) -> None:
             if user_integrations_integration.replace_garminconnect_token_if_token(user_id, session.token, token, db):
                 db.commit()
                 logger.debug("Garmin Connect token refreshed", extra=core_logger.context(user_id=user_id))
-    except Exception as err:
+    except (sqlalchemy.exc.SQLAlchemyError, core_exceptions.CryptographyError) as err:
         logger.error(
             "Failed to store the refreshed Garmin Connect token",
             exc_info=err,

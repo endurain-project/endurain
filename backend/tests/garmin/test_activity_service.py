@@ -8,6 +8,7 @@ from unittest.mock import Mock, patch
 
 import pytest
 
+import core.exceptions as core_exceptions
 import modules.garmin.activity_service as activity_utils
 import modules.garmin.service as garmin_service
 from tests._helpers import garmin as garmin_helpers
@@ -148,13 +149,22 @@ class TestFailureIsolation:
     def test_a_failed_zip_validation_skips_the_activity(self, monkeypatch):
         client = _make_garminconnect_client()
         monkeypatch.setattr(
-            activity_utils.file_uploads, "save_validated_bytes_sync", Mock(side_effect=ValueError("bad"))
+            activity_utils.file_uploads,
+            "save_validated_bytes_sync",
+            Mock(side_effect=core_exceptions.InvalidInputError("bad")),
         )
         ingest = Mock()
         monkeypatch.setattr(activity_utils.activity_ingestion_integration, "ingest_activity_file", ingest)
 
         assert _call(client) is None
         ingest.assert_not_called()
+
+    def test_an_unexpected_error_while_validating_the_zip_propagates(self, monkeypatch):
+        client = _make_garminconnect_client()
+        monkeypatch.setattr(activity_utils.file_uploads, "save_validated_bytes_sync", Mock(side_effect=OSError("disk")))
+
+        with pytest.raises(OSError):
+            _call(client)
 
 
 class TestExtractionFailureLogging:
@@ -163,14 +173,16 @@ class TestExtractionFailureLogging:
     def test_the_failure_is_logged_with_its_type(self, monkeypatch):
         client = _make_garminconnect_client()
         monkeypatch.setattr(
-            activity_utils.file_uploads, "extract_validated_zip_sync", Mock(side_effect=ValueError("zip-slip"))
+            activity_utils.file_uploads,
+            "extract_validated_zip_sync",
+            Mock(side_effect=core_exceptions.InvalidInputError("zip-slip")),
         )
 
         assert _call(client) is None
 
         call = activity_utils.logger.warning.call_args
         assert "extraction failed" in call.args[0]
-        assert call.kwargs["extra"]["error_type"] == "ValueError"
+        assert call.kwargs["extra"]["error_type"] == "InvalidInputError"
 
 
 class TestWorkDirectoryIsPrivate:
