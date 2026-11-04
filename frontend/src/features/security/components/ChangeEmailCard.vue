@@ -15,6 +15,7 @@ import { Label } from '@/components/ui/label'
 import { Switch } from '@/components/ui/switch'
 import { useToasts } from '@/composables/useToasts'
 import { HttpError } from '@/services/http'
+import { normalizeMfaCode } from '@/features/auth/utils/mfaCode'
 import { useIdpReauthChallenge } from '@/features/security/composables/useIdpStepUp'
 import {
   useCancelEmailChangeMutation,
@@ -115,7 +116,7 @@ function submit(): void {
       email: trimmedEmail.value,
       stepUp: {
         currentPassword: props.hasLocalPassword ? currentPassword.value : null,
-        mfaCode: props.mfaEnabled ? mfaCode.value.trim() : null,
+        mfaCode: props.mfaEnabled ? normalizeMfaCode(mfaCode.value) : null,
         idpReauth: props.hasLocalPassword ? null : idpReauth.value,
       },
       revokeOtherSessions: revokeOtherSessions.value,

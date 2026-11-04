@@ -106,6 +106,18 @@ describe('StepUpDialog', () => {
     ])
   })
 
+  it('normalises a spaced authenticator code and a dashless backup code', async () => {
+    const wrapper = mountDialog({ requirePassword: true, requireMfa: true })
+    await wrapper.find('#stepup-password').setValue('pw')
+    await wrapper.find('#stepup-mfa').setValue('561 203')
+    await wrapper.find('form').trigger('submit')
+    await wrapper.find('#stepup-mfa').setValue('abcd1234')
+    await wrapper.find('form').trigger('submit')
+    expect(
+      wrapper.emitted('confirm')?.map(([input]) => (input as { mfaCode: string }).mfaCode),
+    ).toEqual(['561203', 'ABCD-1234'])
+  })
+
   it('does not submit without a ticket', async () => {
     const wrapper = mountDialog({ requirePassword: false, requireMfa: false })
     await wrapper.find('form').trigger('submit')

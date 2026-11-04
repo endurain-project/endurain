@@ -12,6 +12,7 @@ import { Label } from '@/components/ui/label'
 import { Switch } from '@/components/ui/switch'
 import { useToasts } from '@/composables/useToasts'
 import { HttpError } from '@/services/http'
+import { normalizeMfaCode } from '@/features/auth/utils/mfaCode'
 import { useChangePasswordMutation } from '@/features/security/composables/useSecurity'
 import {
   usePasswordConfirmation,
@@ -78,7 +79,7 @@ async function submit(): Promise<void> {
     await mutation.mutateAsync({
       currentPassword: currentPassword.value,
       newPassword: newPassword.value,
-      mfaCode: props.mfaEnabled ? mfaCode.value.trim() : null,
+      mfaCode: props.mfaEnabled ? normalizeMfaCode(mfaCode.value) : null,
       revokeOtherSessions: revokeOtherSessions.value,
     })
     toasts.success(t('settings.security.password.success'))

@@ -10,6 +10,7 @@ import { FormDialog } from '@/components/ui/form-dialog'
 import { Input } from '@/components/ui/input'
 import { inputFieldClass } from '@/components/ui/input/fieldClasses'
 import { Label } from '@/components/ui/label'
+import { normalizeMfaCode } from '@/features/auth/utils/mfaCode'
 import { Switch } from '@/components/ui/switch'
 import { API_KEY_SCOPES } from '@/features/security/services/security'
 
@@ -96,7 +97,7 @@ function onSubmit(): void {
     scopes: selectedScopes.value,
     expiresAt: expiresAt.value || null,
     currentPassword: props.requirePassword ? password.value : null,
-    mfaCode: props.requireMfa ? mfaCode.value.trim() : null,
+    mfaCode: props.requireMfa ? normalizeMfaCode(mfaCode.value) : null,
     idpReauth: props.requirePassword ? null : reauth.value,
   })
 }

@@ -10,6 +10,7 @@ import PasswordInput from '@/features/security/components/PasswordInput.vue'
 import { FormDialog } from '@/components/ui/form-dialog'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
+import { normalizeMfaCode } from '@/features/auth/utils/mfaCode'
 
 const open = defineModel<boolean>('open', { required: true })
 // The identity-provider sign-in proof, used when the account has no password.
@@ -99,7 +100,7 @@ watch(
 function onSubmit(): void {
   emit('confirm', {
     currentPassword: props.requirePassword ? password.value : null,
-    mfaCode: props.requireMfa ? mfaCode.value.trim() : null,
+    mfaCode: props.requireMfa ? normalizeMfaCode(mfaCode.value) : null,
     idpReauth: props.requirePassword ? null : reauth.value,
   })
 }
