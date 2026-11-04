@@ -35,9 +35,9 @@ from typing import Protocol
 
 import modules.activities.activity.contracts as activity_contracts
 import modules.activities.activity_file_import.adapter as activity_file_import_adapter
-import modules.activities.activity_file_import.fit_utils as activity_file_import_fit_utils
-import modules.activities.activity_file_import.gpx_utils as activity_file_import_gpx_utils
-import modules.activities.activity_file_import.tcx_utils as activity_file_import_tcx_utils
+import modules.activities.activity_file_import.fit_parser as activity_file_import_fit_parser
+import modules.activities.activity_file_import.gpx_parser as activity_file_import_gpx_parser
+import modules.activities.activity_file_import.tcx_parser as activity_file_import_tcx_parser
 
 
 class FileParser(Protocol):
@@ -90,7 +90,7 @@ def _parse_gpx(
     Returns:
         The parsed file.
     """
-    parsed_info = activity_file_import_gpx_utils.parse_gpx_file(
+    parsed_info = activity_file_import_gpx_parser.parse_gpx_file(
         path,
         user_id,
         activity_name_input=activity_name,
@@ -121,7 +121,7 @@ def _parse_tcx(
     Returns:
         The parsed file.
     """
-    parsed_info = activity_file_import_tcx_utils.parse_tcx_file(
+    parsed_info = activity_file_import_tcx_parser.parse_tcx_file(
         path, user_id, activity_name_input=activity_name, default_timezone=default_timezone
     )
     return activity_contracts.ParsedFile(
@@ -154,9 +154,9 @@ def _parse_fit(
     Returns:
         The parsed file, one entry per activity.
     """
-    payload = activity_file_import_fit_utils.parse_fit_file(path, activity_name)
-    sessions = activity_file_import_fit_utils.split_records_by_activity(payload)
-    parsed_infos = activity_file_import_fit_utils.create_activity_objects(sessions, user_id, default_timezone)
+    payload = activity_file_import_fit_parser.parse_fit_file(path, activity_name)
+    sessions = activity_file_import_fit_parser.split_records_by_activity(payload)
+    parsed_infos = activity_file_import_fit_parser.create_activity_objects(sessions, user_id, default_timezone)
     return activity_contracts.ParsedFile(
         activities=[
             activity_file_import_adapter.parsed_info_to_parsed_activity(parsed_info) for parsed_info in parsed_infos

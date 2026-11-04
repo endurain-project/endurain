@@ -2,7 +2,7 @@
 
 The leaf half of the FIT parser. Each ``parse_frame_*`` reads a single FIT data
 message and returns a dict or primitive; none of them touches parse state, calls
-another frame parser, or knows an activity exists. ``fit_utils`` holds the other
+another frame parser, or knows an activity exists. ``fit_parser`` holds the other
 half — the dispatch that routes each message to one of these and accumulates the
 result into an activity.
 

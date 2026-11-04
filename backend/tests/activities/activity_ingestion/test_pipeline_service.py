@@ -18,7 +18,7 @@ import modules.activities.activity_ingestion.pipeline_service as pipeline
 
 class TestParseFile:
     @patch("modules.activities.activity_file_import.parser_registry.activity_file_import_adapter")
-    @patch("modules.activities.activity_file_import.parser_registry.activity_file_import_gpx_utils")
+    @patch("modules.activities.activity_file_import.parser_registry.activity_file_import_gpx_parser")
     def test_parse_gpx(self, mock_gpx, mock_adapter):
         mock_gpx.parse_gpx_file.return_value = {"activity": "data"}
         mock_adapter.parsed_info_to_parsed_activity.return_value = "parsed"
@@ -32,7 +32,7 @@ class TestParseFile:
         assert result.activities == ["parsed"]
 
     @patch("modules.activities.activity_file_import.parser_registry.activity_file_import_adapter")
-    @patch("modules.activities.activity_file_import.parser_registry.activity_file_import_tcx_utils")
+    @patch("modules.activities.activity_file_import.parser_registry.activity_file_import_tcx_parser")
     def test_parse_tcx(self, mock_tcx, mock_adapter):
         mock_tcx.parse_tcx_file.return_value = {"activity": "tcx_data"}
         mock_adapter.parsed_info_to_parsed_activity.return_value = "parsed"
@@ -46,7 +46,7 @@ class TestParseFile:
         assert result.activities == ["parsed"]
 
     @patch("modules.activities.activity_file_import.parser_registry.activity_file_import_adapter")
-    @patch("modules.activities.activity_file_import.parser_registry.activity_file_import_fit_utils")
+    @patch("modules.activities.activity_file_import.parser_registry.activity_file_import_fit_parser")
     def test_parse_fit_returns_every_activity_in_the_file(self, mock_fit, mock_adapter):
         # The pipeline no longer knows that .fit can hold several activities.
         mock_fit.parse_fit_file.return_value = {}
@@ -84,7 +84,7 @@ class TestParseFileError:
     """Exception handler in parse_file."""
 
     @pytest.mark.parametrize("error", [ValueError("bad data"), KeyError("trkpt"), TypeError("None"), EOFError()])
-    @patch("modules.activities.activity_file_import.parser_registry.activity_file_import_gpx_utils")
+    @patch("modules.activities.activity_file_import.parser_registry.activity_file_import_gpx_parser")
     def test_content_the_parser_cannot_read_is_the_files_fault(self, mock_gpx, error):
         """A corrupt file fails the same way on every retry, so it ends as INVALID_FILE at once."""
         mock_gpx.parse_gpx_file.side_effect = error
@@ -97,7 +97,7 @@ class TestParseFileError:
             )
         assert exc.value.status_code == 400
 
-    @patch("modules.activities.activity_file_import.parser_registry.activity_file_import_gpx_utils")
+    @patch("modules.activities.activity_file_import.parser_registry.activity_file_import_gpx_parser")
     def test_a_file_that_cannot_be_read_stays_a_server_error(self, mock_gpx):
         mock_gpx.parse_gpx_file.side_effect = OSError("disk")
 

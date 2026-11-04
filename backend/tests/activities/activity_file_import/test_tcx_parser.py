@@ -8,7 +8,7 @@ import pytest
 from tcxreader.tcx_track_point import TCXTrackPoint
 
 import core.exceptions as core_exceptions
-import modules.activities.activity_file_import.tcx_utils as tcx_utils
+import modules.activities.activity_file_import.tcx_parser as tcx_parser
 import modules.activities.computation as activities_computation
 
 _SERVER_TZ = "UTC"
@@ -53,7 +53,7 @@ class TestUtilsTcx:
             ]
         )
 
-        waypoints = tcx_utils._extract_waypoints(trackpoints, tcx_file)
+        waypoints = tcx_parser._extract_waypoints(trackpoints, tcx_file)
 
         assert len(waypoints["lat_lon_waypoints"]) == 1
         assert len(waypoints["hr_waypoints"]) == 1
@@ -77,7 +77,7 @@ class TestUtilsTcx:
         )
 
         with pytest.raises(core_exceptions.InvalidInputError, match="no activity start or end time"):
-            tcx_utils._build_activity(
+            tcx_parser._build_activity(
                 tcx_file=tcx_file,
                 user_id=1,
                 activity_name="Indoor Session",
@@ -110,7 +110,7 @@ class TestUtilsTcx:
         ]
         tcx_file = SimpleNamespace(trackpoints=[])
 
-        waypoints = tcx_utils._extract_waypoints(trackpoints, tcx_file)
+        waypoints = tcx_parser._extract_waypoints(trackpoints, tcx_file)
 
         assert waypoints["lat_lon_waypoints"][0]["time"] == "2026-03-28T15:19:19"
         assert waypoints["hr_waypoints"][0]["time"] == "2026-03-28T15:19:19"
@@ -128,7 +128,7 @@ class TestUtilsTcx:
             for i in range(3)
         ]
 
-        waypoints = tcx_utils._extract_waypoints(
+        waypoints = tcx_parser._extract_waypoints(
             [trackpoint.to_dict() for trackpoint in trackpoints], SimpleNamespace(trackpoints=trackpoints)
         )
 
@@ -151,7 +151,7 @@ class TestUtilsTcx:
             calories=None,
         )
 
-        activity = tcx_utils._build_activity(
+        activity = tcx_parser._build_activity(
             tcx_file=tcx_file,
             user_id=1,
             activity_name="Ride",
@@ -210,13 +210,13 @@ class TestUtilsTcx:
         with (
             patch("tcxreader.TCXReader") as mock_reader_class,
             patch(
-                "modules.activities.activity_file_import.tcx_utils._extract_waypoints",
+                "modules.activities.activity_file_import.tcx_parser._extract_waypoints",
                 return_value=fake_waypoints,
             ),
         ):
             mock_reader_class.return_value.read.return_value = mock_tcx
 
-            result = tcx_utils.parse_tcx_file(file="dummy.tcx", user_id=1, default_timezone=_SERVER_TZ)
+            result = tcx_parser.parse_tcx_file(file="dummy.tcx", user_id=1, default_timezone=_SERVER_TZ)
 
         activity = result["activity"]
         # Zeros excluded: mean([150, 160]) = 155, max = 160.
@@ -272,17 +272,17 @@ class TestUtilsTcx:
         with (
             patch("tcxreader.TCXReader") as mock_reader_class,
             patch(
-                "modules.activities.activity_file_import.tcx_utils._extract_waypoints",
+                "modules.activities.activity_file_import.tcx_parser._extract_waypoints",
                 return_value=fake_waypoints,
             ),
             patch(
-                "modules.activities.activity_file_import.tcx_utils.activity_file_import_parser_utils.resolve_timezone_from_lat_lon",
+                "modules.activities.activity_file_import.tcx_parser.activity_file_import_parser_utils.resolve_timezone_from_lat_lon",
                 return_value="UTC",
             ),
         ):
             mock_reader_class.return_value.read.return_value = mock_tcx
 
-            result = tcx_utils.parse_tcx_file(file="dummy.tcx", user_id=1, default_timezone=_SERVER_TZ)
+            result = tcx_parser.parse_tcx_file(file="dummy.tcx", user_id=1, default_timezone=_SERVER_TZ)
 
         assert 1000 < result["activity"].distance < 1200
         assert result["activity"].pace > 0
@@ -300,7 +300,7 @@ class TestUtilsTcx:
         ]
         tcx_file = SimpleNamespace(trackpoints=[])
 
-        waypoints = tcx_utils._extract_waypoints(trackpoints, tcx_file)
+        waypoints = tcx_parser._extract_waypoints(trackpoints, tcx_file)
 
         assert waypoints["moving_time"] == 20.0
         assert len(waypoints["lat_lon_segments"]) == 2
@@ -316,7 +316,7 @@ class TestUtilsTcx:
             {"time": t0 + timedelta(seconds=30 * i), "latitude": 40.0 + 0.001 * i, "longitude": -3.0} for i in range(5)
         ]
 
-        waypoints = tcx_utils._extract_waypoints(trackpoints, SimpleNamespace(trackpoints=[]))
+        waypoints = tcx_parser._extract_waypoints(trackpoints, SimpleNamespace(trackpoints=[]))
 
         assert waypoints["moving_time"] == 120.0
         assert len(waypoints["lat_lon_segments"]) == 1
@@ -343,10 +343,10 @@ class TestUtilsTcx:
         )
 
         with patch(
-            "modules.activities.activity_file_import.tcx_utils.activity_file_import_parser_utils.resolve_timezone_from_lat_lon",
+            "modules.activities.activity_file_import.tcx_parser.activity_file_import_parser_utils.resolve_timezone_from_lat_lon",
             return_value="UTC",
         ):
-            result = tcx_utils.parse_tcx_file(file=str(tcx_path), user_id=1, default_timezone=_SERVER_TZ)
+            result = tcx_parser.parse_tcx_file(file=str(tcx_path), user_id=1, default_timezone=_SERVER_TZ)
 
         activity = result["activity"]
         # 4 hops of 0.001 deg latitude, about 111 m each.
@@ -403,17 +403,17 @@ class TestUtilsTcx:
         with (
             patch("tcxreader.TCXReader") as mock_reader_class,
             patch(
-                "modules.activities.activity_file_import.tcx_utils._extract_waypoints",
+                "modules.activities.activity_file_import.tcx_parser._extract_waypoints",
                 return_value=fake_waypoints,
             ),
             patch(
-                "modules.activities.activity_file_import.tcx_utils.activity_file_import_parser_utils.resolve_timezone_from_lat_lon",
+                "modules.activities.activity_file_import.tcx_parser.activity_file_import_parser_utils.resolve_timezone_from_lat_lon",
                 return_value="UTC",
             ),
         ):
             mock_reader_class.return_value.read.return_value = mock_tcx
 
-            result = tcx_utils.parse_tcx_file(file="dummy.tcx", user_id=1, default_timezone=_SERVER_TZ)
+            result = tcx_parser.parse_tcx_file(file="dummy.tcx", user_id=1, default_timezone=_SERVER_TZ)
 
         activity = result["activity"]
         assert activity.total_elapsed_time == 3600
@@ -472,17 +472,17 @@ class TestUtilsTcx:
         with (
             patch("tcxreader.TCXReader") as mock_reader_class,
             patch(
-                "modules.activities.activity_file_import.tcx_utils._extract_waypoints",
+                "modules.activities.activity_file_import.tcx_parser._extract_waypoints",
                 return_value=fake_waypoints,
             ),
             patch(
-                "modules.activities.activity_file_import.tcx_utils.activity_file_import_parser_utils.resolve_timezone_from_lat_lon",
+                "modules.activities.activity_file_import.tcx_parser.activity_file_import_parser_utils.resolve_timezone_from_lat_lon",
                 return_value="UTC",
             ),
         ):
             mock_reader_class.return_value.read.return_value = mock_tcx
 
-            result = tcx_utils.parse_tcx_file(file="dummy.tcx", user_id=1, default_timezone=_SERVER_TZ)
+            result = tcx_parser.parse_tcx_file(file="dummy.tcx", user_id=1, default_timezone=_SERVER_TZ)
 
         # ~0.01 deg of latitude ≈ 1.1 km; the ~1.1 km pause hop is excluded.
         assert 1000 < result["activity"].distance < 1200
@@ -516,13 +516,13 @@ class TestUtilsTcx:
         with (
             patch("tcxreader.TCXReader") as mock_reader_class,
             patch(
-                "modules.activities.activity_file_import.tcx_utils.activity_file_import_parser_utils.resolve_timezone_from_lat_lon",
+                "modules.activities.activity_file_import.tcx_parser.activity_file_import_parser_utils.resolve_timezone_from_lat_lon",
                 return_value="UTC",
             ),
         ):
             mock_reader_class.return_value.read.return_value = mock_tcx
 
-            result = tcx_utils.parse_tcx_file(file="dummy.tcx", user_id=1, default_timezone=_SERVER_TZ)
+            result = tcx_parser.parse_tcx_file(file="dummy.tcx", user_id=1, default_timezone=_SERVER_TZ)
 
         assert result["activity"].distance == 0
 
@@ -555,7 +555,7 @@ class TestUtilsTcx:
         )
         tcx_file = SimpleNamespace(laps=[lap])
 
-        laps = tcx_utils._parse_laps(tcx_file, [])
+        laps = tcx_parser._parse_laps(tcx_file, [])
 
         assert laps[0]["total_elapsed_time"] == 320
         assert laps[0]["total_timer_time"] == 20
@@ -576,7 +576,7 @@ class TestUtilsTcx:
             calories=None,
         )
 
-        activity = tcx_utils._build_activity(
+        activity = tcx_parser._build_activity(
             tcx_file=tcx_file,
             user_id=1,
             activity_name="Ride",
@@ -643,17 +643,17 @@ class TestUtilsTcx:
         with (
             patch("tcxreader.TCXReader") as mock_reader_class,
             patch(
-                "modules.activities.activity_file_import.tcx_utils._extract_waypoints",
+                "modules.activities.activity_file_import.tcx_parser._extract_waypoints",
                 return_value=fake_waypoints,
             ),
             patch(
-                "modules.activities.activity_file_import.tcx_utils.activity_file_import_parser_utils.resolve_timezone_from_lat_lon",
+                "modules.activities.activity_file_import.tcx_parser.activity_file_import_parser_utils.resolve_timezone_from_lat_lon",
                 return_value="UTC",
             ),
         ):
             mock_reader_class.return_value.read.return_value = mock_tcx
 
-            result = tcx_utils.parse_tcx_file(file="dummy.tcx", user_id=1, default_timezone=_SERVER_TZ)
+            result = tcx_parser.parse_tcx_file(file="dummy.tcx", user_id=1, default_timezone=_SERVER_TZ)
 
         assert result["activity"].distance == 5000
 
@@ -713,7 +713,7 @@ class TestParseLapsElevation:
         lap = _make_lap(start, end, [self._trackpoint(start), self._trackpoint(end)], ascent=400.0, descent=380.0)
         tcx_file = SimpleNamespace(laps=[lap])
 
-        laps = tcx_utils._parse_laps(tcx_file, smoothed)
+        laps = tcx_parser._parse_laps(tcx_file, smoothed)
 
         assert len(laps) == 1
         assert laps[0]["total_ascent"] is not None
@@ -739,7 +739,7 @@ class TestParseLapsElevation:
             ]
         )
 
-        laps = tcx_utils._parse_laps(tcx_file, smoothed)
+        laps = tcx_parser._parse_laps(tcx_file, smoothed)
 
         activity_gain, _ = activities_computation.sum_elevation_deltas(smoothed)
         assert abs(laps[0]["total_ascent"] + laps[1]["total_ascent"] - activity_gain) <= 1
@@ -759,7 +759,7 @@ class TestParseLapsElevation:
         lap = _make_lap(start, end, [self._trackpoint(start), self._trackpoint(end)])
         tcx_file = SimpleNamespace(laps=[lap])
 
-        laps = tcx_utils._parse_laps(tcx_file, smoothed)
+        laps = tcx_parser._parse_laps(tcx_file, smoothed)
 
         assert laps[0]["total_ascent"] == 0
         assert laps[0]["total_descent"] == 0
@@ -771,7 +771,7 @@ class TestParseLapsElevation:
         lap = _make_lap(start, end, [self._trackpoint(start), self._trackpoint(end)])
         tcx_file = SimpleNamespace(laps=[lap])
 
-        laps = tcx_utils._parse_laps(tcx_file, [])
+        laps = tcx_parser._parse_laps(tcx_file, [])
 
         assert laps[0]["total_ascent"] is None
         assert laps[0]["total_descent"] is None
@@ -785,12 +785,12 @@ class TestParseTcxFileElevation:
         with (
             patch("tcxreader.TCXReader") as mock_reader_class,
             patch(
-                "modules.activities.activity_file_import.tcx_utils._extract_waypoints",
+                "modules.activities.activity_file_import.tcx_parser._extract_waypoints",
                 return_value=fake_waypoints,
             ),
         ):
             mock_reader_class.return_value.read.return_value = mock_tcx
-            return tcx_utils.parse_tcx_file(file="dummy.tcx", user_id=1, default_timezone=_SERVER_TZ)
+            return tcx_parser.parse_tcx_file(file="dummy.tcx", user_id=1, default_timezone=_SERVER_TZ)
 
     @staticmethod
     def _mock_tcx(**overrides):
@@ -892,12 +892,12 @@ class TestParseTcxFileElevation:
         with (
             patch("tcxreader.TCXReader") as mock_reader_class,
             patch(
-                "modules.activities.activity_file_import.tcx_utils.activity_file_import_parser_utils.resolve_timezone_from_lat_lon",
+                "modules.activities.activity_file_import.tcx_parser.activity_file_import_parser_utils.resolve_timezone_from_lat_lon",
                 return_value="UTC",
             ),
         ):
             mock_reader_class.return_value.read.return_value = mock_tcx
-            result = tcx_utils.parse_tcx_file(file="dummy.tcx", user_id=1, default_timezone=_SERVER_TZ)
+            result = tcx_parser.parse_tcx_file(file="dummy.tcx", user_id=1, default_timezone=_SERVER_TZ)
 
         assert len(result["ele_waypoints"]) == 20
         assert all(wp["ele"] is not None for wp in result["ele_waypoints"])
@@ -912,11 +912,11 @@ class TestMalformedTcxFile:
         path.write_text("not xml at all")
 
         with pytest.raises(core_exceptions.InvalidInputError):
-            tcx_utils.parse_tcx_file(file=str(path), user_id=1, default_timezone=_SERVER_TZ)
+            tcx_parser.parse_tcx_file(file=str(path), user_id=1, default_timezone=_SERVER_TZ)
 
     def test_a_file_that_cannot_be_opened_stays_a_processing_error(self, tmp_path):
         with pytest.raises(core_exceptions.ProcessingError):
-            tcx_utils.parse_tcx_file(file=str(tmp_path / "missing.tcx"), user_id=1, default_timezone=_SERVER_TZ)
+            tcx_parser.parse_tcx_file(file=str(tmp_path / "missing.tcx"), user_id=1, default_timezone=_SERVER_TZ)
 
     def test_a_file_the_parser_chokes_on_is_rejected_as_invalid_input(self, tmp_path):
         """The same bytes fail the same way every time, so retrying such a file is wasted work."""
@@ -924,7 +924,7 @@ class TestMalformedTcxFile:
         path.write_text("<TrainingCenterDatabase/>")
 
         with (
-            patch.object(tcx_utils.tcxreader, "TCXReader", side_effect=KeyError("Lap")),
+            patch.object(tcx_parser.tcxreader, "TCXReader", side_effect=KeyError("Lap")),
             pytest.raises(core_exceptions.InvalidInputError),
         ):
-            tcx_utils.parse_tcx_file(file=str(path), user_id=1, default_timezone=_SERVER_TZ)
+            tcx_parser.parse_tcx_file(file=str(path), user_id=1, default_timezone=_SERVER_TZ)
