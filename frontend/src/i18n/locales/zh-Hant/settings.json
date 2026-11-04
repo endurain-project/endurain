@@ -121,7 +121,7 @@
       "weightUnitsMetric": "公斤 (kg)",
       "weightUnitsImperial": "磅 (lb)",
       "height": "身高",
-      "heightInvalid": "身高必須介於 1 到 300 公分之間",
+      "heightInvalid": "身高必須介於 50 到 272 公分之間",
       "maxHeartRateInvalid": "最大心率必須介於 30 到 250 bpm 之間",
       "feetInvalid": "英尺必須介於 0 到 10 之間",
       "inchesInvalid": "英寸必須介於 0 到 11 之間",
@@ -634,6 +634,7 @@
       "error": "無法刪除目標，請再試一次。"
     },
     "form": {
+      "targetInvalid": "請輸入大於 0 的值。",
       "addTitle": "新增目標",
       "editTitle": "編輯目標",
       "description": "為週期性活動設定目標",

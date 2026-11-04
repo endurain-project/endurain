@@ -91,10 +91,10 @@ export function numberRange(max: number, message: string): Validator<number | nu
 }
 
 /** Smallest height in centimetres the backend accepts. */
-const HEIGHT_CM_MIN = 1
+const HEIGHT_CM_MIN = 50
 
 /** Largest height in centimetres the backend accepts. */
-const HEIGHT_CM_MAX = 300
+const HEIGHT_CM_MAX = 272
 
 /** Smallest max heart rate in bpm the backend accepts. */
 const MAX_HEART_RATE_MIN = 30

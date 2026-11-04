@@ -2,6 +2,7 @@ import { computed, type MaybeRefOrGetter, toValue } from 'vue'
 import { storeToRefs } from 'pinia'
 import { keepPreviousData, useMutation, useQuery, useQueryClient } from '@tanstack/vue-query'
 
+import type { User } from '@/features/auth/types'
 import type {
   CreateUserInput,
   EditUserFields,
@@ -13,6 +14,7 @@ import { queryKeys } from '@/services/queryKeys'
 import { bumpAvatarCacheToken } from '@/lib/avatarCache'
 import { useInvalidatingMutation } from '@/composables/useInvalidatingMutation'
 import { useAuthStore } from '@/features/auth/stores/auth'
+import { invalidateHeightDependentQueries } from '@/features/profile/composables/useProfile'
 import {
   approveUser,
   changeUserPassword,
@@ -80,14 +82,23 @@ export function useCreateUserMutation() {
 }
 
 /**
- * Update mutation. Invalidates the users domain on settle.
+ * Update mutation. Invalidates the users domain on settle, and the health data
+ * when the signed-in user's own height changed, since BMI derives from it.
  *
  * @returns The TanStack Query mutation for updating a user.
  */
 export function useUpdateUserMutation() {
+  const client = useQueryClient()
+
   return useInvalidatingMutation<ManagedUser, { user: ManagedUser; edits: EditUserFields }>({
     mutationKey: queryKeys.users.all(),
-    mutationFn: ({ user, edits }) => updateUser(user, edits),
+    mutationFn: async ({ user, edits }) => {
+      const updated = await updateUser(user, edits)
+      if (client.getQueryData<User>(queryKeys.currentUser())?.id === user.id) {
+        invalidateHeightDependentQueries(client, edits.height)
+      }
+      return updated
+    },
   })
 }
 

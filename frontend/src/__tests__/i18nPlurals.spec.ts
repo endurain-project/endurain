@@ -32,6 +32,29 @@ describe('English plural forms', () => {
   })
 })
 
+describe('import messages', () => {
+  it('pluralizes the file count on the total', () => {
+    const progress = (done: number, total: number) =>
+      t('settings.import.job.progress', { done, failed: 0, total, count: total })
+    expect(progress(0, 1)).toBe('Imported 0 of 1 file (0 failed)…')
+    expect(progress(2, 5)).toBe('Imported 2 of 5 files (0 failed)…')
+    expect(t('settings.import.job.finished', { done: 1, failed: 0, total: 1, count: 1 })).toBe(
+      'Import finished: 1 of 1 file imported, 0 failed.',
+    )
+  })
+
+  it('pluralizes the imported activities', () => {
+    const completed = (activities: number) =>
+      t('settings.profile.dataTransfer.status.completed', {
+        activities,
+        gears: 3,
+        count: activities,
+      })
+    expect(completed(1)).toBe('Import finished: 1 activity and 3 gear imported.')
+    expect(completed(7)).toBe('Import finished: 7 activities and 3 gear imported.')
+  })
+})
+
 describe('plural rule', () => {
   const key = 'test.plural'
   const original = i18n.global.getLocaleMessage('en')

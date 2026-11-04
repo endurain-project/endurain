@@ -73,6 +73,7 @@ const importMessage = computed<string | null>(() => {
   }
   return t(`settings.profile.dataTransfer.status.${status.status}`, {
     activities: status.imported?.activities ?? 0,
+    count: status.imported?.activities ?? 0,
     gears: status.imported?.gears ?? 0,
   })
 })

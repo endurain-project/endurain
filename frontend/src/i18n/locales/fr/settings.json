@@ -121,7 +121,7 @@
       "weightUnitsMetric": "Kilogrammes (kg)",
       "weightUnitsImperial": "Livres (lb)",
       "height": "Taille",
-      "heightInvalid": "La taille doit être comprise entre 1 et 300 cm",
+      "heightInvalid": "La taille doit être comprise entre 50 et 272 cm",
       "maxHeartRateInvalid": "La fréquence cardiaque maximale doit être comprise entre 30 et 250 bpm",
       "feetInvalid": "Les pieds doivent être entre 0 et 10",
       "inchesInvalid": "Les pouces doivent être entre 0 et 11",
@@ -634,6 +634,7 @@
       "error": "Impossible de supprimer l'objectif. Veuillez réessayer."
     },
     "form": {
+      "targetInvalid": "Saisissez une valeur supérieure à 0.",
       "addTitle": "Ajouter un objectif",
       "editTitle": "Modifier l'objectif",
       "description": "Définissez une cible pour une activité sur une période récurrente",
@@ -961,8 +962,8 @@
     },
     "job": {
       "preparing": "Préparation de l'import…",
-      "progress": "{done} fichiers sur {total} importés ({failed} en échec)…",
-      "finished": "Import terminé : {done} fichiers sur {total} importés, {failed} en échec.",
+      "progress": "{done} fichier sur {total} importé ({failed} en échec)… | {done} fichiers sur {total} importés ({failed} en échec)…",
+      "finished": "Import terminé : {done} fichier sur {total} importé, {failed} en échec. | Import terminé : {done} fichiers sur {total} importés, {failed} en échec.",
       "failed": "L'import n'a pas pu être terminé."
     }
   },
@@ -1100,7 +1101,7 @@
         "queued": "En attente du démarrage de l'import…",
         "running": "Importation de vos données…",
         "writing_files": "Enregistrement de vos fichiers…",
-        "completed": "Import terminé : {activities} activités et {gears} équipements importés.",
+        "completed": "Import terminé : {activities} activité importée, équipements : {gears}. | Import terminé : {activities} activités importées, équipements : {gears}.",
         "failed": "L'import n'a pas abouti : {reason}"
       },
       "failure": {

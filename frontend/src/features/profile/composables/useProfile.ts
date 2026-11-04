@@ -77,7 +77,7 @@ function invalidateWeekDependentQueries(
  * @param client - The active query client.
  * @param height - Successfully persisted height in centimetres, or `null`.
  */
-function invalidateHeightDependentQueries(
+export function invalidateHeightDependentQueries(
   client: ReturnType<typeof useQueryClient>,
   height: ProfileEditInput['height'] | undefined,
 ): void {

@@ -70,19 +70,16 @@ const METRIC_TITLE_KEY: Record<StreamMetric, string> = {
 }
 
 /**
- * Series colour for each metric. Five map directly to the design-system
- * semantic tokens; cadence and temperature have no semantic token, so they use
- * the conventional fitness-chart colours (violet / orange) that read distinctly
- * against the others.
+ * Series colour for each metric, read from the design tokens.
  */
 const METRIC_COLOR: Record<StreamMetric, string> = {
   hr: themeColor('--color-hr'),
   power: themeColor('--color-effort'),
-  cadence: '#a855f7', // no token — conventional cadence violet
+  cadence: themeColor('--color-cadence'),
   elevation: themeColor('--color-goal'),
   velocity: themeColor('--color-info'),
   pace: themeColor('--color-brand'),
-  temperature: '#f97316', // no token — conventional temperature orange
+  temperature: themeColor('--color-temperature'),
 }
 
 /**

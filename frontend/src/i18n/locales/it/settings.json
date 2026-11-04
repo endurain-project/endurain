@@ -121,7 +121,7 @@
       "weightUnitsMetric": "Chilogrammi (kg)",
       "weightUnitsImperial": "Libbre (lb)",
       "height": "Altezza",
-      "heightInvalid": "L'altezza deve essere compresa tra 1 e 300 cm",
+      "heightInvalid": "L'altezza deve essere compresa tra 50 e 272 cm",
       "maxHeartRateInvalid": "La frequenza cardiaca massima deve essere compresa tra 30 e 250 bpm",
       "feetInvalid": "I piedi devono essere compresi tra 0 e 10",
       "inchesInvalid": "I pollici devono essere compresi tra 0 e 11",
@@ -634,6 +634,7 @@
       "error": "Impossibile eliminare l'obiettivo. Riprova."
     },
     "form": {
+      "targetInvalid": "Inserisci un valore maggiore di 0.",
       "addTitle": "Aggiungi obiettivo",
       "editTitle": "Modifica obiettivo",
       "description": "Imposta un target per un'attività in un periodo ricorrente",
@@ -961,8 +962,8 @@
     },
     "job": {
       "preparing": "Preparazione dell'importazione…",
-      "progress": "Importati {done} file su {total} ({failed} non riusciti)…",
-      "finished": "Importazione terminata: {done} file su {total} importati, {failed} non riusciti.",
+      "progress": "Importati {done} file su {total} ({failed} non riusciti)… | Importati {done} file su {total} ({failed} non riusciti)…",
+      "finished": "Importazione terminata: {done} file su {total} importati, {failed} non riusciti. | Importazione terminata: {done} file su {total} importati, {failed} non riusciti.",
       "failed": "Impossibile completare l'importazione."
     }
   },
@@ -1100,7 +1101,7 @@
         "queued": "In attesa dell'avvio dell'importazione…",
         "running": "Importazione dei tuoi dati in corso…",
         "writing_files": "Salvataggio dei tuoi file in corso…",
-        "completed": "Importazione terminata: {activities} attività e {gears} attrezzature importate.",
+        "completed": "Importazione terminata: {activities} attività importata, attrezzature: {gears}. | Importazione terminata: {activities} attività importate, attrezzature: {gears}.",
         "failed": "L'importazione non è stata completata: {reason}"
       },
       "failure": {

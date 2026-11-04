@@ -202,6 +202,12 @@ const canSubmit = computed(() => {
   return base !== null && base > 0
 })
 
+/** Explains why Save is disabled when the target is filled in but not positive. */
+const targetError = computed(() => {
+  const base = targetBaseUnits(values)
+  return base !== null && base <= 0 ? t('settings.goals.form.targetInvalid') : undefined
+})
+
 const distanceUnit = computed(() => unitLabel(props.units === 'imperial' ? 'mi' : 'km'))
 const elevationUnit = computed(() => unitLabel(props.units === 'imperial' ? 'ft' : 'm'))
 const distanceLabel = computed(
@@ -297,6 +303,7 @@ watch(open, (isOpen) => {
         v-if="values.goalType === 'calories'"
         class="sm:col-span-2"
         :label="caloriesLabel"
+        :error="targetError"
         required
       >
         <template #default="{ fieldId }">
@@ -317,6 +324,7 @@ watch(open, (isOpen) => {
         v-else-if="values.goalType === 'activities'"
         class="sm:col-span-2"
         :label="t('settings.goals.metric.activities')"
+        :error="targetError"
         required
       >
         <template #default="{ fieldId }">
@@ -337,6 +345,7 @@ watch(open, (isOpen) => {
         v-else-if="values.goalType === 'distance'"
         class="sm:col-span-2"
         :label="distanceLabel"
+        :error="targetError"
         required
       >
         <template #default="{ fieldId }">
@@ -357,6 +366,7 @@ watch(open, (isOpen) => {
         v-else-if="values.goalType === 'elevation'"
         class="sm:col-span-2"
         :label="elevationLabel"
+        :error="targetError"
         required
       >
         <template #default="{ fieldId }">
@@ -374,7 +384,7 @@ watch(open, (isOpen) => {
       </FormField>
 
       <template v-else-if="values.goalType === 'duration'">
-        <FormField :label="t('settings.goals.form.durationHours')" required>
+        <FormField :label="t('settings.goals.form.durationHours')" :error="targetError" required>
           <template #default="{ fieldId }">
             <input
               :id="fieldId"

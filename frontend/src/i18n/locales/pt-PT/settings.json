@@ -121,7 +121,7 @@
       "weightUnitsMetric": "Quilogramas (kg)",
       "weightUnitsImperial": "Libras (lb)",
       "height": "Altura",
-      "heightInvalid": "A altura tem de estar entre 1 e 300 cm",
+      "heightInvalid": "A altura tem de estar entre 50 e 272 cm",
       "maxHeartRateInvalid": "A frequência cardíaca máxima tem de estar entre 30 e 250 bpm",
       "feetInvalid": "Os pés devem estar entre 0 e 10",
       "inchesInvalid": "As polegadas devem estar entre 0 e 11",
@@ -634,6 +634,7 @@
       "error": "Não foi possível eliminar o objetivo. Tenta novamente."
     },
     "form": {
+      "targetInvalid": "Introduz um valor superior a 0.",
       "addTitle": "Adicionar objetivo",
       "editTitle": "Editar objetivo",
       "description": "Define uma meta para uma atividade durante um período recorrente",
@@ -961,8 +962,8 @@
     },
     "job": {
       "preparing": "A preparar a importação…",
-      "progress": "Importados {done} de {total} ficheiros ({failed} com falha)…",
-      "finished": "Importação concluída: {done} de {total} ficheiros importados, {failed} com falha.",
+      "progress": "Importados {done} de {total} ficheiro ({failed} com falha)… | Importados {done} de {total} ficheiros ({failed} com falha)…",
+      "finished": "Importação concluída: {done} de {total} ficheiro importado, {failed} com falha. | Importação concluída: {done} de {total} ficheiros importados, {failed} com falha.",
       "failed": "Não foi possível concluir a importação."
     }
   },
@@ -1100,7 +1101,7 @@
         "queued": "A aguardar o início da importação…",
         "running": "A importar os teus dados…",
         "writing_files": "A guardar os teus ficheiros…",
-        "completed": "Importação concluída: {activities} atividades e {gears} equipamentos importados.",
+        "completed": "Importação concluída: {activities} atividade importada, equipamentos: {gears}. | Importação concluída: {activities} atividades importadas, equipamentos: {gears}.",
         "failed": "A importação não foi concluída: {reason}"
       },
       "failure": {

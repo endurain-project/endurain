@@ -79,6 +79,25 @@ describe('applyServerFieldErrors', () => {
     expect(setErrors).toHaveBeenCalledWith({
       name: t('app.fieldError.required'),
       maxHeartRate: t('app.fieldError.tooLarge'),
+      heightCm: 'weird',
+    })
+  })
+
+  it('shows the server message for an unmapped type and the generic text when it is blank', () => {
+    const setErrors = vi.fn<(errors: Partial<Record<string, string>>) => void>()
+    const error = unprocessable([
+      {
+        field: 'body.name',
+        message: 'Value error, must not contain direction controls',
+        type: 'value_error',
+      },
+      { field: 'body.height', message: '  ', type: 'value_error' },
+    ])
+
+    applyServerFieldErrors(error, setErrors, t, keys, { height: 'heightCm' })
+
+    expect(setErrors).toHaveBeenCalledWith({
+      name: 'Value error, must not contain direction controls',
       heightCm: t('app.fieldError.invalid'),
     })
   })
@@ -205,6 +224,25 @@ const cases: [string, Component, Record<string, unknown>, FieldError, string][] 
     t('app.fieldError.tooLarge'),
   ],
 ]
+
+describe('HealthWeightFormDialog body composition section', () => {
+  it('opens when a server error lands on a field inside it', async () => {
+    vi.clearAllMocks()
+    vi.mocked(apiFetch).mockRejectedValue(
+      unprocessable([{ field: 'body.body_fat', message: 'm', type: 'less_than_equal' }]),
+    )
+    const wrapper = mountDialog(HealthWeightFormDialog, { entry: null, weightUnits: 'metric' })
+    await wrapper.setProps({ open: true })
+    const details = wrapper.find('details').element as HTMLDetailsElement
+    expect(details.open).toBe(false)
+
+    await wrapper.findAll('input')[1]!.setValue('77')
+    await wrapper.find('form').trigger('submit')
+    await flushPromises()
+
+    expect(details.open).toBe(true)
+  })
+})
 
 describe.each(cases)('%s 422 handling', (_name, component, props, fieldError, message) => {
   let wrapper: VueWrapper

@@ -121,7 +121,7 @@
       "weightUnitsMetric": "Kilograms (kg)",
       "weightUnitsImperial": "Pounds (lb)",
       "height": "Height",
-      "heightInvalid": "Height must be between 1 and 300 cm",
+      "heightInvalid": "Height must be between 50 and 272 cm",
       "maxHeartRateInvalid": "Maximum heart rate must be between 30 and 250 bpm",
       "feetInvalid": "Feet must be between 0 and 10",
       "inchesInvalid": "Inches must be between 0 and 11",
@@ -634,6 +634,7 @@
       "error": "Couldn't delete the goal. Please try again."
     },
     "form": {
+      "targetInvalid": "Enter a value greater than 0.",
       "addTitle": "Add goal",
       "editTitle": "Edit goal",
       "description": "Set a target for an activity over a recurring period",
@@ -961,8 +962,8 @@
     },
     "job": {
       "preparing": "Preparing the import…",
-      "progress": "Imported {done} of {total} files ({failed} failed)…",
-      "finished": "Import finished: {done} of {total} files imported, {failed} failed.",
+      "progress": "Imported {done} of {total} file ({failed} failed)… | Imported {done} of {total} files ({failed} failed)…",
+      "finished": "Import finished: {done} of {total} file imported, {failed} failed. | Import finished: {done} of {total} files imported, {failed} failed.",
       "failed": "The import could not be completed."
     }
   },
@@ -1100,7 +1101,7 @@
         "queued": "Waiting for the import to start…",
         "running": "Importing your data…",
         "writing_files": "Saving your files…",
-        "completed": "Import finished: {activities} activities and {gears} gears imported.",
+        "completed": "Import finished: {activities} activity and {gears} gear imported. | Import finished: {activities} activities and {gears} gear imported.",
         "failed": "The import didn't complete: {reason}"
       },
       "failure": {

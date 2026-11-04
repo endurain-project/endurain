@@ -19,9 +19,11 @@ const stagingFailed = computed(() => props.job.status === 'failed')
   <p class="text-hint" role="status" aria-live="polite">
     <template v-if="stagingFailed">{{ t('settings.import.job.failed') }}</template>
     <template v-else-if="finished">
-      {{ t('settings.import.job.finished', { done, failed, total }) }}
+      {{ t('settings.import.job.finished', { done, failed, total, count: total }) }}
     </template>
     <template v-else-if="total === 0">{{ t('settings.import.job.preparing') }}</template>
-    <template v-else>{{ t('settings.import.job.progress', { done, failed, total }) }}</template>
+    <template v-else>{{
+      t('settings.import.job.progress', { done, failed, total, count: total })
+    }}</template>
   </p>
 </template>

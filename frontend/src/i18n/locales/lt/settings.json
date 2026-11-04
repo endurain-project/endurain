@@ -121,7 +121,7 @@
       "weightUnitsMetric": "Kilogramai (kg)",
       "weightUnitsImperial": "Svarai (lb)",
       "height": "Ūgis",
-      "heightInvalid": "Ūgis turi būti nuo 1 iki 300 cm",
+      "heightInvalid": "Ūgis turi būti nuo 50 iki 272 cm",
       "maxHeartRateInvalid": "Maksimalus pulsas turi būti nuo 30 iki 250 dūžių/min.",
       "feetInvalid": "Pėdos turi būti nuo 0 iki 10",
       "inchesInvalid": "Coliai turi būti nuo 0 iki 11",
@@ -634,6 +634,7 @@
       "error": "Nepavyko ištrinti tikslo. Bandykite dar kartą."
     },
     "form": {
+      "targetInvalid": "Įveskite didesnę nei 0 reikšmę.",
       "addTitle": "Pridėti tikslą",
       "editTitle": "Redaguoti tikslą",
       "description": "Nustatykite veiklos tikslą pasikartojančiam laikotarpiui",
@@ -961,8 +962,8 @@
     },
     "job": {
       "preparing": "Ruošiamas importavimas…",
-      "progress": "Importuota {done} iš {total} failų (nepavyko {failed})…",
-      "finished": "Importavimas baigtas: importuota {done} iš {total} failų, nepavyko {failed}.",
+      "progress": "Importuota {done} iš {total} failo (nepavyko {failed})… | Importuota {done} iš {total} failų (nepavyko {failed})… | Importuota {done} iš {total} failų (nepavyko {failed})…",
+      "finished": "Importavimas baigtas: importuota {done} iš {total} failo, nepavyko {failed}. | Importavimas baigtas: importuota {done} iš {total} failų, nepavyko {failed}. | Importavimas baigtas: importuota {done} iš {total} failų, nepavyko {failed}.",
       "failed": "Importavimo užbaigti nepavyko."
     }
   },
@@ -1100,7 +1101,7 @@
         "queued": "Laukiama, kol prasidės importas…",
         "running": "Importuojami jūsų duomenys…",
         "writing_files": "Išsaugomi jūsų failai…",
-        "completed": "Importas baigtas: importuota veiklų – {activities}, įrangos vienetų – {gears}.",
+        "completed": "Importas baigtas: importuota {activities} veikla, įranga: {gears}. | Importas baigtas: importuotos {activities} veiklos, įranga: {gears}. | Importas baigtas: importuota {activities} veiklų, įranga: {gears}.",
         "failed": "Importo užbaigti nepavyko: {reason}"
       },
       "failure": {

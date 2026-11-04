@@ -26,8 +26,9 @@ function snakeToCamel(field: string): string {
 }
 
 /**
- * Shows a 422 response's per-field failures beside the form fields they name. The backend's English
- * text is not shown: each pydantic error type maps to a translated message.
+ * Shows a 422 response's per-field failures beside the form fields they name. A known pydantic error
+ * type maps to a translated message; any other failure shows the server's own message, or the
+ * generic translated text when it has none.
  *
  * @param error - The error a write rejected with.
  * @param setErrors - The form's `setErrors`.
@@ -56,7 +57,10 @@ export function applyServerFieldErrors<Values extends object>(
     const key = map[name] ?? snakeToCamel(name)
     const field = keys.find((candidate) => candidate === key)
     if (field && !(field in mapped)) {
-      mapped[field] = t(`app.fieldError.${MESSAGE_KEY_BY_TYPE[failure.type] ?? 'invalid'}`)
+      const typeKey = MESSAGE_KEY_BY_TYPE[failure.type]
+      mapped[field] = typeKey
+        ? t(`app.fieldError.${typeKey}`)
+        : failure.message.trim() || t('app.fieldError.invalid')
       any = true
     }
   }

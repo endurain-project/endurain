@@ -121,7 +121,7 @@
       "weightUnitsMetric": "Kilogramy (kg)",
       "weightUnitsImperial": "Funty (lb)",
       "height": "Wzrost",
-      "heightInvalid": "Wzrost musi mieścić się w przedziale od 1 do 300 cm",
+      "heightInvalid": "Wzrost musi mieścić się w przedziale od 50 do 272 cm",
       "maxHeartRateInvalid": "Maksymalne tętno musi mieścić się w przedziale od 30 do 250 uderzeń na minutę",
       "feetInvalid": "Stopy muszą być z zakresu od 0 do 10",
       "inchesInvalid": "Cale muszą być z zakresu od 0 do 11",
@@ -634,6 +634,7 @@
       "error": "Nie udało się usunąć celu. Spróbuj ponownie."
     },
     "form": {
+      "targetInvalid": "Wpisz wartość większą niż 0.",
       "addTitle": "Dodaj cel",
       "editTitle": "Edytuj cel",
       "description": "Ustaw cel dla aktywności w cyklicznym okresie",
@@ -961,8 +962,8 @@
     },
     "job": {
       "preparing": "Przygotowywanie importu…",
-      "progress": "Zaimportowano {done} z {total} plików ({failed} nie powiodło się)…",
-      "finished": "Import zakończony: zaimportowano {done} z {total} plików, {failed} nie powiodło się.",
+      "progress": "Zaimportowano {done} z {total} pliku ({failed} nie powiodło się)… | Zaimportowano {done} z {total} plików ({failed} nie powiodło się)… | Zaimportowano {done} z {total} plików ({failed} nie powiodło się)…",
+      "finished": "Import zakończony: zaimportowano {done} z {total} pliku, {failed} nie powiodło się. | Import zakończony: zaimportowano {done} z {total} plików, {failed} nie powiodło się. | Import zakończony: zaimportowano {done} z {total} plików, {failed} nie powiodło się.",
       "failed": "Nie udało się ukończyć importu."
     }
   },
@@ -1100,7 +1101,7 @@
         "queued": "Oczekiwanie na rozpoczęcie importu…",
         "running": "Importowanie danych…",
         "writing_files": "Zapisywanie plików…",
-        "completed": "Import zakończony: zaimportowano aktywności: {activities} i sprzęt: {gears}.",
+        "completed": "Import zakończony: zaimportowano {activities} aktywność, sprzęt: {gears}. | Import zakończony: zaimportowano {activities} aktywności, sprzęt: {gears}. | Import zakończony: zaimportowano {activities} aktywności, sprzęt: {gears}.",
         "failed": "Import nie został ukończony: {reason}"
       },
       "failure": {

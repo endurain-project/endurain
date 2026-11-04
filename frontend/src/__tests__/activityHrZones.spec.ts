@@ -39,8 +39,10 @@ describe('hrZoneColor', () => {
     expect([1, 2, 3, 5].map(hrZoneColor)).toEqual(['#111111', '#222222', '#333333', '#555555'])
   })
 
-  it('keeps a fixed orange for zone 4', () => {
+  it('reads zone 4 from its design token, falling back to orange', () => {
     expect(hrZoneColor(4)).toBe('#f97316')
+    document.documentElement.style.setProperty('--color-hr-zone-4', '#444444')
+    expect(hrZoneColor(4)).toBe('#444444')
   })
 
   it('falls back to the top-zone colour out of range', () => {

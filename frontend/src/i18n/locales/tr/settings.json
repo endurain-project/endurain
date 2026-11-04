@@ -121,7 +121,7 @@
       "weightUnitsMetric": "Kilogram (kg)",
       "weightUnitsImperial": "Pound (lb)",
       "height": "Boy",
-      "heightInvalid": "Boy 1 ile 300 cm arasında olmalıdır",
+      "heightInvalid": "Boy 50 ile 272 cm arasında olmalıdır",
       "maxHeartRateInvalid": "Maksimum kalp atış hızı 30 ile 250 bpm arasında olmalıdır",
       "feetInvalid": "Fit değeri 0 ile 10 arasında olmalı",
       "inchesInvalid": "İnç değeri 0 ile 11 arasında olmalı",
@@ -634,6 +634,7 @@
       "error": "Hedef silinemedi. Lütfen tekrar deneyin."
     },
     "form": {
+      "targetInvalid": "0'dan büyük bir değer girin.",
       "addTitle": "Hedef ekle",
       "editTitle": "Hedefi düzenle",
       "description": "Yinelenen bir dönem boyunca bir etkinlik için hedef belirleyin",
@@ -961,8 +962,8 @@
     },
     "job": {
       "preparing": "İçe aktarma hazırlanıyor…",
-      "progress": "{total} dosyadan {done} tanesi içe aktarıldı ({failed} başarısız)…",
-      "finished": "İçe aktarma tamamlandı: {total} dosyadan {done} tanesi içe aktarıldı, {failed} başarısız.",
+      "progress": "{total} dosyadan {done} tanesi içe aktarıldı ({failed} başarısız)… | {total} dosyadan {done} tanesi içe aktarıldı ({failed} başarısız)…",
+      "finished": "İçe aktarma tamamlandı: {total} dosyadan {done} tanesi içe aktarıldı, {failed} başarısız. | İçe aktarma tamamlandı: {total} dosyadan {done} tanesi içe aktarıldı, {failed} başarısız.",
       "failed": "İçe aktarma tamamlanamadı."
     }
   },
@@ -1100,7 +1101,7 @@
         "queued": "İçe aktarımın başlaması bekleniyor…",
         "running": "Verileriniz içe aktarılıyor…",
         "writing_files": "Dosyalarınız kaydediliyor…",
-        "completed": "İçe aktarım tamamlandı: {activities} etkinlik ve {gears} ekipman içe aktarıldı.",
+        "completed": "İçe aktarım tamamlandı: {activities} etkinlik içe aktarıldı, ekipman: {gears}. | İçe aktarım tamamlandı: {activities} etkinlik içe aktarıldı, ekipman: {gears}.",
         "failed": "İçe aktarım tamamlanmadı: {reason}"
       },
       "failure": {

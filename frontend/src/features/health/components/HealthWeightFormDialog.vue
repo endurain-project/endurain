@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, watch } from 'vue'
+import { computed, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 
 import type { Schemas } from '@/types'
@@ -187,9 +187,29 @@ const muscleMassLabel = computed(
   () => `${t('health.weight.form.muscleMass')} (${massUnitLabel.value})`,
 )
 
+const compositionFields = ['bodyFat', 'bodyWater', 'boneMass', 'muscleMass'] as const
+
+const compositionOpen = ref(false)
+
+/** Mirrors a native `<details>` toggle into `compositionOpen` so the user's choice sticks. */
+function onCompositionToggle(event: Event): void {
+  compositionOpen.value = (event.target as HTMLDetailsElement).open
+}
+
+// An error on a hidden body-composition field opens its section.
+watch(
+  () => compositionFields.some((field) => errors.value[field]),
+  (hasError) => {
+    if (hasError) {
+      compositionOpen.value = true
+    }
+  },
+)
+
 /** Seeds the form from the entry being edited, or pristine defaults for "add". */
 function populate(): void {
   reset()
+  compositionOpen.value = false
   const entry = props.entry
   if (!entry) {
     values.date = todayIsoDate()
@@ -261,7 +281,11 @@ watch(open, (isOpen) => {
       </FormField>
     </div>
 
-    <details class="mt-2 rounded-input border border-border px-3 py-2">
+    <details
+      class="mt-2 rounded-input border border-border px-3 py-2"
+      :open="compositionOpen"
+      @toggle="onCompositionToggle"
+    >
       <summary class="cursor-pointer text-caption select-none">
         {{ t('health.weight.form.bodyComposition') }}
       </summary>

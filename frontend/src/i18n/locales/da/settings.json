@@ -121,7 +121,7 @@
       "weightUnitsMetric": "Kilogram (kg)",
       "weightUnitsImperial": "Pund (lb)",
       "height": "Højde",
-      "heightInvalid": "Højden skal være mellem 1 og 300 cm",
+      "heightInvalid": "Højden skal være mellem 50 og 272 cm",
       "maxHeartRateInvalid": "Maksimal puls skal være mellem 30 og 250 slag/min",
       "feetInvalid": "Fod skal være mellem 0 og 10",
       "inchesInvalid": "Tommer skal være mellem 0 og 11",
@@ -634,6 +634,7 @@
       "error": "Kunne ikke slette målet. Prøv venligst igen."
     },
     "form": {
+      "targetInvalid": "Angiv en værdi større end 0.",
       "addTitle": "Tilføj mål",
       "editTitle": "Redigér mål",
       "description": "Sæt et mål for en aktivitet over en tilbagevendende periode",
@@ -961,8 +962,8 @@
     },
     "job": {
       "preparing": "Forbereder importen…",
-      "progress": "Importeret {done} af {total} filer ({failed} mislykkedes)…",
-      "finished": "Importen er færdig: {done} af {total} filer importeret, {failed} mislykkedes.",
+      "progress": "Importeret {done} af {total} fil ({failed} mislykkedes)… | Importeret {done} af {total} filer ({failed} mislykkedes)…",
+      "finished": "Importen er færdig: {done} af {total} fil importeret, {failed} mislykkedes. | Importen er færdig: {done} af {total} filer importeret, {failed} mislykkedes.",
       "failed": "Importen kunne ikke gennemføres."
     }
   },
@@ -1100,7 +1101,7 @@
         "queued": "Venter på, at importen starter…",
         "running": "Importerer dine data…",
         "writing_files": "Gemmer dine filer…",
-        "completed": "Importen er færdig: {activities} aktiviteter og {gears} udstyr importeret.",
+        "completed": "Importen er færdig: {activities} aktivitet importeret, udstyr: {gears}. | Importen er færdig: {activities} aktiviteter importeret, udstyr: {gears}.",
         "failed": "Importen blev ikke fuldført: {reason}"
       },
       "failure": {

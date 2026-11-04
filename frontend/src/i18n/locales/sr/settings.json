@@ -121,7 +121,7 @@
       "weightUnitsMetric": "Kilogrami (kg)",
       "weightUnitsImperial": "Funte (lb)",
       "height": "Visina",
-      "heightInvalid": "Visina mora biti između 1 i 300 cm",
+      "heightInvalid": "Visina mora biti između 50 i 272 cm",
       "maxHeartRateInvalid": "Maksimalni broj otkucaja srca mora biti između 30 i 250 otk/min",
       "feetInvalid": "Stope moraju biti između 0 i 10",
       "inchesInvalid": "Inči moraju biti između 0 i 11",
@@ -634,6 +634,7 @@
       "error": "Nije moguće obrisati cilj. Pokušajte ponovo."
     },
     "form": {
+      "targetInvalid": "Unesite vrednost veću od 0.",
       "addTitle": "Dodaj cilj",
       "editTitle": "Izmeni cilj",
       "description": "Postavite cilj za aktivnost tokom ponavljajućeg perioda",
@@ -961,8 +962,8 @@
     },
     "job": {
       "preparing": "Priprema uvoza…",
-      "progress": "Uvezeno {done} od {total} datoteka ({failed} neuspešno)…",
-      "finished": "Uvoz je završen: uvezeno {done} od {total} datoteka, {failed} neuspešno.",
+      "progress": "Uvezeno {done} od {total} datoteke ({failed} neuspešno)… | Uvezeno {done} od {total} datoteke ({failed} neuspešno)… | Uvezeno {done} od {total} datoteka ({failed} neuspešno)…",
+      "finished": "Uvoz je završen: uvezeno {done} od {total} datoteke, {failed} neuspešno. | Uvoz je završen: uvezeno {done} od {total} datoteke, {failed} neuspešno. | Uvoz je završen: uvezeno {done} od {total} datoteka, {failed} neuspešno.",
       "failed": "Uvoz nije mogao da se završi."
     }
   },
@@ -1100,7 +1101,7 @@
         "queued": "Čeka se početak uvoza…",
         "running": "Uvoz podataka…",
         "writing_files": "Čuvanje datoteka…",
-        "completed": "Uvoz završen: uvezeno aktivnosti: {activities}, opreme: {gears}.",
+        "completed": "Uvoz završen: uvezena {activities} aktivnost, oprema: {gears}. | Uvoz završen: uvezene {activities} aktivnosti, oprema: {gears}. | Uvoz završen: uvezeno {activities} aktivnosti, oprema: {gears}.",
         "failed": "Uvoz nije završen: {reason}"
       },
       "failure": {

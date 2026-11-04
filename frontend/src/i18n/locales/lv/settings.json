@@ -121,7 +121,7 @@
       "weightUnitsMetric": "Kilogrami (kg)",
       "weightUnitsImperial": "Mārciņas (lb)",
       "height": "Augums",
-      "heightInvalid": "Augumam jābūt no 1 līdz 300 cm",
+      "heightInvalid": "Augumam jābūt no 50 līdz 272 cm",
       "maxHeartRateInvalid": "Maksimālajam sirdsdarbības ātrumam jābūt no 30 līdz 250 sitieniem minūtē",
       "feetInvalid": "Pēdām jābūt no 0 līdz 10",
       "inchesInvalid": "Collām jābūt no 0 līdz 11",
@@ -634,6 +634,7 @@
       "error": "Neizdevās dzēst mērķi. Lūdzu, mēģiniet vēlreiz."
     },
     "form": {
+      "targetInvalid": "Ievadiet vērtību, kas ir lielāka par 0.",
       "addTitle": "Pievienot mērķi",
       "editTitle": "Rediģēt mērķi",
       "description": "Iestatiet mērķi aktivitātei atkārtotā periodā",
@@ -961,8 +962,8 @@
     },
     "job": {
       "preparing": "Tiek sagatavots imports…",
-      "progress": "Importēti {done} no {total} failiem (neizdevās {failed})…",
-      "finished": "Imports pabeigts: importēti {done} no {total} failiem, neizdevās {failed}.",
+      "progress": "Importēti {done} no {total} failiem (neizdevās {failed})… | Importēts {done} no {total} faila (neizdevās {failed})… | Importēti {done} no {total} failiem (neizdevās {failed})…",
+      "finished": "Imports pabeigts: importēti {done} no {total} failiem, neizdevās {failed}. | Imports pabeigts: importēts {done} no {total} faila, neizdevās {failed}. | Imports pabeigts: importēti {done} no {total} failiem, neizdevās {failed}.",
       "failed": "Importu neizdevās pabeigt."
     }
   },
@@ -1100,7 +1101,7 @@
         "queued": "Tiek gaidīts importa sākums…",
         "running": "Tiek importēti jūsu dati…",
         "writing_files": "Tiek saglabāti jūsu faili…",
-        "completed": "Imports pabeigts: importētas {activities} aktivitātes un {gears} inventāra vienības.",
+        "completed": "Imports pabeigts: importētas {activities} aktivitātes, inventārs: {gears}. | Imports pabeigts: importēta {activities} aktivitāte, inventārs: {gears}. | Imports pabeigts: importētas {activities} aktivitātes, inventārs: {gears}.",
         "failed": "Imports netika pabeigts: {reason}"
       },
       "failure": {

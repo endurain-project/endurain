@@ -121,7 +121,7 @@
       "weightUnitsMetric": "Kilogram (kg)",
       "weightUnitsImperial": "Pond (lb)",
       "height": "Lengte",
-      "heightInvalid": "De lengte moet tussen 1 en 300 cm liggen",
+      "heightInvalid": "De lengte moet tussen 50 en 272 cm liggen",
       "maxHeartRateInvalid": "De maximale hartslag moet tussen 30 en 250 bpm liggen",
       "feetInvalid": "Voeten moet tussen 0 en 10 zijn",
       "inchesInvalid": "Inches moet tussen 0 en 11 zijn",
@@ -634,6 +634,7 @@
       "error": "Doel kon niet worden verwijderd. Probeer het opnieuw."
     },
     "form": {
+      "targetInvalid": "Voer een waarde groter dan 0 in.",
       "addTitle": "Doel toevoegen",
       "editTitle": "Doel bewerken",
       "description": "Stel een target in voor een activiteit over een terugkerende periode",
@@ -961,8 +962,8 @@
     },
     "job": {
       "preparing": "Import voorbereiden…",
-      "progress": "{done} van {total} bestanden geïmporteerd ({failed} mislukt)…",
-      "finished": "Import voltooid: {done} van {total} bestanden geïmporteerd, {failed} mislukt.",
+      "progress": "{done} van {total} bestand geïmporteerd ({failed} mislukt)… | {done} van {total} bestanden geïmporteerd ({failed} mislukt)…",
+      "finished": "Import voltooid: {done} van {total} bestand geïmporteerd, {failed} mislukt. | Import voltooid: {done} van {total} bestanden geïmporteerd, {failed} mislukt.",
       "failed": "De import kon niet worden voltooid."
     }
   },
@@ -1100,7 +1101,7 @@
         "queued": "Wachten tot de import start…",
         "running": "Je gegevens worden geïmporteerd…",
         "writing_files": "Je bestanden worden opgeslagen…",
-        "completed": "Import voltooid: {activities} activiteiten en {gears} stuks uitrusting geïmporteerd.",
+        "completed": "Import voltooid: {activities} activiteit geïmporteerd, uitrusting: {gears}. | Import voltooid: {activities} activiteiten geïmporteerd, uitrusting: {gears}.",
         "failed": "De import is niet voltooid: {reason}"
       },
       "failure": {

@@ -3,12 +3,6 @@ import { STREAM_TYPE } from '../types'
 import { themeColor } from '@/lib/themeColor'
 
 /**
- * Zone 4 orange. The design tokens have no orange between effort amber and HR
- * red, so this one ramp step is not token-backed.
- */
-const ZONE_4_COLOR = '#f97316'
-
-/**
  * Resolves the colour for a heart-rate zone on the five-zone ramp
  * (blue → green → amber → orange → red), read from the design tokens.
  *
@@ -24,7 +18,7 @@ export function hrZoneColor(zone: number): string {
     case 3:
       return themeColor('--color-effort')
     case 4:
-      return ZONE_4_COLOR
+      return themeColor('--color-hr-zone-4')
     default:
       return themeColor('--color-hr')
   }

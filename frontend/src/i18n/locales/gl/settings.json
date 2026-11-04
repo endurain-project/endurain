@@ -121,7 +121,7 @@
       "weightUnitsMetric": "Quilogramos (kg)",
       "weightUnitsImperial": "Libras (lb)",
       "height": "Altura",
-      "heightInvalid": "A altura debe estar entre 1 e 300 cm",
+      "heightInvalid": "A altura debe estar entre 50 e 272 cm",
       "maxHeartRateInvalid": "A frecuencia cardíaca máxima debe estar entre 30 e 250 bpm",
       "feetInvalid": "Os pés deben estar entre 0 e 10",
       "inchesInvalid": "As polgadas deben estar entre 0 e 11",
@@ -634,6 +634,7 @@
       "error": "Non se puido eliminar o obxectivo. Por favor, téntao de novo."
     },
     "form": {
+      "targetInvalid": "Introduce un valor maior que 0.",
       "addTitle": "Engadir obxectivo",
       "editTitle": "Editar obxectivo",
       "description": "Establece un obxectivo para unha actividade durante un período recorrente",
@@ -961,8 +962,8 @@
     },
     "job": {
       "preparing": "Preparando a importación…",
-      "progress": "Importados {done} de {total} ficheiros ({failed} con erro)…",
-      "finished": "Importación rematada: {done} de {total} ficheiros importados, {failed} con erro.",
+      "progress": "Importados {done} de {total} ficheiro ({failed} con erro)… | Importados {done} de {total} ficheiros ({failed} con erro)…",
+      "finished": "Importación rematada: {done} de {total} ficheiro importado, {failed} con erro. | Importación rematada: {done} de {total} ficheiros importados, {failed} con erro.",
       "failed": "Non se puido completar a importación."
     }
   },
@@ -1100,7 +1101,7 @@
         "queued": "Agardando a que comece a importación…",
         "running": "Importando os teus datos…",
         "writing_files": "Gardando os teus ficheiros…",
-        "completed": "Importación rematada: importáronse {activities} actividades e {gears} equipamentos.",
+        "completed": "Importación rematada: importouse {activities} actividade, equipamentos: {gears}. | Importación rematada: importáronse {activities} actividades, equipamentos: {gears}.",
         "failed": "A importación non se completou: {reason}"
       },
       "failure": {

@@ -118,15 +118,25 @@ describe('ProfileFormDialog height', () => {
 })
 
 describe('ProfileFormDialog number validation', () => {
-  it('rejects a metric height outside 1-300 cm and blocks saving', async () => {
+  it('rejects a metric height outside 50-272 cm and blocks saving', async () => {
     const wrapper = await mountDialog()
     const height = wrapper.find('input[name="heightCm"]')
 
-    await height.setValue('301')
+    await height.setValue('273')
     await height.trigger('blur')
 
     expect(wrapper.text()).toContain(i18n.global.t('settings.users.form.heightInvalid'))
     expect(wrapper.find('button[type="submit"]').attributes('disabled')).toBeDefined()
+  })
+
+  it('rejects a metric height below 50 cm', async () => {
+    const wrapper = await mountDialog()
+    const height = wrapper.find('input[name="heightCm"]')
+
+    await height.setValue('49')
+    await height.trigger('blur')
+
+    expect(wrapper.text()).toContain(i18n.global.t('settings.users.form.heightInvalid'))
   })
 
   it('rejects a maximum heart rate outside 30-250 bpm', async () => {
@@ -142,7 +152,7 @@ describe('ProfileFormDialog number validation', () => {
   it('accepts values on the limits', async () => {
     const wrapper = await mountDialog()
 
-    await wrapper.find('input[name="heightCm"]').setValue('300')
+    await wrapper.find('input[name="heightCm"]').setValue('272')
     await wrapper.find('input[name="maxHeartRate"]').setValue('30')
     await wrapper.find('input[name="maxHeartRate"]').trigger('blur')
 

@@ -121,7 +121,7 @@
       "weightUnitsMetric": "Kilogramy (kg)",
       "weightUnitsImperial": "Libry (lb)",
       "height": "Výška",
-      "heightInvalid": "Výška musí byť medzi 1 a 300 cm",
+      "heightInvalid": "Výška musí byť medzi 50 a 272 cm",
       "maxHeartRateInvalid": "Maximálna tepová frekvencia musí byť medzi 30 a 250 úderov za minútu",
       "feetInvalid": "Stopy musia byť medzi 0 a 10",
       "inchesInvalid": "Palce musia byť medzi 0 a 11",
@@ -634,6 +634,7 @@
       "error": "Cieľ sa nepodarilo odstrániť. Skúste to znova."
     },
     "form": {
+      "targetInvalid": "Zadajte hodnotu väčšiu ako 0.",
       "addTitle": "Pridať cieľ",
       "editTitle": "Upraviť cieľ",
       "description": "Nastavte cieľ pre aktivitu počas opakujúceho sa obdobia",
@@ -961,8 +962,8 @@
     },
     "job": {
       "preparing": "Pripravuje sa import…",
-      "progress": "Importovaných {done} z {total} súborov ({failed} zlyhalo)…",
-      "finished": "Import dokončený: importovaných {done} z {total} súborov, {failed} zlyhalo.",
+      "progress": "Importovaných {done} z {total} súboru ({failed} zlyhalo)… | Importovaných {done} z {total} súborov ({failed} zlyhalo)… | Importovaných {done} z {total} súborov ({failed} zlyhalo)…",
+      "finished": "Import dokončený: importovaných {done} z {total} súboru, {failed} zlyhalo. | Import dokončený: importovaných {done} z {total} súborov, {failed} zlyhalo. | Import dokončený: importovaných {done} z {total} súborov, {failed} zlyhalo.",
       "failed": "Import sa nepodarilo dokončiť."
     }
   },
@@ -1100,7 +1101,7 @@
         "queued": "Čaká sa na spustenie importu…",
         "running": "Importujú sa vaše údaje…",
         "writing_files": "Ukladajú sa vaše súbory…",
-        "completed": "Import dokončený: importovaných aktivít: {activities}, vybavenia: {gears}.",
+        "completed": "Import dokončený: importovaná {activities} aktivita, vybavenie: {gears}. | Import dokončený: importované {activities} aktivity, vybavenie: {gears}. | Import dokončený: importovaných {activities} aktivít, vybavenie: {gears}.",
         "failed": "Import nebol dokončený: {reason}"
       },
       "failure": {

@@ -121,7 +121,7 @@
       "weightUnitsMetric": "千克 (kg)",
       "weightUnitsImperial": "磅 (lb)",
       "height": "身高",
-      "heightInvalid": "身高必须介于 1 到 300 厘米之间",
+      "heightInvalid": "身高必须介于 50 到 272 厘米之间",
       "maxHeartRateInvalid": "最大心率必须介于 30 到 250 次/分之间",
       "feetInvalid": "英尺必须在 0 到 10 之间",
       "inchesInvalid": "英寸必须在 0 到 11 之间",
@@ -634,6 +634,7 @@
       "error": "无法删除目标，请重试。"
     },
     "form": {
+      "targetInvalid": "请输入大于 0 的值。",
       "addTitle": "添加目标",
       "editTitle": "编辑目标",
       "description": "为周期性活动设置目标",

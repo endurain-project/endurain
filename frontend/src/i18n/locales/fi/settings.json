@@ -121,7 +121,7 @@
       "weightUnitsMetric": "Kilogrammat (kg)",
       "weightUnitsImperial": "Paunat (lb)",
       "height": "Pituus",
-      "heightInvalid": "Pituuden on oltava 1–300 cm",
+      "heightInvalid": "Pituuden on oltava 50–272 cm",
       "maxHeartRateInvalid": "Maksimisykkeen on oltava 30–250 lyöntiä/min",
       "feetInvalid": "Jalkojen on oltava välillä 0–10",
       "inchesInvalid": "Tuumien on oltava välillä 0–11",
@@ -634,6 +634,7 @@
       "error": "Tavoitetta ei voitu poistaa. Yritä uudelleen."
     },
     "form": {
+      "targetInvalid": "Anna arvo, joka on suurempi kuin 0.",
       "addTitle": "Lisää tavoite",
       "editTitle": "Muokkaa tavoitetta",
       "description": "Aseta tavoite aktiviteetille toistuvalle jaksolle",
@@ -961,8 +962,8 @@
     },
     "job": {
       "preparing": "Valmistellaan tuontia…",
-      "progress": "Tuotu {done} / {total} tiedostoa ({failed} epäonnistui)…",
-      "finished": "Tuonti valmis: {done} / {total} tiedostoa tuotu, {failed} epäonnistui.",
+      "progress": "Tuotu {done} / {total} tiedosto ({failed} epäonnistui)… | Tuotu {done} / {total} tiedostoa ({failed} epäonnistui)…",
+      "finished": "Tuonti valmis: {done} / {total} tiedosto tuotu, {failed} epäonnistui. | Tuonti valmis: {done} / {total} tiedostoa tuotu, {failed} epäonnistui.",
       "failed": "Tuontia ei voitu suorittaa loppuun."
     }
   },
@@ -1100,7 +1101,7 @@
         "queued": "Odotetaan tuonnin alkamista…",
         "running": "Tuodaan tietojasi…",
         "writing_files": "Tallennetaan tiedostojasi…",
-        "completed": "Tuonti valmis: {activities} aktiviteettia ja {gears} varustetta tuotu.",
+        "completed": "Tuonti valmis: {activities} aktiviteetti tuotu, varusteet: {gears}. | Tuonti valmis: {activities} aktiviteettia tuotu, varusteet: {gears}.",
         "failed": "Tuonti ei valmistunut: {reason}"
       },
       "failure": {

@@ -7,6 +7,7 @@ import type { ManagedUser } from '@/features/users/types'
 
 import { apiFetch } from '@/services/http'
 import i18n from '@/i18n'
+import { queryKeys } from '@/services/queryKeys'
 import UserFormDialog from '@/features/users/components/UserFormDialog.vue'
 
 vi.mock('@/services/http', () => ({
@@ -46,11 +47,15 @@ const user: ManagedUser = {
  * renders inline where the test can drive it. */
 const passthrough = { template: '<div><slot /></div>' }
 
-async function mountDialog(isSelf: boolean, edited: ManagedUser = user) {
+async function mountDialog(
+  isSelf: boolean,
+  edited: ManagedUser = user,
+  queryClient = new QueryClient(),
+) {
   const wrapper = mount(UserFormDialog, {
     props: { open: false, user: edited, isSelf },
     global: {
-      plugins: [i18n, [VueQueryPlugin, { queryClient: new QueryClient() }]],
+      plugins: [i18n, [VueQueryPlugin, { queryClient }]],
       stubs: {
         Dialog: passthrough,
         DialogContent: passthrough,
@@ -167,6 +172,39 @@ describe('UserFormDialog weight units', () => {
   })
 })
 
+describe('UserFormDialog health cache', () => {
+  it("invalidates the health queries when the signed-in user's own height changes", async () => {
+    vi.mocked(apiFetch).mockClear()
+    vi.mocked(apiFetch).mockResolvedValue({ ...user })
+    const queryClient = new QueryClient()
+    queryClient.setQueryData(queryKeys.currentUser(), { id: user.id })
+    const invalidate = vi.spyOn(queryClient, 'invalidateQueries')
+    const wrapper = await mountDialog(true, { ...user, height: 170 }, queryClient)
+
+    await wrapper.find('input[name="heightCm"]').setValue('180')
+    await wrapper.find('form').trigger('submit')
+    await sentUpdate()
+
+    expect(invalidate).toHaveBeenCalledWith({ queryKey: queryKeys.health.all() })
+  })
+
+  it("leaves the health queries alone when another user's height changes", async () => {
+    vi.mocked(apiFetch).mockClear()
+    vi.mocked(apiFetch).mockResolvedValue({ ...user })
+    const queryClient = new QueryClient()
+    queryClient.setQueryData(queryKeys.currentUser(), { id: user.id + 1 })
+    const invalidate = vi.spyOn(queryClient, 'invalidateQueries')
+    const wrapper = await mountDialog(false, { ...user, height: 170 }, queryClient)
+
+    await wrapper.find('input[name="heightCm"]').setValue('180')
+    await wrapper.find('form').trigger('submit')
+    await sentUpdate()
+    await flushPromises()
+
+    expect(invalidate).not.toHaveBeenCalledWith({ queryKey: queryKeys.health.all() })
+  })
+})
+
 describe('UserFormDialog height', () => {
   const unitsSelect = (wrapper: Awaited<ReturnType<typeof mountDialog>>) =>
     wrapper
@@ -189,7 +227,7 @@ describe('UserFormDialog height', () => {
     expect(await sentUpdate()).toMatchObject({ units: 'imperial', height: 172 })
   })
 
-  it.each(['0', '400'])('rejects a height of %s cm and does not submit', async (cm) => {
+  it.each(['49', '273'])('rejects a height of %s cm and does not submit', async (cm) => {
     vi.mocked(apiFetch).mockClear()
     const wrapper = await mountDialog(false)
 

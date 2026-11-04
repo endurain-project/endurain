@@ -634,6 +634,7 @@
       "error": "Eesmärki ei õnnestunud kustutada. Palun proovi uuesti."
     },
     "form": {
+      "targetInvalid": "Sisesta väärtus, mis on suurem kui 0.",
       "addTitle": "Lisa eesmärk",
       "editTitle": "Muuda eesmärki",
       "description": "Sea tegevusele siht korduva perioodi jooksul",
@@ -961,8 +962,8 @@
     },
     "job": {
       "preparing": "Impordi ettevalmistamine…",
-      "progress": "Imporditud {done} faili {total}-st ({failed} ebaõnnestus)…",
-      "finished": "Import lõppes: imporditi {done} faili {total}-st, {failed} ebaõnnestus.",
+      "progress": "Imporditud {done} faili {total}-st ({failed} ebaõnnestus)… | Imporditud {done} faili {total}-st ({failed} ebaõnnestus)…",
+      "finished": "Import lõppes: imporditi {done} faili {total}-st, {failed} ebaõnnestus. | Import lõppes: imporditi {done} faili {total}-st, {failed} ebaõnnestus.",
       "failed": "Importi ei õnnestunud lõpule viia."
     }
   },
@@ -1100,7 +1101,7 @@
         "queued": "Ootame impordi algust…",
         "running": "Sinu andmete importimine…",
         "writing_files": "Sinu failide salvestamine…",
-        "completed": "Import lõppes: imporditi {activities} tegevust ja {gears} varustuseühikut.",
+        "completed": "Import lõppes: imporditi {activities} tegevus, varustus: {gears}. | Import lõppes: imporditi {activities} tegevust, varustus: {gears}.",
         "failed": "Import ei lõppenud: {reason}"
       },
       "failure": {

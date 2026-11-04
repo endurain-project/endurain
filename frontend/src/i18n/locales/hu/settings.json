@@ -121,7 +121,7 @@
       "weightUnitsMetric": "Kilogramm (kg)",
       "weightUnitsImperial": "Font (lb)",
       "height": "Magasság",
-      "heightInvalid": "A magasság 1 és 300 cm között lehet",
+      "heightInvalid": "A magasság 50 és 272 cm között lehet",
       "maxHeartRateInvalid": "A maximális pulzusszám 30 és 250 ü/perc között lehet",
       "feetInvalid": "A láb értéke 0 és 10 között lehet",
       "inchesInvalid": "A hüvelyk értéke 0 és 11 között lehet",
@@ -634,6 +634,7 @@
       "error": "Nem sikerült törölni a célt. Kérjük, próbáld újra."
     },
     "form": {
+      "targetInvalid": "Adjon meg 0-nál nagyobb értéket.",
       "addTitle": "Cél hozzáadása",
       "editTitle": "Cél szerkesztése",
       "description": "Állíts be egy célt egy tevékenységhez egy ismétlődő időszakon belül",
@@ -961,8 +962,8 @@
     },
     "job": {
       "preparing": "Az importálás előkészítése…",
-      "progress": "{total} fájlból {done} importálva ({failed} sikertelen)…",
-      "finished": "Az importálás befejeződött: {total} fájlból {done} importálva, {failed} sikertelen.",
+      "progress": "{total} fájlból {done} importálva ({failed} sikertelen)… | {total} fájlból {done} importálva ({failed} sikertelen)…",
+      "finished": "Az importálás befejeződött: {total} fájlból {done} importálva, {failed} sikertelen. | Az importálás befejeződött: {total} fájlból {done} importálva, {failed} sikertelen.",
       "failed": "Az importálást nem sikerült befejezni."
     }
   },
@@ -1100,7 +1101,7 @@
         "queued": "Várakozás az importálás indulására…",
         "running": "Az adataid importálása…",
         "writing_files": "A fájljaid mentése…",
-        "completed": "Az importálás befejeződött: {activities} tevékenység és {gears} felszerelés importálva.",
+        "completed": "Az importálás befejeződött: {activities} tevékenység importálva, felszerelés: {gears}. | Az importálás befejeződött: {activities} tevékenység importálva, felszerelés: {gears}.",
         "failed": "Az importálás nem fejeződött be: {reason}"
       },
       "failure": {
