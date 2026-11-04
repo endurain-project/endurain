@@ -20,5 +20,6 @@ points at its sections and holds the few lookups that are not in it.
 - Activity children return `ingestion_contributor`, `profile_contributor` and `profile_global_contributor` from `integration_service`.
   Plain child collections (rows hanging off one activity) build them with `activities_contributors.child_ingestion_contributor` / `child_profile_contributor`.
   `app/module_registry.py` installs them in `modules.activities.contributor_registry`.
+- A module that keeps per-user data exports and imports it as a profile section (`ProfileRecordsSection`, `ProfileArchiveSection` in `users/users_profile/contracts.py`) installed by `module_registry.configure_user_contributors`; `users_profile` never imports the module.
 - Mirror the module tree under `backend/tests/`.
 - Auth boundary: use `modules.auth.dependencies` for request identity and the owning auth child package's `integration_service.py` for behavior; never import auth CRUD, service, or private helpers across packages.

@@ -154,7 +154,8 @@ calls no module. `modules/activities/contributors.py` defines the activity
 ingestion/profile callback contracts (it depends only on the activity schema), while `contributor_registry.py`
 stores only the contributors explicitly installed by `app/module_registry.py`.
 Child packages return contributor objects from `integration_service.py`; package
-imports never register themselves as a side effect.
+imports never register themselves as a side effect. The activity profile contributors are consumed inside
+`activities/activity_profile_transfer`, which answers `users` as one profile section.
 
 ### 2. Composition surface — imported only while assembling the application
 
@@ -435,7 +436,8 @@ it rather than the platform importing it. Three worked examples live in the tree
 | The scheduler needed each module's recurring jobs | Each module declares `scheduled_jobs.recurring_jobs()`; `main.py` collects and hands the list to `start_scheduler`. |
 | Ingestion needed to pull from Strava and Garmin | Providers call `activity_ingestion.integration_service.register_activity_provider`; the private registry names no provider. |
 | Bulk import needed Strava-export semantics | `BulkImportFormat` is a registered layout (which members are activity files, the drop folder, how to build the source); `modules.strava.bulk_import_service` registers one and `StravaBulkImportSource` subclasses `BulkImportSource`. |
-| Activity ingestion/profile restore needed child records | Each child returns typed contributor objects from `integration_service`; `app/module_registry.py` installs them in `activities.contributor_registry`. |
+| Activity ingestion needed child records | Each child returns typed contributor objects from `integration_service`; `app/module_registry.py` installs them in `activities.contributor_registry`. |
+| Profile export and import needed each module's data, and account creation and height changes needed health | `users` states the questions in `users/contributors.py` (`UserLifecycleHooks`, `ProfileReaders`) and the section contracts in `users_profile/contracts.py` (`ProfileRecordsSection`, `ProfileArchiveSection`); `module_registry.configure_user_contributors` installs the health hooks, the followers reader and the sections in import order: gears, gear components, activities, then the health packages. `users_profile` keeps the zip, counts, limits, the user's own settings and images, the single import transaction and the post-commit file phase. |
 | Returning an activity needed its thumbnail's URL | `activity.service` asks `contributor_registry.resolve_thumbnail_url` for each activity it hands a client; `activity_thumbnail` registers the resolver at composition time. The stored key never leaves the server. |
 | Gear totals needed the distance and time activities recorded, and activities needs gear ownership checks | `gears` sits below activities. It states the questions in `gears/contributors.py` and keeps the answers in `gears/contributor_registry.py`; `module_registry.configure_gear_contributors` installs the activities readers in both entrypoints. |
 
@@ -581,9 +583,13 @@ when it goes stale, not an exemption in the rule.
    `ingestion_contributor`, `profile_contributor`, or
    `profile_global_contributor` factory to `integration_service.py`, then register
    that factory in `app/module_registry.py`. Do not register at import time.
-8. Add the module to the source lists of the cross-module contracts in
+8. A module that keeps per-user data registers a profile section in
+   `module_registry.configure_user_contributors`, in import order: a `ProfileRecordsSection` for one
+   `data/<key>.json` of plain rows, a `ProfileArchiveSection` when it writes its own entries or files.
+   `users_profile` is forbidden from importing the module (`users-profile-owns-no-sections`).
+9. Add the module to the source lists of the cross-module contracts in
    `backend/.importlinter`.
-9. Add a new top-level bounded context to `CONVERTED_MODULES` in
+10. Add a new top-level bounded context to `CONVERTED_MODULES` in
    `backend/tests/_helpers/module_roles.py`; the architecture and logging tests
    both read it from there. A module that is in neither `CONVERTED_MODULES` nor
    `UNCONVERTED_MODULES` fails `TestModuleInventory`, so a module cannot be added
@@ -759,6 +765,8 @@ one pattern. Recorded here so a review does not reopen them.
   `record_service.py` is the service-layer counterpart: `commit_write` commits and logs a staged write under
   the version-race guard, and `chart` charts a metric over an interval; each package `service` passes its
   `crud.SPEC` and the callables that stage or read what is specific to it.
+  `restore_archived_records` validates the archived rows of a profile import and stages them through the
+  package's own callable.
   Persistence may import a namespace's `computation` like a data shape (`_PERSISTENCE_SHARED_ROLES`) and the
   `crud`-role file directly under its own namespace (`_PERSISTENCE_NAMESPACE_ROLES`): neither declares a table.
   Anything that resolves a value through another module, such as the user's "today", stays in the
@@ -795,24 +803,24 @@ by hand when the code it describes changes.
 
 These constraints remain visible until a coordinated design change resolves them:
 
-- **Top-level cycles.** `users` ⇄ `auth`: users account workflows call auth integration surfaces, while auth
-  credential, session and identity-provider flows read or update users through `users.integration_service`.
-  `users` ⇄ `activities`: goal progress reads activities, and profile export/import consumes them (through
-  `activities.contributor_registry`, listed in `_LAYER_EXCEPTIONS`, and directly through the activity, file
-  storage and media surfaces), while activities consumes `users.integration_service`. Account
-  deletion no longer closes the latter cycle: `users` asks for activity erasure through `users/contributors.py`,
-  and `module_registry.configure_user_contributors` installs the answer, so erasure runs in the deletion's own
-  transaction. `gears` sits below activities (`_MUST_NOT_IMPORT`) and declares its usage questions in
-  `gears/contributors.py`; `module_registry.configure_gear_contributors` installs the activities answers.
-  Smaller two-way edges also remain: `auth` ⇄ `notifications` (sign-up sends through notifications, which reads
-  identity providers), `auth` ⇄ `server_settings` and `users` ⇄ `server_settings` (password reset, sign-up and
-  user creation read server settings, whose routers and mail use auth dependencies and users surfaces), and
-  `users` ⇄ `followers` (the profile reads followers, which reads users).
-- **`users` ⇄ `health`.** `health` services read the user's height, timezone and "today" through
-  `users.integration_service`, and `users` creates default targets when it creates a user, recalculates BMI
-  when the height changes (through the `health_targets` and `health_weight` surfaces) and exports and imports
-  the seven health packages directly. The contributor pattern described under *Top-level cycles* would remove
-  that half; `users/contributors.py` declares no health contribution yet.
+- **Top-level cycles.** Four pairs import each other, and seven modules form one strongly connected set:
+  `activities`, `auth`, `followers`, `gears`, `server_settings`, `users` and `websocket` (`followers`, `gears` and
+  `websocket` join through longer loops: they import `auth.dependencies` or users surfaces, and `activities` or
+  `users` import them). `health`, `notifications`, `garmin` and `strava` are outside it.
+  - `users` ⇄ `auth`: users account workflows call auth integration surfaces, while auth credential, session and
+    identity-provider flows read or update users through `users.integration_service`.
+  - `users` ⇄ `activities`: goal progress (`users_goals/progress_service.py`) and the profile overview summary
+    read activities, and `users_profile/schema.py` uses the activity schema, while activities consumes
+    `users.integration_service`. Account deletion and profile export/import do not close this cycle: `users` asks
+    for activity erasure and the activity profile section through `users/contributors.py` and
+    `users_profile/contracts.py`, and `module_registry.configure_user_contributors` installs the answers, so
+    erasure runs in the deletion's own transaction. `gears` sits below activities (`_MUST_NOT_IMPORT`) and
+    declares its usage questions in `gears/contributors.py`; `module_registry.configure_gear_contributors`
+    installs the activities answers.
+  - `auth` ⇄ `server_settings`: auth services read server settings, whose routers use auth dependencies.
+  - `users` ⇄ `server_settings`: user creation reads the server settings and the users schema uses their units and
+    currency, while the settings router reads the admin user for the test email and the mail service uses a users
+    schema.
 - **Profile import runs its own event loop.** `users_profile.import_job_service` calls `asyncio.run` on the
   worker's thread, because `ImportService` awaits `core.file_uploads.validate_bytes` for each activity file,
   media file and user image (storage writes already run through `asyncio.to_thread`). The validators come from

@@ -191,3 +191,22 @@ source_modules =
 forbidden_modules =
     modules.users.users_integrations.models
     modules.users.users_privacy_settings.models
+
+# The profile export and import owns the archive, not the sections in it. ``users``
+# declares the section contracts (``users_profile/contracts.py``); gears, activities
+# and the health packages implement them, and ``module_registry.configure_user_contributors``
+# installs them. A section implementation imported back here would restore the
+# users -> domain dependency the sections exist to remove.
+[importlinter:contract:users-profile-owns-no-sections]
+name = Profile export and import must not import the modules whose sections it archives
+type = forbidden
+allow_indirect_imports = True
+source_modules =
+    modules.users.users_profile
+forbidden_modules =
+    modules.gears
+    modules.health
+    modules.activities.contributor_registry
+    modules.activities.activity_file_storage
+    modules.activities.activity_media
+    modules.activities.activity_profile_transfer
