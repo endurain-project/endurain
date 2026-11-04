@@ -6,6 +6,7 @@ from typing import Any
 import httpx2
 from authlib.integrations.base_client import OAuthError
 from authlib.integrations.httpx_client import OAuth2Client
+from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import Session
 
 import core.cryptography as core_cryptography
@@ -44,27 +45,20 @@ class IdpTokenService:
         links = identity_provider_links_integration.get_user_identity_providers_by_user_id(user_id, db)
         refresh_needed = False
         for link in links:
-            try:
-                action = token_policy.should_refresh_idp_token(link)
-                if action is token_policy.TokenAction.REFRESH:
-                    refresh_needed = True
-                elif action is token_policy.TokenAction.CLEAR:
-                    identity_provider_links_integration.clear_user_identity_provider_refresh_token(
-                        user_id, link.idp_id, db
-                    )
-            except Exception as err:
-                logger.warning(
-                    "Could not assess identity-provider token",
-                    exc_info=err,
-                    extra=core_logger.context(user_id=user_id, idp_id=link.idp_id),
-                )
+            action = token_policy.should_refresh_idp_token(link)
+            if action is token_policy.TokenAction.REFRESH:
+                refresh_needed = True
+            elif action is token_policy.TokenAction.CLEAR:
+                identity_provider_links_integration.clear_user_identity_provider_refresh_token(user_id, link.idp_id, db)
         if refresh_needed:
             idp_event_publishers.publish_idp_token_refresh_requested(user_id, db)
 
     def refresh_idp_tokens(self, user_id: int, claims: idp_refresh_claim_store.IdpRefreshClaimStore) -> None:
         """Refresh the user's identity-provider tokens that are about to expire. Blocking; run it on a worker.
 
-        The links are read in a short session that closes before any provider is called.
+        The links are read in a short session that closes before any provider is called. A link whose refresh
+        fails with a domain error (disabled or misconfigured provider, unreachable discovery document) or a
+        database error is logged and skipped so the other links are still refreshed; any other error propagates.
 
         Args:
             user_id: The user whose tokens to refresh.
@@ -76,7 +70,7 @@ class IdpTokenService:
             try:
                 if token_policy.should_refresh_idp_token(link) is token_policy.TokenAction.REFRESH:
                     self.refresh_idp_session(user_id, link.idp_id, claims)
-            except Exception as err:
+            except (core_exceptions.DomainError, SQLAlchemyError) as err:
                 logger.warning(
                     "Could not refresh identity-provider token",
                     exc_info=err,
@@ -84,17 +78,15 @@ class IdpTokenService:
                 )
 
     def clear_all_idp_tokens(self, user_id: int, db: Session) -> None:
-        """Clear locally stored IdP tokens."""
+        """Clear locally stored IdP tokens.
+
+        Args:
+            user_id: The user whose linked providers' tokens to clear.
+            db: Database session holding the caller's transaction.
+        """
         links = identity_provider_links_integration.get_user_identity_providers_by_user_id(user_id, db)
         for link in links:
-            try:
-                identity_provider_links_integration.clear_user_identity_provider_refresh_token(user_id, link.idp_id, db)
-            except Exception as err:
-                logger.warning(
-                    "Could not clear identity-provider token during logout",
-                    exc_info=err,
-                    extra=core_logger.context(user_id=user_id, idp_id=link.idp_id),
-                )
+            identity_provider_links_integration.clear_user_identity_provider_refresh_token(user_id, link.idp_id, db)
 
     def store_idp_tokens(
         self,
@@ -120,12 +112,14 @@ class IdpTokenService:
             expected_refresh_token (str | None): For a refresh, the encrypted token it read: the new one is
                 stored only while the link still holds it, so a slower refresh never overwrites a newer token.
 
-        Returns:
-            None
+        Raises:
+            ValueError: If ``expires_in`` is present but not an integer or numeric string.
+            SQLAlchemyError: If staging the token fails; the caller's transaction is then unusable and the
+                error is left to it.
 
         Security Note:
             - The refresh token is encrypted using Fernet before storage
-            - If encryption fails, the error is logged but authentication continues
+            - If encryption fails, the error is logged, nothing is stored and authentication continues
             - Missing refresh tokens are handled gracefully (not all IdPs provide them)
 
         Example token_response:
@@ -136,7 +130,6 @@ class IdpTokenService:
                 "token_type": "Bearer"
             }
         """
-        # Extract refresh token from response
         refresh_token = token_response.get("refresh_token")
 
         if not refresh_token:
@@ -148,52 +141,42 @@ class IdpTokenService:
             return
 
         try:
-            # Encrypt the refresh token using Fernet
             encrypted_refresh = core_cryptography.encrypt_token_fernet(refresh_token)
+        except core_exceptions.CryptographyError as err:
+            logger.error(
+                "Error encrypting the IdP refresh token for user <user_id>, idp <idp_id>; it is not stored",
+                exc_info=err,
+                extra=core_logger.context(user_id=user_id, idp_id=idp_id),
+            )
+            return
 
-            if not encrypted_refresh:
-                logger.warning(
-                    "Failed to encrypt refresh token for user <user_id>, idp <idp_id>. Token will not be stored.",
+        # authlib accepts expires_in as a number or a numeric string, and leaves it as the provider sent it
+        expires_in = token_response.get("expires_in")
+        expires_in_seconds = DEFAULT_TOKEN_EXPIRY_SECONDS if expires_in is None else int(expires_in)
+        access_token_expires_at = datetime.now(UTC) + timedelta(seconds=expires_in_seconds)
+
+        if expected_refresh_token is not None:
+            if not identity_provider_links_integration.replace_user_identity_provider_tokens_if_unchanged(
+                user_id, idp_id, expected_refresh_token, encrypted_refresh, access_token_expires_at, db
+            ):
+                logger.debug(
+                    "Kept the IdP refresh token another refresh stored for user <user_id>, idp <idp_id>",
                     extra=core_logger.context(user_id=user_id, idp_id=idp_id),
                 )
                 return
-
-            # Calculate when the access token expires
-            expires_in = token_response.get("expires_in", DEFAULT_TOKEN_EXPIRY_SECONDS)
-            access_token_expires_at = datetime.now(UTC) + timedelta(seconds=expires_in)
-
-            if expected_refresh_token is not None:
-                if not identity_provider_links_integration.replace_user_identity_provider_tokens_if_unchanged(
-                    user_id, idp_id, expected_refresh_token, encrypted_refresh, access_token_expires_at, db
-                ):
-                    logger.debug(
-                        "Kept the IdP refresh token another refresh stored for user <user_id>, idp <idp_id>",
-                        extra=core_logger.context(user_id=user_id, idp_id=idp_id),
-                    )
-                    return
-            else:
-                identity_provider_links_integration.store_user_identity_provider_tokens(
-                    user_id=user_id,
-                    idp_id=idp_id,
-                    encrypted_refresh_token=encrypted_refresh,
-                    access_token_expires_at=access_token_expires_at,
-                    db=db,
-                )
-
-            logger.debug(
-                "Stored IdP refresh token for user <user_id>, idp <idp_id> (expires at <value_3>)",
-                extra=core_logger.context(user_id=user_id, idp_id=idp_id, value_3=access_token_expires_at.isoformat()),
+        else:
+            identity_provider_links_integration.store_user_identity_provider_tokens(
+                user_id=user_id,
+                idp_id=idp_id,
+                encrypted_refresh_token=encrypted_refresh,
+                access_token_expires_at=access_token_expires_at,
+                db=db,
             )
 
-        except Exception as err:
-            # Log the error but don't fail the authentication flow
-            logger.error(
-                "Error storing IdP refresh token for user <user_id>: <err>",
-                exc_info=err,
-                extra=core_logger.context(user_id=user_id, err=err),
-            )
-            # Authentication succeeds even if token storage fails
-            # User will need to re-auth when session expires, but that's acceptable
+        logger.debug(
+            "Stored IdP refresh token for user <user_id>, idp <idp_id> (expires at <value_3>)",
+            extra=core_logger.context(user_id=user_id, idp_id=idp_id, value_3=access_token_expires_at.isoformat()),
+        )
 
     def refresh_idp_session(
         self,
