@@ -149,3 +149,39 @@ describe('ProfileFormDialog number validation', () => {
     expect(wrapper.find('button[type="submit"]').attributes('disabled')).toBeUndefined()
   })
 })
+
+describe('ProfileFormDialog timezone', () => {
+  const browserTimezone = Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC'
+  const unsetProfile: ProfileDetails = { ...profile, timezone: null }
+
+  it('keeps an unset timezone unset on save', async () => {
+    const wrapper = await mountDialog(unsetProfile)
+    await wrapper.find('input[name="name"]').setValue('Renamed')
+
+    expect((await saveBody(wrapper)).timezone).toBeNull()
+  })
+
+  it('sets the browser timezone when the user picks the browser action', async () => {
+    const wrapper = await mountDialog(unsetProfile)
+    const action = wrapper
+      .findAll('button[type="button"]')
+      .find((button) => button.text().includes(browserTimezone))!
+
+    await action.trigger('click')
+
+    expect((await saveBody(wrapper)).timezone).toBe(browserTimezone)
+  })
+})
+
+describe('ProfileFormDialog unchanged save', () => {
+  it('sends no request and closes when nothing changed', async () => {
+    const wrapper = await mountDialog()
+    vi.mocked(apiFetch).mockClear()
+
+    await wrapper.find('form').trigger('submit')
+    await flushPromises()
+
+    expect(apiFetch).not.toHaveBeenCalled()
+    expect(wrapper.emitted('update:open')?.slice(-1)[0]).toEqual([false])
+  })
+})

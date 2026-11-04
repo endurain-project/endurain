@@ -134,6 +134,8 @@
       },
       "firstDayOfWeek": "First day of the week",
       "timezone": "Timezone",
+      "timezoneNotSet": "Not set",
+      "timezoneUseBrowser": "Use my browser's timezone ({timezone})",
       "timezoneHint": "Used for activities recorded without GPS, such as treadmill runs and indoor rides.",
       "weekdays": {
         "sunday": "Sunday",

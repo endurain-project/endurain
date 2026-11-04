@@ -7,6 +7,7 @@ import type { ProfileDetails, ProfileEditInput } from '@/features/profile/types'
 import type { Schemas } from '@/types'
 
 import { FormDialog } from '@/components/ui/form-dialog'
+import { Button } from '@/components/ui/button'
 import { FormField } from '@/components/ui/form-field'
 import { Input } from '@/components/ui/input'
 import { inputFieldClass } from '@/components/ui/input/fieldClasses'
@@ -87,7 +88,7 @@ const TIMEZONE_OPTIONS: readonly string[] = (() => {
   }
 })()
 
-/** The viewer's own timezone, used to seed the field when the profile has none. */
+/** The viewer's own timezone, offered as a choice for the field. */
 function detectBrowserTimezone(): string {
   return Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC'
 }
@@ -174,7 +175,7 @@ const { values, errors, isValid, isSubmitting, handleSubmit, handleBlur, reset, 
       maxHeartRate: null,
       preferredLanguage: 'en',
       firstDayOfWeek: 'monday',
-      timezone: detectBrowserTimezone(),
+      timezone: '',
     },
     validators: {
       name: compose(
@@ -204,6 +205,9 @@ const { values, errors, isValid, isSubmitting, handleSubmit, handleBlur, reset, 
     onSubmit: submitForm,
   })
 
+/** The viewer's browser timezone, offered by the "use my browser's timezone" action. */
+const browserTimezone = detectBrowserTimezone()
+
 const isMetric = computed(() => values.units === 'metric')
 
 // Keep `activeUnits` in step with the unit selector so the height validators
@@ -232,9 +236,8 @@ function populate(): void {
   values.maxHeartRate = profile.maxHeartRate
   values.preferredLanguage = profile.preferredLanguage
   values.firstDayOfWeek = profile.firstDayOfWeek
-  // Seed from the browser when the account predates this setting, so saving the
-  // form once stops GPS-less activities inheriting the server's timezone.
-  values.timezone = profile.timezone ?? detectBrowserTimezone()
+  // An unset timezone stays empty so saving the form keeps it unset.
+  values.timezone = profile.timezone ?? ''
   if (profile.height !== null) {
     const { feet, inches } = cmToFeetInches(profile.height)
     values.heightFeet = feet
@@ -380,10 +383,22 @@ watch(open, (isOpen) => {
       >
         <template #default="{ fieldId }">
           <Select :id="fieldId" v-model="values.timezone" :disabled="isSubmitting">
+            <option value="">{{ t('settings.users.form.timezoneNotSet') }}</option>
             <option v-for="zone in TIMEZONE_OPTIONS" :key="zone" :value="zone">
               {{ zone }}
             </option>
           </Select>
+          <Button
+            v-if="values.timezone !== browserTimezone"
+            type="button"
+            variant="link"
+            size="sm"
+            class="self-start"
+            :disabled="isSubmitting"
+            @click="values.timezone = browserTimezone"
+          >
+            {{ t('settings.users.form.timezoneUseBrowser', { timezone: browserTimezone }) }}
+          </Button>
         </template>
       </FormField>
 
