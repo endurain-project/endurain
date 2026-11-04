@@ -13,6 +13,7 @@ from pydantic import (
 from pydantic_core import PydanticCustomError
 
 import core.pagination as core_pagination
+import core.types as core_types
 
 
 class Interval(StrEnum):
@@ -97,11 +98,21 @@ class UsersGoalBase(BaseModel):
     interval: Interval = Field(..., description="Goal time interval")
     activity_type: ActivityType = Field(..., description="Type of activity for the goal")
     goal_type: GoalType = Field(..., description="Type of goal metric being tracked")
-    goal_calories: StrictInt | None = Field(default=None, ge=0, description="Target calories in kcal")
-    goal_activities_number: StrictInt | None = Field(default=None, ge=0, description="Target number of activities")
-    goal_distance: StrictInt | None = Field(default=None, ge=0, description="Target distance in meters")
-    goal_elevation: StrictInt | None = Field(default=None, ge=0, description="Target elevation gain in meters")
-    goal_duration: StrictInt | None = Field(default=None, ge=0, description="Target duration in seconds")
+    goal_calories: StrictInt | None = Field(
+        default=None, ge=0, le=core_types.INT32_MAX, description="Target calories in kcal"
+    )
+    goal_activities_number: StrictInt | None = Field(
+        default=None, ge=0, le=core_types.INT32_MAX, description="Target number of activities"
+    )
+    goal_distance: StrictInt | None = Field(
+        default=None, ge=0, le=core_types.INT32_MAX, description="Target distance in meters"
+    )
+    goal_elevation: StrictInt | None = Field(
+        default=None, ge=0, le=core_types.INT32_MAX, description="Target elevation gain in meters"
+    )
+    goal_duration: StrictInt | None = Field(
+        default=None, ge=0, le=core_types.INT32_MAX, description="Target duration in seconds"
+    )
 
     model_config = ConfigDict(
         from_attributes=True,

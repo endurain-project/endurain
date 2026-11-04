@@ -346,3 +346,14 @@ class TestUserGoalProgressSchema:
         # Assert
         assert hasattr(user_goals_schema.UsersGoalProgress, "model_config")
         assert user_goals_schema.UsersGoalProgress.model_config["from_attributes"] is True
+
+
+class TestGoalTargetBounds:
+    """A goal target fits the 32-bit integer column that stores it."""
+
+    @pytest.mark.parametrize("goal_type,field", list(user_goals_schema.TYPE_TO_FIELD.items()))
+    def test_a_target_beyond_the_column_is_refused(self, goal_type, field):
+        base = {"interval": "weekly", "activity_type": "run", "goal_type": goal_type}
+        with pytest.raises(ValidationError):
+            user_goals_schema.UsersGoalCreate(**base, **{field: 2**31})
+        assert getattr(user_goals_schema.UsersGoalCreate(**base, **{field: 2**31 - 1}), field) == 2**31 - 1
