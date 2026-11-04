@@ -12,6 +12,7 @@ import { inputFieldClass } from '@/components/ui/input/fieldClasses'
 import { useForm } from '@/composables/useForm'
 import { isStaleWrite } from '@/services/ifMatch'
 import { toNumberOrNull } from '@/utils/number'
+import { numberBetween } from '@/utils/validators'
 import { kgToLbs, lbsToKg } from '@/utils/units'
 import { useUpdateWeightTargetMutation } from '@/features/health/composables/useHealth'
 
@@ -34,6 +35,9 @@ const { unitLabel } = useUnitFormat()
 
 const updateTargetMutation = useUpdateWeightTargetMutation()
 
+/** Smallest accepted target, one step of the field (0.1 in the viewer's unit). */
+const MIN_WEIGHT = 0.1
+
 /** Form shape: the numeric target is kept as a string and parsed at submit. */
 interface TargetFormValues {
   weight: string
@@ -51,7 +55,7 @@ function displayMassFromKg(kg: number | null): string {
 /** Converts the display-unit target string back to kilograms (or `null` to clear). */
 function targetToKg(raw: string): number | null {
   const value = toNumberOrNull(raw)
-  if (value === null || value <= 0) {
+  if (value === null) {
     return null
   }
   const kg = props.weightUnits === 'imperial' ? lbsToKg(value) : value
@@ -80,8 +84,9 @@ async function submitForm(values: TargetFormValues): Promise<void> {
   }
 }
 
-const { values, isSubmitting, handleSubmit, reset } = useForm<TargetFormValues>({
+const { values, errors, isSubmitting, handleSubmit, reset } = useForm<TargetFormValues>({
   initialValues: { weight: '' },
+  validators: { weight: numberBetween(MIN_WEIGHT, undefined, t('health.targetInvalid')) },
   onSubmit: submitForm,
 })
 
@@ -115,6 +120,7 @@ watch(open, (isOpen) => {
     <FormField
       :label="weightLabel"
       :placeholder="weightLabel"
+      :error="errors.weight"
       :hint="t('health.weight.target.hint')"
     >
       <template #default="{ fieldId, placeholder }">
@@ -124,7 +130,7 @@ watch(open, (isOpen) => {
           :class="inputFieldClass"
           :placeholder="placeholder"
           type="number"
-          min="0"
+          :min="MIN_WEIGHT"
           step="0.1"
           inputmode="decimal"
           :disabled="isSubmitting"

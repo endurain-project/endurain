@@ -12,6 +12,7 @@ import { inputFieldClass } from '@/components/ui/input/fieldClasses'
 import { useForm } from '@/composables/useForm'
 import { isStaleWrite } from '@/services/ifMatch'
 import { toNumberOrNull } from '@/utils/number'
+import { numberBetween } from '@/utils/validators'
 import { flOzToMl, mlToFlOz } from '@/utils/units'
 import { useUpdateWaterTargetMutation } from '@/features/health/composables/useHealth'
 
@@ -45,7 +46,7 @@ const isImperial = computed(() => props.units === 'imperial')
 /** Converts the target string to whole millilitres (or `null` to clear). */
 function targetToMl(raw: string): number | null {
   const value = toNumberOrNull(raw)
-  if (value === null || value <= 0) {
+  if (value === null) {
     return null
   }
   return Math.round(isImperial.value ? flOzToMl(value) : value)
@@ -73,10 +74,16 @@ async function submitForm(values: TargetFormValues): Promise<void> {
   }
 }
 
-const { values, isSubmitting, handleSubmit, reset } = useForm<TargetFormValues>({
+const { values, errors, isSubmitting, handleSubmit, reset } = useForm<TargetFormValues>({
   initialValues: { amount: '' },
+  validators: {
+    amount: (value) => numberBetween(minAmount.value, undefined, t('health.targetInvalid'))(value),
+  },
   onSubmit: submitForm,
 })
+
+/** Smallest accepted target: 1 ml, or 0.1 fl oz (the precision the field displays). */
+const minAmount = computed(() => (isImperial.value ? 0.1 : 1))
 
 const amountUnitLabel = computed(() => unitLabel(isImperial.value ? 'flOz' : 'ml'))
 const amountLabel = computed(() => `${t('health.water.target.amount')} (${amountUnitLabel.value})`)
@@ -113,6 +120,7 @@ watch(open, (isOpen) => {
     <FormField
       :label="amountLabel"
       :placeholder="amountLabel"
+      :error="errors.amount"
       :hint="t('health.water.target.hint')"
     >
       <template #default="{ fieldId, placeholder }">
@@ -122,7 +130,7 @@ watch(open, (isOpen) => {
           :class="inputFieldClass"
           :placeholder="placeholder"
           type="number"
-          min="0"
+          :min="minAmount"
           step="any"
           inputmode="decimal"
           :disabled="isSubmitting"

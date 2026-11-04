@@ -65,8 +65,24 @@ async function submitForm(formValues: TargetFormValues): Promise<void> {
   }
 }
 
-const { values, isSubmitting, handleSubmit, reset } = useForm<TargetFormValues>({
+/**
+ * Rejects a target whose total is zero or negative; both fields blank passes
+ * because that clears the target.
+ *
+ * @returns The shared target error, or `null` when blank or positive.
+ */
+function totalPositive(): string | null {
+  const hours = toNumberOrNull(values.hours)
+  const minutes = toNumberOrNull(values.minutes)
+  if (hours === null && minutes === null) {
+    return null
+  }
+  return (hours ?? 0) * 3600 + (minutes ?? 0) * 60 > 0 ? null : t('health.targetInvalid')
+}
+
+const { values, errors, isSubmitting, handleSubmit, reset } = useForm<TargetFormValues>({
   initialValues: { hours: '', minutes: '' },
+  validators: { minutes: totalPositive },
   onSubmit: submitForm,
 })
 
@@ -117,6 +133,7 @@ watch(open, (isOpen) => {
 
       <FormField
         :label="t('health.fasting.target.minutes')"
+        :error="errors.minutes"
         :hint="t('health.fasting.target.hint')"
       >
         <template #default="{ fieldId }">

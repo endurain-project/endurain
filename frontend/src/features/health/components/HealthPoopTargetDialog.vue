@@ -10,6 +10,7 @@ import { inputFieldClass } from '@/components/ui/input/fieldClasses'
 import { useForm } from '@/composables/useForm'
 import { isStaleWrite } from '@/services/ifMatch'
 import { toNumberOrNull } from '@/utils/number'
+import { numberBetween } from '@/utils/validators'
 import { useUpdatePoopTargetMutation } from '@/features/health/composables/useHealth'
 
 const open = defineModel<boolean>('open', { required: true })
@@ -36,7 +37,7 @@ interface TargetFormValues {
 /** Converts the target string to a rounded whole-number count (or `null` to clear). */
 function targetToCount(raw: string): number | null {
   const value = toNumberOrNull(raw)
-  if (value === null || value <= 0) {
+  if (value === null) {
     return null
   }
   return Math.round(value)
@@ -64,8 +65,9 @@ async function submitForm(values: TargetFormValues): Promise<void> {
   }
 }
 
-const { values, isSubmitting, handleSubmit, reset } = useForm<TargetFormValues>({
+const { values, errors, isSubmitting, handleSubmit, reset } = useForm<TargetFormValues>({
   initialValues: { count: '' },
+  validators: { count: numberBetween(1, undefined, t('health.targetInvalid')) },
   onSubmit: submitForm,
 })
 
@@ -96,6 +98,7 @@ watch(open, (isOpen) => {
     <FormField
       :label="t('health.poop.target.count')"
       :placeholder="t('health.poop.target.count')"
+      :error="errors.count"
       :hint="t('health.poop.target.hint')"
     >
       <template #default="{ fieldId, placeholder }">
@@ -105,7 +108,7 @@ watch(open, (isOpen) => {
           :class="inputFieldClass"
           :placeholder="placeholder"
           type="number"
-          min="0"
+          min="1"
           step="1"
           inputmode="numeric"
           :disabled="isSubmitting"
