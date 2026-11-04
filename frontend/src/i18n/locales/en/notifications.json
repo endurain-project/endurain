@@ -62,12 +62,12 @@
         "body": "An administrator set a new password for your account. If you didn't expect this, contact your administrator."
       },
       "mfaEnabled": {
-        "title": "Two-step verification turned on",
-        "body": "Two-step verification was turned on for your account. If this wasn't you, reset your password and review your security settings."
+        "title": "Two-factor authentication turned on",
+        "body": "Two-factor authentication was turned on for your account. If this wasn't you, reset your password and review your security settings."
       },
       "mfaDisabled": {
-        "title": "Two-step verification turned off",
-        "body": "Two-step verification was turned off for your account. If this wasn't you, reset your password and review your security settings."
+        "title": "Two-factor authentication turned off",
+        "body": "Two-factor authentication was turned off for your account. If this wasn't you, reset your password and review your security settings."
       },
       "backupCodesGenerated": {
         "title": "New backup codes generated",

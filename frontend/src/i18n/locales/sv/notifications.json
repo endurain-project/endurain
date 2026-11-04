@@ -62,12 +62,12 @@
         "body": "En administratör har ställt in ett nytt lösenord för ditt konto. Om du inte väntade dig det, kontakta din administratör."
       },
       "mfaEnabled": {
-        "title": "Tvåstegsverifiering aktiverad",
-        "body": "Tvåstegsverifiering aktiverades för ditt konto. Om det inte var du, återställ ditt lösenord och granska dina säkerhetsinställningar."
+        "title": "Tvåfaktorsautentisering aktiverad",
+        "body": "Tvåfaktorsautentisering aktiverades för ditt konto. Om det inte var du, återställ ditt lösenord och granska dina säkerhetsinställningar."
       },
       "mfaDisabled": {
-        "title": "Tvåstegsverifiering inaktiverad",
-        "body": "Tvåstegsverifiering inaktiverades för ditt konto. Om det inte var du, återställ ditt lösenord och granska dina säkerhetsinställningar."
+        "title": "Tvåfaktorsautentisering inaktiverad",
+        "body": "Tvåfaktorsautentisering inaktiverades för ditt konto. Om det inte var du, återställ ditt lösenord och granska dina säkerhetsinställningar."
       },
       "backupCodesGenerated": {
         "title": "Nya reservkoder skapades",

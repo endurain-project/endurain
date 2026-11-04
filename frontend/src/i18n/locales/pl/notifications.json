@@ -62,12 +62,12 @@
         "body": "Administrator ustawił nowe hasło dla Twojego konta. Jeśli się tego nie spodziewasz, skontaktuj się z administratorem."
       },
       "mfaEnabled": {
-        "title": "Włączono weryfikację dwuetapową",
-        "body": "Dla Twojego konta włączono weryfikację dwuetapową. Jeśli to nie Ty, zresetuj hasło i sprawdź ustawienia zabezpieczeń."
+        "title": "Włączono uwierzytelnianie dwuskładnikowe",
+        "body": "Dla Twojego konta włączono uwierzytelnianie dwuskładnikowe. Jeśli to nie Ty, zresetuj hasło i sprawdź ustawienia zabezpieczeń."
       },
       "mfaDisabled": {
-        "title": "Wyłączono weryfikację dwuetapową",
-        "body": "Dla Twojego konta wyłączono weryfikację dwuetapową. Jeśli to nie Ty, zresetuj hasło i sprawdź ustawienia zabezpieczeń."
+        "title": "Wyłączono uwierzytelnianie dwuskładnikowe",
+        "body": "Dla Twojego konta wyłączono uwierzytelnianie dwuskładnikowe. Jeśli to nie Ty, zresetuj hasło i sprawdź ustawienia zabezpieczeń."
       },
       "backupCodesGenerated": {
         "title": "Wygenerowano nowe kody zapasowe",

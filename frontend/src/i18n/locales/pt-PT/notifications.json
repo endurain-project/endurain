@@ -62,12 +62,12 @@
         "body": "Um administrador definiu uma nova palavra-passe para a tua conta. Se não estavas à espera, contacta o teu administrador."
       },
       "mfaEnabled": {
-        "title": "Verificação em dois passos ativada",
-        "body": "A verificação em dois passos foi ativada na tua conta. Se não foste tu, repõe a palavra-passe e revê as tuas definições de segurança."
+        "title": "Autenticação de dois fatores ativada",
+        "body": "A autenticação de dois fatores foi ativada na tua conta. Se não foste tu, repõe a palavra-passe e revê as tuas definições de segurança."
       },
       "mfaDisabled": {
-        "title": "Verificação em dois passos desativada",
-        "body": "A verificação em dois passos foi desativada na tua conta. Se não foste tu, repõe a palavra-passe e revê as tuas definições de segurança."
+        "title": "Autenticação de dois fatores desativada",
+        "body": "A autenticação de dois fatores foi desativada na tua conta. Se não foste tu, repõe a palavra-passe e revê as tuas definições de segurança."
       },
       "backupCodesGenerated": {
         "title": "Novos códigos de recuperação gerados",

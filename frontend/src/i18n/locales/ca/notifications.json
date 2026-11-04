@@ -62,12 +62,12 @@
         "body": "Un administrador ha establert una contrasenya nova per al teu compte. Si no ho esperaves, contacta amb l'administrador."
       },
       "mfaEnabled": {
-        "title": "Verificació en dos passos activada",
-        "body": "S'ha activat la verificació en dos passos al teu compte. Si no has estat tu, restableix la contrasenya i revisa la configuració de seguretat."
+        "title": "Autenticació de dos factors activada",
+        "body": "S'ha activat l'autenticació de dos factors al teu compte. Si no has estat tu, restableix la contrasenya i revisa la configuració de seguretat."
       },
       "mfaDisabled": {
-        "title": "Verificació en dos passos desactivada",
-        "body": "S'ha desactivat la verificació en dos passos al teu compte. Si no has estat tu, restableix la contrasenya i revisa la configuració de seguretat."
+        "title": "Autenticació de dos factors desactivada",
+        "body": "S'ha desactivat l'autenticació de dos factors al teu compte. Si no has estat tu, restableix la contrasenya i revisa la configuració de seguretat."
       },
       "backupCodesGenerated": {
         "title": "Nous codis de seguretat generats",

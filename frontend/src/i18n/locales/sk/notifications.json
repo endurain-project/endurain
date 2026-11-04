@@ -62,12 +62,12 @@
         "body": "Správca nastavil pre váš účet nové heslo. Ak ste to nečakali, kontaktujte správcu."
       },
       "mfaEnabled": {
-        "title": "Dvojfázové overenie zapnuté",
-        "body": "Pre váš účet bolo zapnuté dvojfázové overenie. Ak ste to neboli vy, obnovte heslo a skontrolujte nastavenia zabezpečenia."
+        "title": "Dvojfaktorové overovanie zapnuté",
+        "body": "Pre váš účet bolo zapnuté dvojfaktorové overovanie. Ak ste to neboli vy, obnovte heslo a skontrolujte nastavenia zabezpečenia."
       },
       "mfaDisabled": {
-        "title": "Dvojfázové overenie vypnuté",
-        "body": "Pre váš účet bolo vypnuté dvojfázové overenie. Ak ste to neboli vy, obnovte heslo a skontrolujte nastavenia zabezpečenia."
+        "title": "Dvojfaktorové overovanie vypnuté",
+        "body": "Pre váš účet bolo vypnuté dvojfaktorové overovanie. Ak ste to neboli vy, obnovte heslo a skontrolujte nastavenia zabezpečenia."
       },
       "backupCodesGenerated": {
         "title": "Vygenerované nové záložné kódy",

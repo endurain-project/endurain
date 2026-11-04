@@ -62,12 +62,12 @@
         "body": "Un administrador definiu un novo contrasinal para a túa conta. Se non o esperabas, contacta co teu administrador."
       },
       "mfaEnabled": {
-        "title": "Verificación en dous pasos activada",
-        "body": "Activouse a verificación en dous pasos na túa conta. Se non foches ti, restablece o contrasinal e revisa a túa configuración de seguridade."
+        "title": "Autenticación en dous pasos activada",
+        "body": "Activouse a autenticación en dous pasos na túa conta. Se non foches ti, restablece o contrasinal e revisa a túa configuración de seguridade."
       },
       "mfaDisabled": {
-        "title": "Verificación en dous pasos desactivada",
-        "body": "Desactivouse a verificación en dous pasos na túa conta. Se non foches ti, restablece o contrasinal e revisa a túa configuración de seguridade."
+        "title": "Autenticación en dous pasos desactivada",
+        "body": "Desactivouse a autenticación en dous pasos na túa conta. Se non foches ti, restablece o contrasinal e revisa a túa configuración de seguridade."
       },
       "backupCodesGenerated": {
         "title": "Xeráronse novos códigos de recuperación",

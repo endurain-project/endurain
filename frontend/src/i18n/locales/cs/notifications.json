@@ -62,12 +62,12 @@
         "body": "Správce nastavil pro váš účet nové heslo. Pokud jste to nečekali, kontaktujte správce."
       },
       "mfaEnabled": {
-        "title": "Dvoufázové ověření zapnuto",
-        "body": "Pro váš účet bylo zapnuto dvoufázové ověření. Pokud jste to nebyli vy, obnovte heslo a zkontrolujte nastavení zabezpečení."
+        "title": "Dvoufaktorové ověřování zapnuto",
+        "body": "Pro váš účet bylo zapnuto dvoufaktorové ověřování. Pokud jste to nebyli vy, obnovte heslo a zkontrolujte nastavení zabezpečení."
       },
       "mfaDisabled": {
-        "title": "Dvoufázové ověření vypnuto",
-        "body": "Pro váš účet bylo vypnuto dvoufázové ověření. Pokud jste to nebyli vy, obnovte heslo a zkontrolujte nastavení zabezpečení."
+        "title": "Dvoufaktorové ověřování vypnuto",
+        "body": "Pro váš účet bylo vypnuto dvoufaktorové ověřování. Pokud jste to nebyli vy, obnovte heslo a zkontrolujte nastavení zabezpečení."
       },
       "backupCodesGenerated": {
         "title": "Vygenerovány nové záložní kódy",

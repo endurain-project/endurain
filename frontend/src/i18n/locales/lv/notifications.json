@@ -62,12 +62,12 @@
         "body": "Administrators iestatīja jūsu kontam jaunu paroli. Ja negaidījāt to, sazinieties ar administratoru."
       },
       "mfaEnabled": {
-        "title": "Divpakāpju verifikācija ieslēgta",
-        "body": "Jūsu kontam tika ieslēgta divpakāpju verifikācija. Ja tas neesat bijis Jūs, atiestatiet paroli un pārskatiet drošības iestatījumus."
+        "title": "Divfaktoru autentifikācija ieslēgta",
+        "body": "Jūsu kontam tika ieslēgta divfaktoru autentifikācija. Ja tas neesat bijis Jūs, atiestatiet paroli un pārskatiet drošības iestatījumus."
       },
       "mfaDisabled": {
-        "title": "Divpakāpju verifikācija izslēgta",
-        "body": "Jūsu kontam tika izslēgta divpakāpju verifikācija. Ja tas neesat bijis Jūs, atiestatiet paroli un pārskatiet drošības iestatījumus."
+        "title": "Divfaktoru autentifikācija izslēgta",
+        "body": "Jūsu kontam tika izslēgta divfaktoru autentifikācija. Ja tas neesat bijis Jūs, atiestatiet paroli un pārskatiet drošības iestatījumus."
       },
       "backupCodesGenerated": {
         "title": "Izveidoti jauni rezerves kodi",
