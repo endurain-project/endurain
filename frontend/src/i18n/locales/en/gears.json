@@ -55,6 +55,8 @@
   "delete": {
     "title": "Delete gear",
     "body": "Are you sure you want to delete \"{nickname}\"? This can't be undone.",
+    "activities": "{count} activity uses this gear; it will be kept and unassigned. | {count} activities use this gear; they will be kept and unassigned.",
+    "components": "Its {count} component will be deleted. | Its {count} components will be deleted.",
     "confirm": "Delete",
     "cancel": "Cancel",
     "close": "Close",

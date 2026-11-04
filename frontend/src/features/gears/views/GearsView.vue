@@ -9,7 +9,7 @@ import GearFormDialog from '@/features/gears/components/GearFormDialog.vue'
 import GearListItem from '@/features/gears/components/GearListItem.vue'
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
-import { ConfirmDialog } from '@/components/ui/confirm-dialog'
+import GearDeleteDialog from '@/features/gears/components/GearDeleteDialog.vue'
 import { CountBadge } from '@/components/ui/count-badge'
 import { EmptyState } from '@/components/ui/empty-state'
 import { Input } from '@/components/ui/input'
@@ -326,13 +326,9 @@ function confirmDelete(): void {
       @success="onFormSuccess"
       @error="onFormError"
     />
-    <ConfirmDialog
+    <GearDeleteDialog
       v-model:open="isDeleteOpen"
-      :title="t('gears.delete.title')"
-      :description="t('gears.delete.body', { nickname: gearToDelete?.nickname ?? '' })"
-      :confirm-label="t('gears.delete.confirm')"
-      :cancel-label="t('gears.delete.cancel')"
-      :close-label="t('gears.delete.close')"
+      :gear="gearToDelete"
       :pending="deleteMutation.isPending.value"
       @confirm="confirmDelete"
     />
