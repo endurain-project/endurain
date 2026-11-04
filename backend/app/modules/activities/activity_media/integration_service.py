@@ -10,6 +10,7 @@ import core.logger as core_logger
 import modules.activities.activity.schema as activity_schema
 import modules.activities.activity_media.contracts as activity_media_contracts
 import modules.activities.activity_media.crud as activity_media_crud
+import modules.activities.activity_media.schema as activity_media_schema
 import modules.activities.activity_media.service as activity_media_service
 import modules.activities.contributors as activities_contributors
 
@@ -105,6 +106,22 @@ def profile_contributor() -> activities_contributors.ProfileActivityContributor:
         export=_list_media_for_activities,
         restore=_restore_profile_records,
     )
+
+
+def media_for_activities(
+    activity_ids: list[int],
+    db: Session,
+) -> dict[int, list[activity_media_schema.ActivityMediaRead]]:
+    """Return the media of several activities, as the per-activity endpoint returns it.
+
+    Args:
+        activity_ids: IDs of the activities to read, already scoped to the requester.
+        db: Database session.
+
+    Returns:
+        The signed read models keyed by activity ID; an activity without media has no entry.
+    """
+    return activity_media_service.list_media_for_activities(activity_ids, db)
 
 
 def attach_media_bytes(

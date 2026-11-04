@@ -196,6 +196,27 @@ class ActivityBase(BaseModel):
         return core_timezone.to_utc_aware(value) if isinstance(value, str) else value
 
 
+class ActivityMediaEmbedded(BaseModel):
+    """A photo of an activity, as embedded in an activity list response.
+
+    The activity media package extends this with the same fields for its own endpoints, so
+    the root package declares the shape it embeds without importing that package.
+
+    Attributes:
+        id: Media record identifier.
+        activity_id: The activity the photo belongs to.
+        media_type: Media kind (1 = photo).
+        url: Signed, servable address of the photo.
+    """
+
+    model_config = ConfigDict(from_attributes=True, extra="forbid")
+
+    id: StrictInt = Field(ge=1)
+    activity_id: StrictInt = Field(ge=1)
+    media_type: StrictInt = Field(ge=1, le=1)
+    url: str = Field(min_length=1)
+
+
 class ActivityRead(ActivityBase):
     """Schema representing a stored fitness activity — what the API returns.
 
@@ -210,12 +231,18 @@ class ActivityRead(ActivityBase):
             only: it is excluded from serialization, so a client never receives it.
         map_thumbnail_url: The servable, token-gated URL of the thumbnail, set by
             the service layer for a viewer allowed to see the map.
+        media: The activity's photos with signed URLs, set by the service layer on list
+            responses for the viewer's own activities and empty otherwise.
     """
 
     id: int = Field(ge=1)
     map_thumbnail_path: str | None = Field(default=None, max_length=500, exclude=True)
     map_thumbnail_url: str | None = None
     version: int | None = Field(default=None, ge=1)
+    media: list[ActivityMediaEmbedded] = Field(
+        default_factory=list,
+        description="The activity's photos, set on list responses for the viewer's own activities",
+    )
 
 
 class ActivitySportStats(BaseModel):

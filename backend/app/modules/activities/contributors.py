@@ -6,7 +6,7 @@ archive names and how one archived record becomes a stored row; the parent-id
 guard and the re-keying filter live here once.
 """
 
-from collections.abc import Sequence
+from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
 from typing import Any, Protocol
 
@@ -129,6 +129,23 @@ class ThumbnailUrlResolver(Protocol):
 
         Returns:
             The URL, or None when there is no thumbnail.
+        """
+
+
+class ActivityMediaResolver(Protocol):
+    """Resolve the media of several activities to their client-facing read models."""
+
+    def __call__(
+        self, activity_ids: list[int], db: Session
+    ) -> Mapping[int, Sequence[activity_schema.ActivityMediaEmbedded]]:
+        """Return the media of the given activities in one query.
+
+        Args:
+            activity_ids: IDs of the activities, already scoped to the requester.
+            db: Database session.
+
+        Returns:
+            The media keyed by activity ID; an activity without media has no entry.
         """
 
 

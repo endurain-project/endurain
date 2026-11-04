@@ -125,6 +125,33 @@ def get_activities_media(
     return [activity_media_serializers.to_read_schema(media) for media in db.scalars(stmt).all()]
 
 
+def get_media_for_owned_activities(
+    activity_ids: list[int],
+    db: Session,
+) -> list[activity_media_contracts.ActivityMediaRecord]:
+    """Retrieve the media records of several activities the requester owns, oldest first, in one query.
+
+    Performs no access check: the activities service passes only IDs of activities the
+    requester owns, which is the rule :func:`get_media_for_activity` leaves to its caller.
+
+    Args:
+        activity_ids: The activities to read, already scoped to their owner.
+        db: Database session.
+
+    Returns:
+        The media records of those activities, empty when there are none.
+    """
+    if not activity_ids:
+        return []
+
+    stmt = (
+        select(activity_media_models.ActivityMedia)
+        .where(activity_media_models.ActivityMedia.activity_id.in_(activity_ids))
+        .order_by(activity_media_models.ActivityMedia.id)
+    )
+    return [activity_media_serializers.to_read_schema(media) for media in db.scalars(stmt).all()]
+
+
 def get_existing_media_paths(media_paths: list[str], db: Session) -> set[str]:
     """Return which of the given storage keys a media record still names.
 

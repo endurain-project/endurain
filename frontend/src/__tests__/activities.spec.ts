@@ -78,6 +78,14 @@ describe('mapActivity', () => {
     expect(activity.privacy.hideMap).toBe(false)
   })
 
+  it('maps the embedded media, and defaults it to none', () => {
+    const media = [{ id: 9, activity_id: 5, media_type: 1, url: '/media/5/9?t=abc' }]
+    expect(mapActivity({ ...activityDto, media }).media).toEqual([
+      expect.objectContaining({ id: 9, activityId: 5 }),
+    ])
+    expect(mapActivity(activityDto).media).toEqual([])
+  })
+
   it('defaults a missing visibility', () => {
     const activity = mapActivity({ ...activityDto, visibility: null })
     expect(activity.visibility).toBe(0)

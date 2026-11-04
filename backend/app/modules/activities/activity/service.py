@@ -361,6 +361,32 @@ def _with_thumbnail_urls(
     return activities
 
 
+def _with_media(
+    activities: list[activity_schema.ActivityRead],
+    requester_user_id: int,
+    db: Session,
+) -> list[activity_schema.ActivityRead]:
+    """Set the media of the requester's own activities, in one query for the page.
+
+    Media is owner-only, as the per-activity media endpoint is, so activities owned by
+    anyone else keep an empty ``media``. Resolved through the registry because the media
+    package asks this one who owns an activity and so may not be imported from here.
+
+    Args:
+        activities: Masked activities about to be returned to a client.
+        requester_user_id: The authenticated caller.
+        db: Database session.
+
+    Returns:
+        The same activities, with ``media`` set where the requester owns them and they have photos.
+    """
+    owned_ids = [activity.id for activity in activities if activity.user_id == requester_user_id]
+    media = activities_contributor_registry.resolve_media(owned_ids, db)
+    for activity in activities:
+        activity.media = list(media.get(activity.id, ()))
+    return activities
+
+
 def list_gear_activities(
     user_id: int,
     gear_id: int,
@@ -529,7 +555,9 @@ def page_user_activities(
         user_is_owner=(user_id == requester_user_id),
         followee_ids=_followees_of(requester_user_id, db),
     )
-    return activity_schema.ActivityPage.build(_with_thumbnail_urls(items), total, page_number, num_records)
+    return activity_schema.ActivityPage.build(
+        _with_media(_with_thumbnail_urls(items), requester_user_id, db), total, page_number, num_records
+    )
 
 
 def scroll_following_feed(
@@ -556,7 +584,7 @@ def scroll_following_feed(
     entries = activity_crud.get_following_feed_after(followee_ids, after, num_records + 1, db)
     has_more = len(entries) > num_records
     page_entries = entries[:num_records]
-    items = _with_thumbnail_urls([entry.activity for entry in page_entries])
+    items = _with_media(_with_thumbnail_urls([entry.activity for entry in page_entries]), requester_user_id, db)
     next_cursor = (
         core_pagination.encode_cursor(page_entries[-1].cursor_sort_value, page_entries[-1].cursor_id)
         if has_more and page_entries
@@ -597,7 +625,9 @@ def page_gear_activities(
     """
     items = list_gear_activities(user_id, gear_id, db, page_number=page_number, num_records=num_records)
     total = _count_gear_activities(user_id, gear_id, db)
-    return activity_schema.ActivityPage.build(_with_thumbnail_urls(items), total, page_number, num_records)
+    return activity_schema.ActivityPage.build(
+        _with_media(_with_thumbnail_urls(items), user_id, db), total, page_number, num_records
+    )
 
 
 # ---------------------------------------------------------------------------

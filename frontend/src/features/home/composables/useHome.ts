@@ -1,6 +1,12 @@
 import { computed, type MaybeRefOrGetter, toValue } from 'vue'
 import { storeToRefs } from 'pinia'
-import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from '@tanstack/vue-query'
+import {
+  type QueryClient,
+  useInfiniteQuery,
+  useMutation,
+  useQuery,
+  useQueryClient,
+} from '@tanstack/vue-query'
 
 import type { Activity, ActivityFeedSlice, ActivityStats } from '@/features/activities/types'
 import type { Schemas } from '@/types'
@@ -36,6 +42,20 @@ function resolveUserId(userId: MaybeRefOrGetter<number | null>): number {
 }
 
 /**
+ * Seeds each activity's media query with the photos its list response embedded, so
+ * a card's gallery makes no `/media` request of its own. An activity the viewer
+ * does not own is seeded empty, which is what its media endpoint answers.
+ *
+ * @param client - The query client holding the media queries.
+ * @param activities - The mapped activities of one list response.
+ */
+export function seedActivityMedia(client: QueryClient, activities: Activity[]): void {
+  for (const activity of activities) {
+    client.setQueryData(queryKeys.activities.media(activity.id), activity.media)
+  }
+}
+
+/**
  * The home dashboard's infinite feed of the viewer's own activities. Follows the
  * canonical infinite-query pattern (see `useInfiniteNotificationsQuery`): keyed
  * on page size only so every page shares one cache entry, and gated on a valid
@@ -52,6 +72,7 @@ export function useUserActivitiesFeed(
   pageSize: number = DEFAULT_FEED_PAGE_SIZE,
   enabled: MaybeRefOrGetter<boolean> = true,
 ) {
+  const client = useQueryClient()
   const { isAuthenticated } = storeToRefs(useAuthStore())
   const id = computed(() => resolveUserId(userId))
 
@@ -59,6 +80,7 @@ export function useUserActivitiesFeed(
     queryKey: computed(() => queryKeys.activities.userFeed(id.value, pageSize)),
     queryFn: async ({ pageParam, signal }) => {
       const page = await fetchUserActivities(pageParam, pageSize, signal)
+      seedActivityMedia(client, page)
       if (pageParam === 1) {
         await refreshPinnedActivities()
       }
@@ -96,6 +118,7 @@ export function useUserWeekActivitiesQuery(
   firstDayOfWeek: MaybeRefOrGetter<Schemas['WeekDay']>,
   enabled: MaybeRefOrGetter<boolean> = true,
 ) {
+  const client = useQueryClient()
   const { isAuthenticated } = storeToRefs(useAuthStore())
   const id = computed(() => resolveUserId(userId))
   const weekValue = computed(() => toValue(week))
@@ -105,8 +128,16 @@ export function useUserWeekActivitiesQuery(
     queryKey: computed(() =>
       queryKeys.activities.weekActivities(id.value, weekValue.value, firstDay.value),
     ),
-    queryFn: ({ signal }) =>
-      fetchUserWeekActivities(id.value, weekValue.value, firstDay.value, signal),
+    queryFn: async ({ signal }) => {
+      const activities = await fetchUserWeekActivities(
+        id.value,
+        weekValue.value,
+        firstDay.value,
+        signal,
+      )
+      seedActivityMedia(client, activities)
+      return activities
+    },
     enabled: computed(() => toValue(enabled) && isAuthenticated.value && id.value > 0),
     staleTime: 5 * 60_000,
   })
@@ -136,6 +167,7 @@ export function useFollowersActivitiesFeed(
     queryKey: computed(() => queryKeys.activities.followersFeed(id.value, pageSize)),
     queryFn: async ({ pageParam, signal }) => {
       const slice = await fetchFollowersActivities(pageParam, pageSize, signal)
+      seedActivityMedia(client, slice.items)
       for (const [ownerId, owner] of slice.owners) {
         client.setQueryData(queryKeys.activities.owner(ownerId), owner)
       }

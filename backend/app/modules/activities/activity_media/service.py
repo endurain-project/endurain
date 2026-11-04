@@ -257,6 +257,28 @@ def _to_read_model(
     )
 
 
+def list_media_for_activities(
+    activity_ids: list[int],
+    db: Session,
+) -> dict[int, list[activity_media_schema.ActivityMediaRead]]:
+    """Resolve the media of several activities, oldest first, in one query.
+
+    Performs no ownership check: the caller passes only activities whose media the
+    requester may see, as :func:`list_activity_media` decides for one.
+
+    Args:
+        activity_ids: The activities to read, already scoped to the requester.
+        db: Database session.
+
+    Returns:
+        The read models keyed by activity ID; an activity without media has no entry.
+    """
+    media: dict[int, list[activity_media_schema.ActivityMediaRead]] = {}
+    for record in activity_media_crud.get_media_for_owned_activities(activity_ids, db):
+        media.setdefault(record.activity_id, []).append(_to_read_model(record))
+    return media
+
+
 def list_activity_media(
     activity_id: int,
     requester_user_id: int,

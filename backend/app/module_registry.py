@@ -468,6 +468,7 @@ def configure_activity_contributors() -> None:
         activity_exercise_titles_integration.profile_global_contributor()
     )
     activities_contributor_registry.register_thumbnail_url_resolver(activity_thumbnail_integration.thumbnail_url)
+    activities_contributor_registry.register_media_resolver(activity_media_integration.media_for_activities)
 
 
 def configure_gear_contributors() -> None:

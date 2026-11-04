@@ -67,6 +67,24 @@ class TestRuntimeModuleRegistry:
         assert activities_contributor_registry.resolve_thumbnail_url("42.webp", 42) is not None
         assert activities_contributor_registry.resolve_thumbnail_url(None, 42) is None
 
+    def test_installs_the_media_resolver(self):
+        """Without it every activity list silently loses its photos.
+
+        The root activity package asks the registry rather than importing the
+        media package, so a missing registration is an empty ``media`` on every
+        activity in the API.
+        """
+        activities_contributor_registry.clear()
+        db = MagicMock()
+        assert activities_contributor_registry.resolve_media([1], db) == {}
+        db.scalars.assert_not_called()
+
+        runtime_module_registry.configure_activity_contributors()
+        db.scalars.return_value.all.return_value = []
+
+        assert activities_contributor_registry.resolve_media([1], db) == {}
+        db.scalars.assert_called_once()
+
     def test_registers_every_activity_bus_subscriber(self):
         events = MagicMock()
         runtime_module_registry.register_bus_subscribers(events)

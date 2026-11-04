@@ -6,6 +6,7 @@ import { mapEmbeddedUsers } from '@/features/users/services/publicUsers'
 import { pastWeekRange, todayIsoDate } from '@/utils/datetime'
 
 import { mapActivityOwner } from './activityOwner'
+import { mapActivityMedia } from './activityMedia'
 
 /** Job handle returned by the refresh endpoint; polled via `fetchIngestionJob`. */
 type ActivityIngestionJob = Schemas['ActivityIngestionJobRead']
@@ -138,6 +139,7 @@ export function mapActivity(dto: ActivityDto): Activity {
     garminActivityId: dto.garminconnect_activity_id ?? null,
 
     mapThumbnailUrl: dto.map_thumbnail_url ?? null,
+    media: (dto.media ?? []).map(mapActivityMedia),
 
     privacy: {
       hideStartTime: dto.hide_start_time ?? false,

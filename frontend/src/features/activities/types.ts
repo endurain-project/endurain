@@ -272,6 +272,13 @@ export interface Activity {
    */
   mapThumbnailUrl: string | null
 
+  /**
+   * The activity's photos as embedded by a list response, so a card needs no
+   * request of its own. Only the viewer's own activities carry photos; empty on
+   * every other response (a single-activity read, someone else's activity).
+   */
+  media: ActivityMedia[]
+
   privacy: ActivityPrivacy
 }
 

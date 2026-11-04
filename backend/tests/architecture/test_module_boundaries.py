@@ -1162,8 +1162,43 @@ class TestPackageIndependence:
         )
 
 
+#: The activity-list media batch, from the read to the owner filter: each step trusts its activity ids were already
+#: scoped to the requester, so each may only be referenced by the step that calls it and by its own definition.
+_OWNED_MEDIA_BATCH_CALLERS = {
+    "get_media_for_owned_activities": {
+        _MODULES_ROOT / "activities" / "activity_media" / "crud.py",
+        _MODULES_ROOT / "activities" / "activity_media" / "service.py",
+    },
+    "list_media_for_activities": {
+        _MODULES_ROOT / "activities" / "activity_media" / "service.py",
+        _MODULES_ROOT / "activities" / "activity_media" / "integration_service.py",
+    },
+    "media_for_activities": {
+        _MODULES_ROOT / "activities" / "activity_media" / "integration_service.py",
+        _APP_ROOT / "module_registry.py",
+    },
+    "resolve_media": {
+        _MODULES_ROOT / "activities" / "contributor_registry.py",
+        _MODULES_ROOT / "activities" / "activity" / "service.py",
+    },
+}
+
+
 class TestOwnerScopedBulkReads:
     """Bulk reads without access checks stay behind owner-scoped profile export."""
+
+    def test_the_activity_list_media_batch_has_one_caller_per_step(self):
+        """Reject a new caller anywhere on the path from the activity list's owner filter to the media read."""
+        offenders: list[str] = []
+        symbols = set(_OWNED_MEDIA_BATCH_CALLERS)
+        for path in _python_files(_APP_ROOT):
+            for node, symbol in _symbol_reference_nodes(ast.parse(path.read_text()), symbols):
+                if path not in _OWNED_MEDIA_BATCH_CALLERS[symbol]:
+                    offenders.append(f"{path}:{node.lineno}: references {symbol}")
+        assert not offenders, (
+            "The owner-scoped media batch gained a caller; only the activity list, which keeps the requester's own "
+            "activities, may reach it. A new caller is a latent IDOR:\n  " + "\n  ".join(sorted(offenders))
+        )
 
     def test_bulk_reads_are_referenced_only_inside_their_own_package(self):
         """Reject callers outside each bulk read's CRUD and integration surface."""

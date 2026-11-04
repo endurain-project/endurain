@@ -1,5 +1,10 @@
 """Process-local registry for installed activity package contributors."""
 
+from collections.abc import Mapping, Sequence
+
+from sqlalchemy.orm import Session
+
+import modules.activities.activity.schema as activity_schema
 import modules.activities.contributors as activities_contributors
 
 _activity_ingestion: dict[str, activities_contributors.ActivityIngestionContributor] = {}
@@ -7,6 +12,7 @@ _file_ingestion: dict[str, activities_contributors.FileIngestionContributor] = {
 _profile_activity: dict[str, activities_contributors.ProfileActivityContributor] = {}
 _profile_global: dict[str, activities_contributors.ProfileGlobalContributor] = {}
 _thumbnail_url_resolver: activities_contributors.ThumbnailUrlResolver | None = None
+_media_resolver: activities_contributors.ActivityMediaResolver | None = None
 
 
 def register_activity_ingestion(contributor: activities_contributors.ActivityIngestionContributor) -> None:
@@ -140,11 +146,43 @@ def resolve_thumbnail_url(key: str | None, activity_id: int) -> str | None:
     return _thumbnail_url_resolver(key, activity_id)
 
 
+def register_media_resolver(resolver: activities_contributors.ActivityMediaResolver) -> None:
+    """Install the resolver that reads the media of several activities at once.
+
+    Args:
+        resolver: Callable resolving activity IDs to their media.
+    """
+    global _media_resolver
+    _media_resolver = resolver
+
+
+def resolve_media(
+    activity_ids: list[int], db: Session
+) -> Mapping[int, Sequence[activity_schema.ActivityMediaEmbedded]]:
+    """Return the media of several activities in one batch.
+
+    The seam that keeps the root ``activity`` package from importing
+    ``activity_media``, which itself asks the root who owns an activity.
+
+    Args:
+        activity_ids: IDs of the activities, already scoped to the requester.
+        db: Database session.
+
+    Returns:
+        The media keyed by activity ID, empty when there are no IDs or no installed
+        media subsystem.
+    """
+    if _media_resolver is None or not activity_ids:
+        return {}
+    return _media_resolver(activity_ids, db)
+
+
 def clear() -> None:
     """Remove every installed contributor."""
-    global _thumbnail_url_resolver
+    global _thumbnail_url_resolver, _media_resolver
     _activity_ingestion.clear()
     _file_ingestion.clear()
     _profile_activity.clear()
     _profile_global.clear()
     _thumbnail_url_resolver = None
+    _media_resolver = None

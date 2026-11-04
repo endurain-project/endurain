@@ -4,6 +4,7 @@ import { type InfiniteData, QueryClient, VueQueryPlugin } from '@tanstack/vue-qu
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import type { Activity } from '@/features/activities/types'
+import { queryKeys } from '@/services/queryKeys'
 import { fetchActivity, fetchUserActivities } from '@/features/activities/services/activities'
 import { useUserActivitiesFeed } from '@/features/home/composables/useHome'
 import {
@@ -68,8 +69,9 @@ describe('useUserActivitiesFeed with pinned uploads', () => {
     // The thumbnail backfill updates the pin and then writes the feed cache.
     const withThumbnail = { ...uploaded, mapThumbnailUrl: 'thumb' }
     updatePinnedActivities([withThumbnail])
-    client.setQueriesData<InfiniteData<Activity[]>>({ queryKey: ['activities'] }, (data) =>
-      replaceActivitiesInFeed(data, [withThumbnail]),
+    client.setQueriesData<InfiniteData<Activity[]>>(
+      { queryKey: queryKeys.activities.userFeed(7, 25) },
+      (data) => replaceActivitiesInFeed(data, [withThumbnail]),
     )
     await flushPromises()
 

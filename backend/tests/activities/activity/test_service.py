@@ -425,3 +425,36 @@ class TestWithThumbnailUrls:
         activity = SimpleNamespace(id=7, map_thumbnail_path=None, map_thumbnail_url="stale")
 
         assert service._with_thumbnail_urls([activity])[0].map_thumbnail_url is None
+
+
+class TestWithMedia:
+    """The viewer's own activities carry their media, resolved in one batch."""
+
+    @patch("modules.activities.activity.service.activities_contributor_registry")
+    def test_resolves_the_owned_activities_in_one_call(self, mock_registry):
+        from modules.activities.activity import service
+
+        photo = SimpleNamespace(id=1)
+        mock_registry.resolve_media.return_value = {7: [photo]}
+        own = SimpleNamespace(id=7, user_id=3, media=[])
+        also_own = SimpleNamespace(id=8, user_id=3, media=[])
+        other = SimpleNamespace(id=9, user_id=4, media=[])
+        db = MagicMock()
+
+        result = service._with_media([own, also_own, other], 3, db)
+
+        mock_registry.resolve_media.assert_called_once_with([7, 8], db)
+        assert result[0].media == [photo]
+        assert result[1].media == []
+        assert result[2].media == []
+
+    @patch("modules.activities.activity.service.activities_contributor_registry")
+    def test_a_page_of_other_peoples_activities_resolves_nothing(self, mock_registry):
+        from modules.activities.activity import service
+
+        mock_registry.resolve_media.return_value = {}
+        other = SimpleNamespace(id=9, user_id=4, media=[])
+
+        service._with_media([other], 3, MagicMock())
+
+        mock_registry.resolve_media.assert_called_once_with([], ANY)

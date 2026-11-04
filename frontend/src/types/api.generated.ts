@@ -6013,6 +6013,29 @@ export interface components {
             total_work?: number | null;
         };
         /**
+         * ActivityMediaEmbedded
+         * @description A photo of an activity, as embedded in an activity list response.
+         *
+         *     The activity media package extends this with the same fields for its own endpoints, so
+         *     the root package declares the shape it embeds without importing that package.
+         *
+         *     Attributes:
+         *         id: Media record identifier.
+         *         activity_id: The activity the photo belongs to.
+         *         media_type: Media kind (1 = photo).
+         *         url: Signed, servable address of the photo.
+         */
+        ActivityMediaEmbedded: {
+            /** Activity Id */
+            activity_id: number;
+            /** Id */
+            id: number;
+            /** Media Type */
+            media_type: number;
+            /** Url */
+            url: string;
+        };
+        /**
          * ActivityMediaRead
          * @description A photo attached to an activity, as returned to a client.
          *
@@ -6046,6 +6069,8 @@ export interface components {
          *             only: it is excluded from serialization, so a client never receives it.
          *         map_thumbnail_url: The servable, token-gated URL of the thumbnail, set by
          *             the service layer for a viewer allowed to see the map.
+         *         media: The activity's photos with signed URLs, set by the service layer on list
+         *             responses for the viewer's own activities and empty otherwise.
          */
         ActivityRead: {
             /** Activity Type */
@@ -6127,6 +6152,11 @@ export interface components {
             max_power?: number | null;
             /** Max Speed */
             max_speed?: number | null;
+            /**
+             * Media
+             * @description The activity's photos, set on list responses for the viewer's own activities
+             */
+            media?: components["schemas"]["ActivityMediaEmbedded"][];
             /** Name */
             name: string;
             /** Normalized Power */
@@ -18583,7 +18613,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["ProfileExportStatus"];
+                    "application/json": components["schemas"]["ProfileExportStatus"] | null;
                 };
             };
             /** @description Unexpected error */
@@ -18612,7 +18642,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["ProfileExportStatus"] | null;
+                    "application/json": components["schemas"]["ProfileExportStatus"];
                 };
             };
             /** @description Unexpected error */
@@ -19085,7 +19115,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["ProfileImportStatus"];
+                    "application/json": components["schemas"]["ProfileImportStatus"] | null;
                 };
             };
             /** @description Unexpected error */
@@ -19118,7 +19148,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["ProfileImportStatus"] | null;
+                    "application/json": components["schemas"]["ProfileImportStatus"];
                 };
             };
             /** @description Validation Error */
