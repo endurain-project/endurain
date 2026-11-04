@@ -55,10 +55,9 @@ def create_user_api_key(
 ) -> api_keys_schema.UsersApiKeyCreatedRead:
     """Verify step-up, stage a key, and commit it before returning its secret once.
 
-    The scopes are checked before step-up, so a request refused for them does not spend an identity-provider
-    step-up ticket.
+    The request schema has already refused unsupported scopes, so such a request never spends an
+    identity-provider step-up ticket.
     """
-    api_keys_integration.validate_api_key_scopes(data.scopes)
     step_up_service.verify_step_up_credentials(
         user_id,
         data.current_password,

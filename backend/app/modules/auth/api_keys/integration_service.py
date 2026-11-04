@@ -34,11 +34,6 @@ def generate_api_key() -> str:
     return api_keys_utils.generate_api_key()
 
 
-def validate_api_key_scopes(scopes: list[str]) -> None:
-    """Validate requested scopes against the scopes an API key may hold."""
-    api_keys_utils.validate_api_key_scopes(scopes)
-
-
 def list_user_api_keys(user_id: int, page: core_pagination.PageParams, db: Session) -> api_keys_schema.UsersApiKeyPage:
     """Return one page of the API keys owned by a user."""
     return api_keys_service.list_user_api_keys(user_id, page, db)

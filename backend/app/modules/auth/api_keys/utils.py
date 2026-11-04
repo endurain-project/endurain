@@ -3,7 +3,6 @@
 import json
 import secrets
 
-import core.exceptions as core_exceptions
 import modules.auth.computation as token_hashing
 
 SUPPORTED_API_KEY_SCOPES = frozenset({"activities:upload"})
@@ -37,28 +36,6 @@ def hash_api_key(raw_key: str) -> str:
         Lowercase hex-encoded SHA-256 digest (64 chars).
     """
     return token_hashing.sha256_hex(raw_key)
-
-
-def validate_api_key_scopes(requested_scopes: list[str]) -> None:
-    """Validate requested scopes against supported API-key scopes.
-
-    API keys currently support only activity uploads. Keeping this
-    allow-list separate from the full JWT scope set prevents API keys
-    from silently gaining access when new unified-auth endpoints are
-    added later.
-
-    Args:
-        requested_scopes: List of scopes the caller wants
-            to assign to the new API key.
-
-    Raises:
-        InvalidInputError: If any requested scope is not supported.
-    """
-    unsupported = set(requested_scopes) - SUPPORTED_API_KEY_SCOPES
-    if unsupported or not requested_scopes:
-        raise core_exceptions.InvalidInputError(
-            f"Unsupported API key scopes: {unsupported}. Valid scopes: {SUPPORTED_API_KEY_SCOPES}"
-        )
 
 
 def scopes_to_json(scopes: list[str]) -> str:

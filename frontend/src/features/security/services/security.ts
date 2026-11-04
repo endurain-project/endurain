@@ -310,7 +310,9 @@ export async function createApiKey(input: ApiKeyCreateInput): Promise<string> {
   const payload: ApiKeyCreateDto = {
     name: input.name,
     scopes: input.scopes,
-    expires_at: input.expiresAt,
+    // The chosen day starts the expiry in the viewer's timezone; a bare date would be read as UTC midnight,
+    // which west of UTC can already be past for the earliest date the picker offers.
+    expires_at: input.expiresAt ? new Date(`${input.expiresAt}T00:00`).toISOString() : null,
     current_password: input.currentPassword,
     mfa_code: input.mfaCode,
     ...toIdpReauthWire(input.idpReauth),

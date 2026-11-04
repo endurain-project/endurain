@@ -1,6 +1,6 @@
 """User API key schemas."""
 
-from datetime import datetime
+from datetime import UTC, datetime
 
 from pydantic import (
     BaseModel,
@@ -12,6 +12,7 @@ from pydantic import (
 )
 
 import core.pagination as core_pagination
+import core.timezone as core_timezone
 import modules.auth.api_keys.utils as api_keys_utils
 import modules.auth.identity_providers.schema as idp_schema
 
@@ -87,9 +88,33 @@ class UsersApiKeyCreate(BaseModel):
         unsupported = set(v) - api_keys_utils.SUPPORTED_API_KEY_SCOPES
         if unsupported:
             raise ValueError(
-                f"Unsupported API key scopes: {unsupported}. Valid scopes: {api_keys_utils.SUPPORTED_API_KEY_SCOPES}"
+                f"Unsupported API key scopes: {', '.join(sorted(unsupported))}. "
+                f"Valid scopes: {', '.join(sorted(api_keys_utils.SUPPORTED_API_KEY_SCOPES))}"
             )
         return v
+
+    @field_validator("expires_at")
+    @classmethod
+    def expires_at_must_be_future(cls, v: datetime | None) -> datetime | None:
+        """Validate the expiry is in the future.
+
+        A naive datetime is read as UTC.
+
+        Args:
+            v: Expiration datetime, or None for a key that never expires.
+
+        Returns:
+            The expiration as a UTC-aware datetime, or None.
+
+        Raises:
+            ValueError: If the expiration is not after the current time.
+        """
+        if v is None:
+            return None
+        expires_at = core_timezone.to_utc_aware(v)
+        if expires_at <= datetime.now(UTC):
+            raise ValueError("expires_at must be in the future")
+        return expires_at
 
     idp_reauth: idp_schema.IdpReauthProof | None = Field(
         default=None,

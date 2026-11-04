@@ -144,41 +144,35 @@ class TestCreateUserApiKey:
         # Assert
         assert response.status_code == 404
 
-    @patch("modules.auth.account_security.api_key_service.api_keys_integration.validate_api_key_scopes")
-    @patch("modules.auth.account_security.api_key_service.step_up_service.verify_step_up_credentials")
-    @patch("modules.auth.account_security.api_key_service.users_integration.require_user")
-    def test_create_user_api_key_scope_exceeds_permission_returns_400(
-        self,
-        mock_get_user,
-        mock_verify_step_up,
-        mock_validate_scopes,
-        fast_api_client,
-        fast_api_app,
-    ):
-        """Test that 400 is returned when requested scopes exceed the user's own permissions."""
-        # Arrange
-        mock_user = MagicMock()
-        mock_user.access_type = "regular"
-        mock_get_user.return_value = mock_user
-        mock_verify_step_up.return_value = None
-        mock_validate_scopes.side_effect = core_exceptions.InvalidInputError(
-            "Unsupported API key scopes: {'users:write'}. Valid scopes: {'activities:upload'}"
-        )
-
+    def test_create_user_api_key_past_expiry_returns_422(self, fast_api_client, fast_api_app):
+        """Test that 422 is returned for an expiry that has already passed."""
         payload = {
             "name": "FitoTrack",
             "scopes": ["activities:upload"],
+            "expires_at": "2020-01-01",
         }
 
-        # Act
         response = fast_api_client.post(
             "/api-keys",
             json=payload,
             headers={"Authorization": "Bearer mock_token"},
         )
 
-        # Assert
-        assert response.status_code == 400
+        assert response.status_code == 422
+
+    def test_create_user_api_key_invalid_scope_message_has_no_set_repr(self, fast_api_client, fast_api_app):
+        """Test that the 422 body names the scopes without a Python set repr."""
+        payload = {"name": "FitoTrack", "scopes": ["bogus:scope"]}
+
+        response = fast_api_client.post(
+            "/api-keys",
+            json=payload,
+            headers={"Authorization": "Bearer mock_token"},
+        )
+
+        assert response.status_code == 422
+        assert "activities:upload" in response.text
+        assert "frozenset" not in response.text
 
     def test_create_user_api_key_invalid_scope_returns_422(self, fast_api_client, fast_api_app):
         """Test that 422 is returned for an unknown scope (Pydantic validation failure)."""

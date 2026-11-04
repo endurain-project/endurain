@@ -209,7 +209,6 @@ class TestApiKeyAudit:
             "key_prefix": "p",
         }
         with (
-            patch.object(api_key_service.api_keys_integration, "validate_api_key_scopes"),
             patch.object(api_key_service.step_up_service, "verify_step_up_credentials"),
             patch.object(api_key_service.users_integration, "require_user"),
             patch.object(api_key_service.api_keys_integration, "generate_api_key", return_value="raw"),
