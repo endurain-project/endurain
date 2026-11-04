@@ -16,6 +16,7 @@ from typing import Any, Protocol
 
 import jasil.jobs as platform_jobs
 import jasil.providers as platform_providers
+from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import Session
 
 import core.blob_sweep as core_blob_sweep
@@ -481,8 +482,13 @@ def _run_missing_thumbnail_generation(storage: platform_providers.StorageProvide
                     background_color=background_color,
                     api_key=api_key,
                 )
-            except Exception as err:
-                # One bad activity must not stop the rest of the pass.
+            except (
+                core_exceptions.ProcessingError,
+                platform_providers.StorageBackendUnavailableError,
+                SQLAlchemyError,
+            ) as err:
+                # A render, storage or database failure on one activity must not stop the rest of the pass;
+                # any other error is a bug and propagates.
                 db.rollback()
                 logger.warning(
                     "Thumbnail scheduler: could not generate a thumbnail",

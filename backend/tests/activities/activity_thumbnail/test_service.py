@@ -3,7 +3,9 @@
 from datetime import UTC, datetime
 from unittest.mock import MagicMock, patch
 
+import jasil.providers as platform_providers
 import pytest
+import sqlalchemy.exc as sqlalchemy_exc
 
 import core.exceptions as core_exceptions
 
@@ -485,6 +487,62 @@ class TestBackfillFailureIsolation:
         assert mock_generate.call_count == 3
         mock_activities.defer_thumbnail_attempts.assert_called_once_with([2, 3, 4], _NOW + THUMBNAIL_RETRY_DELAY, db)
         db.rollback.assert_called_once()
+
+    @pytest.mark.parametrize(
+        "error",
+        [
+            core_exceptions.ProcessingError(),
+            platform_providers.StorageBackendUnavailableError("storage down"),
+            sqlalchemy_exc.SQLAlchemyError("db down"),
+        ],
+        ids=["render", "storage", "database"],
+    )
+    @patch("modules.activities.activity_thumbnail.service.generate_and_store_thumbnail")
+    @patch("modules.activities.activity_thumbnail.service.resolve_tile_settings")
+    @patch("modules.activities.activity_thumbnail.service.activity_integration")
+    @patch("modules.activities.activity_thumbnail.service.activity_streams_integration")
+    def test_an_expected_failure_skips_the_activity_and_the_pass_continues(
+        self, mock_streams, mock_activities, mock_resolve, mock_generate, error
+    ):
+        from modules.activities.activity_thumbnail.service import generate_missing_activity_thumbnails
+
+        db = MagicMock()
+        platform = self._platform()
+        mock_activities.list_activities_with_thumbnail.return_value = []
+        mock_activities.list_activities_without_thumbnail.side_effect = _pages([MagicMock(id=1), MagicMock(id=2)])
+        mock_resolve.return_value = ("https://tiles/{z}/{x}/{y}.png", "#fff", None)
+        waypoints = [{"lat": 38.0, "lon": -9.0}, {"lat": 38.1, "lon": -9.1}]
+        mock_streams.get_gps_waypoints_for_activities.return_value = {1: waypoints, 2: waypoints}
+        mock_generate.side_effect = [error, "2.webp"]
+
+        generate_missing_activity_thumbnails(platform.storage, platform.clock, db)
+
+        assert mock_generate.call_count == 2
+        db.rollback.assert_called_once()
+        assert mock_activities.defer_thumbnail_attempts.call_args.args[0] == [1]
+
+    @pytest.mark.parametrize("error", [RuntimeError("bug"), TypeError("bug")], ids=["runtime", "type"])
+    @patch("modules.activities.activity_thumbnail.service.generate_and_store_thumbnail")
+    @patch("modules.activities.activity_thumbnail.service.resolve_tile_settings")
+    @patch("modules.activities.activity_thumbnail.service.activity_integration")
+    @patch("modules.activities.activity_thumbnail.service.activity_streams_integration")
+    def test_an_unexpected_error_propagates_out_of_the_pass(
+        self, mock_streams, mock_activities, mock_resolve, mock_generate, error
+    ):
+        from modules.activities.activity_thumbnail.service import generate_missing_activity_thumbnails
+
+        platform = self._platform()
+        mock_activities.list_activities_with_thumbnail.return_value = []
+        mock_activities.list_activities_without_thumbnail.side_effect = _pages([MagicMock(id=1), MagicMock(id=2)])
+        mock_resolve.return_value = ("https://tiles/{z}/{x}/{y}.png", "#fff", None)
+        waypoints = [{"lat": 38.0, "lon": -9.0}, {"lat": 38.1, "lon": -9.1}]
+        mock_streams.get_gps_waypoints_for_activities.return_value = {1: waypoints, 2: waypoints}
+        mock_generate.side_effect = error
+
+        with pytest.raises(type(error)):
+            generate_missing_activity_thumbnails(platform.storage, platform.clock, MagicMock())
+
+        assert mock_generate.call_count == 1
 
     @patch("modules.activities.activity_thumbnail.service.activity_integration")
     def test_only_activities_due_an_attempt_are_listed(self, mock_activities):
