@@ -14,7 +14,11 @@ import { isStaleWrite } from '@/services/ifMatch'
 import { useToasts } from '@/composables/useToasts'
 import { required } from '@/utils/validators'
 import { useEditActivityMutation } from '@/features/activities/composables/useActivityDetail'
-import { ACTIVITY_TYPE_LABEL_KEYS } from '@/features/activities/utils/activityType'
+import {
+  ACTIVITY_TYPE_LABEL_KEYS,
+  presentActivityType,
+  sortActivityTypesByLabel,
+} from '@/features/activities/utils/activityType'
 
 const props = defineProps<{
   /** The activity being edited; seeds the form whenever the dialog opens. */
@@ -23,7 +27,7 @@ const props = defineProps<{
 
 const open = defineModel<boolean>('open', { required: true })
 
-const { t } = useI18n()
+const { t, locale } = useI18n()
 const toasts = useToasts()
 
 const editMutation = useEditActivityMutation()
@@ -64,11 +68,11 @@ watch(open, (isOpen) => {
   }
 })
 
-/** Activity-type options, sorted by code, for the type selector. */
+/** Activity-type options, sorted by label, for the type selector. */
 const activityTypeOptions = computed(() =>
-  Object.entries(ACTIVITY_TYPE_LABEL_KEYS)
-    .map(([value, labelKey]) => ({ value: Number(value), labelKey }))
-    .sort((a, b) => a.value - b.value),
+  sortActivityTypesByLabel(Object.keys(ACTIVITY_TYPE_LABEL_KEYS).map(Number), t, locale.value).map(
+    (value) => ({ value, labelKey: presentActivityType(value).labelKey }),
+  ),
 )
 
 const visibilityOptions = [

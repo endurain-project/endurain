@@ -372,3 +372,21 @@ export function presentActivityType(type: number): ActivityTypePresentation {
     icon: activityTypeIcon(type),
   }
 }
+
+/**
+ * Sorts activity-type codes alphabetically by their translated label.
+ *
+ * @param codes - Numeric activity-type codes.
+ * @param t - The vue-i18n translate function.
+ * @param locale - The active locale, whose collation rules order the labels.
+ * @returns A new array of the codes ordered by localized label.
+ */
+export function sortActivityTypesByLabel(
+  codes: readonly number[],
+  t: (key: string) => string,
+  locale: string,
+): number[] {
+  const collator = new Intl.Collator(locale)
+  const labels = new Map(codes.map((code) => [code, t(presentActivityType(code).labelKey)]))
+  return [...codes].sort((a, b) => collator.compare(labels.get(a)!, labels.get(b)!))
+}

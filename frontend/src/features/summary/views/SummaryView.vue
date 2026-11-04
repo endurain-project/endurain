@@ -56,7 +56,10 @@ import {
 } from '@/features/activities/composables/useActivities'
 import { useActivitySummaryQuery } from '@/features/summary/composables/useSummary'
 import { SUMMARY_ACTIVITY_SORT_OPTIONS } from '@/features/activities/utils/activitySortOptions'
-import { presentActivityType } from '@/features/activities/utils/activityType'
+import {
+  presentActivityType,
+  sortActivityTypesByLabel,
+} from '@/features/activities/utils/activityType'
 import {
   currentMonth,
   currentWeekAnchor,
@@ -161,7 +164,7 @@ const yearModel = computed<string>({
 const typeFilter = ref(parseActivityTypeFilterQuery(route.query.type))
 const typeMapQuery = useUserActivityTypeMapQuery()
 const typeOptions = computed(() =>
-  [...(typeMapQuery.data.value?.keys() ?? [])].sort((a, b) => a - b),
+  sortActivityTypesByLabel([...(typeMapQuery.data.value?.keys() ?? [])], t, locale.value),
 )
 const selectedTypeName = computed(() =>
   typeFilter.value > 0 ? (typeMapQuery.data.value?.get(typeFilter.value) ?? null) : null,

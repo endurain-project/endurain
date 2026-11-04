@@ -37,9 +37,12 @@ import {
   sortByToExtraColumn,
 } from '@/features/activities/utils/activityListColumns'
 import { ACTIVITY_SORT_OPTIONS } from '@/features/activities/utils/activitySortOptions'
-import { presentActivityType } from '@/features/activities/utils/activityType'
+import {
+  presentActivityType,
+  sortActivityTypesByLabel,
+} from '@/features/activities/utils/activityType'
 
-const { t } = useI18n()
+const { t, locale } = useI18n()
 const { data: currentUser } = useCurrentUser()
 const route = useRoute()
 
@@ -143,8 +146,10 @@ function clearFilters(): void {
 }
 
 const typesQuery = useUserActivityTypesQuery()
-/** Distinct activity-type codes the user owns, for the type filter. */
-const typeOptions = computed(() => typesQuery.data.value ?? [])
+/** Distinct activity-type codes the user owns, ordered by label, for the type filter. */
+const typeOptions = computed(() =>
+  sortActivityTypesByLabel(typesQuery.data.value ?? [], t, locale.value),
+)
 
 const listQuery = useUserActivitiesQuery(userId, page, recordsPerPage, filters, sortBy, sortOrder)
 

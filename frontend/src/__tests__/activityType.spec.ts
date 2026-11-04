@@ -12,6 +12,7 @@ import {
   activityTypeUsesPace,
   lapCyclesLabelKey,
   presentActivityType,
+  sortActivityTypesByLabel,
 } from '@/features/activities/utils/activityType'
 import { GEAR_TYPE } from '@/features/gears/utils/gearType'
 
@@ -110,5 +111,24 @@ describe('presentActivityType', () => {
 
   it('falls back to a generic workout label for unknown types', () => {
     expect(presentActivityType(999).labelKey).toBe('activities.types.workout')
+  })
+})
+
+describe('sortActivityTypesByLabel', () => {
+  const labels: Record<string, string> = {
+    [presentActivityType(1).labelKey]: 'Zebra',
+    [presentActivityType(4).labelKey]: 'Ärger',
+    [presentActivityType(8).labelKey]: 'Apfel',
+  }
+  const t = (key: string) => labels[key]!
+
+  it('orders by translated label, not by code', () => {
+    expect(sortActivityTypesByLabel([1, 4, 8], t, 'en')).toEqual([8, 4, 1])
+  })
+
+  it('follows the locale collation rules', () => {
+    // German sorts Ä with A; Swedish sorts Ä after Z.
+    expect(sortActivityTypesByLabel([1, 4, 8], t, 'de')).toEqual([8, 4, 1])
+    expect(sortActivityTypesByLabel([1, 4, 8], t, 'sv')).toEqual([8, 1, 4])
   })
 })
