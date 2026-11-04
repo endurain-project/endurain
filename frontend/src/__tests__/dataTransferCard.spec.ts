@@ -28,12 +28,11 @@ afterEach(() => {
 
 describe('DataTransferCard', () => {
   it('explains that an archive from a different account was refused', () => {
-    // The generated ImportFailure union predates `wrong_account`, so the status is cast.
     importStatus.value = {
       status: 'failed',
       failure: 'wrong_account',
       imported: null,
-    } as unknown as ProfileImportStatus
+    } as ProfileImportStatus
     const wrapper = mount(DataTransferCard, { props: { userId: 1 }, global: { plugins: [i18n] } })
     mounted.push(wrapper)
 

@@ -9522,7 +9522,7 @@ export interface components {
          *     client gets a code it can translate.
          * @enum {string}
          */
-        ImportFailure: "invalid_file" | "too_large" | "too_many_activities" | "timed_out" | "files_incomplete" | "processing_failed";
+        ImportFailure: "invalid_file" | "too_large" | "too_many_activities" | "timed_out" | "wrong_account" | "files_incomplete" | "processing_failed";
         /**
          * ImportStatus
          * @description Where a profile import is.
@@ -12162,10 +12162,7 @@ export interface components {
              * @default unspecified
              */
             gender: components["schemas"]["Gender"];
-            /**
-             * Height
-             * @description Height in centimeters
-             */
+            /** Height */
             height?: number | null;
             /**
              * Max Heart Rate
@@ -12458,10 +12455,7 @@ export interface components {
              * @default unspecified
              */
             gender: components["schemas"]["Gender"];
-            /**
-             * Height
-             * @description Height in centimeters
-             */
+            /** Height */
             height?: number | null;
             /**
              * Max Heart Rate
