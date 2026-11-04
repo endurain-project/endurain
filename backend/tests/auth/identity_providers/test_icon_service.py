@@ -101,6 +101,36 @@ class TestUploadIcon:
         db.commit.assert_not_called()
 
 
+class TestUploadIconTransaction:
+    def test_the_read_transaction_ends_before_the_blob_is_written(self):
+        storage, db = MagicMock(), MagicMock()
+        order = MagicMock()
+        order.attach_mock(db.rollback, "rollback")
+        order.attach_mock(storage.save, "save")
+        with (
+            patch.object(icon_service.idp_crud, "identity_provider_exists", return_value=True),
+            patch.object(icon_service.idp_crud, "set_icon_uploaded", return_value=5),
+        ):
+            icon_service.upload_icon(7, PNG, storage, db)
+
+        assert [call[0] for call in order.mock_calls] == ["rollback", "save"]
+
+    def test_the_transaction_is_ended_again_before_the_blob_is_removed_on_the_race_path(self):
+        storage, db = MagicMock(), MagicMock()
+        order = MagicMock()
+        order.attach_mock(db.rollback, "rollback")
+        order.attach_mock(storage.save, "save")
+        order.attach_mock(storage.delete, "delete")
+        with (
+            patch.object(icon_service.idp_crud, "identity_provider_exists", return_value=True),
+            patch.object(icon_service.idp_crud, "set_icon_uploaded", return_value=None),
+            pytest.raises(core_exceptions.NotFoundError),
+        ):
+            icon_service.upload_icon(7, PNG, storage, db)
+
+        assert [call[0] for call in order.mock_calls] == ["rollback", "save", "rollback", "delete"]
+
+
 class TestDeleteIcon:
     def test_clears_the_flag_before_deleting_the_blob(self):
         storage, db = MagicMock(), MagicMock()
