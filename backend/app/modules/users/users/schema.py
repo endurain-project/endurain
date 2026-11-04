@@ -7,6 +7,7 @@ from typing import Annotated
 from zoneinfo import available_timezones
 
 from pydantic import (
+    AfterValidator,
     BaseModel,
     ConfigDict,
     EmailStr,
@@ -14,6 +15,7 @@ from pydantic import (
     StrictBool,
     StrictInt,
     StrictStr,
+    ValidationInfo,
     field_validator,
 )
 
@@ -171,6 +173,39 @@ UserUsername = Annotated[
 ]
 UserEmail = Annotated[EmailStr, Field(max_length=250, description="User's email address")]
 UserPassword = Annotated[StrictStr, Field(min_length=8, max_length=250, description="User's password")]
+
+
+#: Shortest and tallest height, in centimeters, a client may set.
+MIN_HEIGHT_CM = 50
+MAX_HEIGHT_CM = 272
+
+
+def _realistic_height(value: int, info: ValidationInfo) -> int:
+    """Refuse a height outside the realistic range, passing data re-applied from storage through.
+
+    Args:
+        value: The submitted height in centimeters.
+        info: Pydantic's validation info, whose context may mark stored data.
+
+    Returns:
+        The height, unchanged.
+
+    Raises:
+        ValueError: When the height is outside ``MIN_HEIGHT_CM`` to ``MAX_HEIGHT_CM``.
+    """
+    if info.context and info.context.get(core_types.STORED_CONTEXT):
+        return value
+    if not MIN_HEIGHT_CM <= value <= MAX_HEIGHT_CM:
+        raise ValueError(f"Height must be between {MIN_HEIGHT_CM} and {MAX_HEIGHT_CM} cm")
+    return value
+
+
+#: A height a client sends: stored heights keep the wider 1 to 300 cm they were saved under.
+UserRequestHeight = Annotated[
+    StrictInt,
+    Field(ge=1, le=300, description="Height in centimeters"),
+    AfterValidator(_realistic_height),
+]
 
 
 class UsersBase(BaseModel):
@@ -419,6 +454,7 @@ class UsersEdit(Users):
     """
 
     name: UserRequestName
+    height: UserRequestHeight | None = None
 
     @classmethod
     def from_read(cls, user: "UsersRead") -> "UsersEdit":
@@ -543,6 +579,7 @@ class UsersCreate(Users):
     """
 
     name: UserRequestName
+    height: UserRequestHeight | None = None
     password: UserPassword
 
 
@@ -778,7 +815,7 @@ class ProfileUpdate(core_partial_update.NotClearable, BaseModel):
     gender: Gender | None = None
     units: server_settings_schema.Units | None = None
     weight_units: server_settings_schema.Units | None = None
-    height: StrictInt | None = Field(default=None, ge=1, le=300)
+    height: UserRequestHeight | None = None
     max_heart_rate: StrictInt | None = Field(default=None, ge=30, le=250)
     first_day_of_week: WeekDay | None = None
     currency: server_settings_schema.Currency | None = None
