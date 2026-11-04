@@ -790,11 +790,6 @@ by hand when the code it describes changes.
   The ones that swallow the error (no `raise` in the handler) are counted per file in
   `tests/architecture/test_broad_except.py`, which fails on a new one and on a count that is not lowered when
   a handler is narrowed; ruff's `BLE001` is not used because it accepts a handler that logs with `exc_info`.
-- **Visibility across modules.** The followee set reaches `activity.crud` as an id list, which grows with the
-  follow count and is sent again for every page of the following feed. Accepting a follow enforces
-  `MAX_ACCEPTED_FOLLOWEES` (1000), but relationships accepted before the cap existed may exceed it. A
-  peer-published, read-only query fragment (a followee subquery) would avoid the list but needs its own
-  allowed-import entry and test, so it is undecided.
 
 ### Accepted limitations
 
@@ -824,6 +819,12 @@ These constraints remain visible until a coordinated design change resolves them
   `safeuploads`, which is async only, and each synchronous form in `core.file_uploads` runs one through
   `asyncio.run`. A synchronous importer would therefore move the loop into `core.file_uploads` and start one
   per file instead of one per import. The importer shares no loop-bound resource, so the single loop is safe.
+- **Followee id list.** The followee set reaches `activity.crud` as an id list
+  (`followers.integration_service.list_accepted_followee_ids`), which grows with the follow count and is passed
+  again for every page of the following feed. Accepting a follow enforces `MAX_ACCEPTED_FOLLOWEES` (1000), which
+  bounds the list; relationships accepted before the cap existed may exceed it. A followee subquery published by
+  `followers` would avoid the list, but it would be the first SQL fragment to cross a module surface, so the
+  bounded list is kept.
 - **Collections that are not paginated.** `GET /identity-providers`, `GET /identity-providers/templates`,
   `GET /profile/identity-providers`, `GET /users/{user_id}/identity-providers`, `GET /public/idp` and
   `GET /public/server-settings/tile-maps-templates` return bare arrays, against the convention that a list a
