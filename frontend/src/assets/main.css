@@ -153,6 +153,10 @@
   --destructive: #e24b4a;
   --destructive-foreground: #ffffff;
   --warning: #d97706;
+  --sleep-awake: #9ca3af;
+  --sleep-rem: #60a5fa;
+  --sleep-light: #2563eb;
+  --sleep-deep: #1e40af;
   --border: rgba(0, 0, 0, 0.08);
   --input: rgba(0, 0, 0, 0.15);
   --ring: #1d9e75;
@@ -176,6 +180,10 @@
   --destructive: #e24b4a;
   --destructive-foreground: #ffffff;
   --warning: #fbbf24;
+  --sleep-awake: #a1a1aa;
+  --sleep-rem: #93c5fd;
+  --sleep-light: #3b82f6;
+  --sleep-deep: #2563eb;
   --border: rgba(255, 255, 255, 0.08);
   --input: rgba(255, 255, 255, 0.15);
   --ring: #5dcaa5;
@@ -199,6 +207,10 @@
   --color-destructive: var(--destructive);
   --color-destructive-foreground: var(--destructive-foreground);
   --color-warning: var(--warning);
+  --color-sleep-awake: var(--sleep-awake);
+  --color-sleep-rem: var(--sleep-rem);
+  --color-sleep-light: var(--sleep-light);
+  --color-sleep-deep: var(--sleep-deep);
   --color-border: var(--border);
   --color-input: var(--input);
   --color-ring: var(--ring);

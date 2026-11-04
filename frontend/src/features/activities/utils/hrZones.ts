@@ -1,26 +1,33 @@
 import type { ActivityStream, HrZoneBucket } from '../types'
 import { STREAM_TYPE } from '../types'
+import { themeColor } from '@/lib/themeColor'
 
 /**
- * The five-zone heart-rate colour ramp (blue → green → amber → orange → red),
- * aligned to the design tokens. Indexed by zone − 1.
+ * Zone 4 orange. The design tokens have no orange between effort amber and HR
+ * red, so this one ramp step is not token-backed.
  */
-export const HR_ZONE_COLORS: readonly string[] = [
-  '#378add', // Zone 1 — info blue
-  '#639922', // Zone 2 — goal green
-  '#ef9f27', // Zone 3 — effort amber
-  '#f97316', // Zone 4 — orange
-  '#e24b4a', // Zone 5 — hr red
-]
+const ZONE_4_COLOR = '#f97316'
 
 /**
- * Resolves the colour for a heart-rate zone.
+ * Resolves the colour for a heart-rate zone on the five-zone ramp
+ * (blue → green → amber → orange → red), read from the design tokens.
  *
  * @param zone - Zone number, 1–5.
  * @returns The zone's colour (defaults to the top zone colour out of range).
  */
 export function hrZoneColor(zone: number): string {
-  return HR_ZONE_COLORS[zone - 1] ?? '#e24b4a'
+  switch (zone) {
+    case 1:
+      return themeColor('--color-info')
+    case 2:
+      return themeColor('--color-goal')
+    case 3:
+      return themeColor('--color-effort')
+    case 4:
+      return ZONE_4_COLOR
+    default:
+      return themeColor('--color-hr')
+  }
 }
 
 /**

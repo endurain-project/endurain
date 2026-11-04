@@ -30,10 +30,10 @@ const { duration } = useUnitFormat()
  * bottom. `stageType` follows the backend enum (`0` deep … `3` awake).
  */
 const LANES = [
-  { stageType: 3, labelKey: 'awake', color: '#9ca3af' },
-  { stageType: 2, labelKey: 'rem', color: '#60a5fa' },
-  { stageType: 1, labelKey: 'light', color: '#2563eb' },
-  { stageType: 0, labelKey: 'deep', color: '#1e40af' },
+  { stageType: 3, labelKey: 'awake', fillClass: 'fill-sleep-awake' },
+  { stageType: 2, labelKey: 'rem', fillClass: 'fill-sleep-rem' },
+  { stageType: 1, labelKey: 'light', fillClass: 'fill-sleep-light' },
+  { stageType: 0, labelKey: 'deep', fillClass: 'fill-sleep-deep' },
 ] as const
 
 // SVG layout, in a fixed coordinate space scaled responsively by the viewBox.
@@ -132,7 +132,7 @@ const segments = computed(() =>
       x,
       width,
       y: laneY(laneIndex),
-      color: item.lane.color,
+      fillClass: item.lane.fillClass,
       label: t(`health.sleep.hypnogram.${item.lane.labelKey}`),
       startLabel: clockLabel.value(item.startMs),
       endLabel: clockLabel.value(item.endMs),
@@ -158,7 +158,6 @@ const laneRows = computed(() =>
   LANES.map((lane, index) => ({
     key: lane.labelKey,
     label: t(`health.sleep.hypnogram.${lane.labelKey}`),
-    color: lane.color,
     centerY: laneY(index) + LANE_H / 2,
   })),
 )
@@ -216,7 +215,7 @@ const laneRows = computed(() =>
         :y="segment.y"
         :width="segment.width"
         :height="LANE_H"
-        :fill="segment.color"
+        :class="segment.fillClass"
         rx="2"
       >
         <title>

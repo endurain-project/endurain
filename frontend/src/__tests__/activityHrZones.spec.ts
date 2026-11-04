@@ -1,8 +1,8 @@
-import { describe, expect, it } from 'vitest'
+import { afterEach, describe, expect, it } from 'vitest'
 
 import type { ActivityStream, HrZoneBucket } from '@/features/activities/types'
 
-import { extractHrZones, HR_ZONE_COLORS, hrZoneColor } from '@/features/activities/utils/hrZones'
+import { extractHrZones, hrZoneColor } from '@/features/activities/utils/hrZones'
 
 /** Builds a stream fixture carrying optional HR zones. */
 function stream(streamType: number, hrZones: HrZoneBucket[] | null = null): ActivityStream {
@@ -26,12 +26,25 @@ describe('extractHrZones', () => {
 })
 
 describe('hrZoneColor', () => {
-  it('maps zones 1–5 to the colour ramp', () => {
-    expect(hrZoneColor(1)).toBe(HR_ZONE_COLORS[0])
-    expect(hrZoneColor(5)).toBe(HR_ZONE_COLORS[4])
+  afterEach(() => {
+    document.documentElement.style.cssText = ''
+  })
+
+  it('reads zones 1, 2, 3 and 5 from the design tokens', () => {
+    const root = document.documentElement
+    root.style.setProperty('--color-info', '#111111')
+    root.style.setProperty('--color-goal', '#222222')
+    root.style.setProperty('--color-effort', '#333333')
+    root.style.setProperty('--color-hr', '#555555')
+    expect([1, 2, 3, 5].map(hrZoneColor)).toEqual(['#111111', '#222222', '#333333', '#555555'])
+  })
+
+  it('keeps a fixed orange for zone 4', () => {
+    expect(hrZoneColor(4)).toBe('#f97316')
   })
 
   it('falls back to the top-zone colour out of range', () => {
-    expect(hrZoneColor(9)).toBe('#e24b4a')
+    document.documentElement.style.setProperty('--color-hr', '#555555')
+    expect(hrZoneColor(9)).toBe('#555555')
   })
 })
