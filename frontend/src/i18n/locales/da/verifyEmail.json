@@ -15,5 +15,13 @@
   "errorNotFound": "Vi kunne ikke finde en konto til dette link.",
   "errorGeneral": "Vi kunne ikke bekræfte din e-mail. Prøv venligst igen.",
   "retry": "Prøv igen",
-  "backToLogin": "Tilbage til login"
+  "backToLogin": "Tilbage til login",
+  "resendTitle": "Har du brug for et nyt link?",
+  "resendBody": "Indtast den adresse, du tilmeldte dig med, så sender vi en ny bekræftelsesmail, hvis den stadig venter.",
+  "resendEmail": "E-mailadresse",
+  "resendButton": "Send en ny e-mail",
+  "resendSending": "Sender",
+  "resendSent": "Hvis den adresse afventer bekræftelse, er en ny e-mail på vej.",
+  "resendTooManyAttempts": "For mange forsøg. Vent venligst, før du prøver igen.",
+  "resendError": "Vi kunne ikke sende e-mailen. Prøv venligst igen."
 }

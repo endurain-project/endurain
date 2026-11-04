@@ -19,6 +19,15 @@
     "reload": "重新載入"
   },
   "staleError": "您查看時此內容已在其他地方被變更，因此未儲存任何內容。已載入目前版本。請檢視後再試一次。",
+  "fieldError": {
+    "required": "此欄位為必填",
+    "tooShort": "此值太短",
+    "tooLong": "此值太長",
+    "tooLarge": "此值太大",
+    "tooSmall": "此值太小",
+    "invalidFormat": "此值格式無效",
+    "invalid": "此值無效"
+  },
   "dismiss": "關閉",
   "language": "語言",
   "theme": {
@@ -40,6 +49,17 @@
   "password": {
     "hintLength": "至少 {min} 個字元。",
     "invalid": "密碼不符合要求",
-    "mismatch": "兩次輸入的密碼不符"
+    "mismatch": "兩次輸入的密碼不符",
+    "tooShort": "此密碼太短，請至少使用 {min} 個字元。",
+    "tooCommon": "此密碼太常見，請選擇較難猜測的密碼。",
+    "matchesAccount": "請勿使用您的使用者名稱或電子郵件地址作為密碼。",
+    "strength": {
+      "label": "密碼強度：{level}",
+      "tooWeak": "太弱",
+      "weak": "弱",
+      "fair": "普通",
+      "good": "良好",
+      "strong": "強"
+    }
   }
 }

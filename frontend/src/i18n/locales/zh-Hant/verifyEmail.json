@@ -15,5 +15,13 @@
   "errorNotFound": "我們找不到此連結對應的帳號。",
   "errorGeneral": "無法驗證您的電子郵件，請再試一次。",
   "retry": "重試",
-  "backToLogin": "返回登入"
+  "backToLogin": "返回登入",
+  "resendTitle": "需要新連結？",
+  "resendBody": "請輸入您註冊時使用的地址，如果仍在等待驗證，我們將寄出一封新的驗證郵件。",
+  "resendEmail": "電子郵件地址",
+  "resendButton": "寄送新郵件",
+  "resendSending": "正在寄送",
+  "resendSent": "如果該地址正在等待驗證，新郵件已在途中。",
+  "resendTooManyAttempts": "嘗試次數過多，請稍候再試。",
+  "resendError": "我們無法寄出郵件，請再試一次。"
 }

@@ -15,5 +15,13 @@
   "errorNotFound": "Impossible de trouver un compte pour ce lien.",
   "errorGeneral": "Impossible de vérifier votre e-mail. Veuillez réessayer.",
   "retry": "Réessayer",
-  "backToLogin": "Retour à la connexion"
+  "backToLogin": "Retour à la connexion",
+  "resendTitle": "Besoin d'un nouveau lien ?",
+  "resendBody": "Saisissez l'adresse avec laquelle vous vous êtes inscrit et nous enverrons un nouvel e-mail de vérification si elle est toujours en attente.",
+  "resendEmail": "Adresse e-mail",
+  "resendButton": "Envoyer un nouvel e-mail",
+  "resendSending": "Envoi en cours",
+  "resendSent": "Si cette adresse est en attente de vérification, un nouvel e-mail est en route.",
+  "resendTooManyAttempts": "Trop de tentatives. Veuillez patienter avant de réessayer.",
+  "resendError": "Nous n'avons pas pu envoyer l'e-mail. Veuillez réessayer."
 }

@@ -15,5 +15,13 @@
   "errorNotFound": "Pro tento odkaz se nepodařilo najít účet.",
   "errorGeneral": "Váš e-mail se nepodařilo ověřit. Zkuste to prosím znovu.",
   "retry": "Zkusit znovu",
-  "backToLogin": "Zpět na přihlášení"
+  "backToLogin": "Zpět na přihlášení",
+  "resendTitle": "Potřebujete nový odkaz?",
+  "resendBody": "Zadejte adresu, se kterou jste se zaregistrovali, a pokud stále čeká na ověření, pošleme nový ověřovací e-mail.",
+  "resendEmail": "E-mailová adresa",
+  "resendButton": "Odeslat nový e-mail",
+  "resendSending": "Odesílá se",
+  "resendSent": "Pokud tato adresa čeká na ověření, nový e-mail je na cestě.",
+  "resendTooManyAttempts": "Příliš mnoho pokusů. Počkejte prosím před dalším pokusem.",
+  "resendError": "E-mail se nepodařilo odeslat. Zkuste to prosím znovu."
 }

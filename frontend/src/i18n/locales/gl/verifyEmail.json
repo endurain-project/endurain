@@ -15,5 +15,13 @@
   "errorNotFound": "Non puidemos atopar unha conta para este enlace.",
   "errorGeneral": "Non puidemos verificar o teu correo electrónico. Por favor, téntao de novo.",
   "retry": "Tentar de novo",
-  "backToLogin": "Volver ao inicio de sesión"
+  "backToLogin": "Volver ao inicio de sesión",
+  "resendTitle": "Necesitas unha ligazón nova?",
+  "resendBody": "Introduce o enderezo co que te rexistraches e enviaremos un novo correo de verificación se aínda está pendente.",
+  "resendEmail": "Enderezo de correo electrónico",
+  "resendButton": "Enviar un novo correo",
+  "resendSending": "Enviando",
+  "resendSent": "Se ese enderezo está pendente de verificación, un novo correo está en camiño.",
+  "resendTooManyAttempts": "Demasiados intentos. Agarda antes de tentalo de novo.",
+  "resendError": "Non puidemos enviar o correo. Por favor, téntao de novo."
 }

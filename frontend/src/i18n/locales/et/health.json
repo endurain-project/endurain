@@ -1,6 +1,11 @@
 {
   "title": "Tervis",
   "subtitle": "Vaata kõiki oma terviseandmeid ühes kohas",
+  "chartBucket": {
+    "week": "Nädala keskmised: iga tulp on selle nädala keskmine päev.",
+    "month": "Kuu keskmised: iga tulp on selle kuu keskmine päev."
+  },
+  "chartError": "Diagrammi ei õnnestunud selle ajavahemiku jaoks laadida.",
   "nav": {
     "label": "Tervise jaotised",
     "soon": "Varsti",
@@ -88,7 +93,6 @@
       "weightRequired": "Palun sisesta oma kaal.",
       "weightInvalid": "Sisesta kaal, mis on suurem kui null.",
       "bodyComposition": "Keha koostis (valikuline)",
-      "bmi": "BMI",
       "bodyFat": "Keharasv (%)",
       "bodyWater": "Kehavesi (%)",
       "boneMass": "Luumass",
@@ -350,7 +354,11 @@
       "close": "Sulge",
       "createSuccess": "Uni logitud.",
       "updateSuccess": "Unekirje uuendatud.",
-      "saveError": "Sinu unekirjet ei õnnestunud salvestada. Palun proovi uuesti."
+      "saveError": "Sinu unekirjet ei õnnestunud salvestada. Palun proovi uuesti.",
+      "numberRange": "Sisesta väärtus vahemikus {min}–{max}.",
+      "numberMin": "Sisesta vähemalt {min}.",
+      "stagesExceedTotal": "Sügav, kerge ja REM-uni kokku on rohkem kui kogu uni.",
+      "inconsistentError": "Need unenäitajad ei klapi. Kontrolli, et unefaasid ja kogukestus mahuvad une ajavahemikku."
     },
     "target": {
       "title": "Sea une eesmärk",
@@ -419,7 +427,8 @@
       "close": "Sulge",
       "createSuccess": "Vesi logitud.",
       "updateSuccess": "Veekirje uuendatud.",
-      "saveError": "Sinu veekirjet ei õnnestunud salvestada. Palun proovi uuesti."
+      "saveError": "Sinu veekirjet ei õnnestunud salvestada. Palun proovi uuesti.",
+      "dailyLimitError": "See ületaks päeva veetarbimise piiri 20 000 ml."
     },
     "target": {
       "title": "Sea vee eesmärk",
@@ -596,6 +605,8 @@
       "startTime": "Algusaeg",
       "startTimeRequired": "Palun vali algusaeg.",
       "endTime": "Lõpuaeg",
+      "endBeforeStart": "Lõpuaeg ei tohi olla enne algusaega.",
+      "endWhileInProgress": "Käimasoleval paastul ei tohi olla lõpuaega.",
       "status": "Olek",
       "notes": "Märkmed",
       "create": "Alusta",
@@ -604,7 +615,9 @@
       "close": "Sulge",
       "createSuccess": "Paast alustatud.",
       "updateSuccess": "Paastuseanss uuendatud.",
-      "saveError": "Sinu paastuseanssi ei õnnestunud salvestada. Palun proovi uuesti."
+      "saveError": "Sinu paastuseanssi ei õnnestunud salvestada. Palun proovi uuesti.",
+      "overlapError": "See paast kattub teise paastuga või mõni teine paast on juba käimas.",
+      "invalidTimesError": "Paast ei saa lõppeda enne algust, lõpetatud või katkestatud paastul peab olema lõpuaeg ja käimasoleval paastul seda olla ei tohi."
     },
     "target": {
       "title": "Sea paastumise eesmärk",
@@ -621,6 +634,20 @@
     "complete": {
       "success": "Paast lõpetatud.",
       "error": "Sinu paastu ei õnnestunud lõpetada. Palun proovi uuesti."
+    },
+    "endConfirm": {
+      "broken": {
+        "title": "Katkestad selle paasti?",
+        "body": "Paast lõpeb nüüd ja salvestatakse katkestatuna. Seda ei saa tagasi võtta.",
+        "confirm": "Katkesta paast"
+      },
+      "cancelled": {
+        "title": "Tühistad selle paasti?",
+        "body": "Paast lõpeb nüüd ja salvestatakse tühistatuna. Seda ei saa tagasi võtta.",
+        "confirm": "Tühista paast"
+      },
+      "cancel": "Jätka paastumist",
+      "close": "Sulge"
     },
     "empty": {
       "title": "Veel pole ühtegi paastu",

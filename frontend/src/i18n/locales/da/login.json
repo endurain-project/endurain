@@ -14,6 +14,7 @@
   "forceLocalLogin": "Lokalt login er aktiveret for dette forsøg. Brug dit brugernavn og din adgangskode for at logge ind.",
   "passwordResetSuccess": "Din adgangskode blev nulstillet. Log ind med den nye adgangskode.",
   "passwordResetInvalidLink": "Linket til nulstilling af adgangskode er ugyldigt eller udløbet",
+  "onboardingComplete": "Din administratorkonto er klar. Log ind for at komme i gang.",
   "emailVerificationSent": "Bekræftelsesmail sendt. Tjek din indbakke for at fortsætte.",
   "adminApprovalRequired": "Din konto afventer administratorgodkendelse",
   "verifyEmailInvalidLink": "Linket til e-mailbekræftelse er ugyldigt eller udløbet",
@@ -35,6 +36,7 @@
   "closeForgotPassword": "Luk dialogen til nulstilling af adgangskode",
   "cancel": "Annullér",
   "signUpLink": "Opret en konto",
+  "resendVerification": "Fik du ikke e-mailen?",
   "ssoSection": "Single sign-on",
   "loadingSsoProviders": "Indlæser login-udbydere",
   "ssoButton": "Fortsæt med {provider}",
@@ -46,9 +48,35 @@
   "ssoAccountNotFound": "Ingen konto er knyttet til denne identitetsudbyder",
   "ssoAccountDisabled": "Denne konto er deaktiveret",
   "ssoAutoCreateDisabled": "Automatisk oprettelse af konti er deaktiveret",
+  "ssoEmailMissing": "Identitetsudbyderen delte ikke en e-mailadresse, så der kunne ikke oprettes en konto. Bed din administrator om at kontrollere udbyderens e-mailindstillinger.",
   "ssoErrorUndefined": "Single sign-on mislykkedes",
   "noLoginMethods": "Ingen login-metoder er aktiveret på denne server",
   "imageAlt": "Endurain login-illustration",
   "tagline1": "Følg hvert skridt",
-  "tagline2": "Ej hvert øjeblik"
+  "tagline2": "Ej hvert øjeblik",
+  "accountDeleted": {
+    "title": "Ærgerligt at se dig gå",
+    "body": "Du er blevet logget ud, og din konto og alle dine data slettes permanent.",
+    "backToLogin": "Tilbage til login"
+  },
+  "onboarding": {
+    "title": "Opsæt Endurain",
+    "subtitle": "Opret den første administratorkonto. Kopiér opsætningstokenet fra serverloggen: led efter linjen, der indeholder setup_token.",
+    "token": "Opsætningstoken",
+    "name": "Navn",
+    "username": "Brugernavn",
+    "email": "E-mail",
+    "password": "Adgangskode",
+    "confirmPassword": "Bekræft adgangskode",
+    "emailInvalid": "Indtast en gyldig e-mailadresse",
+    "requiredField": "Dette felt er påkrævet",
+    "submitButton": "Opret administrator",
+    "submitting": "Opretter administrator",
+    "errorInvalidToken": "Opsætningstokenet er ugyldigt, udløbet eller allerede brugt. Kopiér det nyeste fra serverloggen.",
+    "errorAlreadyDone": "Opsætningen er allerede fuldført. Log ind med din konto.",
+    "errorValidation": "Oplysningerne blev afvist. Kontrollér dem, og brug en adgangskode, der opfylder kravene til administratorer.",
+    "errorTooManyAttempts": "For mange forsøg. Vent et øjeblik, og prøv igen.",
+    "errorUnavailable": "Opsætningen er midlertidigt utilgængelig. Prøv igen om lidt.",
+    "errorGeneral": "Kunne ikke oprette administratoren. Prøv venligst igen."
+  }
 }

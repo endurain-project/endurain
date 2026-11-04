@@ -15,5 +15,13 @@
   "errorNotFound": "Pre tento odkaz sme nenašli žiadny účet.",
   "errorGeneral": "Váš e-mail sa nepodarilo overiť. Skúste to znova.",
   "retry": "Skúsiť znova",
-  "backToLogin": "Späť na prihlásenie"
+  "backToLogin": "Späť na prihlásenie",
+  "resendTitle": "Potrebujete nový odkaz?",
+  "resendBody": "Zadajte adresu, s ktorou ste sa zaregistrovali, a ak stále čaká na overenie, pošleme nový overovací e-mail.",
+  "resendEmail": "E-mailová adresa",
+  "resendButton": "Odoslať nový e-mail",
+  "resendSending": "Odosiela sa",
+  "resendSent": "Ak táto adresa čaká na overenie, nový e-mail je na ceste.",
+  "resendTooManyAttempts": "Príliš veľa pokusov. Počkajte prosím pred ďalším pokusom.",
+  "resendError": "E-mail sa nepodarilo odoslať. Skúste to prosím znova."
 }

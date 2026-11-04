@@ -19,6 +19,15 @@
     "reload": "Opnieuw laden"
   },
   "staleError": "Dit is ergens anders gewijzigd terwijl je ernaar keek, dus er is niets opgeslagen. De huidige versie is geladen. Bekijk deze en probeer het opnieuw.",
+  "fieldError": {
+    "required": "Dit veld is verplicht",
+    "tooShort": "Deze waarde is te kort",
+    "tooLong": "Deze waarde is te lang",
+    "tooLarge": "Deze waarde is te groot",
+    "tooSmall": "Deze waarde is te klein",
+    "invalidFormat": "Deze waarde heeft een ongeldig formaat",
+    "invalid": "Deze waarde is ongeldig"
+  },
   "dismiss": "Sluiten",
   "language": "Taal",
   "theme": {
@@ -40,6 +49,17 @@
   "password": {
     "hintLength": "Minimaal {min} tekens.",
     "invalid": "Wachtwoord voldoet niet aan de vereisten",
-    "mismatch": "Wachtwoorden komen niet overeen"
+    "mismatch": "Wachtwoorden komen niet overeen",
+    "tooShort": "Dit wachtwoord is te kort. Gebruik minstens {min} tekens.",
+    "tooCommon": "Dit wachtwoord is te gangbaar. Kies er een dat moeilijker te raden is.",
+    "matchesAccount": "Gebruik je gebruikersnaam of e-mailadres niet als wachtwoord.",
+    "strength": {
+      "label": "Wachtwoordsterkte: {level}",
+      "tooWeak": "Te zwak",
+      "weak": "Zwak",
+      "fair": "Redelijk",
+      "good": "Goed",
+      "strong": "Sterk"
+    }
   }
 }

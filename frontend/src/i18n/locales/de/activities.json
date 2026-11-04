@@ -11,7 +11,7 @@
     "subtitle": "Durchsuche, filtere und sortiere alle deine Aktivitäten.",
     "searchPlaceholder": "Nach Name oder Ort suchen",
     "clearSearch": "Suche zurücksetzen",
-    "resultCount": "{count} Aktivitäten",
+    "resultCount": "{count} Aktivität | {count} Aktivitäten",
     "filters": {
       "type": "Aktivitätstyp",
       "allTypes": "Alle Typen",
@@ -188,6 +188,7 @@
     "cancel": "Abbrechen",
     "close": "Schließen",
     "name": "Name",
+    "nameRequired": "Gib einen Namen für die Aktivität ein",
     "type": "Aktivitätstyp",
     "description": "Beschreibung",
     "privateNotes": "Private Notizen",

@@ -8,7 +8,7 @@
   "seeAll": "Pokaži vse",
   "loadMore": "Naloži več",
   "loading": "Nalaganje…",
-  "badge": "{count} neprebranih obvestil",
+  "badge": "{count} neprebrano obvestilo | {count} neprebrana obvestila",
   "empty": {
     "title": "Vse si prebralo",
     "description": "Tukaj se bodo prikazovale posodobitve o tvojih aktivnostih, sledilcih in integracijah."
@@ -38,6 +38,58 @@
     "garminTokenExpired": {
       "title": "Garmin Connect potrebuje pozornost",
       "body": "Tvoja seja Garmin Connect je potekla. Znova jo poveži, da nadaljuješ s sinhronizacijo."
+    },
+    "stravaTokenExpired": {
+      "title": "Strava potrebuje pozornost",
+      "body": "Strava je zavrnila tvojo povezavo. Znova jo poveži, da se sinhronizacija nadaljuje."
+    },
+    "idpLinked": {
+      "title": "Povezan nov ponudnik prijave",
+      "body": "{name} je bil povezan z tvojim računom. Če to nisi bil ti, preglej varnostne nastavitve.",
+      "bodyGeneric": "Ponudnik prijave je bil povezan z tvojim računom. Če to nisi bil ti, preglej varnostne nastavitve."
+    },
+    "accountSecurityChanged": {
+      "passwordChanged": {
+        "title": "Geslo spremenjeno",
+        "body": "Tvoje geslo je bilo spremenjeno. Če to nisi bil ti, ponastavi geslo in preglej varnostne nastavitve."
+      },
+      "passwordReset": {
+        "title": "Geslo ponastavljeno",
+        "body": "Tvoje geslo je bilo ponastavljeno s povezavo za ponastavitev. Če to nisi bil ti, znova ponastavi geslo in preglej varnostne nastavitve."
+      },
+      "passwordSetByAdmin": {
+        "title": "Geslo je nastavil skrbnik",
+        "body": "Skrbnik je nastavil novo geslo za tvoj račun. Če tega nisi pričakoval, se obrni na skrbnika."
+      },
+      "mfaEnabled": {
+        "title": "Dvostopenjska avtentikacija vklopljena",
+        "body": "Za tvoj račun je bila vklopljena dvostopenjska avtentikacija. Če to nisi bil ti, ponastavi geslo in preglej varnostne nastavitve."
+      },
+      "mfaDisabled": {
+        "title": "Dvostopenjska avtentikacija izklopljena",
+        "body": "Za tvoj račun je bila izklopljena dvostopenjska avtentikacija. Če to nisi bil ti, ponastavi geslo in preglej varnostne nastavitve."
+      },
+      "backupCodesGenerated": {
+        "title": "Ustvarjene nove varnostne kode",
+        "body": "Za tvoj račun so bile ustvarjene nove varnostne kode. Če to nisi bil ti, ponastavi geslo in preglej varnostne nastavitve."
+      },
+      "apiKeyCreated": {
+        "title": "Ustvarjen nov ključ API",
+        "body": "Za tvoj račun je bil ustvarjen nov ključ API. Če to nisi bil ti, ponastavi geslo in preglej varnostne nastavitve."
+      },
+      "identityProviderUnlinked": {
+        "title": "Ponudnik prijave odklopljen",
+        "body": "{name} je bil odklopljen od tvojega računa. Če to nisi bil ti, ponastavi geslo in preglej varnostne nastavitve.",
+        "bodyGeneric": "Ponudnik prijave je bil odklopljen od tvojega računa. Če to nisi bil ti, ponastavi geslo in preglej varnostne nastavitve."
+      },
+      "unknown": {
+        "title": "Varnost računa spremenjena",
+        "body": "Spremenila se je ena od varnostnih nastavitev tvojega računa. Če to nisi bil ti, ponastavi geslo in preglej varnostne nastavitve."
+      }
+    },
+    "newDeviceSignIn": {
+      "title": "Nova prijava",
+      "body": "Nova prijava iz brskalnika {browser} v sistemu {os} ({ip}). Če to nisi bil ti, spremeni geslo in se odjavi iz drugih sej."
     },
     "adminSignUpApproval": {
       "title": "Nova registracija čaka na odobritev",

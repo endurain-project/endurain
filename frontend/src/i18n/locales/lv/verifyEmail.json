@@ -15,5 +15,13 @@
   "errorNotFound": "Mēs nevarējām atrast kontu šai saitei.",
   "errorGeneral": "Mēs nevarējām verificēt jūsu e-pastu. Lūdzu, mēģiniet vēlreiz.",
   "retry": "Mēģināt vēlreiz",
-  "backToLogin": "Atpakaļ uz pieteikšanos"
+  "backToLogin": "Atpakaļ uz pieteikšanos",
+  "resendTitle": "Nepieciešama jauna saite?",
+  "resendBody": "Ievadiet adresi, ar kuru reģistrējāties, un mēs nosūtīsim jaunu verifikācijas e-pasta ziņojumu, ja tas joprojām gaida.",
+  "resendEmail": "E-pasta adrese",
+  "resendButton": "Nosūtīt jaunu e-pastu",
+  "resendSending": "Notiek sūtīšana",
+  "resendSent": "Ja šī adrese gaida verifikāciju, jauns e-pasta ziņojums ir ceļā.",
+  "resendTooManyAttempts": "Pārāk daudz mēģinājumu. Lūdzu, uzgaidiet pirms mēģināt vēlreiz.",
+  "resendError": "Neizdevās nosūtīt e-pasta ziņojumu. Lūdzu, mēģiniet vēlreiz."
 }

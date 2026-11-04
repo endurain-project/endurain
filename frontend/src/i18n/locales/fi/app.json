@@ -19,6 +19,15 @@
     "reload": "Lataa uudelleen"
   },
   "staleError": "Tätä muutettiin muualla, kun katselit sitä, joten mitään ei tallennettu. Nykyinen versio on ladattu. Tarkista se ja yritä uudelleen.",
+  "fieldError": {
+    "required": "Tämä kenttä on pakollinen",
+    "tooShort": "Tämä arvo on liian lyhyt",
+    "tooLong": "Tämä arvo on liian pitkä",
+    "tooLarge": "Tämä arvo on liian suuri",
+    "tooSmall": "Tämä arvo on liian pieni",
+    "invalidFormat": "Tämän arvon muoto on virheellinen",
+    "invalid": "Tämä arvo on virheellinen"
+  },
   "dismiss": "Hylkää",
   "language": "Kieli",
   "theme": {
@@ -40,6 +49,17 @@
   "password": {
     "hintLength": "Vähintään {min} merkkiä.",
     "invalid": "Salasana ei täytä vaatimuksia",
-    "mismatch": "Salasanat eivät täsmää"
+    "mismatch": "Salasanat eivät täsmää",
+    "tooShort": "Tämä salasana on liian lyhyt. Käytä vähintään {min} merkkiä.",
+    "tooCommon": "Tämä salasana on liian yleinen. Valitse vaikeammin arvattava.",
+    "matchesAccount": "Älä käytä käyttäjänimeäsi tai sähköpostiosoitettasi salasanana.",
+    "strength": {
+      "label": "Salasanan vahvuus: {level}",
+      "tooWeak": "Liian heikko",
+      "weak": "Heikko",
+      "fair": "Kohtalainen",
+      "good": "Hyvä",
+      "strong": "Vahva"
+    }
   }
 }

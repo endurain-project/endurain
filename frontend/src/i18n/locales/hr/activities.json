@@ -11,7 +11,7 @@
     "subtitle": "Pregledavajte, filtrirajte i sortirajte sve svoje aktivnosti.",
     "searchPlaceholder": "Pretraži po nazivu ili lokaciji",
     "clearSearch": "Očisti pretraživanje",
-    "resultCount": "{count} aktivnosti",
+    "resultCount": "{count} aktivnost | {count} aktivnosti",
     "filters": {
       "type": "Vrsta aktivnosti",
       "allTypes": "Sve vrste",
@@ -188,6 +188,7 @@
     "cancel": "Odustani",
     "close": "Zatvori",
     "name": "Naziv",
+    "nameRequired": "Unesite naziv aktivnosti",
     "type": "Vrsta aktivnosti",
     "description": "Opis",
     "privateNotes": "Privatne bilješke",

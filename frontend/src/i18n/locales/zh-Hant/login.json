@@ -14,6 +14,7 @@
   "forceLocalLogin": "此次嘗試已啟用本機登入，請使用您的使用者名稱和密碼登入。",
   "passwordResetSuccess": "您的密碼已重設，請使用新密碼登入。",
   "passwordResetInvalidLink": "該密碼重設連結無效或已過期",
+  "onboardingComplete": "您的管理員帳號已就緒，請登入以開始使用。",
   "emailVerificationSent": "驗證電子郵件已寄出，請查看您的收件匤繼續操作。",
   "adminApprovalRequired": "您的帳號正在等待管理員核准",
   "verifyEmailInvalidLink": "該電子郵件驗證連結無效或已過期",
@@ -35,6 +36,7 @@
   "closeForgotPassword": "關閉密碼重設對話框",
   "cancel": "取消",
   "signUpLink": "建立帳號",
+  "resendVerification": "沒有收到郵件？",
   "ssoSection": "單一登入",
   "loadingSsoProviders": "載入登入提供者中",
   "ssoButton": "使用 {provider} 繼續",
@@ -46,9 +48,35 @@
   "ssoAccountNotFound": "此身分識別提供者未連結任何帳號",
   "ssoAccountDisabled": "此帳號已停用",
   "ssoAutoCreateDisabled": "已停用自動建立帳號",
+  "ssoEmailMissing": "身分提供者未分享電子郵件地址，因此無法建立帳號。請聯絡管理員檢查該提供者的電子郵件設定。",
   "ssoErrorUndefined": "單一登入失敗",
   "noLoginMethods": "此伺服器未啟用任何登入方式",
   "imageAlt": "Endurain 登入插圖",
   "tagline1": "記錄每一步",
-  "tagline2": "掌握每一刻"
+  "tagline2": "掌握每一刻",
+  "accountDeleted": {
+    "title": "很遺憾看到您離開",
+    "body": "您已登出，您的帳號及所有資料正在被永久刪除。",
+    "backToLogin": "返回登入"
+  },
+  "onboarding": {
+    "title": "設定 Endurain",
+    "subtitle": "建立第一個管理員帳號。請從伺服器日誌中複製設定權杖：尋找包含 setup_token 的那一行。",
+    "token": "設定權杖",
+    "name": "姓名",
+    "username": "使用者名稱",
+    "email": "電子郵件",
+    "password": "密碼",
+    "confirmPassword": "確認密碼",
+    "emailInvalid": "請輸入有效的電子郵件地址",
+    "requiredField": "此欄位為必填",
+    "submitButton": "建立管理員",
+    "submitting": "正在建立管理員",
+    "errorInvalidToken": "設定權杖無效、已過期或已被使用。請從伺服器日誌中複製最新的權杖。",
+    "errorAlreadyDone": "設定已完成，請使用您的帳號登入。",
+    "errorValidation": "資料遭到拒絕，請檢查後使用符合管理員要求的密碼。",
+    "errorTooManyAttempts": "嘗試次數過多，請稍候再試。",
+    "errorUnavailable": "設定暫時無法使用，請稍後再試。",
+    "errorGeneral": "無法建立管理員，請再試一次。"
+  }
 }

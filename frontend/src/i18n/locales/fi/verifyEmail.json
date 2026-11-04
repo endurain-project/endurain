@@ -15,5 +15,13 @@
   "errorNotFound": "Tälle linkille ei löytynyt tiliä.",
   "errorGeneral": "Sähköpostiasi ei voitu vahvistaa. Yritä uudelleen.",
   "retry": "Yritä uudelleen",
-  "backToLogin": "Takaisin kirjautumiseen"
+  "backToLogin": "Takaisin kirjautumiseen",
+  "resendTitle": "Tarvitsetko uuden linkin?",
+  "resendBody": "Anna osoite, jolla rekisteröidyit, niin lähetämme uuden vahvistussähköpostin, jos se odottaa vielä vahvistusta.",
+  "resendEmail": "Sähköpostiosoite",
+  "resendButton": "Lähetä uusi sähköposti",
+  "resendSending": "Lähetetään",
+  "resendSent": "Jos tämä osoite odottaa vahvistusta, uusi sähköposti on tulossa.",
+  "resendTooManyAttempts": "Liian monta yritystä. Odota hetki ennen kuin yrität uudelleen.",
+  "resendError": "Sähköpostin lähettäminen epäonnistui. Yritä uudelleen."
 }

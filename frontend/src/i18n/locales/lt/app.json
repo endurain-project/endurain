@@ -19,6 +19,15 @@
     "reload": "Įkelti iš naujo"
   },
   "staleError": "Tai buvo pakeista kitur, kol į tai žiūrėjote, todėl nieko neįrašyta. Įkelta dabartinė versija. Peržiūrėkite ją ir bandykite dar kartą.",
+  "fieldError": {
+    "required": "Šis laukas privalomas",
+    "tooShort": "Ši reikšmė per trumpa",
+    "tooLong": "Ši reikšmė per ilga",
+    "tooLarge": "Ši reikšmė per didelė",
+    "tooSmall": "Ši reikšmė per maža",
+    "invalidFormat": "Šios reikšmės formatas netinkamas",
+    "invalid": "Ši reikšmė netinkama"
+  },
   "dismiss": "Atmesti",
   "language": "Kalba",
   "theme": {
@@ -40,6 +49,17 @@
   "password": {
     "hintLength": "Bent {min} simbolių.",
     "invalid": "Slaptažodis neatitinka reikalavimų",
-    "mismatch": "Slaptažodžiai nesutampa"
+    "mismatch": "Slaptažodžiai nesutampa",
+    "tooShort": "Šis slaptažodis per trumpas. Naudokite bent {min} simbolių.",
+    "tooCommon": "Šis slaptažodis per dažnas. Pasirinkite sunkiau atspėjamą.",
+    "matchesAccount": "Nenaudokite naudotojo vardo ar el. pašto adreso kaip slaptažodžio.",
+    "strength": {
+      "label": "Slaptažodžio stiprumas: {level}",
+      "tooWeak": "Per silpnas",
+      "weak": "Silpnas",
+      "fair": "Vidutinis",
+      "good": "Geras",
+      "strong": "Stiprus"
+    }
   }
 }

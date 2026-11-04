@@ -188,6 +188,7 @@
     "cancel": "取消",
     "close": "关闭",
     "name": "名称",
+    "nameRequired": "请输入活动名称",
     "type": "活动类型",
     "description": "描述",
     "privateNotes": "私人备注",

@@ -15,5 +15,13 @@
   "errorNotFound": "Não encontrámos uma conta para esta ligação.",
   "errorGeneral": "Não foi possível verificar o teu email. Tenta novamente.",
   "retry": "Tentar novamente",
-  "backToLogin": "Voltar ao início de sessão"
+  "backToLogin": "Voltar ao início de sessão",
+  "resendTitle": "Precisas de uma nova ligação?",
+  "resendBody": "Introduz o endereço com que te registaste e enviaremos um novo email de verificação se ainda estiver pendente.",
+  "resendEmail": "Endereço de email",
+  "resendButton": "Enviar um novo email",
+  "resendSending": "A enviar",
+  "resendSent": "Se esse endereço estiver a aguardar verificação, um novo email está a caminho.",
+  "resendTooManyAttempts": "Demasiadas tentativas. Aguarda antes de tentares novamente.",
+  "resendError": "Não foi possível enviar o email. Tenta novamente."
 }

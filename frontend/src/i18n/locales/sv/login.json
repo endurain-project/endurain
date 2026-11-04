@@ -14,6 +14,7 @@
   "forceLocalLogin": "Lokal inloggning är aktiverad för det här försöket. Använd ditt användarnamn och lösenord för att logga in.",
   "passwordResetSuccess": "Ditt lösenord har återställts. Logga in med det nya lösenordet.",
   "passwordResetInvalidLink": "Den länken för lösenordsåterställning är ogiltig eller har gått ut",
+  "onboardingComplete": "Ditt administratörskonto är klart. Logga in för att komma igång.",
   "emailVerificationSent": "Verifieringsmail skickat. Kontrollera din inkorg för att fortsätta.",
   "adminApprovalRequired": "Ditt konto väntar på administratörsgodkännande",
   "verifyEmailInvalidLink": "Den länken för e-postverifiering är ogiltig eller har gått ut",
@@ -35,6 +36,7 @@
   "closeForgotPassword": "Stäng dialogrutan för lösenordsåterställning",
   "cancel": "Avbryt",
   "signUpLink": "Skapa ett konto",
+  "resendVerification": "Fick du inte e-postmeddelandet?",
   "ssoSection": "Enkel inloggning",
   "loadingSsoProviders": "Laddar inloggningsleverantörer",
   "ssoButton": "Fortsätt med {provider}",
@@ -46,9 +48,35 @@
   "ssoAccountNotFound": "Inget konto är kopplat till den här identitetsleverantören",
   "ssoAccountDisabled": "Det här kontot är inaktiverat",
   "ssoAutoCreateDisabled": "Automatisk kontoskapning är inaktiverad",
+  "ssoEmailMissing": "Identitetsleverantören delade ingen e-postadress, så inget konto kunde skapas. Be din administratör kontrollera leverantörens e-postinställningar.",
   "ssoErrorUndefined": "Enkel inloggning misslyckades",
   "noLoginMethods": "Inga inloggningsmetoder är aktiverade på den här servern",
   "imageAlt": "Endurain inloggningsillustration",
   "tagline1": "Spåra varje rörelse",
-  "tagline2": "Äg varje ögonblick"
+  "tagline2": "Äg varje ögonblick",
+  "accountDeleted": {
+    "title": "Vad synd att du går",
+    "body": "Du har loggats ut, och ditt konto och alla dina data raderas permanent.",
+    "backToLogin": "Tillbaka till inloggningen"
+  },
+  "onboarding": {
+    "title": "Konfigurera Endurain",
+    "subtitle": "Skapa det första administratörskontot. Kopiera installationstoken från serverloggen: leta efter raden som innehåller setup_token.",
+    "token": "Installationstoken",
+    "name": "Namn",
+    "username": "Användarnamn",
+    "email": "E-post",
+    "password": "Lösenord",
+    "confirmPassword": "Bekräfta lösenord",
+    "emailInvalid": "Ange en giltig e-postadress",
+    "requiredField": "Det här fältet är obligatoriskt",
+    "submitButton": "Skapa administratör",
+    "submitting": "Skapar administratör",
+    "errorInvalidToken": "Installationstoken är ogiltig, har gått ut eller har redan använts. Kopiera den senaste från serverloggen.",
+    "errorAlreadyDone": "Konfigurationen är redan klar. Logga in med ditt konto.",
+    "errorValidation": "Uppgifterna avvisades. Kontrollera dem och använd ett lösenord som uppfyller kraven för administratörer.",
+    "errorTooManyAttempts": "För många försök. Vänta en stund och försök igen.",
+    "errorUnavailable": "Konfigurationen är tillfälligt otillgänglig. Försök igen om en stund.",
+    "errorGeneral": "Kunde inte skapa administratören. Försök igen."
+  }
 }

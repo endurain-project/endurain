@@ -14,6 +14,7 @@
   "forceLocalLogin": "Lokale Anmeldung ist für diesen Versuch aktiviert. Verwende Benutzername und Passwort.",
   "passwordResetSuccess": "Dein Passwort wurde zurückgesetzt. Melde dich mit dem neuen Passwort an.",
   "passwordResetInvalidLink": "Dieser Passwort-Reset-Link ist ungültig oder abgelaufen",
+  "onboardingComplete": "Dein Administratorkonto ist bereit. Melde dich an, um loszulegen.",
   "emailVerificationSent": "Bestätigungs-E-Mail gesendet. Überprüfe dein Postfach, um fortzufahren.",
   "adminApprovalRequired": "Dein Konto wartet auf Administratorgenehmigung",
   "verifyEmailInvalidLink": "Dieser E-Mail-Bestätigungslink ist ungültig oder abgelaufen",
@@ -35,6 +36,7 @@
   "closeForgotPassword": "Dialog zum Passwort zurücksetzen schließen",
   "cancel": "Abbrechen",
   "signUpLink": "Konto erstellen",
+  "resendVerification": "Keine E-Mail erhalten?",
   "ssoSection": "Single Sign-On",
   "loadingSsoProviders": "Anmeldeanbieter werden geladen",
   "ssoButton": "Weiter mit {provider}",
@@ -46,9 +48,35 @@
   "ssoAccountNotFound": "Kein Konto ist mit diesem Identitätsanbieter verknüpft",
   "ssoAccountDisabled": "Dieses Konto ist deaktiviert",
   "ssoAutoCreateDisabled": "Automatische Kontoerstellung ist deaktiviert",
+  "ssoEmailMissing": "Der Identitätsanbieter hat keine E-Mail-Adresse übermittelt, daher konnte kein Konto erstellt werden. Bitte deinen Administrator, die E-Mail-Einstellungen des Anbieters zu prüfen.",
   "ssoErrorUndefined": "Single Sign-On fehlgeschlagen",
   "noLoginMethods": "Auf diesem Server sind keine Anmeldemethoden aktiviert",
   "imageAlt": "Endurain Anmelde-Illustration",
   "tagline1": "Jeden Schritt verfolgen",
-  "tagline2": "Jeden Moment besitzen"
+  "tagline2": "Jeden Moment besitzen",
+  "accountDeleted": {
+    "title": "Schade, dass du gehst",
+    "body": "Du wurdest abgemeldet, und dein Konto sowie alle deine Daten werden dauerhaft gelöscht.",
+    "backToLogin": "Zurück zur Anmeldung"
+  },
+  "onboarding": {
+    "title": "Endurain einrichten",
+    "subtitle": "Erstelle das erste Administratorkonto. Kopiere das Setup-Token aus dem Serverprotokoll: Suche nach der Zeile, die setup_token enthält.",
+    "token": "Setup-Token",
+    "name": "Name",
+    "username": "Benutzername",
+    "email": "E-Mail",
+    "password": "Passwort",
+    "confirmPassword": "Passwort bestätigen",
+    "emailInvalid": "Gib eine gültige E-Mail-Adresse ein",
+    "requiredField": "Dieses Feld ist erforderlich",
+    "submitButton": "Administrator erstellen",
+    "submitting": "Administrator wird erstellt",
+    "errorInvalidToken": "Das Setup-Token ist ungültig, abgelaufen oder wurde bereits verwendet. Kopiere das neueste aus dem Serverprotokoll.",
+    "errorAlreadyDone": "Die Einrichtung ist bereits abgeschlossen. Melde dich mit deinem Konto an.",
+    "errorValidation": "Die Angaben wurden abgelehnt. Prüfe sie und verwende ein Passwort, das die Anforderungen für Administratoren erfüllt.",
+    "errorTooManyAttempts": "Zu viele Versuche. Warte einen Moment und versuche es erneut.",
+    "errorUnavailable": "Die Einrichtung ist vorübergehend nicht verfügbar. Versuche es in Kürze erneut.",
+    "errorGeneral": "Der Administrator konnte nicht erstellt werden. Bitte versuche es erneut."
+  }
 }

@@ -1,6 +1,11 @@
 {
   "title": "Salute",
   "subtitle": "Visualizza tutti i tuoi dati sulla salute in un unico posto",
+  "chartBucket": {
+    "week": "Medie settimanali: ogni barra è il giorno medio di quella settimana.",
+    "month": "Medie mensili: ogni barra è il giorno medio di quel mese."
+  },
+  "chartError": "Impossibile caricare il grafico per questo intervallo di tempo.",
   "nav": {
     "label": "Sezioni salute",
     "soon": "Presto",
@@ -88,7 +93,6 @@
       "weightRequired": "Inserisci il tuo peso.",
       "weightInvalid": "Inserisci un peso maggiore di zero.",
       "bodyComposition": "Composizione corporea (opzionale)",
-      "bmi": "BMI",
       "bodyFat": "Grasso corporeo (%)",
       "bodyWater": "Acqua corporea (%)",
       "boneMass": "Massa ossea",
@@ -350,7 +354,11 @@
       "close": "Chiudi",
       "createSuccess": "Sonno registrato.",
       "updateSuccess": "Voce sonno aggiornata.",
-      "saveError": "Impossibile salvare la voce sonno. Riprova."
+      "saveError": "Impossibile salvare la voce sonno. Riprova.",
+      "numberRange": "Inserisci un valore compreso tra {min} e {max}.",
+      "numberMin": "Inserisci {min} o più.",
+      "stagesExceedTotal": "Sonno profondo, leggero e REM sommati superano il totale.",
+      "inconsistentError": "Questi dati del sonno non quadrano. Controlla che le fasi e il totale rientrino negli orari del sonno."
     },
     "target": {
       "title": "Imposta obiettivo sonno",
@@ -419,7 +427,8 @@
       "close": "Chiudi",
       "createSuccess": "Acqua registrata.",
       "updateSuccess": "Voce acqua aggiornata.",
-      "saveError": "Impossibile salvare la voce acqua. Riprova."
+      "saveError": "Impossibile salvare la voce acqua. Riprova.",
+      "dailyLimitError": "Così l'assunzione d'acqua della giornata supererebbe il limite di 20.000 ml."
     },
     "target": {
       "title": "Imposta obiettivo idratazione",
@@ -596,6 +605,8 @@
       "startTime": "Ora di inizio",
       "startTimeRequired": "Scegli un'ora di inizio.",
       "endTime": "Ora di fine",
+      "endBeforeStart": "L'ora di fine non può essere precedente all'ora di inizio.",
+      "endWhileInProgress": "Un digiuno in corso non può avere un'ora di fine.",
       "status": "Stato",
       "notes": "Note",
       "create": "Inizia",
@@ -604,7 +615,9 @@
       "close": "Chiudi",
       "createSuccess": "Digiuno avviato.",
       "updateSuccess": "Sessione di digiuno aggiornata.",
-      "saveError": "Impossibile salvare la sessione di digiuno. Riprova."
+      "saveError": "Impossibile salvare la sessione di digiuno. Riprova.",
+      "overlapError": "Questo digiuno si sovrappone a un'altra sessione di digiuno, oppure un altro digiuno è già in corso.",
+      "invalidTimesError": "Un digiuno non può finire prima di iniziare, un digiuno completato o interrotto richiede un'ora di fine e un digiuno in corso non può averla."
     },
     "target": {
       "title": "Imposta obiettivo digiuno",
@@ -621,6 +634,20 @@
     "complete": {
       "success": "Digiuno terminato.",
       "error": "Impossibile terminare il digiuno. Riprova."
+    },
+    "endConfirm": {
+      "broken": {
+        "title": "Interrompere questo digiuno?",
+        "body": "Il digiuno termina ora e viene salvato come interrotto. L'operazione non può essere annullata.",
+        "confirm": "Interrompi digiuno"
+      },
+      "cancelled": {
+        "title": "Annullare questo digiuno?",
+        "body": "Il digiuno termina ora e viene salvato come annullato. L'operazione non può essere annullata.",
+        "confirm": "Annulla digiuno"
+      },
+      "cancel": "Continua il digiuno",
+      "close": "Chiudi"
     },
     "empty": {
       "title": "Ancora nessun digiuno",

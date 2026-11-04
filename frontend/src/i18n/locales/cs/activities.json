@@ -11,7 +11,7 @@
     "subtitle": "Procházejte, filtrujte a řaďte všechny své aktivity.",
     "searchPlaceholder": "Hledat podle názvu nebo místa",
     "clearSearch": "Vymazat hledání",
-    "resultCount": "{count} aktivit",
+    "resultCount": "{count} aktivita | {count} aktivity",
     "filters": {
       "type": "Typ aktivity",
       "allTypes": "Všechny typy",
@@ -188,6 +188,7 @@
     "cancel": "Zrušit",
     "close": "Zavřít",
     "name": "Název",
+    "nameRequired": "Zadejte název aktivity",
     "type": "Typ aktivity",
     "description": "Popis",
     "privateNotes": "Soukromé poznámky",

@@ -1,7 +1,7 @@
 {
   "addActivity": "Añadir actividad",
   "upload": {
-    "uploading": "Subiendo\u2026",
+    "uploading": "Subiendo…",
     "success": "Actividad subida correctamente",
     "error": "No se pudo subir el archivo de actividad",
     "timeout": "Tu archivo aún se está importando. Aparecerá cuando termine.",
@@ -14,7 +14,7 @@
   },
   "refresh": {
     "label": "Actualizar",
-    "refreshing": "Actualizando\u2026",
+    "refreshing": "Actualizando…",
     "success": "Actualización iniciada",
     "error": "No se pudieron actualizar las actividades"
   },
@@ -23,7 +23,7 @@
     "myActivities": "Mis actividades",
     "following": "Siguiendo",
     "loadMore": "Cargar más",
-    "loading": "Cargando\u2026",
+    "loading": "Cargando…",
     "error": {
       "title": "No se pudieron cargar las actividades",
       "description": "Algo salió mal al cargar el feed.",

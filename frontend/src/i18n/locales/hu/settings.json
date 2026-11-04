@@ -121,6 +121,8 @@
       "weightUnitsMetric": "Kilogramm (kg)",
       "weightUnitsImperial": "Font (lb)",
       "height": "Magasság",
+      "heightInvalid": "A magasság 1 és 300 cm között lehet",
+      "maxHeartRateInvalid": "A maximális pulzusszám 30 és 250 ü/perc között lehet",
       "feetInvalid": "A láb értéke 0 és 10 között lehet",
       "inchesInvalid": "A hüvelyk értéke 0 és 11 között lehet",
       "maxHeartRate": "Max. pulzusszám",
@@ -274,6 +276,31 @@
     "saving": "Mentés…",
     "saveSuccess": "Kiszolgálóbeállítások frissítve",
     "saveError": "Nem sikerült frissíteni a kiszolgálóbeállításokat. Kérjük, próbáld újra.",
+    "staleError": "Más módosította ezeket a beállításokat, miközben szerkesztetted őket. A módosításaid nem lettek mentve. Töltsd újra az oldalt az aktuális értékek megtekintéséhez.",
+    "envLocked": "{name} állítja be",
+    "envSection": "Az itteni beállítások egy részét környezeti változók ({names}) határozzák meg. Töröld őket a környezetből, hogy itt szerkeszthesd ezeket a beállításokat.",
+    "unsaved": "Nem mentett módosítások",
+    "discard": "Elvetés",
+    "tabs": {
+      "label": "A szerverbeállítások szakaszai",
+      "general": "Általános",
+      "access": "Hozzáférés és biztonság",
+      "maps": "Térképek és helyadatok",
+      "email": "E-mail",
+      "logs": "Naplók",
+      "unsaved": "Nem mentett módosításokat tartalmaz"
+    },
+    "search": {
+      "placeholder": "Beállítások keresése…",
+      "noResults": "Nincs találat"
+    },
+    "leave": {
+      "title": "Mentés nélkül elhagyod az oldalt?",
+      "description": "Nem mentett módosításaid vannak. Ha elhagyod az oldalt, elvesznek.",
+      "confirm": "Elhagyás mentés nélkül",
+      "stay": "Maradok az oldalon",
+      "close": "Bezárás"
+    },
     "loadError": {
       "title": "Nem sikerült betölteni a kiszolgálóbeállításokat",
       "description": "Valami hiba történt a kiszolgálóbeállítások betöltése közben. Megpróbálhatod újra.",
@@ -294,6 +321,29 @@
       "title": "Jelszószabályzat",
       "lengthRegular": "Minimális hossz normál felhasználóknál",
       "lengthAdmin": "Minimális hossz rendszergazdáknál"
+    },
+    "session": {
+      "title": "Munkamenetek",
+      "description": "A módosítások az új bejelentkezésekre és a következő token-frissítésre vonatkoznak. A már kiadott tokenek megtartják élettartamukat.",
+      "idleTimeoutEnabled": "Inaktivitási időkorlát érvényesítése",
+      "idleHours": "Inaktivitási időkorlát (óra)",
+      "idleHoursHint": "Ha érvényben van, a munkamenet ennyi óra tevékenység nélkül megszűnik.",
+      "absoluteHours": "Abszolút időkorlát (óra)",
+      "absoluteHoursHint": "A munkamenet ennyi órával a bejelentkezés után megszűnik, függetlenül a tevékenységtől. Mindig érvényes. Nem lehet rövidebb az inaktivitási időkorlátnál.",
+      "accessMinutes": "Hozzáférési token élettartama (perc)",
+      "refreshDays": "Frissítési token élettartama (nap)",
+      "invalidRange": "Adj meg egy egész számot {min} és {max} között.",
+      "absoluteBelowIdle": "Nem lehet rövidebb az inaktivitási időkorlátnál."
+    },
+    "retention": {
+      "title": "Adatmegőrzés",
+      "readNotifications": "Olvasott értesítések törlése ennyi nap után",
+      "readNotificationsHint": "A 0 az olvasott értesítéseket örökre megőrzi. Az olvasatlan értesítések soha nem törlődnek.",
+      "auditTrail": "Auditnapló-bejegyzések törlése ennyi nap után",
+      "auditTrailHint": "A 0 mindent megőriz. Egyébként a minimum 30 nap; a bejegyzések egész napokban törlődnek.",
+      "auditTrailInvalid": "Adj meg 0-t, vagy egy egész számot {min} és {max} között.",
+      "auditLegalHold": "Jogi zárolás az auditnaplón",
+      "auditLegalHoldHint": "Bekapcsolt állapotban az auditnapló minden törlését szünetelteti, a megőrzési időtől függetlenül."
     },
     "signup": {
       "title": "Regisztráció",
@@ -330,12 +380,33 @@
       "attribution": "Forrásmegjelölés",
       "apiKey": "Csempekiszolgáló API-kulcsa",
       "apiKeyWarning": "Az API-kulcs titkosítva van tárolva. Hagyd üresen, ha a csempekiszolgálódnak nincs rá szüksége.",
+      "apiKeyStored": "Egy kulcs el van tárolva",
+      "apiKeyRemove": "A tárolt API-kulcs eltávolítása",
       "backgroundColor": "Térkép háttérszíne",
       "regenerateThumbnails": "Tevékenység-bélyegképek újragenerálása a térképbeállítások módosulásakor"
+    },
+    "geocoding": {
+      "title": "Fordított geokódolás",
+      "description": "A tevékenységek koordinátáit helynevekké alakítja. A módosítások újraindítás nélkül érvénybe lépnek.",
+      "service": "Szolgáltatás",
+      "serviceNominatim": "Nominatim",
+      "servicePhoton": "Photon",
+      "serviceGeocode": "geocode.maps.co",
+      "host": "Gazdagép",
+      "hostHint": "Gazdagépnév opcionális porttal, séma nélkül. A privát hálózaton lévő gazdagépet fel kell venni az SSRF_ALLOWED_HOSTS listába.",
+      "useHttps": "Csatlakozás HTTPS-en keresztül",
+      "rateLimit": "Kérések másodpercenként",
+      "rateLimitHint": "A 0 kikapcsolja a korlátozást. A nyilvános Nominatim és Photon szolgáltatásokhoz hagyd 1-en.",
+      "rateLimitInvalid": "Adj meg egy 0 és 100 közötti számot.",
+      "apiKey": "API-kulcs",
+      "apiKeyStored": "Egy kulcs el van tárolva. Hagyd üresen a megtartásához.",
+      "apiKeyRemove": "A tárolt API-kulcs eltávolítása",
+      "apiKeyRequired": "A geocode.maps.co-hoz API-kulcs szükséges."
     },
     "photo": {
       "title": "Bejelentkezési fénykép",
       "description": "A bejelentkezési képernyőn megjelenő egyéni kép",
+      "previewAlt": "Jelenlegi bejelentkezési fénykép",
       "add": "Bejelentkezési fénykép feltöltése",
       "replace": "Bejelentkezési fénykép cseréje",
       "delete": "Bejelentkezési fénykép eltávolítása",
@@ -349,6 +420,30 @@
       "cancel": "Mégse",
       "close": "Bezárás"
     },
+    "logs": {
+      "title": "Szerver naplói",
+      "description": "Az alkalmazásnapló legújabb bejegyzései. A több folyamatot futtató telepítések naplóit a platformod gyűjti.",
+      "level": "Minimális szint",
+      "allLevels": "Minden szint",
+      "search": "Keresés",
+      "searchPlaceholder": "Szöveg, naplózó vagy kérésazonosító…",
+      "live": "Élő",
+      "refresh": "Frissítés",
+      "download": "Letöltés",
+      "downloadError": "Nem sikerült letölteni a naplófájlt.",
+      "clear": "Törlés",
+      "cleared": "Naplók törölve",
+      "clearError": "Nem sikerült törölni a naplókat.",
+      "clearConfirm": {
+        "title": "Törlöd a szerver naplóit?",
+        "description": "Ez véglegesen törli a naplófájlt és a rotált biztonsági másolatait. Töltsd le előbb a naplót, ha szükséged lehet rá. Maga a művelet az új naplóba kerül.",
+        "confirm": "Naplók törlése",
+        "cancel": "Mégse",
+        "close": "Bezárás"
+      },
+      "loadError": "Nem sikerült betölteni a naplókat.",
+      "empty": "Nem találhatók naplóbejegyzések"
+    },
     "email": {
       "title": "E-mail",
       "description": "Az Endurain a jelszó-visszaállítási és regisztrációs e-maileket a környezetben beállított SMTP-szerveren keresztül küldi.",
@@ -360,30 +455,26 @@
       "sendHint": "A teszt e-mail a saját címedre megy.",
       "sent": "A teszt e-mail elküldve",
       "failed": "A teszt e-mailt nem sikerült elküldeni",
-      "failedUnknown": "A részleteket a szerver naplóiban találod."
-    },
-    "envLocked": "{name} állítja be",
-    "envSection": "Az itteni beállítások egy részét környezeti változók ({names}) határozzák meg. Töröld őket a környezetből, hogy itt szerkeszthesd ezeket a beállításokat.",
-    "unsaved": "Nem mentett módosítások",
-    "discard": "Elvetés",
-    "tabs": {
-      "label": "A szerverbeállítások szakaszai",
-      "general": "Általános",
-      "access": "Hozzáférés és biztonság",
-      "maps": "Térképek és helyadatok",
-      "email": "E-mail",
-      "unsaved": "Nem mentett módosításokat tartalmaz"
-    },
-    "search": {
-      "placeholder": "Beállítások keresése…",
-      "noResults": "Nincs találat"
-    },
-    "leave": {
-      "title": "Mentés nélkül elhagyod az oldalt?",
-      "description": "Nem mentett módosításaid vannak. Ha elhagyod az oldalt, elvesznek.",
-      "confirm": "Elhagyás mentés nélkül",
-      "stay": "Maradok az oldalon",
-      "close": "Bezárás"
+      "failedUnknown": "A részleteket a szerver naplóiban találod.",
+      "settingsLoadError": "Nem sikerült betölteni az e-mail-beállításokat.",
+      "host": "Gazdagép",
+      "hostHint": "Hagyd üresen az e-mailek kikapcsolásához.",
+      "port": "Port",
+      "portInvalid": "Adj meg egy 1 és 65535 közötti portot.",
+      "security": "Kapcsolat biztonsága",
+      "securityStarttls": "STARTTLS",
+      "securitySsl": "SSL/TLS",
+      "securityNone": "Nincs (csak privát továbbító)",
+      "securityNoneWarning": "Titkosítás nélkül csak privát vagy loopback címen lévő levelezőszerver fogadható el, és felhasználónév meg jelszó nem használható.",
+      "username": "Felhasználónév",
+      "password": "Jelszó",
+      "passwordStored": "Egy jelszó el van tárolva. Hagyd üresen a megtartásához.",
+      "passwordRemove": "A tárolt jelszó eltávolítása",
+      "fromAddress": "Feladó címe",
+      "fromAddressHint": "Hagyd üresen a felhasználónév használatához.",
+      "save": "E-mail-beállítások mentése",
+      "saveSuccess": "E-mail-beállítások mentve",
+      "saveError": "Az e-mail-beállításokat nem sikerült menteni"
     }
   },
   "idp": {
@@ -445,6 +536,7 @@
       "issuerUrl": "Kibocsátó URL-je",
       "issuerUrlHint": "A szolgáltató OIDC-kibocsátójának vagy felfedezési URL-je",
       "issuerUrlRequired": "A kibocsátó URL-jének megadása kötelező",
+      "issuerUrlRefused": "A szolgáltató URL-jét elutasítottuk. https://-t kell használnia, és a szerverről feloldhatónak kell lennie; a privát hálózaton lévő szolgáltatót fel kell venni az SSRF_ALLOWED_HOSTS listába.",
       "issuerUrlTooLong": "A kibocsátó URL-je legfeljebb 500 karakter lehet",
       "clientId": "Kliensazonosító",
       "clientIdRequired": "A kliensazonosító megadása kötelező",
@@ -459,12 +551,22 @@
       "scopesTooLong": "A hatókörök legfeljebb 500 karakter lehetnek",
       "icon": "Ikon",
       "iconNone": "Nincs",
+      "iconUpload": "Kép feltöltése",
+      "iconFileHint": "PNG, JPEG, GIF vagy WebP kép, legfeljebb 1 MB, a bejelentkezés gombon jelenik meg",
+      "iconChoose": "Kép kiválasztása",
+      "iconReplace": "Kép cseréje",
+      "iconPreviewAlt": "Ikon előnézete",
+      "iconFileRequired": "Válassz egy feltöltendő képet",
+      "iconFileInvalidType": "Az ikon PNG, JPEG, GIF vagy WebP kép lehet",
+      "iconFileTooLarge": "Az ikon legfeljebb 1 MB lehet",
+      "iconSaveError": "A szolgáltatót mentettük, de az ikonját nem sikerült frissíteni. Az újrapróbáláshoz szerkeszd a szolgáltatót.",
       "enabled": "Engedélyezve",
       "autoCreateUsers": "Felhasználók automatikus létrehozása az első bejelentkezéskor",
       "syncUserInfo": "Profilinformációk szinkronizálása minden bejelentkezéskor",
       "createSuccess": "Szolgáltató hozzáadva",
       "updateSuccess": "Szolgáltató frissítve",
       "slugConflict": "Ez a slug már használatban van",
+      "staleError": "Ez a szolgáltató máshol módosult. A módosításaid nem lettek mentve. Zárd be és nyisd meg újra a jelenlegi beállítások betöltéséhez.",
       "saveError": "Nem sikerült menteni a szolgáltatót. Kérjük, próbáld újra."
     }
   },
@@ -472,7 +574,7 @@
     "title": "Saját célok",
     "subtitle": "Állíts be célokat a tevékenységeidhez, és kövesd nyomon a haladásodat",
     "buttonAdd": "Cél hozzáadása",
-    "count": "Összesen {count} cél van:",
+    "count": "Összesen {count} cél van: | Összesen {count} cél van:",
     "filters": "Szűrők",
     "filter": {
       "all": "Mind",
@@ -556,6 +658,7 @@
     "hidePassword": "Jelszó elrejtése",
     "mfaCode": "Hitelesítési kód",
     "mfaCodePlaceholder": "123456",
+    "confirmPhrase": "A megerősítéshez írd be: {phrase}",
     "loadError": {
       "title": "Nem sikerült betölteni a biztonsági beállításaidat",
       "description": "Valami hiba történt. Megpróbálhatod újra."
@@ -579,7 +682,7 @@
       "disabledDescription": "A kétfaktoros hitelesítés ki van kapcsolva. Kapcsold be a fiókod jobb védelméért.",
       "enable": "Kétfaktoros hitelesítés engedélyezése",
       "enabledDescription": "A kétfaktoros hitelesítés be van kapcsolva.",
-      "backupRemaining": "{total} tartalék kódból {unused} maradt.",
+      "backupRemaining": "{total} tartalék kódból {unused} maradt. | {total} tartalék kódból {unused} maradt.",
       "regenerate": "Tartalék kódok újragenerálása",
       "disable": "Letiltás",
       "setupTitle": "Kétfaktoros hitelesítés engedélyezése",
@@ -653,10 +756,16 @@
       "unlinkError": "Nem sikerült leválasztani a fiókot. Kérjük, próbáld újra.",
       "invalidCredentials": "A jelszavad vagy a kódod helytelen.",
       "alreadyLinked": "Ez a fiók már kapcsolva van.",
-      "lastMethodError": "Nem választhatod le az egyetlen bejelentkezési módodat. Először állíts be jelszót."
+      "lastMethodError": "Nem választhatod le az egyetlen bejelentkezési módodat. Először állíts be jelszót.",
+      "linkedOn": "Összekapcsolva: {date}"
     },
     "email": {
+      "title": "E-mail-cím",
       "subtitle": "Ide érkeznek a jelszó-visszaállítások és az értesítések. A módosításhoz igazold a személyazonosságodat, az új cím pedig akkor lép életbe, ha megerősíted a rá küldött hivatkozással.",
+      "current": "Jelenlegi e-mail-cím",
+      "action": "E-mail-cím módosítása",
+      "new": "Új e-mail-cím",
+      "invalid": "Adj meg érvényes e-mail-címet.",
       "sameAsCurrent": "Ez már a jelenlegi e-mail-címed.",
       "success": "A megerősítő hivatkozás elküldve az új címre. Az e-mail-címed a megerősítés után változik meg.",
       "appliedSuccess": "E-mail-cím módosítva.",
@@ -667,7 +776,19 @@
       "resendSuccess": "Ha van függőben lévő módosítás, egy új hivatkozás úton van az új címre.",
       "resendError": "A hivatkozást nem sikerült újraküldeni. Kérjük, próbáld újra.",
       "cancelSuccess": "Az e-mail-cím módosítását visszavontuk.",
-      "cancelError": "A módosítást nem sikerült visszavonni. Kérjük, próbáld újra."
+      "cancelError": "A módosítást nem sikerült visszavonni. Kérjük, próbáld újra.",
+      "conflict": "Ez az e-mail-cím már használatban van.",
+      "error": "Nem sikerült módosítani az e-mail-címedet. Kérjük, próbáld újra."
+    },
+    "deleteAccount": {
+      "title": "Fiókom törlése",
+      "subtitle": "Véglegesen törlöd a fiókodat és az összes adatodat, beleértve a tevékenységeket és fájljaikat, az egészségügyi adatokat, a felszerelést, a célokat, az integrációkat és a munkameneteket. Ezt nem lehet visszavonni. Ha meg szeretnél tartani egy másolatot, előbb exportáld az adataidat.",
+      "action": "Fiókom törlése",
+      "dialogTitle": "Törlöd a fiókodat?",
+      "dialogDescription": "Ez véglegesen törli a fiókodat és az összes adatodat. A folytatáshoz erősítsd meg a személyazonosságodat.",
+      "confirm": "Fiókom törlése",
+      "error": "Nem sikerült törölni a fiókodat. Kérjük, próbáld újra.",
+      "onlyAdminError": "Te vagy az egyetlen rendszergazda. A fiókod törlése előtt tegyél rendszergazdává egy másik felhasználót."
     },
     "apiKeys": {
       "title": "API-kulcsok",
@@ -712,6 +833,18 @@
       "deleteBody": "A(z) {name} véglegesen törlődik. Ezt nem lehet visszavonni.",
       "deleteSuccess": "API-kulcs törölve",
       "deleteError": "Nem sikerült törölni az API-kulcsot. Kérjük, próbáld újra."
+    },
+    "stepUp": {
+      "prompt": "A fiókodnak nincs jelszava. Jelentkezz be újra egy összekapcsolt identitásszolgáltatóval, hogy megerősítsd, te vagy az.",
+      "continueWith": "Folytatás ezzel: {name}",
+      "ready": "Az identitásszolgáltatós bejelentkezés megerősítve.",
+      "restart": "Bejelentkezés újra",
+      "noProviders": "Nincs elérhető összekapcsolt identitásszolgáltató a személyazonosságod megerősítéséhez.",
+      "startError": "Nem sikerült elindítani az identitásszolgáltatós bejelentkezést. Kérjük, próbáld újra.",
+      "tooManyAttempts": "Túl sok próbálkozás. Kérjük, próbáld újra később.",
+      "reauthRequired": "A folytatáshoz erősítsd meg a személyazonosságodat az identitásszolgáltatóddal.",
+      "failed": "Az újbóli bejelentkezés az identitásszolgáltatóddal nem sikerült. Kérjük, próbáld újra.",
+      "notFresh": "Az identitásszolgáltatód nem kérte az újbóli bejelentkezést. Fordulj a rendszergazdához."
     }
   },
   "integrations": {
@@ -834,6 +967,8 @@
     "title": "Saját profil",
     "subtitle": "Kezeld a fiókod adatait és adatvédelmét",
     "notSet": "Nincs beállítva",
+    "emailManagedIn": "Az e-mail-címedet a Biztonság beállításokban módosíthatod.",
+    "emailManagedLink": "Biztonsági beállítások megnyitása",
     "error": {
       "title": "Nem sikerült betölteni a profilodat",
       "description": "Valami hiba történt a profilod betöltése közben. Megpróbálhatod újra.",
@@ -939,9 +1074,40 @@
       "export": "Adatok exportálása",
       "import": "Adatok importálása",
       "invalidType": "Kérjük, válassz egy .zip archívumot.",
-      "exportSuccess": "Az export kész, a letöltésed hamarosan elkezdődik",
+      "download": "Exportálás letöltése",
+      "downloadSuccess": "A letöltésnek hamarosan el kell indulnia",
+      "downloadError": "Nem sikerült letölteni az exportot. Kérjük, próbáld újra.",
+      "exportQueued": "Az exportálás elindult. Elhagyhatod ezt az oldalt.",
       "exportError": "Nem sikerült exportálni az adataidat. Kérjük, próbáld újra.",
-      "importError": "Nem sikerült importálni az archívumot. Kérjük, ellenőrizd a fájlt, és próbáld újra."
+      "exportInProgress": "Már folyamatban van egy exportálás.",
+      "exportStatus": {
+        "queued": "Várakozás az exportálás indulására…",
+        "running": "Az exportálás előkészítése…",
+        "completed": "Az exportálás letölthető. Két órán át elérhető marad.",
+        "failed": "Az exportálás nem fejeződött be: {reason}"
+      },
+      "exportFailure": {
+        "timed_out": "túl sokáig tartott. Próbáld újra.",
+        "processing_failed": "valami elromlott. Próbáld újra."
+      },
+      "importQueued": "Az importálás elindult. Elhagyhatod ezt az oldalt.",
+      "importError": "Nem sikerült importálni az archívumot. Kérjük, ellenőrizd a fájlt, és próbáld újra.",
+      "importInProgress": "Már folyamatban van egy importálás.",
+      "status": {
+        "queued": "Várakozás az importálás indulására…",
+        "running": "Az adataid importálása…",
+        "writing_files": "A fájljaid mentése…",
+        "completed": "Az importálás befejeződött: {activities} tevékenység és {gears} felszerelés importálva.",
+        "failed": "Az importálás nem fejeződött be: {reason}"
+      },
+      "failure": {
+        "invalid_file": "az archívum nem érvényes Endurain-exportálás. Semmi sem lett importálva.",
+        "too_large": "az archívum túl nagy. Semmi sem lett importálva.",
+        "too_many_activities": "az archívumban túl sok tevékenység van. Semmi sem lett importálva.",
+        "timed_out": "túl sokáig tartott. Semmi sem lett importálva, ezért próbálkozhatsz újra.",
+        "files_incomplete": "az adataid importálva lettek, de néhány fájl hiányzik. Ne importáld újra, mert megduplázná az adataidat.",
+        "processing_failed": "valami elromlott. Semmi sem lett importálva, ezért próbálkozhatsz újra."
+      }
     }
   }
 }

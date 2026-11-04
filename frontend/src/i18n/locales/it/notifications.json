@@ -8,7 +8,7 @@
   "seeAll": "Vedi tutte",
   "loadMore": "Carica altre",
   "loading": "Caricamento…",
-  "badge": "{count} notifiche non lette",
+  "badge": "{count} notifica non letta | {count} notifiche non lette",
   "empty": {
     "title": "Sei in pari",
     "description": "Qui verranno mostrati gli aggiornamenti sulle tue attività, follower e integrazioni."
@@ -39,10 +39,57 @@
       "title": "Garmin Connect richiede attenzione",
       "body": "La tua sessione Garmin Connect è scaduta. Ricollegala per continuare la sincronizzazione."
     },
+    "stravaTokenExpired": {
+      "title": "Strava richiede la tua attenzione",
+      "body": "Strava ha rifiutato la tua connessione. Riconnettila per continuare a sincronizzare."
+    },
     "idpLinked": {
       "title": "Nuovo provider di accesso collegato",
       "body": "{name} è stato collegato al tuo account. Se non sei stato tu, controlla le impostazioni di sicurezza.",
       "bodyGeneric": "Un provider di accesso è stato collegato al tuo account. Se non sei stato tu, controlla le impostazioni di sicurezza."
+    },
+    "accountSecurityChanged": {
+      "passwordChanged": {
+        "title": "Password modificata",
+        "body": "La tua password è stata modificata. Se non sei stato tu, reimposta la password e controlla le impostazioni di sicurezza."
+      },
+      "passwordReset": {
+        "title": "Password reimpostata",
+        "body": "La tua password è stata reimpostata tramite un link di reimpostazione. Se non sei stato tu, reimpostala di nuovo e controlla le impostazioni di sicurezza."
+      },
+      "passwordSetByAdmin": {
+        "title": "Password impostata da un amministratore",
+        "body": "Un amministratore ha impostato una nuova password per il tuo account. Se non te lo aspettavi, contatta il tuo amministratore."
+      },
+      "mfaEnabled": {
+        "title": "Autenticazione a due fattori attivata",
+        "body": "L'autenticazione a due fattori è stata attivata per il tuo account. Se non sei stato tu, reimposta la password e controlla le impostazioni di sicurezza."
+      },
+      "mfaDisabled": {
+        "title": "Autenticazione a due fattori disattivata",
+        "body": "L'autenticazione a due fattori è stata disattivata per il tuo account. Se non sei stato tu, reimposta la password e controlla le impostazioni di sicurezza."
+      },
+      "backupCodesGenerated": {
+        "title": "Nuovi codici di recupero generati",
+        "body": "Sono stati generati nuovi codici di recupero per il tuo account. Se non sei stato tu, reimposta la password e controlla le impostazioni di sicurezza."
+      },
+      "apiKeyCreated": {
+        "title": "Nuova chiave API creata",
+        "body": "È stata creata una nuova chiave API per il tuo account. Se non sei stato tu, reimposta la password e controlla le impostazioni di sicurezza."
+      },
+      "identityProviderUnlinked": {
+        "title": "Provider di accesso scollegato",
+        "body": "{name} è stato scollegato dal tuo account. Se non sei stato tu, reimposta la password e controlla le impostazioni di sicurezza.",
+        "bodyGeneric": "Un provider di accesso è stato scollegato dal tuo account. Se non sei stato tu, reimposta la password e controlla le impostazioni di sicurezza."
+      },
+      "unknown": {
+        "title": "Sicurezza dell'account modificata",
+        "body": "Un'impostazione di sicurezza del tuo account è stata modificata. Se non sei stato tu, reimposta la password e controlla le impostazioni di sicurezza."
+      }
+    },
+    "newDeviceSignIn": {
+      "title": "Nuovo accesso",
+      "body": "Nuovo accesso da {browser} su {os} ({ip}). Se non sei stato tu, cambia la password e disconnettiti dalle altre sessioni."
     },
     "adminSignUpApproval": {
       "title": "Nuova registrazione in attesa di approvazione",

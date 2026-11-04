@@ -11,7 +11,7 @@
     "subtitle": "Explora, filtra i ordena totes les teves activitats.",
     "searchPlaceholder": "Cerca per nom o ubicació",
     "clearSearch": "Esborra la cerca",
-    "resultCount": "{count} activitats",
+    "resultCount": "{count} activitat | {count} activitats",
     "filters": {
       "type": "Tipus d'activitat",
       "allTypes": "Tots els tipus",
@@ -188,6 +188,7 @@
     "cancel": "Cancel·la",
     "close": "Tanca",
     "name": "Nom",
+    "nameRequired": "Introdueix un nom per a l'activitat",
     "type": "Tipus d'activitat",
     "description": "Descripció",
     "privateNotes": "Notes privades",

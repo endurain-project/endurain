@@ -14,6 +14,7 @@
   "forceLocalLogin": "Autentificarea locală este activată pentru această încercare. Folosește numele de utilizator și parola pentru a te autentifica.",
   "passwordResetSuccess": "Parola ta a fost resetată. Autentifică-te cu noua parolă.",
   "passwordResetInvalidLink": "Acel link de resetare a parolei este invalid sau a expirat",
+  "onboardingComplete": "Contul de administrator este gata. Autentifică-te pentru a începe.",
   "emailVerificationSent": "E-mail de verificare trimis. Verifică-ți căsuța de e-mail pentru a continua.",
   "adminApprovalRequired": "Contul tău așteaptă aprobarea administratorului",
   "verifyEmailInvalidLink": "Acel link de verificare a e-mailului este invalid sau a expirat",
@@ -35,6 +36,7 @@
   "closeForgotPassword": "Închide dialogul de resetare a parolei",
   "cancel": "Anulează",
   "signUpLink": "Creează un cont",
+  "resendVerification": "Nu ai primit e-mailul?",
   "ssoSection": "Autentificare unică",
   "loadingSsoProviders": "Se încarcă furnizorii de autentificare",
   "ssoButton": "Continuă cu {provider}",
@@ -46,9 +48,35 @@
   "ssoAccountNotFound": "Niciun cont nu este asociat cu acest furnizor de identitate",
   "ssoAccountDisabled": "Acest cont este dezactivat",
   "ssoAutoCreateDisabled": "Crearea automată a contului este dezactivată",
+  "ssoEmailMissing": "Furnizorul de identitate nu a transmis o adresă de e-mail, așa că nu s-a putut crea un cont. Roagă-ți administratorul să verifice setările de e-mail ale furnizorului.",
   "ssoErrorUndefined": "Autentificarea unică a eșuat",
   "noLoginMethods": "Nicio metodă de autentificare nu este activată pe acest server",
   "imageAlt": "Ilustrație de autentificare Endurain",
   "tagline1": "Urmărește fiecare mișcare",
-  "tagline2": "Trăiește fiecare moment"
+  "tagline2": "Trăiește fiecare moment",
+  "accountDeleted": {
+    "title": "Ne pare rău că pleci",
+    "body": "Ai fost deconectat, iar contul tău și toate datele tale sunt șterse definitiv.",
+    "backToLogin": "Înapoi la autentificare"
+  },
+  "onboarding": {
+    "title": "Configurează Endurain",
+    "subtitle": "Creează primul cont de administrator. Copiază tokenul de configurare din jurnalul serverului: caută linia care conține setup_token.",
+    "token": "Token de configurare",
+    "name": "Nume",
+    "username": "Nume de utilizator",
+    "email": "E-mail",
+    "password": "Parolă",
+    "confirmPassword": "Confirmă parola",
+    "emailInvalid": "Introdu o adresă de e-mail validă",
+    "requiredField": "Acest câmp este obligatoriu",
+    "submitButton": "Creează administratorul",
+    "submitting": "Se creează administratorul",
+    "errorInvalidToken": "Tokenul de configurare este nevalid, a expirat sau a fost deja folosit. Copiază-l pe cel mai recent din jurnalul serverului.",
+    "errorAlreadyDone": "Configurarea este deja finalizată. Autentifică-te cu contul tău.",
+    "errorValidation": "Datele au fost respinse. Verifică-le și folosește o parolă care îndeplinește cerințele pentru administrator.",
+    "errorTooManyAttempts": "Prea multe încercări. Așteaptă puțin și încearcă din nou.",
+    "errorUnavailable": "Configurarea este temporar indisponibilă. Încearcă din nou în scurt timp.",
+    "errorGeneral": "Nu am putut crea administratorul. Te rugăm să încerci din nou."
+  }
 }

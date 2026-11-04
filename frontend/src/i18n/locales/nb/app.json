@@ -19,6 +19,15 @@
     "reload": "Last inn på nytt"
   },
   "staleError": "Dette ble endret et annet sted mens du så på det, så ingenting ble lagret. Den gjeldende versjonen er lastet inn. Gå gjennom den og prøv igjen.",
+  "fieldError": {
+    "required": "Dette feltet er påkrevd",
+    "tooShort": "Denne verdien er for kort",
+    "tooLong": "Denne verdien er for lang",
+    "tooLarge": "Denne verdien er for stor",
+    "tooSmall": "Denne verdien er for liten",
+    "invalidFormat": "Denne verdien har et ugyldig format",
+    "invalid": "Denne verdien er ugyldig"
+  },
   "dismiss": "Lukk",
   "language": "Språk",
   "theme": {
@@ -40,6 +49,17 @@
   "password": {
     "hintLength": "Minst {min} tegn.",
     "invalid": "Passordet oppfyller ikke kravene",
-    "mismatch": "Passordene stemmer ikke overens"
+    "mismatch": "Passordene stemmer ikke overens",
+    "tooShort": "Dette passordet er for kort. Bruk minst {min} tegn.",
+    "tooCommon": "Dette passordet er for vanlig. Velg et som er vanskeligere å gjette.",
+    "matchesAccount": "Ikke bruk brukernavnet eller e-postadressen din som passord.",
+    "strength": {
+      "label": "Passordstyrke: {level}",
+      "tooWeak": "For svakt",
+      "weak": "Svakt",
+      "fair": "Middels",
+      "good": "Bra",
+      "strong": "Sterkt"
+    }
   }
 }

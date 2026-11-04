@@ -19,6 +19,15 @@
     "reload": "Ricarica"
   },
   "staleError": "Questo è stato modificato altrove mentre lo stavi visualizzando, quindi non è stato salvato nulla. È stata caricata la versione attuale. Controllala e riprova.",
+  "fieldError": {
+    "required": "Questo campo è obbligatorio",
+    "tooShort": "Questo valore è troppo corto",
+    "tooLong": "Questo valore è troppo lungo",
+    "tooLarge": "Questo valore è troppo grande",
+    "tooSmall": "Questo valore è troppo piccolo",
+    "invalidFormat": "Questo valore ha un formato non valido",
+    "invalid": "Questo valore non è valido"
+  },
   "dismiss": "Chiudi",
   "language": "Lingua",
   "theme": {
@@ -40,6 +49,17 @@
   "password": {
     "hintLength": "Almeno {min} caratteri.",
     "invalid": "La password non soddisfa i requisiti",
-    "mismatch": "Le password non corrispondono"
+    "mismatch": "Le password non corrispondono",
+    "tooShort": "Questa password è troppo corta. Usa almeno {min} caratteri.",
+    "tooCommon": "Questa password è troppo comune. Scegline una più difficile da indovinare.",
+    "matchesAccount": "Non usare il tuo nome utente o il tuo indirizzo e-mail come password.",
+    "strength": {
+      "label": "Sicurezza della password: {level}",
+      "tooWeak": "Troppo debole",
+      "weak": "Debole",
+      "fair": "Discreta",
+      "good": "Buona",
+      "strong": "Forte"
+    }
   }
 }

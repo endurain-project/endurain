@@ -14,6 +14,7 @@
   "forceLocalLogin": "Šim mēģinājumam ir iespējota vietējā pieteikšanās. Izmantojiet savu lietotājvārdu un paroli, lai pieteiktos.",
   "passwordResetSuccess": "Jūsu parole tika atiestatīta. Piesakieties ar jauno paroli.",
   "passwordResetInvalidLink": "Šī paroles atiestatīšanas saite ir nederīga vai tai beidzies derīgums",
+  "onboardingComplete": "Jūsu administratora konts ir gatavs. Pieteikšanās, lai sāktu.",
   "emailVerificationSent": "Verifikācijas e-pasts nosūtīts. Pārbaudiet savu iesūtni, lai turpinātu.",
   "adminApprovalRequired": "Jūsu konts gaida administratora apstiprinājumu",
   "verifyEmailInvalidLink": "Šī e-pasta verifikācijas saite ir nederīga vai tai beidzies derīgums",
@@ -35,6 +36,7 @@
   "closeForgotPassword": "Aizvērt paroles atiestatīšanas dialogu",
   "cancel": "Atcelt",
   "signUpLink": "Izveidot kontu",
+  "resendVerification": "Nesaņēmāt e-pasta ziņojumu?",
   "ssoSection": "Vienotā pieteikšanās",
   "loadingSsoProviders": "Notiek pieteikšanās pakalpojumu sniedzēju ielāde",
   "ssoButton": "Turpināt ar {provider}",
@@ -46,9 +48,35 @@
   "ssoAccountNotFound": "Ar šo identitātes pakalpojumu sniedzēju nav saistīts neviens konts",
   "ssoAccountDisabled": "Šis konts ir atspējots",
   "ssoAutoCreateDisabled": "Automātiska kontu izveide ir atspējota",
+  "ssoEmailMissing": "Identitātes pakalpojumu sniedzējs nenodeva e-pasta adresi, tāpēc kontu nevarēja izveidot. Lūdziet administratoram pārbaudīt pakalpojumu sniedzēja e-pasta iestatījumus.",
   "ssoErrorUndefined": "Vienotā pieteikšanās neizdevās",
   "noLoginMethods": "Šajā serverī nav iespējota neviena pieteikšanās metode",
   "imageAlt": "Endurain pieteikšanās ilustrācija",
   "tagline1": "Izseko katru kustību",
-  "tagline2": "Pārvaldi katru mirkli"
+  "tagline2": "Pārvaldi katru mirkli",
+  "accountDeleted": {
+    "title": "Žēl, ka dodaties prom",
+    "body": "Jūs esat izrakstījies, un jūsu konts un visi dati tiek neatgriezeniski dzēsti.",
+    "backToLogin": "Atpakaļ uz pieteikšanos"
+  },
+  "onboarding": {
+    "title": "Iestatīt Endurain",
+    "subtitle": "Izveidojiet pirmo administratora kontu. Nokopējiet iestatīšanas marķieri no servera žurnāla: meklējiet rindu, kas satur setup_token.",
+    "token": "Iestatīšanas marķieris",
+    "name": "Vārds",
+    "username": "Lietotājvārds",
+    "email": "E-pasts",
+    "password": "Parole",
+    "confirmPassword": "Apstiprināt paroli",
+    "emailInvalid": "Ievadiet derīgu e-pasta adresi",
+    "requiredField": "Šis lauks ir obligāts",
+    "submitButton": "Izveidot administratoru",
+    "submitting": "Administrators tiek izveidots",
+    "errorInvalidToken": "Iestatīšanas marķieris nav derīgs, tam ir beidzies derīguma termiņš vai tas jau ir izmantots. Nokopējiet jaunāko no servera žurnāla.",
+    "errorAlreadyDone": "Iestatīšana jau ir pabeigta. Piesakieties ar savu kontu.",
+    "errorValidation": "Dati tika noraidīti. Pārbaudiet tos un izmantojiet paroli, kas atbilst administratora prasībām.",
+    "errorTooManyAttempts": "Pārāk daudz mēģinājumu. Uzgaidiet brīdi un mēģiniet vēlreiz.",
+    "errorUnavailable": "Iestatīšana īslaicīgi nav pieejama. Drīz mēģiniet vēlreiz.",
+    "errorGeneral": "Neizdevās izveidot administratoru. Lūdzu, mēģiniet vēlreiz."
+  }
 }

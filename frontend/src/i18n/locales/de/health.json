@@ -1,6 +1,11 @@
 {
   "title": "Gesundheit",
   "subtitle": "Sieh alle deine Gesundheitsdaten auf einen Blick",
+  "chartBucket": {
+    "week": "Wochendurchschnitte: Jeder Balken zeigt den durchschnittlichen Tag dieser Woche.",
+    "month": "Monatsdurchschnitte: Jeder Balken zeigt den durchschnittlichen Tag dieses Monats."
+  },
+  "chartError": "Das Diagramm für diesen Zeitraum konnte nicht geladen werden.",
   "nav": {
     "label": "Gesundheitsbereiche",
     "soon": "Bald",
@@ -88,7 +93,6 @@
       "weightRequired": "Bitte gib dein Gewicht ein.",
       "weightInvalid": "Gib ein Gewicht größer als null ein.",
       "bodyComposition": "Körperzusammensetzung (optional)",
-      "bmi": "BMI",
       "bodyFat": "Körperfett (%)",
       "bodyWater": "Körperwasser (%)",
       "boneMass": "Knochenmasse",
@@ -350,7 +354,11 @@
       "close": "Schließen",
       "createSuccess": "Schlaf eingetragen.",
       "updateSuccess": "Schlafeintrag aktualisiert.",
-      "saveError": "Dein Schlafeintrag konnte nicht gespeichert werden. Bitte versuche es erneut."
+      "saveError": "Dein Schlafeintrag konnte nicht gespeichert werden. Bitte versuche es erneut.",
+      "numberRange": "Gib einen Wert zwischen {min} und {max} ein.",
+      "numberMin": "Gib {min} oder mehr ein.",
+      "stagesExceedTotal": "Tiefschlaf, Leichtschlaf und REM-Schlaf ergeben zusammen mehr als die Gesamtdauer.",
+      "inconsistentError": "Diese Schlafwerte passen nicht zusammen. Prüfe, ob die Phasen und die Gesamtdauer in die Schlafzeiten passen."
     },
     "target": {
       "title": "Schlafziel setzen",
@@ -419,7 +427,8 @@
       "close": "Schließen",
       "createSuccess": "Wasser eingetragen.",
       "updateSuccess": "Wassereintrag aktualisiert.",
-      "saveError": "Dein Wassereintrag konnte nicht gespeichert werden. Bitte versuche es erneut."
+      "saveError": "Dein Wassereintrag konnte nicht gespeichert werden. Bitte versuche es erneut.",
+      "dailyLimitError": "Damit würde die Wasseraufnahme des Tages das Limit von 20.000 ml überschreiten."
     },
     "target": {
       "title": "Wasserziel setzen",
@@ -596,6 +605,8 @@
       "startTime": "Startzeit",
       "startTimeRequired": "Bitte wähle eine Startzeit.",
       "endTime": "Endzeit",
+      "endBeforeStart": "Die Endzeit darf nicht vor der Startzeit liegen.",
+      "endWhileInProgress": "Ein laufendes Fasten kann keine Endzeit haben.",
       "status": "Status",
       "notes": "Notizen",
       "create": "Starten",
@@ -604,7 +615,9 @@
       "close": "Schließen",
       "createSuccess": "Fasten gestartet.",
       "updateSuccess": "Fastensitzung aktualisiert.",
-      "saveError": "Deine Fastensitzung konnte nicht gespeichert werden. Bitte versuche es erneut."
+      "saveError": "Deine Fastensitzung konnte nicht gespeichert werden. Bitte versuche es erneut.",
+      "overlapError": "Dieses Fasten überschneidet sich mit einer anderen Fastensitzung, oder es läuft bereits ein anderes Fasten.",
+      "invalidTimesError": "Ein Fasten kann nicht enden, bevor es beginnt, ein abgeschlossenes oder unterbrochenes Fasten braucht eine Endzeit, und ein laufendes Fasten kann keine haben."
     },
     "target": {
       "title": "Fastenziel setzen",
@@ -621,6 +634,20 @@
     "complete": {
       "success": "Fasten beendet.",
       "error": "Dein Fasten konnte nicht beendet werden. Bitte versuche es erneut."
+    },
+    "endConfirm": {
+      "broken": {
+        "title": "Dieses Fasten abbrechen?",
+        "body": "Das Fasten endet jetzt und wird als abgebrochen gespeichert. Das kann nicht rückgängig gemacht werden.",
+        "confirm": "Fasten abbrechen"
+      },
+      "cancelled": {
+        "title": "Dieses Fasten verwerfen?",
+        "body": "Das Fasten endet jetzt und wird als verworfen gespeichert. Das kann nicht rückgängig gemacht werden.",
+        "confirm": "Fasten verwerfen"
+      },
+      "cancel": "Weiter fasten",
+      "close": "Schließen"
     },
     "empty": {
       "title": "Noch keine Fasten",

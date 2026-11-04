@@ -11,7 +11,7 @@
     "subtitle": "Tüm etkinliklerinize göz atın, filtreleyin ve sıralayın.",
     "searchPlaceholder": "Ada veya konuma göre ara",
     "clearSearch": "Aramayı temizle",
-    "resultCount": "{count} etkinlik",
+    "resultCount": "{count} etkinlik | {count} etkinlik",
     "filters": {
       "type": "Etkinlik türü",
       "allTypes": "Tüm türler",
@@ -188,6 +188,7 @@
     "cancel": "İptal",
     "close": "Kapat",
     "name": "Ad",
+    "nameRequired": "Etkinlik için bir ad girin",
     "type": "Etkinlik türü",
     "description": "Açıklama",
     "privateNotes": "Özel notlar",

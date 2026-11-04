@@ -121,6 +121,8 @@
       "weightUnitsMetric": "Kilogram (kg)",
       "weightUnitsImperial": "Pund (lb)",
       "height": "Längd",
+      "heightInvalid": "Längden måste vara mellan 1 och 300 cm",
+      "maxHeartRateInvalid": "Maxpulsen måste vara mellan 30 och 250 slag/min",
       "feetInvalid": "Fot måste vara mellan 0 och 10",
       "inchesInvalid": "Tum måste vara mellan 0 och 11",
       "maxHeartRate": "Maximal hjärtfrekvens",
@@ -274,6 +276,31 @@
     "saving": "Sparar…",
     "saveSuccess": "Serverinställningar uppdaterade",
     "saveError": "Kunde inte uppdatera serverinställningarna. Försök igen.",
+    "staleError": "Någon annan ändrade de här inställningarna medan du redigerade. Dina ändringar sparades inte. Ladda om sidan för att se de aktuella värdena.",
+    "envLocked": "Anges av {name}",
+    "envSection": "Vissa inställningar här anges av miljövariabler ({names}). Ta bort dem från miljön för att redigera de inställningarna här.",
+    "unsaved": "Osparade ändringar",
+    "discard": "Förkasta",
+    "tabs": {
+      "label": "Avsnitt i serverinställningarna",
+      "general": "Allmänt",
+      "access": "Åtkomst och säkerhet",
+      "maps": "Kartor och plats",
+      "email": "E-post",
+      "logs": "Loggar",
+      "unsaved": "Har osparade ändringar"
+    },
+    "search": {
+      "placeholder": "Sök inställningar…",
+      "noResults": "Inga inställningar hittades"
+    },
+    "leave": {
+      "title": "Lämna utan att spara?",
+      "description": "Du har osparade ändringar. Om du lämnar sidan går de förlorade.",
+      "confirm": "Lämna utan att spara",
+      "stay": "Stanna på sidan",
+      "close": "Stäng"
+    },
     "loadError": {
       "title": "Kunde inte ladda serverinställningar",
       "description": "Något gick fel när serverinställningarna laddades. Du kan försöka igen.",
@@ -294,6 +321,29 @@
       "title": "Lösenordspolicy",
       "lengthRegular": "Minsta längd vanliga användare",
       "lengthAdmin": "Minsta längd adminanvändare"
+    },
+    "session": {
+      "title": "Sessioner",
+      "description": "Ändringarna gäller nya inloggningar och nästa förnyelse av token. Token som redan utfärdats behåller sin livslängd.",
+      "idleTimeoutEnabled": "Tillämpa tidsgräns för inaktivitet",
+      "idleHours": "Tidsgräns för inaktivitet (timmar)",
+      "idleHoursHint": "När den tillämpas avslutas en session efter så här många timmar utan aktivitet.",
+      "absoluteHours": "Absolut tidsgräns (timmar)",
+      "absoluteHoursHint": "En session avslutas så här många timmar efter inloggningen, oavsett aktivitet. Gäller alltid. Får inte vara kortare än tidsgränsen för inaktivitet.",
+      "accessMinutes": "Åtkomsttokens livslängd (minuter)",
+      "refreshDays": "Förnyelsetokens livslängd (dagar)",
+      "invalidRange": "Ange ett heltal mellan {min} och {max}.",
+      "absoluteBelowIdle": "Får inte vara kortare än tidsgränsen för inaktivitet."
+    },
+    "retention": {
+      "title": "Lagring av data",
+      "readNotifications": "Ta bort lästa aviseringar efter (dagar)",
+      "readNotificationsHint": "0 sparar lästa aviseringar för alltid. Olästa aviseringar tas aldrig bort.",
+      "auditTrail": "Ta bort poster i granskningsloggen efter (dagar)",
+      "auditTrailHint": "0 sparar allt. Annars är minimum 30 dagar; poster tas bort hela dagar i taget.",
+      "auditTrailInvalid": "Ange 0, eller ett heltal mellan {min} och {max}.",
+      "auditLegalHold": "Rättslig spärr på granskningsloggen",
+      "auditLegalHoldHint": "När den är på pausas all rensning av granskningsloggen, oavsett lagringstid."
     },
     "signup": {
       "title": "Registrering",
@@ -330,12 +380,33 @@
       "attribution": "Attribution",
       "apiKey": "Brickserver API-nyckel",
       "apiKeyWarning": "API-nyckeln lagras krypterad. Lämna tomt om din brickserver inte behöver en.",
+      "apiKeyStored": "En nyckel är sparad",
+      "apiKeyRemove": "Ta bort den sparade API-nyckeln",
       "backgroundColor": "Kartbakgrundsfärg",
       "regenerateThumbnails": "Regenerera aktivitetsminiatyrer när kartinställningar ändras"
+    },
+    "geocoding": {
+      "title": "Omvänd geokodning",
+      "description": "Omvandlar aktiviteters koordinater till platsnamn. Ändringar gäller utan omstart.",
+      "service": "Tjänst",
+      "serviceNominatim": "Nominatim",
+      "servicePhoton": "Photon",
+      "serviceGeocode": "geocode.maps.co",
+      "host": "Värd",
+      "hostHint": "Värdnamn med valfri port, utan schema. En värd i ett privat nätverk måste finnas i SSRF_ALLOWED_HOSTS.",
+      "useHttps": "Anslut via HTTPS",
+      "rateLimit": "Förfrågningar per sekund",
+      "rateLimitHint": "0 stänger av begränsningen. Behåll 1 för de publika tjänsterna Nominatim och Photon.",
+      "rateLimitInvalid": "Ange ett tal mellan 0 och 100.",
+      "apiKey": "API-nyckel",
+      "apiKeyStored": "En nyckel är sparad. Lämna tomt för att behålla den.",
+      "apiKeyRemove": "Ta bort den sparade API-nyckeln",
+      "apiKeyRequired": "geocode.maps.co kräver en API-nyckel."
     },
     "photo": {
       "title": "Inloggningsbild",
       "description": "En anpassad bild som visas på inloggningsskärmen",
+      "previewAlt": "Nuvarande inloggningsfoto",
       "add": "Ladda upp inloggningsbild",
       "replace": "Ersätt inloggningsbild",
       "delete": "Ta bort inloggningsbild",
@@ -349,6 +420,30 @@
       "cancel": "Avbryt",
       "close": "Stäng"
     },
+    "logs": {
+      "title": "Serverloggar",
+      "description": "De senaste posterna i applikationsloggen. Loggar från driftsättningar med flera processer samlas in av din plattform i stället.",
+      "level": "Lägsta nivå",
+      "allLevels": "Alla nivåer",
+      "search": "Sök",
+      "searchPlaceholder": "Text, logger eller förfrågnings-ID…",
+      "live": "Live",
+      "refresh": "Uppdatera",
+      "download": "Ladda ned",
+      "downloadError": "Kunde inte ladda ned loggfilen.",
+      "clear": "Rensa",
+      "cleared": "Loggarna rensades",
+      "clearError": "Kunde inte rensa loggarna.",
+      "clearConfirm": {
+        "title": "Rensa serverloggarna?",
+        "description": "Det här tar bort loggfilen och dess roterade säkerhetskopior permanent. Ladda ned loggen först om du kan behöva den. Själva åtgärden registreras i den nya loggen.",
+        "confirm": "Rensa loggar",
+        "cancel": "Avbryt",
+        "close": "Stäng"
+      },
+      "loadError": "Kunde inte ladda loggarna.",
+      "empty": "Inga loggposter hittades"
+    },
     "email": {
       "title": "E-post",
       "description": "Endurain skickar e-post för återställning av lösenord och registrering via den SMTP-server som är konfigurerad i miljön.",
@@ -360,30 +455,26 @@
       "sendHint": "Test-e-posten skickas till din egen adress.",
       "sent": "Test-e-post skickad",
       "failed": "Test-e-posten kunde inte skickas",
-      "failedUnknown": "Se serverloggarna för mer information."
-    },
-    "envLocked": "Anges av {name}",
-    "envSection": "Vissa inställningar här anges av miljövariabler ({names}). Ta bort dem från miljön för att redigera de inställningarna här.",
-    "unsaved": "Osparade ändringar",
-    "discard": "Förkasta",
-    "tabs": {
-      "label": "Avsnitt i serverinställningarna",
-      "general": "Allmänt",
-      "access": "Åtkomst och säkerhet",
-      "maps": "Kartor och plats",
-      "email": "E-post",
-      "unsaved": "Har osparade ändringar"
-    },
-    "search": {
-      "placeholder": "Sök inställningar…",
-      "noResults": "Inga inställningar hittades"
-    },
-    "leave": {
-      "title": "Lämna utan att spara?",
-      "description": "Du har osparade ändringar. Om du lämnar sidan går de förlorade.",
-      "confirm": "Lämna utan att spara",
-      "stay": "Stanna på sidan",
-      "close": "Stäng"
+      "failedUnknown": "Se serverloggarna för mer information.",
+      "settingsLoadError": "Kunde inte ladda e-postinställningarna.",
+      "host": "Värd",
+      "hostHint": "Lämna tomt för att stänga av e-post.",
+      "port": "Port",
+      "portInvalid": "Ange en port mellan 1 och 65535.",
+      "security": "Anslutningssäkerhet",
+      "securityStarttls": "STARTTLS",
+      "securitySsl": "SSL/TLS",
+      "securityNone": "Ingen (endast privat relä)",
+      "securityNoneWarning": "Utan kryptering accepteras bara en e-postserver på en privat adress eller loopback-adress, och användarnamn och lösenord kan inte användas.",
+      "username": "Användarnamn",
+      "password": "Lösenord",
+      "passwordStored": "Ett lösenord är sparat. Lämna tomt för att behålla det.",
+      "passwordRemove": "Ta bort det sparade lösenordet",
+      "fromAddress": "Avsändaradress",
+      "fromAddressHint": "Lämna tomt för att använda användarnamnet.",
+      "save": "Spara e-postinställningar",
+      "saveSuccess": "E-postinställningarna sparades",
+      "saveError": "E-postinställningarna kunde inte sparas"
     }
   },
   "idp": {
@@ -445,6 +536,7 @@
       "issuerUrl": "Utgivar-URL",
       "issuerUrlHint": "Leverantörens OIDC-utgivar- eller discovery-URL",
       "issuerUrlRequired": "Utgivar-URL krävs",
+      "issuerUrlRefused": "Leverantörens URL avvisades. Den måste använda https:// och gå att slå upp från servern, och en leverantör i ett privat nätverk måste finnas i SSRF_ALLOWED_HOSTS.",
       "issuerUrlTooLong": "Utgivar-URL får vara högst 500 tecken",
       "clientId": "Klient-ID",
       "clientIdRequired": "Klient-ID krävs",
@@ -459,12 +551,22 @@
       "scopesTooLong": "Scopes får vara högst 500 tecken",
       "icon": "Ikon",
       "iconNone": "Ingen",
+      "iconUpload": "Ladda upp en bild",
+      "iconFileHint": "En PNG-, JPEG-, GIF- eller WebP-bild på högst 1 MB, som visas på inloggningsknappen",
+      "iconChoose": "Välj bild",
+      "iconReplace": "Byt ut bild",
+      "iconPreviewAlt": "Förhandsvisning av ikonen",
+      "iconFileRequired": "Välj en bild att ladda upp",
+      "iconFileInvalidType": "Ikonen måste vara en PNG-, JPEG-, GIF- eller WebP-bild",
+      "iconFileTooLarge": "Ikonen får vara högst 1 MB",
+      "iconSaveError": "Leverantören sparades, men ikonen kunde inte uppdateras. Redigera leverantören för att försöka igen.",
       "enabled": "Aktiverad",
       "autoCreateUsers": "Skapa automatiskt användare vid första inloggning",
       "syncUserInfo": "Synkronisera profilinfo vid varje inloggning",
       "createSuccess": "Leverantör tillagd",
       "updateSuccess": "Leverantör uppdaterad",
       "slugConflict": "Den sluggen används redan",
+      "staleError": "Den här leverantören ändrades på annat håll. Dina ändringar sparades inte. Stäng och öppna den igen för att ladda de aktuella inställningarna.",
       "saveError": "Kunde inte spara leverantören. Försök igen."
     }
   },
@@ -472,7 +574,7 @@
     "title": "Mina mål",
     "subtitle": "Sätt mål för dina aktiviteter och spåra dina framsteg",
     "buttonAdd": "Lägg till mål",
-    "count": "Det finns totalt {count} mål:",
+    "count": "Det finns totalt {count} mål: | Det finns totalt {count} mål:",
     "filters": "Filter",
     "filter": {
       "all": "Alla",
@@ -556,6 +658,7 @@
     "hidePassword": "Dölj lösenord",
     "mfaCode": "Autentiseringskod",
     "mfaCodePlaceholder": "123456",
+    "confirmPhrase": "Skriv {phrase} för att bekräfta",
     "loadError": {
       "title": "Kunde inte ladda dina säkerhetsinställningar",
       "description": "Något gick fel. Du kan försöka igen."
@@ -579,7 +682,7 @@
       "disabledDescription": "Tvåfaktorsautentisering är av. Slå på den för att bättre skydda ditt konto.",
       "enable": "Aktivera tvåfaktor",
       "enabledDescription": "Tvåfaktorsautentisering är på.",
-      "backupRemaining": "{unused} av {total} reservkoder kvar.",
+      "backupRemaining": "{unused} av {total} reservkod kvar. | {unused} av {total} reservkoder kvar.",
       "regenerate": "Regenerera reservkoder",
       "disable": "Inaktivera",
       "setupTitle": "Aktivera tvåfaktorsautentisering",
@@ -653,10 +756,16 @@
       "unlinkError": "Kunde inte koppla bort kontot. Försök igen.",
       "invalidCredentials": "Ditt lösenord eller din kod är felaktig.",
       "alreadyLinked": "Det kontot är redan kopplat.",
-      "lastMethodError": "Du kan inte koppla bort din enda inloggningsmetod. Ange ett lösenord först."
+      "lastMethodError": "Du kan inte koppla bort din enda inloggningsmetod. Ange ett lösenord först.",
+      "linkedOn": "Kopplad {date}"
     },
     "email": {
+      "title": "E-postadress",
       "subtitle": "Hit skickas återställningar av lösenord och aviseringar. För att ändra den behöver du bekräfta din identitet, och den nya adressen gäller först när du har bekräftat den via en länk som vi skickar dit.",
+      "current": "Nuvarande e-post",
+      "action": "Ändra e-post",
+      "new": "Ny e-post",
+      "invalid": "Ange en giltig e-postadress.",
       "sameAsCurrent": "Det här är redan din e-postadress.",
       "success": "En bekräftelselänk har skickats till den nya adressen. Din e-post ändras när du har bekräftat den.",
       "appliedSuccess": "E-postadressen har ändrats.",
@@ -667,7 +776,19 @@
       "resendSuccess": "Om en ändring väntar är en ny länk på väg till den nya adressen.",
       "resendError": "Det gick inte att skicka länken igen. Försök igen.",
       "cancelSuccess": "Ändringen av e-post avbröts.",
-      "cancelError": "Det gick inte att avbryta ändringen. Försök igen."
+      "cancelError": "Det gick inte att avbryta ändringen. Försök igen.",
+      "conflict": "Den e-postadressen används redan.",
+      "error": "Kunde inte ändra din e-post. Försök igen."
+    },
+    "deleteAccount": {
+      "title": "Radera mitt konto",
+      "subtitle": "Radera ditt konto och alla dina data permanent, inklusive aktiviteter och deras filer, hälsoposter, utrustning, mål, integrationer och sessioner. Det går inte att ångra. Exportera dina data först om du vill behålla en kopia.",
+      "action": "Radera mitt konto",
+      "dialogTitle": "Radera ditt konto?",
+      "dialogDescription": "Det här raderar ditt konto och alla dina data permanent. Bekräfta din identitet för att fortsätta.",
+      "confirm": "Radera mitt konto",
+      "error": "Kunde inte radera ditt konto. Försök igen.",
+      "onlyAdminError": "Du är den enda administratören. Gör en annan användare till administratör innan du raderar ditt konto."
     },
     "apiKeys": {
       "title": "API-nycklar",
@@ -712,6 +833,18 @@
       "deleteBody": "{name} raderas permanent. Det kan inte ångras.",
       "deleteSuccess": "API-nyckel borttagen",
       "deleteError": "Kunde inte ta bort API-nyckeln. Försök igen."
+    },
+    "stepUp": {
+      "prompt": "Ditt konto har inget lösenord. Logga in igen med en kopplad identitetsleverantör för att bekräfta att det är du.",
+      "continueWith": "Fortsätt med {name}",
+      "ready": "Inloggningen hos identitetsleverantören är bekräftad.",
+      "restart": "Logga in igen",
+      "noProviders": "Ingen kopplad identitetsleverantör är tillgänglig för att bekräfta din identitet.",
+      "startError": "Kunde inte starta inloggningen hos identitetsleverantören. Försök igen.",
+      "tooManyAttempts": "För många försök. Försök igen senare.",
+      "reauthRequired": "Bekräfta din identitet hos din identitetsleverantör för att fortsätta.",
+      "failed": "Den nya inloggningen hos din identitetsleverantör misslyckades. Försök igen.",
+      "notFresh": "Din identitetsleverantör bad dig inte logga in igen. Kontakta din administratör."
     }
   },
   "integrations": {
@@ -834,6 +967,8 @@
     "title": "Min profil",
     "subtitle": "Hantera dina kontouppgifter och sekretess",
     "notSet": "Inte angivet",
+    "emailManagedIn": "Din e-post ändras i säkerhetsinställningarna.",
+    "emailManagedLink": "Öppna säkerhetsinställningar",
     "error": {
       "title": "Kunde inte ladda din profil",
       "description": "Något gick fel när din profil laddades. Du kan försöka igen.",
@@ -939,9 +1074,40 @@
       "export": "Exportera data",
       "import": "Importera data",
       "invalidType": "Välj ett .zip-arkiv.",
-      "exportSuccess": "Export klar – din nedladdning bör starta snart",
+      "download": "Ladda ned exporten",
+      "downloadSuccess": "Nedladdningen bör starta inom kort",
+      "downloadError": "Kunde inte ladda ned exporten. Försök igen.",
+      "exportQueued": "Exporten har startat. Du kan lämna den här sidan.",
       "exportError": "Kunde inte exportera din data. Försök igen.",
-      "importError": "Kunde inte importera arkivet. Kontrollera filen och försök igen."
+      "exportInProgress": "En export pågår redan.",
+      "exportStatus": {
+        "queued": "Väntar på att exporten ska starta…",
+        "running": "Förbereder din export…",
+        "completed": "Din export är redo att laddas ned. Den finns kvar i två timmar.",
+        "failed": "Exporten slutfördes inte: {reason}"
+      },
+      "exportFailure": {
+        "timed_out": "den tog för lång tid. Du kan försöka igen.",
+        "processing_failed": "något gick fel. Du kan försöka igen."
+      },
+      "importQueued": "Importen har startat. Du kan lämna den här sidan.",
+      "importError": "Kunde inte importera arkivet. Kontrollera filen och försök igen.",
+      "importInProgress": "En import pågår redan.",
+      "status": {
+        "queued": "Väntar på att importen ska starta…",
+        "running": "Importerar dina data…",
+        "writing_files": "Sparar dina filer…",
+        "completed": "Importen är klar: {activities} aktiviteter och {gears} utrustningar importerades.",
+        "failed": "Importen slutfördes inte: {reason}"
+      },
+      "failure": {
+        "invalid_file": "arkivet är inte en giltig Endurain-export. Inget importerades.",
+        "too_large": "arkivet är för stort. Inget importerades.",
+        "too_many_activities": "arkivet innehåller för många aktiviteter. Inget importerades.",
+        "timed_out": "den tog för lång tid. Inget importerades, så du kan försöka igen.",
+        "files_incomplete": "dina data importerades men vissa filer saknas. Importera inte igen; det skulle duplicera dina data.",
+        "processing_failed": "något gick fel. Inget importerades, så du kan försöka igen."
+      }
     }
   }
 }

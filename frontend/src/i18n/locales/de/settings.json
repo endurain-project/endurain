@@ -121,6 +121,8 @@
       "weightUnitsMetric": "Kilogramm (kg)",
       "weightUnitsImperial": "Pfund (lb)",
       "height": "Körpergröße",
+      "heightInvalid": "Die Größe muss zwischen 1 und 300 cm liegen",
+      "maxHeartRateInvalid": "Die maximale Herzfrequenz muss zwischen 30 und 250 bpm liegen",
       "feetInvalid": "Fuß muss zwischen 0 und 10 liegen",
       "inchesInvalid": "Zoll muss zwischen 0 und 11 liegen",
       "maxHeartRate": "Maximale Herzfrequenz",
@@ -274,6 +276,31 @@
     "saving": "Wird gespeichert…",
     "saveSuccess": "Servereinstellungen aktualisiert",
     "saveError": "Servereinstellungen konnten nicht aktualisiert werden. Bitte versuche es erneut.",
+    "staleError": "Diese Einstellungen wurden von jemand anderem geändert, während du sie bearbeitet hast. Deine Änderungen wurden nicht gespeichert. Lade die Seite neu, um die aktuellen Werte zu sehen.",
+    "envLocked": "Festgelegt durch {name}",
+    "envSection": "Einige Einstellungen hier werden durch Umgebungsvariablen ({names}) festgelegt. Entferne sie aus der Umgebung, um diese Einstellungen hier zu bearbeiten.",
+    "unsaved": "Nicht gespeicherte Änderungen",
+    "discard": "Verwerfen",
+    "tabs": {
+      "label": "Bereiche der Servereinstellungen",
+      "general": "Allgemein",
+      "access": "Zugang & Sicherheit",
+      "maps": "Karten & Standort",
+      "email": "E-Mail",
+      "logs": "Protokolle",
+      "unsaved": "Enthält nicht gespeicherte Änderungen"
+    },
+    "search": {
+      "placeholder": "Einstellungen suchen…",
+      "noResults": "Keine Einstellungen gefunden"
+    },
+    "leave": {
+      "title": "Ohne Speichern verlassen?",
+      "description": "Du hast nicht gespeicherte Änderungen. Wenn du diese Seite verlässt, gehen sie verloren.",
+      "confirm": "Ohne Speichern verlassen",
+      "stay": "Auf der Seite bleiben",
+      "close": "Schließen"
+    },
     "loadError": {
       "title": "Servereinstellungen konnten nicht geladen werden",
       "description": "Beim Laden der Servereinstellungen ist etwas schiefgelaufen. Du kannst es erneut versuchen.",
@@ -294,6 +321,29 @@
       "title": "Passwortrichtlinie",
       "lengthRegular": "Mindestlänge für normale Benutzer",
       "lengthAdmin": "Mindestlänge für Administratoren"
+    },
+    "session": {
+      "title": "Sitzungen",
+      "description": "Änderungen gelten für neue Anmeldungen und für die nächste Token-Erneuerung. Bereits ausgestellte Token behalten ihre Gültigkeitsdauer.",
+      "idleTimeoutEnabled": "Inaktivitäts-Timeout erzwingen",
+      "idleHours": "Inaktivitäts-Timeout (Stunden)",
+      "idleHoursHint": "Wenn erzwungen, endet eine Sitzung nach dieser Anzahl von Stunden ohne Aktivität.",
+      "absoluteHours": "Absolutes Timeout (Stunden)",
+      "absoluteHoursHint": "Eine Sitzung endet nach dieser Anzahl von Stunden nach der Anmeldung, unabhängig von der Aktivität. Gilt immer. Nicht kürzer als das Inaktivitäts-Timeout.",
+      "accessMinutes": "Gültigkeit des Zugriffstokens (Minuten)",
+      "refreshDays": "Gültigkeit des Aktualisierungstokens (Tage)",
+      "invalidRange": "Gib eine ganze Zahl zwischen {min} und {max} ein.",
+      "absoluteBelowIdle": "Darf nicht kürzer sein als das Inaktivitäts-Timeout."
+    },
+    "retention": {
+      "title": "Datenaufbewahrung",
+      "readNotifications": "Gelesene Benachrichtigungen löschen nach (Tage)",
+      "readNotificationsHint": "Bei 0 bleiben gelesene Benachrichtigungen für immer erhalten. Ungelesene Benachrichtigungen werden nie gelöscht.",
+      "auditTrail": "Einträge im Audit-Protokoll löschen nach (Tage)",
+      "auditTrailHint": "Bei 0 bleibt alles erhalten. Andernfalls beträgt das Minimum 30 Tage; Einträge werden jeweils tageweise gelöscht.",
+      "auditTrailInvalid": "Gib 0 oder eine ganze Zahl zwischen {min} und {max} ein.",
+      "auditLegalHold": "Legal Hold für das Audit-Protokoll",
+      "auditLegalHoldHint": "Solange aktiv, wird jegliches Bereinigen des Audit-Protokolls ausgesetzt, unabhängig von der Aufbewahrung."
     },
     "signup": {
       "title": "Registrierung",
@@ -330,12 +380,33 @@
       "attribution": "Quellenangabe",
       "apiKey": "Kachelserver-API-Schlüssel",
       "apiKeyWarning": "Der API-Schlüssel wird verschlüsselt gespeichert. Leer lassen, wenn dein Kachelserver keinen benötigt.",
+      "apiKeyStored": "Ein Schlüssel ist gespeichert",
+      "apiKeyRemove": "Gespeicherten API-Schlüssel entfernen",
       "backgroundColor": "Karten-Hintergrundfarbe",
       "regenerateThumbnails": "Aktivitäts-Vorschaubilder bei Karteneinstellungsänderungen neu generieren"
+    },
+    "geocoding": {
+      "title": "Reverse-Geocoding",
+      "description": "Wandelt Aktivitätskoordinaten in Ortsnamen um. Änderungen gelten ohne Neustart.",
+      "service": "Dienst",
+      "serviceNominatim": "Nominatim",
+      "servicePhoton": "Photon",
+      "serviceGeocode": "geocode.maps.co",
+      "host": "Host",
+      "hostHint": "Hostname mit optionalem Port, ohne Schema. Ein Host in einem privaten Netzwerk muss in SSRF_ALLOWED_HOSTS aufgeführt sein.",
+      "useHttps": "Über HTTPS verbinden",
+      "rateLimit": "Anfragen pro Sekunde",
+      "rateLimitHint": "Bei 0 ist die Drosselung deaktiviert. Behalte 1 für die öffentlichen Dienste Nominatim und Photon bei.",
+      "rateLimitInvalid": "Gib eine Zahl zwischen 0 und 100 ein.",
+      "apiKey": "API-Schlüssel",
+      "apiKeyStored": "Ein Schlüssel ist gespeichert. Leer lassen, um ihn beizubehalten.",
+      "apiKeyRemove": "Gespeicherten API-Schlüssel entfernen",
+      "apiKeyRequired": "geocode.maps.co benötigt einen API-Schlüssel."
     },
     "photo": {
       "title": "Anmeldefoto",
       "description": "Ein benutzerdefiniertes Bild auf dem Anmeldebildschirm",
+      "previewAlt": "Aktuelles Anmeldefoto",
       "add": "Anmeldefoto hochladen",
       "replace": "Anmeldefoto ersetzen",
       "delete": "Anmeldefoto entfernen",
@@ -349,6 +420,30 @@
       "cancel": "Abbrechen",
       "close": "Schließen"
     },
+    "logs": {
+      "title": "Serverprotokolle",
+      "description": "Die neuesten Einträge des Anwendungsprotokolls. Protokolle von Deployments mit mehreren Prozessen werden stattdessen von deiner Plattform gesammelt.",
+      "level": "Mindestlevel",
+      "allLevels": "Alle Level",
+      "search": "Suche",
+      "searchPlaceholder": "Text, Logger oder Anfrage-ID…",
+      "live": "Live",
+      "refresh": "Aktualisieren",
+      "download": "Herunterladen",
+      "downloadError": "Die Protokolldatei konnte nicht heruntergeladen werden.",
+      "clear": "Leeren",
+      "cleared": "Protokolle geleert",
+      "clearError": "Die Protokolle konnten nicht geleert werden.",
+      "clearConfirm": {
+        "title": "Serverprotokolle leeren?",
+        "description": "Dadurch werden die Protokolldatei und ihre rotierten Sicherungen dauerhaft gelöscht. Lade das Protokoll vorher herunter, falls du es noch brauchst. Die Aktion selbst wird im neuen Protokoll festgehalten.",
+        "confirm": "Protokolle leeren",
+        "cancel": "Abbrechen",
+        "close": "Schließen"
+      },
+      "loadError": "Die Protokolle konnten nicht geladen werden.",
+      "empty": "Keine Protokolleinträge gefunden"
+    },
     "email": {
       "title": "E-Mail",
       "description": "Endurain versendet E-Mails zum Zurücksetzen des Passworts und zur Registrierung über den in der Umgebung konfigurierten SMTP-Server.",
@@ -360,30 +455,26 @@
       "sendHint": "Die Test-E-Mail wird an deine eigene Adresse gesendet.",
       "sent": "Test-E-Mail gesendet",
       "failed": "Die Test-E-Mail konnte nicht gesendet werden",
-      "failedUnknown": "Details findest du in den Serverlogs."
-    },
-    "envLocked": "Festgelegt durch {name}",
-    "envSection": "Einige Einstellungen hier werden durch Umgebungsvariablen ({names}) festgelegt. Entferne sie aus der Umgebung, um diese Einstellungen hier zu bearbeiten.",
-    "unsaved": "Nicht gespeicherte Änderungen",
-    "discard": "Verwerfen",
-    "tabs": {
-      "label": "Bereiche der Servereinstellungen",
-      "general": "Allgemein",
-      "access": "Zugang & Sicherheit",
-      "maps": "Karten & Standort",
-      "email": "E-Mail",
-      "unsaved": "Enthält nicht gespeicherte Änderungen"
-    },
-    "search": {
-      "placeholder": "Einstellungen suchen…",
-      "noResults": "Keine Einstellungen gefunden"
-    },
-    "leave": {
-      "title": "Ohne Speichern verlassen?",
-      "description": "Du hast nicht gespeicherte Änderungen. Wenn du diese Seite verlässt, gehen sie verloren.",
-      "confirm": "Ohne Speichern verlassen",
-      "stay": "Auf der Seite bleiben",
-      "close": "Schließen"
+      "failedUnknown": "Details findest du in den Serverlogs.",
+      "settingsLoadError": "Die E-Mail-Einstellungen konnten nicht geladen werden.",
+      "host": "Host",
+      "hostHint": "Leer lassen, um E-Mail zu deaktivieren.",
+      "port": "Port",
+      "portInvalid": "Gib einen Port zwischen 1 und 65535 ein.",
+      "security": "Verbindungssicherheit",
+      "securityStarttls": "STARTTLS",
+      "securitySsl": "SSL/TLS",
+      "securityNone": "Keine (nur privates Relay)",
+      "securityNoneWarning": "Ohne Verschlüsselung wird nur ein Mailserver mit privater oder Loopback-Adresse akzeptiert, und Benutzername und Passwort können nicht verwendet werden.",
+      "username": "Benutzername",
+      "password": "Passwort",
+      "passwordStored": "Ein Passwort ist gespeichert. Leer lassen, um es beizubehalten.",
+      "passwordRemove": "Gespeichertes Passwort entfernen",
+      "fromAddress": "Absenderadresse",
+      "fromAddressHint": "Leer lassen, um den Benutzernamen zu verwenden.",
+      "save": "E-Mail-Einstellungen speichern",
+      "saveSuccess": "E-Mail-Einstellungen gespeichert",
+      "saveError": "Die E-Mail-Einstellungen konnten nicht gespeichert werden"
     }
   },
   "idp": {
@@ -445,6 +536,7 @@
       "issuerUrl": "Aussteller-URL",
       "issuerUrlHint": "Die OIDC-Aussteller- oder Erkennungs-URL des Anbieters",
       "issuerUrlRequired": "Aussteller-URL ist erforderlich",
+      "issuerUrlRefused": "Die Anbieter-URL wurde abgelehnt. Sie muss https:// verwenden und vom Server aus auflösbar sein, und ein Anbieter in einem privaten Netzwerk muss in SSRF_ALLOWED_HOSTS aufgeführt sein.",
       "issuerUrlTooLong": "Aussteller-URL darf maximal 500 Zeichen lang sein",
       "clientId": "Client-ID",
       "clientIdRequired": "Client-ID ist erforderlich",
@@ -459,12 +551,22 @@
       "scopesTooLong": "Scopes dürfen maximal 500 Zeichen lang sein",
       "icon": "Symbol",
       "iconNone": "Kein",
+      "iconUpload": "Bild hochladen",
+      "iconFileHint": "Ein PNG-, JPEG-, GIF- oder WebP-Bild bis 1 MB, das auf der Anmeldeschaltfläche angezeigt wird",
+      "iconChoose": "Bild auswählen",
+      "iconReplace": "Bild ersetzen",
+      "iconPreviewAlt": "Symbolvorschau",
+      "iconFileRequired": "Wähle ein Bild zum Hochladen aus",
+      "iconFileInvalidType": "Das Symbol muss ein PNG-, JPEG-, GIF- oder WebP-Bild sein",
+      "iconFileTooLarge": "Das Symbol darf höchstens 1 MB groß sein",
+      "iconSaveError": "Der Anbieter wurde gespeichert, aber sein Symbol konnte nicht aktualisiert werden. Bearbeite den Anbieter, um es erneut zu versuchen.",
       "enabled": "Aktiviert",
       "autoCreateUsers": "Benutzer bei erster Anmeldung automatisch erstellen",
       "syncUserInfo": "Profilinformationen bei jeder Anmeldung synchronisieren",
       "createSuccess": "Anbieter hinzugefügt",
       "updateSuccess": "Anbieter aktualisiert",
       "slugConflict": "Dieser Slug wird bereits verwendet",
+      "staleError": "Dieser Anbieter wurde anderswo geändert. Deine Änderungen wurden nicht gespeichert. Schließe ihn und öffne ihn erneut, um die aktuellen Einstellungen zu laden.",
       "saveError": "Anbieter konnte nicht gespeichert werden. Bitte versuche es erneut."
     }
   },
@@ -472,7 +574,7 @@
     "title": "Meine Ziele",
     "subtitle": "Lege Ziele für deine Aktivitäten fest und verfolge deinen Fortschritt",
     "buttonAdd": "Ziel hinzufügen",
-    "count": "Es gibt insgesamt {count} Ziel(e):",
+    "count": "Es gibt insgesamt {count} Ziel: | Es gibt insgesamt {count} Ziele:",
     "filters": "Filter",
     "filter": {
       "all": "Alle",
@@ -556,6 +658,7 @@
     "hidePassword": "Passwort verbergen",
     "mfaCode": "Authentifizierungscode",
     "mfaCodePlaceholder": "123456",
+    "confirmPhrase": "Gib {phrase} zur Bestätigung ein",
     "loadError": {
       "title": "Deine Sicherheitseinstellungen konnten nicht geladen werden",
       "description": "Etwas ist schiefgelaufen. Du kannst es erneut versuchen."
@@ -579,7 +682,7 @@
       "disabledDescription": "Zwei-Faktor-Authentifizierung ist deaktiviert. Aktiviere sie, um dein Konto besser zu schützen.",
       "enable": "Zwei-Faktor aktivieren",
       "enabledDescription": "Zwei-Faktor-Authentifizierung ist aktiviert.",
-      "backupRemaining": "{unused} von {total} Backup-Codes verbleibend.",
+      "backupRemaining": "{unused} von {total} Backup-Code verbleibend. | {unused} von {total} Backup-Codes verbleibend.",
       "regenerate": "Backup-Codes neu generieren",
       "disable": "Deaktivieren",
       "setupTitle": "Zwei-Faktor-Authentifizierung aktivieren",
@@ -653,10 +756,16 @@
       "unlinkError": "Das Konto konnte nicht getrennt werden. Bitte versuche es erneut.",
       "invalidCredentials": "Dein Passwort oder Code ist falsch.",
       "alreadyLinked": "Dieses Konto ist bereits verknüpft.",
-      "lastMethodError": "Du kannst deine einzige Anmeldemethode nicht trennen. Setze zuerst ein Passwort."
+      "lastMethodError": "Du kannst deine einzige Anmeldemethode nicht trennen. Setze zuerst ein Passwort.",
+      "linkedOn": "Verknüpft am {date}"
     },
     "email": {
+      "title": "E-Mail-Adresse",
       "subtitle": "Hierhin werden Passwort-Zurücksetzungen und Benachrichtigungen gesendet. Für eine Änderung musst du deine Identität bestätigen, und die neue Adresse gilt erst, wenn du sie über einen Link bestätigst, den wir dorthin senden.",
+      "current": "Aktuelle E-Mail",
+      "action": "E-Mail ändern",
+      "new": "Neue E-Mail",
+      "invalid": "Gib eine gültige E-Mail-Adresse ein.",
       "sameAsCurrent": "Das ist bereits deine E-Mail-Adresse.",
       "success": "Bestätigungslink an die neue Adresse gesendet. Deine E-Mail-Adresse wird geändert, sobald du sie bestätigst.",
       "appliedSuccess": "E-Mail-Adresse geändert.",
@@ -667,7 +776,19 @@
       "resendSuccess": "Falls eine Änderung aussteht, ist ein neuer Link auf dem Weg zur neuen Adresse.",
       "resendError": "Der Link konnte nicht erneut gesendet werden. Bitte versuche es erneut.",
       "cancelSuccess": "E-Mail-Änderung abgebrochen.",
-      "cancelError": "Die Änderung konnte nicht abgebrochen werden. Bitte versuche es erneut."
+      "cancelError": "Die Änderung konnte nicht abgebrochen werden. Bitte versuche es erneut.",
+      "conflict": "Diese E-Mail-Adresse wird bereits verwendet.",
+      "error": "Deine E-Mail konnte nicht geändert werden. Bitte versuche es erneut."
+    },
+    "deleteAccount": {
+      "title": "Mein Konto löschen",
+      "subtitle": "Lösche dein Konto und alle deine Daten dauerhaft, einschließlich Aktivitäten und ihrer Dateien, Gesundheitsdaten, Ausrüstung, Ziele, Integrationen und Sitzungen. Das kann nicht rückgängig gemacht werden. Exportiere zuerst deine Daten, wenn du eine Kopie behalten möchtest.",
+      "action": "Mein Konto löschen",
+      "dialogTitle": "Dein Konto löschen?",
+      "dialogDescription": "Dadurch werden dein Konto und alle deine Daten dauerhaft gelöscht. Bestätige deine Identität, um fortzufahren.",
+      "confirm": "Mein Konto löschen",
+      "error": "Dein Konto konnte nicht gelöscht werden. Bitte versuche es erneut.",
+      "onlyAdminError": "Du bist der einzige Administrator. Mache einen anderen Benutzer zum Administrator, bevor du dein Konto löschst."
     },
     "apiKeys": {
       "title": "API-Schlüssel",
@@ -712,6 +833,18 @@
       "deleteBody": "{name} wird dauerhaft gelöscht. Dies kann nicht rückgängig gemacht werden.",
       "deleteSuccess": "API-Schlüssel gelöscht",
       "deleteError": "Der API-Schlüssel konnte nicht gelöscht werden. Bitte versuche es erneut."
+    },
+    "stepUp": {
+      "prompt": "Dein Konto hat kein Passwort. Melde dich erneut mit einem verknüpften Identitätsanbieter an, um zu bestätigen, dass du es bist.",
+      "continueWith": "Weiter mit {name}",
+      "ready": "Anmeldung beim Identitätsanbieter bestätigt.",
+      "restart": "Erneut anmelden",
+      "noProviders": "Es ist kein verknüpfter Identitätsanbieter verfügbar, um deine Identität zu bestätigen.",
+      "startError": "Die Anmeldung beim Identitätsanbieter konnte nicht gestartet werden. Bitte versuche es erneut.",
+      "tooManyAttempts": "Zu viele Versuche. Bitte versuche es später erneut.",
+      "reauthRequired": "Bestätige deine Identität bei deinem Identitätsanbieter, um fortzufahren.",
+      "failed": "Die erneute Anmeldung bei deinem Identitätsanbieter ist fehlgeschlagen. Bitte versuche es erneut.",
+      "notFresh": "Dein Identitätsanbieter hat dich nicht zur erneuten Anmeldung aufgefordert. Wende dich an deinen Administrator."
     }
   },
   "integrations": {
@@ -834,6 +967,8 @@
     "title": "Mein Profil",
     "subtitle": "Verwalte deine Kontodaten und Datenschutz",
     "notSet": "Nicht festgelegt",
+    "emailManagedIn": "Deine E-Mail änderst du in den Sicherheitseinstellungen.",
+    "emailManagedLink": "Sicherheitseinstellungen öffnen",
     "error": {
       "title": "Dein Profil konnte nicht geladen werden",
       "description": "Beim Laden deines Profils ist etwas schiefgelaufen. Du kannst es erneut versuchen.",
@@ -939,9 +1074,40 @@
       "export": "Daten exportieren",
       "import": "Daten importieren",
       "invalidType": "Bitte wähle ein .zip-Archiv.",
-      "exportSuccess": "Export bereit, dein Download sollte in Kürze beginnen",
+      "download": "Export herunterladen",
+      "downloadSuccess": "Dein Download sollte in Kürze beginnen",
+      "downloadError": "Der Export konnte nicht heruntergeladen werden. Bitte versuche es erneut.",
+      "exportQueued": "Export gestartet. Du kannst diese Seite verlassen.",
       "exportError": "Deine Daten konnten nicht exportiert werden. Bitte versuche es erneut.",
-      "importError": "Das Archiv konnte nicht importiert werden. Bitte überprüfe die Datei und versuche es erneut."
+      "exportInProgress": "Ein Export läuft bereits.",
+      "exportStatus": {
+        "queued": "Warten auf den Start des Exports…",
+        "running": "Dein Export wird vorbereitet…",
+        "completed": "Dein Export steht zum Download bereit. Er bleibt zwei Stunden lang verfügbar.",
+        "failed": "Der Export wurde nicht abgeschlossen: {reason}"
+      },
+      "exportFailure": {
+        "timed_out": "er hat zu lange gedauert. Du kannst es erneut versuchen.",
+        "processing_failed": "etwas ist schiefgelaufen. Du kannst es erneut versuchen."
+      },
+      "importQueued": "Import gestartet. Du kannst diese Seite verlassen.",
+      "importError": "Das Archiv konnte nicht importiert werden. Bitte überprüfe die Datei und versuche es erneut.",
+      "importInProgress": "Ein Import läuft bereits.",
+      "status": {
+        "queued": "Warten auf den Start des Imports…",
+        "running": "Deine Daten werden importiert…",
+        "writing_files": "Deine Dateien werden gespeichert…",
+        "completed": "Import abgeschlossen: {activities} Aktivitäten und {gears} Ausrüstungsgegenstände importiert.",
+        "failed": "Der Import wurde nicht abgeschlossen: {reason}"
+      },
+      "failure": {
+        "invalid_file": "das Archiv ist kein gültiger Endurain-Export. Es wurde nichts importiert.",
+        "too_large": "das Archiv ist zu groß. Es wurde nichts importiert.",
+        "too_many_activities": "das Archiv enthält zu viele Aktivitäten. Es wurde nichts importiert.",
+        "timed_out": "er hat zu lange gedauert. Es wurde nichts importiert, daher kannst du es erneut versuchen.",
+        "files_incomplete": "deine Daten wurden importiert, aber einige Dateien fehlen. Importiere sie nicht erneut, sonst würden deine Daten doppelt vorhanden sein.",
+        "processing_failed": "etwas ist schiefgelaufen. Es wurde nichts importiert, daher kannst du es erneut versuchen."
+      }
     }
   }
 }

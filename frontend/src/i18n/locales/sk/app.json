@@ -19,6 +19,15 @@
     "reload": "Znova načítať"
   },
   "staleError": "Toto bolo zmenené inde, kým ste to pozerali, takže sa nič neuložilo. Aktuálna verzia bola načítaná. Skontrolujte ju a skúste to znova.",
+  "fieldError": {
+    "required": "Toto pole je povinné",
+    "tooShort": "Táto hodnota je príliš krátka",
+    "tooLong": "Táto hodnota je príliš dlhá",
+    "tooLarge": "Táto hodnota je príliš veľká",
+    "tooSmall": "Táto hodnota je príliš malá",
+    "invalidFormat": "Táto hodnota má neplatný formát",
+    "invalid": "Táto hodnota je neplatná"
+  },
   "dismiss": "Zavrieť",
   "language": "Jazyk",
   "theme": {
@@ -40,6 +49,17 @@
   "password": {
     "hintLength": "Aspoň {min} znakov.",
     "invalid": "Heslo nespĺňa požiadavky",
-    "mismatch": "Heslá sa nezhodujú"
+    "mismatch": "Heslá sa nezhodujú",
+    "tooShort": "Toto heslo je príliš krátke. Použite aspoň {min} znakov.",
+    "tooCommon": "Toto heslo je príliš bežné. Zvoľte také, ktoré sa ťažšie uhádne.",
+    "matchesAccount": "Nepoužívajte ako heslo svoje používateľské meno ani e-mailovú adresu.",
+    "strength": {
+      "label": "Sila hesla: {level}",
+      "tooWeak": "Príliš slabé",
+      "weak": "Slabé",
+      "fair": "Priemerné",
+      "good": "Dobré",
+      "strong": "Silné"
+    }
   }
 }

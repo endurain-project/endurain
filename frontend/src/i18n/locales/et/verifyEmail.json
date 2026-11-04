@@ -15,5 +15,13 @@
   "errorNotFound": "Me ei leidnud sellele lingile vastavat kontot.",
   "errorGeneral": "Sinu e-posti ei õnnestunud kinnitada. Palun proovi uuesti.",
   "retry": "Proovi uuesti",
-  "backToLogin": "Tagasi sisselogimisse"
+  "backToLogin": "Tagasi sisselogimisse",
+  "resendTitle": "Vajad uut linki?",
+  "resendBody": "Sisesta aadress, millega registreerusid, ja me saadame uue kinnituskirja, kui see on veel ootel.",
+  "resendEmail": "E-posti aadress",
+  "resendButton": "Saada uus e-kiri",
+  "resendSending": "Saatmine",
+  "resendSent": "Kui see aadress ootab kinnitamist, on uus e-kiri teel.",
+  "resendTooManyAttempts": "Liiga palju katseid. Palun oota enne uuesti proovimist.",
+  "resendError": "E-kirja saatmine ebaõnnestus. Palun proovi uuesti."
 }

@@ -19,6 +19,15 @@
     "reload": "Újratöltés"
   },
   "staleError": "Ezt máshol módosították, miközben nézted, ezért semmi sem lett mentve. A jelenlegi verzió betöltődött. Nézd át, és próbáld újra.",
+  "fieldError": {
+    "required": "Ez a mező kötelező",
+    "tooShort": "Ez az érték túl rövid",
+    "tooLong": "Ez az érték túl hosszú",
+    "tooLarge": "Ez az érték túl nagy",
+    "tooSmall": "Ez az érték túl kicsi",
+    "invalidFormat": "Ez az érték formátuma érvénytelen",
+    "invalid": "Ez az érték érvénytelen"
+  },
   "dismiss": "Bezárás",
   "language": "Nyelv",
   "theme": {
@@ -40,6 +49,17 @@
   "password": {
     "hintLength": "Legalább {min} karakter.",
     "invalid": "A jelszó nem felel meg a követelményeknek",
-    "mismatch": "A jelszavak nem egyeznek"
+    "mismatch": "A jelszavak nem egyeznek",
+    "tooShort": "Ez a jelszó túl rövid. Legalább {min} karaktert használj.",
+    "tooCommon": "Ez a jelszó túl gyakori. Válassz egy nehezebben kitalálhatót.",
+    "matchesAccount": "Ne használd jelszóként a felhasználónevedet vagy az e-mail-címedet.",
+    "strength": {
+      "label": "Jelszó erőssége: {level}",
+      "tooWeak": "Túl gyenge",
+      "weak": "Gyenge",
+      "fair": "Közepes",
+      "good": "Jó",
+      "strong": "Erős"
+    }
   }
 }

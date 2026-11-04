@@ -19,6 +19,15 @@
     "reload": "重新加载"
   },
   "staleError": "您查看时此内容已在别处被修改，因此未保存任何内容。已加载当前版本。请检查后重试。",
+  "fieldError": {
+    "required": "此字段为必填项",
+    "tooShort": "此值太短",
+    "tooLong": "此值太长",
+    "tooLarge": "此值太大",
+    "tooSmall": "此值太小",
+    "invalidFormat": "此值格式无效",
+    "invalid": "此值无效"
+  },
   "dismiss": "关闭",
   "language": "语言",
   "theme": {
@@ -40,6 +49,17 @@
   "password": {
     "hintLength": "At least {min} characters.",
     "invalid": "Password does not meet the requirements",
-    "mismatch": "两次密码不一致"
+    "mismatch": "两次密码不一致",
+    "tooShort": "此密码太短，请至少使用 {min} 个字符。",
+    "tooCommon": "此密码太常见，请选择更难猜测的密码。",
+    "matchesAccount": "请勿使用您的用户名或电子邮件地址作为密码。",
+    "strength": {
+      "label": "密码强度：{level}",
+      "tooWeak": "太弱",
+      "weak": "弱",
+      "fair": "一般",
+      "good": "良好",
+      "strong": "强"
+    }
   }
 }

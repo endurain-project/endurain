@@ -121,6 +121,8 @@
       "weightUnitsMetric": "公斤 (kg)",
       "weightUnitsImperial": "磅 (lb)",
       "height": "身高",
+      "heightInvalid": "身高必須介於 1 到 300 公分之間",
+      "maxHeartRateInvalid": "最大心率必須介於 30 到 250 bpm 之間",
       "feetInvalid": "英尺必須介於 0 到 10 之間",
       "inchesInvalid": "英寸必須介於 0 到 11 之間",
       "maxHeartRate": "最大心率",
@@ -274,6 +276,31 @@
     "saving": "儲存中…",
     "saveSuccess": "伺服器設定已更新",
     "saveError": "無法更新伺服器設定，請再試一次。",
+    "staleError": "您編輯期間，這些設定已被其他人變更，您的變更未儲存。請重新整理頁面查看目前的值。",
+    "envLocked": "由 {name} 設定",
+    "envSection": "此處的部分設定由環境變數（{names}）決定。請從環境中移除這些變數，以便在此處編輯相應設定。",
+    "unsaved": "未儲存的變更",
+    "discard": "捨棄",
+    "tabs": {
+      "label": "伺服器設定分區",
+      "general": "一般",
+      "access": "存取與安全性",
+      "maps": "地圖與位置",
+      "email": "電子郵件",
+      "logs": "日誌",
+      "unsaved": "有未儲存的變更"
+    },
+    "search": {
+      "placeholder": "搜尋設定…",
+      "noResults": "找不到設定"
+    },
+    "leave": {
+      "title": "不儲存就離開？",
+      "description": "你有未儲存的變更。離開此頁面後這些變更將會遺失。",
+      "confirm": "不儲存並離開",
+      "stay": "留在此頁面",
+      "close": "關閉"
+    },
     "loadError": {
       "title": "無法載入伺服器設定",
       "description": "載入伺服器設定時發生錯誤，請再試一次。",
@@ -294,6 +321,29 @@
       "title": "密碼原則",
       "lengthRegular": "一般使用者最短長度",
       "lengthAdmin": "管理員使用者最短長度"
+    },
+    "session": {
+      "title": "工作階段",
+      "description": "變更將套用於新的登入與下一次權杖更新，已發出的權杖維持原有效期限。",
+      "idleTimeoutEnabled": "強制執行閒置逾時",
+      "idleHours": "閒置逾時（小時）",
+      "idleHoursHint": "啟用後，工作階段在無活動達到此小時數後結束。",
+      "absoluteHours": "絕對逾時（小時）",
+      "absoluteHoursHint": "無論是否有活動，工作階段都會在登入後經過此小時數結束。一律生效，且不得短於閒置逾時。",
+      "accessMinutes": "存取權杖有效期限（分鐘）",
+      "refreshDays": "更新權杖有效期限（天）",
+      "invalidRange": "請輸入介於 {min} 和 {max} 之間的整數。",
+      "absoluteBelowIdle": "不得短於閒置逾時。"
+    },
+    "retention": {
+      "title": "資料保留",
+      "readNotifications": "已讀通知保留天數",
+      "readNotificationsHint": "0 表示永久保留已讀通知。未讀通知永遠不會被刪除。",
+      "auditTrail": "稽核紀錄保留天數",
+      "auditTrailHint": "0 表示全部保留。否則最少為 30 天，紀錄會以整天為單位刪除。",
+      "auditTrailInvalid": "請輸入 0，或介於 {min} 和 {max} 之間的整數。",
+      "auditLegalHold": "稽核紀錄法律保留",
+      "auditLegalHoldHint": "開啟後，無論保留期限為何，都會暫停對稽核紀錄的所有清理。"
     },
     "signup": {
       "title": "註冊",
@@ -330,12 +380,33 @@
       "attribution": "版權歸屬",
       "apiKey": "圖磚伺服器 API 金鑰",
       "apiKeyWarning": "API 金鑰以加密方式儲存，若您的圖磚伺服器不需要金鑰，請留空。",
+      "apiKeyStored": "已儲存金鑰",
+      "apiKeyRemove": "移除已儲存的 API 金鑰",
       "backgroundColor": "地圖背景色",
       "regenerateThumbnails": "地圖設定變更時重新產生活動縮圖"
+    },
+    "geocoding": {
+      "title": "反向地理編碼",
+      "description": "將活動座標轉換為地名。變更無需重新啟動即可生效。",
+      "service": "服務",
+      "serviceNominatim": "Nominatim",
+      "servicePhoton": "Photon",
+      "serviceGeocode": "geocode.maps.co",
+      "host": "主機",
+      "hostHint": "主機名稱，可附連接埠，不含通訊協定。私有網路中的主機必須列入 SSRF_ALLOWED_HOSTS。",
+      "useHttps": "透過 HTTPS 連線",
+      "rateLimit": "每秒請求數",
+      "rateLimitHint": "0 表示關閉速率限制。公開的 Nominatim 與 Photon 服務請保持為 1。",
+      "rateLimitInvalid": "請輸入介於 0 和 100 之間的數字。",
+      "apiKey": "API 金鑰",
+      "apiKeyStored": "已儲存金鑰。留空則保留。",
+      "apiKeyRemove": "移除已儲存的 API 金鑰",
+      "apiKeyRequired": "geocode.maps.co 需要 API 金鑰。"
     },
     "photo": {
       "title": "登入頁面照片",
       "description": "顯示於登入畫面的自訂圖片",
+      "previewAlt": "目前的登入照片",
       "add": "上傳登入照片",
       "replace": "更換登入照片",
       "delete": "移除登入照片",
@@ -349,6 +420,30 @@
       "cancel": "取消",
       "close": "關閉"
     },
+    "logs": {
+      "title": "伺服器日誌",
+      "description": "應用程式日誌的最新紀錄。執行多個程序的部署，其日誌由您的平台收集。",
+      "level": "最低層級",
+      "allLevels": "所有層級",
+      "search": "搜尋",
+      "searchPlaceholder": "文字、記錄器或請求 ID…",
+      "live": "即時",
+      "refresh": "重新整理",
+      "download": "下載",
+      "downloadError": "無法下載日誌檔案。",
+      "clear": "清除",
+      "cleared": "日誌已清除",
+      "clearError": "無法清除日誌。",
+      "clearConfirm": {
+        "title": "清除伺服器日誌？",
+        "description": "這將永久刪除日誌檔案及其輪替備份。如果可能需要，請先下載日誌。此操作本身會記錄在新日誌中。",
+        "confirm": "清除日誌",
+        "cancel": "取消",
+        "close": "關閉"
+      },
+      "loadError": "無法載入日誌。",
+      "empty": "找不到日誌紀錄"
+    },
     "email": {
       "title": "電子郵件",
       "description": "Endurain 透過環境中設定的 SMTP 伺服器寄送重設密碼與註冊郵件。",
@@ -360,30 +455,26 @@
       "sendHint": "測試郵件將寄到您自己的電子郵件地址。",
       "sent": "測試郵件已寄出",
       "failed": "無法寄出測試郵件",
-      "failedUnknown": "請查看伺服器日誌了解詳情。"
-    },
-    "envLocked": "由 {name} 設定",
-    "envSection": "此處的部分設定由環境變數（{names}）決定。請從環境中移除這些變數，以便在此處編輯相應設定。",
-    "unsaved": "未儲存的變更",
-    "discard": "捨棄",
-    "tabs": {
-      "label": "伺服器設定分區",
-      "general": "一般",
-      "access": "存取與安全性",
-      "maps": "地圖與位置",
-      "email": "電子郵件",
-      "unsaved": "有未儲存的變更"
-    },
-    "search": {
-      "placeholder": "搜尋設定…",
-      "noResults": "找不到設定"
-    },
-    "leave": {
-      "title": "不儲存就離開？",
-      "description": "你有未儲存的變更。離開此頁面後這些變更將會遺失。",
-      "confirm": "不儲存並離開",
-      "stay": "留在此頁面",
-      "close": "關閉"
+      "failedUnknown": "請查看伺服器日誌了解詳情。",
+      "settingsLoadError": "無法載入郵件設定。",
+      "host": "主機",
+      "hostHint": "留空則關閉電子郵件。",
+      "port": "連接埠",
+      "portInvalid": "請輸入 1 到 65535 之間的連接埠。",
+      "security": "連線安全性",
+      "securityStarttls": "STARTTLS",
+      "securitySsl": "SSL/TLS",
+      "securityNone": "無（僅限私有中繼）",
+      "securityNoneWarning": "未加密時，僅接受私有或迴路位址上的郵件伺服器，且無法使用使用者名稱和密碼。",
+      "username": "使用者名稱",
+      "password": "密碼",
+      "passwordStored": "已儲存密碼。留空則保留。",
+      "passwordRemove": "移除已儲存的密碼",
+      "fromAddress": "寄件者地址",
+      "fromAddressHint": "留空則使用使用者名稱。",
+      "save": "儲存郵件設定",
+      "saveSuccess": "郵件設定已儲存",
+      "saveError": "無法儲存郵件設定"
     }
   },
   "idp": {
@@ -445,6 +536,7 @@
       "issuerUrl": "發行者 URL",
       "issuerUrlHint": "提供者的 OIDC 發行者或探索 URL",
       "issuerUrlRequired": "發行者 URL 為必填",
+      "issuerUrlRefused": "提供者 URL 遭到拒絕。它必須使用 https:// 並可從伺服器解析，私有網路中的提供者必須列入 SSRF_ALLOWED_HOSTS。",
       "issuerUrlTooLong": "發行者 URL 不得超過 500 個字元",
       "clientId": "用戶端 ID",
       "clientIdRequired": "用戶端 ID 為必填",
@@ -459,12 +551,22 @@
       "scopesTooLong": "範圍不得超過 500 個字元",
       "icon": "圖示",
       "iconNone": "無",
+      "iconUpload": "上傳圖片",
+      "iconFileHint": "PNG、JPEG、GIF 或 WebP 圖片，不超過 1 MB，顯示在登入按鈕上",
+      "iconChoose": "選擇圖片",
+      "iconReplace": "取代圖片",
+      "iconPreviewAlt": "圖示預覽",
+      "iconFileRequired": "請選擇要上傳的圖片",
+      "iconFileInvalidType": "圖示必須是 PNG、JPEG、GIF 或 WebP 圖片",
+      "iconFileTooLarge": "圖示不得超過 1 MB",
+      "iconSaveError": "提供者已儲存，但其圖示未能更新。請編輯提供者以重試。",
       "enabled": "已啟用",
       "autoCreateUsers": "首次登入時自動建立使用者",
       "syncUserInfo": "每次登入時同步個人資料",
       "createSuccess": "提供者已新增",
       "updateSuccess": "提供者已更新",
       "slugConflict": "該 Slug 已被使用",
+      "staleError": "此提供者已在其他地方變更，您的變更未儲存。請關閉後重新開啟以載入目前的設定。",
       "saveError": "無法儲存提供者，請再試一次。"
     }
   },
@@ -556,6 +658,7 @@
     "hidePassword": "隱藏密碼",
     "mfaCode": "驗證碼",
     "mfaCodePlaceholder": "123456",
+    "confirmPhrase": "輸入 {phrase} 以確認",
     "loadError": {
       "title": "無法載入您的安全性設定",
       "description": "發生錯誤，請再試一次。"
@@ -653,10 +756,16 @@
       "unlinkError": "無法取消連結帳戶，請再試一次。",
       "invalidCredentials": "您的密碼或驗證碼不正確。",
       "alreadyLinked": "該帳戶已連結。",
-      "lastMethodError": "您無法取消連結唯一的登入方式，請先設定密碼。"
+      "lastMethodError": "您無法取消連結唯一的登入方式，請先設定密碼。",
+      "linkedOn": "連結於 {date}"
     },
     "email": {
+      "title": "電子郵件地址",
       "subtitle": "密碼重設與通知會寄送至此信箱。變更時需要驗證您的身分，新信箱必須透過我們寄送至該信箱的連結確認後才會生效。",
+      "current": "目前的電子郵件",
+      "action": "變更電子郵件",
+      "new": "新的電子郵件",
+      "invalid": "請輸入有效的電子郵件地址。",
       "sameAsCurrent": "這已經是您的信箱地址。",
       "success": "確認連結已寄送至新信箱。確認後，您的信箱將會變更。",
       "appliedSuccess": "電子郵件已變更。",
@@ -667,7 +776,19 @@
       "resendSuccess": "如果有待處理的變更，新連結將寄送至新信箱。",
       "resendError": "無法重新寄送連結，請再試一次。",
       "cancelSuccess": "已取消信箱變更。",
-      "cancelError": "無法取消變更，請再試一次。"
+      "cancelError": "無法取消變更，請再試一次。",
+      "conflict": "該電子郵件已被使用。",
+      "error": "無法變更您的電子郵件，請再試一次。"
+    },
+    "deleteAccount": {
+      "title": "刪除我的帳號",
+      "subtitle": "永久刪除您的帳號及所有資料，包括活動及其檔案、健康紀錄、裝備、目標、整合服務與工作階段。此操作無法復原。如需保留副本，請先匯出您的資料。",
+      "action": "刪除我的帳號",
+      "dialogTitle": "刪除您的帳號？",
+      "dialogDescription": "這將永久刪除您的帳號及所有資料。請確認您的身分以繼續。",
+      "confirm": "刪除我的帳號",
+      "error": "無法刪除您的帳號，請再試一次。",
+      "onlyAdminError": "您是唯一的管理員。刪除帳號前，請先將其他使用者設為管理員。"
     },
     "apiKeys": {
       "title": "API 金鑰",
@@ -712,6 +833,18 @@
       "deleteBody": "{name} 將永久刪除，此操作無法復原。",
       "deleteSuccess": "API 金鑰已刪除",
       "deleteError": "無法刪除 API 金鑰，請再試一次。"
+    },
+    "stepUp": {
+      "prompt": "您的帳號沒有密碼。請透過已連結的身分提供者重新登入，以確認是您本人。",
+      "continueWith": "使用 {name} 繼續",
+      "ready": "身分提供者登入已確認。",
+      "restart": "重新登入",
+      "noProviders": "沒有可用於確認您身分的已連結身分提供者。",
+      "startError": "無法啟動身分提供者登入，請再試一次。",
+      "tooManyAttempts": "嘗試次數過多，請稍後再試。",
+      "reauthRequired": "請透過您的身分提供者確認身分以繼續。",
+      "failed": "透過身分提供者重新登入失敗，請再試一次。",
+      "notFresh": "您的身分提供者沒有要求您重新登入，請聯絡管理員。"
     }
   },
   "integrations": {
@@ -834,6 +967,8 @@
     "title": "我的個人資料",
     "subtitle": "管理您的帳戶詳細資訊和隱私設定",
     "notSet": "未設定",
+    "emailManagedIn": "您的電子郵件需在安全性設定中變更。",
+    "emailManagedLink": "開啟安全性設定",
     "error": {
       "title": "無法載入您的個人資料",
       "description": "載入您的個人資料時發生錯誤，請再試一次。",
@@ -939,9 +1074,40 @@
       "export": "匯出資料",
       "import": "匯入資料",
       "invalidType": "請選擇 .zip 壓縮檔。",
-      "exportSuccess": "匯出完成，您的下載應即將開始",
+      "download": "下載匯出檔案",
+      "downloadSuccess": "下載應很快開始",
+      "downloadError": "無法下載匯出檔案，請再試一次。",
+      "exportQueued": "匯出已開始，您可以離開此頁面。",
       "exportError": "無法匯出您的資料，請再試一次。",
-      "importError": "無法匯入壓縮檔，請確認檔案後再試一次。"
+      "exportInProgress": "已有匯出正在進行。",
+      "exportStatus": {
+        "queued": "正在等待匯出開始…",
+        "running": "正在準備您的匯出…",
+        "completed": "您的匯出檔案已可下載，將保留兩小時。",
+        "failed": "匯出未完成：{reason}"
+      },
+      "exportFailure": {
+        "timed_out": "耗時過長，您可以再試一次。",
+        "processing_failed": "發生問題，您可以再試一次。"
+      },
+      "importQueued": "匯入已開始，您可以離開此頁面。",
+      "importError": "無法匯入壓縮檔，請確認檔案後再試一次。",
+      "importInProgress": "已有匯入正在進行。",
+      "status": {
+        "queued": "正在等待匯入開始…",
+        "running": "正在匯入您的資料…",
+        "writing_files": "正在儲存您的檔案…",
+        "completed": "匯入完成：已匯入 {activities} 筆活動和 {gears} 件裝備。",
+        "failed": "匯入未完成：{reason}"
+      },
+      "failure": {
+        "invalid_file": "該壓縮檔不是有效的 Endurain 匯出檔案，未匯入任何內容。",
+        "too_large": "該壓縮檔太大，未匯入任何內容。",
+        "too_many_activities": "該壓縮檔中的活動太多，未匯入任何內容。",
+        "timed_out": "耗時過長，未匯入任何內容，因此您可以再試一次。",
+        "files_incomplete": "您的資料已匯入，但缺少部分檔案。請勿再次匯入，否則會產生重複資料。",
+        "processing_failed": "發生問題，未匯入任何內容，因此您可以再試一次。"
+      }
     }
   }
 }

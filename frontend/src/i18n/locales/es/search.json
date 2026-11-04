@@ -1,7 +1,7 @@
 {
   "title": "Búsqueda",
   "subtitle": "Encuentra usuarios, actividades y equipamiento en Endurain.",
-  "placeholder": "Buscar\u2026",
+  "placeholder": "Buscar…",
   "clear": "Borrar búsqueda",
   "scopes": {
     "users": "Usuarios",

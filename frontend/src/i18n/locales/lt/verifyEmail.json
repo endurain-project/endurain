@@ -15,5 +15,13 @@
   "errorNotFound": "Nepavyko rasti paskyros pagal šią nuorodą.",
   "errorGeneral": "Nepavyko patvirtinti jūsų el. pašto. Bandykite dar kartą.",
   "retry": "Bandyti dar kartą",
-  "backToLogin": "Grįžti į prisijungimą"
+  "backToLogin": "Grįžti į prisijungimą",
+  "resendTitle": "Reikia naujos nuorodos?",
+  "resendBody": "Įveskite adresą, kuriuo registravotės, ir mes išsiųsime naują patvirtinimo laišką, jei jis vis dar laukia.",
+  "resendEmail": "El. pašto adresas",
+  "resendButton": "Siųsti naują laišką",
+  "resendSending": "Siunčiama",
+  "resendSent": "Jei šis adresas laukia patvirtinimo, naujas laiškas jau pakeliui.",
+  "resendTooManyAttempts": "Per daug bandymų. Palaukite prieš bandydami dar kartą.",
+  "resendError": "Nepavyko išsiųsti laiško. Bandykite dar kartą."
 }

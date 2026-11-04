@@ -11,7 +11,7 @@
     "subtitle": "Gennemse, filtrér og sortér alle dine aktiviteter.",
     "searchPlaceholder": "Søg efter navn eller sted",
     "clearSearch": "Ryd søgning",
-    "resultCount": "{count} aktiviteter",
+    "resultCount": "{count} aktivitet | {count} aktiviteter",
     "filters": {
       "type": "Aktivitetstype",
       "allTypes": "Alle typer",
@@ -188,6 +188,7 @@
     "cancel": "Annullér",
     "close": "Luk",
     "name": "Navn",
+    "nameRequired": "Indtast et navn til aktiviteten",
     "type": "Aktivitetstype",
     "description": "Beskrivelse",
     "privateNotes": "Private noter",

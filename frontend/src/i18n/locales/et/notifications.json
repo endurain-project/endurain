@@ -8,7 +8,7 @@
   "seeAll": "Vaata kõiki",
   "loadMore": "Laadi veel",
   "loading": "Laadimine…",
-  "badge": "{count} lugemata teavitust",
+  "badge": "{count} lugemata teavitus | {count} lugemata teavitust",
   "empty": {
     "title": "Oled kõigega kursis",
     "description": "Uuendused sinu tegevuste, jälgijate ja integratsioonide kohta ilmuvad siia."
@@ -38,6 +38,58 @@
     "garminTokenExpired": {
       "title": "Garmin Connect vajab tähelepanu",
       "body": "Sinu Garmin Connecti seanss aegus. Ühenda see uuesti, et sünkroonimine jätkuks."
+    },
+    "stravaTokenExpired": {
+      "title": "Strava vajab tähelepanu",
+      "body": "Strava lükkas sinu ühenduse tagasi. Ühenda uuesti, et sünkroonimine jätkuks."
+    },
+    "idpLinked": {
+      "title": "Uus sisselogimispakkuja seotud",
+      "body": "{name} seoti sinu kontoga. Kui see ei olnud sina, vaata üle oma turvaseaded.",
+      "bodyGeneric": "Sisselogimispakkuja seoti sinu kontoga. Kui see ei olnud sina, vaata üle oma turvaseaded."
+    },
+    "accountSecurityChanged": {
+      "passwordChanged": {
+        "title": "Parool muudetud",
+        "body": "Sinu parooli muudeti. Kui see ei olnud sina, lähtesta oma parool ja vaata üle oma turvaseaded."
+      },
+      "passwordReset": {
+        "title": "Parool lähtestatud",
+        "body": "Sinu parool lähtestati lähtestuslingi abil. Kui see ei olnud sina, lähtesta oma parool uuesti ja vaata üle oma turvaseaded."
+      },
+      "passwordSetByAdmin": {
+        "title": "Administraator määras parooli",
+        "body": "Administraator määras sinu kontole uue parooli. Kui sa seda ei oodanud, võta ühendust oma administraatoriga."
+      },
+      "mfaEnabled": {
+        "title": "Kaheastmeline autentimine sisse lülitatud",
+        "body": "Sinu konto kaheastmeline autentimine lülitati sisse. Kui see ei olnud sina, lähtesta oma parool ja vaata üle oma turvaseaded."
+      },
+      "mfaDisabled": {
+        "title": "Kaheastmeline autentimine välja lülitatud",
+        "body": "Sinu konto kaheastmeline autentimine lülitati välja. Kui see ei olnud sina, lähtesta oma parool ja vaata üle oma turvaseaded."
+      },
+      "backupCodesGenerated": {
+        "title": "Uued varukoodid loodud",
+        "body": "Sinu kontole loodi uued varukoodid. Kui see ei olnud sina, lähtesta oma parool ja vaata üle oma turvaseaded."
+      },
+      "apiKeyCreated": {
+        "title": "Uus API-võti loodud",
+        "body": "Sinu kontole loodi uus API-võti. Kui see ei olnud sina, lähtesta oma parool ja vaata üle oma turvaseaded."
+      },
+      "identityProviderUnlinked": {
+        "title": "Sisselogimispakkuja eemaldatud",
+        "body": "{name} eemaldati sinu kontolt. Kui see ei olnud sina, lähtesta oma parool ja vaata üle oma turvaseaded.",
+        "bodyGeneric": "Sisselogimispakkuja eemaldati sinu kontolt. Kui see ei olnud sina, lähtesta oma parool ja vaata üle oma turvaseaded."
+      },
+      "unknown": {
+        "title": "Konto turvalisus muutus",
+        "body": "Sinu konto turvaseadet muudeti. Kui see ei olnud sina, lähtesta oma parool ja vaata üle oma turvaseaded."
+      }
+    },
+    "newDeviceSignIn": {
+      "title": "Uus sisselogimine",
+      "body": "Uus sisselogimine brauserist {browser} süsteemis {os} ({ip}). Kui see ei olnud sina, muuda oma parooli ja logi välja oma teistest seanssidest."
     },
     "adminSignUpApproval": {
       "title": "Uus registreerumine vajab heakskiitu",

@@ -121,6 +121,8 @@
       "weightUnitsMetric": "Kilogrammes (kg)",
       "weightUnitsImperial": "Livres (lb)",
       "height": "Taille",
+      "heightInvalid": "La taille doit être comprise entre 1 et 300 cm",
+      "maxHeartRateInvalid": "La fréquence cardiaque maximale doit être comprise entre 30 et 250 bpm",
       "feetInvalid": "Les pieds doivent être entre 0 et 10",
       "inchesInvalid": "Les pouces doivent être entre 0 et 11",
       "maxHeartRate": "Fréquence cardiaque max.",
@@ -274,6 +276,31 @@
     "saving": "Enregistrement…",
     "saveSuccess": "Paramètres du serveur mis à jour",
     "saveError": "Impossible de mettre à jour les paramètres du serveur. Veuillez réessayer.",
+    "staleError": "Ces paramètres ont été modifiés par quelqu'un d'autre pendant que vous les modifiiez. Vos modifications n'ont pas été enregistrées. Rechargez la page pour voir les valeurs actuelles.",
+    "envLocked": "Défini par {name}",
+    "envSection": "Certains réglages ici sont définis par des variables d'environnement ({names}). Retirez-les de l'environnement pour modifier ces réglages ici.",
+    "unsaved": "Modifications non enregistrées",
+    "discard": "Annuler les modifications",
+    "tabs": {
+      "label": "Sections des réglages du serveur",
+      "general": "Général",
+      "access": "Accès et sécurité",
+      "maps": "Cartes et localisation",
+      "email": "E-mail",
+      "logs": "Journaux",
+      "unsaved": "Contient des modifications non enregistrées"
+    },
+    "search": {
+      "placeholder": "Rechercher un réglage…",
+      "noResults": "Aucun réglage trouvé"
+    },
+    "leave": {
+      "title": "Quitter sans enregistrer ?",
+      "description": "Vous avez des modifications non enregistrées. Si vous quittez cette page, elles seront perdues.",
+      "confirm": "Quitter sans enregistrer",
+      "stay": "Rester sur la page",
+      "close": "Fermer"
+    },
     "loadError": {
       "title": "Impossible de charger les paramètres du serveur",
       "description": "Une erreur s'est produite lors du chargement des paramètres du serveur. Vous pouvez réessayer.",
@@ -294,6 +321,29 @@
       "title": "Politique de mot de passe",
       "lengthRegular": "Longueur minimale pour les utilisateurs réguliers",
       "lengthAdmin": "Longueur minimale pour les administrateurs"
+    },
+    "session": {
+      "title": "Sessions",
+      "description": "Les modifications s'appliquent aux nouvelles connexions et au prochain renouvellement de jeton. Les jetons déjà émis conservent leur durée de vie.",
+      "idleTimeoutEnabled": "Imposer un délai d'inactivité",
+      "idleHours": "Délai d'inactivité (heures)",
+      "idleHoursHint": "Lorsqu'il est imposé, une session prend fin après ce nombre d'heures sans activité.",
+      "absoluteHours": "Délai absolu (heures)",
+      "absoluteHoursHint": "Une session prend fin ce nombre d'heures après la connexion, quelle que soit l'activité. S'applique toujours. Pas plus court que le délai d'inactivité.",
+      "accessMinutes": "Durée de vie du jeton d'accès (minutes)",
+      "refreshDays": "Durée de vie du jeton d'actualisation (jours)",
+      "invalidRange": "Saisissez un nombre entier compris entre {min} et {max}.",
+      "absoluteBelowIdle": "Ne doit pas être plus court que le délai d'inactivité."
+    },
+    "retention": {
+      "title": "Conservation des données",
+      "readNotifications": "Supprimer les notifications lues après (jours)",
+      "readNotificationsHint": "0 conserve les notifications lues indéfiniment. Les notifications non lues ne sont jamais supprimées.",
+      "auditTrail": "Supprimer les entrées du journal d'audit après (jours)",
+      "auditTrailHint": "0 conserve tout. Sinon, le minimum est de 30 jours ; les entrées sont supprimées par jour entier.",
+      "auditTrailInvalid": "Saisissez 0, ou un nombre entier compris entre {min} et {max}.",
+      "auditLegalHold": "Conservation légale du journal d'audit",
+      "auditLegalHoldHint": "Lorsqu'elle est activée, suspend tout nettoyage du journal d'audit, quelle que soit la durée de conservation."
     },
     "signup": {
       "title": "Inscription",
@@ -330,12 +380,33 @@
       "attribution": "Attribution",
       "apiKey": "Clé API du serveur de tuiles",
       "apiKeyWarning": "La clé API est stockée de manière chiffrée. Laissez vide si votre serveur de tuiles n'en a pas besoin.",
+      "apiKeyStored": "Une clé est enregistrée",
+      "apiKeyRemove": "Supprimer la clé API enregistrée",
       "backgroundColor": "Couleur de fond de la carte",
       "regenerateThumbnails": "Régénérer les miniatures d'activité lors des modifications des paramètres de carte"
+    },
+    "geocoding": {
+      "title": "Géocodage inversé",
+      "description": "Convertit les coordonnées des activités en noms de lieux. Les modifications s'appliquent sans redémarrage.",
+      "service": "Service",
+      "serviceNominatim": "Nominatim",
+      "servicePhoton": "Photon",
+      "serviceGeocode": "geocode.maps.co",
+      "host": "Hôte",
+      "hostHint": "Nom d'hôte avec port facultatif, sans schéma. Un hôte sur un réseau privé doit figurer dans SSRF_ALLOWED_HOSTS.",
+      "useHttps": "Se connecter en HTTPS",
+      "rateLimit": "Requêtes par seconde",
+      "rateLimitHint": "0 désactive la limitation. Conservez 1 pour les services publics Nominatim et Photon.",
+      "rateLimitInvalid": "Saisissez un nombre compris entre 0 et 100.",
+      "apiKey": "Clé API",
+      "apiKeyStored": "Une clé est enregistrée. Laissez vide pour la conserver.",
+      "apiKeyRemove": "Supprimer la clé API enregistrée",
+      "apiKeyRequired": "geocode.maps.co nécessite une clé API."
     },
     "photo": {
       "title": "Photo de connexion",
       "description": "Image personnalisée affichée sur l'écran de connexion",
+      "previewAlt": "Photo de connexion actuelle",
       "add": "Téléverser une photo de connexion",
       "replace": "Remplacer la photo de connexion",
       "delete": "Supprimer la photo de connexion",
@@ -349,6 +420,30 @@
       "cancel": "Annuler",
       "close": "Fermer"
     },
+    "logs": {
+      "title": "Journaux du serveur",
+      "description": "Les enregistrements les plus récents du journal de l'application. Les journaux des déploiements exécutant plusieurs processus sont collectés par votre plateforme.",
+      "level": "Niveau minimum",
+      "allLevels": "Tous les niveaux",
+      "search": "Rechercher",
+      "searchPlaceholder": "Texte, logger ou ID de requête…",
+      "live": "En direct",
+      "refresh": "Actualiser",
+      "download": "Télécharger",
+      "downloadError": "Impossible de télécharger le fichier journal.",
+      "clear": "Effacer",
+      "cleared": "Journaux effacés",
+      "clearError": "Impossible d'effacer les journaux.",
+      "clearConfirm": {
+        "title": "Effacer les journaux du serveur ?",
+        "description": "Cela supprime définitivement le fichier journal et ses sauvegardes archivées. Téléchargez d'abord le journal si vous pouvez en avoir besoin. L'action elle-même est consignée dans le nouveau journal.",
+        "confirm": "Effacer les journaux",
+        "cancel": "Annuler",
+        "close": "Fermer"
+      },
+      "loadError": "Impossible de charger les journaux.",
+      "empty": "Aucun enregistrement de journal trouvé"
+    },
     "email": {
       "title": "E-mail",
       "description": "Endurain envoie les e-mails de réinitialisation du mot de passe et d'inscription via le serveur SMTP configuré dans l'environnement.",
@@ -360,30 +455,26 @@
       "sendHint": "L'e-mail de test est envoyé à votre propre adresse.",
       "sent": "E-mail de test envoyé",
       "failed": "L'e-mail de test n'a pas pu être envoyé",
-      "failedUnknown": "Consultez les journaux du serveur pour plus de détails."
-    },
-    "envLocked": "Défini par {name}",
-    "envSection": "Certains réglages ici sont définis par des variables d'environnement ({names}). Retirez-les de l'environnement pour modifier ces réglages ici.",
-    "unsaved": "Modifications non enregistrées",
-    "discard": "Annuler les modifications",
-    "tabs": {
-      "label": "Sections des réglages du serveur",
-      "general": "Général",
-      "access": "Accès et sécurité",
-      "maps": "Cartes et localisation",
-      "email": "E-mail",
-      "unsaved": "Contient des modifications non enregistrées"
-    },
-    "search": {
-      "placeholder": "Rechercher un réglage…",
-      "noResults": "Aucun réglage trouvé"
-    },
-    "leave": {
-      "title": "Quitter sans enregistrer ?",
-      "description": "Vous avez des modifications non enregistrées. Si vous quittez cette page, elles seront perdues.",
-      "confirm": "Quitter sans enregistrer",
-      "stay": "Rester sur la page",
-      "close": "Fermer"
+      "failedUnknown": "Consultez les journaux du serveur pour plus de détails.",
+      "settingsLoadError": "Impossible de charger les paramètres e-mail.",
+      "host": "Hôte",
+      "hostHint": "Laissez vide pour désactiver l'envoi d'e-mails.",
+      "port": "Port",
+      "portInvalid": "Saisissez un port compris entre 1 et 65535.",
+      "security": "Sécurité de la connexion",
+      "securityStarttls": "STARTTLS",
+      "securitySsl": "SSL/TLS",
+      "securityNone": "Aucune (relais privé uniquement)",
+      "securityNoneWarning": "Sans chiffrement, seul un serveur de messagerie sur une adresse privée ou de bouclage est accepté, et un nom d'utilisateur et un mot de passe ne peuvent pas être utilisés.",
+      "username": "Nom d'utilisateur",
+      "password": "Mot de passe",
+      "passwordStored": "Un mot de passe est enregistré. Laissez vide pour le conserver.",
+      "passwordRemove": "Supprimer le mot de passe enregistré",
+      "fromAddress": "Adresse de l'expéditeur",
+      "fromAddressHint": "Laissez vide pour utiliser le nom d'utilisateur.",
+      "save": "Enregistrer les paramètres e-mail",
+      "saveSuccess": "Paramètres e-mail enregistrés",
+      "saveError": "Impossible d'enregistrer les paramètres e-mail"
     }
   },
   "idp": {
@@ -445,6 +536,7 @@
       "issuerUrl": "URL de l'émetteur",
       "issuerUrlHint": "L'URL d'émetteur OIDC ou de découverte du fournisseur",
       "issuerUrlRequired": "L'URL de l'émetteur est obligatoire",
+      "issuerUrlRefused": "L'URL du fournisseur a été refusée. Elle doit utiliser https:// et être résolue depuis le serveur, et un fournisseur sur un réseau privé doit figurer dans SSRF_ALLOWED_HOSTS.",
       "issuerUrlTooLong": "L'URL de l'émetteur doit contenir 500 caractères ou moins",
       "clientId": "ID client",
       "clientIdRequired": "L'ID client est obligatoire",
@@ -459,12 +551,22 @@
       "scopesTooLong": "Les portées doivent contenir 500 caractères ou moins",
       "icon": "Icône",
       "iconNone": "Aucune",
+      "iconUpload": "Téléverser une image",
+      "iconFileHint": "Une image PNG, JPEG, GIF ou WebP de 1 Mo maximum, affichée sur le bouton de connexion",
+      "iconChoose": "Choisir une image",
+      "iconReplace": "Remplacer l'image",
+      "iconPreviewAlt": "Aperçu de l'icône",
+      "iconFileRequired": "Choisissez une image à téléverser",
+      "iconFileInvalidType": "L'icône doit être une image PNG, JPEG, GIF ou WebP",
+      "iconFileTooLarge": "L'icône ne doit pas dépasser 1 Mo",
+      "iconSaveError": "Le fournisseur a été enregistré, mais son icône n'a pas pu être mise à jour. Modifiez le fournisseur pour réessayer.",
       "enabled": "Activé",
       "autoCreateUsers": "Créer automatiquement les utilisateurs à la première connexion",
       "syncUserInfo": "Synchroniser les informations du profil à chaque connexion",
       "createSuccess": "Fournisseur ajouté",
       "updateSuccess": "Fournisseur mis à jour",
       "slugConflict": "Cet identifiant est déjà utilisé",
+      "staleError": "Ce fournisseur a été modifié ailleurs. Vos modifications n'ont pas été enregistrées. Fermez-le et rouvrez-le pour charger les paramètres actuels.",
       "saveError": "Impossible d'enregistrer le fournisseur. Veuillez réessayer."
     }
   },
@@ -472,7 +574,7 @@
     "title": "Mes objectifs",
     "subtitle": "Définissez des cibles pour vos activités et suivez votre progression",
     "buttonAdd": "Ajouter un objectif",
-    "count": "Il y a un total de {count} objectif(s) :",
+    "count": "Il y a un total de {count} objectif : | Il y a un total de {count} objectifs :",
     "filters": "Filtres",
     "filter": {
       "all": "Tous",
@@ -556,6 +658,7 @@
     "hidePassword": "Masquer le mot de passe",
     "mfaCode": "Code d'authentification",
     "mfaCodePlaceholder": "123456",
+    "confirmPhrase": "Saisissez {phrase} pour confirmer",
     "loadError": {
       "title": "Impossible de charger vos paramètres de sécurité",
       "description": "Une erreur s'est produite. Vous pouvez réessayer."
@@ -579,7 +682,7 @@
       "disabledDescription": "L'authentification à deux facteurs est désactivée. Activez-la pour mieux protéger votre compte.",
       "enable": "Activer l'authentification à deux facteurs",
       "enabledDescription": "L'authentification à deux facteurs est activée.",
-      "backupRemaining": "{unused} sur {total} codes de secours restants.",
+      "backupRemaining": "{unused} code de secours restant sur {total}. | {unused} codes de secours restants sur {total}.",
       "regenerate": "Régénérer les codes de secours",
       "disable": "Désactiver",
       "setupTitle": "Activer l'authentification à deux facteurs",
@@ -653,10 +756,16 @@
       "unlinkError": "Impossible de délier le compte. Veuillez réessayer.",
       "invalidCredentials": "Votre mot de passe ou code est incorrect.",
       "alreadyLinked": "Ce compte est déjà lié.",
-      "lastMethodError": "Vous ne pouvez pas délier votre seule méthode de connexion. Définissez d'abord un mot de passe."
+      "lastMethodError": "Vous ne pouvez pas délier votre seule méthode de connexion. Définissez d'abord un mot de passe.",
+      "linkedOn": "Associé le {date}"
     },
     "email": {
+      "title": "Adresse e-mail",
       "subtitle": "C'est là que sont envoyés les réinitialisations de mot de passe et les notifications. Pour la modifier, vous devez confirmer votre identité, et la nouvelle adresse prend effet une fois confirmée via un lien que nous y envoyons.",
+      "current": "E-mail actuel",
+      "action": "Changer d'e-mail",
+      "new": "Nouvel e-mail",
+      "invalid": "Saisissez une adresse e-mail valide.",
       "sameAsCurrent": "Il s'agit déjà de votre adresse e-mail.",
       "success": "Lien de confirmation envoyé à la nouvelle adresse. Votre e-mail sera modifié une fois que vous l'aurez confirmé.",
       "appliedSuccess": "Adresse e-mail modifiée.",
@@ -667,7 +776,19 @@
       "resendSuccess": "Si un changement est en attente, un nouveau lien est en route vers la nouvelle adresse.",
       "resendError": "Impossible de renvoyer le lien. Veuillez réessayer.",
       "cancelSuccess": "Modification de l'e-mail annulée.",
-      "cancelError": "Impossible d'annuler la modification. Veuillez réessayer."
+      "cancelError": "Impossible d'annuler la modification. Veuillez réessayer.",
+      "conflict": "Cette adresse e-mail est déjà utilisée.",
+      "error": "Impossible de changer votre e-mail. Veuillez réessayer."
+    },
+    "deleteAccount": {
+      "title": "Supprimer mon compte",
+      "subtitle": "Supprimez définitivement votre compte et toutes vos données, y compris les activités et leurs fichiers, les données de santé, l'équipement, les objectifs, les intégrations et les sessions. Cette action est irréversible. Exportez d'abord vos données si vous souhaitez en conserver une copie.",
+      "action": "Supprimer mon compte",
+      "dialogTitle": "Supprimer votre compte ?",
+      "dialogDescription": "Cela supprime définitivement votre compte et toutes vos données. Confirmez votre identité pour continuer.",
+      "confirm": "Supprimer mon compte",
+      "error": "Impossible de supprimer votre compte. Veuillez réessayer.",
+      "onlyAdminError": "Vous êtes le seul administrateur. Nommez un autre utilisateur administrateur avant de supprimer votre compte."
     },
     "apiKeys": {
       "title": "Clés API",
@@ -712,6 +833,18 @@
       "deleteBody": "{name} sera définitivement supprimée. Cette action est irréversible.",
       "deleteSuccess": "Clé API supprimée",
       "deleteError": "Impossible de supprimer la clé API. Veuillez réessayer."
+    },
+    "stepUp": {
+      "prompt": "Votre compte n'a pas de mot de passe. Reconnectez-vous avec un fournisseur d'identité associé pour confirmer votre identité.",
+      "continueWith": "Continuer avec {name}",
+      "ready": "Connexion au fournisseur d'identité confirmée.",
+      "restart": "Se reconnecter",
+      "noProviders": "Aucun fournisseur d'identité associé n'est disponible pour confirmer votre identité.",
+      "startError": "Impossible de démarrer la connexion au fournisseur d'identité. Veuillez réessayer.",
+      "tooManyAttempts": "Trop de tentatives. Veuillez réessayer plus tard.",
+      "reauthRequired": "Confirmez votre identité auprès de votre fournisseur d'identité pour continuer.",
+      "failed": "La reconnexion avec votre fournisseur d'identité a échoué. Veuillez réessayer.",
+      "notFresh": "Votre fournisseur d'identité ne vous a pas demandé de vous reconnecter. Contactez votre administrateur."
     }
   },
   "integrations": {
@@ -834,6 +967,8 @@
     "title": "Mon profil",
     "subtitle": "Gérez les détails de votre compte et votre confidentialité",
     "notSet": "Non défini",
+    "emailManagedIn": "Votre e-mail se modifie dans les paramètres de sécurité.",
+    "emailManagedLink": "Ouvrir les paramètres de sécurité",
     "error": {
       "title": "Impossible de charger votre profil",
       "description": "Une erreur s'est produite lors du chargement de votre profil. Vous pouvez réessayer.",
@@ -939,9 +1074,40 @@
       "export": "Exporter les données",
       "import": "Importer les données",
       "invalidType": "Veuillez choisir une archive .zip.",
-      "exportSuccess": "Exportation prête, votre téléchargement devrait commencer sous peu",
+      "download": "Télécharger l'export",
+      "downloadSuccess": "Votre téléchargement devrait commencer dans un instant",
+      "downloadError": "Impossible de télécharger l'export. Veuillez réessayer.",
+      "exportQueued": "Export démarré. Vous pouvez quitter cette page.",
       "exportError": "Impossible d'exporter vos données. Veuillez réessayer.",
-      "importError": "Impossible d'importer l'archive. Vérifiez le fichier et réessayez."
+      "exportInProgress": "Un export est déjà en cours.",
+      "exportStatus": {
+        "queued": "En attente du démarrage de l'export…",
+        "running": "Préparation de votre export…",
+        "completed": "Votre export est prêt à être téléchargé. Il reste disponible pendant deux heures.",
+        "failed": "L'export n'a pas abouti : {reason}"
+      },
+      "exportFailure": {
+        "timed_out": "il a pris trop de temps. Vous pouvez réessayer.",
+        "processing_failed": "une erreur s'est produite. Vous pouvez réessayer."
+      },
+      "importQueued": "Import démarré. Vous pouvez quitter cette page.",
+      "importError": "Impossible d'importer l'archive. Vérifiez le fichier et réessayez.",
+      "importInProgress": "Un import est déjà en cours.",
+      "status": {
+        "queued": "En attente du démarrage de l'import…",
+        "running": "Importation de vos données…",
+        "writing_files": "Enregistrement de vos fichiers…",
+        "completed": "Import terminé : {activities} activités et {gears} équipements importés.",
+        "failed": "L'import n'a pas abouti : {reason}"
+      },
+      "failure": {
+        "invalid_file": "l'archive n'est pas un export Endurain valide. Rien n'a été importé.",
+        "too_large": "l'archive est trop volumineuse. Rien n'a été importé.",
+        "too_many_activities": "l'archive contient trop d'activités. Rien n'a été importé.",
+        "timed_out": "il a pris trop de temps. Rien n'a été importé, vous pouvez donc réessayer.",
+        "files_incomplete": "vos données ont été importées mais certains fichiers sont manquants. Ne les importez pas à nouveau, cela créerait des doublons.",
+        "processing_failed": "une erreur s'est produite. Rien n'a été importé, vous pouvez donc réessayer."
+      }
     }
   }
 }

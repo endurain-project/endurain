@@ -8,7 +8,7 @@
   "seeAll": "Ver todo",
   "loadMore": "Cargar más",
   "loading": "Cargando…",
-  "badge": "{count} notificaciones sin leer",
+  "badge": "{count} notificación sin leer | {count} notificaciones sin leer",
   "empty": {
     "title": "Estás al día",
     "description": "Las actualizaciones sobre tus actividades, seguidores e integraciones aparecerán aquí."
@@ -39,10 +39,57 @@
       "title": "Garmin Connect necesita atención",
       "body": "Tu sesión de Garmin Connect ha caducado. Vuelve a conectarla para continuar sincronizando."
     },
+    "stravaTokenExpired": {
+      "title": "Strava necesita tu atención",
+      "body": "Strava rechazó tu conexión. Vuelve a conectarla para seguir sincronizando."
+    },
     "idpLinked": {
       "title": "Nuevo proveedor de inicio de sesión vinculado",
       "body": "{name} se vinculó a tu cuenta. Si no fuiste tú, revisa tu configuración de seguridad.",
       "bodyGeneric": "Se vinculó un proveedor de inicio de sesión a tu cuenta. Si no fuiste tú, revisa tu configuración de seguridad."
+    },
+    "accountSecurityChanged": {
+      "passwordChanged": {
+        "title": "Contraseña cambiada",
+        "body": "Tu contraseña se ha cambiado. Si no fuiste tú, restablece tu contraseña y revisa tus ajustes de seguridad."
+      },
+      "passwordReset": {
+        "title": "Contraseña restablecida",
+        "body": "Tu contraseña se restableció mediante un enlace de restablecimiento. Si no fuiste tú, restablécela de nuevo y revisa tus ajustes de seguridad."
+      },
+      "passwordSetByAdmin": {
+        "title": "Contraseña establecida por un administrador",
+        "body": "Un administrador estableció una nueva contraseña para tu cuenta. Si no lo esperabas, contacta con tu administrador."
+      },
+      "mfaEnabled": {
+        "title": "Autenticación en dos pasos activada",
+        "body": "Se activó la autenticación en dos pasos en tu cuenta. Si no fuiste tú, restablece tu contraseña y revisa tus ajustes de seguridad."
+      },
+      "mfaDisabled": {
+        "title": "Autenticación en dos pasos desactivada",
+        "body": "Se desactivó la autenticación en dos pasos en tu cuenta. Si no fuiste tú, restablece tu contraseña y revisa tus ajustes de seguridad."
+      },
+      "backupCodesGenerated": {
+        "title": "Nuevos códigos de respaldo generados",
+        "body": "Se generaron nuevos códigos de respaldo para tu cuenta. Si no fuiste tú, restablece tu contraseña y revisa tus ajustes de seguridad."
+      },
+      "apiKeyCreated": {
+        "title": "Nueva clave de API creada",
+        "body": "Se creó una nueva clave de API para tu cuenta. Si no fuiste tú, restablece tu contraseña y revisa tus ajustes de seguridad."
+      },
+      "identityProviderUnlinked": {
+        "title": "Proveedor de inicio de sesión desvinculado",
+        "body": "{name} se desvinculó de tu cuenta. Si no fuiste tú, restablece tu contraseña y revisa tus ajustes de seguridad.",
+        "bodyGeneric": "Se desvinculó un proveedor de inicio de sesión de tu cuenta. Si no fuiste tú, restablece tu contraseña y revisa tus ajustes de seguridad."
+      },
+      "unknown": {
+        "title": "Seguridad de la cuenta modificada",
+        "body": "Se modificó un ajuste de seguridad de tu cuenta. Si no fuiste tú, restablece tu contraseña y revisa tus ajustes de seguridad."
+      }
+    },
+    "newDeviceSignIn": {
+      "title": "Nuevo inicio de sesión",
+      "body": "Nuevo inicio de sesión desde {browser} en {os} ({ip}). Si no fuiste tú, cambia tu contraseña y cierra tus otras sesiones."
     },
     "adminSignUpApproval": {
       "title": "Nuevo registro pendiente de aprobación",

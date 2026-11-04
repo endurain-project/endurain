@@ -14,6 +14,7 @@
   "forceLocalLogin": "La connexion locale est activée pour cette tentative. Utilisez votre nom d'utilisateur et votre mot de passe.",
   "passwordResetSuccess": "Votre mot de passe a été réinitialisé. Connectez-vous avec le nouveau mot de passe.",
   "passwordResetInvalidLink": "Ce lien de réinitialisation du mot de passe est invalide ou expiré",
+  "onboardingComplete": "Votre compte administrateur est prêt. Connectez-vous pour commencer.",
   "emailVerificationSent": "E-mail de vérification envoyé. Vérifiez votre boîte de réception pour continuer.",
   "adminApprovalRequired": "Votre compte est en attente d'approbation par un administrateur",
   "verifyEmailInvalidLink": "Ce lien de vérification d'e-mail est invalide ou expiré",
@@ -35,6 +36,7 @@
   "closeForgotPassword": "Fermer la fenêtre de réinitialisation du mot de passe",
   "cancel": "Annuler",
   "signUpLink": "Créer un compte",
+  "resendVerification": "Vous n'avez pas reçu l'e-mail ?",
   "ssoSection": "Authentification unique",
   "loadingSsoProviders": "Chargement des fournisseurs d'authentification",
   "ssoButton": "Continuer avec {provider}",
@@ -46,9 +48,35 @@
   "ssoAccountNotFound": "Aucun compte n'est lié à ce fournisseur d'identité",
   "ssoAccountDisabled": "Ce compte est désactivé",
   "ssoAutoCreateDisabled": "La création automatique de compte est désactivée",
+  "ssoEmailMissing": "Le fournisseur d'identité n'a pas communiqué d'adresse e-mail, aucun compte n'a donc pu être créé. Demandez à votre administrateur de vérifier les paramètres e-mail du fournisseur.",
   "ssoErrorUndefined": "L'authentification unique a échoué",
   "noLoginMethods": "Aucune méthode de connexion n'est activée sur ce serveur",
   "imageAlt": "Illustration de connexion Endurain",
   "tagline1": "Suivez chaque mouvement",
-  "tagline2": "Vivez chaque instant"
+  "tagline2": "Vivez chaque instant",
+  "accountDeleted": {
+    "title": "Désolé de vous voir partir",
+    "body": "Vous avez été déconnecté(e), et votre compte ainsi que toutes vos données sont en cours de suppression définitive.",
+    "backToLogin": "Retour à la connexion"
+  },
+  "onboarding": {
+    "title": "Configurer Endurain",
+    "subtitle": "Créez le premier compte administrateur. Copiez le jeton de configuration depuis le journal du serveur : cherchez la ligne contenant setup_token.",
+    "token": "Jeton de configuration",
+    "name": "Nom",
+    "username": "Nom d'utilisateur",
+    "email": "E-mail",
+    "password": "Mot de passe",
+    "confirmPassword": "Confirmer le mot de passe",
+    "emailInvalid": "Saisissez une adresse e-mail valide",
+    "requiredField": "Ce champ est obligatoire",
+    "submitButton": "Créer l'administrateur",
+    "submitting": "Création de l'administrateur",
+    "errorInvalidToken": "Le jeton de configuration est invalide, expiré ou déjà utilisé. Copiez le plus récent depuis le journal du serveur.",
+    "errorAlreadyDone": "La configuration est déjà terminée. Connectez-vous avec votre compte.",
+    "errorValidation": "Les informations ont été rejetées. Vérifiez-les et utilisez un mot de passe conforme aux exigences pour les administrateurs.",
+    "errorTooManyAttempts": "Trop de tentatives. Patientez un instant et réessayez.",
+    "errorUnavailable": "La configuration est temporairement indisponible. Réessayez dans quelques instants.",
+    "errorGeneral": "Impossible de créer l'administrateur. Veuillez réessayer."
+  }
 }

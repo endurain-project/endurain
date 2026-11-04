@@ -15,5 +15,13 @@
   "errorNotFound": "Für diesen Link konnte kein Konto gefunden werden.",
   "errorGeneral": "Deine E-Mail konnte nicht verifiziert werden. Bitte versuche es erneut.",
   "retry": "Erneut versuchen",
-  "backToLogin": "Zurück zur Anmeldung"
+  "backToLogin": "Zurück zur Anmeldung",
+  "resendTitle": "Neuen Link benötigt?",
+  "resendBody": "Gib die Adresse ein, mit der du dich registriert hast, und wir senden dir eine neue Bestätigungs-E-Mail, falls die Bestätigung noch aussteht.",
+  "resendEmail": "E-Mail-Adresse",
+  "resendButton": "Neue E-Mail senden",
+  "resendSending": "Wird gesendet",
+  "resendSent": "Falls diese Adresse auf die Bestätigung wartet, ist eine neue E-Mail unterwegs.",
+  "resendTooManyAttempts": "Zu viele Versuche. Bitte warte, bevor du es erneut versuchst.",
+  "resendError": "Wir konnten die E-Mail nicht senden. Bitte versuche es erneut."
 }

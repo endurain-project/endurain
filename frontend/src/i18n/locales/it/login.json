@@ -14,6 +14,7 @@
   "forceLocalLogin": "L'accesso locale è abilitato per questo tentativo. Usa nome utente e password per accedere.",
   "passwordResetSuccess": "La tua password è stata reimpostata. Accedi con la nuova password.",
   "passwordResetInvalidLink": "Il link di reimpostazione della password non è valido o è scaduto",
+  "onboardingComplete": "Il tuo account amministratore è pronto. Accedi per iniziare.",
   "emailVerificationSent": "Email di verifica inviata. Controlla la tua casella di posta per continuare.",
   "adminApprovalRequired": "Il tuo account è in attesa di approvazione da parte dell'amministratore",
   "verifyEmailInvalidLink": "Il link di verifica email non è valido o è scaduto",
@@ -35,6 +36,7 @@
   "closeForgotPassword": "Chiudi il dialogo di reimpostazione password",
   "cancel": "Annulla",
   "signUpLink": "Crea un account",
+  "resendVerification": "Non hai ricevuto l'e-mail?",
   "ssoSection": "Single sign-on",
   "loadingSsoProviders": "Caricamento provider di accesso",
   "ssoButton": "Continua con {provider}",
@@ -46,9 +48,35 @@
   "ssoAccountNotFound": "Nessun account è collegato a questo provider di identità",
   "ssoAccountDisabled": "Questo account è disabilitato",
   "ssoAutoCreateDisabled": "La creazione automatica dell'account è disabilitata",
+  "ssoEmailMissing": "Il provider di identità non ha condiviso un indirizzo e-mail, quindi non è stato possibile creare un account. Chiedi al tuo amministratore di controllare le impostazioni e-mail del provider.",
   "ssoErrorUndefined": "Single sign-on non riuscito",
   "noLoginMethods": "Nessun metodo di accesso è abilitato su questo server",
   "imageAlt": "Illustrazione di accesso a Endurain",
   "tagline1": "Registra ogni movimento",
-  "tagline2": "Possiedi ogni momento"
+  "tagline2": "Possiedi ogni momento",
+  "accountDeleted": {
+    "title": "Ci dispiace vederti andare via",
+    "body": "Sei stato disconnesso e il tuo account e tutti i tuoi dati sono in corso di eliminazione definitiva.",
+    "backToLogin": "Torna all'accesso"
+  },
+  "onboarding": {
+    "title": "Configura Endurain",
+    "subtitle": "Crea il primo account amministratore. Copia il token di configurazione dal log del server: cerca la riga che contiene setup_token.",
+    "token": "Token di configurazione",
+    "name": "Nome",
+    "username": "Nome utente",
+    "email": "E-mail",
+    "password": "Password",
+    "confirmPassword": "Conferma password",
+    "emailInvalid": "Inserisci un indirizzo e-mail valido",
+    "requiredField": "Questo campo è obbligatorio",
+    "submitButton": "Crea amministratore",
+    "submitting": "Creazione dell'amministratore in corso",
+    "errorInvalidToken": "Il token di configurazione non è valido, è scaduto o è già stato usato. Copia il più recente dal log del server.",
+    "errorAlreadyDone": "La configurazione è già completata. Accedi con il tuo account.",
+    "errorValidation": "I dati sono stati rifiutati. Controllali e usa una password che soddisfi i requisiti per gli amministratori.",
+    "errorTooManyAttempts": "Troppi tentativi. Attendi un momento e riprova.",
+    "errorUnavailable": "La configurazione è temporaneamente non disponibile. Riprova a breve.",
+    "errorGeneral": "Impossibile creare l'amministratore. Riprova."
+  }
 }

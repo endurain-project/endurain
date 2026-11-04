@@ -15,5 +15,13 @@
   "errorNotFound": "Nem találtunk fiókot ehhez a hivatkozáshoz.",
   "errorGeneral": "Nem sikerült megerősíteni az e-mail-címedet. Kérjük, próbáld újra.",
   "retry": "Próbáld újra",
-  "backToLogin": "Vissza a bejelentkezéshez"
+  "backToLogin": "Vissza a bejelentkezéshez",
+  "resendTitle": "Új hivatkozásra van szükséged?",
+  "resendBody": "Add meg a regisztrációhoz használt címet, és új megerősítő e-mailt küldünk, ha még megerősítésre vár.",
+  "resendEmail": "E-mail-cím",
+  "resendButton": "Új e-mail küldése",
+  "resendSending": "Küldés",
+  "resendSent": "Ha ez a cím megerősítésre vár, új e-mail van úton.",
+  "resendTooManyAttempts": "Túl sok próbálkozás. Kérjük, várj, mielőtt újra próbálkozol.",
+  "resendError": "Nem tudtuk elküldeni az e-mailt. Kérjük, próbáld újra."
 }

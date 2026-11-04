@@ -11,7 +11,7 @@
     "subtitle": "Selaa, suodata ja lajittele kaikki aktiviteettisi.",
     "searchPlaceholder": "Hae nimen tai sijainnin mukaan",
     "clearSearch": "Tyhjennä haku",
-    "resultCount": "{count} aktiviteettia",
+    "resultCount": "{count} aktiviteetti | {count} aktiviteettia",
     "filters": {
       "type": "Aktiviteettityyppi",
       "allTypes": "Kaikki tyypit",
@@ -188,6 +188,7 @@
     "cancel": "Peruuta",
     "close": "Sulje",
     "name": "Nimi",
+    "nameRequired": "Anna aktiviteetille nimi",
     "type": "Aktiviteettityyppi",
     "description": "Kuvaus",
     "privateNotes": "Yksityiset muistiinpanot",

@@ -121,6 +121,8 @@
       "weightUnitsMetric": "Kilogrami (kg)",
       "weightUnitsImperial": "Funte (lb)",
       "height": "Visina",
+      "heightInvalid": "Visina mora biti između 1 i 300 cm",
+      "maxHeartRateInvalid": "Maksimalni broj otkucaja srca mora biti između 30 i 250 otk/min",
       "feetInvalid": "Stope moraju biti između 0 i 10",
       "inchesInvalid": "Inči moraju biti između 0 i 11",
       "maxHeartRate": "Maks. broj otkucaja srca",
@@ -274,6 +276,31 @@
     "saving": "Spremanje…",
     "saveSuccess": "Postavke poslužitelja su ažurirane",
     "saveError": "Nije moguće ažurirati postavke poslužitelja. Pokušajte ponovno.",
+    "staleError": "Netko je promijenio ove postavke dok ste ih uređivali. Vaše promjene nisu spremljene. Ponovno učitajte stranicu da vidite trenutne vrijednosti.",
+    "envLocked": "Postavljeno varijablom {name}",
+    "envSection": "Neke postavke ovdje određuju varijable okoline ({names}). Uklonite ih iz okoline kako biste te postavke mogli uređivati ovdje.",
+    "unsaved": "Nespremljene promjene",
+    "discard": "Odbaci",
+    "tabs": {
+      "label": "Odjeljci postavki poslužitelja",
+      "general": "Općenito",
+      "access": "Pristup i sigurnost",
+      "maps": "Karte i lokacija",
+      "email": "E-pošta",
+      "logs": "Zapisnici",
+      "unsaved": "Sadrži nespremljene promjene"
+    },
+    "search": {
+      "placeholder": "Pretraži postavke…",
+      "noResults": "Nema pronađenih postavki"
+    },
+    "leave": {
+      "title": "Napustiti bez spremanja?",
+      "description": "Imate nespremljene promjene. Ako napustite stranicu, bit će izgubljene.",
+      "confirm": "Napusti bez spremanja",
+      "stay": "Ostani na stranici",
+      "close": "Zatvori"
+    },
     "loadError": {
       "title": "Postavke poslužitelja se nisu mogle učitati",
       "description": "Nešto je pošlo po zlu prilikom učitavanja postavki poslužitelja. Možete pokušati ponovno.",
@@ -294,6 +321,29 @@
       "title": "Pravila lozinke",
       "lengthRegular": "Minimalna duljina za obične korisnike",
       "lengthAdmin": "Minimalna duljina za administratore"
+    },
+    "session": {
+      "title": "Sesije",
+      "description": "Promjene se primjenjuju na nove prijave i sljedeće osvježavanje tokena. Već izdani tokeni zadržavaju svoje trajanje.",
+      "idleTimeoutEnabled": "Nametni istek zbog neaktivnosti",
+      "idleHours": "Istek zbog neaktivnosti (sati)",
+      "idleHoursHint": "Kada je nametnut, sesija završava nakon ovoliko sati bez aktivnosti.",
+      "absoluteHours": "Apsolutni istek (sati)",
+      "absoluteHoursHint": "Sesija završava ovoliko sati nakon prijave, bez obzira na aktivnost. Uvijek se primjenjuje. Ne kraći od isteka zbog neaktivnosti.",
+      "accessMinutes": "Trajanje pristupnog tokena (minute)",
+      "refreshDays": "Trajanje tokena za osvježavanje (dani)",
+      "invalidRange": "Unesite cijeli broj između {min} i {max}.",
+      "absoluteBelowIdle": "Ne smije biti kraći od isteka zbog neaktivnosti."
+    },
+    "retention": {
+      "title": "Zadržavanje podataka",
+      "readNotifications": "Izbriši pročitane obavijesti nakon (dana)",
+      "readNotificationsHint": "0 zauvijek zadržava pročitane obavijesti. Nepročitane obavijesti nikada se ne brišu.",
+      "auditTrail": "Izbriši zapise revizijskog traga nakon (dana)",
+      "auditTrailHint": "0 zadržava sve. Inače je minimum 30 dana; zapisi se brišu cijeli dan odjednom.",
+      "auditTrailInvalid": "Unesite 0 ili cijeli broj između {min} i {max}.",
+      "auditLegalHold": "Pravna zadrška revizijskog traga",
+      "auditLegalHoldHint": "Dok je uključena, zaustavlja svako brisanje revizijskog traga, bez obzira na zadržavanje."
     },
     "signup": {
       "title": "Registracija",
@@ -330,12 +380,33 @@
       "attribution": "Atribucija",
       "apiKey": "API ključ poslužitelja pločica",
       "apiKeyWarning": "API ključ se pohranjuje šifrirano. Ostavite prazno ako vaš poslužitelj pločica ne treba ključ.",
+      "apiKeyStored": "Ključ je pohranjen",
+      "apiKeyRemove": "Ukloni pohranjeni API ključ",
       "backgroundColor": "Boja pozadine karte",
       "regenerateThumbnails": "Ponovno generiraj minijature aktivnosti kada se promijene postavke karte"
+    },
+    "geocoding": {
+      "title": "Obrnuto geokodiranje",
+      "description": "Pretvara koordinate aktivnosti u nazive mjesta. Promjene se primjenjuju bez ponovnog pokretanja.",
+      "service": "Usluga",
+      "serviceNominatim": "Nominatim",
+      "servicePhoton": "Photon",
+      "serviceGeocode": "geocode.maps.co",
+      "host": "Poslužitelj",
+      "hostHint": "Naziv poslužitelja s neobaveznim priključkom, bez sheme. Poslužitelj u privatnoj mreži mora biti naveden u SSRF_ALLOWED_HOSTS.",
+      "useHttps": "Poveži se putem HTTPS-a",
+      "rateLimit": "Zahtjeva u sekundi",
+      "rateLimitHint": "0 isključuje ograničavanje. Za javne usluge Nominatim i Photon zadržite 1.",
+      "rateLimitInvalid": "Unesite broj između 0 i 100.",
+      "apiKey": "API ključ",
+      "apiKeyStored": "Ključ je pohranjen. Ostavite prazno da ga zadržite.",
+      "apiKeyRemove": "Ukloni pohranjeni API ključ",
+      "apiKeyRequired": "geocode.maps.co zahtijeva API ključ."
     },
     "photo": {
       "title": "Fotografija za prijavu",
       "description": "Prilagođena slika prikazana na zaslonu za prijavu",
+      "previewAlt": "Trenutna fotografija za prijavu",
       "add": "Učitaj fotografiju za prijavu",
       "replace": "Zamijeni fotografiju za prijavu",
       "delete": "Ukloni fotografiju za prijavu",
@@ -349,6 +420,30 @@
       "cancel": "Odustani",
       "close": "Zatvori"
     },
+    "logs": {
+      "title": "Zapisnici poslužitelja",
+      "description": "Najnoviji zapisi dnevnika aplikacije. Zapise implementacija s više procesa prikuplja vaša platforma.",
+      "level": "Minimalna razina",
+      "allLevels": "Sve razine",
+      "search": "Traži",
+      "searchPlaceholder": "Tekst, logger ili ID zahtjeva…",
+      "live": "Uživo",
+      "refresh": "Osvježi",
+      "download": "Preuzmi",
+      "downloadError": "Datoteku zapisnika nije bilo moguće preuzeti.",
+      "clear": "Očisti",
+      "cleared": "Zapisnici očišćeni",
+      "clearError": "Zapisnike nije bilo moguće očistiti.",
+      "clearConfirm": {
+        "title": "Očistiti zapisnike poslužitelja?",
+        "description": "Ovo trajno briše datoteku zapisnika i njezine rotirane sigurnosne kopije. Prvo preuzmite zapisnik ako bi vam mogao zatrebati. Sama radnja bilježi se u novom zapisniku.",
+        "confirm": "Očisti zapisnike",
+        "cancel": "Odustani",
+        "close": "Zatvori"
+      },
+      "loadError": "Zapisnike nije bilo moguće učitati.",
+      "empty": "Nema pronađenih zapisa"
+    },
     "email": {
       "title": "E-pošta",
       "description": "Endurain šalje e-poruke za resetiranje zaporke i registraciju putem SMTP poslužitelja konfiguriranog u okruženju.",
@@ -360,30 +455,26 @@
       "sendHint": "Probna e-poruka šalje se na vašu vlastitu adresu.",
       "sent": "Probna e-poruka poslana",
       "failed": "Probnu e-poruku nije bilo moguće poslati",
-      "failedUnknown": "Detalje potražite u zapisnicima poslužitelja."
-    },
-    "envLocked": "Postavljeno varijablom {name}",
-    "envSection": "Neke postavke ovdje određuju varijable okoline ({names}). Uklonite ih iz okoline kako biste te postavke mogli uređivati ovdje.",
-    "unsaved": "Nespremljene promjene",
-    "discard": "Odbaci",
-    "tabs": {
-      "label": "Odjeljci postavki poslužitelja",
-      "general": "Općenito",
-      "access": "Pristup i sigurnost",
-      "maps": "Karte i lokacija",
-      "email": "E-pošta",
-      "unsaved": "Sadrži nespremljene promjene"
-    },
-    "search": {
-      "placeholder": "Pretraži postavke…",
-      "noResults": "Nema pronađenih postavki"
-    },
-    "leave": {
-      "title": "Napustiti bez spremanja?",
-      "description": "Imate nespremljene promjene. Ako napustite stranicu, bit će izgubljene.",
-      "confirm": "Napusti bez spremanja",
-      "stay": "Ostani na stranici",
-      "close": "Zatvori"
+      "failedUnknown": "Detalje potražite u zapisnicima poslužitelja.",
+      "settingsLoadError": "Postavke e-pošte nije bilo moguće učitati.",
+      "host": "Poslužitelj",
+      "hostHint": "Ostavite prazno da isključite e-poštu.",
+      "port": "Priključak",
+      "portInvalid": "Unesite priključak između 1 i 65535.",
+      "security": "Sigurnost veze",
+      "securityStarttls": "STARTTLS",
+      "securitySsl": "SSL/TLS",
+      "securityNone": "Nema (samo privatni relej)",
+      "securityNoneWarning": "Bez enkripcije prihvaća se samo poslužitelj e-pošte na privatnoj ili loopback adresi, a korisničko ime i lozinka ne mogu se koristiti.",
+      "username": "Korisničko ime",
+      "password": "Lozinka",
+      "passwordStored": "Lozinka je pohranjena. Ostavite prazno da je zadržite.",
+      "passwordRemove": "Ukloni pohranjenu lozinku",
+      "fromAddress": "Adresa pošiljatelja",
+      "fromAddressHint": "Ostavite prazno za korištenje korisničkog imena.",
+      "save": "Spremi postavke e-pošte",
+      "saveSuccess": "Postavke e-pošte spremljene",
+      "saveError": "Postavke e-pošte nije bilo moguće spremiti"
     }
   },
   "idp": {
@@ -445,6 +536,7 @@
       "issuerUrl": "URL izdavatelja",
       "issuerUrlHint": "OIDC izdavatelj pružatelja ili URL za otkrivanje",
       "issuerUrlRequired": "URL izdavatelja je obavezan",
+      "issuerUrlRefused": "URL pružatelja je odbijen. Mora koristiti https:// i biti razriješen s poslužitelja, a pružatelj u privatnoj mreži mora biti naveden u SSRF_ALLOWED_HOSTS.",
       "issuerUrlTooLong": "URL izdavatelja mora imati 500 znakova ili manje",
       "clientId": "Client ID",
       "clientIdRequired": "Client ID je obavezan",
@@ -459,12 +551,22 @@
       "scopesTooLong": "Opsezi moraju imati 500 znakova ili manje",
       "icon": "Ikona",
       "iconNone": "Nijedna",
+      "iconUpload": "Prenesi sliku",
+      "iconFileHint": "PNG, JPEG, GIF ili WebP slika do 1 MB, prikazuje se na gumbu za prijavu",
+      "iconChoose": "Odaberi sliku",
+      "iconReplace": "Zamijeni sliku",
+      "iconPreviewAlt": "Pregled ikone",
+      "iconFileRequired": "Odaberite sliku za prijenos",
+      "iconFileInvalidType": "Ikona mora biti PNG, JPEG, GIF ili WebP slika",
+      "iconFileTooLarge": "Ikona mora biti najviše 1 MB",
+      "iconSaveError": "Pružatelj je spremljen, ali njegovu ikonu nije bilo moguće ažurirati. Uredite pružatelja da pokušate ponovno.",
       "enabled": "Omogućeno",
       "autoCreateUsers": "Automatski stvori korisnike pri prvoj prijavi",
       "syncUserInfo": "Sinkroniziraj podatke profila pri svakoj prijavi",
       "createSuccess": "Pružatelj je dodan",
       "updateSuccess": "Pružatelj je ažuriran",
       "slugConflict": "Taj slug se već koristi",
+      "staleError": "Ovaj je pružatelj promijenjen drugdje. Vaše promjene nisu spremljene. Zatvorite ga i ponovno otvorite da učitate trenutne postavke.",
       "saveError": "Nije moguće spremiti pružatelja. Pokušajte ponovno."
     }
   },
@@ -472,7 +574,7 @@
     "title": "Moji ciljevi",
     "subtitle": "Postavite ciljeve za svoje aktivnosti i pratite svoj napredak",
     "buttonAdd": "Dodaj cilj",
-    "count": "Ukupno postoji {count} cilj(eva):",
+    "count": "Ukupno je {count} cilj: | Ukupno su {count} cilja:",
     "filters": "Filtri",
     "filter": {
       "all": "Svi",
@@ -556,6 +658,7 @@
     "hidePassword": "Sakrij lozinku",
     "mfaCode": "Autentifikacijski kod",
     "mfaCodePlaceholder": "123456",
+    "confirmPhrase": "Upišite {phrase} za potvrdu",
     "loadError": {
       "title": "Vaše se sigurnosne postavke nisu mogle učitati",
       "description": "Nešto je pošlo po zlu. Možete pokušati ponovno."
@@ -579,7 +682,7 @@
       "disabledDescription": "Dvofaktorska autentifikacija je isključena. Uključite je za bolju zaštitu svog računa.",
       "enable": "Omogući dvofaktorsku autentifikaciju",
       "enabledDescription": "Dvofaktorska autentifikacija je uključena.",
-      "backupRemaining": "Preostalo {unused} od {total} sigurnosnih kodova.",
+      "backupRemaining": "Preostao je {unused} od {total} sigurnosnih kodova. | Preostala su {unused} od {total} sigurnosna koda.",
       "regenerate": "Ponovno generiraj sigurnosne kodove",
       "disable": "Onemogući",
       "setupTitle": "Omogući dvofaktorsku autentifikaciju",
@@ -653,10 +756,16 @@
       "unlinkError": "Nije moguće prekinuti vezu računa. Pokušajte ponovno.",
       "invalidCredentials": "Vaša lozinka ili kod su netočni.",
       "alreadyLinked": "Taj je račun već povezan.",
-      "lastMethodError": "Ne možete prekinuti vezu svoje jedine metode prijave. Prvo postavite lozinku."
+      "lastMethodError": "Ne možete prekinuti vezu svoje jedine metode prijave. Prvo postavite lozinku.",
+      "linkedOn": "Povezano {date}"
     },
     "email": {
+      "title": "Adresa e-pošte",
       "subtitle": "Ovdje se šalju poveznice za poništavanje lozinke i obavijesti. Za promjenu morate potvrditi svoj identitet, a nova adresa stupa na snagu kada je potvrdite putem poveznice koju na nju šaljemo.",
+      "current": "Trenutna e-pošta",
+      "action": "Promijeni e-poštu",
+      "new": "Nova e-pošta",
+      "invalid": "Unesite ispravnu adresu e-pošte.",
       "sameAsCurrent": "Ovo je već vaša adresa e-pošte.",
       "success": "Poveznica za potvrdu poslana je na novu adresu. Vaša e-pošta promijenit će se nakon potvrde.",
       "appliedSuccess": "E-pošta je promijenjena.",
@@ -667,7 +776,19 @@
       "resendSuccess": "Ako je promjena na čekanju, nova poveznica stiže na novu adresu.",
       "resendError": "Poveznicu nije bilo moguće ponovno poslati. Pokušajte ponovno.",
       "cancelSuccess": "Promjena e-pošte je otkazana.",
-      "cancelError": "Promjenu nije bilo moguće otkazati. Pokušajte ponovno."
+      "cancelError": "Promjenu nije bilo moguće otkazati. Pokušajte ponovno.",
+      "conflict": "Ta je e-pošta već u upotrebi.",
+      "error": "E-poštu nije bilo moguće promijeniti. Pokušajte ponovno."
+    },
+    "deleteAccount": {
+      "title": "Izbriši moj račun",
+      "subtitle": "Trajno izbrišite svoj račun i sve svoje podatke, uključujući aktivnosti i njihove datoteke, zdravstvene zapise, opremu, ciljeve, integracije i sesije. Ovo se ne može poništiti. Prvo izvezite podatke ako želite zadržati kopiju.",
+      "action": "Izbriši moj račun",
+      "dialogTitle": "Izbrisati račun?",
+      "dialogDescription": "Ovo trajno briše vaš račun i sve vaše podatke. Potvrdite svoj identitet za nastavak.",
+      "confirm": "Izbriši moj račun",
+      "error": "Račun nije bilo moguće izbrisati. Pokušajte ponovno.",
+      "onlyAdminError": "Vi ste jedini administrator. Prije brisanja računa postavite drugog korisnika za administratora."
     },
     "apiKeys": {
       "title": "API ključevi",
@@ -712,6 +833,18 @@
       "deleteBody": "{name} će biti trajno izbrisan. To se ne može poništiti.",
       "deleteSuccess": "API ključ je izbrisan",
       "deleteError": "Nije moguće izbrisati API ključ. Pokušajte ponovno."
+    },
+    "stepUp": {
+      "prompt": "Vaš račun nema lozinku. Ponovno se prijavite putem povezanog pružatelja identiteta kako biste potvrdili da ste to vi.",
+      "continueWith": "Nastavi s pružateljem {name}",
+      "ready": "Prijava putem pružatelja identiteta potvrđena.",
+      "restart": "Prijavi se ponovno",
+      "noProviders": "Nije dostupan nijedan povezani pružatelj identiteta za potvrdu vašeg identiteta.",
+      "startError": "Prijavu putem pružatelja identiteta nije bilo moguće pokrenuti. Pokušajte ponovno.",
+      "tooManyAttempts": "Previše pokušaja. Pokušajte ponovno kasnije.",
+      "reauthRequired": "Potvrdite svoj identitet kod pružatelja identiteta za nastavak.",
+      "failed": "Ponovna prijava putem pružatelja identiteta nije uspjela. Pokušajte ponovno.",
+      "notFresh": "Pružatelj identiteta nije tražio ponovnu prijavu. Obratite se administratoru."
     }
   },
   "integrations": {
@@ -834,6 +967,8 @@
     "title": "Moj profil",
     "subtitle": "Upravljajte detaljima i privatnošću svog računa",
     "notSet": "Nije postavljeno",
+    "emailManagedIn": "Vaša se e-pošta mijenja u sigurnosnim postavkama.",
+    "emailManagedLink": "Otvori sigurnosne postavke",
     "error": {
       "title": "Vaš se profil nije mogao učitati",
       "description": "Nešto je pošlo po zlu prilikom učitavanja vašeg profila. Možete pokušati ponovno.",
@@ -939,9 +1074,40 @@
       "export": "Izvezi podatke",
       "import": "Uvezi podatke",
       "invalidType": "Odaberite .zip arhivu.",
-      "exportSuccess": "Izvoz je spreman, vaše bi preuzimanje uskoro trebalo započeti",
+      "download": "Preuzmi izvoz",
+      "downloadSuccess": "Preuzimanje bi trebalo uskoro započeti",
+      "downloadError": "Izvoz nije bilo moguće preuzeti. Pokušajte ponovno.",
+      "exportQueued": "Izvoz je pokrenut. Možete napustiti ovu stranicu.",
       "exportError": "Nije moguće izvesti vaše podatke. Pokušajte ponovno.",
-      "importError": "Nije moguće uvesti arhivu. Provjerite datoteku i pokušajte ponovno."
+      "exportInProgress": "Izvoz je već u tijeku.",
+      "exportStatus": {
+        "queued": "Čeka se početak izvoza…",
+        "running": "Priprema izvoza…",
+        "completed": "Vaš je izvoz spreman za preuzimanje. Dostupan je dva sata.",
+        "failed": "Izvoz nije dovršen: {reason}"
+      },
+      "exportFailure": {
+        "timed_out": "trajao je predugo. Možete pokušati ponovno.",
+        "processing_failed": "nešto je pošlo po zlu. Možete pokušati ponovno."
+      },
+      "importQueued": "Uvoz je pokrenut. Možete napustiti ovu stranicu.",
+      "importError": "Nije moguće uvesti arhivu. Provjerite datoteku i pokušajte ponovno.",
+      "importInProgress": "Uvoz je već u tijeku.",
+      "status": {
+        "queued": "Čeka se početak uvoza…",
+        "running": "Uvoz podataka…",
+        "writing_files": "Spremanje datoteka…",
+        "completed": "Uvoz završen: uvezeno aktivnosti: {activities}, opreme: {gears}.",
+        "failed": "Uvoz nije dovršen: {reason}"
+      },
+      "failure": {
+        "invalid_file": "arhiva nije ispravan Endurain izvoz. Ništa nije uvezeno.",
+        "too_large": "arhiva je prevelika. Ništa nije uvezeno.",
+        "too_many_activities": "arhiva ima previše aktivnosti. Ništa nije uvezeno.",
+        "timed_out": "trajao je predugo. Ništa nije uvezeno pa možete pokušati ponovno.",
+        "files_incomplete": "vaši su podaci uvezeni, ali neke datoteke nedostaju. Nemojte ponovno uvoziti; podaci bi se duplicirali.",
+        "processing_failed": "nešto je pošlo po zlu. Ništa nije uvezeno pa možete pokušati ponovno."
+      }
     }
   }
 }

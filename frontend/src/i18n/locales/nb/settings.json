@@ -121,6 +121,8 @@
       "weightUnitsMetric": "Kilogram (kg)",
       "weightUnitsImperial": "Pund (lb)",
       "height": "Høyde",
+      "heightInvalid": "Høyden må være mellom 1 og 300 cm",
+      "maxHeartRateInvalid": "Makspuls må være mellom 30 og 250 slag/min",
       "feetInvalid": "Fot må være mellom 0 og 10",
       "inchesInvalid": "Tommer må være mellom 0 og 11",
       "maxHeartRate": "Maks puls",
@@ -274,6 +276,31 @@
     "saving": "Lagrer…",
     "saveSuccess": "Serverinnstillinger oppdatert",
     "saveError": "Kunne ikke oppdatere serverinnstillingene. Vennligst prøv igjen.",
+    "staleError": "Disse innstillingene ble endret av noen andre mens du redigerte. Endringene dine ble ikke lagret. Last inn siden på nytt for å se gjeldende verdier.",
+    "envLocked": "Angitt av {name}",
+    "envSection": "Noen innstillinger her angis av miljøvariabler ({names}). Fjern dem fra miljøet for å redigere dem her.",
+    "unsaved": "Ulagrede endringer",
+    "discard": "Forkast",
+    "tabs": {
+      "label": "Seksjoner i serverinnstillingene",
+      "general": "Generelt",
+      "access": "Tilgang og sikkerhet",
+      "maps": "Kart og posisjon",
+      "email": "E-post",
+      "logs": "Logger",
+      "unsaved": "Har ulagrede endringer"
+    },
+    "search": {
+      "placeholder": "Søk i innstillinger…",
+      "noResults": "Fant ingen innstillinger"
+    },
+    "leave": {
+      "title": "Forlate uten å lagre?",
+      "description": "Du har ulagrede endringer. Hvis du forlater siden, går de tapt.",
+      "confirm": "Forlat uten å lagre",
+      "stay": "Bli på siden",
+      "close": "Lukk"
+    },
     "loadError": {
       "title": "Kunne ikke laste serverinnstillinger",
       "description": "Noe gikk galt under lasting av serverinnstillingene. Du kan prøve igjen.",
@@ -294,6 +321,29 @@
       "title": "Passordretningslinjer",
       "lengthRegular": "Minimumslengde for vanlige brukere",
       "lengthAdmin": "Minimumslengde for administratorbrukere"
+    },
+    "session": {
+      "title": "Økter",
+      "description": "Endringer gjelder for nye innlogginger og ved neste fornyelse av token. Token som allerede er utstedt beholder levetiden sin.",
+      "idleTimeoutEnabled": "Håndhev tidsavbrudd ved inaktivitet",
+      "idleHours": "Tidsavbrudd ved inaktivitet (timer)",
+      "idleHoursHint": "Når dette er påslått, avsluttes en økt etter så mange timer uten aktivitet.",
+      "absoluteHours": "Absolutt tidsavbrudd (timer)",
+      "absoluteHoursHint": "En økt avsluttes så mange timer etter innlogging, uansett aktivitet. Gjelder alltid. Kan ikke være kortere enn tidsavbruddet ved inaktivitet.",
+      "accessMinutes": "Levetid for tilgangstoken (minutter)",
+      "refreshDays": "Levetid for oppdateringstoken (dager)",
+      "invalidRange": "Skriv inn et heltall mellom {min} og {max}.",
+      "absoluteBelowIdle": "Kan ikke være kortere enn tidsavbruddet ved inaktivitet."
+    },
+    "retention": {
+      "title": "Datalagring",
+      "readNotifications": "Slett leste varsler etter (dager)",
+      "readNotificationsHint": "0 beholder leste varsler for alltid. Uleste varsler slettes aldri.",
+      "auditTrail": "Slett revisjonssporoppføringer etter (dager)",
+      "auditTrailHint": "0 beholder alt. Ellers er minimum 30 dager; oppføringer slettes en hel dag om gangen.",
+      "auditTrailInvalid": "Skriv inn 0, eller et heltall mellom {min} og {max}.",
+      "auditLegalHold": "Juridisk oppbevaringspålegg på revisjonssporet",
+      "auditLegalHoldHint": "Når dette er på, settes all opprydding av revisjonssporet på pause, uansett oppbevaringstid."
     },
     "signup": {
       "title": "Registrering",
@@ -330,12 +380,33 @@
       "attribution": "Attribusjon",
       "apiKey": "API-nøkkel for flisserver",
       "apiKeyWarning": "API-nøkkelen lagres kryptert. La stå tom hvis flisserveren din ikke trenger en.",
+      "apiKeyStored": "En nøkkel er lagret",
+      "apiKeyRemove": "Fjern den lagrede API-nøkkelen",
       "backgroundColor": "Bakgrunnsfarge for kart",
       "regenerateThumbnails": "Generer aktivitetsminiatyrer på nytt når kartinnstillingene endres"
+    },
+    "geocoding": {
+      "title": "Omvendt geokoding",
+      "description": "Gjør aktivitetskoordinater om til stedsnavn. Endringer gjelder uten omstart.",
+      "service": "Tjeneste",
+      "serviceNominatim": "Nominatim",
+      "servicePhoton": "Photon",
+      "serviceGeocode": "geocode.maps.co",
+      "host": "Vert",
+      "hostHint": "Vertsnavn med valgfri port, uten skjema. En vert på et privat nettverk må være oppført i SSRF_ALLOWED_HOSTS.",
+      "useHttps": "Koble til via HTTPS",
+      "rateLimit": "Forespørsler per sekund",
+      "rateLimitHint": "0 slår av begrensning. Behold 1 for de offentlige tjenestene Nominatim og Photon.",
+      "rateLimitInvalid": "Skriv inn et tall mellom 0 og 100.",
+      "apiKey": "API-nøkkel",
+      "apiKeyStored": "En nøkkel er lagret. La feltet stå tomt for å beholde den.",
+      "apiKeyRemove": "Fjern den lagrede API-nøkkelen",
+      "apiKeyRequired": "geocode.maps.co trenger en API-nøkkel."
     },
     "photo": {
       "title": "Innloggingsbilde",
       "description": "Et egendefinert bilde som vises på innloggingsskjermen",
+      "previewAlt": "Gjeldende påloggingsbilde",
       "add": "Last opp innloggingsbilde",
       "replace": "Erstatt innloggingsbilde",
       "delete": "Fjern innloggingsbilde",
@@ -349,6 +420,30 @@
       "cancel": "Avbryt",
       "close": "Lukk"
     },
+    "logs": {
+      "title": "Serverlogger",
+      "description": "De nyeste oppføringene i applikasjonsloggen. Logger fra installasjoner som kjører flere prosesser samles inn av plattformen din i stedet.",
+      "level": "Minimumsnivå",
+      "allLevels": "Alle nivåer",
+      "search": "Søk",
+      "searchPlaceholder": "Tekst, logger eller forespørsels-ID…",
+      "live": "Direkte",
+      "refresh": "Oppdater",
+      "download": "Last ned",
+      "downloadError": "Kunne ikke laste ned loggfilen.",
+      "clear": "Tøm",
+      "cleared": "Loggene er tømt",
+      "clearError": "Kunne ikke tømme loggene.",
+      "clearConfirm": {
+        "title": "Tømme serverloggene?",
+        "description": "Dette sletter loggfilen og de roterte sikkerhetskopiene permanent. Last ned loggen først hvis du kan trenge den. Selve handlingen registreres i den nye loggen.",
+        "confirm": "Tøm logger",
+        "cancel": "Avbryt",
+        "close": "Lukk"
+      },
+      "loadError": "Kunne ikke laste loggene.",
+      "empty": "Ingen loggoppføringer funnet"
+    },
     "email": {
       "title": "E-post",
       "description": "Endurain sender e-poster for tilbakestilling av passord og registrering via SMTP-serveren som er konfigurert i miljøet.",
@@ -360,30 +455,26 @@
       "sendHint": "Test-e-posten sendes til din egen adresse.",
       "sent": "Test-e-post sendt",
       "failed": "Test-e-posten kunne ikke sendes",
-      "failedUnknown": "Se serverloggene for detaljer."
-    },
-    "envLocked": "Angitt av {name}",
-    "envSection": "Noen innstillinger her angis av miljøvariabler ({names}). Fjern dem fra miljøet for å redigere dem her.",
-    "unsaved": "Ulagrede endringer",
-    "discard": "Forkast",
-    "tabs": {
-      "label": "Seksjoner i serverinnstillingene",
-      "general": "Generelt",
-      "access": "Tilgang og sikkerhet",
-      "maps": "Kart og posisjon",
-      "email": "E-post",
-      "unsaved": "Har ulagrede endringer"
-    },
-    "search": {
-      "placeholder": "Søk i innstillinger…",
-      "noResults": "Fant ingen innstillinger"
-    },
-    "leave": {
-      "title": "Forlate uten å lagre?",
-      "description": "Du har ulagrede endringer. Hvis du forlater siden, går de tapt.",
-      "confirm": "Forlat uten å lagre",
-      "stay": "Bli på siden",
-      "close": "Lukk"
+      "failedUnknown": "Se serverloggene for detaljer.",
+      "settingsLoadError": "Kunne ikke laste e-postinnstillingene.",
+      "host": "Vert",
+      "hostHint": "La stå tomt for å slå av e-post.",
+      "port": "Port",
+      "portInvalid": "Skriv inn en port mellom 1 og 65535.",
+      "security": "Tilkoblingssikkerhet",
+      "securityStarttls": "STARTTLS",
+      "securitySsl": "SSL/TLS",
+      "securityNone": "Ingen (kun privat relé)",
+      "securityNoneWarning": "Uten kryptering godtas bare en e-postserver på en privat adresse eller loopback-adresse, og brukernavn og passord kan ikke brukes.",
+      "username": "Brukernavn",
+      "password": "Passord",
+      "passwordStored": "Et passord er lagret. La feltet stå tomt for å beholde det.",
+      "passwordRemove": "Fjern det lagrede passordet",
+      "fromAddress": "Avsenderadresse",
+      "fromAddressHint": "La stå tomt for å bruke brukernavnet.",
+      "save": "Lagre e-postinnstillinger",
+      "saveSuccess": "E-postinnstillingene er lagret",
+      "saveError": "E-postinnstillingene kunne ikke lagres"
     }
   },
   "idp": {
@@ -445,6 +536,7 @@
       "issuerUrl": "Utsteder-URL",
       "issuerUrlHint": "Leverandørens OIDC-utsteder- eller discovery-URL",
       "issuerUrlRequired": "Utsteder-URL er obligatorisk",
+      "issuerUrlRefused": "Leverandørens URL ble avvist. Den må bruke https:// og kunne løses fra serveren, og en leverandør på et privat nettverk må være oppført i SSRF_ALLOWED_HOSTS.",
       "issuerUrlTooLong": "Utsteder-URL må være 500 tegn eller færre",
       "clientId": "Klient-ID",
       "clientIdRequired": "Klient-ID er obligatorisk",
@@ -459,12 +551,22 @@
       "scopesTooLong": "Omfang må være 500 tegn eller færre",
       "icon": "Ikon",
       "iconNone": "Ingen",
+      "iconUpload": "Last opp et bilde",
+      "iconFileHint": "Et PNG-, JPEG-, GIF- eller WebP-bilde på opptil 1 MB, vist på innloggingsknappen",
+      "iconChoose": "Velg bilde",
+      "iconReplace": "Bytt ut bilde",
+      "iconPreviewAlt": "Forhåndsvisning av ikon",
+      "iconFileRequired": "Velg et bilde å laste opp",
+      "iconFileInvalidType": "Ikonet må være et PNG-, JPEG-, GIF- eller WebP-bilde",
+      "iconFileTooLarge": "Ikonet kan være maks 1 MB",
+      "iconSaveError": "Leverandøren ble lagret, men ikonet kunne ikke oppdateres. Rediger leverandøren for å prøve igjen.",
       "enabled": "Aktivert",
       "autoCreateUsers": "Opprett brukere automatisk ved første innlogging",
       "syncUserInfo": "Synkroniser profilinformasjon ved hver innlogging",
       "createSuccess": "Leverandør lagt til",
       "updateSuccess": "Leverandør oppdatert",
       "slugConflict": "Den slug-en er allerede i bruk",
+      "staleError": "Denne leverandøren ble endret et annet sted. Endringene dine ble ikke lagret. Lukk og åpne den på nytt for å laste de gjeldende innstillingene.",
       "saveError": "Kunne ikke lagre leverandøren. Vennligst prøv igjen."
     }
   },
@@ -472,7 +574,7 @@
     "title": "Mine mål",
     "subtitle": "Sett mål for aktivitetene dine og følg fremgangen din",
     "buttonAdd": "Legg til mål",
-    "count": "Det er totalt {count} mål:",
+    "count": "Det er totalt {count} mål: | Det er totalt {count} mål:",
     "filters": "Filtre",
     "filter": {
       "all": "Alle",
@@ -556,6 +658,7 @@
     "hidePassword": "Skjul passord",
     "mfaCode": "Autentiseringskode",
     "mfaCodePlaceholder": "123456",
+    "confirmPhrase": "Skriv {phrase} for å bekrefte",
     "loadError": {
       "title": "Kunne ikke laste sikkerhetsinnstillingene dine",
       "description": "Noe gikk galt. Du kan prøve igjen."
@@ -579,7 +682,7 @@
       "disabledDescription": "Tofaktorautentisering er av. Slå den på for å beskytte kontoen din bedre.",
       "enable": "Aktiver tofaktor",
       "enabledDescription": "Tofaktorautentisering er på.",
-      "backupRemaining": "{unused} av {total} reservekoder gjenstår.",
+      "backupRemaining": "{unused} av {total} reservekode gjenstår. | {unused} av {total} reservekoder gjenstår.",
       "regenerate": "Generer reservekoder på nytt",
       "disable": "Deaktiver",
       "setupTitle": "Aktiver tofaktorautentisering",
@@ -653,10 +756,16 @@
       "unlinkError": "Kunne ikke koble fra kontoen. Vennligst prøv igjen.",
       "invalidCredentials": "Passordet eller koden din er feil.",
       "alreadyLinked": "Den kontoen er allerede koblet til.",
-      "lastMethodError": "Du kan ikke koble fra den eneste innloggingsmetoden din. Sett et passord først."
+      "lastMethodError": "Du kan ikke koble fra den eneste innloggingsmetoden din. Sett et passord først.",
+      "linkedOn": "Koblet {date}"
     },
     "email": {
+      "title": "E-postadresse",
       "subtitle": "Dette er hit passordtilbakestillinger og varsler sendes. Ved endring må du bekrefte identiteten din, og den nye adressen gjelder først når du bekrefter den via en lenke vi sender dit.",
+      "current": "Gjeldende e-post",
+      "action": "Endre e-post",
+      "new": "Ny e-post",
+      "invalid": "Skriv inn en gyldig e-postadresse.",
       "sameAsCurrent": "Dette er allerede e-postadressen din.",
       "success": "Bekreftelseslenke er sendt til den nye adressen. E-posten din endres når du bekrefter den.",
       "appliedSuccess": "E-post endret.",
@@ -667,7 +776,19 @@
       "resendSuccess": "Hvis en endring venter, er en ny lenke på vei til den nye adressen.",
       "resendError": "Kunne ikke sende lenken på nytt. Vennligst prøv igjen.",
       "cancelSuccess": "Endringen av e-post er avbrutt.",
-      "cancelError": "Kunne ikke avbryte endringen. Vennligst prøv igjen."
+      "cancelError": "Kunne ikke avbryte endringen. Vennligst prøv igjen.",
+      "conflict": "Denne e-postadressen er allerede i bruk.",
+      "error": "Kunne ikke endre e-posten din. Vennligst prøv igjen."
+    },
+    "deleteAccount": {
+      "title": "Slett kontoen min",
+      "subtitle": "Slett kontoen din og alle dataene dine permanent, inkludert aktiviteter og filene deres, helsedata, utstyr, mål, integrasjoner og økter. Dette kan ikke angres. Eksporter dataene dine først hvis du vil beholde en kopi.",
+      "action": "Slett kontoen min",
+      "dialogTitle": "Slette kontoen din?",
+      "dialogDescription": "Dette sletter kontoen din og alle dataene dine permanent. Bekreft identiteten din for å fortsette.",
+      "confirm": "Slett kontoen min",
+      "error": "Kunne ikke slette kontoen din. Vennligst prøv igjen.",
+      "onlyAdminError": "Du er den eneste administratoren. Gjør en annen bruker til administrator før du sletter kontoen din."
     },
     "apiKeys": {
       "title": "API-nøkler",
@@ -712,6 +833,18 @@
       "deleteBody": "{name} vil bli slettet permanent. Dette kan ikke angres.",
       "deleteSuccess": "API-nøkkel slettet",
       "deleteError": "Kunne ikke slette API-nøkkelen. Vennligst prøv igjen."
+    },
+    "stepUp": {
+      "prompt": "Kontoen din har ikke noe passord. Logg inn på nytt med en tilkoblet identitetsleverandør for å bekrefte at det er deg.",
+      "continueWith": "Fortsett med {name}",
+      "ready": "Innlogging med identitetsleverandør bekreftet.",
+      "restart": "Logg inn på nytt",
+      "noProviders": "Ingen tilkoblet identitetsleverandør er tilgjengelig for å bekrefte identiteten din.",
+      "startError": "Kunne ikke starte innloggingen med identitetsleverandøren. Vennligst prøv igjen.",
+      "tooManyAttempts": "For mange forsøk. Vennligst prøv igjen senere.",
+      "reauthRequired": "Bekreft identiteten din hos identitetsleverandøren for å fortsette.",
+      "failed": "Ny innlogging med identitetsleverandøren mislyktes. Vennligst prøv igjen.",
+      "notFresh": "Identitetsleverandøren ba deg ikke om å logge inn på nytt. Kontakt administratoren din."
     }
   },
   "integrations": {
@@ -834,6 +967,8 @@
     "title": "Min profil",
     "subtitle": "Administrer kontodetaljene og personvernet ditt",
     "notSet": "Ikke satt",
+    "emailManagedIn": "E-posten din endres i sikkerhetsinnstillingene.",
+    "emailManagedLink": "Åpne sikkerhetsinnstillingene",
     "error": {
       "title": "Kunne ikke laste profilen din",
       "description": "Noe gikk galt under lasting av profilen din. Du kan prøve igjen.",
@@ -939,9 +1074,40 @@
       "export": "Eksporter data",
       "import": "Importer data",
       "invalidType": "Vennligst velg et .zip-arkiv.",
-      "exportSuccess": "Eksport klar, nedlastingen din bør starte snart",
+      "download": "Last ned eksport",
+      "downloadSuccess": "Nedlastingen starter om et øyeblikk",
+      "downloadError": "Kunne ikke laste ned eksporten. Vennligst prøv igjen.",
+      "exportQueued": "Eksporten er startet. Du kan forlate denne siden.",
       "exportError": "Kunne ikke eksportere dataene dine. Vennligst prøv igjen.",
-      "importError": "Kunne ikke importere arkivet. Vennligst sjekk filen og prøv igjen."
+      "exportInProgress": "En eksport pågår allerede.",
+      "exportStatus": {
+        "queued": "Venter på at eksporten skal starte…",
+        "running": "Forbereder eksporten din…",
+        "completed": "Eksporten din er klar til nedlasting. Den er tilgjengelig i to timer.",
+        "failed": "Eksporten ble ikke fullført: {reason}"
+      },
+      "exportFailure": {
+        "timed_out": "det tok for lang tid. Du kan prøve igjen.",
+        "processing_failed": "noe gikk galt. Du kan prøve igjen."
+      },
+      "importQueued": "Importen er startet. Du kan forlate denne siden.",
+      "importError": "Kunne ikke importere arkivet. Vennligst sjekk filen og prøv igjen.",
+      "importInProgress": "En import pågår allerede.",
+      "status": {
+        "queued": "Venter på at importen skal starte…",
+        "running": "Importerer dataene dine…",
+        "writing_files": "Lagrer filene dine…",
+        "completed": "Importen er ferdig: {activities} aktiviteter og {gears} utstyr importert.",
+        "failed": "Importen ble ikke fullført: {reason}"
+      },
+      "failure": {
+        "invalid_file": "arkivet er ikke en gyldig Endurain-eksport. Ingenting ble importert.",
+        "too_large": "arkivet er for stort. Ingenting ble importert.",
+        "too_many_activities": "arkivet har for mange aktiviteter. Ingenting ble importert.",
+        "timed_out": "det tok for lang tid. Ingenting ble importert, så du kan prøve igjen.",
+        "files_incomplete": "dataene dine ble importert, men noen filer mangler. Ikke importer på nytt, da det ville duplisere dataene dine.",
+        "processing_failed": "noe gikk galt. Ingenting ble importert, så du kan prøve igjen."
+      }
     }
   }
 }

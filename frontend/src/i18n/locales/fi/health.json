@@ -1,6 +1,11 @@
 {
   "title": "Terveys",
   "subtitle": "Näe kaikki terveystietosi yhdessä paikassa",
+  "chartBucket": {
+    "week": "Viikkokeskiarvot: jokainen palkki on kyseisen viikon keskimääräinen päivä.",
+    "month": "Kuukausikeskiarvot: jokainen palkki on kyseisen kuukauden keskimääräinen päivä."
+  },
+  "chartError": "Kaaviota ei voitu ladata tälle aikavälille.",
   "nav": {
     "label": "Terveysosiot",
     "soon": "Pian",
@@ -88,7 +93,6 @@
       "weightRequired": "Anna painosi.",
       "weightInvalid": "Anna paino, joka on suurempi kuin nolla.",
       "bodyComposition": "Kehonkoostumus (valinnainen)",
-      "bmi": "BMI",
       "bodyFat": "Kehon rasva (%)",
       "bodyWater": "Kehon vesi (%)",
       "boneMass": "Luumassa",
@@ -350,7 +354,11 @@
       "close": "Sulje",
       "createSuccess": "Uni kirjattu.",
       "updateSuccess": "Unimerkintä päivitetty.",
-      "saveError": "Unimerkintääsi ei voitu tallentaa. Yritä uudelleen."
+      "saveError": "Unimerkintääsi ei voitu tallentaa. Yritä uudelleen.",
+      "numberRange": "Anna arvo väliltä {min}–{max}.",
+      "numberMin": "Anna vähintään {min}.",
+      "stagesExceedTotal": "Syvä uni, kevyt uni ja REM-uni ovat yhteensä enemmän kuin kokonaisuni.",
+      "inconsistentError": "Nämä unitiedot eivät täsmää. Tarkista, että unen vaiheet ja kokonaisaika mahtuvat unen aikoihin."
     },
     "target": {
       "title": "Aseta unitavoite",
@@ -419,7 +427,8 @@
       "close": "Sulje",
       "createSuccess": "Vesi kirjattu.",
       "updateSuccess": "Vesimerkintä päivitetty.",
-      "saveError": "Vesimerkintääsi ei voitu tallentaa. Yritä uudelleen."
+      "saveError": "Vesimerkintääsi ei voitu tallentaa. Yritä uudelleen.",
+      "dailyLimitError": "Tämä ylittäisi päivän 20 000 ml:n vedenottorajan."
     },
     "target": {
       "title": "Aseta vesitavoite",
@@ -596,6 +605,8 @@
       "startTime": "Aloitusaika",
       "startTimeRequired": "Valitse aloitusaika.",
       "endTime": "Lopetusaika",
+      "endBeforeStart": "Päättymisaika ei saa olla ennen alkamisaikaa.",
+      "endWhileInProgress": "Käynnissä olevalla paastolla ei voi olla lopetusaikaa.",
       "status": "Tila",
       "notes": "Muistiinpanot",
       "create": "Aloita",
@@ -604,7 +615,9 @@
       "close": "Sulje",
       "createSuccess": "Paasto aloitettu.",
       "updateSuccess": "Paastojakso päivitetty.",
-      "saveError": "Paastojaksoasi ei voitu tallentaa. Yritä uudelleen."
+      "saveError": "Paastojaksoasi ei voitu tallentaa. Yritä uudelleen.",
+      "overlapError": "Tämä paasto menee päällekkäin toisen paastojakson kanssa, tai toinen paasto on jo käynnissä.",
+      "invalidTimesError": "Paasto ei voi päättyä ennen alkamistaan, valmiilla tai keskeytetyllä paastolla on oltava lopetusaika, eikä käynnissä olevalla paastolla voi olla sitä."
     },
     "target": {
       "title": "Aseta paastotavoite",
@@ -621,6 +634,20 @@
     "complete": {
       "success": "Paasto päättyi.",
       "error": "Paastoasi ei voitu päättää. Yritä uudelleen."
+    },
+    "endConfirm": {
+      "broken": {
+        "title": "Keskeytetäänkö tämä paasto?",
+        "body": "Paasto päättyy nyt ja tallennetaan keskeytettynä. Tätä ei voi perua.",
+        "confirm": "Keskeytä paasto"
+      },
+      "cancelled": {
+        "title": "Perutaanko tämä paasto?",
+        "body": "Paasto päättyy nyt ja tallennetaan peruttuna. Tätä ei voi perua.",
+        "confirm": "Peruuta paasto"
+      },
+      "cancel": "Jatka paastoa",
+      "close": "Sulje"
     },
     "empty": {
       "title": "Ei vielä paastoja",

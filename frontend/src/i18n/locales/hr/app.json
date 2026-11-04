@@ -19,6 +19,15 @@
     "reload": "Ponovno učitaj"
   },
   "staleError": "Ovo je promijenjeno drugdje dok ste to gledali, pa ništa nije spremljeno. Učitana je trenutačna verzija. Pregledajte je i pokušajte ponovno.",
+  "fieldError": {
+    "required": "Ovo polje je obavezno",
+    "tooShort": "Ova vrijednost je prekratka",
+    "tooLong": "Ova vrijednost je predugačka",
+    "tooLarge": "Ova vrijednost je prevelika",
+    "tooSmall": "Ova vrijednost je premala",
+    "invalidFormat": "Ova vrijednost ima neispravan format",
+    "invalid": "Ova vrijednost nije ispravna"
+  },
   "dismiss": "Odbaci",
   "language": "Jezik",
   "theme": {
@@ -40,6 +49,17 @@
   "password": {
     "hintLength": "Najmanje {min} znakova.",
     "invalid": "Lozinka ne zadovoljava zahtjeve",
-    "mismatch": "Lozinke se ne podudaraju"
+    "mismatch": "Lozinke se ne podudaraju",
+    "tooShort": "Ova je lozinka prekratka. Upotrijebite barem {min} znakova.",
+    "tooCommon": "Ova je lozinka previše uobičajena. Odaberite onu koju je teže pogoditi.",
+    "matchesAccount": "Ne koristite svoje korisničko ime ili adresu e-pošte kao lozinku.",
+    "strength": {
+      "label": "Jačina lozinke: {level}",
+      "tooWeak": "Preslaba",
+      "weak": "Slaba",
+      "fair": "Prihvatljiva",
+      "good": "Dobra",
+      "strong": "Jaka"
+    }
   }
 }

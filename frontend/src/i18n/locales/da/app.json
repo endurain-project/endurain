@@ -19,6 +19,15 @@
     "reload": "Genindlæs"
   },
   "staleError": "Dette blev ændret et andet sted, mens du kiggede på det, så intet blev gemt. Den aktuelle version er indlæst. Gennemgå den, og prøv igen.",
+  "fieldError": {
+    "required": "Dette felt er påkrævet",
+    "tooShort": "Denne værdi er for kort",
+    "tooLong": "Denne værdi er for lang",
+    "tooLarge": "Denne værdi er for stor",
+    "tooSmall": "Denne værdi er for lille",
+    "invalidFormat": "Denne værdi har et ugyldigt format",
+    "invalid": "Denne værdi er ugyldig"
+  },
   "dismiss": "Afvis",
   "language": "Sprog",
   "theme": {
@@ -40,6 +49,17 @@
   "password": {
     "hintLength": "Mindst {min} tegn.",
     "invalid": "Adgangskoden opfylder ikke kravene",
-    "mismatch": "Adgangskoderne stemmer ikke overens"
+    "mismatch": "Adgangskoderne stemmer ikke overens",
+    "tooShort": "Denne adgangskode er for kort. Brug mindst {min} tegn.",
+    "tooCommon": "Denne adgangskode er for almindelig. Vælg en, der er sværere at gætte.",
+    "matchesAccount": "Brug ikke dit brugernavn eller din e-mailadresse som adgangskode.",
+    "strength": {
+      "label": "Adgangskodens styrke: {level}",
+      "tooWeak": "For svag",
+      "weak": "Svag",
+      "fair": "Nogenlunde",
+      "good": "God",
+      "strong": "Stærk"
+    }
   }
 }

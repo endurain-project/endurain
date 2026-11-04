@@ -11,7 +11,7 @@
     "subtitle": "Sirvi, filtreeri ja sorteeri kõiki oma tegevusi.",
     "searchPlaceholder": "Otsi nime või asukoha järgi",
     "clearSearch": "Tühjenda otsing",
-    "resultCount": "{count} tegevust",
+    "resultCount": "{count} tegevus | {count} tegevust",
     "filters": {
       "type": "Tegevuse tüüp",
       "allTypes": "Kõik tüübid",
@@ -188,6 +188,7 @@
     "cancel": "Tühista",
     "close": "Sulge",
     "name": "Nimi",
+    "nameRequired": "Sisesta tegevuse nimi",
     "type": "Tegevuse tüüp",
     "description": "Kirjeldus",
     "privateNotes": "Privaatsed märkmed",

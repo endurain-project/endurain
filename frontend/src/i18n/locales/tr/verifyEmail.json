@@ -15,5 +15,13 @@
   "errorNotFound": "Bu bağlantıya ait bir hesap bulamadık.",
   "errorGeneral": "E-postanızı doğrulayamadık. Lütfen tekrar deneyin.",
   "retry": "Tekrar dene",
-  "backToLogin": "Girişe geri dön"
+  "backToLogin": "Girişe geri dön",
+  "resendTitle": "Yeni bir bağlantıya mı ihtiyacınız var?",
+  "resendBody": "Kaydolurken kullandığınız adresi girin; hâlâ bekliyorsa yeni bir doğrulama e-postası göndeririz.",
+  "resendEmail": "E-posta adresi",
+  "resendButton": "Yeni e-posta gönder",
+  "resendSending": "Gönderiliyor",
+  "resendSent": "Bu adres doğrulama bekliyorsa yeni bir e-posta yolda.",
+  "resendTooManyAttempts": "Çok fazla deneme yapıldı. Lütfen tekrar denemeden önce bekleyin.",
+  "resendError": "E-postayı gönderemedik. Lütfen tekrar deneyin."
 }

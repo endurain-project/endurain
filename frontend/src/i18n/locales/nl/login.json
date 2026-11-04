@@ -14,6 +14,7 @@
   "forceLocalLogin": "Lokale login is ingeschakeld voor deze poging. Gebruik je gebruikersnaam en wachtwoord om in te loggen.",
   "passwordResetSuccess": "Je wachtwoord is opnieuw ingesteld. Log in met het nieuwe wachtwoord.",
   "passwordResetInvalidLink": "Die wachtwoordherstelkoppeling is ongeldig of verlopen",
+  "onboardingComplete": "Je beheerdersaccount is klaar. Log in om te beginnen.",
   "emailVerificationSent": "Verificatie-e-mail verzonden. Controleer je inbox om verder te gaan.",
   "adminApprovalRequired": "Je account wacht op goedkeuring door de beheerder",
   "verifyEmailInvalidLink": "Die e-mailverificatielink is ongeldig of verlopen",
@@ -35,6 +36,7 @@
   "closeForgotPassword": "Dialoogvenster wachtwoordherstel sluiten",
   "cancel": "Annuleren",
   "signUpLink": "Account aanmaken",
+  "resendVerification": "Geen e-mail ontvangen?",
   "ssoSection": "Eenmalig aanmelden",
   "loadingSsoProviders": "Aanmeldproviders laden",
   "ssoButton": "Doorgaan met {provider}",
@@ -46,9 +48,35 @@
   "ssoAccountNotFound": "Geen account gekoppeld aan deze identiteitsprovider",
   "ssoAccountDisabled": "Dit account is uitgeschakeld",
   "ssoAutoCreateDisabled": "Automatisch aanmaken van accounts is uitgeschakeld",
+  "ssoEmailMissing": "De identiteitsprovider heeft geen e-mailadres gedeeld, dus er kon geen account worden aangemaakt. Vraag je beheerder om de e-mailinstellingen van de provider te controleren.",
   "ssoErrorUndefined": "Eenmalig aanmelden mislukt",
   "noLoginMethods": "Er zijn geen inlogmethoden ingeschakeld op deze server",
   "imageAlt": "Endurain inlog-illustratie",
   "tagline1": "Registreer elke beweging",
-  "tagline2": "Bezit elk moment"
+  "tagline2": "Bezit elk moment",
+  "accountDeleted": {
+    "title": "Jammer dat je weggaat",
+    "body": "Je bent uitgelogd en je account en al je gegevens worden permanent verwijderd.",
+    "backToLogin": "Terug naar inloggen"
+  },
+  "onboarding": {
+    "title": "Endurain instellen",
+    "subtitle": "Maak het eerste beheerdersaccount aan. Kopieer het setuptoken uit het serverlogboek: zoek de regel met setup_token.",
+    "token": "Setuptoken",
+    "name": "Naam",
+    "username": "Gebruikersnaam",
+    "email": "E-mail",
+    "password": "Wachtwoord",
+    "confirmPassword": "Wachtwoord bevestigen",
+    "emailInvalid": "Voer een geldig e-mailadres in",
+    "requiredField": "Dit veld is verplicht",
+    "submitButton": "Beheerder aanmaken",
+    "submitting": "Beheerder wordt aangemaakt",
+    "errorInvalidToken": "Het setuptoken is ongeldig, verlopen of al gebruikt. Kopieer het nieuwste uit het serverlogboek.",
+    "errorAlreadyDone": "De installatie is al voltooid. Log in met je account.",
+    "errorValidation": "De gegevens zijn afgewezen. Controleer ze en gebruik een wachtwoord dat voldoet aan de eisen voor beheerders.",
+    "errorTooManyAttempts": "Te veel pogingen. Wacht even en probeer het opnieuw.",
+    "errorUnavailable": "De installatie is tijdelijk niet beschikbaar. Probeer het zo meteen opnieuw.",
+    "errorGeneral": "De beheerder kon niet worden aangemaakt. Probeer het opnieuw."
+  }
 }

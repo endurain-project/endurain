@@ -15,5 +15,13 @@
   "errorNotFound": "We couldn't find an account for this link.",
   "errorGeneral": "We couldn't verify your email. Please try again.",
   "retry": "Try again",
-  "backToLogin": "Back to sign in"
+  "backToLogin": "Back to sign in",
+  "resendTitle": "需要新链接？",
+  "resendBody": "请输入您注册时使用的地址，如果仍在等待验证，我们将发送一封新的验证邮件。",
+  "resendEmail": "电子邮件地址",
+  "resendButton": "发送新邮件",
+  "resendSending": "正在发送",
+  "resendSent": "如果该地址正在等待验证，新邮件已在途中。",
+  "resendTooManyAttempts": "尝试次数过多，请稍候再试。",
+  "resendError": "我们无法发送邮件，请重试。"
 }

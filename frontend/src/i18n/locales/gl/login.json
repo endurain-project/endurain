@@ -14,6 +14,7 @@
   "forceLocalLogin": "O inicio de sesión local está activado para este intento. Usa o teu nome de usuario e contrasinal para iniciar sesión.",
   "passwordResetSuccess": "O teu contrasinal foi restablecido. Inicia sesión co novo contrasinal.",
   "passwordResetInvalidLink": "Ese enlace de restablecemento de contrasinal non é válido ou expirou",
+  "onboardingComplete": "A conta de administrador está lista. Inicia sesión para comezar.",
   "emailVerificationSent": "Correo de verificación enviado. Comproba a túa caixa de entrada para continuar.",
   "adminApprovalRequired": "A túa conta está agardando a aprobación do administrador",
   "verifyEmailInvalidLink": "Ese enlace de verificación de correo non é válido ou expirou",
@@ -35,6 +36,7 @@
   "closeForgotPassword": "Pechar diálogo de restablecemento de contrasinal",
   "cancel": "Cancelar",
   "signUpLink": "Crear unha conta",
+  "resendVerification": "Non recibiches o correo?",
   "ssoSection": "Inicio de sesión único",
   "loadingSsoProviders": "Cargando provedores de inicio de sesión",
   "ssoButton": "Continuar con {provider}",
@@ -46,9 +48,35 @@
   "ssoAccountNotFound": "Non hai ningunha conta vinculada a este provedor de identidade",
   "ssoAccountDisabled": "Esta conta está desactivada",
   "ssoAutoCreateDisabled": "A creación automática de contas está desactivada",
+  "ssoEmailMissing": "O provedor de identidade non compartiu ningún enderezo de correo electrónico, polo que non se puido crear a conta. Pídelle ao teu administrador que revise a configuración de correo do provedor.",
   "ssoErrorUndefined": "O inicio de sesión único fallou",
   "noLoginMethods": "Non hai métodos de inicio de sesión activados neste servidor",
   "imageAlt": "Ilustración de inicio de sesión de Endurain",
   "tagline1": "Rexistra cada movemento",
-  "tagline2": "Fai teu cada momento"
+  "tagline2": "Fai teu cada momento",
+  "accountDeleted": {
+    "title": "Sentimos que te vaias",
+    "body": "Pechouse a túa sesión, e a túa conta e todos os teus datos están a eliminarse de forma permanente.",
+    "backToLogin": "Volver ao inicio de sesión"
+  },
+  "onboarding": {
+    "title": "Configurar Endurain",
+    "subtitle": "Crea a primeira conta de administrador. Copia o token de configuración do rexistro do servidor: busca a liña que contén setup_token.",
+    "token": "Token de configuración",
+    "name": "Nome",
+    "username": "Nome de usuario",
+    "email": "Correo electrónico",
+    "password": "Contrasinal",
+    "confirmPassword": "Confirmar contrasinal",
+    "emailInvalid": "Introduce un enderezo de correo electrónico válido",
+    "requiredField": "Este campo é obrigatorio",
+    "submitButton": "Crear administrador",
+    "submitting": "Creando administrador",
+    "errorInvalidToken": "O token de configuración non é válido, caducou ou xa se usou. Copia o máis recente do rexistro do servidor.",
+    "errorAlreadyDone": "A configuración xa está completa. Inicia sesión coa túa conta.",
+    "errorValidation": "Rexeitáronse os datos. Revísaos e usa un contrasinal que cumpra os requisitos de administrador.",
+    "errorTooManyAttempts": "Demasiados intentos. Agarda un momento e téntao de novo.",
+    "errorUnavailable": "A configuración non está dispoñible temporalmente. Téntao de novo en breve.",
+    "errorGeneral": "Non se puido crear o administrador. Por favor, téntao de novo."
+  }
 }

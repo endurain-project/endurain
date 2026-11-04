@@ -14,6 +14,7 @@
   "forceLocalLogin": "Lokal innlogging er aktivert for dette forsøket. Bruk brukernavn og passord for å logge inn.",
   "passwordResetSuccess": "Passordet ditt ble tilbakestilt. Logg inn med det nye passordet.",
   "passwordResetInvalidLink": "Den lenken for tilbakestilling av passord er ugyldig eller utløpt",
+  "onboardingComplete": "Administratorkontoen din er klar. Logg inn for å komme i gang.",
   "emailVerificationSent": "Bekreftelses-e-post sendt. Sjekk innboksen din for å fortsette.",
   "adminApprovalRequired": "Kontoen din venter på godkjenning fra en administrator",
   "verifyEmailInvalidLink": "Den lenken for e-postbekreftelse er ugyldig eller utløpt",
@@ -35,6 +36,7 @@
   "closeForgotPassword": "Lukk dialogen for tilbakestilling av passord",
   "cancel": "Avbryt",
   "signUpLink": "Opprett en konto",
+  "resendVerification": "Fikk du ikke e-posten?",
   "ssoSection": "Enkel pålogging",
   "loadingSsoProviders": "Laster påloggingsleverandører",
   "ssoButton": "Fortsett med {provider}",
@@ -46,9 +48,35 @@
   "ssoAccountNotFound": "Ingen konto er koblet til denne identitetsleverandøren",
   "ssoAccountDisabled": "Denne kontoen er deaktivert",
   "ssoAutoCreateDisabled": "Automatisk oppretting av konto er deaktivert",
+  "ssoEmailMissing": "Identitetsleverandøren delte ikke en e-postadresse, så det kunne ikke opprettes en konto. Be administratoren din om å sjekke e-postinnstillingene til leverandøren.",
   "ssoErrorUndefined": "Enkel pålogging mislyktes",
   "noLoginMethods": "Ingen innloggingsmetoder er aktivert på denne serveren",
   "imageAlt": "Endurain innloggingsillustrasjon",
   "tagline1": "Spor hver bevegelse",
-  "tagline2": "Eie hvert øyeblikk"
+  "tagline2": "Eie hvert øyeblikk",
+  "accountDeleted": {
+    "title": "Synd å se deg gå",
+    "body": "Du er logget ut, og kontoen din og alle dataene dine slettes permanent.",
+    "backToLogin": "Tilbake til innlogging"
+  },
+  "onboarding": {
+    "title": "Sett opp Endurain",
+    "subtitle": "Opprett den første administratorkontoen. Kopier oppsettstokenet fra serverloggen: se etter linjen som inneholder setup_token.",
+    "token": "Oppsettstoken",
+    "name": "Navn",
+    "username": "Brukernavn",
+    "email": "E-post",
+    "password": "Passord",
+    "confirmPassword": "Bekreft passord",
+    "emailInvalid": "Skriv inn en gyldig e-postadresse",
+    "requiredField": "Dette feltet er påkrevd",
+    "submitButton": "Opprett administrator",
+    "submitting": "Oppretter administrator",
+    "errorInvalidToken": "Oppsettstokenet er ugyldig, utløpt eller allerede brukt. Kopier det nyeste fra serverloggen.",
+    "errorAlreadyDone": "Oppsettet er allerede fullført. Logg inn med kontoen din.",
+    "errorValidation": "Opplysningene ble avvist. Kontroller dem og bruk et passord som oppfyller kravene for administratorer.",
+    "errorTooManyAttempts": "For mange forsøk. Vent litt og prøv igjen.",
+    "errorUnavailable": "Oppsettet er midlertidig utilgjengelig. Prøv igjen om litt.",
+    "errorGeneral": "Kunne ikke opprette administratoren. Vennligst prøv igjen."
+  }
 }

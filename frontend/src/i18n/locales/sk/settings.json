@@ -121,6 +121,8 @@
       "weightUnitsMetric": "Kilogramy (kg)",
       "weightUnitsImperial": "Libry (lb)",
       "height": "Výška",
+      "heightInvalid": "Výška musí byť medzi 1 a 300 cm",
+      "maxHeartRateInvalid": "Maximálna tepová frekvencia musí byť medzi 30 a 250 úderov za minútu",
       "feetInvalid": "Stopy musia byť medzi 0 a 10",
       "inchesInvalid": "Palce musia byť medzi 0 a 11",
       "maxHeartRate": "Max. tepová frekvencia",
@@ -274,6 +276,31 @@
     "saving": "Ukladanie…",
     "saveSuccess": "Nastavenia servera aktualizované",
     "saveError": "Nastavenia servera sa nepodarilo aktualizovať. Skúste to znova.",
+    "staleError": "Tieto nastavenia počas úprav zmenil niekto iný. Vaše zmeny neboli uložené. Načítajte stránku znova, aby ste videli aktuálne hodnoty.",
+    "envLocked": "Nastavené premennou {name}",
+    "envSection": "Niektoré nastavenia tu sú určené premennými prostredia ({names}). Odstráňte ich z prostredia, aby ste tieto nastavenia mohli upraviť tu.",
+    "unsaved": "Neuložené zmeny",
+    "discard": "Zahodiť",
+    "tabs": {
+      "label": "Sekcie nastavení servera",
+      "general": "Všeobecné",
+      "access": "Prístup a zabezpečenie",
+      "maps": "Mapy a poloha",
+      "email": "E-mail",
+      "logs": "Logy",
+      "unsaved": "Obsahuje neuložené zmeny"
+    },
+    "search": {
+      "placeholder": "Hľadať nastavenia…",
+      "noResults": "Nastavenia sa nenašli"
+    },
+    "leave": {
+      "title": "Odísť bez uloženia?",
+      "description": "Máte neuložené zmeny. Ak stránku opustíte, stratia sa.",
+      "confirm": "Odísť bez uloženia",
+      "stay": "Zostať na stránke",
+      "close": "Zavrieť"
+    },
     "loadError": {
       "title": "Nastavenia servera sa nepodarilo načítať",
       "description": "Pri načítavaní nastavení servera sa niečo pokazilo. Môžete to skúsiť znova.",
@@ -294,6 +321,29 @@
       "title": "Pravidlá hesla",
       "lengthRegular": "Minimálna dĺžka pre bežných používateľov",
       "lengthAdmin": "Minimálna dĺžka pre administrátorov"
+    },
+    "session": {
+      "title": "Relácie",
+      "description": "Zmeny sa prejavia pri nových prihláseniach a pri nasledujúcej obnove tokenu. Už vydané tokeny si zachovávajú svoju platnosť.",
+      "idleTimeoutEnabled": "Vynucovať časový limit nečinnosti",
+      "idleHours": "Časový limit nečinnosti (hodiny)",
+      "idleHoursHint": "Ak je zapnutý, relácia skončí po tomto počte hodín bez aktivity.",
+      "absoluteHours": "Absolútny časový limit (hodiny)",
+      "absoluteHoursHint": "Relácia skončí po tomto počte hodín od prihlásenia bez ohľadu na aktivitu. Platí vždy. Nie je kratší ako časový limit nečinnosti.",
+      "accessMinutes": "Platnosť prístupového tokenu (minúty)",
+      "refreshDays": "Platnosť obnovovacieho tokenu (dni)",
+      "invalidRange": "Zadajte celé číslo medzi {min} a {max}.",
+      "absoluteBelowIdle": "Nesmie byť kratší ako časový limit nečinnosti."
+    },
+    "retention": {
+      "title": "Uchovávanie údajov",
+      "readNotifications": "Odstrániť prečítané upozornenia po (dňoch)",
+      "readNotificationsHint": "0 uchováva prečítané upozornenia navždy. Neprečítané upozornenia sa nikdy neodstraňujú.",
+      "auditTrail": "Odstrániť záznamy auditnej stopy po (dňoch)",
+      "auditTrailHint": "0 uchováva všetko. Inak je minimum 30 dní; záznamy sa odstraňujú po celých dňoch.",
+      "auditTrailInvalid": "Zadajte 0 alebo celé číslo medzi {min} a {max}.",
+      "auditLegalHold": "Právne zablokovanie auditnej stopy",
+      "auditLegalHoldHint": "Ak je zapnuté, pozastaví všetko mazanie auditnej stopy bez ohľadu na dobu uchovávania."
     },
     "signup": {
       "title": "Registrácia",
@@ -330,12 +380,33 @@
       "attribution": "Uvedenie zdroja",
       "apiKey": "API kľúč dlaždicového servera",
       "apiKeyWarning": "API kľúč je uložený šifrovane. Nechajte prázdne, ak váš dlaždicový server žiadny nevyžaduje.",
+      "apiKeyStored": "Kľúč je uložený",
+      "apiKeyRemove": "Odstrániť uložený kľúč API",
       "backgroundColor": "Farba pozadia mapy",
       "regenerateThumbnails": "Pri zmene nastavení mapy znova vygenerovať miniatúry aktivít"
+    },
+    "geocoding": {
+      "title": "Reverzné geokódovanie",
+      "description": "Prevádza súradnice aktivít na názvy miest. Zmeny sa prejavia bez reštartu.",
+      "service": "Služba",
+      "serviceNominatim": "Nominatim",
+      "servicePhoton": "Photon",
+      "serviceGeocode": "geocode.maps.co",
+      "host": "Hostiteľ",
+      "hostHint": "Názov hostiteľa s voliteľným portom, bez schémy. Hostiteľ v privátnej sieti musí byť uvedený v SSRF_ALLOWED_HOSTS.",
+      "useHttps": "Pripojiť cez HTTPS",
+      "rateLimit": "Požiadaviek za sekundu",
+      "rateLimitHint": "0 vypne obmedzovanie. Pre verejné služby Nominatim a Photon ponechajte 1.",
+      "rateLimitInvalid": "Zadajte číslo medzi 0 a 100.",
+      "apiKey": "Kľúč API",
+      "apiKeyStored": "Kľúč je uložený. Ak ho chcete zachovať, ponechajte prázdne.",
+      "apiKeyRemove": "Odstrániť uložený kľúč API",
+      "apiKeyRequired": "geocode.maps.co vyžaduje kľúč API."
     },
     "photo": {
       "title": "Prihlasovacia fotka",
       "description": "Vlastný obrázok zobrazený na prihlasovacej obrazovke",
+      "previewAlt": "Aktuálna prihlasovacia fotka",
       "add": "Nahrať prihlasovaciu fotku",
       "replace": "Nahradiť prihlasovaciu fotku",
       "delete": "Odstrániť prihlasovaciu fotku",
@@ -349,6 +420,30 @@
       "cancel": "Zrušiť",
       "close": "Zavrieť"
     },
+    "logs": {
+      "title": "Logy servera",
+      "description": "Najnovšie záznamy aplikačného logu. Logy z nasadení s viacerými procesmi zhromažďuje namiesto toho vaša platforma.",
+      "level": "Minimálna úroveň",
+      "allLevels": "Všetky úrovne",
+      "search": "Hľadať",
+      "searchPlaceholder": "Text, logger alebo ID požiadavky…",
+      "live": "Naživo",
+      "refresh": "Obnoviť",
+      "download": "Stiahnuť",
+      "downloadError": "Súbor logu sa nepodarilo stiahnuť.",
+      "clear": "Vymazať",
+      "cleared": "Logy vymazané",
+      "clearError": "Logy sa nepodarilo vymazať.",
+      "clearConfirm": {
+        "title": "Vymazať logy servera?",
+        "description": "Tým sa natrvalo odstráni súbor logu a jeho rotované zálohy. Ak ich môžete potrebovať, najprv log stiahnite. Samotná akcia sa zaznamená do nového logu.",
+        "confirm": "Vymazať logy",
+        "cancel": "Zrušiť",
+        "close": "Zavrieť"
+      },
+      "loadError": "Logy sa nepodarilo načítať.",
+      "empty": "Nenašli sa žiadne záznamy logu"
+    },
     "email": {
       "title": "E-mail",
       "description": "Endurain odosiela e-maily na obnovenie hesla a registráciu cez SMTP server nakonfigurovaný v prostredí.",
@@ -360,30 +455,26 @@
       "sendHint": "Testovací e-mail sa odošle na vašu vlastnú adresu.",
       "sent": "Testovací e-mail odoslaný",
       "failed": "Testovací e-mail sa nepodarilo odoslať",
-      "failedUnknown": "Podrobnosti nájdete v logoch servera."
-    },
-    "envLocked": "Nastavené premennou {name}",
-    "envSection": "Niektoré nastavenia tu sú určené premennými prostredia ({names}). Odstráňte ich z prostredia, aby ste tieto nastavenia mohli upraviť tu.",
-    "unsaved": "Neuložené zmeny",
-    "discard": "Zahodiť",
-    "tabs": {
-      "label": "Sekcie nastavení servera",
-      "general": "Všeobecné",
-      "access": "Prístup a zabezpečenie",
-      "maps": "Mapy a poloha",
-      "email": "E-mail",
-      "unsaved": "Obsahuje neuložené zmeny"
-    },
-    "search": {
-      "placeholder": "Hľadať nastavenia…",
-      "noResults": "Nastavenia sa nenašli"
-    },
-    "leave": {
-      "title": "Odísť bez uloženia?",
-      "description": "Máte neuložené zmeny. Ak stránku opustíte, stratia sa.",
-      "confirm": "Odísť bez uloženia",
-      "stay": "Zostať na stránke",
-      "close": "Zavrieť"
+      "failedUnknown": "Podrobnosti nájdete v logoch servera.",
+      "settingsLoadError": "Nastavenia pošty sa nepodarilo načítať.",
+      "host": "Hostiteľ",
+      "hostHint": "Ak chcete vypnúť e-mail, ponechajte prázdne.",
+      "port": "Port",
+      "portInvalid": "Zadajte port medzi 1 a 65535.",
+      "security": "Zabezpečenie spojenia",
+      "securityStarttls": "STARTTLS",
+      "securitySsl": "SSL/TLS",
+      "securityNone": "Žiadne (iba privátny relay)",
+      "securityNoneWarning": "Bez šifrovania sa akceptuje iba poštový server na privátnej adrese alebo adrese loopback a nie je možné použiť používateľské meno a heslo.",
+      "username": "Používateľské meno",
+      "password": "Heslo",
+      "passwordStored": "Heslo je uložené. Ak ho chcete zachovať, ponechajte prázdne.",
+      "passwordRemove": "Odstrániť uložené heslo",
+      "fromAddress": "Adresa odosielateľa",
+      "fromAddressHint": "Ak chcete použiť používateľské meno, ponechajte prázdne.",
+      "save": "Uložiť nastavenia pošty",
+      "saveSuccess": "Nastavenia pošty uložené",
+      "saveError": "Nastavenia pošty sa nepodarilo uložiť"
     }
   },
   "idp": {
@@ -445,6 +536,7 @@
       "issuerUrl": "URL vydavateľa",
       "issuerUrlHint": "OIDC vydavateľská alebo discovery URL poskytovateľa",
       "issuerUrlRequired": "URL vydavateľa je povinná",
+      "issuerUrlRefused": "URL poskytovateľa bolo odmietnuté. Musí používať https://, byť preložiteľné zo servera a poskytovateľ v privátnej sieti musí byť uvedený v SSRF_ALLOWED_HOSTS.",
       "issuerUrlTooLong": "URL vydavateľa musí mať najviac 500 znakov",
       "clientId": "Client ID",
       "clientIdRequired": "Client ID je povinné",
@@ -459,12 +551,22 @@
       "scopesTooLong": "Rozsahy musia mať najviac 500 znakov",
       "icon": "Ikona",
       "iconNone": "Žiadna",
+      "iconUpload": "Nahrať obrázok",
+      "iconFileHint": "Obrázok PNG, JPEG, GIF alebo WebP do 1 MB, zobrazený na prihlasovacom tlačidle",
+      "iconChoose": "Vybrať obrázok",
+      "iconReplace": "Nahradiť obrázok",
+      "iconPreviewAlt": "Náhľad ikony",
+      "iconFileRequired": "Vyberte obrázok na nahratie",
+      "iconFileInvalidType": "Ikona musí byť obrázok PNG, JPEG, GIF alebo WebP",
+      "iconFileTooLarge": "Ikona môže mať najviac 1 MB",
+      "iconSaveError": "Poskytovateľ bol uložený, ale jeho ikonu sa nepodarilo aktualizovať. Upravte poskytovateľa a skúste to znova.",
       "enabled": "Povolené",
       "autoCreateUsers": "Automaticky vytvárať používateľov pri prvom prihlásení",
       "syncUserInfo": "Synchronizovať informácie profilu pri každom prihlásení",
       "createSuccess": "Poskytovateľ pridaný",
       "updateSuccess": "Poskytovateľ aktualizovaný",
       "slugConflict": "Tento slug sa už používa",
+      "staleError": "Tento poskytovateľ bol zmenený inde. Vaše zmeny neboli uložené. Zatvorte ho a znova otvorte, aby ste načítali aktuálne nastavenia.",
       "saveError": "Poskytovateľa sa nepodarilo uložiť. Skúste to znova."
     }
   },
@@ -472,7 +574,7 @@
     "title": "Moje ciele",
     "subtitle": "Nastavte ciele pre svoje aktivity a sledujte svoj pokrok",
     "buttonAdd": "Pridať cieľ",
-    "count": "Celkovo je {count} cieľov:",
+    "count": "Celkovo je {count} cieľ: | Celkovo sú {count} ciele:",
     "filters": "Filtre",
     "filter": {
       "all": "Všetko",
@@ -556,6 +658,7 @@
     "hidePassword": "Skryť heslo",
     "mfaCode": "Overovací kód",
     "mfaCodePlaceholder": "123456",
+    "confirmPhrase": "Na potvrdenie napíšte {phrase}",
     "loadError": {
       "title": "Vaše nastavenia zabezpečenia sa nepodarilo načítať",
       "description": "Niečo sa pokazilo. Môžete to skúsiť znova."
@@ -579,7 +682,7 @@
       "disabledDescription": "Dvojfaktorové overovanie je vypnuté. Zapnite ho pre lepšiu ochranu svojho účtu.",
       "enable": "Povoliť dvojfaktorové overovanie",
       "enabledDescription": "Dvojfaktorové overovanie je zapnuté.",
-      "backupRemaining": "Zostáva {unused} z {total} záložných kódov.",
+      "backupRemaining": "Zostáva {unused} z {total} záložného kódu. | Zostávajú {unused} z {total} záložných kódov.",
       "regenerate": "Znova vygenerovať záložné kódy",
       "disable": "Zakázať",
       "setupTitle": "Povoliť dvojfaktorové overovanie",
@@ -653,10 +756,16 @@
       "unlinkError": "Účet sa nepodarilo odpojiť. Skúste to znova.",
       "invalidCredentials": "Vaše heslo alebo kód je nesprávne.",
       "alreadyLinked": "Tento účet je už prepojený.",
-      "lastMethodError": "Nemôžete odpojiť svoju jedinú metódu prihlásenia. Najprv nastavte heslo."
+      "lastMethodError": "Nemôžete odpojiť svoju jedinú metódu prihlásenia. Najprv nastavte heslo.",
+      "linkedOn": "Pripojené {date}"
     },
     "email": {
+      "title": "E-mailová adresa",
       "subtitle": "Sem sa posielajú obnovenia hesla a upozornenia. Pri zmene musíte potvrdiť svoju totožnosť a nová adresa sa stane platnou, až keď ju potvrdíte cez odkaz, ktorý na ňu odošleme.",
+      "current": "Súčasný e-mail",
+      "action": "Zmeniť e-mail",
+      "new": "Nový e-mail",
+      "invalid": "Zadajte platnú e-mailovú adresu.",
       "sameAsCurrent": "Toto je už vaša e-mailová adresa.",
       "success": "Potvrdzovací odkaz bol odoslaný na novú adresu. Vaša e-mailová adresa sa zmení, keď ju potvrdíte.",
       "appliedSuccess": "E-mail bol zmenený.",
@@ -667,7 +776,19 @@
       "resendSuccess": "Ak čaká zmena, na novú adresu práve putuje nový odkaz.",
       "resendError": "Odkaz sa nepodarilo znova odoslať. Skúste to prosím znova.",
       "cancelSuccess": "Zmena e-mailu bola zrušená.",
-      "cancelError": "Zmenu sa nepodarilo zrušiť. Skúste to prosím znova."
+      "cancelError": "Zmenu sa nepodarilo zrušiť. Skúste to prosím znova.",
+      "conflict": "Tento e-mail sa už používa.",
+      "error": "E-mail sa nepodarilo zmeniť. Skúste to prosím znova."
+    },
+    "deleteAccount": {
+      "title": "Odstrániť môj účet",
+      "subtitle": "Natrvalo odstráňte svoj účet a všetky svoje údaje vrátane aktivít a ich súborov, zdravotných záznamov, vybavenia, cieľov, integrácií a relácií. Túto akciu nie je možné vrátiť späť. Ak si chcete ponechať kópiu, najprv údaje exportujte.",
+      "action": "Odstrániť môj účet",
+      "dialogTitle": "Odstrániť váš účet?",
+      "dialogDescription": "Tým sa natrvalo odstráni váš účet a všetky údaje. Ak chcete pokračovať, potvrďte svoju totožnosť.",
+      "confirm": "Odstrániť môj účet",
+      "error": "Váš účet sa nepodarilo odstrániť. Skúste to prosím znova.",
+      "onlyAdminError": "Ste jediný správca. Pred odstránením účtu udeľte práva správcu inému používateľovi."
     },
     "apiKeys": {
       "title": "API kľúče",
@@ -712,6 +833,18 @@
       "deleteBody": "{name} bude natrvalo odstránený. Túto akciu nie je možné vrátiť späť.",
       "deleteSuccess": "API kľúč odstránený",
       "deleteError": "API kľúč sa nepodarilo odstrániť. Skúste to znova."
+    },
+    "stepUp": {
+      "prompt": "Váš účet nemá heslo. Prihláste sa znova cez prepojeného poskytovateľa identity a potvrďte, že ste to vy.",
+      "continueWith": "Pokračovať cez {name}",
+      "ready": "Prihlásenie cez poskytovateľa identity potvrdené.",
+      "restart": "Prihlásiť sa znova",
+      "noProviders": "Na potvrdenie vašej totožnosti nie je k dispozícii žiadny prepojený poskytovateľ identity.",
+      "startError": "Prihlásenie cez poskytovateľa identity sa nepodarilo spustiť. Skúste to prosím znova.",
+      "tooManyAttempts": "Príliš veľa pokusov. Skúste to prosím neskôr.",
+      "reauthRequired": "Ak chcete pokračovať, potvrďte svoju totožnosť u poskytovateľa identity.",
+      "failed": "Opätovné prihlásenie cez poskytovateľa identity zlyhalo. Skúste to prosím znova.",
+      "notFresh": "Poskytovateľ identity nevyžadoval opätovné prihlásenie. Kontaktujte správcu."
     }
   },
   "integrations": {
@@ -834,6 +967,8 @@
     "title": "Môj profil",
     "subtitle": "Spravujte detaily svojho účtu a súkromie",
     "notSet": "Nenastavené",
+    "emailManagedIn": "Váš e-mail sa mení v nastaveniach zabezpečenia.",
+    "emailManagedLink": "Otvoriť nastavenia zabezpečenia",
     "error": {
       "title": "Váš profil sa nepodarilo načítať",
       "description": "Pri načítavaní vášho profilu sa niečo pokazilo. Môžete to skúsiť znova.",
@@ -939,9 +1074,40 @@
       "export": "Exportovať údaje",
       "import": "Importovať údaje",
       "invalidType": "Vyberte archív .zip.",
-      "exportSuccess": "Export pripravený, vaše sťahovanie by sa malo čoskoro spustiť",
+      "download": "Stiahnuť export",
+      "downloadSuccess": "Sťahovanie by sa malo čoskoro začať",
+      "downloadError": "Export sa nepodarilo stiahnuť. Skúste to prosím znova.",
+      "exportQueued": "Export bol spustený. Túto stránku môžete opustiť.",
       "exportError": "Vaše údaje sa nepodarilo exportovať. Skúste to znova.",
-      "importError": "Archív sa nepodarilo importovať. Skontrolujte súbor a skúste to znova."
+      "exportInProgress": "Export už prebieha.",
+      "exportStatus": {
+        "queued": "Čaká sa na spustenie exportu…",
+        "running": "Pripravuje sa váš export…",
+        "completed": "Váš export je pripravený na stiahnutie. Zostane dostupný dve hodiny.",
+        "failed": "Export nebol dokončený: {reason}"
+      },
+      "exportFailure": {
+        "timed_out": "trval príliš dlho. Môžete to skúsiť znova.",
+        "processing_failed": "niečo sa pokazilo. Môžete to skúsiť znova."
+      },
+      "importQueued": "Import bol spustený. Túto stránku môžete opustiť.",
+      "importError": "Archív sa nepodarilo importovať. Skontrolujte súbor a skúste to znova.",
+      "importInProgress": "Import už prebieha.",
+      "status": {
+        "queued": "Čaká sa na spustenie importu…",
+        "running": "Importujú sa vaše údaje…",
+        "writing_files": "Ukladajú sa vaše súbory…",
+        "completed": "Import dokončený: importovaných aktivít: {activities}, vybavenia: {gears}.",
+        "failed": "Import nebol dokončený: {reason}"
+      },
+      "failure": {
+        "invalid_file": "archív nie je platným exportom Endurain. Nič sa neimportovalo.",
+        "too_large": "archív je príliš veľký. Nič sa neimportovalo.",
+        "too_many_activities": "archív obsahuje príliš veľa aktivít. Nič sa neimportovalo.",
+        "timed_out": "trval príliš dlho. Nič sa neimportovalo, takže to môžete skúsiť znova.",
+        "files_incomplete": "vaše údaje boli importované, ale niektoré súbory chýbajú. Neimportujte ich znova, údaje by sa zduplikovali.",
+        "processing_failed": "niečo sa pokazilo. Nič sa neimportovalo, takže to môžete skúsiť znova."
+      }
     }
   }
 }

@@ -121,6 +121,8 @@
       "weightUnitsMetric": "Kilogrammid (kg)",
       "weightUnitsImperial": "Naelad (lb)",
       "height": "Pikkus",
+      "heightInvalid": "Pikkus peab olema vahemikus 1–300 cm",
+      "maxHeartRateInvalid": "Maksimaalne pulss peab olema vahemikus 30–250 lööki/min",
       "feetInvalid": "Jalad peavad olema vahemikus 0 kuni 10",
       "inchesInvalid": "Tollid peavad olema vahemikus 0 kuni 11",
       "maxHeartRate": "Maksimaalne pulss",
@@ -274,6 +276,31 @@
     "saving": "Salvestamine…",
     "saveSuccess": "Serveri seaded uuendatud",
     "saveError": "Serveri seadeid ei õnnestunud uuendada. Palun proovi uuesti.",
+    "staleError": "Keegi teine muutis neid seadeid, kui sa neid muutsid. Sinu muudatusi ei salvestatud. Praeguste väärtuste nägemiseks laadi leht uuesti.",
+    "envLocked": "Määratud muutujaga {name}",
+    "envSection": "Mõned siinsed seaded on määratud keskkonnamuutujatega ({names}). Eemalda need keskkonnast, et neid siin muuta.",
+    "unsaved": "Salvestamata muudatused",
+    "discard": "Loobu",
+    "tabs": {
+      "label": "Serveri seadete jaotised",
+      "general": "Üldine",
+      "access": "Juurdepääs ja turvalisus",
+      "maps": "Kaardid ja asukoht",
+      "email": "E-post",
+      "logs": "Logid",
+      "unsaved": "Sisaldab salvestamata muudatusi"
+    },
+    "search": {
+      "placeholder": "Otsi seadeid…",
+      "noResults": "Seadeid ei leitud"
+    },
+    "leave": {
+      "title": "Lahkuda salvestamata?",
+      "description": "Sul on salvestamata muudatusi. Kui lahkud lehelt, lähevad need kaotsi.",
+      "confirm": "Lahku salvestamata",
+      "stay": "Jää lehele",
+      "close": "Sulge"
+    },
     "loadError": {
       "title": "Serveri seadeid ei õnnestunud laadida",
       "description": "Serveri seadete laadimisel läks midagi valesti. Võid uuesti proovida.",
@@ -294,6 +321,29 @@
       "title": "Parooli reeglid",
       "lengthRegular": "Tavakasutajate minimaalne pikkus",
       "lengthAdmin": "Administraatorite minimaalne pikkus"
+    },
+    "session": {
+      "title": "Seansid",
+      "description": "Muudatused kehtivad uutele sisselogimistele ja järgmisele tunnuse uuendamisele. Juba välja antud tunnused säilitavad oma kehtivusaja.",
+      "idleTimeoutEnabled": "Jõusta tegevusetuse ajalõpp",
+      "idleHours": "Tegevusetuse ajalõpp (tundi)",
+      "idleHoursHint": "Kui see on jõustatud, lõpeb seanss pärast nii mitut tundi tegevusetust.",
+      "absoluteHours": "Absoluutne ajalõpp (tundi)",
+      "absoluteHoursHint": "Seanss lõpeb nii mitu tundi pärast sisselogimist, olenemata tegevusest. Kehtib alati. Ei tohi olla lühem kui tegevusetuse ajalõpp.",
+      "accessMinutes": "Juurdepääsutunnuse kehtivusaeg (minutit)",
+      "refreshDays": "Uuendustunnuse kehtivusaeg (päeva)",
+      "invalidRange": "Sisesta täisarv vahemikus {min}–{max}.",
+      "absoluteBelowIdle": "Ei tohi olla lühem kui tegevusetuse ajalõpp."
+    },
+    "retention": {
+      "title": "Andmete säilitamine",
+      "readNotifications": "Kustuta loetud teavitused pärast (päeva)",
+      "readNotificationsHint": "0 säilitab loetud teavitused igaveseks. Lugemata teavitusi ei kustutata kunagi.",
+      "auditTrail": "Kustuta auditilogi kirjed pärast (päeva)",
+      "auditTrailHint": "0 säilitab kõik. Muidu on miinimum 30 päeva; kirjed kustutatakse terve päeva kaupa.",
+      "auditTrailInvalid": "Sisesta 0 või täisarv vahemikus {min}–{max}.",
+      "auditLegalHold": "Auditilogi õiguslik säilitamine",
+      "auditLegalHoldHint": "Kui see on sees, peatatakse auditilogi igasugune puhastamine, olenemata säilitusajast."
     },
     "signup": {
       "title": "Registreerimine",
@@ -330,12 +380,33 @@
       "attribution": "Viidastus",
       "apiKey": "Plaadiserveri API-võti",
       "apiKeyWarning": "API-võti salvestatakse krüpteeritult. Jäta tühjaks, kui sinu plaadiserver seda ei vaja.",
+      "apiKeyStored": "Võti on salvestatud",
+      "apiKeyRemove": "Eemalda salvestatud API-võti",
       "backgroundColor": "Kaardi taustavärv",
       "regenerateThumbnails": "Loo tegevuste pisipildid uuesti, kui kaardiseaded muutuvad"
+    },
+    "geocoding": {
+      "title": "Pöördgeokodeerimine",
+      "description": "Muudab tegevuste koordinaadid kohanimedeks. Muudatused kehtivad ilma taaskäivituseta.",
+      "service": "Teenus",
+      "serviceNominatim": "Nominatim",
+      "servicePhoton": "Photon",
+      "serviceGeocode": "geocode.maps.co",
+      "host": "Host",
+      "hostHint": "Hostinimi koos valikulise pordiga, ilma skeemita. Privaatvõrgus olev host peab olema loetletud muutujas SSRF_ALLOWED_HOSTS.",
+      "useHttps": "Ühenda HTTPS-i kaudu",
+      "rateLimit": "Päringuid sekundis",
+      "rateLimitHint": "0 lülitab piiramise välja. Avalike Nominatim- ja Photon-teenuste jaoks jäta 1.",
+      "rateLimitInvalid": "Sisesta arv vahemikus 0–100.",
+      "apiKey": "API-võti",
+      "apiKeyStored": "Võti on salvestatud. Jäta tühjaks, et see alles jätta.",
+      "apiKeyRemove": "Eemalda salvestatud API-võti",
+      "apiKeyRequired": "geocode.maps.co vajab API-võtit."
     },
     "photo": {
       "title": "Sisselogimise foto",
       "description": "Sisselogimisekraanil kuvatav kohandatud pilt",
+      "previewAlt": "Praegune sisselogimispilt",
       "add": "Laadi sisselogimise foto üles",
       "replace": "Asenda sisselogimise foto",
       "delete": "Eemalda sisselogimise foto",
@@ -349,6 +420,30 @@
       "cancel": "Tühista",
       "close": "Sulge"
     },
+    "logs": {
+      "title": "Serveri logid",
+      "description": "Rakenduse logi uusimad kirjed. Mitut protsessi käitavate paigalduste logid kogub selle asemel sinu platvorm.",
+      "level": "Minimaalne tase",
+      "allLevels": "Kõik tasemed",
+      "search": "Otsing",
+      "searchPlaceholder": "Tekst, logija või päringu ID…",
+      "live": "Reaalajas",
+      "refresh": "Värskenda",
+      "download": "Laadi alla",
+      "downloadError": "Logifaili ei õnnestunud alla laadida.",
+      "clear": "Tühjenda",
+      "cleared": "Logid tühjendatud",
+      "clearError": "Logisid ei õnnestunud tühjendada.",
+      "clearConfirm": {
+        "title": "Tühjendad serveri logid?",
+        "description": "See kustutab logifaili ja selle pööratud varukoopiad jäädavalt. Laadi logi enne alla, kui võid seda vajada. Toiming ise salvestatakse uude logisse.",
+        "confirm": "Tühjenda logid",
+        "cancel": "Tühista",
+        "close": "Sulge"
+      },
+      "loadError": "Logisid ei õnnestunud laadida.",
+      "empty": "Logikirjeid ei leitud"
+    },
     "email": {
       "title": "E-post",
       "description": "Endurain saadab parooli lähtestamise ja registreerimise e-kirjad keskkonnas seadistatud SMTP-serveri kaudu.",
@@ -360,30 +455,26 @@
       "sendHint": "Test-e-kiri saadetakse sinu enda aadressile.",
       "sent": "Test-e-kiri saadetud",
       "failed": "Test-e-kirja saatmine ebaõnnestus",
-      "failedUnknown": "Üksikasjad leiad serveri logidest."
-    },
-    "envLocked": "Määratud muutujaga {name}",
-    "envSection": "Mõned siinsed seaded on määratud keskkonnamuutujatega ({names}). Eemalda need keskkonnast, et neid siin muuta.",
-    "unsaved": "Salvestamata muudatused",
-    "discard": "Loobu",
-    "tabs": {
-      "label": "Serveri seadete jaotised",
-      "general": "Üldine",
-      "access": "Juurdepääs ja turvalisus",
-      "maps": "Kaardid ja asukoht",
-      "email": "E-post",
-      "unsaved": "Sisaldab salvestamata muudatusi"
-    },
-    "search": {
-      "placeholder": "Otsi seadeid…",
-      "noResults": "Seadeid ei leitud"
-    },
-    "leave": {
-      "title": "Lahkuda salvestamata?",
-      "description": "Sul on salvestamata muudatusi. Kui lahkud lehelt, lähevad need kaotsi.",
-      "confirm": "Lahku salvestamata",
-      "stay": "Jää lehele",
-      "close": "Sulge"
+      "failedUnknown": "Üksikasjad leiad serveri logidest.",
+      "settingsLoadError": "E-posti seadeid ei õnnestunud laadida.",
+      "host": "Host",
+      "hostHint": "Jäta tühjaks, et e-post välja lülitada.",
+      "port": "Port",
+      "portInvalid": "Sisesta port vahemikus 1–65535.",
+      "security": "Ühenduse turvalisus",
+      "securityStarttls": "STARTTLS",
+      "securitySsl": "SSL/TLS",
+      "securityNone": "Puudub (ainult privaatne relee)",
+      "securityNoneWarning": "Ilma krüptimiseta aktsepteeritakse ainult privaatsel või loopback-aadressil asuvat meiliserverit ning kasutajanime ja parooli ei saa kasutada.",
+      "username": "Kasutajanimi",
+      "password": "Parool",
+      "passwordStored": "Parool on salvestatud. Jäta tühjaks, et see alles jätta.",
+      "passwordRemove": "Eemalda salvestatud parool",
+      "fromAddress": "Saatja aadress",
+      "fromAddressHint": "Jäta tühjaks, et kasutada kasutajanime.",
+      "save": "Salvesta e-posti seaded",
+      "saveSuccess": "E-posti seaded salvestatud",
+      "saveError": "E-posti seadeid ei õnnestunud salvestada"
     }
   },
   "idp": {
@@ -445,6 +536,7 @@
       "issuerUrl": "Väljaandja URL",
       "issuerUrlHint": "Pakkuja OIDC väljaandja või avastamise URL",
       "issuerUrlRequired": "Väljaandja URL on kohustuslik",
+      "issuerUrlRefused": "Pakkuja URL lükati tagasi. See peab kasutama https:// ja olema serverist lahendatav ning privaatvõrgus olev pakkuja peab olema loetletud muutujas SSRF_ALLOWED_HOSTS.",
       "issuerUrlTooLong": "Väljaandja URL tohib olla kuni 500 tähemärki",
       "clientId": "Kliendi ID",
       "clientIdRequired": "Kliendi ID on kohustuslik",
@@ -459,12 +551,22 @@
       "scopesTooLong": "Skoobid tohivad olla kuni 500 tähemärki",
       "icon": "Ikoon",
       "iconNone": "Puudub",
+      "iconUpload": "Laadi pilt üles",
+      "iconFileHint": "PNG-, JPEG-, GIF- või WebP-pilt kuni 1 MB, kuvatakse sisselogimisnupul",
+      "iconChoose": "Vali pilt",
+      "iconReplace": "Asenda pilt",
+      "iconPreviewAlt": "Ikooni eelvaade",
+      "iconFileRequired": "Vali üleslaaditav pilt",
+      "iconFileInvalidType": "Ikoon peab olema PNG-, JPEG-, GIF- või WebP-pilt",
+      "iconFileTooLarge": "Ikoon võib olla kuni 1 MB",
+      "iconSaveError": "Pakkuja salvestati, kuid selle ikooni ei õnnestunud uuendada. Proovimiseks muuda pakkujat uuesti.",
       "enabled": "Lubatud",
       "autoCreateUsers": "Loo kasutajad automaatselt esimesel sisselogimisel",
       "syncUserInfo": "Sünkrooni profiiliteave igal sisselogimisel",
       "createSuccess": "Pakkuja lisatud",
       "updateSuccess": "Pakkuja uuendatud",
       "slugConflict": "See identifikaator on juba kasutusel",
+      "staleError": "See pakkuja muutus mujal. Sinu muudatusi ei salvestatud. Praeguste seadete laadimiseks sulge see ja ava uuesti.",
       "saveError": "Pakkujat ei õnnestunud salvestada. Palun proovi uuesti."
     }
   },
@@ -472,7 +574,7 @@
     "title": "Minu eesmärgid",
     "subtitle": "Sea oma tegevustele sihid ja jälgi oma edenemist",
     "buttonAdd": "Lisa eesmärk",
-    "count": "Kokku on {count} eesmärki:",
+    "count": "Kokku on {count} eesmärk: | Kokku on {count} eesmärki:",
     "filters": "Filtrid",
     "filter": {
       "all": "Kõik",
@@ -556,6 +658,7 @@
     "hidePassword": "Peida parool",
     "mfaCode": "Autentimiskood",
     "mfaCodePlaceholder": "123456",
+    "confirmPhrase": "Kinnitamiseks sisesta {phrase}",
     "loadError": {
       "title": "Sinu turvaseadeid ei õnnestunud laadida",
       "description": "Midagi läks valesti. Võid uuesti proovida."
@@ -579,7 +682,7 @@
       "disabledDescription": "Kaheastmeline autentimine on välja lülitatud. Lülita see sisse, et oma kontot paremini kaitsta.",
       "enable": "Luba kaheastmeline autentimine",
       "enabledDescription": "Kaheastmeline autentimine on sisse lülitatud.",
-      "backupRemaining": "Alles on {unused} / {total} varukoodi.",
+      "backupRemaining": "Alles on {unused} / {total} varukood. | Alles on {unused} / {total} varukoodi.",
       "regenerate": "Loo varukoodid uuesti",
       "disable": "Keela",
       "setupTitle": "Luba kaheastmeline autentimine",
@@ -653,10 +756,16 @@
       "unlinkError": "Konto seost ei õnnestunud eemaldada. Palun proovi uuesti.",
       "invalidCredentials": "Sinu parool või kood on vale.",
       "alreadyLinked": "See konto on juba seotud.",
-      "lastMethodError": "Sa ei saa eemaldada oma ainsa sisselogimismeetodi seost. Sea esmalt parool."
+      "lastMethodError": "Sa ei saa eemaldada oma ainsa sisselogimismeetodi seost. Sea esmalt parool.",
+      "linkedOn": "Seotud {date}"
     },
     "email": {
+      "title": "E-posti aadress",
       "subtitle": "Siia saadetakse parooli lähtestamise lingid ja teatised. Aadressi muutmiseks pead kinnitama oma isikut ning uus aadress jõustub alles pärast seda, kui kinnitad selle lingi kaudu, mis sinna saadetakse.",
+      "current": "Praegune e-post",
+      "action": "Muuda e-posti",
+      "new": "Uus e-post",
+      "invalid": "Sisesta kehtiv e-posti aadress.",
       "sameAsCurrent": "See on juba sinu e-posti aadress.",
       "success": "Kinnituslink saadeti uuele aadressile. Sinu e-post muutub pärast kinnitamist.",
       "appliedSuccess": "E-posti aadress muudetud.",
@@ -667,7 +776,19 @@
       "resendSuccess": "Kui muudatus on ootel, on uus link teel uuele aadressile.",
       "resendError": "Lingi uuesti saatmine ebaõnnestus. Palun proovi uuesti.",
       "cancelSuccess": "E-posti muutmine tühistati.",
-      "cancelError": "Muudatust ei õnnestunud tühistada. Palun proovi uuesti."
+      "cancelError": "Muudatust ei õnnestunud tühistada. Palun proovi uuesti.",
+      "conflict": "See e-post on juba kasutusel.",
+      "error": "E-posti muutmine ebaõnnestus. Palun proovi uuesti."
+    },
+    "deleteAccount": {
+      "title": "Kustuta minu konto",
+      "subtitle": "Kustuta jäädavalt oma konto ja kõik andmed, sealhulgas tegevused ja nende failid, terviseandmed, varustus, eesmärgid, integratsioonid ja seansid. Seda ei saa tagasi võtta. Kui soovid koopiat alles hoida, ekspordi andmed enne.",
+      "action": "Kustuta minu konto",
+      "dialogTitle": "Kustutad oma konto?",
+      "dialogDescription": "See kustutab jäädavalt sinu konto ja kõik andmed. Jätkamiseks kinnita oma identiteet.",
+      "confirm": "Kustuta minu konto",
+      "error": "Konto kustutamine ebaõnnestus. Palun proovi uuesti.",
+      "onlyAdminError": "Sa oled ainus administraator. Enne konto kustutamist tee mõni teine kasutaja administraatoriks."
     },
     "apiKeys": {
       "title": "API-võtmed",
@@ -712,6 +833,18 @@
       "deleteBody": "{name} kustutatakse jäädavalt. Seda ei saa tagasi võtta.",
       "deleteSuccess": "API-võti kustutatud",
       "deleteError": "API-võtit ei õnnestunud kustutada. Palun proovi uuesti."
+    },
+    "stepUp": {
+      "prompt": "Sinu kontol pole parooli. Logi uuesti sisse seotud identiteedipakkuja kaudu, et kinnitada, et see oled sina.",
+      "continueWith": "Jätka teenusega {name}",
+      "ready": "Identiteedipakkuja kaudu sisselogimine kinnitatud.",
+      "restart": "Logi uuesti sisse",
+      "noProviders": "Sinu identiteedi kinnitamiseks pole seotud identiteedipakkujat saadaval.",
+      "startError": "Identiteedipakkuja kaudu sisselogimist ei õnnestunud alustada. Palun proovi uuesti.",
+      "tooManyAttempts": "Liiga palju katseid. Palun proovi hiljem uuesti.",
+      "reauthRequired": "Jätkamiseks kinnita oma identiteet identiteedipakkujaga.",
+      "failed": "Identiteedipakkuja kaudu uuesti sisselogimine ebaõnnestus. Palun proovi uuesti.",
+      "notFresh": "Sinu identiteedipakkuja ei palunud sul uuesti sisse logida. Võta ühendust oma administraatoriga."
     }
   },
   "integrations": {
@@ -834,6 +967,8 @@
     "title": "Minu profiil",
     "subtitle": "Halda oma konto üksikasju ja privaatsust",
     "notSet": "Määramata",
+    "emailManagedIn": "Sinu e-posti muudetakse turvaseadetes.",
+    "emailManagedLink": "Ava turvaseaded",
     "error": {
       "title": "Sinu profiili ei õnnestunud laadida",
       "description": "Sinu profiili laadimisel läks midagi valesti. Võid uuesti proovida.",
@@ -939,9 +1074,40 @@
       "export": "Ekspordi andmed",
       "import": "Impordi andmed",
       "invalidType": "Palun vali .zip-arhiiv.",
-      "exportSuccess": "Eksport valmis, allalaadimine peaks varsti algama",
+      "download": "Laadi eksport alla",
+      "downloadSuccess": "Sinu allalaadimine peaks varsti algama",
+      "downloadError": "Ekspordi allalaadimine ebaõnnestus. Palun proovi uuesti.",
+      "exportQueued": "Eksport algas. Võid sellelt lehelt lahkuda.",
       "exportError": "Sinu andmeid ei õnnestunud eksportida. Palun proovi uuesti.",
-      "importError": "Arhiivi ei õnnestunud importida. Palun kontrolli faili ja proovi uuesti."
+      "exportInProgress": "Eksport on juba käimas.",
+      "exportStatus": {
+        "queued": "Ootame ekspordi algust…",
+        "running": "Sinu ekspordi ettevalmistamine…",
+        "completed": "Sinu eksport on allalaadimiseks valmis. See jääb kättesaadavaks kaheks tunniks.",
+        "failed": "Eksport ei lõppenud: {reason}"
+      },
+      "exportFailure": {
+        "timed_out": "see võttis liiga kaua aega. Võid uuesti proovida.",
+        "processing_failed": "midagi läks valesti. Võid uuesti proovida."
+      },
+      "importQueued": "Import algas. Võid sellelt lehelt lahkuda.",
+      "importError": "Arhiivi ei õnnestunud importida. Palun kontrolli faili ja proovi uuesti.",
+      "importInProgress": "Import on juba käimas.",
+      "status": {
+        "queued": "Ootame impordi algust…",
+        "running": "Sinu andmete importimine…",
+        "writing_files": "Sinu failide salvestamine…",
+        "completed": "Import lõppes: imporditi {activities} tegevust ja {gears} varustuseühikut.",
+        "failed": "Import ei lõppenud: {reason}"
+      },
+      "failure": {
+        "invalid_file": "arhiiv pole kehtiv Endurain'i eksport. Midagi ei imporditud.",
+        "too_large": "arhiiv on liiga suur. Midagi ei imporditud.",
+        "too_many_activities": "arhiivis on liiga palju tegevusi. Midagi ei imporditud.",
+        "timed_out": "see võttis liiga kaua aega. Midagi ei imporditud, nii et võid uuesti proovida.",
+        "files_incomplete": "sinu andmed imporditi, kuid mõned failid puuduvad. Ära impordi uuesti, sest see dubleeriks sinu andmed.",
+        "processing_failed": "midagi läks valesti. Midagi ei imporditud, nii et võid uuesti proovida."
+      }
     }
   }
 }

@@ -11,7 +11,7 @@
     "subtitle": "Bläddra, filtrera och sortera alla dina aktiviteter.",
     "searchPlaceholder": "Sök på namn eller plats",
     "clearSearch": "Rensa sökning",
-    "resultCount": "{count} aktiviteter",
+    "resultCount": "{count} aktivitet | {count} aktiviteter",
     "filters": {
       "type": "Aktivitetstyp",
       "allTypes": "Alla typer",
@@ -188,6 +188,7 @@
     "cancel": "Avbryt",
     "close": "Stäng",
     "name": "Namn",
+    "nameRequired": "Ange ett namn på aktiviteten",
     "type": "Aktivitetstyp",
     "description": "Beskrivning",
     "privateNotes": "Privata anteckningar",

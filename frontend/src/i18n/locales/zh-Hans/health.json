@@ -1,6 +1,11 @@
 {
   "title": "健康",
   "subtitle": "在一处查看您的所有健康数据",
+  "chartBucket": {
+    "week": "每周平均值：每根柱表示该周的平均每日数据。",
+    "month": "每月平均值：每根柱表示该月的平均每日数据。"
+  },
+  "chartError": "无法加载此时间范围的图表。",
   "nav": {
     "label": "健康版块",
     "soon": "即将推出",
@@ -88,7 +93,6 @@
       "weightRequired": "请输入体重。",
       "weightInvalid": "请输入大于零的体重。",
       "bodyComposition": "身体成分（可选）",
-      "bmi": "BMI",
       "bodyFat": "体脂率（%）",
       "bodyWater": "体水分率（%）",
       "boneMass": "骨量",
@@ -350,7 +354,11 @@
       "close": "关闭",
       "createSuccess": "睡眠已记录。",
       "updateSuccess": "睡眠记录已更新。",
-      "saveError": "无法保存睡眠记录，请重试。"
+      "saveError": "无法保存睡眠记录，请重试。",
+      "numberRange": "请输入介于 {min} 和 {max} 之间的值。",
+      "numberMin": "请输入不小于 {min} 的值。",
+      "stagesExceedTotal": "深睡、浅睡和快速眼动睡眠的总和超过了总睡眠时间。",
+      "inconsistentError": "这些睡眠数据不一致，请检查各睡眠阶段和总时长是否在睡眠时间范围内。"
     },
     "target": {
       "title": "设置睡眠目标",
@@ -419,7 +427,8 @@
       "close": "关闭",
       "createSuccess": "饮水已记录。",
       "updateSuccess": "饮水记录已更新。",
-      "saveError": "无法保存饮水记录，请重试。"
+      "saveError": "无法保存饮水记录，请重试。",
+      "dailyLimitError": "这样会使当天饮水量超过 20,000 毫升的上限。"
     },
     "target": {
       "title": "设置饮水目标",
@@ -596,6 +605,8 @@
       "startTime": "开始时间",
       "startTimeRequired": "请选择开始时间。",
       "endTime": "结束时间",
+      "endBeforeStart": "结束时间不能早于开始时间。",
+      "endWhileInProgress": "进行中的断食不能有结束时间。",
       "status": "状态",
       "notes": "备注",
       "create": "开始",
@@ -604,7 +615,9 @@
       "close": "关闭",
       "createSuccess": "断食已开始。",
       "updateSuccess": "断食记录已更新。",
-      "saveError": "无法保存断食记录，请重试。"
+      "saveError": "无法保存断食记录，请重试。",
+      "overlapError": "此次断食与另一次断食记录重叠，或已有另一次断食正在进行。",
+      "invalidTimesError": "断食不能在开始之前结束，已完成或已中断的断食需要结束时间，进行中的断食则不能有结束时间。"
     },
     "target": {
       "title": "设置断食目标",
@@ -621,6 +634,20 @@
     "complete": {
       "success": "断食已结束。",
       "error": "无法结束断食，请重试。"
+    },
+    "endConfirm": {
+      "broken": {
+        "title": "中断此次断食？",
+        "body": "断食将立即结束，并保存为已中断，此操作无法撤销。",
+        "confirm": "中断断食"
+      },
+      "cancelled": {
+        "title": "取消此次断食？",
+        "body": "断食将立即结束，并保存为已取消，此操作无法撤销。",
+        "confirm": "取消断食"
+      },
+      "cancel": "继续断食",
+      "close": "关闭"
     },
     "empty": {
       "title": "暂无断食记录",

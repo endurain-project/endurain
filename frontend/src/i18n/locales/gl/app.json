@@ -19,6 +19,15 @@
     "reload": "Recargar"
   },
   "staleError": "Isto cambiouse noutro lugar mentres o mirabas, así que non se gardou nada. Cargouse a versión actual. Revísaa e téntao de novo.",
+  "fieldError": {
+    "required": "Este campo é obrigatorio",
+    "tooShort": "Este valor é demasiado curto",
+    "tooLong": "Este valor é demasiado longo",
+    "tooLarge": "Este valor é demasiado grande",
+    "tooSmall": "Este valor é demasiado pequeno",
+    "invalidFormat": "Este valor ten un formato non válido",
+    "invalid": "Este valor non é válido"
+  },
   "dismiss": "Descartar",
   "language": "Idioma",
   "theme": {
@@ -40,6 +49,17 @@
   "password": {
     "hintLength": "Polo menos {min} caracteres.",
     "invalid": "O contrasinal non cumpre os requisitos",
-    "mismatch": "Os contrasinais non coinciden"
+    "mismatch": "Os contrasinais non coinciden",
+    "tooShort": "Este contrasinal é demasiado curto. Usa polo menos {min} caracteres.",
+    "tooCommon": "Este contrasinal é demasiado común. Escolle un máis difícil de adiviñar.",
+    "matchesAccount": "Non uses o teu nome de usuario nin o teu enderezo de correo electrónico como contrasinal.",
+    "strength": {
+      "label": "Fortaleza do contrasinal: {level}",
+      "tooWeak": "Demasiado débil",
+      "weak": "Débil",
+      "fair": "Aceptable",
+      "good": "Boa",
+      "strong": "Forte"
+    }
   }
 }

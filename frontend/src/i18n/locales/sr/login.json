@@ -14,6 +14,7 @@
   "forceLocalLogin": "Lokalna prijava je omogućena za ovaj pokušaj. Koristite svoje korisničko ime i lozinku za prijavu.",
   "passwordResetSuccess": "Vaša lozinka je resetovana. Prijavite se novom lozinkom.",
   "passwordResetInvalidLink": "Taj link za resetovanje lozinke je nevažeći ili je istekao",
+  "onboardingComplete": "Vaš administratorski nalog je spreman. Prijavite se za početak.",
   "emailVerificationSent": "Email za verifikaciju je poslat. Proverite prijemno sanduče da biste nastavili.",
   "adminApprovalRequired": "Vaš nalog čeka odobrenje administratora",
   "verifyEmailInvalidLink": "Taj link za verifikaciju email-a je nevažeći ili je istekao",
@@ -35,6 +36,7 @@
   "closeForgotPassword": "Zatvori dijalog za resetovanje lozinke",
   "cancel": "Otkaži",
   "signUpLink": "Napravi nalog",
+  "resendVerification": "Niste dobili e-poruku?",
   "ssoSection": "Jedinstvena prijava",
   "loadingSsoProviders": "Učitavanje provajdera za prijavu",
   "ssoButton": "Nastavi sa {provider}",
@@ -46,9 +48,35 @@
   "ssoAccountNotFound": "Nijedan nalog nije povezan sa ovim provajderom identiteta",
   "ssoAccountDisabled": "Ovaj nalog je onemogućen",
   "ssoAutoCreateDisabled": "Automatsko kreiranje naloga je onemogućeno",
+  "ssoEmailMissing": "Provajder identiteta nije podelio adresu e-pošte pa nalog nije mogao da se napravi. Zamolite administratora da proveri podešavanja e-pošte provajdera.",
   "ssoErrorUndefined": "Jedinstvena prijava nije uspela",
   "noLoginMethods": "Nijedan način prijave nije omogućen na ovom serveru",
   "imageAlt": "Endurain ilustracija za prijavu",
   "tagline1": "Prati svaki pokret",
-  "tagline2": "Poseduj svaki trenutak"
+  "tagline2": "Poseduj svaki trenutak",
+  "accountDeleted": {
+    "title": "Žao nam je što odlazite",
+    "body": "Odjavljeni ste, a vaš nalog i svi vaši podaci se trajno brišu.",
+    "backToLogin": "Nazad na prijavu"
+  },
+  "onboarding": {
+    "title": "Podesite Endurain",
+    "subtitle": "Napravite prvi administratorski nalog. Kopirajte token za podešavanje iz logova servera: potražite red koji sadrži setup_token.",
+    "token": "Token za podešavanje",
+    "name": "Ime",
+    "username": "Korisničko ime",
+    "email": "E-pošta",
+    "password": "Lozinka",
+    "confirmPassword": "Potvrdite lozinku",
+    "emailInvalid": "Unesite ispravnu adresu e-pošte",
+    "requiredField": "Ovo polje je obavezno",
+    "submitButton": "Napravi administratora",
+    "submitting": "Pravljenje administratora",
+    "errorInvalidToken": "Token za podešavanje nije ispravan, istekao je ili je već iskorišćen. Kopirajte najnoviji iz logova servera.",
+    "errorAlreadyDone": "Podešavanje je već završeno. Prijavite se svojim nalogom.",
+    "errorValidation": "Podaci su odbijeni. Proverite ih i upotrebite lozinku koja ispunjava zahteve za administratore.",
+    "errorTooManyAttempts": "Previše pokušaja. Sačekajte trenutak i pokušajte ponovo.",
+    "errorUnavailable": "Podešavanje je privremeno nedostupno. Pokušajte ponovo uskoro.",
+    "errorGeneral": "Administrator nije mogao da se napravi. Pokušajte ponovo."
+  }
 }

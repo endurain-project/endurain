@@ -15,5 +15,13 @@
   "errorNotFound": "Nismo mogli da pronađemo nalog za ovaj link.",
   "errorGeneral": "Nismo mogli da verifikujemo vaš email. Pokušajte ponovo.",
   "retry": "Pokušaj ponovo",
-  "backToLogin": "Nazad na prijavu"
+  "backToLogin": "Nazad na prijavu",
+  "resendTitle": "Treba vam novi link?",
+  "resendBody": "Unesite adresu sa kojom ste se registrovali i poslaćemo novu e-poruku za potvrdu ako još čeka.",
+  "resendEmail": "Adresa e-pošte",
+  "resendButton": "Pošalji novu e-poruku",
+  "resendSending": "Slanje",
+  "resendSent": "Ako ta adresa čeka potvrdu, nova e-poruka je na putu.",
+  "resendTooManyAttempts": "Previše pokušaja. Sačekajte pre novog pokušaja.",
+  "resendError": "E-poruku nismo mogli da pošaljemo. Pokušajte ponovo."
 }

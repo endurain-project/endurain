@@ -11,7 +11,7 @@
     "subtitle": "瀏覽、篩選並排序您的所有活動。",
     "searchPlaceholder": "依名稱或地點搜尋",
     "clearSearch": "清除搜尋",
-    "resultCount": "{count} 個活動",
+    "resultCount": "{count} 筆活動",
     "filters": {
       "type": "活動類型",
       "allTypes": "所有類型",
@@ -188,6 +188,7 @@
     "cancel": "取消",
     "close": "關閉",
     "name": "名稱",
+    "nameRequired": "請輸入活動名稱",
     "type": "活動類型",
     "description": "描述",
     "privateNotes": "私人備註",

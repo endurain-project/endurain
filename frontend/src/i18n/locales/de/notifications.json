@@ -8,7 +8,7 @@
   "seeAll": "Alle anzeigen",
   "loadMore": "Mehr laden",
   "loading": "Lädt…",
-  "badge": "{count} ungelesene Benachrichtigungen",
+  "badge": "{count} ungelesene Benachrichtigung | {count} ungelesene Benachrichtigungen",
   "empty": {
     "title": "Alles auf dem neuesten Stand",
     "description": "Updates zu deinen Aktivitäten, Followern und Integrationen werden hier angezeigt."
@@ -39,10 +39,57 @@
       "title": "Garmin Connect benötigt Aufmerksamkeit",
       "body": "Deine Garmin Connect-Sitzung ist abgelaufen. Verbinde es erneut, um die Synchronisierung fortzusetzen."
     },
+    "stravaTokenExpired": {
+      "title": "Strava braucht deine Aufmerksamkeit",
+      "body": "Strava hat deine Verbindung abgelehnt. Verbinde dich erneut, damit die Synchronisierung weiterläuft."
+    },
     "idpLinked": {
       "title": "Neuer Anmeldeanbieter verknüpft",
       "body": "{name} wurde mit Ihrem Konto verknüpft. Falls Sie das nicht waren, prüfen Sie Ihre Sicherheitseinstellungen.",
       "bodyGeneric": "Ein Anmeldeanbieter wurde mit Ihrem Konto verknüpft. Falls Sie das nicht waren, prüfen Sie Ihre Sicherheitseinstellungen."
+    },
+    "accountSecurityChanged": {
+      "passwordChanged": {
+        "title": "Passwort geändert",
+        "body": "Dein Passwort wurde geändert. Wenn du das nicht warst, setze dein Passwort zurück und prüfe deine Sicherheitseinstellungen."
+      },
+      "passwordReset": {
+        "title": "Passwort zurückgesetzt",
+        "body": "Dein Passwort wurde über einen Link zum Zurücksetzen zurückgesetzt. Wenn du das nicht warst, setze dein Passwort erneut zurück und prüfe deine Sicherheitseinstellungen."
+      },
+      "passwordSetByAdmin": {
+        "title": "Passwort von einem Administrator festgelegt",
+        "body": "Ein Administrator hat ein neues Passwort für dein Konto festgelegt. Wenn du das nicht erwartet hast, wende dich an deinen Administrator."
+      },
+      "mfaEnabled": {
+        "title": "Zwei-Faktor-Authentifizierung aktiviert",
+        "body": "Die Zwei-Faktor-Authentifizierung wurde für dein Konto aktiviert. Wenn du das nicht warst, setze dein Passwort zurück und prüfe deine Sicherheitseinstellungen."
+      },
+      "mfaDisabled": {
+        "title": "Zwei-Faktor-Authentifizierung deaktiviert",
+        "body": "Die Zwei-Faktor-Authentifizierung wurde für dein Konto deaktiviert. Wenn du das nicht warst, setze dein Passwort zurück und prüfe deine Sicherheitseinstellungen."
+      },
+      "backupCodesGenerated": {
+        "title": "Neue Backup-Codes erstellt",
+        "body": "Für dein Konto wurden neue Backup-Codes erstellt. Wenn du das nicht warst, setze dein Passwort zurück und prüfe deine Sicherheitseinstellungen."
+      },
+      "apiKeyCreated": {
+        "title": "Neuer API-Schlüssel erstellt",
+        "body": "Für dein Konto wurde ein neuer API-Schlüssel erstellt. Wenn du das nicht warst, setze dein Passwort zurück und prüfe deine Sicherheitseinstellungen."
+      },
+      "identityProviderUnlinked": {
+        "title": "Anmeldeanbieter getrennt",
+        "body": "{name} wurde von deinem Konto getrennt. Wenn du das nicht warst, setze dein Passwort zurück und prüfe deine Sicherheitseinstellungen.",
+        "bodyGeneric": "Ein Anmeldeanbieter wurde von deinem Konto getrennt. Wenn du das nicht warst, setze dein Passwort zurück und prüfe deine Sicherheitseinstellungen."
+      },
+      "unknown": {
+        "title": "Kontosicherheit geändert",
+        "body": "Eine Sicherheitseinstellung deines Kontos wurde geändert. Wenn du das nicht warst, setze dein Passwort zurück und prüfe deine Sicherheitseinstellungen."
+      }
+    },
+    "newDeviceSignIn": {
+      "title": "Neue Anmeldung",
+      "body": "Neue Anmeldung von {browser} auf {os} ({ip}). Wenn du das nicht warst, ändere dein Passwort und melde dich von deinen anderen Sitzungen ab."
     },
     "adminSignUpApproval": {
       "title": "Neue Registrierung benötigt Genehmigung",

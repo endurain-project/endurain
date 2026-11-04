@@ -14,6 +14,7 @@
   "forceLocalLogin": "Za ta poskus je omogočena lokalna prijava. Prijavi se z uporabniškim imenom in geslom.",
   "passwordResetSuccess": "Tvoje geslo je bilo ponastavljeno. Prijavi se z novim geslom.",
   "passwordResetInvalidLink": "Ta povezava za ponastavitev gesla je neveljavna ali je potekla",
+  "onboardingComplete": "Tvoj skrbniški račun je pripravljen. Prijavi se in začni.",
   "emailVerificationSent": "Poslano je bilo e-poštno sporočilo za preverjanje. Preveri svojo pošto za nadaljevanje.",
   "adminApprovalRequired": "Tvoj račun čaka na odobritev skrbnika",
   "verifyEmailInvalidLink": "Ta povezava za preverjanje e-pošte je neveljavna ali je potekla",
@@ -35,6 +36,7 @@
   "closeForgotPassword": "Zapri pogovorno okno za ponastavitev gesla",
   "cancel": "Prekliči",
   "signUpLink": "Ustvari račun",
+  "resendVerification": "Nisi prejel e-pošte?",
   "ssoSection": "Enotna prijava",
   "loadingSsoProviders": "Nalaganje ponudnikov prijave",
   "ssoButton": "Nadaljuj z {provider}",
@@ -46,9 +48,35 @@
   "ssoAccountNotFound": "Noben račun ni povezan s tem ponudnikom identitete",
   "ssoAccountDisabled": "Ta račun je onemogočen",
   "ssoAutoCreateDisabled": "Samodejno ustvarjanje računov je onemogočeno",
+  "ssoEmailMissing": "Ponudnik identitete ni posredoval e-poštnega naslova, zato računa ni bilo mogoče ustvariti. Prosi skrbnika, naj preveri e-poštne nastavitve ponudnika.",
   "ssoErrorUndefined": "Enotna prijava ni uspela",
   "noLoginMethods": "Na tem strežniku ni omogočen noben način prijave",
   "imageAlt": "Endurain ilustracija prijave",
   "tagline1": "Sledi vsakemu koraku",
-  "tagline2": "Osvoji vsak trenutek"
+  "tagline2": "Osvoji vsak trenutek",
+  "accountDeleted": {
+    "title": "Škoda, da odhajaš",
+    "body": "Odjavljen si, tvoj račun in vsi tvoji podatki pa se trajno brišejo.",
+    "backToLogin": "Nazaj na prijavo"
+  },
+  "onboarding": {
+    "title": "Nastavi Endurain",
+    "subtitle": "Ustvari prvi skrbniški račun. Kopiraj namestitveni žeton iz dnevnika strežnika: poišči vrstico, ki vsebuje setup_token.",
+    "token": "Namestitveni žeton",
+    "name": "Ime",
+    "username": "Uporabniško ime",
+    "email": "E-pošta",
+    "password": "Geslo",
+    "confirmPassword": "Potrdi geslo",
+    "emailInvalid": "Vnesi veljaven e-poštni naslov",
+    "requiredField": "To polje je obvezno",
+    "submitButton": "Ustvari skrbnika",
+    "submitting": "Ustvarjanje skrbnika",
+    "errorInvalidToken": "Namestitveni žeton je neveljaven, potekel ali že uporabljen. Kopiraj najnovejšega iz dnevnika strežnika.",
+    "errorAlreadyDone": "Namestitev je že končana. Prijavi se s svojim računom.",
+    "errorValidation": "Podatki so bili zavrnjeni. Preveri jih in uporabi geslo, ki izpolnjuje zahteve za skrbnika.",
+    "errorTooManyAttempts": "Preveč poskusov. Počakaj trenutek in poskusi znova.",
+    "errorUnavailable": "Namestitev je začasno nedostopna. Poskusi znova čez nekaj trenutkov.",
+    "errorGeneral": "Skrbnika ni bilo mogoče ustvariti. Poskusi znova."
+  }
 }

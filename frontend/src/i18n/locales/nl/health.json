@@ -1,6 +1,11 @@
 {
   "title": "Gezondheid",
   "subtitle": "Bekijk al je gezondheidsgegevens op één plek",
+  "chartBucket": {
+    "week": "Weekgemiddelden: elke balk is de gemiddelde dag van die week.",
+    "month": "Maandgemiddelden: elke balk is de gemiddelde dag van die maand."
+  },
+  "chartError": "De grafiek voor dit tijdsbereik kon niet worden geladen.",
   "nav": {
     "label": "Gezondheidsonderdelen",
     "soon": "Binnenkort",
@@ -88,7 +93,6 @@
       "weightRequired": "Voer je gewicht in.",
       "weightInvalid": "Voer een gewicht groter dan nul in.",
       "bodyComposition": "Lichaamssamenstelling (optioneel)",
-      "bmi": "BMI",
       "bodyFat": "Lichaamsvet (%)",
       "bodyWater": "Lichaamswater (%)",
       "boneMass": "Botmassa",
@@ -350,7 +354,11 @@
       "close": "Sluiten",
       "createSuccess": "Slaap geregistreerd.",
       "updateSuccess": "Slaapvermelding bijgewerkt.",
-      "saveError": "Slaapvermelding kon niet worden opgeslagen. Probeer het opnieuw."
+      "saveError": "Slaapvermelding kon niet worden opgeslagen. Probeer het opnieuw.",
+      "numberRange": "Voer een waarde in tussen {min} en {max}.",
+      "numberMin": "Voer {min} of meer in.",
+      "stagesExceedTotal": "Diepe slaap, lichte slaap en REM-slaap zijn samen meer dan het totaal.",
+      "inconsistentError": "Deze slaapgegevens kloppen niet. Controleer of de fasen en het totaal binnen de slaaptijden passen."
     },
     "target": {
       "title": "Slaaptarget instellen",
@@ -419,7 +427,8 @@
       "close": "Sluiten",
       "createSuccess": "Water geregistreerd.",
       "updateSuccess": "Watervermelding bijgewerkt.",
-      "saveError": "Watervermelding kon niet worden opgeslagen. Probeer het opnieuw."
+      "saveError": "Watervermelding kon niet worden opgeslagen. Probeer het opnieuw.",
+      "dailyLimitError": "Daarmee komt de waterinname van de dag boven de limiet van 20.000 ml."
     },
     "target": {
       "title": "Waterinname-target instellen",
@@ -596,6 +605,8 @@
       "startTime": "Starttijd",
       "startTimeRequired": "Kies een starttijd.",
       "endTime": "Eindtijd",
+      "endBeforeStart": "De eindtijd mag niet voor de starttijd liggen.",
+      "endWhileInProgress": "Een vasten dat bezig is kan geen eindtijd hebben.",
       "status": "Status",
       "notes": "Notities",
       "create": "Starten",
@@ -604,7 +615,9 @@
       "close": "Sluiten",
       "createSuccess": "Vasten gestart.",
       "updateSuccess": "Vastensessie bijgewerkt.",
-      "saveError": "Vastensessie kon niet worden opgeslagen. Probeer het opnieuw."
+      "saveError": "Vastensessie kon niet worden opgeslagen. Probeer het opnieuw.",
+      "overlapError": "Deze vastenperiode overlapt met een andere vastensessie, of er loopt al een andere vastenperiode.",
+      "invalidTimesError": "Een vasten kan niet eindigen voordat het begint, een voltooid of verbroken vasten heeft een eindtijd nodig en een vasten dat bezig is kan er geen hebben."
     },
     "target": {
       "title": "Vastentarget instellen",
@@ -621,6 +634,20 @@
     "complete": {
       "success": "Vasten beëindigd.",
       "error": "Vasten kon niet worden beëindigd. Probeer het opnieuw."
+    },
+    "endConfirm": {
+      "broken": {
+        "title": "Deze vastenperiode afbreken?",
+        "body": "Het vasten eindigt nu en wordt opgeslagen als afgebroken. Dit kan niet ongedaan worden gemaakt.",
+        "confirm": "Vasten afbreken"
+      },
+      "cancelled": {
+        "title": "Deze vastenperiode annuleren?",
+        "body": "Het vasten eindigt nu en wordt opgeslagen als geannuleerd. Dit kan niet ongedaan worden gemaakt.",
+        "confirm": "Vasten annuleren"
+      },
+      "cancel": "Doorgaan met vasten",
+      "close": "Sluiten"
     },
     "empty": {
       "title": "Nog geen vastens",

@@ -11,7 +11,7 @@
     "subtitle": "Pārlūkojiet, filtrējiet un kārtojiet visas savas aktivitātes.",
     "searchPlaceholder": "Meklēt pēc nosaukuma vai atrašanās vietas",
     "clearSearch": "Notīrīt meklēšanu",
-    "resultCount": "{count} aktivitātes",
+    "resultCount": "{count} aktivitāte | {count} aktivitātes",
     "filters": {
       "type": "Aktivitātes veids",
       "allTypes": "Visi veidi",
@@ -188,6 +188,7 @@
     "cancel": "Atcelt",
     "close": "Aizvērt",
     "name": "Nosaukums",
+    "nameRequired": "Ievadiet aktivitātes nosaukumu",
     "type": "Aktivitātes veids",
     "description": "Apraksts",
     "privateNotes": "Privātās piezīmes",

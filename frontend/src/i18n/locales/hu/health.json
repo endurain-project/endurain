@@ -1,6 +1,11 @@
 {
   "title": "Egészség",
   "subtitle": "Lásd az összes egészségügyi adatodat egy helyen",
+  "chartBucket": {
+    "week": "Heti átlagok: minden oszlop az adott hét átlagos napját mutatja.",
+    "month": "Havi átlagok: minden oszlop az adott hónap átlagos napját mutatja."
+  },
+  "chartError": "Nem sikerült betölteni a diagramot ehhez az időtartományhoz.",
   "nav": {
     "label": "Egészségügyi szakaszok",
     "soon": "Hamarosan",
@@ -88,7 +93,6 @@
       "weightRequired": "Kérjük, add meg a testsúlyodat.",
       "weightInvalid": "Adj meg nullánál nagyobb testsúlyt.",
       "bodyComposition": "Testösszetétel (opcionális)",
-      "bmi": "BMI",
       "bodyFat": "Testzsír (%)",
       "bodyWater": "Testvíz (%)",
       "boneMass": "Csonttömeg",
@@ -350,7 +354,11 @@
       "close": "Bezárás",
       "createSuccess": "Alvás rögzítve.",
       "updateSuccess": "Alvásbejegyzés frissítve.",
-      "saveError": "Nem sikerült menteni az alvásbejegyzést. Kérjük, próbáld újra."
+      "saveError": "Nem sikerült menteni az alvásbejegyzést. Kérjük, próbáld újra.",
+      "numberRange": "Adj meg egy {min} és {max} közötti értéket.",
+      "numberMin": "Adj meg legalább {min} értéket.",
+      "stagesExceedTotal": "A mély-, a könnyű és a REM-alvás együtt több, mint a teljes alvás.",
+      "inconsistentError": "Ezek az alvási adatok nem stimmelnek. Ellenőrizd, hogy a fázisok és a teljes alvás beleférnek az alvási időkbe."
     },
     "target": {
       "title": "Alváscél beállítása",
@@ -419,7 +427,8 @@
       "close": "Bezárás",
       "createSuccess": "Folyadék rögzítve.",
       "updateSuccess": "Folyadékbejegyzés frissítve.",
-      "saveError": "Nem sikerült menteni a folyadékbejegyzést. Kérjük, próbáld újra."
+      "saveError": "Nem sikerült menteni a folyadékbejegyzést. Kérjük, próbáld újra.",
+      "dailyLimitError": "Ezzel a napi vízbevitel meghaladná a 20 000 ml-es határt."
     },
     "target": {
       "title": "Folyadékcél beállítása",
@@ -596,6 +605,8 @@
       "startTime": "Kezdési idő",
       "startTimeRequired": "Kérjük, válassz kezdési időt.",
       "endTime": "Befejezési idő",
+      "endBeforeStart": "A befejezési idő nem lehet a kezdési idő előtt.",
+      "endWhileInProgress": "A folyamatban lévő böjtnek nem lehet befejezési ideje.",
       "status": "Állapot",
       "notes": "Jegyzetek",
       "create": "Indítás",
@@ -604,7 +615,9 @@
       "close": "Bezárás",
       "createSuccess": "Böjt elindítva.",
       "updateSuccess": "Böjtidőszak frissítve.",
-      "saveError": "Nem sikerült menteni a böjtidőszakot. Kérjük, próbáld újra."
+      "saveError": "Nem sikerült menteni a böjtidőszakot. Kérjük, próbáld újra.",
+      "overlapError": "Ez a böjt átfedésben van egy másik böjtölési időszakkal, vagy már van egy folyamatban lévő böjt.",
+      "invalidTimesError": "A böjt nem érhet véget, mielőtt elkezdődik, a befejezett vagy megszakított böjthöz befejezési idő kell, a folyamatban lévő böjtnek pedig nem lehet."
     },
     "target": {
       "title": "Böjtcél beállítása",
@@ -621,6 +634,20 @@
     "complete": {
       "success": "Böjt befejezve.",
       "error": "Nem sikerült befejezni a böjtöt. Kérjük, próbáld újra."
+    },
+    "endConfirm": {
+      "broken": {
+        "title": "Megszakítod ezt a böjtöt?",
+        "body": "A böjt most véget ér, és megszakítottként kerül mentésre. Ezt nem lehet visszavonni.",
+        "confirm": "Böjt megszakítása"
+      },
+      "cancelled": {
+        "title": "Elveted ezt a böjtöt?",
+        "body": "A böjt most véget ér, és elvetettként kerül mentésre. Ezt nem lehet visszavonni.",
+        "confirm": "Böjt elvetése"
+      },
+      "cancel": "Böjtölés folytatása",
+      "close": "Bezárás"
     },
     "empty": {
       "title": "Még nincsenek böjtök",

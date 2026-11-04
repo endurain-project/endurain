@@ -19,6 +19,15 @@
     "reload": "Reîncarcă"
   },
   "staleError": "Acest lucru a fost modificat în altă parte în timp ce îl vizualizai, așa că nimic nu a fost salvat. Versiunea actuală a fost încărcată. Verifică-o și încearcă din nou.",
+  "fieldError": {
+    "required": "Acest câmp este obligatoriu",
+    "tooShort": "Această valoare este prea scurtă",
+    "tooLong": "Această valoare este prea lungă",
+    "tooLarge": "Această valoare este prea mare",
+    "tooSmall": "Această valoare este prea mică",
+    "invalidFormat": "Această valoare are un format nevalid",
+    "invalid": "Această valoare este nevalidă"
+  },
   "dismiss": "Închide",
   "language": "Limbă",
   "theme": {
@@ -40,6 +49,17 @@
   "password": {
     "hintLength": "Cel puțin {min} caractere.",
     "invalid": "Parola nu îndeplinește cerințele",
-    "mismatch": "Parolele nu coincid"
+    "mismatch": "Parolele nu coincid",
+    "tooShort": "Această parolă este prea scurtă. Folosește cel puțin {min} caractere.",
+    "tooCommon": "Această parolă este prea comună. Alege una mai greu de ghicit.",
+    "matchesAccount": "Nu folosi numele de utilizator sau adresa de e-mail ca parolă.",
+    "strength": {
+      "label": "Puterea parolei: {level}",
+      "tooWeak": "Prea slabă",
+      "weak": "Slabă",
+      "fair": "Acceptabilă",
+      "good": "Bună",
+      "strong": "Puternică"
+    }
   }
 }

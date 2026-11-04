@@ -1,6 +1,11 @@
 {
   "title": "Zdravlje",
   "subtitle": "Pogledajte sve svoje zdravstvene podatke na jednom mjestu",
+  "chartBucket": {
+    "week": "Tjedni prosjeci: svaki stupac prikazuje prosječan dan tog tjedna.",
+    "month": "Mjesečni prosjeci: svaki stupac prikazuje prosječan dan tog mjeseca."
+  },
+  "chartError": "Grafikon za ovo razdoblje nije bilo moguće učitati.",
   "nav": {
     "label": "Odjeljci zdravlja",
     "soon": "Uskoro",
@@ -88,7 +93,6 @@
       "weightRequired": "Unesite svoju težinu.",
       "weightInvalid": "Unesite težinu veću od nule.",
       "bodyComposition": "Tjelesni sastav (neobavezno)",
-      "bmi": "BMI",
       "bodyFat": "Tjelesna mast (%)",
       "bodyWater": "Tjelesna voda (%)",
       "boneMass": "Koštana masa",
@@ -350,7 +354,11 @@
       "close": "Zatvori",
       "createSuccess": "San je zabilježen.",
       "updateSuccess": "Unos sna je ažuriran.",
-      "saveError": "Nije moguće spremiti vaš unos sna. Pokušajte ponovno."
+      "saveError": "Nije moguće spremiti vaš unos sna. Pokušajte ponovno.",
+      "numberRange": "Unesite vrijednost između {min} i {max}.",
+      "numberMin": "Unesite {min} ili više.",
+      "stagesExceedTotal": "Duboki san, lagani san i REM zajedno premašuju ukupno trajanje.",
+      "inconsistentError": "Ovi podaci o snu ne slažu se. Provjerite uklapaju li se faze i ukupno trajanje u vrijeme spavanja."
     },
     "target": {
       "title": "Postavi cilj sna",
@@ -419,7 +427,8 @@
       "close": "Zatvori",
       "createSuccess": "Voda je zabilježena.",
       "updateSuccess": "Unos vode je ažuriran.",
-      "saveError": "Nije moguće spremiti vaš unos vode. Pokušajte ponovno."
+      "saveError": "Nije moguće spremiti vaš unos vode. Pokušajte ponovno.",
+      "dailyLimitError": "Time bi dnevni unos vode premašio ograničenje od 20 000 ml."
     },
     "target": {
       "title": "Postavi cilj vode",
@@ -596,6 +605,8 @@
       "startTime": "Vrijeme početka",
       "startTimeRequired": "Odaberite vrijeme početka.",
       "endTime": "Vrijeme završetka",
+      "endBeforeStart": "Vrijeme završetka ne smije biti prije vremena početka.",
+      "endWhileInProgress": "Post u tijeku ne može imati vrijeme završetka.",
       "status": "Status",
       "notes": "Bilješke",
       "create": "Započni",
@@ -604,7 +615,9 @@
       "close": "Zatvori",
       "createSuccess": "Post je započet.",
       "updateSuccess": "Sesija posta je ažurirana.",
-      "saveError": "Nije moguće spremiti vašu sesiju posta. Pokušajte ponovno."
+      "saveError": "Nije moguće spremiti vašu sesiju posta. Pokušajte ponovno.",
+      "overlapError": "Ovaj se post preklapa s drugim postom ili je neki drugi post već u tijeku.",
+      "invalidTimesError": "Post ne može završiti prije nego što počne, dovršen ili prekinut post treba vrijeme završetka, a post u tijeku ga ne može imati."
     },
     "target": {
       "title": "Postavi cilj posta",
@@ -621,6 +634,20 @@
     "complete": {
       "success": "Post je završen.",
       "error": "Nije moguće završiti vaš post. Pokušajte ponovno."
+    },
+    "endConfirm": {
+      "broken": {
+        "title": "Prekinuti ovaj post?",
+        "body": "Post završava sada i sprema se kao prekinut. Ovo se ne može poništiti.",
+        "confirm": "Prekini post"
+      },
+      "cancelled": {
+        "title": "Otkazati ovaj post?",
+        "body": "Post završava sada i sprema se kao otkazan. Ovo se ne može poništiti.",
+        "confirm": "Otkaži post"
+      },
+      "cancel": "Nastavi postiti",
+      "close": "Zatvori"
     },
     "empty": {
       "title": "Još nema postova",

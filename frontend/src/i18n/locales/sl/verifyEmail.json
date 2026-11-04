@@ -15,5 +15,13 @@
   "errorNotFound": "Nismo mogli najti računa za to povezavo.",
   "errorGeneral": "Tvoje e-pošte ni bilo mogoče preveriti. Prosim, poskusi znova.",
   "retry": "Poskusi znova",
-  "backToLogin": "Nazaj na prijavo"
+  "backToLogin": "Nazaj na prijavo",
+  "resendTitle": "Potrebuješ novo povezavo?",
+  "resendBody": "Vnesi naslov, s katerim si se registriral, in poslali bomo novo potrditveno e-pošto, če še čaka na potrditev.",
+  "resendEmail": "E-poštni naslov",
+  "resendButton": "Pošlji novo e-pošto",
+  "resendSending": "Pošiljanje",
+  "resendSent": "Če ta naslov čaka na potrditev, je nova e-pošta na poti.",
+  "resendTooManyAttempts": "Preveč poskusov. Počakaj, preden poskusiš znova.",
+  "resendError": "E-pošte ni bilo mogoče poslati. Poskusi znova."
 }

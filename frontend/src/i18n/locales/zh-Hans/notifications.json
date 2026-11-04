@@ -8,7 +8,7 @@
   "seeAll": "查看全部",
   "loadMore": "Load more",
   "loading": "Loading…",
-  "badge": "{count} unread notifications",
+  "badge": "{count} 条未读通知",
   "empty": {
     "title": "You're all caught up",
     "description": "Updates about your activities, followers and integrations will show up here."
@@ -38,6 +38,58 @@
     "garminTokenExpired": {
       "title": "Garmin Connect needs attention",
       "body": "Your Garmin Connect session expired. Reconnect it to keep syncing."
+    },
+    "stravaTokenExpired": {
+      "title": "Strava 需要处理",
+      "body": "Strava 拒绝了您的连接，请重新连接以继续同步。"
+    },
+    "idpLinked": {
+      "title": "已关联新的登录提供者",
+      "body": "{name} 已关联到您的账户。如果这不是您本人操作，请检查您的安全设置。",
+      "bodyGeneric": "有登录提供者已关联到您的账户。如果这不是您本人操作，请检查您的安全设置。"
+    },
+    "accountSecurityChanged": {
+      "passwordChanged": {
+        "title": "密码已更改",
+        "body": "您的密码已更改。如果这不是您本人操作，请重置密码并检查您的安全设置。"
+      },
+      "passwordReset": {
+        "title": "密码已重置",
+        "body": "您的密码已通过重置链接重置。如果这不是您本人操作，请再次重置密码并检查您的安全设置。"
+      },
+      "passwordSetByAdmin": {
+        "title": "管理员已设置密码",
+        "body": "管理员为您的账户设置了新密码。如果您并不知情，请联系管理员。"
+      },
+      "mfaEnabled": {
+        "title": "双因素认证已开启",
+        "body": "您的账户已开启双因素认证。如果这不是您本人操作，请重置密码并检查您的安全设置。"
+      },
+      "mfaDisabled": {
+        "title": "双因素认证已关闭",
+        "body": "您的账户已关闭双因素认证。如果这不是您本人操作，请重置密码并检查您的安全设置。"
+      },
+      "backupCodesGenerated": {
+        "title": "已生成新的备用码",
+        "body": "您的账户已生成新的备用码。如果这不是您本人操作，请重置密码并检查您的安全设置。"
+      },
+      "apiKeyCreated": {
+        "title": "已创建新的 API 密钥",
+        "body": "您的账户已创建新的 API 密钥。如果这不是您本人操作，请重置密码并检查您的安全设置。"
+      },
+      "identityProviderUnlinked": {
+        "title": "登录提供者已取消关联",
+        "body": "{name} 已与您的账户取消关联。如果这不是您本人操作，请重置密码并检查您的安全设置。",
+        "bodyGeneric": "有登录提供者已与您的账户取消关联。如果这不是您本人操作，请重置密码并检查您的安全设置。"
+      },
+      "unknown": {
+        "title": "账户安全设置已更改",
+        "body": "您账户的某项安全设置已更改。如果这不是您本人操作，请重置密码并检查您的安全设置。"
+      }
+    },
+    "newDeviceSignIn": {
+      "title": "新的登录",
+      "body": "检测到来自 {os} 上 {browser} 的新登录（{ip}）。如果这不是您本人操作，请更改密码并退出其他会话。"
     },
     "adminSignUpApproval": {
       "title": "New sign-up needs approval",

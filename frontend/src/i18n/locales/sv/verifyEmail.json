@@ -15,5 +15,13 @@
   "errorNotFound": "Vi kunde inte hitta ett konto för den här länken.",
   "errorGeneral": "Vi kunde inte verifiera din e-post. Försök igen.",
   "retry": "Försök igen",
-  "backToLogin": "Tillbaka till inloggning"
+  "backToLogin": "Tillbaka till inloggning",
+  "resendTitle": "Behöver du en ny länk?",
+  "resendBody": "Ange adressen du registrerade dig med så skickar vi ett nytt verifieringsmejl om det fortfarande väntar.",
+  "resendEmail": "E-postadress",
+  "resendButton": "Skicka ett nytt mejl",
+  "resendSending": "Skickar",
+  "resendSent": "Om adressen väntar på verifiering är ett nytt mejl på väg.",
+  "resendTooManyAttempts": "För många försök. Vänta innan du försöker igen.",
+  "resendError": "Vi kunde inte skicka mejlet. Försök igen."
 }

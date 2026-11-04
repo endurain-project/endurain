@@ -14,6 +14,7 @@
   "forceLocalLogin": "Dla tej próby włączono logowanie lokalne. Użyj nazwy użytkownika i hasła, aby się zalogować.",
   "passwordResetSuccess": "Twoje hasło zostało zresetowane. Zaloguj się przy użyciu nowego hasła.",
   "passwordResetInvalidLink": "Ten link do resetowania hasła jest nieprawidłowy lub wygasł",
+  "onboardingComplete": "Konto administratora jest gotowe. Zaloguj się, aby zacząć.",
   "emailVerificationSent": "Wysłano e-mail weryfikacyjny. Sprawdź skrzynkę odbiorczą, aby kontynuować.",
   "adminApprovalRequired": "Twoje konto oczekuje na zatwierdzenie przez administratora",
   "verifyEmailInvalidLink": "Ten link weryfikacyjny e-mail jest nieprawidłowy lub wygasł",
@@ -35,6 +36,7 @@
   "closeForgotPassword": "Zamknij okno resetowania hasła",
   "cancel": "Anuluj",
   "signUpLink": "Utwórz konto",
+  "resendVerification": "Nie dostałeś e-maila?",
   "ssoSection": "Logowanie jednokrotne",
   "loadingSsoProviders": "Wczytywanie dostawców logowania",
   "ssoButton": "Kontynuuj z {provider}",
@@ -46,9 +48,35 @@
   "ssoAccountNotFound": "Z tym dostawcą tożsamości nie jest powiązane żadne konto",
   "ssoAccountDisabled": "To konto jest wyłączone",
   "ssoAutoCreateDisabled": "Automatyczne tworzenie konta jest wyłączone",
+  "ssoEmailMissing": "Dostawca tożsamości nie udostępnił adresu e-mail, więc nie można było utworzyć konta. Poproś administratora o sprawdzenie ustawień e-mail dostawcy.",
   "ssoErrorUndefined": "Logowanie jednokrotne nie powiodło się",
   "noLoginMethods": "Na tym serwerze nie włączono żadnych metod logowania",
   "imageAlt": "Ilustracja logowania Endurain",
   "tagline1": "Śledź każdy ruch",
-  "tagline2": "Posiądź każdą chwilę"
+  "tagline2": "Posiądź każdą chwilę",
+  "accountDeleted": {
+    "title": "Szkoda, że odchodzisz",
+    "body": "Zostałeś wylogowany, a Twoje konto i wszystkie dane są trwale usuwane.",
+    "backToLogin": "Wróć do logowania"
+  },
+  "onboarding": {
+    "title": "Skonfiguruj Endurain",
+    "subtitle": "Utwórz pierwsze konto administratora. Skopiuj token konfiguracji z dziennika serwera: poszukaj wiersza zawierającego setup_token.",
+    "token": "Token konfiguracji",
+    "name": "Imię i nazwisko",
+    "username": "Nazwa użytkownika",
+    "email": "E-mail",
+    "password": "Hasło",
+    "confirmPassword": "Potwierdź hasło",
+    "emailInvalid": "Wpisz prawidłowy adres e-mail",
+    "requiredField": "To pole jest wymagane",
+    "submitButton": "Utwórz administratora",
+    "submitting": "Tworzenie administratora",
+    "errorInvalidToken": "Token konfiguracji jest nieprawidłowy, wygasł lub został już użyty. Skopiuj najnowszy z dziennika serwera.",
+    "errorAlreadyDone": "Konfiguracja jest już zakończona. Zaloguj się na swoje konto.",
+    "errorValidation": "Dane zostały odrzucone. Sprawdź je i użyj hasła spełniającego wymagania dla administratora.",
+    "errorTooManyAttempts": "Zbyt wiele prób. Poczekaj chwilę i spróbuj ponownie.",
+    "errorUnavailable": "Konfiguracja jest chwilowo niedostępna. Spróbuj ponownie za chwilę.",
+    "errorGeneral": "Nie udało się utworzyć administratora. Spróbuj ponownie."
+  }
 }

@@ -15,5 +15,13 @@
   "errorNotFound": "Nu am putut găsi un cont pentru acest link.",
   "errorGeneral": "Nu am putut verifica adresa ta de e-mail. Te rugăm să încerci din nou.",
   "retry": "Încearcă din nou",
-  "backToLogin": "Înapoi la autentificare"
+  "backToLogin": "Înapoi la autentificare",
+  "resendTitle": "Ai nevoie de un link nou?",
+  "resendBody": "Introdu adresa cu care te-ai înregistrat și îți vom trimite un nou e-mail de verificare dacă mai este în așteptare.",
+  "resendEmail": "Adresă de e-mail",
+  "resendButton": "Trimite un e-mail nou",
+  "resendSending": "Se trimite",
+  "resendSent": "Dacă acea adresă așteaptă verificarea, un e-mail nou este pe drum.",
+  "resendTooManyAttempts": "Prea multe încercări. Așteaptă înainte de a încerca din nou.",
+  "resendError": "Nu am putut trimite e-mailul. Te rugăm să încerci din nou."
 }

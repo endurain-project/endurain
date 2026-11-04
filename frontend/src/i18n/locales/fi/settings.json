@@ -121,6 +121,8 @@
       "weightUnitsMetric": "Kilogrammat (kg)",
       "weightUnitsImperial": "Paunat (lb)",
       "height": "Pituus",
+      "heightInvalid": "Pituuden on oltava 1–300 cm",
+      "maxHeartRateInvalid": "Maksimisykkeen on oltava 30–250 lyöntiä/min",
       "feetInvalid": "Jalkojen on oltava välillä 0–10",
       "inchesInvalid": "Tuumien on oltava välillä 0–11",
       "maxHeartRate": "Maksimisyke",
@@ -274,6 +276,31 @@
     "saving": "Tallennetaan…",
     "saveSuccess": "Palvelimen asetukset päivitetty",
     "saveError": "Palvelimen asetuksia ei voitu päivittää. Yritä uudelleen.",
+    "staleError": "Joku muu muutti näitä asetuksia muokkaamisesi aikana. Muutoksiasi ei tallennettu. Lataa sivu uudelleen nähdäksesi nykyiset arvot.",
+    "envLocked": "Määritetty muuttujalla {name}",
+    "envSection": "Jotkin tämän osion asetukset on määritetty ympäristömuuttujilla ({names}). Poista ne ympäristöstä, jos haluat muokata niitä täällä.",
+    "unsaved": "Tallentamattomia muutoksia",
+    "discard": "Hylkää",
+    "tabs": {
+      "label": "Palvelinasetusten osiot",
+      "general": "Yleiset",
+      "access": "Käyttö ja turvallisuus",
+      "maps": "Kartat ja sijainti",
+      "email": "Sähköposti",
+      "logs": "Lokit",
+      "unsaved": "Sisältää tallentamattomia muutoksia"
+    },
+    "search": {
+      "placeholder": "Hae asetuksia…",
+      "noResults": "Asetuksia ei löytynyt"
+    },
+    "leave": {
+      "title": "Poistutaanko tallentamatta?",
+      "description": "Sinulla on tallentamattomia muutoksia. Ne menetetään, jos poistut sivulta.",
+      "confirm": "Poistu tallentamatta",
+      "stay": "Pysy sivulla",
+      "close": "Sulje"
+    },
     "loadError": {
       "title": "Palvelimen asetuksia ei voitu ladata",
       "description": "Palvelimen asetusten lataamisessa tapahtui virhe. Voit yrittää uudelleen.",
@@ -294,6 +321,29 @@
       "title": "Salasanakäytäntö",
       "lengthRegular": "Tavallisten käyttäjien vähimmäispituus",
       "lengthAdmin": "Ylläpitäjien vähimmäispituus"
+    },
+    "session": {
+      "title": "Istunnot",
+      "description": "Muutokset koskevat uusia kirjautumisia ja seuraavaa tunnisteen uusimista. Jo myönnetyt tunnisteet säilyttävät voimassaoloaikansa.",
+      "idleTimeoutEnabled": "Ota käyttöön joutenolon aikakatkaisu",
+      "idleHours": "Joutenolon aikakatkaisu (tuntia)",
+      "idleHoursHint": "Kun käytössä, istunto päättyy tämän tuntimäärän jälkeen ilman toimintaa.",
+      "absoluteHours": "Ehdoton aikakatkaisu (tuntia)",
+      "absoluteHoursHint": "Istunto päättyy näin monta tuntia kirjautumisen jälkeen toiminnasta riippumatta. Koskee aina. Ei saa olla lyhyempi kuin joutenolon aikakatkaisu.",
+      "accessMinutes": "Käyttötunnisteen voimassaoloaika (minuuttia)",
+      "refreshDays": "Uusintatunnisteen voimassaoloaika (päivää)",
+      "invalidRange": "Anna kokonaisluku väliltä {min}–{max}.",
+      "absoluteBelowIdle": "Ei saa olla lyhyempi kuin joutenolon aikakatkaisu."
+    },
+    "retention": {
+      "title": "Tietojen säilytys",
+      "readNotifications": "Poista luetut ilmoitukset, kun on kulunut (päivää)",
+      "readNotificationsHint": "0 säilyttää luetut ilmoitukset ikuisesti. Lukemattomia ilmoituksia ei koskaan poisteta.",
+      "auditTrail": "Poista tarkastuslokin merkinnät, kun on kulunut (päivää)",
+      "auditTrailHint": "0 säilyttää kaiken. Muuten vähimmäisaika on 30 päivää; merkinnät poistetaan kokonainen päivä kerrallaan.",
+      "auditTrailInvalid": "Anna 0 tai kokonaisluku väliltä {min}–{max}.",
+      "auditLegalHold": "Tarkastuslokin oikeudellinen säilytysvelvoite",
+      "auditLegalHoldHint": "Kun käytössä, tarkastuslokin kaikki siivous keskeytetään säilytysajasta riippumatta."
     },
     "signup": {
       "title": "Rekisteröityminen",
@@ -330,12 +380,33 @@
       "attribution": "Lähdemerkintä",
       "apiKey": "Karttapalvelimen API-avain",
       "apiKeyWarning": "API-avain tallennetaan salattuna. Jätä tyhjäksi, jos karttapalvelimesi ei tarvitse sitä.",
+      "apiKeyStored": "Avain on tallennettu",
+      "apiKeyRemove": "Poista tallennettu API-avain",
       "backgroundColor": "Kartan taustaväri",
       "regenerateThumbnails": "Luo aktiviteettien pikkukuvat uudelleen, kun kartta-asetukset muuttuvat"
+    },
+    "geocoding": {
+      "title": "Käänteinen geokoodaus",
+      "description": "Muuttaa aktiviteettien koordinaatit paikannimiksi. Muutokset tulevat voimaan ilman uudelleenkäynnistystä.",
+      "service": "Palvelu",
+      "serviceNominatim": "Nominatim",
+      "servicePhoton": "Photon",
+      "serviceGeocode": "geocode.maps.co",
+      "host": "Isäntä",
+      "hostHint": "Isäntänimi ja valinnainen portti ilman protokollaa. Yksityisessä verkossa olevan isännän on oltava luettelossa SSRF_ALLOWED_HOSTS.",
+      "useHttps": "Yhdistä HTTPS-yhteydellä",
+      "rateLimit": "Pyyntöjä sekunnissa",
+      "rateLimitHint": "0 poistaa rajoituksen käytöstä. Pidä arvo 1 julkisille Nominatim- ja Photon-palveluille.",
+      "rateLimitInvalid": "Anna luku väliltä 0–100.",
+      "apiKey": "API-avain",
+      "apiKeyStored": "Avain on tallennettu. Jätä tyhjäksi säilyttääksesi sen.",
+      "apiKeyRemove": "Poista tallennettu API-avain",
+      "apiKeyRequired": "geocode.maps.co vaatii API-avaimen."
     },
     "photo": {
       "title": "Kirjautumiskuva",
       "description": "Mukautettu kuva, joka näytetään kirjautumisnäytöllä",
+      "previewAlt": "Nykyinen kirjautumiskuva",
       "add": "Lataa kirjautumiskuva",
       "replace": "Vaihda kirjautumiskuva",
       "delete": "Poista kirjautumiskuva",
@@ -349,6 +420,30 @@
       "cancel": "Peruuta",
       "close": "Sulje"
     },
+    "logs": {
+      "title": "Palvelimen lokit",
+      "description": "Sovelluslokin uusimmat merkinnät. Useita prosesseja ajavien asennusten lokit kerää sen sijaan alustasi.",
+      "level": "Vähimmäistaso",
+      "allLevels": "Kaikki tasot",
+      "search": "Haku",
+      "searchPlaceholder": "Teksti, lokittaja tai pyynnön tunnus…",
+      "live": "Reaaliaikainen",
+      "refresh": "Päivitä",
+      "download": "Lataa",
+      "downloadError": "Lokitiedostoa ei voitu ladata.",
+      "clear": "Tyhjennä",
+      "cleared": "Lokit tyhjennetty",
+      "clearError": "Lokeja ei voitu tyhjentää.",
+      "clearConfirm": {
+        "title": "Tyhjennetäänkö palvelimen lokit?",
+        "description": "Tämä poistaa lokitiedoston ja sen kierrätetyt varmuuskopiot pysyvästi. Lataa loki ensin, jos saatat tarvita sitä. Itse toimenpide kirjataan uuteen lokiin.",
+        "confirm": "Tyhjennä lokit",
+        "cancel": "Peruuta",
+        "close": "Sulje"
+      },
+      "loadError": "Lokeja ei voitu ladata.",
+      "empty": "Lokimerkintöjä ei löytynyt"
+    },
     "email": {
       "title": "Sähköposti",
       "description": "Endurain lähettää salasanan palautus- ja rekisteröitymisviestit ympäristössä määritetyn SMTP-palvelimen kautta.",
@@ -360,30 +455,26 @@
       "sendHint": "Testisähköposti lähetetään omaan osoitteeseesi.",
       "sent": "Testisähköposti lähetetty",
       "failed": "Testisähköpostia ei voitu lähettää",
-      "failedUnknown": "Katso lisätiedot palvelimen lokeista."
-    },
-    "envLocked": "Määritetty muuttujalla {name}",
-    "envSection": "Jotkin tämän osion asetukset on määritetty ympäristömuuttujilla ({names}). Poista ne ympäristöstä, jos haluat muokata niitä täällä.",
-    "unsaved": "Tallentamattomia muutoksia",
-    "discard": "Hylkää",
-    "tabs": {
-      "label": "Palvelinasetusten osiot",
-      "general": "Yleiset",
-      "access": "Käyttö ja turvallisuus",
-      "maps": "Kartat ja sijainti",
-      "email": "Sähköposti",
-      "unsaved": "Sisältää tallentamattomia muutoksia"
-    },
-    "search": {
-      "placeholder": "Hae asetuksia…",
-      "noResults": "Asetuksia ei löytynyt"
-    },
-    "leave": {
-      "title": "Poistutaanko tallentamatta?",
-      "description": "Sinulla on tallentamattomia muutoksia. Ne menetetään, jos poistut sivulta.",
-      "confirm": "Poistu tallentamatta",
-      "stay": "Pysy sivulla",
-      "close": "Sulje"
+      "failedUnknown": "Katso lisätiedot palvelimen lokeista.",
+      "settingsLoadError": "Sähköpostiasetuksia ei voitu ladata.",
+      "host": "Isäntä",
+      "hostHint": "Jätä tyhjäksi poistaaksesi sähköpostin käytöstä.",
+      "port": "Portti",
+      "portInvalid": "Anna portti väliltä 1–65535.",
+      "security": "Yhteyden suojaus",
+      "securityStarttls": "STARTTLS",
+      "securitySsl": "SSL/TLS",
+      "securityNone": "Ei mitään (vain yksityinen välitin)",
+      "securityNoneWarning": "Ilman salausta hyväksytään vain yksityisessä tai loopback-osoitteessa oleva sähköpostipalvelin, eikä käyttäjänimeä ja salasanaa voi käyttää.",
+      "username": "Käyttäjänimi",
+      "password": "Salasana",
+      "passwordStored": "Salasana on tallennettu. Jätä tyhjäksi säilyttääksesi sen.",
+      "passwordRemove": "Poista tallennettu salasana",
+      "fromAddress": "Lähettäjän osoite",
+      "fromAddressHint": "Jätä tyhjäksi käyttääksesi käyttäjänimeä.",
+      "save": "Tallenna sähköpostiasetukset",
+      "saveSuccess": "Sähköpostiasetukset tallennettu",
+      "saveError": "Sähköpostiasetuksia ei voitu tallentaa"
     }
   },
   "idp": {
@@ -445,6 +536,7 @@
       "issuerUrl": "Myöntäjän URL",
       "issuerUrlHint": "Tarjoajan OIDC-myöntäjä- tai löytämis-URL",
       "issuerUrlRequired": "Myöntäjän URL on pakollinen",
+      "issuerUrlRefused": "Palvelun URL hylättiin. Sen on käytettävä https://-protokollaa ja oltava ratkaistavissa palvelimelta, ja yksityisessä verkossa olevan palvelun on oltava luettelossa SSRF_ALLOWED_HOSTS.",
       "issuerUrlTooLong": "Myöntäjän URL saa olla enintään 500 merkkiä",
       "clientId": "Asiakastunnus",
       "clientIdRequired": "Asiakastunnus on pakollinen",
@@ -459,12 +551,22 @@
       "scopesTooLong": "Laajuudet saavat olla enintään 500 merkkiä",
       "icon": "Kuvake",
       "iconNone": "Ei mitään",
+      "iconUpload": "Lataa kuva",
+      "iconFileHint": "PNG-, JPEG-, GIF- tai WebP-kuva, enintään 1 Mt, näytetään kirjautumispainikkeessa",
+      "iconChoose": "Valitse kuva",
+      "iconReplace": "Vaihda kuva",
+      "iconPreviewAlt": "Kuvakkeen esikatselu",
+      "iconFileRequired": "Valitse ladattava kuva",
+      "iconFileInvalidType": "Kuvakkeen on oltava PNG-, JPEG-, GIF- tai WebP-kuva",
+      "iconFileTooLarge": "Kuvakkeen on oltava enintään 1 Mt",
+      "iconSaveError": "Palvelu tallennettiin, mutta sen kuvaketta ei voitu päivittää. Muokkaa palvelua yrittääksesi uudelleen.",
       "enabled": "Käytössä",
       "autoCreateUsers": "Luo käyttäjät automaattisesti ensimmäisellä kirjautumisella",
       "syncUserInfo": "Synkronoi profiilitiedot jokaisella kirjautumisella",
       "createSuccess": "Tarjoaja lisätty",
       "updateSuccess": "Tarjoaja päivitetty",
       "slugConflict": "Tämä tunniste on jo käytössä",
+      "staleError": "Tämä palvelu muuttui muualla. Muutoksiasi ei tallennettu. Sulje ja avaa se uudelleen ladataksesi nykyiset asetukset.",
       "saveError": "Tarjoajaa ei voitu tallentaa. Yritä uudelleen."
     }
   },
@@ -472,7 +574,7 @@
     "title": "Omat tavoitteet",
     "subtitle": "Aseta tavoitteita aktiviteeteillesi ja seuraa edistymistäsi",
     "buttonAdd": "Lisää tavoite",
-    "count": "Tavoitteita on yhteensä {count} kpl:",
+    "count": "Tavoitteita on yhteensä {count}: | Tavoitteita on yhteensä {count}:",
     "filters": "Suodattimet",
     "filter": {
       "all": "Kaikki",
@@ -556,6 +658,7 @@
     "hidePassword": "Piilota salasana",
     "mfaCode": "Todennuskoodi",
     "mfaCodePlaceholder": "123456",
+    "confirmPhrase": "Vahvista kirjoittamalla {phrase}",
     "loadError": {
       "title": "Tietoturva-asetuksiasi ei voitu ladata",
       "description": "Jokin meni pieleen. Voit yrittää uudelleen."
@@ -579,7 +682,7 @@
       "disabledDescription": "Kaksivaiheinen todennus on pois päältä. Ota se käyttöön suojataksesi tiliäsi paremmin.",
       "enable": "Ota kaksivaiheinen todennus käyttöön",
       "enabledDescription": "Kaksivaiheinen todennus on päällä.",
-      "backupRemaining": "{unused}/{total} varakoodia jäljellä.",
+      "backupRemaining": "Varakoodeja on jäljellä {unused}/{total}. | Varakoodeja on jäljellä {unused}/{total}.",
       "regenerate": "Luo varakoodit uudelleen",
       "disable": "Poista käytöstä",
       "setupTitle": "Ota kaksivaiheinen todennus käyttöön",
@@ -653,10 +756,16 @@
       "unlinkError": "Tilin linkitystä ei voitu poistaa. Yritä uudelleen.",
       "invalidCredentials": "Salasanasi tai koodisi on virheellinen.",
       "alreadyLinked": "Kyseinen tili on jo linkitetty.",
-      "lastMethodError": "Et voi poistaa ainoan kirjautumistapasi linkitystä. Aseta ensin salasana."
+      "lastMethodError": "Et voi poistaa ainoan kirjautumistapasi linkitystä. Aseta ensin salasana.",
+      "linkedOn": "Linkitetty {date}"
     },
     "email": {
+      "title": "Sähköpostiosoite",
       "subtitle": "Tänne lähetetään salasanan palautukset ja ilmoitukset. Muutos edellyttää henkilöllisyyden vahvistamista, ja uusi osoite tulee voimaan, kun vahvistat sen linkistä, joka lähetetään sinne.",
+      "current": "Nykyinen sähköposti",
+      "action": "Vaihda sähköposti",
+      "new": "Uusi sähköposti",
+      "invalid": "Anna kelvollinen sähköpostiosoite.",
       "sameAsCurrent": "Tämä on jo sähköpostiosoitteesi.",
       "success": "Vahvistuslinkki lähetettiin uuteen osoitteeseen. Sähköpostisi vaihtuu, kun vahvistat sen.",
       "appliedSuccess": "Sähköpostiosoite vaihdettu.",
@@ -667,7 +776,19 @@
       "resendSuccess": "Jos muutos on vireillä, uusi linkki on matkalla uuteen osoitteeseen.",
       "resendError": "Linkin lähettäminen uudelleen epäonnistui. Yritä uudelleen.",
       "cancelSuccess": "Sähköpostin vaihto peruttiin.",
-      "cancelError": "Muutosta ei voitu peruuttaa. Yritä uudelleen."
+      "cancelError": "Muutosta ei voitu peruuttaa. Yritä uudelleen.",
+      "conflict": "Tämä sähköposti on jo käytössä.",
+      "error": "Sähköpostin vaihtaminen epäonnistui. Yritä uudelleen."
+    },
+    "deleteAccount": {
+      "title": "Poista tilini",
+      "subtitle": "Poista tilisi ja kaikki tietosi pysyvästi, mukaan lukien aktiviteetit ja niiden tiedostot, terveystiedot, varusteet, tavoitteet, integraatiot ja istunnot. Tätä ei voi perua. Vie tietosi ensin, jos haluat säilyttää kopion.",
+      "action": "Poista tilini",
+      "dialogTitle": "Poistetaanko tilisi?",
+      "dialogDescription": "Tämä poistaa tilisi ja kaikki tietosi pysyvästi. Vahvista henkilöllisyytesi jatkaaksesi.",
+      "confirm": "Poista tilini",
+      "error": "Tilin poistaminen epäonnistui. Yritä uudelleen.",
+      "onlyAdminError": "Olet ainoa ylläpitäjä. Tee toisesta käyttäjästä ylläpitäjä ennen tilisi poistamista."
     },
     "apiKeys": {
       "title": "API-avaimet",
@@ -712,6 +833,18 @@
       "deleteBody": "{name} poistetaan pysyvästi. Tätä ei voi kumota.",
       "deleteSuccess": "API-avain poistettu",
       "deleteError": "API-avainta ei voitu poistaa. Yritä uudelleen."
+    },
+    "stepUp": {
+      "prompt": "Tililläsi ei ole salasanaa. Kirjaudu uudelleen sisään linkitetyllä tunnistuspalvelulla vahvistaaksesi, että se olet sinä.",
+      "continueWith": "Jatka palvelulla {name}",
+      "ready": "Tunnistuspalvelulla kirjautuminen vahvistettu.",
+      "restart": "Kirjaudu uudelleen sisään",
+      "noProviders": "Henkilöllisyytesi vahvistamiseen ei ole käytettävissä linkitettyä tunnistuspalvelua.",
+      "startError": "Tunnistuspalvelulla kirjautumista ei voitu aloittaa. Yritä uudelleen.",
+      "tooManyAttempts": "Liian monta yritystä. Yritä myöhemmin uudelleen.",
+      "reauthRequired": "Vahvista henkilöllisyytesi tunnistuspalvelullasi jatkaaksesi.",
+      "failed": "Uudelleen kirjautuminen tunnistuspalvelullasi epäonnistui. Yritä uudelleen.",
+      "notFresh": "Tunnistuspalvelusi ei pyytänyt sinua kirjautumaan uudelleen. Ota yhteyttä ylläpitäjääsi."
     }
   },
   "integrations": {
@@ -834,6 +967,8 @@
     "title": "Oma profiili",
     "subtitle": "Hallitse tilisi tietoja ja yksityisyyttä",
     "notSet": "Ei asetettu",
+    "emailManagedIn": "Sähköpostisi vaihdetaan turvallisuusasetuksissa.",
+    "emailManagedLink": "Avaa turvallisuusasetukset",
     "error": {
       "title": "Profiiliasi ei voitu ladata",
       "description": "Profiilisi lataamisessa tapahtui virhe. Voit yrittää uudelleen.",
@@ -939,9 +1074,40 @@
       "export": "Vie tiedot",
       "import": "Tuo tiedot",
       "invalidType": "Valitse .zip-arkisto.",
-      "exportSuccess": "Vienti valmis, latauksesi pitäisi alkaa pian",
+      "download": "Lataa vienti",
+      "downloadSuccess": "Lataus alkaa pian",
+      "downloadError": "Viennin lataaminen epäonnistui. Yritä uudelleen.",
+      "exportQueued": "Vienti käynnistetty. Voit poistua tältä sivulta.",
       "exportError": "Tietojasi ei voitu viedä. Yritä uudelleen.",
-      "importError": "Arkistoa ei voitu tuoda. Tarkista tiedosto ja yritä uudelleen."
+      "exportInProgress": "Vienti on jo käynnissä.",
+      "exportStatus": {
+        "queued": "Odotetaan viennin alkamista…",
+        "running": "Valmistellaan vientiäsi…",
+        "completed": "Vientisi on valmis ladattavaksi. Se pysyy saatavilla kaksi tuntia.",
+        "failed": "Vienti ei valmistunut: {reason}"
+      },
+      "exportFailure": {
+        "timed_out": "se kesti liian kauan. Voit yrittää uudelleen.",
+        "processing_failed": "jokin meni pieleen. Voit yrittää uudelleen."
+      },
+      "importQueued": "Tuonti käynnistetty. Voit poistua tältä sivulta.",
+      "importError": "Arkistoa ei voitu tuoda. Tarkista tiedosto ja yritä uudelleen.",
+      "importInProgress": "Tuonti on jo käynnissä.",
+      "status": {
+        "queued": "Odotetaan tuonnin alkamista…",
+        "running": "Tuodaan tietojasi…",
+        "writing_files": "Tallennetaan tiedostojasi…",
+        "completed": "Tuonti valmis: {activities} aktiviteettia ja {gears} varustetta tuotu.",
+        "failed": "Tuonti ei valmistunut: {reason}"
+      },
+      "failure": {
+        "invalid_file": "arkisto ei ole kelvollinen Endurain-vienti. Mitään ei tuotu.",
+        "too_large": "arkisto on liian suuri. Mitään ei tuotu.",
+        "too_many_activities": "arkistossa on liian monta aktiviteettia. Mitään ei tuotu.",
+        "timed_out": "se kesti liian kauan. Mitään ei tuotu, joten voit yrittää uudelleen.",
+        "files_incomplete": "tietosi tuotiin, mutta joitakin tiedostoja puuttuu. Älä tuo uudelleen, koska se kaksinkertaistaisi tietosi.",
+        "processing_failed": "jokin meni pieleen. Mitään ei tuotu, joten voit yrittää uudelleen."
+      }
     }
   }
 }
