@@ -12,6 +12,7 @@ from pydantic import ValidationError
 from sqlalchemy.orm import Session
 
 import core.exceptions as core_exceptions
+import modules.activities.activity.schema as activity_schema
 import modules.health.health_fasting.schema as health_fasting_schema
 import modules.health.health_poop.schema as health_poop_schema
 import modules.health.health_sleep.schema as health_sleep_schema
@@ -1665,6 +1666,44 @@ class TestImportServiceActivitiesDataBatched:
         assert service.counts["activities"] == 1
         # The restore functions only stage; the import commits once at the end.
         mock_db.commit.assert_not_called()
+
+    async def test_an_activity_as_exported_is_imported(self) -> None:
+        """An archive's activity is the full read shape, with its version and the URLs and media the server derives."""
+        exported = profile_utils.model_to_dict(
+            activity_schema.ActivityRead(
+                id=1,
+                user_id=3,
+                version=2,
+                distance=1000,
+                name="Morning Run",
+                activity_type=1,
+                start_time="2024-01-01T08:00:00",
+                end_time="2024-01-01T09:00:00",
+            )
+        )
+        service = profile_import_service.ImportService(user_id=1, storage=MagicMock(), db=MagicMock(spec=Session))
+        service.performance_config.enable_memory_monitoring = False
+        zip_data = _make_zip_with_json({"data/activities.json": [exported]})
+        restored = MagicMock()
+        restored.id = 10
+
+        import time
+
+        with (
+            patch(
+                "modules.users.users_profile.import_service.activity_integration.restore_activity",
+                return_value=restored,
+            ) as restore,
+            patch.object(service, "collect_and_import_activity_components", new_callable=AsyncMock),
+            zipfile.ZipFile(BytesIO(zip_data)) as z,
+        ):
+            mapping = await service.collect_and_import_activities_data_batched(
+                z, set(z.namelist()), {}, time.time(), 3600
+            )
+
+        assert mapping == {1: 10}
+        imported = restore.call_args.args[0]
+        assert (imported.user_id, imported.name) == (1, "Morning Run")
 
     async def test_collect_and_import_activities_batched_no_original_id(self) -> None:
         mock_db = MagicMock(spec=Session)

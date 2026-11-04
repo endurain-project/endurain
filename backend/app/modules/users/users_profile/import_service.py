@@ -81,6 +81,9 @@ _ROW_IDENTITY = frozenset({"id", "user_id", "version"})
 #: Fields an archive carries that the server derives on write, per health record kind; they are dropped on import.
 _SERVER_DERIVED_FIELDS: dict[str, frozenset[str]] = {"health_fasting": frozenset({"actual_duration_seconds"})}
 
+#: Fields an archived activity carries that a read resolves for the viewer; they are dropped on import.
+_ACTIVITY_READ_FIELDS = frozenset({"map_thumbnail_url", "media"})
+
 
 def _without_row_identity(data: dict[str, Any]) -> dict[str, Any]:
     """Drop the row identity an archive carries, leaving the fields an import writes.
@@ -949,7 +952,6 @@ class ImportService:
 
             # Import activities in this batch
             for activity_data in activities_batch:
-                activity_data["user_id"] = self.user_id
                 activity_data["gear_id"] = (
                     gears_id_mapping.get(activity_data["gear_id"])
                     if activity_data.get("gear_id") in gears_id_mapping
@@ -957,9 +959,13 @@ class ImportService:
                 )
 
                 original_activity_id = activity_data.get("id")
-                activity_data.pop("id", None)
+                fields = {
+                    key: value
+                    for key, value in _without_row_identity(activity_data).items()
+                    if key not in _ACTIVITY_READ_FIELDS
+                }
 
-                activity = activity_contracts.ActivityCore(**activity_data)
+                activity = activity_contracts.ActivityCore(**fields, user_id=self.user_id)
                 # Bulk restore deliberately does not publish activity.created;
                 # see integration_service.restore_activity for why.
                 new_activity = activity_integration.restore_activity(activity, self.db)
