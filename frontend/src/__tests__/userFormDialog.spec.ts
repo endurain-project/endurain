@@ -183,4 +183,38 @@ describe('UserFormDialog height', () => {
     const [, init] = vi.mocked(apiFetch).mock.calls.find(([, i]) => i?.method === 'PUT')!
     expect(JSON.parse(String(init?.body))).toMatchObject({ units: 'imperial', height: 172 })
   })
+
+  it.each(['0', '400'])('rejects a height of %s cm and does not submit', async (cm) => {
+    vi.mocked(apiFetch).mockClear()
+    const wrapper = await mountDialog(false)
+
+    const height = wrapper.find('input[name="heightCm"]')
+    await height.setValue(cm)
+    await height.trigger('blur')
+
+    expect(wrapper.text()).toContain(i18n.global.t('settings.users.form.heightInvalid'))
+    await wrapper.find('form').trigger('submit')
+    await flushPromises()
+    expect(apiFetch).not.toHaveBeenCalledWith(
+      '/users/1',
+      expect.objectContaining({ method: 'PUT' }),
+    )
+  })
+
+  it.each(['10', '300'])('rejects a max heart rate of %s bpm and does not submit', async (bpm) => {
+    vi.mocked(apiFetch).mockClear()
+    const wrapper = await mountDialog(false)
+
+    const maxHeartRate = wrapper.find('input[name="maxHeartRate"]')
+    await maxHeartRate.setValue(bpm)
+    await maxHeartRate.trigger('blur')
+
+    expect(wrapper.text()).toContain(i18n.global.t('settings.users.form.maxHeartRateInvalid'))
+    await wrapper.find('form').trigger('submit')
+    await flushPromises()
+    expect(apiFetch).not.toHaveBeenCalledWith(
+      '/users/1',
+      expect.objectContaining({ method: 'PUT' }),
+    )
+  })
 })

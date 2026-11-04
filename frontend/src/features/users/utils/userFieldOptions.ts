@@ -90,6 +90,38 @@ export function numberRange(max: number, message: string): Validator<number | nu
   return numberBetween(0, max, message)
 }
 
+/** Smallest height in centimetres the backend accepts. */
+const HEIGHT_CM_MIN = 1
+
+/** Largest height in centimetres the backend accepts. */
+const HEIGHT_CM_MAX = 300
+
+/** Smallest max heart rate in bpm the backend accepts. */
+const MAX_HEART_RATE_MIN = 30
+
+/** Largest max heart rate in bpm the backend accepts. */
+const MAX_HEART_RATE_MAX = 250
+
+/**
+ * Builds the validator for the height field in centimetres.
+ *
+ * @param message - Error message when the height is outside the accepted range.
+ * @returns A validator for the height in centimetres.
+ */
+export function heightCmValidator(message: string): Validator<string | number | null> {
+  return numberBetween(HEIGHT_CM_MIN, HEIGHT_CM_MAX, message)
+}
+
+/**
+ * Builds the validator for the max heart rate field in bpm.
+ *
+ * @param message - Error message when the max heart rate is outside the accepted range.
+ * @returns A validator for the max heart rate.
+ */
+export function maxHeartRateValidator(message: string): Validator<string | number | null> {
+  return numberBetween(MAX_HEART_RATE_MIN, MAX_HEART_RATE_MAX, message)
+}
+
 /** The unit-aware height fields shared by the account/profile edit forms. */
 export interface HeightUnitFields {
   units: Schemas['Units']

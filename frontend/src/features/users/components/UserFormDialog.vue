@@ -27,6 +27,8 @@ import { compose, email, maxLength, pattern, required } from '@/utils/validators
 import {
   CURRENCY_OPTIONS,
   GENDER_OPTIONS,
+  heightCmValidator,
+  maxHeartRateValidator,
   numberRange,
   resolveHeightCm,
   sortLanguageCodes,
@@ -273,6 +275,8 @@ const { values, errors, isValid, isSubmitting, handleSubmit, handleBlur, reset, 
         props.user
           ? null
           : required<string>(t('settings.users.form.confirmPasswordRequired'))(value),
+      heightCm: heightCmValidator(t('settings.users.form.heightInvalid')),
+      maxHeartRate: maxHeartRateValidator(t('settings.users.form.maxHeartRateInvalid')),
       // Height is captured per unit system and only the active system's inputs
       // are rendered. Skip the imperial validators in metric mode (and vice
       // versa) so a hidden field's seed value can't silently fail validation and
@@ -599,6 +603,7 @@ watch(open, (isOpen) => {
             max="300"
             step="1"
             :disabled="isSubmitting"
+            @blur="handleBlur('heightCm')"
             :placeholder="placeholder"
           />
         </template>
@@ -669,6 +674,7 @@ watch(open, (isOpen) => {
             step="1"
             :placeholder="placeholder"
             :disabled="isSubmitting"
+            @blur="handleBlur('maxHeartRate')"
           />
         </template>
       </FormField>

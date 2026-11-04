@@ -17,10 +17,12 @@ import { applyServerFieldErrors } from '@/services/fieldErrors'
 import { isStaleWrite } from '@/services/ifMatch'
 import { toNumberOrNull } from '@/utils/number'
 import { cmToFeetInches } from '@/utils/units'
-import { compose, maxLength, numberBetween, pattern, required } from '@/utils/validators'
+import { compose, maxLength, pattern, required } from '@/utils/validators'
 import {
   CURRENCY_OPTIONS,
   GENDER_OPTIONS,
+  heightCmValidator,
+  maxHeartRateValidator,
   numberRange,
   resolveHeightCm,
   sortLanguageCodes,
@@ -184,8 +186,8 @@ const { values, errors, isValid, isSubmitting, handleSubmit, handleBlur, reset, 
         maxLength(TEXT_MAX, t('settings.users.form.usernameTooLong')),
         pattern(/^[a-zA-Z0-9._-]+$/, t('settings.users.form.usernameInvalid')),
       ),
-      heightCm: numberBetween(1, 300, t('settings.users.form.heightInvalid')),
-      maxHeartRate: numberBetween(30, 250, t('settings.users.form.maxHeartRateInvalid')),
+      heightCm: heightCmValidator(t('settings.users.form.heightInvalid')),
+      maxHeartRate: maxHeartRateValidator(t('settings.users.form.maxHeartRateInvalid')),
       // Height is captured per unit system and only the active system's inputs
       // are rendered. Skip the imperial validators in metric mode (and vice
       // versa) so a hidden field's seed value can't silently fail validation and
