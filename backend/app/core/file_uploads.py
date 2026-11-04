@@ -39,6 +39,7 @@ import aiofiles.os
 from fastapi import UploadFile
 from PIL import Image, UnidentifiedImageError
 from safeuploads import (
+    ErrorCode,
     FileSecurityConfig,
     FileValidator,
     SecurityLimits,
@@ -176,8 +177,11 @@ def _to_domain_error(err: FileSecurityError) -> core_exceptions.DomainError:
 
     Returns:
         ``PayloadTooLargeError`` for a size violation, ``InvalidInputError``
-        for content the validators reject, ``ProcessingError`` otherwise.
+        for an empty file or content the validators reject, ``ProcessingError``
+        otherwise.
     """
+    if isinstance(err, FileSizeError) and err.error_code == ErrorCode.FILE_EMPTY:
+        return core_exceptions.InvalidInputError(str(err))
     if isinstance(err, FileSizeError):
         return core_exceptions.PayloadTooLargeError(str(err))
     if isinstance(

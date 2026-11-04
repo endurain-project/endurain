@@ -12,6 +12,7 @@ from pathlib import Path
 
 import pytest
 from fastapi import UploadFile
+from safeuploads import ErrorCode
 from safeuploads.exceptions import (
     CompressionSecurityError,
     ExtensionSecurityError,
@@ -140,6 +141,28 @@ def test_to_domain_error_mapping(err, expected_status):
     assert isinstance(domain_err, core_exceptions.DomainError)
     assert domain_err.status_code == expected_status
     assert domain_err.detail
+
+
+def test_to_domain_error_maps_an_empty_file_to_invalid_input():
+    """An empty file is bad content, not an oversized payload."""
+    err = FileSizeError("Empty file not allowed", size=0, error_code=ErrorCode.FILE_EMPTY)
+
+    domain_err = _to_domain_error(err)
+
+    assert isinstance(domain_err, core_exceptions.InvalidInputError)
+    assert domain_err.status_code == 400
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("kind,filename,_b", _KIND_CASES)
+async def test_validate_upload_rejects_an_empty_file_as_invalid_input(kind: UploadKind, filename: str, _b):
+    """A 0-byte upload is refused with 400 for every kind."""
+    upload = _upload(filename, b"")
+    with pytest.raises(core_exceptions.InvalidInputError):
+        try:
+            await validate_upload(upload, kind=kind)
+        finally:
+            await upload.close()
 
 
 # ---------------------------------------------------------------------------
