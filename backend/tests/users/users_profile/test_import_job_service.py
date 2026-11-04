@@ -162,9 +162,8 @@ class TestGetImportStatus:
 
         assert job_service.get_import_status(1, states).status == _Status.QUEUED
 
-    def test_unknown_is_not_found(self, states):
-        with pytest.raises(core_exceptions.NotFoundError):
-            job_service.get_import_status(1, states)
+    def test_unknown_is_none(self, states):
+        assert job_service.get_import_status(1, states) is None
 
 
 class TestRunImport:

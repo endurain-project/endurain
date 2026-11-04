@@ -694,13 +694,19 @@ class TestReadProfileExportStatus:
         assert response.status_code == 200
         assert response.json() == {"status": "completed", "failure": None, "size_bytes": 9}
 
-    def test_is_not_found_when_nothing_was_exported(self, profile_client):
-        assert profile_client.get(PREFIX + "/export").status_code == 404
+    def test_is_null_when_nothing_was_exported(self, profile_client):
+        response = profile_client.get(PREFIX + "/export")
+
+        assert response.status_code == 200
+        assert response.json() is None
 
     def test_one_user_cannot_read_another_users_export(self, profile_client, export_states):
         export_states.begin(2)
 
-        assert profile_client.get(PREFIX + "/export").status_code == 404
+        response = profile_client.get(PREFIX + "/export")
+
+        assert response.status_code == 200
+        assert response.json() is None
 
 
 class TestDownloadProfileExport:
@@ -794,13 +800,19 @@ class TestReadProfileImportStatus:
         assert response.status_code == 200
         assert response.json() == {"status": "completed", "failure": None, "imported": {"activities": 5}}
 
-    def test_is_not_found_when_nothing_was_imported(self, profile_client):
-        assert profile_client.get(PREFIX + "/import").status_code == 404
+    def test_is_null_when_nothing_was_imported(self, profile_client):
+        response = profile_client.get(PREFIX + "/import")
+
+        assert response.status_code == 200
+        assert response.json() is None
 
     def test_one_user_cannot_read_another_users_import(self, profile_client, import_states):
         import_states.begin(2)
 
-        assert profile_client.get(PREFIX + "/import").status_code == 404
+        response = profile_client.get(PREFIX + "/import")
+
+        assert response.status_code == 200
+        assert response.json() is None
 
 
 # ===================================================================

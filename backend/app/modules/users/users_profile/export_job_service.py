@@ -119,7 +119,7 @@ def close_dead_lettered_export(
 
 def get_export_status(
     user_id: int, states: profile_export_state_store.ProfileExportStateStore
-) -> profile_export_state_store.ProfileExportState:
+) -> profile_export_state_store.ProfileExportState | None:
     """Report where the user's profile export is.
 
     Args:
@@ -127,16 +127,9 @@ def get_export_status(
         states: Shared store of the export's state.
 
     Returns:
-        The export's state.
-
-    Raises:
-        NotFoundError: When no export is recorded or it has expired.
+        The export's state, or None when no export is recorded or it has expired.
     """
-    state = states.get(user_id)
-    if state is None:
-        raise core_exceptions.NotFoundError("No profile export recorded")
-
-    return state
+    return states.get(user_id)
 
 
 def open_export(

@@ -1,6 +1,6 @@
 import type { ProfileExportStatus, ProfileImportStatus } from '@/features/profile/types'
 
-import { apiFetch, HttpError } from '@/services/http'
+import { apiFetch } from '@/services/http'
 
 /**
  * Queues an export of all of the authenticated user's profile data. A worker
@@ -19,19 +19,10 @@ export function requestProfileExport(): Promise<ProfileExportStatus> {
  *
  * @param signal - Optional abort signal for cancellation.
  * @returns The export's state, or `null` when none is recorded (or it expired).
- * @throws {HttpError} When the request fails for a reason other than `404`.
+ * @throws {HttpError} When the request fails.
  */
-export async function fetchProfileExport(
-  signal?: AbortSignal,
-): Promise<ProfileExportStatus | null> {
-  try {
-    return await apiFetch<ProfileExportStatus>('/profile/export', { signal })
-  } catch (error) {
-    if (error instanceof HttpError && error.status === 404) {
-      return null
-    }
-    throw error
-  }
+export function fetchProfileExport(signal?: AbortSignal): Promise<ProfileExportStatus | null> {
+  return apiFetch<ProfileExportStatus | null>('/profile/export', { signal })
 }
 
 /**
@@ -76,17 +67,8 @@ export async function importProfileData(file: File): Promise<ProfileImportStatus
  *
  * @param signal - Optional abort signal for cancellation.
  * @returns The import's state, or `null` when none is recorded (or it expired).
- * @throws {HttpError} When the request fails for a reason other than `404`.
+ * @throws {HttpError} When the request fails.
  */
-export async function fetchProfileImport(
-  signal?: AbortSignal,
-): Promise<ProfileImportStatus | null> {
-  try {
-    return await apiFetch<ProfileImportStatus>('/profile/import', { signal })
-  } catch (error) {
-    if (error instanceof HttpError && error.status === 404) {
-      return null
-    }
-    throw error
-  }
+export function fetchProfileImport(signal?: AbortSignal): Promise<ProfileImportStatus | null> {
+  return apiFetch<ProfileImportStatus | null>('/profile/import', { signal })
 }

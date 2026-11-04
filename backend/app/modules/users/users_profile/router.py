@@ -428,13 +428,13 @@ def export_profile_data(
 
 @router.get(
     "/export",
-    response_model=profile_schema.ProfileExportStatus,
+    response_model=profile_schema.ProfileExportStatus | None,
     dependencies=[Security(auth_dependencies.check_scopes, scopes=["profile"])],
 )
 def read_profile_export_status(
     token_user_id: auth_dependencies.CurrentUserId,
     export_states: profile_dependencies.ProfileExportStateStoreDep,
-) -> profile_schema.ProfileExportStatus:
+) -> profile_schema.ProfileExportStatus | None:
     """Report where the authenticated user's profile export is.
 
     Args:
@@ -442,10 +442,10 @@ def read_profile_export_status(
         export_states: Shared store of the export's state.
 
     Returns:
-        The export's state.
+        The export's state, or None when no export is recorded.
     """
     state = profile_export_job_service.get_export_status(token_user_id, export_states)
-    return profile_schema.ProfileExportStatus.model_validate(state)
+    return profile_schema.ProfileExportStatus.model_validate(state) if state is not None else None
 
 
 @router.get(
@@ -525,13 +525,13 @@ def import_profile_data(
 
 @router.get(
     "/import",
-    response_model=profile_schema.ProfileImportStatus,
+    response_model=profile_schema.ProfileImportStatus | None,
     dependencies=[Security(auth_dependencies.check_scopes, scopes=["profile"])],
 )
 def read_profile_import_status(
     token_user_id: auth_dependencies.CurrentUserId,
     import_states: profile_dependencies.ProfileImportStateStoreDep,
-) -> profile_schema.ProfileImportStatus:
+) -> profile_schema.ProfileImportStatus | None:
     """Report where the authenticated user's profile import is.
 
     Args:
@@ -539,7 +539,7 @@ def read_profile_import_status(
         import_states: Shared store of the import's state.
 
     Returns:
-        The import's state.
+        The import's state, or None when no import is recorded.
     """
     state = profile_import_job_service.get_import_status(token_user_id, import_states)
-    return profile_schema.ProfileImportStatus.model_validate(state)
+    return profile_schema.ProfileImportStatus.model_validate(state) if state is not None else None

@@ -76,14 +76,14 @@ describe('fetchProfileImport', () => {
     expect(apiFetch).toHaveBeenCalledWith('/profile/import', { signal: undefined })
   })
 
-  it('treats a 404 as no import recorded', async () => {
-    vi.mocked(apiFetch).mockRejectedValue(new HttpError(404, 'Not Found'))
+  it('returns null when no import is recorded', async () => {
+    vi.mocked(apiFetch).mockResolvedValue(null)
 
     expect(await fetchProfileImport()).toBeNull()
   })
 
-  it('rethrows any other failure', async () => {
-    vi.mocked(apiFetch).mockRejectedValue(new HttpError(500, 'Server Error'))
+  it('rethrows a failure, a 404 included', async () => {
+    vi.mocked(apiFetch).mockRejectedValue(new HttpError(404, 'Not Found'))
 
     await expect(fetchProfileImport()).rejects.toBeInstanceOf(HttpError)
   })
@@ -102,14 +102,14 @@ describe('fetchProfileExport', () => {
     expect(apiFetch).toHaveBeenCalledWith('/profile/export', { signal: undefined })
   })
 
-  it('treats a 404 as no export recorded', async () => {
-    vi.mocked(apiFetch).mockRejectedValue(new HttpError(404, 'Not Found'))
+  it('returns null when no export is recorded', async () => {
+    vi.mocked(apiFetch).mockResolvedValue(null)
 
     expect(await fetchProfileExport()).toBeNull()
   })
 
-  it('rethrows any other failure', async () => {
-    vi.mocked(apiFetch).mockRejectedValue(new HttpError(500, 'Server Error'))
+  it('rethrows a failure, a 404 included', async () => {
+    vi.mocked(apiFetch).mockRejectedValue(new HttpError(404, 'Not Found'))
 
     await expect(fetchProfileExport()).rejects.toBeInstanceOf(HttpError)
   })

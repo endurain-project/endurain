@@ -2959,7 +2959,7 @@ export interface paths {
          *         export_states: Shared store of the export's state.
          *
          *     Returns:
-         *         The export's state.
+         *         The export's state, or None when no export is recorded.
          */
         get: operations["read_profile_export_status_api_v1_profile_export_get"];
         put?: never;
@@ -3388,7 +3388,7 @@ export interface paths {
          *         import_states: Shared store of the import's state.
          *
          *     Returns:
-         *         The import's state.
+         *         The import's state, or None when no import is recorded.
          */
         get: operations["read_profile_import_status_api_v1_profile_import_get"];
         put?: never;
@@ -18612,7 +18612,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["ProfileExportStatus"];
+                    "application/json": components["schemas"]["ProfileExportStatus"] | null;
                 };
             };
             /** @description Unexpected error */
@@ -19118,7 +19118,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["ProfileImportStatus"];
+                    "application/json": components["schemas"]["ProfileImportStatus"] | null;
                 };
             };
             /** @description Validation Error */

@@ -220,7 +220,7 @@ def close_dead_lettered_import(
 
 def get_import_status(
     user_id: int, states: profile_import_state_store.ProfileImportStateStore
-) -> profile_import_state_store.ProfileImportState:
+) -> profile_import_state_store.ProfileImportState | None:
     """Report where the user's profile import is.
 
     Args:
@@ -228,16 +228,9 @@ def get_import_status(
         states: Shared store of the import's state.
 
     Returns:
-        The import's state.
-
-    Raises:
-        NotFoundError: When no import is recorded or it has expired.
+        The import's state, or None when no import is recorded or it has expired.
     """
-    state = states.get(user_id)
-    if state is None:
-        raise core_exceptions.NotFoundError("No profile import recorded")
-
-    return state
+    return states.get(user_id)
 
 
 def _discard_staged(staged_key: str, storage: platform_providers.StorageProvider) -> None:

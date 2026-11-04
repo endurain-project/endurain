@@ -167,6 +167,16 @@ class TestRunExport:
         assert "secret" not in state.model_dump_json()
 
 
+class TestGetExportStatus:
+    def test_returns_the_state(self, states):
+        states.begin(1)
+
+        assert job_service.get_export_status(1, states).status == _Status.QUEUED
+
+    def test_unknown_is_none(self, states):
+        assert job_service.get_export_status(1, states) is None
+
+
 class TestOpenExport:
     def test_streams_the_staged_archive(self, states):
         states.begin(1)
