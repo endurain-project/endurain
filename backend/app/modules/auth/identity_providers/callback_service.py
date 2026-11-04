@@ -380,22 +380,16 @@ class CallbackService:
                 jwks_uri, expected_issuer = self._require_signing_keys(idp, config)
                 userinfo_endpoint = userinfo_endpoint or config.get("userinfo_endpoint")
             elif idp.issuer_url:
-                try:
-                    discovered = self._oidc.get_oidc_configuration(idp)
-                    if discovered:
-                        # Get userinfo endpoint if not manually configured
-                        if not userinfo_endpoint:
-                            userinfo_endpoint = discovered.get("userinfo_endpoint")
+                # Discovery logs its own failure and returns None; the provider then goes on without it
+                discovered = self._oidc.get_oidc_configuration(idp)
+                if discovered:
+                    # Get userinfo endpoint if not manually configured
+                    if not userinfo_endpoint:
+                        userinfo_endpoint = discovered.get("userinfo_endpoint")
 
-                        # Get JWKS URI for ID token verification
-                        jwks_uri = discovered.get("jwks_uri")
-                        expected_issuer = discovered.get("issuer")
-                except Exception as err:
-                    logger.warning(
-                        "OIDC discovery failed for IdP <name>: <err>",
-                        exc_info=err,
-                        extra=core_logger.context(name=idp.name, err=err),
-                    )
+                    # Get JWKS URI for ID token verification
+                    jwks_uri = discovered.get("jwks_uri")
+                    expected_issuer = discovered.get("issuer")
 
             logger.debug(
                 "OIDC discovery complete for <name>: userinfo=<value_2>, jwks_uri=<value_3>, issuer=<value_4>",
@@ -413,68 +407,12 @@ class CallbackService:
             # Exchange code for tokens
             redirect_uri = identity_provider_utils.build_redirect_uri(self._frontend_host, idp.slug)
 
-            try:
-                oauth_client = self._oidc.create_oauth_client(
-                    client_id=client_id,
-                    client_secret=client_secret,
-                    redirect_uri=redirect_uri,
-                )
-
-                token_response = oauth_client.fetch_token(
-                    token_endpoint,
-                    grant_type="authorization_code",
-                    code=code,
-                    code_verifier=oauth_state.idp_code_verifier,
-                )
-            except httpx2.TimeoutException as err:
-                logger.warning(
-                    "Timeout connecting to IdP <name> token endpoint: <err>",
-                    extra=core_logger.context(name=idp.name, err=err),
-                )
-                raise oidc_client_service.UpstreamTimeoutError(
-                    f"Identity provider {idp.name} is not responding. Please try again later."
-                ) from err
-            except httpx2.HTTPStatusError as err:
-                logger.warning(
-                    "HTTP error from IdP <name> token endpoint: <status_code>",
-                    extra=core_logger.context(name=idp.name, status_code=err.response.status_code),
-                )
-                # Check for common OAuth2 error responses
-                if err.response.status_code == 400:
-                    detail = "Authorization code is invalid or expired. Please try logging in again."
-                elif err.response.status_code == 401:
-                    detail = (
-                        f"Identity provider {idp.name} rejected the authentication request. "
-                        "Please contact administrator."
-                    )
-                else:
-                    detail = f"Identity provider {idp.name} returned an error. Please try again later."
-
-                raise core_exceptions.UpstreamError(detail) from err
-            except httpx2.RequestError as err:
-                logger.warning(
-                    "Network error connecting to IdP <name>: <err>",
-                    extra=core_logger.context(name=idp.name, err=err),
-                )
-                raise core_exceptions.UpstreamError(
-                    f"Unable to connect to identity provider {idp.name}. Please check your network connection."
-                ) from err
-            except OAuthError as err:
-                # The provider answered with an OAuth error body (invalid_grant, invalid_client, ...).
-                logger.warning(
-                    "IdP <name> refused the token exchange: <error>",
-                    extra=core_logger.context(name=idp.name, error=err.error),
-                )
-                raise core_exceptions.UpstreamError(
-                    f"Identity provider {idp.name} rejected the authentication request. Please try logging in again."
-                ) from err
-            except Exception as err:
-                logger.debug(
-                    "Unexpected error during token exchange with IdP <name>: <err>",
-                    exc_info=err,
-                    extra=core_logger.context(name=idp.name, err=err),
-                )
-                raise core_exceptions.ProcessingError("Failed to complete authentication. Please try again.") from err
+            oauth_client = self._oidc.create_oauth_client(
+                client_id=client_id,
+                client_secret=client_secret,
+                redirect_uri=redirect_uri,
+            )
+            token_response = self._exchange_code(idp, oauth_client, token_endpoint, code, oauth_state.idp_code_verifier)
 
             # Get user information with ID token verification
             userinfo = self._oidc.get_userinfo(
@@ -644,9 +582,17 @@ class CallbackService:
             return identity_provider_utils.build_step_up_result_url(
                 self._frontend_host, oauth_state.redirect_path, {"step_up_error": "not_fresh"}
             )
-        except Exception as err:
+        except core_exceptions.DomainError as err:
             logger.warning(
                 "Step-up re-authentication with IdP <name> failed for user <user_id>",
+                exc_info=err,
+                extra=core_logger.context(user_id=oauth_state.user_id, name=idp.name),
+            )
+            return self._failure_url(oauth_state)
+        except Exception as err:
+            # The browser leg always ends in a redirect, so a bug still lands on the failure page, without a ticket.
+            logger.error(
+                "Unexpected error in step-up re-authentication with IdP <name> for user <user_id>",
                 exc_info=err,
                 extra=core_logger.context(user_id=oauth_state.user_id, name=idp.name),
             )
@@ -658,6 +604,89 @@ class CallbackService:
         return identity_provider_utils.build_step_up_result_url(
             self._frontend_host, oauth_state.redirect_path, {"step_up_ticket": ticket}
         )
+
+    def _exchange_code(
+        self,
+        idp: identity_provider_contracts.IdentityProviderState,
+        oauth_client: OAuth2Client,
+        token_endpoint: str,
+        code: str,
+        code_verifier: str | None,
+    ) -> dict[str, Any]:
+        """Redeem an authorization code at the provider's token endpoint.
+
+        Args:
+            idp: The provider.
+            oauth_client: The client that redeems the code.
+            token_endpoint: The provider's token endpoint.
+            code: The authorization code.
+            code_verifier: The PKCE verifier stored with the authorization request.
+
+        Returns:
+            The provider's token response.
+
+        Raises:
+            UpstreamTimeoutError: If the provider does not answer in time.
+            UpstreamError: If the provider cannot be reached, answers with an HTTP error or refuses the code.
+            ProcessingError: If the token response is malformed or the token endpoint URL cannot be sent to.
+        """
+        try:
+            return oauth_client.fetch_token(
+                token_endpoint,
+                grant_type="authorization_code",
+                code=code,
+                code_verifier=code_verifier,
+            )
+        except httpx2.TimeoutException as err:
+            logger.warning(
+                "Timeout connecting to IdP <name> token endpoint: <err>",
+                extra=core_logger.context(name=idp.name, err=err),
+            )
+            raise oidc_client_service.UpstreamTimeoutError(
+                f"Identity provider {idp.name} is not responding. Please try again later."
+            ) from err
+        except httpx2.HTTPStatusError as err:
+            logger.warning(
+                "HTTP error from IdP <name> token endpoint: <status_code>",
+                extra=core_logger.context(name=idp.name, status_code=err.response.status_code),
+            )
+            # Check for common OAuth2 error responses
+            if err.response.status_code == 400:
+                detail = "Authorization code is invalid or expired. Please try logging in again."
+            elif err.response.status_code == 401:
+                detail = (
+                    f"Identity provider {idp.name} rejected the authentication request. Please contact administrator."
+                )
+            else:
+                detail = f"Identity provider {idp.name} returned an error. Please try again later."
+
+            raise core_exceptions.UpstreamError(detail) from err
+        except httpx2.RequestError as err:
+            logger.warning(
+                "Network error connecting to IdP <name>: <err>",
+                extra=core_logger.context(name=idp.name, err=err),
+            )
+            raise core_exceptions.UpstreamError(
+                f"Unable to connect to identity provider {idp.name}. Please check your network connection."
+            ) from err
+        except OAuthError as err:
+            # The provider answered with an OAuth error body (invalid_grant, invalid_client, ...).
+            logger.warning(
+                "IdP <name> refused the token exchange: <error>",
+                extra=core_logger.context(name=idp.name, error=err.error),
+            )
+            raise core_exceptions.UpstreamError(
+                f"Identity provider {idp.name} rejected the authentication request. Please try logging in again."
+            ) from err
+        except (ValueError, TypeError, OverflowError, httpx2.InvalidURL) as err:
+            # A body that is not JSON or an expires_in that is not a number (authlib's int()), or a token
+            # endpoint URL httpx cannot send to
+            logger.debug(
+                "Malformed token response or invalid token endpoint for IdP <name>: <err>",
+                exc_info=err,
+                extra=core_logger.context(name=idp.name, err=err),
+            )
+            raise core_exceptions.ProcessingError("Failed to complete authentication. Please try again.") from err
 
     def _require_signing_keys(
         self, idp: identity_provider_contracts.IdentityProviderState, config: dict[str, Any]
@@ -701,7 +730,10 @@ class CallbackService:
             The ``sub`` claim of the verified ID token.
 
         Raises:
-            UpstreamError: If the provider publishes no issuer or signing keys, or returns no ID token.
+            UpstreamTimeoutError: If the provider does not answer the code exchange in time.
+            UpstreamError: If the provider publishes no issuer or signing keys, cannot be reached, refuses the
+                code or returns no ID token.
+            ProcessingError: If the token response is malformed or the token endpoint URL cannot be sent to.
             UnauthenticatedError: If the ID token does not verify or names no subject.
             _StaleSignInError: If the ID token does not prove a sign-in within the step-up's limit.
         """
@@ -712,11 +744,8 @@ class CallbackService:
             client_secret=self._oidc.decrypt_client_secret(idp),
             redirect_uri=identity_provider_utils.build_redirect_uri(self._frontend_host, idp.slug),
         ) as oauth_client:
-            token_response = oauth_client.fetch_token(
-                self._oidc.resolve_token_endpoint(idp),
-                grant_type="authorization_code",
-                code=code,
-                code_verifier=oauth_state.idp_code_verifier,
+            token_response = self._exchange_code(
+                idp, oauth_client, self._oidc.resolve_token_endpoint(idp), code, oauth_state.idp_code_verifier
             )
         id_token = token_response.get("id_token")
         if not isinstance(id_token, str):

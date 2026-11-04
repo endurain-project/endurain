@@ -6,6 +6,7 @@ from unittest.mock import MagicMock, patch
 
 import httpx2
 import pytest
+from authlib.integrations.httpx_client import OAuth2Client
 from fastapi import status
 from jasil.providers import StateBackendUnavailableError
 
@@ -261,6 +262,70 @@ class TestDiscoveryIssuer:
             "https://idp.example.com/.well-known/openid-configuration", purpose="oidc_discovery", require_tls=True
         )
 
+    def test_a_document_that_is_not_json_is_refused_and_not_cached(self, service, state_provider):
+        idp = self._idp()
+        client = self._client(None)
+        client.get.return_value.json.side_effect = json.JSONDecodeError("Expecting value", "<html>", 0)
+        with (
+            patch(self.GUARD),
+            patch.object(service, "http_client", return_value=client),
+            patch("modules.auth.identity_providers.oidc_client_service.logger") as mock_logger,
+        ):
+            assert service.get_oidc_configuration(idp) is None
+        assert service._discovery_key(idp.id) not in state_provider.values
+        assert "unreadable or issuer URL invalid" in mock_logger.warning.call_args.args[0]
+
+    def test_an_issuer_url_httpx_cannot_send_to_is_refused(self, service):
+        """A non-printable character passes the SSRF guard's parse but not httpx's."""
+        idp = self._idp("https://idp.example.com/\x7frealm")
+        with patch(self.GUARD), patch("modules.auth.identity_providers.oidc_client_service.logger") as mock_logger:
+            assert service.get_oidc_configuration(idp) is None
+        assert isinstance(mock_logger.warning.call_args.kwargs["exc_info"], httpx2.InvalidURL)
+
+    def test_an_unexpected_failure_propagates(self, service):
+        client = self._client(None)
+        client.get.side_effect = RuntimeError("bug")
+        with (
+            patch(self.GUARD),
+            patch.object(service, "http_client", return_value=client),
+            pytest.raises(RuntimeError, match="bug"),
+        ):
+            service.get_oidc_configuration(self._idp())
+
+
+class TestResolveTokenEndpoint:
+    @staticmethod
+    def _idp(**overrides):
+        values = {"id": 5, "issuer_url": "https://idp.example.com", "token_endpoint": None}
+        values.update(overrides)
+        idp = MagicMock(**values)
+        idp.name = "Test IdP"
+        return idp
+
+    def test_the_discovered_endpoint_is_used_and_guarded(self, service):
+        with (
+            patch.object(
+                service, "get_oidc_configuration", return_value={"token_endpoint": "https://idp.example.com/t"}
+            ),
+            patch("modules.auth.identity_providers.oidc_client_service.core_network.reject_private_url") as guard,
+        ):
+            assert service.resolve_token_endpoint(self._idp()) == "https://idp.example.com/t"
+        guard.assert_called_once_with("https://idp.example.com/t", purpose="oidc_token", require_tls=True)
+
+    def test_a_failed_discovery_is_refused_as_upstream(self, service):
+        with (
+            patch.object(service, "get_oidc_configuration", return_value=None),
+            pytest.raises(core_exceptions.UpstreamError, match="token endpoint could not be resolved"),
+        ):
+            service.resolve_token_endpoint(self._idp())
+
+    def test_an_unexpected_discovery_failure_propagates(self, service):
+        with (
+            patch.object(service, "get_oidc_configuration", side_effect=RuntimeError("bug")),
+            pytest.raises(RuntimeError, match="bug"),
+        ):
+            service.resolve_token_endpoint(self._idp())
+
 
 class TestForgetDiscovery:
     def test_it_deletes_the_cached_document(self, service, state_provider):
@@ -336,7 +401,7 @@ class TestGetUserinfo:
         response = MagicMock()
         response.raise_for_status.return_value = None
         response.json.return_value = claims
-        client.get = MagicMock(return_value=response)
+        client.request = MagicMock(return_value=response)
         return client
 
     def _get(self, service, *, token_response, client=None, endpoint=None, jwks_uri=JWKS_URI, issuer=ISS, require):
@@ -461,10 +526,78 @@ class TestGetUserinfo:
             self._get(service, token_response={}, jwks_uri=None, issuer=None, require=False)
         assert exc_info.value.status_code == status.HTTP_500_INTERNAL_SERVER_ERROR
 
+    @pytest.mark.parametrize("token_extra", [{"expires_in": 30, "refresh_token": "rt"}, {"expires_in": 30}])
+    def test_an_access_token_about_to_expire_still_fetches_userinfo(self, service, token_extra):
+        """authlib counts a token expiring within its leeway as expired; the userinfo call must not depend on it."""
+        seen: list[httpx2.Request] = []
+
+        def provider(request: httpx2.Request) -> httpx2.Response:
+            seen.append(request)
+            if request.url.path == "/token":
+                return httpx2.Response(200, json={"access_token": "at", "token_type": "Bearer", **token_extra})
+            return httpx2.Response(200, json={"sub": "user-1", "email": "a@example.com"})
+
+        client = OAuth2Client(client_id=AUD, client_secret="secret", transport=httpx2.MockTransport(provider))
+        with client:
+            token_response = client.fetch_token(
+                "https://idp.example.com/token", grant_type="authorization_code", code="c"
+            )
+            result = self._get(
+                service,
+                token_response=token_response,
+                client=client,
+                endpoint="https://idp.example.com/userinfo",
+                jwks_uri=None,
+                issuer=None,
+                require=False,
+            )
+
+        assert result == {"sub": "user-1", "email": "a@example.com"}
+        assert [request.url.path for request in seen] == ["/token", "/userinfo"]
+        assert seen[1].headers["Authorization"] == "Bearer at"
+
+    @pytest.mark.parametrize(
+        "error",
+        [ValueError("not JSON"), httpx2.InvalidURL("non-printable character")],
+        ids=lambda error: type(error).__name__,
+    )
+    def test_an_unreadable_userinfo_answer_falls_back_to_verified_id_token(self, service, error):
+        client = MagicMock()
+        client.request.return_value.raise_for_status.return_value = None
+        client.request.return_value.json.side_effect = error
+        verified = {"sub": "verified-sub"}
+        with (
+            patch.object(oidc_client_service.id_token_service, "verify_id_token", MagicMock(return_value=verified)),
+            patch("modules.auth.identity_providers.oidc_client_service.logger") as mock_logger,
+        ):
+            result = self._get(
+                service,
+                token_response={"access_token": "at", "id_token": "idt"},
+                client=client,
+                endpoint="https://idp.example.com/userinfo",
+                require=True,
+            )
+        assert result == verified
+        mock_logger.warning.assert_called_once()
+
+    def test_an_unexpected_userinfo_failure_propagates(self, service):
+        client = MagicMock()
+        client.request.side_effect = RuntimeError("bug")
+        with pytest.raises(RuntimeError, match="bug"):
+            self._get(
+                service,
+                token_response={"access_token": "at"},
+                client=client,
+                endpoint="https://idp.example.com/userinfo",
+                jwks_uri=None,
+                issuer=None,
+                require=False,
+            )
+
     def test_endpoint_failure_falls_back_to_verified_id_token(self, service):
         """If the userinfo endpoint errors, a verified ID token is still the identity."""
         client = MagicMock()
-        client.get = MagicMock(side_effect=httpx2.RequestError("network down"))
+        client.request = MagicMock(side_effect=httpx2.RequestError("network down"))
         verified = {"sub": "verified-sub"}
         with patch.object(oidc_client_service.id_token_service, "verify_id_token", MagicMock(return_value=verified)):
             result = self._get(

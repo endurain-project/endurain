@@ -383,7 +383,7 @@ class TestOidcLoginFailsClosed:
         oauth_state = MagicMock(user_id=7, purpose=purpose, nonce="nonce", redirect_path="/", client_type="web")
         oauth_client = MagicMock()
         oauth_client.fetch_token.return_value = {"access_token": "at"}
-        oauth_client.get.return_value.json.return_value = {"sub": "forged"}
+        oauth_client.request.return_value.json.return_value = {"sub": "forged"}
         with (
             patch.object(service._oidc, "decrypt_client_id", return_value=AUD),
             patch.object(service._oidc, "decrypt_client_secret", return_value="secret"),
@@ -425,7 +425,7 @@ class TestOauth2LoginKeepsUserinfo:
         oauth_state = MagicMock(user_id=None, purpose=_LOGIN, nonce="nonce", redirect_path="/", client_type="web")
         oauth_client = MagicMock()
         oauth_client.fetch_token.return_value = {"access_token": "at"}
-        oauth_client.get.return_value.json.return_value = {"sub": "user-1"}
+        oauth_client.request.return_value.json.return_value = {"sub": "user-1"}
         user = MagicMock(id=1, username="alice")
         with (
             patch.object(service._oidc, "decrypt_client_id", return_value=AUD),
@@ -442,6 +442,30 @@ class TestOauth2LoginKeepsUserinfo:
         discovery.assert_not_called()
         assert get_userinfo.call_args.kwargs["require_id_token"] is False
         assert result.user is user
+
+    def test_an_unexpected_discovery_failure_is_not_swallowed(self, service):
+        """Discovery returns None for every provider failure, so anything it raises is a bug."""
+        idp = MagicMock(
+            issuer_url="https://idp.example.com",
+            userinfo_endpoint="https://idp.example.com/userinfo",
+            slug="idp",
+            provider_type="oauth2",
+        )
+        idp.name = "GitHub"
+        oauth_state = MagicMock(user_id=None, purpose=_LOGIN, nonce="nonce", redirect_path="/", client_type="web")
+        oauth_client = MagicMock()
+        with (
+            patch.object(service._oidc, "decrypt_client_id", return_value=AUD),
+            patch.object(service._oidc, "decrypt_client_secret", return_value="secret"),
+            patch.object(service._oidc, "resolve_token_endpoint", return_value="https://idp.example.com/token"),
+            patch.object(service._oidc, "create_oauth_client", return_value=oauth_client),
+            patch.object(service._oidc, "get_oidc_configuration", side_effect=RuntimeError("bug")),
+            pytest.raises(core_exceptions.ProcessingError) as exc_info,
+        ):
+            service.handle_callback(idp, "code", "state", oauth_state, MagicMock())
+
+        assert isinstance(exc_info.value.__cause__, RuntimeError)
+        oauth_client.fetch_token.assert_not_called()
 
 
 class TestTokenExchangeRefusal:

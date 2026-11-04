@@ -490,6 +490,17 @@ class TestRejectPrivateUrl:
             assert exc.value.status_code == 400
             assert "resolve" in exc.value.detail.lower()
 
+    @pytest.mark.parametrize(
+        "url",
+        ["https://idp..example.com/", f"https://{'a' * 64}.example.com/", "https://.example.com/"],
+        ids=["empty-label", "label-too-long", "leading-dot"],
+    )
+    def test_a_hostname_with_a_malformed_label_is_refused_as_unresolvable(self, url):
+        with pytest.raises(core_exceptions.InvalidInputError) as exc:
+            core_network.reject_private_url(url, require_tls=True)
+        assert exc.value.status_code == 400
+        assert "resolve" in exc.value.detail.lower()
+
     def test_unparseable_address_raises(self):
         with patch("core.network.socket.getaddrinfo") as mock_gai:
             mock_gai.return_value = [(socket.AF_INET, socket.SOCK_STREAM, 0, "", ("not-an-ip", 0))]

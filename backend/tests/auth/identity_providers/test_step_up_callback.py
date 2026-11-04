@@ -1,14 +1,19 @@
 """The step-up leg of the provider callback: a fresh, verified sign-in of the linked account becomes a ticket."""
 
+import logging
 from datetime import UTC, datetime, timedelta
 from types import SimpleNamespace
 from unittest.mock import MagicMock, patch
 from urllib.parse import parse_qs, urlsplit
 
+import httpx2
 import pytest
+from authlib.integrations.base_client import OAuthError
 from jasil.backends.state_memory import MemoryState
 from pydantic import ValidationError
 
+import core.attempt_state as core_attempt_state
+import core.exceptions as core_exceptions
 import modules.auth.identity_providers.callback_service as callback_service
 import modules.auth.oauth_state.constants as oauth_state_constants
 import modules.auth.oauth_state.schema as oauth_state_schema
@@ -198,22 +203,67 @@ class TestRefusals:
         assert _fragment(url) == {"step_up_error": ["failed"]}
         verify.assert_not_called()
 
-    def test_an_id_token_that_does_not_verify_is_refused(self, service):
-        with patch.object(
-            callback_service.id_token_service, "verify_id_token", side_effect=RuntimeError("bad signature")
+    def test_an_id_token_that_does_not_verify_is_refused(self, service, caplog):
+        with (
+            caplog.at_level(logging.DEBUG, logger=callback_service.logger.name),
+            patch.object(
+                callback_service.id_token_service,
+                "verify_id_token",
+                side_effect=core_exceptions.UnauthenticatedError("bad signature"),
+            ),
         ):
             url = service.complete_step_up_callback(_idp(), "code", _oauth_state(), MagicMock())
 
         assert _fragment(url) == {"step_up_error": ["failed"]}
+        assert [record.levelno for record in caplog.records] == [logging.WARNING]
 
-    def test_an_unreachable_ticket_store_is_refused(self, oidc):
+    def test_an_unreachable_ticket_store_is_refused(self, oidc, caplog):
         failing = MagicMock()
-        failing.issue.side_effect = RuntimeError("state down")
+        failing.issue.side_effect = core_attempt_state.StateUnavailableError()
         service = callback_service.CallbackService(oidc, MagicMock(), failing, HOST)
 
-        url, _, _ = _complete(service)
+        with caplog.at_level(logging.DEBUG, logger=callback_service.logger.name):
+            url, _, _ = _complete(service)
 
         assert _fragment(url) == {"step_up_error": ["failed"]}
+        assert [record.levelno for record in caplog.records] == [logging.WARNING]
+
+    def test_an_unexpected_error_is_logged_as_an_error_and_still_refused(self, oidc, caplog):
+        failing = MagicMock()
+        failing.issue.side_effect = RuntimeError("bug")
+        service = callback_service.CallbackService(oidc, MagicMock(), failing, HOST)
+
+        with caplog.at_level(logging.DEBUG, logger=callback_service.logger.name):
+            url, _, _ = _complete(service)
+
+        assert _fragment(url) == {"step_up_error": ["failed"]}
+        assert [record.levelno for record in caplog.records] == [logging.ERROR]
+        assert caplog.records[0].exc_info is not None
+
+    @pytest.mark.parametrize(
+        "error",
+        [
+            httpx2.ReadTimeout("slow"),
+            httpx2.HTTPStatusError("bad", request=MagicMock(), response=MagicMock(status_code=400)),
+            httpx2.ConnectError("refused"),
+            OAuthError("invalid_grant", "code expired"),
+            ValueError("expires_in is not a number"),
+            TypeError("expires_in is a list"),
+            OverflowError("expires_in out of range"),
+            httpx2.InvalidURL("non-printable character"),
+        ],
+        ids=lambda error: type(error).__name__,
+    )
+    def test_a_failed_code_exchange_is_a_refusal_without_a_ticket(self, service, oidc, caplog, error):
+        oauth_client = oidc.create_oauth_client.return_value.__enter__.return_value
+        oauth_client.fetch_token.side_effect = error
+
+        with caplog.at_level(logging.WARNING, logger=callback_service.logger.name):
+            url, verify, _ = _complete(service)
+
+        assert _fragment(url) == {"step_up_error": ["failed"]}
+        verify.assert_not_called()
+        assert logging.ERROR not in [record.levelno for record in caplog.records]
 
 
 class TestDispatch:

@@ -328,20 +328,87 @@ class TestRefreshIdpSession:
         assert all(record.exc_info is None for record in caplog.records if record.levelno >= logging.WARNING)
         self.claims.release.assert_called_once_with(7, 3)
 
-    def test_an_unexpected_failure_is_still_an_error(self, caplog):
+    @pytest.mark.parametrize(
+        "error",
+        [
+            ValueError("expires_in is not a number"),
+            TypeError("expires_in is a list"),
+            OverflowError("too far"),
+            httpx2.InvalidURL("Invalid non-printable ASCII character in URL"),
+        ],
+    )
+    def test_a_malformed_token_response_keeps_the_token_with_a_warning(self, caplog, error):
         import logging
 
+        service = _service()
+
+        def malformed(*_a, **_k):
+            raise error
+
+        _, events, _, patches = self._setup(service, fetch=malformed)
+
+        with caplog.at_level(logging.DEBUG):
+            assert self._refresh(service, patches) is None
+
+        assert events == []
+        assert [record.levelno for record in caplog.records if record.levelno >= logging.WARNING] == [logging.WARNING]
+        self.claims.release.assert_called_once_with(7, 3)
+
+    def test_an_unexpected_failure_propagates_and_keeps_the_token(self):
         service = _service()
 
         def explode(*_a, **_k):
             raise RuntimeError("bug")
 
-        _, _, _, patches = self._setup(service, fetch=explode)
+        _, events, _, patches = self._setup(service, fetch=explode)
 
-        with caplog.at_level(logging.DEBUG):
-            assert self._refresh(service, patches) is None
+        with pytest.raises(RuntimeError, match="bug"):
+            self._refresh(service, patches)
 
-        assert [record.levelno for record in caplog.records if record.levelno >= logging.WARNING] == [logging.ERROR]
+        assert events == []
+        self.claims.release.assert_called_once_with(7, 3)
+
+    def test_a_key_that_cannot_be_loaded_keeps_the_token_and_propagates(self):
+        """A missing or unreadable FERNET_KEY says nothing about the token, so the token is not cleared."""
+        service = _service()
+        client, events, _, patches = self._setup(service, fetch=lambda *a, **k: {"access_token": "new"})
+        patches[3] = patch.object(
+            token_service_module.core_cryptography,
+            "decrypt_token_fernet",
+            side_effect=core_exceptions.CryptographyError(),
+        )
+
+        with pytest.raises(core_exceptions.CryptographyError) as exc_info:
+            self._refresh(service, patches)
+
+        assert not isinstance(exc_info.value, core_exceptions.UndecryptableError)
+        assert events == []
+        client.fetch_token.assert_not_called()
+        self.claims.release.assert_called_once_with(7, 3)
+
+    def test_a_token_the_key_cannot_decrypt_is_cleared(self):
+        service = _service()
+        client, events, _, patches = self._setup(service, fetch=lambda *a, **k: {"access_token": "new"})
+        patches[3] = patch.object(
+            token_service_module.core_cryptography,
+            "decrypt_token_fernet",
+            side_effect=core_exceptions.UndecryptableError(),
+        )
+
+        assert self._refresh(service, patches) is None
+
+        assert events == ["clear", "commit"]
+        client.fetch_token.assert_not_called()
+
+    def test_a_token_that_decrypts_to_nothing_is_cleared(self):
+        service = _service()
+        client, events, _, patches = self._setup(service, fetch=lambda *a, **k: {"access_token": "new"})
+        patches[3] = patch.object(token_service_module.core_cryptography, "decrypt_token_fernet", return_value="")
+
+        assert self._refresh(service, patches) is None
+
+        assert events == ["clear", "commit"]
+        client.fetch_token.assert_not_called()
 
     def test_a_disabled_provider_is_refused(self):
         service = _service()

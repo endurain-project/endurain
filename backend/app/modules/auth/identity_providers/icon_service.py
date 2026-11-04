@@ -100,7 +100,7 @@ def delete_icon(idp_id: int, storage: platform_providers.StorageProvider, db: Se
 
 
 def delete_blob(idp_id: int, storage: platform_providers.StorageProvider) -> None:
-    """Delete an icon blob, logging instead of failing: the flag already decides whether it is served.
+    """Delete an icon blob, logging a storage outage instead of failing: the flag decides whether it is served.
 
     Args:
         idp_id: The provider the icon belongs to.
@@ -108,7 +108,7 @@ def delete_blob(idp_id: int, storage: platform_providers.StorageProvider) -> Non
     """
     try:
         storage.delete(idp_constants.ICON_STORAGE_AREA, _storage_key(idp_id))
-    except Exception as err:
+    except platform_providers.StorageBackendUnavailableError as err:
         logger.warning(
             "Identity provider icon blob could not be deleted", extra=core_logger.context(idp_id=idp_id), exc_info=err
         )

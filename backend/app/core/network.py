@@ -409,7 +409,8 @@ def _resolve_checked_addresses(
     """
     try:
         infos = socket.getaddrinfo(hostname, None)
-    except socket.gaierror:
+    except (socket.gaierror, UnicodeError):
+        # UnicodeError: the name cannot be IDNA-encoded (an empty or over-long label), so it names no host
         return (), _UNRESOLVABLE
 
     addresses: list[str] = []

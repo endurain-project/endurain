@@ -245,10 +245,9 @@ class OidcClientService:
 
         Returns:
             dict[str, Any] | None: The OIDC discovery configuration as a dictionary if successful, or None if
-            fetching fails, the issuer URL is not provided or the document names a different issuer.
-
-        Raises:
-            Does not raise exceptions directly; logs errors and returns None on failure.
+            the issuer URL is not provided, invalid or refused by the SSRF guard, the provider cannot be reached
+            or answers with an error or a body that is not JSON, or the document names a different issuer. Each
+            of those failures is logged.
         """
         issuer_url = idp.issuer_url
         if not issuer_url:
@@ -307,9 +306,12 @@ class OidcClientService:
                 extra=core_logger.context(name=idp.name, detail=err.detail, discovery_url=discovery_url),
             )
             return None
-        except Exception as err:
+        except (ValueError, httpx2.InvalidURL) as err:
+            # A non-JSON body, or an issuer URL httpx cannot send to
             logger.warning(
-                "Failed to fetch OIDC discovery for <name>", exc_info=err, extra=core_logger.context(name=idp.name)
+                "OIDC discovery document for <name> unreadable or issuer URL invalid",
+                exc_info=err,
+                extra=core_logger.context(name=idp.name),
             )
             return None
 
@@ -403,17 +405,10 @@ class OidcClientService:
 
         # Try OIDC discovery if token endpoint not manually configured
         if not token_endpoint and idp.issuer_url:
-            try:
-                config = self.get_oidc_configuration(idp)
-                if config:
-                    token_endpoint = config.get("token_endpoint")
-            except Exception as err:
-                logger.warning(
-                    "OIDC discovery failed for IdP <name> at <issuer_url>: <err>",
-                    exc_info=err,
-                    extra=core_logger.context(name=idp.name, issuer_url=idp.issuer_url, err=err),
-                )
-                # Continue - will raise below if still no endpoint
+            # Discovery logs its own failure and returns None; the endpoint is then refused below
+            config = self.get_oidc_configuration(idp)
+            if config:
+                token_endpoint = config.get("token_endpoint")
 
         if not token_endpoint:
             raise core_exceptions.UpstreamError(
@@ -525,12 +520,15 @@ class OidcClientService:
             # userinfo fetch failure.
             core_network.reject_private_url(userinfo_endpoint, purpose="oidc_userinfo", require_tls=True)
             try:
-                # Use the access token to fetch userinfo
+                # The Bearer header is set here, so authlib's own token handling is withheld: it would refuse
+                # an access token expiring within its leeway before sending the request.
                 access_token = token_response.get("access_token")
                 if access_token:
-                    response = client.get(
+                    response = client.request(
+                        "GET",
                         userinfo_endpoint,
                         headers={"Authorization": f"Bearer {access_token}"},
+                        withhold_token=True,
                     )
                     response.raise_for_status()
                     userinfo_claims = response.json()
@@ -551,9 +549,10 @@ class OidcClientService:
                 logger.warning(
                     "Network error fetching userinfo: <err>", exc_info=err, extra=core_logger.context(err=err)
                 )
-            except Exception as err:
+            except (ValueError, httpx2.InvalidURL) as err:
+                # A non-JSON body, or an endpoint URL httpx cannot send to
                 logger.warning(
-                    "Unexpected error fetching userinfo from endpoint: <err>",
+                    "Userinfo answer unreadable or endpoint URL invalid: <err>",
                     exc_info=err,
                     extra=core_logger.context(err=err),
                 )

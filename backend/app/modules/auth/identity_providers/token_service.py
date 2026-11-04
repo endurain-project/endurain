@@ -198,7 +198,8 @@ class IdpTokenService:
             The new token response, or None if another refresh holds the link or this one failed.
 
         Raises:
-            domain error: If the IdP is not found, disabled, or misconfigured.
+            domain error: If the IdP is not found, disabled, or misconfigured, or the encryption key cannot
+                be loaded (``CryptographyError``, which keeps the stored token).
         """
         if not claims.claim(user_id, idp_id):
             logger.debug(
@@ -232,10 +233,13 @@ class IdpTokenService:
 
         Returns:
             Dict[str, Any] | None: A dictionary containing the new token response if successful,
-                or None if the refresh failed (expired/revoked token, network error, etc.).
+                or None if the refresh failed (expired/revoked or undecryptable token, network error,
+                malformed token response).
 
         Raises:
-            domain error: If the IdP is not found, disabled, or misconfigured.
+            domain error: If the IdP is not found, disabled, or misconfigured, or the encryption key cannot
+                be loaded (``CryptographyError``, which keeps the stored token).
+            SQLAlchemyError: If reading or writing the link fails.
 
         Example return value:
             {
@@ -247,7 +251,8 @@ class IdpTokenService:
 
         Security Notes:
             - Refresh token is decrypted only in memory, never logged
-            - If refresh fails (invalid/revoked), the stored token is cleared, unless another refresh replaced it
+            - If refresh fails (invalid/revoked) or the token cannot be decrypted, the stored token is cleared,
+              unless another refresh replaced it
             - The new token is stored only over the token this refresh read
             - Network errors do not clear the token (IdP may be temporarily down)
         """
@@ -271,18 +276,18 @@ class IdpTokenService:
             )
             return None
 
-        # Decrypt the refresh token
+        # A key that cannot be loaded raises CryptographyError, which propagates and keeps the token;
+        # only a token the key cannot decrypt, or one that decrypts to nothing, is cleared.
         try:
             refresh_token = core_cryptography.decrypt_token_fernet(encrypted_refresh_token)
             if not refresh_token:
-                raise ValueError("Decryption returned empty value")
-        except Exception as err:
+                raise core_exceptions.UndecryptableError()
+        except core_exceptions.UndecryptableError as err:
             logger.warning(
                 "Failed to decrypt refresh token for user <user_id>, idp <idp_id>: <err>",
                 exc_info=err,
                 extra=core_logger.context(user_id=user_id, idp_id=idp_id, err=err),
             )
-            # Clear corrupted token
             self._clear_refresh_token(user_id, idp_id, encrypted_refresh_token)
             return None
 
@@ -363,9 +368,11 @@ class IdpTokenService:
             )
             return None
 
-        except Exception as err:
-            logger.error(
-                "Unexpected error refreshing IdP session for user <user_id>, idp <idp_id>: <err>",
+        except (ValueError, TypeError, OverflowError, httpx2.InvalidURL) as err:
+            # A malformed token response (a non-JSON body, or an expires_in that is not a number or is out of
+            # range), or a token endpoint URL httpx cannot send to, says nothing about the stored token, so it is kept.
+            logger.warning(
+                "Malformed token response refreshing IdP session for user <user_id>, idp <idp_id>: <err>",
                 exc_info=err,
                 extra=core_logger.context(user_id=user_id, idp_id=idp_id, err=err),
             )

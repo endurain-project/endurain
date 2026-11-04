@@ -2,6 +2,7 @@
 
 from unittest.mock import MagicMock, patch
 
+import jasil.providers as jasil_providers
 import jasil.testing as jasil_testing
 import pytest
 
@@ -114,8 +115,17 @@ class TestDeleteIcon:
 
     def test_a_blob_that_cannot_be_deleted_is_not_an_error(self):
         storage = MagicMock()
-        storage.delete.side_effect = RuntimeError("storage down")
+        storage.delete.side_effect = jasil_providers.StorageBackendUnavailableError("storage down")
         with patch.object(icon_service.idp_crud, "set_icon_uploaded", return_value=5):
+            icon_service.delete_icon(7, storage, MagicMock())
+
+    def test_an_unexpected_storage_failure_propagates(self):
+        storage = MagicMock()
+        storage.delete.side_effect = ValueError("not a valid storage address")
+        with (
+            patch.object(icon_service.idp_crud, "set_icon_uploaded", return_value=5),
+            pytest.raises(ValueError, match="not a valid storage address"),
+        ):
             icon_service.delete_icon(7, storage, MagicMock())
 
     def test_a_missing_provider_is_not_found(self):
