@@ -1110,7 +1110,8 @@
         "too_many_activities": "arhīvā ir pārāk daudz aktivitāšu. Nekas netika importēts.",
         "timed_out": "tas aizņēma pārāk ilgu laiku. Nekas netika importēts, tāpēc varat mēģināt vēlreiz.",
         "files_incomplete": "jūsu dati tika importēti, bet daži faili trūkst. Neimportējiet tos vēlreiz, jo dati dublēsies.",
-        "processing_failed": "radās kļūda. Nekas netika importēts, tāpēc varat mēģināt vēlreiz."
+        "processing_failed": "radās kļūda. Nekas netika importēts, tāpēc varat mēģināt vēlreiz.",
+        "wrong_account": "arhīvs tika eksportēts no cita konta. Nekas netika importēts."
       }
     }
   }

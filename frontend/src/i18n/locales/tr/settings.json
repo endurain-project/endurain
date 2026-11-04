@@ -1110,7 +1110,8 @@
         "too_many_activities": "arşivde çok fazla etkinlik var. Hiçbir şey içe aktarılmadı.",
         "timed_out": "çok uzun sürdü. Hiçbir şey içe aktarılmadı, bu yüzden tekrar deneyebilirsiniz.",
         "files_incomplete": "verileriniz içe aktarıldı ancak bazı dosyalar eksik. Tekrar içe aktarmayın; verileriniz çoğalır.",
-        "processing_failed": "bir şeyler ters gitti. Hiçbir şey içe aktarılmadı, bu yüzden tekrar deneyebilirsiniz."
+        "processing_failed": "bir şeyler ters gitti. Hiçbir şey içe aktarılmadı, bu yüzden tekrar deneyebilirsiniz.",
+        "wrong_account": "arşiv farklı bir hesaptan dışa aktarılmış. Hiçbir şey içe aktarılmadı."
       }
     }
   }

@@ -1110,7 +1110,8 @@
         "too_many_activities": "the archive has too many activities. Nothing was imported.",
         "timed_out": "it took too long. Nothing was imported, so you can try again.",
         "files_incomplete": "your data was imported but some files are missing. Don't import it again; it would duplicate your data.",
-        "processing_failed": "something went wrong. Nothing was imported, so you can try again."
+        "processing_failed": "something went wrong. Nothing was imported, so you can try again.",
+        "wrong_account": "the archive was exported from a different account. Nothing was imported."
       }
     }
   }

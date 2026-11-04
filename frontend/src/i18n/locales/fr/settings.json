@@ -1110,7 +1110,8 @@
         "too_many_activities": "l'archive contient trop d'activités. Rien n'a été importé.",
         "timed_out": "il a pris trop de temps. Rien n'a été importé, vous pouvez donc réessayer.",
         "files_incomplete": "vos données ont été importées mais certains fichiers sont manquants. Ne les importez pas à nouveau, cela créerait des doublons.",
-        "processing_failed": "une erreur s'est produite. Rien n'a été importé, vous pouvez donc réessayer."
+        "processing_failed": "une erreur s'est produite. Rien n'a été importé, vous pouvez donc réessayer.",
+        "wrong_account": "l'archive a été exportée depuis un autre compte. Rien n'a été importé."
       }
     }
   }

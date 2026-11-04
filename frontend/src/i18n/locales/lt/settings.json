@@ -1110,7 +1110,8 @@
         "too_many_activities": "archyve per daug veiklų. Nieko neimportuota.",
         "timed_out": "tai truko per ilgai. Nieko neimportuota, todėl galite bandyti dar kartą.",
         "files_incomplete": "jūsų duomenys importuoti, bet kai kurių failų trūksta. Neimportuokite iš naujo, nes duomenys dubliuotųsi.",
-        "processing_failed": "kažkas nepavyko. Nieko neimportuota, todėl galite bandyti dar kartą."
+        "processing_failed": "kažkas nepavyko. Nieko neimportuota, todėl galite bandyti dar kartą.",
+        "wrong_account": "archyvas buvo eksportuotas iš kitos paskyros. Nieko neimportuota."
       }
     }
   }

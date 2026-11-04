@@ -1110,7 +1110,8 @@
         "too_many_activities": "l'archivio contiene troppe attività. Non è stato importato nulla.",
         "timed_out": "ha richiesto troppo tempo. Non è stato importato nulla, quindi puoi riprovare.",
         "files_incomplete": "i tuoi dati sono stati importati ma mancano alcuni file. Non importarli di nuovo: duplicheresti i tuoi dati.",
-        "processing_failed": "qualcosa è andato storto. Non è stato importato nulla, quindi puoi riprovare."
+        "processing_failed": "qualcosa è andato storto. Non è stato importato nulla, quindi puoi riprovare.",
+        "wrong_account": "l'archivio è stato esportato da un altro account. Non è stato importato nulla."
       }
     }
   }

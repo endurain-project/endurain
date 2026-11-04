@@ -1110,7 +1110,8 @@
         "too_many_activities": "archiv obsahuje příliš mnoho aktivit. Nic nebylo importováno.",
         "timed_out": "trval příliš dlouho. Nic nebylo importováno, takže to můžete zkusit znovu.",
         "files_incomplete": "vaše data byla importována, ale některé soubory chybí. Neimportujte je znovu, data by se zduplikovala.",
-        "processing_failed": "něco se pokazilo. Nic nebylo importováno, takže to můžete zkusit znovu."
+        "processing_failed": "něco se pokazilo. Nic nebylo importováno, takže to můžete zkusit znovu.",
+        "wrong_account": "archiv byl exportován z jiného účtu. Nic nebylo importováno."
       }
     }
   }

@@ -1110,7 +1110,8 @@
         "too_many_activities": "het archief bevat te veel activiteiten. Er is niets geïmporteerd.",
         "timed_out": "het duurde te lang. Er is niets geïmporteerd, dus je kunt het opnieuw proberen.",
         "files_incomplete": "je gegevens zijn geïmporteerd, maar sommige bestanden ontbreken. Importeer ze niet opnieuw; dat zou je gegevens dupliceren.",
-        "processing_failed": "er ging iets mis. Er is niets geïmporteerd, dus je kunt het opnieuw proberen."
+        "processing_failed": "er ging iets mis. Er is niets geïmporteerd, dus je kunt het opnieuw proberen.",
+        "wrong_account": "het archief is geëxporteerd vanaf een ander account. Er is niets geïmporteerd."
       }
     }
   }

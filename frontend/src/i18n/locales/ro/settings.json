@@ -1110,7 +1110,8 @@
         "too_many_activities": "arhiva conține prea multe activități. Nu s-a importat nimic.",
         "timed_out": "a durat prea mult. Nu s-a importat nimic, deci poți încerca din nou.",
         "files_incomplete": "datele tale au fost importate, dar lipsesc unele fișiere. Nu le importa din nou; ți-ar duplica datele.",
-        "processing_failed": "ceva nu a mers bine. Nu s-a importat nimic, deci poți încerca din nou."
+        "processing_failed": "ceva nu a mers bine. Nu s-a importat nimic, deci poți încerca din nou.",
+        "wrong_account": "arhiva a fost exportată dintr-un alt cont. Nu s-a importat nimic."
       }
     }
   }

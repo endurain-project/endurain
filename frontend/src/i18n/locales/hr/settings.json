@@ -1110,7 +1110,8 @@
         "too_many_activities": "arhiva ima previše aktivnosti. Ništa nije uvezeno.",
         "timed_out": "trajao je predugo. Ništa nije uvezeno pa možete pokušati ponovno.",
         "files_incomplete": "vaši su podaci uvezeni, ali neke datoteke nedostaju. Nemojte ponovno uvoziti; podaci bi se duplicirali.",
-        "processing_failed": "nešto je pošlo po zlu. Ništa nije uvezeno pa možete pokušati ponovno."
+        "processing_failed": "nešto je pošlo po zlu. Ništa nije uvezeno pa možete pokušati ponovno.",
+        "wrong_account": "arhiva je izvezena s drugog računa. Ništa nije uvezeno."
       }
     }
   }

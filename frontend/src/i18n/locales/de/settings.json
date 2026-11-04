@@ -1110,7 +1110,8 @@
         "too_many_activities": "das Archiv enthält zu viele Aktivitäten. Es wurde nichts importiert.",
         "timed_out": "er hat zu lange gedauert. Es wurde nichts importiert, daher kannst du es erneut versuchen.",
         "files_incomplete": "deine Daten wurden importiert, aber einige Dateien fehlen. Importiere sie nicht erneut, sonst würden deine Daten doppelt vorhanden sein.",
-        "processing_failed": "etwas ist schiefgelaufen. Es wurde nichts importiert, daher kannst du es erneut versuchen."
+        "processing_failed": "etwas ist schiefgelaufen. Es wurde nichts importiert, daher kannst du es erneut versuchen.",
+        "wrong_account": "das Archiv wurde von einem anderen Konto exportiert. Es wurde nichts importiert."
       }
     }
   }

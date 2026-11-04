@@ -1110,7 +1110,8 @@
         "too_many_activities": "archiwum zawiera zbyt wiele aktywności. Nic nie zaimportowano.",
         "timed_out": "trwał zbyt długo. Nic nie zaimportowano, więc możesz spróbować ponownie.",
         "files_incomplete": "dane zostały zaimportowane, ale brakuje niektórych plików. Nie importuj ich ponownie, bo dane się zdublują.",
-        "processing_failed": "coś poszło nie tak. Nic nie zaimportowano, więc możesz spróbować ponownie."
+        "processing_failed": "coś poszło nie tak. Nic nie zaimportowano, więc możesz spróbować ponownie.",
+        "wrong_account": "archiwum zostało wyeksportowane z innego konta. Nic nie zaimportowano."
       }
     }
   }

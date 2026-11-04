@@ -1110,7 +1110,8 @@
         "too_many_activities": "archív obsahuje príliš veľa aktivít. Nič sa neimportovalo.",
         "timed_out": "trval príliš dlho. Nič sa neimportovalo, takže to môžete skúsiť znova.",
         "files_incomplete": "vaše údaje boli importované, ale niektoré súbory chýbajú. Neimportujte ich znova, údaje by sa zduplikovali.",
-        "processing_failed": "niečo sa pokazilo. Nič sa neimportovalo, takže to môžete skúsiť znova."
+        "processing_failed": "niečo sa pokazilo. Nič sa neimportovalo, takže to môžete skúsiť znova.",
+        "wrong_account": "archív bol exportovaný z iného účtu. Nič sa neimportovalo."
       }
     }
   }

@@ -1110,7 +1110,8 @@
         "too_many_activities": "el archivo tiene demasiadas actividades. No se importó nada.",
         "timed_out": "tardó demasiado. No se importó nada, así que puedes intentarlo de nuevo.",
         "files_incomplete": "tus datos se importaron pero faltan algunos archivos. No lo importes de nuevo; duplicaría tus datos.",
-        "processing_failed": "algo salió mal. No se importó nada, así que puedes intentarlo de nuevo."
+        "processing_failed": "algo salió mal. No se importó nada, así que puedes intentarlo de nuevo.",
+        "wrong_account": "el archivo se exportó desde otra cuenta. No se importó nada."
       }
     }
   }

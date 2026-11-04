@@ -1110,7 +1110,8 @@
         "too_many_activities": "arhiivis on liiga palju tegevusi. Midagi ei imporditud.",
         "timed_out": "see võttis liiga kaua aega. Midagi ei imporditud, nii et võid uuesti proovida.",
         "files_incomplete": "sinu andmed imporditi, kuid mõned failid puuduvad. Ära impordi uuesti, sest see dubleeriks sinu andmed.",
-        "processing_failed": "midagi läks valesti. Midagi ei imporditud, nii et võid uuesti proovida."
+        "processing_failed": "midagi läks valesti. Midagi ei imporditud, nii et võid uuesti proovida.",
+        "wrong_account": "arhiiv eksporditi teisest kontost. Midagi ei imporditud."
       }
     }
   }

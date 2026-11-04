@@ -1110,7 +1110,8 @@
         "too_many_activities": "arkivet har for mange aktiviteter. Ingenting ble importert.",
         "timed_out": "det tok for lang tid. Ingenting ble importert, så du kan prøve igjen.",
         "files_incomplete": "dataene dine ble importert, men noen filer mangler. Ikke importer på nytt, da det ville duplisere dataene dine.",
-        "processing_failed": "noe gikk galt. Ingenting ble importert, så du kan prøve igjen."
+        "processing_failed": "noe gikk galt. Ingenting ble importert, så du kan prøve igjen.",
+        "wrong_account": "arkivet ble eksportert fra en annen konto. Ingenting ble importert."
       }
     }
   }

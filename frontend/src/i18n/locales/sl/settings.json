@@ -1110,7 +1110,8 @@
         "too_many_activities": "arhiv vsebuje preveč aktivnosti. Nič ni bilo uvoženo.",
         "timed_out": "trajal je predolgo. Nič ni bilo uvoženo, zato lahko poskusiš znova.",
         "files_incomplete": "tvoji podatki so bili uvoženi, vendar nekaj datotek manjka. Ne uvozi jih znova, ker bi se podatki podvojili.",
-        "processing_failed": "nekaj je šlo narobe. Nič ni bilo uvoženo, zato lahko poskusiš znova."
+        "processing_failed": "nekaj je šlo narobe. Nič ni bilo uvoženo, zato lahko poskusiš znova.",
+        "wrong_account": "arhiv je bil izvožen iz drugega računa. Nič ni bilo uvoženo."
       }
     }
   }

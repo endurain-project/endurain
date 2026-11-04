@@ -1110,7 +1110,8 @@
         "too_many_activities": "az archívumban túl sok tevékenység van. Semmi sem lett importálva.",
         "timed_out": "túl sokáig tartott. Semmi sem lett importálva, ezért próbálkozhatsz újra.",
         "files_incomplete": "az adataid importálva lettek, de néhány fájl hiányzik. Ne importáld újra, mert megduplázná az adataidat.",
-        "processing_failed": "valami elromlott. Semmi sem lett importálva, ezért próbálkozhatsz újra."
+        "processing_failed": "valami elromlott. Semmi sem lett importálva, ezért próbálkozhatsz újra.",
+        "wrong_account": "az archívum egy másik fiókból lett exportálva. Semmi sem lett importálva."
       }
     }
   }
