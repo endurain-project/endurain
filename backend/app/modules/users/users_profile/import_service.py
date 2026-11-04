@@ -20,26 +20,12 @@ from io import BytesIO
 from typing import Any, Self
 
 import jasil.providers as platform_providers
-from pydantic import BaseModel, ValidationError
+from pydantic import ValidationError
 from sqlalchemy.orm import Session
 
 import core.exceptions as core_exceptions
 import core.file_uploads as file_uploads
 import core.logger as core_logger
-import modules.health.health_fasting.integration_service as health_fasting_integration
-import modules.health.health_fasting.schema as health_fasting_schema
-import modules.health.health_poop.integration_service as health_poop_integration
-import modules.health.health_poop.schema as health_poop_schema
-import modules.health.health_sleep.integration_service as health_sleep_integration
-import modules.health.health_sleep.schema as health_sleep_schema
-import modules.health.health_steps.integration_service as health_steps_integration
-import modules.health.health_steps.schema as health_steps_schema
-import modules.health.health_targets.integration_service as health_targets_integration
-import modules.health.health_targets.schema as health_targets_schema
-import modules.health.health_water.integration_service as health_water_integration
-import modules.health.health_water.schema as health_water_schema
-import modules.health.health_weight.integration_service as health_weight_integration
-import modules.health.health_weight.schema as health_weight_schema
 import modules.users.contributor_registry as users_contributor_registry
 import modules.users.users.constants as users_constants
 import modules.users.users.integration_service as users_integration
@@ -64,68 +50,6 @@ from modules.users.users_profile.exceptions import (
 )
 
 logger = core_logger.get_logger(__name__)
-
-#: Fields an archive carries that the server derives on write, per health record kind; they are dropped on import.
-_SERVER_DERIVED_FIELDS: dict[str, frozenset[str]] = {"health_fasting": frozenset({"actual_duration_seconds"})}
-
-
-def _health_record_import[CreateT: BaseModel](
-    kind: str, schema: type[CreateT], stage: Callable[[int, CreateT, Session], bool | BaseModel]
-) -> Callable[[int, dict[str, Any], Session], bool]:
-    """Build the import of one archived health record of a kind.
-
-    Args:
-        kind: The record kind, for the log.
-        schema: The schema an archived record of the kind is validated as.
-        stage: Stages a record for a user; returns ``False`` when it kept a record the user already has.
-
-    Returns:
-        The import, which tells whether it stored the record.
-    """
-
-    def import_record(user_id: int, row: dict[str, Any], db: Session) -> bool:
-        """Validate one archived record and stage it for the user.
-
-        Args:
-            user_id: The importing user.
-            row: The archived record.
-            db: Database session.
-
-        Returns:
-            True when the record was stored; False when it was invalid or the user already has it.
-        """
-        derived = _SERVER_DERIVED_FIELDS.get(kind, frozenset())
-        fields = {
-            key: value for key, value in users_profile_contracts.without_row_identity(row).items() if key not in derived
-        }
-        try:
-            record = schema.model_validate(fields)
-        except ValidationError:
-            logger.warning("Skipped an invalid health record", extra=core_logger.context(kind=kind))
-            return False
-        return stage(user_id, record, db) is not False
-
-    return import_record
-
-
-#: The health record kinds imported beside weight, each with the import of one archived record.
-_HEALTH_RECORD_IMPORTS: dict[str, Callable[[int, dict[str, Any], Session], bool]] = {
-    "health_sleep": _health_record_import(
-        "health_sleep", health_sleep_schema.HealthSleepCreate, health_sleep_integration.upsert_health_sleep
-    ),
-    "health_steps": _health_record_import(
-        "health_steps", health_steps_schema.HealthStepsCreate, health_steps_integration.upsert_health_steps
-    ),
-    "health_water": _health_record_import(
-        "health_water", health_water_schema.HealthWaterCreate, health_water_integration.upsert_health_water
-    ),
-    "health_fasting": _health_record_import(
-        "health_fasting", health_fasting_schema.HealthFastingCreate, health_fasting_integration.import_health_fasting
-    ),
-    "health_poop": _health_record_import(
-        "health_poop", health_poop_schema.HealthPoopCreate, health_poop_integration.import_health_poop
-    ),
-}
 
 
 class ImportPerformanceConfig(profile_utils.BasePerformanceConfig):
@@ -337,18 +261,6 @@ class ImportService:
 
                 # The registered sections, in order; a section reads only the ids of those before it.
                 section_files = self.restore_profile_sections(archive, ids, check_import_timeout)
-
-                # Load and import health data
-                check_import_timeout()
-                health_weight_data = archive.load_json("data/health_weight.json")
-                health_targets_data = archive.load_json("data/health_targets.json")
-
-                await self.collect_and_import_health_weight(health_weight_data, health_targets_data)
-                del health_weight_data, health_targets_data
-
-                health_records = {name: archive.load_json(f"data/{name}.json") for name in _HEALTH_RECORD_IMPORTS}
-                await self.collect_and_import_health_records(health_records)
-                del health_records
 
                 # The default gear names gears, so it follows every section that restores them.
                 check_import_timeout()
@@ -627,105 +539,6 @@ class ImportService:
         )
         logger.debug("Imported user privacy settings")
         self.counts["user_privacy_settings"] += 1
-
-    async def collect_and_import_health_weight(
-        self, health_weight_data: list[dict[str, Any]], health_targets_data: list[dict[str, Any]]
-    ) -> None:
-        """Import health data and targets.
-
-        Args:
-            health_weight_data: List of health data records.
-            health_targets_data: List of health target records.
-        """
-        # Import health data
-        if health_weight_data:
-            for health_weight in health_weight_data:
-                health_weight = users_profile_contracts.without_row_identity(health_weight)
-
-                # Convert string numeric values to floats
-                numeric_fields = [
-                    "weight",
-                    "bmi",
-                    "body_fat",
-                    "body_water",
-                    "bone_mass",
-                    "muscle_mass",
-                    "visceral_fat",
-                ]
-                for field in numeric_fields:
-                    if field in health_weight and isinstance(health_weight[field], str):
-                        try:
-                            health_weight[field] = float(health_weight[field])
-                        except (ValueError, TypeError):
-                            health_weight[field] = None
-
-                # Convert integer fields
-                int_fields = ["physique_rating", "metabolic_age"]
-                for field in int_fields:
-                    if field in health_weight and isinstance(health_weight[field], str):
-                        try:
-                            health_weight[field] = int(health_weight[field])
-                        except (ValueError, TypeError):
-                            health_weight[field] = None
-
-                try:
-                    data = health_weight_schema.HealthWeightCreate(**health_weight)
-                except ValidationError:
-                    logger.warning("Skipped an invalid health weight record")
-                    continue
-                health_weight_integration.upsert_health_weight(self.user_id, data, self.db)
-                self.counts["health_weight"] += 1
-            logger.debug(
-                "Imported health weight records", extra=core_logger.context(count=self.counts["health_weight"])
-            )
-        else:
-            logger.debug("No health weight data to import")
-
-        # Import health targets
-        if health_targets_data:
-            for target_data in health_targets_data:
-                # Convert string numeric values to floats/ints
-                if isinstance(target_data.get("weight"), str):
-                    try:
-                        target_data["weight"] = float(target_data["weight"])
-                    except (ValueError, TypeError):
-                        target_data["weight"] = None
-
-                int_fields = ["steps", "sleep"]
-                for field in int_fields:
-                    if isinstance(target_data.get(field), str):
-                        try:
-                            target_data[field] = int(target_data[field])
-                        except (ValueError, TypeError):
-                            target_data[field] = None
-
-                # Only the editable fields: the export also carries the row's id, owner and version.
-                editable = health_targets_schema.HealthTargetsUpdate.model_fields
-                try:
-                    target = health_targets_schema.HealthTargetsUpdate(
-                        **{key: value for key, value in target_data.items() if key in editable}
-                    )
-                except ValidationError:
-                    logger.warning("Skipped invalid health targets")
-                    continue
-                health_targets_integration.edit_health_targets(target, self.user_id, self.db)
-                self.counts["health_targets"] += 1
-            logger.debug("Imported health targets", extra=core_logger.context(count=self.counts["health_targets"]))
-        else:
-            logger.debug("No health targets to import")
-
-    async def collect_and_import_health_records(self, records: dict[str, list[dict[str, Any]]]) -> None:
-        """Import sleep, steps, water, fasting and poop records.
-
-        Args:
-            records: The exported rows of each kind, keyed by kind (``health_sleep``, ...).
-        """
-        for name, rows in records.items():
-            import_record = _HEALTH_RECORD_IMPORTS[name]
-            for row in rows:
-                if import_record(self.user_id, row, self.db):
-                    self.counts[name] += 1
-            logger.debug("Imported health records", extra=core_logger.context(kind=name, count=self.counts[name]))
 
     async def add_user_images_from_zip(
         self,

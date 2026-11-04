@@ -7,9 +7,9 @@ version-race guard, and charting a metric over an interval. A package passes the
 
 from collections.abc import Callable
 from datetime import date
-from typing import Protocol
+from typing import Any, Protocol
 
-from pydantic import BaseModel
+from pydantic import BaseModel, ValidationError
 from sqlalchemy.orm import Session
 
 import core.etag as core_etag
@@ -20,6 +20,7 @@ import modules.health.constants as health_constants
 import modules.health.record_crud as health_record_crud
 import modules.health.schema as health_schema
 import modules.users.users.integration_service as users_integration
+import modules.users.users_profile.contracts as users_profile_contracts
 
 logger = core_logger.get_logger(__name__)
 
@@ -166,3 +167,48 @@ def upsert_dated[RecordT: _DatedRecord, CreateT: _DatedInput, UpdateT: BaseModel
         edit=lambda record_id: edit(record_id, update),
         db=db,
     )
+
+
+def restore_archived_records[CreateT: BaseModel](
+    records: list[dict[str, Any]],
+    schema: type[CreateT],
+    stage: Callable[[int, CreateT, Session], bool | BaseModel],
+    user_id: int,
+    db: Session,
+    *,
+    kind: str,
+    server_derived: frozenset[str] = frozenset(),
+) -> int:
+    """Stage the records of one kind from a profile archive for a user.
+
+    A row is validated as ``schema`` without the identity the archive carries and without the fields the
+    server derives on write; an invalid row is logged and skipped.
+
+    Args:
+        records: The archived rows of the kind.
+        schema: The schema an archived row is validated as.
+        stage: Stages a record for a user; returns ``False`` when it kept a record the user already has.
+        user_id: The importing user.
+        db: Database session.
+        kind: The record kind, for the log.
+        server_derived: Archived fields the server derives on write, which are dropped.
+
+    Returns:
+        The number of records staged.
+    """
+    staged = 0
+    for row in records:
+        fields = {
+            key: value
+            for key, value in users_profile_contracts.without_row_identity(row).items()
+            if key not in server_derived
+        }
+        try:
+            record = schema.model_validate(fields)
+        except ValidationError:
+            logger.warning("Skipped an invalid health record", extra=core_logger.context(kind=kind))
+            continue
+        if stage(user_id, record, db) is not False:
+            staged += 1
+    logger.debug("Imported health records", extra=core_logger.context(kind=kind, count=staged))
+    return staged

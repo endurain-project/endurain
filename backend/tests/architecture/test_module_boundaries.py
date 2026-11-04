@@ -292,7 +292,7 @@ _LAYER_EXCEPTIONS: dict[tuple[str, str], str] = {
 _MUST_NOT_IMPORT: dict[str, tuple[str, ...]] = {
     "followers": ("modules.activities",),
     "gears": ("modules.activities",),
-    "users": ("modules.followers",),
+    "users": ("modules.followers", "modules.health"),
 }
 
 

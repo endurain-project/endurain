@@ -8,6 +8,7 @@ from sqlalchemy.orm import Session
 import modules.health.health_fasting.crud as health_fasting_crud
 import modules.health.health_fasting.schema as health_fasting_schema
 import modules.health.health_fasting.service as health_fasting_service
+import modules.users.users_profile.contracts as users_profile_contracts
 
 
 def get_active_fasting(user_id: int, db: Session) -> health_fasting_schema.HealthFastingRead | None:
@@ -23,28 +24,14 @@ def get_active_fasting(user_id: int, db: Session) -> health_fasting_schema.Healt
     return health_fasting_crud.get_active_fasting_by_user_id(user_id, db)
 
 
-def list_health_fasting(user_id: int, db: Session) -> list[health_fasting_schema.HealthFastingRead]:
-    """Return all of a user's fasting records, newest first.
-
-    Args:
-        user_id: The records' owner.
-        db: Database session.
+def profile_section() -> users_profile_contracts.ProfileRecordsSection:
+    """Return the fasting records' section of a profile export and import.
 
     Returns:
-        The records.
+        The section, which exports a user's fasting records and stages the archived ones.
     """
-    return health_fasting_crud.get_health_fasting_by_user_id(user_id, db)
-
-
-def import_health_fasting(user_id: int, health_fasting: health_fasting_schema.HealthFastingCreate, db: Session) -> bool:
-    """Stage a fasting session for a user unless they already have it.
-
-    Args:
-        user_id: The session's owner.
-        health_fasting: The session to import.
-        db: Database session.
-
-    Returns:
-        True when the session was staged, False when it was skipped.
-    """
-    return health_fasting_service.stage_import_health_fasting(user_id, health_fasting, db)
+    return users_profile_contracts.ProfileRecordsSection(
+        key="health_fasting",
+        export=health_fasting_crud.get_health_fasting_by_user_id,
+        restore=health_fasting_service.restore_profile_records,
+    )

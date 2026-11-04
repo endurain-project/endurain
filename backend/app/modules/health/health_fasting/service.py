@@ -7,6 +7,7 @@ boundary. What other modules may consume lives in
 """
 
 from datetime import datetime
+from typing import Any
 
 from sqlalchemy.orm import Session
 
@@ -20,8 +21,12 @@ import modules.health.health_fasting.schema as health_fasting_schema
 import modules.health.health_fasting.streaks as health_fasting_streaks
 import modules.health.record_service as health_record_service
 import modules.users.users.integration_service as users_integration
+import modules.users.users_profile.contracts as users_profile_contracts
 
 logger = core_logger.get_logger(__name__)
+
+#: Fields an archive carries that the server derives on write; they are dropped on import.
+_SERVER_DERIVED = frozenset({"actual_duration_seconds"})
 
 _OVERLAP_MESSAGE = "Another fasting session overlaps these times"
 
@@ -415,4 +420,29 @@ def delete_health_fasting(user_id: int, health_fasting_id: int, db: Session, *, 
         lambda: health_fasting_crud.delete_health_fasting(user_id, health_fasting_id, db, if_match=if_match),
         db,
         log_message="Deleted a fasting session",
+    )
+
+
+def restore_profile_records(
+    records: list[dict[str, Any]], user_id: int, ids: users_profile_contracts.ProfileIdMaps, db: Session
+) -> int:
+    """Stage the fasting records of a profile archive for a user.
+
+    Args:
+        records: The archived rows.
+        user_id: The importing user.
+        ids: The ids restored by earlier sections; the fasting records read none.
+        db: Database session.
+
+    Returns:
+        The number of records staged.
+    """
+    return health_record_service.restore_archived_records(
+        records,
+        health_fasting_schema.HealthFastingCreate,
+        stage_import_health_fasting,
+        user_id,
+        db,
+        kind="health_fasting",
+        server_derived=_SERVER_DERIVED,
     )

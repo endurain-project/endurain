@@ -45,18 +45,18 @@ import modules.gears.gear.integration_service as gear_integration
 import modules.gears.gear.schema as gear_schema
 import modules.gears.gear_components.crud as components_crud
 import modules.gears.gear_components.schema as components_schema
-import modules.health.health_fasting.integration_service as fasting_integration
 import modules.health.health_fasting.schema as fasting_schema
-import modules.health.health_poop.integration_service as poop_integration
+import modules.health.health_fasting.service as fasting_service
 import modules.health.health_poop.schema as poop_schema
+import modules.health.health_poop.service as poop_service
 import modules.health.health_sleep.integration_service as sleep_integration
 import modules.health.health_sleep.schema as sleep_schema
 import modules.health.health_steps.integration_service as steps_health_integration
 import modules.health.health_steps.schema as steps_health_schema
-import modules.health.health_targets.integration_service as targets_integration
+import modules.health.health_targets.crud as targets_crud
 import modules.health.health_targets.schema as targets_schema
-import modules.health.health_water.integration_service as water_integration
 import modules.health.health_water.schema as water_schema
+import modules.health.health_water.service as water_service
 import modules.health.health_weight.integration_service as weight_integration
 import modules.health.health_weight.schema as weight_schema
 import modules.server_settings.models as server_settings_models
@@ -331,15 +331,16 @@ def _seed_health(db: Session, user_id: int) -> None:
         steps_health_integration.upsert_health_steps(
             user_id, steps_health_schema.HealthStepsCreate(date=date(2026, 7, day), steps=8_000 + day), db
         )
-        water_integration.upsert_health_water(
+        water_service.stage_upsert_health_water(
             user_id, water_schema.HealthWaterCreate(date=date(2026, 7, day), amount_ml=1_500.0 + day), db
         )
-    targets_integration.edit_health_targets(
+    targets_crud.edit_health_targets(
         targets_schema.HealthTargetsUpdate(weight=68.0, steps=10_000, sleep=28_800, water_ml=2_000, poop_count=1),
         user_id,
         db,
+        if_match="*",
     )
-    fasting_integration.import_health_fasting(
+    fasting_service.stage_import_health_fasting(
         user_id,
         fasting_schema.HealthFastingCreate(
             fast_start_time=datetime(2026, 7, 1, 20, 0, tzinfo=UTC),
@@ -350,7 +351,7 @@ def _seed_health(db: Session, user_id: int) -> None:
         ),
         db,
     )
-    poop_integration.import_health_poop(
+    poop_service.stage_import_health_poop(
         user_id,
         poop_schema.HealthPoopCreate(date_time=datetime(2026, 7, 1, 8, 0, tzinfo=UTC), bristol_type=4, notes="ok"),
         db,

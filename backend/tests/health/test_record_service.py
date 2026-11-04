@@ -1,4 +1,5 @@
 from datetime import date
+from typing import ClassVar
 from unittest.mock import MagicMock, patch
 
 import pytest
@@ -6,6 +7,7 @@ from sqlalchemy.orm.exc import StaleDataError
 
 import core.exceptions as core_exceptions
 import modules.health.constants as health_constants
+import modules.health.health_fasting.schema as health_fasting_schema
 import modules.health.health_steps.crud as health_steps_crud
 import modules.health.health_steps.schema as health_steps_schema
 import modules.health.record_service as health_record_service
@@ -110,3 +112,70 @@ class TestUpsertDated:
         assert record_id == 7
         assert isinstance(update, health_steps_schema.HealthStepsUpdate)
         assert update.steps == 10
+
+
+class TestRestoreArchivedRecords:
+    _IDENTITY: ClassVar[dict[str, int]] = {"id": 9, "user_id": 999, "version": 4}
+
+    @staticmethod
+    def _restore(rows, stage, **kwargs):
+        return health_record_service.restore_archived_records(
+            rows, health_steps_schema.HealthStepsCreate, stage, 1, MagicMock(), kind="health_steps", **kwargs
+        )
+
+    def test_stages_each_row_without_the_row_identity(self):
+        stage = MagicMock(return_value=True)
+
+        count = self._restore([{"date": "2024-01-15", "steps": 9000, **self._IDENTITY}], stage)
+
+        assert count == 1
+        user_id, record, _ = stage.call_args.args
+        assert user_id == 1
+        assert record.steps == 9000
+
+    def test_a_value_the_server_derives_is_dropped_from_an_archived_row(self):
+        stage = MagicMock(return_value=True)
+        row = {"fast_start_time": "2024-01-15T20:00:00Z", "actual_duration_seconds": 57600, "status": "completed"}
+        restore = lambda derived: health_record_service.restore_archived_records(  # noqa: E731
+            [row],
+            health_fasting_schema.HealthFastingCreate,
+            stage,
+            1,
+            MagicMock(),
+            kind="health_fasting",
+            server_derived=derived,
+        )
+
+        assert restore(frozenset()) == 0
+        assert restore(frozenset({"actual_duration_seconds"})) == 1
+        stage.assert_called_once()
+
+    def test_a_skipped_duplicate_is_not_counted(self):
+        stage = MagicMock(return_value=False)
+
+        assert self._restore([{"date": "2024-01-15", "steps": 5}], stage) == 0
+
+    def test_a_stage_that_returns_a_record_counts(self):
+        stage = MagicMock(return_value=MagicMock())
+
+        assert self._restore([{"date": "2024-01-15", "steps": 5}], stage) == 1
+
+    def test_an_invalid_row_is_skipped_and_the_rest_staged(self):
+        stage = MagicMock(return_value=True)
+
+        count = self._restore([{"steps": "many"}, {"unknown": 1}, {"date": "2024-01-16", "steps": 100}], stage)
+
+        assert count == 1
+        stage.assert_called_once()
+
+    def test_no_rows_stages_nothing(self):
+        stage = MagicMock(return_value=True)
+
+        assert self._restore([], stage) == 0
+        stage.assert_not_called()
+
+    def test_an_error_from_the_stage_is_not_swallowed(self):
+        stage = MagicMock(side_effect=core_exceptions.ConflictError("boom"))
+
+        with pytest.raises(core_exceptions.ConflictError):
+            self._restore([{"date": "2024-01-15", "steps": 5}], stage)

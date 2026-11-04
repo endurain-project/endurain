@@ -9,6 +9,7 @@ from sqlalchemy.orm import Session
 import modules.health.health_sleep.crud as health_sleep_crud
 import modules.health.health_sleep.schema as health_sleep_schema
 import modules.health.health_sleep.service as health_sleep_service
+import modules.users.users_profile.contracts as users_profile_contracts
 
 
 def get_health_sleep_by_date(user_id: int, date: str, db: Session) -> health_sleep_schema.HealthSleepRead | None:
@@ -44,14 +45,14 @@ def upsert_health_sleep(
     return health_sleep_service.stage_upsert_health_sleep(user_id, health_sleep, db)
 
 
-def list_health_sleep(user_id: int, db: Session) -> list[health_sleep_schema.HealthSleepRead]:
-    """Return all of a user's sleep records, newest first.
-
-    Args:
-        user_id: The records' owner.
-        db: Database session.
+def profile_section() -> users_profile_contracts.ProfileRecordsSection:
+    """Return the sleep records' section of a profile export and import.
 
     Returns:
-        The records.
+        The section, which exports a user's sleep records and stages the archived ones.
     """
-    return health_sleep_crud.get_health_sleep_by_user_id(user_id, db)
+    return users_profile_contracts.ProfileRecordsSection(
+        key="health_sleep",
+        export=health_sleep_crud.get_health_sleep_by_user_id,
+        restore=health_sleep_service.restore_profile_records,
+    )

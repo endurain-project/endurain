@@ -266,7 +266,7 @@ class TestInitializeOperationCounts:
         counts = profile_utils.initialize_operation_counts()
         assert counts["user_images"] == 0
         assert counts["user"] == 0
-        assert len(counts) == 14
+        assert len(counts) == 7
 
     def test_with_user_count(self):
         counts = profile_utils.initialize_operation_counts(include_user_count=True)
@@ -275,13 +275,6 @@ class TestInitializeOperationCounts:
     def test_all_expected_keys_present(self):
         counts = profile_utils.initialize_operation_counts()
         expected_keys = {
-            "health_weight",
-            "health_targets",
-            "health_sleep",
-            "health_steps",
-            "health_water",
-            "health_fasting",
-            "health_poop",
             "user_images",
             "user",
             "user_default_gear",

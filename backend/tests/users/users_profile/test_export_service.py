@@ -50,14 +50,6 @@ class _FakeZipBytes:
         assert name in z.namelist(), f"ZIP missing {name}, got {z.namelist()}"
 
 
-class _Record(BaseModel):
-    """A stored record as a lister returns it."""
-
-    id: int
-    user_id: int
-    version: int
-
-
 class TestExportPerformanceConfig:
     def test_tier_configs(self) -> None:
         configs = profile_export_service.ExportPerformanceConfig._get_tier_configs()
@@ -257,124 +249,6 @@ class TestExportServiceCollectProfileSections:
             _collect(self._service())
 
 
-class TestExportServiceCollectHealthWeight:
-    def test_collect_health_weight_with_data(self) -> None:
-        buf = io.BytesIO()
-        with zipfile.ZipFile(buf, "w", zipfile.ZIP_DEFLATED, compresslevel=6) as z:
-            mock_db = MagicMock(spec=Session)
-            service = profile_export_service.ExportService(user_id=1, storage=MagicMock(), db=mock_db)
-            service.performance_config.enable_memory_monitoring = False
-            mock_health = [MagicMock(), MagicMock()]
-
-            with (
-                patch(
-                    "modules.users.users_profile.export_service.health_weight_integration.list_health_weight",
-                    return_value=mock_health,
-                ),
-                patch(
-                    "modules.users.users_profile.export_service.health_targets_integration.get_health_targets",
-                    return_value=MagicMock(),
-                ),
-                patch.object(profile_utils, "model_to_dict", return_value={"id": 1}),
-            ):
-                service.collect_health_weight(z)
-
-        assert service.counts.get("health_weight", 0) >= 2
-
-    def test_collect_health_weight_crud_exception_raises_data_collection_error(self) -> None:
-        buf = io.BytesIO()
-        with zipfile.ZipFile(buf, "w", zipfile.ZIP_DEFLATED, compresslevel=6) as z:
-            mock_db = MagicMock(spec=Session)
-            service = profile_export_service.ExportService(user_id=1, storage=MagicMock(), db=mock_db)
-            service.performance_config.enable_memory_monitoring = False
-
-            with (
-                patch(
-                    "modules.users.users_profile.export_service.health_weight_integration.list_health_weight",
-                    side_effect=Exception("unexpected"),
-                ),
-                pytest.raises(DataCollectionError),
-            ):
-                service.collect_health_weight(z)
-
-    def test_collect_health_weight_no_data(self) -> None:
-        buf = io.BytesIO()
-        with zipfile.ZipFile(buf, "w", zipfile.ZIP_DEFLATED, compresslevel=6) as z:
-            mock_db = MagicMock(spec=Session)
-            service = profile_export_service.ExportService(user_id=1, storage=MagicMock(), db=mock_db)
-            service.performance_config.enable_memory_monitoring = False
-
-            with (
-                patch(
-                    "modules.users.users_profile.export_service.health_weight_integration.list_health_weight",
-                    return_value=[],
-                ),
-                patch(
-                    "modules.users.users_profile.export_service.health_targets_integration.get_health_targets",
-                    return_value=None,
-                ),
-            ):
-                service.collect_health_weight(z)
-
-
-class TestExportServiceCollectHealthRecords:
-    _NAMES = ("health_sleep", "health_steps", "health_water", "health_fasting", "health_poop")
-
-    def _service(self) -> profile_export_service.ExportService:
-        service = profile_export_service.ExportService(user_id=1, storage=MagicMock(), db=MagicMock(spec=Session))
-        service.performance_config.enable_memory_monitoring = False
-        return service
-
-    def _listers(self, rows: dict[str, list] | None = None, failure: Exception | None = None):
-        def lister(name: str):
-            if failure is not None:
-                return MagicMock(side_effect=failure)
-            return MagicMock(return_value=(rows or {}).get(name, []))
-
-        return patch.dict(profile_export_service._HEALTH_RECORD_LISTERS, {name: lister(name) for name in self._NAMES})
-
-    def test_writes_every_record_kind_to_its_own_file(self) -> None:
-        buf = io.BytesIO()
-        service = self._service()
-        rows = {name: [_Record(id=1, user_id=1, version=1)] for name in self._NAMES}
-
-        with zipfile.ZipFile(buf, "w", zipfile.ZIP_DEFLATED) as z, self._listers(rows):
-            service.collect_health_records(z)
-
-        with zipfile.ZipFile(buf) as z:
-            for name in self._NAMES:
-                assert json.loads(z.read(f"data/{name}.json")) == [{"id": 1, "user_id": 1, "version": 1}]
-        assert all(service.counts[name] == 1 for name in self._NAMES)
-
-    def test_a_kind_without_records_still_gets_an_empty_file(self) -> None:
-        buf = io.BytesIO()
-        service = self._service()
-
-        with zipfile.ZipFile(buf, "w", zipfile.ZIP_DEFLATED) as z, self._listers():
-            service.collect_health_records(z)
-
-        with zipfile.ZipFile(buf) as z:
-            assert all(json.loads(z.read(f"data/{name}.json")) == [] for name in self._NAMES)
-
-    def test_a_failing_read_raises_data_collection_error(self) -> None:
-        buf = io.BytesIO()
-        with (
-            zipfile.ZipFile(buf, "w", zipfile.ZIP_DEFLATED) as z,
-            self._listers(failure=Exception("boom")),
-            pytest.raises(DataCollectionError),
-        ):
-            self._service().collect_health_records(z)
-
-    def test_a_database_error_raises_database_connection_error(self) -> None:
-        buf = io.BytesIO()
-        with (
-            zipfile.ZipFile(buf, "w", zipfile.ZIP_DEFLATED) as z,
-            self._listers(failure=SQLAlchemyError("db")),
-            pytest.raises(DatabaseConnectionError),
-        ):
-            self._service().collect_health_records(z)
-
-
 class TestExportServiceCollectUserSettings:
     def test_collect_settings_all_empty(self) -> None:
         buf = io.BytesIO()
@@ -494,7 +368,6 @@ class TestExportServiceGenerateExportArchive:
 
         with (
             patch.object(service, "collect_profile_sections", return_value=[]),
-            patch.object(service, "collect_health_weight"),
             patch.object(service, "collect_user_settings_data"),
             patch.object(export_media_service, "add_user_images_to_zip"),
         ):
@@ -513,7 +386,7 @@ class TestExportServiceGenerateExportArchive:
 
         with (
             patch.object(service, "collect_profile_sections", return_value=[]),
-            patch.object(service, "collect_health_weight", side_effect=MemoryAllocationError("oom")),
+            patch.object(service, "collect_user_settings_data", side_effect=MemoryAllocationError("oom")),
             pytest.raises(MemoryAllocationError),
         ):
             service.build_export_archive(user_dict)
@@ -539,21 +412,6 @@ class TestExportPerformanceConfigEdgeCases:
         )
         with pytest.raises(RuntimeError, match="detection failed"):
             profile_export_service.ExportPerformanceConfig.get_auto_config()
-
-
-class TestExportServiceDbErrorWrapsDataCollectionError:
-    def test_health_weight_db_error_wraps_as_data_collection_error(self) -> None:
-        with zipfile.ZipFile(io.BytesIO(), "w", zipfile.ZIP_DEFLATED, compresslevel=6) as z:
-            service = profile_export_service.ExportService(user_id=1, storage=MagicMock(), db=MagicMock(spec=Session))
-            service.performance_config.enable_memory_monitoring = False
-            with (
-                patch(
-                    "modules.users.users_profile.export_service.health_weight_integration.list_health_weight",
-                    side_effect=SQLAlchemyError("db down"),
-                ),
-                pytest.raises(DataCollectionError),
-            ):
-                service.collect_health_weight(z)
 
 
 class TestExportServiceCollectUserSettingsEdgeCases:
@@ -649,7 +507,7 @@ class TestExportServiceGenerateExportArchiveEdgeCases:
 
         with (
             patch.object(service, "collect_profile_sections", return_value=[]),
-            patch.object(service, "collect_health_weight", side_effect=DataCollectionError("collect failed")),
+            patch.object(service, "collect_user_settings_data", side_effect=DataCollectionError("collect failed")),
             pytest.raises(DataCollectionError),
         ):
             service.build_export_archive({"id": 1}, timeout_seconds=60)
@@ -668,7 +526,6 @@ class TestExportServiceGenerateExportArchiveEdgeCases:
                 side_effect=ExportTimeoutError("timed out"),
             ),
             patch.object(service, "collect_profile_sections", return_value=[]),
-            patch.object(service, "collect_health_weight"),
             patch.object(service, "collect_user_settings_data"),
             patch.object(export_media_service, "add_user_images_to_zip"),
             pytest.raises(ExportTimeoutError),
@@ -683,7 +540,7 @@ class TestExportServiceGenerateExportArchiveEdgeCases:
 
         with (
             patch.object(service, "collect_profile_sections", return_value=[]),
-            patch.object(service, "collect_health_weight", side_effect=OSError("disk full")),
+            patch.object(service, "collect_user_settings_data", side_effect=OSError("disk full")),
             pytest.raises(FileSystemError),
         ):
             service.build_export_archive({"id": 1}, timeout_seconds=60)
@@ -696,7 +553,7 @@ class TestExportServiceGenerateExportArchiveEdgeCases:
 
         with (
             patch.object(service, "collect_profile_sections", return_value=[]),
-            patch.object(service, "collect_health_weight", side_effect=MemoryError("OOM")),
+            patch.object(service, "collect_user_settings_data", side_effect=MemoryError("OOM")),
             pytest.raises(MemoryAllocationError),
         ):
             service.build_export_archive({"id": 1}, timeout_seconds=60)
@@ -746,7 +603,6 @@ def test_the_database_phase_ends_before_the_storage_phase() -> None:
 
     with (
         patch.object(service, "collect_profile_sections", return_value=[]),
-        patch.object(service, "collect_health_weight"),
         patch.object(service, "collect_user_settings_data") as settings,
         patch.object(export_media_service, "add_user_images_to_zip") as files,
     ):
@@ -771,7 +627,7 @@ def test_a_failed_build_leaves_no_archive_open() -> None:
     with (
         patch.object(service, "collect_profile_sections", return_value=[]),
         patch("modules.users.users_profile.export_service.tempfile.TemporaryFile", side_effect=tracking),
-        patch.object(service, "collect_health_weight", side_effect=DataCollectionError("boom")),
+        patch.object(service, "collect_user_settings_data", side_effect=DataCollectionError("boom")),
         pytest.raises(DataCollectionError),
     ):
         service.build_export_archive({"id": 1})

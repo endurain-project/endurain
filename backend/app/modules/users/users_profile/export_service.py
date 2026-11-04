@@ -16,22 +16,14 @@ import contextlib
 import tempfile
 import time
 import zipfile
-from collections.abc import Callable, Sequence
+from collections.abc import Callable
 from typing import IO, Any, BinaryIO, Self
 
 import jasil.providers as platform_providers
-from pydantic import BaseModel
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import Session
 
 import core.logger as core_logger
-import modules.health.health_fasting.integration_service as health_fasting_integration
-import modules.health.health_poop.integration_service as health_poop_integration
-import modules.health.health_sleep.integration_service as health_sleep_integration
-import modules.health.health_steps.integration_service as health_steps_integration
-import modules.health.health_targets.integration_service as health_targets_integration
-import modules.health.health_water.integration_service as health_water_integration
-import modules.health.health_weight.integration_service as health_weight_integration
 import modules.users.contributor_registry as users_contributor_registry
 import modules.users.users_default_gear.integration_service as users_default_gear_integration
 import modules.users.users_default_gear.schema as user_default_gear_schema
@@ -52,15 +44,6 @@ from modules.users.users_profile.exceptions import (
 )
 
 logger = core_logger.get_logger(__name__)
-
-#: The health record kinds exported beside weight, each with the call that lists a user's records.
-_HEALTH_RECORD_LISTERS: dict[str, Callable[[int, Session], Sequence[BaseModel]]] = {
-    "health_sleep": health_sleep_integration.list_health_sleep,
-    "health_steps": health_steps_integration.list_health_steps,
-    "health_water": health_water_integration.list_health_water,
-    "health_fasting": health_fasting_integration.list_health_fasting,
-    "health_poop": health_poop_integration.list_health_poop,
-}
 
 
 class ExportPerformanceConfig(users_profile_utils.BasePerformanceConfig):
@@ -231,74 +214,6 @@ class ExportService:
             operation, self.performance_config.max_memory_mb, self.performance_config.enable_memory_monitoring
         )
 
-    def collect_health_weight(self, zipf: zipfile.ZipFile) -> None:
-        """Collect and write health data to ZIP.
-
-        Args:
-            zipf: ZipFile instance to write to.
-
-        Raises:
-            DatabaseConnectionError: If database error occurs.
-        """
-        try:
-            # Collect and write health data
-            try:
-                health_weight = health_weight_integration.list_health_weight(self.user_id, self.db)
-                if health_weight:
-                    health_weight_dicts = [users_profile_utils.model_to_dict(hd) for hd in health_weight]
-                    users_profile_utils.write_json_to_zip(
-                        zipf,
-                        "data/health_weight.json",
-                        health_weight_dicts,
-                        self.counts,
-                    )
-                else:
-                    users_profile_utils.write_json_to_zip(zipf, "data/health_weight.json", [], self.counts)
-            except Exception as err:
-                raise DataCollectionError(f"Failed to collect health data: {err}") from err
-
-            # Collect and write health targets
-            try:
-                health_targets = health_targets_integration.get_health_targets(self.user_id, self.db)
-                if health_targets:
-                    # health_targets is a single object, not a list
-                    health_targets_dict = users_profile_utils.model_to_dict(health_targets)
-                    users_profile_utils.write_json_to_zip(
-                        zipf,
-                        "data/health_targets.json",
-                        [health_targets_dict],
-                        self.counts,
-                    )
-                else:
-                    users_profile_utils.write_json_to_zip(zipf, "data/health_targets.json", [], self.counts)
-            except Exception as err:
-                raise DataCollectionError(f"Failed to collect health targets: {err}") from err
-
-        except SQLAlchemyError as err:
-            raise DatabaseConnectionError("Failed to collect health data") from err
-
-    def collect_health_records(self, zipf: zipfile.ZipFile) -> None:
-        """Collect and write sleep, steps, water, fasting and poop records to ZIP.
-
-        Args:
-            zipf: ZipFile instance to write to.
-
-        Raises:
-            DataCollectionError: If a kind of record cannot be collected.
-            DatabaseConnectionError: If database error occurs.
-        """
-        try:
-            for name, list_records in _HEALTH_RECORD_LISTERS.items():
-                try:
-                    records = [users_profile_utils.model_to_dict(r) for r in list_records(self.user_id, self.db)]
-                except SQLAlchemyError:
-                    raise
-                except Exception as err:
-                    raise DataCollectionError(f"Failed to collect {name}: {err}") from err
-                users_profile_utils.write_json_to_zip(zipf, f"data/{name}.json", records, self.counts)
-        except SQLAlchemyError as err:
-            raise DatabaseConnectionError("Failed to collect health records") from err
-
     def collect_user_settings_data(self, zipf: zipfile.ZipFile) -> None:
         """Collect and write user settings to ZIP.
 
@@ -443,15 +358,9 @@ class ExportService:
                 def check_export_timeout() -> None:
                     users_profile_utils.check_timeout(timeout_seconds, start_time, ExportTimeoutError, "Export")
 
-                # Database phase first: the registered sections, health and settings.
+                # Database phase first: the registered sections and settings.
                 writer = users_profile_utils.ZipArchiveWriter(zipf, self.counts)
                 section_files = self.collect_profile_sections(writer, check_export_timeout)
-
-                users_profile_utils.check_timeout(timeout_seconds, start_time, ExportTimeoutError, "Export")
-                self.collect_health_weight(zipf)
-
-                users_profile_utils.check_timeout(timeout_seconds, start_time, ExportTimeoutError, "Export")
-                self.collect_health_records(zipf)
 
                 users_profile_utils.check_timeout(timeout_seconds, start_time, ExportTimeoutError, "Export")
                 self.collect_user_settings_data(zipf)

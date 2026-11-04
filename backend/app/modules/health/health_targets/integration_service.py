@@ -7,6 +7,8 @@ from sqlalchemy.orm import Session
 
 import modules.health.health_targets.crud as health_targets_crud
 import modules.health.health_targets.schema as health_targets_schema
+import modules.health.health_targets.service as health_targets_service
+import modules.users.users_profile.contracts as users_profile_contracts
 
 
 def get_health_targets(user_id: int, db: Session) -> health_targets_schema.HealthTargetsRead | None:
@@ -38,23 +40,26 @@ def create_health_targets(user_id: int, db: Session) -> health_targets_schema.He
     return health_targets_crud.create_health_targets(user_id, db)
 
 
-def edit_health_targets(
-    health_targets: health_targets_schema.HealthTargetsUpdate,
-    user_id: int,
-    db: Session,
-) -> health_targets_schema.HealthTargetsRead:
-    """Stage an update to a user's health targets.
+def _export_health_targets(user_id: int, db: Session) -> list[health_targets_schema.HealthTargetsRead]:
+    """Return a user's health targets as the one-record list an archive carries.
 
     Args:
-        health_targets: The fields to update.
         user_id: The targets' owner.
         db: Database session.
 
     Returns:
-        The updated targets.
-
-    Raises:
-        NotFoundError: If the user has no targets.
+        The targets, or an empty list when the user has none.
     """
-    # The caller is a system writer (the profile importer), so it names no version.
-    return health_targets_crud.edit_health_targets(health_targets, user_id, db, if_match="*")
+    targets = health_targets_crud.get_health_targets_by_user_id(user_id, db)
+    return [targets] if targets else []
+
+
+def profile_section() -> users_profile_contracts.ProfileRecordsSection:
+    """Return the health targets' section of a profile export and import.
+
+    Returns:
+        The section, which exports a user's targets and edits the ones the account has with the archived ones.
+    """
+    return users_profile_contracts.ProfileRecordsSection(
+        key="health_targets", export=_export_health_targets, restore=health_targets_service.restore_profile_records
+    )

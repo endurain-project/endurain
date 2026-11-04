@@ -10,6 +10,7 @@ from sqlalchemy.orm import Session
 import modules.health.health_weight.crud as health_weight_crud
 import modules.health.health_weight.schema as health_weight_schema
 import modules.health.health_weight.service as health_weight_service
+import modules.users.users_profile.contracts as users_profile_contracts
 
 
 def get_latest_health_weight(
@@ -42,19 +43,6 @@ def get_health_weight_by_date(user_id: int, date: str, db: Session) -> health_we
     return health_weight_crud.get_health_weight_by_date_and_user_id(user_id, date, db)
 
 
-def list_health_weight(user_id: int, db: Session) -> list[health_weight_schema.HealthWeightRead]:
-    """Return all of a user's weight records, newest first.
-
-    Args:
-        user_id: The records' owner.
-        db: Database session.
-
-    Returns:
-        The records.
-    """
-    return health_weight_crud.get_all_health_weight_by_user_id(user_id, db)
-
-
 def upsert_health_weight(
     user_id: int, health_weight: health_weight_schema.HealthWeightCreate, db: Session
 ) -> health_weight_schema.HealthWeightRead:
@@ -85,3 +73,16 @@ def recalculate_bmi_for_user(user_id: int, height_cm: float | None, db: Session)
         db: Database session.
     """
     health_weight_crud.recalculate_bmi_for_user(user_id, height_cm, db)
+
+
+def profile_section() -> users_profile_contracts.ProfileRecordsSection:
+    """Return the weight records' section of a profile export and import.
+
+    Returns:
+        The section, which exports a user's weight records and stages the archived ones.
+    """
+    return users_profile_contracts.ProfileRecordsSection(
+        key="health_weight",
+        export=health_weight_crud.get_all_health_weight_by_user_id,
+        restore=health_weight_service.restore_profile_records,
+    )

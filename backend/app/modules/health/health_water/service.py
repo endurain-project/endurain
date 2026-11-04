@@ -6,6 +6,7 @@ resolution and the transaction boundary. What other modules may consume lives in
 """
 
 from decimal import Decimal
+from typing import Any
 
 from sqlalchemy.orm import Session
 
@@ -18,6 +19,7 @@ import modules.health.health_water.schema as health_water_schema
 import modules.health.record_service as health_record_service
 import modules.health.schema as health_schema
 import modules.users.users.integration_service as users_integration
+import modules.users.users_profile.contracts as users_profile_contracts
 
 logger = core_logger.get_logger(__name__)
 
@@ -250,4 +252,28 @@ def get_health_water_chart(
         interval,
         lambda since, bucket: health_water_crud.get_health_water_chart(user_id, since, bucket, db),
         db,
+    )
+
+
+def restore_profile_records(
+    records: list[dict[str, Any]], user_id: int, ids: users_profile_contracts.ProfileIdMaps, db: Session
+) -> int:
+    """Stage the water records of a profile archive for a user.
+
+    Args:
+        records: The archived rows.
+        user_id: The importing user.
+        ids: The ids restored by earlier sections; the water records read none.
+        db: Database session.
+
+    Returns:
+        The number of records staged.
+    """
+    return health_record_service.restore_archived_records(
+        records,
+        health_water_schema.HealthWaterCreate,
+        stage_upsert_health_water,
+        user_id,
+        db,
+        kind="health_water",
     )

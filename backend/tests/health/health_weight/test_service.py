@@ -223,3 +223,36 @@ class TestFutureDate:
             health_weight_service.edit_health_weight(1, 5, update, mock_db, if_match="1")
 
         mock_edit.assert_not_called()
+
+
+class TestRestoreProfileRecords:
+    @patch(f"{_PREFIX}.stage_upsert_health_weight")
+    def test_stages_each_row_without_the_row_identity(self, mock_upsert, mock_db):
+        rows = [{"id": 9, "user_id": 999, "version": 4, "date": "2024-01-15", "weight": 75.5}]
+
+        assert health_weight_service.restore_profile_records(rows, 1, {}, mock_db) == 1
+
+        user_id, record, db = mock_upsert.call_args.args
+        assert (user_id, db) == (1, mock_db)
+        assert record.weight == 75.5
+
+    @patch(f"{_PREFIX}.stage_upsert_health_weight")
+    def test_numbers_archived_as_strings_are_read_as_numbers(self, mock_upsert, mock_db):
+        rows = [{"date": "2024-01-15", "weight": "75.5", "bmi": "24.1", "physique_rating": "5", "metabolic_age": "30"}]
+
+        assert health_weight_service.restore_profile_records(rows, 1, {}, mock_db) == 1
+
+        record = mock_upsert.call_args.args[1]
+        assert (record.weight, record.bmi, record.physique_rating, record.metabolic_age) == (75.5, 24.1, 5, 30)
+
+    @patch(f"{_PREFIX}.stage_upsert_health_weight")
+    def test_a_number_that_cannot_be_read_leaves_a_record_that_is_skipped(self, mock_upsert, mock_db):
+        rows = [{"weight": "abc", "physique_rating": "xyz", "metabolic_age": "invalid"}]
+
+        assert health_weight_service.restore_profile_records(rows, 1, {}, mock_db) == 0
+        mock_upsert.assert_not_called()
+
+    @patch(f"{_PREFIX}.stage_upsert_health_weight")
+    def test_no_rows_stages_nothing(self, mock_upsert, mock_db):
+        assert health_weight_service.restore_profile_records([], 1, {}, mock_db) == 0
+        mock_upsert.assert_not_called()

@@ -6,7 +6,9 @@ consume lives in :mod:`modules.health.health_weight.integration_service`.
 """
 
 from datetime import date as datetime_date
+from typing import Any
 
+from pydantic import ValidationError
 from sqlalchemy.orm import Session
 
 import core.exceptions as core_exceptions
@@ -19,6 +21,7 @@ import modules.health.health_weight.schema as health_weight_schema
 import modules.health.record_service as health_record_service
 import modules.health.schema as health_schema
 import modules.users.users.integration_service as users_integration
+import modules.users.users_profile.contracts as users_profile_contracts
 
 logger = core_logger.get_logger(__name__)
 
@@ -343,3 +346,50 @@ def get_health_weight_chart(
         lambda since, bucket: health_weight_crud.get_health_weight_chart(user_id, since, bucket, db),
         db,
     )
+
+
+def restore_profile_records(
+    records: list[dict[str, Any]], user_id: int, ids: users_profile_contracts.ProfileIdMaps, db: Session
+) -> int:
+    """Stage the weight records of a profile archive for a user.
+
+    Args:
+        records: The archived rows.
+        user_id: The importing user.
+        ids: The ids restored by earlier sections; the weight records read none.
+        db: Database session.
+
+    Returns:
+        The number of records staged.
+    """
+    staged = 0
+    for health_weight in records:
+        health_weight = users_profile_contracts.without_row_identity(health_weight)
+
+        # Convert string numeric values to floats
+        numeric_fields = ["weight", "bmi", "body_fat", "body_water", "bone_mass", "muscle_mass", "visceral_fat"]
+        for field in numeric_fields:
+            if field in health_weight and isinstance(health_weight[field], str):
+                try:
+                    health_weight[field] = float(health_weight[field])
+                except (ValueError, TypeError):
+                    health_weight[field] = None
+
+        # Convert integer fields
+        int_fields = ["physique_rating", "metabolic_age"]
+        for field in int_fields:
+            if field in health_weight and isinstance(health_weight[field], str):
+                try:
+                    health_weight[field] = int(health_weight[field])
+                except (ValueError, TypeError):
+                    health_weight[field] = None
+
+        try:
+            data = health_weight_schema.HealthWeightCreate(**health_weight)
+        except ValidationError:
+            logger.warning("Skipped an invalid health weight record")
+            continue
+        stage_upsert_health_weight(user_id, data, db)
+        staged += 1
+    logger.debug("Imported health weight records", extra=core_logger.context(count=staged))
+    return staged

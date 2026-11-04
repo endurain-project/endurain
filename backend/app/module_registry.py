@@ -83,7 +83,12 @@ import modules.gears.gear.constants as gear_constants
 import modules.gears.gear.integration_service as gear_integration
 import modules.gears.gear_components.constants as gear_components_constants
 import modules.gears.gear_components.integration_service as gear_components_integration
+import modules.health.health_fasting.integration_service as health_fasting_integration
+import modules.health.health_poop.integration_service as health_poop_integration
+import modules.health.health_sleep.integration_service as health_sleep_integration
+import modules.health.health_steps.integration_service as health_steps_integration
 import modules.health.health_targets.integration_service as health_targets_integration
+import modules.health.health_water.integration_service as health_water_integration
 import modules.health.health_weight.integration_service as health_weight_integration
 import modules.notifications.scheduled_jobs as notifications_scheduled_jobs
 import modules.notifications.subscriber_registry as notifications_subscriber_registry
@@ -561,6 +566,13 @@ def configure_user_contributors() -> None:
         )
     )
     users_contributor_registry.register_profile_section(activity_profile_transfer_integration.profile_section())
+    users_contributor_registry.register_profile_section(health_weight_integration.profile_section())
+    users_contributor_registry.register_profile_section(health_targets_integration.profile_section())
+    users_contributor_registry.register_profile_section(health_sleep_integration.profile_section())
+    users_contributor_registry.register_profile_section(health_steps_integration.profile_section())
+    users_contributor_registry.register_profile_section(health_water_integration.profile_section())
+    users_contributor_registry.register_profile_section(health_fasting_integration.profile_section())
+    users_contributor_registry.register_profile_section(health_poop_integration.profile_section())
 
 
 def register_bus_subscribers(events: EventBusProvider) -> None:

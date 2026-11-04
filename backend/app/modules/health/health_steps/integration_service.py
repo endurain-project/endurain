@@ -8,6 +8,7 @@ from sqlalchemy.orm import Session
 import modules.health.health_steps.crud as health_steps_crud
 import modules.health.health_steps.schema as health_steps_schema
 import modules.health.health_steps.service as health_steps_service
+import modules.users.users_profile.contracts as users_profile_contracts
 
 
 def get_health_steps_by_date(user_id: int, date: str, db: Session) -> health_steps_schema.HealthStepsRead | None:
@@ -43,14 +44,14 @@ def upsert_health_steps(
     return health_steps_service.stage_upsert_health_steps(user_id, health_steps, db)
 
 
-def list_health_steps(user_id: int, db: Session) -> list[health_steps_schema.HealthStepsRead]:
-    """Return all of a user's steps records, newest first.
-
-    Args:
-        user_id: The records' owner.
-        db: Database session.
+def profile_section() -> users_profile_contracts.ProfileRecordsSection:
+    """Return the steps records' section of a profile export and import.
 
     Returns:
-        The records.
+        The section, which exports a user's steps records and stages the archived ones.
     """
-    return health_steps_crud.get_health_steps_by_user_id(user_id, db)
+    return users_profile_contracts.ProfileRecordsSection(
+        key="health_steps",
+        export=health_steps_crud.get_health_steps_by_user_id,
+        restore=health_steps_service.restore_profile_records,
+    )
