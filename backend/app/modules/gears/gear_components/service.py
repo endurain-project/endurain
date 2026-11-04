@@ -5,7 +5,9 @@ lives in :mod:`modules.gears.gear_components.integration_service`.
 """
 
 from datetime import date
+from typing import Any
 
+from pydantic import ValidationError
 from sqlalchemy.orm import Session
 
 import core.etag as core_etag
@@ -14,6 +16,7 @@ import core.logger as core_logger
 import core.pagination as core_pagination
 import modules.gears.contracts as gears_contracts
 import modules.gears.contributor_registry as gears_contributor_registry
+import modules.gears.gear.constants as gears_constants
 import modules.gears.gear.integration_service as gears_integration
 import modules.gears.gear.schema as gears_schema
 import modules.gears.gear_components.constants as gear_components_constants
@@ -173,6 +176,53 @@ def create_gear_component(
     db.commit()
     logger.info("Created a gear component", extra=core_logger.context(user_id=user_id, gear_component_id=created.id))
     return created
+
+
+def restore_profile_gear_components(
+    records: list[dict[str, Any]], user_id: int, ids: dict[str, dict[int, int]], db: Session
+) -> int:
+    """Stage the gear components of a profile archive; the caller commits.
+
+    Each component moves onto the stored gear its archived gear was restored as; one whose gear is not
+    in ``ids["gears"]`` is skipped.
+
+    Args:
+        records: The archived components.
+        user_id: The importing user.
+        ids: The ids restored so far.
+        db: Database session.
+
+    Returns:
+        How many components were staged.
+    """
+    gears_id_mapping = ids.get(gears_constants.PROFILE_ARCHIVE_KEY, {})
+    restored = 0
+    for record in records:
+        archived_gear_id = record.get("gear_id")
+        new_gear_id = gears_id_mapping.get(archived_gear_id) if isinstance(archived_gear_id, int) else None
+        if new_gear_id is None:
+            logger.warning("Skipped a gear component whose gear is not in the archive")
+            continue
+        record["gear_id"] = new_gear_id
+
+        for owner_or_derived in ("id", "version", "user_id", "current_distance", "current_time"):
+            record.pop(owner_or_derived, None)
+
+        try:
+            gear_component = gear_components_schema.GearComponentCreate(**record)
+        except ValidationError:
+            logger.warning("Skipped an invalid gear component")
+            continue
+        if not gear_components_schema.is_retired_after_purchase(
+            gear_component.purchase_date, gear_component.retired_date
+        ):
+            logger.warning("Skipped a gear component retired on or before its purchase date")
+            continue
+        gear_components_crud.create_gear_component(gear_component, user_id, db)
+        restored += 1
+
+    logger.debug("Imported gear components", extra=core_logger.context(count=restored))
+    return restored
 
 
 def edit_gear_component(

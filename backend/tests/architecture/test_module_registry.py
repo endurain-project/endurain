@@ -166,6 +166,16 @@ class TestConfigureUserContributors:
         readers = users_contributor_registry.profile_readers()
         assert readers.follow_counts is runtime_module_registry.followers_integration.get_profile_follow_counts
 
+    def test_registers_the_profile_sections_in_import_order(self):
+        import modules.users.contributor_registry as users_contributor_registry
+
+        runtime_module_registry.configure_user_contributors()
+        runtime_module_registry.configure_user_contributors()
+
+        sections = users_contributor_registry.profile_sections()
+        assert [section.key for section in sections] == ["gears", "gear_components"]
+        assert len({section.key for section in sections}) == len(sections)
+
 
 class TestConfigureAudit:
     """Every module's audit actions are registered, and the auth provider says who is acting."""

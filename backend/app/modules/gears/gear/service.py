@@ -6,7 +6,9 @@ lives in :mod:`modules.gears.gear.integration_service`.
 """
 
 from collections.abc import Iterable
+from typing import Any
 
+from pydantic import ValidationError
 from sqlalchemy.orm import Session
 
 import core.etag as core_etag
@@ -14,6 +16,7 @@ import core.exceptions as core_exceptions
 import core.logger as core_logger
 import core.pagination as core_pagination
 import modules.gears.contributor_registry as gears_contributor_registry
+import modules.gears.gear.constants as gears_constants
 import modules.gears.gear.crud as gears_crud
 import modules.gears.gear.schema as gears_schema
 
@@ -145,6 +148,74 @@ def stage_gears(gears: Iterable[gears_schema.GearCreate | None], user_id: int, d
     new_gears = [gear for nickname, gear in candidates.items() if nickname not in existing]
     if new_gears:
         gears_crud.create_gears(new_gears, user_id, db)
+
+
+def restore_profile_gears(
+    records: list[dict[str, Any]], user_id: int, ids: dict[str, dict[int, int]], db: Session
+) -> int:
+    """Stage the gears of a profile archive; the caller commits.
+
+    A gear whose nickname the user already has maps onto that gear. A provider gear ID the user already
+    holds on another gear is dropped, so the archive cannot make the import fail. The archived-to-stored
+    ids are published under ``ids["gears"]``, even when the archive lists none.
+
+    Args:
+        records: The archived gears.
+        user_id: The importing user.
+        ids: The ids restored so far; receives this section's.
+        db: Database session.
+
+    Returns:
+        How many gears were restored or matched.
+    """
+    mapping: dict[int, int] = {}
+    ids[gears_constants.PROFILE_ARCHIVE_KEY] = mapping
+    restored = 0
+    for record in records:
+        record["user_id"] = user_id
+        original_id = record.pop("id", None)
+        record.pop("version", None)
+
+        try:
+            gear = gears_schema.GearCreate(**record)
+        except ValidationError:
+            logger.warning("Skipped an invalid gear")
+            continue
+        new_id = _restore_gear(gear, user_id, db)
+        # Only an archived id can be named by the archive's components and default gear.
+        if isinstance(original_id, int):
+            mapping[original_id] = new_id
+        restored += 1
+
+    logger.debug("Imported gears", extra=core_logger.context(count=restored))
+    return restored
+
+
+def _restore_gear(gear: gears_schema.GearCreate, user_id: int, db: Session) -> int:
+    """Stage one archived gear, tolerating what the user already has.
+
+    Args:
+        gear: The gear from the archive.
+        user_id: The importing user.
+        db: Database session.
+
+    Returns:
+        The ID of the gear the archived one maps to.
+    """
+    existing = gears_crud.get_gear_user_by_nickname(user_id, gear.nickname, db)
+    if existing is not None:
+        return existing.id
+    try:
+        with db.begin_nested():
+            return gears_crud.create_gear(gear, user_id, db).id
+    except core_exceptions.ConflictError:
+        existing = gears_crud.get_gear_user_by_nickname(user_id, gear.nickname, db)
+        if existing is not None:
+            return existing.id
+        logger.warning("Dropped the provider gear IDs of an imported gear that are already taken")
+    without_ids = gear.model_copy(update={"strava_gear_id": None, "garminconnect_gear_id": None})
+    with db.begin_nested():
+        return gears_crud.create_gear(without_ids, user_id, db).id
 
 
 def edit_gear(

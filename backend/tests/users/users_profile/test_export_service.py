@@ -11,6 +11,8 @@ from pydantic import BaseModel
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import Session
 
+import modules.users.contributor_registry as users_contributor_registry
+import modules.users.users_profile.contracts as users_profile_contracts
 import modules.users.users_profile.export_activity_service as export_activity_service
 import modules.users.users_profile.export_media_service as export_media_service
 import modules.users.users_profile.export_service as profile_export_service
@@ -136,93 +138,130 @@ def _read_json(buf: io.BytesIO, name: str):
         return json.loads(archive.read(name))
 
 
-class TestExportServiceCollectGearData:
-    def test_collect_gear_empty_components(self) -> None:
-        buf = io.BytesIO()
-        with zipfile.ZipFile(buf, "w", zipfile.ZIP_DEFLATED, compresslevel=6) as z:
-            mock_db = MagicMock(spec=Session)
-            service = profile_export_service.ExportService(user_id=1, storage=MagicMock(), db=mock_db)
-            service.performance_config.enable_memory_monitoring = False
+class _GearRecord(BaseModel):
+    """A stored record as a section's export returns it."""
 
-            with (
-                patch("modules.users.users_profile.export_service.gear_integration.get_gear_user", return_value=[]),
-                patch(
-                    "modules.users.users_profile.export_service.gear_components_integration.get_gear_components_user",
-                    return_value=[],
-                ),
-            ):
-                service.collect_gear_data(z)
+    id: int
 
-    def test_collect_gear_with_data(self) -> None:
-        buf = io.BytesIO()
-        with zipfile.ZipFile(buf, "w", zipfile.ZIP_DEFLATED, compresslevel=6) as z:
-            mock_db = MagicMock(spec=Session)
-            service = profile_export_service.ExportService(user_id=1, storage=MagicMock(), db=mock_db)
-            service.performance_config.enable_memory_monitoring = False
-            mock_gears = [MagicMock(), MagicMock()]
 
-            with (
-                patch(
-                    "modules.users.users_profile.export_service.gear_integration.get_gear_user",
-                    return_value=mock_gears,
-                ),
-                patch.object(profile_utils, "model_to_dict", return_value={"id": 1}),
-            ):
-                service.collect_gear_data(z)
+def _records_section(key: str = "gears", export=None) -> users_profile_contracts.ProfileRecordsSection:
+    return users_profile_contracts.ProfileRecordsSection(
+        key=key, export=export or (lambda user_id, db: []), restore=lambda records, user_id, ids, db: 0
+    )
 
+
+@pytest.fixture
+def sections():
+    users_contributor_registry.clear()
+    yield users_contributor_registry
+    users_contributor_registry.clear()
+
+
+def _collect(service, timeout_calls=None):
+    buf = io.BytesIO()
+    with zipfile.ZipFile(buf, "w", zipfile.ZIP_DEFLATED) as z:
+        writer = profile_utils.ZipArchiveWriter(z, service.counts)
+        files = service.collect_profile_sections(
+            writer, (lambda: timeout_calls.append(1)) if timeout_calls is not None else lambda: None
+        )
+    return buf, files
+
+
+class TestExportServiceCollectProfileSections:
+    def _service(self):
+        service = profile_export_service.ExportService(user_id=1, storage=MagicMock(), db=MagicMock(spec=Session))
+        service.performance_config.enable_memory_monitoring = False
+        return service
+
+    def test_a_records_section_writes_its_entry_and_counts_it(self, sections) -> None:
+        sections.register_profile_section(
+            _records_section("gears", lambda user_id, db: [_GearRecord(id=1), _GearRecord(id=2)])
+        )
+        service = self._service()
+
+        buf, files = _collect(service)
+
+        assert _read_json(buf, "data/gears.json") == [{"id": 1}, {"id": 2}]
         assert service.counts["gears"] == 2
+        assert files == []
 
-    def test_collect_gear_no_data(self) -> None:
-        buf = io.BytesIO()
-        with zipfile.ZipFile(buf, "w", zipfile.ZIP_DEFLATED, compresslevel=6) as z:
-            mock_db = MagicMock(spec=Session)
-            service = profile_export_service.ExportService(user_id=1, storage=MagicMock(), db=mock_db)
-            service.performance_config.enable_memory_monitoring = False
+    def test_an_empty_section_still_writes_its_entry_and_count(self, sections) -> None:
+        sections.register_profile_section(_records_section("gear_components"))
+        service = self._service()
 
-            with patch(
-                "modules.users.users_profile.export_service.gear_integration.get_gear_user",
-                return_value=[],
-            ):
-                service.collect_gear_data(z)
+        buf, _ = _collect(service)
 
-        # Empty data: no count increment
-        assert service.counts.get("gears", 0) == 0
+        assert _read_json(buf, "data/gear_components.json") == []
+        assert service.counts["gear_components"] == 0
 
-    def test_collect_gear_with_exception_raises_data_collection_error(self) -> None:
-        buf = io.BytesIO()
-        with zipfile.ZipFile(buf, "w", zipfile.ZIP_DEFLATED, compresslevel=6) as z:
-            mock_db = MagicMock(spec=Session)
-            service = profile_export_service.ExportService(user_id=1, storage=MagicMock(), db=mock_db)
-            service.performance_config.enable_memory_monitoring = False
+    def test_sections_run_in_registration_order_after_a_timeout_check_each(self, sections) -> None:
+        order: list[str] = []
+        for key in ("b", "a", "c"):
+            sections.register_profile_section(
+                _records_section(key, lambda user_id, db, key=key: order.append(key) or [])
+            )
+        timeout_calls: list[int] = []
 
-            with (
-                patch(
-                    "modules.users.users_profile.export_service.gear_integration.get_gear_user",
-                    side_effect=Exception("unexpected"),
-                ),
-                pytest.raises(DataCollectionError),
-            ):
-                service.collect_gear_data(z)
+        _collect(self._service(), timeout_calls)
 
-    def test_collect_gear_components_exception_raises_data_collection_error(self) -> None:
-        buf = io.BytesIO()
-        with zipfile.ZipFile(buf, "w", zipfile.ZIP_DEFLATED, compresslevel=6) as z:
-            mock_db = MagicMock(spec=Session)
-            service = profile_export_service.ExportService(user_id=1, storage=MagicMock(), db=mock_db)
-            service.performance_config.enable_memory_monitoring = False
+        assert order == ["b", "a", "c"]
+        assert len(timeout_calls) == 3
 
-            with (
-                patch(
-                    "modules.users.users_profile.export_service.gear_integration.get_gear_user",
-                    return_value=[],
-                ),
-                patch(
-                    "modules.users.users_profile.export_service.gear_components_integration.get_gear_components_user",
-                    side_effect=Exception("components fail"),
-                ),
-                pytest.raises(DataCollectionError),
-            ):
-                service.collect_gear_data(z)
+    def test_an_archive_section_gets_the_context_and_its_files_are_returned(self, sections) -> None:
+        seen = []
+        after_commit = MagicMock()
+
+        def export(context: users_profile_contracts.ProfileExportContext):
+            seen.append(context)
+            context.archive.write_json("data/extra.json", [_GearRecord(id=7)])
+            return after_commit
+
+        sections.register_profile_section(
+            users_profile_contracts.ProfileArchiveSection(key="extra", export=export, restore=lambda context: None)
+        )
+        service = self._service()
+
+        _, files = _collect(service)
+
+        assert files == [after_commit]
+        assert seen[0].user_id == 1
+        assert seen[0].counts is service.counts
+        assert seen[0].batch_size == service.performance_config.batch_size
+        assert service.counts["extra"] == 1
+        after_commit.assert_not_called()
+
+    def test_an_unexpected_error_becomes_a_data_collection_error_naming_the_section(self, sections) -> None:
+        sections.register_profile_section(_records_section("gears", MagicMock(side_effect=Exception("unexpected"))))
+
+        with pytest.raises(DataCollectionError, match="Failed to collect gears: unexpected"):
+            _collect(self._service())
+
+    def test_a_database_error_becomes_a_database_connection_error(self, sections) -> None:
+        sections.register_profile_section(_records_section("gears", MagicMock(side_effect=SQLAlchemyError("db down"))))
+
+        with pytest.raises(DatabaseConnectionError):
+            _collect(self._service())
+
+    @pytest.mark.parametrize("error", [MemoryAllocationError("memory"), ExportTimeoutError("late"), OSError("disk")])
+    def test_memory_timeout_and_file_errors_pass_through(self, sections, error) -> None:
+        sections.register_profile_section(_records_section("gears", MagicMock(side_effect=error)))
+
+        with pytest.raises(type(error)):
+            _collect(self._service())
+
+    def test_an_archive_section_error_is_wrapped_too(self, sections) -> None:
+        sections.register_profile_section(
+            users_profile_contracts.ProfileArchiveSection(
+                key="extra", export=MagicMock(side_effect=SQLAlchemyError("db down")), restore=lambda context: None
+            )
+        )
+
+        with pytest.raises(DatabaseConnectionError):
+            _collect(self._service())
+
+    def test_no_registered_section_is_an_error(self, sections) -> None:
+        with pytest.raises(RuntimeError, match="configure_user_contributors"):
+            _collect(self._service())
 
 
 class TestExportServiceCollectHealthWeight:
@@ -466,7 +505,7 @@ class TestExportServiceGenerateExportArchive:
                 "collect_user_activities_data",
                 return_value=[_make_activity_mock(1)],
             ),
-            patch.object(service, "collect_gear_data"),
+            patch.object(service, "collect_profile_sections", return_value=[]),
             patch.object(service, "collect_health_weight"),
             patch.object(service, "collect_user_settings_data"),
             patch.object(export_media_service, "add_activity_files_to_zip"),
@@ -487,6 +526,7 @@ class TestExportServiceGenerateExportArchive:
         user_dict = {"id": 1, "username": "test"}
 
         with (
+            patch.object(service, "collect_profile_sections", return_value=[]),
             patch.object(
                 export_activity_service, "collect_user_activities_data", side_effect=MemoryAllocationError("oom")
             ),
@@ -518,19 +558,6 @@ class TestExportPerformanceConfigEdgeCases:
 
 
 class TestExportServiceDbErrorWrapsDataCollectionError:
-    def test_gear_db_error_wraps_as_data_collection_error(self) -> None:
-        with zipfile.ZipFile(io.BytesIO(), "w", zipfile.ZIP_DEFLATED, compresslevel=6) as z:
-            service = profile_export_service.ExportService(user_id=1, storage=MagicMock(), db=MagicMock(spec=Session))
-            service.performance_config.enable_memory_monitoring = False
-            with (
-                patch(
-                    "modules.users.users_profile.export_service.gear_integration.get_gear_user",
-                    side_effect=SQLAlchemyError("db down"),
-                ),
-                pytest.raises(DataCollectionError),
-            ):
-                service.collect_gear_data(z)
-
     def test_health_weight_db_error_wraps_as_data_collection_error(self) -> None:
         with zipfile.ZipFile(io.BytesIO(), "w", zipfile.ZIP_DEFLATED, compresslevel=6) as z:
             service = profile_export_service.ExportService(user_id=1, storage=MagicMock(), db=MagicMock(spec=Session))
@@ -637,6 +664,7 @@ class TestExportServiceGenerateExportArchiveEdgeCases:
         service.performance_config.compression_level = 0
 
         with (
+            patch.object(service, "collect_profile_sections", return_value=[]),
             patch.object(
                 export_activity_service,
                 "collect_user_activities_data",
@@ -660,7 +688,7 @@ class TestExportServiceGenerateExportArchiveEdgeCases:
                 side_effect=ExportTimeoutError("timed out"),
             ),
             patch.object(export_activity_service, "collect_user_activities_data", return_value=[]),
-            patch.object(service, "collect_gear_data"),
+            patch.object(service, "collect_profile_sections", return_value=[]),
             patch.object(service, "collect_health_weight"),
             patch.object(service, "collect_user_settings_data"),
             patch.object(export_media_service, "add_activity_files_to_zip"),
@@ -677,6 +705,7 @@ class TestExportServiceGenerateExportArchiveEdgeCases:
         service.performance_config.compression_level = 0
 
         with (
+            patch.object(service, "collect_profile_sections", return_value=[]),
             patch.object(export_activity_service, "collect_user_activities_data", side_effect=OSError("disk full")),
             pytest.raises(FileSystemError),
         ):
@@ -689,6 +718,7 @@ class TestExportServiceGenerateExportArchiveEdgeCases:
         service.performance_config.compression_level = 0
 
         with (
+            patch.object(service, "collect_profile_sections", return_value=[]),
             patch.object(export_activity_service, "collect_user_activities_data", side_effect=MemoryError("OOM")),
             pytest.raises(MemoryAllocationError),
         ):
@@ -739,7 +769,7 @@ def test_the_database_phase_ends_before_the_storage_phase() -> None:
 
     with (
         patch.object(export_activity_service, "collect_user_activities_data", return_value=[]),
-        patch.object(service, "collect_gear_data"),
+        patch.object(service, "collect_profile_sections", return_value=[]),
         patch.object(service, "collect_health_weight"),
         patch.object(service, "collect_user_settings_data") as settings,
         patch.object(export_media_service, "add_activity_files_to_zip") as files,
@@ -765,6 +795,7 @@ def test_a_failed_build_leaves_no_archive_open() -> None:
         return handle
 
     with (
+        patch.object(service, "collect_profile_sections", return_value=[]),
         patch("modules.users.users_profile.export_service.tempfile.TemporaryFile", side_effect=tracking),
         patch.object(export_activity_service, "collect_user_activities_data", side_effect=DataCollectionError("boom")),
         pytest.raises(DataCollectionError),

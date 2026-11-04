@@ -78,6 +78,9 @@ import modules.garmin.scheduled_jobs as garmin_scheduled_jobs
 import modules.garmin.subscriber_registry as garmin_subscriber_registry
 import modules.gears.contributor_registry as gears_contributor_registry
 import modules.gears.contributors as gears_contributors
+import modules.gears.gear.constants as gear_constants
+import modules.gears.gear.integration_service as gear_integration
+import modules.gears.gear_components.constants as gear_components_constants
 import modules.gears.gear_components.integration_service as gear_components_integration
 import modules.health.health_targets.integration_service as health_targets_integration
 import modules.health.health_weight.integration_service as health_weight_integration
@@ -99,6 +102,7 @@ import modules.users.users.subscriber_registry as users_subscriber_registry
 import modules.users.users_default_gear.integration_service as users_default_gear_integration
 import modules.users.users_profile.audit_actions as users_profile_audit_actions
 import modules.users.users_profile.constants as users_profile_constants
+import modules.users.users_profile.contracts as users_profile_contracts
 import modules.users.users_profile.integration_service as users_profile_integration
 import modules.users.users_profile.scheduled_jobs as users_profile_scheduled_jobs
 import modules.users.users_profile.subscriber_registry as users_profile_subscriber_registry
@@ -539,6 +543,21 @@ def configure_user_contributors() -> None:
     )
     users_contributor_registry.register_profile_readers(
         users_contributors.ProfileReaders(follow_counts=followers_integration.get_profile_follow_counts)
+    )
+    # Sections run in this order on import, so a section follows the ones whose ids it reads.
+    users_contributor_registry.register_profile_section(
+        users_profile_contracts.ProfileRecordsSection(
+            key=gear_constants.PROFILE_ARCHIVE_KEY,
+            export=gear_integration.get_gear_user,
+            restore=gear_integration.restore_profile_gears,
+        )
+    )
+    users_contributor_registry.register_profile_section(
+        users_profile_contracts.ProfileRecordsSection(
+            key=gear_components_constants.PROFILE_ARCHIVE_KEY,
+            export=gear_components_integration.get_gear_components_user,
+            restore=gear_components_integration.restore_profile_gear_components,
+        )
     )
 
 

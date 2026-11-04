@@ -4,10 +4,13 @@ The profile export and import, and the composition root that tells the gear pack
 its components cost. The write stages and the caller commits.
 """
 
+from typing import Any
+
 from sqlalchemy.orm import Session
 
 import modules.gears.gear_components.crud as gear_components_crud
 import modules.gears.gear_components.schema as gear_components_schema
+import modules.gears.gear_components.service as gear_components_service
 
 
 def get_gear_components_user(user_id: int, db: Session) -> list[gear_components_schema.GearComponentRead]:
@@ -23,24 +26,21 @@ def get_gear_components_user(user_id: int, db: Session) -> list[gear_components_
     return gear_components_crud.get_gear_components_user(user_id, db)
 
 
-def create_gear_component(
-    gear_component: gear_components_schema.GearComponentCreate,
-    user_id: int,
-    db: Session,
-) -> gear_components_schema.GearComponentRead:
-    """Stage a gear component restored from a profile archive; the caller commits.
-
-    The caller has already mapped the component onto one of the user's gears.
+def restore_profile_gear_components(
+    records: list[dict[str, Any]], user_id: int, ids: dict[str, dict[int, int]], db: Session
+) -> int:
+    """Stage the gear components of a profile archive; the caller commits.
 
     Args:
-        gear_component: Component payload to create.
-        user_id: Owner user ID.
+        records: The archived components.
+        user_id: The importing user.
+        ids: The ids restored so far; the archived-to-stored gear ids are read from ``"gears"``.
         db: Database session.
 
     Returns:
-        The staged component with its generated ID.
+        How many components were staged.
     """
-    return gear_components_crud.create_gear_component(gear_component, user_id, db)
+    return gear_components_service.restore_profile_gear_components(records, user_id, ids, db)
 
 
 def get_gear_components_total_cost(gear_id: int, user_id: int, db: Session) -> float:

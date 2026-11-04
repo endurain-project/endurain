@@ -6,6 +6,7 @@ writes stage and the caller commits.
 """
 
 from collections.abc import Iterable
+from typing import Any
 
 from sqlalchemy.orm import Session
 
@@ -41,20 +42,6 @@ def get_gear_user_by_id(user_id: int, gear_id: int, db: Session) -> gears_schema
     return gears_crud.get_gear_user_by_id(user_id, gear_id, db)
 
 
-def get_gear_user_by_nickname(user_id: int, nickname: str, db: Session) -> gears_schema.GearRead | None:
-    """Return a user's gear by exact, case-insensitive nickname.
-
-    Args:
-        user_id: Owner user ID.
-        nickname: Gear nickname to match.
-        db: Database session.
-
-    Returns:
-        The gear, or None if there is no match.
-    """
-    return gears_crud.get_gear_user_by_nickname(user_id, nickname, db)
-
-
 def get_gear_by_strava_id(strava_gear_id: str, user_id: int, db: Session) -> gears_schema.GearRead | None:
     """Return the user's gear imported from the given Strava gear.
 
@@ -83,21 +70,21 @@ def get_gear_by_garminconnect_id(garminconnect_gear_id: str, user_id: int, db: S
     return gears_crud.get_gear_by_garminconnect_id_from_user_id(garminconnect_gear_id, user_id, db)
 
 
-def create_gear(gear: gears_schema.GearCreate, user_id: int, db: Session) -> gears_schema.GearRead:
-    """Stage a new gear for a user; the caller commits.
+def restore_profile_gears(
+    records: list[dict[str, Any]], user_id: int, ids: dict[str, dict[int, int]], db: Session
+) -> int:
+    """Stage the gears of a profile archive; the caller commits.
 
     Args:
-        gear: Gear payload to create.
-        user_id: Owner user ID.
+        records: The archived gears.
+        user_id: The importing user.
+        ids: The ids restored so far; receives the archived-to-stored gear ids under ``"gears"``.
         db: Database session.
 
     Returns:
-        The staged gear with its generated ID.
-
-    Raises:
-        ConflictError: If the nickname or a provider gear ID is already taken.
+        How many gears were restored or matched.
     """
-    return gears_crud.create_gear(gear, user_id, db)
+    return gears_service.restore_profile_gears(records, user_id, ids, db)
 
 
 def create_multiple_gears(gears: Iterable[gears_schema.GearCreate | None], user_id: int, db: Session) -> None:

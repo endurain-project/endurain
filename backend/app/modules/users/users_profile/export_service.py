@@ -26,8 +26,6 @@ from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import Session
 
 import core.logger as core_logger
-import modules.gears.gear.integration_service as gear_integration
-import modules.gears.gear_components.integration_service as gear_components_integration
 import modules.health.health_fasting.integration_service as health_fasting_integration
 import modules.health.health_poop.integration_service as health_poop_integration
 import modules.health.health_sleep.integration_service as health_sleep_integration
@@ -35,12 +33,14 @@ import modules.health.health_steps.integration_service as health_steps_integrati
 import modules.health.health_targets.integration_service as health_targets_integration
 import modules.health.health_water.integration_service as health_water_integration
 import modules.health.health_weight.integration_service as health_weight_integration
+import modules.users.contributor_registry as users_contributor_registry
 import modules.users.users_default_gear.integration_service as users_default_gear_integration
 import modules.users.users_default_gear.schema as user_default_gear_schema
 import modules.users.users_goals.integration_service as users_goals_integration
 import modules.users.users_integrations.constants as user_integrations_constants
 import modules.users.users_integrations.integration_service as user_integrations_integration
 import modules.users.users_privacy_settings.integration_service as users_privacy_settings_integration
+import modules.users.users_profile.contracts as users_profile_contracts
 import modules.users.users_profile.export_activity_service as export_activity_service
 import modules.users.users_profile.export_media_service as export_media_service
 import modules.users.users_profile.utils as users_profile_utils
@@ -165,45 +165,72 @@ class ExportService:
             ),
         )
 
-    def collect_gear_data(self, zipf: zipfile.ZipFile) -> None:
-        """Collect and write gear data to ZIP.
+    def collect_profile_sections(
+        self,
+        archive: users_profile_utils.ZipArchiveWriter,
+        check_timeout: Callable[[], None],
+    ) -> list[users_profile_contracts.ExportFiles]:
+        """Run every registered profile section, in registration order.
 
         Args:
-            zipf: ZipFile instance to write to.
+            archive: Where the sections write their entries.
+            check_timeout: Raises when the export is out of time; run before each section.
+
+        Returns:
+            The work the sections left for after the read transaction is committed.
 
         Raises:
-            DatabaseConnectionError: If database error occurs.
+            DatabaseConnectionError: If a section fails on the database.
+            DataCollectionError: If a section cannot collect its records.
+            ExportTimeoutError: If the export runs out of time.
+            MemoryAllocationError: If the memory limit is exceeded.
         """
-        try:
-            # Collect and write gears
+        context = users_profile_contracts.ProfileExportContext(
+            user_id=self.user_id,
+            db=self.db,
+            storage=self.storage,
+            archive=archive,
+            counts=self.counts,
+            batch_size=self.performance_config.batch_size,
+            check_memory=self._check_memory,
+        )
+        files: list[users_profile_contracts.ExportFiles] = []
+        for section in users_contributor_registry.profile_sections():
+            check_timeout()
             try:
-                gears = gear_integration.get_gear_user(self.user_id, self.db)
-                if gears:
-                    gears_dicts = [users_profile_utils.model_to_dict(g) for g in gears]
-                    users_profile_utils.write_json_to_zip(zipf, "data/gears.json", gears_dicts, self.counts)
+                if isinstance(section, users_profile_contracts.ProfileRecordsSection):
+                    archive.write_json(f"data/{section.key}.json", section.export(self.user_id, self.db))
                 else:
-                    users_profile_utils.write_json_to_zip(zipf, "data/gears.json", [], self.counts)
+                    after_commit = section.export(context)
+                    if after_commit is not None:
+                        files.append(after_commit)
+            except (
+                ExportTimeoutError,
+                MemoryAllocationError,
+                MemoryError,
+                OSError,
+                zipfile.BadZipFile,
+                zipfile.LargeZipFile,
+            ):
+                raise
+            except SQLAlchemyError as err:
+                raise DatabaseConnectionError(f"Failed to collect {section.key}") from err
             except Exception as err:
-                raise DataCollectionError(f"Failed to collect gears: {err}") from err
+                raise DataCollectionError(f"Failed to collect {section.key}: {err}") from err
+        return files
 
-            # Collect and write gear components
-            try:
-                gear_components = gear_components_integration.get_gear_components_user(self.user_id, self.db)
-                if gear_components:
-                    gear_components_dicts = [users_profile_utils.model_to_dict(gc) for gc in gear_components]
-                    users_profile_utils.write_json_to_zip(
-                        zipf,
-                        "data/gear_components.json",
-                        gear_components_dicts,
-                        self.counts,
-                    )
-                else:
-                    users_profile_utils.write_json_to_zip(zipf, "data/gear_components.json", [], self.counts)
-            except Exception as err:
-                raise DataCollectionError(f"Failed to collect gear components: {err}") from err
+    def _check_memory(self, operation: str) -> None:
+        """Raise when the memory limit is exceeded.
 
-        except SQLAlchemyError as err:
-            raise DatabaseConnectionError("Failed to collect gear data") from err
+        Args:
+            operation: Description of the current operation.
+
+        Raises:
+            MemoryAllocationError: If the memory limit is exceeded.
+        """
+        users_profile_utils.check_memory_usage(
+            operation, self.performance_config.max_memory_mb, self.performance_config.enable_memory_monitoring
+        )
 
     def collect_health_weight(self, zipf: zipfile.ZipFile) -> None:
         """Collect and write health data to ZIP.
@@ -414,14 +441,17 @@ class ExportService:
             ) as zipf:
                 logger.debug("Starting export", extra=core_logger.context(user_id=self.user_id))
 
-                # Database phase first: activities, gear, health and settings.
+                def check_export_timeout() -> None:
+                    users_profile_utils.check_timeout(timeout_seconds, start_time, ExportTimeoutError, "Export")
+
+                # Database phase first: the registered sections, activities, health and settings.
+                writer = users_profile_utils.ZipArchiveWriter(zipf, self.counts)
+                section_files = self.collect_profile_sections(writer, check_export_timeout)
+
                 users_profile_utils.check_timeout(timeout_seconds, start_time, ExportTimeoutError, "Export")
                 activity_ids = export_activity_service.collect_user_activities_data(
                     zipf, self.user_id, self.counts, self.performance_config, self.db
                 )
-
-                users_profile_utils.check_timeout(timeout_seconds, start_time, ExportTimeoutError, "Export")
-                self.collect_gear_data(zipf)
 
                 users_profile_utils.check_timeout(timeout_seconds, start_time, ExportTimeoutError, "Export")
                 self.collect_health_weight(zipf)
@@ -438,6 +468,10 @@ class ExportService:
                 # Everything below reads object storage only, which can take a long time, so the
                 # read transaction ends here instead of pinning a pool connection throughout.
                 self.db.commit()
+
+                for write_files in section_files:
+                    check_export_timeout()
+                    write_files()
 
                 users_profile_utils.check_timeout(timeout_seconds, start_time, ExportTimeoutError, "Export")
                 export_media_service.add_activity_files_to_zip(zipf, activity_ids, self.storage, self.counts)

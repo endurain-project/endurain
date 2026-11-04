@@ -40,9 +40,10 @@ import modules.activities.activity_streams.contracts as streams_contracts
 import modules.activities.activity_streams.crud as streams_crud
 import modules.activities.activity_workout_steps.contracts as steps_contracts
 import modules.activities.activity_workout_steps.crud as steps_crud
+import modules.gears.gear.crud as gear_crud
 import modules.gears.gear.integration_service as gear_integration
 import modules.gears.gear.schema as gear_schema
-import modules.gears.gear_components.integration_service as components_integration
+import modules.gears.gear_components.crud as components_crud
 import modules.gears.gear_components.schema as components_schema
 import modules.health.health_fasting.integration_service as fasting_integration
 import modules.health.health_fasting.schema as fasting_schema
@@ -66,6 +67,7 @@ import modules.users.users.schema as users_schema
 import modules.users.users.service as users_service
 import modules.users.users_default_gear.integration_service as default_gear_integration
 import modules.users.users_default_gear.schema as default_gear_schema
+import modules.users.users_default_gear.service as default_gear_service
 import modules.users.users_goals.integration_service as goals_integration
 import modules.users.users_goals.schema as goals_schema
 import modules.users.users_integrations.integration_service as integrations_integration
@@ -196,7 +198,7 @@ def _activity(user_id: int, index: int, gear_id: int | None) -> activity_contrac
 
 
 def _seed_gears(db: Session, user_id: int) -> list[int]:
-    road = gear_integration.create_gear(
+    road = gear_crud.create_gear(
         gear_schema.GearCreate(
             nickname="Road Bike",
             gear_type=gear_schema.GearType.BIKE,
@@ -207,12 +209,12 @@ def _seed_gears(db: Session, user_id: int) -> list[int]:
         user_id,
         db,
     )
-    shoes = gear_integration.create_gear(
+    shoes = gear_crud.create_gear(
         gear_schema.GearCreate(nickname="Trail Shoes", gear_type=gear_schema.GearType.SHOES, brand="Hoka"),
         user_id,
         db,
     )
-    components_integration.create_gear_component(
+    components_crud.create_gear_component(
         components_schema.GearComponentCreate(
             gear_id=road.id,
             type="chain",
@@ -225,7 +227,7 @@ def _seed_gears(db: Session, user_id: int) -> list[int]:
         user_id,
         db,
     )
-    components_integration.create_gear_component(
+    components_crud.create_gear_component(
         components_schema.GearComponentCreate(gear_id=road.id, type="cassette", brand="SRAM", model="XG"),
         user_id,
         db,
@@ -366,7 +368,7 @@ def _seed(factory: sessionmaker[Session], storage: platform_providers.StoragePro
             if_match="*",
         )
         gear_ids = _seed_gears(db, user_id)
-        default_gear_integration.edit_default_gear(
+        default_gear_service.stage_default_gear_edit(
             default_gear_schema.UsersDefaultGearUpdate(ride_gear_id=gear_ids[0], run_gear_id=gear_ids[1]),
             user_id,
             db,

@@ -92,3 +92,6 @@ COMPONENT_TYPES_BY_GEAR_TYPE: dict[gears_schema.GearType, list[str]] = {
     gears_schema.GearType.RACQUET: RACQUET_COMPONENT_TYPES,
     gears_schema.GearType.WINDSURF: WINDSURF_COMPONENT_TYPES,
 }
+
+#: Name of the gear components section in a profile archive (``data/gear_components.json``).
+PROFILE_ARCHIVE_KEY = "gear_components"

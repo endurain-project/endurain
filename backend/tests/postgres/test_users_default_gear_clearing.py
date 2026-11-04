@@ -33,7 +33,7 @@ def _setup(factory, *, strava: bool = False):
         ride = gear_service.create_gear(gear_create("Ride"), 1, db)
         default_gear_integration.create_default_gear(1, db)
         db.commit()
-        default_gear_integration.edit_default_gear(
+        default_gear_service.stage_default_gear_edit(
             default_gear_schema.UsersDefaultGearUpdate(run_gear_id=run.id, ride_gear_id=ride.id),
             1,
             db,

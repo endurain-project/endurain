@@ -4,6 +4,7 @@ Writes stage; the caller owns the commit.
 """
 
 from collections.abc import Collection
+from typing import Any
 
 from sqlalchemy.orm import Session
 
@@ -61,31 +62,6 @@ def create_default_gear(user_id: int, db: Session) -> users_default_gear_schema.
     return users_default_gear_crud.create_user_default_gear(user_id, db)
 
 
-def edit_default_gear(
-    user_default_gear: users_default_gear_schema.UsersDefaultGearUpdate,
-    user_id: int,
-    db: Session,
-    *,
-    if_match: str,
-) -> users_default_gear_schema.UsersDefaultGearRead:
-    """Stage an update of a user's default gear settings.
-
-    Args:
-        user_default_gear: The fields to change.
-        user_id: The user whose settings are edited.
-        db: Database session.
-        if_match: The ``If-Match`` precondition, or ``*`` to overwrite (the profile importer).
-
-    Returns:
-        The updated default gear settings.
-
-    Raises:
-        NotFoundError: If a gear is not the user's, or the user has no settings.
-        PreconditionFailedError: When ``if_match`` does not name the row's version.
-    """
-    return users_default_gear_service.stage_default_gear_edit(user_default_gear, user_id, db, if_match=if_match)
-
-
 def clear_default_gears(gear_ids: Collection[int], user_id: int, db: Session) -> None:
     """Unassign gears from the user's default-gear settings; the caller commits.
 
@@ -95,3 +71,20 @@ def clear_default_gears(gear_ids: Collection[int], user_id: int, db: Session) ->
         db: Database session.
     """
     users_default_gear_crud.clear_gears(gear_ids, user_id, db)
+
+
+def restore_profile_default_gear(
+    record: dict[str, Any], ids: dict[str, dict[int, int]], user_id: int, db: Session
+) -> bool:
+    """Stage the default gear of a profile archive, moved onto the restored gears; the caller commits.
+
+    Args:
+        record: The archived default gear settings.
+        ids: The ids restored so far; the archived-to-stored gear ids are read from ``"gears"``.
+        user_id: The importing user.
+        db: Database session.
+
+    Returns:
+        True when the settings were staged; False when the archive's were invalid.
+    """
+    return users_default_gear_service.restore_profile_default_gear(record, ids, user_id, db)

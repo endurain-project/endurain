@@ -30,3 +30,36 @@ class TestEditDefaultGear:
 
         mock_crud.edit_user_default_gear.assert_not_called()
         mock_db.commit.assert_not_called()
+
+
+@patch("modules.users.users_default_gear.service.stage_default_gear_edit")
+@patch("modules.users.users_default_gear.service.users_default_gear_crud")
+class TestRestoreProfileDefaultGear:
+    def test_creates_the_settings_when_missing_and_remaps_the_gears(self, mock_crud, mock_edit, mock_db):
+        mock_crud.get_user_default_gear_by_user_id.return_value = None
+
+        restored = user_default_gear_service.restore_profile_default_gear(
+            {"id": 3, "user_id": 9, "version": 2, "run_gear_id": 5, "ride_gear_id": 7},
+            {"gears": {5: 10, 7: 20}},
+            1,
+            mock_db,
+        )
+
+        assert restored is True
+        mock_crud.create_user_default_gear.assert_called_once_with(1, mock_db)
+        update = mock_edit.call_args.args[0]
+        assert (update.run_gear_id, update.ride_gear_id, update.walk_gear_id) == (10, 20, None)
+        assert mock_edit.call_args.kwargs == {"if_match": "*"}
+
+    def test_keeps_existing_settings_and_drops_an_unmapped_gear(self, mock_crud, mock_edit, mock_db):
+        restored = user_default_gear_service.restore_profile_default_gear({"run_gear_id": 5}, {"gears": {}}, 1, mock_db)
+
+        assert restored is True
+        mock_crud.create_user_default_gear.assert_not_called()
+        assert mock_edit.call_args.args[0].run_gear_id is None
+
+    def test_skips_invalid_settings(self, mock_crud, mock_edit, mock_db):
+        restored = user_default_gear_service.restore_profile_default_gear({"unknown_field": 1}, {}, 1, mock_db)
+
+        assert restored is False
+        mock_edit.assert_not_called()
