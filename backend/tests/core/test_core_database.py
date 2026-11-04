@@ -59,21 +59,33 @@ class TestPoolOptions:
     """Pool size and overflow come from the environment, with the previous values as defaults."""
 
     def test_defaults_keep_the_historical_pool(self):
-        assert core_database._pool_options({}) == {"pool_size": 20, "max_overflow": 40}
+        assert core_database._pool_options({}) == {
+            "pool_size": 20,
+            "max_overflow": 40,
+            "pool_timeout": 30,
+        }
 
     def test_the_environment_overrides_them(self):
-        env = {"DB_POOL_SIZE": "5", "DB_MAX_OVERFLOW": "0"}
+        env = {"DB_POOL_SIZE": "5", "DB_MAX_OVERFLOW": "0", "DB_POOL_TIMEOUT_SECONDS": "10"}
 
-        assert core_database._pool_options(env) == {"pool_size": 5, "max_overflow": 0}
+        assert core_database._pool_options(env) == {"pool_size": 5, "max_overflow": 0, "pool_timeout": 10}
 
     @pytest.mark.parametrize(
         ("name", "value"),
-        [("DB_POOL_SIZE", "0"), ("DB_POOL_SIZE", "-3"), ("DB_POOL_SIZE", "many"), ("DB_MAX_OVERFLOW", "-1")],
+        [
+            ("DB_POOL_SIZE", "0"),
+            ("DB_POOL_SIZE", "-3"),
+            ("DB_POOL_SIZE", "many"),
+            ("DB_MAX_OVERFLOW", "-1"),
+            ("DB_POOL_TIMEOUT_SECONDS", "0"),
+            ("DB_POOL_TIMEOUT_SECONDS", "-1"),
+            ("DB_POOL_TIMEOUT_SECONDS", "soon"),
+        ],
     )
     def test_an_unusable_value_falls_back_to_the_default(self, name, value):
         options = core_database._pool_options({name: value})
 
-        assert options == {"pool_size": 20, "max_overflow": 40}
+        assert options == {"pool_size": 20, "max_overflow": 40, "pool_timeout": 30}
 
 
 class TestConnectOptions:
@@ -81,6 +93,17 @@ class TestConnectOptions:
 
     def test_defaults_pin_utc_and_the_lock_timeout_and_leave_statements_unbounded(self):
         options = core_database._connect_args({})["options"]
+
+        assert options == "-c timezone=utc -c lock_timeout=30s"
+
+    def test_the_lock_timeout_is_read_from_the_environment(self):
+        options = core_database._connect_args({"DB_LOCK_TIMEOUT_SECONDS": "5"})["options"]
+
+        assert options == "-c timezone=utc -c lock_timeout=5s"
+
+    @pytest.mark.parametrize("value", ["0", "-5", "soon", ""])
+    def test_an_unusable_lock_timeout_falls_back_to_the_default(self, value):
+        options = core_database._connect_args({"DB_LOCK_TIMEOUT_SECONDS": value})["options"]
 
         assert options == "-c timezone=utc -c lock_timeout=30s"
 

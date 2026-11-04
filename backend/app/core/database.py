@@ -42,11 +42,13 @@ db_url = URL.create(
 #: Connections the pool keeps open, and extra ones it may open under load, per process.
 _DEFAULT_POOL_SIZE = 20
 _DEFAULT_MAX_OVERFLOW = 40
+#: Seconds a request waits for a free pooled connection before it fails.
+_DEFAULT_POOL_TIMEOUT_SECONDS = 30
 
 # A row lock held by a stuck transaction fails the waiting statement after
-# _LOCK_TIMEOUT_SECONDS instead of parking a request thread (and its pooled connection)
-# for as long as the holder lives.
-_LOCK_TIMEOUT_SECONDS = 30
+# DB_LOCK_TIMEOUT_SECONDS (30 by default) instead of parking a request thread (and its pooled
+# connection) for as long as the holder lives.
+_DEFAULT_LOCK_TIMEOUT_SECONDS = 30
 
 #: Rows a maintenance purge deletes per transaction, so it never holds a long lock.
 PURGE_BATCH_SIZE = 1000
@@ -84,17 +86,18 @@ def _int_env(env: Mapping[str, str], name: str, default: int, *, minimum: int) -
 
 
 def _pool_options(env: Mapping[str, str]) -> dict[str, int]:
-    """Build the connection pool sizing from ``DB_POOL_SIZE`` and ``DB_MAX_OVERFLOW``.
+    """Build the connection pool sizing from ``DB_POOL_SIZE``, ``DB_MAX_OVERFLOW`` and ``DB_POOL_TIMEOUT_SECONDS``.
 
     Args:
         env: The environment to read.
 
     Returns:
-        The ``pool_size`` and ``max_overflow`` engine arguments.
+        The ``pool_size``, ``max_overflow`` and ``pool_timeout`` engine arguments.
     """
     return {
         "pool_size": _int_env(env, "DB_POOL_SIZE", _DEFAULT_POOL_SIZE, minimum=1),
         "max_overflow": _int_env(env, "DB_MAX_OVERFLOW", _DEFAULT_MAX_OVERFLOW, minimum=0),
+        "pool_timeout": _int_env(env, "DB_POOL_TIMEOUT_SECONDS", _DEFAULT_POOL_TIMEOUT_SECONDS, minimum=1),
     }
 
 
@@ -103,8 +106,8 @@ def _connect_args(env: Mapping[str, str]) -> dict[str, str]:
 
     Pins the session timezone to UTC. The import parsers emit naive UTC wall-clock timestamps and
     the datetime columns are TIMESTAMP WITH TIME ZONE, so without this PostgreSQL would read naive
-    values in the server's session timezone and shift stored instants when TZ != UTC. Bounds how
-    long a statement may wait for a row lock. ``DB_STATEMENT_TIMEOUT_SECONDS`` bounds how long a
+    values in the server's session timezone and shift stored instants when TZ != UTC. ``DB_LOCK_TIMEOUT_SECONDS``
+    bounds how long a statement may wait for a row lock. ``DB_STATEMENT_TIMEOUT_SECONDS`` bounds how long a
     statement may run (off at 0, the default), so a runaway query cannot hold a request thread and
     its pooled connection indefinitely. ``DB_SSLMODE`` opts into TLS (OWASP A02), with libpq values:
     disable | allow | prefer | require | verify-ca | verify-full.
@@ -115,7 +118,8 @@ def _connect_args(env: Mapping[str, str]) -> dict[str, str]:
     Returns:
         The ``connect_args`` engine argument.
     """
-    options = f"-c timezone=utc -c lock_timeout={_LOCK_TIMEOUT_SECONDS}s"
+    lock_timeout = _int_env(env, "DB_LOCK_TIMEOUT_SECONDS", _DEFAULT_LOCK_TIMEOUT_SECONDS, minimum=1)
+    options = f"-c timezone=utc -c lock_timeout={lock_timeout}s"
     statement_timeout = _int_env(env, "DB_STATEMENT_TIMEOUT_SECONDS", 0, minimum=0)
     if statement_timeout:
         options += f" -c statement_timeout={statement_timeout}s"
@@ -137,7 +141,6 @@ _POOL_OPTIONS = _pool_options(os.environ)
 engine = create_engine(
     db_url,
     **_POOL_OPTIONS,
-    pool_timeout=30,
     pool_recycle=3600,
     pool_pre_ping=True,
     # A driver error string embeds the statement's bound parameters (hashes, tokens, emails), and the

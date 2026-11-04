@@ -189,11 +189,11 @@ Every replica must share the same database, Redis and bucket. Run one or more wo
 - After an admin changes the map tile server, the replica that handled the save allows the new tile domain in its content security policy at once; the other replicas pick it up within 30 seconds, so maps from a new tile server can be blocked there for that long.
 - Until the deprecated `SMTP_*`, geocoding, session and retention environment variables are removed (v0.22.0), give every replica the same values: each API start saves its own environment into the database, and which fields an admin may edit depends on the replica that answers.
 - The mail and geocoding settings are cached for five seconds in each process, so an admin change reaches every replica within that time.
-- A database statement that waits more than 30 seconds for a row lock fails instead of waiting, and a request that cannot get a database connection within 30 seconds fails. `DB_STATEMENT_TIMEOUT_SECONDS` also bounds how long a statement may run; it is off by default.
+- A database statement that waits longer than `DB_LOCK_TIMEOUT_SECONDS` (30 seconds by default) for a row lock fails instead of waiting, and a request that cannot get a database connection within `DB_POOL_TIMEOUT_SECONDS` (30 seconds by default) fails. `DB_STATEMENT_TIMEOUT_SECONDS` also bounds how long a statement may run; it is off by default.
 
 ## Sizing
 
-Each web process keeps its own database pool of up to 60 connections by default (`DB_POOL_SIZE` 20 plus `DB_MAX_OVERFLOW` 40) and about 40 request threads. A request waits up to 30 seconds for a free connection before it fails.
+Each web process keeps its own database pool of up to 60 connections by default (`DB_POOL_SIZE` 20 plus `DB_MAX_OVERFLOW` 40) and about 40 request threads. A request waits up to `DB_POOL_TIMEOUT_SECONDS` (30 seconds by default) for a free connection before it fails.
 
 - Total connections are `(DB_POOL_SIZE + DB_MAX_OVERFLOW) × (web workers + replicas + dedicated workers)`, which is `60 × …` by default. Keep that below PostgreSQL's `max_connections` (100 by default): lower `DB_POOL_SIZE` and `DB_MAX_OVERFLOW`, or put PgBouncer in front of the database. At startup the API logs a warning when its own pools (`WEB_WORKERS` processes) could already exceed what PostgreSQL allows; it cannot see replicas or dedicated workers, so a missing warning does not prove the whole deployment fits.
 - Each coordination lock held through `postgres-advisory://` keeps one more connection open for as long as the job runs.

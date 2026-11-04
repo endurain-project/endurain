@@ -773,9 +773,6 @@ by hand when the code it describes changes.
 
 - **Storage lifecycle.** The hourly thumbnail reconciliation and the daily orphan sweep each walk the whole
   thumbnail area: its keys are flat `{id}.webp`, so no prefix narrows the walk.
-- **Timeouts.** The pool size, its overflow and the `statement_timeout` are operator settings
-  (`DB_POOL_SIZE`, `DB_MAX_OVERFLOW`, `DB_STATEMENT_TIMEOUT_SECONDS`), and the statement timeout is
-  off by default. The 30 s pool wait and the 30 s lock timeout are still constants in `core/database.py`.
 - **Observability.** Logs, the two health endpoints and the job tables are the only signals; queue depth, job
   duration and dead-letter counts are not exported as metrics. `jasil.admin.get_jobs_summary` computes them,
   but no route exposes it.
