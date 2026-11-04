@@ -88,7 +88,7 @@ def strip_direction_controls(value: str) -> str:
     return "".join(char for char in value if char not in DIRECTION_CONTROLS)
 
 
-def _plain_person_name(value: str, info: ValidationInfo) -> str:
+def _plain_name(value: str, info: ValidationInfo) -> str:
     """Reject a name that is only whitespace or carries a direction control.
 
     The value is never trimmed. Data re-applied from storage (validation context ``stored``) is passed through, so
@@ -113,5 +113,5 @@ def _plain_person_name(value: str, info: ValidationInfo) -> str:
     return value
 
 
-#: A person's name a client sends: 1 to 250 characters, not blank, with no direction control characters.
-PersonName = Annotated[StrictStr, Field(min_length=1, max_length=250), AfterValidator(_plain_person_name)]
+#: A name a client sends for a person, activity or similar: 1 to 250 characters, not blank, with no direction control characters.
+DisplayName = Annotated[StrictStr, Field(min_length=1, max_length=250), AfterValidator(_plain_name)]

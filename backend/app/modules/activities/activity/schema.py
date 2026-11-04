@@ -31,7 +31,7 @@ import modules.users.users.schema as users_schema
 
 VisibilityValue = Annotated[StrictInt, Field(ge=0, le=2)]
 LongText = Annotated[StrictStr, Field(max_length=2500)]
-ActivityName = Annotated[StrictStr, Field(max_length=250)]
+ActivityName = core_types.DisplayName
 
 
 class ActivityBase(BaseModel):

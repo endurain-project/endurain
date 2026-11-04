@@ -159,7 +159,7 @@ def normalize_access_type(access_type: "UserAccessType | str") -> str:
 
 #: Field types shared by every shape that takes an account's name, username, email address or new password.
 UserName = Annotated[StrictStr, Field(min_length=1, max_length=250, description="User's full name")]
-UserRequestName = Annotated[core_types.PersonName, Field(description="User's full name")]
+UserRequestName = Annotated[core_types.DisplayName, Field(description="User's full name")]
 UserUsername = Annotated[
     StrictStr,
     Field(
@@ -765,7 +765,7 @@ class ProfileUpdate(core_partial_update.NotClearable, BaseModel):
         "currency",
     )
 
-    name: core_types.PersonName | None = None
+    name: core_types.DisplayName | None = None
     username: StrictStr | None = Field(
         default=None,
         min_length=1,

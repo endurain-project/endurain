@@ -16,6 +16,7 @@ from pydantic import (
 )
 
 import core.partial_update as core_partial_update
+import core.types as core_types
 
 
 class GearType(IntEnum):
@@ -47,7 +48,7 @@ MAX_AMOUNT = 999_999_999.99
 
 
 def _require_nickname(value: str) -> str:
-    """Trim a nickname and reject one that is blank.
+    """Trim a nickname and reject one that is blank or carries a text direction control.
 
     Args:
         value: The submitted nickname.
@@ -56,11 +57,13 @@ def _require_nickname(value: str) -> str:
         The trimmed nickname.
 
     Raises:
-        ValueError: If nothing is left after trimming.
+        ValueError: If nothing is left after trimming, or a direction control is present.
     """
     value = value.strip()
     if not value:
         raise ValueError("nickname cannot be blank")
+    if any(char in core_types.DIRECTION_CONTROLS for char in value):
+        raise ValueError("nickname must not contain text direction control characters")
     return value
 
 

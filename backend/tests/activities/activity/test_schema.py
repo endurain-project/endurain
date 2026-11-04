@@ -89,3 +89,16 @@ class TestActivityTypeVocabulary:
     def test_edit_rejects_a_numeric_string(self):
         with pytest.raises(ValidationError):
             activity_schema.ActivityEdit(activity_type="1")
+
+
+class TestActivityEditName:
+    """A client-sent activity name is not blank and carries no text direction control."""
+
+    @pytest.mark.parametrize("name", ["   ", "\t", "Morning ‮nur gninrom", "a⁦b", "a‏b"])
+    def test_a_blank_or_directional_name_is_refused(self, name):
+        with pytest.raises(ValidationError):
+            activity_schema.ActivityEdit(name=name)
+
+    @pytest.mark.parametrize("name", ["Morning run", "می‌خواهم", "👨‍👩‍👧"])
+    def test_an_ordinary_name_is_kept(self, name):
+        assert activity_schema.ActivityEdit(name=name).name == name
