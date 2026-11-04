@@ -217,22 +217,41 @@ class TestRateLimitExceededHandler:
         assert fields["caller"] == "10.0.0.1"
         assert (fields["method"], fields["path"]) == ("GET", "/api/v1/test")
 
-    def test_header_injection_failure_caught(self):
+    def test_sets_retry_after_and_rate_limit_headers_from_the_breached_limit(self):
+        from limits import parse
+        from slowapi.errors import RateLimitExceeded
+        from slowapi.wrappers import Limit
+
         from core.rate_limit import rate_limit_exceeded_handler
 
         request = MagicMock()
         request.method = "GET"
         request.url.path = "/api/v1/test"
         request.headers = {}
-        request.app.state.limiter._inject_headers = MagicMock(side_effect=RuntimeError("boom"))
-        request.state.view_rate_limit = "120/minute"
 
-        exc = MagicMock()
+        limit = Limit(
+            limit=parse("30/minute"),
+            key_func=lambda request: "10.0.0.1",
+            scope=None,
+            per_method=False,
+            methods=None,
+            error_message=None,
+            exempt_when=None,
+            cost=1,
+            override_defaults=False,
+        )
+        exc = RateLimitExceeded(limit)
 
-        with patch("core.rate_limit.logger"):
+        with (
+            patch("core.rate_limit.core_network.get_ip_address", return_value="10.0.0.1"),
+            patch("core.rate_limit.logger"),
+        ):
             response = rate_limit_exceeded_handler(request, exc)
 
         assert response.status_code == 429
+        assert response.headers["Retry-After"] == "60"
+        assert response.headers["X-RateLimit-Limit"] == "30"
+        assert response.headers["X-RateLimit-Remaining"] == "0"
 
 
 class TestStorageOutageFallback:

@@ -277,14 +277,9 @@ def rate_limit_exceeded_handler(
     # Read off the breached limit rather than slowapi's ``_inject_headers``,
     # which is inert unless ``headers_enabled`` is set on the limiter — see the
     # note there for why it cannot be.
-    try:
-        if exc.limit is not None:
-            breached = exc.limit.limit
-            response.headers["Retry-After"] = str(breached.get_expiry())
-            response.headers["X-RateLimit-Limit"] = str(breached.amount)
-            response.headers["X-RateLimit-Remaining"] = "0"
-    except Exception as header_err:
-        # Headers are informational — never let a missing attribute break the
-        # 429 response itself.
-        logger.debug("Failed to set rate-limit headers", exc_info=header_err)
+    if exc.limit is not None:
+        breached = exc.limit.limit
+        response.headers["Retry-After"] = str(breached.get_expiry())
+        response.headers["X-RateLimit-Limit"] = str(breached.amount)
+        response.headers["X-RateLimit-Remaining"] = "0"
     return response
