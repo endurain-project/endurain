@@ -45,6 +45,7 @@ class TestGetUserApiKeys:
         data = response.json()
         assert data["total"] == 1
         assert len(data["items"]) == 1
+        assert data["items"][0]["scopes"] == ["activities:upload"]
 
     @patch("modules.auth.account_security.api_keys_router.api_key_service.list_user_api_keys")
     def test_list_user_api_keys_empty(self, mock_get_keys, fast_api_client, fast_api_app):
@@ -119,6 +120,7 @@ class TestCreateUserApiKey:
         data = response.json()
         assert "key" in data
         assert data["key"] == "endurain_rawsecretkey"
+        assert data["scopes"] == ["activities:upload"]
 
     @patch("modules.auth.account_security.api_key_service.users_integration.require_user")
     def test_create_user_api_key_user_not_found_returns_404(

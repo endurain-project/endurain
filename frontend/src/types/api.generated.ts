@@ -12005,9 +12005,9 @@ export interface components {
             name: string;
             /**
              * Scopes
-             * @description JSON-encoded list of granted scopes
+             * @description Granted scopes
              */
-            scopes: string;
+            scopes: string[];
             /**
              * User Id
              * @description Owner's user ID
@@ -12026,7 +12026,7 @@ export interface components {
          *         user_id: Owner's user ID.
          *         name: User-friendly label.
          *         key_prefix: First 8 chars of the random part.
-         *         scopes: JSON-encoded list of granted scopes.
+         *         scopes: Granted scopes.
          *         expires_at: Optional expiration timestamp.
          *         last_used_at: Last successful use timestamp.
          *         created_at: Key creation timestamp.
@@ -12071,9 +12071,9 @@ export interface components {
             name: string;
             /**
              * Scopes
-             * @description JSON-encoded list of granted scopes
+             * @description Granted scopes
              */
-            scopes: string;
+            scopes: string[];
             /**
              * User Id
              * @description Owner's user ID

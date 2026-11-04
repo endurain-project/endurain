@@ -167,6 +167,21 @@ class TestUsersApiKeyRead:
         assert data.id == "some-uuid"
         assert data.user_id == 1
         assert data.is_active is True
+        assert data.scopes == ["activities:upload"]
+
+    def test_read_schema_scopes_survive_a_created_read_round_trip(self):
+        """The scopes stay a list when a read dump builds the creation response."""
+        read = users_api_keys_schema.UsersApiKeyRead(
+            id="some-uuid",
+            user_id=1,
+            name="My Key",
+            key_prefix="abcdefgh",
+            scopes='["activities:upload"]',
+            created_at=datetime.now(UTC),
+            is_active=True,
+        )
+        created = users_api_keys_schema.UsersApiKeyCreatedRead(**read.model_dump(), key="endurain_x")
+        assert created.scopes == ["activities:upload"]
 
     def test_read_schema_no_key_field(self):
         """Test that UsersApiKeyRead does not expose a 'key' field."""

@@ -234,10 +234,9 @@ def resolve_from_api_key(
         ),
     )
 
-    scopes = api_keys_integration.json_to_scopes(db_key.scopes)
     return _build_principal(
         user,
-        scopes,
+        db_key.scopes,
         ApiKeyCred(
             api_key_id=db_key.id,
             key_prefix=db_key.key_prefix,

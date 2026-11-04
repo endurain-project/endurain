@@ -20,7 +20,7 @@ const apiKeyDto: ApiKeyDto = {
   user_id: 5,
   name: 'CI upload',
   key_prefix: 'endurain',
-  scopes: '["activities:upload"]',
+  scopes: ['activities:upload'],
   expires_at: '2026-12-31T00:00:00Z',
   last_used_at: '2026-06-01T00:00:00Z',
   created_at: '2026-01-01T00:00:00Z',
@@ -28,7 +28,7 @@ const apiKeyDto: ApiKeyDto = {
 }
 
 describe('mapApiKey', () => {
-  it('maps a full payload and parses the JSON scopes string', () => {
+  it('maps a full payload and keeps the scopes array', () => {
     expect(mapApiKey(apiKeyDto)).toEqual({
       id: 'key-1',
       name: 'CI upload',
@@ -41,15 +41,13 @@ describe('mapApiKey', () => {
     })
   })
 
-  it('defaults nullable fields and tolerates a malformed scopes string', () => {
+  it('defaults nullable fields', () => {
     const mapped = mapApiKey({
       ...apiKeyDto,
-      scopes: 'not-json',
       expires_at: null,
       last_used_at: null,
       is_active: false,
     })
-    expect(mapped.scopes).toEqual([])
     expect(mapped.expiresAt).toBeNull()
     expect(mapped.lastUsedAt).toBeNull()
     expect(mapped.isActive).toBe(false)

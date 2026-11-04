@@ -90,7 +90,6 @@ class TestApiKeyRefusal:
         with (
             jasil_testing.capture_audit() as audit,
             patch(f"{_PRINCIPAL}.authentication_event_publishers.publish_api_key_used"),
-            patch(f"{_PRINCIPAL}.api_keys_integration.json_to_scopes", return_value=[]),
         ):
             _resolve(_db_key())
 

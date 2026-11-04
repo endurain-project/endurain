@@ -99,22 +99,9 @@ export function toStepUpWire(input: StepUpInput): StepUpDto {
   }
 }
 
-/** Safely parses the backend's JSON-encoded scopes string into an array. */
-function parseScopes(scopesJson: string): string[] {
-  try {
-    const parsed: unknown = JSON.parse(scopesJson)
-    return Array.isArray(parsed)
-      ? parsed.filter((scope): scope is string => typeof scope === 'string')
-      : []
-  } catch {
-    return []
-  }
-}
-
 /**
  * Maps a raw API-key payload to the clean {@link ApiKey} model — the single
- * boundary where the snake_case wire shape is normalized and the JSON-encoded
- * `scopes` string is parsed into an array.
+ * boundary where the snake_case wire shape is normalized.
  *
  * @param dto - Raw API-key payload from the backend.
  * @returns The normalized API-key model.
@@ -124,7 +111,7 @@ export function mapApiKey(dto: ApiKeyDto): ApiKey {
     id: dto.id,
     name: dto.name,
     keyPrefix: dto.key_prefix,
-    scopes: parseScopes(dto.scopes),
+    scopes: dto.scopes,
     expiresAt: dto.expires_at ?? null,
     lastUsedAt: dto.last_used_at ?? null,
     createdAt: dto.created_at,

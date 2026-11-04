@@ -24,11 +24,6 @@ def hash_api_key(raw_key: str) -> str:
     return api_keys_utils.hash_api_key(raw_key)
 
 
-def json_to_scopes(scopes_json: str) -> list[str]:
-    """Decode the scopes stored on an API key."""
-    return api_keys_utils.json_to_scopes(scopes_json)
-
-
 def generate_api_key() -> str:
     """Generate a raw API key for account-security workflows."""
     return api_keys_utils.generate_api_key()

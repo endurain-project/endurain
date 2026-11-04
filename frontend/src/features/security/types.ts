@@ -179,7 +179,7 @@ export interface LinkedProvider {
   lastLogin: string | null
 }
 
-/** Raw API-key payload (snake_case wire shape; `scopes` is a JSON string). */
+/** Raw API-key payload (snake_case wire shape). */
 export type ApiKeyDto = Schemas['UsersApiKeyRead']
 
 /** Raw create-API-key response, including the one-time raw `key`. */
@@ -190,13 +190,12 @@ export type ApiKeyCreateDto = Schemas['UsersApiKeyCreate']
 
 /**
  * A clean, camel-cased API-key model for the security zone. Mapped from
- * {@link ApiKeyDto} at the service boundary, where the JSON-encoded `scopes`
- * string is parsed into an array.
+ * {@link ApiKeyDto} at the service boundary.
  *
  * @property id - Stable key identifier (UUID; also the revoke/delete key).
  * @property name - User-friendly label.
  * @property keyPrefix - First characters of the key, shown for identification.
- * @property scopes - The granted scopes (parsed from the wire JSON string).
+ * @property scopes - The granted scopes.
  * @property expiresAt - When the key expires (ISO), or `null` for no expiry.
  * @property lastUsedAt - When the key was last used (ISO), or `null`.
  * @property createdAt - When the key was created (ISO).

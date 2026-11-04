@@ -135,7 +135,7 @@ class UsersApiKeyRead(BaseModel):
         user_id: Owner's user ID.
         name: User-friendly label.
         key_prefix: First 8 chars of the random part.
-        scopes: JSON-encoded list of granted scopes.
+        scopes: Granted scopes.
         expires_at: Optional expiration timestamp.
         last_used_at: Last successful use timestamp.
         created_at: Key creation timestamp.
@@ -146,13 +146,26 @@ class UsersApiKeyRead(BaseModel):
     user_id: int = Field(..., ge=1, description="Owner's user ID")
     name: StrictStr = Field(..., description="User-friendly label")
     key_prefix: StrictStr = Field(..., description="First 8 chars of the random part")
-    scopes: StrictStr = Field(..., description="JSON-encoded list of granted scopes")
+    scopes: list[StrictStr] = Field(..., description="Granted scopes")
     expires_at: datetime | None = Field(None, description="Optional expiration timestamp")
     last_used_at: datetime | None = Field(None, description="Last successful use timestamp")
     created_at: datetime = Field(..., description="Key creation timestamp")
     is_active: StrictBool = Field(..., description="Whether the key is currently active")
 
     model_config = ConfigDict(from_attributes=True)
+
+    @field_validator("scopes", mode="before")
+    @classmethod
+    def decode_stored_scopes(cls, v: object) -> object:
+        """Decode the JSON text the scopes are stored as.
+
+        Args:
+            v: The stored JSON text, or an already-decoded list.
+
+        Returns:
+            The list of scopes.
+        """
+        return api_keys_utils.json_to_scopes(v) if isinstance(v, str) else v
 
 
 class UsersApiKeyCreatedRead(UsersApiKeyRead):
