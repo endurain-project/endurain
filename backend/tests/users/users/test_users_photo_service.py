@@ -6,6 +6,7 @@ import time
 from contextlib import nullcontext
 from unittest.mock import MagicMock, patch
 
+import jasil.providers as platform_providers
 import pytest
 from fastapi import UploadFile
 from jasil.backends.storage_local import LocalStorage
@@ -120,9 +121,26 @@ class TestDeletePhoto:
     def test_a_storage_failure_after_the_commit_does_not_fail_the_request(self, mock_crud, mock_db):
         storage = MagicMock()
         mock_crud.replace_photo_key.return_value = "7.jpg"
-        storage.delete.side_effect = OSError("storage down")
+        storage.delete.side_effect = platform_providers.StorageBackendUnavailableError("storage down")
 
         users_photo_service.delete_photo(7, storage, mock_db)
+
+    @patch(_CRUD)
+    def test_a_legacy_path_the_storage_refuses_does_not_fail_the_request(self, mock_crud, mock_db):
+        storage = MagicMock()
+        mock_crud.replace_photo_key.return_value = "/app/backend/data/user_images/7.jpg"
+        storage.delete.side_effect = ValueError("escapes base directory")
+
+        users_photo_service.delete_photo(7, storage, mock_db)
+
+    @patch(_CRUD)
+    def test_an_unexpected_storage_error_propagates(self, mock_crud, mock_db):
+        storage = MagicMock()
+        mock_crud.replace_photo_key.return_value = "7.jpg"
+        storage.delete.side_effect = TypeError("bug")
+
+        with pytest.raises(TypeError):
+            users_photo_service.delete_photo(7, storage, mock_db)
 
 
 class TestUploadPhoto:
@@ -211,7 +229,7 @@ class TestStorePhoto:
         mock_crud.get_user_by_id.return_value = MagicMock()
         mock_crud.replace_photo_key.return_value = "7.jpg"
         storage = MagicMock()
-        storage.delete.side_effect = OSError("storage down")
+        storage.delete.side_effect = platform_providers.StorageBackendUnavailableError("storage down")
 
         assert users_photo_service.store_photo(7, ".webp", b"bytes", storage, mock_db) == "7.webp"
 

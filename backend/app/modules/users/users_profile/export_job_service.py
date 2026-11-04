@@ -253,7 +253,7 @@ def discard_staged_export(user_id: int, storage: platform_providers.StorageProvi
     """
     try:
         storage.delete(profile_constants.EXPORT_STAGING_AREA, profile_constants.export_staged_key(user_id))
-    except Exception as err:
+    except platform_providers.StorageBackendUnavailableError as err:
         logger.warning(
             "Could not delete a user's staged profile export", exc_info=err, extra=core_logger.context(user_id=user_id)
         )

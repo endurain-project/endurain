@@ -5,7 +5,7 @@ from collections.abc import Sequence
 from functools import lru_cache
 from typing import Any
 
-from fastapi import WebSocket
+from fastapi import WebSocket, WebSocketDisconnect
 
 import core.logger as core_logger
 
@@ -82,7 +82,7 @@ class WebSocketManager:
         for stale in evicted:
             try:
                 await asyncio.wait_for(stale.close(code=EVICTED_CLOSE_CODE), timeout=SEND_TIMEOUT_SECONDS)
-            except Exception as err:
+            except (TimeoutError, WebSocketDisconnect, RuntimeError) as err:
                 logger.debug(
                     "WebSocket eviction close failed", exc_info=err, extra=core_logger.context(user_id=user_id)
                 )

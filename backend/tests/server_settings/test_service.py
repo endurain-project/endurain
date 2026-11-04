@@ -863,13 +863,23 @@ class TestLoginPhoto:
 
     def test_delete_survives_a_storage_failure(self):
         storage = MagicMock()
-        storage.delete.side_effect = RuntimeError("storage down")
+        storage.delete.side_effect = platform_providers.StorageBackendUnavailableError("storage down")
         db = MagicMock()
 
         with patch.object(server_settings_service.server_settings_crud, "set_login_photo"):
             server_settings_login_photo_service.delete_login_photo(storage, db)
 
         db.commit.assert_called_once()
+
+    def test_delete_propagates_an_unexpected_storage_error(self):
+        storage = MagicMock()
+        storage.delete.side_effect = TypeError("bug")
+
+        with (
+            patch.object(server_settings_service.server_settings_crud, "set_login_photo"),
+            pytest.raises(TypeError),
+        ):
+            server_settings_login_photo_service.delete_login_photo(storage, MagicMock())
 
     def test_version_is_none_when_no_photo_is_set(self):
         with patch.object(
@@ -1492,7 +1502,7 @@ class TestLoginPhotoAudit:
 
     def test_a_removal_is_audited_even_when_the_blob_cannot_be_deleted(self):
         storage = MagicMock()
-        storage.delete.side_effect = RuntimeError("storage down")
+        storage.delete.side_effect = platform_providers.StorageBackendUnavailableError("storage down")
         with (
             patch.object(server_settings_service.server_settings_crud, "set_login_photo"),
             jasil_testing.capture_audit() as audit,

@@ -4,6 +4,7 @@ import asyncio
 from unittest.mock import AsyncMock, patch
 
 import pytest
+from fastapi import WebSocketDisconnect
 
 import modules.websocket.manager as websocket_manager
 import modules.websocket.service as websocket_service
@@ -138,6 +139,48 @@ class TestWebSocketManager:
 
         first.send_json.assert_awaited_once_with({"k": "v"})
         second.send_json.assert_awaited_once_with({"k": "v"})
+
+
+class TestEviction:
+    """Closing a connection pushed out by a newer one."""
+
+    @pytest.fixture
+    def manager(self):
+        return websocket_manager.WebSocketManager()
+
+    async def _fill(self, manager, oldest):
+        await manager.connect(1, oldest)
+        for _ in range(websocket_manager.MAX_CONNECTIONS_PER_USER):
+            await manager.connect(1, AsyncMock())
+
+    @pytest.mark.parametrize("failure", [WebSocketDisconnect(code=1006), RuntimeError("closed")])
+    async def test_a_close_that_fails_does_not_block_the_new_connection(self, manager, failure):
+        oldest = AsyncMock()
+        oldest.close.side_effect = failure
+
+        await self._fill(manager, oldest)
+
+        assert oldest not in manager.get_connections(1)
+        assert len(manager.get_connections(1)) == websocket_manager.MAX_CONNECTIONS_PER_USER
+
+    async def test_a_stalled_close_is_given_up_on(self, manager):
+        async def never(**_kwargs):
+            await asyncio.sleep(3600)
+
+        oldest = AsyncMock()
+        oldest.close.side_effect = never
+
+        with patch.object(websocket_manager, "SEND_TIMEOUT_SECONDS", 0.01):
+            await self._fill(manager, oldest)
+
+        assert oldest not in manager.get_connections(1)
+
+    async def test_an_unexpected_close_error_propagates(self, manager):
+        oldest = AsyncMock()
+        oldest.close.side_effect = TypeError("bug")
+
+        with pytest.raises(TypeError):
+            await self._fill(manager, oldest)
 
 
 class TestGetWebSocketManager:

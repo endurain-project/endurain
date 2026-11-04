@@ -242,7 +242,7 @@ def _discard_staged(staged_key: str, storage: platform_providers.StorageProvider
     """
     try:
         storage.delete(profile_constants.IMPORT_STAGING_AREA, staged_key)
-    except Exception as err:
+    except platform_providers.StorageBackendUnavailableError as err:
         logger.warning("Could not delete a staged profile import", exc_info=err)
 
 
@@ -400,7 +400,7 @@ def discard_staged_imports(user_id: int, storage: platform_providers.StorageProv
     try:
         for key in storage.list_keys(profile_constants.IMPORT_STAGING_AREA, f"{user_id}/"):
             storage.delete(profile_constants.IMPORT_STAGING_AREA, key)
-    except Exception as err:
+    except platform_providers.StorageBackendUnavailableError as err:
         logger.warning(
             "Could not delete a user's staged profile imports", exc_info=err, extra=core_logger.context(user_id=user_id)
         )

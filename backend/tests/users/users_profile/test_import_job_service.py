@@ -4,6 +4,7 @@ import os
 import time
 from unittest.mock import MagicMock, patch
 
+import jasil.providers as platform_providers
 import pytest
 from jasil.backends.state_memory import MemoryState
 from pydantic import TypeAdapter, ValidationError
@@ -351,7 +352,7 @@ class TestSweepSurvivesAFailedDelete:
     def test_one_failing_delete_does_not_stop_the_rest(self, storage):
         now = time.time()
         storage.iter_objects.return_value = iter([("1/a.zip", now - 100_000), ("2/b.zip", now - 100_000)])
-        storage.delete.side_effect = [OSError("busy"), None]
+        storage.delete.side_effect = [platform_providers.StorageBackendUnavailableError("busy"), None]
 
         removed = job_service.sweep_staged_imports(storage, 3600)
 
@@ -369,9 +370,32 @@ class TestDiscardStagedImports:
         assert [c.args for c in storage.delete.call_args_list] == [(_AREA, "7/a.zip"), (_AREA, "7/b.zip")]
 
     def test_a_storage_failure_is_logged_not_raised(self, storage):
-        storage.list_keys.side_effect = OSError("down")
+        storage.list_keys.side_effect = platform_providers.StorageBackendUnavailableError("down")
 
         job_service.discard_staged_imports(7, storage)
+
+    def test_a_failed_delete_is_logged_not_raised(self, storage):
+        storage.list_keys.return_value = ["7/a.zip"]
+        storage.delete.side_effect = platform_providers.StorageBackendUnavailableError("down")
+
+        job_service.discard_staged_imports(7, storage)
+
+    def test_an_unexpected_error_propagates(self, storage):
+        storage.list_keys.side_effect = TypeError("bug")
+
+        with pytest.raises(TypeError):
+            job_service.discard_staged_imports(7, storage)
+
+    def test_a_failed_single_discard_is_logged_not_raised(self, storage):
+        storage.delete.side_effect = platform_providers.StorageBackendUnavailableError("down")
+
+        job_service._discard_staged("7/a.zip", storage)
+
+    def test_an_unexpected_error_in_a_single_discard_propagates(self, storage):
+        storage.delete.side_effect = TypeError("bug")
+
+        with pytest.raises(TypeError):
+            job_service._discard_staged("7/a.zip", storage)
 
 
 class TestCloseDeadLetteredImport:

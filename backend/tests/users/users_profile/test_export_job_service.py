@@ -4,6 +4,7 @@ import io
 import time
 from unittest.mock import MagicMock, patch
 
+import jasil.providers as platform_providers
 import pytest
 from jasil.backends.state_memory import MemoryState
 from sqlalchemy.exc import OperationalError
@@ -224,7 +225,7 @@ class TestSweepSurvivesAFailedDelete:
         storage = MagicMock()
         now = time.time()
         storage.iter_objects.return_value = iter([("1.zip", now - 100_000), ("2.zip", now - 100_000)])
-        storage.delete.side_effect = [OSError("busy"), None]
+        storage.delete.side_effect = [platform_providers.StorageBackendUnavailableError("busy"), None]
 
         removed = job_service.sweep_staged_exports(storage, 3600)
 
@@ -242,9 +243,18 @@ class TestDiscardStagedExport:
 
     def test_a_storage_failure_is_logged_not_raised(self):
         storage = MagicMock()
-        storage.delete.side_effect = OSError("down")
+        storage.delete.side_effect = platform_providers.StorageBackendUnavailableError("down")
 
         job_service.discard_staged_export(7, storage)
+
+        storage.delete.assert_called_once()
+
+    def test_an_unexpected_error_propagates(self):
+        storage = MagicMock()
+        storage.delete.side_effect = TypeError("bug")
+
+        with pytest.raises(TypeError):
+            job_service.discard_staged_export(7, storage)
 
 
 class TestCloseDeadLetteredExport:

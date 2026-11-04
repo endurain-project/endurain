@@ -81,7 +81,7 @@ def delete_login_photo(storage: platform_providers.StorageProvider, db: Session)
         storage.delete(
             server_settings_constants.LOGIN_PHOTO_STORAGE_AREA, server_settings_constants.LOGIN_PHOTO_STORAGE_KEY
         )
-    except Exception as err:
+    except platform_providers.StorageBackendUnavailableError as err:
         logger.warning("Login photo blob could not be deleted; it is no longer served", exc_info=err)
     logger.info("Login photo deleted")
 

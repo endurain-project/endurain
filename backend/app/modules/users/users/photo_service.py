@@ -129,7 +129,8 @@ def _delete_replaced_blob(
         return
     try:
         storage.delete(users_constants.USER_IMAGE_STORAGE_AREA, replaced)
-    except Exception as err:
+    except (platform_providers.StorageBackendUnavailableError, ValueError) as err:
+        # A ValueError is a row still holding a legacy filesystem path, which storage refuses as a key.
         logger.warning(
             "Could not remove a replaced user photo", exc_info=err, extra=core_logger.context(user_id=user_id)
         )
