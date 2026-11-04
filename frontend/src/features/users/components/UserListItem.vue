@@ -52,7 +52,7 @@ const { t } = useI18n()
           :to="{ name: 'settings-user-detail', params: { id: user.id } }"
           class="block truncate font-medium text-foreground hover:underline"
         >
-          {{ user.name }}
+          <bdi>{{ user.name }}</bdi>
         </RouterLink>
         <p class="truncate text-hint">@{{ user.username }} · {{ user.email }}</p>
         <UserStatusBadges :user="user" :is-self="isSelf" class="mt-1" />

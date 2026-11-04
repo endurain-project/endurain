@@ -145,7 +145,9 @@ function confirmDeletePhoto(): void {
           icon-class="size-12"
         />
         <div class="text-center">
-          <p class="font-medium text-foreground">{{ profile.name }}</p>
+          <p class="font-medium text-foreground">
+            <bdi>{{ profile.name }}</bdi>
+          </p>
           <p class="text-hint">@{{ profile.username }}</p>
         </div>
       </div>

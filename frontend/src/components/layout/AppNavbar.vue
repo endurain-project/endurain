@@ -142,7 +142,9 @@ async function signOut(): Promise<void> {
             :aria-label="t('nav.userMenu')"
           >
             <UserAvatar :src="currentUser?.avatarUrl" :alt="currentUser?.name" />
-            <span>{{ currentUser?.name }}</span>
+            <span
+              ><bdi>{{ currentUser?.name }}</bdi></span
+            >
             <ChevronDown class="size-4" />
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end">

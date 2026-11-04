@@ -23,7 +23,9 @@ defineProps<{ user: PublicUser }>()
       <UserAvatar :src="user.avatarUrl" :alt="user.name" size-class="size-10" icon-class="size-5" />
     </span>
     <div class="min-w-0 flex-1">
-      <p class="truncate font-medium text-foreground">{{ user.name }}</p>
+      <p class="truncate font-medium text-foreground">
+        <bdi>{{ user.name }}</bdi>
+      </p>
       <p class="truncate text-hint">@{{ user.username }}</p>
     </div>
   </RouterLink>

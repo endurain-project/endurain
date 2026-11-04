@@ -159,9 +159,11 @@ const ownerRoute = computed(() =>
         <div class="min-w-0">
           <p class="truncate text-item-title">
             <RouterLink v-if="owner && ownerRoute" :to="ownerRoute" class="hover:underline">
-              {{ owner.name }}
+              <bdi>{{ owner.name }}</bdi>
             </RouterLink>
-            <span v-else>{{ owner ? owner.name : t('activities.athlete') }}</span>
+            <span v-else
+              ><bdi>{{ owner ? owner.name : t('activities.athlete') }}</bdi></span
+            >
           </p>
           <div class="mt-1 flex flex-wrap items-center gap-2">
             <ActivityTypeBadge :type="presentation.badge" :icon="presentation.icon">

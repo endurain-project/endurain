@@ -73,3 +73,11 @@ describe('UserListItem approval actions', () => {
     expect(button(wrapper, 'Reject').exists()).toBe(false)
   })
 })
+
+describe('UserListItem name', () => {
+  it('isolates the name so its text direction cannot reorder the text beside it', () => {
+    const wrapper = mountItem({ ...base, name: 'Ada ‮evil' })
+
+    expect(wrapper.find('bdi').text()).toBe('Ada ‮evil')
+  })
+})

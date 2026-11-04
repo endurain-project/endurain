@@ -288,7 +288,9 @@ function reject(): void {
             />
           </span>
           <div class="min-w-0">
-            <h1 class="truncate text-page-title">{{ user.name }}</h1>
+            <h1 class="truncate text-page-title">
+              <bdi>{{ user.name }}</bdi>
+            </h1>
             <p class="truncate text-body">@{{ user.username }} · {{ user.email }}</p>
             <p v-if="user.pendingEmail && user.pendingEmailExpiresAt" class="text-hint">
               {{

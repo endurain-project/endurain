@@ -3,6 +3,7 @@
 from typing import Any
 
 import core.logger as core_logger
+import core.types as core_types
 import modules.auth.identity_providers.contracts as identity_provider_contracts
 
 logger = core_logger.get_logger(__name__)
@@ -41,6 +42,15 @@ def map_user_claims(idp: identity_provider_contracts.IdentityProviderState, clai
             if claims.get(claim):
                 result[field] = claims[claim]
                 break
+
+    if "name" in result:
+        # A name with direction controls removed and surrounding whitespace trimmed; one left empty is dropped so
+        # the account keeps its username as the display name.
+        name = core_types.strip_direction_controls(str(result["name"])).strip()
+        if name:
+            result["name"] = name
+        else:
+            del result["name"]
 
     return result
 

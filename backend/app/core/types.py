@@ -3,7 +3,7 @@
 from datetime import UTC, date, datetime, timedelta
 from typing import Annotated
 
-from pydantic import AfterValidator, Field, StrictInt
+from pydantic import AfterValidator, Field, StrictInt, StrictStr, ValidationInfo
 
 #: The largest value of a PostgreSQL ``integer`` column, which every id column is.
 INT32_MAX = 2**31 - 1
@@ -65,3 +65,53 @@ RecordDate = Annotated[date, AfterValidator(_not_out_of_range_date)]
 
 #: A point in time of a record.
 RecordDateTime = Annotated[datetime, AfterValidator(_not_out_of_range_datetime)]
+
+
+#: Characters that reorder or hide text around a name: the bidirectional marks and embeddings, the isolates, the
+#: word joiner and the byte-order mark. The zero-width joiners U+200C and U+200D stay allowed: Persian, Urdu,
+#: Indic scripts and emoji sequences need them.
+DIRECTION_CONTROLS = frozenset("\u200e\u200f\u061c\u202a\u202b\u202c\u202d\u202e\u2066\u2067\u2068\u2069\u2060\ufeff")
+
+#: Validation context key that marks data already stored, which a write re-applies without re-checking.
+STORED_CONTEXT = "stored"
+
+
+def strip_direction_controls(value: str) -> str:
+    """Remove the direction controls from a text.
+
+    Args:
+        value: The text, such as a name an identity provider sent.
+
+    Returns:
+        The text without any character of ``DIRECTION_CONTROLS``.
+    """
+    return "".join(char for char in value if char not in DIRECTION_CONTROLS)
+
+
+def _plain_person_name(value: str, info: ValidationInfo) -> str:
+    """Reject a name that is only whitespace or carries a direction control.
+
+    The value is never trimmed. Data re-applied from storage (validation context ``stored``) is passed through, so
+    a name saved before this check cannot make an unrelated update fail.
+
+    Args:
+        value: The submitted name.
+        info: Pydantic's validation info, whose context may mark stored data.
+
+    Returns:
+        The name, unchanged.
+
+    Raises:
+        ValueError: When the name is blank or holds a direction control.
+    """
+    if info.context and info.context.get(STORED_CONTEXT):
+        return value
+    if not value.strip():
+        raise ValueError("Name must not be blank")
+    if any(char in DIRECTION_CONTROLS for char in value):
+        raise ValueError("Name must not contain text direction control characters")
+    return value
+
+
+#: A person's name a client sends: 1 to 250 characters, not blank, with no direction control characters.
+PersonName = Annotated[StrictStr, Field(min_length=1, max_length=250), AfterValidator(_plain_person_name)]

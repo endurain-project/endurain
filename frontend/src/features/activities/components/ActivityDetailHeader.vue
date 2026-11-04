@@ -98,7 +98,7 @@ const showPrivateNotes = computed(
         />
         <div class="min-w-0">
           <p class="truncate text-item-title">
-            {{ owner ? owner.name : t('activities.athlete') }}
+            <bdi>{{ owner ? owner.name : t('activities.athlete') }}</bdi>
           </p>
           <div class="mt-1.5 flex flex-wrap items-center gap-2">
             <ActivityTypeBadge :type="presentation.badge" :icon="presentation.icon">

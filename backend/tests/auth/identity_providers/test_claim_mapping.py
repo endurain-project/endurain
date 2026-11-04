@@ -26,6 +26,18 @@ class TestMapUserClaims:
         assert result["email"] == "alice@example.com"
         assert result["name"] == "Alice Example"
 
+    def test_name_loses_direction_controls_and_surrounding_space(self):
+        result = claim_mapping.map_user_claims(self._idp(), {"name": " Eve\u202e evil\u2069 "})
+        assert result["name"] == "Eve evil"
+
+    def test_a_name_that_is_only_direction_controls_is_dropped(self):
+        result = claim_mapping.map_user_claims(self._idp(), {"name": "\u202e \u200f", "sub": "s"})
+        assert "name" not in result
+
+    def test_name_keeps_zero_width_joiners(self):
+        result = claim_mapping.map_user_claims(self._idp(), {"name": "ab\u200ccd"})
+        assert result["name"] == "ab\u200ccd"
+
     def test_username_falls_back_through_claim_list(self):
         """With no preferred_username/username, it falls back to email then sub."""
         claims = {"email": "bob@example.com", "sub": "subject-123"}

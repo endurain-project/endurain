@@ -159,6 +159,7 @@ def normalize_access_type(access_type: "UserAccessType | str") -> str:
 
 #: Field types shared by every shape that takes an account's name, username, email address or new password.
 UserName = Annotated[StrictStr, Field(min_length=1, max_length=250, description="User's full name")]
+UserRequestName = Annotated[core_types.PersonName, Field(description="User's full name")]
 UserUsername = Annotated[
     StrictStr,
     Field(
@@ -414,8 +415,11 @@ class UsersEdit(Users):
 
     The stored columns of a user and nothing a read adds: ``id`` is the path, and
     ``external_auth_count`` and the pending email change are derived. ``photo_path`` and ``mfa_enabled`` are read-only
-    projections, so a write ignores them.
+    projections, so a write ignores them. A name already stored is re-applied as it is, even if it would not pass as
+    new input.
     """
+
+    name: UserRequestName
 
     @classmethod
     def from_read(cls, user: "UsersRead") -> "UsersEdit":
@@ -430,7 +434,8 @@ class UsersEdit(Users):
         return cls.model_validate(
             user.model_dump(
                 exclude={"id", "external_auth_count", "version", "pending_email", "pending_email_expires_at"}
-            )
+            ),
+            context={core_types.STORED_CONTEXT: True},
         )
 
 
@@ -512,7 +517,7 @@ class UsersSignup(BaseModel):
         preferred_language: Language of the account's emails and interface.
     """
 
-    name: UserName
+    name: UserRequestName
     username: UserUsername
     email: UserEmail
     password: UserPassword | None = None
@@ -531,6 +536,7 @@ class UsersCreate(Users):
         password: User's password (min 8 chars).
     """
 
+    name: UserRequestName
     password: UserPassword
 
 
@@ -546,7 +552,7 @@ class FirstAdminCreate(BaseModel):
         password: User's password (min 8 chars; the administrator policy applies on top).
     """
 
-    name: UserName
+    name: UserRequestName
     username: UserUsername
     email: UserEmail
     password: UserPassword
@@ -753,7 +759,7 @@ class ProfileUpdate(core_partial_update.NotClearable, BaseModel):
         "currency",
     )
 
-    name: StrictStr | None = Field(default=None, min_length=1, max_length=250)
+    name: core_types.PersonName | None = None
     username: StrictStr | None = Field(
         default=None,
         min_length=1,
