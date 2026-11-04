@@ -60,9 +60,12 @@ function defaultValues(): StepsFormValues {
   }
 }
 
-/** Converts a validated steps string to a rounded whole-number count. */
-function stepsToCount(raw: string): number {
-  return Math.round(Number(raw.trim()))
+/**
+ * Converts the validated steps field to a rounded whole-number count. A number input bound with
+ * `v-model` yields a `number` once edited and the seeded string otherwise, so both are accepted.
+ */
+function stepsToCount(raw: string | number): number {
+  return Math.round(toNumberOrNull(raw) ?? 0)
 }
 
 /** Converts the string-based form values into the clean {@link StepsEntryInput}. */
