@@ -113,7 +113,7 @@ def _resolve_hostname(hostname: str) -> list[str]:
                 seen.add(ip)
                 unique_ips.append(ip)
         return unique_ips
-    except socket.gaierror as err:
+    except (socket.gaierror, UnicodeError) as err:
         logger.warning(
             f"Failed to resolve TRUSTED_PROXIES hostname '{hostname}': {err}", extra=core_logger.context(console=True)
         )

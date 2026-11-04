@@ -170,6 +170,11 @@ class TestResolveHostname:
             result = core_network._resolve_hostname("nonexistent.hostname")
             assert result == []
 
+    @pytest.mark.parametrize("hostname", ["proxy..internal", f"{'a' * 64}.internal"])
+    def test_resolve_hostname_malformed_label_is_skipped(self, hostname):
+        """An empty or over-long label fails IDNA encoding inside getaddrinfo, which raises UnicodeError."""
+        assert core_network._resolve_hostname(hostname) == []
+
     def test_resolve_hostname_ipv6(self):
         with patch("socket.getaddrinfo") as mock_getaddrinfo:
             mock_getaddrinfo.return_value = [
