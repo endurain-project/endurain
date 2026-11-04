@@ -71,6 +71,7 @@ describe('a stale versioned write', () => {
       global: { plugins: [i18n, [VueQueryPlugin, { queryClient }]], stubs: dialogStubs },
     })
 
+    await wrapper.find('select').setValue('monthly')
     await wrapper.find('form').trigger('submit')
     await flushPromises()
 

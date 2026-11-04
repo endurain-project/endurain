@@ -75,6 +75,7 @@ describe('HealthFastingFormDialog', () => {
 
   it('sends no actual duration when editing', async () => {
     const wrapper = await openDialog({ entry })
+    await wrapper.find('textarea').setValue('Felt good')
     await submit(wrapper)
 
     expect(apiFetch).toHaveBeenCalledTimes(1)
@@ -97,6 +98,7 @@ describe('HealthFastingFormDialog', () => {
       new HttpError(409, 'Conflict', null, 'urn:endurain:error:conflict'),
     )
     const wrapper = await openDialog({ entry })
+    await wrapper.find('textarea').setValue('Felt good')
     await submit(wrapper)
 
     expect(wrapper.emitted('error')?.[0]).toEqual([
@@ -107,6 +109,7 @@ describe('HealthFastingFormDialog', () => {
   it('shows a specific message when the server refuses the times or status', async () => {
     vi.mocked(apiFetch).mockRejectedValue(new HttpError(400, 'Bad Request'))
     const wrapper = await openDialog({ entry })
+    await wrapper.find('textarea').setValue('Felt good')
     await submit(wrapper)
 
     expect(wrapper.emitted('error')?.[0]).toEqual([

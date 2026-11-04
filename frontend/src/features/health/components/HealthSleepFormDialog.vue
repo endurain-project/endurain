@@ -203,6 +203,11 @@ function buildInput(values: SleepFormValues): SleepEntryInput {
  * @param values - The validated form values.
  */
 async function submitForm(values: SleepFormValues): Promise<void> {
+  // Nothing changed (the stage rows live outside the form values): skip the request and just close.
+  if (props.entry && !isDirty.value && JSON.stringify(stages.value) === seededStages) {
+    open.value = false
+    return
+  }
   if (stageErrors.value.some(Boolean)) {
     openSections.stages = true
     return
@@ -319,29 +324,38 @@ const boundedValidators = Object.fromEntries(
   ]),
 ) as Partial<Record<keyof SleepFormValues, Validator<string>>>
 
-const { values, errors, isSubmitting, handleSubmit, handleBlur, validateField, reset } =
-  useForm<SleepFormValues>({
-    initialValues: defaultValues(),
-    validators: {
-      ...boundedValidators,
-      date: required<string>(t('health.sleep.form.dateRequired')),
-      // Total sleep is required: at least one of hours/minutes must be present.
-      totalHours: compose<string>(
-        (): string | null =>
-          hmToSeconds(values.totalHours, values.totalMinutes) === null
-            ? t('health.sleep.form.totalSleepRequired')
-            : null,
-        bounded(0),
-        stagesWithinTotal,
-      ),
-      // Sleep start must precede sleep end when both times are provided.
-      sleepEndTimeLocal: (end: string): string | null =>
-        values.sleepStartTimeLocal && end && values.sleepStartTimeLocal >= end
-          ? t('health.sleep.form.endBeforeStart')
+const {
+  values,
+  errors,
+  isSubmitting,
+  handleSubmit,
+  handleBlur,
+  validateField,
+  reset,
+  isDirty,
+  markPristine,
+} = useForm<SleepFormValues>({
+  initialValues: defaultValues(),
+  validators: {
+    ...boundedValidators,
+    date: required<string>(t('health.sleep.form.dateRequired')),
+    // Total sleep is required: at least one of hours/minutes must be present.
+    totalHours: compose<string>(
+      (): string | null =>
+        hmToSeconds(values.totalHours, values.totalMinutes) === null
+          ? t('health.sleep.form.totalSleepRequired')
           : null,
-    },
-    onSubmit: submitForm,
-  })
+      bounded(0),
+      stagesWithinTotal,
+    ),
+    // Sleep start must precede sleep end when both times are provided.
+    sleepEndTimeLocal: (end: string): string | null =>
+      values.sleepStartTimeLocal && end && values.sleepStartTimeLocal >= end
+        ? t('health.sleep.form.endBeforeStart')
+        : null,
+  },
+  onSubmit: submitForm,
+})
 
 const isEditing = computed(() => props.entry !== null)
 const dialogTitle = computed(() =>
@@ -441,6 +455,9 @@ for (const [name, fields] of Object.entries(sectionFields) as [
   )
 }
 
+/** The stage rows as seeded for the entry being edited, to tell whether they were changed. */
+let seededStages = ''
+
 /** Seeds the form from the entry being edited, or pristine defaults for "add". */
 function populate(): void {
   reset()
@@ -493,6 +510,8 @@ function populate(): void {
       durationMinutes: duration.minutes,
     }
   })
+  markPristine()
+  seededStages = JSON.stringify(stages.value)
 }
 
 // Re-seed each time the dialog opens; the parent sets `entry` before opening.

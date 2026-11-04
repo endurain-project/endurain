@@ -127,6 +127,11 @@ function defaultValues(): UserFormValues {
  * @param formValues - The validated form values.
  */
 async function submitForm(formValues: UserFormValues): Promise<void> {
+  // Nothing changed: skip the request and just close.
+  if (props.user && !isDirty.value) {
+    open.value = false
+    return
+  }
   const city = formValues.city.trim() ? formValues.city.trim() : null
   const birthdate = formValues.birthdate || null
   const height = resolveHeightCm(formValues, props.user?.height ?? null)
@@ -242,56 +247,64 @@ const FORM_KEYS = [
   'maxHeartRate',
 ] as const
 
-const { values, errors, isValid, isSubmitting, handleSubmit, handleBlur, reset, setErrors } =
-  useForm<UserFormValues>({
-    initialValues: defaultValues(),
-    validators: {
-      name: compose(
-        required<string>(t('settings.users.form.nameRequired')),
-        maxLength(TEXT_MAX, t('settings.users.form.nameTooLong')),
-      ),
-      username: compose(
-        required<string>(t('settings.users.form.usernameRequired')),
-        maxLength(TEXT_MAX, t('settings.users.form.usernameTooLong')),
-        pattern(/^[a-zA-Z0-9._-]+$/, t('settings.users.form.usernameInvalid')),
-      ),
-      email: compose(
-        required<string>(t('settings.users.form.emailRequired')),
-        email(t('settings.users.form.emailInvalid')),
-      ),
-      // Password is required only when creating; edits never change it here, so
-      // the validator passes (returns null) in edit mode where the field is hidden.
-      password: (value: string) =>
-        props.user
-          ? null
-          : compose(
-              required<string>(t('settings.users.form.passwordRequired')),
-              validatePassword,
-            )(value),
-      // Required only when creating; the mismatch itself is surfaced via the
-      // `passwordsMatch`/`confirmPasswordError` computeds below (a validator here
-      // can't safely read the sibling `password` field — see `values` note above).
-      confirmPassword: (value: string) =>
-        props.user
-          ? null
-          : required<string>(t('settings.users.form.confirmPasswordRequired'))(value),
-      heightCm: heightCmValidator(t('settings.users.form.heightInvalid')),
-      maxHeartRate: maxHeartRateValidator(t('settings.users.form.maxHeartRateInvalid')),
-      // Height is captured per unit system and only the active system's inputs
-      // are rendered. Skip the imperial validators in metric mode (and vice
-      // versa) so a hidden field's seed value can't silently fail validation and
-      // disable submit with no visible error.
-      heightFeet: (value: number | null) =>
-        activeUnits.value === 'metric'
-          ? null
-          : numberRange(10, t('settings.users.form.feetInvalid'))(value),
-      heightInches: (value: number | null) =>
-        activeUnits.value === 'metric'
-          ? null
-          : numberRange(11, t('settings.users.form.inchesInvalid'))(value),
-    },
-    onSubmit: submitForm,
-  })
+const {
+  values,
+  errors,
+  isValid,
+  isSubmitting,
+  handleSubmit,
+  handleBlur,
+  reset,
+  isDirty,
+  markPristine,
+  setErrors,
+} = useForm<UserFormValues>({
+  initialValues: defaultValues(),
+  validators: {
+    name: compose(
+      required<string>(t('settings.users.form.nameRequired')),
+      maxLength(TEXT_MAX, t('settings.users.form.nameTooLong')),
+    ),
+    username: compose(
+      required<string>(t('settings.users.form.usernameRequired')),
+      maxLength(TEXT_MAX, t('settings.users.form.usernameTooLong')),
+      pattern(/^[a-zA-Z0-9._-]+$/, t('settings.users.form.usernameInvalid')),
+    ),
+    email: compose(
+      required<string>(t('settings.users.form.emailRequired')),
+      email(t('settings.users.form.emailInvalid')),
+    ),
+    // Password is required only when creating; edits never change it here, so
+    // the validator passes (returns null) in edit mode where the field is hidden.
+    password: (value: string) =>
+      props.user
+        ? null
+        : compose(
+            required<string>(t('settings.users.form.passwordRequired')),
+            validatePassword,
+          )(value),
+    // Required only when creating; the mismatch itself is surfaced via the
+    // `passwordsMatch`/`confirmPasswordError` computeds below (a validator here
+    // can't safely read the sibling `password` field — see `values` note above).
+    confirmPassword: (value: string) =>
+      props.user ? null : required<string>(t('settings.users.form.confirmPasswordRequired'))(value),
+    heightCm: heightCmValidator(t('settings.users.form.heightInvalid')),
+    maxHeartRate: maxHeartRateValidator(t('settings.users.form.maxHeartRateInvalid')),
+    // Height is captured per unit system and only the active system's inputs
+    // are rendered. Skip the imperial validators in metric mode (and vice
+    // versa) so a hidden field's seed value can't silently fail validation and
+    // disable submit with no visible error.
+    heightFeet: (value: number | null) =>
+      activeUnits.value === 'metric'
+        ? null
+        : numberRange(10, t('settings.users.form.feetInvalid'))(value),
+    heightInches: (value: number | null) =>
+      activeUnits.value === 'metric'
+        ? null
+        : numberRange(11, t('settings.users.form.inchesInvalid'))(value),
+  },
+  onSubmit: submitForm,
+})
 
 const isEditing = computed(() => props.user !== null)
 const isMetric = computed(() => values.units === 'metric')
@@ -367,6 +380,7 @@ function populate(): void {
     values.heightFeet = feet
     values.heightInches = inches
   }
+  markPristine()
 }
 
 // Re-seed each time the dialog opens; the parent sets `user` before opening.

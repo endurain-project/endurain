@@ -246,6 +246,10 @@ describe('a dialog whose save is refused as stale', () => {
       })
       // The form seeds itself when the dialog opens.
       await wrapper.setProps({ open: true })
+      // An unchanged edit is not sent, so change the first field.
+      const field = wrapper.find('input')
+      const isDate = field.attributes('type') === 'date'
+      await field.setValue(isDate ? '2026-10-29' : `${(field.element as HTMLInputElement).value}1`)
 
       await wrapper.find('form').trigger('submit')
       await flushPromises()

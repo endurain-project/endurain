@@ -145,6 +145,11 @@ function buildInput(formValues: FastingFormValues): FastingEntryInput {
  * @param formValues - The validated form values.
  */
 async function submitForm(formValues: FastingFormValues): Promise<void> {
+  // Nothing changed: skip the request and just close.
+  if (props.entry && !isDirty.value) {
+    open.value = false
+    return
+  }
   const input = buildInput(formValues)
   try {
     if (props.entry) {
@@ -173,23 +178,33 @@ async function submitForm(formValues: FastingFormValues): Promise<void> {
   }
 }
 
-const { values, errors, isValid, isSubmitting, handleSubmit, handleBlur, validateField, reset } =
-  useForm<FastingFormValues>({
-    initialValues: defaultValues(),
-    validators: {
-      startTime: required<string>(t('health.fasting.form.startTimeRequired')),
-      // The end must not precede the start, and a fast in progress has no end.
-      endTime: (end: string): string | null => {
-        if (end && values.status === 'in_progress') {
-          return t('health.fasting.form.endWhileInProgress')
-        }
-        return values.startTime && end && end < values.startTime
-          ? t('health.fasting.form.endBeforeStart')
-          : null
-      },
+const {
+  values,
+  errors,
+  isValid,
+  isSubmitting,
+  handleSubmit,
+  handleBlur,
+  validateField,
+  reset,
+  isDirty,
+  markPristine,
+} = useForm<FastingFormValues>({
+  initialValues: defaultValues(),
+  validators: {
+    startTime: required<string>(t('health.fasting.form.startTimeRequired')),
+    // The end must not precede the start, and a fast in progress has no end.
+    endTime: (end: string): string | null => {
+      if (end && values.status === 'in_progress') {
+        return t('health.fasting.form.endWhileInProgress')
+      }
+      return values.startTime && end && end < values.startTime
+        ? t('health.fasting.form.endBeforeStart')
+        : null
     },
-    onSubmit: submitForm,
-  })
+  },
+  onSubmit: submitForm,
+})
 
 /** Validates the end time again, since its rules depend on the start time and the status. */
 function revalidateEndTime(): void {
@@ -229,6 +244,7 @@ function populate(): void {
   values.endTime = entry.fastEndTime ? toDateTimeLocalInput(entry.fastEndTime) : ''
   values.status = entry.status ?? 'in_progress'
   values.notes = entry.notes ?? ''
+  markPristine()
 }
 
 // Re-seed each time the dialog opens; the parent sets `entry` before opening.

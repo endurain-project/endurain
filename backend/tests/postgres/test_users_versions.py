@@ -5,7 +5,9 @@ from sqlalchemy import select
 
 import core.exceptions as core_exceptions
 import modules.users.users.crud as users_crud
+import modules.users.users.integration_service as users_integration
 import modules.users.users.models as users_models
+import modules.users.users.schema as users_schema
 import modules.users.users_goals.schema as goals_schema
 import modules.users.users_goals.service as goals_service
 import modules.users.users_privacy_settings.integration_service as privacy_integration
@@ -71,3 +73,20 @@ def test_a_stale_user_edit_is_refused_and_a_system_write_still_works(factory):
     with factory() as db:
         row = db.scalar(select(users_models.Users).where(users_models.Users.id == 1))
         assert (row.city, row.version) == ("Faro", before.version + 2)
+
+
+def test_a_profile_edit_that_changes_nothing_keeps_the_version(factory):
+    edit = users_schema.ProfileUpdate(city="Porto", height=180)
+    with factory() as db:
+        users_integration.edit_profile(1, edit, db, if_match='"1"')
+        db.commit()
+        first = users_crud.get_user_by_id(1, db)
+    assert first is not None
+
+    with factory() as db:
+        users_integration.edit_profile(1, edit, db, if_match=f'"{first.version}"')
+        db.commit()
+        second = users_crud.get_user_by_id(1, db)
+
+    assert second is not None
+    assert second.version == first.version

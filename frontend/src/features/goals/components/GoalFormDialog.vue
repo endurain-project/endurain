@@ -162,6 +162,11 @@ function buildInput(values: GoalFormValues): GoalInput {
  * @param values - The validated form values.
  */
 async function submitForm(values: GoalFormValues): Promise<void> {
+  // Nothing changed: skip the request and just close.
+  if (props.goal && !isDirty.value) {
+    open.value = false
+    return
+  }
   const input = buildInput(values)
   try {
     if (props.goal) {
@@ -180,10 +185,11 @@ async function submitForm(values: GoalFormValues): Promise<void> {
   }
 }
 
-const { values, isSubmitting, handleSubmit, reset } = useForm<GoalFormValues>({
-  initialValues: defaultValues(),
-  onSubmit: submitForm,
-})
+const { values, isSubmitting, handleSubmit, reset, isDirty, markPristine } =
+  useForm<GoalFormValues>({
+    initialValues: defaultValues(),
+    onSubmit: submitForm,
+  })
 
 const isEditing = computed(() => props.goal !== null)
 const dialogTitle = computed(() =>
@@ -233,6 +239,7 @@ function populate(): void {
     values.durationHours = String(hours)
     values.durationMinutes = String(minutes)
   }
+  markPristine()
 }
 
 // Re-seed each time the dialog opens; the parent sets `goal` before opening.

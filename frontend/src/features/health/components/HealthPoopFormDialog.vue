@@ -99,6 +99,11 @@ function buildInput(values: PoopFormValues): PoopEntryInput {
  * @param values - The validated form values.
  */
 async function submitForm(values: PoopFormValues): Promise<void> {
+  // Nothing changed: skip the request and just close.
+  if (props.entry && !isDirty.value) {
+    open.value = false
+    return
+  }
   const input = buildInput(values)
   try {
     if (props.entry) {
@@ -121,14 +126,23 @@ async function submitForm(values: PoopFormValues): Promise<void> {
   }
 }
 
-const { values, errors, isValid, isSubmitting, handleSubmit, handleBlur, reset } =
-  useForm<PoopFormValues>({
-    initialValues: defaultValues(),
-    validators: {
-      dateTime: required<string>(t('health.poop.form.dateTimeRequired')),
-    },
-    onSubmit: submitForm,
-  })
+const {
+  values,
+  errors,
+  isValid,
+  isSubmitting,
+  handleSubmit,
+  handleBlur,
+  reset,
+  isDirty,
+  markPristine,
+} = useForm<PoopFormValues>({
+  initialValues: defaultValues(),
+  validators: {
+    dateTime: required<string>(t('health.poop.form.dateTimeRequired')),
+  },
+  onSubmit: submitForm,
+})
 
 const isEditing = computed(() => props.entry !== null)
 const dialogTitle = computed(() =>
@@ -149,6 +163,7 @@ function populate(): void {
   values.bristolType = entry.bristolType !== null ? String(entry.bristolType) : ''
   values.color = entry.color ?? ''
   values.notes = entry.notes ?? ''
+  markPristine()
 }
 
 // Re-seed each time the dialog opens; the parent sets `entry` before opening.

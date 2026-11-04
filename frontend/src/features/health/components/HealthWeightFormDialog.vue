@@ -121,6 +121,11 @@ function buildInput(values: WeightFormValues): WeightEntryInput {
  * @param values - The validated form values.
  */
 async function submitForm(values: WeightFormValues): Promise<void> {
+  // Nothing changed: skip the request and just close.
+  if (props.entry && !isDirty.value) {
+    open.value = false
+    return
+  }
   const input = buildInput(values)
   try {
     if (props.entry) {
@@ -148,18 +153,28 @@ async function submitForm(values: WeightFormValues): Promise<void> {
 
 const FORM_KEYS = ['date', 'weight', 'bodyFat', 'bodyWater', 'boneMass', 'muscleMass'] as const
 
-const { values, errors, isValid, isSubmitting, handleSubmit, handleBlur, reset, setErrors } =
-  useForm<WeightFormValues>({
-    initialValues: defaultValues(),
-    validators: {
-      date: required<string>(t('health.weight.form.dateRequired')),
-      weight: compose(
-        required<string>(t('health.weight.form.weightRequired')),
-        positiveNumber(t('health.weight.form.weightInvalid')),
-      ),
-    },
-    onSubmit: submitForm,
-  })
+const {
+  values,
+  errors,
+  isValid,
+  isSubmitting,
+  handleSubmit,
+  handleBlur,
+  reset,
+  isDirty,
+  markPristine,
+  setErrors,
+} = useForm<WeightFormValues>({
+  initialValues: defaultValues(),
+  validators: {
+    date: required<string>(t('health.weight.form.dateRequired')),
+    weight: compose(
+      required<string>(t('health.weight.form.weightRequired')),
+      positiveNumber(t('health.weight.form.weightInvalid')),
+    ),
+  },
+  onSubmit: submitForm,
+})
 
 const isEditing = computed(() => props.entry !== null)
 const dialogTitle = computed(() =>
@@ -186,6 +201,7 @@ function populate(): void {
   values.bodyWater = entry.bodyWaterPct !== null ? String(entry.bodyWaterPct) : ''
   values.boneMass = displayMassFromKg(entry.boneMassKg)
   values.muscleMass = displayMassFromKg(entry.muscleMassKg)
+  markPristine()
 }
 
 // Re-seed each time the dialog opens; the parent sets `entry` before opening.

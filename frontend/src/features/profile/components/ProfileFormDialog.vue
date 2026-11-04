@@ -101,6 +101,11 @@ function detectBrowserTimezone(): string {
  * @param values - The validated form values.
  */
 async function submitForm(values: ProfileFormValues): Promise<void> {
+  // Nothing changed: skip the request and just close.
+  if (!isDirty.value) {
+    open.value = false
+    return
+  }
   const input: ProfileEditInput = {
     name: values.name.trim(),
     username: values.username.trim(),
@@ -158,52 +163,62 @@ const FORM_KEYS = [
   'timezone',
 ] as const
 
-const { values, errors, isValid, isSubmitting, handleSubmit, handleBlur, reset, setErrors } =
-  useForm<ProfileFormValues>({
-    initialValues: {
-      name: '',
-      username: '',
-      city: '',
-      birthdate: '',
-      gender: 'unspecified',
-      units: 'metric',
-      weightUnits: 'default',
-      currency: 'euro',
-      heightCm: null,
-      heightFeet: null,
-      heightInches: null,
-      maxHeartRate: null,
-      preferredLanguage: 'en',
-      firstDayOfWeek: 'monday',
-      timezone: '',
-    },
-    validators: {
-      name: compose(
-        required(t('settings.users.form.nameRequired')),
-        maxLength(TEXT_MAX, t('settings.users.form.nameTooLong')),
-      ),
-      username: compose(
-        required(t('settings.users.form.usernameRequired')),
-        maxLength(TEXT_MAX, t('settings.users.form.usernameTooLong')),
-        pattern(/^[a-zA-Z0-9._-]+$/, t('settings.users.form.usernameInvalid')),
-      ),
-      heightCm: heightCmValidator(t('settings.users.form.heightInvalid')),
-      maxHeartRate: maxHeartRateValidator(t('settings.users.form.maxHeartRateInvalid')),
-      // Height is captured per unit system and only the active system's inputs
-      // are rendered. Skip the imperial validators in metric mode (and vice
-      // versa) so a hidden field's seed value can't silently fail validation and
-      // disable submit with no visible error.
-      heightFeet: (value: number | null) =>
-        activeUnits.value === 'metric'
-          ? null
-          : numberRange(10, t('settings.users.form.feetInvalid'))(value),
-      heightInches: (value: number | null) =>
-        activeUnits.value === 'metric'
-          ? null
-          : numberRange(11, t('settings.users.form.inchesInvalid'))(value),
-    },
-    onSubmit: submitForm,
-  })
+const {
+  values,
+  errors,
+  isValid,
+  isSubmitting,
+  handleSubmit,
+  handleBlur,
+  reset,
+  isDirty,
+  markPristine,
+  setErrors,
+} = useForm<ProfileFormValues>({
+  initialValues: {
+    name: '',
+    username: '',
+    city: '',
+    birthdate: '',
+    gender: 'unspecified',
+    units: 'metric',
+    weightUnits: 'default',
+    currency: 'euro',
+    heightCm: null,
+    heightFeet: null,
+    heightInches: null,
+    maxHeartRate: null,
+    preferredLanguage: 'en',
+    firstDayOfWeek: 'monday',
+    timezone: '',
+  },
+  validators: {
+    name: compose(
+      required(t('settings.users.form.nameRequired')),
+      maxLength(TEXT_MAX, t('settings.users.form.nameTooLong')),
+    ),
+    username: compose(
+      required(t('settings.users.form.usernameRequired')),
+      maxLength(TEXT_MAX, t('settings.users.form.usernameTooLong')),
+      pattern(/^[a-zA-Z0-9._-]+$/, t('settings.users.form.usernameInvalid')),
+    ),
+    heightCm: heightCmValidator(t('settings.users.form.heightInvalid')),
+    maxHeartRate: maxHeartRateValidator(t('settings.users.form.maxHeartRateInvalid')),
+    // Height is captured per unit system and only the active system's inputs
+    // are rendered. Skip the imperial validators in metric mode (and vice
+    // versa) so a hidden field's seed value can't silently fail validation and
+    // disable submit with no visible error.
+    heightFeet: (value: number | null) =>
+      activeUnits.value === 'metric'
+        ? null
+        : numberRange(10, t('settings.users.form.feetInvalid'))(value),
+    heightInches: (value: number | null) =>
+      activeUnits.value === 'metric'
+        ? null
+        : numberRange(11, t('settings.users.form.inchesInvalid'))(value),
+  },
+  onSubmit: submitForm,
+})
 
 /** The viewer's browser timezone, offered by the "use my browser's timezone" action. */
 const browserTimezone = detectBrowserTimezone()
@@ -243,6 +258,7 @@ function populate(): void {
     values.heightFeet = feet
     values.heightInches = inches
   }
+  markPristine()
 }
 
 watch(open, (isOpen) => {

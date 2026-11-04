@@ -148,6 +148,11 @@ function buildInput(values: ComponentFormValues): GearComponentInput {
  * @param values - The validated form values.
  */
 async function submitForm(values: ComponentFormValues): Promise<void> {
+  // Nothing changed: skip the request and just close.
+  if (props.component && !isDirty.value) {
+    open.value = false
+    return
+  }
   const input = buildInput(values)
   if (input.retiredDate && input.purchaseDate && input.retiredDate <= input.purchaseDate) {
     emit('error', t('gears.components.form.retiredBeforePurchase'))
@@ -178,23 +183,32 @@ async function submitForm(values: ComponentFormValues): Promise<void> {
   }
 }
 
-const { values, errors, isValid, isSubmitting, handleSubmit, handleBlur, reset } =
-  useForm<ComponentFormValues>({
-    initialValues: defaultValues(),
-    validators: {
-      type: required<string>(t('gears.components.form.typeRequired')),
-      brand: compose(
-        required<string>(t('gears.components.form.brandRequired')),
-        maxLength(TEXT_MAX, t('gears.components.form.brandTooLong')),
-      ),
-      model: compose(
-        required<string>(t('gears.components.form.modelRequired')),
-        maxLength(TEXT_MAX, t('gears.components.form.modelTooLong')),
-      ),
-      purchaseDate: required<string>(t('gears.components.form.purchaseDateRequired')),
-    },
-    onSubmit: submitForm,
-  })
+const {
+  values,
+  errors,
+  isValid,
+  isSubmitting,
+  handleSubmit,
+  handleBlur,
+  reset,
+  isDirty,
+  markPristine,
+} = useForm<ComponentFormValues>({
+  initialValues: defaultValues(),
+  validators: {
+    type: required<string>(t('gears.components.form.typeRequired')),
+    brand: compose(
+      required<string>(t('gears.components.form.brandRequired')),
+      maxLength(TEXT_MAX, t('gears.components.form.brandTooLong')),
+    ),
+    model: compose(
+      required<string>(t('gears.components.form.modelRequired')),
+      maxLength(TEXT_MAX, t('gears.components.form.modelTooLong')),
+    ),
+    purchaseDate: required<string>(t('gears.components.form.purchaseDateRequired')),
+  },
+  onSubmit: submitForm,
+})
 
 const isEditing = computed(() => props.component !== null)
 const dialogTitle = computed(() =>
@@ -247,6 +261,7 @@ function populate(): void {
   values.active = component.active
   values.expected = expectedFromBaseUnits(component.expectedBaseUnits)
   values.purchaseValue = component.purchaseValue !== null ? String(component.purchaseValue) : ''
+  markPristine()
 }
 
 // Re-seed each time the dialog opens; the parent sets `component` before opening.

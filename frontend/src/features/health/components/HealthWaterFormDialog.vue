@@ -106,6 +106,11 @@ function buildInput(values: WaterFormValues): WaterEntryInput {
  * @param values - The validated form values.
  */
 async function submitForm(values: WaterFormValues): Promise<void> {
+  // Nothing changed: skip the request and just close.
+  if (props.entry && !isDirty.value) {
+    open.value = false
+    return
+  }
   const input = buildInput(values)
   try {
     if (props.entry) {
@@ -132,18 +137,27 @@ async function submitForm(values: WaterFormValues): Promise<void> {
   }
 }
 
-const { values, errors, isValid, isSubmitting, handleSubmit, handleBlur, reset } =
-  useForm<WaterFormValues>({
-    initialValues: defaultValues(),
-    validators: {
-      date: required<string>(t('health.water.form.dateRequired')),
-      amount: compose(
-        required<string>(t('health.water.form.amountRequired')),
-        positiveNumber(t('health.water.form.amountInvalid')),
-      ),
-    },
-    onSubmit: submitForm,
-  })
+const {
+  values,
+  errors,
+  isValid,
+  isSubmitting,
+  handleSubmit,
+  handleBlur,
+  reset,
+  isDirty,
+  markPristine,
+} = useForm<WaterFormValues>({
+  initialValues: defaultValues(),
+  validators: {
+    date: required<string>(t('health.water.form.dateRequired')),
+    amount: compose(
+      required<string>(t('health.water.form.amountRequired')),
+      positiveNumber(t('health.water.form.amountInvalid')),
+    ),
+  },
+  onSubmit: submitForm,
+})
 
 const isEditing = computed(() => props.entry !== null)
 const dialogTitle = computed(() =>
@@ -162,6 +176,7 @@ function populate(): void {
   }
   values.date = entry.date ?? todayIsoDate()
   values.amount = displayAmountFromMl(entry.amountMl)
+  markPristine()
 }
 
 // Re-seed each time the dialog opens; the parent sets `entry` before opening.

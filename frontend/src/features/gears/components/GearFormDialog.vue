@@ -125,6 +125,11 @@ function buildInput(values: GearFormValues): GearInput {
  * @param values - The validated form values.
  */
 async function submitForm(values: GearFormValues): Promise<void> {
+  // Nothing changed: skip the request and just close.
+  if (props.gear && !isDirty.value) {
+    open.value = false
+    return
+  }
   const input = buildInput(values)
   try {
     if (props.gear) {
@@ -163,20 +168,30 @@ const FORM_KEYS = [
   'purchaseValue',
 ] as const
 
-const { values, errors, isValid, isSubmitting, handleSubmit, handleBlur, reset, setErrors } =
-  useForm<GearFormValues>({
-    initialValues: defaultValues(),
-    validators: {
-      nickname: compose(
-        required<string>(t('gears.form.nicknameRequired')),
-        maxLength(NICKNAME_MAX, t('gears.form.nicknameTooLong')),
-      ),
-      brand: maxLength(NICKNAME_MAX, t('gears.form.brandTooLong')),
-      model: maxLength(NICKNAME_MAX, t('gears.form.modelTooLong')),
-      createdAt: required<string>(t('gears.form.createdAtRequired')),
-    },
-    onSubmit: submitForm,
-  })
+const {
+  values,
+  errors,
+  isValid,
+  isSubmitting,
+  handleSubmit,
+  handleBlur,
+  reset,
+  isDirty,
+  markPristine,
+  setErrors,
+} = useForm<GearFormValues>({
+  initialValues: defaultValues(),
+  validators: {
+    nickname: compose(
+      required<string>(t('gears.form.nicknameRequired')),
+      maxLength(NICKNAME_MAX, t('gears.form.nicknameTooLong')),
+    ),
+    brand: maxLength(NICKNAME_MAX, t('gears.form.brandTooLong')),
+    model: maxLength(NICKNAME_MAX, t('gears.form.modelTooLong')),
+    createdAt: required<string>(t('gears.form.createdAtRequired')),
+  },
+  onSubmit: submitForm,
+})
 
 const isEditing = computed(() => props.gear !== null)
 const dialogTitle = computed(() =>
@@ -208,6 +223,7 @@ function populate(): void {
   values.createdAt = gear.createdAt ? gear.createdAt.slice(0, 10) : todayIsoDate()
   values.initialDistance = displayDistanceFromKm(gear.initialKms)
   values.purchaseValue = gear.purchaseValue !== null ? String(gear.purchaseValue) : ''
+  markPristine()
 }
 
 // Re-seed each time the dialog opens; the parent sets `gear` before opening.

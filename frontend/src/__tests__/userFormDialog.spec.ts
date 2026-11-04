@@ -149,6 +149,7 @@ describe('UserFormDialog weight units', () => {
     const wrapper = await mountDialog(false, { ...user, weightUnits: 'imperial' })
 
     expect((weightUnitsSelect(wrapper).element as HTMLSelectElement).value).toBe('imperial')
+    await wrapper.find('input[name="name"]').setValue('Renamed')
     await wrapper.find('form').trigger('submit')
 
     expect(await sentUpdate()).toMatchObject({ weight_units: 'imperial' })

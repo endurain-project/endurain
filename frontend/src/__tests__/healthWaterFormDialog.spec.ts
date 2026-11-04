@@ -3,6 +3,8 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { flushPromises, mount } from '@vue/test-utils'
 import { QueryClient, VueQueryPlugin } from '@tanstack/vue-query'
 
+import type { WaterEntry } from '@/features/health/types'
+
 import { HttpError, apiFetch } from '@/services/http'
 import i18n from '@/i18n'
 import HealthWaterFormDialog from '@/features/health/components/HealthWaterFormDialog.vue'
@@ -16,9 +18,9 @@ vi.mock('@/services/http', async (importOriginal) => ({
 /** Passthrough stub so the reka-ui portal/focus-trap is skipped and the form renders inline. */
 const passthrough = { template: '<div><slot /></div>' }
 
-async function openDialog() {
+async function openDialog(entry: WaterEntry | null = null) {
   const wrapper = mount(HealthWaterFormDialog, {
-    props: { open: false, entry: null, units: 'metric' },
+    props: { open: false, entry, units: 'metric' },
     global: {
       plugins: [i18n, [VueQueryPlugin, { queryClient: new QueryClient() }]],
       stubs: {
@@ -64,5 +66,21 @@ describe('HealthWaterFormDialog', () => {
     expect(wrapper.emitted('error')?.[0]).toEqual([
       "Couldn't save your water entry. Please try again.",
     ])
+  })
+
+  it('sends no request and closes when an edit changed nothing', async () => {
+    const wrapper = await openDialog({
+      id: 7,
+      userId: 1,
+      version: 2,
+      date: '2026-10-30',
+      amountMl: 1500,
+      source: null,
+    })
+    await wrapper.find('form').trigger('submit')
+    await flushPromises()
+
+    expect(apiFetch).not.toHaveBeenCalled()
+    expect(wrapper.emitted('update:open')?.slice(-1)[0]).toEqual([false])
   })
 })

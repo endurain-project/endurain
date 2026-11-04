@@ -102,6 +102,7 @@ describe('ProfileFormDialog height', () => {
   it('keeps the height on a later save while imperial is already selected', async () => {
     vi.mocked(apiFetch).mockResolvedValue({ ...profile })
     const wrapper = await mountDialog({ ...profile, units: 'imperial' })
+    await wrapper.find('input[name="name"]').setValue('Renamed')
 
     expect(await saveBody(wrapper)).toMatchObject({ units: 'imperial', height: 172 })
   })

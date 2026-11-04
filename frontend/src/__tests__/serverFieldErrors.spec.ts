@@ -217,8 +217,11 @@ describe.each(cases)('%s 422 handling', (_name, component, props, fieldError, me
   })
 
   it('shows the field error and keeps the dialog open without a toast', async () => {
+    // An unchanged edit is not sent, so change a field first.
     if (component === HealthWeightFormDialog) {
       await wrapper.findAll('input')[1]!.setValue('77')
+    } else {
+      await wrapper.find('input').setValue('Changed')
     }
     await wrapper.find('form').trigger('submit')
     await flushPromises()
@@ -233,8 +236,11 @@ describe.each(cases)('%s 422 handling', (_name, component, props, fieldError, me
     vi.mocked(apiFetch).mockRejectedValue(
       unprocessable([{ field: 'body.unknown_thing', message: 'm', type: 'missing' }]),
     )
+    // An unchanged edit is not sent, so change a field first.
     if (component === HealthWeightFormDialog) {
       await wrapper.findAll('input')[1]!.setValue('77')
+    } else {
+      await wrapper.find('input').setValue('Changed')
     }
     await wrapper.find('form').trigger('submit')
     await flushPromises()

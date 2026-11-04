@@ -84,6 +84,11 @@ function buildInput(values: StepsFormValues): StepsEntryInput {
  * @param values - The validated form values.
  */
 async function submitForm(values: StepsFormValues): Promise<void> {
+  // Nothing changed: skip the request and just close.
+  if (props.entry && !isDirty.value) {
+    open.value = false
+    return
+  }
   const input = buildInput(values)
   try {
     if (props.entry) {
@@ -106,18 +111,27 @@ async function submitForm(values: StepsFormValues): Promise<void> {
   }
 }
 
-const { values, errors, isValid, isSubmitting, handleSubmit, handleBlur, reset } =
-  useForm<StepsFormValues>({
-    initialValues: defaultValues(),
-    validators: {
-      date: required<string>(t('health.steps.form.dateRequired')),
-      steps: compose(
-        required<string>(t('health.steps.form.stepsRequired')),
-        positiveNumber(t('health.steps.form.stepsInvalid')),
-      ),
-    },
-    onSubmit: submitForm,
-  })
+const {
+  values,
+  errors,
+  isValid,
+  isSubmitting,
+  handleSubmit,
+  handleBlur,
+  reset,
+  isDirty,
+  markPristine,
+} = useForm<StepsFormValues>({
+  initialValues: defaultValues(),
+  validators: {
+    date: required<string>(t('health.steps.form.dateRequired')),
+    steps: compose(
+      required<string>(t('health.steps.form.stepsRequired')),
+      positiveNumber(t('health.steps.form.stepsInvalid')),
+    ),
+  },
+  onSubmit: submitForm,
+})
 
 const isEditing = computed(() => props.entry !== null)
 const dialogTitle = computed(() =>
@@ -134,6 +148,7 @@ function populate(): void {
   }
   values.date = entry.date ?? todayIsoDate()
   values.steps = entry.steps !== null ? String(entry.steps) : ''
+  markPristine()
 }
 
 // Re-seed each time the dialog opens; the parent sets `entry` before opening.

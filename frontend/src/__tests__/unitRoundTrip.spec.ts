@@ -60,7 +60,12 @@ beforeEach(() => {
   vi.mocked(apiFetch).mockResolvedValue({})
 })
 
-describe('an untouched imperial edit keeps the stored metric value', () => {
+/** Edits a field other than the unit-converted one, so the dialog has something to save. */
+const editOtherField = (selector: string, value: string) => async (wrapper: VueWrapper) => {
+  await wrapper.find(selector).setValue(value)
+}
+
+describe('an untouched imperial field keeps the stored metric value', () => {
   it('weight, bone mass and muscle mass', async () => {
     const entry: WeightEntry = {
       id: 3,
@@ -76,7 +81,11 @@ describe('an untouched imperial edit keeps the stored metric value', () => {
       source: null,
     }
 
-    const body = await save(HealthWeightFormDialog, { entry, weightUnits: 'imperial' })
+    const body = await save(
+      HealthWeightFormDialog,
+      { entry, weightUnits: 'imperial' },
+      editOtherField('input[type="date"]', '2026-10-29'),
+    )
 
     expect(body).toMatchObject({ weight: 70.5, bone_mass: 3.1, muscle_mass: 33.3 })
   })
@@ -91,9 +100,13 @@ describe('an untouched imperial edit keeps the stored metric value', () => {
       source: null,
     }
 
-    expect(await save(HealthWaterFormDialog, { entry, units: 'imperial' })).toMatchObject({
-      amount_ml: 2000,
-    })
+    expect(
+      await save(
+        HealthWaterFormDialog,
+        { entry, units: 'imperial' },
+        editOtherField('input[type="date"]', '2026-10-29'),
+      ),
+    ).toMatchObject({ amount_ml: 2000 })
   })
 
   it('gear initial distance', async () => {
@@ -113,9 +126,13 @@ describe('an untouched imperial edit keeps the stored metric value', () => {
       version: 5,
     }
 
-    expect(await save(GearFormDialog, { gear, units: 'imperial', currency: 'euro' })).toMatchObject(
-      { initial_kms: 100 },
-    )
+    expect(
+      await save(
+        GearFormDialog,
+        { gear, units: 'imperial', currency: 'euro' },
+        editOtherField('input[name="nickname"]', 'Gravel'),
+      ),
+    ).toMatchObject({ initial_kms: 100 })
   })
 
   it('gear component expected distance', async () => {
@@ -137,14 +154,18 @@ describe('an untouched imperial edit keeps the stored metric value', () => {
     }
 
     expect(
-      await save(GearComponentFormDialog, {
-        component,
-        gearId: 5,
-        gearType: GEAR_TYPE.BICYCLE,
-        availableTypes: ['chain'],
-        units: 'imperial',
-        currency: 'euro',
-      }),
+      await save(
+        GearComponentFormDialog,
+        {
+          component,
+          gearId: 5,
+          gearType: GEAR_TYPE.BICYCLE,
+          availableTypes: ['chain'],
+          units: 'imperial',
+          currency: 'euro',
+        },
+        editOtherField('input[name="brand"]', 'SRAM'),
+      ),
     ).toMatchObject({ expected_kms: 5_000_000 })
   })
 
@@ -166,7 +187,11 @@ describe('an untouched imperial edit keeps the stored metric value', () => {
       ...target,
     } as Goal
 
-    expect(await save(GoalFormDialog, { goal, units: 'imperial' })).toMatchObject(expected)
+    expect(
+      await save(GoalFormDialog, { goal, units: 'imperial' }, async (wrapper) => {
+        await wrapper.find('select').setValue('monthly')
+      }),
+    ).toMatchObject(expected)
   })
 })
 
