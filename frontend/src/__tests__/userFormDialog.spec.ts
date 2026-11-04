@@ -67,6 +67,18 @@ async function mountDialog(isSelf: boolean, edited: ManagedUser = user) {
   return wrapper
 }
 
+/**
+ * Waits for the user update request and returns its JSON body. The save is looked up by method rather
+ * than taken as the last call, because a successful save refetches the users afterwards.
+ */
+async function sentUpdate(): Promise<unknown> {
+  await vi.waitFor(() =>
+    expect(apiFetch).toHaveBeenCalledWith('/users/1', expect.objectContaining({ method: 'PUT' })),
+  )
+  const [, init] = vi.mocked(apiFetch).mock.calls.find(([, i]) => i?.method === 'PUT')!
+  return JSON.parse(String(init?.body))
+}
+
 describe('UserFormDialog email field', () => {
   it('is editable when the administrator edits another user', async () => {
     const wrapper = await mountDialog(false)
@@ -113,15 +125,14 @@ describe('UserFormDialog email verification switches', () => {
   })
 
   it('sends the new-address switch as the payload emailVerified', async () => {
+    vi.mocked(apiFetch).mockClear()
     vi.mocked(apiFetch).mockResolvedValue({ ...user })
     const wrapper = await mountDialog(false)
     await wrapper.find('input[name="email"]').setValue('new@example.com')
     await switches(wrapper)[2]!.setValue(true)
     await wrapper.find('form').trigger('submit')
-    await flushPromises()
 
-    const [, init] = vi.mocked(apiFetch).mock.calls.slice(-1)[0]!
-    expect(JSON.parse(String(init?.body))).toMatchObject({
+    expect(await sentUpdate()).toMatchObject({
       email: 'new@example.com',
       email_verified: true,
     })
@@ -133,27 +144,25 @@ describe('UserFormDialog weight units', () => {
     wrapper.findAll('select').find((select) => select.find('option[value="default"]').exists())!
 
   it('seeds the override and sends it back unchanged', async () => {
+    vi.mocked(apiFetch).mockClear()
     vi.mocked(apiFetch).mockResolvedValue({ ...user })
     const wrapper = await mountDialog(false, { ...user, weightUnits: 'imperial' })
 
     expect((weightUnitsSelect(wrapper).element as HTMLSelectElement).value).toBe('imperial')
     await wrapper.find('form').trigger('submit')
-    await flushPromises()
 
-    const [, init] = vi.mocked(apiFetch).mock.calls.slice(-1)[0]!
-    expect(JSON.parse(String(init?.body))).toMatchObject({ weight_units: 'imperial' })
+    expect(await sentUpdate()).toMatchObject({ weight_units: 'imperial' })
   })
 
   it('sends null when set to follow units', async () => {
+    vi.mocked(apiFetch).mockClear()
     vi.mocked(apiFetch).mockResolvedValue({ ...user })
     const wrapper = await mountDialog(false, { ...user, weightUnits: 'imperial' })
 
     await weightUnitsSelect(wrapper).setValue('default')
     await wrapper.find('form').trigger('submit')
-    await flushPromises()
 
-    const [, init] = vi.mocked(apiFetch).mock.calls.slice(-1)[0]!
-    expect(JSON.parse(String(init?.body))).toMatchObject({ weight_units: null })
+    expect(await sentUpdate()).toMatchObject({ weight_units: null })
   })
 })
 
@@ -176,12 +185,7 @@ describe('UserFormDialog height', () => {
     await unitsSelect(wrapper).setValue('imperial')
     await wrapper.find('form').trigger('submit')
 
-    // Wait for the save request itself rather than assuming it is the last call made.
-    await vi.waitFor(() =>
-      expect(apiFetch).toHaveBeenCalledWith('/users/1', expect.objectContaining({ method: 'PUT' })),
-    )
-    const [, init] = vi.mocked(apiFetch).mock.calls.find(([, i]) => i?.method === 'PUT')!
-    expect(JSON.parse(String(init?.body))).toMatchObject({ units: 'imperial', height: 172 })
+    expect(await sentUpdate()).toMatchObject({ units: 'imperial', height: 172 })
   })
 
   it.each(['0', '400'])('rejects a height of %s cm and does not submit', async (cm) => {
