@@ -98,7 +98,8 @@ export const DEFAULT_LOCALE: LocaleCode = 'en'
 const STORAGE_KEY = 'locale'
 
 declare module 'vue-i18n' {
-  // Make `t()` keys fully type-safe against the English schema.
+  // Gives `t()` key autocomplete against the English schema. It does not reject unknown keys; the key check in
+  // `src/__tests__/i18nKeys.spec.ts` does.
   // eslint-disable-next-line @typescript-eslint/no-empty-object-type
   export interface DefineLocaleMessage extends MessageSchema {}
 }
