@@ -390,8 +390,8 @@ def _compute_lap_metrics(
         cad: Full cadence stream.
         vel: Full velocity stream.
         measured_vel_times: Timestamps of velocity samples that are real
-            measurements; max speed ignores the others. ``None`` treats every
-            sample as measured.
+            measurements; average and max speed ignore the others. ``None``
+            treats every sample as measured.
 
     Returns:
         Dict with all computed lap metrics.
@@ -424,18 +424,13 @@ def _compute_lap_metrics(
         )
 
     avg_speed, max_speed = None, None
-    if lap_vel:
-        avg_speed, max_speed = activities_computation.calculate_avg_and_max(
-            lap_vel,
-            "vel",
-        )
-        max_speed = activities_computation.calculate_robust_max(
-            [
-                waypoint["vel"]
-                for waypoint in lap_vel
-                if measured_vel_times is None or waypoint["time"] in measured_vel_times
-            ],
-        )
+    # Placeholder samples (a segment's first point) are not speeds, so neither average nor max sees them.
+    measured_vel = [
+        waypoint for waypoint in lap_vel if measured_vel_times is None or waypoint["time"] in measured_vel_times
+    ]
+    if measured_vel:
+        avg_speed, _ = activities_computation.calculate_avg_and_max(measured_vel, "vel")
+        max_speed = activities_computation.calculate_robust_max([waypoint["vel"] for waypoint in measured_vel])
 
     avg_power, max_power, norm_power = None, None, None
     if lap_power:

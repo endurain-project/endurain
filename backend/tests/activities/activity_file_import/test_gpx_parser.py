@@ -1185,11 +1185,11 @@ class TestGenerateLapsMeasuredSamples:
             lat_lon, [], [], [], [], vel, measured_vel_times=measured_vel_times
         )
 
-    def test_unmeasured_samples_are_left_out_of_the_lap_max(self):
+    def test_unmeasured_samples_are_left_out_of_the_lap_max_and_average(self):
         laps = self._laps({"2025-01-01T00:00:03", "2025-01-01T00:00:04"})
 
         assert laps[0]["enhanced_max_speed"] == 3
-        assert laps[0]["enhanced_avg_speed"] == pytest.approx(1.2)
+        assert laps[0]["enhanced_avg_speed"] == pytest.approx(3)
 
     def test_without_measured_times_every_sample_counts(self):
         assert self._laps(None)[0]["enhanced_max_speed"] == 0

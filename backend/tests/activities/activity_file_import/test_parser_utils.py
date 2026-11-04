@@ -64,6 +64,31 @@ class TestGenerateActivityLapsElevation:
         assert all(lap["total_descent"] is None for lap in laps)
 
 
+class TestGenerateActivityLapsSpeed:
+    """Lap average speed ignores placeholder velocity samples."""
+
+    def test_first_point_placeholder_zero_speed_is_not_averaged_into_lap_one(self):
+        """A constant-speed track gives every lap the same average speed, lap 1 included."""
+        lat_lon, _ = _straight_track(25, lambda _i: None)
+        measured = {point["time"] for point in lat_lon[1:]}
+        speed = 111.2 / 10
+        vel = [{"time": point["time"], "vel": speed if point["time"] in measured else 0} for point in lat_lon]
+
+        laps = afi_utils.generate_activity_laps(lat_lon, [], [], [], [], vel, measured_vel_times=measured)
+
+        assert len(laps) >= 2
+        assert [lap["enhanced_avg_speed"] for lap in laps] == [pytest.approx(speed)] * len(laps)
+
+    def test_every_sample_is_averaged_without_measured_times(self):
+        """Sources without placeholder samples keep averaging every sample."""
+        lat_lon, _ = _straight_track(25, lambda _i: None)
+        vel = [{"time": point["time"], "vel": 2.0} for point in lat_lon]
+
+        laps = afi_utils.generate_activity_laps(lat_lon, [], [], [], [], vel)
+
+        assert all(lap["enhanced_avg_speed"] == pytest.approx(2.0) for lap in laps)
+
+
 class TestComputeDistanceFromWaypoints:
     """Test suite for compute_distance_from_waypoints."""
 
