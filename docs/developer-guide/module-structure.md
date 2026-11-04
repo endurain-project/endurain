@@ -792,10 +792,12 @@ by hand when the code it describes changes.
   sit in `users` (33, mostly the profile export), `activities` (31, mostly ingestion), `core` and `main.py`
   (31), `auth` (28, mostly the identity providers) and the provider services of `strava` (12) and `garmin` (6);
   `websocket` and `server_settings` hold one each, and `followers`, `gears`, `health` and `notifications` have
-  none. The migrations hold 38 more. ruff's `BLE` rules are not selected. Many are deliberate boundaries (a
-  job records a failure and re-raises, a provider call degrades to a warning), but each should name the errors
-  it expects. Narrowing them in bulk risks hiding a real failure as an expected one, so they are narrowed as
-  the code around them is touched.
+  none. The migrations hold 38 more. Many are deliberate boundaries (a job records a failure and re-raises, a
+  provider call degrades to a warning), but each should name the errors it expects. Narrowing them in bulk
+  risks hiding a real failure as an expected one, so they are narrowed as the code around them is touched.
+  The ones that swallow the error (no `raise` in the handler) are counted per file in
+  `tests/architecture/test_broad_except.py`, which fails on a new one and on a count that is not lowered when
+  a handler is narrowed; ruff's `BLE001` is not used because it accepts a handler that logs with `exc_info`.
 - **Oversized services and `*_utils.py` files.** `auth/authentication/service.py` and
   `users/users_profile/export_service.py` each hold several jobs, and a dozen
   `utils.py` or `*_utils.py` files (in `auth`, `users_profile`, `users_goals`, `garmin`, `server_settings` and

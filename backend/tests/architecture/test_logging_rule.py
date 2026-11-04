@@ -10,6 +10,7 @@ import ast
 import pathlib
 import re
 
+from tests._helpers.handlers import own_nodes
 from tests._helpers.module_roles import CONVERTED_MODULES, files_with_role, role_of
 
 import core.exceptions as core_exceptions
@@ -189,15 +190,6 @@ def _app_files() -> list[pathlib.Path]:
     return sorted(p for p in _APP.rglob("*.py") if "__pycache__" not in p.parts)
 
 
-def _own_nodes(handler: ast.ExceptHandler):
-    """Yield the nodes of an ``except`` body, leaving nested handlers to be judged on their own."""
-    stack = list(handler.body)
-    while stack:
-        node = stack.pop()
-        yield node
-        stack.extend(child for child in ast.iter_child_nodes(node) if not isinstance(child, ast.ExceptHandler))
-
-
 def _commits(function: ast.AST) -> bool:
     """Return whether a function ends a transaction or hands ``commit`` to a publisher."""
     for node in ast.walk(function):
@@ -325,7 +317,7 @@ class TestLoggingRule:
                     continue
                 offenders.extend(
                     f"{path}:{node.lineno}"
-                    for node in _own_nodes(handler)
+                    for node in own_nodes(handler)
                     if _is_logger_call(node)
                     and node.func.attr in {"warning", "error", "critical"}
                     and not any(keyword.arg == "exc_info" for keyword in node.keywords)
