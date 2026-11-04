@@ -654,10 +654,7 @@ def stage_user_edit(
     if users_schema.normalize_access_type(user.access_type) != users_schema.UserAccessType.ADMIN.value:
         _refuse_to_remove_last_admin(existing, "demoted", db)
 
-    # ``photo_path`` is excluded because the read schema exposes a resolved, signed URL while
-    # the column stores a storage key: echoing the read model back would overwrite the key
-    # with its own URL. The photo is owned solely by the upload and delete operations.
-    changes = user.model_dump(exclude_unset=True, exclude={"mfa_enabled", "photo_path"})
+    changes = user.model_dump(exclude_unset=True, exclude={"mfa_enabled"})
     changes["username"] = user.username.lower()
     changes["email"] = user.email.lower()
 
@@ -697,7 +694,7 @@ def _stage_user_update_audit(
         requested: The edit as the administrator submitted it.
         db: Database session.
     """
-    submitted = requested.model_dump(exclude_unset=True, exclude={"mfa_enabled", "photo_path"})
+    submitted = requested.model_dump(exclude_unset=True, exclude={"mfa_enabled"})
     changed_fields = changed_field_names(before, after, submitted)
     if changed_fields:
         jasil_audit.stage(

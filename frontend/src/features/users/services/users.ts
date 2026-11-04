@@ -81,8 +81,8 @@ function toUserWire(user: ManagedUser): Omit<UserEditDto, 'mfa_enabled'> {
     birthdate: user.birthdate,
     height: user.height,
     max_heart_rate: user.maxHeartRate,
-    // photo_path is deliberately not sent: it is a server-issued, signed URL
-    // derived from a storage key, and the backend ignores it on write.
+    // photo_path is not sent: the photo is owned by the upload and delete endpoints,
+    // and the backend refuses it on write.
   }
 }
 
@@ -158,7 +158,6 @@ export async function createUser(input: CreateUserInput): Promise<ManagedUser> {
     birthdate: input.birthdate,
     height: input.height,
     max_heart_rate: input.maxHeartRate,
-    photo_path: null,
   }
   const dto = await apiFetch<UserDto>('/users', {
     method: 'POST',

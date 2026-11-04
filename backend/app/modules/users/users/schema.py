@@ -312,8 +312,6 @@ class Users(UsersBase):
 
     Attributes:
         access_type: User access level.
-        photo_path: Servable URL of the user's photo, resolved from
-            the stored storage key. Read-only: writes are ignored.
         active: Whether the user is active.
         mfa_enabled: Whether MFA is enabled.
         email_verified: Whether email is verified.
@@ -323,11 +321,6 @@ class Users(UsersBase):
     access_type: UserAccessType = Field(
         ...,
         description="User access level",
-    )
-    photo_path: StrictStr | None = Field(
-        default=None,
-        max_length=500,
-        description="Servable URL of the user's photo (read-only)",
     )
     active: StrictBool = Field(
         ...,
@@ -359,6 +352,7 @@ class UsersRead(Users):
 
     Attributes:
         id: User ID.
+        photo_path: Servable URL of the user's photo, resolved from the stored storage key.
         external_auth_count: Number of external auth providers.
         pending_email: Address awaiting confirmation, which replaces ``email`` once confirmed.
         pending_email_expires_at: When the confirmation link for ``pending_email`` expires.
@@ -368,6 +362,11 @@ class UsersRead(Users):
         ...,
         ge=1,
         description="User ID",
+    )
+    photo_path: StrictStr | None = Field(
+        default=None,
+        max_length=500,
+        description="Servable URL of the user's photo",
     )
     external_auth_count: StrictInt = Field(
         default=0,
@@ -414,8 +413,8 @@ class UsersEdit(Users):
     """Users schema for an administrative edit.
 
     The stored columns of a user and nothing a read adds: ``id`` is the path, and
-    ``external_auth_count`` and the pending email change are derived. ``photo_path`` and ``mfa_enabled`` are read-only
-    projections, so a write ignores them. A name already stored is re-applied as it is, even if it would not pass as
+    ``external_auth_count``, the photo URL and the pending email change are derived. ``mfa_enabled`` is a read-only
+    projection, so a write ignores it. A name already stored is re-applied as it is, even if it would not pass as
     new input.
     """
 
@@ -433,7 +432,14 @@ class UsersEdit(Users):
         """
         return cls.model_validate(
             user.model_dump(
-                exclude={"id", "external_auth_count", "version", "pending_email", "pending_email_expires_at"}
+                exclude={
+                    "id",
+                    "photo_path",
+                    "external_auth_count",
+                    "version",
+                    "pending_email",
+                    "pending_email_expires_at",
+                }
             ),
             context={core_types.STORED_CONTEXT: True},
         )

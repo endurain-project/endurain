@@ -179,7 +179,6 @@ describe('users service requests', () => {
         birthdate: '1990-01-01',
         height: 180,
         max_heart_rate: 190,
-        photo_path: null,
       }),
     })
   })

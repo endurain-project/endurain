@@ -12165,11 +12165,6 @@ export interface components {
              */
             pending_admin_approval: boolean;
             /**
-             * Photo Path
-             * @description Servable URL of the user's photo (read-only)
-             */
-            photo_path?: string | null;
-            /**
              * @description Preferred language
              * @default en
              */
@@ -12384,8 +12379,9 @@ export interface components {
          * @description Users schema for an administrative edit.
          *
          *     The stored columns of a user and nothing a read adds: ``id`` is the path, and
-         *     ``external_auth_count`` and the pending email change are derived. ``photo_path`` and ``mfa_enabled`` are read-only
-         *     projections, so a write ignores them.
+         *     ``external_auth_count``, the photo URL and the pending email change are derived. ``mfa_enabled`` is a read-only
+         *     projection, so a write ignores it. A name already stored is re-applied as it is, even if it would not pass as
+         *     new input.
          */
         UsersEdit: {
             /** @description User access level */
@@ -12459,11 +12455,6 @@ export interface components {
              * @default false
              */
             pending_admin_approval: boolean;
-            /**
-             * Photo Path
-             * @description Servable URL of the user's photo (read-only)
-             */
-            photo_path?: string | null;
             /**
              * @description Preferred language
              * @default en
@@ -12985,7 +12976,7 @@ export interface components {
             pending_email_expires_at?: string | null;
             /**
              * Photo Path
-             * @description Servable URL of the user's photo (read-only)
+             * @description Servable URL of the user's photo
              */
             photo_path?: string | null;
             /**
@@ -13217,6 +13208,7 @@ export interface components {
          *
          *     Attributes:
          *         id: User ID.
+         *         photo_path: Servable URL of the user's photo, resolved from the stored storage key.
          *         external_auth_count: Number of external auth providers.
          *         pending_email: Address awaiting confirmation, which replaces ``email`` once confirmed.
          *         pending_email_expires_at: When the confirmation link for ``pending_email`` expires.
@@ -13316,7 +13308,7 @@ export interface components {
             pending_email_expires_at?: string | null;
             /**
              * Photo Path
-             * @description Servable URL of the user's photo (read-only)
+             * @description Servable URL of the user's photo
              */
             photo_path?: string | null;
             /**
