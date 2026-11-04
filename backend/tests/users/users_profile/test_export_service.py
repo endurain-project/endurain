@@ -884,14 +884,14 @@ class TestExportPerformanceConfigEdgeCases:
         config = profile_export_service.ExportPerformanceConfig.get_auto_config()
         assert config.batch_size == 125  # default, not from tier configs
 
-    def test_get_auto_config_exception_falls_back(self, monkeypatch) -> None:
+    def test_get_auto_config_detection_failure_propagates(self, monkeypatch) -> None:
         monkeypatch.setattr(
             profile_utils,
             "detect_system_memory_tier",
-            lambda: (_ for _ in ()).throw(Exception("detection failed")),
+            lambda: (_ for _ in ()).throw(RuntimeError("detection failed")),
         )
-        config = profile_export_service.ExportPerformanceConfig.get_auto_config()
-        assert config.batch_size == 125
+        with pytest.raises(RuntimeError, match="detection failed"):
+            profile_export_service.ExportPerformanceConfig.get_auto_config()
 
 
 class TestExportServiceCollectUserActivitiesEdgeCases:

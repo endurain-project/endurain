@@ -66,16 +66,35 @@ class TestBasePerformanceConfig:
         assert config.batch_size == 1000
 
     @patch("modules.users.users_profile.utils.detect_system_memory_tier")
-    def test_get_auto_config_detect_failure_defaults(self, mock_detect):
-        mock_detect.side_effect = Exception("detect failed")
+    def test_get_auto_config_detect_failure_propagates(self, mock_detect):
+        mock_detect.side_effect = RuntimeError("detect failed")
 
         class TestConfig(profile_utils.BasePerformanceConfig):
             @classmethod
             def _get_tier_configs(cls):
                 return {"high": cls(batch_size=5000)}
 
-        config = TestConfig.get_auto_config()
-        assert config.batch_size == 1000
+        with pytest.raises(RuntimeError, match="detect failed"):
+            TestConfig.get_auto_config()
+
+    @patch("modules.users.users_profile.utils.detect_system_memory_tier")
+    def test_get_auto_config_broken_tier_configs_propagate(self, mock_detect):
+        mock_detect.return_value = ("high", 4096)
+
+        class TestConfig(profile_utils.BasePerformanceConfig):
+            @classmethod
+            def _get_tier_configs(cls):
+                raise RuntimeError("broken tier configs")
+
+        with pytest.raises(RuntimeError, match="broken tier configs"):
+            TestConfig.get_auto_config()
+
+    @patch("modules.users.users_profile.utils.detect_system_memory_tier")
+    def test_get_auto_config_without_tier_configs_raises(self, mock_detect):
+        mock_detect.return_value = ("high", 4096)
+
+        with pytest.raises(NotImplementedError):
+            profile_utils.BasePerformanceConfig.get_auto_config()
 
 
 class TestModelToDict:

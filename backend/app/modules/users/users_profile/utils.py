@@ -67,20 +67,20 @@ class BasePerformanceConfig:
         """Create config automatically based on system memory.
 
         Returns:
-            Configuration instance for detected tier.
-        """
-        try:
-            tier, _ = detect_system_memory_tier()
-            tier_configs = cls._get_tier_configs()
+            Configuration instance for detected tier, or the default
+            configuration when the tier has no entry.
 
-            if tier in tier_configs:
-                return tier_configs[tier]
-            else:
-                logger.warning("Unknown memory tier, using the default config", extra=core_logger.context(tier=tier))
-                return cls()
-        except Exception as err:
-            logger.warning("Failed to create the auto config, using defaults", exc_info=err)
-            return cls()
+        Raises:
+            NotImplementedError: If the subclass does not implement
+                ``_get_tier_configs``.
+        """
+        tier, _ = detect_system_memory_tier()
+        tier_configs = cls._get_tier_configs()
+
+        if tier in tier_configs:
+            return tier_configs[tier]
+        logger.warning("Unknown memory tier, using the default config", extra=core_logger.context(tier=tier))
+        return cls()
 
 
 # Export utility functions
