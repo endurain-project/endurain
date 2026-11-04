@@ -11,6 +11,7 @@ import core.exceptions as core_exceptions
 import modules.auth.api_keys.schema as api_keys_schema
 import modules.auth.authentication.audit_actions as authentication_audit_actions
 import modules.auth.authentication.principal_service as principal_service
+import modules.auth.authentication.refresh_service as authentication_service_refresh_service
 import modules.auth.authentication.service as authentication_service
 
 _SERVICE = "modules.auth.authentication.service"
@@ -113,7 +114,7 @@ def _refresh(db, *, session, x_csrf_token=None, hasher=None, token_user_id=5):
         patch(f"{_SERVICE}.sessions_integration.get_session_by_id_not_expired", return_value=session),
         patch(f"{_SERVICE}.server_settings_integration.get_session_policy"),
     ):
-        return authentication_service.refresh_token(
+        return authentication_service_refresh_service.refresh_token(
             "127.0.0.1",
             "agent",
             token_user_id,
@@ -195,7 +196,10 @@ class TestRefreshRefusal:
         hasher.verify_password.return_value = False
         with (
             patch(f"{_SERVICE}.sessions_integration.validate_session_timeout"),
-            patch(f"{_SERVICE}.rotated_refresh_tokens_integration.check_token_reuse", return_value=(False, False)),
+            patch(
+                "modules.auth.authentication.refresh_service.rotated_refresh_tokens_integration.check_token_reuse",
+                return_value=(False, False),
+            ),
             jasil_testing.capture_audit() as audit,
             pytest.raises(core_exceptions.UnauthenticatedError),
         ):
@@ -208,7 +212,10 @@ class TestRefreshRefusal:
         hasher.verify_password.return_value = True
         with (
             patch(f"{_SERVICE}.sessions_integration.validate_session_timeout"),
-            patch(f"{_SERVICE}.rotated_refresh_tokens_integration.check_token_reuse", return_value=(False, False)),
+            patch(
+                "modules.auth.authentication.refresh_service.rotated_refresh_tokens_integration.check_token_reuse",
+                return_value=(False, False),
+            ),
             patch(f"{_SERVICE}.users_integration.get_user", return_value=user),
         ):
             _refresh(db, session=_session(), hasher=hasher)
@@ -228,11 +235,14 @@ class TestRefreshRefusal:
 
     def test_a_replay_with_no_stored_replacement_is_a_failure(self, mock_db):
         with (
-            patch(f"{_SERVICE}.rotated_refresh_tokens_integration.get_grace_replay_token", return_value=None),
+            patch(
+                "modules.auth.authentication.refresh_service.rotated_refresh_tokens_integration.get_grace_replay_token",
+                return_value=None,
+            ),
             jasil_testing.capture_audit() as audit,
             pytest.raises(core_exceptions.UnauthenticatedError),
         ):
-            authentication_service._replay_rotation(
+            authentication_service_refresh_service._replay_rotation(
                 "web", _session(), "old-token", 5, MagicMock(), MagicMock(), mock_db
             )
 
@@ -241,14 +251,14 @@ class TestRefreshRefusal:
     def test_a_replay_for_a_missing_user_is_a_failure(self, mock_db):
         with (
             patch(
-                f"{_SERVICE}.rotated_refresh_tokens_integration.get_grace_replay_token",
+                "modules.auth.authentication.refresh_service.rotated_refresh_tokens_integration.get_grace_replay_token",
                 return_value=("replacement", datetime(2999, 1, 1, tzinfo=UTC)),
             ),
             patch(f"{_SERVICE}.users_integration.get_user", return_value=None),
             jasil_testing.capture_audit() as audit,
             pytest.raises(core_exceptions.UnauthenticatedError),
         ):
-            authentication_service._replay_rotation(
+            authentication_service_refresh_service._replay_rotation(
                 "web", _session(), "old-token", 5, MagicMock(), MagicMock(), mock_db
             )
 
@@ -258,14 +268,14 @@ class TestRefreshRefusal:
         inactive = SimpleNamespace(id=5, username="alice", active=False, access_type="regular")
         with (
             patch(
-                f"{_SERVICE}.rotated_refresh_tokens_integration.get_grace_replay_token",
+                "modules.auth.authentication.refresh_service.rotated_refresh_tokens_integration.get_grace_replay_token",
                 return_value=("replacement", datetime(2999, 1, 1, tzinfo=UTC)),
             ),
             patch(f"{_SERVICE}.users_integration.get_user", return_value=inactive),
             jasil_testing.capture_audit() as audit,
             pytest.raises(core_exceptions.PermissionDeniedError),
         ):
-            authentication_service._replay_rotation(
+            authentication_service_refresh_service._replay_rotation(
                 "web", _session(), "old-token", 5, MagicMock(), MagicMock(), mock_db
             )
 
@@ -274,7 +284,10 @@ class TestRefreshRefusal:
     def test_a_reuse_keeps_its_own_row_and_writes_no_refresh_row(self, mock_db):
         with (
             patch(f"{_SERVICE}.sessions_integration.validate_session_timeout"),
-            patch(f"{_SERVICE}.rotated_refresh_tokens_integration.check_token_reuse", return_value=(True, False)),
+            patch(
+                "modules.auth.authentication.refresh_service.rotated_refresh_tokens_integration.check_token_reuse",
+                return_value=(True, False),
+            ),
             patch(f"{_SERVICE}.sessions_integration.invalidate_token_family"),
             jasil_testing.capture_audit() as audit,
             pytest.raises(core_exceptions.UnauthenticatedError),
@@ -339,7 +352,7 @@ class TestLockoutAppliedByFailedCodes:
             jasil_testing.capture_audit() as audit,
             pytest.raises(core_exceptions.InvalidMfaCodeError),
         ):
-            authentication_service._require_valid_mfa_code(
+            authentication_service.require_valid_mfa_code(
                 "alice",
                 5,
                 authentication_audit_actions.LoginMethod.PASSWORD,

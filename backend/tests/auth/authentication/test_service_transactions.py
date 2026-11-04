@@ -7,6 +7,7 @@ from unittest.mock import MagicMock, patch
 import pytest
 
 import core.exceptions as core_exceptions
+import modules.auth.authentication.refresh_service as authentication_service_refresh_service
 import modules.auth.authentication.service as authentication_service
 
 _SERVICE = "modules.auth.authentication.service"
@@ -30,11 +31,14 @@ def test_a_reused_refresh_token_keeps_the_family_invalidated_although_the_reques
         patch(f"{_SERVICE}.sessions_integration.get_session_by_id_not_expired", return_value=_session()),
         patch(f"{_SERVICE}.server_settings_integration.get_session_policy"),
         patch(f"{_SERVICE}.sessions_integration.validate_session_timeout"),
-        patch(f"{_SERVICE}.rotated_refresh_tokens_integration.check_token_reuse", return_value=(True, False)),
+        patch(
+            "modules.auth.authentication.refresh_service.rotated_refresh_tokens_integration.check_token_reuse",
+            return_value=(True, False),
+        ),
         patch(f"{_SERVICE}.sessions_integration.invalidate_token_family") as invalidate,
         pytest.raises(core_exceptions.UnauthenticatedError),
     ):
-        authentication_service.refresh_token(
+        authentication_service_refresh_service.refresh_token(
             "127.0.0.1", "agent", 1, "sid", "old", _OLD_EXP, MagicMock(), MagicMock(), "mobile", mock_db
         )
 
@@ -51,15 +55,20 @@ def test_a_rotation_records_the_presented_tokens_own_expiry(mock_db):
         patch(f"{_SERVICE}.sessions_integration.get_session_by_id_not_expired", return_value=_session()),
         patch(f"{_SERVICE}.server_settings_integration.get_session_policy"),
         patch(f"{_SERVICE}.sessions_integration.validate_session_timeout"),
-        patch(f"{_SERVICE}.rotated_refresh_tokens_integration.check_token_reuse", return_value=(False, False)),
+        patch(
+            "modules.auth.authentication.refresh_service.rotated_refresh_tokens_integration.check_token_reuse",
+            return_value=(False, False),
+        ),
         patch(f"{_SERVICE}.users_integration.get_user", return_value=SimpleNamespace(id=1)),
         patch(f"{_SERVICE}.users_integration.require_active_user"),
-        patch(f"{_SERVICE}.create_tokens", return_value=tokens),
-        patch(f"{_SERVICE}.rotated_refresh_tokens_integration.store_rotated_token") as store,
+        patch("modules.auth.authentication.token_service.create_tokens", return_value=tokens),
+        patch(
+            "modules.auth.authentication.refresh_service.rotated_refresh_tokens_integration.store_rotated_token"
+        ) as store,
         patch(f"{_SERVICE}.sessions_integration.edit_session"),
         patch(f"{_SERVICE}.identity_providers_integration.request_idp_token_refresh"),
     ):
-        authentication_service.refresh_token(
+        authentication_service_refresh_service.refresh_token(
             "127.0.0.1", "agent", 1, "sid", "old", _OLD_EXP, hasher, MagicMock(), "mobile", mock_db
         )
 

@@ -85,7 +85,7 @@ class TestTokenExchange:
 
     @patch(f"{_SERVICE}.users_integration.require_user")
     @patch(f"{_SERVICE}.users_integration.require_active_user")
-    @patch(f"{_SERVICE}.create_tokens")
+    @patch("modules.auth.authentication.token_service.create_tokens")
     @patch(f"{_SERVICE}.sessions_integration.claim_session_for_token_exchange", return_value=True)
     @patch(f"{_SERVICE}.auth_computation.validate_pkce_verifier")
     @patch(f"{_SERVICE}.sessions_integration.get_session_with_oauth_state")
@@ -129,7 +129,7 @@ class TestTokenExchange:
         assert response.json()["refresh_token"] == "refresh-token"
 
     @patch(f"{_SERVICE}.sessions_integration.claim_session_for_token_exchange")
-    @patch(f"{_SERVICE}.create_tokens")
+    @patch("modules.auth.authentication.token_service.create_tokens")
     @patch(f"{_SERVICE}.auth_computation.validate_pkce_verifier")
     @patch(f"{_SERVICE}.sessions_integration.get_session_with_oauth_state")
     def test_client_type_mismatch_does_not_mint_tokens_or_claim_session(
@@ -149,7 +149,7 @@ class TestTokenExchange:
         mock_claim_session.assert_not_called()
 
     @patch(f"{_SERVICE}.sessions_integration.claim_session_for_token_exchange", return_value=False)
-    @patch(f"{_SERVICE}.create_tokens")
+    @patch("modules.auth.authentication.token_service.create_tokens")
     @patch(f"{_SERVICE}.users_integration.require_active_user")
     @patch(f"{_SERVICE}.users_integration.require_user")
     @patch(f"{_SERVICE}.auth_computation.validate_pkce_verifier")
@@ -191,7 +191,7 @@ class TestTokenExchangeMfa:
             patch(f"{_SERVICE}.users_integration.require_active_user"),
             patch(f"{_SERVICE}.mfa_integration.is_mfa_enabled_for_user", return_value=True),
             patch(f"{_SERVICE}.mfa_integration.verify_user_mfa", return_value=True) as verify,
-            patch(f"{_SERVICE}.create_tokens", return_value=tokens),
+            patch("modules.auth.authentication.token_service.create_tokens", return_value=tokens),
             patch(f"{_SERVICE}.sessions_integration.claim_session_for_token_exchange", return_value=True) as claim,
         ):
             get_session.return_value = _session_and_state()

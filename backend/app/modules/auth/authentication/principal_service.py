@@ -13,7 +13,7 @@ import modules.auth.access_tokens.integration_service as access_tokens_integrati
 import modules.auth.api_keys.integration_service as api_keys_integration
 import modules.auth.authentication.audit_actions as authentication_audit_actions
 import modules.auth.authentication.event_publishers as authentication_event_publishers
-import modules.auth.authentication.service as authentication_service
+import modules.auth.authentication.token_service as authentication_token_service
 import modules.auth.sessions.integration_service as sessions_integration
 import modules.server_settings.contracts as server_settings_contracts
 import modules.users.users.integration_service as users_integration
@@ -265,4 +265,4 @@ def issue_token_pair(
             access_token, refresh_token_exp,
             refresh_token, csrf_token)``.
     """
-    return authentication_service.create_tokens(user, token_manager, policy, session_id)
+    return authentication_token_service.create_tokens(user, token_manager, policy, session_id)

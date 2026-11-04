@@ -9,7 +9,9 @@ import pytest
 
 import core.exceptions as core_exceptions
 import modules.auth.authentication.audit_actions as authentication_audit_actions
+import modules.auth.authentication.refresh_service as authentication_service_refresh_service
 import modules.auth.authentication.service as authentication_service
+import modules.auth.authentication.sso_exchange_service as authentication_service_sso_exchange_service
 import modules.auth.known_devices.contracts as known_devices_contracts
 
 _SERVICE = "modules.auth.authentication.service"
@@ -142,7 +144,7 @@ class TestSuccessfulSignIn:
             patch(f"{_SERVICE}.server_settings_integration.get_session_policy"),
             patch(f"{_SERVICE}.credentials_integration.allows_password_sign_in", return_value=True),
             patch(f"{_SERVICE}.mfa_integration.is_mfa_enabled_for_user", return_value=False),
-            patch(f"{_SERVICE}.create_tokens", return_value=tokens),
+            patch("modules.auth.authentication.token_service.create_tokens", return_value=tokens),
             patch(f"{_SERVICE}.sessions_integration.create_session"),
         ):
             return _login(db, **kwargs)
@@ -189,7 +191,7 @@ class TestMfaSignIn:
             patch(f"{_SERVICE}.mfa_integration.verify_user_mfa", return_value=code_valid),
             patch(f"{_SERVICE}.lockout_integration.report_lockout_applied"),
             patch(f"{_SERVICE}.server_settings_integration.get_session_policy"),
-            patch(f"{_SERVICE}.create_tokens", return_value=tokens),
+            patch("modules.auth.authentication.token_service.create_tokens", return_value=tokens),
             patch(f"{_SERVICE}.sessions_integration.create_session"),
         ):
             return authentication_service.verify_mfa_and_login(
@@ -287,12 +289,15 @@ class TestLogoutAndReuse:
             patch(f"{_SERVICE}.sessions_integration.get_session_by_id_not_expired", return_value=self._session()),
             patch(f"{_SERVICE}.server_settings_integration.get_session_policy"),
             patch(f"{_SERVICE}.sessions_integration.validate_session_timeout"),
-            patch(f"{_SERVICE}.rotated_refresh_tokens_integration.check_token_reuse", return_value=(True, False)),
+            patch(
+                "modules.auth.authentication.refresh_service.rotated_refresh_tokens_integration.check_token_reuse",
+                return_value=(True, False),
+            ),
             patch(f"{_SERVICE}.sessions_integration.invalidate_token_family"),
             jasil_testing.capture_audit() as audit,
             pytest.raises(core_exceptions.UnauthenticatedError),
         ):
-            authentication_service.refresh_token(
+            authentication_service_refresh_service.refresh_token(
                 "127.0.0.1",
                 "agent",
                 1,
@@ -319,11 +324,14 @@ class TestLogoutAndReuse:
             patch(f"{_SERVICE}.sessions_integration.get_session_by_id_not_expired", return_value=self._session()),
             patch(f"{_SERVICE}.server_settings_integration.get_session_policy"),
             patch(f"{_SERVICE}.sessions_integration.validate_session_timeout"),
-            patch(f"{_SERVICE}.rotated_refresh_tokens_integration.check_token_reuse", return_value=(True, True)),
-            patch(f"{_SERVICE}._replay_rotation"),
+            patch(
+                "modules.auth.authentication.refresh_service.rotated_refresh_tokens_integration.check_token_reuse",
+                return_value=(True, True),
+            ),
+            patch("modules.auth.authentication.refresh_service._replay_rotation"),
             jasil_testing.capture_audit() as audit,
         ):
-            authentication_service.refresh_token(
+            authentication_service_refresh_service.refresh_token(
                 "127.0.0.1",
                 "agent",
                 1,
@@ -360,10 +368,10 @@ class TestSsoSignIn:
             patch(f"{_SERVICE}.mfa_integration.is_mfa_enabled_for_user", return_value=mfa_enabled),
             patch(f"{_SERVICE}.mfa_integration.verify_user_mfa", return_value=True),
             patch(f"{_SERVICE}.server_settings_integration.get_session_policy"),
-            patch(f"{_SERVICE}.create_tokens", return_value=tokens),
+            patch("modules.auth.authentication.token_service.create_tokens", return_value=tokens),
             patch(f"{_SERVICE}.sessions_integration.claim_session_for_token_exchange", return_value=True),
         ):
-            return authentication_service.exchange_tokens_for_session(
+            return authentication_service_sso_exchange_service.exchange_tokens_for_session(
                 "sid",
                 "verifier",
                 mfa_code,

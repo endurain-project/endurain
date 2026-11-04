@@ -1,0 +1,249 @@
+"""Exchange of a single sign-on token for a session."""
+
+from __future__ import annotations
+
+from datetime import UTC, datetime
+
+import jasil.audit as jasil_audit
+from sqlalchemy.orm import Session
+
+import core.exceptions as core_exceptions
+import core.hashing as core_hashing
+import core.logger as core_logger
+import modules.auth.access_tokens.integration_service as access_tokens_integration
+import modules.auth.authentication.audit_actions as authentication_audit_actions
+import modules.auth.authentication.refusal_audit as authentication_refusal_audit
+import modules.auth.authentication.schema as auth_schema
+import modules.auth.authentication.service as authentication_service
+import modules.auth.authentication.token_service as authentication_token_service
+import modules.auth.computation as auth_computation
+import modules.auth.credentials.integration_service as credentials_integration
+import modules.auth.known_devices.events as known_devices_events
+import modules.auth.known_devices.integration_service as known_devices_integration
+import modules.auth.lockout.contracts as lockout_contracts
+import modules.auth.lockout.integration_service as lockout_integration
+import modules.auth.mfa.dependencies as mfa_dependencies
+import modules.auth.mfa.integration_service as mfa_integration
+import modules.auth.oauth_state.constants as oauth_state_constants
+import modules.auth.sessions.integration_service as sessions_integration
+import modules.server_settings.integration_service as server_settings_integration
+import modules.users.users.integration_service as users_integration
+
+logger = core_logger.get_logger(__name__)
+
+
+def exchange_tokens_for_session(
+    session_id: str,
+    code_verifier: str,
+    mfa_code: str | None,
+    header_client_type: str | None,
+    ip_address: str,
+    user_agent: str,
+    pending_mfa_store: mfa_dependencies.PendingMFAStore,
+    password_hasher: credentials_integration.PasswordHasher,
+    token_manager: access_tokens_integration.TokenManager,
+    db: Session,
+    *,
+    device_id: str | None,
+) -> auth_schema.AuthOutcome[auth_schema.TokenExchangeRead]:
+    """Exchange a PKCE code verifier for the tokens of an SSO session.
+
+    The session was created by the identity-provider callback and holds no tokens yet. The caller proves it holds the
+    verifier whose challenge the OAuth state stored; the exchange succeeds once per session.
+
+    A session that came from an identity provider also needs an MFA code when the account has MFA enabled, since
+    the provider's sign-in does not replace the account's own second factor. The code is checked after the PKCE
+    verifier, so only the client that started the flow can try codes, and a wrong or missing code leaves the
+    session unused for another attempt. A session from a password login has already passed MFA.
+
+    Args:
+        session_id: Session created by the identity-provider callback.
+        code_verifier: PKCE verifier sent by the client.
+        mfa_code: TOTP or backup code, if the client has one.
+        header_client_type: ``X-Client-Type`` header of the exchange request, if any.
+        ip_address: Client address of the exchange request.
+        user_agent: Client user agent of the exchange request.
+        pending_mfa_store: Store for the MFA lockout and the TOTP replay guard.
+        password_hasher: Hasher for the stored refresh token.
+        token_manager: Token manager that signs the tokens.
+        db: Database session.
+        device_id: Device id from the browser's device cookie, or None when it sent no valid one.
+
+    Returns:
+        The tokens; web clients get the refresh token as a cookie in the outcome, mobile clients in the body. A web
+        SSO sign-in also carries the device id the browser keeps.
+
+    Raises:
+        NotFoundError: If the session does not exist or has no OAuth state.
+        ConflictError: If the tokens were already exchanged, or another exchange won the race.
+        InvalidInputError: If the OAuth state holds no PKCE data, the verifier does not match, or the client type
+            contradicts the one recorded when the flow started.
+        MfaRequiredError: If the account has MFA enabled and no code was sent.
+        InvalidMfaCodeError: If the code does not verify.
+        TooManyRequestsError: If the account is locked out from too many failed MFA codes.
+    """
+    fingerprint = core_hashing.log_fingerprint(session_id)
+    session_with_state = sessions_integration.get_session_with_oauth_state(session_id, db)
+    if not session_with_state:
+        logger.warning(
+            "Token exchange failed: session <value_1> not found", extra=core_logger.context(value_1=fingerprint)
+        )
+        raise core_exceptions.NotFoundError("Session not found or not eligible for token exchange")
+
+    session_obj, oauth_state = session_with_state
+    if not oauth_state:
+        logger.warning(
+            "Token exchange failed: session <value_1> has no OAuth state",
+            extra=core_logger.context(value_1=fingerprint),
+        )
+        raise core_exceptions.NotFoundError("Session not eligible for PKCE token exchange")
+    if oauth_state.purpose != oauth_state_constants.OAuthStatePurpose.LOGIN:
+        logger.warning(
+            "Token exchange failed: session <value_1> belongs to a <purpose> flow, not a login",
+            extra=core_logger.context(value_1=fingerprint, purpose=oauth_state.purpose),
+        )
+        raise core_exceptions.NotFoundError("Session not eligible for PKCE token exchange")
+
+    # Fast-path check; the atomic conditional update below is the authoritative guard against two concurrent
+    # exchanges with the same verifier.
+    if session_obj.tokens_exchanged:
+        logger.warning(
+            "Token exchange replay attempt for session <value_1>", extra=core_logger.context(value_1=fingerprint)
+        )
+        raise core_exceptions.ConflictError("Tokens already exchanged for this session")
+
+    if not oauth_state.code_challenge or not oauth_state.code_challenge_method:
+        logger.warning(
+            "Token exchange failed: OAuth state <value_1> missing PKCE data",
+            extra=core_logger.context(value_1=core_hashing.log_fingerprint(oauth_state.id)),
+        )
+        raise core_exceptions.InvalidInputError("OAuth state missing PKCE data")
+
+    try:
+        auth_computation.validate_pkce_verifier(
+            code_verifier, oauth_state.code_challenge, oauth_state.code_challenge_method
+        )
+    except core_exceptions.InvalidInputError:
+        logger.warning(
+            "Token exchange failed: PKCE verification failed for session <value_1>",
+            extra=core_logger.context(value_1=fingerprint),
+        )
+        raise
+
+    # The client type recorded when the flow started wins over the header, so an exchange cannot switch between the
+    # cookie-based web response and the body-only mobile response. The header is consulted only for a flow started by
+    # a system browser, which cannot send it.
+    stored_client_type = oauth_state.client_type
+    if header_client_type not in ("web", "mobile"):
+        header_client_type = None
+    if stored_client_type in ("web", "mobile"):
+        if header_client_type is not None and header_client_type != stored_client_type:
+            logger.warning(
+                "Token exchange client_type mismatch for session <value_1>: "
+                "stored=<stored_client_type>, header=<header_client_type>",
+                extra=core_logger.context(
+                    value_1=fingerprint, stored_client_type=stored_client_type, header_client_type=header_client_type
+                ),
+            )
+            raise core_exceptions.InvalidInputError("client_type does not match the OAuth state")
+        client_type = stored_client_type
+    else:
+        client_type = header_client_type or "web"
+
+    user = users_integration.require_user(session_obj.user_id, db)
+    users_integration.require_active_user(user)
+
+    mfa_verified = oauth_state.idp_id is not None and mfa_integration.is_mfa_enabled_for_user(user.id, db)
+    if mfa_verified:
+        if mfa_code is None:
+            logger.info(
+                "Token exchange for session <value_1> needs an MFA code", extra=core_logger.context(value_1=fingerprint)
+            )
+            raise core_exceptions.MfaRequiredError()
+        sso_method = authentication_audit_actions.LoginMethod.IDENTITY_PROVIDER
+        authentication_service.refuse_while_mfa_locked_out(user.username, user.id, sso_method, pending_mfa_store)
+        authentication_service.require_valid_mfa_code(
+            user.username, user.id, sso_method, mfa_code, pending_mfa_store, password_hasher, db
+        )
+        try:
+            pending_mfa_store.reset_attempts(user.username)
+        except lockout_contracts.AuthSecurityStoreUnavailableError as err:
+            authentication_service.raise_auth_security_store_unavailable(err)
+
+    (_, access_token_exp, access_token, refresh_token_exp, refresh_token, csrf_token) = (
+        authentication_token_service.create_tokens(
+            user, token_manager, server_settings_integration.get_session_policy(db), session_id
+        )
+    )
+    now = datetime.now(UTC)
+    expires_in = int((access_token_exp - now).total_seconds())
+    refresh_token_expires_in = int((refresh_token_exp - now).total_seconds())
+
+    # Store the refresh-token hash and mark the tokens exchanged in one conditional update. The CSRF hash is not
+    # stored: the first /refresh after a page reload establishes the binding.
+    if not sessions_integration.claim_session_for_token_exchange(
+        session_id, password_hasher.hash_password(refresh_token), db
+    ):
+        logger.warning("Token exchange lost race for session <value_1>", extra=core_logger.context(value_1=fingerprint))
+        raise core_exceptions.ConflictError("Tokens already exchanged for this session")
+    issued_device_id = None
+    if oauth_state.idp_id is not None:
+        # An SSO sign-in is complete once its tokens are issued; a password sign-in was audited, and its device
+        # recorded, when its session was created.
+        sign_in = known_devices_integration.record_sign_in(
+            user.id,
+            client_type,
+            device_id,
+            ip_address,
+            user_agent,
+            known_devices_events.SignInMethod.IDENTITY_PROVIDER,
+            db,
+        )
+        issued_device_id = sign_in.device_id
+        with jasil_audit.audit_context(
+            actor_type=jasil_audit.ActorType.USER, actor_id=str(user.id), credential_type="oauth"
+        ):
+            jasil_audit.stage(
+                db,
+                authentication_audit_actions.LOGIN,
+                **authentication_refusal_audit.user_target(user.id),
+                details=authentication_audit_actions.LoginDetails(
+                    method=authentication_audit_actions.LoginMethod.IDENTITY_PROVIDER,
+                    mfa=mfa_verified,
+                    new_device=sign_in.new_device,
+                ),
+            )
+    db.commit()
+
+    logger.info(
+        "Token exchange successful for session <value_1> (user=<username_log_id>, client_type=<client_type>)",
+        extra=core_logger.context(
+            value_1=fingerprint,
+            username_log_id=lockout_integration.username_log_identifier(user.username),
+            client_type=client_type,
+        ),
+    )
+
+    if client_type == "web":
+        return auth_schema.AuthOutcome(
+            auth_schema.TokenExchangeRead(
+                session_id=session_id,
+                access_token=access_token,
+                csrf_token=csrf_token,
+                expires_in=expires_in,
+                refresh_token_expires_in=refresh_token_expires_in,
+                token_type="Bearer",
+            ),
+            auth_schema.RefreshCookie(refresh_token, refresh_token_exp),
+            device_id=issued_device_id,
+        )
+    return auth_schema.AuthOutcome(
+        auth_schema.TokenExchangeRead(
+            session_id=session_id,
+            access_token=access_token,
+            refresh_token=refresh_token,
+            expires_in=expires_in,
+            refresh_token_expires_in=refresh_token_expires_in,
+            token_type="Bearer",
+        )
+    )

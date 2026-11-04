@@ -12,6 +12,7 @@ import modules.auth.authentication.dependencies as auth_transport_dependencies
 import modules.auth.authentication.dependencies as authentication_dependencies
 import modules.auth.authentication.schema as auth_schema
 import modules.auth.authentication.service as auth_utils
+import modules.auth.authentication.token_service as auth_utils_token_service
 import modules.auth.computation as auth_computation
 
 
@@ -153,7 +154,7 @@ class TestCreateTokens:
             refresh_token_exp,
             refresh_token,
             csrf_token,
-        ) = auth_utils.create_tokens(sample_user_read, token_manager, session_policy)
+        ) = auth_utils_token_service.create_tokens(sample_user_read, token_manager, session_policy)
 
         # Assert
         assert session_id is not None
@@ -193,7 +194,7 @@ class TestCreateTokens:
             _,
             _,
             _,
-        ) = auth_utils.create_tokens(sample_user_read, token_manager, session_policy, custom_session_id)
+        ) = auth_utils_token_service.create_tokens(sample_user_read, token_manager, session_policy, custom_session_id)
 
         # Assert
         assert session_id == custom_session_id
@@ -208,7 +209,7 @@ class TestCreateTokens:
             refresh_token_exp,
             _,
             _,
-        ) = auth_utils.create_tokens(sample_user_read, token_manager, session_policy)
+        ) = auth_utils_token_service.create_tokens(sample_user_read, token_manager, session_policy)
 
         # Assert
         assert refresh_token_exp > access_token_exp
@@ -216,10 +217,10 @@ class TestCreateTokens:
     def test_create_tokens_generates_unique_tokens(self, token_manager, sample_user_read, session_policy):
         """Test that multiple calls generate unique tokens."""
         # Act
-        (_, _, access_token1, _, refresh_token1, csrf_token1) = auth_utils.create_tokens(
+        (_, _, access_token1, _, refresh_token1, csrf_token1) = auth_utils_token_service.create_tokens(
             sample_user_read, token_manager, session_policy
         )
-        (_, _, access_token2, _, refresh_token2, csrf_token2) = auth_utils.create_tokens(
+        (_, _, access_token2, _, refresh_token2, csrf_token2) = auth_utils_token_service.create_tokens(
             sample_user_read, token_manager, session_policy
         )
 

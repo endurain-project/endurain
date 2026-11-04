@@ -263,6 +263,7 @@ classmethod-decorators = ["sqlalchemy.orm.declared_attr"]
 "app/modules/auth/identity_providers/public_router.py" = ["S105", "S106"]  # false positive on token_type
 "app/modules/auth/authentication/schema.py" = ["S105", "S106"]  # false positive on token_type Literal defaults
 "app/modules/auth/authentication/service.py" = ["S105", "S106"]  # false positive on token_type string comparisons
+"app/modules/auth/authentication/sso_exchange_service.py" = ["S105", "S106"]  # false positive on token_type string comparisons
 "app/modules/auth/authentication/dependencies.py" = ["S105", "S106"]  # false positive on cookie name constants
 "app/modules/auth/account_security/events.py" = ["S105"]  # false positive on the password-change event values
 "app/modules/auth/known_devices/events.py" = ["S105"]  # false positive on the password sign-in method value

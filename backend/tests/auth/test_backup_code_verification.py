@@ -45,7 +45,7 @@ def _unused_codes(factory) -> int:
 class TestBackupCodeAtSignIn:
     def test_a_backup_code_completes_the_mfa_check_and_is_consumed(self, session_factory):
         with session_factory() as db:
-            authentication_service._require_valid_mfa_code(
+            authentication_service.require_valid_mfa_code(
                 f"user{_USER_ID}",
                 _USER_ID,
                 authentication_audit_actions.LoginMethod.PASSWORD,

@@ -19,6 +19,7 @@ import core.rate_limit as core_rate_limit
 import modules.auth.access_tokens.integration_service as access_tokens_integration
 import modules.auth.authentication.dependencies as authentication_dependencies
 import modules.auth.authentication.failed_login_store as failed_login_store
+import modules.auth.authentication.refresh_service as auth_refresh_service
 import modules.auth.authentication.schema as auth_schema
 import modules.auth.authentication.service as auth_service
 import modules.auth.credentials.integration_service as credentials_integration
@@ -279,7 +280,7 @@ def refresh_token(
         HTTPException: If session not found, refresh token invalid,
                        user is inactive, or CSRF token is invalid (when provided).
     """
-    outcome = auth_service.refresh_token(
+    outcome = auth_refresh_service.refresh_token(
         core_network.get_ip_address(request),
         core_network.get_user_agent(request),
         token_user_id,

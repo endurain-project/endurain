@@ -8,6 +8,7 @@ import pytest
 import core.exceptions as core_exceptions
 import modules.auth.account_security.account_security_service as account_security_service
 import modules.auth.authentication.service as authentication_service
+import modules.auth.authentication.sso_exchange_service as authentication_service_sso_exchange_service
 import modules.auth.credentials.service as credentials_service
 import modules.auth.oauth_state.constants as oauth_state_constants
 import modules.auth.password_reset_tokens.service as password_reset_service
@@ -178,7 +179,7 @@ class TestTokenExchange:
             ),
             pytest.raises(core_exceptions.NotFoundError),
         ):
-            authentication_service.exchange_tokens_for_session(
+            authentication_service_sso_exchange_service.exchange_tokens_for_session(
                 "session-id",
                 "v" * 43,
                 None,

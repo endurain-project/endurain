@@ -17,6 +17,7 @@ import modules.auth.authentication.failed_login_store as failed_login_store
 import modules.auth.authentication.public_router as auth_public_router
 import modules.auth.authentication.schema as auth_schema
 import modules.auth.authentication.service as authentication_service
+import modules.auth.authentication.sso_exchange_service as authentication_service_sso_exchange_service
 import modules.auth.authentication.sso_public_router as sso_public_router
 import modules.auth.credentials.password_hasher as auth_password_hasher
 import modules.auth.known_devices.contracts as known_devices_contracts
@@ -50,7 +51,7 @@ def password_sign_in():
         patch(f"{_SERVICE}.server_settings_integration.get_session_policy"),
         patch(f"{_SERVICE}.credentials_integration.allows_password_sign_in", return_value=True),
         patch(f"{_SERVICE}.mfa_integration.is_mfa_enabled_for_user", return_value=False),
-        patch(f"{_SERVICE}.create_tokens", return_value=_TOKENS),
+        patch("modules.auth.authentication.token_service.create_tokens", return_value=_TOKENS),
         patch(f"{_SERVICE}.sessions_integration.create_session"),
     ):
         yield
@@ -146,7 +147,7 @@ class TestPasswordSignIn:
             patch(f"{_SERVICE}.users_integration.require_active_user"),
             patch(f"{_SERVICE}.mfa_integration.verify_user_mfa", return_value=True),
             patch(f"{_SERVICE}.server_settings_integration.get_session_policy"),
-            patch(f"{_SERVICE}.create_tokens", return_value=_TOKENS),
+            patch("modules.auth.authentication.token_service.create_tokens", return_value=_TOKENS),
             patch(f"{_SERVICE}.sessions_integration.create_session"),
             patch(_RECORD, return_value=_signed(_ISSUED)) as record,
         ):
@@ -185,7 +186,7 @@ class TestSsoSignIn:
             patch(f"{_SERVICE}.users_integration.require_active_user"),
             patch(f"{_SERVICE}.mfa_integration.is_mfa_enabled_for_user", return_value=False),
             patch(f"{_SERVICE}.server_settings_integration.get_session_policy"),
-            patch(f"{_SERVICE}.create_tokens", return_value=_TOKENS),
+            patch("modules.auth.authentication.token_service.create_tokens", return_value=_TOKENS),
             patch(f"{_SERVICE}.sessions_integration.claim_session_for_token_exchange", return_value=True),
             patch(_RECORD) as record,
         ):
@@ -193,7 +194,7 @@ class TestSsoSignIn:
                 record.side_effect = record_returns
             else:
                 record.return_value = _signed(record_returns)
-            outcome = authentication_service.exchange_tokens_for_session(
+            outcome = authentication_service_sso_exchange_service.exchange_tokens_for_session(
                 "sid",
                 "verifier",
                 None,
@@ -383,7 +384,10 @@ class TestTokenExchangeRoute:
     def test_a_web_exchange_passes_the_request_and_sets_the_device_cookie(self, mock_db):
         client = self._client(mock_db)
         client.cookies.set("endurain_device", _DEVICE_ID)
-        with patch(f"{_SERVICE}.exchange_tokens_for_session", return_value=self._outcome(_DEVICE_ID)) as exchange:
+        with patch(
+            "modules.auth.authentication.sso_exchange_service.exchange_tokens_for_session",
+            return_value=self._outcome(_DEVICE_ID),
+        ) as exchange:
             response = client.post(
                 "/api/v1/public/idp/session/sid/tokens",
                 json={"code_verifier": "v" * 43},
@@ -396,7 +400,10 @@ class TestTokenExchangeRoute:
         assert _device_cookie(response).startswith(f"endurain_device={_DEVICE_ID};")
 
     def test_a_mobile_exchange_sets_no_device_cookie(self, mock_db):
-        with patch(f"{_SERVICE}.exchange_tokens_for_session", return_value=self._outcome(None)):
+        with patch(
+            "modules.auth.authentication.sso_exchange_service.exchange_tokens_for_session",
+            return_value=self._outcome(None),
+        ):
             response = self._client(mock_db).post(
                 "/api/v1/public/idp/session/sid/tokens",
                 json={"code_verifier": "v" * 43},

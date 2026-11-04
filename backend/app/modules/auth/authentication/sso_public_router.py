@@ -10,7 +10,7 @@ import core.rate_limit as core_rate_limit
 import modules.auth.access_tokens.integration_service as access_tokens_integration
 import modules.auth.authentication.dependencies as authentication_dependencies
 import modules.auth.authentication.schema as auth_schema
-import modules.auth.authentication.service as authentication_service
+import modules.auth.authentication.sso_exchange_service as authentication_sso_exchange_service
 import modules.auth.credentials.integration_service as credentials_integration
 import modules.auth.dependencies as auth_dependencies
 import modules.auth.known_devices.dependencies as known_devices_dependencies
@@ -65,7 +65,7 @@ def exchange_tokens_for_session(
     Returns:
         The access token and, per client type, the CSRF token or the refresh token.
     """
-    outcome = authentication_service.exchange_tokens_for_session(
+    outcome = authentication_sso_exchange_service.exchange_tokens_for_session(
         session_id,
         token_exchange.code_verifier,
         token_exchange.mfa_code,
