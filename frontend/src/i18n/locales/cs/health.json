@@ -5,6 +5,7 @@
     "week": "Týdenní průměry: každý sloupec je průměrný den daného týdne.",
     "month": "Měsíční průměry: každý sloupec je průměrný den daného měsíce."
   },
+  "targetInvalid": "Zadejte hodnotu větší než 0 nebo pole nechte prázdné, aby se cíl odebral.",
   "chartError": "Graf pro toto časové období se nepodařilo načíst.",
   "nav": {
     "label": "Sekce zdraví",
@@ -39,6 +40,7 @@
     "stepsTargetLabel": "kroků",
     "poopTargetLabel": "/ den",
     "noWeightData": "Žádná data o hmotnosti",
+    "noHeightData": "Přidejte do profilu svou výšku, abyste viděli své BMI.",
     "bmiUnderweight": "Podváha",
     "bmiNormalWeight": "Normální hmotnost",
     "bmiOverweight": "Nadváha",
@@ -312,6 +314,8 @@
       "totalSleepRequired": "Zadejte prosím, jak dlouho jste spali.",
       "hours": "Hodiny",
       "minutes": "Minuty",
+      "hoursOf": "{field}, hodiny",
+      "minutesOf": "{field}, minuty",
       "stageBreakdown": "Rozpis fází (volitelné)",
       "deep": "Hluboký spánek",
       "light": "Lehký spánek",

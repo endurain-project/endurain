@@ -5,6 +5,7 @@
     "week": "Viikkokeskiarvot: jokainen palkki on kyseisen viikon keskimääräinen päivä.",
     "month": "Kuukausikeskiarvot: jokainen palkki on kyseisen kuukauden keskimääräinen päivä."
   },
+  "targetInvalid": "Syötä arvo, joka on suurempi kuin 0, tai jätä kenttä tyhjäksi poistaaksesi tavoitteen.",
   "chartError": "Kaaviota ei voitu ladata tälle aikavälille.",
   "nav": {
     "label": "Terveysosiot",
@@ -39,6 +40,7 @@
     "stepsTargetLabel": "askelta",
     "poopTargetLabel": "/ päivä",
     "noWeightData": "Ei painotietoja",
+    "noHeightData": "Lisää pituutesi profiiliin nähdäksesi BMI:n.",
     "bmiUnderweight": "Alipaino",
     "bmiNormalWeight": "Normaalipaino",
     "bmiOverweight": "Ylipaino",
@@ -312,6 +314,8 @@
       "totalSleepRequired": "Anna kuinka kauan nukuit.",
       "hours": "Tunnit",
       "minutes": "Minuutit",
+      "hoursOf": "{field}, tunnit",
+      "minutesOf": "{field}, minuutit",
       "stageBreakdown": "Vaihe-erittely (valinnainen)",
       "deep": "Syvä uni",
       "light": "Kevyt uni",

@@ -5,6 +5,7 @@
     "week": "Nedēļas vidējie rādītāji: katra josla ir attiecīgās nedēļas vidējā diena.",
     "month": "Mēneša vidējie rādītāji: katra josla ir attiecīgā mēneša vidējā diena."
   },
+  "targetInvalid": "Ievadiet vērtību, kas lielāka par 0, vai atstājiet lauku tukšu, lai noņemtu mērķi.",
   "chartError": "Neizdevās ielādēt diagrammu šim laika periodam.",
   "nav": {
     "label": "Veselības sadaļas",
@@ -39,6 +40,7 @@
     "stepsTargetLabel": "soļi",
     "poopTargetLabel": "/ dienā",
     "noWeightData": "Nav svara datu",
+    "noHeightData": "Pievienojiet savu augumu profilā, lai redzētu savu BMI.",
     "bmiUnderweight": "Nepietiekams svars",
     "bmiNormalWeight": "Normāls svars",
     "bmiOverweight": "Liekais svars",
@@ -312,6 +314,8 @@
       "totalSleepRequired": "Lūdzu, ievadiet, cik ilgi gulējāt.",
       "hours": "Stundas",
       "minutes": "Minūtes",
+      "hoursOf": "{field}, stundas",
+      "minutesOf": "{field}, minūtes",
       "stageBreakdown": "Stadiju sadalījums (neobligāti)",
       "deep": "Dziļais miegs",
       "light": "Vieglais miegs",

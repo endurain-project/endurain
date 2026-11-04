@@ -53,6 +53,8 @@
     "tooShort": "Esta palavra-passe é demasiado curta. Usa pelo menos {min} caracteres.",
     "tooCommon": "Esta palavra-passe é demasiado comum. Escolhe uma mais difícil de adivinhar.",
     "matchesAccount": "Não uses o teu nome de utilizador ou endereço de email como palavra-passe.",
+    "blank": "Uma palavra-passe não pode ter apenas espaços.",
+    "unchanged": "Escolhe uma palavra-passe diferente da atual.",
     "strength": {
       "label": "Força da palavra-passe: {level}",
       "tooWeak": "Demasiado fraca",

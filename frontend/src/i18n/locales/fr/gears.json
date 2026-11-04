@@ -55,6 +55,8 @@
   "delete": {
     "title": "Supprimer l'équipement",
     "body": "Êtes-vous sûr(e) de vouloir supprimer \"{nickname}\" ? Cette action est irréversible.",
+    "activities": "{count} activité utilise cet équipement ; elle sera conservée et non attribuée. | {count} activités utilisent cet équipement ; elles seront conservées et non attribuées.",
+    "components": "Son composant ({count}) sera supprimé. | Ses {count} composants seront supprimés.",
     "confirm": "Supprimer",
     "cancel": "Annuler",
     "close": "Fermer",

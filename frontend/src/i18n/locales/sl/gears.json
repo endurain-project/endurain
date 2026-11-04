@@ -55,6 +55,8 @@
   "delete": {
     "title": "Izbriši opremo",
     "body": "Ali si prepričan/a, da želiš izbrisati \"{nickname}\"? Tega ni mogoče razveljaviti.",
+    "activities": "{count} aktivnost uporablja to opremo; ohranjena bo, vendar ne bo več dodeljena. | {count} aktivnosti uporabljata to opremo; ohranjeni bosta, vendar ne bosta več dodeljeni. | {count} aktivnosti uporabljajo to opremo; ohranjene bodo, vendar ne bodo več dodeljene. | {count} aktivnosti uporablja to opremo; ohranjene bodo, vendar ne bodo več dodeljene.",
+    "components": "Njena {count} komponenta bo izbrisana. | Njuni {count} komponenti bosta izbrisani. | Njene {count} komponente bodo izbrisane. | Njenih {count} komponent bo izbrisanih.",
     "confirm": "Izbriši",
     "cancel": "Prekliči",
     "close": "Zapri",

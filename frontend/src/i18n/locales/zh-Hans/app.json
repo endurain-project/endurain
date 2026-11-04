@@ -53,6 +53,8 @@
     "tooShort": "此密码太短，请至少使用 {min} 个字符。",
     "tooCommon": "此密码太常见，请选择更难猜测的密码。",
     "matchesAccount": "请勿使用您的用户名或电子邮件地址作为密码。",
+    "blank": "密码不能只包含空格。",
+    "unchanged": "请选择与当前密码不同的密码。",
     "strength": {
       "label": "密码强度：{level}",
       "tooWeak": "太弱",

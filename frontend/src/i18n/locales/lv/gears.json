@@ -55,6 +55,8 @@
   "delete": {
     "title": "Dzēst inventāru",
     "body": "Vai tiešām vēlaties dzēst \"{nickname}\"? Šo nevar atsaukt.",
+    "activities": "{count} aktivitātes izmanto šo inventāru; tās tiks saglabātas un atsaistītas. | {count} aktivitāte izmanto šo inventāru; tā tiks saglabāta un atsaistīta. | {count} aktivitātes izmanto šo inventāru; tās tiks saglabātas un atsaistītas.",
+    "components": "Tā {count} komponentes tiks dzēstas. | Tā {count} komponente tiks dzēsta. | Tā {count} komponentes tiks dzēstas.",
     "confirm": "Dzēst",
     "cancel": "Atcelt",
     "close": "Aizvērt",

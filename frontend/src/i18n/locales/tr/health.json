@@ -5,6 +5,7 @@
     "week": "Haftalık ortalamalar: her çubuk o haftanın ortalama gününü gösterir.",
     "month": "Aylık ortalamalar: her çubuk o ayın ortalama gününü gösterir."
   },
+  "targetInvalid": "0'dan büyük bir değer girin veya hedefi kaldırmak için boş bırakın.",
   "chartError": "Bu zaman aralığı için grafik yüklenemedi.",
   "nav": {
     "label": "Sağlık bölümleri",
@@ -39,6 +40,7 @@
     "stepsTargetLabel": "adım",
     "poopTargetLabel": "/ gün",
     "noWeightData": "Kilo verisi yok",
+    "noHeightData": "BMI değerinizi görmek için profilinize boyunuzu ekleyin.",
     "bmiUnderweight": "Zayıf",
     "bmiNormalWeight": "Normal kilo",
     "bmiOverweight": "Fazla kilolu",
@@ -312,6 +314,8 @@
       "totalSleepRequired": "Lütfen ne kadar uyuduğunuzu girin.",
       "hours": "Saat",
       "minutes": "Dakika",
+      "hoursOf": "{field}, saat",
+      "minutesOf": "{field}, dakika",
       "stageBreakdown": "Evre dağılımı (isteğe bağlı)",
       "deep": "Derin uyku",
       "light": "Hafif uyku",

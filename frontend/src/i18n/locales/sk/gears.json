@@ -55,6 +55,8 @@
   "delete": {
     "title": "Odstrániť vybavenie",
     "body": "Naozaj chcete odstrániť „{nickname}“? Túto akciu nie je možné vrátiť späť.",
+    "activities": "{count} aktivita používa toto vybavenie; zostane zachovaná a bude odpojená. | {count} aktivity používajú toto vybavenie; zostanú zachované a budú odpojené. | {count} aktivít používa toto vybavenie; zostanú zachované a budú odpojené.",
+    "components": "Jeho {count} komponent bude odstránený. | Jeho {count} komponenty budú odstránené. | Jeho {count} komponentov bude odstránených.",
     "confirm": "Odstrániť",
     "cancel": "Zrušiť",
     "close": "Zavrieť",

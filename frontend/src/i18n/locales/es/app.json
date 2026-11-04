@@ -53,6 +53,8 @@
     "tooShort": "Esta contraseña es demasiado corta. Usa al menos {min} caracteres.",
     "tooCommon": "Esta contraseña es demasiado común. Elige una más difícil de adivinar.",
     "matchesAccount": "No uses tu nombre de usuario ni tu dirección de correo electrónico como contraseña.",
+    "blank": "Una contraseña no puede estar formada solo por espacios.",
+    "unchanged": "Elige una contraseña distinta de la actual.",
     "strength": {
       "label": "Seguridad de la contraseña: {level}",
       "tooWeak": "Demasiado débil",

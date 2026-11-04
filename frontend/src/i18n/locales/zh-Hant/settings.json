@@ -134,6 +134,8 @@
       },
       "firstDayOfWeek": "每週第一天",
       "timezone": "時區",
+      "timezoneNotSet": "未設定",
+      "timezoneUseBrowser": "使用我的瀏覽器時區（{timezone}）",
       "timezoneHint": "用於沒有 GPS 記錄的活動，例如跑步機跑步與室內騎乘。",
       "weekdays": {
         "sunday": "星期日",
@@ -280,6 +282,7 @@
     "envLocked": "由 {name} 設定",
     "envSection": "此處的部分設定由環境變數（{names}）決定。請從環境中移除這些變數，以便在此處編輯相應設定。",
     "unsaved": "未儲存的變更",
+    "fixErrors": "請修正上方的錯誤後再儲存",
     "discard": "捨棄",
     "tabs": {
       "label": "伺服器設定分區",

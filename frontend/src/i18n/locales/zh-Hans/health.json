@@ -5,6 +5,7 @@
     "week": "每周平均值：每根柱表示该周的平均每日数据。",
     "month": "每月平均值：每根柱表示该月的平均每日数据。"
   },
+  "targetInvalid": "请输入大于 0 的值，或留空以移除目标。",
   "chartError": "无法加载此时间范围的图表。",
   "nav": {
     "label": "健康版块",
@@ -39,6 +40,7 @@
     "stepsTargetLabel": "步",
     "poopTargetLabel": "/ 天",
     "noWeightData": "无体重数据",
+    "noHeightData": "请在个人资料中添加身高，以查看 BMI。",
     "bmiUnderweight": "体重过轻",
     "bmiNormalWeight": "正常体重",
     "bmiOverweight": "超重",
@@ -312,6 +314,8 @@
       "totalSleepRequired": "请输入睡眠时长。",
       "hours": "小时",
       "minutes": "分钟",
+      "hoursOf": "{field}，小时",
+      "minutesOf": "{field}，分钟",
       "stageBreakdown": "阶段分项（可选）",
       "deep": "深睡",
       "light": "浅睡",

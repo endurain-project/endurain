@@ -53,6 +53,8 @@
     "tooShort": "Bu parola çok kısa. En az {min} karakter kullanın.",
     "tooCommon": "Bu parola çok yaygın. Tahmin edilmesi daha zor bir parola seçin.",
     "matchesAccount": "Kullanıcı adınızı veya e-posta adresinizi parola olarak kullanmayın.",
+    "blank": "Parola yalnızca boşluklardan oluşamaz.",
+    "unchanged": "Geçerli parolanızdan farklı bir parola seçin.",
     "strength": {
       "label": "Parola gücü: {level}",
       "tooWeak": "Çok zayıf",

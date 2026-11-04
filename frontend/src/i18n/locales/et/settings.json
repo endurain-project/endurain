@@ -134,6 +134,8 @@
       },
       "firstDayOfWeek": "Nädala esimene päev",
       "timezone": "Ajavöönd",
+      "timezoneNotSet": "Määramata",
+      "timezoneUseBrowser": "Kasuta oma brauseri ajavööndit ({timezone})",
       "timezoneHint": "Kasutatakse ilma GPS-ita salvestatud tegevuste jaoks, näiteks jooksulindil jooksmine ja siseratsutamine.",
       "weekdays": {
         "sunday": "Pühapäev",
@@ -280,6 +282,7 @@
     "envLocked": "Määratud muutujaga {name}",
     "envSection": "Mõned siinsed seaded on määratud keskkonnamuutujatega ({names}). Eemalda need keskkonnast, et neid siin muuta.",
     "unsaved": "Salvestamata muudatused",
+    "fixErrors": "Salvestamiseks paranda ülaltoodud vead",
     "discard": "Loobu",
     "tabs": {
       "label": "Serveri seadete jaotised",

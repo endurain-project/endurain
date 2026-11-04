@@ -134,6 +134,8 @@
       },
       "firstDayOfWeek": "Primer dia de la setmana",
       "timezone": "Fus horari",
+      "timezoneNotSet": "Sense definir",
+      "timezoneUseBrowser": "Utilitza el fus horari del meu navegador ({timezone})",
       "timezoneHint": "S'utilitza per a activitats enregistrades sense GPS, com les curses a la cinta o el ciclisme en interior.",
       "weekdays": {
         "sunday": "Diumenge",
@@ -280,6 +282,7 @@
     "envLocked": "Definit per {name}",
     "envSection": "Alguns paràmetres d'aquí els defineixen variables d'entorn ({names}). Elimina-les de l'entorn per editar aquests paràmetres aquí.",
     "unsaved": "Canvis sense desar",
+    "fixErrors": "Corregeix els errors de dalt per desar",
     "discard": "Descarta",
     "tabs": {
       "label": "Seccions de la configuració del servidor",

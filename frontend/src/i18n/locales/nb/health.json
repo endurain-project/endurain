@@ -5,6 +5,7 @@
     "week": "Ukentlige gjennomsnitt: hver søyle er gjennomsnittsdagen i den uken.",
     "month": "Månedlige gjennomsnitt: hver søyle er gjennomsnittsdagen i den måneden."
   },
+  "targetInvalid": "Angi en verdi større enn 0, eller la feltet stå tomt for å fjerne målet.",
   "chartError": "Kunne ikke laste diagrammet for dette tidsrommet.",
   "nav": {
     "label": "Helseseksjoner",
@@ -39,6 +40,7 @@
     "stepsTargetLabel": "skritt",
     "poopTargetLabel": "/ dag",
     "noWeightData": "Ingen vektdata",
+    "noHeightData": "Legg til høyden din i profilen for å se BMI.",
     "bmiUnderweight": "Undervekt",
     "bmiNormalWeight": "Normalvekt",
     "bmiOverweight": "Overvekt",
@@ -312,6 +314,8 @@
       "totalSleepRequired": "Vennligst skriv inn hvor lenge du sov.",
       "hours": "Timer",
       "minutes": "Minutter",
+      "hoursOf": "{field}, timer",
+      "minutesOf": "{field}, minutter",
       "stageBreakdown": "Oppdeling av stadier (valgfritt)",
       "deep": "Dyp søvn",
       "light": "Lett søvn",

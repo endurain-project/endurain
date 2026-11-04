@@ -53,6 +53,8 @@
     "tooShort": "Dette passordet er for kort. Bruk minst {min} tegn.",
     "tooCommon": "Dette passordet er for vanlig. Velg et som er vanskeligere å gjette.",
     "matchesAccount": "Ikke bruk brukernavnet eller e-postadressen din som passord.",
+    "blank": "Et passord kan ikke bare bestå av mellomrom.",
+    "unchanged": "Velg et annet passord enn det du bruker nå.",
     "strength": {
       "label": "Passordstyrke: {level}",
       "tooWeak": "For svakt",

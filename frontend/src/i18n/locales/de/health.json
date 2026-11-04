@@ -5,6 +5,7 @@
     "week": "Wochendurchschnitte: Jeder Balken zeigt den durchschnittlichen Tag dieser Woche.",
     "month": "Monatsdurchschnitte: Jeder Balken zeigt den durchschnittlichen Tag dieses Monats."
   },
+  "targetInvalid": "Gib einen Wert größer als 0 ein oder lasse das Feld leer, um das Ziel zu entfernen.",
   "chartError": "Das Diagramm für diesen Zeitraum konnte nicht geladen werden.",
   "nav": {
     "label": "Gesundheitsbereiche",
@@ -39,6 +40,7 @@
     "stepsTargetLabel": "Schritte",
     "poopTargetLabel": "/ Tag",
     "noWeightData": "Keine Gewichtsdaten",
+    "noHeightData": "Trage deine Größe in deinem Profil ein, um deinen BMI zu sehen.",
     "bmiUnderweight": "Untergewicht",
     "bmiNormalWeight": "Normalgewicht",
     "bmiOverweight": "Übergewicht",
@@ -312,6 +314,8 @@
       "totalSleepRequired": "Bitte gib an, wie lange du geschlafen hast.",
       "hours": "Stunden",
       "minutes": "Minuten",
+      "hoursOf": "{field}, Stunden",
+      "minutesOf": "{field}, Minuten",
       "stageBreakdown": "Phasenaufschlüsselung (optional)",
       "deep": "Tiefschlaf",
       "light": "Leichtschlaf",

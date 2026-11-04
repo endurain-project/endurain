@@ -134,6 +134,8 @@
       },
       "firstDayOfWeek": "Eerste dag van de week",
       "timezone": "Tijdzone",
+      "timezoneNotSet": "Niet ingesteld",
+      "timezoneUseBrowser": "Tijdzone van mijn browser gebruiken ({timezone})",
       "timezoneHint": "Wordt gebruikt voor activiteiten die zonder GPS zijn opgenomen, zoals hardlopen op de loopband en binnenfietsen.",
       "weekdays": {
         "sunday": "Zondag",
@@ -280,6 +282,7 @@
     "envLocked": "Ingesteld door {name}",
     "envSection": "Sommige instellingen hier worden ingesteld door omgevingsvariabelen ({names}). Verwijder ze uit de omgeving om die instellingen hier te bewerken.",
     "unsaved": "Niet-opgeslagen wijzigingen",
+    "fixErrors": "Los de fouten hierboven op om op te slaan",
     "discard": "Verwerpen",
     "tabs": {
       "label": "Secties van de serverinstellingen",

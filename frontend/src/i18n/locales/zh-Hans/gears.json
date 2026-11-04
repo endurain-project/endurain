@@ -55,6 +55,8 @@
   "delete": {
     "title": "删除装备",
     "body": "确定要删除「{nickname}」吗？此操作无法撤销。",
+    "activities": "{count} 个活动正在使用此装备；这些活动将被保留，并解除与该装备的关联。",
+    "components": "其 {count} 个零件将被删除。",
     "confirm": "删除",
     "cancel": "取消",
     "close": "关闭",

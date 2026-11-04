@@ -53,6 +53,8 @@
     "tooShort": "To geslo je prekratko. Uporabi vsaj {min} znakov.",
     "tooCommon": "To geslo je preveč običajno. Izberi tako, ki ga je težje uganiti.",
     "matchesAccount": "Kot geslo ne uporabljaj uporabniškega imena ali e-poštnega naslova.",
+    "blank": "Geslo ne sme vsebovati samo presledkov.",
+    "unchanged": "Izberi geslo, ki se razlikuje od trenutnega.",
     "strength": {
       "label": "Moč gesla: {level}",
       "tooWeak": "Prešibko",

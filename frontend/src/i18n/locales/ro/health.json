@@ -5,6 +5,7 @@
     "week": "Medii săptămânale: fiecare bară este ziua medie din acea săptămână.",
     "month": "Medii lunare: fiecare bară este ziua medie din acea lună."
   },
+  "targetInvalid": "Introdu o valoare mai mare decât 0 sau lasă gol pentru a elimina obiectivul.",
   "chartError": "Nu am putut încărca graficul pentru acest interval de timp.",
   "nav": {
     "label": "Secțiuni de sănătate",
@@ -39,6 +40,7 @@
     "stepsTargetLabel": "pași",
     "poopTargetLabel": "/ zi",
     "noWeightData": "Niciun fel de date despre greutate",
+    "noHeightData": "Adaugă înălțimea în profil pentru a-ți vedea BMI-ul.",
     "bmiUnderweight": "Subponderal",
     "bmiNormalWeight": "Greutate normală",
     "bmiOverweight": "Supraponderal",
@@ -312,6 +314,8 @@
       "totalSleepRequired": "Te rugăm să introduci cât ai dormit.",
       "hours": "Ore",
       "minutes": "Minute",
+      "hoursOf": "{field}, ore",
+      "minutesOf": "{field}, minute",
       "stageBreakdown": "Defalcare pe faze (opțional)",
       "deep": "Somn profund",
       "light": "Somn ușor",

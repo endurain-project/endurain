@@ -55,6 +55,8 @@
   "delete": {
     "title": "Smazat vybavení",
     "body": "Opravdu chcete smazat „{nickname}“? Tuto akci nelze vrátit zpět.",
+    "activities": "{count} aktivita používá toto vybavení; zůstane zachována a bude odpojena. | {count} aktivity používají toto vybavení; zůstanou zachovány a budou odpojeny. | {count} aktivit používá toto vybavení; zůstanou zachovány a budou odpojeny.",
+    "components": "Jeho {count} součást bude smazána. | Jeho {count} součásti budou smazány. | Jeho {count} součástí bude smazáno.",
     "confirm": "Smazat",
     "cancel": "Zrušit",
     "close": "Zavřít",

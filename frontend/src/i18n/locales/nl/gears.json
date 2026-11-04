@@ -55,6 +55,8 @@
   "delete": {
     "title": "Uitrusting verwijderen",
     "body": "Weet je zeker dat je \"{nickname}\" wilt verwijderen? Dit kan niet ongedaan worden gemaakt.",
+    "activities": "{count} activiteit gebruikt deze uitrusting; die blijft bewaard en wordt losgekoppeld. | {count} activiteiten gebruiken deze uitrusting; ze blijven bewaard en worden losgekoppeld.",
+    "components": "Het bijbehorende onderdeel ({count}) wordt verwijderd. | De bijbehorende {count} onderdelen worden verwijderd.",
     "confirm": "Verwijderen",
     "cancel": "Annuleren",
     "close": "Sluiten",

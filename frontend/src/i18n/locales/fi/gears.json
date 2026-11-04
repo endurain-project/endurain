@@ -55,6 +55,8 @@
   "delete": {
     "title": "Poista varuste",
     "body": "Haluatko varmasti poistaa varusteen \"{nickname}\"? Tätä ei voi kumota.",
+    "activities": "{count} aktiviteetti käyttää tätä varustetta; se säilytetään ja irrotetaan varusteesta. | {count} aktiviteettia käyttää tätä varustetta; ne säilytetään ja irrotetaan varusteesta.",
+    "components": "Sen {count} komponentti poistetaan. | Sen {count} komponenttia poistetaan.",
     "confirm": "Poista",
     "cancel": "Peruuta",
     "close": "Sulje",

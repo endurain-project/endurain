@@ -134,6 +134,8 @@
       },
       "firstDayOfWeek": "Nedēļas pirmā diena",
       "timezone": "Laika josla",
+      "timezoneNotSet": "Nav iestatīts",
+      "timezoneUseBrowser": "Izmantot mana pārlūka laika joslu ({timezone})",
       "timezoneHint": "Izmanto aktivitātēm, kas ierakstītas bez GPS, piemēram, skriešanai uz skrejceļa un riteņbraukšanai telpās.",
       "weekdays": {
         "sunday": "Svētdiena",
@@ -280,6 +282,7 @@
     "envLocked": "Iestatīts ar {name}",
     "envSection": "Dažus šeit redzamos iestatījumus nosaka vides mainīgie ({names}). Noņemiet tos no vides, lai šos iestatījumus varētu labot šeit.",
     "unsaved": "Nesaglabātas izmaiņas",
+    "fixErrors": "Lai saglabātu, labojiet iepriekš norādītās kļūdas",
     "discard": "Atmest",
     "tabs": {
       "label": "Servera iestatījumu sadaļas",

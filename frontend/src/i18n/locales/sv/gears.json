@@ -55,6 +55,8 @@
   "delete": {
     "title": "Ta bort utrustning",
     "body": "Är du säker på att du vill ta bort \"{nickname}\"? Det kan inte ångras.",
+    "activities": "{count} aktivitet använder den här utrustningen; den behålls och blir otilldelad. | {count} aktiviteter använder den här utrustningen; de behålls och blir otilldelade.",
+    "components": "Dess komponent ({count}) tas bort. | Dess {count} komponenter tas bort.",
     "confirm": "Ta bort",
     "cancel": "Avbryt",
     "close": "Stäng",

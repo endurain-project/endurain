@@ -5,6 +5,7 @@
     "week": "Średnie tygodniowe: każdy słupek to przeciętny dzień danego tygodnia.",
     "month": "Średnie miesięczne: każdy słupek to przeciętny dzień danego miesiąca."
   },
+  "targetInvalid": "Wpisz wartość większą niż 0 lub zostaw pole puste, aby usunąć cel.",
   "chartError": "Nie udało się wczytać wykresu dla tego zakresu czasu.",
   "nav": {
     "label": "Sekcje zdrowia",
@@ -39,6 +40,7 @@
     "stepsTargetLabel": "kroków",
     "poopTargetLabel": "/ dzień",
     "noWeightData": "Brak danych o wadze",
+    "noHeightData": "Dodaj swój wzrost w profilu, aby zobaczyć BMI.",
     "bmiUnderweight": "Niedowaga",
     "bmiNormalWeight": "Waga prawidłowa",
     "bmiOverweight": "Nadwaga",
@@ -312,6 +314,8 @@
       "totalSleepRequired": "Wprowadź, jak długo spałeś/spałaś.",
       "hours": "Godziny",
       "minutes": "Minuty",
+      "hoursOf": "{field}, godziny",
+      "minutesOf": "{field}, minuty",
       "stageBreakdown": "Rozbicie na fazy (opcjonalnie)",
       "deep": "Sen głęboki",
       "light": "Sen lekki",

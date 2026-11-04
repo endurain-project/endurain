@@ -134,6 +134,8 @@
       },
       "firstDayOfWeek": "Primeiro dia da semana",
       "timezone": "Fuso horário",
+      "timezoneNotSet": "Não definido",
+      "timezoneUseBrowser": "Usar o fuso horário do meu navegador ({timezone})",
       "timezoneHint": "Usado para atividades registadas sem GPS, como corridas na passadeira e ciclismo em ambiente interior.",
       "weekdays": {
         "sunday": "Domingo",
@@ -280,6 +282,7 @@
     "envLocked": "Definido por {name}",
     "envSection": "Algumas definições aqui são definidas por variáveis de ambiente ({names}). Remova-as do ambiente para editar essas definições aqui.",
     "unsaved": "Alterações não guardadas",
+    "fixErrors": "Corrige os erros acima para guardar",
     "discard": "Descartar",
     "tabs": {
       "label": "Secções das definições do servidor",

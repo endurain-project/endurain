@@ -55,6 +55,8 @@
   "delete": {
     "title": "Usuń sprzęt",
     "body": "Czy na pewno chcesz usunąć \"{nickname}\"? Tej operacji nie można cofnąć.",
+    "activities": "{count} aktywność używa tego sprzętu; zostanie zachowana i odłączona. | {count} aktywności używają tego sprzętu; zostaną zachowane i odłączone. | {count} aktywności używa tego sprzętu; zostaną zachowane i odłączone.",
+    "components": "Jego {count} komponent zostanie usunięty. | Jego {count} komponenty zostaną usunięte. | Jego {count} komponentów zostanie usuniętych.",
     "confirm": "Usuń",
     "cancel": "Anuluj",
     "close": "Zamknij",

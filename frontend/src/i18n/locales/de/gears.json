@@ -55,6 +55,8 @@
   "delete": {
     "title": "Ausrüstung löschen",
     "body": "Bist du sicher, dass du \"{nickname}\" löschen möchtest? Dies kann nicht rückgängig gemacht werden.",
+    "activities": "{count} Aktivität verwendet diese Ausrüstung; sie bleibt erhalten und wird nicht mehr zugeordnet. | {count} Aktivitäten verwenden diese Ausrüstung; sie bleiben erhalten und werden nicht mehr zugeordnet.",
+    "components": "Die zugehörige Komponente ({count}) wird gelöscht. | Die zugehörigen {count} Komponenten werden gelöscht.",
     "confirm": "Löschen",
     "cancel": "Abbrechen",
     "close": "Schließen",

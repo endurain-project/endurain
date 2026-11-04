@@ -53,6 +53,8 @@
     "tooShort": "See parool on liiga lühike. Kasuta vähemalt {min} märki.",
     "tooCommon": "See parool on liiga levinud. Vali raskemini äraarvatav.",
     "matchesAccount": "Ära kasuta parooliks oma kasutajanime ega e-posti aadressi.",
+    "blank": "Parool ei tohi koosneda ainult tühikutest.",
+    "unchanged": "Vali parool, mis erineb sinu praegusest paroolist.",
     "strength": {
       "label": "Parooli tugevus: {level}",
       "tooWeak": "Liiga nõrk",

@@ -53,6 +53,8 @@
     "tooShort": "Această parolă este prea scurtă. Folosește cel puțin {min} caractere.",
     "tooCommon": "Această parolă este prea comună. Alege una mai greu de ghicit.",
     "matchesAccount": "Nu folosi numele de utilizator sau adresa de e-mail ca parolă.",
+    "blank": "O parolă nu poate conține doar spații.",
+    "unchanged": "Alege o parolă diferită de cea curentă.",
     "strength": {
       "label": "Puterea parolei: {level}",
       "tooWeak": "Prea slabă",

@@ -53,6 +53,8 @@
     "tooShort": "Toto heslo je príliš krátke. Použite aspoň {min} znakov.",
     "tooCommon": "Toto heslo je príliš bežné. Zvoľte také, ktoré sa ťažšie uhádne.",
     "matchesAccount": "Nepoužívajte ako heslo svoje používateľské meno ani e-mailovú adresu.",
+    "blank": "Heslo nemôže obsahovať iba medzery.",
+    "unchanged": "Zvoľte heslo, ktoré sa líši od vášho súčasného.",
     "strength": {
       "label": "Sila hesla: {level}",
       "tooWeak": "Príliš slabé",

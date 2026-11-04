@@ -134,6 +134,8 @@
       },
       "firstDayOfWeek": "Prvi dan tedna",
       "timezone": "Časovni pas",
+      "timezoneNotSet": "Ni nastavljeno",
+      "timezoneUseBrowser": "Uporabi časovni pas mojega brskalnika ({timezone})",
       "timezoneHint": "Uporablja se za aktivnosti, posnete brez GPS, na primer tek na tekaški stezi in kolesarjenje v zaprtih prostorih.",
       "weekdays": {
         "sunday": "Nedelja",
@@ -280,6 +282,7 @@
     "envLocked": "Nastavljeno s spremenljivko {name}",
     "envSection": "Nekatere nastavitve tukaj določajo okoljske spremenljivke ({names}). Odstranite jih iz okolja, da boste te nastavitve lahko urejali tukaj.",
     "unsaved": "Neshranjene spremembe",
+    "fixErrors": "Za shranjevanje popravi zgornje napake",
     "discard": "Zavrzi",
     "tabs": {
       "label": "Razdelki nastavitev strežnika",

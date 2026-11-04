@@ -5,6 +5,7 @@
     "week": "Moyennes hebdomadaires : chaque barre représente la journée moyenne de cette semaine.",
     "month": "Moyennes mensuelles : chaque barre représente la journée moyenne de ce mois."
   },
+  "targetInvalid": "Saisissez une valeur supérieure à 0, ou laissez le champ vide pour supprimer l'objectif.",
   "chartError": "Impossible de charger le graphique pour cette période.",
   "nav": {
     "label": "Sections santé",
@@ -39,6 +40,7 @@
     "stepsTargetLabel": "pas",
     "poopTargetLabel": "/ jour",
     "noWeightData": "Aucune donnée de poids",
+    "noHeightData": "Ajoutez votre taille dans votre profil pour voir votre IMC.",
     "bmiUnderweight": "Insuffisance pondérale",
     "bmiNormalWeight": "Poids normal",
     "bmiOverweight": "Surpoids",
@@ -312,6 +314,8 @@
       "totalSleepRequired": "Veuillez indiquer la durée de votre sommeil.",
       "hours": "Heures",
       "minutes": "Minutes",
+      "hoursOf": "{field}, heures",
+      "minutesOf": "{field}, minutes",
       "stageBreakdown": "Répartition des phases (facultatif)",
       "deep": "Sommeil profond",
       "light": "Sommeil léger",

@@ -5,6 +5,7 @@
     "week": "Veckomedelvärden: varje stapel är genomsnittsdagen i den veckan.",
     "month": "Månadsmedelvärden: varje stapel är genomsnittsdagen i den månaden."
   },
+  "targetInvalid": "Ange ett värde större än 0, eller lämna fältet tomt för att ta bort målet.",
   "chartError": "Kunde inte ladda diagrammet för det här tidsintervallet.",
   "nav": {
     "label": "Hälsosektioner",
@@ -39,6 +40,7 @@
     "stepsTargetLabel": "steg",
     "poopTargetLabel": "/ dag",
     "noWeightData": "Ingen viktdata",
+    "noHeightData": "Lägg till din längd i din profil för att se ditt BMI.",
     "bmiUnderweight": "Undervikt",
     "bmiNormalWeight": "Normalvikt",
     "bmiOverweight": "Övervikt",
@@ -312,6 +314,8 @@
       "totalSleepRequired": "Ange hur länge du sov.",
       "hours": "Timmar",
       "minutes": "Minuter",
+      "hoursOf": "{field}, timmar",
+      "minutesOf": "{field}, minuter",
       "stageBreakdown": "Fasuppdelning (valfritt)",
       "deep": "Djup sömn",
       "light": "Lätt sömn",

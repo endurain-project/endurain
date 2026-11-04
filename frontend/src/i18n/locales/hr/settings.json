@@ -134,6 +134,8 @@
       },
       "firstDayOfWeek": "Prvi dan u tjednu",
       "timezone": "Vremenska zona",
+      "timezoneNotSet": "Nije postavljeno",
+      "timezoneUseBrowser": "Koristi vremensku zonu mog preglednika ({timezone})",
       "timezoneHint": "Koristi se za aktivnosti snimljene bez GPS-a, poput trčanja na traci i vožnje bicikla u zatvorenom.",
       "weekdays": {
         "sunday": "Nedjelja",
@@ -280,6 +282,7 @@
     "envLocked": "Postavljeno varijablom {name}",
     "envSection": "Neke postavke ovdje određuju varijable okoline ({names}). Uklonite ih iz okoline kako biste te postavke mogli uređivati ovdje.",
     "unsaved": "Nespremljene promjene",
+    "fixErrors": "Ispravite gornje pogreške da biste spremili",
     "discard": "Odbaci",
     "tabs": {
       "label": "Odjeljci postavki poslužitelja",

@@ -55,6 +55,8 @@
   "delete": {
     "title": "刪除裝備",
     "body": "確定要刪除「{nickname}」嗎？此操作無法復原。",
+    "activities": "{count} 個活動正在使用此裝備；這些活動將被保留，並解除與該裝備的關聯。",
+    "components": "其 {count} 個零件將被刪除。",
     "confirm": "刪除",
     "cancel": "取消",
     "close": "關閉",

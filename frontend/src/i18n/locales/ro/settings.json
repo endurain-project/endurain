@@ -134,6 +134,8 @@
       },
       "firstDayOfWeek": "Prima zi a săptămânii",
       "timezone": "Fus orar",
+      "timezoneNotSet": "Nesetat",
+      "timezoneUseBrowser": "Folosește fusul orar al browserului meu ({timezone})",
       "timezoneHint": "Folosit pentru activitățile înregistrate fără GPS, precum alergarea pe bandă și ciclismul în interior.",
       "weekdays": {
         "sunday": "Duminică",
@@ -280,6 +282,7 @@
     "envLocked": "Setat de {name}",
     "envSection": "Unele setări de aici sunt definite de variabile de mediu ({names}). Elimină-le din mediu pentru a edita aceste setări aici.",
     "unsaved": "Modificări nesalvate",
+    "fixErrors": "Remediază erorile de mai sus pentru a salva",
     "discard": "Renunță",
     "tabs": {
       "label": "Secțiunile setărilor serverului",

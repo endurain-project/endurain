@@ -5,6 +5,7 @@
     "week": "每週平均值：每根長條代表該週的平均每日數據。",
     "month": "每月平均值：每根長條代表該月的平均每日數據。"
   },
+  "targetInvalid": "請輸入大於 0 的值，或留空以移除目標。",
   "chartError": "無法載入此時間範圍的圖表。",
   "nav": {
     "label": "健康區段",
@@ -39,6 +40,7 @@
     "stepsTargetLabel": "步",
     "poopTargetLabel": "/ 天",
     "noWeightData": "無體重數據",
+    "noHeightData": "請在個人資料中新增身高，以查看 BMI。",
     "bmiUnderweight": "體重過輕",
     "bmiNormalWeight": "正常體重",
     "bmiOverweight": "過重",
@@ -312,6 +314,8 @@
       "totalSleepRequired": "請輸入睡眠時長。",
       "hours": "小時",
       "minutes": "分鐘",
+      "hoursOf": "{field}，小時",
+      "minutesOf": "{field}，分鐘",
       "stageBreakdown": "睡眠階段細項（選填）",
       "deep": "深層睡眠",
       "light": "淺層睡眠",

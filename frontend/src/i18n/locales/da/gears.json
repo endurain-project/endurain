@@ -55,6 +55,8 @@
   "delete": {
     "title": "Slet udstyr",
     "body": "Er du sikker på, at du vil slette \"{nickname}\"? Dette kan ikke fortrydes.",
+    "activities": "{count} aktivitet bruger dette udstyr; den beholdes og fjernes fra udstyret. | {count} aktiviteter bruger dette udstyr; de beholdes og fjernes fra udstyret.",
+    "components": "Dens {count} komponent slettes. | Dens {count} komponenter slettes.",
     "confirm": "Slet",
     "cancel": "Annullér",
     "close": "Luk",

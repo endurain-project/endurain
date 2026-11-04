@@ -53,6 +53,8 @@
     "tooShort": "Ova lozinka je prekratka. Upotrebite bar {min} znakova.",
     "tooCommon": "Ova lozinka je previše uobičajena. Izaberite onu koju je teže pogoditi.",
     "matchesAccount": "Ne koristite svoje korisničko ime ili adresu e-pošte kao lozinku.",
+    "blank": "Lozinka ne može sadržati samo razmake.",
+    "unchanged": "Izaberite lozinku koja se razlikuje od trenutne.",
     "strength": {
       "label": "Jačina lozinke: {level}",
       "tooWeak": "Preslaba",

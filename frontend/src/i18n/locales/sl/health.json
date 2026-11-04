@@ -5,6 +5,7 @@
     "week": "Tedenska povprečja: vsak stolpec je povprečen dan tistega tedna.",
     "month": "Mesečna povprečja: vsak stolpec je povprečen dan tistega meseca."
   },
+  "targetInvalid": "Vnesi vrednost, večjo od 0, ali pusti polje prazno, da odstraniš cilj.",
   "chartError": "Grafikona za to časovno obdobje ni bilo mogoče naložiti.",
   "nav": {
     "label": "Razdelki zdravja",
@@ -39,6 +40,7 @@
     "stepsTargetLabel": "korakov",
     "poopTargetLabel": "/ dan",
     "noWeightData": "Ni podatkov o teži",
+    "noHeightData": "V profil dodaj svojo višino, da vidiš svoj BMI.",
     "bmiUnderweight": "Podhranjenost",
     "bmiNormalWeight": "Normalna teža",
     "bmiOverweight": "Prekomerna teža",
@@ -312,6 +314,8 @@
       "totalSleepRequired": "Prosim, vnesi, kako dolgo si spal/a.",
       "hours": "Ure",
       "minutes": "Minute",
+      "hoursOf": "{field}, ure",
+      "minutesOf": "{field}, minute",
       "stageBreakdown": "Razčlenitev faz (neobvezno)",
       "deep": "Globoko spanje",
       "light": "Lahko spanje",

@@ -5,6 +5,7 @@
     "week": "Nedeljni proseci: svaki stubac prikazuje prosečan dan te nedelje.",
     "month": "Mesečni proseci: svaki stubac prikazuje prosečan dan tog meseca."
   },
+  "targetInvalid": "Unesite vrednost veću od 0 ili ostavite prazno da biste uklonili cilj.",
   "chartError": "Grafikon za ovaj period nije mogao da se učita.",
   "nav": {
     "label": "Zdravstveni odeljci",
@@ -39,6 +40,7 @@
     "stepsTargetLabel": "koraka",
     "poopTargetLabel": "/ dan",
     "noWeightData": "Nema podataka o težini",
+    "noHeightData": "Dodajte svoju visinu u profil da biste videli svoj BMI.",
     "bmiUnderweight": "Pothranjenost",
     "bmiNormalWeight": "Normalna težina",
     "bmiOverweight": "Prekomerna težina",
@@ -312,6 +314,8 @@
       "totalSleepRequired": "Unesite koliko dugo ste spavali.",
       "hours": "Sati",
       "minutes": "Minuti",
+      "hoursOf": "{field}, sati",
+      "minutesOf": "{field}, minuti",
       "stageBreakdown": "Raščlanjivanje faza (opciono)",
       "deep": "Dubok san",
       "light": "Lagan san",

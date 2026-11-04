@@ -53,6 +53,8 @@
     "tooShort": "Toto heslo je příliš krátké. Použijte alespoň {min} znaků.",
     "tooCommon": "Toto heslo je příliš běžné. Zvolte takové, které se hůře odhaduje.",
     "matchesAccount": "Nepoužívejte jako heslo své uživatelské jméno ani e-mailovou adresu.",
+    "blank": "Heslo nemůže obsahovat pouze mezery.",
+    "unchanged": "Zvolte heslo, které se liší od vašeho současného.",
     "strength": {
       "label": "Síla hesla: {level}",
       "tooWeak": "Příliš slabé",

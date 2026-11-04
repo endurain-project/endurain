@@ -53,6 +53,8 @@
     "tooShort": "Aquesta contrasenya és massa curta. Utilitza almenys {min} caràcters.",
     "tooCommon": "Aquesta contrasenya és massa comuna. Tria'n una de més difícil d'endevinar.",
     "matchesAccount": "No utilitzis el teu nom d'usuari ni la teva adreça de correu com a contrasenya.",
+    "blank": "Una contrasenya no pot tenir només espais.",
+    "unchanged": "Tria una contrasenya diferent de l'actual.",
     "strength": {
       "label": "Fortalesa de la contrasenya: {level}",
       "tooWeak": "Massa feble",

@@ -53,6 +53,8 @@
     "tooShort": "Šī parole ir pārāk īsa. Izmantojiet vismaz {min} rakstzīmes.",
     "tooCommon": "Šī parole ir pārāk izplatīta. Izvēlieties grūtāk uzminamu.",
     "matchesAccount": "Neizmantojiet lietotājvārdu vai e-pasta adresi kā paroli.",
+    "blank": "Parole nevar sastāvēt tikai no atstarpēm.",
+    "unchanged": "Izvēlieties paroli, kas atšķiras no pašreizējās.",
     "strength": {
       "label": "Paroles stiprums: {level}",
       "tooWeak": "Pārāk vāja",

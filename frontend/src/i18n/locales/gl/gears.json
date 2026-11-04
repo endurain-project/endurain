@@ -55,6 +55,8 @@
   "delete": {
     "title": "Eliminar equipamento",
     "body": "Tes a certeza de que queres eliminar \"{nickname}\"? Esta acción non se pode desfacer.",
+    "activities": "{count} actividade usa este equipamento; conservarase e quedará sen asignar. | {count} actividades usan este equipamento; conservaranse e quedarán sen asignar.",
+    "components": "O seu compoñente ({count}) eliminarase. | Os seus {count} compoñentes eliminaranse.",
     "confirm": "Eliminar",
     "cancel": "Cancelar",
     "close": "Pechar",

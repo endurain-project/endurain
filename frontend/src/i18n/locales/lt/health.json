@@ -5,6 +5,7 @@
     "week": "Savaitės vidurkiai: kiekviena juosta yra vidutinė tos savaitės diena.",
     "month": "Mėnesio vidurkiai: kiekviena juosta yra vidutinė to mėnesio diena."
   },
+  "targetInvalid": "Įveskite reikšmę, didesnę nei 0, arba palikite lauką tuščią, kad pašalintumėte tikslą.",
   "chartError": "Nepavyko įkelti šio laikotarpio diagramos.",
   "nav": {
     "label": "Sveikatos skiltys",
@@ -39,6 +40,7 @@
     "stepsTargetLabel": "žingsnių",
     "poopTargetLabel": "/ diena",
     "noWeightData": "Nėra svorio duomenų",
+    "noHeightData": "Pridėkite savo ūgį profilyje, kad matytumėte savo BMI.",
     "bmiUnderweight": "Per mažas svoris",
     "bmiNormalWeight": "Normalus svoris",
     "bmiOverweight": "Antsvoris",
@@ -312,6 +314,8 @@
       "totalSleepRequired": "Įveskite, kiek miegojote.",
       "hours": "Valandos",
       "minutes": "Minutės",
+      "hoursOf": "{field}, valandos",
+      "minutesOf": "{field}, minutės",
       "stageBreakdown": "Fazių išskaidymas (nebūtina)",
       "deep": "Gilus miegas",
       "light": "Lengvas miegas",

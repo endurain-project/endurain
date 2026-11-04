@@ -55,6 +55,8 @@
   "delete": {
     "title": "Ekipmanı sil",
     "body": "\"{nickname}\" öğesini silmek istediğinizden emin misiniz? Bu işlem geri alınamaz.",
+    "activities": "{count} etkinlik bu ekipmanı kullanıyor; etkinlik korunacak ve ekipmanla ilişkisi kaldırılacak. | {count} etkinlik bu ekipmanı kullanıyor; etkinlikler korunacak ve ekipmanla ilişkileri kaldırılacak.",
+    "components": "{count} bileşeni silinecek. | {count} bileşeni silinecek.",
     "confirm": "Sil",
     "cancel": "İptal",
     "close": "Kapat",

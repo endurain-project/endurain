@@ -55,6 +55,8 @@
   "delete": {
     "title": "Elimina l'equipament",
     "body": "Segur que vols eliminar \"{nickname}\"? Aquesta acció no es pot desfer.",
+    "activities": "{count} activitat utilitza aquest equipament; es conservarà i quedarà sense assignar. | {count} activitats utilitzen aquest equipament; es conservaran i quedaran sense assignar.",
+    "components": "El seu component ({count}) s'eliminarà. | Els seus {count} components s'eliminaran.",
     "confirm": "Elimina",
     "cancel": "Cancel·la",
     "close": "Tanca",

@@ -134,6 +134,8 @@
       },
       "firstDayOfWeek": "Primeiro día da semana",
       "timezone": "Fuso horario",
+      "timezoneNotSet": "Sen definir",
+      "timezoneUseBrowser": "Usar o fuso horario do meu navegador ({timezone})",
       "timezoneHint": "Utilízase para actividades rexistradas sen GPS, como carreiras na cinta ou ciclismo en interior.",
       "weekdays": {
         "sunday": "Domingo",
@@ -280,6 +282,7 @@
     "envLocked": "Definido por {name}",
     "envSection": "Algúns axustes de aquí defínense mediante variables de contorno ({names}). Elimínaas do contorno para editar eses axustes aquí.",
     "unsaved": "Cambios sen gardar",
+    "fixErrors": "Corrixe os erros de arriba para gardar",
     "discard": "Descartar",
     "tabs": {
       "label": "Seccións dos axustes do servidor",

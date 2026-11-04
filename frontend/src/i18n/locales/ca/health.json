@@ -5,6 +5,7 @@
     "week": "Mitjanes setmanals: cada barra és el dia mitjà d'aquella setmana.",
     "month": "Mitjanes mensuals: cada barra és el dia mitjà d'aquell mes."
   },
+  "targetInvalid": "Introdueix un valor superior a 0 o deixa-ho buit per treure l'objectiu.",
   "chartError": "No s'ha pogut carregar el gràfic d'aquest interval de temps.",
   "nav": {
     "label": "Seccions de salut",
@@ -39,6 +40,7 @@
     "stepsTargetLabel": "passos",
     "poopTargetLabel": "/ dia",
     "noWeightData": "Sense dades de pes",
+    "noHeightData": "Afegeix la teva alçada al perfil per veure el teu BMI.",
     "bmiUnderweight": "Baix pes",
     "bmiNormalWeight": "Pes normal",
     "bmiOverweight": "Sobrepès",
@@ -312,6 +314,8 @@
       "totalSleepRequired": "Introdueix quant temps has dormit.",
       "hours": "Hores",
       "minutes": "Minuts",
+      "hoursOf": "{field}, hores",
+      "minutesOf": "{field}, minuts",
       "stageBreakdown": "Desglossament de fases (opcional)",
       "deep": "Son profund",
       "light": "Son lleuger",

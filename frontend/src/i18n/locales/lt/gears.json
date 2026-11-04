@@ -55,6 +55,8 @@
   "delete": {
     "title": "Ištrinti įrangą",
     "body": "Ar tikrai norite ištrinti „{nickname}“? Šio veiksmo atšaukti negalima.",
+    "activities": "{count} veikla naudoja šią įrangą; ji bus išsaugota ir atsieta nuo įrangos. | {count} veiklos naudoja šią įrangą; jos bus išsaugotos ir atsietos nuo įrangos. | {count} veiklų naudoja šią įrangą; jos bus išsaugotos ir atsietos nuo įrangos.",
+    "components": "Jos {count} komponentas bus ištrintas. | Jos {count} komponentai bus ištrinti. | Jos {count} komponentų bus ištrinta.",
     "confirm": "Ištrinti",
     "cancel": "Atšaukti",
     "close": "Uždaryti",

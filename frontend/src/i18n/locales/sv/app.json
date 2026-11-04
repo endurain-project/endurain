@@ -53,6 +53,8 @@
     "tooShort": "Lösenordet är för kort. Använd minst {min} tecken.",
     "tooCommon": "Lösenordet är för vanligt. Välj ett som är svårare att gissa.",
     "matchesAccount": "Använd inte ditt användarnamn eller din e-postadress som lösenord.",
+    "blank": "Ett lösenord kan inte bestå enbart av blanksteg.",
+    "unchanged": "Välj ett lösenord som skiljer sig från ditt nuvarande.",
     "strength": {
       "label": "Lösenordsstyrka: {level}",
       "tooWeak": "För svagt",

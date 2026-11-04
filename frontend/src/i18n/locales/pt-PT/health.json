@@ -5,6 +5,7 @@
     "week": "Médias semanais: cada barra é o dia médio dessa semana.",
     "month": "Médias mensais: cada barra é o dia médio desse mês."
   },
+  "targetInvalid": "Introduz um valor superior a 0 ou deixa vazio para remover o objetivo.",
   "chartError": "Não foi possível carregar o gráfico para este intervalo de tempo.",
   "nav": {
     "label": "Secções de saúde",
@@ -39,6 +40,7 @@
     "stepsTargetLabel": "passos",
     "poopTargetLabel": "/ dia",
     "noWeightData": "Sem dados de peso",
+    "noHeightData": "Adiciona a tua altura no perfil para ver o teu IMC.",
     "bmiUnderweight": "Abaixo do peso",
     "bmiNormalWeight": "Peso normal",
     "bmiOverweight": "Excesso de peso",
@@ -312,6 +314,8 @@
       "totalSleepRequired": "Introduz quanto tempo dormiste.",
       "hours": "Horas",
       "minutes": "Minutos",
+      "hoursOf": "{field}, horas",
+      "minutesOf": "{field}, minutos",
       "stageBreakdown": "Desagregação de fases (opcional)",
       "deep": "Sono profundo",
       "light": "Sono ligeiro",

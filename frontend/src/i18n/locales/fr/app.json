@@ -53,6 +53,8 @@
     "tooShort": "Ce mot de passe est trop court. Utilisez au moins {min} caractères.",
     "tooCommon": "Ce mot de passe est trop courant. Choisissez-en un plus difficile à deviner.",
     "matchesAccount": "N'utilisez pas votre nom d'utilisateur ou votre adresse e-mail comme mot de passe.",
+    "blank": "Un mot de passe ne peut pas être composé uniquement d'espaces.",
+    "unchanged": "Choisissez un mot de passe différent de votre mot de passe actuel.",
     "strength": {
       "label": "Robustesse du mot de passe : {level}",
       "tooWeak": "Trop faible",

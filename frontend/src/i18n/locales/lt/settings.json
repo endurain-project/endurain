@@ -134,6 +134,8 @@
       },
       "firstDayOfWeek": "Pirmoji savaitės diena",
       "timezone": "Laiko juosta",
+      "timezoneNotSet": "Nenustatyta",
+      "timezoneUseBrowser": "Naudoti mano naršyklės laiko juostą ({timezone})",
       "timezoneHint": "Naudojama veikloms, įrašytoms be GPS, pavyzdžiui, bėgimui bėgimo takeliu ir važiavimui patalpose.",
       "weekdays": {
         "sunday": "Sekmadienis",
@@ -280,6 +282,7 @@
     "envLocked": "Nustatyta kintamuoju {name}",
     "envSection": "Kai kuriuos čia esančius nustatymus nustato aplinkos kintamieji ({names}). Pašalinkite juos iš aplinkos, kad galėtumėte tuos nustatymus redaguoti čia.",
     "unsaved": "Neišsaugoti pakeitimai",
+    "fixErrors": "Norėdami išsaugoti, ištaisykite aukščiau nurodytas klaidas",
     "discard": "Atmesti",
     "tabs": {
       "label": "Serverio nustatymų skiriai",

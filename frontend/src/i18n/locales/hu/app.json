@@ -53,6 +53,8 @@
     "tooShort": "Ez a jelszó túl rövid. Legalább {min} karaktert használj.",
     "tooCommon": "Ez a jelszó túl gyakori. Válassz egy nehezebben kitalálhatót.",
     "matchesAccount": "Ne használd jelszóként a felhasználónevedet vagy az e-mail-címedet.",
+    "blank": "A jelszó nem állhat csupa szóközből.",
+    "unchanged": "Válassz a jelenlegitől eltérő jelszót.",
     "strength": {
       "label": "Jelszó erőssége: {level}",
       "tooWeak": "Túl gyenge",

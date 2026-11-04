@@ -134,6 +134,8 @@
       },
       "firstDayOfWeek": "A hét első napja",
       "timezone": "Időzóna",
+      "timezoneNotSet": "Nincs beállítva",
+      "timezoneUseBrowser": "A böngészőm időzónájának használata ({timezone})",
       "timezoneHint": "A GPS nélkül rögzített tevékenységekhez használatos, például futópados futáshoz és szobakerékpározáshoz.",
       "weekdays": {
         "sunday": "Vasárnap",
@@ -280,6 +282,7 @@
     "envLocked": "{name} állítja be",
     "envSection": "Az itteni beállítások egy részét környezeti változók ({names}) határozzák meg. Töröld őket a környezetből, hogy itt szerkeszthesd ezeket a beállításokat.",
     "unsaved": "Nem mentett módosítások",
+    "fixErrors": "A mentéshez javítsd a fenti hibákat",
     "discard": "Elvetés",
     "tabs": {
       "label": "A szerverbeállítások szakaszai",

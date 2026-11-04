@@ -55,6 +55,8 @@
   "delete": {
     "title": "Kustuta varustus",
     "body": "Kas oled kindel, et soovid kustutada „{nickname}“? Seda ei saa tagasi võtta.",
+    "activities": "{count} tegevus kasutab seda varustust; see säilitatakse ja eemaldatakse varustuselt. | {count} tegevust kasutavad seda varustust; need säilitatakse ja eemaldatakse varustuselt.",
+    "components": "Selle {count} komponent kustutatakse. | Selle {count} komponenti kustutatakse.",
     "confirm": "Kustuta",
     "cancel": "Tühista",
     "close": "Sulge",

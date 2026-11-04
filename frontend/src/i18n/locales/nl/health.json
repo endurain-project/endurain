@@ -5,6 +5,7 @@
     "week": "Weekgemiddelden: elke balk is de gemiddelde dag van die week.",
     "month": "Maandgemiddelden: elke balk is de gemiddelde dag van die maand."
   },
+  "targetInvalid": "Voer een waarde groter dan 0 in, of laat het veld leeg om het doel te verwijderen.",
   "chartError": "De grafiek voor dit tijdsbereik kon niet worden geladen.",
   "nav": {
     "label": "Gezondheidsonderdelen",
@@ -39,6 +40,7 @@
     "stepsTargetLabel": "stappen",
     "poopTargetLabel": "/ dag",
     "noWeightData": "Geen gewichtsgegevens",
+    "noHeightData": "Voeg je lengte toe aan je profiel om je BMI te zien.",
     "bmiUnderweight": "Ondergewicht",
     "bmiNormalWeight": "Normaal gewicht",
     "bmiOverweight": "Overgewicht",
@@ -312,6 +314,8 @@
       "totalSleepRequired": "Voer in hoe lang je hebt geslapen.",
       "hours": "Uren",
       "minutes": "Minuten",
+      "hoursOf": "{field}, uren",
+      "minutesOf": "{field}, minuten",
       "stageBreakdown": "Faseindeling (optioneel)",
       "deep": "Diepe slaap",
       "light": "Lichte slaap",

@@ -53,6 +53,8 @@
     "tooShort": "Dit wachtwoord is te kort. Gebruik minstens {min} tekens.",
     "tooCommon": "Dit wachtwoord is te gangbaar. Kies er een dat moeilijker te raden is.",
     "matchesAccount": "Gebruik je gebruikersnaam of e-mailadres niet als wachtwoord.",
+    "blank": "Een wachtwoord mag niet alleen uit spaties bestaan.",
+    "unchanged": "Kies een ander wachtwoord dan je huidige.",
     "strength": {
       "label": "Wachtwoordsterkte: {level}",
       "tooWeak": "Te zwak",

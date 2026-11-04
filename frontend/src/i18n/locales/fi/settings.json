@@ -134,6 +134,8 @@
       },
       "firstDayOfWeek": "Viikon ensimmäinen päivä",
       "timezone": "Aikavyöhyke",
+      "timezoneNotSet": "Ei asetettu",
+      "timezoneUseBrowser": "Käytä selaimeni aikavyöhykettä ({timezone})",
       "timezoneHint": "Käytetään aktiviteeteille, jotka on tallennettu ilman GPS:ää, kuten juoksumattoharjoituksille ja sisäpyöräilylle.",
       "weekdays": {
         "sunday": "Sunnuntai",
@@ -280,6 +282,7 @@
     "envLocked": "Määritetty muuttujalla {name}",
     "envSection": "Jotkin tämän osion asetukset on määritetty ympäristömuuttujilla ({names}). Poista ne ympäristöstä, jos haluat muokata niitä täällä.",
     "unsaved": "Tallentamattomia muutoksia",
+    "fixErrors": "Korjaa yllä olevat virheet tallentaaksesi",
     "discard": "Hylkää",
     "tabs": {
       "label": "Palvelinasetusten osiot",

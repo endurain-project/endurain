@@ -134,6 +134,8 @@
       },
       "firstDayOfWeek": "Prvý deň týždňa",
       "timezone": "Časové pásmo",
+      "timezoneNotSet": "Nenastavené",
+      "timezoneUseBrowser": "Použiť časové pásmo môjho prehliadača ({timezone})",
       "timezoneHint": "Používa sa pre aktivity zaznamenané bez GPS, napríklad beh na páse a jazdu na trenažéri.",
       "weekdays": {
         "sunday": "Nedeľa",
@@ -280,6 +282,7 @@
     "envLocked": "Nastavené premennou {name}",
     "envSection": "Niektoré nastavenia tu sú určené premennými prostredia ({names}). Odstráňte ich z prostredia, aby ste tieto nastavenia mohli upraviť tu.",
     "unsaved": "Neuložené zmeny",
+    "fixErrors": "Na uloženie opravte vyššie uvedené chyby",
     "discard": "Zahodiť",
     "tabs": {
       "label": "Sekcie nastavení servera",

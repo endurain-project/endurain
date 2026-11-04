@@ -55,6 +55,8 @@
   "delete": {
     "title": "Obriši opremu",
     "body": "Da li ste sigurni da želite da obrišete \"{nickname}\"? Ovo se ne može poništiti.",
+    "activities": "{count} aktivnost koristi ovu opremu; biće zadržana, ali odvojena od nje. | {count} aktivnosti koriste ovu opremu; biće zadržane, ali odvojene od nje. | {count} aktivnosti koristi ovu opremu; biće zadržane, ali odvojene od nje.",
+    "components": "Njena {count} komponenta biće obrisana. | Njene {count} komponente biće obrisane. | Njenih {count} komponenti biće obrisano.",
     "confirm": "Obriši",
     "cancel": "Otkaži",
     "close": "Zatvori",

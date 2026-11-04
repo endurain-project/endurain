@@ -5,6 +5,7 @@
     "week": "Nädala keskmised: iga tulp on selle nädala keskmine päev.",
     "month": "Kuu keskmised: iga tulp on selle kuu keskmine päev."
   },
+  "targetInvalid": "Sisesta väärtus, mis on suurem kui 0, või jäta väli tühjaks, et eesmärk eemaldada.",
   "chartError": "Diagrammi ei õnnestunud selle ajavahemiku jaoks laadida.",
   "nav": {
     "label": "Tervise jaotised",
@@ -39,6 +40,7 @@
     "stepsTargetLabel": "sammu",
     "poopTargetLabel": "/ päevas",
     "noWeightData": "Kaaluandmed puuduvad",
+    "noHeightData": "Lisa oma pikkus profiilis, et näha oma BMI-d.",
     "bmiUnderweight": "Alakaal",
     "bmiNormalWeight": "Normaalkaal",
     "bmiOverweight": "Ülekaal",
@@ -312,6 +314,8 @@
       "totalSleepRequired": "Palun sisesta, kui kaua sa magasid.",
       "hours": "Tunnid",
       "minutes": "Minutid",
+      "hoursOf": "{field}, tunnid",
+      "minutesOf": "{field}, minutid",
       "stageBreakdown": "Faaside jaotus (valikuline)",
       "deep": "Sügav uni",
       "light": "Kerge uni",

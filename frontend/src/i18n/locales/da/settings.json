@@ -134,6 +134,8 @@
       },
       "firstDayOfWeek": "Ugens første dag",
       "timezone": "Tidszone",
+      "timezoneNotSet": "Ikke angivet",
+      "timezoneUseBrowser": "Brug min browsers tidszone ({timezone})",
       "timezoneHint": "Bruges til aktiviteter optaget uden GPS, f.eks. løb på løbebånd og indendørs cykling.",
       "weekdays": {
         "sunday": "Søndag",
@@ -280,6 +282,7 @@
     "envLocked": "Angivet af {name}",
     "envSection": "Nogle indstillinger her angives af miljøvariabler ({names}). Fjern dem fra miljøet for at redigere dem her.",
     "unsaved": "Ugemte ændringer",
+    "fixErrors": "Ret fejlene ovenfor for at gemme",
     "discard": "Kassér",
     "tabs": {
       "label": "Sektioner i serverindstillingerne",

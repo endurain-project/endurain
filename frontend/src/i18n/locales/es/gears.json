@@ -55,6 +55,8 @@
   "delete": {
     "title": "Eliminar equipamiento",
     "body": "¿Seguro que quieres eliminar \"{nickname}\"? No se puede deshacer.",
+    "activities": "{count} actividad usa este equipamiento; se conservará y quedará sin asignar. | {count} actividades usan este equipamiento; se conservarán y quedarán sin asignar.",
+    "components": "Su componente ({count}) se eliminará. | Sus {count} componentes se eliminarán.",
     "confirm": "Eliminar",
     "cancel": "Cancelar",
     "close": "Cerrar",

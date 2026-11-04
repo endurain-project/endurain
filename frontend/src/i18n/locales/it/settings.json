@@ -134,6 +134,8 @@
       },
       "firstDayOfWeek": "Primo giorno della settimana",
       "timezone": "Fuso orario",
+      "timezoneNotSet": "Non impostato",
+      "timezoneUseBrowser": "Usa il fuso orario del mio browser ({timezone})",
       "timezoneHint": "Usato per le attività registrate senza GPS, come la corsa sul tapis roulant e il ciclismo indoor.",
       "weekdays": {
         "sunday": "Domenica",
@@ -280,6 +282,7 @@
     "envLocked": "Impostato da {name}",
     "envSection": "Alcune impostazioni qui sono definite da variabili d'ambiente ({names}). Rimuovile dall'ambiente per modificarle qui.",
     "unsaved": "Modifiche non salvate",
+    "fixErrors": "Correggi gli errori sopra per salvare",
     "discard": "Annulla modifiche",
     "tabs": {
       "label": "Sezioni delle impostazioni del server",

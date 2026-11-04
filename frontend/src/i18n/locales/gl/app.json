@@ -53,6 +53,8 @@
     "tooShort": "Este contrasinal é demasiado curto. Usa polo menos {min} caracteres.",
     "tooCommon": "Este contrasinal é demasiado común. Escolle un máis difícil de adiviñar.",
     "matchesAccount": "Non uses o teu nome de usuario nin o teu enderezo de correo electrónico como contrasinal.",
+    "blank": "Un contrasinal non pode ter só espazos.",
+    "unchanged": "Escolle un contrasinal distinto do actual.",
     "strength": {
       "label": "Fortaleza do contrasinal: {level}",
       "tooWeak": "Demasiado débil",
