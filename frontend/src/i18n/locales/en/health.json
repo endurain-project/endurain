@@ -39,6 +39,7 @@
     "stepsTargetLabel": "steps",
     "poopTargetLabel": "/ day",
     "noWeightData": "No weight data",
+    "noHeightData": "Add your height in your profile to see your BMI.",
     "bmiUnderweight": "Underweight",
     "bmiNormalWeight": "Normal weight",
     "bmiOverweight": "Overweight",

@@ -164,7 +164,10 @@ const cards = computed<CardModel[]>(() => {
       key: 'bmi',
       title: t('health.dashboard.bmi'),
       value: bmi != null ? formatBmi(bmi) : null,
-      noDataLabel: t('health.dashboard.noWeightData'),
+      noDataLabel:
+        d?.weightKg != null
+          ? t('health.dashboard.noHeightData')
+          : t('health.dashboard.noWeightData'),
       footerText: bmiLabel(bmi),
     },
     {
