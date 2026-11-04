@@ -9,7 +9,6 @@
   "adminApprovalBody": "Jūsu konts tagad gaida administratora apstiprinājumu.",
   "continueButton": "Turpināt uz pieteikšanos",
   "invalidTitle": "Verifikācija neizdevās",
-  "missingTokenBody": "Šai verifikācijas saitei trūkst marķiera.",
   "errorInvalidToken": "Šī verifikācijas saite ir nederīga vai tai beidzies derīgums.",
   "errorEmailTaken": "Šo e-pasta adresi tagad izmanto cits konts, tāpēc to nevar apstiprināt.",
   "errorNotFound": "Mēs nevarējām atrast kontu šai saitei.",

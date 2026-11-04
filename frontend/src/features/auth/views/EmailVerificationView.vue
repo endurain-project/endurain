@@ -23,7 +23,7 @@ import { HttpError } from '@/services/http'
 import { confirmSignUp } from '@/features/auth/services/signUp'
 import { compose, required } from '@/utils/validators'
 
-type Status = 'pending' | 'password' | 'success' | 'error'
+type Status = 'pending' | 'password' | 'success' | 'error' | 'resend'
 
 /** Problem type the backend answers for a sign-up link confirmed without a password. */
 const PASSWORD_REQUIRED_TYPE = 'urn:endurain:error:password-required'
@@ -38,6 +38,8 @@ const { t } = useI18n()
 
 const status = ref<Status>('pending')
 const errorMessage = ref('')
+/** Whether the shown error may clear on its own, so trying again can succeed. */
+const errorRetryable = ref(false)
 const adminApprovalRequired = ref(false)
 
 /** Verification token from the emailed link; empty when absent or malformed. */
@@ -93,19 +95,22 @@ const { matches: passwordsMatch, error: confirmPasswordError } = usePasswordConf
  * Switches to the error state with a message.
  *
  * @param message - Translated message shown to the user.
+ * @param retryable - Whether trying the same link again can succeed.
  */
-function showError(message: string): void {
+function showError(message: string, retryable = false): void {
   errorMessage.value = message
+  errorRetryable.value = retryable
   status.value = 'error'
 }
 
 /**
  * Verifies the email token from the link and maps the outcome to a display
- * status. Missing tokens and backend rejections surface as recoverable errors.
+ * status. A missing token (the "didn't get the email" entry) shows the resend
+ * form; backend rejections surface as errors, retryable only when transient.
  */
 async function verify(): Promise<void> {
   if (token.value.length === 0) {
-    showError(t('verifyEmail.missingTokenBody'))
+    status.value = 'resend'
     return
   }
 
@@ -127,7 +132,7 @@ async function verify(): Promise<void> {
     } else if (error instanceof HttpError && error.status === 409) {
       showError(t('verifyEmail.errorEmailTaken'))
     } else {
-      showError(t('verifyEmail.errorGeneral'))
+      showError(t('verifyEmail.errorGeneral'), true)
     }
   }
 }
@@ -221,6 +226,13 @@ onMounted(() => {
         </Button>
       </div>
 
+      <div v-else-if="status === 'resend'" class="flex flex-col items-center gap-4">
+        <ResendVerificationForm class="w-full" />
+        <Button as-child variant="ghost">
+          <RouterLink :to="{ name: 'login' }">{{ t('verifyEmail.backToLogin') }}</RouterLink>
+        </Button>
+      </div>
+
       <ErrorState
         v-else
         :title="t('verifyEmail.invalidTitle')"
@@ -230,7 +242,9 @@ onMounted(() => {
       >
         <template #action="{ retry }">
           <div class="flex flex-wrap items-center justify-center gap-3">
-            <Button variant="outline" @click="retry">{{ t('verifyEmail.retry') }}</Button>
+            <Button v-if="errorRetryable" variant="outline" @click="retry">{{
+              t('verifyEmail.retry')
+            }}</Button>
             <Button as-child variant="ghost">
               <RouterLink :to="{ name: 'login' }">{{ t('verifyEmail.backToLogin') }}</RouterLink>
             </Button>

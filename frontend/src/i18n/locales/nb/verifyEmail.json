@@ -9,7 +9,6 @@
   "adminApprovalBody": "Kontoen din venter nå på godkjenning fra en administrator.",
   "continueButton": "Fortsett til innlogging",
   "invalidTitle": "Bekreftelse mislyktes",
-  "missingTokenBody": "Denne bekreftelseslenken mangler tokenet sitt.",
   "errorInvalidToken": "Denne bekreftelseslenken er ugyldig eller utløpt.",
   "errorEmailTaken": "Denne e-postadressen brukes nå av en annen konto, så den kan ikke bekreftes.",
   "errorNotFound": "Vi fant ingen konto for denne lenken.",

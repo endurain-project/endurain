@@ -9,7 +9,6 @@
   "adminApprovalBody": "您的帳號正在等待管理員核准。",
   "continueButton": "繼續前往登入",
   "invalidTitle": "驗證失敗",
-  "missingTokenBody": "此驗證連結缺少權杖。",
   "errorInvalidToken": "此驗證連結無效或已過期。",
   "errorEmailTaken": "此信箱地址現已被其他帳號使用，因此無法確認。",
   "errorNotFound": "我們找不到此連結對應的帳號。",

@@ -9,7 +9,6 @@
   "adminApprovalBody": "Tvoj račun zdaj čaka na odobritev skrbnika.",
   "continueButton": "Nadaljuj na prijavo",
   "invalidTitle": "Preverjanje ni uspelo",
-  "missingTokenBody": "Tej potrditveni povezavi manjka žeton.",
   "errorInvalidToken": "Ta potrditvena povezava je neveljavna ali je potekla.",
   "errorEmailTaken": "Ta e-poštni naslov zdaj uporablja drug račun, zato ga ni mogoče potrditi.",
   "errorNotFound": "Nismo mogli najti računa za to povezavo.",

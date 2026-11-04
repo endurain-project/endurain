@@ -64,9 +64,7 @@ describe('EmailVerificationView', () => {
   })
 
   it('removes the token from the address bar and still confirms with it, even on a retry', async () => {
-    confirmSignUp.mockRejectedValueOnce(
-      new HttpError(400, 'Bad Request', null, 'urn:endurain:error:invalid-input'),
-    )
+    confirmSignUp.mockRejectedValueOnce(new HttpError(500, 'Server Error'))
     confirmSignUp.mockResolvedValueOnce({ admin_approval_required: false })
     const wrapper = await mountView()
 
@@ -207,5 +205,32 @@ describe('EmailVerificationView', () => {
     await mountView()
 
     expect(sessionStorage.length).toBe(1)
+  })
+
+  it('shows the resend form without an error or a confirm call when the link has no token', async () => {
+    route.query = {}
+    const wrapper = await mountView()
+
+    expect(confirmSignUp).not.toHaveBeenCalled()
+    expect(wrapper.text()).not.toContain(i18n.global.t('verifyEmail.invalidTitle'))
+    expect(wrapper.text()).not.toContain(i18n.global.t('verifyEmail.missingTokenBody'))
+    expect(wrapper.text()).toContain(i18n.global.t('verifyEmail.resendTitle'))
+    expect(wrapper.find('input[name="email"]').exists()).toBe(true)
+    expect(wrapper.text()).toContain(i18n.global.t('verifyEmail.backToLogin'))
+    expect(wrapper.text()).not.toContain(i18n.global.t('verifyEmail.retry'))
+  })
+
+  it.each([400, 404, 409])('offers no retry when the link is refused with %i', async (status) => {
+    confirmSignUp.mockRejectedValue(new HttpError(status, 'Refused', null, 'urn:endurain:error:x'))
+    const wrapper = await mountView()
+
+    expect(wrapper.text()).not.toContain(i18n.global.t('verifyEmail.retry'))
+  })
+
+  it('offers a retry when the failure may be temporary', async () => {
+    confirmSignUp.mockRejectedValue(new HttpError(500, 'Server Error'))
+    const wrapper = await mountView()
+
+    expect(wrapper.text()).toContain(i18n.global.t('verifyEmail.retry'))
   })
 })

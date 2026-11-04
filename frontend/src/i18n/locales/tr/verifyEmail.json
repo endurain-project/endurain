@@ -9,7 +9,6 @@
   "adminApprovalBody": "Hesabınız artık yönetici onayını bekliyor.",
   "continueButton": "Girişe devam et",
   "invalidTitle": "Doğrulama başarısız",
-  "missingTokenBody": "Bu doğrulama bağlantısında belirteç eksik.",
   "errorInvalidToken": "Bu doğrulama bağlantısı geçersiz veya süresi dolmuş.",
   "errorEmailTaken": "Bu e-posta adresi artık başka bir hesap tarafından kullanılıyor, bu nedenle onaylanamaz.",
   "errorNotFound": "Bu bağlantıya ait bir hesap bulamadık.",

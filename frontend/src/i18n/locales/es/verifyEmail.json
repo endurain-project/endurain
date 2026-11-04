@@ -9,7 +9,6 @@
   "adminApprovalBody": "Tu cuenta está ahora esperando la aprobación del administrador.",
   "continueButton": "Continuar para iniciar sesión",
   "invalidTitle": "Verificación fallida",
-  "missingTokenBody": "A este enlace de verificación le falta el token.",
   "errorInvalidToken": "Este enlace de verificación no es válido o ha caducado.",
   "errorEmailTaken": "Esta dirección de correo ya la usa otra cuenta, por lo que no se puede confirmar.",
   "errorNotFound": "No pudimos encontrar una cuenta para este enlace.",

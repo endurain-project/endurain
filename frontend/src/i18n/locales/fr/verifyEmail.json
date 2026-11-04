@@ -9,7 +9,6 @@
   "adminApprovalBody": "Votre compte est maintenant en attente d'approbation par un administrateur.",
   "continueButton": "Continuer vers la connexion",
   "invalidTitle": "Échec de la vérification",
-  "missingTokenBody": "Ce lien de vérification ne contient pas de jeton.",
   "errorInvalidToken": "Ce lien de vérification est invalide ou expiré.",
   "errorEmailTaken": "Cette adresse e-mail est désormais utilisée par un autre compte, elle ne peut donc pas être confirmée.",
   "errorNotFound": "Impossible de trouver un compte pour ce lien.",

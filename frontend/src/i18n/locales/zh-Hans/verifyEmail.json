@@ -9,7 +9,6 @@
   "adminApprovalBody": "Your account is now waiting for administrator approval.",
   "continueButton": "Continue to sign in",
   "invalidTitle": "Verification failed",
-  "missingTokenBody": "This verification link is missing its token.",
   "errorInvalidToken": "This verification link is invalid or expired.",
   "errorEmailTaken": "该邮箱地址现已被其他账户使用，因此无法确认。",
   "errorNotFound": "We couldn't find an account for this link.",
