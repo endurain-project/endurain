@@ -15,8 +15,8 @@ import {
   INTERVAL_LABEL_KEYS,
   metersToDistanceValue,
   metersToElevationValue,
-  secondsToHoursMinutes,
 } from '@/features/goals/utils/goalFormat'
+import { secondsToHoursMinutes } from '@/utils/datetime'
 
 const props = defineProps<{
   /** The goal to render. */

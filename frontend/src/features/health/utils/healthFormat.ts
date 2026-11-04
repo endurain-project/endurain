@@ -12,7 +12,7 @@ import type { UnitKey } from '@/i18n'
 import type { Schemas } from '@/types'
 import type { FastingSnapshot, HealthChartBucket } from '@/features/health/types'
 
-import { todayIsoDate } from '@/utils/datetime'
+import { secondsToHoursMinutes, todayIsoDate } from '@/utils/datetime'
 import { kgToLbs, mlToFlOz } from '@/utils/units'
 
 type Units = Schemas['Units']
@@ -32,9 +32,7 @@ type DurationFormat = (hours: number, minutes: number, showZeroHours?: boolean) 
  * @returns The hours-and-minutes representation.
  */
 export function formatHoursMinutes(seconds: number, duration: DurationFormat): string {
-  const totalMinutes = Math.max(0, Math.round(seconds / 60))
-  const hours = Math.floor(totalMinutes / 60)
-  const minutes = totalMinutes % 60
+  const { hours, minutes } = secondsToHoursMinutes(seconds)
   return duration(hours, minutes, true)
 }
 

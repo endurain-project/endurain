@@ -241,3 +241,21 @@ export function formatMediumDateTime(iso: string, locale = 'en'): string {
     ? ''
     : new Intl.DateTimeFormat(locale, { dateStyle: 'medium', timeStyle: 'short' }).format(date)
 }
+
+/** An hours/minutes breakdown of a duration. */
+export interface HoursMinutes {
+  hours: number
+  minutes: number
+}
+
+/**
+ * Splits a duration in seconds into whole hours and minutes. The duration is
+ * rounded to whole minutes first, so the minutes part never reaches 60.
+ *
+ * @param seconds - Duration in seconds (clamped to zero if negative).
+ * @returns The hours and remaining minutes.
+ */
+export function secondsToHoursMinutes(seconds: number): HoursMinutes {
+  const totalMinutes = Math.max(0, Math.round(seconds / 60))
+  return { hours: Math.floor(totalMinutes / 60), minutes: totalMinutes % 60 }
+}

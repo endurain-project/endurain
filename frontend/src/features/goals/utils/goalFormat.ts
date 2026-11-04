@@ -74,26 +74,6 @@ export function elevationValueToMeters(value: number, units: Schemas['Units']): 
   return Math.round(units === 'imperial' ? value * METERS_PER_FOOT : value)
 }
 
-/** An hours/minutes breakdown of a duration. */
-export interface HoursMinutes {
-  hours: number
-  minutes: number
-}
-
-/**
- * Splits a duration in seconds into whole hours and minutes.
- *
- * @param seconds - Duration in seconds.
- * @returns The hours and (rounded) minutes components.
- */
-export function secondsToHoursMinutes(seconds: number): HoursMinutes {
-  const safe = Math.max(0, Math.floor(seconds))
-  return {
-    hours: Math.floor(safe / SECONDS_PER_HOUR),
-    minutes: Math.round((safe % SECONDS_PER_HOUR) / SECONDS_PER_MINUTE),
-  }
-}
-
 /**
  * Combines hours and minutes into a total duration in seconds.
  *

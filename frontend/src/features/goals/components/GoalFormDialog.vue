@@ -32,8 +32,8 @@ import {
   hoursMinutesToSeconds,
   metersToDistanceValue,
   metersToElevationValue,
-  secondsToHoursMinutes,
 } from '@/features/goals/utils/goalFormat'
+import { secondsToHoursMinutes } from '@/utils/datetime'
 import { useCreateGoalMutation, useUpdateGoalMutation } from '@/features/goals/composables/useGoals'
 
 const open = defineModel<boolean>('open', { required: true })

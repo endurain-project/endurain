@@ -13,7 +13,7 @@ import { useForm } from '@/composables/useForm'
 import { HttpError } from '@/services/http'
 import { isStaleWrite } from '@/services/ifMatch'
 import { todayDateTimeLocalMax } from '@/features/health/utils/healthFormat'
-import { todayIsoDate } from '@/utils/datetime'
+import { secondsToHoursMinutes, todayIsoDate } from '@/utils/datetime'
 import { toNumberOrNull } from '@/utils/number'
 import { compose, numberBetween, required, type Validator } from '@/utils/validators'
 import {
@@ -93,10 +93,8 @@ function secondsToHm(seconds: number | null): { hours: string; minutes: string }
   if (seconds === null || seconds <= 0) {
     return { hours: '', minutes: '' }
   }
-  return {
-    hours: String(Math.floor(seconds / 3600)),
-    minutes: String(Math.round((seconds % 3600) / 60)),
-  }
+  const split = secondsToHoursMinutes(seconds)
+  return { hours: String(split.hours), minutes: String(split.minutes) }
 }
 
 /** Trims an ISO timestamp to the `yyyy-MM-ddThh:mm` a datetime-local input wants. */

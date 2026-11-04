@@ -9,6 +9,7 @@ import { FormField } from '@/components/ui/form-field'
 import { inputFieldClass } from '@/components/ui/input/fieldClasses'
 import { useForm } from '@/composables/useForm'
 import { isStaleWrite } from '@/services/ifMatch'
+import { secondsToHoursMinutes } from '@/utils/datetime'
 import { toNumberOrNull } from '@/utils/number'
 import { useUpdateSleepTargetMutation } from '@/features/health/composables/useHealth'
 
@@ -74,8 +75,9 @@ function populate(): void {
   reset()
   const seconds = props.targets.sleepSeconds
   if (seconds != null && seconds > 0) {
-    values.hours = String(Math.floor(seconds / 3600))
-    values.minutes = String(Math.round((seconds % 3600) / 60))
+    const split = secondsToHoursMinutes(seconds)
+    values.hours = String(split.hours)
+    values.minutes = String(split.minutes)
   }
 }
 

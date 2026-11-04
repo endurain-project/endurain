@@ -17,8 +17,8 @@ import {
   hoursMinutesToSeconds,
   metersToDistanceValue,
   metersToElevationValue,
-  secondsToHoursMinutes,
 } from '@/features/goals/utils/goalFormat'
+import { secondsToHoursMinutes } from '@/utils/datetime'
 
 vi.mock('@/services/http', () => ({
   apiFetch: vi.fn<typeof apiFetch>(),
