@@ -59,6 +59,11 @@ function targetToMl(raw: string): number | null {
  * @param values - The form values.
  */
 async function submitForm(values: TargetFormValues): Promise<void> {
+  // Nothing changed: skip the request, which would otherwise store the unit round-trip of the target.
+  if (!isDirty.value) {
+    open.value = false
+    return
+  }
   try {
     await updateTargetMutation.mutateAsync({
       version: props.targets.version,
@@ -74,13 +79,15 @@ async function submitForm(values: TargetFormValues): Promise<void> {
   }
 }
 
-const { values, errors, isSubmitting, handleSubmit, reset } = useForm<TargetFormValues>({
-  initialValues: { amount: '' },
-  validators: {
-    amount: (value) => numberBetween(minAmount.value, undefined, t('health.targetInvalid'))(value),
-  },
-  onSubmit: submitForm,
-})
+const { values, errors, isSubmitting, handleSubmit, reset, isDirty, markPristine } =
+  useForm<TargetFormValues>({
+    initialValues: { amount: '' },
+    validators: {
+      amount: (value) =>
+        numberBetween(minAmount.value, undefined, t('health.targetInvalid'))(value),
+    },
+    onSubmit: submitForm,
+  })
 
 /** Smallest accepted target: 1 ml, or 0.1 fl oz (the precision the field displays). */
 const minAmount = computed(() => (isImperial.value ? 0.1 : 1))
@@ -97,6 +104,7 @@ function populate(): void {
     return
   }
   values.amount = String(isImperial.value ? Math.round(mlToFlOz(ml) * 10) / 10 : Math.round(ml))
+  markPristine()
 }
 
 watch(open, (isOpen) => {

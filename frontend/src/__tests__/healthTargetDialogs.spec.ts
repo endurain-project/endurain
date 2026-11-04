@@ -97,6 +97,20 @@ describe('health target dialogs', () => {
     })
   })
 
+  describe.each([
+    ['water', HealthWaterTargetDialog, { units: 'imperial' }],
+    ['weight', HealthWeightTargetDialog, { weightUnits: 'imperial' }],
+  ] as const)('%s target in imperial units', (_name, component, extraProps) => {
+    it('sends nothing when saved unchanged, so the stored value does not drift', async () => {
+      const wrapper = await openDialog(component, extraProps)
+      await wrapper.find('form').trigger('submit')
+      await flushPromises()
+
+      expect(apiFetch).not.toHaveBeenCalled()
+      expect(wrapper.emitted('update:open')?.[0]).toEqual([false])
+    })
+  })
+
   describe.each(pairs)('%s target', (_name, component) => {
     it('blocks a zero total with an error and sends no request', async () => {
       const wrapper = await openDialog(component, {})

@@ -69,6 +69,11 @@ function targetToKg(raw: string): number | null {
  * @param values - The form values.
  */
 async function submitForm(values: TargetFormValues): Promise<void> {
+  // Nothing changed: skip the request, which would otherwise store the unit round-trip of the target.
+  if (!isDirty.value) {
+    open.value = false
+    return
+  }
   try {
     await updateTargetMutation.mutateAsync({
       version: props.targets.version,
@@ -84,11 +89,12 @@ async function submitForm(values: TargetFormValues): Promise<void> {
   }
 }
 
-const { values, errors, isSubmitting, handleSubmit, reset } = useForm<TargetFormValues>({
-  initialValues: { weight: '' },
-  validators: { weight: numberBetween(MIN_WEIGHT, undefined, t('health.targetInvalid')) },
-  onSubmit: submitForm,
-})
+const { values, errors, isSubmitting, handleSubmit, reset, isDirty, markPristine } =
+  useForm<TargetFormValues>({
+    initialValues: { weight: '' },
+    validators: { weight: numberBetween(MIN_WEIGHT, undefined, t('health.targetInvalid')) },
+    onSubmit: submitForm,
+  })
 
 const massUnitLabel = computed(() => unitLabel(props.weightUnits === 'imperial' ? 'lb' : 'kg'))
 const weightLabel = computed(() => `${t('health.weight.target.weight')} (${massUnitLabel.value})`)
@@ -97,6 +103,7 @@ const weightLabel = computed(() => `${t('health.weight.target.weight')} (${massU
 function populate(): void {
   reset()
   values.weight = displayMassFromKg(props.targets.weightKg)
+  markPristine()
 }
 
 watch(open, (isOpen) => {
