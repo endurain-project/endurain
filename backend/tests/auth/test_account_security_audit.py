@@ -72,6 +72,7 @@ class TestPasswordAudit:
     def _stage_own(self, mock_db, *, revoke=True):
         with (
             patch.object(account_security_service.credentials_integration, "has_local_password", return_value=True),
+            patch.object(account_security_service.credentials_integration, "ensure_password_differs_from_current"),
             patch.object(account_security_service.step_up_service, "verify_step_up_credentials"),
             patch.object(account_security_service.server_settings_integration, "get_server_settings"),
             patch.object(account_security_service.users_integration, "require_user") as require_user,

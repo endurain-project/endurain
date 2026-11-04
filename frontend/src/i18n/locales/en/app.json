@@ -53,6 +53,8 @@
     "tooShort": "This password is too short. Use at least {min} characters.",
     "tooCommon": "This password is too common. Choose one that is harder to guess.",
     "matchesAccount": "Don't use your username or email address as your password.",
+    "blank": "A password can't be only spaces.",
+    "unchanged": "Choose a password different from your current one.",
     "strength": {
       "label": "Password strength: {level}",
       "tooWeak": "Too weak",

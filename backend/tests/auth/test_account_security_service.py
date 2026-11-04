@@ -5,10 +5,36 @@ from unittest.mock import MagicMock, patch
 import pytest
 
 import modules.auth.account_security.account_security_service as account_security_service
+import modules.auth.credentials.contracts as credentials_contracts
 
 
 class TestChangeOwnPassword:
     """Tests for self-service password changes."""
+
+    def test_the_current_password_is_refused_before_any_write_or_event(self, mock_db):
+        """Reusing the current password writes no hash, ends no session and publishes no event."""
+        prefix = "modules.auth.account_security.account_security_service."
+        with (
+            patch(prefix + "step_up_service.verify_step_up_credentials") as verify,
+            patch(prefix + "credentials_integration.has_local_password", return_value=True),
+            patch(
+                prefix + "credentials_integration.ensure_password_differs_from_current",
+                side_effect=credentials_contracts.PasswordUnchangedError(),
+            ) as differs,
+            patch(prefix + "credentials_integration.set_local_password_hash") as set_hash,
+            patch(prefix + "sessions_integration.delete_sessions_by_user") as delete_sessions,
+            patch(prefix + "account_security_event_publishers.publish_account_security_changed") as publish,
+            pytest.raises(credentials_contracts.PasswordUnchangedError),
+        ):
+            account_security_service.stage_change_own_password(
+                7, "same-pass", "same-pass", None, MagicMock(), mock_db, revoke_other_sessions=True
+            )
+
+        verify.assert_called_once()
+        differs.assert_called_once_with(7, "same-pass", mock_db)
+        set_hash.assert_not_called()
+        delete_sessions.assert_not_called()
+        publish.assert_not_called()
 
     @patch("modules.auth.account_security.account_security_service.logger")
     @patch("modules.auth.account_security.account_security_service.mfa_integration.clear_pending_mfa_for_user")
@@ -39,6 +65,9 @@ class TestChangeOwnPassword:
             patch(
                 "modules.auth.account_security.account_security_service.credentials_integration.has_local_password",
                 return_value=True,
+            ),
+            patch(
+                "modules.auth.account_security.account_security_service.credentials_integration.ensure_password_differs_from_current"
             ),
             patch(
                 "modules.auth.account_security.account_security_service.users_integration.require_user",
@@ -108,6 +137,9 @@ class TestChangeOwnPassword:
                 return_value=True,
             ),
             patch(
+                "modules.auth.account_security.account_security_service.credentials_integration.ensure_password_differs_from_current"
+            ),
+            patch(
                 "modules.auth.account_security.account_security_service.users_integration.require_user",
                 return_value=mock_user,
             ),
@@ -143,6 +175,7 @@ class TestChangeOwnPassword:
             patch(prefix + "mfa_integration.clear_pending_mfa_for_user"),
             patch(prefix + "server_settings_integration.get_server_settings"),
             patch(prefix + "credentials_integration.has_local_password", return_value=True),
+            patch(prefix + "credentials_integration.ensure_password_differs_from_current"),
             patch(prefix + "users_integration.require_user", return_value=mock_user),
             patch(prefix + "credentials_integration.validate_and_hash_password_for_user", return_value="hashed"),
             patch(prefix + "credentials_integration.set_local_password_hash"),

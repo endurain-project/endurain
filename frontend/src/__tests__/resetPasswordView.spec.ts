@@ -63,6 +63,15 @@ describe('ResetPasswordView weak password', () => {
     expect(wrapper.text()).toContain(i18n.global.t('app.password.matchesAccount'))
   })
 
+  it('shows the specific message for the current password', async () => {
+    confirmPasswordReset.mockRejectedValue(
+      new HttpError(422, 'Unprocessable', null, 'urn:endurain:error:password-unchanged'),
+    )
+    const wrapper = await submitFilled()
+
+    expect(wrapper.text()).toContain(i18n.global.t('app.password.unchanged'))
+  })
+
   it('keeps the generic weak-password message for any other 422', async () => {
     confirmPasswordReset.mockRejectedValue(
       new HttpError(422, 'Unprocessable', null, 'urn:endurain:error:invalid-input'),

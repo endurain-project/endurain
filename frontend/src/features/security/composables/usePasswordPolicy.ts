@@ -9,6 +9,8 @@ import { isValidPassword, resolvePasswordMinLength } from '@/utils/validation'
 const PASSWORD_TOO_SHORT_TYPE = 'urn:endurain:error:password-too-short'
 const PASSWORD_TOO_COMMON_TYPE = 'urn:endurain:error:password-too-common'
 const PASSWORD_MATCHES_ACCOUNT_TYPE = 'urn:endurain:error:password-matches-account'
+const PASSWORD_BLANK_TYPE = 'urn:endurain:error:password-blank'
+const PASSWORD_UNCHANGED_TYPE = 'urn:endurain:error:password-unchanged'
 
 /**
  * The server's password policy for an account tier, as every password form
@@ -72,6 +74,10 @@ export function usePasswordPolicy(accessType: MaybeRefOrGetter<string>) {
         return t('app.password.tooCommon')
       case PASSWORD_MATCHES_ACCOUNT_TYPE:
         return t('app.password.matchesAccount')
+      case PASSWORD_BLANK_TYPE:
+        return t('app.password.blank')
+      case PASSWORD_UNCHANGED_TYPE:
+        return t('app.password.unchanged')
       default:
         return null
     }

@@ -110,6 +110,7 @@ def validate_and_hash_password_for_user(
         The password hash.
 
     Raises:
+        PasswordBlankError: If the password is only whitespace.
         PasswordTooShortError: If the password is shorter than the account type's minimum.
         PasswordTooCommonError: If the password is on the blocklist.
         PasswordMatchesAccountError: If the password is the username, the email or the application name.
@@ -119,3 +120,24 @@ def validate_and_hash_password_for_user(
     return credentials_password_hasher.get_password_hasher().hash_password(
         credentials_password_policy.hash_form(password)
     )
+
+
+def ensure_password_differs_from_current(user_id: int, new_password: str, db: Session) -> None:
+    """Refuse a new password that is the account's current one, compared in the form passwords are stored in.
+
+    Args:
+        user_id: ID of the user whose password is being replaced.
+        new_password: The new password as typed.
+        db: SQLAlchemy session.
+
+    Raises:
+        PasswordUnchangedError: If the new password verifies against the stored hash.
+    """
+    stored_hash = get_password_hash(user_id, db)
+    if stored_hash is None:
+        return
+    verified, _ = verify_and_update_password(
+        new_password, stored_hash, credentials_password_hasher.get_password_hasher()
+    )
+    if verified:
+        raise credentials_contracts.PasswordUnchangedError()

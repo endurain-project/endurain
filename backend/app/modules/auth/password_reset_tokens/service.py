@@ -218,7 +218,8 @@ def use_password_reset_token(token: str, new_password: str, db: Session) -> None
 
     Raises:
         InvalidInputError: If the token is invalid or expired, or the account is inactive or may not reset its password.
-        PasswordPolicyError: If the password is too short, too common or matches the account's details.
+        PasswordPolicyError: If the password is the current one, blank, too short, too common or matches the
+            account's details.
     """
     token_user_id = password_reset_crud.claim_password_reset_token(token_hashing.sha256_hex(token), db)
     if token_user_id is None:
@@ -240,6 +241,7 @@ def use_password_reset_token(token: str, new_password: str, db: Session) -> None
             target_owner_id=str(token_user_id),
         )
         raise core_exceptions.InvalidInputError(UNUSABLE_RESET_MESSAGE)
+    credentials_integration.ensure_password_differs_from_current(token_user_id, new_password, db)
     hashed_password = credentials_integration.validate_and_hash_password_for_user(
         server_settings,
         users_schema.normalize_access_type(user.access_type),

@@ -45,6 +45,11 @@ def validate_and_hash_password_for_user(
     )
 
 
+def ensure_password_differs_from_current(user_id: int, new_password: str, db: Session) -> None:
+    """Refuse a new password that is the user's current one."""
+    credentials_service.ensure_password_differs_from_current(user_id, new_password, db)
+
+
 def verify_and_update_password(
     password: str, stored_hash: str, password_hasher: credentials_password_hasher.PasswordHasher
 ) -> tuple[bool, str | None]:

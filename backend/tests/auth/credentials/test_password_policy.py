@@ -5,7 +5,7 @@ import hashlib
 import json
 import unicodedata
 from pathlib import Path
-from unittest.mock import MagicMock
+from unittest.mock import MagicMock, patch
 
 import pytest
 
@@ -42,10 +42,54 @@ class TestPolicyErrors:
             (credentials_contracts.PasswordTooShortError, "password-too-short"),
             (credentials_contracts.PasswordTooCommonError, "password-too-common"),
             (credentials_contracts.PasswordMatchesAccountError, "password-matches-account"),
+            (credentials_contracts.PasswordBlankError, "password-blank"),
+            (credentials_contracts.PasswordUnchangedError, "password-unchanged"),
         ):
             assert issubclass(cls, credentials_contracts.PasswordPolicyError)
             assert cls.code == code
             assert cls.status_code == 422
+
+
+class TestBlank:
+    @pytest.mark.parametrize("password", [" " * 20, "\t" * 20, "\u00a0" * 20, " \n\t " * 6])
+    def test_whitespace_only_is_refused(self, password):
+        with pytest.raises(credentials_contracts.PasswordBlankError):
+            _validate(password)
+
+    def test_whitespace_only_is_refused_before_the_length_check(self):
+        with pytest.raises(credentials_contracts.PasswordBlankError):
+            _validate("   ")
+
+    def test_surrounding_spaces_are_kept(self):
+        stored = _validate("  spaced-out-password  ")
+        assert credentials_password_hasher.get_password_hasher().verify_password("  spaced-out-password  ", stored)
+
+
+class TestEnsureDiffersFromCurrent:
+    def test_the_current_password_is_refused(self):
+        stored = _validate("current-password-123")
+        with (
+            patch.object(credentials_service, "get_password_hash", return_value=stored),
+            pytest.raises(credentials_contracts.PasswordUnchangedError),
+        ):
+            credentials_service.ensure_password_differs_from_current(7, "current-password-123", MagicMock())
+
+    def test_an_nfc_equivalent_of_the_current_password_is_refused(self):
+        stored = _validate(_COMPOSED)
+        with (
+            patch.object(credentials_service, "get_password_hash", return_value=stored),
+            pytest.raises(credentials_contracts.PasswordUnchangedError),
+        ):
+            credentials_service.ensure_password_differs_from_current(7, _DECOMPOSED, MagicMock())
+
+    def test_a_different_password_is_accepted(self):
+        stored = _validate("current-password-123")
+        with patch.object(credentials_service, "get_password_hash", return_value=stored):
+            credentials_service.ensure_password_differs_from_current(7, "another-password-456", MagicMock())
+
+    def test_an_account_without_a_password_is_accepted(self):
+        with patch.object(credentials_service, "get_password_hash", return_value=None):
+            credentials_service.ensure_password_differs_from_current(7, "any-password-value-1", MagicMock())
 
 
 class TestLength:

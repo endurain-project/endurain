@@ -46,6 +46,9 @@ class TestUsePasswordResetToken:
                 return_value=True,
             ),
             patch(
+                "modules.auth.password_reset_tokens.service.credentials_integration.ensure_password_differs_from_current"
+            ),
+            patch(
                 "modules.auth.password_reset_tokens.service.credentials_integration.validate_and_hash_password_for_user",
                 return_value="hashed",
             ) as hash_password,
@@ -64,6 +67,37 @@ class TestUsePasswordResetToken:
             "clear_pending",
         ]
         clear_pending.assert_called_once_with(42)
+
+    @patch("modules.auth.password_reset_tokens.service.account_security_integration.stage_password_reset")
+    @patch("modules.auth.password_reset_tokens.service.sessions_integration.delete_sessions_by_user")
+    @patch("modules.auth.password_reset_tokens.service.credentials_integration.set_local_password_hash")
+    @patch("modules.auth.password_reset_tokens.service.password_reset_crud.claim_password_reset_token", return_value=42)
+    def test_the_current_password_is_refused_before_any_write_or_event(
+        self, _claim, set_password, delete_sessions, stage_event, mock_db
+    ):
+        user = MagicMock(active=True, access_type="regular", username="alice", email="alice@example.com")
+        with (
+            patch(
+                "modules.auth.password_reset_tokens.service.server_settings_integration.get_server_settings",
+                return_value=MagicMock(local_login_enabled=True),
+            ),
+            patch("modules.auth.password_reset_tokens.service.users_integration.require_user", return_value=user),
+            patch(
+                "modules.auth.password_reset_tokens.service.credentials_integration.has_local_password",
+                return_value=True,
+            ),
+            patch(
+                "modules.auth.password_reset_tokens.service.credentials_integration.ensure_password_differs_from_current",
+                side_effect=credentials_contracts.PasswordUnchangedError(),
+            ),
+            pytest.raises(credentials_contracts.PasswordUnchangedError),
+        ):
+            password_reset_service.use_password_reset_token("plain", "same password", mock_db)
+
+        set_password.assert_not_called()
+        delete_sessions.assert_not_called()
+        stage_event.assert_not_called()
+        mock_db.commit.assert_not_called()
 
     @patch("modules.auth.password_reset_tokens.service.jasil_audit.record_detached")
     @patch("modules.auth.password_reset_tokens.service.sessions_integration.delete_sessions_by_user")
@@ -110,6 +144,9 @@ class TestUsePasswordResetToken:
             patch(
                 "modules.auth.password_reset_tokens.service.credentials_integration.has_local_password",
                 return_value=True,
+            ),
+            patch(
+                "modules.auth.password_reset_tokens.service.credentials_integration.ensure_password_differs_from_current"
             ),
             patch(
                 "modules.auth.password_reset_tokens.service.credentials_integration.validate_and_hash_password_for_user",

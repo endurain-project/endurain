@@ -18,6 +18,7 @@ def test_a_reset_is_audited_and_announced(mock_db):
         patch.object(password_reset_service.server_settings_integration, "get_server_settings"),
         patch.object(password_reset_service.users_integration, "require_user") as require_user,
         patch.object(password_reset_service, "_may_reset_password", return_value=True),
+        patch.object(password_reset_service.credentials_integration, "ensure_password_differs_from_current"),
         patch.object(password_reset_service.credentials_integration, "validate_and_hash_password_for_user"),
         patch.object(password_reset_service.credentials_integration, "set_local_password_hash"),
         patch.object(password_reset_service.password_reset_crud, "mark_user_password_reset_tokens_used"),

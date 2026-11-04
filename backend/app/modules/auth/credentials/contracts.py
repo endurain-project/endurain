@@ -42,6 +42,20 @@ class PasswordMatchesAccountError(PasswordPolicyError):
     default_detail = "The password must not be your username, your email address or the application name"
 
 
+class PasswordBlankError(PasswordPolicyError):
+    """The password is only whitespace."""
+
+    code = "password-blank"
+    default_detail = "The password must not be only whitespace"
+
+
+class PasswordUnchangedError(PasswordPolicyError):
+    """The new password is the account's current password."""
+
+    code = "password-unchanged"
+    default_detail = "The new password must be different from the current one"
+
+
 class SupportsHashPassword(Protocol):
     """Structural protocol for objects that can hash a password."""
 

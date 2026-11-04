@@ -53,7 +53,7 @@ def load_blocklist() -> frozenset[str]:
 
 
 def check_password(password: str, min_length: int, username: str, email: str) -> None:
-    """Refuse a password that is too short, too common or equal to an account detail.
+    """Refuse a password that is blank, too short, too common or equal to an account detail.
 
     Args:
         password: The password as typed.
@@ -62,11 +62,14 @@ def check_password(password: str, min_length: int, username: str, email: str) ->
         email: The account's email address.
 
     Raises:
+        PasswordBlankError: If the password is only whitespace.
         PasswordTooShortError: If the NFC form is shorter than ``min_length``.
         PasswordTooCommonError: If the password is on the blocklist.
         PasswordMatchesAccountError: If the whole password equals the username, the email, the email's local
             part or the application name.
     """
+    if not password.strip():
+        raise credentials_contracts.PasswordBlankError()
     if len(hash_form(password)) < min_length:
         raise credentials_contracts.PasswordTooShortError(f"The password must be at least {min_length} characters long")
     candidate = compare_form(password)

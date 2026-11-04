@@ -140,6 +140,15 @@ describe('ChangePasswordCard server refusals', () => {
     expect(toastError).toHaveBeenCalledWith(i18n.global.t('app.password.tooCommon'))
   })
 
+  it('tells the user the new password is the current one', async () => {
+    mutateAsync.mockRejectedValue(
+      new HttpError(422, 'Unprocessable', null, 'urn:endurain:error:password-unchanged'),
+    )
+    await submitFilled()
+
+    expect(toastError).toHaveBeenCalledWith(i18n.global.t('app.password.unchanged'))
+  })
+
   it('still reports a wrong current password on a 401', async () => {
     mutateAsync.mockRejectedValue(new HttpError(401, 'Unauthorized'))
     await submitFilled()

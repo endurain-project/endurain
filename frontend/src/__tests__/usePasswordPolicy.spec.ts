@@ -104,6 +104,14 @@ describe('usePasswordPolicy policyError', () => {
     )
   })
 
+  it('maps a blank password and an unchanged password', () => {
+    const policy = withSetup(() => usePasswordPolicy('regular'))
+    expect(policy.policyError(problem('password-blank'))).toBe("A password can't be only spaces.")
+    expect(policy.policyError(problem('password-unchanged'))).toBe(
+      'Choose a password different from your current one.',
+    )
+  })
+
   it('leaves every other error alone', () => {
     const policy = withSetup(() => usePasswordPolicy('regular'))
     expect(policy.policyError(problem('invalid-input'))).toBeNull()

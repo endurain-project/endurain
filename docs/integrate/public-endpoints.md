@@ -95,7 +95,7 @@ What to expect from `POST /public/onboarding`:
 - **The token comes from the server log.** While no account exists, every API worker logs a one-time setup token at startup (field `setup_token`). It is valid for 24 hours and works once; a restart prints a new one.
 - **`409` once any account exists.** The endpoint never creates a second account, whatever the token.
 - **`400`** for a token that is unknown, expired or already used.
-- **`422`** for a password the [password rules](../features/accounts-and-sign-in.md#password-rules) refuse (problem type `urn:endurain:error:password-too-short`, `password-too-common` or `password-matches-account`), or for an unknown field. The role and account state are not accepted from the client.
+- **`422`** for a password the [password rules](../features/accounts-and-sign-in.md#password-rules) refuse (problem type `urn:endurain:error:password-too-short`, `password-too-common`, `password-matches-account` or `password-blank`), or for an unknown field. The role and account state are not accepted from the client.
 - **Two requests at the same time** still create one administrator: the other answers `409`.
 
 ## Not public
