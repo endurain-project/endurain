@@ -6,6 +6,7 @@ from unittest.mock import MagicMock, Mock
 
 import jasil.runtime as platform_runtime
 import pytest
+import sqlalchemy.exc
 from stravalib.exc import AccessUnauthorized, ObjectNotFound, RateLimitExceeded
 from stravalib.exc import Fault as StravaFault
 
@@ -311,13 +312,39 @@ class TestRefreshUserStravaToken:
         monkeypatch.setattr(
             strava_utils.user_integrations_integration,
             "replace_strava_tokens_if_refresh_token",
-            Mock(side_effect=RuntimeError("database down")),
+            Mock(side_effect=sqlalchemy.exc.OperationalError("update", {}, Exception("database down"))),
         )
 
         with caplog.at_level("ERROR"):
             strava_utils.refresh_user_strava_token(1, rate_limits)  # must not raise
 
         assert any("could not be stored" in record.getMessage() for record in caplog.records)
+
+    def test_a_bug_while_storing_the_rotated_tokens_is_not_swallowed(self, monkeypatch, rate_limits, caplog):
+        """Strava invalidated the old refresh token, so the loss is named; the sync then fails visibly and unlinks."""
+        monkeypatch.setattr(
+            strava_utils.user_integrations_integration,
+            "get_user_integrations",
+            Mock(return_value=self._integrations(expires_in_minutes=10)),
+        )
+        monkeypatch.setattr(strava_utils.core_cryptography, "decrypt_token_fernet", lambda value: value)
+        client = Mock()
+        client.refresh_access_token.return_value = {"access_token": "n"}
+        monkeypatch.setattr(strava_utils, "create_strava_client", Mock(return_value=client))
+        db = MagicMock()
+        monkeypatch.setattr(
+            strava_utils.core_database,
+            "SessionLocal",
+            lambda: MagicMock(__enter__=lambda s, db=db: db, __exit__=lambda *a: False),
+        )
+        monkeypatch.setattr(
+            strava_utils.user_integrations_integration,
+            "replace_strava_tokens_if_refresh_token",
+            Mock(side_effect=RuntimeError("bug")),
+        )
+
+        with pytest.raises(RuntimeError):
+            strava_utils.refresh_user_strava_token(1, rate_limits)
 
 
 class TestRaiseIfRateLimited:

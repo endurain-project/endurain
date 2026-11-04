@@ -6,6 +6,7 @@ from typing import TYPE_CHECKING, NamedTuple
 
 import jasil.audit as jasil_audit
 import requests
+import sqlalchemy.exc
 from sqlalchemy.orm import Session
 from stravalib.client import Client as StravaClient
 from stravalib.exc import AccessUnauthorized, ObjectNotFound, RateLimitExceeded
@@ -498,7 +499,7 @@ def refresh_user_strava_token(user_id: int, rate_limits: strava_rate_limit_store
                 )
                 return
             db.commit()
-    except Exception as err:
+    except (sqlalchemy.exc.SQLAlchemyError, core_exceptions.CryptographyError) as err:
         # Strava has already invalidated the old refresh token, so the rotated one is lost. The access
         # token still works until it expires; the sync that then fails on it unlinks the account and tells the user.
         logger.error(

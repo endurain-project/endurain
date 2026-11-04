@@ -3,10 +3,12 @@
 import secrets
 
 import jasil.audit as jasil_audit
+import requests
 from sqlalchemy.orm import Session
 
 import core.database as core_database
 import core.etag as core_etag
+import core.exceptions as core_exceptions
 import core.logger as core_logger
 import modules.activities.activity.integration_service as activity_integration
 import modules.gears.gear.integration_service as gears_integration
@@ -112,7 +114,7 @@ def unlink_account(user_id: int) -> bool:
 
     try:
         strava_client_service.create_strava_client(user_integrations).deauthorize()
-    except Exception as err:
+    except (requests.RequestException, core_exceptions.CryptographyError) as err:
         logger.warning(
             "Strava refused the deauthorization, unlinking locally anyway",
             extra=core_logger.context(user_id=user_id),

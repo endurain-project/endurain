@@ -5,6 +5,9 @@ from __future__ import annotations
 import logging
 from unittest.mock import Mock, patch
 
+import pytest
+import sqlalchemy.exc
+
 import core.exceptions as core_exceptions
 import modules.activities.activity.contracts as activity_contracts
 import modules.strava.bulk_import_service as bulk_import_utils
@@ -70,6 +73,33 @@ def test_media_is_validated_as_an_image_before_it_is_stored(monkeypatch):
     assert validate.call_args.kwargs == {"kind": UploadKind.IMAGE, "filename": "photo.jpg"}
     # The media module owns the key and the storage area; only bytes cross over.
     assert store_media.call_args.args[:3] == (7, "photo.jpg", b"image-bytes")
+
+
+def test_a_database_failure_while_storing_media_propagates(monkeypatch):
+    """A broken session must reach the caller, which would otherwise keep using it for the next photo."""
+    monkeypatch.setattr(bulk_import_utils.file_uploads, "validate_local_file_sync", Mock())
+    monkeypatch.setattr(
+        bulk_import_utils.activity_media_integration,
+        "attach_media_bytes",
+        Mock(side_effect=sqlalchemy.exc.OperationalError("insert", {}, Exception("db down"))),
+    )
+
+    with pytest.raises(sqlalchemy.exc.SQLAlchemyError):
+        bulk_import_utils.create_activity_media_from_strava_bulk_import(7, "photo.jpg", b"image-bytes", Mock())
+
+
+def test_a_photo_the_media_module_rejects_is_skipped(monkeypatch, caplog):
+    monkeypatch.setattr(bulk_import_utils.file_uploads, "validate_local_file_sync", Mock())
+    monkeypatch.setattr(
+        bulk_import_utils.activity_media_integration,
+        "attach_media_bytes",
+        Mock(side_effect=core_exceptions.InvalidInputError("too large")),
+    )
+
+    with caplog.at_level(logging.DEBUG, logger=bulk_import_utils.logger.name):
+        bulk_import_utils.create_activity_media_from_strava_bulk_import(7, "photo.jpg", b"image-bytes", Mock())
+
+    assert [record.levelno for record in caplog.records if record.levelno >= logging.WARNING] == [logging.WARNING]
 
 
 def test_invalid_media_is_rejected_before_it_is_stored(monkeypatch):
@@ -147,6 +177,13 @@ class TestParseActivitiesManifest:
         path = self._write(tmp_path, "Activity ID,Filename\n1,activities/1.fit\n")
 
         assert bulk_import_utils.parse_activities_manifest(path) is None
+
+    def test_a_truncated_row_refuses_the_manifest_with_a_warning(self, tmp_path, caplog):
+        path = self._write(tmp_path, self.HEADER + "1,Oct 21 2023,Ride\n")
+
+        records = self._parse(path, caplog)
+
+        assert [record.levelno for record in records] == [logging.WARNING]
 
     def _parse(self, path, caplog):
         with caplog.at_level(logging.DEBUG, logger=bulk_import_utils.logger.name):

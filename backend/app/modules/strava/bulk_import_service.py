@@ -73,7 +73,8 @@ def parse_activities_manifest(manifest_path: str) -> StravaActivitiesManifest | 
 
     Returns:
         Dictionary of the manifest's rows keyed by each activity's filename, or
-        ``None`` when the file cannot be parsed or lacks the required headers.
+        ``None`` when the file cannot be parsed, lacks the required headers or has a row
+        without a filename.
     """
     strava_activities_file_name = os.path.basename(manifest_path)
     try:
@@ -87,6 +88,13 @@ def parse_activities_manifest(manifest_path: str) -> StravaActivitiesManifest | 
                     extra=core_logger.context(
                         console=True, file_name=strava_activities_file_name, missing=sorted(missing_headers)
                     ),
+                )
+                return None
+            if row["Filename"] is None:
+                # DictReader leaves the fields a short row lacks as None.
+                logger.warning(
+                    "Aborting Strava bulk activities import: a row has no filename",
+                    extra=core_logger.context(console=True, file_name=strava_activities_file_name),
                 )
                 return None
             _, strava_act_file_name = os.path.split(row["Filename"])  # strips path, returns filename with extension.
@@ -108,9 +116,6 @@ def parse_activities_manifest(manifest_path: str) -> StravaActivitiesManifest | 
         logger.error(
             "Strava activities CSV parsing aborted", extra=core_logger.context(console=True, detail=err.detail)
         )
-        return None
-    except Exception as err:
-        logger.error("Strava activities CSV parsing failed", extra=core_logger.context(console=True), exc_info=err)
         return None
 
 
@@ -334,7 +339,8 @@ def create_activity_media_from_strava_bulk_import(
 
     The bytes are validated as an image through the unified upload pipeline before
     they are stored and become servable; a rejected file is logged and skipped so
-    one bad photo does not fail the activity.
+    one bad photo does not fail the activity. A database or storage failure is not the
+    photo's, so it propagates to the caller.
 
     Args:
         activity_id: The imported activity.
@@ -366,11 +372,10 @@ def create_activity_media_from_strava_bulk_import(
             "Bulk file import: media file imported",
             extra=core_logger.context(console=True, file_name=media_strava_filename),
         )
-    except Exception as err:
-        logger.error(
-            "Bulk file import: error processing media file",
-            extra=core_logger.context(console=True, file_name=media_strava_filename),
-            exc_info=err,
+    except core_exceptions.DomainError as err:
+        logger.warning(
+            "Bulk file import: rejecting media file the media module refused",
+            extra=core_logger.context(console=True, file_name=media_strava_filename, detail=err.detail),
         )
 
 

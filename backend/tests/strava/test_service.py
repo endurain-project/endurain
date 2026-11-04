@@ -4,6 +4,7 @@ from unittest.mock import MagicMock, patch
 
 import jasil.runtime as platform_runtime
 import pytest
+import requests
 
 import core.exceptions as core_exceptions
 import modules.strava.constants as strava_constants
@@ -122,13 +123,17 @@ class TestUnlinkAccount:
 
     def test_a_refused_deauthorization_still_unlinks_and_clears_imported_data(self):
         result, _client, delete_gear, delete_activities, unlink, _ = self._run(
-            deauthorize_error=RuntimeError("revoked already")
+            deauthorize_error=requests.HTTPError("revoked already")
         )
 
         assert result is True
         delete_gear.assert_called_once()
         delete_activities.assert_called_once()
         unlink.assert_called_once()
+
+    def test_a_bug_in_the_deauthorization_is_not_swallowed(self):
+        with pytest.raises(RuntimeError):
+            self._run(deauthorize_error=RuntimeError("bug"))
 
     def test_strava_is_called_with_no_database_session_open(self):
         *_, during_deauthorize = self._run()
