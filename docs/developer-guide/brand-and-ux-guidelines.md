@@ -80,6 +80,9 @@ Each accent maps to a specific data domain. Never swap them.
 | `--color-hr` | `#E24B4A` | Heart rate, HR zones 4–5, warnings |
 | `--color-info` | `#378ADD` | Distance, speed, informational states |
 | `--color-goal` | `#639922` | Goal completion, PRs, streaks |
+| `--color-hr-zone-4` | `#F97316` | Heart rate zone 4 in charts |
+| `--color-cadence` | `#A855F7` | Cadence stream in charts |
+| `--color-temperature` | `#F97316` | Temperature stream in charts |
 
 ### Neutrals - warm gray
 
