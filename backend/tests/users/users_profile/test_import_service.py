@@ -25,6 +25,7 @@ from modules.users.users_profile.exceptions import (
     FileFormatError,
     FileSizeError,
     FileSystemError,
+    ImportAccountMismatchError,
     JSONParseError,
     MemoryAllocationError,
 )
@@ -113,6 +114,54 @@ class TestImportServiceZipValidation:
 
         with pytest.raises(FileFormatError, match="Invalid ZIP"):
             await service.import_from_zip_data(b"not-a-zip")
+
+
+class _PastTheCheckError(Exception):
+    """Stands in for the import going on once the account check has passed."""
+
+
+class TestImportServiceAccountCheck:
+    """An archive is imported only into the account it was exported from."""
+
+    def _service(self) -> profile_import_service.ImportService:
+        return profile_import_service.ImportService(user_id=1, storage=MagicMock(), db=MagicMock(spec=Session))
+
+    async def _run(self, archived: dict[str, str], current: dict[str, str]) -> profile_import_service.ImportService:
+        service = self._service()
+        zip_data = _make_zip_with_json({"data/user.json": [archived], "data/gears.json": [{"nickname": "x"}]})
+        account = MagicMock(**current)
+        with (
+            patch("modules.users.users_profile.import_service.users_integration.require_user", return_value=account),
+            patch.object(service, "collect_and_import_gears_data", side_effect=_PastTheCheckError) as gears,
+        ):
+            try:
+                await service.import_from_zip_data(zip_data)
+            except ImportAccountMismatchError:
+                gears.assert_not_called()
+                service.db.commit.assert_not_called()
+                raise
+        return service
+
+    async def test_an_archive_from_another_account_is_refused_before_anything_is_imported(self) -> None:
+        with pytest.raises(ImportAccountMismatchError):
+            await self._run(
+                {"username": "source", "email": "source@example.com"},
+                {"username": "other", "email": "other@example.com"},
+            )
+
+    async def test_the_same_account_passes_the_check(self) -> None:
+        with pytest.raises(_PastTheCheckError):
+            await self._run(
+                {"username": "Source", "email": "source@example.com"},
+                {"username": "source", "email": "source@example.com"},
+            )
+
+    async def test_a_renamed_account_still_matches_by_email(self) -> None:
+        with pytest.raises(_PastTheCheckError):
+            await self._run(
+                {"username": "old_name", "email": "me@example.com"},
+                {"username": "new_name", "email": "ME@example.com"},
+            )
 
 
 class TestImportServiceArchiveCaps:
@@ -1094,6 +1143,10 @@ class TestImportServiceFromZip:
             return {}
 
         with (
+            patch(
+                "modules.users.users_profile.import_service.users_integration.require_user",
+                return_value=MagicMock(username="test", email="test@example.com"),
+            ),
             patch.object(service, "collect_and_import_gears_data", side_effect=_increment_gears),
             patch.object(service, "collect_and_import_gear_components_data", new_callable=AsyncMock),
             patch.object(service, "collect_and_import_user_data", new_callable=AsyncMock),

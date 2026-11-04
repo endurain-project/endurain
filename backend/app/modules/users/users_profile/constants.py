@@ -67,6 +67,7 @@ class ImportFailure(StrEnum):
     TOO_LARGE = "too_large"
     TOO_MANY_ACTIVITIES = "too_many_activities"
     TIMED_OUT = "timed_out"
+    WRONG_ACCOUNT = "wrong_account"
     FILES_INCOMPLETE = "files_incomplete"
     PROCESSING_FAILED = "processing_failed"
 

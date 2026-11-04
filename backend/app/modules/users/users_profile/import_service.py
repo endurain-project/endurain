@@ -69,6 +69,7 @@ from modules.users.users_profile.exceptions import (
     FileFormatError,
     FileSizeError,
     FileSystemError,
+    ImportAccountMismatchError,
     ImportTimeoutError,
     JSONParseError,
 )
@@ -306,6 +307,7 @@ class ImportService:
             FileSizeError: If file exceeds size limit.
             FileFormatError: If ZIP format is invalid.
             FileSystemError: If file system error occurs.
+            ImportAccountMismatchError: If the archive was exported from a different account.
             ImportTimeoutError: If operation times out.
         """
         start_time = time.time()
@@ -335,6 +337,8 @@ class ImportService:
                         f"ZIP file has {len(zipf.infolist())} entries, more than the "
                         f"{self.performance_config.max_entries} allowed"
                     )
+
+                self._require_same_account(self._load_single_json(zipf, "data/user.json"))
 
                 # Create ID mappings for relationships
                 gears_id_mapping: dict[int, int] = {}
@@ -437,6 +441,29 @@ class ImportService:
                 )
 
         return self.counts
+
+    def _require_same_account(self, user_data: list[dict[str, Any]]) -> None:
+        """Refuse an archive exported from another account.
+
+        The archive's profile carries its owner's username and email, and the import writes that
+        username onto the importing account. The archive belongs to this account when its username or
+        its email is the account's, so an account renamed since the export still matches by email.
+
+        Args:
+            user_data: The archive's user records.
+
+        Raises:
+            ImportAccountMismatchError: When the archive names a username or email and neither is the account's.
+        """
+        archived = user_data[0] if user_data else {}
+        username, email = archived.get("username"), archived.get("email")
+        if not username and not email:
+            return
+        account = users_integration.require_user(self.user_id, self.db)
+        same_username = bool(username) and str(username).casefold() == account.username.casefold()
+        same_email = bool(email) and str(email).casefold() == account.email.casefold()
+        if not (same_username or same_email):
+            raise ImportAccountMismatchError("The archive was exported from a different account")
 
     def _load_single_json(
         self, zipf: zipfile.ZipFile, filename: str, check_memory: bool = True

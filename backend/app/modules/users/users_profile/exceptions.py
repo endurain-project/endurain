@@ -77,6 +77,12 @@ class ImportValidationError(ProfileImportError):
     pass
 
 
+class ImportAccountMismatchError(ProfileImportError):
+    """Raised when the archive was exported from a different account than the one importing it."""
+
+    pass
+
+
 class FileFormatError(ProfileImportError):
     """Raised when imported file format is invalid or corrupted."""
 

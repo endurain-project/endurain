@@ -206,6 +206,7 @@ class TestRunImport:
             (profile_exceptions.FileSizeError("x"), _Failure.TOO_LARGE),
             (profile_exceptions.ActivityLimitError("x"), _Failure.TOO_MANY_ACTIVITIES),
             (profile_exceptions.ImportTimeoutError("x"), _Failure.TIMED_OUT),
+            (profile_exceptions.ImportAccountMismatchError("x"), _Failure.WRONG_ACCOUNT),
             (profile_exceptions.MemoryAllocationError("x"), _Failure.PROCESSING_FAILED),
             (RuntimeError("x"), _Failure.PROCESSING_FAILED),
         ],
