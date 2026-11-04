@@ -1,6 +1,7 @@
 import type { UnitKey } from '@/i18n'
 import type { Schemas } from '@/types'
 
+import { formatFixed, formatNumber } from '@/utils/formatNumber'
 import { kmToMiles } from '@/utils/units'
 
 import {
@@ -194,7 +195,7 @@ export function formatSpeed(
   if (metersPerSecond === null || metersPerSecond === undefined || metersPerSecond < 0) {
     return { value: '--', unit }
   }
-  return { value: speedToDisplay(metersPerSecond, activityType, units).toFixed(2), unit }
+  return { value: formatFixed(speedToDisplay(metersPerSecond, activityType, units), 2), unit }
 }
 
 /**
@@ -231,11 +232,11 @@ export function formatDistance(
   }
   if (activityTypeIsSwimming(activityType)) {
     const value = units === 'imperial' ? meters / METERS_PER_YARD : meters
-    return { value: Math.round(value).toString(), unit }
+    return { value: formatNumber(value), unit }
   }
   const km = meters / 1000
   const value = units === 'imperial' ? kmToMiles(km) : km
-  return { value: value.toFixed(2), unit }
+  return { value: formatFixed(value, 2), unit }
 }
 
 /**
@@ -271,7 +272,7 @@ export function formatElevation(meters: number | null | undefined, units: Units)
   if (meters === null || meters === undefined) {
     return { value: '--', unit }
   }
-  return { value: Math.round(elevationToDisplay(meters, units)).toString(), unit }
+  return { value: formatNumber(elevationToDisplay(meters, units)), unit }
 }
 
 /**

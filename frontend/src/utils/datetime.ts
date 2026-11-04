@@ -217,13 +217,15 @@ export function pastWeekRange(
  *
  * @param iso - The timestamp to format, as an ISO 8601 string.
  * @param locale - BCP-47 locale tag controlling the output language.
+ * @param timeZone - IANA time zone to read the date in; pass `'UTC'` for a date-only value
+ *   (`yyyy-mm-dd`) so the day never shifts. Defaults to the viewer's zone.
  * @returns The localized date, or an empty string when `iso` is not a valid date.
  */
-export function formatMediumDate(iso: string, locale = 'en'): string {
+export function formatMediumDate(iso: string, locale = 'en', timeZone?: string): string {
   const date = new Date(iso)
   return Number.isNaN(date.getTime())
     ? ''
-    : new Intl.DateTimeFormat(locale, { dateStyle: 'medium' }).format(date)
+    : new Intl.DateTimeFormat(locale, { dateStyle: 'medium', timeZone }).format(date)
 }
 
 /**

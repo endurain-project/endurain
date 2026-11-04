@@ -11,6 +11,7 @@ import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
 import { ConfirmDialog } from '@/components/ui/confirm-dialog'
 import { useToasts } from '@/composables/useToasts'
+import { formatMediumDate } from '@/utils/datetime'
 import { cmToFeetInches } from '@/utils/units'
 import {
   useDeleteProfilePhotoMutation,
@@ -22,7 +23,7 @@ const props = defineProps<{
   profile: ProfileDetails
 }>()
 
-const { t } = useI18n()
+const { t, locale } = useI18n()
 const toasts = useToasts()
 const uploadMutation = useUploadProfilePhotoMutation()
 const deleteMutation = useDeleteProfilePhotoMutation()
@@ -47,7 +48,12 @@ const heightDisplay = computed<string | null>(() => {
 const fields = computed<{ label: string; value: string | null }[]>(() => [
   { label: t('settings.users.form.email'), value: props.profile.email },
   { label: t('settings.users.form.city'), value: props.profile.city },
-  { label: t('settings.users.form.birthdate'), value: props.profile.birthdate },
+  {
+    label: t('settings.users.form.birthdate'),
+    value: props.profile.birthdate
+      ? formatMediumDate(props.profile.birthdate, locale.value, 'UTC')
+      : null,
+  },
   {
     label: t('settings.users.form.gender'),
     value: t(`settings.users.form.genders.${props.profile.gender}`),

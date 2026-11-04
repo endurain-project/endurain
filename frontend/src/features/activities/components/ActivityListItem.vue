@@ -25,6 +25,7 @@ import {
   formatPace,
   formatSpeed,
 } from '@/features/activities/utils/format'
+import { formatNumber } from '@/utils/formatNumber'
 
 /**
  * One activity row in the activities list: a type icon, the linked name, the
@@ -78,13 +79,13 @@ const elevationMetric = computed(() => formatElevation(props.activity.elevationG
 const caloriesMetric = computed<FormattedMetric>(() => {
   const calories = props.activity.calories
   return calories !== null && calories !== undefined && Number.isFinite(calories)
-    ? { value: String(Math.round(calories)), unit: 'kcal' }
+    ? { value: formatNumber(calories), unit: 'kcal' }
     : NA_METRIC
 })
 const avgHrMetric = computed<FormattedMetric>(() => {
   const hr = props.activity.averageHr
   return hr !== null && hr !== undefined && Number.isFinite(hr)
-    ? { value: String(Math.round(hr)), unit: 'bpm' }
+    ? { value: formatNumber(hr), unit: 'bpm' }
     : NA_METRIC
 })
 

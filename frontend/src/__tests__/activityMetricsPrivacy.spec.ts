@@ -117,7 +117,7 @@ describe('buildActivityMetrics', () => {
     )
     const jumps = tiles.find((tile) => tile.key === 'jumps')
     expect(tiles[0]?.key).toBe('jumps')
-    expect(jumps?.value).toBe('1200')
+    expect(jumps?.value).toBe('1,200')
     expect(jumps?.labelKey).toBe('activities.metrics.jumps')
   })
 

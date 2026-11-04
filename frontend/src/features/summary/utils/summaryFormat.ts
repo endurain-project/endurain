@@ -8,6 +8,7 @@
 import type { Units } from '@/features/activities/utils/format'
 import type { UnitKey } from '@/i18n'
 
+import { formatFixed, formatNumber } from '@/utils/formatNumber'
 import { kmToMiles } from '@/utils/units'
 
 /** A formatted summary metric split into its value and unit. */
@@ -34,7 +35,7 @@ const METERS_TO_FEET = 3.28084
 export function formatSummaryDistance(meters: number, units: Units): SummaryMetric {
   const km = meters / METERS_PER_KM
   const value = units === 'imperial' ? kmToMiles(km) : km
-  return { value: value.toFixed(2), unit: units === 'imperial' ? 'mi' : 'km' }
+  return { value: formatFixed(value, 2), unit: units === 'imperial' ? 'mi' : 'km' }
 }
 
 /**
@@ -47,7 +48,7 @@ export function formatSummaryDistance(meters: number, units: Units): SummaryMetr
  */
 export function formatSummaryElevation(meters: number, units: Units): SummaryMetric {
   const value = units === 'imperial' ? meters * METERS_TO_FEET : meters
-  return { value: Math.round(value).toString(), unit: units === 'imperial' ? 'ft' : 'm' }
+  return { value: formatNumber(value), unit: units === 'imperial' ? 'ft' : 'm' }
 }
 
 /**
@@ -64,15 +65,12 @@ export function formatSummaryDuration(seconds: number): { hours: number; minutes
 }
 
 /**
- * Formats an aggregate calorie total, rounded and grouped into thousands with a
- * comma (deterministic, locale-independent).
+ * Formats an aggregate calorie total, rounded and grouped into thousands in the
+ * app language.
  *
  * @param calories - Total calories.
  * @returns The formatted calorie total and its unit.
  */
 export function formatSummaryCalories(calories: number): SummaryMetric {
-  const grouped = Math.round(calories)
-    .toString()
-    .replace(/\B(?=(\d{3})+(?!\d))/g, ',')
-  return { value: grouped, unit: 'kcal' }
+  return { value: formatNumber(calories), unit: 'kcal' }
 }

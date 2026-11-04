@@ -9,6 +9,7 @@ import type { HealthChartSeries } from '@/features/health/types'
 
 import { useUnitFormat } from '@/composables/useUnitFormat'
 import { themeColor } from '@/lib/themeColor'
+import { formatFixed, formatNumber } from '@/utils/formatNumber'
 import { mlToFlOz } from '@/utils/units'
 import HealthChartCard from '@/features/health/components/HealthChartCard.vue'
 import { useHealthMetricChart } from '@/features/health/composables/useHealthMetricChart'
@@ -68,7 +69,7 @@ const chartRender = computed<ChartRenderOptions>(() => {
     series,
     labels,
     valueFormat: (value) =>
-      `${isImperial.value ? value.toFixed(1) : Math.round(value)} ${unitLabel(unitKey.value)}`,
+      `${isImperial.value ? formatFixed(value, 1) : formatNumber(value)} ${unitLabel(unitKey.value)}`,
   }
 })
 

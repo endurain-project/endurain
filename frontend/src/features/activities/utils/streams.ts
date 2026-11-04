@@ -3,6 +3,7 @@ import type { GeoPoint } from '@/composables/useMapProvider'
 
 import type { UnitKey } from '@/i18n'
 import { themeColor } from '@/lib/themeColor'
+import { formatFixed, formatNumber } from '@/utils/formatNumber'
 
 import type {
   Activity,
@@ -203,19 +204,20 @@ function valueFormatter(
 ): (value: number) => string {
   switch (metric) {
     case 'hr':
-      return (v) => `${Math.round(v)} ${unitLabel('bpm')}`
+      return (v) => `${formatNumber(v)} ${unitLabel('bpm')}`
     case 'power':
-      return (v) => `${Math.round(v)} ${unitLabel('w')}`
+      return (v) => `${formatNumber(v)} ${unitLabel('w')}`
     case 'cadence':
-      return (v) => `${Math.round(v)} ${unitLabel(cadenceUnitLabel(activityType))}`
+      return (v) => `${formatNumber(v)} ${unitLabel(cadenceUnitLabel(activityType))}`
     case 'elevation':
-      return (v) => `${Math.round(v)} ${unitLabel(units === 'imperial' ? 'ft' : 'm')}`
+      return (v) => `${formatNumber(v)} ${unitLabel(units === 'imperial' ? 'ft' : 'm')}`
     case 'velocity':
-      return (v) => `${v.toFixed(1)} ${unitLabel(speedUnitLabel(activityType, units))}`
+      return (v) => `${formatFixed(v, 1)} ${unitLabel(speedUnitLabel(activityType, units))}`
     case 'pace':
       return (v) => formatPaceClock(v)
     case 'temperature':
-      return (v) => `${v.toFixed(1)} ${unitLabel(units === 'imperial' ? 'fahrenheit' : 'celsius')}`
+      return (v) =>
+        `${formatFixed(v, 1)} ${unitLabel(units === 'imperial' ? 'fahrenheit' : 'celsius')}`
     default:
       return (v) => String(v)
   }
@@ -230,7 +232,7 @@ function buildDistanceLabels(pointCount: number, totalMeters: number, units: Uni
   const labels: string[] = []
   for (let i = 0; i < pointCount; i += 1) {
     const fraction = pointCount === 1 ? 0 : i / (pointCount - 1)
-    labels.push((totalDisplay * fraction).toFixed(1))
+    labels.push(formatFixed(totalDisplay * fraction, 1))
   }
   return labels
 }
@@ -315,7 +317,7 @@ function buildStreamStats(metric: StreamMetric, activity: Activity, units: Units
     stats.push({ labelKey, value: formatted.value, unit: formatted.unit })
   }
   const watts = (labelKey: string, value: number): void => {
-    stats.push({ labelKey, value: String(Math.round(value)), unit: 'w' })
+    stats.push({ labelKey, value: formatNumber(value), unit: 'w' })
   }
   // The summary "Time" tile already shows the activity duration, so the speed
   // and pace rows add elapsed time only when stops make it longer.
@@ -335,14 +337,14 @@ function buildStreamStats(metric: StreamMetric, activity: Activity, units: Units
       if (statPresent(activity.averageHr)) {
         stats.push({
           labelKey: 'activities.metrics.avgHr',
-          value: String(Math.round(activity.averageHr)),
+          value: formatNumber(activity.averageHr),
           unit: 'bpm',
         })
       }
       if (statPresent(activity.maxHr)) {
         stats.push({
           labelKey: 'activities.metrics.maxHr',
-          value: String(Math.round(activity.maxHr)),
+          value: formatNumber(activity.maxHr),
           unit: 'bpm',
         })
       }
@@ -362,14 +364,14 @@ function buildStreamStats(metric: StreamMetric, activity: Activity, units: Units
       if (statPresent(activity.averageCadence)) {
         stats.push({
           labelKey: 'activities.metrics.avgCadence',
-          value: String(Math.round(presentCadence(activity.averageCadence, type))),
+          value: formatNumber(presentCadence(activity.averageCadence, type)),
           unit: cadenceUnitLabel(type),
         })
       }
       if (statPresent(activity.maxCadence)) {
         stats.push({
           labelKey: 'activities.metrics.maxCadence',
-          value: String(Math.round(presentCadence(activity.maxCadence, type))),
+          value: formatNumber(presentCadence(activity.maxCadence, type)),
           unit: cadenceUnitLabel(type),
         })
       }

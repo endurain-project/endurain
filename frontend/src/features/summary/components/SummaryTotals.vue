@@ -14,6 +14,7 @@ import {
   formatSummaryElevation,
   type SummaryMetric,
 } from '@/features/summary/utils/summaryFormat'
+import { formatNumber } from '@/utils/formatNumber'
 
 const props = defineProps<{
   /** The aggregated period totals. */
@@ -56,7 +57,7 @@ const tiles = computed(() => [
   {
     key: 'activities',
     label: t('summary.metrics.activities'),
-    metric: { value: props.totals.activityCount.toString(), unit: null },
+    metric: { value: formatNumber(props.totals.activityCount), unit: null },
   },
 ])
 </script>

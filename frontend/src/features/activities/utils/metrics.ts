@@ -20,6 +20,7 @@ import {
   type FormattedMetric,
   type Units,
 } from './format'
+import { formatNumber } from '@/utils/formatNumber'
 
 /** Which privacy-gated metrics the current viewer is allowed to see. */
 export interface MetricVisibility {
@@ -138,7 +139,7 @@ export function buildActivityMetrics(
       tiles.push({
         key: 'calories',
         labelKey: 'activities.metrics.calories',
-        value: String(Math.round(activity.calories)),
+        value: formatNumber(activity.calories),
         unit: 'kcal',
         accent: 'effort',
       })
@@ -185,7 +186,7 @@ export function buildActivityMetrics(
       tiles.push({
         key: 'avgPower',
         labelKey: 'activities.metrics.avgPower',
-        value: String(Math.round(activity.averagePower)),
+        value: formatNumber(activity.averagePower),
         unit: 'w',
         accent: 'effort',
       })
@@ -196,7 +197,7 @@ export function buildActivityMetrics(
       tiles.push({
         key: 'avgHr',
         labelKey: 'activities.metrics.avgHr',
-        value: String(Math.round(activity.averageHr)),
+        value: formatNumber(activity.averageHr),
         unit: 'bpm',
         accent: 'hr',
       })
@@ -207,7 +208,7 @@ export function buildActivityMetrics(
       tiles.push({
         key: 'maxHr',
         labelKey: 'activities.metrics.maxHr',
-        value: String(Math.round(activity.maxHr)),
+        value: formatNumber(activity.maxHr),
         unit: 'bpm',
         accent: 'hr',
       })
@@ -221,7 +222,7 @@ export function buildActivityMetrics(
       tiles.push({
         key: 'jumps',
         labelKey: 'activities.metrics.jumps',
-        value: String(Math.round(activity.totalCycles)),
+        value: formatNumber(activity.totalCycles),
         unit: null,
         accent: 'brand',
       })

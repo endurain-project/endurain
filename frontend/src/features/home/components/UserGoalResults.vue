@@ -11,6 +11,7 @@ import { Card } from '@/components/ui/card'
 import { EmptyState } from '@/components/ui/empty-state'
 import { Skeleton } from '@/components/ui/skeleton'
 import { useUnitFormat } from '@/composables/useUnitFormat'
+import { formatNumber } from '@/utils/formatNumber'
 import { activityTypeIcon } from '@/features/activities/utils/activityType'
 import {
   formatDistance,
@@ -64,7 +65,7 @@ function formatByMetric(value: number, goalType: GoalMetric, activityType: numbe
   if (goalType === 'duration') {
     return formatHmsDuration(value)
   }
-  return String(Math.round(value))
+  return formatNumber(value)
 }
 
 /** Resolves the unit shown after the total/target values, or `null` when unitless. */

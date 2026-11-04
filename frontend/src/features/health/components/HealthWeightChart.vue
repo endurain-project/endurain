@@ -9,6 +9,7 @@ import type { HealthChartSeries } from '@/features/health/types'
 
 import { useUnitFormat } from '@/composables/useUnitFormat'
 import { themeColor } from '@/lib/themeColor'
+import { formatFixed } from '@/utils/formatNumber'
 import { kgToLbs } from '@/utils/units'
 import HealthChartCard from '@/features/health/components/HealthChartCard.vue'
 import { useHealthMetricChart } from '@/features/health/composables/useHealthMetricChart'
@@ -59,7 +60,7 @@ const chartRender = computed<ChartRenderOptions>(() => {
     kind: 'line',
     series,
     labels,
-    valueFormat: (value) => `${value.toFixed(1)} ${unitLabel(unitKey.value)}`,
+    valueFormat: (value) => `${formatFixed(value, 1)} ${unitLabel(unitKey.value)}`,
   }
 })
 

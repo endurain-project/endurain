@@ -50,7 +50,7 @@ describe('unit-bearing formatters', () => {
   })
 
   it('formatWater picks ml or fl oz by unit system', () => {
-    expect(formatWater(1500.4, 'metric', label)).toBe('1500 <ml>')
+    expect(formatWater(1500.4, 'metric', label)).toBe('1,500 <ml>')
     expect(formatWater(1500, 'imperial', label)).toBe('50.7 <flOz>')
   })
 })

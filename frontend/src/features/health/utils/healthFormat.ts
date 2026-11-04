@@ -13,6 +13,7 @@ import type { Schemas } from '@/types'
 import type { FastingSnapshot, HealthChartBucket } from '@/features/health/types'
 
 import { secondsToHoursMinutes, todayIsoDate } from '@/utils/datetime'
+import { formatFixed, formatNumber } from '@/utils/formatNumber'
 import { kgToLbs, mlToFlOz } from '@/utils/units'
 
 type Units = Schemas['Units']
@@ -60,7 +61,7 @@ export function formatElapsedClock(seconds: number): string {
  * @returns The formatted heart rate.
  */
 export function formatRestingHeartRate(bpm: number, unitLabel: UnitLabel): string {
-  return `${Math.round(bpm)} ${unitLabel('bpm')}`
+  return `${formatNumber(bpm)} ${unitLabel('bpm')}`
 }
 
 /**
@@ -78,9 +79,9 @@ export function formatSkinTempDeviation(
   unitLabel: UnitLabel,
 ): string {
   if (units === 'imperial') {
-    return `${((celsius * 9) / 5).toFixed(1)} ${unitLabel('fahrenheit')}`
+    return `${formatFixed((celsius * 9) / 5, 1)} ${unitLabel('fahrenheit')}`
   }
-  return `${celsius.toFixed(1)} ${unitLabel('celsius')}`
+  return `${formatFixed(celsius, 1)} ${unitLabel('celsius')}`
 }
 
 /**
@@ -93,9 +94,9 @@ export function formatSkinTempDeviation(
  */
 export function formatWeight(weightKg: number, weightUnits: Units, unitLabel: UnitLabel): string {
   if (weightUnits === 'imperial') {
-    return `${kgToLbs(weightKg).toFixed(1)} ${unitLabel('lb')}`
+    return `${formatFixed(kgToLbs(weightKg), 1)} ${unitLabel('lb')}`
   }
-  return `${weightKg.toFixed(1)} ${unitLabel('kg')}`
+  return `${formatFixed(weightKg, 1)} ${unitLabel('kg')}`
 }
 
 /**
@@ -109,9 +110,9 @@ export function formatWeight(weightKg: number, weightUnits: Units, unitLabel: Un
  */
 export function formatBodyMass(massKg: number, weightUnits: Units, unitLabel: UnitLabel): string {
   if (weightUnits === 'imperial') {
-    return `${kgToLbs(massKg).toFixed(2)} ${unitLabel('lb')}`
+    return `${formatFixed(kgToLbs(massKg), 2)} ${unitLabel('lb')}`
   }
-  return `${massKg.toFixed(2)} ${unitLabel('kg')}`
+  return `${formatFixed(massKg, 2)} ${unitLabel('kg')}`
 }
 
 /**
@@ -163,17 +164,17 @@ export function formatHealthChartLabel(
  * @returns The formatted BMI.
  */
 export function formatBmi(bmi: number): string {
-  return bmi.toFixed(1)
+  return formatFixed(bmi, 1)
 }
 
 /**
- * Formats a step count with locale-aware thousands separators.
+ * Formats a step count with the app language's thousands separators.
  *
  * @param steps - The step count.
  * @returns The formatted step count.
  */
 export function formatSteps(steps: number): string {
-  return Math.round(steps).toLocaleString()
+  return formatNumber(steps)
 }
 
 /**
@@ -186,9 +187,9 @@ export function formatSteps(steps: number): string {
  */
 export function formatWater(amountMl: number, units: Units, unitLabel: UnitLabel): string {
   if (units === 'imperial') {
-    return `${mlToFlOz(amountMl).toFixed(1)} ${unitLabel('flOz')}`
+    return `${formatFixed(mlToFlOz(amountMl), 1)} ${unitLabel('flOz')}`
   }
-  return `${Math.round(amountMl)} ${unitLabel('ml')}`
+  return `${formatNumber(amountMl)} ${unitLabel('ml')}`
 }
 
 /**

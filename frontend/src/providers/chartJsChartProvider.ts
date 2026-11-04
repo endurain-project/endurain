@@ -14,6 +14,7 @@ import type {
   ChartProvider,
   ChartRenderOptions,
 } from '@/composables/useChartProvider'
+import { numberLocale } from '@/utils/formatNumber'
 
 Chart.register(...registerables, zoomPlugin)
 
@@ -136,6 +137,7 @@ export function buildChartConfiguration(
       datasets,
     },
     options: {
+      locale: numberLocale(),
       responsive: true,
       maintainAspectRatio: false,
       animation: false,
@@ -218,6 +220,7 @@ export function createChartJsChartProvider(config: ChartJsChartProviderConfig = 
             return
           }
           chart.data = nextConfig.data
+          chart.options.locale = nextConfig.options?.locale
           chart.update()
         },
         destroy(): void {

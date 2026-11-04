@@ -9,6 +9,7 @@ import { Card } from '@/components/ui/card'
 import { Skeleton } from '@/components/ui/skeleton'
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { useUnitFormat } from '@/composables/useUnitFormat'
+import { formatNumber } from '@/utils/formatNumber'
 import { formatDistance, formatHmsDuration } from '@/features/activities/utils/format'
 import { type SportStatRow, type StatMetric, topSports } from '@/features/home/utils/sportStats'
 
@@ -62,7 +63,7 @@ function formatValue(row: SportStatRow): string {
   if (metric.value === 'time') {
     return formatHmsDuration(row.stats.time)
   }
-  return `${Math.round(row.stats.calories)} ${unitLabel('kcal')}`
+  return `${formatNumber(row.stats.calories)} ${unitLabel('kcal')}`
 }
 </script>
 

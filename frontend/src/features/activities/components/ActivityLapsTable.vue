@@ -15,6 +15,7 @@ import { normalizeLaps, summarizeActiveLaps } from '@/features/activities/utils/
 import { formatLapTempo } from '@/features/activities/utils/metrics'
 
 import { useUnitFormat } from '@/composables/useUnitFormat'
+import { formatNumber } from '@/utils/formatNumber'
 
 const props = defineProps<{
   laps: ActivityLap[]
@@ -109,9 +110,10 @@ const rows = computed<LapRow[]>(() =>
         lap.totalAscent === null
           ? '--'
           : metricLabel(formatElevation(lap.totalAscent, props.units)),
-      strokeRate: lap.avgCadence === null ? '--' : `${Math.round(lap.avgCadence)}`,
+      strokeRate: lap.avgCadence === null ? '--' : formatNumber(lap.avgCadence),
       cycles: lap.totalCycles === null ? '--' : `${lap.totalCycles}`,
-      hr: lap.avgHeartRate === null ? '--' : `${Math.round(lap.avgHeartRate)} ${unitLabel('bpm')}`,
+      hr:
+        lap.avgHeartRate === null ? '--' : `${formatNumber(lap.avgHeartRate)} ${unitLabel('bpm')}`,
       isRest: entry.isRest,
     }
   }),

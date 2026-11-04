@@ -7,6 +7,7 @@ import type { FastingStats } from '@/features/health/types'
 import { Card } from '@/components/ui/card'
 import { useUnitFormat } from '@/composables/useUnitFormat'
 import { formatHoursMinutes } from '@/features/health/utils/healthFormat'
+import { formatNumber } from '@/utils/formatNumber'
 
 const props = defineProps<{
   /** Aggregate fasting statistics to summarise. */
@@ -21,7 +22,7 @@ const tiles = computed(() => [
   {
     key: 'totalFasts',
     label: t('health.fasting.stats.totalFasts'),
-    value: String(props.stats.totalFasts),
+    value: formatNumber(props.stats.totalFasts),
   },
   {
     key: 'currentStreak',

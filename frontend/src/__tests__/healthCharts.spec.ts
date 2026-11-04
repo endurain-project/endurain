@@ -13,7 +13,8 @@ import HealthWaterChart from '@/features/health/components/HealthWaterChart.vue'
 import HealthWeightChart from '@/features/health/components/HealthWeightChart.vue'
 import { useHealthMetricChart } from '@/features/health/composables/useHealthMetricChart'
 
-vi.mock('vue-i18n', () => ({
+vi.mock('vue-i18n', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('vue-i18n')>()),
   useI18n: () => ({ t: (key: string) => key, locale: computed(() => 'en') }),
 }))
 
@@ -104,7 +105,7 @@ describe('health charts plot the aggregated series', () => {
 
     expect(metric.series[0]!.data).toEqual([2000])
     expect(imperial.series[0]!.data).toEqual([33.8])
-    expect(metric.valueFormat?.(2000)).toBe('2000 units.ml')
+    expect(metric.valueFormat?.(2000)).toBe('2,000 units.ml')
     expect(imperial.valueFormat?.(33.8)).toBe('33.8 units.flOz')
   })
 

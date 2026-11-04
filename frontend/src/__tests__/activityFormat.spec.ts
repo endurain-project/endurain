@@ -104,8 +104,8 @@ describe('formatDistance', () => {
   })
 
   it('formats swimming distance in metres/yards', () => {
-    expect(formatDistance(1000, SWIM, 'metric')).toEqual({ value: '1000', unit: 'm' })
-    expect(formatDistance(1000, SWIM, 'imperial')).toEqual({ value: '1094', unit: 'yd' })
+    expect(formatDistance(1000, SWIM, 'metric')).toEqual({ value: '1,000', unit: 'm' })
+    expect(formatDistance(1000, SWIM, 'imperial')).toEqual({ value: '1,094', unit: 'yd' })
   })
 })
 
