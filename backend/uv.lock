@@ -951,7 +951,7 @@ requires-dist = [
     { name = "qrcode", extras = ["pil"], specifier = ">=8.2" },
     { name = "redis", marker = "extra == 'distributed'", specifier = ">=8.1.0" },
     { name = "requests", specifier = ">=2.34.2" },
-    { name = "safeuploads", extras = ["fastapi"], specifier = ">=2.1.0" },
+    { name = "safeuploads", extras = ["fastapi"], specifier = ">=3.0.0" },
     { name = "slowapi", specifier = ">=0.1.10" },
     { name = "sqlalchemy", specifier = ">=2.0.54" },
     { name = "staticmap", specifier = ">=0.5.7" },
@@ -2803,15 +2803,15 @@ wheels = [
 
 [[package]]
 name = "safeuploads"
-version = "2.1.0"
+version = "3.0.0"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "defusedxml" },
     { name = "python-magic" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/92/c6/5e36212dd4f5abdd185e780abf9efe15c7d42b9492dc3850529ba97b073a/safeuploads-2.1.0.tar.gz", hash = "sha256:cea6cb48eb48dea518410ae198e292f09e5e0aa526a4558917e359e14e61320c", size = 320289, upload-time = "2026-11-05T08:01:34.295Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/0d/1b/991d953b4b72ca00bced5c3f4b2ae0854d1637568f52ac56a34d0f544cde/safeuploads-3.0.0.tar.gz", hash = "sha256:dbce51a6a17773dc8fb47e5bb4d62a2b4b654e5bd04130edc28e6afe355f1738", size = 348444, upload-time = "2026-11-05T12:22:07.247Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/17/a9/dfab44cdd712601aea9432fdbbadede509550767bd10fcbcb3e9a7669490/safeuploads-2.1.0-py3-none-any.whl", hash = "sha256:08b61c3726df1d62973fb120d411d1dd1aae3d078462e291ad94a4c35e8cb6b6", size = 81696, upload-time = "2026-11-05T08:01:33.281Z" },
+    { url = "https://files.pythonhosted.org/packages/db/dd/a6c32fb7ae90539e2ba110ef1a572ad1e957bf4b458d0c5e30a09a58f2c2/safeuploads-3.0.0-py3-none-any.whl", hash = "sha256:0997f107435d80b74b75cc27bd001ff1d31ae608ff6ad0d36e853cdc9f2c3d15", size = 82508, upload-time = "2026-11-05T12:22:05.95Z" },
 ]
 
 [package.optional-dependencies]
