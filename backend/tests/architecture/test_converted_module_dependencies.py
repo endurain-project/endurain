@@ -23,6 +23,7 @@ _MODULES_ROOT = pathlib.Path("app/modules")
 _ALLOWED_CORE: dict[str, str] = {
     "core.attempt_state": "The claim-and-poll state of an attempt that runs off the request.",
     "core.sync_runner": "The shared claim, run and dead-letter bookkeeping of a queued provider sync.",
+    "core.redirect_schemes": "The URI schemes a sign-in redirect may never use, refused by the setting and the validator.",
     "core.provider_rate_limit": "The shared, expiring record of a provider's rate limit, which Strava and Garmin both keep.",
     "core.async_bridge": "Hands a best-effort websocket push from a worker-thread subscriber to the main loop.",
     "core.cache_control": "The no-store headers of a response that carries a token, a one-time secret or an archive of a user's data.",

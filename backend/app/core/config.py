@@ -31,6 +31,7 @@ from pydantic_settings import BaseSettings, NoDecode, SettingsConfigDict
 import core.environment as core_environment
 import core.logger as core_logger
 import core.network as core_network
+import core.redirect_schemes as core_redirect_schemes
 
 logger = core_logger.get_logger(__name__)
 
@@ -353,12 +354,23 @@ class Settings(BaseSettings):
     @field_validator("ALLOWED_REDIRECT_SCHEMES", mode="before")
     @classmethod
     def _parse_allowed_schemes(cls, v: str | Iterable[object] | None) -> set[str]:
-        """Accept comma-separated env value or already-parsed iterable."""
+        """Accept comma-separated env value or already-parsed iterable.
+
+        Schemes are lower-cased. An unsafe scheme (``core.redirect_schemes``) is refused at startup.
+
+        Raises:
+            ValueError: If an entry is an unsafe scheme.
+        """
         if v is None or v == "":
             return set()
         if isinstance(v, str):
-            return {s.strip().lower() for s in v.split(",") if s.strip()}
-        return {str(s).strip().lower() for s in v if str(s).strip()}
+            schemes = {s.strip().lower() for s in v.split(",") if s.strip()}
+        else:
+            schemes = {str(s).strip().lower() for s in v if str(s).strip()}
+        unsafe = sorted(schemes & core_redirect_schemes.UNSAFE_REDIRECT_SCHEMES)
+        if unsafe:
+            raise ValueError(f"ALLOWED_REDIRECT_SCHEMES must not contain unsafe schemes: {', '.join(unsafe)}")
+        return schemes
 
     @field_validator("TRUSTED_PROXIES", mode="before")
     @classmethod

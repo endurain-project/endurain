@@ -3,6 +3,14 @@
 from urllib.parse import parse_qsl, urlencode, urlsplit, urlunsplit
 
 import core.exceptions as core_exceptions
+import core.redirect_schemes as core_redirect_schemes
+
+
+def _custom_scheme(value: str) -> str | None:
+    """Return the lower-cased scheme of a ``scheme://`` value, or None when it has none."""
+    if "://" not in value:
+        return None
+    return value.split("://", 1)[0].lower()
 
 
 def validate_redirect_url(redirect: str | None, allowed_schemes: set[str]) -> None:
@@ -10,7 +18,9 @@ def validate_redirect_url(redirect: str | None, allowed_schemes: set[str]) -> No
 
     Allows only relative paths (starting with '/') and custom URI
     schemes explicitly configured via ALLOWED_REDIRECT_SCHEMES.
-    External HTTP/HTTPS URLs are always rejected.
+    External HTTP/HTTPS URLs are always rejected, in any letter case,
+    and so are the unsafe schemes in ``UNSAFE_REDIRECT_SCHEMES``, even
+    when they are listed in ``allowed_schemes``.
 
     Args:
         redirect: The redirect URL string to validate, or None.
@@ -34,16 +44,17 @@ def validate_redirect_url(redirect: str | None, allowed_schemes: set[str]) -> No
     value = redirect.strip()
 
     # Reject external HTTP/HTTPS URLs (open redirect prevention)
-    if value.startswith("http://") or value.startswith("https://"):
+    if value.lower().startswith(("http://", "https://")):
         raise core_exceptions.InvalidInputError(
             "External HTTP redirects are not allowed. Use a relative path or a configured custom scheme."
         )
 
     # Handle custom URI schemes (e.g., gadgetbridge://callback)
-    if "://" in value:
-        scheme = value.split("://", 1)[0].lower()
-        allowed = allowed_schemes
-        if scheme not in allowed:
+    scheme = _custom_scheme(value)
+    if scheme is not None:
+        if scheme in core_redirect_schemes.UNSAFE_REDIRECT_SCHEMES:
+            raise core_exceptions.InvalidInputError(f"Redirect scheme '{scheme}' is not allowed.")
+        if scheme not in allowed_schemes:
             raise core_exceptions.InvalidInputError(
                 f"Redirect scheme '{scheme}' is not allowed. "
                 "Configure ALLOWED_REDIRECT_SCHEMES to permit custom URI schemes."
@@ -67,17 +78,15 @@ def is_custom_scheme_redirect(redirect: str | None) -> bool:
 
     This preserves mobile intent across the browser-based OAuth round trip.
     The browser leg cannot reliably carry ``X-Client-Type``, so the validated
-    redirect target becomes the authoritative signal.
+    redirect target becomes the authoritative signal. An unsafe scheme
+    (``UNSAFE_REDIRECT_SCHEMES``), including HTTP/HTTPS in any letter case, is
+    never a custom-scheme redirect.
     """
     if not redirect or not redirect.strip():
         return False
 
-    value = redirect.strip()
-
-    if value.startswith("http://") or value.startswith("https://"):
-        return False
-
-    return "://" in value
+    scheme = _custom_scheme(redirect.strip())
+    return scheme is not None and scheme not in core_redirect_schemes.UNSAFE_REDIRECT_SCHEMES
 
 
 def append_query_params(url: str, params: dict[str, str]) -> str:

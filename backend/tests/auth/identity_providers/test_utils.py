@@ -202,9 +202,39 @@ class TestValidateRedirectUrl:
         validate_redirect_url("endurain://callback", schemes)
         validate_redirect_url("myapp://callback", schemes)
 
+    def test_mixed_case_custom_scheme_allowed_when_configured(self):
+        """A mixed-case custom scheme must match its lower-case allow-list entry.
+
+        Asserts:
+            - Endurain://callback is accepted when 'endurain' is configured
+        """
+        validate_redirect_url("Endurain://callback", {"endurain"})
+
     # ------------------------------------------------------------------
     # Inputs that MUST raise HTTPException(400)
     # ------------------------------------------------------------------
+
+    @pytest.mark.parametrize("redirect", ["HTTPS://evil.example", "HtTp://evil.example"])
+    def test_external_http_scheme_in_any_case_is_rejected(self, redirect):
+        """External HTTP/HTTPS URLs must be rejected regardless of letter case.
+
+        Asserts:
+            - InvalidInputError with the external-redirect message
+        """
+        with pytest.raises(core_exceptions.InvalidInputError) as exc_info:
+            validate_redirect_url(redirect)
+        assert "External HTTP redirects are not allowed" in exc_info.value.detail
+
+    @pytest.mark.parametrize("redirect", ["JavaScript://x", "data://x", "file://x"])
+    def test_unsafe_scheme_is_rejected_even_when_allowed(self, redirect):
+        """Unsafe schemes must be refused even when listed in allowed_schemes.
+
+        Asserts:
+            - InvalidInputError when the scheme is in the allow-list
+        """
+        with pytest.raises(core_exceptions.InvalidInputError) as exc_info:
+            validate_redirect_url(redirect, {"endurain", "javascript", "data", "file"})
+        assert exc_info.value.status_code == 400
 
     def test_http_url_is_rejected(self):
         """External http:// URL must be rejected.
@@ -331,6 +361,35 @@ class TestValidateRedirectUrl:
         with pytest.raises(core_exceptions.InvalidInputError) as exc_info:
             validate_redirect_url("javascript:alert(1)")
         assert exc_info.value.status_code == 400
+
+
+class TestIsCustomSchemeRedirect:
+    """Test suite for is_custom_scheme_redirect."""
+
+    def test_custom_scheme_is_true(self):
+        """A custom URI scheme redirect is reported as custom.
+
+        Asserts:
+            - True for endurain://callback
+        """
+        assert idp_utils.is_custom_scheme_redirect("endurain://callback") is True
+
+    def test_https_in_any_case_is_false(self):
+        """External HTTPS redirects are never custom-scheme redirects.
+
+        Asserts:
+            - False for HTTPS://x
+        """
+        assert idp_utils.is_custom_scheme_redirect("HTTPS://x") is False
+
+    @pytest.mark.parametrize("redirect", ["JavaScript://x", "data://x", "file://x"])
+    def test_unsafe_scheme_is_false(self, redirect):
+        """Unsafe schemes are never treated as custom-scheme redirects.
+
+        Asserts:
+            - False for each unsafe scheme
+        """
+        assert idp_utils.is_custom_scheme_redirect(redirect) is False
 
 
 class TestAppendQueryParams:

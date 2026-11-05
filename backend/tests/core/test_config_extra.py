@@ -73,8 +73,37 @@ class TestSettings:
     def test_allowed_redirect_schemes_comma_separated(self):
         from core.config import Settings
 
-        s = Settings(_env_file=None, ALLOWED_REDIRECT_SCHEMES="http,https,myapp")
-        assert {"http", "https", "myapp"} == s.ALLOWED_REDIRECT_SCHEMES
+        s = Settings(_env_file=None, ALLOWED_REDIRECT_SCHEMES="endurain,gadgetbridge")
+        assert {"endurain", "gadgetbridge"} == s.ALLOWED_REDIRECT_SCHEMES
+
+    def test_allowed_redirect_schemes_lowercased(self):
+        from core.config import Settings
+
+        s = Settings(_env_file=None, ALLOWED_REDIRECT_SCHEMES="Endurain, MyApp")
+        assert {"endurain", "myapp"} == s.ALLOWED_REDIRECT_SCHEMES
+
+    @pytest.mark.parametrize("unsafe", ["http", "https", "javascript", "data", "file", "vbscript", "blob"])
+    def test_allowed_redirect_schemes_refuses_unsafe_scheme(self, unsafe):
+        """An unsafe scheme in ALLOWED_REDIRECT_SCHEMES must fail at startup.
+
+        Asserts:
+            - ValidationError naming the refused scheme
+        """
+        from core.config import Settings
+
+        with pytest.raises(ValidationError, match=unsafe):
+            Settings(_env_file=None, ALLOWED_REDIRECT_SCHEMES=f"endurain,{unsafe}")
+
+    def test_allowed_redirect_schemes_refuses_unsafe_scheme_in_any_case(self):
+        """The refusal must hold when the operator writes the scheme in upper case.
+
+        Asserts:
+            - ValidationError for HTTPS
+        """
+        from core.config import Settings
+
+        with pytest.raises(ValidationError, match="https"):
+            Settings(_env_file=None, ALLOWED_REDIRECT_SCHEMES="endurain,HTTPS")
 
     def test_allowed_redirect_schemes_empty(self):
         from core.config import Settings
