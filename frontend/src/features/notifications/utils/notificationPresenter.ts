@@ -49,6 +49,7 @@ const ACCOUNT_SECURITY_CHANGE_KEY: Record<string, string> = {
   backup_codes_generated: 'backupCodesGenerated',
   api_key_created: 'apiKeyCreated',
   identity_provider_unlinked: 'identityProviderUnlinked',
+  account_locked: 'accountLocked',
 }
 
 /**

@@ -60,7 +60,8 @@ def exchange_tokens_for_session(
         password_hasher: Hasher for the stored refresh token.
         token_manager: Token manager that signs the tokens.
         db: Database session.
-        device_id: Device id from the browser's device cookie, or None when it sent no valid one.
+        device_id: Device id from the browser's device cookie or the mobile app's X-Device-Id header, or None when
+            the client sent no valid one.
 
     Returns:
         The access token and, per client type, the CSRF token or the refresh token.

@@ -34,15 +34,13 @@ def publish():
         yield publish_on_commit
 
 
-def _record(db, *, user_id=1, client_type="web", device_id=None, method=_PASSWORD):
+def _record(db, *, user_id=1, device_id=None, method=_PASSWORD):
     """Record a sign-in and return the device id it answers."""
-    return _sign_in(db, user_id=user_id, client_type=client_type, device_id=device_id, method=method).device_id
+    return _sign_in(db, user_id=user_id, device_id=device_id, method=method).device_id
 
 
-def _sign_in(db, *, user_id=1, client_type="web", device_id=None, method=_PASSWORD):
-    return known_devices_service.record_sign_in(
-        user_id, client_type, device_id, "203.0.113.7", _FIREFOX_ON_LINUX, method, db
-    )
+def _sign_in(db, *, user_id=1, device_id=None, method=_PASSWORD):
+    return known_devices_service.record_sign_in(user_id, device_id, "203.0.113.7", _FIREFOX_ON_LINUX, method, db)
 
 
 def _hashes(db, user_id):
@@ -135,22 +133,33 @@ class TestWebSignIn:
         mock_db.commit.assert_not_called()
 
 
-class TestMobileSignIn:
-    def test_every_mobile_sign_in_is_announced_without_a_cookie_or_a_row(self, db, publish):
+class TestKnownDevice:
+    def test_a_device_the_user_signed_in_from_is_known(self, db):
         _known(db, 1, _DEVICE_ID)
 
-        record = _sign_in(db, client_type="mobile", device_id=_DEVICE_ID)
+        assert known_devices_service.is_known_device(1, _DEVICE_ID, db) is True
 
-        assert record.device_id is None
+    def test_another_users_device_is_not_known(self, db):
+        _known(db, 2, _DEVICE_ID)
+
+        assert known_devices_service.is_known_device(1, _DEVICE_ID, db) is False
+
+    def test_no_device_id_is_never_known(self, db):
+        _known(db, 1, _DEVICE_ID)
+
+        assert known_devices_service.is_known_device(1, None, db) is False
+
+    def test_looking_a_device_up_registers_and_touches_nothing(self, db, publish):
+        old = datetime.now(UTC) - timedelta(days=30)
+        known_devices_crud.create_device(1, core_hashing.sha256_hex(_DEVICE_ID), old, db)
+
+        known_devices_service.is_known_device(1, _DEVICE_ID, db)
+        known_devices_service.is_known_device(1, _OTHER_DEVICE_ID, db)
+
+        model = known_devices_models.KnownDevice
+        assert db.execute(select(model.last_seen_at)).scalar_one().replace(tzinfo=UTC) == old
         assert _hashes(db, 1) == {core_hashing.sha256_hex(_DEVICE_ID)}
-        publish.assert_called_once()
-        assert record.new_device is True
-
-    def test_a_mobile_sign_in_is_announced_for_a_user_with_no_known_device(self, db, publish):
-        assert _record(db, client_type="mobile") is None
-
-        publish.assert_called_once()
-        assert _hashes(db, 1) == set()
+        publish.assert_not_called()
 
 
 class TestEvent:

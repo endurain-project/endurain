@@ -40,6 +40,27 @@ def test_a_malformed_cookie_reads_as_none():
         assert _read(malformed) is None, malformed
 
 
+def _read_header(header: str | None, cookie: str | None = None) -> str | None:
+    client = _client()
+    if cookie is not None:
+        client.cookies.set(known_devices_dependencies.DEVICE_COOKIE_NAME, cookie)
+    headers = {} if header is None else {"X-Device-Id": header}
+    return client.get("/api/v1/auth/probe", headers=headers).json()["device_id"]
+
+
+def test_a_well_formed_mobile_header_is_read():
+    assert _read_header(_DEVICE_ID) == _DEVICE_ID
+
+
+def test_a_malformed_mobile_header_reads_as_none():
+    for malformed in ("short", _DEVICE_ID + "x", _DEVICE_ID[:-1] + "=", _DEVICE_ID[:-1] + "/"):
+        assert _read_header(malformed) is None, malformed
+
+
+def test_the_header_wins_over_the_cookie():
+    assert _read_header(_DEVICE_ID, cookie="o" * 43) == _DEVICE_ID
+
+
 def test_the_cookie_is_strict_http_only_and_lasts_400_days():
     response = Response()
 

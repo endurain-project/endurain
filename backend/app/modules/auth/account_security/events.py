@@ -9,8 +9,8 @@ from typing import ClassVar
 from jasil.event_versioning import VersionedPayload
 from pydantic import ConfigDict
 
-# Published after a change to how a user proves who they are: a credential, a second factor, an API key or a
-# sign-in provider link.
+# Published after a change to how a user proves who they are (a credential, a second factor, an API key or a
+# sign-in provider link) and after the account is locked by repeated failed sign-ins.
 ACCOUNT_SECURITY_CHANGED = "auth.account_security_changed"
 
 
@@ -25,6 +25,7 @@ class AccountSecurityChange(StrEnum):
     BACKUP_CODES_GENERATED = "backup_codes_generated"
     API_KEY_CREATED = "api_key_created"
     IDENTITY_PROVIDER_UNLINKED = "identity_provider_unlinked"
+    ACCOUNT_LOCKED = "account_locked"
 
 
 class AccountSecurityChangedPayload(VersionedPayload):

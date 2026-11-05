@@ -73,12 +73,14 @@ def login_for_access_token(
 
     Protection Mechanisms:
     - Rate limiting: 10 requests per minute per IP (SENSITIVE tier, prevents DoS attacks)
-    - Progressive lockout: Per-username and client-address tracking prevents targeted brute-force without
-      letting one client lock the account for everyone:
+    - Progressive lockout: Per-username and client-network tracking (an IPv6 address counts by its /64) prevents
+      targeted brute-force without letting one client lock the account for everyone:
       * 5 failures: 5 minute lockout
       * 10 failures: 30 minute lockout
       * 20 failures: 24 hour lockout
-      * A much higher account-wide threshold across all addresses stops a distributed brute force
+    - Account lock: 100 failed password sign-ins in a row for one username, from any addresses, lock the account for
+      30 days. A device the account has signed in from before is not held by it. A successful sign-in, a completed
+      password reset, a password change or an administrator setting the password lifts it.
 
     This endpoint authenticates a user using provided credentials, checks if the user is active,
     and determines if MFA is required. If MFA is enabled for the user, it stores the pending login
@@ -101,7 +103,8 @@ def login_for_access_token(
         password_hasher: The password hasher instance used for verifying passwords
         token_manager: The token manager instance used for token operations
         db: Database session
-        device_id: Device id from the browser's device cookie, or None when it sent no valid one
+        device_id: Device id from the browser's device cookie or the mobile app's X-Device-Id header, or None when
+            the client sent no valid one
         code_challenge: PKCE code challenge (base64url-encoded SHA256, optional for mobile)
         code_challenge_method: PKCE method (must be S256 if provided, optional for mobile)
 
@@ -184,7 +187,8 @@ def verify_mfa_and_login(
         password_hasher: The password hasher instance used for verifying passwords
         token_manager: The token manager instance used for token operations
         db: Database session
-        device_id: Device id from the browser's device cookie, or None when it sent no valid one
+        device_id: Device id from the browser's device cookie or the mobile app's X-Device-Id header, or None when
+            the client sent no valid one
         code_challenge: PKCE code challenge (base64url-encoded SHA256, optional for mobile)
         code_challenge_method: PKCE method (must be S256 if provided, optional for mobile)
 

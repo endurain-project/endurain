@@ -94,8 +94,8 @@ class TestFailedLoginAttempts:
 
     def test_record_returns_incrementing_count(self):
         store = self._store()
-        assert store.record_failed_attempt("alice", self.IP) == 1
-        assert store.record_failed_attempt("alice", self.IP) == 2
+        assert store.record_failed_attempt("alice", self.IP).client_count == 1
+        assert store.record_failed_attempt("alice", self.IP).client_count == 2
 
     def test_lockout_applied_at_5(self):
         store = self._store()
@@ -108,19 +108,19 @@ class TestFailedLoginAttempts:
     def test_locked_does_not_increment(self):
         store = self._store()
         self._fail(store, 5)
-        assert store.record_failed_attempt("alice", self.IP) == 5
+        assert store.record_failed_attempt("alice", self.IP).client_count == 5
 
     def test_reset_clears_lockout(self):
         store = self._store()
         self._fail(store, 5)
         store.reset_attempts("alice", self.IP)
         assert store.is_locked_out("alice", self.IP) is False
-        assert store.record_failed_attempt("alice", self.IP) == 1
+        assert store.record_failed_attempt("alice", self.IP).client_count == 1
 
     def test_username_is_normalized(self):
         store = self._store()
         store.record_failed_attempt("Alice", self.IP)
-        assert store.record_failed_attempt("  alice  ", self.IP) == 2
+        assert store.record_failed_attempt("  alice  ", self.IP).client_count == 2
 
     def test_clear_all(self):
         store = self._store()
@@ -145,30 +145,73 @@ class TestFailedLoginAttempts:
         self._fail(store, 5, username="alice")
         assert store.is_locked_out("bob", self.IP) is False
 
-    def test_failures_across_addresses_lock_the_account_for_every_address(self):
+    def test_the_account_locks_after_100_failures_from_any_addresses(self):
         store = self._store()
-        threshold = lockout_contracts.ACCOUNT_LOGIN_LOCKOUT_TIERS[0][0]
-        for i in range(threshold):
+        assert lockout_contracts.ACCOUNT_LOGIN_LOCKOUT_TIERS[0][0] == 100
+        for i in range(99):
             store.record_failed_attempt("alice", f"198.51.100.{i}")
+        assert store.is_locked_out("alice", self.IP) is False
+        store.record_failed_attempt("alice", "198.51.100.200")
         assert store.is_locked_out("alice", self.IP) is True
-        assert store.get_lockout_time("alice", self.IP) > datetime.now(UTC)
+        assert store.get_lockout_time("alice", self.IP) > datetime.now(UTC) + timedelta(days=29)
         assert store.is_locked_out("bob", self.IP) is False
+
+    def test_only_the_failure_that_reaches_100_reports_the_account_lock(self):
+        store = self._store()
+        records = [store.record_failed_attempt("alice", f"198.51.100.{i}") for i in range(101)]
+        assert [i for i, record in enumerate(records) if record.account_locked_now] == [99]
+
+    def test_a_known_device_is_not_refused_by_the_account_lock(self):
+        store = self._store()
+        for i in range(100):
+            store.record_failed_attempt("alice", f"198.51.100.{i}")
+        assert store.is_locked_out("alice", self.IP, known_device=True) is False
+        assert store.get_lockout_time("alice", self.IP, known_device=True) is None
+
+    def test_a_known_device_is_still_refused_by_the_client_lock(self):
+        store = self._store()
+        self._fail(store, 5)
+        assert store.is_locked_out("alice", self.IP, known_device=True) is True
 
     def test_reset_clears_the_account_wide_count(self):
         store = self._store()
-        threshold = lockout_contracts.ACCOUNT_LOGIN_LOCKOUT_TIERS[0][0]
-        for i in range(threshold):
+        for i in range(100):
             store.record_failed_attempt("alice", f"198.51.100.{i}")
         store.reset_attempts("alice", self.IP)
         assert store.is_locked_out("alice", self.IP) is False
 
+    def test_reset_account_clears_the_account_lock_for_every_address(self):
+        store = self._store()
+        for i in range(100):
+            store.record_failed_attempt("alice", f"198.51.100.{i}")
+        store.reset_account("Alice")
+        assert store.is_locked_out("alice", self.IP) is False
+        assert store.record_failed_attempt("alice", "198.51.100.1").account_locked_now is False
+
     def test_lockout_time_is_the_later_of_the_two(self):
         store = self._store()
         self._fail(store, 5)
-        threshold = lockout_contracts.ACCOUNT_LOGIN_LOCKOUT_TIERS[0][0]
-        for i in range(threshold):
+        for i in range(100):
             store.record_failed_attempt("alice", f"198.51.100.{i}")
-        assert store.get_lockout_time("alice", self.IP) > datetime.now(UTC) + timedelta(minutes=10)
+        assert store.get_lockout_time("alice", self.IP) > datetime.now(UTC) + timedelta(days=29)
+
+    def test_an_ipv6_address_counts_by_its_64_network(self):
+        store = self._store()
+        for host in range(5):
+            store.record_failed_attempt("alice", f"2001:db8:1:2::{host + 1:x}")
+        assert store.is_locked_out("alice", "2001:db8:1:2:ffff:ffff:ffff:ffff") is True
+        assert store.is_locked_out("alice", "2001:db8:1:3::1") is False
+
+    def test_an_ipv4_mapped_ipv6_address_counts_as_its_ipv4_address(self):
+        store = self._store()
+        self._fail(store, 5, ip="::ffff:203.0.113.1")
+        assert store.is_locked_out("alice", "203.0.113.1") is True
+
+    def test_an_address_that_is_not_an_ip_is_kept_as_it_is(self):
+        store = self._store()
+        self._fail(store, 5, ip="unknown")
+        assert store.is_locked_out("alice", "unknown") is True
+        assert store.is_locked_out("alice", self.IP) is False
 
 
 class TestStepUpAttempts:

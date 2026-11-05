@@ -16,6 +16,7 @@ class LockoutCounter(StrEnum):
     """Which failure counter closed the gate."""
 
     LOGIN = "login"
+    LOGIN_ACCOUNT = "login_account"
     MFA = "mfa"
     STEP_UP = "step_up"
 
@@ -30,7 +31,7 @@ class LockoutApplyDetails(VersionedPayload):
 
     model_config = ConfigDict(extra="forbid")
 
-    SCHEMA_VERSION: ClassVar[int] = 1
+    SCHEMA_VERSION: ClassVar[int] = 2
 
     counter: LockoutCounter
     failed_attempts: int

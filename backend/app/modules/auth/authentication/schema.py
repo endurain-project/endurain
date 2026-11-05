@@ -72,6 +72,7 @@ class MobileSessionRead(BaseModel):
         session_id: Session identifier for token exchange.
         mfa_required: Whether MFA is required.
         message: Instructions for the client on next steps.
+        device_id: The device id the app keeps and sends as ``X-Device-Id`` on later sign-ins.
     """
 
     model_config = ConfigDict(extra="forbid")
@@ -79,6 +80,7 @@ class MobileSessionRead(BaseModel):
     session_id: StrictStr
     mfa_required: StrictBool = False
     message: StrictStr = "Complete authentication by exchanging tokens at /public/idp/session/{session_id}/tokens"
+    device_id: StrictStr | None = None
 
 
 class TokenWebRead(BaseModel):
@@ -113,6 +115,8 @@ class TokenMobileRead(BaseModel):
         token_type: Always ``bearer``.
         expires_in: Seconds until the access token expires.
         refresh_token_expires_in: Seconds until the refresh token expires.
+        device_id: The device id the app keeps and sends as ``X-Device-Id`` on later sign-ins; set by a sign-in, null
+            on a refresh.
     """
 
     model_config = ConfigDict(extra="forbid")
@@ -123,6 +127,7 @@ class TokenMobileRead(BaseModel):
     token_type: Literal["bearer"] = "bearer"
     expires_in: StrictInt
     refresh_token_expires_in: StrictInt
+    device_id: StrictStr | None = None
 
 
 class LogoutRead(BaseModel):
@@ -200,6 +205,8 @@ class TokenExchangeRead(BaseModel):
         expires_in (int): Access token lifetime in seconds (900 = 15 minutes).
         refresh_token_expires_in (int): Refresh token lifetime in seconds (604800 = 7 days).
         token_type (str): Token type, always "Bearer".
+        device_id (str | None): The device id a mobile app keeps and sends as ``X-Device-Id`` on later sign-ins; set
+            by the exchange of an identity-provider sign-in, null otherwise.
     """
 
     session_id: StrictStr = Field(..., description="Session identifier")
@@ -209,6 +216,9 @@ class TokenExchangeRead(BaseModel):
     expires_in: StrictInt = Field(default=900, description="Access token lifetime in seconds")
     refresh_token_expires_in: StrictInt = Field(default=604800, description="Refresh token lifetime in seconds")
     token_type: StrictStr = Field(default="Bearer", description="Token type")
+    device_id: StrictStr | None = Field(
+        default=None, description="Device id a mobile app keeps and sends as X-Device-Id (identity-provider sign-in)"
+    )
 
 
 @dataclass(frozen=True)
@@ -240,7 +250,7 @@ class AuthOutcome[BodyT: BaseModel]:
         refresh_cookie: Cookie the router sets for a web client; ``None`` when the refresh token is not delivered
             as a cookie.
         device_id: Device id the router keeps in the browser's device cookie after a web sign-in; ``None`` for any
-            other outcome.
+            other outcome, a mobile client's device id travelling in its body.
     """
 
     body: BodyT

@@ -82,6 +82,10 @@
         "body": "{name} was unlinked from your account. If this wasn't you, reset your password and review your security settings.",
         "bodyGeneric": "A sign-in provider was unlinked from your account. If this wasn't you, reset your password and review your security settings."
       },
+      "accountLocked": {
+        "title": "Account locked",
+        "body": "Your account was locked after 100 failed sign-in attempts in a row. Browsers and apps you have signed in from before can still sign in. If these attempts weren't yours, change or reset your password, which also lifts the lock."
+      },
       "unknown": {
         "title": "Account security changed",
         "body": "A security setting of your account changed. If this wasn't you, reset your password and review your security settings."

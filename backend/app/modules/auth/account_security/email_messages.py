@@ -14,6 +14,11 @@ IDENTITY_PROVIDER_LINKED = "identity_provider_linked"
 _CHANGES = frozenset(change.value for change in account_security_events.AccountSecurityChange) | {
     IDENTITY_PROVIDER_LINKED
 }
+# The notice that follows the intro, for the changes whose advice is not "reset your password".
+_NOTICE_KEYS = {
+    account_security_events.AccountSecurityChange.PASSWORD_SET_BY_ADMIN.value: "security_notice_admin",
+    account_security_events.AccountSecurityChange.ACCOUNT_LOCKED.value: "security_notice_account_locked",
+}
 _PROVIDER_CHANGES = frozenset(
     {IDENTITY_PROVIDER_LINKED, account_security_events.AccountSecurityChange.IDENTITY_PROVIDER_UNLINKED.value}
 )
@@ -58,12 +63,7 @@ def get_account_security_changed_email(
     subject = tr(f"{change}.subject")
     heading = tr(f"{change}.heading")
     security_label = tr("security_label")
-    notice_key = (
-        "security_notice_admin"
-        if change == account_security_events.AccountSecurityChange.PASSWORD_SET_BY_ADMIN
-        else "security_notice"
-    )
-    security_notice = tr(notice_key)
+    security_notice = tr(_NOTICE_KEYS.get(change, "security_notice"))
 
     body_inner = f"""
             <p>{tr("greeting", name=html.escape(user_name))}</p>

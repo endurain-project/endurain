@@ -13,6 +13,7 @@ import core.exceptions as core_exceptions
 import core.logger as core_logger
 import modules.auth.access_tokens.integration_service as access_tokens_integration
 import modules.auth.authentication.audit_actions as authentication_audit_actions
+import modules.auth.authentication.event_publishers as authentication_event_publishers
 import modules.auth.authentication.failed_login_store as failed_login_store
 import modules.auth.authentication.refusal_audit as authentication_refusal_audit
 import modules.auth.authentication.schema as auth_schema
@@ -71,6 +72,63 @@ def _refuse_credentials(
         extra=core_logger.context(username_log_id=lockout_integration.username_log_identifier(username)),
     )
     raise core_exceptions.UnauthenticatedError("Unable to authenticate with provided credentials", scheme="Bearer")
+
+
+def _is_known_device_of(username: str, device_id: str | None, db: Session) -> bool:
+    """Return whether the device id is one the account named by the username signs in from.
+
+    A username that matches no account has no known device, so a locked unknown name and a locked account answer
+    alike.
+
+    Args:
+        username: The username presented.
+        device_id: The device id the client sent, or None when it sent no valid one.
+        db: Database session.
+
+    Returns:
+        True when the id belongs to a known device of the matched account.
+    """
+    if device_id is None:
+        return False
+    user = users_integration.get_user_by_username(username, db)
+    return user is not None and known_devices_integration.is_known_device(user.id, device_id, db)
+
+
+def _record_failed_login(
+    username: str, ip_address: str, failed_attempts: failed_login_store.FailedLoginStore, db: Session
+) -> None:
+    """Count a refused password sign-in and, when it locks the account, audit that and tell the account's owner.
+
+    Args:
+        username: The username presented.
+        ip_address: The client address of the sign-in.
+        failed_attempts: Failed login attempts tracker for progressive lockout.
+        db: Database session.
+
+    Raises:
+        ServiceUnavailableError: If the shared lockout state is unavailable.
+    """
+    try:
+        failure = failed_attempts.record_failed_attempt(username, ip_address)
+    except lockout_contracts.AuthSecurityStoreUnavailableError as store_err:
+        raise_auth_security_store_unavailable(store_err)
+    lockout_integration.report_lockout_applied(
+        "login", lockout_contracts.LOGIN_LOCKOUT_TIERS, failure.client_count, username=username
+    )
+    if not failure.account_locked_now:
+        return
+    user = users_integration.get_user_by_username(username, db)
+    if user is None:
+        return
+    lockout_integration.report_lockout_applied(
+        "login_account",
+        lockout_contracts.ACCOUNT_LOGIN_LOCKOUT_TIERS,
+        lockout_contracts.ACCOUNT_LOGIN_LOCKOUT_TIERS[0][0],
+        username=username,
+        user_id=user.id,
+    )
+    # The request ends in a refusal, so the event is published on its own rather than staged for a commit.
+    authentication_event_publishers.publish_account_locked(user.id, db)
 
 
 def authenticate_user(
@@ -480,14 +538,15 @@ def _finish_login(
         token_manager: Token manager that signs the tokens.
         db: Database session.
         mfa: Whether a second factor was verified for this sign-in.
-        device_id: Device id from the browser's device cookie, or None when it sent no valid one.
+        device_id: Device id from the browser's device cookie or the mobile app's ``X-Device-Id`` header, or None
+            when the client sent no valid one.
 
     Returns:
-        The outcome of :func:`complete_login` with the device id a web browser keeps, or the PKCE session body for
-        a mobile PKCE client.
+        The outcome of :func:`complete_login` with the device id a web browser keeps in its cookie, or the PKCE
+        session body for a mobile PKCE client. A mobile client's body carries the device id it must keep.
     """
     sign_in = known_devices_integration.record_sign_in(
-        user.id, client_type, device_id, ip_address, user_agent, known_devices_events.SignInMethod.PASSWORD, db
+        user.id, device_id, ip_address, user_agent, known_devices_events.SignInMethod.PASSWORD, db
     )
     # The sign-in is audited in the transaction that the session creation below commits. The user has no
     # principal yet, so the context names them.
@@ -507,14 +566,16 @@ def _finish_login(
     # Web clients don't need PKCE - they have httpOnly cookies and same-origin protection
     if client_type == auth_constants.ClientType.MOBILE and code_challenge and code_challenge_method:
         # Use PKCE exchange flow through the public IdP token exchange endpoint
-        return auth_schema.AuthOutcome(
-            create_mobile_pkce_session_response(
-                ip_address, user_agent, user, code_challenge, code_challenge_method, password_hasher, db
-            )
+        session = create_mobile_pkce_session_response(
+            ip_address, user_agent, user, code_challenge, code_challenge_method, password_hasher, db
         )
+        return auth_schema.AuthOutcome(session.model_copy(update={"device_id": sign_in.device_id}))
 
     # Web clients and mobile without PKCE get tokens directly
     outcome = complete_login(ip_address, user_agent, user, client_type, password_hasher, token_manager, db)
+    if isinstance(outcome.body, auth_schema.TokenMobileRead):
+        return auth_schema.AuthOutcome(outcome.body.model_copy(update={"device_id": sign_in.device_id}))
+    # A web browser keeps its device id in a cookie that the router sets from the outcome.
     return auth_schema.AuthOutcome(outcome.body, outcome.refresh_cookie, device_id=sign_in.device_id)
 
 
@@ -538,12 +599,16 @@ def login_for_access_token(
 
     Protection Mechanisms:
     - Rate limiting: 10 requests per minute per IP (SENSITIVE tier, prevents DoS attacks)
-    - Progressive lockout: Per-username and client-address tracking prevents targeted brute-force without
-      letting one client lock the account for everyone:
+    - Progressive lockout: Per-username and client-network tracking (an IPv6 address counts by its /64) prevents
+      targeted brute-force without letting one client lock the account for everyone:
       * 5 failures: 5 minute lockout
       * 10 failures: 30 minute lockout
       * 20 failures: 24 hour lockout
-      * A much higher account-wide threshold across all addresses stops a distributed brute force
+    - Account lock: 100 failed password sign-ins in a row for one username, from any addresses, lock the account for
+      30 days. The count restarts on a successful sign-in and expires after 30 days without a failure. A device the
+      account has signed in from before (its device id is known) is not held by this lock, only by the client-network
+      lockout and the password check. A successful sign-in, a completed password reset, a password change or an
+      administrator setting the password lifts the lock. When it trips, the account's owner gets an email and an in-app notification.
 
     This endpoint authenticates a user using provided credentials, checks if the user is active,
     and determines if MFA is required. If MFA is enabled for the user, it stores the pending login
@@ -569,7 +634,8 @@ def login_for_access_token(
         db: Database session
         code_challenge: PKCE code challenge (base64url-encoded SHA256, optional for mobile)
         code_challenge_method: PKCE method (must be S256 if provided, optional for mobile)
-        device_id: Device id from the browser's device cookie, or None when it sent no valid one
+        device_id: Device id from the browser's device cookie or the mobile app's X-Device-Id header, or None when
+            the client sent no valid one
 
     Returns:
         The outcome whose body is:
@@ -587,10 +653,12 @@ def login_for_access_token(
         code_challenge_method,
     )
 
-    # Check if username is locked out from too many failed login attempts
+    # Check if username is locked out from too many failed login attempts. A known device of the account is held
+    # by the client-network lockout and the password check but not by the account-wide lock.
     try:
         if failed_attempts.is_locked_out(username, ip_address):
-            lockout_until = failed_attempts.get_lockout_time(username, ip_address)
+            known_device = _is_known_device_of(username, device_id, db)
+            lockout_until = failed_attempts.get_lockout_time(username, ip_address, known_device=known_device)
             if lockout_until:
                 seconds_remaining = int((lockout_until - datetime.now(UTC)).total_seconds())
                 logger.warning(
@@ -641,13 +709,7 @@ def login_for_access_token(
     except core_exceptions.UnauthenticatedError as err:
         # Record failed attempt on authentication errors (401 Unauthorized)
         if err.status_code == 401:
-            try:
-                login_failures = failed_attempts.record_failed_attempt(username, ip_address)
-            except lockout_contracts.AuthSecurityStoreUnavailableError as store_err:
-                raise_auth_security_store_unavailable(store_err)
-            lockout_integration.report_lockout_applied(
-                "login", lockout_contracts.LOGIN_LOCKOUT_TIERS, login_failures, username=username
-            )
+            _record_failed_login(username, ip_address, failed_attempts, db)
         raise err
 
     # Check if MFA is enabled for this user
@@ -734,7 +796,8 @@ def verify_mfa_and_login(
         db: Database session
         code_challenge: PKCE code challenge (base64url-encoded SHA256, optional for mobile)
         code_challenge_method: PKCE method (must be S256 if provided, optional for mobile)
-        device_id: Device id from the browser's device cookie, or None when it sent no valid one
+        device_id: Device id from the browser's device cookie or the mobile app's X-Device-Id header, or None when
+            the client sent no valid one
 
     Returns:
         The outcome of complete_login() or the PKCE session response

@@ -331,6 +331,8 @@ Every durable job is one subscriber reacting to one event. The **subscriber id**
 | `auth.send_idp_linked_email` | `auth.idp_linked` | Bus | Nothing: the change is stored and audited | Nothing |
 | `auth.notify_password_reset_completed` | `auth.password_reset_completed` | Bus | Nothing, by design | Nothing |
 | `auth.send_password_reset_completed_email` | `auth.password_reset_completed` | Bus | Nothing: the reset is stored and audited | Nothing |
+| `auth.notify_account_locked` | `auth.account_locked` | Bus | Nothing, by design | Nothing |
+| `auth.send_account_locked_email` | `auth.account_locked` | Bus | Nothing: the lock is audited | Nothing |
 | `auth.notify_new_device_sign_in` | `auth.new_device_sign_in` | Bus | Nothing, by design | Nothing |
 | `auth.send_new_device_sign_in_email` | `auth.new_device_sign_in` | Bus | Nothing: the sign-in is audited | Nothing |
 | `users.profile_import_requested` | `users.profile_import_requested` | Bus, then the profile transfer pool | The user starts again | Import state closed as failed |

@@ -50,6 +50,16 @@ class TestGetAccountSecurityChangedEmail:
         assert "administrator" in html_body
         assert "reset your password" not in html_body
 
+    def test_a_locked_account_says_what_is_refused_for_how_long_and_how_to_lift_it(self):
+        _, html_body, text_body = email_messages.get_account_security_changed_email(
+            "Alice", "account_locked", None, HOST, "en"
+        )
+
+        for body in (html_body, text_body):
+            assert "100 failed sign-in attempts in a row" in body
+            assert "30 days" in body
+            assert "Change or reset your password" in body
+
     @pytest.mark.parametrize("change", ["identity_provider_unlinked", "identity_provider_linked"])
     def test_names_the_provider_when_it_exists(self, change):
         _, html_body, text_body = email_messages.get_account_security_changed_email(

@@ -10,7 +10,7 @@ from typing import ClassVar
 from jasil.event_versioning import VersionedPayload
 from pydantic import ConfigDict
 
-# Published after a sign-in from a device the account was not known to sign in from, and after every mobile sign-in.
+# Published after a sign-in from a device the account was not known to sign in from.
 NEW_DEVICE_SIGN_IN = "auth.new_device_sign_in"
 
 

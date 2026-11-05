@@ -9,6 +9,7 @@ import pytest
 
 import core.exceptions as core_exceptions
 import modules.auth.authentication.audit_actions as authentication_audit_actions
+import modules.auth.authentication.failed_login_store as failed_login_store
 import modules.auth.authentication.refresh_service as authentication_service_refresh_service
 import modules.auth.authentication.service as authentication_service
 import modules.auth.authentication.sso_exchange_service as authentication_service_sso_exchange_service
@@ -18,6 +19,7 @@ import modules.auth.login_audit.audit_actions as login_audit_actions
 _SERVICE = "modules.auth.authentication.service"
 _USER = SimpleNamespace(id=5, username="alice", active=True, access_type="regular")
 _LOGIN = login_audit_actions.LOGIN.id
+_NO_LOCK = failed_login_store.FailedLoginRecord(client_count=1, account_locked_now=False)
 
 
 @pytest.fixture(autouse=True)
@@ -35,7 +37,11 @@ def _login(db, *, failed_attempts=None, pending_mfa_store=None, username="alice"
         username,
         "secret",
         client_type,
-        failed_attempts or MagicMock(is_locked_out=MagicMock(return_value=False)),
+        failed_attempts
+        or MagicMock(
+            is_locked_out=MagicMock(return_value=False),
+            record_failed_attempt=MagicMock(return_value=_NO_LOCK),
+        ),
         pending_mfa_store or MagicMock(),
         MagicMock(),
         MagicMock(),

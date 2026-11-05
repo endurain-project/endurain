@@ -20,6 +20,7 @@ import modules.auth.account_security.email_messages as account_security_email_me
 import modules.auth.account_security.event_publishers as account_security_event_publishers
 import modules.auth.account_security.events as account_security_events
 import modules.auth.account_security.step_up_service as step_up_service
+import modules.auth.authentication.integration_service as authentication_integration
 import modules.auth.credentials.integration_service as credentials_integration
 import modules.auth.identity_providers.integration_service as identity_providers_integration
 import modules.auth.mfa.integration_service as mfa_integration
@@ -246,6 +247,7 @@ def stage_change_own_password(
     credentials_integration.set_local_password_hash(user_id, hashed_password, db)
     password_reset_tokens_integration.revoke_unused_tokens(user_id, db)
     mfa_integration.clear_pending_mfa_for_user(user_id)
+    authentication_integration.clear_account_login_lockout(db_user.username)
 
     revoked = 0
     if revoke_other_sessions:
@@ -305,6 +307,7 @@ def change_managed_user_password(
     password_reset_tokens_integration.revoke_unused_tokens(user_id, db)
     revoked = sessions_integration.delete_sessions_by_user(user_id, db)
     mfa_integration.clear_pending_mfa_for_user(user_id)
+    authentication_integration.clear_account_login_lockout(db_user.username)
     _stage_password_written(
         account_security_audit_actions.PASSWORD_SET,
         account_security_events.AccountSecurityChange.PASSWORD_SET_BY_ADMIN,

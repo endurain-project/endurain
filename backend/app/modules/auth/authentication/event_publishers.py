@@ -3,6 +3,7 @@
 import jasil.publisher as platform_publisher
 from sqlalchemy.orm import Session
 
+import core.event_metadata as core_event_metadata
 import modules.auth.authentication.events as authentication_events
 
 
@@ -21,6 +22,27 @@ def publish_api_key_used(api_key_id: str, db: Session) -> None:
         authentication_events.API_KEY_USED,
         payload.model_dump(),
         source="api:authenticate_api_key",
+        db=db,
+        schema_version=payload.SCHEMA_VERSION,
+    )
+
+
+def publish_account_locked(user_id: int, db: Session) -> None:
+    """Publish ``auth.account_locked`` for an account that failed sign-ins locked.
+
+    The lock is applied by a request that fails, so there is no transaction to stage the event in and it is
+    published on its own. The notices it triggers are advisory: a lost event leaves the lock in place and audited.
+
+    Args:
+        user_id: The user whose account was locked.
+        db: The producer's DB session.
+    """
+    payload = authentication_events.AccountLockedPayload(user_id=user_id)
+    platform_publisher.publish(
+        authentication_events.ACCOUNT_LOCKED,
+        payload.model_dump(),
+        source="api:login",
+        metadata={core_event_metadata.META_USER_ID: user_id},
         db=db,
         schema_version=payload.SCHEMA_VERSION,
     )

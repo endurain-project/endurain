@@ -80,11 +80,13 @@ def exchange_tokens_for_session(
         password_hasher: Hasher for the stored refresh token.
         token_manager: Token manager that signs the tokens.
         db: Database session.
-        device_id: Device id from the browser's device cookie, or None when it sent no valid one.
+        device_id: Device id from the browser's device cookie or the mobile app's ``X-Device-Id`` header, or None when
+            the client sent no valid one.
 
     Returns:
-        The tokens; web clients get the refresh token as a cookie in the outcome, mobile clients in the body. A web
-        SSO sign-in also carries the device id the browser keeps.
+        The tokens; web clients get the refresh token as a cookie in the outcome, mobile clients in the body. An SSO
+        sign-in also carries the device id the client keeps: in the outcome for the browser's cookie, in the body for
+        the mobile app.
 
     Raises:
         NotFoundError: If the session does not exist or has no OAuth state.
@@ -216,7 +218,6 @@ def exchange_tokens_for_session(
         # recorded, when its session was created.
         sign_in = known_devices_integration.record_sign_in(
             user.id,
-            client_type,
             device_id,
             ip_address,
             user_agent,
@@ -269,5 +270,6 @@ def exchange_tokens_for_session(
             expires_in=expires_in,
             refresh_token_expires_in=refresh_token_expires_in,
             token_type="Bearer",
+            device_id=issued_device_id,
         )
     )

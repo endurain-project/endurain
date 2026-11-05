@@ -30,7 +30,7 @@ Endurain implements an OAuth 2.1 compliant hybrid token storage model that provi
 | **Access Token** | In-memory (JavaScript) | 15 minutes | Short-lived, XSS-resistant (not persisted) |
 | **Refresh Token** | httpOnly cookie | 7 days | `SameSite=Strict`, sent only to `/api/v1/auth` |
 | **CSRF Token** | In-memory (JavaScript) | Session | Sent as `X-CSRF-Token` on state-changing requests; its value is checked only by `/auth/refresh` |
-| **Device id** | httpOnly cookie (`endurain_device`, path `/api/v1`, `SameSite=Strict`) | 400 days from the last sign-in | Recognises the browser, so a sign-in from a new one sends a [security notice](../features/accounts-and-sign-in.md#security-notifications). Not a credential; the server stores only its SHA-256 hash |
+| **Device id** | Web: httpOnly cookie (`endurain_device`, path `/api/v1`, `SameSite=Strict`). Mobile: the app's own storage, sent as the `X-Device-Id` header | 400 days from the last sign-in | Recognises the browser or app, so a sign-in from a new one sends a [security notice](../features/accounts-and-sign-in.md#security-notifications), and a known one is not held by the [account lock](account-security.md#progressive-account-lockout). Not a credential; the server stores only its SHA-256 hash |
 
 **Security Properties:**
 
@@ -53,6 +53,7 @@ Endurain implements an OAuth 2.1 compliant hybrid token storage model that provi
   - Password login without PKCE returns access and refresh tokens in the JSON response body
   - Password login with PKCE and OAuth/SSO return a `session_id` first; the app exchanges that session with its PKCE verifier to receive access and refresh tokens
     - Store tokens in secure platform storage (iOS Keychain, Android EncryptedSharedPreferences)
+  - **Device id:** send `X-Device-Id` on `/auth/login`, `/auth/mfa/verify` and the `/public/idp/session/{session_id}/tokens` exchange, with the value the server returned earlier (43 characters of `A-Z a-z 0-9 - _`; a missing or malformed value counts as none). A sign-in from an id the account has not used before sends the user a new-device notice, except the account's first device. When the app sends no valid id, the server mints one and returns it as `device_id` in the response body: in the token body of a password login without PKCE or an MFA verification, in the session body of a PKCE password login, and in the token exchange of an SSO sign-in. The field is `null` on `/auth/refresh` and in a web client's token exchange, and absent from a web client's login body (a browser keeps its id in the cookie). Store it in secure storage next to the tokens and send it on every later sign-in. It is not a credential, and responses that carry it are `Cache-Control: no-store`.
 
 ## Authentication Flows
 

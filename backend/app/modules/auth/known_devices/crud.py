@@ -17,6 +17,12 @@ def has_devices(user_id: int, db: Session) -> bool:
     return bool(db.execute(select(exists().where(model.user_id == user_id))).scalar())
 
 
+def has_device(user_id: int, device_hash: str, db: Session) -> bool:
+    """Return whether the device is known for the user."""
+    model = known_devices_models.KnownDevice
+    return bool(db.execute(select(exists().where(model.user_id == user_id, model.device_hash == device_hash))).scalar())
+
+
 def touch_device(user_id: int, device_hash: str, seen_at: datetime, db: Session) -> bool:
     """Stage a new last-seen time for a device the user is known to sign in from.
 

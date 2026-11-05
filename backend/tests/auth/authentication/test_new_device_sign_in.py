@@ -84,7 +84,7 @@ class TestPasswordSignIn:
             )
             outcome = _login(mock_db)
 
-        record.assert_called_once_with(5, "web", _DEVICE_ID, "203.0.113.7", "agent", _PASSWORD, mock_db)
+        record.assert_called_once_with(5, _DEVICE_ID, "203.0.113.7", "agent", _PASSWORD, mock_db)
         assert steps == [("record", False), "commit"]
         assert audit.matching(_LOGIN)
         assert outcome.device_id == _ISSUED
@@ -101,18 +101,45 @@ class TestPasswordSignIn:
             "new_device": False,
         }
 
-    def test_a_mobile_pkce_sign_in_is_recorded_without_a_device_id(self, mock_db, password_sign_in):
+    def test_a_mobile_pkce_sign_in_hands_the_app_its_device_id_in_the_session_body(self, mock_db, password_sign_in):
+        session = auth_schema.MobileSessionRead(session_id="sid")
         with (
-            patch(f"{_SERVICE}.create_mobile_pkce_session_response") as pkce,
-            patch(_RECORD, return_value=_signed(None)) as record,
+            patch(f"{_SERVICE}.create_mobile_pkce_session_response", return_value=session) as pkce,
+            patch(_RECORD, return_value=_signed(_ISSUED)) as record,
         ):
             outcome = _login(
                 mock_db, client_type="mobile", device_id=None, code_challenge="a" * 43, code_challenge_method="S256"
             )
 
         pkce.assert_called_once()
-        record.assert_called_once_with(5, "mobile", None, "203.0.113.7", "agent", _PASSWORD, mock_db)
+        record.assert_called_once_with(5, None, "203.0.113.7", "agent", _PASSWORD, mock_db)
+        assert outcome.body.device_id == _ISSUED
         assert outcome.device_id is None
+
+    def test_a_mobile_sign_in_is_recorded_under_the_header_id_and_returns_it_in_the_body_only(
+        self, mock_db, password_sign_in
+    ):
+        with patch(_RECORD, return_value=_signed(_DEVICE_ID)) as record:
+            outcome = _login(mock_db, client_type="mobile")
+
+        record.assert_called_once_with(5, _DEVICE_ID, "203.0.113.7", "agent", _PASSWORD, mock_db)
+        assert isinstance(outcome.body, auth_schema.TokenMobileRead)
+        assert outcome.body.device_id == _DEVICE_ID
+        assert outcome.device_id is None
+
+    def test_a_mobile_sign_in_without_an_id_is_given_a_new_one(self, mock_db, password_sign_in):
+        with patch(_RECORD, return_value=_signed(_ISSUED, True)):
+            outcome = _login(mock_db, client_type="mobile", device_id=None)
+
+        assert outcome.body.device_id == _ISSUED
+
+    def test_a_web_sign_in_body_has_no_device_id_field(self, mock_db, password_sign_in):
+        with patch(_RECORD, return_value=_signed(_ISSUED)):
+            outcome = _login(mock_db)
+
+        assert isinstance(outcome.body, auth_schema.TokenWebRead)
+        assert not hasattr(outcome.body, "device_id")
+        assert outcome.device_id == _ISSUED
 
     def test_a_password_that_needs_mfa_records_nothing(self, mock_db, password_sign_in):
         store = MagicMock(add_pending_login=MagicMock(return_value="challenge"))
@@ -164,7 +191,7 @@ class TestPasswordSignIn:
                 device_id=None,
             )
 
-        record.assert_called_once_with(5, "web", None, "203.0.113.7", "agent", _PASSWORD, mock_db)
+        record.assert_called_once_with(5, None, "203.0.113.7", "agent", _PASSWORD, mock_db)
         assert outcome.device_id == _ISSUED
 
 
@@ -221,7 +248,7 @@ class TestSsoSignIn:
                 ),
             )
 
-        record.assert_called_once_with(5, "web", _DEVICE_ID, "203.0.113.7", "agent", _IDENTITY_PROVIDER, mock_db)
+        record.assert_called_once_with(5, _DEVICE_ID, "203.0.113.7", "agent", _IDENTITY_PROVIDER, mock_db)
         assert steps == [("record", False), "commit"]
         assert audit.matching(_LOGIN)
         assert outcome.device_id == _ISSUED
@@ -233,10 +260,11 @@ class TestSsoSignIn:
 
         assert audit.assert_audited(_LOGIN, outcome="success").details["new_device"] is False
 
-    def test_a_mobile_sso_sign_in_carries_no_device_id(self, mock_db):
-        outcome, record = self._exchange(mock_db, idp_id=3, client_type="mobile", record_returns=None)
+    def test_a_mobile_sso_sign_in_hands_the_app_its_device_id_in_the_body(self, mock_db):
+        outcome, record = self._exchange(mock_db, idp_id=3, client_type="mobile")
 
-        assert record.call_args.args[1] == "mobile"
+        assert record.call_args.args[1] == _DEVICE_ID
+        assert outcome.body.device_id == _ISSUED
         assert outcome.device_id is None
 
     def test_the_exchange_of_a_password_pkce_session_records_nothing(self, mock_db):
@@ -245,6 +273,7 @@ class TestSsoSignIn:
 
         record.assert_not_called()
         assert outcome.device_id is None
+        assert outcome.body.device_id is None
 
 
 # --------------------------------------------------------------------------------------------------------------------
@@ -314,7 +343,7 @@ class TestLoginRoute:
         with patch(_RECORD, return_value=_signed(_DEVICE_ID)) as record:
             self._post(client)
 
-        assert record.call_args.args[2] == _DEVICE_ID
+        assert record.call_args.args[1] == _DEVICE_ID
 
     def test_a_malformed_cookie_is_ignored(self, mock_db, password_sign_in, web_login_body):
         client = _login_app(mock_db, "web")
@@ -322,25 +351,29 @@ class TestLoginRoute:
         with patch(_RECORD, return_value=_signed(_ISSUED)) as record:
             self._post(client)
 
-        assert record.call_args.args[2] is None
+        assert record.call_args.args[1] is None
 
-    def test_a_mobile_sign_in_sets_no_device_cookie(self, mock_db, password_sign_in):
-        body = {
-            "session_id": "sid",
-            "access_token": "at",
-            "refresh_token": "rt",
-            "token_type": "bearer",
-            "expires_in": 900,
-            "refresh_token_expires_in": 604800,
-        }
-        with (
-            patch(f"{_SERVICE}.complete_login", return_value=auth_schema.AuthOutcome(body)),
-            patch(_RECORD, return_value=_signed(None)),
-        ):
-            response = self._post(_login_app(mock_db, "mobile"))
+    def test_a_mobile_sign_in_reads_the_header_returns_the_id_in_the_body_and_sets_no_cookie(
+        self, mock_db, password_sign_in
+    ):
+        with patch(_RECORD, return_value=_signed(_DEVICE_ID)) as record:
+            response = _login_app(mock_db, "mobile").post(
+                "/api/v1/auth/login",
+                data={"username": "alice", "password": "secret"},
+                headers={"X-Device-Id": _DEVICE_ID},
+            )
 
         assert response.status_code == 200, response.text
+        assert record.call_args.args[1] == _DEVICE_ID
+        assert response.json()["device_id"] == _DEVICE_ID
         assert _device_cookie(response) is None
+        assert response.headers["cache-control"] == "no-store"
+
+    def test_a_web_sign_in_response_has_no_device_id_in_its_body(self, mock_db, password_sign_in):
+        with patch(_RECORD, return_value=_signed(_ISSUED)):
+            response = self._post(_login_app(mock_db, "web"))
+
+        assert "device_id" not in response.json()
 
 
 class TestMfaVerifyRoute:
@@ -399,16 +432,27 @@ class TestTokenExchangeRoute:
         assert exchange.call_args.args[5] == "agent"
         assert _device_cookie(response).startswith(f"endurain_device={_DEVICE_ID};")
 
-    def test_a_mobile_exchange_sets_no_device_cookie(self, mock_db):
+    def test_a_mobile_exchange_reads_the_header_returns_the_id_in_the_body_and_sets_no_cookie(self, mock_db):
+        body = auth_schema.TokenExchangeRead(
+            session_id="sid",
+            access_token="at",
+            refresh_token="rt",
+            expires_in=900,
+            refresh_token_expires_in=604800,
+            device_id=_ISSUED,
+        )
         with patch(
             "modules.auth.authentication.sso_exchange_service.exchange_tokens_for_session",
-            return_value=self._outcome(None),
-        ):
+            return_value=auth_schema.AuthOutcome(body),
+        ) as exchange:
             response = self._client(mock_db).post(
                 "/api/v1/public/idp/session/sid/tokens",
                 json={"code_verifier": "v" * 43},
-                headers={"X-Client-Type": "mobile"},
+                headers={"X-Client-Type": "mobile", "X-Device-Id": _DEVICE_ID},
             )
 
         assert response.status_code == 200, response.text
+        assert exchange.call_args.kwargs["device_id"] == _DEVICE_ID
+        assert response.json()["device_id"] == _ISSUED
         assert _device_cookie(response) is None
+        assert response.headers["cache-control"] == "no-store"

@@ -81,7 +81,7 @@ def report_lockout_applied(
     of its own. It never holds the username.
 
     Args:
-        store_name: Which counter locked (``login``, ``mfa`` or ``step_up``).
+        store_name: Which counter locked (``login``, ``login_account``, ``mfa`` or ``step_up``).
         tiers: The tiers of that counter.
         failed_attempts: The count returned by ``record_failed_attempt``.
         username: Username the counter is keyed on, when it is one; only its hash is logged.

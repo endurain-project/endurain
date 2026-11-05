@@ -83,6 +83,14 @@ DURABLE_SUBSCRIBER_NETS: tuple[DurableSubscriberNet, ...] = (
         ),
     ),
     DurableSubscriberNet(
+        notification_subscribers.ACCOUNT_LOCKED_NOTIFICATION_SUBSCRIBER_ID,
+        None,
+        exempt_reason=(
+            "The lock is audited at its source; its notification is a transient reaction "
+            "with no independently reconcilable state."
+        ),
+    ),
+    DurableSubscriberNet(
         notification_subscribers.NEW_DEVICE_SIGN_IN_NOTIFICATION_SUBSCRIBER_ID,
         None,
         exempt_reason=(

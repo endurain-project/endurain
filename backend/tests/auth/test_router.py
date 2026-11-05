@@ -44,17 +44,17 @@ class FakeFailedLoginStore:
         self._locked = False
         self._lockout_time = None
 
-    def is_locked_out(self, username: str, ip_address: str) -> bool:
+    def is_locked_out(self, username: str, ip_address: str, *, known_device: bool = False) -> bool:
         """Return locked state."""
         return self._locked
 
-    def get_lockout_time(self, username: str, ip_address: str):
+    def get_lockout_time(self, username: str, ip_address: str, *, known_device: bool = False):
         """Return lockout time."""
         return self._lockout_time
 
-    def record_failed_attempt(self, username: str, ip_address: str) -> int:
+    def record_failed_attempt(self, username: str, ip_address: str) -> failed_login_store.FailedLoginRecord:
         """Record a failed attempt."""
-        return 1
+        return failed_login_store.FailedLoginRecord(client_count=1, account_locked_now=False)
 
     def reset_attempts(self, username: str, ip_address: str) -> None:
         """Reset attempts."""
@@ -367,11 +367,7 @@ class TestLoginEndpoint:
         mock_auth.return_value = mock_user
         mock_check_active.return_value = None
         mock_mfa_check.return_value = False
-        mock_pkce.return_value = {
-            "session_id": "pkce-sid",
-            "mfa_required": False,
-            "message": "Complete authentication...",
-        }
+        mock_pkce.return_value = auth_schema.MobileSessionRead(session_id="pkce-sid")
 
         challenge = "E9Melhoa2OwvFrEMTJguCHaoeK1t8URWbuGJSstw-cM"
         response = auth_client.post(
@@ -895,11 +891,7 @@ class TestMFAVerifyEndpoint:
         mock_user.username = "testuser"
         mock_get_user.return_value = mock_user
         mock_check_active.return_value = None
-        mock_pkce.return_value = {
-            "session_id": "pkce-sid-mfa",
-            "mfa_required": False,
-            "message": "Complete authentication...",
-        }
+        mock_pkce.return_value = auth_schema.MobileSessionRead(session_id="pkce-sid-mfa")
         pkce_challenge = "E9Melhoa2OwvFrEMTJguCHaoeK1t8URWbuGJSstw-cM"
         response = auth_client.post(
             f"/auth/mfa/verify?code_challenge={pkce_challenge}&code_challenge_method=S256",

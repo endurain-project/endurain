@@ -58,6 +58,7 @@ class TestPayloadAndPublisher:
             "backup_codes_generated",
             "api_key_created",
             "identity_provider_unlinked",
+            "account_locked",
         }
 
     def test_the_event_is_staged_on_the_callers_session(self, mock_db, published):
@@ -80,8 +81,12 @@ class TestPasswordAudit:
             patch.object(account_security_service.credentials_integration, "set_local_password_hash"),
             patch.object(account_security_service.mfa_integration, "clear_pending_mfa_for_user"),
             patch.object(account_security_service.sessions_integration, "delete_sessions_by_user", return_value=3),
+            patch.object(
+                account_security_service.authentication_integration, "clear_account_login_lockout"
+            ) as clear_lock,
         ):
             require_user.return_value.access_type = "regular"
+            require_user.return_value.username = "alice"
             account_security_service.stage_change_own_password(
                 7,
                 "old",
@@ -92,6 +97,7 @@ class TestPasswordAudit:
                 revoke_other_sessions=revoke,
                 current_session_id="s",
             )
+        return clear_lock
 
     def test_own_password_change(self, mock_db, published):
         with jasil_testing.capture_audit() as audit:
@@ -102,6 +108,11 @@ class TestPasswordAudit:
         )
         assert entry.details == {"sessions_revoked": 3}
         assert_event(published, Change.PASSWORD_CHANGED)
+
+    def test_own_password_change_lifts_the_account_sign_in_lock(self, mock_db, published):
+        clear_lock = self._stage_own(mock_db)
+
+        clear_lock.assert_called_once_with("alice")
 
     def test_own_password_change_without_revoking_records_zero(self, mock_db, published):
         with jasil_testing.capture_audit() as audit:
@@ -118,10 +129,16 @@ class TestPasswordAudit:
             patch.object(account_security_service.credentials_integration, "set_local_password_hash"),
             patch.object(account_security_service.sessions_integration, "delete_sessions_by_user", return_value=2),
             patch.object(account_security_service.mfa_integration, "clear_pending_mfa_for_user"),
+            patch.object(
+                account_security_service.authentication_integration, "clear_account_login_lockout"
+            ) as clear_lock,
             jasil_testing.capture_audit() as audit,
         ):
             require_user.return_value.access_type = "regular"
+            require_user.return_value.username = "alice"
             account_security_service.change_managed_user_password(7, "new", mock_db)
+
+        clear_lock.assert_called_once_with("alice")
 
         entry = audit.assert_audited(
             account_security_audit_actions.PASSWORD_SET.id, target_type="user", target_id="7", target_owner_id="7"

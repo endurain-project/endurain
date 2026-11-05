@@ -40,7 +40,7 @@ Details that matter:
 
 You sign in with your username (or email) and password. Sign-in uses the address the account currently has, even while a change to a new address is waiting for confirmation. If your account has two-step verification, Endurain asks for a code as a second step. If an administrator has enabled single sign-on, the login page also shows a button per identity provider; see [Single Sign-On](single-sign-on.md).
 
-After repeated wrong passwords the account is locked for a while, with longer locks for more failures. The limits are in [Account security](../integrate/account-security.md#progressive-account-lockout).
+After repeated wrong passwords the account is locked for a while, with longer locks for more failures. Each client network counts separately (an IPv6 address by its /64), so one client cannot lock you out for everyone. If 100 wrong passwords in a row reach the account from any addresses, the account is locked for 30 days, except for browsers and apps you have signed in from before: they can still sign in with the right password. The count restarts when you sign in, and the lock ends when you sign in from a known device, complete a password reset, change your password from a signed-in device, or an administrator sets your password. You get an email and a notification when the account locks. The limits are in [Account security](../integrate/account-security.md#progressive-account-lockout).
 
 ## Forgotten password
 
@@ -94,7 +94,7 @@ Deleting an account signs you out at once and deletes its data in the background
 
 ### Security notifications
 
-Endurain tells you when the way you sign in changes: your password is changed, reset, or set by an administrator; two-step verification is turned on or off; new backup codes are generated; an API key is created; or an identity provider is linked or unlinked. You get an email at your current address, if the server has mail configured, and a notification in the app. If you did not make the change, reset your password and review **Settings → Security**, or contact your administrator for a change made by one.
+Endurain tells you when the way you sign in changes: your password is changed, reset, or set by an administrator; your account is locked by 100 wrong passwords in a row; two-step verification is turned on or off; new backup codes are generated; an API key is created; or an identity provider is linked or unlinked. You get an email at your current address, if the server has mail configured, and a notification in the app. If you did not make the change, reset your password and review **Settings → Security**, or contact your administrator for a change made by one.
 
 The email is the notice that counts: someone who has taken over a session can read and dismiss in-app notifications, but not your mailbox.
 
@@ -102,4 +102,5 @@ Signing in from a new device sends the same pair of notices: when it happened, t
 
 - **Web:** Endurain recognises a browser by a random id it keeps in an `endurain_device` cookie (HttpOnly, `SameSite=Strict`, sent only to the API, kept for 400 days from the last sign-in). The server stores only a hash of it. Signing in again from a browser you have used before sends nothing. A browser without the cookie, after clearing cookies or in a private window, counts as new. A device unused for 400 days is forgotten.
 - **First device:** a user with no recorded device gets no notice for the first one. This also covers the first sign-in after upgrading to this version, so existing users are not all emailed at once; that first sign-in is the one sign-in not announced.
-- **Mobile app:** the app keeps no device cookie, so every sign-in from the app sends a notice, including the first.
+- **Mobile app:** the app keeps a device id the server gave it and sends it as `X-Device-Id`; it behaves like the web cookie. An app that has no id yet, after a reinstall or a cleared storage, counts as new and is given one.
+- **Locked account:** a known device can still sign in while the account is locked by 100 wrong passwords in a row; see [Signing in](#signing-in).

@@ -119,6 +119,7 @@ describe('presentNotification', () => {
     ['mfa_disabled', 'mfaDisabled'],
     ['backup_codes_generated', 'backupCodesGenerated'],
     ['api_key_created', 'apiKeyCreated'],
+    ['account_locked', 'accountLocked'],
   ])('presents the %s account-security change', (change, key) => {
     const result = presentNotification(make(32, { change }))
 

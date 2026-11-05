@@ -123,6 +123,16 @@ MFA verification failures use a separate policy:
 | 10 failures | 30 minutes |
 | 15 failures | 2 hours |
 
+Password login failures also count against the account across every address. After **100 failed sign-ins in a row** for one username the account is locked for **30 days**:
+
+- The count restarts on a successful sign-in and expires after 30 days without a failure.
+- A sign-in from a **known device** of the account is not refused by this lock. A device is known when the `endurain_device` cookie (web) or the `X-Device-Id` header (mobile) holds an id the account has signed in with before. Such a sign-in still needs the right password, MFA and the per-client lockout above, and its wrong passwords still count.
+- The lock and the count are cleared by a successful sign-in, a completed password reset, the user changing their password, or an administrator setting it.
+- When the 100th failure locks the account, its owner gets one email and one in-app notification (`account_security_changed` with the change `account_locked`) and an `auth.lockout.apply` audit row with the counter `login_account`. The audit row holds no username.
+- A locked account and an unknown username are refused with the same `429` answer.
+
+The per-client counters key an IPv6 address by its /64 network and an IPv4 address (or IPv4-mapped IPv6 address) as is.
+
 **Features:**
 
 - Per-username tracking prevents targeted attacks

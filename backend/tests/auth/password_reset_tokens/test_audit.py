@@ -24,12 +24,15 @@ def test_a_reset_is_audited_and_announced(mock_db):
         patch.object(password_reset_service.password_reset_crud, "mark_user_password_reset_tokens_used"),
         patch.object(password_reset_service.sessions_integration, "delete_sessions_by_user"),
         patch.object(password_reset_service.mfa_integration, "clear_pending_mfa_for_user"),
+        patch.object(password_reset_service.authentication_integration, "clear_account_login_lockout") as clear_lock,
         patch.object(platform_publisher, "publish_on_commit") as publish,
         jasil_testing.capture_audit() as audit,
     ):
         require_user.return_value.access_type = "regular"
+        require_user.return_value.username = "alice"
         password_reset_service.use_password_reset_token("raw-token", "new-password", mock_db)
 
+    clear_lock.assert_called_once_with("alice")
     audit.assert_audited(
         password_reset_audit_actions.PASSWORD_RESET.id, target_type="user", target_id="7", target_owner_id="7"
     )

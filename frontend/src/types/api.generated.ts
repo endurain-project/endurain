@@ -631,12 +631,14 @@ export interface paths {
          *
          *     Protection Mechanisms:
          *     - Rate limiting: 10 requests per minute per IP (SENSITIVE tier, prevents DoS attacks)
-         *     - Progressive lockout: Per-username and client-address tracking prevents targeted brute-force without
-         *       letting one client lock the account for everyone:
+         *     - Progressive lockout: Per-username and client-network tracking (an IPv6 address counts by its /64) prevents
+         *       targeted brute-force without letting one client lock the account for everyone:
          *       * 5 failures: 5 minute lockout
          *       * 10 failures: 30 minute lockout
          *       * 20 failures: 24 hour lockout
-         *       * A much higher account-wide threshold across all addresses stops a distributed brute force
+         *     - Account lock: 100 failed password sign-ins in a row for one username, from any addresses, lock the account for
+         *       30 days. A device the account has signed in from before is not held by it. A successful sign-in, a completed
+         *       password reset, a password change or an administrator setting the password lifts it.
          *
          *     This endpoint authenticates a user using provided credentials, checks if the user is active,
          *     and determines if MFA is required. If MFA is enabled for the user, it stores the pending login
@@ -659,7 +661,8 @@ export interface paths {
          *         password_hasher: The password hasher instance used for verifying passwords
          *         token_manager: The token manager instance used for token operations
          *         db: Database session
-         *         device_id: Device id from the browser's device cookie, or None when it sent no valid one
+         *         device_id: Device id from the browser's device cookie or the mobile app's X-Device-Id header, or None when
+         *             the client sent no valid one
          *         code_challenge: PKCE code challenge (base64url-encoded SHA256, optional for mobile)
          *         code_challenge_method: PKCE method (must be S256 if provided, optional for mobile)
          *
@@ -748,7 +751,8 @@ export interface paths {
          *         password_hasher: The password hasher instance used for verifying passwords
          *         token_manager: The token manager instance used for token operations
          *         db: Database session
-         *         device_id: Device id from the browser's device cookie, or None when it sent no valid one
+         *         device_id: Device id from the browser's device cookie or the mobile app's X-Device-Id header, or None when
+         *             the client sent no valid one
          *         code_challenge: PKCE code challenge (base64url-encoded SHA256, optional for mobile)
          *         code_challenge_method: PKCE method (must be S256 if provided, optional for mobile)
          *
@@ -4201,7 +4205,8 @@ export interface paths {
          *         password_hasher: Hasher for the stored refresh token.
          *         token_manager: Token manager that signs the tokens.
          *         db: Database session.
-         *         device_id: Device id from the browser's device cookie, or None when it sent no valid one.
+         *         device_id: Device id from the browser's device cookie or the mobile app's X-Device-Id header, or None when
+         *             the client sent no valid one.
          *
          *     Returns:
          *         The access token and, per client type, the CSRF token or the refresh token.
@@ -10091,8 +10096,11 @@ export interface components {
          *         session_id: Session identifier for token exchange.
          *         mfa_required: Whether MFA is required.
          *         message: Instructions for the client on next steps.
+         *         device_id: The device id the app keeps and sends as ``X-Device-Id`` on later sign-ins.
          */
         MobileSessionRead: {
+            /** Device Id */
+            device_id?: string | null;
             /**
              * Message
              * @default Complete authentication by exchanging tokens at /public/idp/session/{session_id}/tokens
@@ -11630,6 +11638,8 @@ export interface components {
          *         expires_in (int): Access token lifetime in seconds (900 = 15 minutes).
          *         refresh_token_expires_in (int): Refresh token lifetime in seconds (604800 = 7 days).
          *         token_type (str): Token type, always "Bearer".
+         *         device_id (str | None): The device id a mobile app keeps and sends as ``X-Device-Id`` on later sign-ins; set
+         *             by the exchange of an identity-provider sign-in, null otherwise.
          */
         TokenExchangeRead: {
             /**
@@ -11642,6 +11652,11 @@ export interface components {
              * @description CSRF protection token (web only)
              */
             csrf_token?: string | null;
+            /**
+             * Device Id
+             * @description Device id a mobile app keeps and sends as X-Device-Id (identity-provider sign-in)
+             */
+            device_id?: string | null;
             /**
              * Expires In
              * @description Access token lifetime in seconds
@@ -11708,10 +11723,14 @@ export interface components {
          *         token_type: Always ``bearer``.
          *         expires_in: Seconds until the access token expires.
          *         refresh_token_expires_in: Seconds until the refresh token expires.
+         *         device_id: The device id the app keeps and sends as ``X-Device-Id`` on later sign-ins; set by a sign-in, null
+         *             on a refresh.
          */
         TokenMobileRead: {
             /** Access Token */
             access_token: string;
+            /** Device Id */
+            device_id?: string | null;
             /** Expires In */
             expires_in: number;
             /** Refresh Token */

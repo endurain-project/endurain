@@ -8,9 +8,9 @@ class SignInRecord:
     """The outcome of recording a sign-in against the user's known devices.
 
     Attributes:
-        device_id: The device id the browser must keep in its cookie, or None for a mobile client.
+        device_id: The device id the client must keep: the web app in its cookie, the mobile app in its storage.
         new_device: Whether the sign-in was announced as one from a new device.
     """
 
-    device_id: str | None
+    device_id: str
     new_device: bool

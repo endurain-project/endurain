@@ -7,6 +7,7 @@ from jasil.events import new_event
 
 import core.exceptions as core_exceptions
 import modules.auth.account_security.events as account_security_events
+import modules.auth.authentication.events as authentication_events
 import modules.auth.password_reset_tokens.events as password_reset_events
 import modules.notifications.constants as notifications_constants
 import modules.notifications.service as notifications_service
@@ -184,5 +185,37 @@ class TestNotifyPasswordResetCompletedForEvent:
         assert any(c.args[0] == password_reset_events.PASSWORD_RESET_COMPLETED for c in events.subscribe.call_args_list)
         assert any(
             c.args[:2] == (password_reset_events.PASSWORD_RESET_COMPLETED, "auth.notify_password_reset_completed")
+            for c in registry.register.call_args_list
+        )
+
+
+class TestNotifyAccountLockedForEvent:
+    @patch("modules.notifications.integration_service.websocket_integration")
+    @patch("modules.notifications.subscribers.core_database")
+    @patch("modules.notifications.subscribers.notifications_service")
+    def test_creates_the_account_locked_notification(self, mock_notif, _db, mock_ws):
+        mock_notif.create_account_security_changed_notification.return_value = (MagicMock(id=5), "WS", True)
+        event = new_event(authentication_events.ACCOUNT_LOCKED, {"user_id": 1}, source="test")
+
+        notification_subscribers.notify_account_locked_for_event(event)
+
+        assert mock_notif.create_account_security_changed_notification.call_args.args[:4] == (
+            1,
+            "account_locked",
+            None,
+            event.event_id,
+        )
+        mock_ws.push_to_user.assert_called_once()
+
+    def test_is_registered_on_the_bus_and_as_a_durable_handler(self):
+        events = MagicMock()
+        registry = MagicMock()
+
+        notification_subscribers.register_bus_subscribers(events)
+        notification_subscribers.register_durable_handlers(registry)
+
+        assert any(c.args[0] == authentication_events.ACCOUNT_LOCKED for c in events.subscribe.call_args_list)
+        assert any(
+            c.args[:2] == (authentication_events.ACCOUNT_LOCKED, "auth.notify_account_locked")
             for c in registry.register.call_args_list
         )

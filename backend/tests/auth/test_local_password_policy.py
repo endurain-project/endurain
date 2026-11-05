@@ -7,6 +7,7 @@ import pytest
 
 import core.exceptions as core_exceptions
 import modules.auth.account_security.account_security_service as account_security_service
+import modules.auth.authentication.failed_login_store as failed_login_store
 import modules.auth.authentication.service as authentication_service
 import modules.auth.authentication.sso_exchange_service as authentication_service_sso_exchange_service
 import modules.auth.credentials.service as credentials_service
@@ -35,7 +36,7 @@ class TestPasswordLogin:
     def _login(self, user, *, local_login_enabled):
         failed_attempts = MagicMock()
         failed_attempts.is_locked_out.return_value = False
-        failed_attempts.record_failed_attempt.return_value = 1
+        failed_attempts.record_failed_attempt.return_value = failed_login_store.FailedLoginRecord(1, False)
         with (
             patch.object(authentication_service, "authenticate_user", return_value=user),
             patch.object(

@@ -90,6 +90,10 @@ class ProgressiveLockout:
 
     def record_failed_attempt(self, key: str) -> int:
         """Record a failed attempt and return the updated count."""
+        return self.record_failure(key).count
+
+    def record_failure(self, key: str) -> lockout_contracts.FailureOutcome:
+        """Record a failed attempt and return the updated count with whether it closed the gate."""
         tiers = tuple((count, seconds) for count, seconds, _label in self._tiers)
         try:
             outcome = self._state.record_tiered_failure(
@@ -97,7 +101,7 @@ class ProgressiveLockout:
             )
         except StateBackendUnavailableError as err:
             _raise_store_unavailable(err)
-        return outcome.count
+        return lockout_contracts.FailureOutcome(outcome.count, outcome.newly_locked)
 
     def reset_attempts(self, key: str) -> None:
         """Clear the failed-attempt count for the supplied key."""

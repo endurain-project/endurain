@@ -141,9 +141,12 @@ X-Client-Type: mobile
   "refresh_token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
   "expires_in": 900,
   "refresh_token_expires_in": 604800,
-  "token_type": "Bearer"
+  "token_type": "Bearer",
+  "device_id": "q3k9...43 characters"
 }
 ```
+
+Send the device id the app already holds as the `X-Device-Id` header on the exchange of an identity-provider sign-in. `device_id` in the response is the id the app must keep and send on later sign-ins; it is `null` for the exchange of a password sign-in, whose `session_id` response already carried it. See [Authentication](authentication.md#token-delivery-by-client-type).
 
 **Error Responses:**
 
@@ -367,9 +370,12 @@ X-Client-Type: mobile
   "refresh_token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
   "expires_in": 900,
   "refresh_token_expires_in": 604800,
-  "token_type": "Bearer"
+  "token_type": "Bearer",
+  "device_id": null
 }
 ```
+
+`device_id` is the id a mobile app keeps and sends as `X-Device-Id`; the exchange of an identity-provider sign-in sets it, and a password sign-in already returned it with its `session_id`.
 
 **Error Responses:**
 

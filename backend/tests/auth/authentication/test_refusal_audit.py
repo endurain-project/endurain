@@ -10,6 +10,7 @@ import pytest
 import core.exceptions as core_exceptions
 import modules.auth.api_keys.schema as api_keys_schema
 import modules.auth.authentication.audit_actions as authentication_audit_actions
+import modules.auth.authentication.failed_login_store as failed_login_store
 import modules.auth.authentication.principal_service as principal_service
 import modules.auth.authentication.refresh_service as authentication_service_refresh_service
 import modules.auth.authentication.service as authentication_service
@@ -371,7 +372,7 @@ class TestLockoutAppliedByFailedCodes:
 
     def test_a_wrong_login_password_that_locks_the_account_audits_the_lockout(self, mock_db):
         failed_attempts = MagicMock(is_locked_out=MagicMock(return_value=False))
-        failed_attempts.record_failed_attempt.return_value = 5
+        failed_attempts.record_failed_attempt.return_value = failed_login_store.FailedLoginRecord(5, False)
         with (
             patch(
                 f"{_SERVICE}.authenticate_user",
