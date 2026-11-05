@@ -7,7 +7,9 @@ import modules.gears.contracts as gears_contracts
 import modules.gears.gear.crud as crud
 import modules.gears.gear.schema as schema
 import modules.gears.gear.service as service
-from tests._helpers.gears import gear_create, install_readers
+import modules.gears.gear_components.crud as gear_components_crud
+import modules.gears.gear_components.integration_service as gear_components_integration
+from tests._helpers.gears import component_create, gear_create, install_readers
 
 
 class TestListGears:
@@ -89,6 +91,73 @@ class TestStageGears:
         service.stage_gears([gear_create("existing")], 1, db)
 
         assert crud.get_gears_number(1, db) == 1
+
+
+class TestEditGearType:
+    @staticmethod
+    def _install_real_counter():
+        install_readers(count_components_outside_type=gear_components_integration.count_components_outside_gear_type)
+
+    def test_a_type_change_with_a_component_of_the_old_type_is_a_conflict_and_changes_nothing(self, db, commit_spy):
+        created = crud.create_gear(gear_create(), 1, db)
+        gear_components_crud.create_gear_component(component_create(created.id, type="chain"), 1, db)
+        self._install_real_counter()
+
+        with pytest.raises(core_exceptions.ConflictError, match="Remove the components"):
+            service.edit_gear(created.id, schema.GearUpdate(gear_type=schema.GearType.SHOES), 1, db, if_match="*")
+
+        commit_spy.assert_not_called()
+        assert crud.get_gear_user_by_id(1, created.id, db).gear_type == schema.GearType.BIKE
+
+    def test_a_type_change_without_components_is_applied(self, db):
+        created = crud.create_gear(gear_create(), 1, db)
+        self._install_real_counter()
+
+        updated = service.edit_gear(created.id, schema.GearUpdate(gear_type=schema.GearType.SHOES), 1, db, if_match="*")
+
+        assert updated.gear_type == schema.GearType.SHOES
+
+    def test_a_type_change_to_a_type_that_accepts_every_component_is_applied(self, db):
+        created = crud.create_gear(gear_create(), 1, db)
+        gear_components_crud.create_gear_component(component_create(created.id, type="chain"), 1, db)
+        self._install_real_counter()
+
+        updated = service.edit_gear(
+            created.id, schema.GearUpdate(gear_type=schema.GearType.WETSUIT), 1, db, if_match="*"
+        )
+
+        assert updated.gear_type == schema.GearType.WETSUIT
+
+    def test_an_edit_that_keeps_the_type_does_not_ask_for_components(self, db):
+        created = crud.create_gear(gear_create(), 1, db)
+        counter = MagicMock(return_value=1)
+        install_readers(count_components_outside_type=counter)
+
+        service.edit_gear(created.id, schema.GearUpdate(nickname="Gravel"), 1, db, if_match="*")
+        service.edit_gear(created.id, schema.GearUpdate(gear_type=schema.GearType.BIKE), 1, db, if_match="*")
+
+        counter.assert_not_called()
+
+    def test_the_gear_is_locked_before_the_components_are_counted(self, db):
+        created = crud.create_gear(gear_create(), 1, db)
+        calls: list[str] = []
+        install_readers(count_components_outside_type=lambda *_: calls.append("count") or 0)
+
+        with patch.object(crud, "lock_gear", side_effect=lambda *_: calls.append("lock")):
+            service.edit_gear(created.id, schema.GearUpdate(gear_type=schema.GearType.SHOES), 1, db, if_match="*")
+
+        assert calls == ["lock", "count"]
+
+    def test_a_stale_type_change_is_a_precondition_failure_before_the_components_are_counted(self, db, commit_spy):
+        created = crud.create_gear(gear_create(), 1, db)
+        counter = MagicMock(return_value=1)
+        install_readers(count_components_outside_type=counter)
+
+        with pytest.raises(core_exceptions.PreconditionFailedError):
+            service.edit_gear(created.id, schema.GearUpdate(gear_type=schema.GearType.SHOES), 1, db, if_match='"99"')
+
+        counter.assert_not_called()
+        commit_spy.assert_not_called()
 
 
 class TestEditAndDelete:

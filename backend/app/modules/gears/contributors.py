@@ -10,6 +10,7 @@ from dataclasses import dataclass
 from sqlalchemy.orm import Session
 
 import modules.gears.contracts as gears_contracts
+import modules.gears.gear.schema as gears_schema
 
 #: ``(gear_id, user_id, db)`` -> the usage a user recorded against a gear.
 GearUsageReader = Callable[[int, int, Session], gears_contracts.UsageTotals]
@@ -22,6 +23,8 @@ GearUsageByWindowReader = Callable[
 #: ``(gear_id, user_id, db)`` -> the summed purchase value of a gear's components.
 ComponentsCostReader = Callable[[int, int, Session], float]
 
+#: ``(gear_id, user_id, gear_type, db)`` -> how many of a gear's components are not valid for a gear type.
+ComponentsOutsideTypeCounter = Callable[[int, int, gears_schema.GearType, Session], int]
 
 #: ``(gear_id, user_id, db)`` -> stages unassigning the gear from the user's activities and
 #: returns how many it touched.
@@ -39,6 +42,7 @@ class GearReaders:
         usage: Totals the usage a user recorded against a gear.
         usage_by_window: Totals a gear's usage per date window.
         components_cost: Sums the purchase value of a gear's components.
+        count_components_outside_type: Counts a gear's components whose type is not valid for a gear type.
         clear_activities_gear: Stages unassigning a gear from the activities that carry it.
         clear_default_gear: Stages unassigning gears from the user's default gear settings.
     """
@@ -46,5 +50,6 @@ class GearReaders:
     usage: GearUsageReader
     usage_by_window: GearUsageByWindowReader
     components_cost: ComponentsCostReader
+    count_components_outside_type: ComponentsOutsideTypeCounter
     clear_activities_gear: ActivitiesGearClearer
     clear_default_gear: DefaultGearClearer

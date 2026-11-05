@@ -29,7 +29,7 @@ To use gear on an activity, pick it in the activity's edit dialog, or set a [def
 
 ## Components
 
-A component is a part of one piece of gear. Its type must fit the gear: a chain belongs on a bike, strings on a racquet. The available types are listed in [supported types](../integrate/supported-types.md#supported-bike-component-gear-types).
+A component is a part of one piece of gear. Its type must fit the gear: a chain belongs on a bike, strings on a racquet. The available types are listed in [supported types](../integrate/supported-types.md#supported-bike-component-gear-types). You cannot change a piece of gear to another type while it has components that do not fit the new type; remove them first.
 
 | Field | Meaning |
 | ----- | ------- |

@@ -238,6 +238,39 @@ def _restore_gear(gear: gears_schema.GearCreate, user_id: int, db: Session) -> i
         return gears_crud.create_gear(without_ids, user_id, db).id
 
 
+def _require_components_fit_type_change(
+    gear_id: int, new_type: gears_schema.GearType, user_id: int, db: Session, *, if_match: str
+) -> None:
+    """Refuse a gear type change that leaves components the new type does not allow.
+
+    The gear row is locked first, so a component create, which locks it too, cannot add a
+    component of the old type between this check and the commit. The ``If-Match`` precondition is checked
+    against the locked row before the components are counted, so a stale edit answers 412, not 409.
+
+    Args:
+        gear_id: The gear being edited.
+        new_type: The gear type the edit sets.
+        user_id: Owner user ID.
+        db: Database session.
+        if_match: The ``If-Match`` precondition.
+
+    Raises:
+        NotFoundError: If the user has no such gear.
+        PreconditionFailedError: If the gear changed since the client read it.
+        ConflictError: If the type changes and a component is not valid for the new type.
+    """
+    gears_crud.lock_gear(gear_id, user_id, db)
+    current = gears_crud.get_gear_user_by_id(user_id, gear_id, db)
+    if current is None:
+        return
+    core_etag.require_if_match(if_match, current.version, "gear")
+    if current.gear_type == new_type:
+        return
+    readers = gears_contributor_registry.readers()
+    if readers.count_components_outside_type(gear_id, user_id, new_type, db) > 0:
+        raise core_exceptions.ConflictError("Remove the components that do not fit the new gear type first")
+
+
 def edit_gear(
     gear_id: int,
     gear: gears_schema.GearUpdate,
@@ -247,6 +280,9 @@ def edit_gear(
     if_match: str,
 ) -> gears_schema.GearRead:
     """Update a user's gear.
+
+    Changing the gear type locks the gear until the commit and is refused while the gear has
+    components that are not valid for the new type.
 
     Args:
         gear_id: Gear ID to update.
@@ -260,7 +296,8 @@ def edit_gear(
 
     Raises:
         NotFoundError: If the user has no such gear.
-        ConflictError: If the new nickname is already taken.
+        ConflictError: If the new nickname is already taken, or the gear type changes while the gear
+            has components that are not valid for the new type.
         PreconditionFailedError: If the gear changed since the client read it.
     """
     with core_etag.refuse_stale_write(
@@ -269,6 +306,8 @@ def edit_gear(
         lambda: gears_crud.get_gear_user_by_id(user_id, gear_id, db) is not None,
         "Gear not found",
     ):
+        if gear.gear_type is not None:
+            _require_components_fit_type_change(gear_id, gear.gear_type, user_id, db, if_match=if_match)
         updated = gears_crud.edit_gear(gear_id, gear, user_id, db, if_match=if_match)
         db.commit()
     logger.info("Edited a gear", extra=core_logger.context(user_id=user_id, gear_id=gear_id))

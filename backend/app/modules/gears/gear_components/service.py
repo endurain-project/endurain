@@ -55,6 +55,26 @@ def _require_type_for_gear(gear: gears_schema.GearRead, component_type: str) -> 
         raise core_exceptions.InvalidInputError(f"Invalid gear component type for {gear.gear_type.name.lower()}")
 
 
+def count_components_outside_gear_type(
+    gear_id: int, user_id: int, gear_type: gears_schema.GearType, db: Session
+) -> int:
+    """Count a gear's components whose type is not valid for a gear type.
+
+    Args:
+        gear_id: Gear to count components of.
+        user_id: Owner user ID.
+        gear_type: The gear type the components would have to fit.
+        db: Database session.
+
+    Returns:
+        How many components do not fit; zero for a gear type that accepts any component.
+    """
+    valid_types = gear_components_constants.COMPONENT_TYPES_BY_GEAR_TYPE.get(gear_type)
+    if valid_types is None:
+        return 0
+    return gear_components_crud.count_gear_components_outside_types(gear_id, user_id, valid_types, db)
+
+
 def read_component_types() -> gear_components_schema.GearComponentTypesRead:
     """Return the valid component types, grouped by gear type.
 
@@ -166,6 +186,8 @@ def create_gear_component(
             date is not after the purchase date.
     """
     _require_retired_after_purchase(gear_component.purchase_date, gear_component.retired_date)
+    # Locked before the type is read, so a gear type change cannot commit between the check and the insert.
+    gears_integration.lock_gear(gear_component.gear_id, user_id, db)
     gear = gears_integration.get_gear_user_by_id(user_id, gear_component.gear_id, db)
     if gear is None:
         raise core_exceptions.NotFoundError("Gear not found")
@@ -262,6 +284,7 @@ def edit_gear_component(
     )
     # The update refuses a null type, so a type is set exactly when the request sent one.
     if gear_component.type is not None and gear_component.type != current.type:
+        gears_integration.lock_gear(current.gear_id, user_id, db)
         gear = gears_integration.get_gear_user_by_id(user_id, current.gear_id, db)
         if gear is None:
             raise core_exceptions.NotFoundError("Gear not found")

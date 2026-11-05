@@ -496,6 +496,7 @@ def configure_gear_contributors() -> None:
             usage=activity_integration.get_gear_usage_totals,
             usage_by_window=activity_integration.get_gear_usage_totals_by_window,
             components_cost=gear_components_integration.get_gear_components_total_cost,
+            count_components_outside_type=gear_components_integration.count_components_outside_gear_type,
             clear_activities_gear=activity_integration.clear_activities_gear,
             clear_default_gear=users_default_gear_integration.clear_default_gears,
         )

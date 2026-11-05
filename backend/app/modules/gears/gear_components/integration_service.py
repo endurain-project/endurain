@@ -8,6 +8,7 @@ from typing import Any
 
 from sqlalchemy.orm import Session
 
+import modules.gears.gear.schema as gears_schema
 import modules.gears.gear_components.crud as gear_components_crud
 import modules.gears.gear_components.schema as gear_components_schema
 import modules.gears.gear_components.service as gear_components_service
@@ -55,3 +56,20 @@ def get_gear_components_total_cost(gear_id: int, user_id: int, db: Session) -> f
         The total cost, zero when no component has a value.
     """
     return gear_components_crud.get_gear_components_total_cost(gear_id, user_id, db)
+
+
+def count_components_outside_gear_type(
+    gear_id: int, user_id: int, gear_type: gears_schema.GearType, db: Session
+) -> int:
+    """Return how many of a gear's components are not valid for a gear type.
+
+    Args:
+        gear_id: Gear to count components of.
+        user_id: Owner user ID.
+        gear_type: The gear type the components would have to fit.
+        db: Database session.
+
+    Returns:
+        The number of components that do not fit; zero for a gear type that accepts any component.
+    """
+    return gear_components_service.count_components_outside_gear_type(gear_id, user_id, gear_type, db)

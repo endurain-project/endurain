@@ -103,7 +103,8 @@ def edit_gear(
     null to clear a nullable one (`brand`, `model`, `purchase_value`).
 
     Send ``If-Match`` with the gear's ``version`` as an ETag to make the write
-    conditional; a stale tag is refused with 412.
+    conditional; a stale tag is refused with 412. Changing `gear_type` is refused with 409
+    while the gear has components that are not valid for the new type; remove them first.
     """
     updated = gears_service.edit_gear(gear_id, gear, token_user_id, db, if_match=if_match)
     core_etag.set_etag(response, updated.version)

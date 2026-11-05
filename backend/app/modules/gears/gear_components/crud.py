@@ -1,5 +1,7 @@
 """CRUD operations for gear components."""
 
+from collections.abc import Collection
+
 from sqlalchemy import Select, func, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
@@ -198,6 +200,26 @@ def get_gear_components_total_cost(gear_id: int, user_id: int, db: Session) -> f
         gear_components_models.GearComponents.user_id == user_id,
     )
     return float(db.execute(stmt).scalar_one() or 0)
+
+
+def count_gear_components_outside_types(gear_id: int, user_id: int, valid_types: Collection[str], db: Session) -> int:
+    """Count a gear's components whose type is not among the given types.
+
+    Args:
+        gear_id: Gear to count components of.
+        user_id: Owner user ID.
+        valid_types: The component types that stay valid.
+        db: Database session.
+
+    Returns:
+        How many components have another type.
+    """
+    stmt = select(func.count(gear_components_models.GearComponents.id)).where(
+        gear_components_models.GearComponents.gear_id == gear_id,
+        gear_components_models.GearComponents.user_id == user_id,
+        gear_components_models.GearComponents.type.not_in(valid_types),
+    )
+    return db.execute(stmt).scalar_one()
 
 
 def create_gear_component(

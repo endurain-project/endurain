@@ -1175,7 +1175,8 @@ export interface paths {
          *     null to clear a nullable one (`brand`, `model`, `purchase_value`).
          *
          *     Send ``If-Match`` with the gear's ``version`` as an ETag to make the write
-         *     conditional; a stale tag is refused with 412.
+         *     conditional; a stale tag is refused with 412. Changing `gear_type` is refused with 409
+         *     while the gear has components that are not valid for the new type; remove them first.
          */
         patch: operations["edit_gear_api_v1_gears__gear_id__patch"];
         trace?: never;

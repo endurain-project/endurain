@@ -42,6 +42,20 @@ def get_gear_user_by_id(user_id: int, gear_id: int, db: Session) -> gears_schema
     return gears_crud.get_gear_user_by_id(user_id, gear_id, db)
 
 
+def lock_gear(gear_id: int, user_id: int, db: Session) -> None:
+    """Lock a user's gear row until the transaction ends.
+
+    Args:
+        gear_id: Gear ID to lock.
+        user_id: Owner user ID.
+        db: Database session.
+
+    Raises:
+        NotFoundError: If the user has no such gear.
+    """
+    gears_crud.lock_gear(gear_id, user_id, db)
+
+
 def get_gear_by_strava_id(strava_gear_id: str, user_id: int, db: Session) -> gears_schema.GearRead | None:
     """Return the user's gear imported from the given Strava gear.
 

@@ -7,6 +7,17 @@ import modules.gears.gear_components.crud as crud
 from tests._helpers.gears import component_create, component_update
 
 
+class TestCountOutsideTypes:
+    def test_only_this_users_components_of_this_gear_outside_the_types_are_counted(self, db):
+        crud.create_gear_component(component_create(1, type="chain"), 1, db)
+        crud.create_gear_component(component_create(1, type="laces"), 1, db)
+        crud.create_gear_component(component_create(2, type="chain"), 1, db)
+        crud.create_gear_component(component_create(1, type="chain"), 2, db)
+
+        assert crud.count_gear_components_outside_types(1, 1, ["laces", "cleats"], db) == 1
+        assert crud.count_gear_components_outside_types(1, 1, ["chain", "laces"], db) == 0
+
+
 class TestReads:
     def test_components_are_scoped_to_their_owner_and_gear(self, db):
         mine = crud.create_gear_component(component_create(1), 1, db)
