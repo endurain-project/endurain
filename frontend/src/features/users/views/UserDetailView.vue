@@ -4,6 +4,7 @@ import { RouterLink, useRoute, useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import { ArrowLeft, Check, KeyRound, Pencil, Trash2, Upload, X } from '@lucide/vue'
 
+import { IMAGE_ACCEPTED_TYPES } from '@/lib/imageTypes'
 import UserAvatar from '@/components/UserAvatar.vue'
 import UserFormDialog from '@/features/users/components/UserFormDialog.vue'
 import UserIdentityProvidersList from '@/features/users/components/UserIdentityProvidersList.vue'
@@ -311,7 +312,7 @@ function reject(): void {
           <input
             ref="fileInput"
             type="file"
-            accept="image/*"
+            :accept="IMAGE_ACCEPTED_TYPES.join(',')"
             class="hidden"
             @change="onPhotoSelected"
           />

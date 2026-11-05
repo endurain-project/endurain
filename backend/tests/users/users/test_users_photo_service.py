@@ -17,6 +17,7 @@ from tests._helpers.db import create_sqlite_session
 
 import core.blob_sweep as core_blob_sweep
 import core.exceptions as core_exceptions
+import core.file_uploads as core_file_uploads
 import modules.users.users.models as users_models
 import modules.users.users.photo_service as users_photo_service
 
@@ -270,3 +271,37 @@ class TestStorePhoto:
             users_photo_service.store_photo(7, ".png", _PNG, storage, mock_db)
 
         storage.save.assert_not_called()
+
+
+class TestUploadPhotoImageFormats:
+    @patch(_CRUD)
+    def test_a_webp_is_stored_without_its_metadata(self, mock_crud, mock_db):
+        mock_crud.get_user_by_id.return_value = MagicMock()
+        storage = MagicMock()
+        upload = UploadFile(io.BytesIO(images.webp_with_exif()), filename="me.webp")
+
+        key = users_photo_service.upload_photo(7, upload, storage, mock_db)
+
+        assert key == "7.webp"
+        _area, _key, data, content_type = storage.save.call_args.args
+        assert content_type == "image/webp"
+        assert not images.has_metadata(data)
+
+    @pytest.mark.parametrize(
+        ("name", "data"),
+        [("a.gif", images.gif()), ("a.heic", images.heic_like()), ("a.webp", images.gif())],
+        ids=["gif", "heic", "gif-as-webp"],
+    )
+    @patch(_CRUD)
+    def test_gif_and_heic_are_refused(self, mock_crud, mock_db, name: str, data: bytes):
+        mock_crud.get_user_by_id.return_value = MagicMock()
+        storage = MagicMock()
+
+        with pytest.raises(core_exceptions.DomainError) as exc:
+            users_photo_service.upload_photo(7, UploadFile(io.BytesIO(data), filename=name), storage, mock_db)
+
+        assert exc.value.status_code in {400, 415}
+        storage.save.assert_not_called()
+
+    def test_the_allow_list_is_the_shared_one(self):
+        assert set(core_file_uploads.IMAGE_CONTENT_TYPES) == {".jpg", ".jpeg", ".png", ".webp"}

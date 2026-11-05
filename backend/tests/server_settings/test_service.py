@@ -5,12 +5,14 @@ what deserializes settings on every *read*, so a validator there would put a DNS
 lookup on the read path of the whole app.
 """
 
+import io
 from datetime import timedelta
 from unittest.mock import MagicMock, patch
 
 import jasil.providers as platform_providers
 import jasil.testing as jasil_testing
 import pytest
+from fastapi import UploadFile
 
 import core.config as core_config
 import core.cryptography as core_cryptography
@@ -1573,3 +1575,32 @@ class TestEnvImportAudit:
             server_settings_env_import_service.import_deprecated_env_settings(MagicMock())
 
         audit.assert_not_audited(server_settings_audit_actions.SETTINGS_IMPORT.id)
+
+
+class TestLoginPhotoImageFormats:
+    def _upload(self, name: str, data: bytes) -> UploadFile:
+        return UploadFile(io.BytesIO(data), filename=name)
+
+    def test_a_webp_is_stored_without_its_metadata(self):
+        storage = MagicMock()
+
+        with patch.object(server_settings_service.server_settings_crud, "set_login_photo", return_value=4):
+            server_settings_login_photo_service.upload_login_photo(
+                self._upload("login.webp", images.webp_with_exif()), storage, MagicMock()
+            )
+
+        _area, _key, data, content_type = storage.save.call_args.args
+        assert content_type == "image/webp"
+        assert not images.has_metadata(data)
+
+    @pytest.mark.parametrize(
+        ("name", "data"), [("a.gif", images.gif()), ("a.heic", images.heic_like())], ids=["gif", "heic"]
+    )
+    def test_gif_and_heic_are_refused(self, name: str, data: bytes):
+        storage = MagicMock()
+
+        with pytest.raises(core_exceptions.DomainError) as exc:
+            server_settings_login_photo_service.upload_login_photo(self._upload(name, data), storage, MagicMock())
+
+        assert exc.value.status_code == 400
+        storage.save.assert_not_called()

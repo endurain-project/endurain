@@ -6,6 +6,7 @@ import { EllipsisVertical, ImagePlus, Pencil, Trash2 } from '@lucide/vue'
 
 import type { Activity } from '@/features/activities/types'
 
+import { IMAGE_ACCEPTED_TYPES } from '@/lib/imageTypes'
 import { ConfirmDialog } from '@/components/ui/confirm-dialog'
 import {
   DropdownMenu,
@@ -109,7 +110,13 @@ async function confirmDelete(): Promise<void> {
     </DropdownMenuContent>
   </DropdownMenu>
 
-  <input ref="fileInput" type="file" accept="image/*" class="hidden" @change="onFileSelected" />
+  <input
+    ref="fileInput"
+    type="file"
+    :accept="IMAGE_ACCEPTED_TYPES.join(',')"
+    class="hidden"
+    @change="onFileSelected"
+  />
 
   <ActivityEditDialog v-model:open="isEditOpen" :activity="activity" />
 

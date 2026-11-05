@@ -231,7 +231,7 @@ def upload_identity_provider_icon(
     Args:
         idp_id: The identity provider the icon belongs to.
         request: Incoming request.
-        file: The image to upload (PNG, JPEG, GIF or WebP).
+        file: The image to upload (JPEG, PNG or WebP).
         storage: The platform storage provider.
         db: SQLAlchemy database session dependency.
 

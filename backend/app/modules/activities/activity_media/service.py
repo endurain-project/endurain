@@ -34,11 +34,6 @@ import modules.activities.activity_media.signing as activity_media_signing
 
 logger = core_logger.get_logger(__name__)
 
-# Allow-list of safe image extensions for activity media uploads. The upload is
-# also magic-number validated by safeuploads; this only bounds the extension we
-# are willing to record in a storage key.
-_ALLOWED_MEDIA_EXTENSIONS: frozenset[str] = frozenset({".jpg", ".jpeg", ".png", ".webp", ".heic", ".heif"})
-
 # A stored key is ``{activity_id}_{suffix}``; ``suffix`` is a flat file name.
 _MEDIA_KEY_PATTERN = re.compile(r"(?P<activity_id>\d+)_(?P<suffix>[^/\\]+)")
 
@@ -116,7 +111,7 @@ def _build_storage_key(activity_id: int, original_name: str | None) -> str:
     base_name = PurePosixPath(original_name or "").name
     extension = PurePosixPath(base_name).suffix.lower()
 
-    if extension not in _ALLOWED_MEDIA_EXTENSIONS:
+    if extension not in core_file_uploads.IMAGE_CONTENT_TYPES:
         logger.debug(
             "Rejected an activity media upload with an unsupported extension",
             extra=core_logger.context(activity_id=activity_id, extension=extension or None),
@@ -134,16 +129,16 @@ def _content_type_for(storage_key: str) -> str:
     stored object's metadata (a ``.jpg`` uploaded as ``text/html``).
 
     Args:
-        storage_key: The key the blob is stored under, carrying an extension
-            already checked against :data:`_ALLOWED_MEDIA_EXTENSIONS`.
+        storage_key: The key the blob is stored under. New keys carry an extension
+            checked against :data:`core.file_uploads.IMAGE_CONTENT_TYPES`.
 
     Returns:
-        An ``image/*`` media type.
+        The ``image/*`` media type of an accepted extension; ``application/octet-stream`` for a key stored
+        under an extension no longer accepted, so it is served as a download rather than rendered.
     """
-    extension = PurePosixPath(storage_key).suffix.lower().lstrip(".")
-    # ``jpg`` is the only allowed extension whose media subtype is not the suffix.
-    subtype = "jpeg" if extension == "jpg" else extension
-    return f"image/{subtype}"
+    return core_file_uploads.IMAGE_CONTENT_TYPES.get(
+        PurePosixPath(storage_key).suffix.lower(), "application/octet-stream"
+    )
 
 
 def _cleanup_orphaned_blob(storage: platform_providers.StorageProvider, storage_key: str, activity_id: int) -> None:

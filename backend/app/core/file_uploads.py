@@ -31,17 +31,19 @@ import os
 import shutil
 import tempfile
 import zipfile
-from collections.abc import Callable, Iterable
+from collections.abc import Callable, Iterable, Mapping
 from dataclasses import dataclass
 from enum import StrEnum
 from pathlib import Path, PurePosixPath, PureWindowsPath
-from typing import BinaryIO
+from types import MappingProxyType
+from typing import BinaryIO, ClassVar
 
 from fastapi import UploadFile
 from PIL import Image, ImageOps, UnidentifiedImageError
 from safeuploads import (
     ErrorCode,
     FileSecurityConfig,
+    FileSignatureValidator,
     FileValidator,
     SecurityLimits,
     SeekableFile,
@@ -90,6 +92,56 @@ _MAX_IMAGE_BYTES = 20 * 1024 * 1024
 _MAX_IMAGE_PIXELS = 100_000_000
 
 
+#: The one image allow-list: every accepted extension with the media type it is stored and served as. The upload
+#: validator, the route-level extension checks, the content-type maps and the signature sniffing all derive from it.
+IMAGE_CONTENT_TYPES: Mapping[str, str] = MappingProxyType(
+    {
+        ".jpg": "image/jpeg",
+        ".jpeg": "image/jpeg",
+        ".png": "image/png",
+        ".webp": "image/webp",
+    }
+)
+
+
+class _ImageSecurityConfig(FileSecurityConfig):
+    """:class:`FileSecurityConfig` whose image allow-list is :data:`IMAGE_CONTENT_TYPES`."""
+
+    ALLOWED_IMAGE_EXTENSIONS: ClassVar[frozenset[str]] = frozenset(IMAGE_CONTENT_TYPES)
+    ALLOWED_IMAGE_MIMES: ClassVar[frozenset[str]] = frozenset(IMAGE_CONTENT_TYPES.values())
+
+
+def _is_webp(data: bytes) -> bool:
+    """Return whether the bytes start with a WebP RIFF container header.
+
+    Args:
+        data: The leading bytes of a file.
+
+    Returns:
+        True when the header is ``RIFF....WEBP``.
+    """
+    return data[:4] == b"RIFF" and data[8:12] == b"WEBP"
+
+
+class _ImageSignatureValidator(FileSignatureValidator):
+    """Signature validator that also recognises WebP, which safeuploads does not."""
+
+    def validate(self, content: bytes, expected_type: str, *, filename: str | None = None) -> None:
+        """Verify the leading bytes match the expected type, accepting a WebP header for images.
+
+        Args:
+            content: Leading bytes of the uploaded file.
+            expected_type: Logical file category.
+            filename: Optional sanitized filename for error context.
+
+        Raises:
+            FileSignatureError: When the header does not match the expected type.
+        """
+        if expected_type == "image" and _is_webp(content):
+            return
+        super().validate(content, expected_type, filename=filename)
+
+
 def _build_security_config() -> FileSecurityConfig:
     """Build the application-wide :class:`FileSecurityConfig`.
 
@@ -107,7 +159,7 @@ def _build_security_config() -> FileSecurityConfig:
         allow_nested_archives=True,
         enable_audit_logging=True,
     )
-    config = FileSecurityConfig()
+    config = _ImageSecurityConfig()
     config.limits = limits
     return config
 
@@ -115,6 +167,7 @@ def _build_security_config() -> FileSecurityConfig:
 #: Application-wide :class:`FileValidator`. Stateless w.r.t. uploads;
 #: safe to share. Do **not** instantiate ``FileValidator`` elsewhere.
 file_validator: FileValidator = FileValidator(config=_build_security_config())
+file_validator.signature_validator = _ImageSignatureValidator(file_validator.config)
 
 #: Structured audit logger backing the ``safeuploads.audit`` Python
 #: logger. Records validation start/success/failure events with a
@@ -508,8 +561,6 @@ def read_validated_upload_sync(file: UploadFile, *, kind: UploadKind) -> bytes:
 _IMAGE_SIGNATURES: tuple[tuple[bytes, str], ...] = (
     (b"\x89PNG\r\n\x1a\n", "image/png"),
     (b"\xff\xd8\xff", "image/jpeg"),
-    (b"GIF87a", "image/gif"),
-    (b"GIF89a", "image/gif"),
 )
 
 
@@ -525,7 +576,7 @@ def sniff_image_type(data: bytes) -> str | None:
     for signature, media_type in _IMAGE_SIGNATURES:
         if data.startswith(signature):
             return media_type
-    if data[:4] == b"RIFF" and data[8:12] == b"WEBP":
+    if _is_webp(data):
         return "image/webp"
     return None
 

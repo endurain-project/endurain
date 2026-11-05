@@ -94,7 +94,7 @@ The public Nominatim and Photon servers expect about one request per second, so 
 
 ### Login photo
 
-The image shown on the login page. Upload an image of up to 5 MB, ideally square. The settings page accepts PNG files; the API also accepts JPEG, GIF and WebP. Removing it restores the default. The photo is public because the login page needs it before anyone is signed in. See [Image personalization](../getting-started/advanced-setup.md#image-personalization).
+The image shown on the login page. Upload an image of up to 5 MB, ideally square. The settings page accepts PNG files; the API also accepts JPEG and WebP. Removing it restores the default. The photo is public because the login page needs it before anyone is signed in. See [Image personalization](../getting-started/advanced-setup.md#image-personalization).
 
 ### Email
 

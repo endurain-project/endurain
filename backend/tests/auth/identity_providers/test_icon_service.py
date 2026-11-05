@@ -1,12 +1,15 @@
 """Tests for the uploaded identity-provider icon service."""
 
+import io
 from unittest.mock import MagicMock, patch
 
 import jasil.providers as jasil_providers
 import jasil.testing as jasil_testing
 import pytest
+from fastapi import UploadFile
 
 import core.exceptions as core_exceptions
+import core.file_uploads as core_file_uploads
 import modules.auth.identity_providers.audit_actions as idp_audit_actions
 import modules.auth.identity_providers.constants as idp_constants
 import modules.auth.identity_providers.contracts as idp_contracts
@@ -277,3 +280,37 @@ class TestIconAudit:
             icon_service.delete_icon(7, MagicMock(), MagicMock())
 
         audit.assert_not_audited(idp_audit_actions.IDENTITY_PROVIDER_UPDATE.id)
+
+
+class TestUploadIconImageFormats:
+    @staticmethod
+    def _reader(name: str, data: bytes):
+        return lambda: core_file_uploads.read_validated_upload_sync(
+            UploadFile(io.BytesIO(data), filename=name), kind=core_file_uploads.UploadKind.IMAGE
+        )
+
+    def test_a_webp_is_stored_without_its_metadata(self):
+        storage = MagicMock()
+        with (
+            patch.object(icon_service.idp_crud, "identity_provider_exists", return_value=True),
+            patch.object(icon_service.idp_crud, "set_icon_uploaded", return_value=5),
+        ):
+            icon_service.upload_icon(7, self._reader("icon.webp", images.webp_with_exif()), storage, MagicMock())
+
+        _area, _key, data, content_type = storage.save.call_args.args
+        assert content_type == "image/webp"
+        assert not images.has_metadata(data)
+
+    @pytest.mark.parametrize(
+        ("name", "data"), [("a.gif", images.gif()), ("a.heic", images.heic_like())], ids=["gif", "heic"]
+    )
+    def test_gif_and_heic_are_refused(self, name: str, data: bytes):
+        storage = MagicMock()
+        with (
+            patch.object(icon_service.idp_crud, "identity_provider_exists", return_value=True),
+            pytest.raises(core_exceptions.DomainError) as exc,
+        ):
+            icon_service.upload_icon(7, self._reader(name, data), storage, MagicMock())
+
+        assert exc.value.status_code == 400
+        storage.save.assert_not_called()

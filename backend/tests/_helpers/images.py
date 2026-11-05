@@ -78,3 +78,42 @@ def has_metadata(data: bytes) -> bool:
             or bool(image.info.get("xmp"))
             or bool(getattr(image, "text", None))
         )
+
+
+def webp_with_exif(size: tuple[int, int] = (40, 20), *, orientation: int = 1) -> bytes:
+    """Return a WebP carrying GPS EXIF and the given orientation tag.
+
+    Args:
+        size: Width and height of the stored pixels.
+        orientation: The EXIF orientation value.
+
+    Returns:
+        The WebP bytes.
+    """
+    exif = exif_with_gps(orientation)
+    buffer = io.BytesIO()
+    Image.new("RGB", size, (30, 30, 200)).save(buffer, "WEBP", exif=exif)
+    return buffer.getvalue()
+
+
+def gif(size: tuple[int, int] = (8, 8)) -> bytes:
+    """Return a GIF image.
+
+    Args:
+        size: Width and height in pixels.
+
+    Returns:
+        The GIF bytes.
+    """
+    buffer = io.BytesIO()
+    Image.new("P", size).save(buffer, "GIF")
+    return buffer.getvalue()
+
+
+def heic_like() -> bytes:
+    """Return bytes with an ISO base media ``ftyp`` header naming the ``heic`` brand.
+
+    Returns:
+        A minimal HEIC-signature payload.
+    """
+    return b"\x00\x00\x00\x18ftypheic\x00\x00\x00\x00mif1heic" + b"\x00" * 64

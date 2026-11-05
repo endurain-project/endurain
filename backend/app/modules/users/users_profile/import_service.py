@@ -558,9 +558,7 @@ class ImportService:
             path = file_path.replace("\\", "/")
 
             # Import user images
-            if path.lower().endswith(tuple(users_constants.ALLOWED_USER_IMAGE_EXTENSIONS)) and path.startswith(
-                "user_images/"
-            ):
+            if path.lower().endswith(tuple(file_uploads.IMAGE_CONTENT_TYPES)) and path.startswith("user_images/"):
                 logger.debug("Processing a user image file", extra=core_logger.context(file_path=file_path))
                 ext = os.path.splitext(path)[1].lower()
                 new_file_name = f"{self.user_id}{ext}"

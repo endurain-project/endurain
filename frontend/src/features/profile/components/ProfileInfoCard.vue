@@ -6,6 +6,7 @@ import { ImageUp, Trash2, UserPen } from '@lucide/vue'
 import type { ProfileDetails } from '@/features/profile/types'
 
 import ProfileFormDialog from '@/features/profile/components/ProfileFormDialog.vue'
+import { IMAGE_ACCEPTED_TYPES } from '@/lib/imageTypes'
 import UserAvatar from '@/components/UserAvatar.vue'
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
@@ -168,7 +169,13 @@ function confirmDeletePhoto(): void {
       </dl>
     </div>
 
-    <input ref="fileInput" type="file" accept="image/*" class="sr-only" @change="onPhotoChange" />
+    <input
+      ref="fileInput"
+      type="file"
+      :accept="IMAGE_ACCEPTED_TYPES.join(',')"
+      class="sr-only"
+      @change="onPhotoChange"
+    />
 
     <div class="flex flex-col gap-3 sm:flex-row sm:flex-wrap">
       <Button class="w-full sm:w-auto" @click="isEditOpen = true">

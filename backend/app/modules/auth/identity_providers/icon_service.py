@@ -62,7 +62,7 @@ def upload_icon(
     Raises:
         NotFoundError: If the provider does not exist.
         PayloadTooLargeError: If the image exceeds the icon size cap.
-        UnsupportedMediaTypeError: If the image is not a PNG, JPEG, GIF or WebP.
+        UnsupportedMediaTypeError: If the image is not a JPEG, PNG or WebP.
         InvalidInputError: If the image cannot be decoded for the metadata strip.
     """
     if not idp_crud.identity_provider_exists(idp_id, db):
@@ -72,7 +72,7 @@ def upload_icon(
         raise core_exceptions.PayloadTooLargeError("Identity provider icon is too large")
     media_type = core_file_uploads.sniff_image_type(data)
     if media_type is None:
-        raise core_exceptions.UnsupportedMediaTypeError("Identity provider icon must be a PNG, JPEG, GIF or WebP image")
+        raise core_exceptions.UnsupportedMediaTypeError("Identity provider icon must be a JPEG, PNG or WebP image")
     # End the read transaction: storage is a network call.
     db.rollback()
     storage.save(

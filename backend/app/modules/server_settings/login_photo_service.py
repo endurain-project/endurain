@@ -46,7 +46,7 @@ def upload_login_photo(
         raise core_exceptions.PayloadTooLargeError("Login photo is too large")
     media_type = core_file_uploads.sniff_image_type(data)
     if media_type is None:
-        raise core_exceptions.UnsupportedMediaTypeError("Login photo must be a PNG, JPEG, GIF or WebP image")
+        raise core_exceptions.UnsupportedMediaTypeError("Login photo must be a JPEG, PNG or WebP image")
     storage.save(
         server_settings_constants.LOGIN_PHOTO_STORAGE_AREA,
         server_settings_constants.LOGIN_PHOTO_STORAGE_KEY,

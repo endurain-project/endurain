@@ -1,12 +1,15 @@
 """Tests for the activity media service (authorization, storage, cleanup)."""
 
+import io
 from unittest.mock import MagicMock, patch
 
 import jasil.providers as platform_providers
 import pytest
+from fastapi import UploadFile
 from tests._helpers import images
 
 import core.exceptions as core_exceptions
+import core.file_uploads as core_file_uploads
 import core.hashing as core_hashing
 
 _SVC = "modules.activities.activity_media.service"
@@ -475,3 +478,68 @@ class TestNoConnectionHeldWhileUsingStorage:
             service.read_activity_media_blob(1, 2, "token", storage, db)
 
         assert [call[0] for call in order.mock_calls] == ["commit", "get"]
+
+
+class TestImageFormats:
+    @pytest.mark.parametrize(
+        ("key", "expected"),
+        [
+            ("1_a.jpg", "image/jpeg"),
+            ("1_a.JPEG", "image/jpeg"),
+            ("1_a.png", "image/png"),
+            ("1_a.webp", "image/webp"),
+            ("1_a.heic", "application/octet-stream"),
+        ],
+    )
+    def test_a_stored_key_is_served_with_the_type_of_its_extension(self, key, expected):
+        from modules.activities.activity_media.service import _content_type_for
+
+        assert _content_type_for(key) == expected
+
+    @pytest.mark.parametrize("name", ["a.gif", "a.heic", "a.heif"])
+    def test_gif_and_heic_names_are_refused(self, name):
+        from modules.activities.activity_media.service import _build_storage_key
+
+        with pytest.raises(core_exceptions.UnsupportedMediaTypeError):
+            _build_storage_key(1, name)
+
+    @patch(f"{_SVC}.activity_media_crud")
+    @patch(f"{_SVC}.activity_integration")
+    def test_a_webp_is_stored_without_its_metadata(self, mock_activities_service, mock_media_crud):
+        from modules.activities.activity_media.contracts import ActivityMediaRecord
+        from modules.activities.activity_media.service import store_activity_media
+
+        mock_activities_service.owns_activity.return_value = True
+        mock_media_crud.get_activity_media_by_content_hash.return_value = None
+        mock_media_crud.create_activity_media.return_value = ActivityMediaRecord(
+            id=9, activity_id=1, media_path="1_abc.webp", media_type=1
+        )
+        storage = MagicMock()
+        webp = images.webp_with_exif()
+
+        store_activity_media(
+            1,
+            2,
+            "ride.webp",
+            lambda: core_file_uploads.read_validated_upload_sync(
+                UploadFile(io.BytesIO(webp), filename="ride.webp"), kind=core_file_uploads.UploadKind.IMAGE
+            ),
+            storage,
+            MagicMock(),
+        )
+
+        _area, key, data, content_type = storage.save.call_args.args
+        assert key.endswith(".webp")
+        assert content_type == "image/webp"
+        assert not images.has_metadata(data)
+
+    @pytest.mark.parametrize(
+        ("name", "data"), [("a.gif", images.gif()), ("a.heic", images.heic_like())], ids=["gif", "heic"]
+    )
+    def test_gif_and_heic_uploads_are_refused_by_the_validator(self, name, data):
+        with pytest.raises(core_exceptions.DomainError) as exc:
+            core_file_uploads.read_validated_upload_sync(
+                UploadFile(io.BytesIO(data), filename=name), kind=core_file_uploads.UploadKind.IMAGE
+            )
+
+        assert exc.value.status_code == 400

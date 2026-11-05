@@ -6,6 +6,7 @@ import asyncio
 import gzip
 import io
 import logging
+import os
 import struct
 import zipfile
 import zlib
@@ -1380,3 +1381,48 @@ class TestStripImageMetadata:
 
         with pytest.raises(core_exceptions.PayloadTooLargeError):
             core_file_uploads.strip_image_metadata(buffer.getvalue())
+
+
+class TestImageAllowList:
+    def test_the_validator_accepts_exactly_the_shared_allow_list(self):
+        config = core_file_uploads.file_validator.config
+
+        assert frozenset(core_file_uploads.IMAGE_CONTENT_TYPES) == config.ALLOWED_IMAGE_EXTENSIONS
+        assert frozenset(core_file_uploads.IMAGE_CONTENT_TYPES.values()) == config.ALLOWED_IMAGE_MIMES
+        assert set(core_file_uploads.IMAGE_CONTENT_TYPES) == {".jpg", ".jpeg", ".png", ".webp"}
+
+    @pytest.mark.parametrize(
+        ("name", "data", "media_type"),
+        [
+            ("a.jpg", images.jpeg_with_exif(), "image/jpeg"),
+            ("a.png", images.png_with_text(), "image/png"),
+            ("a.webp", images.webp_with_exif(), "image/webp"),
+        ],
+        ids=["jpeg", "png", "webp"],
+    )
+    def test_each_allowed_format_is_accepted_and_sniffed(self, name: str, data: bytes, media_type: str):
+        assert read_validated_upload_sync(_upload(name, data), kind=UploadKind.IMAGE) == data
+        assert core_file_uploads.sniff_image_type(data) == media_type
+        assert core_file_uploads.IMAGE_CONTENT_TYPES[os.path.splitext(name)[1]] == media_type
+
+    @pytest.mark.parametrize(
+        ("name", "data"),
+        [("a.gif", images.gif()), ("a.heic", images.heic_like()), ("a.heif", images.heic_like())],
+        ids=["gif", "heic", "heif"],
+    )
+    def test_gif_and_heic_are_refused(self, name: str, data: bytes):
+        with pytest.raises(core_exceptions.DomainError) as exc:
+            read_validated_upload_sync(_upload(name, data), kind=UploadKind.IMAGE)
+        assert exc.value.status_code == 400
+
+    def test_a_gif_renamed_to_webp_is_refused(self):
+        with pytest.raises(core_exceptions.DomainError):
+            read_validated_upload_sync(_upload("a.webp", images.gif()), kind=UploadKind.IMAGE)
+
+    def test_a_gif_is_not_sniffed(self):
+        assert core_file_uploads.sniff_image_type(images.gif()) is None
+
+    def test_a_webp_passes_the_pixel_cap_check(self):
+        data = images.webp_with_exif()
+
+        core_file_uploads._check_image_pixels(io.BytesIO(data))

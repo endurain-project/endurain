@@ -1,3 +1,4 @@
+import { IMAGE_ACCEPTED_TYPES } from '@/lib/imageTypes'
 import { PROVIDER_CUSTOM_LOGO_MAP } from '@/constants/ssoLogos'
 import { getApiBaseUrl } from '@/services/runtime'
 
@@ -16,7 +17,7 @@ export type BuiltinProviderIcon = (typeof BUILTIN_PROVIDER_ICONS)[number]
 export const UPLOADED_ICON = 'uploaded'
 
 /** Image types the backend accepts for an uploaded icon. */
-export const ICON_ACCEPTED_TYPES = ['image/png', 'image/jpeg', 'image/gif', 'image/webp']
+export const ICON_ACCEPTED_TYPES = IMAGE_ACCEPTED_TYPES
 
 /** Largest uploaded icon the backend accepts, in bytes. */
 export const ICON_MAX_BYTES = 1024 * 1024

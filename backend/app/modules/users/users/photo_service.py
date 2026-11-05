@@ -21,15 +21,6 @@ import modules.users.users.signing as users_signing
 
 logger = core_logger.get_logger(__name__)
 
-#: The content type served for each stored extension.
-PHOTO_CONTENT_TYPES = {
-    ".jpg": "image/jpeg",
-    ".jpeg": "image/jpeg",
-    ".png": "image/png",
-    ".webp": "image/webp",
-    ".gif": "image/gif",
-}
-
 
 def delete_photo_files(user_id: int, storage: platform_providers.StorageProvider) -> None:
     """Delete every stored photo blob of a user.
@@ -213,7 +204,7 @@ def store_photo(
         InvalidInputError: If the bytes are not a decodable image.
     """
     extension = extension.lower()
-    if extension not in users_constants.ALLOWED_USER_IMAGE_EXTENSIONS:
+    if extension not in core_file_uploads.IMAGE_CONTENT_TYPES:
         raise core_exceptions.UnsupportedMediaTypeError("Unsupported user image file type")
 
     if users_crud.get_user_by_id(user_id, db) is None:
@@ -222,7 +213,7 @@ def store_photo(
 
     data = core_file_uploads.strip_image_metadata(data, max_dimension=users_constants.USER_IMAGE_MAX_DIMENSION)
     key = f"{user_id}{extension}"
-    storage.save(users_constants.USER_IMAGE_STORAGE_AREA, key, data, PHOTO_CONTENT_TYPES[extension])
+    storage.save(users_constants.USER_IMAGE_STORAGE_AREA, key, data, core_file_uploads.IMAGE_CONTENT_TYPES[extension])
 
     replaced = users_crud.replace_photo_key(user_id, key, db)
     if audit:
@@ -269,7 +260,7 @@ def upload_photo(
     # Defense-in-depth allow-list on the user-supplied extension. The upload reader still
     # validates the magic number, so a mismatched signature is rejected even if this passes.
     file_extension = os.path.splitext(file.filename)[1].lower()
-    if file_extension not in users_constants.ALLOWED_USER_IMAGE_EXTENSIONS:
+    if file_extension not in core_file_uploads.IMAGE_CONTENT_TYPES:
         raise core_exceptions.UnsupportedMediaTypeError("Unsupported user image file type")
 
     data = core_file_uploads.read_validated_upload_sync(file, kind=core_file_uploads.UploadKind.IMAGE)
@@ -313,4 +304,4 @@ def read_photo(user_id: int, token: str, storage: platform_providers.StorageProv
     if data is None:
         raise core_exceptions.NotFoundError("User photo not found")
 
-    return data, PHOTO_CONTENT_TYPES.get(os.path.splitext(key)[1].lower(), "application/octet-stream")
+    return data, core_file_uploads.IMAGE_CONTENT_TYPES.get(os.path.splitext(key)[1].lower(), "application/octet-stream")

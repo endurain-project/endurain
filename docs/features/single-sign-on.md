@@ -153,7 +153,7 @@ Save the generated **Client ID** and **Client Secret**.
 #### Choosing an icon
 
 - **Built-in logos** exist for Authelia, Authentik, Casdoor, Keycloak and Pocket ID.
-- **Upload an image** stores a PNG, JPEG, GIF or WebP file of up to 1 MB in Endurain and serves it from your own server. SVG files are not accepted.
+- **Upload an image** stores a JPEG, PNG or WebP file of up to 1 MB in Endurain and serves it from your own server. SVG files are not accepted.
 - The icon cannot point at an image on another host: the browser's Content-Security-Policy would block it, and every visitor's browser would contact that host.
 - The uploaded image is public: the login page shows it to everyone who visits it.
 

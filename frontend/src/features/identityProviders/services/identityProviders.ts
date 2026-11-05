@@ -214,7 +214,7 @@ export async function deleteIdentityProvider(id: number, version: number): Promi
  * icon URL until it is removed.
  *
  * @param id - The provider id.
- * @param file - The PNG, JPEG, GIF or WebP image.
+ * @param file - The PNG, JPEG or WebP image.
  * @throws {HttpError} When the upload fails (e.g. wrong file type or too large).
  */
 export async function uploadIdentityProviderIcon(id: number, file: File): Promise<void> {
