@@ -7,9 +7,9 @@ from jasil.backends.state_memory import MemoryState
 import core.cryptography as core_cryptography
 import modules.auth.account_security.step_up_service as step_up_service
 import modules.auth.account_security.step_up_store as step_up_store
-import modules.auth.authentication.audit_actions as authentication_audit_actions
 import modules.auth.authentication.service as authentication_service
 import modules.auth.credentials.integration_service as credentials_integration
+import modules.auth.login_audit.audit_actions as login_audit_actions
 import modules.auth.mfa.crud as mfa_crud
 import modules.auth.mfa.pending_login_store as pending_login_store
 import modules.auth.mfa_backup_codes.crud as backup_codes_crud
@@ -48,7 +48,7 @@ class TestBackupCodeAtSignIn:
             authentication_service.require_valid_mfa_code(
                 f"user{_USER_ID}",
                 _USER_ID,
-                authentication_audit_actions.LoginMethod.PASSWORD,
+                login_audit_actions.LoginMethod.PASSWORD,
                 _BACKUP_CODE.lower(),
                 pending_login_store.PendingMFALogin(MemoryState()),
                 credentials_integration.get_password_hasher(),

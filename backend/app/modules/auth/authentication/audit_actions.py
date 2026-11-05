@@ -1,4 +1,4 @@
-"""Audit actions written by the authentication package: sign-in, sign-out and refused credentials.
+"""Audit actions written by the authentication package: sign-out and refused refreshes, API keys and scopes.
 
 Ids are stable forever: rows outlive the code. ``details`` carry ids and enumerated reasons only, never a
 username that was not matched, a token or a password.
@@ -10,25 +10,6 @@ from typing import ClassVar
 import jasil.audit as jasil_audit
 from jasil.event_versioning import VersionedPayload
 from pydantic import ConfigDict
-
-
-class LoginMethod(StrEnum):
-    """How a sign-in was attempted."""
-
-    PASSWORD = "password"
-    IDENTITY_PROVIDER = "identity_provider"
-
-
-class LoginFailureReason(StrEnum):
-    """Why a sign-in was refused."""
-
-    INVALID_CREDENTIALS = "invalid_credentials"
-    LOCKED_OUT = "locked_out"
-    INACTIVE = "inactive"
-    PASSWORD_SIGN_IN_DISABLED = "password_sign_in_disabled"
-    INVALID_MFA_CODE = "invalid_mfa_code"
-    MFA_CHALLENGE_EXPIRED = "mfa_challenge_expired"
-    MFA_CHALLENGE_CLAIMED = "mfa_challenge_claimed"
 
 
 class ApiKeyRefusalReason(StrEnum):
@@ -52,26 +33,6 @@ class RefreshRefusalReason(StrEnum):
     REPLAY_UNAVAILABLE = "replay_unavailable"
     USER_NOT_FOUND = "user_not_found"
     USER_INACTIVE = "user_inactive"
-
-
-class LoginDetails(VersionedPayload):
-    """Details of ``auth.session.login``.
-
-    Attributes:
-        method: How the sign-in was attempted.
-        mfa: Whether a second factor was verified (or, on a failure, was the step refused).
-        reason: Why the sign-in was refused; None on success.
-        new_device: Whether the sign-in was announced as one from a new device; False on a refusal.
-    """
-
-    model_config = ConfigDict(extra="forbid")
-
-    SCHEMA_VERSION: ClassVar[int] = 2
-
-    method: LoginMethod
-    mfa: bool = False
-    reason: LoginFailureReason | None = None
-    new_device: bool = False
 
 
 class ApiKeyRefusalDetails(VersionedPayload):
@@ -115,15 +76,6 @@ class ScopeDeniedDetails(VersionedPayload):
 
     missing_scopes: list[str]
 
-
-LOGIN = jasil_audit.AuditAction(
-    id="auth.session.login",
-    category=jasil_audit.Category.AUTHENTICATION,
-    severity=jasil_audit.Severity.LOW,
-    description_key="audit.auth.session.login",
-    description_default="A sign-in was attempted",
-    details_model=LoginDetails,
-)
 
 LOGOUT = jasil_audit.AuditAction(
     id="auth.session.logout",
@@ -170,7 +122,6 @@ SCOPE_DENIED = jasil_audit.AuditAction(
 
 #: Every action this package writes, registered by the composition root.
 ACTIONS: tuple[jasil_audit.AuditAction, ...] = (
-    LOGIN,
     LOGOUT,
     REFRESH,
     REFRESH_TOKEN_REUSE,

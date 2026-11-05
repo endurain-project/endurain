@@ -25,6 +25,8 @@ import modules.auth.known_devices.events as known_devices_events
 import modules.auth.known_devices.integration_service as known_devices_integration
 import modules.auth.lockout.contracts as lockout_contracts
 import modules.auth.lockout.integration_service as lockout_integration
+import modules.auth.login_audit.audit_actions as login_audit_actions
+import modules.auth.login_audit.integration_service as login_audit_integration
 import modules.auth.mfa.dependencies as mfa_dependencies
 import modules.auth.mfa.integration_service as mfa_integration
 import modules.auth.oauth_state.constants as oauth_state_constants
@@ -45,9 +47,7 @@ def _refuse_credentials(
     username: str,
     user_id: int | None = None,
     outcome: jasil_audit.Outcome = jasil_audit.Outcome.FAILURE,
-    reason: authentication_audit_actions.LoginFailureReason = (
-        authentication_audit_actions.LoginFailureReason.INVALID_CREDENTIALS
-    ),
+    reason: login_audit_actions.LoginFailureReason = (login_audit_actions.LoginFailureReason.INVALID_CREDENTIALS),
 ) -> NoReturn:
     """Audit and log a refused sign-in, then answer with the one message every cause shares.
 
@@ -63,8 +63,8 @@ def _refuse_credentials(
     Raises:
         UnauthenticatedError: Always.
     """
-    authentication_refusal_audit.record_login_refusal(
-        authentication_audit_actions.LoginMethod.PASSWORD, outcome, reason, user_id=user_id
+    login_audit_integration.record_login_refusal(
+        login_audit_actions.LoginMethod.PASSWORD, outcome, reason, user_id=user_id
     )
     logger.warning(
         "Sign-in refused for <username_log_id>",
@@ -352,7 +352,7 @@ def raise_auth_security_store_unavailable(
 def refuse_while_mfa_locked_out(
     username: str,
     user_id: int,
-    method: authentication_audit_actions.LoginMethod,
+    method: login_audit_actions.LoginMethod,
     pending_mfa_store: mfa_dependencies.PendingMFAStore,
 ) -> None:
     """Refuse an MFA attempt while the account is locked out from too many failed codes.
@@ -379,10 +379,10 @@ def refuse_while_mfa_locked_out(
                         seconds_remaining=seconds_remaining,
                     ),
                 )
-                authentication_refusal_audit.record_login_refusal(
+                login_audit_integration.record_login_refusal(
                     method,
                     jasil_audit.Outcome.DENIED,
-                    authentication_audit_actions.LoginFailureReason.LOCKED_OUT,
+                    login_audit_actions.LoginFailureReason.LOCKED_OUT,
                     mfa=True,
                     user_id=user_id,
                 )
@@ -396,7 +396,7 @@ def refuse_while_mfa_locked_out(
 def require_valid_mfa_code(
     username: str,
     user_id: int,
-    method: authentication_audit_actions.LoginMethod,
+    method: login_audit_actions.LoginMethod,
     mfa_code: str,
     pending_mfa_store: mfa_dependencies.PendingMFAStore,
     password_hasher: credentials_integration.PasswordHasher,
@@ -440,10 +440,10 @@ def require_valid_mfa_code(
             "Invalid MFA code for <username_log_id>. Failed attempts: <failed_count>",
             extra=core_logger.context(username_log_id=username_log_id, failed_count=failed_count),
         )
-        authentication_refusal_audit.record_login_refusal(
+        login_audit_integration.record_login_refusal(
             method,
             jasil_audit.Outcome.FAILURE,
-            authentication_audit_actions.LoginFailureReason.INVALID_MFA_CODE,
+            login_audit_actions.LoginFailureReason.INVALID_MFA_CODE,
             mfa=True,
             user_id=user_id,
         )
@@ -496,10 +496,10 @@ def _finish_login(
     ):
         jasil_audit.stage(
             db,
-            authentication_audit_actions.LOGIN,
-            **authentication_refusal_audit.user_target(user.id),
-            details=authentication_audit_actions.LoginDetails(
-                method=authentication_audit_actions.LoginMethod.PASSWORD, mfa=mfa, new_device=sign_in.new_device
+            login_audit_actions.LOGIN,
+            **login_audit_integration.user_target(user.id),
+            details=login_audit_actions.LoginDetails(
+                method=login_audit_actions.LoginMethod.PASSWORD, mfa=mfa, new_device=sign_in.new_device
             ),
         )
 
@@ -600,10 +600,10 @@ def login_for_access_token(
                         seconds_remaining=seconds_remaining,
                     ),
                 )
-                authentication_refusal_audit.record_login_refusal(
-                    authentication_audit_actions.LoginMethod.PASSWORD,
+                login_audit_integration.record_login_refusal(
+                    login_audit_actions.LoginMethod.PASSWORD,
                     jasil_audit.Outcome.DENIED,
-                    authentication_audit_actions.LoginFailureReason.LOCKED_OUT,
+                    login_audit_actions.LoginFailureReason.LOCKED_OUT,
                 )
                 raise core_exceptions.TooManyRequestsError(
                     f"Account locked due to too many failed login attempts. Try again in {seconds_remaining} seconds."
@@ -621,7 +621,7 @@ def login_for_access_token(
                 username,
                 user.id,
                 jasil_audit.Outcome.DENIED,
-                authentication_audit_actions.LoginFailureReason.INACTIVE,
+                login_audit_actions.LoginFailureReason.INACTIVE,
             )
         if not credentials_integration.allows_password_sign_in(
             server_settings_integration.get_server_settings(db), users_schema.normalize_access_type(user.access_type)
@@ -636,7 +636,7 @@ def login_for_access_token(
                 username,
                 user.id,
                 jasil_audit.Outcome.DENIED,
-                authentication_audit_actions.LoginFailureReason.PASSWORD_SIGN_IN_DISABLED,
+                login_audit_actions.LoginFailureReason.PASSWORD_SIGN_IN_DISABLED,
             )
     except core_exceptions.UnauthenticatedError as err:
         # Record failed attempt on authentication errors (401 Unauthorized)
@@ -759,10 +759,10 @@ def verify_mfa_and_login(
         # wrong-code branch, where backup-code verification performs an Argon2 verify.
         password_hasher.dummy_verify()
         logger.warning("MFA verification refused: unknown or expired challenge")
-        authentication_refusal_audit.record_login_refusal(
-            authentication_audit_actions.LoginMethod.PASSWORD,
+        login_audit_integration.record_login_refusal(
+            login_audit_actions.LoginMethod.PASSWORD,
             jasil_audit.Outcome.FAILURE,
-            authentication_audit_actions.LoginFailureReason.MFA_CHALLENGE_EXPIRED,
+            login_audit_actions.LoginFailureReason.MFA_CHALLENGE_EXPIRED,
             mfa=True,
         )
         raise core_exceptions.InvalidMfaCodeError(_INVALID_MFA_CODE_MESSAGE)
@@ -774,7 +774,7 @@ def verify_mfa_and_login(
         )
         raise core_exceptions.UnauthenticatedError("Unable to authenticate", scheme="Bearer")
 
-    password_method = authentication_audit_actions.LoginMethod.PASSWORD
+    password_method = login_audit_actions.LoginMethod.PASSWORD
     refuse_while_mfa_locked_out(user.username, user_id, password_method, pending_mfa_store)
     require_valid_mfa_code(
         user.username, user_id, password_method, mfa_request.mfa_code, pending_mfa_store, password_hasher, db
@@ -789,10 +789,10 @@ def verify_mfa_and_login(
             "Pending MFA login for <username_log_id> was already claimed",
             extra=core_logger.context(username_log_id=lockout_integration.username_log_identifier(user.username)),
         )
-        authentication_refusal_audit.record_login_refusal(
+        login_audit_integration.record_login_refusal(
             password_method,
             jasil_audit.Outcome.FAILURE,
-            authentication_audit_actions.LoginFailureReason.MFA_CHALLENGE_CLAIMED,
+            login_audit_actions.LoginFailureReason.MFA_CHALLENGE_CLAIMED,
             mfa=True,
             user_id=user_id,
         )
@@ -871,7 +871,7 @@ def logout(
         sessions_integration.delete_session(session.id, token_user_id, db)
         with authentication_refusal_audit.refresh_token_context(token_user_id):
             jasil_audit.stage(
-                db, authentication_audit_actions.LOGOUT, **authentication_refusal_audit.user_target(token_user_id)
+                db, authentication_audit_actions.LOGOUT, **login_audit_integration.user_target(token_user_id)
             )
         db.commit()
 

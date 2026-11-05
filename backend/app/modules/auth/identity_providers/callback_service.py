@@ -8,6 +8,7 @@ from urllib.parse import quote
 from uuid import uuid4
 
 import httpx2
+import jasil.audit as jasil_audit
 from authlib.integrations.base_client import OAuthError
 from authlib.integrations.httpx_client import OAuth2Client
 from sqlalchemy.orm import Session
@@ -30,6 +31,8 @@ import modules.auth.identity_providers.token_service as token_service
 import modules.auth.identity_providers.user_provisioning_service as user_provisioning_service
 import modules.auth.identity_providers.utils as identity_provider_utils
 import modules.auth.lockout.integration_service as lockout_integration
+import modules.auth.login_audit.audit_actions as login_audit_actions
+import modules.auth.login_audit.integration_service as login_audit_integration
 import modules.auth.oauth_state.constants as oauth_state_constants
 import modules.auth.oauth_state.integration_service as oauth_state_integration
 import modules.auth.oauth_state.schema as oauth_state_schema
@@ -143,6 +146,7 @@ class CallbackService:
                 "OAuth state not found in database: <value_1>",
                 extra=core_logger.context(value_1=core_hashing.log_fingerprint(state)),
             )
+            _record_state_refusal(None)
             raise core_exceptions.InvalidInputError("Invalid or expired OAuth state")
         if oauth_state.idp_id is not None and oauth_state.idp_id != idp.id:
             logger.warning(
@@ -151,6 +155,7 @@ class CallbackService:
                     value_1=core_hashing.log_fingerprint(state), idp_id=oauth_state.idp_id, id=idp.id
                 ),
             )
+            _record_state_refusal(oauth_state)
             raise core_exceptions.InvalidInputError("Invalid or expired OAuth state")
         if oauth_state.purpose != oauth_state_constants.OAuthStatePurpose.LOGIN and not _is_bound_browser(
             browser_binding, oauth_state.browser_binding_hash
@@ -169,6 +174,7 @@ class CallbackService:
                 "OAuth state replay/race rejected: <value_1>",
                 extra=core_logger.context(value_1=core_hashing.log_fingerprint(state)),
             )
+            _record_state_refusal(oauth_state)
             raise core_exceptions.InvalidInputError("Invalid or expired OAuth state")
 
         logger.debug(
@@ -415,16 +421,23 @@ class CallbackService:
             token_response = self._exchange_code(idp, oauth_client, token_endpoint, code, oauth_state.idp_code_verifier)
 
             # Get user information with ID token verification
-            userinfo = self._oidc.get_userinfo(
-                token_response=token_response,
-                userinfo_endpoint=userinfo_endpoint,
-                client=oauth_client,
-                jwks_uri=jwks_uri,
-                expected_issuer=expected_issuer,
-                expected_audience=client_id,
-                expected_nonce=expected_nonce,
-                require_id_token=require_id_token,
-            )
+            try:
+                userinfo = self._oidc.get_userinfo(
+                    token_response=token_response,
+                    userinfo_endpoint=userinfo_endpoint,
+                    client=oauth_client,
+                    jwks_uri=jwks_uri,
+                    expected_issuer=expected_issuer,
+                    expected_audience=client_id,
+                    expected_nonce=expected_nonce,
+                    require_id_token=require_id_token,
+                )
+            except core_exceptions.UnauthenticatedError:
+                if not is_link_mode:
+                    _record_login_refusal(
+                        jasil_audit.Outcome.FAILURE, login_audit_actions.LoginFailureReason.INVALID_ID_TOKEN
+                    )
+                raise
 
             # Extract subject (unique user identifier)
             subject = userinfo.get("sub") or userinfo.get("id")
@@ -496,7 +509,13 @@ class CallbackService:
                 return CallbackResult(user=user, userinfo=userinfo, mode="link")
             else:
                 # LOGIN MODE: Find or create user and establish session
-                user = user_provisioning_service.find_or_create_user(idp, subject, userinfo, db)
+                try:
+                    user = user_provisioning_service.find_or_create_user(idp, subject, userinfo, db)
+                except core_exceptions.PermissionDeniedError:
+                    _record_login_refusal(
+                        jasil_audit.Outcome.DENIED, login_audit_actions.LoginFailureReason.PROVISIONING_REFUSED
+                    )
+                    raise
 
                 # A new account awaiting verification or approval has no session to renew; it is committed so the
                 # administrator sees it, and the sign-in is refused when the session is created.
@@ -774,7 +793,13 @@ class CallbackService:
         db: Session,
     ) -> str:
         """Create the token-exchange session for a successful SSO login."""
-        users_integration.require_active_user(user)
+        try:
+            users_integration.require_active_user(user)
+        except core_exceptions.PermissionDeniedError:
+            _record_login_refusal(
+                jasil_audit.Outcome.DENIED, login_audit_actions.LoginFailureReason.INACTIVE, user_id=user.id
+            )
+            raise
         user_read = users_schema.UsersRead.model_validate(user)
         session_id = str(uuid4())
         expires_at = datetime.now(UTC) + server_settings_integration.get_session_policy(db).refresh_token_ttl
@@ -792,6 +817,34 @@ class CallbackService:
         db.commit()
         logger.debug("SSO callback session created", extra=core_logger.context(user_id=user_read.id))
         return session_id
+
+
+def _record_login_refusal(
+    outcome: jasil_audit.Outcome, reason: login_audit_actions.LoginFailureReason, *, user_id: int | None = None
+) -> None:
+    """Audit a refused SSO sign-in, on its own transaction because the callback answers with a redirect.
+
+    Args:
+        outcome: ``FAILURE`` for a bad token or state, ``DENIED`` for a refusal by policy.
+        reason: Why the sign-in was refused.
+        user_id: The account the sign-in named, or None when none was matched.
+    """
+    login_audit_integration.record_login_refusal(
+        login_audit_actions.LoginMethod.IDENTITY_PROVIDER, outcome, reason, user_id=user_id
+    )
+
+
+def _record_state_refusal(oauth_state: oauth_state_schema.OAuthStateRead | None) -> None:
+    """Audit a callback whose OAuth state was refused, unless the state is known to belong to a link or step-up.
+
+    A state nobody can find could have started a sign-in, so it is recorded; one that is found and belongs to a
+    link or a step-up is not a sign-in attempt.
+
+    Args:
+        oauth_state: The state the callback named, or None when none was found.
+    """
+    if oauth_state is None or oauth_state.purpose == oauth_state_constants.OAuthStatePurpose.LOGIN:
+        _record_login_refusal(jasil_audit.Outcome.FAILURE, login_audit_actions.LoginFailureReason.INVALID_STATE)
 
 
 class _StaleSignInError(Exception):

@@ -17,6 +17,7 @@ import modules.auth.authentication.token_service as authentication_token_service
 import modules.auth.constants as auth_constants
 import modules.auth.credentials.integration_service as credentials_integration
 import modules.auth.identity_providers.integration_service as identity_providers_integration
+import modules.auth.login_audit.integration_service as login_audit_integration
 import modules.auth.rotated_refresh_tokens.integration_service as rotated_refresh_tokens_integration
 import modules.auth.sessions.contracts as sessions_contracts
 import modules.auth.sessions.integration_service as sessions_integration
@@ -266,7 +267,7 @@ def refresh_token(
                 db,
                 authentication_audit_actions.REFRESH_TOKEN_REUSE,
                 outcome=jasil_audit.Outcome.DENIED,
-                **authentication_refusal_audit.user_target(token_user_id),
+                **login_audit_integration.user_target(token_user_id),
             )
         db.commit()
         logger.warning(

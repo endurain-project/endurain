@@ -13,10 +13,11 @@ import modules.auth.authentication.refresh_service as authentication_service_ref
 import modules.auth.authentication.service as authentication_service
 import modules.auth.authentication.sso_exchange_service as authentication_service_sso_exchange_service
 import modules.auth.known_devices.contracts as known_devices_contracts
+import modules.auth.login_audit.audit_actions as login_audit_actions
 
 _SERVICE = "modules.auth.authentication.service"
 _USER = SimpleNamespace(id=5, username="alice", active=True, access_type="regular")
-_LOGIN = authentication_audit_actions.LOGIN.id
+_LOGIN = login_audit_actions.LOGIN.id
 
 
 @pytest.fixture(autouse=True)

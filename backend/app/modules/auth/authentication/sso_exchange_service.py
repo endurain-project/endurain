@@ -11,8 +11,6 @@ import core.exceptions as core_exceptions
 import core.hashing as core_hashing
 import core.logger as core_logger
 import modules.auth.access_tokens.integration_service as access_tokens_integration
-import modules.auth.authentication.audit_actions as authentication_audit_actions
-import modules.auth.authentication.refusal_audit as authentication_refusal_audit
 import modules.auth.authentication.schema as auth_schema
 import modules.auth.authentication.service as authentication_service
 import modules.auth.authentication.token_service as authentication_token_service
@@ -22,6 +20,8 @@ import modules.auth.known_devices.events as known_devices_events
 import modules.auth.known_devices.integration_service as known_devices_integration
 import modules.auth.lockout.contracts as lockout_contracts
 import modules.auth.lockout.integration_service as lockout_integration
+import modules.auth.login_audit.audit_actions as login_audit_actions
+import modules.auth.login_audit.integration_service as login_audit_integration
 import modules.auth.mfa.dependencies as mfa_dependencies
 import modules.auth.mfa.integration_service as mfa_integration
 import modules.auth.oauth_state.constants as oauth_state_constants
@@ -30,6 +30,19 @@ import modules.server_settings.integration_service as server_settings_integratio
 import modules.users.users.integration_service as users_integration
 
 logger = core_logger.get_logger(__name__)
+
+
+def _record_refusal(outcome: jasil_audit.Outcome, reason: login_audit_actions.LoginFailureReason, user_id: int) -> None:
+    """Audit a refused SSO token exchange, which signs in the account its session was created for.
+
+    Args:
+        outcome: ``FAILURE`` for a bad verifier or a replayed session, ``DENIED`` for a refusal by policy.
+        reason: Why the exchange was refused.
+        user_id: The account the session belongs to.
+    """
+    login_audit_integration.record_login_refusal(
+        login_audit_actions.LoginMethod.IDENTITY_PROVIDER, outcome, reason, user_id=user_id
+    )
 
 
 def exchange_tokens_for_session(
@@ -110,6 +123,9 @@ def exchange_tokens_for_session(
         logger.warning(
             "Token exchange replay attempt for session <value_1>", extra=core_logger.context(value_1=fingerprint)
         )
+        _record_refusal(
+            jasil_audit.Outcome.FAILURE, login_audit_actions.LoginFailureReason.EXCHANGE_REPLAYED, session_obj.user_id
+        )
         raise core_exceptions.ConflictError("Tokens already exchanged for this session")
 
     if not oauth_state.code_challenge or not oauth_state.code_challenge_method:
@@ -127,6 +143,9 @@ def exchange_tokens_for_session(
         logger.warning(
             "Token exchange failed: PKCE verification failed for session <value_1>",
             extra=core_logger.context(value_1=fingerprint),
+        )
+        _record_refusal(
+            jasil_audit.Outcome.FAILURE, login_audit_actions.LoginFailureReason.PKCE_MISMATCH, session_obj.user_id
         )
         raise
 
@@ -151,7 +170,11 @@ def exchange_tokens_for_session(
         client_type = header_client_type or "web"
 
     user = users_integration.require_user(session_obj.user_id, db)
-    users_integration.require_active_user(user)
+    try:
+        users_integration.require_active_user(user)
+    except core_exceptions.PermissionDeniedError:
+        _record_refusal(jasil_audit.Outcome.DENIED, login_audit_actions.LoginFailureReason.INACTIVE, user.id)
+        raise
 
     mfa_verified = oauth_state.idp_id is not None and mfa_integration.is_mfa_enabled_for_user(user.id, db)
     if mfa_verified:
@@ -160,7 +183,7 @@ def exchange_tokens_for_session(
                 "Token exchange for session <value_1> needs an MFA code", extra=core_logger.context(value_1=fingerprint)
             )
             raise core_exceptions.MfaRequiredError()
-        sso_method = authentication_audit_actions.LoginMethod.IDENTITY_PROVIDER
+        sso_method = login_audit_actions.LoginMethod.IDENTITY_PROVIDER
         authentication_service.refuse_while_mfa_locked_out(user.username, user.id, sso_method, pending_mfa_store)
         authentication_service.require_valid_mfa_code(
             user.username, user.id, sso_method, mfa_code, pending_mfa_store, password_hasher, db
@@ -185,6 +208,7 @@ def exchange_tokens_for_session(
         session_id, password_hasher.hash_password(refresh_token), db
     ):
         logger.warning("Token exchange lost race for session <value_1>", extra=core_logger.context(value_1=fingerprint))
+        _record_refusal(jasil_audit.Outcome.FAILURE, login_audit_actions.LoginFailureReason.EXCHANGE_REPLAYED, user.id)
         raise core_exceptions.ConflictError("Tokens already exchanged for this session")
     issued_device_id = None
     if oauth_state.idp_id is not None:
@@ -205,10 +229,10 @@ def exchange_tokens_for_session(
         ):
             jasil_audit.stage(
                 db,
-                authentication_audit_actions.LOGIN,
-                **authentication_refusal_audit.user_target(user.id),
-                details=authentication_audit_actions.LoginDetails(
-                    method=authentication_audit_actions.LoginMethod.IDENTITY_PROVIDER,
+                login_audit_actions.LOGIN,
+                **login_audit_integration.user_target(user.id),
+                details=login_audit_actions.LoginDetails(
+                    method=login_audit_actions.LoginMethod.IDENTITY_PROVIDER,
                     mfa=mfa_verified,
                     new_device=sign_in.new_device,
                 ),

@@ -59,6 +59,7 @@ import modules.auth.identity_providers.scheduled_jobs as identity_providers_sche
 import modules.auth.identity_providers.subscriber_registry as identity_providers_subscriber_registry
 import modules.auth.known_devices.scheduled_jobs as known_devices_scheduled_jobs
 import modules.auth.lockout.audit_actions as lockout_audit_actions
+import modules.auth.login_audit.audit_actions as login_audit_actions
 import modules.auth.mfa_backup_codes.audit_actions as mfa_backup_codes_audit_actions
 import modules.auth.oauth_state.scheduled_jobs as oauth_state_scheduled_jobs
 import modules.auth.onboarding.scheduled_jobs as onboarding_scheduled_jobs
@@ -341,6 +342,7 @@ MODULES: tuple[RuntimeModule, ...] = (
     RuntimeModule(name="rotated_refresh_tokens", recurring_jobs=rotated_refresh_tokens_scheduled_jobs.recurring_jobs),
     RuntimeModule(name="known_devices", recurring_jobs=known_devices_scheduled_jobs.recurring_jobs),
     RuntimeModule(name="lockout", audit_actions=lockout_audit_actions.ACTIONS),
+    RuntimeModule(name="login_audit", audit_actions=login_audit_actions.ACTIONS),
     RuntimeModule(name="mfa_backup_codes", audit_actions=mfa_backup_codes_audit_actions.ACTIONS),
     RuntimeModule(
         name="identity_providers",

@@ -13,12 +13,13 @@ import modules.auth.authentication.audit_actions as authentication_audit_actions
 import modules.auth.authentication.principal_service as principal_service
 import modules.auth.authentication.refresh_service as authentication_service_refresh_service
 import modules.auth.authentication.service as authentication_service
+import modules.auth.login_audit.audit_actions as login_audit_actions
 
 _SERVICE = "modules.auth.authentication.service"
 _PRINCIPAL = "modules.auth.authentication.principal_service"
 _API_KEY = authentication_audit_actions.API_KEY_AUTHENTICATE.id
 _REFRESH = authentication_audit_actions.REFRESH.id
-_LOGIN = authentication_audit_actions.LOGIN.id
+_LOGIN = login_audit_actions.LOGIN.id
 _KEY_HASH = "a" * 64
 _USER = SimpleNamespace(id=5, username="alice", email="a@example.com", active=True, access_type="regular")
 
@@ -355,7 +356,7 @@ class TestLockoutAppliedByFailedCodes:
             authentication_service.require_valid_mfa_code(
                 "alice",
                 5,
-                authentication_audit_actions.LoginMethod.PASSWORD,
+                login_audit_actions.LoginMethod.PASSWORD,
                 "123456",
                 store,
                 password_hasher,

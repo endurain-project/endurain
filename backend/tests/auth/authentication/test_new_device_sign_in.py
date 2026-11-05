@@ -12,7 +12,6 @@ from fastapi.testclient import TestClient
 import core.database as core_database
 import core.exceptions as core_exceptions
 import modules.auth.access_tokens.service as auth_token_manager
-import modules.auth.authentication.audit_actions as authentication_audit_actions
 import modules.auth.authentication.failed_login_store as failed_login_store
 import modules.auth.authentication.public_router as auth_public_router
 import modules.auth.authentication.schema as auth_schema
@@ -23,6 +22,7 @@ import modules.auth.credentials.password_hasher as auth_password_hasher
 import modules.auth.known_devices.contracts as known_devices_contracts
 import modules.auth.known_devices.dependencies as known_devices_dependencies
 import modules.auth.known_devices.events as known_devices_events
+import modules.auth.login_audit.audit_actions as login_audit_actions
 import modules.auth.mfa.dependencies as mfa_dependencies
 import modules.auth.oauth_state.constants as oauth_state_constants
 
@@ -32,7 +32,7 @@ _USER = SimpleNamespace(id=5, username="alice", active=True, access_type="regula
 _TOKENS = ("sid", datetime(2999, 1, 1, tzinfo=UTC), "at", datetime(2999, 1, 1, tzinfo=UTC), "rt", "csrf")
 _DEVICE_ID = "d" * 43
 _ISSUED = "n" * 43
-_LOGIN = authentication_audit_actions.LOGIN.id
+_LOGIN = login_audit_actions.LOGIN.id
 _PASSWORD = known_devices_events.SignInMethod.PASSWORD
 _IDENTITY_PROVIDER = known_devices_events.SignInMethod.IDENTITY_PROVIDER
 
