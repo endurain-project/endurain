@@ -8,6 +8,7 @@ from sqlalchemy.orm import Session
 
 import core.database as core_database
 import core.exceptions as core_exceptions
+import core.key_rotation as core_key_rotation
 import modules.auth.rotated_refresh_tokens.models as rotated_token_models
 import modules.auth.rotated_refresh_tokens.schema as rotated_token_schema
 
@@ -72,3 +73,11 @@ def delete_by_family(token_family_id: str, db: Session) -> int:
     )
     db.flush()
     return matched
+
+
+def stage_reencrypt_batch_tokens(after_id: int, limit: int, db: Session) -> core_key_rotation.BatchResult:
+    """Stage the re-encryption of up to ``limit`` tokens rows after ``after_id`` (flushed, not committed)."""
+    model = rotated_token_models.RotatedRefreshToken
+    return core_key_rotation.stage_reencrypt_batch(
+        model, model.id, (model.replacement_refresh_token,), after_id, limit, db
+    )

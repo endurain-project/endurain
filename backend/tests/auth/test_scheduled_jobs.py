@@ -81,7 +81,8 @@ def test_cleanup_jobs_hold_a_distributed_lock(module_name):
 
 
 def test_mfa_has_no_recurring_job():
-    assert "mfa" not in {module.name for module in runtime_module_registry.MODULES}
+    mfa = next(module for module in runtime_module_registry.MODULES if module.name == "mfa")
+    assert mfa.recurring_jobs is None
 
 
 def test_cleanup_job_lock_names_are_distinct():
@@ -97,3 +98,16 @@ def test_cleanup_job_lock_names_are_distinct():
         for job in _recurring_jobs(module_name)
     ]
     assert len(names) == len(set(names))
+
+
+def test_reencrypt_startup_tasks_hold_distinct_locks():
+    locks = [
+        task.lock_name
+        for module in runtime_module_registry.MODULES
+        for task in module.startup_tasks
+        if task.name.startswith("reencrypt_")
+    ]
+
+    assert len(locks) == 6
+    assert all(locks)
+    assert len(set(locks)) == len(locks)

@@ -10,6 +10,7 @@ import core.config as core_config
 import core.etag as core_etag
 import core.exceptions as core_exceptions
 import core.geocoding as core_geocoding
+import core.key_rotation as core_key_rotation
 import core.logger as core_logger
 import core.network as core_network
 import modules.server_settings.audit_actions as server_settings_audit_actions
@@ -339,3 +340,21 @@ def env_var_is_set(name: str) -> bool:
     if name in server_settings_constants.FILE_SECRET_ENV_VARS:
         return name in os.environ or f"{name}_FILE" in os.environ
     return name in core_config.settings.model_fields_set
+
+
+def reencrypt_stored_secrets(db: Session) -> None:
+    """Re-encrypt this module's stored secrets under the first FERNET_KEY; does nothing while one key is configured.
+
+    Args:
+        db: SQLAlchemy database session.
+    """
+    core_key_rotation.reencrypt_in_batches(
+        "server_settings",
+        lambda after_id, limit: server_settings_crud.stage_reencrypt_batch_settings(after_id, limit, db),
+        db,
+    )
+    core_key_rotation.reencrypt_in_batches(
+        "mail_settings",
+        lambda after_id, limit: server_settings_crud.stage_reencrypt_batch_mail(after_id, limit, db),
+        db,
+    )

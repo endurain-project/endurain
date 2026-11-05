@@ -10,6 +10,7 @@ import modules.auth.rotated_refresh_tokens.service as rotated_token_service
 logger = core_logger.get_logger(__name__)
 
 CLEANUP_LOCK_NAME = "auth_rotated_refresh_tokens_cleanup"
+REENCRYPT_LOCK_NAME = "auth_rotated_refresh_tokens_reencrypt"
 
 
 def delete_expired_rotated_tokens() -> None:
@@ -23,6 +24,12 @@ def delete_expired_rotated_tokens() -> None:
         deleted_count = rotated_token_service.delete_expired_tokens(datetime.now(UTC), db)
     if deleted_count:
         logger.info("Cleaned up expired rotated refresh-token records", extra=core_logger.context(count=deleted_count))
+
+
+def reencrypt_stored_secrets() -> None:
+    """Re-encrypt the stored replacement tokens under the first FERNET_KEY; does nothing while one key is configured."""
+    with core_database.SessionLocal() as db:
+        rotated_token_service.reencrypt_stored_secrets(db)
 
 
 def recurring_jobs() -> tuple[core_scheduler.ScheduledJob, ...]:

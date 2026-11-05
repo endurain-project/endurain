@@ -10,6 +10,7 @@ from sqlalchemy.orm import Session
 import core.cryptography as core_cryptography
 import core.etag as core_etag
 import core.exceptions as core_exceptions
+import core.key_rotation as core_key_rotation
 import modules.users.users_integrations.contracts as user_integrations_contracts
 import modules.users.users_integrations.models as user_integrations_models
 import modules.users.users_integrations.schema as user_integrations_schema
@@ -176,13 +177,37 @@ def link_strava_account(
     db.refresh(db_user_integrations)
 
 
+#: The encrypted values inside ``garminconnect_token``; the Garmin module writes them and owns the other keys.
+_GARMIN_TOKEN_SECRET_KEYS = ("di_token", "di_refresh_token")
+
+
+def _same_garmin_token(stored: dict[str, Any] | None, expected: dict[str, Any]) -> bool:
+    """Report whether a stored Garmin token is the one the caller read, comparing its secrets by what they decrypt to.
+
+    Args:
+        stored: The token on the row, or None when none is linked.
+        expected: The token the caller read.
+
+    Returns:
+        True when every value matches, a secret matching when it decrypts to the same value.
+    """
+    if not stored or stored.keys() != expected.keys():
+        return False
+    return all(
+        core_cryptography.same_secret(value, expected[key])
+        if key in _GARMIN_TOKEN_SECRET_KEYS
+        else value == expected[key]
+        for key, value in stored.items()
+    )
+
+
 def replace_strava_tokens_if_refresh_token(
     user_id: int, old_refresh_token: str, tokens: user_integrations_contracts.StravaTokens, db: Session
 ) -> bool:
     """Store refreshed Strava tokens only while the stored refresh token is still the one they came from.
 
     Strava rotates the refresh token on every refresh. The row is locked while the token is
-    compared, so a refresh that raced another, or a relink made in the meantime, is never
+    compared (by what it decrypts to, so a re-encryption under a new key is not a change), so a refresh that raced another, or a relink made in the meantime, is never
     overwritten. The caller commits.
 
     Args:
@@ -201,7 +226,9 @@ def replace_strava_tokens_if_refresh_token(
     )
     db_user_integrations = db.execute(stmt).scalar_one_or_none()
 
-    if db_user_integrations is None or db_user_integrations.strava_refresh_token != old_refresh_token:
+    if db_user_integrations is None or not core_cryptography.same_secret(
+        db_user_integrations.strava_refresh_token, old_refresh_token
+    ):
         return False
 
     db_user_integrations.strava_token = core_cryptography.encrypt_token_fernet(tokens["access_token"])
@@ -239,7 +266,7 @@ def unlink_strava_tokens_if_refresh_token(user_id: int, refresh_token: str, db: 
     """Clear a user's Strava tokens only while they still hold the given refresh token.
 
     The client id and secret are kept, so the user relinks without entering them again. The
-    row is locked while the token is compared, so a link or refresh made in the meantime is
+    row is locked while the token is compared (by what it decrypts to, so a re-encryption under a new key is not a change), so a link or refresh made in the meantime is
     never cleared by a caller that holds the previous token. The caller commits.
 
     Args:
@@ -258,7 +285,9 @@ def unlink_strava_tokens_if_refresh_token(user_id: int, refresh_token: str, db: 
     )
     db_user_integrations = db.execute(stmt).scalar_one_or_none()
 
-    if db_user_integrations is None or db_user_integrations.strava_refresh_token != refresh_token:
+    if db_user_integrations is None or not core_cryptography.same_secret(
+        db_user_integrations.strava_refresh_token, refresh_token
+    ):
         return False
 
     db_user_integrations.strava_token = None
@@ -403,7 +432,7 @@ def unlink_garminconnect_account_if_token(user_id: int, token: dict[str, Any], d
     )
     db_user_integrations = db.execute(stmt).scalar_one_or_none()
 
-    if db_user_integrations is None or db_user_integrations.garminconnect_token != token:
+    if db_user_integrations is None or not _same_garmin_token(db_user_integrations.garminconnect_token, token):
         return False
 
     db_user_integrations.garminconnect_token = None
@@ -435,7 +464,7 @@ def replace_garminconnect_token_if_token(
     )
     db_user_integrations = db.execute(stmt).scalar_one_or_none()
 
-    if db_user_integrations is None or db_user_integrations.garminconnect_token != old_token:
+    if db_user_integrations is None or not _same_garmin_token(db_user_integrations.garminconnect_token, old_token):
         return False
 
     db_user_integrations.garminconnect_token = new_token
@@ -472,3 +501,61 @@ def edit_user_integrations(
     db.flush()
     db.refresh(db_user_integrations)
     return user_integrations_serializers.to_read_schema(db_user_integrations)
+
+
+def stage_reencrypt_batch_strava(after_id: int, limit: int, db: Session) -> core_key_rotation.BatchResult:
+    """Stage the re-encryption of up to ``limit`` strava rows after ``after_id`` (flushed, not committed)."""
+    model = user_integrations_models.UsersIntegrations
+    return core_key_rotation.stage_reencrypt_batch(
+        model,
+        model.id,
+        (
+            model.strava_client_id,
+            model.strava_client_secret,
+            model.strava_token,
+            model.strava_refresh_token,
+        ),
+        after_id,
+        limit,
+        db,
+    )
+
+
+def stage_reencrypt_batch_garmin(after_id: int, limit: int, db: Session) -> core_key_rotation.BatchResult:
+    """Stage the re-encryption of the secrets in up to ``limit`` Garmin tokens after ``after_id``.
+
+    The rows are locked while they are read, so a concurrent token write waits for the batch and is never
+    overwritten. A secret no configured key decrypts is left as it is.
+
+    Args:
+        after_id: Keyset cursor; only rows with a greater id are read.
+        limit: Maximum number of rows to read.
+        db: SQLAlchemy database session.
+
+    Returns:
+        The last id read and the secrets rewritten or left undecryptable.
+    """
+    model = user_integrations_models.UsersIntegrations
+    rows = db.execute(select(model).where(model.id > after_id).order_by(model.id).limit(limit).with_for_update())
+    rotated = undecryptable = 0
+    last_id = None
+    for row in rows.scalars():
+        last_id = row.id
+        if not row.garminconnect_token:
+            continue
+        token = dict(row.garminconnect_token)
+        for key in _GARMIN_TOKEN_SECRET_KEYS:
+            if not token.get(key):
+                continue
+            try:
+                new = core_cryptography.reencrypt_to_primary_key(token[key])
+            except core_exceptions.UndecryptableError:
+                undecryptable += 1
+                continue
+            if new is not None:
+                token[key] = new
+                rotated += 1
+        if token != row.garminconnect_token:
+            row.garminconnect_token = token
+    db.flush()
+    return core_key_rotation.BatchResult(last_id, core_key_rotation.RotationCounts(rotated, undecryptable))

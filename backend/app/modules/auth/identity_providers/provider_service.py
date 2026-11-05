@@ -7,6 +7,7 @@ from sqlalchemy.orm import Session
 import core.cryptography as core_cryptography
 import core.etag as core_etag
 import core.exceptions as core_exceptions
+import core.key_rotation as core_key_rotation
 import core.logger as core_logger
 import core.network as core_network
 import core.pagination as core_pagination
@@ -268,3 +269,14 @@ def delete_identity_provider(
     if current.icon_uploaded:
         idp_icon_service.delete_blob(idp_id, storage)
     logger.info("Deleted identity provider", extra=core_logger.context(idp_id=idp_id))
+
+
+def reencrypt_stored_secrets(db: Session) -> None:
+    """Re-encrypt this module's stored secrets under the first FERNET_KEY; does nothing while one key is configured.
+
+    Args:
+        db: SQLAlchemy database session.
+    """
+    core_key_rotation.reencrypt_in_batches(
+        "identity_providers", lambda after_id, limit: idp_crud.stage_reencrypt_batch_providers(after_id, limit, db), db
+    )

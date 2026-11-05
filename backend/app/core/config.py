@@ -979,24 +979,44 @@ def _is_safe_path(file_path: Path) -> bool:
         return False
 
 
-def validate_fernet_key(fernet_key: str | None) -> bool:
+def parse_fernet_keys(raw_keys: str) -> list[str]:
     """
-    Validate Fernet encryption key format.
+    Split a comma-separated Fernet key list into its trimmed keys.
+
+    The first key encrypts and every key decrypts, so a list lets the key be rotated.
 
     Args:
-        fernet_key: Fernet key to validate.
+        raw_keys: Comma-separated Fernet keys; a single key is a list of one.
 
     Returns:
-        True if key is valid, False otherwise.
+        The keys in order, whitespace removed.
+
+    Raises:
+        ValueError: If an entry is empty.
+    """
+    keys = [key.strip() for key in raw_keys.split(",")]
+    if not all(keys):
+        raise ValueError("FERNET_KEY contains an empty entry")
+    return keys
+
+
+def validate_fernet_key(fernet_key: str | None) -> bool:
+    """
+    Validate the Fernet encryption key, or every key of a comma-separated list.
+
+    Args:
+        fernet_key: Fernet key, or comma-separated Fernet keys, to validate.
+
+    Returns:
+        True if every key is valid, False otherwise.
     """
     if not fernet_key:
         logger.error("FERNET_KEY is not set or empty", extra=core_logger.context(console=True))
         return False
 
     try:
-        # Attempt to create a Fernet cipher with the key
-        fernet_key_bytes = fernet_key.encode("utf-8")
-        Fernet(fernet_key_bytes)
+        for key in parse_fernet_keys(fernet_key):
+            Fernet(key.encode("utf-8"))
 
         logger.debug("FERNET_KEY validation successful", extra=core_logger.context(console=True))
         return True

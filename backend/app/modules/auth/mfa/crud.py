@@ -3,6 +3,7 @@
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
+import core.key_rotation as core_key_rotation
 import modules.auth.mfa.contracts as mfa_contracts
 import modules.auth.mfa.models as auth_mfa_models
 import modules.auth.mfa.serializers as mfa_serializers
@@ -48,3 +49,9 @@ def create_users_mfa_row(user_id: int, db: Session) -> mfa_contracts.MFAStateRea
     db.flush()
     db.refresh(row)
     return mfa_serializers.to_read_schema(row)
+
+
+def stage_reencrypt_batch_mfa(after_id: int, limit: int, db: Session) -> core_key_rotation.BatchResult:
+    """Stage the re-encryption of up to ``limit`` mfa rows after ``after_id`` (flushed, not committed)."""
+    model = auth_mfa_models.UsersMFA
+    return core_key_rotation.stage_reencrypt_batch(model, model.id, (model.mfa_secret,), after_id, limit, db)

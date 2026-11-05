@@ -5,8 +5,10 @@ from types import SimpleNamespace
 from unittest.mock import patch
 
 import pytest
+from cryptography.fernet import Fernet
 from sqlalchemy.exc import IntegrityError
 
+import core.cryptography as core_cryptography
 import core.exceptions as core_exceptions
 import modules.auth.identity_provider_links.contracts as identity_links_contracts
 import modules.auth.identity_provider_links.crud as identity_links_crud
@@ -96,6 +98,10 @@ def test_delete_link_stages_deletion(mock_db):
 class TestCompareAndSetTokens:
     """A refresh writes only over the token it read, so a slower one cannot undo a faster one."""
 
+    @pytest.fixture(autouse=True)
+    def _fernet_key(self, monkeypatch):
+        monkeypatch.setenv("FERNET_KEY", Fernet.generate_key().decode())
+
     @staticmethod
     def _db_with_link(refresh_token):
         db = create_sqlite_session()
@@ -111,10 +117,15 @@ class TestCompareAndSetTokens:
         return identity_links_crud.get_user_identity_provider_by_user_id_and_idp_id(7, 3, db)
 
     def test_a_replace_over_the_token_read_is_applied(self):
-        db = self._db_with_link("old")
+        db = self._db_with_link(core_cryptography.encrypt_token_fernet("old"))
         expires = datetime(2026, 11, 1, tzinfo=UTC)
 
-        assert identity_links_crud.replace_refresh_token_if_unchanged(7, 3, "old", "new", expires, db) is True
+        assert (
+            identity_links_crud.replace_refresh_token_if_unchanged(
+                7, 3, core_cryptography.encrypt_token_fernet("old"), "new", expires, db
+            )
+            is True
+        )
         assert self._stored(db).idp_refresh_token == "new"
         # SQLite returns the stored instant without its zone.
         assert self._stored(db).idp_access_token_expires_at.replace(tzinfo=UTC) == expires
@@ -130,9 +141,14 @@ class TestCompareAndSetTokens:
         db.close()
 
     def test_a_clear_of_the_token_read_is_applied(self):
-        db = self._db_with_link("old")
+        db = self._db_with_link(core_cryptography.encrypt_token_fernet("old"))
 
-        assert identity_links_crud.clear_refresh_token_if_unchanged(7, 3, "old", db) is True
+        assert (
+            identity_links_crud.clear_refresh_token_if_unchanged(
+                7, 3, core_cryptography.encrypt_token_fernet("old"), db
+            )
+            is True
+        )
         assert self._stored(db).idp_refresh_token is None
         db.close()
 

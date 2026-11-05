@@ -673,6 +673,22 @@ class TestValidateFernetKey:
 
         assert validate_fernet_key("not-a-valid-fernet-key") is False
 
+    def test_key_list(self):
+        from core.config import validate_fernet_key
+
+        keys = [Fernet.generate_key().decode(), Fernet.generate_key().decode()]
+        assert validate_fernet_key(f"{keys[0]}, {keys[1]}") is True
+
+    def test_key_list_with_invalid_entry(self):
+        from core.config import validate_fernet_key
+
+        assert validate_fernet_key(f"{Fernet.generate_key().decode()},not-a-valid-fernet-key") is False
+
+    def test_key_list_with_empty_entry(self):
+        from core.config import validate_fernet_key
+
+        assert validate_fernet_key(f"{Fernet.generate_key().decode()},") is False
+
 
 class TestValidateLogLevel:
     """validate_log_level: log level string validation."""

@@ -6,6 +6,7 @@ from sqlalchemy.orm.attributes import flag_modified
 
 import core.cryptography as core_cryptography
 import core.etag as core_etag
+import core.key_rotation as core_key_rotation
 import modules.auth.identity_providers.contracts as identity_provider_contracts
 import modules.auth.identity_providers.models as identity_provider_models
 import modules.auth.identity_providers.schema as identity_provider_schema
@@ -221,3 +222,19 @@ def set_icon_uploaded(idp_id: int, is_set: bool, db: Session) -> int | None:
     flag_modified(row, "icon_uploaded")
     db.flush()
     return row.version
+
+
+def stage_reencrypt_batch_providers(after_id: int, limit: int, db: Session) -> core_key_rotation.BatchResult:
+    """Stage the re-encryption of up to ``limit`` providers rows after ``after_id`` (flushed, not committed)."""
+    model = identity_provider_models.IdentityProvider
+    return core_key_rotation.stage_reencrypt_batch(
+        model,
+        model.id,
+        (
+            model.client_id,
+            model.client_secret,
+        ),
+        after_id,
+        limit,
+        db,
+    )

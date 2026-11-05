@@ -6,6 +6,7 @@ from sqlalchemy.orm import Session
 from sqlalchemy.orm.attributes import flag_modified
 
 import core.exceptions as core_exceptions
+import core.key_rotation as core_key_rotation
 import modules.server_settings.models as server_settings_models
 import modules.server_settings.schema as server_settings_schema
 import modules.server_settings.serializers as server_settings_serializers
@@ -168,3 +169,25 @@ def edit_mail_settings(
     row = _lock_singleton(server_settings_models.MailSettings, "Mail", db)
     _apply(row, mail_settings, db)
     return server_settings_serializers.to_mail_settings_read(row)
+
+
+def stage_reencrypt_batch_settings(after_id: int, limit: int, db: Session) -> core_key_rotation.BatchResult:
+    """Stage the re-encryption of up to ``limit`` settings rows after ``after_id`` (flushed, not committed)."""
+    model = server_settings_models.ServerSettings
+    return core_key_rotation.stage_reencrypt_batch(
+        model,
+        model.id,
+        (
+            model.tileserver_api_key,
+            model.geocoding_api_key,
+        ),
+        after_id,
+        limit,
+        db,
+    )
+
+
+def stage_reencrypt_batch_mail(after_id: int, limit: int, db: Session) -> core_key_rotation.BatchResult:
+    """Stage the re-encryption of up to ``limit`` mail rows after ``after_id`` (flushed, not committed)."""
+    model = server_settings_models.MailSettings
+    return core_key_rotation.stage_reencrypt_batch(model, model.id, (model.password,), after_id, limit, db)

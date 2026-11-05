@@ -4,8 +4,10 @@ from collections.abc import Sequence
 
 from sqlalchemy.orm import Session
 
+import core.key_rotation as core_key_rotation
 import core.logger as core_logger
 import modules.auth.identity_provider_links.contracts as auth_identity_links_contracts
+import modules.auth.identity_provider_links.crud as identity_links_crud
 import modules.auth.identity_provider_links.integration_service as identity_provider_links_integration
 import modules.auth.identity_provider_links.schema as auth_identity_links_schema
 
@@ -97,3 +99,16 @@ def enrich_user_identity_providers(
         enriched_links.append(link_data)
 
     return enriched_links
+
+
+def reencrypt_stored_secrets(db: Session) -> None:
+    """Re-encrypt this module's stored secrets under the first FERNET_KEY; does nothing while one key is configured.
+
+    Args:
+        db: SQLAlchemy database session.
+    """
+    core_key_rotation.reencrypt_in_batches(
+        "identity_provider_links",
+        lambda after_id, limit: identity_links_crud.stage_reencrypt_batch_links(after_id, limit, db),
+        db,
+    )

@@ -52,6 +52,7 @@ import modules.auth.account_security.subscriber_registry as account_security_sub
 import modules.auth.authentication.audit_actions as authentication_audit_actions
 import modules.auth.authentication.subscriber_registry as authentication_subscriber_registry
 import modules.auth.dependencies as auth_dependencies
+import modules.auth.identity_provider_links.scheduled_jobs as identity_provider_links_scheduled_jobs
 import modules.auth.identity_providers.audit_actions as identity_providers_audit_actions
 import modules.auth.identity_providers.constants as identity_providers_constants
 import modules.auth.identity_providers.scheduled_jobs as identity_providers_scheduled_jobs
@@ -59,6 +60,7 @@ import modules.auth.identity_providers.subscriber_registry as identity_providers
 import modules.auth.known_devices.scheduled_jobs as known_devices_scheduled_jobs
 import modules.auth.lockout.audit_actions as lockout_audit_actions
 import modules.auth.login_audit.audit_actions as login_audit_actions
+import modules.auth.mfa.scheduled_jobs as mfa_scheduled_jobs
 import modules.auth.mfa_backup_codes.audit_actions as mfa_backup_codes_audit_actions
 import modules.auth.oauth_state.scheduled_jobs as oauth_state_scheduled_jobs
 import modules.auth.onboarding.scheduled_jobs as onboarding_scheduled_jobs
@@ -96,6 +98,7 @@ import modules.notifications.subscriber_registry as notifications_subscriber_reg
 import modules.server_settings.audit_actions as server_settings_audit_actions
 import modules.server_settings.constants as server_settings_constants
 import modules.server_settings.integration_service as server_settings_integration
+import modules.server_settings.scheduled_jobs as server_settings_scheduled_jobs
 import modules.strava.audit_actions as strava_audit_actions
 import modules.strava.integration_service as strava_integration
 import modules.strava.subscriber_registry as strava_subscriber_registry
@@ -107,6 +110,7 @@ import modules.users.users.integration_service as users_integration
 import modules.users.users.scheduled_jobs as users_scheduled_jobs
 import modules.users.users.subscriber_registry as users_subscriber_registry
 import modules.users.users_default_gear.integration_service as users_default_gear_integration
+import modules.users.users_integrations.scheduled_jobs as users_integrations_scheduled_jobs
 import modules.users.users_profile.audit_actions as users_profile_audit_actions
 import modules.users.users_profile.constants as users_profile_constants
 import modules.users.users_profile.contracts as users_profile_contracts
@@ -338,7 +342,18 @@ MODULES: tuple[RuntimeModule, ...] = (
         recurring_jobs=auth_sessions_scheduled_jobs.recurring_jobs,
         audit_actions=sessions_audit_actions.ACTIONS,
     ),
-    RuntimeModule(name="rotated_refresh_tokens", recurring_jobs=rotated_refresh_tokens_scheduled_jobs.recurring_jobs),
+    RuntimeModule(
+        name="rotated_refresh_tokens",
+        recurring_jobs=rotated_refresh_tokens_scheduled_jobs.recurring_jobs,
+        startup_tasks=(
+            StartupTask(
+                "reencrypt_rotated_refresh_tokens",
+                "Re-encrypting rotated refresh tokens under the first FERNET_KEY",
+                rotated_refresh_tokens_scheduled_jobs.reencrypt_stored_secrets,
+                lock_name=rotated_refresh_tokens_scheduled_jobs.REENCRYPT_LOCK_NAME,
+            ),
+        ),
+    ),
     RuntimeModule(name="known_devices", recurring_jobs=known_devices_scheduled_jobs.recurring_jobs),
     RuntimeModule(name="lockout", audit_actions=lockout_audit_actions.ACTIONS),
     RuntimeModule(name="login_audit", audit_actions=login_audit_actions.ACTIONS),
@@ -349,7 +364,37 @@ MODULES: tuple[RuntimeModule, ...] = (
         register_bus=identity_providers_subscriber_registry.register_bus_subscribers,
         register_durable=identity_providers_subscriber_registry.register_durable_handlers,
         nets=identity_providers_subscriber_registry.DURABLE_SUBSCRIBER_NETS,
+        startup_tasks=(
+            StartupTask(
+                "reencrypt_identity_provider_secrets",
+                "Re-encrypting identity provider credentials under the first FERNET_KEY",
+                identity_providers_scheduled_jobs.reencrypt_stored_secrets,
+                lock_name=identity_providers_scheduled_jobs.REENCRYPT_LOCK_NAME,
+            ),
+        ),
         audit_actions=identity_providers_audit_actions.ACTIONS,
+    ),
+    RuntimeModule(
+        name="identity_provider_links",
+        startup_tasks=(
+            StartupTask(
+                "reencrypt_identity_provider_link_tokens",
+                "Re-encrypting identity provider refresh tokens under the first FERNET_KEY",
+                identity_provider_links_scheduled_jobs.reencrypt_stored_secrets,
+                lock_name=identity_provider_links_scheduled_jobs.REENCRYPT_LOCK_NAME,
+            ),
+        ),
+    ),
+    RuntimeModule(
+        name="mfa",
+        startup_tasks=(
+            StartupTask(
+                "reencrypt_mfa_secrets",
+                "Re-encrypting MFA secrets under the first FERNET_KEY",
+                mfa_scheduled_jobs.reencrypt_stored_secrets,
+                lock_name=mfa_scheduled_jobs.REENCRYPT_LOCK_NAME,
+            ),
+        ),
     ),
     RuntimeModule(
         name="onboarding",
@@ -439,7 +484,29 @@ MODULES: tuple[RuntimeModule, ...] = (
         audit_actions=strava_audit_actions.ACTIONS,
         shutdown=strava_integration.shutdown_pools,
     ),
-    RuntimeModule(name="server_settings", audit_actions=server_settings_audit_actions.ACTIONS),
+    RuntimeModule(
+        name="server_settings",
+        startup_tasks=(
+            StartupTask(
+                "reencrypt_server_setting_secrets",
+                "Re-encrypting server setting secrets under the first FERNET_KEY",
+                server_settings_scheduled_jobs.reencrypt_stored_secrets,
+                lock_name=server_settings_scheduled_jobs.REENCRYPT_LOCK_NAME,
+            ),
+        ),
+        audit_actions=server_settings_audit_actions.ACTIONS,
+    ),
+    RuntimeModule(
+        name="users_integrations",
+        startup_tasks=(
+            StartupTask(
+                "reencrypt_integration_secrets",
+                "Re-encrypting Strava and Garmin secrets under the first FERNET_KEY",
+                users_integrations_scheduled_jobs.reencrypt_stored_secrets,
+                lock_name=users_integrations_scheduled_jobs.REENCRYPT_LOCK_NAME,
+            ),
+        ),
+    ),
     RuntimeModule(name="followers", audit_actions=followers_audit_actions.ACTIONS),
     RuntimeModule(
         name="websocket",

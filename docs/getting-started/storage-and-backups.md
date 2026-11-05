@@ -45,7 +45,7 @@ On local storage every area is browsable under the `data` directory the image cr
 1. **The database.** A `pg_dump` taken while the database runs. Copying the PostgreSQL data folder while the database is writing is not reliable.
 2. **The blob store.** `backend/data` on the host for local storage, or the bucket for S3 (enable bucket versioning, or your provider's backup).
 3. **Your secrets**, kept apart from the data:
-   - `FERNET_KEY` encrypts the Strava and Garmin Connect tokens and credentials, two-step verification (TOTP) secrets, identity provider client secrets, the mail password and the map and geocoding API keys. Lose it and these become unreadable: users must reconnect their accounts and set up two-step verification again, and an admin must re-enter the secrets.
+   - `FERNET_KEY` encrypts the Strava and Garmin Connect tokens and credentials, two-step verification (TOTP) secrets, identity provider client secrets, the mail password and the map and geocoding API keys. Lose it and these become unreadable: users must reconnect their accounts and set up two-step verification again, and an admin must re-enter the secrets. To change the key, see [Rotating the encryption key](#rotating-the-encryption-key).
    - `SECRET_KEY` signs login tokens and the links to photos and thumbnails. Lose it and everyone is signed out and old links stop working. Nothing is lost.
    - `AUDIT_SIGNING_KEY`, if you set one, signs the audit trail's checkpoints. Lose it and new checkpoints are signed with a new key; keep the old public key to verify the older ones.
    - `DB_PASSWORD`.
@@ -58,8 +58,18 @@ Take the database dump and the blob copy close together. They can disagree sligh
 
 1. Restore the database into the PostgreSQL version you run (a major-version change needs a dump and restore, not a file copy).
 2. Restore the blob store to the same place and, for local storage, give the container user write access (see [Quick start](quick-start.md#create-directory-structure)).
-3. Start Endurain with the same `FERNET_KEY` and `SECRET_KEY`.
+3. Start Endurain with the same `FERNET_KEY` (every key, if you list several) and `SECRET_KEY`.
 4. Missing thumbnails and locations are regenerated in the background. Give a large library time.
+
+## Rotating the encryption key
+
+`FERNET_KEY` accepts several keys separated by commas. The first key encrypts, and every key in the list can decrypt. A single key works as before.
+
+1. Generate a new key (see [Secret Generators](../tools.md#secret-generators)).
+2. Set `FERNET_KEY=<new key>,<old key>` (or the content of the file `FERNET_KEY_FILE` points to) and restart Endurain.
+3. The start-up log reports how many values were rewritten and how many no key could decrypt (those are left untouched). With several replicas, one of them does the work.
+4. Wait a few minutes. Values held only briefly (a two-step verification setup in progress, a Garmin Connect verification code) and pagination cursors issued before the restart are not re-encrypted, and need the old key until they expire.
+5. Set `FERNET_KEY=<new key>` and restart again.
 
 ## What Endurain cleans up by itself
 

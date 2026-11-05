@@ -4,11 +4,23 @@ from typing import ClassVar
 from unittest.mock import MagicMock, patch
 
 import pytest
+from cryptography.fernet import Fernet
 from sqlalchemy.exc import IntegrityError
 
+import core.cryptography as core_cryptography
 import core.exceptions as core_exceptions
 from modules.users.users_integrations import crud as user_integrations_crud
 from modules.users.users_integrations.models import UsersIntegrations
+
+
+@pytest.fixture(autouse=True)
+def _fernet_key(monkeypatch):
+    monkeypatch.setenv("FERNET_KEY", Fernet.generate_key().decode())
+
+
+def _enc(value):
+    """Encrypt ``value``; each call yields a different ciphertext for the same plaintext."""
+    return core_cryptography.encrypt_token_fernet(value)
 
 
 @pytest.fixture(autouse=True)
@@ -396,10 +408,10 @@ class TestUnlinkGarminConnectAccountIfToken:
     def test_unlinks_while_the_stored_token_is_the_rejected_one(self, mock_db):
         """The account is cleared, without committing, when the token is unchanged."""
         mock_integrations = MagicMock(spec=UsersIntegrations)
-        mock_integrations.garminconnect_token = {"di_token": "old"}
+        mock_integrations.garminconnect_token = {"di_token": _enc("old")}
         mock_db.execute.return_value.scalar_one_or_none.return_value = mock_integrations
 
-        result = user_integrations_crud.unlink_garminconnect_account_if_token(1, {"di_token": "old"}, mock_db)
+        result = user_integrations_crud.unlink_garminconnect_account_if_token(1, {"di_token": _enc("old")}, mock_db)
 
         assert result is True
         assert mock_integrations.garminconnect_token is None
@@ -432,12 +444,15 @@ class TestReplaceStravaTokensIfRefreshToken:
     def test_replaces_while_the_stored_refresh_token_is_the_one_refreshed_from(self, mock_db):
         """The new tokens are stored encrypted, without committing."""
         mock_integrations = MagicMock(spec=UsersIntegrations)
-        mock_integrations.strava_refresh_token = "old"
+        refresh_read = _enc("old")
+        mock_integrations.strava_refresh_token = _enc("old")
         mock_db.execute.return_value.scalar_one_or_none.return_value = mock_integrations
 
         with patch("modules.users.users_integrations.crud.core_cryptography.encrypt_token_fernet") as encrypt:
             encrypt.side_effect = lambda value: f"enc_{value}"
-            result = user_integrations_crud.replace_strava_tokens_if_refresh_token(1, "old", self.TOKENS, mock_db)
+            result = user_integrations_crud.replace_strava_tokens_if_refresh_token(
+                1, refresh_read, self.TOKENS, mock_db
+            )
 
         assert result is True
         assert mock_integrations.strava_token == "enc_a2"
@@ -467,12 +482,12 @@ class TestUnlinkStravaTokensIfRefreshToken:
     def test_clears_the_tokens_and_keeps_the_client_while_the_refresh_token_is_the_rejected_one(self, mock_db):
         """The tokens are cleared, without committing; the client id and secret stay for a quick relink."""
         mock_integrations = MagicMock(spec=UsersIntegrations)
-        mock_integrations.strava_refresh_token = "old"
+        mock_integrations.strava_refresh_token = _enc("old")
         mock_integrations.strava_client_id = "client"
         mock_integrations.strava_client_secret = "secret"
         mock_db.execute.return_value.scalar_one_or_none.return_value = mock_integrations
 
-        result = user_integrations_crud.unlink_strava_tokens_if_refresh_token(1, "old", mock_db)
+        result = user_integrations_crud.unlink_strava_tokens_if_refresh_token(1, _enc("old"), mock_db)
 
         assert result is True
         assert mock_integrations.strava_token is None
@@ -545,11 +560,11 @@ class TestReplaceGarminConnectTokenIfToken:
     def test_replaces_while_the_stored_token_is_the_old_one(self, mock_db):
         """The refreshed token is stored, without committing."""
         mock_integrations = MagicMock(spec=UsersIntegrations)
-        mock_integrations.garminconnect_token = {"di_token": "old"}
+        mock_integrations.garminconnect_token = {"di_token": _enc("old")}
         mock_db.execute.return_value.scalar_one_or_none.return_value = mock_integrations
 
         result = user_integrations_crud.replace_garminconnect_token_if_token(
-            1, {"di_token": "old"}, {"di_token": "new"}, mock_db
+            1, {"di_token": _enc("old")}, {"di_token": "new"}, mock_db
         )
 
         assert result is True

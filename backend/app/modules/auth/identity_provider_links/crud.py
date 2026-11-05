@@ -2,12 +2,14 @@
 
 from datetime import UTC, datetime
 
-from sqlalchemy import delete, exists, func, select, update
+from sqlalchemy import delete, exists, func, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
+import core.cryptography as core_cryptography
 import core.database as core_database
 import core.exceptions as core_exceptions
+import core.key_rotation as core_key_rotation
 import modules.auth.identity_provider_links.contracts as identity_link_contracts
 import modules.auth.identity_provider_links.models as identity_link_models
 import modules.auth.identity_provider_links.serializers as identity_link_serializers
@@ -160,6 +162,31 @@ def clear_user_identity_provider_refresh_token_by_user_id_and_idp_id(
     return True
 
 
+def _lock_link_holding_token(
+    user_id: int, idp_id: int, expected_refresh_token: str, db: Session
+) -> identity_link_models.IdentityLink | None:
+    """Lock a link and return it only while its refresh token is the one the caller read.
+
+    The comparison is on what the tokens decrypt to, so a re-encryption under a new key is not a change.
+
+    Args:
+        user_id: The link's user.
+        idp_id: The link's provider.
+        expected_refresh_token: The encrypted refresh token the caller read.
+        db: Database session.
+
+    Returns:
+        The locked link, or None when it is gone or holds another token now.
+    """
+    model = identity_link_models.IdentityLink
+    link = db.execute(
+        select(model).where(model.user_id == user_id, model.idp_id == idp_id).with_for_update()
+    ).scalar_one_or_none()
+    if link is None or not core_cryptography.same_secret(link.idp_refresh_token, expected_refresh_token):
+        return None
+    return link
+
+
 def replace_refresh_token_if_unchanged(
     user_id: int,
     idp_id: int,
@@ -173,7 +200,7 @@ def replace_refresh_token_if_unchanged(
     Args:
         user_id: The link's user.
         idp_id: The link's provider.
-        expected_refresh_token: The encrypted refresh token the caller read.
+        expected_refresh_token: The encrypted refresh token the caller read; compared by what it decrypts to.
         encrypted_refresh_token: The encrypted refresh token to store.
         access_token_expires_at: When the new access token expires.
         db: Database session.
@@ -181,18 +208,14 @@ def replace_refresh_token_if_unchanged(
     Returns:
         True when the token was replaced, False when the link holds another one now.
     """
-    model = identity_link_models.IdentityLink
-    matched = core_database.rowcount(
-        db,
-        update(model)
-        .where(model.user_id == user_id, model.idp_id == idp_id, model.idp_refresh_token == expected_refresh_token)
-        .values(
-            idp_refresh_token=encrypted_refresh_token,
-            idp_access_token_expires_at=access_token_expires_at,
-            idp_refresh_token_updated_at=datetime.now(UTC),
-        ),
-    )
-    return matched == 1
+    link = _lock_link_holding_token(user_id, idp_id, expected_refresh_token, db)
+    if link is None:
+        return False
+    link.idp_refresh_token = encrypted_refresh_token
+    link.idp_access_token_expires_at = access_token_expires_at
+    link.idp_refresh_token_updated_at = datetime.now(UTC)
+    db.flush()
+    return True
 
 
 def clear_refresh_token_if_unchanged(user_id: int, idp_id: int, expected_refresh_token: str, db: Session) -> bool:
@@ -201,20 +224,20 @@ def clear_refresh_token_if_unchanged(user_id: int, idp_id: int, expected_refresh
     Args:
         user_id: The link's user.
         idp_id: The link's provider.
-        expected_refresh_token: The encrypted refresh token the caller read.
+        expected_refresh_token: The encrypted refresh token the caller read; compared by what it decrypts to.
         db: Database session.
 
     Returns:
         True when the token was cleared, False when the link holds another one now.
     """
-    model = identity_link_models.IdentityLink
-    matched = core_database.rowcount(
-        db,
-        update(model)
-        .where(model.user_id == user_id, model.idp_id == idp_id, model.idp_refresh_token == expected_refresh_token)
-        .values(idp_refresh_token=None, idp_access_token_expires_at=None, idp_refresh_token_updated_at=None),
-    )
-    return matched == 1
+    link = _lock_link_holding_token(user_id, idp_id, expected_refresh_token, db)
+    if link is None:
+        return False
+    link.idp_refresh_token = None
+    link.idp_access_token_expires_at = None
+    link.idp_refresh_token_updated_at = None
+    db.flush()
+    return True
 
 
 def delete_user_identity_provider(user_id: int, idp_id: int, db: Session) -> bool:
@@ -243,3 +266,9 @@ def get_identity_link_counts_for_users(user_ids: list[int], db: Session) -> dict
         .group_by(identity_link_models.IdentityLink.user_id)
     )
     return {user_id: count for user_id, count in db.execute(statement).all()}
+
+
+def stage_reencrypt_batch_links(after_id: int, limit: int, db: Session) -> core_key_rotation.BatchResult:
+    """Stage the re-encryption of up to ``limit`` links rows after ``after_id`` (flushed, not committed)."""
+    model = identity_link_models.IdentityLink
+    return core_key_rotation.stage_reencrypt_batch(model, model.id, (model.idp_refresh_token,), after_id, limit, db)
