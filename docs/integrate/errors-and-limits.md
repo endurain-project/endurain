@@ -120,6 +120,10 @@ Creating and the action endpoints (approve a user, change a password, link an ac
 !!! note
     A change made by the server itself also moves the version. For example, approving a user, a Garmin Connect sync that updates a day, or adding a water intake all change a record, so a form you opened before that gets a `412` on save. That is the intended behaviour: it tells you the record is not what you were looking at.
 
+## Upload size limits
+
+Every route that takes a file has its own limit on the request body: the largest file the route accepts plus 1 MiB for the multipart framing and form fields. The limit is published in the OpenAPI document as the `x-max-body-bytes` extension of the route's operation, so a client can read it instead of hard-coding a number. A body over the limit is refused with `413` and `urn:endurain:error:payload-too-large` before the route runs, whether the request declares a `Content-Length` or streams the body. Every other request body is limited to 10 MiB. A reverse proxy in front of Endurain must allow at least the largest of these limits.
+
 ## Rate limits
 
 Limits are counted per caller: an authenticated request is counted per access token, so users behind the same network address do not share a bucket, and an unauthenticated request is counted per client address.

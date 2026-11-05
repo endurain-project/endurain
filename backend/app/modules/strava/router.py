@@ -6,6 +6,7 @@ from fastapi import APIRouter, Request, Response, Security, UploadFile, status
 
 import core.dependencies as core_dependencies
 import core.etag as core_etag
+import core.middleware_body_limit as core_middleware_body_limit
 import core.rate_limit as core_rate_limit
 import modules.activities.activity_ingestion.schema as activity_ingestion_schema
 import modules.auth.dependencies as auth_dependencies
@@ -109,6 +110,7 @@ def strava_sync_status(
     status_code=status.HTTP_201_CREATED,
     response_model=strava_schema.StravaGearImportResult,
     dependencies=[Security(auth_dependencies.check_scopes, scopes=["gears:write"])],
+    openapi_extra=core_middleware_body_limit.upload_limit(strava_constants.GEAR_CSV_MAX_BYTES),
 )
 @core_rate_limit.limiter.limit(core_rate_limit.UPLOAD)
 def import_bikes_from_strava_export(
@@ -128,6 +130,7 @@ def import_bikes_from_strava_export(
     status_code=status.HTTP_201_CREATED,
     response_model=strava_schema.StravaGearImportResult,
     dependencies=[Security(auth_dependencies.check_scopes, scopes=["gears:write"])],
+    openapi_extra=core_middleware_body_limit.upload_limit(strava_constants.GEAR_CSV_MAX_BYTES),
 )
 @core_rate_limit.limiter.limit(core_rate_limit.UPLOAD)
 def import_shoes_from_strava_export(

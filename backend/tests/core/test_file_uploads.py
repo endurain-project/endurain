@@ -672,7 +672,7 @@ def test_safe_remove_within_missing_file_returns_false(tmp_path: Path):
 
 
 # ---------------------------------------------------------------------------
-# _validator_for / _max_bytes_for: dispatch edge cases
+# _validator_for / max_bytes_for: dispatch edge cases
 # ---------------------------------------------------------------------------
 
 
@@ -682,20 +682,20 @@ def test_validator_for_unknown_kind():
         core_file_uploads._validator_for("unknown")
 
 
-def test_max_bytes_for_image():
+def testmax_bytes_for_image():
     """IMAGE kind returns the expected byte cap."""
-    assert core_file_uploads._max_bytes_for(UploadKind.IMAGE) == 20 * 1024 * 1024
+    assert core_file_uploads.max_bytes_for(UploadKind.IMAGE) == 20 * 1024 * 1024
 
 
-def test_max_bytes_for_gzip():
+def testmax_bytes_for_gzip():
     """GZIP kind returns the expected byte cap."""
-    assert core_file_uploads._max_bytes_for(UploadKind.GZIP) == 200 * 1024 * 1024
+    assert core_file_uploads.max_bytes_for(UploadKind.GZIP) == 200 * 1024 * 1024
 
 
-def test_max_bytes_for_unknown_kind():
+def testmax_bytes_for_unknown_kind():
     """Unrecognized UploadKind raises ValueError."""
     with pytest.raises(ValueError, match="Unsupported UploadKind"):
-        core_file_uploads._max_bytes_for("unknown")
+        core_file_uploads.max_bytes_for("unknown")
 
 
 # ---------------------------------------------------------------------------

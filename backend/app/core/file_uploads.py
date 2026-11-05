@@ -148,7 +148,7 @@ def _validator_for(
     raise ValueError(f"Unsupported UploadKind: {kind!r}")
 
 
-def _max_bytes_for(kind: UploadKind) -> int:
+def max_bytes_for(kind: UploadKind) -> int:
     """Return the configured byte cap for a kind."""
     limits = file_validator.config.limits
     if kind is UploadKind.IMAGE:
@@ -471,7 +471,7 @@ def save_validated_upload_sync(
     try:
         os.makedirs(upload_dir, exist_ok=True)
         destination = _resolve_upload_path(upload_dir, filename)
-        _stream_to_path_sync(file, destination, _max_bytes_for(kind))
+        _stream_to_path_sync(file, destination, max_bytes_for(kind))
         return str(destination)
     except core_exceptions.DomainError:
         raise
@@ -501,7 +501,7 @@ def read_validated_upload_sync(file: UploadFile, *, kind: UploadKind) -> bytes:
     """
     _validate_upload(file, kind=kind)
 
-    return _read_capped_sync(file, _max_bytes_for(kind))
+    return _read_capped_sync(file, max_bytes_for(kind))
 
 
 #: Magic-number prefixes of the image formats the upload validator accepts, with their media type.
@@ -649,7 +649,7 @@ def save_validated_bytes_sync(
     try:
         os.makedirs(upload_dir, exist_ok=True)
         destination = _resolve_upload_path(upload_dir, filename)
-        _bytes_to_path_sync(data, destination, _max_bytes_for(kind))
+        _bytes_to_path_sync(data, destination, max_bytes_for(kind))
         return str(destination)
     except core_exceptions.DomainError:
         raise

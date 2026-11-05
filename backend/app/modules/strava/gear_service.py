@@ -29,9 +29,6 @@ import modules.users.users_integrations.schema as user_integrations_schema
 
 logger = core_logger.get_logger(__name__)
 
-# Largest gear CSV accepted: a gear list is a few hundred rows at most.
-_GEAR_CSV_MAX_BYTES = 2 * 1024 * 1024
-
 # The name, brand and model columns of each gear type's CSV in a Strava export.
 _CSV_COLUMNS = {
     gears_schema.GearType.BIKE: ("Bike Name", "Bike Brand", "Bike Model"),
@@ -371,7 +368,7 @@ def _save_gear_csv(file: UploadFile) -> tuple[tempfile.TemporaryDirectory[str], 
     work_dir = tempfile.TemporaryDirectory(prefix="strava-gear-")
     try:
         path = core_file_uploads.save_text_upload_sync(
-            file, upload_dir=work_dir.name, filename="gear.csv", max_bytes=_GEAR_CSV_MAX_BYTES
+            file, upload_dir=work_dir.name, filename="gear.csv", max_bytes=strava_constants.GEAR_CSV_MAX_BYTES
         )
     except BaseException:
         work_dir.cleanup()

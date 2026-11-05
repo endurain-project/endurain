@@ -47,6 +47,7 @@ _ALLOWED_CORE: dict[str, str] = {
     "core.jwt_keys": "The JWT algorithm allow-list, secret and signature check that access-token issuing shares with the rate limiter.",
     "core.logger": "Structured logging.",
     "core.mail": "The mail configuration shape the settings store, and its validation wording.",
+    "core.middleware_body_limit": "The body cap an upload route declares for the body-size middleware.",
     "core.network": "The SSRF check on a tile server URL before it is saved.",
     "core.pagination": "Page and cursor primitives.",
     "core.partial_update": "The edit-schema base that refuses an explicit null for a NOT NULL column.",

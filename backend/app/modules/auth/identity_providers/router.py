@@ -5,9 +5,11 @@ from fastapi import APIRouter, Request, Response, Security, UploadFile, status
 import core.dependencies as core_dependencies
 import core.etag as core_etag
 import core.file_uploads as core_file_uploads
+import core.middleware_body_limit as core_middleware_body_limit
 import core.pagination as core_pagination
 import core.rate_limit as core_rate_limit
 import modules.auth.dependencies as auth_dependencies
+import modules.auth.identity_providers.constants as idp_constants
 import modules.auth.identity_providers.dependencies as idp_dependencies
 import modules.auth.identity_providers.icon_service as idp_icon_service
 import modules.auth.identity_providers.provider_service as idp_provider_service
@@ -211,6 +213,7 @@ def delete_identity_provider(
     response_model=idp_schema.IdentityProviderIconRead,
     status_code=status.HTTP_201_CREATED,
     dependencies=[Security(auth_dependencies.check_scopes, scopes=["identity_providers:write"])],
+    openapi_extra=core_middleware_body_limit.upload_limit(idp_constants.ICON_MAX_BYTES),
 )
 @core_rate_limit.limiter.limit(core_rate_limit.UPLOAD)
 def upload_identity_provider_icon(

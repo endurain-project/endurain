@@ -16,8 +16,10 @@ from fastapi import (
 import core.dependencies as core_dependencies
 import core.etag as core_etag
 import core.exceptions as core_exceptions
+import core.middleware_body_limit as core_middleware_body_limit
 import core.rate_limit as core_rate_limit
 import modules.auth.dependencies as auth_dependencies
+import modules.server_settings.constants as server_settings_constants
 import modules.server_settings.login_photo_service as server_settings_login_photo_service
 import modules.server_settings.mail_service as server_settings_mail_service
 import modules.server_settings.schema as server_settings_schema
@@ -100,6 +102,7 @@ def edit_server_settings(
     response_model=server_settings_schema.LoginPhotoRead,
     status_code=status.HTTP_201_CREATED,
     dependencies=[Security(auth_dependencies.check_scopes, scopes=["server_settings:write"])],
+    openapi_extra=core_middleware_body_limit.upload_limit(server_settings_constants.LOGIN_PHOTO_MAX_BYTES),
 )
 @core_rate_limit.limiter.limit(core_rate_limit.UPLOAD)
 def upload_login_photo(

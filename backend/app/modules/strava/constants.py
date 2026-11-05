@@ -22,6 +22,9 @@ UNNAMED_SHOE_NICKNAME_PREFIX = "Unnamed Shoe "
 LINK_JOB = "strava:link"
 UNLINK_JOB = "strava:unlink"
 
+#: Largest gear CSV accepted: a gear list is a few hundred rows at most.
+GEAR_CSV_MAX_BYTES = 2 * 1024 * 1024
+
 #: Seconds a request to Strava may take before it is abandoned; stravalib sets no timeout of its own.
 HTTP_TIMEOUT_SECONDS = 30
 

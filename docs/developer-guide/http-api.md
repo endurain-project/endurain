@@ -114,6 +114,9 @@ A resource has a collection and an item:
 - Every upload goes through `core/file_uploads.py` (`AGENTS.md`), and only that module imports `PIL` or
   `safeuploads` (import-linter `images-through-file-uploads`). One allow-list per upload kind lives there.
 - Check that the caller owns the target before reading the body.
+- A route that takes a file declares its body cap with `openapi_extra=core_middleware_body_limit.upload_limit(<its
+  largest file>)`, reusing the constant its validator uses; the middleware refuses a bigger body before the route
+  runs **(test)**.
 
 ## OpenAPI contract
 
@@ -141,7 +144,7 @@ These rules are not met everywhere yet. Each is tracked in the test registers ab
 - No `202` sends `Content-Location` or `Retry-After`, and the background jobs report their status in several shapes.
 - `Retry-After` on `429` is the length of the limit window, and lockouts send none.
 - Personal JSON has no `Cache-Control`, and some secret-bearing responses lack `no-store`.
-- Uploaded images are stored as received, with their metadata; all multipart routes share one body-size limit.
+- Uploaded images are stored as received, with their metadata.
 - Some enums are integers, some request schemas accept server-owned fields, and datetimes without an offset are
   accepted as UTC.
 - Most endpoint docstrings still carry Google sections.

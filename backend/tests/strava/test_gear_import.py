@@ -9,6 +9,7 @@ from fastapi import UploadFile
 
 import core.exceptions as core_exceptions
 import modules.gears.gear.schema as gears_schema
+import modules.strava.constants as strava_constants
 import modules.strava.gear_service as strava_gear_service
 
 
@@ -48,7 +49,7 @@ class TestImportBikes:
         assert not os.path.exists(seen[0])
 
     def test_an_oversized_upload_is_refused(self):
-        big = b"Bike Name,Bike Brand,Bike Model\n" + b"x," * (strava_gear_service._GEAR_CSV_MAX_BYTES)
+        big = b"Bike Name,Bike Brand,Bike Model\n" + b"x," * (strava_constants.GEAR_CSV_MAX_BYTES)
         with pytest.raises(core_exceptions.PayloadTooLargeError):
             strava_gear_service.import_gear(_upload(big), 7, gears_schema.GearType.BIKE, MagicMock())
 

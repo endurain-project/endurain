@@ -24,6 +24,7 @@ from fastapi import (
 
 import core.dependencies as core_dependencies
 import core.file_uploads as core_file_uploads
+import core.middleware_body_limit as core_middleware_body_limit
 import core.rate_limit as core_rate_limit
 import modules.activities.activity_ingestion.bulk_import_service as activity_ingestion_bulk_import_service
 import modules.activities.activity_ingestion.dependencies as activity_ingestion_dependencies
@@ -49,6 +50,12 @@ api_upload_router = APIRouter()
             scopes=["activities:upload"],
         )
     ],
+    openapi_extra=core_middleware_body_limit.upload_limit(
+        max(
+            core_file_uploads.max_bytes_for(core_file_uploads.UploadKind.ACTIVITY),
+            core_file_uploads.max_bytes_for(core_file_uploads.UploadKind.GZIP),
+        )
+    ),
 )
 @core_rate_limit.limiter.limit(core_rate_limit.UPLOAD)
 def create_activity_with_uploaded_file(
@@ -136,6 +143,9 @@ def read_activity_ingestion_job(
     status_code=status.HTTP_202_ACCEPTED,
     response_model=activity_ingestion_schema.ActivityIngestionJobRead,
     dependencies=[Security(auth_dependencies.check_scopes, scopes=["activities:write"])],
+    openapi_extra=core_middleware_body_limit.upload_limit(
+        core_file_uploads.max_bytes_for(core_file_uploads.UploadKind.ZIP)
+    ),
 )
 @core_rate_limit.limiter.limit(core_rate_limit.UPLOAD)
 def create_bulk_import_from_archive(

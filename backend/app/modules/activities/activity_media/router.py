@@ -8,6 +8,7 @@ from fastapi import APIRouter, Request, Security, UploadFile, status
 
 import core.dependencies as core_dependencies
 import core.file_uploads as core_file_uploads
+import core.middleware_body_limit as core_middleware_body_limit
 import core.pagination as core_pagination
 import core.rate_limit as core_rate_limit
 import modules.activities.activity.dependencies as activity_dependencies
@@ -45,6 +46,9 @@ def list_activity_media(
     response_model=activity_media_schema.ActivityMediaRead,
     status_code=status.HTTP_201_CREATED,
     dependencies=[Security(auth_dependencies.check_scopes, scopes=["activities:write"])],
+    openapi_extra=core_middleware_body_limit.upload_limit(
+        core_file_uploads.max_bytes_for(core_file_uploads.UploadKind.IMAGE)
+    ),
 )
 @core_rate_limit.limiter.limit(core_rate_limit.UPLOAD)
 def create_activity_media(

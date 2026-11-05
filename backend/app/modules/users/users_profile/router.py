@@ -22,6 +22,7 @@ import core.config as core_config
 import core.dependencies as core_dependencies
 import core.etag as core_etag
 import core.file_uploads as core_file_uploads
+import core.middleware_body_limit as core_middleware_body_limit
 import core.rate_limit as core_rate_limit
 import modules.auth.authentication.dependencies as authentication_dependencies
 import modules.auth.dependencies as auth_dependencies
@@ -71,6 +72,9 @@ def read_users_me(
     status_code=status.HTTP_201_CREATED,
     response_model=users_schema.UserPhotoRead,
     dependencies=[Security(auth_dependencies.check_scopes, scopes=["profile"])],
+    openapi_extra=core_middleware_body_limit.upload_limit(
+        core_file_uploads.max_bytes_for(core_file_uploads.UploadKind.IMAGE)
+    ),
 )
 @core_rate_limit.limiter.limit(core_rate_limit.UPLOAD)
 def upload_profile_image(
@@ -489,6 +493,9 @@ def download_profile_export(
     status_code=status.HTTP_202_ACCEPTED,
     response_model=profile_schema.ProfileImportStatus,
     dependencies=[Security(auth_dependencies.check_scopes, scopes=["profile"])],
+    openapi_extra=core_middleware_body_limit.upload_limit(
+        core_file_uploads.max_bytes_for(core_file_uploads.UploadKind.ZIP)
+    ),
 )
 @core_rate_limit.limiter.limit(core_rate_limit.UPLOAD)
 def import_profile_data(
