@@ -18,7 +18,7 @@ Set the default for new activities in **Settings → My profile → Privacy → 
 
 For activities that others can see, you can hide individual details: start time, location, map, heart rate, power, cadence, elevation, speed, pace, laps, workout sets and steps, and gear. Set your defaults under **Hide from shared activities** in your privacy settings. New activities, including imported ones, get these defaults. Each activity can override them in its edit dialog under **Hide from others**.
 
-Hidden details are removed from what followers and public viewers receive. You always see your own activities in full.
+Hidden details are removed from what followers and public viewers receive. Hiding the location also hides the activity's time zone, so times are then shown in the viewer's own zone. Ids that tie an activity to a provider account (Garmin Connect, Strava) and the record of how it was imported are never shown to others, whatever you hide. You always see your own activities in full.
 
 An activity can also be hidden from everyone with **Hide this activity from everyone**. Endurain uses this itself when an import looks like a duplicate (see [Duplicate detection](importing.md#duplicate-detection)); you can switch it off in the activity's edit dialog if the activity is not a duplicate.
 

@@ -39,7 +39,10 @@ def strava_link(
 ) -> strava_schema.StravaSyncStatus:
     """Queue the exchange of a Strava authorization code for tokens.
 
-    Poll ``GET /strava/sync/link`` for the outcome. A second request while one is
+    Send the ``state``, ``code`` and ``scope`` Strava put on the callback. ``scope`` is the comma-separated
+    list of permissions the user granted; a link whose grant lacks ``read``, ``profile:read_all`` or
+    ``activity:read_all`` is refused with 400 and ``urn:endurain:error:provider-scope-insufficient`` before
+    the code is exchanged. Poll ``GET /strava/sync/link`` for the outcome. A second request while one is
     pending is answered 409.
     """
     return strava_link_service.start_link(token_user_id, link, oauth_states, sync_states)

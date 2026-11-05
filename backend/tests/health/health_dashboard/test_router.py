@@ -7,7 +7,7 @@ import modules.health.health_dashboard.schema as health_dashboard_schema
 import modules.health.health_targets.schema as health_targets_schema
 
 
-def _build_app(mock_db):
+def _build_app(mock_db, scopes=frozenset({"health:read", "health_targets:read"})):
     import core.database as core_db
     import modules.auth.dependencies as auth_deps
     import modules.health.health_dashboard.router as router
@@ -23,6 +23,7 @@ def _build_app(mock_db):
 
     app.dependency_overrides[auth_deps.check_scopes] = _mock
     app.dependency_overrides[auth_deps.get_sub_from_access_token] = _uid
+    app.dependency_overrides[auth_deps.get_scopes_from_access_token] = lambda: scopes
     app.dependency_overrides[core_db.get_db] = lambda: mock_db
     return app
 
@@ -55,3 +56,16 @@ class TestReadHealthDailyStats:
         assert data["targets"]["steps"] == 8000
         assert data["sleep"] is None
         assert mock_stats.call_args.args[0] == 1
+        assert mock_stats.call_args.kwargs == {"include_targets": True}
+
+    @patch("modules.health.health_dashboard.router.health_dashboard_service.get_daily_stats")
+    def test_targets_are_withheld_without_the_targets_scope(self, mock_stats, mock_db):
+        mock_stats.return_value = health_dashboard_schema.HealthDashboardResponse(targets=None)
+
+        response = TestClient(_build_app(mock_db, frozenset({"health:read"}))).get(
+            "/health/stats/daily", headers={"Authorization": "Bearer x"}
+        )
+
+        assert response.status_code == 200
+        assert response.json()["targets"] is None
+        assert mock_stats.call_args.kwargs == {"include_targets": False}

@@ -25,6 +25,9 @@ UNLINK_JOB = "strava:unlink"
 #: Largest gear CSV accepted: a gear list is a few hundred rows at most.
 GEAR_CSV_MAX_BYTES = 2 * 1024 * 1024
 
+#: The OAuth scopes a Strava link needs, comma-separated as Strava lists them; the web client requests exactly these.
+REQUIRED_OAUTH_SCOPES = ("read", "profile:read_all", "activity:read_all")
+
 #: Seconds a request to Strava may take before it is abandoned; stravalib sets no timeout of its own.
 HTTP_TIMEOUT_SECONDS = 30
 

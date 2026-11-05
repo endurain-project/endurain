@@ -65,6 +65,12 @@ def apply_visibility_mask(
         return schema
     if mask_private_notes:
         schema.private_notes = None
+    # Provider and import identifiers belong to the owner's accounts and files, never to a viewer.
+    schema.garminconnect_activity_id = None
+    schema.strava_activity_id = None
+    schema.garminconnect_gear_id = None
+    schema.strava_gear_id = None
+    schema.import_info = None
     if schema.hide_start_time:
         # One representation of the instant means one place to mask it. The import time
         # places the start within minutes, so it goes with it.
@@ -75,10 +81,10 @@ def apply_visibility_mask(
         schema.city = None
         schema.town = None
         schema.country = None
+        # The zone names where the activity happened, so it goes with the place.
+        schema.timezone = None
     if schema.hide_gear:
         schema.gear_id = None
-        schema.strava_gear_id = None
-        schema.garminconnect_gear_id = None
     if schema.hide_map:
         # The map thumbnail is a rendered picture of the route, so hide_map must
         # suppress it for non-owners (the GPS map stream is masked separately via

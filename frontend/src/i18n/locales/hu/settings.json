@@ -888,6 +888,7 @@
       "clientIdPlaceholder": "123456",
       "clientSecret": "Kliens titkos kulcsa",
       "connectError": "Nem sikerült csatlakozni a Strava szolgáltatáshoz. Kérjük, ellenőrizd az adataidat, és próbáld újra.",
+      "scopeError": "A Strava nem kapta meg az Endurain által igényelt összes engedélyt. Csatlakozz újra, és hagyd bejelölve az összes engedélyt.",
       "completing": "A Strava-kapcsolat befejezése…",
       "linkSuccess": "Strava csatlakoztatva",
       "retrieveActivitiesTitle": "Strava-tevékenységek lekérése",

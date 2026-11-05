@@ -888,6 +888,7 @@
       "clientIdPlaceholder": "123456",
       "clientSecret": "Client secret",
       "connectError": "Couldn't connect to Strava. Please check your details and try again.",
+      "scopeError": "Strava didn't get every permission Endurain needs. Connect again and keep all permissions ticked.",
       "completing": "Finishing the Strava connection…",
       "linkSuccess": "Strava connected",
       "retrieveActivitiesTitle": "Retrieve Strava activities",

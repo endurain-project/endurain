@@ -17,7 +17,9 @@ import modules.health.health_weight.integration_service as health_weight_integra
 import modules.users.users.integration_service as users_integration
 
 
-def get_daily_stats(user_id: int, db: Session) -> health_dashboard_schema.HealthDashboardResponse:
+def get_daily_stats(
+    user_id: int, db: Session, *, include_targets: bool
+) -> health_dashboard_schema.HealthDashboardResponse:
     """Build a user's dashboard: today's sleep, steps, water and bowel movements, plus the latest weight and fast.
 
     "Today" is the user's own calendar day.
@@ -25,9 +27,11 @@ def get_daily_stats(user_id: int, db: Session) -> health_dashboard_schema.Health
     Args:
         user_id: The dashboard's owner.
         db: Database session.
+        include_targets: Whether the caller may read the user's health targets.
 
     Returns:
-        The consolidated dashboard; a metric without data is ``None``.
+        The consolidated dashboard; a metric without data is ``None``, and so are
+        the targets when ``include_targets`` is false.
     """
     local_today = users_integration.local_today(user_id, db)
     today = str(local_today)
@@ -38,7 +42,7 @@ def get_daily_stats(user_id: int, db: Session) -> health_dashboard_schema.Health
     active_fasting = health_fasting_integration.get_active_fasting(user_id, db)
     today_water = health_water_integration.get_health_water_by_date(user_id, today, db)
     today_poop_records = health_poop_integration.list_health_poop_by_date(user_id, today, db)
-    targets = health_targets_integration.get_health_targets(user_id, db)
+    targets = health_targets_integration.get_health_targets(user_id, db) if include_targets else None
 
     sleep_data = None
     if today_sleep:

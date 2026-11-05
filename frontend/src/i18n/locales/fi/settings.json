@@ -888,6 +888,7 @@
       "clientIdPlaceholder": "123456",
       "clientSecret": "Client secret",
       "connectError": "Stravaan ei voitu yhdistää. Tarkista tietosi ja yritä uudelleen.",
+      "scopeError": "Strava ei saanut kaikkia Endurainin tarvitsemia oikeuksia. Yhdistä uudelleen ja jätä kaikki oikeudet valituiksi.",
       "completing": "Viimeistellään Strava-yhteyttä…",
       "linkSuccess": "Strava yhdistetty",
       "retrieveActivitiesTitle": "Hae Strava-aktiviteetit",

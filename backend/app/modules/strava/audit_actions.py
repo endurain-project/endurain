@@ -19,11 +19,13 @@ class LinkFailureReason(StrEnum):
         UNAUTHORIZED: Strava answered 401: the client id or secret was not accepted.
         REJECTED: Strava refused the request with another 4xx answer, such as an invalid or used code.
         TOO_MANY_REQUESTS: Strava is rate limiting the application.
+        INSUFFICIENT_SCOPE: The user granted fewer permissions than the link needs.
     """
 
     UNAUTHORIZED = "unauthorized"
     REJECTED = "rejected"
     TOO_MANY_REQUESTS = "too_many_requests"
+    INSUFFICIENT_SCOPE = "insufficient_scope"
 
 
 class GearImportType(StrEnum):

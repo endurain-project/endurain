@@ -19,6 +19,7 @@ import modules.strava.client_service as strava_client_service
 import modules.strava.constants as strava_constants
 import modules.strava.gear_service as strava_gear_service
 import modules.strava.link_service as strava_link_service
+import modules.strava.oauth_state_store as strava_oauth_state_store
 import modules.strava.rate_limit_store as strava_rate_limit_store
 import modules.strava.schema as strava_schema
 import modules.strava.service as strava_service
@@ -132,6 +133,22 @@ class TestAccountLink:
             target_owner_id="1",
         )
         assert entry.details == {"reason": reason}
+
+    def test_a_grant_missing_a_required_scope_is_audited_with_its_reason_only(self, states):
+        oauth_states = strava_oauth_state_store.StravaOAuthStateStore(platform_runtime.get_state())
+        link = strava_schema.StravaLinkRequest(state="s" * 43, code="c", scope="read")
+
+        with jasil_testing.capture_audit() as audit, pytest.raises(core_exceptions.ProviderScopeInsufficientError):
+            strava_link_service.start_link(1, link, oauth_states, states)
+
+        entry = audit.assert_audited(
+            strava_audit_actions.ACCOUNT_LINK.id,
+            outcome="failure",
+            target_type="user",
+            target_id="1",
+            target_owner_id="1",
+        )
+        assert entry.details == {"reason": "insufficient_scope"}
 
     @pytest.mark.parametrize("error", [_fault(502), RuntimeError("token-123 broke"), ConnectionError("down")])
     def test_a_failure_that_is_not_a_refusal_leaves_no_row(self, states, error):

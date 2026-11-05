@@ -38,7 +38,7 @@ sequenceDiagram
     E-->>You: Connected
 ```
 
-- Your **password is not stored**. Endurain keeps the authentication tokens Garmin returns, encrypted, similar to the Strava integration. The login is sent from the browser to the server as plain text inside the request, so use HTTPS.
+- Endurain signs in through Garmin's unofficial login, because Garmin offers no public sign-in for this. Your password is relayed to Garmin once, for that sign-in, and is **never stored**. Endurain keeps the authentication tokens Garmin returns, encrypted, similar to the Strava integration. The login is sent from the browser to the server as plain text inside the request, so use HTTPS. Because it carries your Garmin password and MFA code, linking is limited to 10 attempts per minute, for the link request and for the MFA code alike.
 - The login runs in the background, and the page follows its progress. Only one attempt per user can run at a time. A second one is refused until the first finishes.
 - A failed attempt says why: wrong credentials, wrong MFA code, too many requests (wait a while) or an internal error.
 - If Garmin later rejects the stored tokens, Endurain unlinks the account, sends you a [notification](notifications.md) and you connect again. Your imported data is kept.
@@ -89,7 +89,7 @@ sequenceDiagram
     E-->>You: Connected
 ```
 
-Open **Settings → Integrations → Strava → Connect**, enter the client ID and secret, and authorize on Strava. You return to Endurain, which finishes the connection. Endurain asks only for read access (`read`, `read_all`, `profile:read_all`, `activity:read`, `activity:read_all`). The tokens are stored encrypted, and so are your client ID and secret. If the exchange fails, Endurain clears what it stored so you can start again.
+Open **Settings → Integrations → Strava → Connect**, enter the client ID and secret, and authorize on Strava. You return to Endurain, which finishes the connection. Endurain asks only for read access (`read`, `profile:read_all`, `activity:read_all`). Strava's consent screen lets you untick permissions: if you do, Endurain refuses the connection and asks you to connect again and keep every permission ticked. Connections made earlier are not affected. The tokens are stored encrypted, and so are your client ID and secret. If the exchange fails, Endurain clears what it stored so you can start again.
 
 ### What syncs and when
 

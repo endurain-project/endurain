@@ -442,8 +442,8 @@ export interface paths {
          * Create Activity Media
          * @description Upload an image file to associate with an activity.
          *
-         *     The file is validated by magic number (not extension) and size limits via
-         *     the centralized image upload helper before the ownership check, stored through the platform
+         *     The activity is checked before the file is read. The file is validated by magic number (not
+         *     extension) and size limits via the centralized image upload helper, stored through the platform
          *     ``StorageProvider`` under a server-generated key, and registered in the
          *     database. The response carries a signed URL; the blob itself has no public
          *     path.
@@ -1795,14 +1795,18 @@ export interface paths {
          * Read Health Daily Stats
          * @description Retrieve the user's health dashboard for today.
          *
+         *     The `targets` field is null unless the caller holds the `health_targets:read` scope.
+         *
          *     Args:
          *         request: The incoming request, read by the rate limiter.
          *         token_user_id: The ID of the authenticated user extracted from the
          *             access token.
+         *         scopes: The scopes granted to the caller.
          *         db: Database session for executing queries.
          *
          *     Returns:
-         *         The consolidated daily metrics and the user's health targets.
+         *         The consolidated daily metrics and, when the caller holds
+         *         ``health_targets:read``, the user's health targets.
          */
         get: operations["read_health_daily_stats_api_v1_health_stats_daily_get"];
         put?: never;
@@ -4875,7 +4879,10 @@ export interface paths {
          * Strava Link
          * @description Queue the exchange of a Strava authorization code for tokens.
          *
-         *     Poll ``GET /strava/sync/link`` for the outcome. A second request while one is
+         *     Send the ``state``, ``code`` and ``scope`` Strava put on the callback. ``scope`` is the comma-separated
+         *     list of permissions the user granted; a link whose grant lacks ``read``, ``profile:read_all`` or
+         *     ``activity:read_all`` is refused with 400 and ``urn:endurain:error:provider-scope-insufficient`` before
+         *     the code is exchanged. Poll ``GET /strava/sync/link`` for the outcome. A second request while one is
          *     pending is answered 409.
          */
         post: operations["strava_link_api_v1_strava_link_post"];
@@ -7387,7 +7394,8 @@ export interface components {
          *         fasting: Active or most recent fasting session.
          *         water: Today's water intake.
          *         poop: Today's bowel movement summary.
-         *         targets: The user's configured health targets.
+         *         targets: The user's configured health targets; null when the caller lacks
+         *             the ``health_targets:read`` scope.
          */
         HealthDashboardResponse: {
             /** @description Active or latest fasting session */
@@ -7398,7 +7406,7 @@ export interface components {
             sleep?: components["schemas"]["HealthSleepDashboard"] | null;
             /** @description Latest steps data */
             steps?: components["schemas"]["HealthStepsDashboard"] | null;
-            /** @description The user's health targets */
+            /** @description The user's health targets; null when the caller lacks the health_targets:read scope */
             targets?: components["schemas"]["HealthTargetsRead"] | null;
             /** @description Today's water intake */
             water?: components["schemas"]["HealthWaterDashboard"] | null;
@@ -11535,10 +11543,13 @@ export interface components {
          *     Attributes:
          *         state: The one-time state stored before the OAuth round-trip.
          *         code: The authorization code Strava returned.
+         *         scope: The comma-separated scopes Strava reports as granted.
          */
         StravaLinkRequest: {
             /** Code */
             code: string;
+            /** Scope */
+            scope: string;
             /** State */
             state: string;
         };

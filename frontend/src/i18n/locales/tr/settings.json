@@ -888,6 +888,7 @@
       "clientIdPlaceholder": "123456",
       "clientSecret": "İstemci sırrı",
       "connectError": "Strava'ya bağlanılamadı. Lütfen bilgilerinizi kontrol edip tekrar deneyin.",
+      "scopeError": "Strava, Endurain'in ihtiyaç duyduğu tüm izinleri almadı. Yeniden bağlanın ve tüm izinleri işaretli bırakın.",
       "completing": "Strava bağlantısı tamamlanıyor…",
       "linkSuccess": "Strava bağlandı",
       "retrieveActivitiesTitle": "Strava etkinliklerini al",

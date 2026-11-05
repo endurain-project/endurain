@@ -47,7 +47,7 @@ def start_link(
 
     Args:
         user_id: The authenticated user.
-        link: The state and authorization code Strava returned.
+        link: The state, authorization code and granted scopes Strava returned.
         oauth_states: The one-time OAuth state store.
         states: Shared store of the link's state.
 
@@ -55,10 +55,22 @@ def start_link(
         The link's initial status.
 
     Raises:
+        ProviderScopeInsufficientError: When the granted scopes lack one the link needs; the state is left unused.
         PoolFullError: When every link slot of this process is busy; the state is left unused.
         InvalidInputError: When the state is unknown or expired, or the user has not stored a client ID and secret.
         ConflictError: When a link is already in progress for the user.
     """
+    granted = set(link.scope.split(","))
+    missing = [scope for scope in strava_constants.REQUIRED_OAUTH_SCOPES if scope not in granted]
+    if missing:
+        logger.warning(
+            "Strava link refused: missing scopes <scopes>",
+            extra=core_logger.context(user_id=user_id, scopes=missing),
+        )
+        _audit_link_failure(user_id, strava_audit_actions.LinkFailureReason.INSUFFICIENT_SCOPE)
+        raise core_exceptions.ProviderScopeInsufficientError(
+            f"Strava did not grant every required permission; missing: {', '.join(missing)}"
+        )
     # Checked before the state is used up, so a refused link can be retried with the same callback.
     _link_pool.require_capacity()
     if not oauth_states.consume(user_id, link.state):
@@ -101,6 +113,16 @@ def _record_refused_link(user_id: int, err: Exception) -> None:
         reason = strava_audit_actions.LinkFailureReason.REJECTED
     else:
         return
+    _audit_link_failure(user_id, reason)
+
+
+def _audit_link_failure(user_id: int, reason: strava_audit_actions.LinkFailureReason) -> None:
+    """Record a refused link.
+
+    Args:
+        user_id: The user linking Strava.
+        reason: Why the link was refused.
+    """
     jasil_audit.record_detached(
         strava_audit_actions.ACCOUNT_LINK,
         outcome=jasil_audit.Outcome.FAILURE,

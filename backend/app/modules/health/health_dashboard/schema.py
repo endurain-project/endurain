@@ -171,7 +171,8 @@ class HealthDashboardResponse(BaseModel):
         fasting: Active or most recent fasting session.
         water: Today's water intake.
         poop: Today's bowel movement summary.
-        targets: The user's configured health targets.
+        targets: The user's configured health targets; null when the caller lacks
+            the ``health_targets:read`` scope.
     """
 
     sleep: HealthSleepDashboard | None = Field(
@@ -200,7 +201,7 @@ class HealthDashboardResponse(BaseModel):
     )
     targets: health_targets_schema.HealthTargetsRead | None = Field(
         default=None,
-        description="The user's health targets",
+        description="The user's health targets; null when the caller lacks the health_targets:read scope",
     )
 
     model_config = ConfigDict(

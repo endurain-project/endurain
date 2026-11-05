@@ -261,3 +261,68 @@ class TestThumbnailKeyIsServerSide:
 
         assert activity.map_thumbnail_path == "1.webp"
         assert "map_thumbnail_path" not in activity.model_dump()
+
+
+_PROVIDER_FIELDS = {
+    "garminconnect_activity_id": 123,
+    "strava_activity_id": 456,
+    "garminconnect_gear_id": "g1",
+    "strava_gear_id": "b1",
+    "import_info": {"file": "a.fit"},
+}
+
+
+class TestProviderIdentifierMasking:
+    def _schema(self, **extra):
+        from modules.activities.activity.schema import ActivityRead
+
+        return ActivityRead(
+            id=1, distance=1000, name="Ride", activity_type=5, timezone="Asia/Tokyo", **_PROVIDER_FIELDS, **extra
+        )
+
+    @pytest.mark.parametrize("field", list(_PROVIDER_FIELDS))
+    def test_non_owner_never_receives_a_provider_identifier(self, field):
+        from modules.activities.activity.serializers import apply_visibility_mask
+
+        schema = self._schema(hide_gear=False)
+
+        apply_visibility_mask(schema, is_owner=False)
+
+        assert getattr(schema, field) is None
+
+    @pytest.mark.parametrize("field", list(_PROVIDER_FIELDS))
+    def test_owner_keeps_every_provider_identifier(self, field):
+        from modules.activities.activity.serializers import apply_visibility_mask
+
+        schema = self._schema()
+
+        apply_visibility_mask(schema, is_owner=True)
+
+        assert getattr(schema, field) == _PROVIDER_FIELDS[field]
+
+    def test_hide_location_also_clears_the_timezone(self):
+        from modules.activities.activity.serializers import apply_visibility_mask
+
+        schema = self._schema(hide_location=True)
+
+        apply_visibility_mask(schema, is_owner=False)
+
+        assert schema.timezone is None
+
+    def test_timezone_is_kept_when_location_is_visible(self):
+        from modules.activities.activity.serializers import apply_visibility_mask
+
+        schema = self._schema(hide_location=False)
+
+        apply_visibility_mask(schema, is_owner=False)
+
+        assert schema.timezone == "Asia/Tokyo"
+
+    def test_owner_keeps_the_timezone_when_location_is_hidden(self):
+        from modules.activities.activity.serializers import apply_visibility_mask
+
+        schema = self._schema(hide_location=True)
+
+        apply_visibility_mask(schema, is_owner=True)
+
+        assert schema.timezone == "Asia/Tokyo"

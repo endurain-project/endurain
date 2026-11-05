@@ -38,6 +38,8 @@ The dashboard reads each metric for your today and shows only what exists:
 
 A card with no data is empty rather than zero.
 
+The dashboard response (`GET /api/v1/health/stats/daily`) also carries your targets, but only for a caller that holds the `health_targets:read` scope. Without it `targets` is `null`.
+
 ## Weight and BMI
 
 Weight is shown in kilograms or pounds, chosen under **Settings → My profile → Edit profile → Weight units**. Left on **Follow units** it uses your account's units, so a metric account can weigh itself in pounds while distance, pace and elevation stay metric.

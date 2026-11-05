@@ -888,6 +888,7 @@
       "clientIdPlaceholder": "123456",
       "clientSecret": "Client secret",
       "connectError": "Не вдалося підключитися до Strava. Перевірте свої дані та спробуйте ще раз.",
+      "scopeError": "Strava не отримала всі дозволи, потрібні Endurain. Підключіться знову й залиште всі дозволи позначеними.",
       "completing": "Завершення підключення Strava…",
       "linkSuccess": "Strava підключено",
       "retrieveActivitiesTitle": "Отримати активності Strava",

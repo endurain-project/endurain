@@ -888,6 +888,7 @@
       "clientIdPlaceholder": "123456",
       "clientSecret": "用戶端密碼",
       "connectError": "無法連接至 Strava，請確認您的資料後再試一次。",
+      "scopeError": "Strava 沒有取得 Endurain 所需的全部權限。請重新連線,並保持所有權限處於勾選狀態。",
       "completing": "正在完成 Strava 連接…",
       "linkSuccess": "Strava 已連接",
       "retrieveActivitiesTitle": "擷取 Strava 活動",

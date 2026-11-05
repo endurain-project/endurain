@@ -107,6 +107,15 @@ def get_sub_from_access_token(
     return _resolve_and_cache_principal(access_token, request, db).user_id
 
 
+def get_scopes_from_access_token(
+    request: Request,
+    access_token: Annotated[str, Depends(get_access_token)],
+    db: core_dependencies.DbSession,
+) -> frozenset[str]:
+    """Return the scopes granted to the authenticated caller."""
+    return _resolve_and_cache_principal(access_token, request, db).scopes
+
+
 def get_sid_from_access_token(
     request: Request,
     access_token: Annotated[str, Depends(get_access_token)],
@@ -200,6 +209,8 @@ def audit_context_from_request() -> jasil_audit.AuditContext:
 
 #: Authenticated user id extracted from a resolved access token.
 CurrentUserId = Annotated[int, Depends(get_sub_from_access_token)]
+#: Scopes granted to the authenticated caller.
+CurrentScopes = Annotated[frozenset[str], Depends(get_scopes_from_access_token)]
 #: Session id carried by a resolved access token.
 CurrentSessionId = Annotated[str, Depends(get_sid_from_access_token)]
 StepUpStore = account_security_integration.StepUpStore
@@ -209,6 +220,7 @@ get_mfa_secret_store = auth_mfa_dependencies.get_mfa_secret_store
 
 __all__ = [
     "AuthContext",
+    "CurrentScopes",
     "CurrentSessionId",
     "CurrentUserId",
     "MFASecretStoreBackend",
@@ -218,6 +230,7 @@ __all__ = [
     "check_scopes",
     "get_access_token",
     "get_mfa_secret_store",
+    "get_scopes_from_access_token",
     "get_sid_from_access_token",
     "get_step_up_attempts",
     "get_sub_from_access_token",

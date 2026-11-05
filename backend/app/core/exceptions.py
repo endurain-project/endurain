@@ -170,6 +170,17 @@ class InvalidMfaCodeError(InvalidInputError):
     default_detail = "Invalid MFA code"
 
 
+class ProviderScopeInsufficientError(InvalidInputError):
+    """The user granted an external provider fewer permissions than the integration needs.
+
+    Clients branch on the ``provider-scope-insufficient`` problem type to tell the user to authorize again and
+    grant every requested permission.
+    """
+
+    code = "provider-scope-insufficient"
+    default_detail = "The provider authorization is missing a required permission"
+
+
 class MfaRequiredError(PermissionDeniedError):
     """The account has MFA enabled and the request carried no MFA code.
 

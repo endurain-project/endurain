@@ -37,11 +37,12 @@ def pool():
 
 
 _STATE = "s" * 43
+_GRANTED = "read,profile:read_all,activity:read_all"
 
-_STATE = "s" * 43
 
-
-def _start(oauth_states, states, *, user_id=1, stored_state=_STATE, sent_state=_STATE, has_credentials=True):
+def _start(
+    oauth_states, states, *, user_id=1, stored_state=_STATE, sent_state=_STATE, has_credentials=True, scope=_GRANTED
+):
     if stored_state is not None:
         oauth_states.begin(1, stored_state)
     integrations = SimpleNamespace(
@@ -57,7 +58,10 @@ def _start(oauth_states, states, *, user_id=1, stored_state=_STATE, sent_state=_
         try:
             return (
                 strava_link_service.start_link(
-                    user_id, strava_schema.StravaLinkRequest(state=sent_state, code="c"), oauth_states, states
+                    user_id,
+                    strava_schema.StravaLinkRequest(state=sent_state, code="c", scope=scope),
+                    oauth_states,
+                    states,
                 ),
                 None,
             )
@@ -73,6 +77,33 @@ class TestStartLink:
         assert result == strava_schema.StravaSyncStatus(kind=LINK, status=Status.QUEUED)
         assert states.get(1, LINK).status == Status.QUEUED
         pool.submit.assert_called_once_with(strava_link_service.run_link, 1, "c", states)
+
+    @pytest.mark.parametrize(
+        "scope",
+        [
+            "read,profile:read_all",
+            "read,activity:read_all",
+            "profile:read_all,activity:read_all",
+            "read,profile:read,activity:read",
+            "read_all,activity:read",
+        ],
+    )
+    def test_a_grant_missing_a_required_scope_is_refused_before_the_state_is_used(
+        self, oauth_states, states, pool, scope
+    ):
+        _result, error = _start(oauth_states, states, scope=scope)
+
+        assert isinstance(error, core_exceptions.ProviderScopeInsufficientError)
+        assert error.status_code == 400
+        pool.submit.assert_not_called()
+        assert states.get(1, LINK) is None
+        assert oauth_states.consume(1, _STATE) is True
+
+    def test_a_grant_with_extra_scopes_is_accepted(self, oauth_states, states, pool):
+        _result, error = _start(oauth_states, states, scope="read,read_all,profile:read_all,activity:read_all,x")
+
+        assert error is None
+        pool.submit.assert_called_once()
 
     def test_a_state_is_good_for_one_link_only(self, oauth_states, states, pool):
         _start(oauth_states, states)

@@ -93,7 +93,7 @@ def test_the_client_secret_does_not_appear_in_a_repr_or_a_validation_error():
 
 def test_a_link_must_carry_a_state_as_long_as_the_server_issues():
     with pytest.raises(ValueError):
-        strava_schema.StravaLinkRequest(state="abc", code="c")
+        strava_schema.StravaLinkRequest(state="abc", code="c", scope="read")
 
 
 @pytest.mark.parametrize(

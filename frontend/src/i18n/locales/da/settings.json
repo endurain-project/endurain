@@ -888,6 +888,7 @@
       "clientIdPlaceholder": "123456",
       "clientSecret": "Klienthemmelighed",
       "connectError": "Kunne ikke forbinde til Strava. Tjek venligst dine oplysninger, og prøv igen.",
+      "scopeError": "Strava fik ikke alle de tilladelser, Endurain har brug for. Opret forbindelse igen, og lad alle tilladelser være afkrydset.",
       "completing": "Fuldfører Strava-forbindelsen…",
       "linkSuccess": "Strava forbundet",
       "retrieveActivitiesTitle": "Hent Strava-aktiviteter",

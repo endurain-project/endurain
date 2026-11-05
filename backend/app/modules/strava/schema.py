@@ -25,12 +25,14 @@ class StravaLinkRequest(BaseModel):
     Attributes:
         state: The one-time state stored before the OAuth round-trip.
         code: The authorization code Strava returned.
+        scope: The comma-separated scopes Strava reports as granted.
     """
 
     model_config = ConfigDict(extra="forbid")
 
     state: str = Field(min_length=strava_constants.OAUTH_STATE_MIN_LENGTH, max_length=128)
     code: str = Field(min_length=1, max_length=255)
+    scope: str = Field(min_length=1, max_length=255)
 
 
 class StravaState(BaseModel):

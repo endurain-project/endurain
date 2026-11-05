@@ -60,7 +60,7 @@ class TestGetDailyStats:
         )
         peers["targets"].return_value = targets
 
-        result = health_dashboard_service.get_daily_stats(1, mock_db)
+        result = health_dashboard_service.get_daily_stats(1, mock_db, include_targets=True)
 
         assert result.sleep.total_sleep_seconds == 28800
         assert result.weight.weight == 75.5
@@ -73,12 +73,12 @@ class TestGetDailyStats:
         peers["targets"].assert_called_once_with(1, mock_db)
 
     def test_all_data_missing(self, peers, mock_db):
-        result = health_dashboard_service.get_daily_stats(1, mock_db)
+        result = health_dashboard_service.get_daily_stats(1, mock_db, include_targets=True)
 
         assert result.model_dump() == dict.fromkeys(("sleep", "weight", "steps", "fasting", "water", "poop", "targets"))
 
     def test_reads_every_day_metric_for_the_users_own_today(self, peers, mock_db):
-        health_dashboard_service.get_daily_stats(1, mock_db)
+        health_dashboard_service.get_daily_stats(1, mock_db, include_targets=True)
 
         for name in ("sleep", "steps", "water", "poop"):
             assert peers[name].call_args.args == (1, "2024-01-15", mock_db)
@@ -88,7 +88,7 @@ class TestGetDailyStats:
             total_sleep_seconds=27000, resting_heart_rate=None, hrv_status=None, avg_skin_temp_deviation=None
         )
 
-        sleep = health_dashboard_service.get_daily_stats(1, mock_db).sleep
+        sleep = health_dashboard_service.get_daily_stats(1, mock_db, include_targets=True).sleep
 
         assert sleep is not None
         assert sleep.total_sleep_seconds == 27000
@@ -99,9 +99,17 @@ class TestGetDailyStats:
             total_sleep_seconds=27000, resting_heart_rate=48, hrv_status="BALANCED", avg_skin_temp_deviation=0.2
         )
 
-        assert health_dashboard_service.get_daily_stats(1, mock_db).sleep.hrv_status == "BALANCED"
+        assert health_dashboard_service.get_daily_stats(1, mock_db, include_targets=True).sleep.hrv_status == "BALANCED"
 
     def test_water_without_an_amount_is_left_out(self, peers, mock_db):
         peers["water"].return_value = MagicMock(amount_ml=None)
 
-        assert health_dashboard_service.get_daily_stats(1, mock_db).water is None
+        assert health_dashboard_service.get_daily_stats(1, mock_db, include_targets=True).water is None
+
+    def test_targets_are_not_read_without_the_scope(self, peers, mock_db):
+        peers["targets"].return_value = MagicMock()
+
+        result = health_dashboard_service.get_daily_stats(1, mock_db, include_targets=False)
+
+        assert result.targets is None
+        peers["targets"].assert_not_called()

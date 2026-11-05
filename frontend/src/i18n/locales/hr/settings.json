@@ -888,6 +888,7 @@
       "clientIdPlaceholder": "123456",
       "clientSecret": "Client secret",
       "connectError": "Nije moguće povezati sa Strava. Provjerite svoje podatke i pokušajte ponovno.",
+      "scopeError": "Strava nije dobila sva dopuštenja koja Endurain treba. Povežite se ponovno i ostavite sva dopuštenja označena.",
       "completing": "Dovršavanje Strava veze…",
       "linkSuccess": "Strava je povezana",
       "retrieveActivitiesTitle": "Dohvati Strava aktivnosti",

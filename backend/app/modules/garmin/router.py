@@ -24,7 +24,7 @@ router = APIRouter()
     response_model=garmin_schema.GarminLinkStatus,
     dependencies=[Security(auth_dependencies.check_scopes, scopes=["profile"])],
 )
-@core_rate_limit.limiter.limit(core_rate_limit.WRITE)
+@core_rate_limit.limiter.limit(core_rate_limit.SENSITIVE)
 def garminconnect_link(
     request: Request,
     garmin_user: garmin_schema.GarminLogin,
@@ -60,7 +60,7 @@ def garminconnect_link_status(
     status_code=status.HTTP_204_NO_CONTENT,
     dependencies=[Security(auth_dependencies.check_scopes, scopes=["profile"])],
 )
-@core_rate_limit.limiter.limit(core_rate_limit.WRITE)
+@core_rate_limit.limiter.limit(core_rate_limit.SENSITIVE)
 def garminconnect_mfa_code(
     request: Request,
     mfa_request: garmin_schema.MFARequest,

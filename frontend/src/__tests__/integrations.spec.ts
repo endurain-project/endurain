@@ -84,7 +84,7 @@ describe('strava service', () => {
       'https://www.strava.com/oauth/authorize?client_id=123456' +
         '&response_type=code&redirect_uri=https%3A%2F%2Fapp.example.com%2Fstrava%2Fcallback' +
         '&approval_prompt=force' +
-        '&scope=read,read_all,profile:read_all,activity:read,activity:read_all&state=mystate',
+        '&scope=read,profile:read_all,activity:read_all&state=mystate',
     )
   })
 
@@ -93,20 +93,24 @@ describe('strava service', () => {
       vi.useRealTimers()
     })
 
-    it('PUTs state + code in the body, not the URL, and resolves once the queued link completes', async () => {
+    it('POSTs state, code and scope in the body, not the URL, and resolves once the queued link completes', async () => {
       vi.useFakeTimers()
       vi.mocked(apiFetch)
         .mockResolvedValueOnce({ kind: 'link', status: 'queued' })
         .mockResolvedValueOnce({ kind: 'link', status: 'running' })
         .mockResolvedValueOnce({ kind: 'link', status: 'completed' })
 
-      const done = completeStravaLink('st ate', 'co/de')
+      const done = completeStravaLink('st ate', 'co/de', 'read,profile:read_all,activity:read_all')
       await vi.advanceTimersByTimeAsync(2_000)
       await done
 
       expect(apiFetch).toHaveBeenNthCalledWith(1, '/strava/link', {
         method: 'POST',
-        body: JSON.stringify({ state: 'st ate', code: 'co/de' }),
+        body: JSON.stringify({
+          state: 'st ate',
+          code: 'co/de',
+          scope: 'read,profile:read_all,activity:read_all',
+        }),
       })
       expect(apiFetch).toHaveBeenNthCalledWith(2, '/strava/sync/link')
       expect(apiFetch).toHaveBeenCalledTimes(3)
@@ -119,7 +123,7 @@ describe('strava service', () => {
         .mockResolvedValueOnce({ kind: 'link', status: 'queued' })
         .mockResolvedValueOnce({ kind: 'link', status: 'completed' })
 
-      const done = completeStravaLink('s', 'c')
+      const done = completeStravaLink('s', 'c', 'read')
       await vi.advanceTimersByTimeAsync(1_000)
       await done
 
@@ -133,7 +137,7 @@ describe('strava service', () => {
     it('rejects when the queued link fails', async () => {
       vi.mocked(apiFetch).mockResolvedValueOnce({ kind: 'link', status: 'failed' })
 
-      await expect(completeStravaLink('s', 'c')).rejects.toThrow('Linking Strava failed')
+      await expect(completeStravaLink('s', 'c', 'read')).rejects.toThrow('Linking Strava failed')
     })
   })
 

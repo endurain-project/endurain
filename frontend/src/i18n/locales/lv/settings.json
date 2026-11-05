@@ -888,6 +888,7 @@
       "clientIdPlaceholder": "123456",
       "clientSecret": "Klienta noslēpums",
       "connectError": "Neizdevās savienoties ar Strava. Lūdzu, pārbaudiet savus datus un mēģiniet vēlreiz.",
+      "scopeError": "Strava nesaņēma visas Endurain nepieciešamās atļaujas. Pievienojieties vēlreiz un atstājiet visas atļaujas atzīmētas.",
       "completing": "Notiek Strava savienojuma pabeigšana…",
       "linkSuccess": "Strava savienots",
       "retrieveActivitiesTitle": "Iegūt Strava aktivitātes",

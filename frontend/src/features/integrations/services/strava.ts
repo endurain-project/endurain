@@ -13,7 +13,10 @@ import { apiFetch } from '@/services/http'
 import { getRuntimeBackendHost } from '@/services/runtime'
 
 /** The OAuth scopes Endurain requests from Strava (read-only access). */
-const STRAVA_SCOPE = 'read,read_all,profile:read_all,activity:read,activity:read_all'
+const STRAVA_SCOPE = 'read,profile:read_all,activity:read_all'
+
+/** The problem type the server answers a link with when Strava granted fewer scopes than requested. */
+export const STRAVA_SCOPE_INSUFFICIENT_TYPE = 'urn:endurain:error:provider-scope-insufficient'
 
 /** How often the status of a queued Strava link or unlink is read. */
 const STRAVA_SYNC_POLL_MS = 1_000
@@ -123,11 +126,17 @@ export function buildStravaAuthUrl(state: string, clientId: number): string {
  *
  * @param state - The state echoed back by Strava.
  * @param code - The authorization code from Strava.
- * @throws {HttpError} When the request is refused (e.g. an invalid state, or a link already running).
+ * @param scope - The comma-separated scopes Strava reports as granted.
+ * @throws {HttpError} When the request is refused (e.g. an invalid state, a link already running, or
+ *   a grant missing a required scope, which has type {@link STRAVA_SCOPE_INSUFFICIENT_TYPE}).
  * @throws {Error} When the exchange fails on the server or does not finish in time.
  */
-export async function completeStravaLink(state: string, code: string): Promise<void> {
-  const payload: StravaLinkDto = { state, code }
+export async function completeStravaLink(
+  state: string,
+  code: string,
+  scope: string,
+): Promise<void> {
+  const payload: StravaLinkDto = { state, code, scope }
   await followStravaSync(
     'link',
     () =>
