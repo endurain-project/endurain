@@ -37,6 +37,8 @@ const profile: ProfileDetails = {
   hasLocalPassword: true,
   integrationsVersion: 1,
   stravaLinked: false,
+  stravaRevokedAt: null,
+  stravaDataDeletionAt: null,
   garminLinked: false,
   photoPath: null,
   avatarUrl: null,

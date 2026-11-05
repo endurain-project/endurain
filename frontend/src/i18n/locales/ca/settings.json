@@ -899,9 +899,10 @@
       "retrievingGear": "Recuperant el teu equipament de Strava en segon pla…",
       "retrieveGearError": "No s'ha pogut iniciar la recuperació d'equipament de Strava. Torna-ho a intentar.",
       "unlinkTitle": "Desconnectar Strava?",
-      "unlinkBody": "Endurain deixarà d'importar des de Strava. Les teves activitats existents es conserven.",
+      "unlinkBody": "Endurain deixarà d'importar de Strava i eliminarà les activitats i l'equipament sincronitzats des de Strava. Les activitats d'altres fonts, incloent-hi els fitxers d'exportació de Strava pujats, es conserven.",
       "unlinkSuccess": "Strava desconnectat",
-      "unlinkError": "No s'ha pogut desconnectar Strava. Torna-ho a intentar."
+      "unlinkError": "No s'ha pogut desconnectar Strava. Torna-ho a intentar.",
+      "revokedNotice": "L'accés a Strava va acabar el {revokedAt}. Les activitats i l'equipament sincronitzats amb Strava s'eliminaran el {deletionAt} si no et tornes a connectar."
     },
     "garmin": {
       "title": "Garmin Connect",

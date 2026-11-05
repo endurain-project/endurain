@@ -899,9 +899,10 @@
       "retrievingGear": "正在后台获取您的 Strava 装备…",
       "retrieveGearError": "无法开始获取 Strava 装备，请重试。",
       "unlinkTitle": "断开 Strava 连接？",
-      "unlinkBody": "Endurain 将停止从 Strava 导入。您现有的活动将保留。",
+      "unlinkBody": "Endurain 将停止从 Strava 导入，并删除从 Strava 同步的活动和装备。来自其他来源的活动（包括上传的 Strava 导出文件）会保留。",
       "unlinkSuccess": "Strava 已断开连接",
-      "unlinkError": "无法断开 Strava 连接，请重试。"
+      "unlinkError": "无法断开 Strava 连接，请重试。",
+      "revokedNotice": "Strava 访问已于 {revokedAt} 结束。除非你重新连接，否则通过 Strava 同步的活动和装备将在 {deletionAt} 被删除。"
     },
     "garmin": {
       "title": "Garmin Connect",

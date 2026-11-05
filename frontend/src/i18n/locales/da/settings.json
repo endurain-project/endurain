@@ -899,9 +899,10 @@
       "retrievingGear": "Henter dit Strava-udstyr i baggrunden…",
       "retrieveGearError": "Kunne ikke begynde at hente Strava-udstyr. Prøv venligst igen.",
       "unlinkTitle": "Afbryd forbindelse til Strava?",
-      "unlinkBody": "Endurain holder op med at importere fra Strava. Dine eksisterende aktiviteter beholdes.",
+      "unlinkBody": "Endurain holder op med at importere fra Strava og sletter aktiviteter og udstyr, der er synkroniseret fra Strava. Aktiviteter fra andre kilder, også uploadede Strava-eksportfiler, bevares.",
       "unlinkSuccess": "Strava-forbindelse afbrudt",
-      "unlinkError": "Kunne ikke afbryde forbindelsen til Strava. Prøv venligst igen."
+      "unlinkError": "Kunne ikke afbryde forbindelsen til Strava. Prøv venligst igen.",
+      "revokedNotice": "Adgangen til Strava ophørte den {revokedAt}. Aktiviteter og udstyr, der er synkroniseret med Strava, slettes den {deletionAt}, medmindre du forbinder igen."
     },
     "garmin": {
       "title": "Garmin Connect",

@@ -41,7 +41,12 @@
     },
     "stravaTokenExpired": {
       "title": "Strava nepieciešama uzmanība",
-      "body": "Strava noraidīja jūsu savienojumu. Pievienojiet to atkārtoti, lai turpinātu sinhronizāciju."
+      "body": "Strava noraidīja jūsu savienojumu. Pievienojiet to atkārtoti, lai turpinātu sinhronizāciju.",
+      "bodyRevoked": "Piekļuve Strava ir beigusies. Ar Strava sinhronizētās aktivitātes un aprīkojums tiks dzēsti {date}, ja nepievienosies atkārtoti."
+    },
+    "stravaDataDeleted": {
+      "title": "Strava dati izdzēsti",
+      "body": "Ar Strava sinhronizētās aktivitātes un aprīkojums tika izdzēsti, jo piekļuve Strava beidzās un tu nepievienojies atkārtoti."
     },
     "idpLinked": {
       "title": "Piesaistīts jauns pieteikšanās pakalpojuma sniedzējs",

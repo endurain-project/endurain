@@ -899,9 +899,10 @@
       "retrievingGear": "Načítavanie vášho Strava vybavenia na pozadí…",
       "retrieveGearError": "Načítavanie Strava vybavenia sa nepodarilo spustiť. Skúste to znova.",
       "unlinkTitle": "Odpojiť Strava?",
-      "unlinkBody": "Endurain prestane importovať zo Strava. Vaše existujúce aktivity zostanú zachované.",
+      "unlinkBody": "Endurain prestane importovať zo Strava a odstráni aktivity a vybavenie synchronizované zo Strava. Aktivity z iných zdrojov, vrátane nahraných exportných súborov Strava, zostanú zachované.",
       "unlinkSuccess": "Strava odpojená",
-      "unlinkError": "Strava sa nepodarilo odpojiť. Skúste to znova."
+      "unlinkError": "Strava sa nepodarilo odpojiť. Skúste to znova.",
+      "revokedNotice": "Prístup k Strava skončil {revokedAt}. Aktivity a vybavenie synchronizované so Strava budú odstránené {deletionAt}, ak sa znova nepripojíte."
     },
     "garmin": {
       "title": "Garmin Connect",

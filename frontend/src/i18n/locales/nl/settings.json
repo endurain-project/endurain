@@ -899,9 +899,10 @@
       "retrievingGear": "Je Strava-uitrusting wordt op de achtergrond opgehaald…",
       "retrieveGearError": "Strava-uitrusting ophalen kon niet worden gestart. Probeer het opnieuw.",
       "unlinkTitle": "Strava verbreken?",
-      "unlinkBody": "Endurain stopt met importeren van Strava. Je bestaande activiteiten blijven bewaard.",
+      "unlinkBody": "Endurain stopt met importeren vanuit Strava en verwijdert de activiteiten en uitrusting die uit Strava zijn gesynchroniseerd. Activiteiten uit andere bronnen, ook geüploade Strava-exportbestanden, blijven behouden.",
       "unlinkSuccess": "Strava verbroken",
-      "unlinkError": "Strava kon niet worden verbroken. Probeer het opnieuw."
+      "unlinkError": "Strava kon niet worden verbroken. Probeer het opnieuw.",
+      "revokedNotice": "De toegang tot Strava is beëindigd op {revokedAt}. Met Strava gesynchroniseerde activiteiten en uitrusting worden op {deletionAt} verwijderd, tenzij je opnieuw verbindt."
     },
     "garmin": {
       "title": "Garmin Connect",

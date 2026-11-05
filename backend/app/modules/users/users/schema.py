@@ -490,6 +490,9 @@ class UsersMe(UsersRead):
         privacy_settings_version: Version of the privacy settings, for ``If-Match``.
         integrations_version: Version of the integrations, for ``If-Match`` when the Strava client is set.
         is_strava_linked: Strava integration status.
+        strava_revoked_at: When Strava refused the refresh token, ``None`` while access is intact.
+        strava_data_deletion_at: When the user's Strava data is deleted unless they relink, ``None`` while
+            access is intact.
         is_garminconnect_linked: Garmin Connect status.
         default_activity_visibility: Default visibility level.
         hide_activity_start_time: Hide start time setting.
@@ -519,6 +522,12 @@ class UsersMe(UsersRead):
         description="Version of the integrations, sent back in If-Match when the Strava client is set",
     )
     is_strava_linked: StrictInt | None = Field(default=None, description="Whether Strava is linked")
+    strava_revoked_at: datetime | None = Field(
+        default=None, description="When Strava access ended because the user revoked it on Strava"
+    )
+    strava_data_deletion_at: datetime | None = Field(
+        default=None, description="When Strava-synced activities and gear are deleted unless Strava is relinked"
+    )
     is_garminconnect_linked: StrictInt | None = Field(default=None, description="Whether Garmin Connect is linked")
     default_activity_visibility: StrictStr | None = Field(default=None, description="Default activity visibility")
     hide_activity_start_time: StrictBool | None = Field(default=None, description="Hide activity start time")

@@ -12772,6 +12772,9 @@ export interface components {
          *         privacy_settings_version: Version of the privacy settings, for ``If-Match``.
          *         integrations_version: Version of the integrations, for ``If-Match`` when the Strava client is set.
          *         is_strava_linked: Strava integration status.
+         *         strava_revoked_at: When Strava refused the refresh token, ``None`` while access is intact.
+         *         strava_data_deletion_at: When the user's Strava data is deleted unless they relink, ``None`` while
+         *             access is intact.
          *         is_garminconnect_linked: Garmin Connect status.
          *         default_activity_visibility: Default visibility level.
          *         hide_activity_start_time: Hide start time setting.
@@ -12990,6 +12993,16 @@ export interface components {
              * @description Version of the privacy settings, sent back in If-Match when they are edited
              */
             privacy_settings_version?: number | null;
+            /**
+             * Strava Data Deletion At
+             * @description When Strava-synced activities and gear are deleted unless Strava is relinked
+             */
+            strava_data_deletion_at?: string | null;
+            /**
+             * Strava Revoked At
+             * @description When Strava access ended because the user revoked it on Strava
+             */
+            strava_revoked_at?: string | null;
             /**
              * Timezone
              * @description IANA timezone the athlete lives in. Used as the fallback for activities imported without a GPS track, which would otherwise inherit the server's timezone. Null means not set.

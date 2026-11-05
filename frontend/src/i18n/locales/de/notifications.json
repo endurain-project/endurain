@@ -41,7 +41,12 @@
     },
     "stravaTokenExpired": {
       "title": "Strava braucht deine Aufmerksamkeit",
-      "body": "Strava hat deine Verbindung abgelehnt. Verbinde dich erneut, damit die Synchronisierung weiterläuft."
+      "body": "Strava hat deine Verbindung abgelehnt. Verbinde dich erneut, damit die Synchronisierung weiterläuft.",
+      "bodyRevoked": "Der Strava-Zugriff wurde beendet. Deine mit Strava synchronisierten Aktivitäten und Ausrüstung werden am {date} gelöscht, sofern du dich nicht erneut verbindest."
+    },
+    "stravaDataDeleted": {
+      "title": "Strava-Daten gelöscht",
+      "body": "Deine mit Strava synchronisierten Aktivitäten und Ausrüstung wurden gelöscht, weil der Strava-Zugriff beendet wurde und du dich nicht erneut verbunden hast."
     },
     "idpLinked": {
       "title": "Neuer Anmeldeanbieter verknüpft",

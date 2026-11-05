@@ -1,4 +1,4 @@
-"""Audit actions written by the Strava package: the client, the account link and the gear import.
+"""Audit actions written by the Strava package: the client, the account link, revoked-access deletion and the gear import.
 
 Ids are stable forever: rows outlive the code. ``details`` carry enumerated values and counts only, never the
 client id or secret, a code, a token, a provider message or a file's content.
@@ -33,6 +33,20 @@ class GearImportType(StrEnum):
 
     BIKES = "bikes"
     SHOES = "shoes"
+
+
+class DataDeleteDetails(VersionedPayload):
+    """Details of ``strava.data.delete``.
+
+    Attributes:
+        activity_count: How many Strava-synced activities were deleted.
+    """
+
+    model_config = ConfigDict(extra="forbid")
+
+    SCHEMA_VERSION: ClassVar[int] = 1
+
+    activity_count: int
 
 
 class LinkFailureDetails(VersionedPayload):
@@ -98,6 +112,15 @@ ACCOUNT_REVOKE = jasil_audit.AuditAction(
     description_default="A Strava account was unlinked because Strava rejected its token",
 )
 
+DATA_DELETE = jasil_audit.AuditAction(
+    id="strava.data.delete",
+    category=jasil_audit.Category.DATA_CHANGE,
+    severity=jasil_audit.Severity.MEDIUM,
+    description_key="audit.strava.data.delete",
+    description_default="Strava data was deleted because Strava access was revoked",
+    details_model=DataDeleteDetails,
+)
+
 GEAR_IMPORT = jasil_audit.AuditAction(
     id="strava.gear.import",
     category=jasil_audit.Category.DATA_TRANSFER,
@@ -113,5 +136,6 @@ ACTIONS: tuple[jasil_audit.AuditAction, ...] = (
     ACCOUNT_LINK,
     ACCOUNT_UNLINK,
     ACCOUNT_REVOKE,
+    DATA_DELETE,
     GEAR_IMPORT,
 )

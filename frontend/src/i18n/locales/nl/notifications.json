@@ -41,7 +41,12 @@
     },
     "stravaTokenExpired": {
       "title": "Strava heeft aandacht nodig",
-      "body": "Strava heeft je verbinding geweigerd. Verbind opnieuw om te blijven synchroniseren."
+      "body": "Strava heeft je verbinding geweigerd. Verbind opnieuw om te blijven synchroniseren.",
+      "bodyRevoked": "De toegang tot Strava is beëindigd. Je met Strava gesynchroniseerde activiteiten en uitrusting worden op {date} verwijderd, tenzij je opnieuw verbindt."
+    },
+    "stravaDataDeleted": {
+      "title": "Strava-gegevens verwijderd",
+      "body": "Je met Strava gesynchroniseerde activiteiten en uitrusting zijn verwijderd omdat de toegang tot Strava is beëindigd en je niet opnieuw hebt verbonden."
     },
     "idpLinked": {
       "title": "Nieuwe aanmeldprovider gekoppeld",

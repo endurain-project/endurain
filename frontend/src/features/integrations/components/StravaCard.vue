@@ -8,6 +8,7 @@ import type { DateRange, StravaClientInput } from '@/features/integrations/types
 
 import RetrieveRangeDialog from '@/features/integrations/components/RetrieveRangeDialog.vue'
 import StravaConnectDialog from '@/features/integrations/components/StravaConnectDialog.vue'
+import { Alert } from '@/components/ui/alert'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
@@ -22,6 +23,7 @@ import {
 import { INTEGRATION_LOGOS } from '@/constants/integrationLogos'
 import { useToasts } from '@/composables/useToasts'
 import { isStaleWrite } from '@/services/ifMatch'
+import { formatMediumDate } from '@/utils/datetime'
 import { queryKeys } from '@/services/queryKeys'
 import {
   useRetrieveStravaActivitiesMutation,
@@ -38,11 +40,15 @@ import {
 const props = defineProps<{
   /** Whether a Strava account is currently connected. */
   linked: boolean
+  /** When Strava access was revoked on Strava, or `null` while access is intact. */
+  revokedAt: string | null
+  /** When Strava-synced activities and gear are deleted unless Strava is reconnected, or `null`. */
+  dataDeletionAt: string | null
   /** The integrations row version the profile was read at, sent as `If-Match` with the client. */
   integrationsVersion: number
 }>()
 
-const { t } = useI18n()
+const { t, locale } = useI18n()
 const toasts = useToasts()
 const queryClient = useQueryClient()
 
@@ -130,7 +136,7 @@ function confirmUnlink(): void {
     </div>
 
     <Button v-if="!props.linked" size="sm" @click="isConnectOpen = true">
-      {{ t('settings.integrations.connect') }}
+      {{ props.revokedAt ? t('settings.integrations.relink') : t('settings.integrations.connect') }}
     </Button>
 
     <DropdownMenu v-else>
@@ -160,6 +166,19 @@ function confirmUnlink(): void {
         </DropdownMenuItem>
       </DropdownMenuContent>
     </DropdownMenu>
+
+    <Alert
+      v-if="!props.linked && props.revokedAt && props.dataDeletionAt"
+      kind="warning"
+      class="w-full"
+    >
+      {{
+        t('settings.integrations.strava.revokedNotice', {
+          revokedAt: formatMediumDate(props.revokedAt, locale),
+          deletionAt: formatMediumDate(props.dataDeletionAt, locale),
+        })
+      }}
+    </Alert>
 
     <StravaConnectDialog
       v-model:open="isConnectOpen"

@@ -110,6 +110,9 @@ export interface PrivacySettings {
  * @property hasLocalPassword - Whether the account has a local password (false for SSO-only).
  * @property integrationsVersion - The integrations row version, sent back in `If-Match` when the Strava client is set.
  * @property stravaLinked - Whether a Strava account is connected.
+ * @property stravaRevokedAt - When Strava access ended because it was revoked on Strava, or `null`.
+ * @property stravaDataDeletionAt - When Strava-synced activities and gear are deleted unless Strava is
+ *   reconnected, or `null`.
  * @property garminLinked - Whether a Garmin Connect account is connected.
  * @property photoPath - Backend-issued photo URL, or `null` when unset.
  * @property avatarUrl - Servable avatar URL derived from `photoPath`, or `null`.
@@ -139,6 +142,8 @@ export interface ProfileDetails {
   hasLocalPassword: boolean
   integrationsVersion: number
   stravaLinked: boolean
+  stravaRevokedAt: string | null
+  stravaDataDeletionAt: string | null
   garminLinked: boolean
   photoPath: string | null
   avatarUrl: string | null

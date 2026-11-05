@@ -1,5 +1,6 @@
 """Tests for user_integrations.crud module."""
 
+from datetime import UTC, datetime
 from typing import ClassVar
 from unittest.mock import MagicMock, patch
 
@@ -498,6 +499,32 @@ class TestUnlinkStravaTokensIfRefreshToken:
         assert mock_integrations.strava_client_secret == "secret"
         mock_db.flush.assert_not_called()
 
+    def test_stores_the_revocation_time_with_the_cleared_tokens(self, mock_db):
+        """A revocation marks the row in the same update that clears the tokens."""
+        mock_integrations = MagicMock(spec=UsersIntegrations)
+        mock_integrations.strava_refresh_token = _enc("old")
+        mock_integrations.strava_revoked_at = None
+        mock_db.execute.return_value.scalar_one_or_none.return_value = mock_integrations
+        revoked_at = datetime(2026, 11, 5, tzinfo=UTC)
+
+        result = user_integrations_crud.unlink_strava_tokens_if_refresh_token(
+            1, _enc("old"), mock_db, revoked_at=revoked_at
+        )
+
+        assert result is True
+        assert mock_integrations.strava_revoked_at == revoked_at
+
+    def test_a_plain_rejection_leaves_no_revocation_mark(self, mock_db):
+        """A rejected token that is not a revocation does not start the deletion clock."""
+        mock_integrations = MagicMock(spec=UsersIntegrations)
+        mock_integrations.strava_refresh_token = _enc("old")
+        mock_integrations.strava_revoked_at = None
+        mock_db.execute.return_value.scalar_one_or_none.return_value = mock_integrations
+
+        user_integrations_crud.unlink_strava_tokens_if_refresh_token(1, _enc("old"), mock_db)
+
+        assert mock_integrations.strava_revoked_at is None
+
     def test_keeps_a_token_linked_since(self, mock_db):
         """A refresh token replaced by a new link or refresh is left alone."""
         mock_integrations = MagicMock(spec=UsersIntegrations)
@@ -583,3 +610,50 @@ class TestReplaceGarminConnectTokenIfToken:
 
         assert result is False
         assert mock_integrations.garminconnect_token == {"di_token": "relinked"}
+
+
+class TestStravaRevokedAt:
+    """Relinking, unlinking and the deletion clear the revocation mark."""
+
+    TOKENS: ClassVar[dict[str, str | int]] = {"access_token": "a", "refresh_token": "r", "expires_at": 1_800_000_000}
+
+    def _integrations(self, mock_db):
+        row = MagicMock(spec=UsersIntegrations)
+        row.strava_revoked_at = datetime(2026, 11, 1, tzinfo=UTC)
+        mock_db.execute.return_value.scalar_one_or_none.return_value = row
+        return row
+
+    def test_relinking_clears_it(self, mock_db):
+        row = self._integrations(mock_db)
+
+        user_integrations_crud.link_strava_account(1, self.TOKENS, mock_db)
+
+        assert row.strava_revoked_at is None
+
+    def test_an_in_app_unlink_clears_it(self, mock_db):
+        row = self._integrations(mock_db)
+
+        user_integrations_crud.unlink_strava_account(1, mock_db)
+
+        assert row.strava_revoked_at is None
+
+    def test_clearing_it_after_the_deletion_flushes_without_committing(self, mock_db):
+        row = self._integrations(mock_db)
+
+        user_integrations_crud.clear_strava_revoked_at(1, mock_db)
+
+        assert row.strava_revoked_at is None
+        mock_db.flush.assert_called_once()
+        mock_db.commit.assert_not_called()
+
+    def test_the_due_users_are_the_unlinked_ones_revoked_before_the_cutoff(self, mock_db):
+        mock_db.scalars.return_value.all.return_value = [3, 9]
+
+        ids = user_integrations_crud.list_user_ids_with_strava_revoked_before(
+            datetime(2026, 11, 1, tzinfo=UTC), 0, 50, mock_db
+        )
+
+        assert ids == [3, 9]
+        sql = str(mock_db.scalars.call_args.args[0])
+        assert "strava_revoked_at <" in sql
+        assert "strava_token IS NULL" in sql

@@ -101,6 +101,7 @@ import modules.server_settings.integration_service as server_settings_integratio
 import modules.server_settings.scheduled_jobs as server_settings_scheduled_jobs
 import modules.strava.audit_actions as strava_audit_actions
 import modules.strava.integration_service as strava_integration
+import modules.strava.scheduled_jobs as strava_scheduled_jobs
 import modules.strava.subscriber_registry as strava_subscriber_registry
 import modules.users.contributor_registry as users_contributor_registry
 import modules.users.contributors as users_contributors
@@ -481,6 +482,7 @@ MODULES: tuple[RuntimeModule, ...] = (
         name="strava",
         register_durable=strava_subscriber_registry.register_durable_handlers,
         nets=strava_subscriber_registry.DURABLE_SUBSCRIBER_NETS,
+        recurring_jobs=strava_scheduled_jobs.recurring_jobs,
         audit_actions=strava_audit_actions.ACTIONS,
         shutdown=strava_integration.shutdown_pools,
     ),

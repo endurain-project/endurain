@@ -174,6 +174,8 @@ const profile: ProfileDetails = {
   hasLocalPassword: true,
   integrationsVersion: 1,
   stravaLinked: false,
+  stravaRevokedAt: null,
+  stravaDataDeletionAt: null,
   garminLinked: false,
   privacy: {} as ProfileDetails['privacy'],
 }

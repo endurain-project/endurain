@@ -56,6 +56,8 @@ const profile = computed(() => profileQuery.data.value ?? null)
     <template v-else-if="profile">
       <StravaCard
         :linked="profile.stravaLinked"
+        :revoked-at="profile.stravaRevokedAt"
+        :data-deletion-at="profile.stravaDataDeletionAt"
         :integrations-version="profile.integrationsVersion"
       />
       <GarminCard :linked="profile.garminLinked" />

@@ -41,7 +41,12 @@
     },
     "stravaTokenExpired": {
       "title": "Strava vyžaduje pozornosť",
-      "body": "Strava odmietla vaše pripojenie. Pripojte ju znova, aby synchronizácia pokračovala."
+      "body": "Strava odmietla vaše pripojenie. Pripojte ju znova, aby synchronizácia pokračovala.",
+      "bodyRevoked": "Prístup k Strava skončil. Vaše aktivity a vybavenie synchronizované so Strava budú odstránené {date}, ak sa znova nepripojíte."
+    },
+    "stravaDataDeleted": {
+      "title": "Údaje zo Strava odstránené",
+      "body": "Vaše aktivity a vybavenie synchronizované so Strava boli odstránené, pretože prístup k Strava skončil a nepripojili ste sa znova."
     },
     "idpLinked": {
       "title": "Pripojený nový poskytovateľ prihlásenia",

@@ -21,6 +21,8 @@ class UsersIntegrations(Base):
         strava_refresh_token: Encrypted Strava refresh token.
         strava_token_expires_at: Strava token expiration
             timestamp.
+        strava_revoked_at: When Strava refused the refresh token,
+            ``None`` while access is intact.
         strava_sync_gear: Enable Strava gear synchronization.
         garminconnect_token: Garmin Connect token
             data.
@@ -70,6 +72,12 @@ class UsersIntegrations(Base):
         default=None,
         nullable=True,
         comment="Strava token expiration date",
+    )
+    strava_revoked_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True),
+        default=None,
+        nullable=True,
+        comment="When Strava refused the refresh token; Strava data is deleted after the grace period",
     )
     strava_sync_gear: Mapped[bool] = mapped_column(
         nullable=False,

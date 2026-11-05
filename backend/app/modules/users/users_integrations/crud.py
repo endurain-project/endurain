@@ -172,6 +172,7 @@ def link_strava_account(
     db_user_integrations.strava_token = core_cryptography.encrypt_token_fernet(tokens["access_token"])
     db_user_integrations.strava_refresh_token = core_cryptography.encrypt_token_fernet(tokens["refresh_token"])
     db_user_integrations.strava_token_expires_at = datetime.fromtimestamp(tokens["expires_at"], tz=UTC)
+    db_user_integrations.strava_revoked_at = None
 
     db.flush()
     db.refresh(db_user_integrations)
@@ -257,15 +258,19 @@ def unlink_strava_account(user_id: int, db: Session) -> None:
     db_user_integrations.strava_sync_gear = False
     db_user_integrations.strava_client_id = None
     db_user_integrations.strava_client_secret = None
+    db_user_integrations.strava_revoked_at = None
 
     db.flush()
     db.refresh(db_user_integrations)
 
 
-def unlink_strava_tokens_if_refresh_token(user_id: int, refresh_token: str, db: Session) -> bool:
+def unlink_strava_tokens_if_refresh_token(
+    user_id: int, refresh_token: str, db: Session, *, revoked_at: datetime | None = None
+) -> bool:
     """Clear a user's Strava tokens only while they still hold the given refresh token.
 
-    The client id and secret are kept, so the user relinks without entering them again. The
+    The client id and secret are kept, so the user relinks without entering them again. When
+    ``revoked_at`` is given it is stored in the same update, marking the tokens as revoked on Strava. The
     row is locked while the token is compared (by what it decrypts to, so a re-encryption under a new key is not a change), so a link or refresh made in the meantime is
     never cleared by a caller that holds the previous token. The caller commits.
 
@@ -273,6 +278,7 @@ def unlink_strava_tokens_if_refresh_token(user_id: int, refresh_token: str, db: 
         user_id: The ID of the user to unlink.
         refresh_token: The stored (encrypted) refresh token the caller found to be rejected.
         db: SQLAlchemy database session.
+        revoked_at: When Strava refused the refresh token, or ``None`` when the token was only rejected.
 
     Returns:
         True when the tokens were cleared, False when the stored refresh token has changed or
@@ -294,7 +300,49 @@ def unlink_strava_tokens_if_refresh_token(user_id: int, refresh_token: str, db: 
     db_user_integrations.strava_refresh_token = None
     db_user_integrations.strava_token_expires_at = None
     db_user_integrations.strava_sync_gear = False
+    if revoked_at is not None:
+        db_user_integrations.strava_revoked_at = revoked_at
     return True
+
+
+def list_user_ids_with_strava_revoked_before(cutoff: datetime, after_id: int, limit: int, db: Session) -> list[int]:
+    """List the users whose Strava access was revoked before a moment and who have not relinked.
+
+    Args:
+        cutoff: Return only users revoked before this moment.
+        after_id: Return only users with an id greater than this.
+        limit: Maximum number of user ids to return.
+        db: SQLAlchemy database session.
+
+    Returns:
+        The user ids, ascending.
+    """
+    stmt = (
+        select(user_integrations_models.UsersIntegrations.user_id)
+        .where(
+            user_integrations_models.UsersIntegrations.user_id > after_id,
+            user_integrations_models.UsersIntegrations.strava_revoked_at < cutoff,
+            user_integrations_models.UsersIntegrations.strava_token.is_(None),
+        )
+        .order_by(user_integrations_models.UsersIntegrations.user_id)
+        .limit(limit)
+    )
+    return list(db.scalars(stmt).all())
+
+
+def clear_strava_revoked_at(user_id: int, db: Session) -> None:
+    """Clear the Strava revocation mark once the user's Strava data was deleted (flushed, not committed).
+
+    Args:
+        user_id: The ID of the user.
+        db: SQLAlchemy database session.
+
+    Raises:
+        NotFoundError: If the user has no integrations.
+    """
+    db_user_integrations = _get_user_integrations_model_by_user_id_or_404(user_id, db)
+    db_user_integrations.strava_revoked_at = None
+    db.flush()
 
 
 def set_user_strava_client(user_id: int, client_id: str, client_secret: str, db: Session, *, if_match: str) -> None:

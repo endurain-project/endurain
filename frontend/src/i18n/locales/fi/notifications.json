@@ -41,7 +41,12 @@
     },
     "stravaTokenExpired": {
       "title": "Stravan yhteys vaatii huomiotasi",
-      "body": "Strava hylkäsi yhteytesi. Yhdistä se uudelleen, jotta synkronointi jatkuu."
+      "body": "Strava hylkäsi yhteytesi. Yhdistä se uudelleen, jotta synkronointi jatkuu.",
+      "bodyRevoked": "Stravan käyttöoikeus on päättynyt. Stravan kanssa synkronoidut aktiviteettisi ja varusteesi poistetaan {date}, ellet yhdistä uudelleen."
+    },
+    "stravaDataDeleted": {
+      "title": "Stravan tiedot poistettu",
+      "body": "Stravan kanssa synkronoidut aktiviteettisi ja varusteesi poistettiin, koska Stravan käyttöoikeus päättyi etkä yhdistänyt uudelleen."
     },
     "idpLinked": {
       "title": "Uusi kirjautumispalvelu linkitetty",

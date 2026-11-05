@@ -102,7 +102,20 @@ Strava's rate limits are per application. When one is hit, Endurain stops callin
 
 ### Disconnecting
 
-**Disconnect** first asks Strava to revoke Endurain's access, and goes ahead even if Strava cannot be reached. It then **deletes the gear and activities that carry a Strava id**, which includes those imported by a sync and those from a [Strava bulk export](importing.md#importing-data-from-a-strava-bulk-export-beta), in line with Strava's [API Agreement](https://www.strava.com/legal/api). It also clears the stored tokens, client ID and secret. Activities from other sources, such as an upload or Garmin Connect, stay.
+**Disconnect** first asks Strava to revoke Endurain's access, and goes ahead even if Strava cannot be reached. It then **deletes the gear and activities that were synced from Strava**, in line with Strava's [API Agreement](https://www.strava.com/legal/api). It also clears the stored tokens, client ID and secret. Activities from other sources, such as an upload, a [Strava bulk export](importing.md#importing-data-from-a-strava-bulk-export-beta) or Garmin Connect, stay.
 
 !!! warning
     Disconnecting Strava cannot be undone. [Export your data](export-import.md) first if you want a copy of what was imported.
+
+### When you revoke access on Strava
+
+If you withdraw Endurain's access in your Strava settings, Endurain notices at the next sync. When Strava refuses the access token, Endurain tries once to refresh it. A token that has merely expired is refreshed and the sync carries on. If Strava refuses the refresh token, or refuses the new access token as well, access counts as revoked. Strava also refuses the refresh if the application's client secret changed, so check that before you reconnect. A refresh that fails for another reason, such as Strava being unreachable, changes nothing and is tried again at the next sync. Endurain then:
+
+1. clears the stored tokens, keeps your client ID and secret and sends you a [notification](notifications.md) that gives the day your Strava-synced activities and gear will be deleted. The Strava card in **Settings → Integrations** shows the same dates;
+2. keeps your data for 7 days. Connect Strava again within that time and nothing is deleted;
+3. after the 7 days, deletes the activities and gear that were synced from Strava, as **Disconnect** does, and sends you a second notification. Endurain checks for due deletions every hour.
+
+Only what the Strava API synced is deleted. Activities from your own [Strava bulk export](importing.md#importing-data-from-a-strava-bulk-export-beta) and from other sources stay, and so do your client ID and secret.
+
+!!! note "Known gap"
+    An activity you delete on Strava is not removed from Endurain. Strava's API Policy (section 6.3) asks for this within 48 hours, so delete the activity in Endurain as well.

@@ -41,7 +41,12 @@
     },
     "stravaTokenExpired": {
       "title": "Strava wymaga uwagi",
-      "body": "Strava odrzuciła Twoje połączenie. Połącz ją ponownie, aby kontynuować synchronizację."
+      "body": "Strava odrzuciła Twoje połączenie. Połącz ją ponownie, aby kontynuować synchronizację.",
+      "bodyRevoked": "Dostęp do Strava wygasł. Twoje aktywności i sprzęt zsynchronizowane ze Strava zostaną usunięte {date}, jeśli nie połączysz się ponownie."
+    },
+    "stravaDataDeleted": {
+      "title": "Dane ze Strava usunięte",
+      "body": "Twoje aktywności i sprzęt zsynchronizowane ze Strava zostały usunięte, ponieważ dostęp do Strava wygasł, a nie połączyłeś się ponownie."
     },
     "idpLinked": {
       "title": "Połączono nowego dostawcę logowania",

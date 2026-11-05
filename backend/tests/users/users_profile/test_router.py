@@ -57,6 +57,7 @@ def _make_integration_mock() -> MagicMock:
     integ = MagicMock()
     integ.version = 2
     integ.strava_token = None
+    integ.strava_revoked_at = None
     integ.garminconnect_token = None
     return integ
 
@@ -133,6 +134,42 @@ class TestReadUsersMe:
 
         assert response.headers["ETag"] == '"8"'
         assert response.json()["integrations_version"] == 2
+
+    @patch("modules.users.users_profile.service.users_privacy_settings_integration.get_privacy_settings")
+    @patch("modules.users.users_profile.service.user_integrations_integration.get_user_integrations")
+    @patch("modules.users.users_profile.service.users_integration.require_user")
+    def test_a_revoked_strava_access_carries_the_day_its_data_is_deleted(
+        self, mock_get_user, mock_get_integrations, mock_get_privacy, profile_client, mock_auth_services
+    ):
+        mock_get_user.return_value = _make_user_mock()
+        integrations = _make_integration_mock()
+        integrations.strava_revoked_at = datetime(2026, 11, 5, 9, 30, tzinfo=UTC)
+        mock_get_integrations.return_value = integrations
+        mock_get_privacy.return_value = _make_privacy_mock()
+        mock_auth_services.has_local_password.return_value = True
+        mock_auth_services.get_mfa_status.return_value = mfa_schema.MFAStatusRead(mfa_enabled=False)
+
+        data = profile_client.get(PREFIX).json()
+
+        assert data["strava_revoked_at"].startswith("2026-11-05T09:30:00")
+        assert data["strava_data_deletion_at"].startswith("2026-11-12T09:30:00")
+
+    @patch("modules.users.users_profile.service.users_privacy_settings_integration.get_privacy_settings")
+    @patch("modules.users.users_profile.service.user_integrations_integration.get_user_integrations")
+    @patch("modules.users.users_profile.service.users_integration.require_user")
+    def test_intact_strava_access_has_no_revocation_dates(
+        self, mock_get_user, mock_get_integrations, mock_get_privacy, profile_client, mock_auth_services
+    ):
+        mock_get_user.return_value = _make_user_mock()
+        mock_get_integrations.return_value = _make_integration_mock()
+        mock_get_privacy.return_value = _make_privacy_mock()
+        mock_auth_services.has_local_password.return_value = True
+        mock_auth_services.get_mfa_status.return_value = mfa_schema.MFAStatusRead(mfa_enabled=False)
+
+        data = profile_client.get(PREFIX).json()
+
+        assert data["strava_revoked_at"] is None
+        assert data["strava_data_deletion_at"] is None
 
     @patch("modules.users.users_profile.service.users_privacy_settings_integration.get_privacy_settings")
     @patch("modules.users.users_profile.service.user_integrations_integration.get_user_integrations")

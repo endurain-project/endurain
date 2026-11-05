@@ -899,9 +899,10 @@
       "retrievingGear": "Hämtar din Strava-utrustning i bakgrunden…",
       "retrieveGearError": "Kunde inte starta hämtning av Strava-utrustning. Försök igen.",
       "unlinkTitle": "Koppla bort Strava?",
-      "unlinkBody": "Endurain slutar importera från Strava. Dina befintliga aktiviteter behålls.",
+      "unlinkBody": "Endurain slutar importera från Strava och raderar aktiviteter och utrustning som synkroniserats från Strava. Aktiviteter från andra källor, även uppladdade Strava-exportfiler, behålls.",
       "unlinkSuccess": "Strava bortkopplad",
-      "unlinkError": "Kunde inte koppla bort Strava. Försök igen."
+      "unlinkError": "Kunde inte koppla bort Strava. Försök igen.",
+      "revokedNotice": "Åtkomsten till Strava upphörde den {revokedAt}. Aktiviteter och utrustning som synkroniserats med Strava raderas den {deletionAt} om du inte ansluter igen."
     },
     "garmin": {
       "title": "Garmin Connect",

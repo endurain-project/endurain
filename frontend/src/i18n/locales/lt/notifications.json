@@ -41,7 +41,12 @@
     },
     "stravaTokenExpired": {
       "title": "Strava reikia dėmesio",
-      "body": "Strava atmetė jūsų ryšį. Prijunkite iš naujo, kad sinchronizavimas tęstųsi."
+      "body": "Strava atmetė jūsų ryšį. Prijunkite iš naujo, kad sinchronizavimas tęstųsi.",
+      "bodyRevoked": "Prieiga prie Strava baigėsi. Su Strava sinchronizuotos veiklos ir įranga bus ištrintos {date}, jei neprisijungsite iš naujo."
+    },
+    "stravaDataDeleted": {
+      "title": "Strava duomenys ištrinti",
+      "body": "Su Strava sinchronizuotos veiklos ir įranga buvo ištrintos, nes prieiga prie Strava baigėsi, o jūs neprisijungėte iš naujo."
     },
     "idpLinked": {
       "title": "Susietas naujas prisijungimo teikėjas",

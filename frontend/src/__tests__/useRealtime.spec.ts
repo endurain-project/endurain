@@ -205,6 +205,7 @@ describe('useRealtime', () => {
 
     it.each([
       'IDP_LINKED_NOTIFICATION',
+      'STRAVA_DATA_DELETED_NOTIFICATION',
       'ACCOUNT_SECURITY_CHANGED_NOTIFICATION',
       'NEW_DEVICE_SIGN_IN_NOTIFICATION',
     ])('refetches notifications for a %s hint', async (message) => {

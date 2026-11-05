@@ -899,9 +899,10 @@
       "retrievingGear": "Notiek jūsu Strava inventāra iegūšana fonā…",
       "retrieveGearError": "Neizdevās sākt Strava inventāra iegūšanu. Lūdzu, mēģiniet vēlreiz.",
       "unlinkTitle": "Atvienot Strava?",
-      "unlinkBody": "Endurain pārtrauks importēšanu no Strava. Jūsu esošās aktivitātes tiek saglabātas.",
+      "unlinkBody": "Endurain pārtrauks importēšanu no Strava un izdzēsīs no Strava sinhronizētās aktivitātes un aprīkojumu. Aktivitātes no citiem avotiem, tostarp augšupielādētie Strava eksporta faili, tiks saglabātas.",
       "unlinkSuccess": "Strava atvienots",
-      "unlinkError": "Neizdevās atvienot Strava. Lūdzu, mēģiniet vēlreiz."
+      "unlinkError": "Neizdevās atvienot Strava. Lūdzu, mēģiniet vēlreiz.",
+      "revokedNotice": "Piekļuve Strava beidzās {revokedAt}. Ar Strava sinhronizētās aktivitātes un aprīkojums tiks dzēsti {deletionAt}, ja nepievienosies atkārtoti."
     },
     "garmin": {
       "title": "Garmin Connect",

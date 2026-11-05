@@ -41,7 +41,12 @@
     },
     "stravaTokenExpired": {
       "title": "A Strava figyelmet igényel",
-      "body": "A Strava elutasította a kapcsolatodat. Csatlakoztasd újra a szinkronizálás folytatásához."
+      "body": "A Strava elutasította a kapcsolatodat. Csatlakoztasd újra a szinkronizálás folytatásához.",
+      "bodyRevoked": "A Strava-hozzáférés megszűnt. A Stravával szinkronizált tevékenységeid és felszerelésed {date} napon törlődik, ha nem csatlakozol újra."
+    },
+    "stravaDataDeleted": {
+      "title": "Strava-adatok törölve",
+      "body": "A Stravával szinkronizált tevékenységeid és felszerelésed törlődött, mert a Strava-hozzáférés megszűnt, és nem csatlakoztál újra."
     },
     "idpLinked": {
       "title": "Új bejelentkezési szolgáltató összekapcsolva",

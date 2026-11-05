@@ -41,7 +41,12 @@
     },
     "stravaTokenExpired": {
       "title": "Strava dikkatinizi bekliyor",
-      "body": "Strava bağlantınızı reddetti. Senkronizasyona devam etmek için yeniden bağlayın."
+      "body": "Strava bağlantınızı reddetti. Senkronizasyona devam etmek için yeniden bağlayın.",
+      "bodyRevoked": "Strava erişimi sona erdi. Strava ile eşitlenen etkinlikleriniz ve ekipmanlarınız, yeniden bağlanmazsanız {date} tarihinde silinecek."
+    },
+    "stravaDataDeleted": {
+      "title": "Strava verileri silindi",
+      "body": "Strava erişimi sona erdiği ve yeniden bağlanmadığınız için Strava ile eşitlenen etkinlikleriniz ve ekipmanlarınız silindi."
     },
     "idpLinked": {
       "title": "Yeni giriş sağlayıcısı bağlandı",

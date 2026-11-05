@@ -41,7 +41,12 @@
     },
     "stravaTokenExpired": {
       "title": "Strava necesită atenție",
-      "body": "Strava ți-a respins conexiunea. Reconecteaz-o pentru a continua sincronizarea."
+      "body": "Strava ți-a respins conexiunea. Reconecteaz-o pentru a continua sincronizarea.",
+      "bodyRevoked": "Accesul la Strava a luat sfârșit. Activitățile și echipamentul sincronizate cu Strava vor fi șterse la {date}, dacă nu te reconectezi."
+    },
+    "stravaDataDeleted": {
+      "title": "Datele Strava au fost șterse",
+      "body": "Activitățile și echipamentul sincronizate cu Strava au fost șterse deoarece accesul la Strava a luat sfârșit și nu te-ai reconectat."
     },
     "idpLinked": {
       "title": "Furnizor de autentificare nou asociat",

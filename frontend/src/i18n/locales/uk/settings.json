@@ -899,9 +899,10 @@
       "retrievingGear": "Отримання вашого спорядження Strava у фоновому режимі…",
       "retrieveGearError": "Не вдалося розпочати отримання спорядження Strava. Спробуйте ще раз.",
       "unlinkTitle": "Відключити Strava?",
-      "unlinkBody": "Endurain припинить імпорт зі Strava. Ваші наявні активності збережуться.",
+      "unlinkBody": "Endurain припинить імпорт зі Strava і видалить активності та спорядження, синхронізовані зі Strava. Активності з інших джерел, зокрема завантажені файли експорту Strava, буде збережено.",
       "unlinkSuccess": "Strava відключено",
-      "unlinkError": "Не вдалося відключити Strava. Спробуйте ще раз."
+      "unlinkError": "Не вдалося відключити Strava. Спробуйте ще раз.",
+      "revokedNotice": "Доступ до Strava завершено {revokedAt}. Активності та спорядження, синхронізовані зі Strava, буде видалено {deletionAt}, якщо ви не підключитеся знову."
     },
     "garmin": {
       "title": "Garmin Connect",

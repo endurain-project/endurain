@@ -155,11 +155,16 @@ def fetch_and_process_activities_by_dates(
     strava_client_service.raise_if_rate_limit_active(client_id, user_id, rate_limits)
 
     try:
-        strava_activities = list(strava_client.get_activities(after=start_date, before=end_date))
+        strava_activities = strava_client_service.call_strava(
+            lambda client: list(client.get_activities(after=start_date, before=end_date)),
+            strava_client,
+            user_id,
+            user_integrations,
+            rate_limits,
+        )
     except core_exceptions.DomainError:
         raise
     except Exception as err:
-        strava_client_service.raise_if_unauthorized(err, user_id, user_integrations)
         strava_client_service.raise_if_rate_limited(err, client_id, rate_limits)
         logger.warning("Error fetching Strava activities", extra=core_logger.context(user_id=user_id), exc_info=err)
         raise core_exceptions.DependencyFailedError("Not able to fetch Strava activities") from err
@@ -249,9 +254,16 @@ def parse_activity(
     strava_client_service.raise_if_rate_limit_active(client_id, user_id, rate_limits)
 
     try:
-        detailed_activity = strava_client.get_activity(strava_activity_id)
+        detailed_activity = strava_client_service.call_strava(
+            lambda client: client.get_activity(strava_activity_id),
+            strava_client,
+            user_id,
+            user_integrations,
+            rate_limits,
+        )
+    except core_exceptions.DomainError:
+        raise
     except Exception as err:
-        strava_client_service.raise_if_unauthorized(err, user_id, user_integrations)
         strava_client_service.raise_if_rate_limited(err, client_id, rate_limits)
         logger.warning(
             "Error fetching detailed Strava activity",
@@ -635,20 +647,27 @@ def fetch_and_process_activity_streams(
     strava_client_service.raise_if_rate_limit_active(client_id, user_id, rate_limits)
 
     try:
-        streams = strava_client.get_activity_streams(
-            strava_activity_id,
-            types=[
-                "latlng",
-                "altitude",
-                "time",
-                "heartrate",
-                "cadence",
-                "watts",
-                "velocity_smooth",
-            ],
+        streams = strava_client_service.call_strava(
+            lambda client: client.get_activity_streams(
+                strava_activity_id,
+                types=[
+                    "latlng",
+                    "altitude",
+                    "time",
+                    "heartrate",
+                    "cadence",
+                    "watts",
+                    "velocity_smooth",
+                ],
+            ),
+            strava_client,
+            user_id,
+            user_integrations,
+            rate_limits,
         )
+    except core_exceptions.DomainError:
+        raise
     except Exception as err:
-        strava_client_service.raise_if_unauthorized(err, user_id, user_integrations)
         strava_client_service.raise_if_rate_limited(err, client_id, rate_limits)
         # Streams simply don't exist for some activities (e.g. manually added ones from
         # Apple Health have no GPS/sensor streams); import the activity without them.
@@ -757,9 +776,16 @@ def fetch_and_process_activity_laps(
     strava_client_service.raise_if_rate_limit_active(client_id, user_id, rate_limits)
 
     try:
-        laps = strava_client.get_activity_laps(strava_activity_id)
+        laps = strava_client_service.call_strava(
+            lambda client: client.get_activity_laps(strava_activity_id),
+            strava_client,
+            user_id,
+            user_integrations,
+            rate_limits,
+        )
+    except core_exceptions.DomainError:
+        raise
     except Exception as err:
-        strava_client_service.raise_if_unauthorized(err, user_id, user_integrations)
         strava_client_service.raise_if_rate_limited(err, client_id, rate_limits)
         # Laps don't exist for some activities; import the activity without them.
         if strava_client_service.is_strava_not_found_error(err):

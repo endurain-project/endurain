@@ -11,7 +11,8 @@ Notifications tell you that something happened that you did not do yourself on t
 | New follower request | The user being followed | Someone asked to follow you |
 | Follower request accepted | The user who asked | Someone accepted your request |
 | Garmin Connect disconnected | The account owner | Garmin Connect rejected your stored login during a sync. Endurain unlinked the account, and you must [connect it again](integrations.md#garmin-connect) |
-| Strava disconnected | The account owner | Strava rejected your stored token during a sync. Endurain unlinked the account, and you must connect it again. Your Strava client credentials stay |
+| Strava disconnected | The account owner | Strava rejected your stored token during a sync. Endurain unlinked the account, and you must connect it again. Your Strava client credentials stay. If you withdrew Endurain's access on Strava, the notice also gives the day your Strava-synced activities and gear will be deleted unless you [connect again](integrations.md#when-you-revoke-access-on-strava) |
+| Strava data deleted | The account owner | Your Strava-synced activities and gear were deleted because you withdrew Endurain's access on Strava and did not connect again in time |
 | Identity provider linked | The account owner | An identity provider was linked to your account |
 | Account security changed | The account owner | Your password was changed, reset by an emailed link or set by an administrator; two-step verification was turned on or off; new backup codes were generated; an API key was created; an identity provider was unlinked; or repeated wrong passwords locked the account. See [Security notifications](accounts-and-sign-in.md#security-notifications) |
 | Sign-in from a new device | The account owner | You signed in from a browser or app that was not seen before. The first device of an account does not send it |

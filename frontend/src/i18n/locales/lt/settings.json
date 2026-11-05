@@ -899,9 +899,10 @@
       "retrievingGear": "Jūsų Strava įranga gaunama fone…",
       "retrieveGearError": "Nepavyko pradėti gauti Strava įrangos. Bandykite dar kartą.",
       "unlinkTitle": "Atjungti Strava?",
-      "unlinkBody": "Endurain nustos importuoti iš Strava. Jūsų esamos veiklos išsaugomos.",
+      "unlinkBody": "Endurain nustos importuoti iš Strava ir ištrins iš Strava sinchronizuotas veiklas ir įrangą. Veiklos iš kitų šaltinių, įskaitant įkeltus Strava eksporto failus, bus išsaugotos.",
       "unlinkSuccess": "Strava atjungta",
-      "unlinkError": "Nepavyko atjungti Strava. Bandykite dar kartą."
+      "unlinkError": "Nepavyko atjungti Strava. Bandykite dar kartą.",
+      "revokedNotice": "Prieiga prie Strava baigėsi {revokedAt}. Su Strava sinchronizuotos veiklos ir įranga bus ištrintos {deletionAt}, jei neprisijungsite iš naujo."
     },
     "garmin": {
       "title": "Garmin Connect",

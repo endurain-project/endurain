@@ -41,7 +41,12 @@
     },
     "stravaTokenExpired": {
       "title": "Strava needs attention",
-      "body": "Strava rejected your connection. Reconnect it to keep syncing."
+      "body": "Strava rejected your connection. Reconnect it to keep syncing.",
+      "bodyRevoked": "Strava access ended. Your Strava-synced activities and gear will be deleted on {date} unless you reconnect."
+    },
+    "stravaDataDeleted": {
+      "title": "Strava data deleted",
+      "body": "Your Strava-synced activities and gear were deleted because Strava access ended and you did not reconnect."
     },
     "idpLinked": {
       "title": "New sign-in provider linked",

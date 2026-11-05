@@ -72,6 +72,8 @@ export function mapProfileDetails(dto: ProfileDto): ProfileDetails {
     hasLocalPassword: dto.has_local_password,
     integrationsVersion: rowVersion(dto.integrations_version),
     stravaLinked: dto.is_strava_linked === 1,
+    stravaRevokedAt: dto.strava_revoked_at ?? null,
+    stravaDataDeletionAt: dto.strava_data_deletion_at ?? null,
     garminLinked: dto.is_garminconnect_linked === 1,
     photoPath: dto.photo_path ?? null,
     avatarUrl: resolveAvatarUrl(dto.photo_path),

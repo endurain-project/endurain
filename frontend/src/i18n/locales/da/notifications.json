@@ -41,7 +41,12 @@
     },
     "stravaTokenExpired": {
       "title": "Strava kræver din opmærksomhed",
-      "body": "Strava afviste din forbindelse. Opret forbindelse igen for at blive ved med at synkronisere."
+      "body": "Strava afviste din forbindelse. Opret forbindelse igen for at blive ved med at synkronisere.",
+      "bodyRevoked": "Adgangen til Strava er ophørt. Dine aktiviteter og dit udstyr, der er synkroniseret med Strava, slettes den {date}, medmindre du forbinder igen."
+    },
+    "stravaDataDeleted": {
+      "title": "Strava-data slettet",
+      "body": "Dine aktiviteter og dit udstyr, der er synkroniseret med Strava, blev slettet, fordi adgangen til Strava ophørte, og du ikke forbandt igen."
     },
     "idpLinked": {
       "title": "Ny loginudbyder tilknyttet",

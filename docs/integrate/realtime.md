@@ -52,7 +52,8 @@ The server sends JSON text frames. The client sends nothing: a text or binary fr
 | `NEW_FOLLOWER_REQUEST_REMOVED_NOTIFICATION` | A follow request to you was withdrawn |
 | `NEW_FOLLOWER_REQUEST_ACCEPTED_NOTIFICATION` | Someone accepted your follow request |
 | `GARMIN_TOKEN_EXPIRED_NOTIFICATION` | Garmin Connect was unlinked because its login expired |
-| `STRAVA_TOKEN_EXPIRED_NOTIFICATION` | Strava was unlinked because it rejected the stored token |
+| `STRAVA_TOKEN_EXPIRED_NOTIFICATION` | Strava was unlinked because it rejected the stored token, or because access was revoked on Strava |
+| `STRAVA_DATA_DELETED_NOTIFICATION` | The Strava-synced activities and gear were deleted after access was revoked on Strava |
 | `IDP_LINKED_NOTIFICATION` | An identity provider was linked to your account |
 | `ACCOUNT_SECURITY_CHANGED_NOTIFICATION` | A security setting of your account changed, or it was locked |
 | `NEW_DEVICE_SIGN_IN_NOTIFICATION` | Your account was signed in to from a new device |

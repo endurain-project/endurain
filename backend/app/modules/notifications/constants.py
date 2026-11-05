@@ -12,7 +12,9 @@ class NotificationType(IntEnum):
         NEW_FOLLOWER_REQUEST: New follower request notification.
         NEW_FOLLOWER_REQUEST_ACCEPTED: Follower request accepted notification.
         GARMIN_TOKEN_EXPIRED: Garmin Connect account unlinked after its token expired.
-        STRAVA_TOKEN_EXPIRED: Strava account unlinked after Strava rejected its token.
+        STRAVA_TOKEN_EXPIRED: Strava account unlinked after Strava rejected its token; carries ``delete_on``
+            when Strava access was revoked and the Strava data is to be deleted that day.
+        STRAVA_DATA_DELETED: Strava-synced activities and gear deleted after Strava access was revoked.
         IDP_LINKED: A sign-in provider was linked to the account.
         ACCOUNT_SECURITY_CHANGED: A security setting of the account changed.
         NEW_DEVICE_SIGN_IN: The account was signed in to from a new device.
@@ -26,6 +28,7 @@ class NotificationType(IntEnum):
     NEW_FOLLOWER_REQUEST_ACCEPTED = 12
     GARMIN_TOKEN_EXPIRED = 21
     STRAVA_TOKEN_EXPIRED = 22
+    STRAVA_DATA_DELETED = 23
     IDP_LINKED = 31
     ACCOUNT_SECURITY_CHANGED = 32
     NEW_DEVICE_SIGN_IN = 33
@@ -40,6 +43,7 @@ NEW_FOLLOWER_REQUEST_REMOVED_WS_MESSAGE = "NEW_FOLLOWER_REQUEST_REMOVED_NOTIFICA
 NEW_FOLLOWER_REQUEST_ACCEPTED_WS_MESSAGE = "NEW_FOLLOWER_REQUEST_ACCEPTED_NOTIFICATION"
 GARMIN_UNLINKED_WS_MESSAGE = "GARMIN_TOKEN_EXPIRED_NOTIFICATION"
 STRAVA_UNLINKED_WS_MESSAGE = "STRAVA_TOKEN_EXPIRED_NOTIFICATION"
+STRAVA_DATA_DELETED_WS_MESSAGE = "STRAVA_DATA_DELETED_NOTIFICATION"
 IDP_LINKED_WS_MESSAGE = "IDP_LINKED_NOTIFICATION"
 ACCOUNT_SECURITY_CHANGED_WS_MESSAGE = "ACCOUNT_SECURITY_CHANGED_NOTIFICATION"
 NEW_DEVICE_SIGN_IN_WS_MESSAGE = "NEW_DEVICE_SIGN_IN_NOTIFICATION"

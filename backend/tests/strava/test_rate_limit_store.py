@@ -76,9 +76,19 @@ class TestTokenRefreshClaim:
         assert store.claim_token_refresh(901) is True
         assert store.claim_token_refresh(901) is False
 
-    def test_the_claim_is_left_to_expire_not_released(self, store):
-        """No owner-checked release exists, so a holder never frees a claim another process took after expiry."""
-        assert not hasattr(store, "release_token_refresh")
+    def test_a_released_claim_can_be_taken_again(self, store):
+        assert store.claim_token_refresh(904) is True
+
+        store.release_token_refresh(904)
+
+        assert store.claim_token_refresh(904) is True
+
+    def test_an_unreachable_state_does_not_fail_the_release(self):
+        state = MagicMock()
+        state.delete.side_effect = platform_providers.StateBackendUnavailableError("down")
+        store = strava_rate_limit_store.StravaRateLimitStore(state)
+
+        store.release_token_refresh(1)  # must not raise
 
     def test_claims_are_per_user(self, store):
         assert store.claim_token_refresh(902) is True

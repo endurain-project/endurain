@@ -41,7 +41,12 @@
     },
     "stravaTokenExpired": {
       "title": "Strava traži vašu pažnju",
-      "body": "Strava je odbila vašu vezu. Ponovno je povežite kako bi se sinkronizacija nastavila."
+      "body": "Strava je odbila vašu vezu. Ponovno je povežite kako bi se sinkronizacija nastavila.",
+      "bodyRevoked": "Pristup Stravi je završio. Vaše aktivnosti i oprema sinkronizirane sa Stravom bit će izbrisane {date} ako se ponovno ne povežete."
+    },
+    "stravaDataDeleted": {
+      "title": "Podaci sa Strave izbrisani",
+      "body": "Vaše aktivnosti i oprema sinkronizirane sa Stravom izbrisane su jer je pristup Stravi završio, a niste se ponovno povezali."
     },
     "idpLinked": {
       "title": "Povezan je novi pružatelj prijave",

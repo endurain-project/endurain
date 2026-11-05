@@ -44,6 +44,9 @@ TOKEN_REFRESH_CLAIM_TTL_SECONDS = 60
 # Activities an unlink deletes per transaction, so a large account never holds every row lock at once.
 UNLINK_DELETE_BATCH_SIZE = 500
 
+#: Users whose Strava data is deleted per pass of the revoked-access job.
+REVOKED_DELETE_PAGE_SIZE = 50
+
 #: Event source recorded on a queued sync.
 SYNC_SOURCE_API = "api:strava_sync"
 

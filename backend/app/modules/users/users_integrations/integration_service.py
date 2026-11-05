@@ -4,6 +4,7 @@ Everything here returns schemas or primitives; no ORM row crosses the boundary. 
 stage; the caller owns the commit.
 """
 
+from datetime import datetime
 from typing import Any
 
 from sqlalchemy.orm import Session
@@ -63,18 +64,24 @@ def replace_strava_tokens_if_refresh_token(
     return user_integrations_crud.replace_strava_tokens_if_refresh_token(user_id, old_refresh_token, tokens, db)
 
 
-def unlink_strava_tokens_if_refresh_token(user_id: int, refresh_token: str, db: Session) -> bool:
+def unlink_strava_tokens_if_refresh_token(
+    user_id: int, refresh_token: str, db: Session, *, revoked_at: datetime | None = None
+) -> bool:
     """Clear a user's Strava tokens only while they still hold the given refresh token.
 
     Args:
         user_id: The user whose Strava link was rejected.
         refresh_token: The stored (encrypted) refresh token that was found to be rejected.
         db: Database session.
+        revoked_at: When Strava refused the refresh token, stored with the clearing; ``None`` when the token was
+            only rejected.
 
     Returns:
         True when the tokens were cleared, False when the refresh token has since changed.
     """
-    return user_integrations_crud.unlink_strava_tokens_if_refresh_token(user_id, refresh_token, db)
+    return user_integrations_crud.unlink_strava_tokens_if_refresh_token(
+        user_id, refresh_token, db, revoked_at=revoked_at
+    )
 
 
 def link_garminconnect_account(user_id: int, token: dict[str, Any], db: Session) -> None:
@@ -261,3 +268,31 @@ def list_user_ids_with_strava_linked(after_id: int, limit: int, db: Session) -> 
         The linked user ids, ascending.
     """
     return user_integrations_crud.list_user_ids_with_strava_linked(after_id, limit, db)
+
+
+def list_user_ids_with_strava_revoked_before(cutoff: datetime, after_id: int, limit: int, db: Session) -> list[int]:
+    """List the users whose Strava access was revoked before a moment and who have not relinked.
+
+    Args:
+        cutoff: Return only users revoked before this moment.
+        after_id: Return only users with an id greater than this.
+        limit: Maximum number of user ids to return.
+        db: Database session.
+
+    Returns:
+        The user ids, ascending.
+    """
+    return user_integrations_crud.list_user_ids_with_strava_revoked_before(cutoff, after_id, limit, db)
+
+
+def clear_strava_revoked_at(user_id: int, db: Session) -> None:
+    """Clear a user's Strava revocation mark once their Strava data was deleted.
+
+    Args:
+        user_id: The user whose Strava data was deleted.
+        db: Database session.
+
+    Raises:
+        NotFoundError: If the user has no integrations.
+    """
+    user_integrations_crud.clear_strava_revoked_at(user_id, db)

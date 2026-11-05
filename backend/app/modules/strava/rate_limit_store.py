@@ -127,3 +127,16 @@ class StravaRateLimitStore:
         except platform_providers.StateBackendUnavailableError as err:
             logger.warning("Could not claim the Strava token refresh; refreshing anyway", exc_info=err)
             return True
+
+    def release_token_refresh(self, user_id: int) -> None:
+        """Release the claim on refreshing a user's Strava token once the refresh is over.
+
+        Without it a second refresh, such as one that confirms a 401, would wait for the claim to expire.
+
+        Args:
+            user_id: The user whose token was refreshed.
+        """
+        try:
+            self._state.delete(_REFRESH_CLAIM_KEY.format(user_id=user_id))
+        except platform_providers.StateBackendUnavailableError as err:
+            logger.warning("Could not release the Strava token refresh claim; it expires on its own", exc_info=err)

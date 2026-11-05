@@ -899,9 +899,10 @@
       "retrievingGear": "Retrieving your Strava gear in the background…",
       "retrieveGearError": "Couldn't start retrieving Strava gear. Please try again.",
       "unlinkTitle": "Disconnect Strava?",
-      "unlinkBody": "Endurain will stop importing from Strava and delete the activities and gear it imported from Strava, including those from a Strava bulk export. Activities from other sources are kept.",
+      "unlinkBody": "Endurain will stop importing from Strava and delete the activities and gear it synced from Strava. Activities from other sources, including uploaded Strava export files, are kept.",
       "unlinkSuccess": "Strava disconnected",
-      "unlinkError": "Couldn't disconnect Strava. Please try again."
+      "unlinkError": "Couldn't disconnect Strava. Please try again.",
+      "revokedNotice": "Strava access ended on {revokedAt}. Strava-synced activities and gear will be deleted on {deletionAt} unless you reconnect."
     },
     "garmin": {
       "title": "Garmin Connect",

@@ -41,7 +41,12 @@
     },
     "stravaTokenExpired": {
       "title": "Strava 需要处理",
-      "body": "Strava 拒绝了您的连接，请重新连接以继续同步。"
+      "body": "Strava 拒绝了您的连接，请重新连接以继续同步。",
+      "bodyRevoked": "Strava 访问已结束。除非你重新连接，否则通过 Strava 同步的活动和装备将在 {date} 被删除。"
+    },
+    "stravaDataDeleted": {
+      "title": "Strava 数据已删除",
+      "body": "由于 Strava 访问已结束且你未重新连接，通过 Strava 同步的活动和装备已被删除。"
     },
     "idpLinked": {
       "title": "已关联新的登录提供者",

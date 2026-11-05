@@ -899,9 +899,10 @@
       "retrievingGear": "Dohvaćanje vaše Strava opreme u pozadini…",
       "retrieveGearError": "Nije moguće pokrenuti dohvaćanje Strava opreme. Pokušajte ponovno.",
       "unlinkTitle": "Prekinuti vezu sa Strava?",
-      "unlinkBody": "Endurain će prestati uvoziti iz servisa Strava. Vaše postojeće aktivnosti su zadržane.",
+      "unlinkBody": "Endurain će prestati uvoziti sa Strave i izbrisat će aktivnosti i opremu sinkronizirane sa Strave. Aktivnosti iz drugih izvora, uključujući učitane izvozne datoteke sa Strave, ostaju sačuvane.",
       "unlinkSuccess": "Veza sa Strava je prekinuta",
-      "unlinkError": "Nije moguće prekinuti vezu sa Strava. Pokušajte ponovno."
+      "unlinkError": "Nije moguće prekinuti vezu sa Strava. Pokušajte ponovno.",
+      "revokedNotice": "Pristup Stravi završio je {revokedAt}. Aktivnosti i oprema sinkronizirane sa Stravom bit će izbrisane {deletionAt} ako se ponovno ne povežete."
     },
     "garmin": {
       "title": "Garmin Connect",

@@ -108,7 +108,7 @@ describe('a stale versioned write', () => {
     const invalidateQueries = vi.spyOn(queryClient, 'invalidateQueries')
     const { toasts } = useToasts()
     const wrapper = mount(StravaCard, {
-      props: { linked: false, integrationsVersion: 1 },
+      props: { linked: false, revokedAt: null, dataDeletionAt: null, integrationsVersion: 1 },
       global: { plugins: [i18n, [VueQueryPlugin, { queryClient }]], stubs: dialogStubs },
     })
 

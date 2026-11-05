@@ -899,9 +899,10 @@
       "retrievingGear": "Se preia echipamentul tău Strava în fundal…",
       "retrieveGearError": "Nu am putut începe preluarea echipamentului Strava. Te rugăm să încerci din nou.",
       "unlinkTitle": "Deconectezi Strava?",
-      "unlinkBody": "Endurain va înceta să importe din Strava. Activitățile tale existente sunt păstrate.",
+      "unlinkBody": "Endurain va înceta importul din Strava și va șterge activitățile și echipamentul sincronizate din Strava. Activitățile din alte surse, inclusiv fișierele de export Strava încărcate, sunt păstrate.",
       "unlinkSuccess": "Strava deconectat",
-      "unlinkError": "Nu am putut deconecta Strava. Te rugăm să încerci din nou."
+      "unlinkError": "Nu am putut deconecta Strava. Te rugăm să încerci din nou.",
+      "revokedNotice": "Accesul la Strava a luat sfârșit la {revokedAt}. Activitățile și echipamentul sincronizate cu Strava vor fi șterse la {deletionAt}, dacă nu te reconectezi."
     },
     "garmin": {
       "title": "Garmin Connect",

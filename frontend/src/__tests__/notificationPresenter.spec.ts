@@ -95,6 +95,30 @@ describe('presentNotification', () => {
     expect(result.to).toEqual({ name: 'settings', query: { tab: 'integrations' } })
   })
 
+  it('names the day the Strava data is deleted when access was revoked on Strava', () => {
+    const result = presentNotification(make(22, { delete_on: '2026-11-12' }), { locale: 'en' })
+
+    expect(result.titleKey).toBe('notifications.types.stravaTokenExpired.title')
+    expect(result.bodyKey).toBe('notifications.types.stravaTokenExpired.bodyRevoked')
+    expect(result.bodyParams).toEqual({ date: 'Nov 12, 2026' })
+    expect(result.to).toEqual({ name: 'settings', query: { tab: 'integrations' } })
+  })
+
+  it('keeps the plain Strava message when no deletion day is named', () => {
+    const result = presentNotification(make(22))
+
+    expect(result.bodyKey).toBe('notifications.types.stravaTokenExpired.body')
+    expect(result.bodyParams).toBeUndefined()
+  })
+
+  it('tells the user their Strava data was deleted', () => {
+    const result = presentNotification(make(23))
+
+    expect(result.titleKey).toBe('notifications.types.stravaDataDeleted.title')
+    expect(result.bodyKey).toBe('notifications.types.stravaDataDeleted.body')
+    expect(result.to).toEqual({ name: 'settings', query: { tab: 'integrations' } })
+  })
+
   it('names the linked provider and routes to security settings', () => {
     const result = presentNotification(make(31, { idp_id: 4, idp_name: 'Authentik' }))
 

@@ -1,5 +1,6 @@
 """The integrations surface forwards to its CRUD."""
 
+from datetime import UTC, datetime
 from unittest.mock import MagicMock, patch
 
 import pytest
@@ -62,7 +63,17 @@ def test_strava_token_unlink_reaches_the_crud():
     with patch.object(crud, "unlink_strava_tokens_if_refresh_token", return_value=True) as unlink:
         assert user_integrations_integration.unlink_strava_tokens_if_refresh_token(1, "enc", db) is True
 
-    unlink.assert_called_once_with(1, "enc", db)
+    unlink.assert_called_once_with(1, "enc", db, revoked_at=None)
+
+
+def test_strava_revocation_time_reaches_the_crud():
+    db = MagicMock()
+    crud = user_integrations_integration.user_integrations_crud
+    revoked_at = datetime(2026, 11, 5, tzinfo=UTC)
+    with patch.object(crud, "unlink_strava_tokens_if_refresh_token", return_value=True) as unlink:
+        user_integrations_integration.unlink_strava_tokens_if_refresh_token(1, "enc", db, revoked_at=revoked_at)
+
+    unlink.assert_called_once_with(1, "enc", db, revoked_at=revoked_at)
 
 
 def test_strava_token_replacement_reaches_the_crud():

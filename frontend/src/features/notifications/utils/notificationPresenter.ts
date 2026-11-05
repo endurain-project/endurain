@@ -7,6 +7,7 @@ import {
   LogIn,
   ShieldAlert,
   UserCheck,
+  Trash2,
   Unplug,
   UserPlus,
   Watch,
@@ -15,6 +16,8 @@ import {
 import type { RouteLocationRaw } from 'vue-router'
 
 import type { Notification } from '@/features/notifications/types'
+
+import { formatMediumDate } from '@/utils/datetime'
 
 /**
  * Numeric notification types, mirroring the backend `NotificationType`
@@ -29,6 +32,7 @@ const NOTIFICATION_TYPE = {
   NEW_FOLLOWER_REQUEST_ACCEPTED: 12,
   GARMIN_TOKEN_EXPIRED: 21,
   STRAVA_TOKEN_EXPIRED: 22,
+  STRAVA_DATA_DELETED: 23,
   IDP_LINKED: 31,
   ACCOUNT_SECURITY_CHANGED: 32,
   NEW_DEVICE_SIGN_IN: 33,
@@ -79,6 +83,8 @@ export interface NotificationPresentation {
 export interface NotificationPresenterContext {
   /** The viewing user's id, used to deep-link follower requests to their list. */
   currentUserId?: number | null
+  /** The viewer's locale, used to format dates a notification names. */
+  locale?: string
 }
 
 /**
@@ -181,10 +187,25 @@ export function presentNotification(
       }
     }
     case NOTIFICATION_TYPE.STRAVA_TOKEN_EXPIRED: {
+      // Only a revocation on Strava names the day the Strava data is deleted.
+      const deleteOn = readString(options, 'delete_on')
       return {
         icon: Unplug,
         titleKey: `${base}.stravaTokenExpired.title`,
-        bodyKey: `${base}.stravaTokenExpired.body`,
+        bodyKey: deleteOn
+          ? `${base}.stravaTokenExpired.bodyRevoked`
+          : `${base}.stravaTokenExpired.body`,
+        ...(deleteOn && {
+          bodyParams: { date: formatMediumDate(deleteOn, context.locale, 'UTC') },
+        }),
+        to: { name: 'settings', query: { tab: 'integrations' } },
+      }
+    }
+    case NOTIFICATION_TYPE.STRAVA_DATA_DELETED: {
+      return {
+        icon: Trash2,
+        titleKey: `${base}.stravaDataDeleted.title`,
+        bodyKey: `${base}.stravaDataDeleted.body`,
         to: { name: 'settings', query: { tab: 'integrations' } },
       }
     }

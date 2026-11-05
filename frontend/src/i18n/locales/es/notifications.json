@@ -41,7 +41,12 @@
     },
     "stravaTokenExpired": {
       "title": "Strava necesita tu atención",
-      "body": "Strava rechazó tu conexión. Vuelve a conectarla para seguir sincronizando."
+      "body": "Strava rechazó tu conexión. Vuelve a conectarla para seguir sincronizando.",
+      "bodyRevoked": "El acceso a Strava ha terminado. Tus actividades y equipamiento sincronizados con Strava se eliminarán el {date} si no te vuelves a conectar."
+    },
+    "stravaDataDeleted": {
+      "title": "Datos de Strava eliminados",
+      "body": "Tus actividades y equipamiento sincronizados con Strava se eliminaron porque el acceso a Strava terminó y no te volviste a conectar."
     },
     "idpLinked": {
       "title": "Nuevo proveedor de inicio de sesión vinculado",

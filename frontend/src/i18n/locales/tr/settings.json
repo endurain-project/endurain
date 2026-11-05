@@ -899,9 +899,10 @@
       "retrievingGear": "Strava ekipmanınız arka planda alınıyor…",
       "retrieveGearError": "Strava ekipmanını almaya başlanamadı. Lütfen tekrar deneyin.",
       "unlinkTitle": "Strava bağlantısı kesilsin mi?",
-      "unlinkBody": "Endurain, Strava'dan içe aktarmayı durduracak. Mevcut etkinlikleriniz korunur.",
+      "unlinkBody": "Endurain Strava'dan içe aktarmayı durdurur ve Strava'dan eşitlenen etkinlikleri ve ekipmanı siler. Yüklenen Strava dışa aktarma dosyaları dahil diğer kaynaklardan gelen etkinlikler korunur.",
       "unlinkSuccess": "Strava bağlantısı kesildi",
-      "unlinkError": "Strava bağlantısı kesilemedi. Lütfen tekrar deneyin."
+      "unlinkError": "Strava bağlantısı kesilemedi. Lütfen tekrar deneyin.",
+      "revokedNotice": "Strava erişimi {revokedAt} tarihinde sona erdi. Strava ile eşitlenen etkinlikler ve ekipmanlar, yeniden bağlanmazsanız {deletionAt} tarihinde silinecek."
     },
     "garmin": {
       "title": "Garmin Connect",

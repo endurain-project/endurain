@@ -899,9 +899,10 @@
       "retrievingGear": "Pobieranie Twojego sprzętu ze Strava w tle…",
       "retrieveGearError": "Nie udało się rozpocząć pobierania sprzętu ze Strava. Spróbuj ponownie.",
       "unlinkTitle": "Rozłączyć Strava?",
-      "unlinkBody": "Endurain przestanie importować ze Strava. Twoje istniejące aktywności zostaną zachowane.",
+      "unlinkBody": "Endurain przestanie importować ze Strava i usunie aktywności oraz sprzęt zsynchronizowane ze Strava. Aktywności z innych źródeł, w tym przesłane pliki eksportu Strava, zostaną zachowane.",
       "unlinkSuccess": "Rozłączono Strava",
-      "unlinkError": "Nie udało się rozłączyć Strava. Spróbuj ponownie."
+      "unlinkError": "Nie udało się rozłączyć Strava. Spróbuj ponownie.",
+      "revokedNotice": "Dostęp do Strava wygasł {revokedAt}. Aktywności i sprzęt zsynchronizowane ze Strava zostaną usunięte {deletionAt}, jeśli nie połączysz się ponownie."
     },
     "garmin": {
       "title": "Garmin Connect",

@@ -9,7 +9,7 @@ import jasil.audit as jasil_audit
 from fastapi import UploadFile
 from sqlalchemy.orm import Session
 from stravalib.client import Client
-from stravalib.strava_model import SummaryGear
+from stravalib.strava_model import DetailedGear, SummaryGear
 
 import core.database as core_database
 import core.exceptions as core_exceptions
@@ -43,7 +43,8 @@ _IMPORT_TYPES = {
 
 
 def _call_strava[ResultT](
-    call: Callable[[], ResultT | None],
+    call: Callable[[Client], ResultT | None],
+    strava_client: Client,
     description: str,
     client_id: str,
     user_id: int,
@@ -53,7 +54,8 @@ def _call_strava[ResultT](
     """Make one Strava call, turning its failures into domain errors.
 
     Args:
-        call: Zero-argument callable that makes the Strava call.
+        call: Makes the Strava call with the client it is given.
+        strava_client: A client authenticated as the user.
         description: What is being fetched, for the log and the error.
         client_id: The Strava application (client ID) making the call.
         user_id: The user the call is for.
@@ -65,14 +67,16 @@ def _call_strava[ResultT](
 
     Raises:
         TooManyRequestsError: When Strava's rate limit is active or was just hit.
-        StravaTokenRejectedError: When Strava rejected the token and the account was unlinked.
+        StravaTokenRejectedError: When Strava refused the refresh token or the refreshed access token, so the
+            account was unlinked.
         DependencyFailedError: When Strava cannot return the result.
     """
     strava_client_service.raise_if_rate_limit_active(client_id, user_id, rate_limits)
     try:
-        result = call()
+        result = strava_client_service.call_strava(call, strava_client, user_id, user_integrations, rate_limits)
+    except core_exceptions.DomainError:
+        raise
     except Exception as err:
-        strava_client_service.raise_if_unauthorized(err, user_id, user_integrations)
         strava_client_service.raise_if_rate_limited(err, client_id, rate_limits)
         logger.warning(
             "Error fetching from Strava", extra=core_logger.context(user_id=user_id, fetching=description), exc_info=err
@@ -81,6 +85,19 @@ def _call_strava[ResultT](
     if result is None:
         raise core_exceptions.DependencyFailedError(f"Not able to fetch {description}")
     return result
+
+
+def _get_gear(strava_gear_id: str, client: Client) -> DetailedGear | None:
+    """Fetch one piece of gear from Strava.
+
+    Args:
+        strava_gear_id: Strava's id of the gear.
+        client: A client authenticated as the user.
+
+    Returns:
+        The gear.
+    """
+    return client.get_gear(strava_gear_id)
 
 
 def _strava_gear_id(gear: SummaryGear, user_id: int) -> str:
@@ -187,7 +204,13 @@ def get_user_gear(user_id: int, rate_limits: strava_rate_limit_store.StravaRateL
     strava_client: Client = strava_client_service.create_strava_client(user_integrations)
 
     athlete = _call_strava(
-        strava_client.get_athlete, "Strava athlete", client_id, user_id, user_integrations, rate_limits
+        lambda client: client.get_athlete(),
+        strava_client,
+        "Strava athlete",
+        client_id,
+        user_id,
+        user_integrations,
+        rate_limits,
     )
     summaries = [(gears_schema.GearType.BIKE, _strava_gear_id(gear, user_id)) for gear in athlete.bikes or []] + [
         (gears_schema.GearType.SHOES, _strava_gear_id(gear, user_id)) for gear in athlete.shoes or []
@@ -203,7 +226,8 @@ def get_user_gear(user_id: int, rate_limits: strava_rate_limit_store.StravaRateL
     new_gear = []
     for gear_type, strava_gear_id in new_summaries:
         strava_gear = _call_strava(
-            functools.partial(strava_client.get_gear, strava_gear_id),
+            functools.partial(_get_gear, strava_gear_id),
+            strava_client,
             "Strava gear",
             client_id,
             user_id,

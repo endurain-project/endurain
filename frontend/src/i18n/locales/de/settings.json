@@ -899,9 +899,10 @@
       "retrievingGear": "Deine Strava-Ausrüstung wird im Hintergrund abgerufen…",
       "retrieveGearError": "Das Abrufen der Strava-Ausrüstung konnte nicht gestartet werden. Bitte versuche es erneut.",
       "unlinkTitle": "Strava trennen?",
-      "unlinkBody": "Endurain stoppt den Import von Strava. Deine bestehenden Aktivitäten bleiben erhalten.",
+      "unlinkBody": "Endurain stoppt den Import von Strava und löscht die von Strava synchronisierten Aktivitäten und Ausrüstung. Aktivitäten aus anderen Quellen, auch hochgeladene Strava-Exportdateien, bleiben erhalten.",
       "unlinkSuccess": "Strava getrennt",
-      "unlinkError": "Strava konnte nicht getrennt werden. Bitte versuche es erneut."
+      "unlinkError": "Strava konnte nicht getrennt werden. Bitte versuche es erneut.",
+      "revokedNotice": "Der Strava-Zugriff wurde am {revokedAt} beendet. Mit Strava synchronisierte Aktivitäten und Ausrüstung werden am {deletionAt} gelöscht, sofern du dich nicht erneut verbindest."
     },
     "garmin": {
       "title": "Garmin Connect",

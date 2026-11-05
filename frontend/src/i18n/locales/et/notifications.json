@@ -41,7 +41,12 @@
     },
     "stravaTokenExpired": {
       "title": "Strava vajab tähelepanu",
-      "body": "Strava lükkas sinu ühenduse tagasi. Ühenda uuesti, et sünkroonimine jätkuks."
+      "body": "Strava lükkas sinu ühenduse tagasi. Ühenda uuesti, et sünkroonimine jätkuks.",
+      "bodyRevoked": "Juurdepääs Stravale lõppes. Stravaga sünkroonitud tegevused ja varustus kustutatakse {date}, kui sa uuesti ei ühenda."
+    },
+    "stravaDataDeleted": {
+      "title": "Strava andmed kustutatud",
+      "body": "Stravaga sünkroonitud tegevused ja varustus kustutati, sest juurdepääs Stravale lõppes ja sa ei ühendanud uuesti."
     },
     "idpLinked": {
       "title": "Uus sisselogimispakkuja seotud",

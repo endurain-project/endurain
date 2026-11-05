@@ -899,9 +899,10 @@
       "retrievingGear": "A Strava-felszerelésed lekérése a háttérben…",
       "retrieveGearError": "Nem sikerült elindítani a Strava-felszerelés lekérését. Kérjük, próbáld újra.",
       "unlinkTitle": "Lecsatlakoztatod a Strava szolgáltatást?",
-      "unlinkBody": "Az Endurain leállítja az importálást a Strava szolgáltatásból. A meglévő tevékenységeid megmaradnak.",
+      "unlinkBody": "Az Endurain leáll a Stravából való importálással, és törli a Stravából szinkronizált tevékenységeket és felszerelést. Más forrásból származó tevékenységek, köztük a feltöltött Strava-exportfájlok megmaradnak.",
       "unlinkSuccess": "Strava lecsatlakoztatva",
-      "unlinkError": "Nem sikerült lecsatlakoztatni a Strava szolgáltatást. Kérjük, próbáld újra."
+      "unlinkError": "Nem sikerült lecsatlakoztatni a Strava szolgáltatást. Kérjük, próbáld újra.",
+      "revokedNotice": "A Strava-hozzáférés {revokedAt} napon megszűnt. A Stravával szinkronizált tevékenységek és felszerelés {deletionAt} napon törlődik, ha nem csatlakozol újra."
     },
     "garmin": {
       "title": "Garmin Connect",

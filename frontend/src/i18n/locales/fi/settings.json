@@ -899,9 +899,10 @@
       "retrievingGear": "Haetaan Strava-varusteitasi taustalla…",
       "retrieveGearError": "Strava-varusteiden hakemista ei voitu aloittaa. Yritä uudelleen.",
       "unlinkTitle": "Katkaistaanko Strava-yhteys?",
-      "unlinkBody": "Endurain lopettaa tuonnin Stravasta. Olemassa olevat aktiviteettisi säilytetään.",
+      "unlinkBody": "Endurain lopettaa tuonnin Stravasta ja poistaa Stravasta synkronoidut aktiviteetit ja varusteet. Muista lähteistä tulleet aktiviteetit, myös ladatut Strava-vientitiedostot, säilyvät.",
       "unlinkSuccess": "Strava-yhteys katkaistu",
-      "unlinkError": "Strava-yhteyttä ei voitu katkaista. Yritä uudelleen."
+      "unlinkError": "Strava-yhteyttä ei voitu katkaista. Yritä uudelleen.",
+      "revokedNotice": "Stravan käyttöoikeus päättyi {revokedAt}. Stravan kanssa synkronoidut aktiviteetit ja varusteet poistetaan {deletionAt}, ellet yhdistä uudelleen."
     },
     "garmin": {
       "title": "Garmin Connect",

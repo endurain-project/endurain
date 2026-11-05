@@ -5,7 +5,7 @@ runs the profile export and import. Authentication concerns (sessions, MFA, iden
 links) stay behind the auth boundary and are called straight from the router.
 """
 
-from datetime import date
+from datetime import date, timedelta
 from typing import TYPE_CHECKING
 
 import jasil.audit as jasil_audit
@@ -23,6 +23,7 @@ import modules.auth.sign_up_tokens.integration_service as sign_up_tokens_integra
 import modules.users.contributor_registry as users_contributor_registry
 import modules.users.users.integration_service as users_integration
 import modules.users.users.schema as users_schema
+import modules.users.users_integrations.constants as user_integrations_constants
 import modules.users.users_integrations.integration_service as user_integrations_integration
 import modules.users.users_privacy_settings.integration_service as users_privacy_settings_integration
 import modules.users.users_privacy_settings.schema as users_privacy_settings_schema
@@ -87,6 +88,13 @@ def get_profile(
             "pending_email_expires_at": pending_email.expires_at if pending_email else None,
             "integrations_version": user_integrations.version,
             "is_strava_linked": 1 if user_integrations.strava_token else 0,
+            "strava_revoked_at": user_integrations.strava_revoked_at,
+            "strava_data_deletion_at": (
+                user_integrations.strava_revoked_at
+                + timedelta(days=user_integrations_constants.STRAVA_REVOKED_DATA_GRACE_DAYS)
+                if user_integrations.strava_revoked_at
+                else None
+            ),
             "is_garminconnect_linked": 1 if user_integrations.garminconnect_token else 0,
             "privacy_settings_version": privacy_settings.version,
             "default_activity_visibility": privacy_settings.default_activity_visibility,

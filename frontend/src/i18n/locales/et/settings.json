@@ -899,9 +899,10 @@
       "retrievingGear": "Sinu Strava varustuse hankimine taustal…",
       "retrieveGearError": "Strava varustuse hankimist ei õnnestunud alustada. Palun proovi uuesti.",
       "unlinkTitle": "Kas katkestada Strava ühendus?",
-      "unlinkBody": "Endurain lõpetab Stravast importimise. Sinu olemasolevad tegevused jäävad alles.",
+      "unlinkBody": "Endurain lõpetab Stravast importimise ja kustutab Stravast sünkroonitud tegevused ja varustuse. Teistest allikatest pärit tegevused, sealhulgas üleslaaditud Strava ekspordifailid, jäävad alles.",
       "unlinkSuccess": "Strava ühendus katkestatud",
-      "unlinkError": "Strava ühendust ei õnnestunud katkestada. Palun proovi uuesti."
+      "unlinkError": "Strava ühendust ei õnnestunud katkestada. Palun proovi uuesti.",
+      "revokedNotice": "Juurdepääs Stravale lõppes {revokedAt}. Stravaga sünkroonitud tegevused ja varustus kustutatakse {deletionAt}, kui sa uuesti ei ühenda."
     },
     "garmin": {
       "title": "Garmin Connect",

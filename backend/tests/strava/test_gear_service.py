@@ -200,7 +200,9 @@ def _linked_sync(athlete, *, existing_ids=(), gear_error=None, fetched_gear=None
     rate_limits = MagicMock()
     rate_limits.is_rate_limited.return_value = False
     sessions = MagicMock()
-    integrations = SimpleNamespace(strava_client_id="enc", strava_refresh_token="enc-refresh")
+    integrations = SimpleNamespace(
+        strava_client_id="enc", strava_refresh_token="enc-refresh", strava_token_expires_at=None
+    )
     with (
         patch.object(gear_utils.core_database, "SessionLocal", sessions),
         patch.object(gear_utils.strava_client_service, "refresh_user_strava_token"),

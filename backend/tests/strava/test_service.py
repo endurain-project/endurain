@@ -1,12 +1,15 @@
 """Strava account linking: the state is single-use and the caller's, and a failed exchange keeps the setup."""
 
+from datetime import UTC, datetime, timedelta
 from unittest.mock import MagicMock, patch
 
 import jasil.runtime as platform_runtime
+import jasil.testing as jasil_testing
 import pytest
 import requests
 
 import core.exceptions as core_exceptions
+import modules.strava.audit_actions as strava_audit_actions
 import modules.strava.constants as strava_constants
 import modules.strava.oauth_state_store as strava_oauth_state_store
 import modules.strava.schema as strava_schema
@@ -184,3 +187,84 @@ class TestUnlinkDeletesInBatches:
         assert delete_activities.call_count == 3
         assert all(call.kwargs["limit"] == batch for call in delete_activities.call_args_list)
         assert order == ["batch", "batch", "batch", "gear", "unlink"]
+
+
+class TestDeleteRevokedData:
+    DAY = timedelta(days=1)
+
+    def _integrations(self, *, revoked_days_ago: float | None, token: str | None = None):
+        revoked_at = None if revoked_days_ago is None else datetime.now(UTC) - timedelta(days=revoked_days_ago)
+        return MagicMock(strava_revoked_at=revoked_at, strava_token=token)
+
+    def _run(self, integrations, *, batches=(2,)):
+        order: list[str] = []
+        sessions = MagicMock()
+        sessions.return_value.__enter__.side_effect = lambda: MagicMock()
+        batch_counts = iter(batches)
+        with (
+            patch.object(strava_service.core_database, "SessionLocal", sessions),
+            patch.object(
+                strava_service.user_integrations_integration, "get_user_integrations", return_value=integrations
+            ),
+            patch.object(
+                strava_service.activity_integration,
+                "delete_all_strava_activities",
+                side_effect=lambda *_a, **_k: order.append("batch") or next(batch_counts),
+            ),
+            patch.object(
+                strava_service.gears_integration,
+                "delete_all_strava_gear_for_user",
+                side_effect=lambda *_a, **_k: order.append("gear"),
+            ),
+            patch.object(
+                strava_service.user_integrations_integration,
+                "clear_strava_revoked_at",
+                side_effect=lambda *_a, **_k: order.append("clear"),
+            ),
+            patch.object(
+                strava_service.notifications_integration,
+                "create_strava_data_deleted_notification",
+                side_effect=lambda *_a, **_k: order.append("notify") or ("n", "ws"),
+            ),
+            patch.object(strava_service.notifications_integration, "push_notification") as push,
+            patch.object(strava_service.strava_client_service, "create_strava_client") as create_client,
+            jasil_testing.capture_audit() as audit,
+        ):
+            result = strava_service.delete_revoked_data(7)
+        return result, order, push, create_client, audit
+
+    def test_data_of_a_user_revoked_past_the_grace_period_is_deleted_and_the_user_told(self):
+        result, order, push, create_client, audit = self._run(self._integrations(revoked_days_ago=8))
+
+        assert result is True
+        assert order == ["batch", "gear", "clear", "notify"]
+        push.assert_called_once_with(7, "n", "ws")
+        create_client.assert_not_called()
+        entry = audit.assert_audited(
+            strava_audit_actions.DATA_DELETE.id, target_type="user", target_id="7", target_owner_id="7"
+        )
+        assert entry.details == {"activity_count": 2}
+
+    def test_a_user_still_inside_the_grace_period_is_left_alone(self):
+        result, order, push, _client, audit = self._run(self._integrations(revoked_days_ago=3))
+
+        assert result is False
+        assert order == []
+        push.assert_not_called()
+        audit.assert_not_audited(strava_audit_actions.DATA_DELETE.id)
+
+    def test_a_user_who_relinked_is_left_alone(self):
+        result, order, _push, _client, _audit = self._run(self._integrations(revoked_days_ago=None))
+        assert (result, order) == (False, [])
+
+        result, order, _push, _client, _audit = self._run(self._integrations(revoked_days_ago=8, token="enc"))
+        assert (result, order) == (False, [])
+
+    def test_activities_are_deleted_in_batches_before_the_closing_transaction(self):
+        batch = strava_constants.UNLINK_DELETE_BATCH_SIZE
+        _result, order, _push, _client, audit = self._run(
+            self._integrations(revoked_days_ago=8), batches=(batch, batch, 3)
+        )
+
+        assert order == ["batch", "batch", "batch", "gear", "clear", "notify"]
+        assert audit.assert_audited(strava_audit_actions.DATA_DELETE.id).details == {"activity_count": 2 * batch + 3}

@@ -25,7 +25,10 @@ const { t, locale } = useI18n()
 const router = useRouter()
 
 const presentation = computed(() =>
-  presentNotification(props.notification, { currentUserId: props.currentUserId }),
+  presentNotification(props.notification, {
+    currentUserId: props.currentUserId,
+    locale: locale.value,
+  }),
 )
 
 /**
