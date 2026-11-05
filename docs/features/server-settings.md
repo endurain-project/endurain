@@ -54,11 +54,13 @@ A minimum length for regular users and for administrators, from 8 to 128 charact
 | Access token lifetime | 1 to 1440 minutes |
 | Refresh token lifetime | 1 to 365 days |
 | API key maximum lifetime | 1 to 3650 days, 365 by default |
-| Enforce idle and absolute timeouts | On or off |
-| Idle timeout | 1 to 8760 hours of inactivity |
-| Absolute timeout | 1 to 8760 hours, not below the idle timeout |
+| Enforce idle timeout | On or off, off by default |
+| Idle timeout | 1 to 8760 hours of inactivity, 1 by default |
+| Absolute timeout | 1 to 8760 hours, 720 (30 days) by default, not below the idle timeout |
 
-The refresh token lifetime is how long a login on a device stays valid. When the absolute timeout ends a session before its refresh token expires, the client is told the earlier time. The idle and absolute timeouts are off by default.
+The refresh token lifetime is how long a login on a device stays valid. When the absolute timeout ends a session before its refresh token expires, the client is told the earlier time. The absolute timeout always applies; the idle timeout applies only when enforced.
+
+The defaults meet the NIST SP 800-63B reauthentication rule for AAL1: sign in again at least every 30 days. They do not meet AAL2, which asks for a new sign-in at least every 24 hours and after 1 hour of inactivity, even for accounts with MFA. To meet AAL2, set the absolute timeout to 24 hours or less and enforce an idle timeout of 1 hour or less. Users then sign in more often.
 
 Every API key expires. A new key lasts the API key maximum lifetime unless its owner picks an earlier date, and a later date is refused. Changing the maximum does not shorten keys that already exist; lower it and review existing keys under each user's **Settings → Security**.
 

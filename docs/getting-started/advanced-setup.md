@@ -51,7 +51,7 @@ Variables marked as deprecated have moved to the admin settings. On every start,
 | REFRESH_TOKEN_EXPIRE_DAYS | 7 | Yes | Deprecated in v0.21: imported into Settings > Server > Sessions on startup, removed in v0.22. Time in days |
 | SESSION_IDLE_TIMEOUT_ENABLED | false | Yes | Deprecated in v0.21: imported into Settings > Server > Sessions on startup, removed in v0.22. Enforce idle timeouts (supported values are `true` and `false`) |
 | SESSION_IDLE_TIMEOUT_HOURS | 1 | Yes | Deprecated in v0.21: imported into Settings > Server > Sessions on startup, removed in v0.22. Time in hours |
-| SESSION_ABSOLUTE_TIMEOUT_HOURS | 24 | Yes | Deprecated in v0.21: imported into Settings > Server > Sessions on startup, removed in v0.22. Time in hours |
+| SESSION_ABSOLUTE_TIMEOUT_HOURS | 720 (server setting) | Yes | Deprecated in v0.21: imported into Settings > Server > Sessions on startup only when set, removed in v0.22. Time in hours |
 | BEHIND_PROXY | false | Yes | Change to true if behind reverse proxy |
 | ENVIRONMENT | production | Yes | `production`, `demo` and `development` allowed. `development` allows connections from localhost:8080 and localhost:5173 at the CORS level. `demo` equals to `production` except it does not return user sessions. **`production` and `demo` set the `Secure` flag on all authentication cookies (refresh token, OAuth/SSO session and device id), so Endurain must be served over HTTPS (directly or via a reverse proxy terminating TLS) for login, session refresh, and SSO to work** |
 | SMTP_HOST | No default set | Yes | Deprecated in v0.21: imported into Settings > Server > Email on startup, removed in v0.22. The SMTP host of your email provider. Example `smtp.protonmail.ch`. If the SMTP settings are invalid, email is disabled and a warning naming the setting is logged at startup. Failed emails are only retried when `JOBS_ENABLED=true` |
@@ -155,16 +155,15 @@ Endurain gzip-compresses its responses (the API's JSON and the web app's files) 
 
 ## Session Timeout Configuration (Optional)
 
-By default, Endurain sessions last 7 days without enforcing idle timeouts.
-For enhanced security, you can enable automatic session expiration:
+By default, a session ends 720 hours (30 days) after sign-in, and no idle timeout is enforced. These defaults meet NIST SP 800-63B AAL1. For AAL2, or a shorter exposure on shared devices, shorten the absolute timeout and enforce an idle timeout. See [Sessions in the server settings](../features/server-settings.md#sessions).
 
-These settings are edited in Settings > Server > Sessions. The environment variables below are deprecated: they are imported into the settings on startup and removed in v0.22.
+These settings are edited in Settings > Server > Sessions. The environment variables below are deprecated: they are imported into the settings on startup only when set, and removed in v0.22.
 
 **Environment Variables (deprecated):**
 
-- `SESSION_IDLE_TIMEOUT_ENABLED`: Enable timeout enforcement (default: `false`)
-- `SESSION_IDLE_TIMEOUT_HOURS`: Logout after inactivity (default: `1`)
-- `SESSION_ABSOLUTE_TIMEOUT_HOURS`: Force re-login after duration (default: `24`)
+- `SESSION_IDLE_TIMEOUT_ENABLED`: Enforce the idle timeout (setting default: `false`)
+- `SESSION_IDLE_TIMEOUT_HOURS`: Logout after inactivity (setting default: `1`)
+- `SESSION_ABSOLUTE_TIMEOUT_HOURS`: Force re-login after duration (setting default: `720`)
 
 **Example:**
 
