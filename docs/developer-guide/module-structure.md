@@ -782,18 +782,19 @@ by hand when the code it describes changes.
 
 - **Storage lifecycle.** The hourly thumbnail reconciliation and the daily orphan sweep each walk the whole
   thumbnail area: its keys are flat `{id}.webp`, so no prefix narrows the walk.
-- **Creates carry no `Location` and no `Idempotency-Key`.** The 27 `POST` routes that answer `201` return the new
-  resource but not a `Location` header, and only the activity upload accepts an `Idempotency-Key`, so a client
-  that retries a create after a lost response can make a duplicate. The upload keeps its key on the ingestion
-  job row, with no expiry, and its fingerprint and replay are specific to an uploaded file. A general key needs
-  a stored-result design (a shared store through the platform `StateProvider`, replay and conflict rules,
-  expiry) per create route, and `Location` is additive but should land with it, so both are left for their
-  own change.
-- **Broad exception handling.** The 143 `except Exception` and `BaseException` handlers outside the migrations
-  sit in `users` (33, mostly the profile export), `activities` (31, mostly ingestion), `core` and `main.py`
-  (31), `auth` (28, mostly the identity providers) and the provider services of `strava` (12) and `garmin` (6);
-  `websocket` and `server_settings` hold one each, and `followers`, `gears`, `health` and `notifications` have
-  none. The migrations hold 38 more. Many are deliberate boundaries (a job records a failure and re-raises, a
+- **Creates carry no `Idempotency-Key`.** Of the 27 `POST` routes that answer `201`, only the activity upload
+  accepts an `Idempotency-Key`. Most of the others refuse a repeated create through a unique constraint, but a
+  retried poop record, gear component or completed fasting session after a lost response is a duplicate. The
+  upload keeps its key on the ingestion job row, with no expiry, and its fingerprint and replay are specific to
+  an uploaded file. A general key needs a stored-result design (a claim and response held through the platform
+  `StateProvider` with a TTL, replay and conflict rules), and no client sends one yet, so it waits for one.
+  `Location` (`core.location.set_location`) is sent by the creates whose resource has a GET-by-id route: gear,
+  poop, fasting and users; the other created records have no such route to name.
+- **Broad exception handling.** The 88 `except Exception` and `BaseException` handlers outside the migrations
+  sit in `core` and `main.py` (24), `activities` (21, mostly ingestion), `users` (17, mostly the profile export
+  and import), `auth` (16, mostly the identity providers) and the provider services of `strava` (8) and `garmin`
+  (2); `followers`, `gears`, `health`, `notifications`, `server_settings` and `websocket` have none. The
+  migrations hold 38 more. Many are deliberate boundaries (a job records a failure and re-raises, a
   provider call degrades to a warning), but each should name the errors it expects. Narrowing them in bulk
   risks hiding a real failure as an expected one, so they are narrowed as the code around them is touched.
   The ones that swallow the error (no `raise` in the handler) are counted per file in

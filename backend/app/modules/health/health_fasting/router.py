@@ -10,6 +10,7 @@ from fastapi import APIRouter, Query, Request, Response, Security, status
 
 import core.dependencies as core_dependencies
 import core.etag as core_etag
+import core.location as core_location
 import core.pagination as core_pagination
 import core.rate_limit as core_rate_limit
 import modules.auth.dependencies as auth_dependencies
@@ -143,6 +144,7 @@ def create_health_fasting(
     health_fasting: health_fasting_schema.HealthFastingCreate,
     token_user_id: auth_dependencies.CurrentUserId,
     db: core_dependencies.DbSession,
+    response: Response,
 ) -> health_fasting_schema.HealthFastingRead:
     """Create a new fasting session.
 
@@ -151,6 +153,7 @@ def create_health_fasting(
         health_fasting: Fasting data to create.
         token_user_id: User ID from the access token.
         db: Database session dependency.
+        response: The response, whose ``Location`` names where the session is read.
 
     Returns:
         Created HealthFastingRead record.
@@ -158,7 +161,9 @@ def create_health_fasting(
     Raises:
         ConflictError: If user already has an active fast.
     """
-    return health_fasting_service.create_health_fasting(token_user_id, health_fasting, db)
+    created = health_fasting_service.create_health_fasting(token_user_id, health_fasting, db)
+    core_location.set_location(response, request, "read_health_fasting_by_id", health_fasting_id=created.id)
+    return created
 
 
 @router.patch(

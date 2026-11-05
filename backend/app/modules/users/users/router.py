@@ -6,6 +6,7 @@ from fastapi import APIRouter, Query, Request, Response, Security, UploadFile, s
 
 import core.dependencies as core_dependencies
 import core.etag as core_etag
+import core.location as core_location
 import core.pagination as core_pagination
 import core.rate_limit as core_rate_limit
 import modules.auth.account_security.integration_service as account_security_integration
@@ -230,6 +231,7 @@ def create_user(
     request: Request,
     user: users_schema.UsersCreate,
     db: core_dependencies.DbSession,
+    response: Response,
 ) -> users_schema.UsersRead:
     """Create a new user (admin operation).
 
@@ -237,11 +239,14 @@ def create_user(
         request: The incoming request, read by the rate limiter.
         user: User creation data.
         db: Database session dependency.
+        response: The response, whose ``Location`` names where the user is read.
 
     Returns:
         Created user data.
     """
-    return users_service.create_user(user, db)
+    created = users_service.create_user(user, db)
+    core_location.set_location(response, request, "read_users_full", user_id=created.id)
+    return created
 
 
 @router.post(

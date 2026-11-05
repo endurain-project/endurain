@@ -127,7 +127,10 @@ class TestCreateHealthFasting:
     def test_create_success(self, mock_create, mock_db):
         mock_create.return_value = HealthFastingRead(id=1, user_id=1, fast_start_time=_STARTED)
 
-        assert _client(mock_db).post("/health_fasting", json=_START, headers=_HEADERS).status_code == 201
+        response = _client(mock_db).post("/health_fasting", json=_START, headers=_HEADERS)
+
+        assert response.status_code == 201
+        assert response.headers["Location"] == "/health_fasting/1"
 
     @patch(f"{_SERVICE}.create_health_fasting")
     def test_already_active_is_400(self, mock_create, mock_db):

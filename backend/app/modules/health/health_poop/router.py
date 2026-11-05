@@ -17,6 +17,7 @@ from fastapi import (
 
 import core.dependencies as core_dependencies
 import core.etag as core_etag
+import core.location as core_location
 import core.pagination as core_pagination
 import core.rate_limit as core_rate_limit
 import modules.auth.dependencies as auth_dependencies
@@ -149,6 +150,7 @@ def create_health_poop(
     health_poop: health_poop_schema.HealthPoopCreate,
     token_user_id: auth_dependencies.CurrentUserId,
     db: core_dependencies.DbSession,
+    response: Response,
 ) -> health_poop_schema.HealthPoopRead:
     """Create a new poop record for the user.
 
@@ -160,11 +162,14 @@ def create_health_poop(
         health_poop: Poop data to create.
         token_user_id: User ID from the access token.
         db: Database session dependency.
+        response: The response, whose ``Location`` names where the record is read.
 
     Returns:
         Created HealthPoopRead record.
     """
-    return health_poop_service.create_health_poop(token_user_id, health_poop, db)
+    created = health_poop_service.create_health_poop(token_user_id, health_poop, db)
+    core_location.set_location(response, request, "read_health_poop_by_id", health_poop_id=created.id)
+    return created
 
 
 @router.patch(

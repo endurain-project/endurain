@@ -154,6 +154,7 @@ class TestCreateUser:
 
         assert response.status_code == 201
         assert response.json()["username"] == "newuser"
+        assert response.headers["Location"] == "/users/1"
         assert mock_create.call_args.args[1:] == (mock_db,)
 
     @patch(f"{_SERVICE}.create_user")

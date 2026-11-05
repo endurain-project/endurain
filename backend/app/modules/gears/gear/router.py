@@ -6,6 +6,7 @@ from fastapi import APIRouter, Query, Request, Response, Security, status
 
 import core.dependencies as core_dependencies
 import core.etag as core_etag
+import core.location as core_location
 import core.pagination as core_pagination
 import core.rate_limit as core_rate_limit
 import modules.auth.dependencies as auth_dependencies
@@ -73,9 +74,12 @@ def create_gear(
     gear: gears_schema.GearCreateRequest,
     token_user_id: auth_dependencies.CurrentUserId,
     db: core_dependencies.DbSession,
+    response: Response,
 ) -> gears_schema.GearRead:
-    """Create a gear for the authenticated user."""
-    return gears_service.create_gear(gear, token_user_id, db)
+    """Create a gear for the authenticated user; ``Location`` names where it is read."""
+    created = gears_service.create_gear(gear, token_user_id, db)
+    core_location.set_location(response, request, "read_gear_id", gear_id=created.id)
+    return created
 
 
 @router.patch(

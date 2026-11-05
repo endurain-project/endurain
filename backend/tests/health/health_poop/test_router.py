@@ -101,6 +101,7 @@ class TestCreateHealthPoop:
         )
 
         assert response.status_code == 201
+        assert response.headers["Location"] == "/health_poop/1"
 
 
 class TestEditHealthPoop:

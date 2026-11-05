@@ -101,6 +101,7 @@ class TestWrites:
         response = client.post("/gears", json={"nickname": "New Bike", "gear_type": 1}, headers=_HEADERS)
 
         assert response.status_code == 201
+        assert response.headers["Location"] == f"/gears/{response.json()['id']}"
 
     @patch("modules.gears.gear.service.create_gear")
     def test_create_conflict_is_409(self, mock_create, client):

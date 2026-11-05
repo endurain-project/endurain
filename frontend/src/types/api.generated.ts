@@ -1136,7 +1136,7 @@ export interface paths {
         put?: never;
         /**
          * Create Gear
-         * @description Create a gear for the authenticated user.
+         * @description Create a gear for the authenticated user; ``Location`` names where it is read.
          */
         post: operations["create_gear_api_v1_gears_post"];
         delete?: never;
@@ -1293,6 +1293,7 @@ export interface paths {
          *         health_fasting: Fasting data to create.
          *         token_user_id: User ID from the access token.
          *         db: Database session dependency.
+         *         response: The response, whose ``Location`` names where the session is read.
          *
          *     Returns:
          *         Created HealthFastingRead record.
@@ -1494,6 +1495,7 @@ export interface paths {
          *         health_poop: Poop data to create.
          *         token_user_id: User ID from the access token.
          *         db: Database session dependency.
+         *         response: The response, whose ``Location`` names where the record is read.
          *
          *     Returns:
          *         Created HealthPoopRead record.
@@ -4970,6 +4972,7 @@ export interface paths {
          *         request: The incoming request, read by the rate limiter.
          *         user: User creation data.
          *         db: Database session dependency.
+         *         response: The response, whose ``Location`` names where the user is read.
          *
          *     Returns:
          *         Created user data.
