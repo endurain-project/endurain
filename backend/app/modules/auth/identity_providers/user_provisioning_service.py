@@ -1,12 +1,15 @@
 """Matching and provisioning of local users from identity-provider claims."""
 
+import itertools
 import secrets as secrets_module
 from typing import Any
 
 import jasil.audit as jasil_audit
+from pydantic import TypeAdapter, ValidationError
 from sqlalchemy.orm import Session
 
 import core.exceptions as core_exceptions
+import core.hashing as core_hashing
 import core.logger as core_logger
 import modules.auth.identity_provider_links.integration_service as identity_provider_links_integration
 import modules.auth.identity_providers.audit_actions as idp_audit_actions
@@ -72,6 +75,70 @@ def record_identity_link_refused(user_id: int, idp_id: int, reason: idp_audit_ac
         target_owner_id=str(user_id),
         details=idp_audit_actions.IdentityLinkDetails(idp_id=idp_id, reason=reason),
     )
+
+
+#: Validates a username with the same rule the users module applies to every account.
+_USERNAME_ADAPTER = TypeAdapter(users_schema.UserUsername)
+
+#: Longest username a new account may start from; leaves room for ``_`` and the six-digit uniqueness suffix.
+MAX_USERNAME_BASE_LENGTH = 250 - len("_") - 6
+
+#: Characters trimmed from both ends of a sanitised username.
+_USERNAME_EDGE_CHARS = "._-"
+
+#: Number of subject characters in the fallback username.
+_FALLBACK_ID_LENGTH = 8
+
+
+def _is_valid_username(value: str) -> bool:
+    """Return whether ``value`` satisfies the username rule of the users module."""
+    try:
+        _USERNAME_ADAPTER.validate_python(value)
+    except ValidationError:
+        return False
+    return True
+
+
+def _sanitise_username(value: str) -> str:
+    """Replace each run of disallowed characters with ``_`` and trim ``._-`` from both ends.
+
+    Args:
+        value: The raw text to turn into a username.
+
+    Returns:
+        The sanitised text, empty when nothing usable is left.
+    """
+    runs = itertools.groupby(value, key=_is_valid_username)
+    cleaned = "".join("".join(run) if valid else "_" for valid, run in runs)
+    return cleaned.strip(_USERNAME_EDGE_CHARS)
+
+
+def derive_sso_username(claimed_username: Any, subject: str) -> str:
+    """Choose the base username for an account created through single sign-on.
+
+    No part of an email address becomes a username: usernames are visible to other users. A claim that
+    already is a valid username is used as is, a claim containing ``@`` (an email or a UPN) is ignored, and any
+    other claim is sanitised. With nothing usable left, the name is ``user_`` plus the first characters of the
+    sanitised subject, or of the subject's hash when the subject has too few or is an email.
+
+    Args:
+        claimed_username: The username mapped from the identity provider claims, if any.
+        subject: The identity provider's subject identifier.
+
+    Returns:
+        A valid username short enough to take the uniqueness suffix.
+    """
+    if isinstance(claimed_username, str) and "@" not in claimed_username:
+        if _is_valid_username(claimed_username) and len(claimed_username) <= MAX_USERNAME_BASE_LENGTH:
+            return claimed_username
+        sanitised = _sanitise_username(claimed_username)[:MAX_USERNAME_BASE_LENGTH].strip(_USERNAME_EDGE_CHARS)
+        if sanitised:
+            return sanitised
+
+    subject_id = "" if "@" in subject else _sanitise_username(subject)[:_FALLBACK_ID_LENGTH]
+    if len(subject_id) < _FALLBACK_ID_LENGTH:
+        subject_id = core_hashing.sha256_hex(subject)[:_FALLBACK_ID_LENGTH]
+    return f"user_{subject_id}"
 
 
 def find_or_create_user(
@@ -243,8 +310,8 @@ def create_user_from_idp(
             login_error="sso_email_missing",
         )
 
-    # Ensure username is unique
-    base_username = mapped_data.get("username", f"user_{subject[:8]}")
+    # Ensure username is unique; the base leaves room for the suffix
+    base_username = derive_sso_username(mapped_data.get("username"), subject)
     username = base_username
     while users_integration.get_user_by_username(username, db):
         # secrets.randbelow is a CSPRNG; generate a 6-digit suffix

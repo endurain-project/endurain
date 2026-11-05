@@ -9,10 +9,12 @@ account when the IdP asserts a verified email (OIDC ``email_verified``).
 from unittest.mock import MagicMock, patch
 
 import pytest
+from pydantic import TypeAdapter
 from sqlalchemy.orm import Session
 
 import core.exceptions as core_exceptions
 import modules.auth.identity_providers.user_provisioning_service as user_provisioning_service
+import modules.users.users.schema as users_schema
 
 
 def _make_idp() -> MagicMock:
@@ -271,3 +273,75 @@ class TestUpdateUserFromIdpLogging:
         assert "updates" not in extra
         assert "alice" not in str(extra)
         assert "new@example.com" not in str(extra)
+
+
+def _signed_up_username(subject: str, claims: dict, taken: set[str] | None = None) -> str:
+    """Sign a user up from raw IdP claims and return the username the account was created with."""
+    taken = taken or set()
+    idp = _make_idp()
+    mapped = user_provisioning_service.claim_mapping.map_user_claims(idp, claims)
+    with (
+        patch.object(
+            user_provisioning_service.users_integration,
+            "get_user_by_username",
+            side_effect=lambda username, _db: MagicMock() if username in taken else None,
+        ),
+        patch.object(user_provisioning_service.server_settings_integration, "get_server_settings"),
+        patch.object(user_provisioning_service.users_integration, "create_sso_user") as create_sso_user,
+        patch.object(user_provisioning_service.identity_provider_links_integration, "create_user_identity_provider"),
+    ):
+        create_sso_user.return_value = MagicMock(id=3, username="new")
+        user_provisioning_service.create_user_from_idp(idp, subject, mapped, MagicMock(), email_verified=True)
+    return create_sso_user.call_args.args[0].username
+
+
+class TestSsoUsernameDerivation:
+    """An SSO account's username is valid and never carries any part of the email address."""
+
+    def test_google_claims_without_preferred_username_get_a_subject_based_name(self):
+        claims = {"sub": "1048576123456789", "email": "john.smith@gmail.com", "name": "John Smith"}
+        assert _signed_up_username("1048576123456789", claims) == "user_10485761"
+
+    def test_entra_upn_is_not_used(self):
+        claims = {"sub": "AAAAAAAA-bbbb", "preferred_username": "john@contoso.com", "email": "john@contoso.com"}
+        username = _signed_up_username("AAAAAAAA-bbbb", claims)
+        assert username == "user_AAAAAAAA"
+        assert "john" not in username
+
+    def test_valid_preferred_username_is_kept(self):
+        claims = {"sub": "abc", "preferred_username": "jane.doe", "email": "jane@example.com"}
+        assert _signed_up_username("abc", claims) == "jane.doe"
+
+    def test_invalid_characters_are_replaced_by_a_single_underscore_per_run(self):
+        claims = {"sub": "abc", "preferred_username": "  Jöse +Silva  ", "email": "j@example.com"}
+        assert _signed_up_username("abc", claims) == "J_se_Silva"
+
+    def test_a_claim_with_nothing_usable_falls_back_to_the_subject(self):
+        claims = {"sub": "abcdefghijkl", "preferred_username": "+++ ö", "email": "j@example.com"}
+        assert _signed_up_username("abcdefghijkl", claims) == "user_abcdefgh"
+
+    def test_subject_with_pipe_gives_a_valid_name(self):
+        username = _signed_up_username("auth0|5f7c8ec7c33c6c004bbafe82", {"email": "j@example.com"})
+        assert username == "user_auth0_5f"
+
+    def test_short_or_unusable_subject_falls_back_to_a_hash(self):
+        assert _signed_up_username("|||", {"email": "j@example.com"}) == (
+            f"user_{user_provisioning_service.core_hashing.sha256_hex('|||')[:8]}"
+        )
+
+    def test_a_subject_that_is_an_email_is_hashed(self):
+        username = _signed_up_username("john@contoso.com", {"email": "john@contoso.com"})
+        assert "john" not in username
+        assert len(username) == len("user_") + 8
+
+    def test_very_long_subject_gives_a_short_valid_name(self):
+        assert _signed_up_username("x" * 5000, {"email": "j@example.com"}) == "user_xxxxxxxx"
+
+    def test_uniqueness_suffix_stays_valid_at_the_length_limit(self):
+        long_name = "a" * 400
+        base = "a" * user_provisioning_service.MAX_USERNAME_BASE_LENGTH
+        username = _signed_up_username("abc", {"preferred_username": long_name, "email": "j@example.com"}, {base})
+        adapter = TypeAdapter(users_schema.UserUsername)
+        assert adapter.validate_python(username) == username
+        assert username.startswith(base + "_")
+        assert len(username) == 250

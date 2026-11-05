@@ -188,6 +188,10 @@ If your provider cannot prove a fresh sign-in, an administrator sets a local pas
 
 Linking an identity provider sends a notification to the account.
 
+## Usernames of new accounts
+
+When Endurain creates an account at the first sign-in, it never builds the username from the email address, because usernames are visible to other signed-in users. A username claim from the provider (`preferred_username` or `username` by default) is used when it only has letters, digits, dots, hyphens and underscores. A claim that contains `@`, such as an email address or an Entra ID user principal name, is not used. Any other claim has each run of unsupported characters replaced by `_` and leading and trailing `.`, `-` and `_` removed. When nothing usable is left, as with Google, which sends no `preferred_username`, the username is `user_` followed by the first eight characters of the provider's subject identifier. If the name is already taken, Endurain appends `_` and six digits. Users can change their username afterwards, and later sign-ins never change it.
+
 ## Auto-redirect to SSO
 
 Under **Settings → Server Settings**, the **Auto-redirect to SSO** option skips the login page's provider picker and immediately sends unauthenticated users to your identity provider. It only takes effect when:
