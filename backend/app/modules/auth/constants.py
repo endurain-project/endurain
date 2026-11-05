@@ -1,6 +1,15 @@
-"""Authentication scope constants."""
+"""Authentication constants: client types and scopes."""
 
+from enum import StrEnum
 from typing import Final
+
+
+class ClientType(StrEnum):
+    """Client kinds that sign in, as named by the ``X-Client-Type`` header."""
+
+    WEB = "web"
+    MOBILE = "mobile"
+
 
 # scope (immutable)
 USERS_REGULAR_SCOPE: Final[tuple[str, ...]] = ("profile", "users:read")

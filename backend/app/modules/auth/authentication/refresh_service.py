@@ -14,6 +14,7 @@ import modules.auth.authentication.audit_actions as authentication_audit_actions
 import modules.auth.authentication.refusal_audit as authentication_refusal_audit
 import modules.auth.authentication.schema as auth_schema
 import modules.auth.authentication.token_service as authentication_token_service
+import modules.auth.constants as auth_constants
 import modules.auth.credentials.integration_service as credentials_integration
 import modules.auth.identity_providers.integration_service as identity_providers_integration
 import modules.auth.rotated_refresh_tokens.integration_service as rotated_refresh_tokens_integration
@@ -27,7 +28,7 @@ logger = core_logger.get_logger(__name__)
 
 
 def _replay_rotation(
-    client_type: str,
+    client_type: auth_constants.ClientType,
     session: sessions_contracts.SessionRead,
     refresh_token_value: str,
     token_user_id: int,
@@ -104,7 +105,7 @@ def _replay_rotation(
     # is unchanged). Mobile clients do not use CSRF, so as on login the token
     # is minted but never bound or returned.
     replay_csrf_token = token_manager.create_csrf_token()
-    if client_type == "web":
+    if client_type == auth_constants.ClientType.WEB:
         sessions_integration.update_session_csrf_token(session.id, replay_csrf_token, db)
         db.commit()
 
@@ -128,7 +129,7 @@ def refresh_token(
     refresh_token_exp: datetime,
     password_hasher: credentials_integration.PasswordHasher,
     token_manager: access_tokens_integration.TokenManager,
-    client_type: str,
+    client_type: auth_constants.ClientType,
     db: Session,
     x_csrf_token: str | None = None,
 ) -> auth_schema.AuthOutcome[auth_schema.TokenRead]:
@@ -224,7 +225,7 @@ def refresh_token(
     #   protections are HttpOnly + SameSite=Strict on the refresh cookie,
     #   which prevent a cross-site attacker from issuing this POST at all.
     if (
-        client_type == "web"
+        client_type == auth_constants.ClientType.WEB
         and x_csrf_token
         and session.csrf_token_hash is not None
         and not sessions_integration.verify_csrf_token(x_csrf_token, session.csrf_token_hash)

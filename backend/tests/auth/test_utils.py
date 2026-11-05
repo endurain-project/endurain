@@ -366,29 +366,6 @@ class TestCompleteLogin:
 
         assert "05 jan 2031 12:00:00 gmt" in _set_cookie_headers(response)[-1].lower()
 
-    def test_complete_login_invalid_client_type_raises_error(
-        self, password_hasher, token_manager, mock_db, sample_user_read, mock_request
-    ):
-        """Test that invalid client type raises 403."""
-        # Arrange
-        response = Response()
-        invalid_client_type = "invalid"
-
-        # Act & Assert
-        with pytest.raises(core_exceptions.DomainError) as exc_info:
-            outcome = auth_utils.complete_login(
-                "127.0.0.1",
-                "pytest-agent",
-                sample_user_read,
-                invalid_client_type,
-                password_hasher,
-                token_manager,
-                mock_db,
-            )
-            authentication_dependencies.deliver_auth_outcome(response, outcome)
-        assert exc_info.value.status_code == 403
-        assert "Invalid client type" in exc_info.value.detail
-
     def test_complete_login_sets_secure_cookie_for_production(
         self, password_hasher, token_manager, mock_db, sample_user_read, mock_request
     ):

@@ -708,7 +708,6 @@ export interface paths {
          *
          *     Raises:
          *         HTTPException: If refresh token is invalid (401 Unauthorized).
-         *         HTTPException: If client type is invalid (403 Forbidden).
          */
         post: operations["logout_api_v1_auth_logout_post"];
         delete?: never;

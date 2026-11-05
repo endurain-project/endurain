@@ -18,6 +18,7 @@ import modules.auth.authentication.refusal_audit as authentication_refusal_audit
 import modules.auth.authentication.schema as auth_schema
 import modules.auth.authentication.token_service as authentication_token_service
 import modules.auth.computation as auth_computation
+import modules.auth.constants as auth_constants
 import modules.auth.credentials.integration_service as credentials_integration
 import modules.auth.identity_providers.integration_service as identity_providers_integration
 import modules.auth.known_devices.events as known_devices_events
@@ -140,7 +141,7 @@ def complete_login(
     ip_address: str,
     user_agent: str,
     user: users_schema.UsersRead,
-    client_type: str,
+    client_type: auth_constants.ClientType,
     password_hasher: credentials_integration.PasswordHasher,
     token_manager: access_tokens_integration.TokenManager,
     db: Session,
@@ -159,7 +160,7 @@ def complete_login(
         ip_address (str): Client address, recorded on the session.
         user_agent (str): Client user agent, recorded on the session.
         user (users_schema.UsersRead): The authenticated user object.
-        client_type (str): The type of client ("web" or "mobile").
+        client_type (auth_constants.ClientType): The type of client.
         password_hasher (credentials_integration.PasswordHasher): Utility for password hashing.
         token_manager (access_tokens_integration.TokenManager): Utility for token generation and management.
         db (Session): Database session for storing session information.
@@ -167,14 +168,7 @@ def complete_login(
     Returns:
         The token body (session_id, access_token, csrf_token, token_type, expires_in, refresh_token_expires_in) and,
         for web clients, the refresh cookie.
-
-    Raises:
-        PermissionDeniedError: If the client type is invalid.
     """
-    if client_type not in ["web", "mobile"]:
-        logger.warning("Login refused for an unsupported client type")
-        raise core_exceptions.PermissionDeniedError("Invalid client type")
-
     # Create the tokens
     (
         session_id,
@@ -203,6 +197,10 @@ def complete_login(
         db,
     )
     db.commit()
+    logger.info(
+        "Login completed for user <user_id> (client_type=<client_type>)",
+        extra=core_logger.context(user_id=user.id, client_type=client_type),
+    )
 
     # Token delivery based on client type (web cookie vs mobile body) is
     # centralised in build_token_response so login, /refresh, and SSO
@@ -306,7 +304,7 @@ def create_mobile_pkce_session_response(
 
 
 def _validate_pkce_query_params(
-    client_type: str,
+    client_type: auth_constants.ClientType,
     code_challenge: str | None,
     code_challenge_method: str | None,
 ) -> None:
@@ -323,7 +321,7 @@ def _validate_pkce_query_params(
     Raises:
         InvalidInputError: If PKCE parameters are supplied partially.
     """
-    if client_type != "mobile":
+    if client_type != auth_constants.ClientType.MOBILE:
         return
 
     has_any_pkce_param = code_challenge is not None or code_challenge_method is not None
@@ -457,7 +455,7 @@ def _finish_login(
     ip_address: str,
     user_agent: str,
     user: users_schema.UsersRead,
-    client_type: str,
+    client_type: auth_constants.ClientType,
     code_challenge: str | None,
     code_challenge_method: str | None,
     password_hasher: credentials_integration.PasswordHasher,
@@ -475,7 +473,7 @@ def _finish_login(
         ip_address: Client address, recorded on the session.
         user_agent: Client user agent, recorded on the session.
         user: The authenticated user.
-        client_type: ``"web"`` or ``"mobile"``.
+        client_type: The client type.
         code_challenge: PKCE code challenge, if the client sent one.
         code_challenge_method: PKCE challenge method, if the client sent one.
         password_hasher: Hasher for the stored refresh token.
@@ -507,7 +505,7 @@ def _finish_login(
 
     # Mobile clients with PKCE use secure token exchange flow
     # Web clients don't need PKCE - they have httpOnly cookies and same-origin protection
-    if client_type == "mobile" and code_challenge and code_challenge_method:
+    if client_type == auth_constants.ClientType.MOBILE and code_challenge and code_challenge_method:
         # Use PKCE exchange flow through the public IdP token exchange endpoint
         return auth_schema.AuthOutcome(
             create_mobile_pkce_session_response(
@@ -525,7 +523,7 @@ def login_for_access_token(
     user_agent: str,
     username: str,
     password: str,
-    client_type: str,
+    client_type: auth_constants.ClientType,
     failed_attempts: failed_login_store.FailedLoginStore,
     pending_mfa_store: mfa_dependencies.PendingMFAStore,
     password_hasher: credentials_integration.PasswordHasher,
@@ -563,7 +561,7 @@ def login_for_access_token(
         user_agent: Client user agent, recorded on the session
         username: Username presented by the client
         password: Password presented by the client
-        client_type: The type of client making the request ("web" or "mobile")
+        client_type: The type of client making the request
         failed_attempts: Failed login attempts tracker for progressive lockout
         pending_mfa_store: Store for pending MFA logins
         password_hasher: The password hasher instance used for verifying passwords
@@ -667,24 +665,14 @@ def login_for_access_token(
         # This prevents bypassing lockout by triggering MFA flow
 
         # Return MFA required response
-        if client_type == "web":
-            return auth_schema.AuthOutcome(
-                auth_schema.MFARequiredRead(
-                    mfa_required=True,
-                    username=username,
-                    mfa_challenge=mfa_challenge,
-                    message="MFA verification required",
-                )
+        return auth_schema.AuthOutcome(
+            auth_schema.MFARequiredRead(
+                mfa_required=True,
+                username=username,
+                mfa_challenge=mfa_challenge,
+                message="MFA verification required",
             )
-        if client_type == "mobile":
-            return auth_schema.AuthOutcome(
-                auth_schema.MFARequiredRead(
-                    mfa_required=True,
-                    username=username,
-                    mfa_challenge=mfa_challenge,
-                    message="MFA verification required",
-                )
-            )
+        )
 
     # Password authentication successful and no MFA required
     # Reset failed login attempts counter
@@ -712,7 +700,7 @@ def verify_mfa_and_login(
     ip_address: str,
     user_agent: str,
     mfa_request: auth_schema.MFALoginRequest,
-    client_type: str,
+    client_type: auth_constants.ClientType,
     failed_attempts: failed_login_store.FailedLoginStore,
     pending_mfa_store: mfa_dependencies.PendingMFAStore,
     password_hasher: credentials_integration.PasswordHasher,
@@ -739,7 +727,7 @@ def verify_mfa_and_login(
         user_agent: Client user agent, recorded on the session
         failed_attempts: Failed login attempts tracker for progressive lockout
         mfa_request: MFA login request containing the login's challenge and the MFA code
-        client_type: The type of client making the request ("web" or "mobile")
+        client_type: The type of client making the request
         pending_mfa_store: Store for pending MFA logins
         password_hasher: The password hasher instance used for verifying passwords
         token_manager: The token manager instance used for token operations
@@ -838,7 +826,6 @@ def verify_mfa_and_login(
 def logout(
     token_session_id: str,
     refresh_token_value: str,
-    client_type: str,
     token_user_id: int,
     password_hasher: credentials_integration.PasswordHasher,
     db: Session,
@@ -848,7 +835,6 @@ def logout(
     Args:
         token_session_id: The session ID extracted from the refresh token.
         refresh_token_value: The refresh token value from the request.
-        client_type: The type of client ("web" or "mobile").
         token_user_id: The user ID extracted from the refresh token.
         password_hasher: Utility for verifying the refresh token.
         db: Database session for CRUD operations.
@@ -858,7 +844,6 @@ def logout(
 
     Raises:
         UnauthenticatedError: If the refresh token is invalid.
-        PermissionDeniedError: If the client type is invalid.
     """
     # Get the session from the database
     session = sessions_integration.get_session_by_id_not_expired(token_session_id, db)
@@ -894,7 +879,4 @@ def logout(
         identity_providers_integration.clear_all_idp_tokens(token_user_id, db)
         db.commit()
 
-    if client_type in ("web", "mobile"):
-        return auth_schema.LogoutRead(message="Logout successful")
-    logger.warning("Logout refused for an unsupported client type")
-    raise core_exceptions.PermissionDeniedError("Invalid client type")
+    return auth_schema.LogoutRead(message="Logout successful")

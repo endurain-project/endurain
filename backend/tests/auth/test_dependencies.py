@@ -303,6 +303,16 @@ class TestClientTypeHeader:
         result = await authentication_dependencies.header_client_type_scheme(self._request({"X-Client-Type": "web"}))
         assert result == "web"
 
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize("value", ["ios", "Web", "tablet"])
+    async def test_unknown_header_is_a_400_naming_the_accepted_values(self, value):
+        import core.exceptions as core_exceptions
+
+        with pytest.raises(core_exceptions.InvalidInputError) as exc_info:
+            await authentication_dependencies.header_client_type_scheme(self._request({"X-Client-Type": value}))
+        assert exc_info.value.status_code == 400
+        assert "web or mobile" in exc_info.value.detail
+
 
 class TestAuditContextFromRequest:
     """The audit context names the request's principal, or the system outside a request."""

@@ -83,7 +83,7 @@ def test_logout_commits_the_session_deletion(mock_db):
         patch(f"{_SERVICE}.sessions_integration.delete_session") as delete_session,
         patch(f"{_SERVICE}.identity_providers_integration.clear_all_idp_tokens"),
     ):
-        authentication_service.logout("sid", "rt", "mobile", 1, hasher, mock_db)
+        authentication_service.logout("sid", "rt", 1, hasher, mock_db)
 
     delete_session.assert_called_once_with("sid", 1, mock_db)
     assert mock_db.commit.call_count == 2

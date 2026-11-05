@@ -2163,41 +2163,6 @@ class TestLogoutEndpoint:
         assert response.status_code == 200
         mock_clear_cookies.assert_not_called()
 
-    @patch("modules.auth.authentication.service.sessions_integration.get_session_by_id_not_expired")
-    def test_logout_invalid_client_type_returns_403(
-        self,
-        mock_get_session,
-        auth_client,
-        auth_app,
-    ):
-        """
-        Invalid client_type on logout returns 403.
-
-        Args:
-            mock_get_session: Mock for get_session_by_id_not_expired.
-            auth_client: TestClient for the auth app.
-            auth_app: FastAPI test application.
-
-        Returns:
-            None.
-
-        Raises:
-            AssertionError: If response status is not 403.
-        """
-        auth_app.state._client_type = "tablet"
-        mock_get_session.return_value = None
-
-        app = auth_app
-        app.dependency_overrides[authentication_dependencies.validate_refresh_token] = lambda: None
-        app.dependency_overrides[authentication_dependencies.get_sub_from_refresh_token] = lambda: 1
-        app.dependency_overrides[authentication_dependencies.get_sid_from_refresh_token] = lambda: "sid-1"
-        app.dependency_overrides[authentication_dependencies.get_and_return_refresh_token] = lambda: "rt"
-
-        response = auth_client.post("/auth/logout")
-
-        assert response.status_code == 403
-        assert "client type" in response.json()["detail"].lower()
-
     @patch("modules.auth.authentication.dependencies.clear_refresh_token_cookies")
     @patch("modules.auth.authentication.service.sessions_integration.delete_session")
     @patch("modules.auth.authentication.service.sessions_integration.get_session_by_id_not_expired")

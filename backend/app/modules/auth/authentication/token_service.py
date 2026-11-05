@@ -8,6 +8,7 @@ from uuid import uuid4
 import core.logger as core_logger
 import modules.auth.access_tokens.integration_service as access_tokens_integration
 import modules.auth.authentication.schema as auth_schema
+import modules.auth.constants as auth_constants
 import modules.server_settings.contracts as server_settings_contracts
 import modules.users.users.schema as users_schema
 
@@ -90,7 +91,7 @@ def mint_access_token(
 
 
 def build_token_response(
-    client_type: str,
+    client_type: auth_constants.ClientType,
     session_id: str,
     access_token: str,
     access_token_exp: datetime,
@@ -113,7 +114,7 @@ def build_token_response(
     per RFC 6749 §5.1.
 
     Args:
-        client_type: ``"web"`` or any other value (treated as mobile).
+        client_type: The client type.
         session_id: Session identifier.
         access_token: Newly minted access token.
         access_token_exp: Access-token expiry datetime.
@@ -128,7 +129,7 @@ def build_token_response(
     expires_in = int((access_token_exp - now).total_seconds())
     refresh_token_expires_in = int((refresh_token_exp - now).total_seconds())
 
-    if client_type == "web":
+    if client_type == auth_constants.ClientType.WEB:
         # Web: Refresh token as httpOnly cookie (XSS protection); CSRF
         # token in body for in-memory storage. The router sets the cookie
         # through deliver_auth_outcome so login, /refresh, and SSO token

@@ -20,6 +20,7 @@ import modules.auth.account_security.integration_service as account_security_int
 import modules.auth.authentication.audit_actions as authentication_audit_actions
 import modules.auth.authentication.dependencies as authentication_dependencies
 import modules.auth.authentication.integration_service as authentication_integration
+import modules.auth.constants as auth_constants
 import modules.auth.contracts as auth_contracts
 import modules.auth.identity_providers.dependencies as identity_providers_dependencies
 import modules.auth.mfa.dependencies as auth_mfa_dependencies
@@ -37,7 +38,7 @@ set_idp_browser_binding_cookie = identity_providers_dependencies.set_browser_bin
 
 def get_access_token(
     access_token: Annotated[str | None, Depends(oauth2_scheme)],
-    _client_type: str = Depends(authentication_dependencies.header_client_type_scheme),
+    _client_type: auth_constants.ClientType = Depends(authentication_dependencies.header_client_type_scheme),
 ) -> str:
     """Require an access token from the Authorization header."""
     if access_token is None:

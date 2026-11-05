@@ -158,22 +158,23 @@ oauth2_scheme = OAuth2PasswordBearer(
 class ClientTypeHeader(APIKeyHeader):
     """Required X-Client-Type header that reports missing input as a 400."""
 
-    async def __call__(self, request: Request) -> str:
+    async def __call__(self, request: Request) -> auth_constants.ClientType:
         """Return the request's client type.
 
         Args:
             request: The incoming request.
 
         Returns:
-            The ``X-Client-Type`` header's value.
+            The ``X-Client-Type`` header's client type.
 
         Raises:
-            InvalidInputError: When the header is missing or empty.
+            InvalidInputError: When the header is missing, empty or neither ``web`` nor ``mobile``.
         """
-        client_type = request.headers.get(self.model.name)
-        if not client_type:
-            raise core_exceptions.InvalidInputError("Missing required X-Client-Type header (web or mobile)")
-        return client_type
+        value = request.headers.get(self.model.name)
+        try:
+            return auth_constants.ClientType(value or "")
+        except ValueError:
+            raise core_exceptions.InvalidInputError("Missing or invalid X-Client-Type header (web or mobile)") from None
 
 
 header_client_type_scheme = ClientTypeHeader(name="X-Client-Type")
@@ -184,7 +185,7 @@ cookie_refresh_token_scheme = APIKeyCookie(name=REFRESH_TOKEN_COOKIE_NAME, auto_
 def get_token(
     non_cookie_token: str | None,
     cookie_token: str | None,
-    client_type: str,
+    client_type: auth_constants.ClientType,
     token_type: access_tokens_integration.TokenType,
 ) -> str | None:
     """Select a credential source according to client and token type."""
@@ -193,11 +194,11 @@ def get_token(
             raise core_exceptions.InvalidTokenError("Access token missing from Authorization header", scheme="Bearer")
         return non_cookie_token
     if token_type == access_tokens_integration.TokenType.REFRESH:
-        if client_type == "web":
+        if client_type == auth_constants.ClientType.WEB:
             if cookie_token is None:
                 raise core_exceptions.InvalidTokenError("Refresh token missing from cookie", scheme="Bearer")
             return cookie_token
-        if client_type == "mobile":
+        if client_type == auth_constants.ClientType.MOBILE:
             if non_cookie_token is None:
                 raise core_exceptions.InvalidTokenError(
                     "Refresh token missing from Authorization header", scheme="Bearer"
@@ -210,7 +211,7 @@ def get_token(
 def get_refresh_token(
     non_cookie_refresh_token: Annotated[str | None, Depends(oauth2_scheme)],
     cookie_refresh_token: str | None = Depends(cookie_refresh_token_scheme),
-    client_type: str = Depends(header_client_type_scheme),
+    client_type: auth_constants.ClientType = Depends(header_client_type_scheme),
 ) -> str | None:
     """Resolve the refresh token from the client-appropriate location."""
     return get_token(

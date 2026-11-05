@@ -22,6 +22,7 @@ import modules.auth.authentication.failed_login_store as failed_login_store
 import modules.auth.authentication.refresh_service as auth_refresh_service
 import modules.auth.authentication.schema as auth_schema
 import modules.auth.authentication.service as auth_service
+import modules.auth.constants as auth_constants
 import modules.auth.credentials.integration_service as credentials_integration
 import modules.auth.known_devices.dependencies as known_devices_dependencies
 import modules.auth.mfa.dependencies as mfa_dependencies
@@ -46,7 +47,7 @@ def login_for_access_token(
     response: Response,
     request: Request,
     form_data: authentication_dependencies.LoginForm,
-    client_type: Annotated[str, Depends(authentication_dependencies.header_client_type_scheme)],
+    client_type: Annotated[auth_constants.ClientType, Depends(authentication_dependencies.header_client_type_scheme)],
     failed_attempts: Annotated[
         failed_login_store.FailedLoginStore,
         Depends(failed_login_store.get_failed_login_attempts),
@@ -140,7 +141,7 @@ def verify_mfa_and_login(
     response: Response,
     request: Request,
     mfa_request: auth_schema.MFALoginRequest,
-    client_type: Annotated[str, Depends(authentication_dependencies.header_client_type_scheme)],
+    client_type: Annotated[auth_constants.ClientType, Depends(authentication_dependencies.header_client_type_scheme)],
     failed_attempts: Annotated[
         failed_login_store.FailedLoginStore,
         Depends(failed_login_store.get_failed_login_attempts),
@@ -244,7 +245,7 @@ def refresh_token(
         Depends(access_tokens_integration.get_token_manager),
     ],
     db: core_dependencies.DbSession,
-    client_type: Annotated[str, Depends(authentication_dependencies.header_client_type_scheme)],
+    client_type: Annotated[auth_constants.ClientType, Depends(authentication_dependencies.header_client_type_scheme)],
     x_csrf_token: Annotated[str | None, Depends(authentication_dependencies.header_csrf_token_scheme)] = None,
 ) -> auth_schema.TokenRead:
     r"""Handles the refresh token process for user sessions.
@@ -310,7 +311,7 @@ def logout(
         str,
         Depends(authentication_dependencies.get_and_return_refresh_token),
     ],
-    client_type: Annotated[str, Depends(authentication_dependencies.header_client_type_scheme)],
+    client_type: Annotated[auth_constants.ClientType, Depends(authentication_dependencies.header_client_type_scheme)],
     token_user_id: Annotated[
         int,
         Depends(authentication_dependencies.get_sub_from_refresh_token),
@@ -339,16 +340,14 @@ def logout(
 
     Raises:
         HTTPException: If refresh token is invalid (401 Unauthorized).
-        HTTPException: If client type is invalid (403 Forbidden).
     """
     message = auth_service.logout(
         token_session_id,
         refresh_token_value,
-        client_type,
         token_user_id,
         password_hasher,
         db,
     )
-    if client_type == "web":
+    if client_type == auth_constants.ClientType.WEB:
         authentication_dependencies.clear_refresh_token_cookies(response, environment=core_config.settings.ENVIRONMENT)
     return message
