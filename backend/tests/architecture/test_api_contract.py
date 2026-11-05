@@ -184,9 +184,7 @@ _DOCSTRING_SECTIONS: dict[str, int] = {
 
 #: Files that build an error response by hand, as ``{path relative to app/: reason}``. Raise a
 #: ``core.exceptions`` error instead and remove the entry (HTTP-1).
-_HAND_BUILT_ERRORS: dict[str, str] = {
-    "core/middleware.py": "HTTP-1",
-}
+_HAND_BUILT_ERRORS: dict[str, str] = {}
 
 #: Documented API paths that are not in the OpenAPI document, as ``"<file>: <path>"`` (file relative to
 #: ``docs/`` or ``app/``). Fix the page or the route and remove the entry.

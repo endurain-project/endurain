@@ -826,3 +826,27 @@ class TestXRealIpValidation:
 
         with patch.object(core_network, "_is_trusted_peer", return_value=True):
             assert core_network.get_ip_address(self._request(value)) == "10.0.0.1"
+
+
+class TestClientNetwork:
+    """client_network reduces an address to the network one client controls."""
+
+    def test_ipv6_becomes_its_64(self):
+        import core.network as core_network
+
+        assert core_network.client_network("2001:db8:1:2:ffff:ffff:ffff:ffff") == "2001:db8:1:2::/64"
+
+    def test_ipv4_mapped_ipv6_is_its_ipv4(self):
+        import core.network as core_network
+
+        assert core_network.client_network("::ffff:203.0.113.1") == "203.0.113.1"
+
+    def test_ipv4_is_unchanged(self):
+        import core.network as core_network
+
+        assert core_network.client_network("203.0.113.1") == "203.0.113.1"
+
+    def test_a_non_ip_is_kept_as_it_is(self):
+        import core.network as core_network
+
+        assert core_network.client_network("unknown") == "unknown"

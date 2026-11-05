@@ -112,6 +112,19 @@ class TestGetRateLimitKey:
 
         assert result == "10.0.0.3"
 
+    def test_an_ipv6_caller_is_keyed_by_its_64_network(self):
+        import core.rate_limit as rl
+
+        keys = []
+        for ip in ("2001:db8:1:2::1", "2001:db8:1:2:ffff::9", "2001:db8:1:3::1"):
+            request = MagicMock()
+            request.headers = {}
+            with patch("core.rate_limit.core_network.get_ip_address", return_value=ip):
+                keys.append(rl._get_rate_limit_key(request))
+
+        assert keys[0] == keys[1] == "2001:db8:1:2::/64"
+        assert keys[2] == "2001:db8:1:3::/64"
+
     def test_signed_token_is_accepted_and_tampered_rejected(self):
         from joserfc import jwt
         from joserfc.jwk import OctKey

@@ -6,7 +6,6 @@ from collections.abc import Awaitable, Callable
 
 from fastapi import FastAPI, Request, status
 from fastapi.concurrency import run_in_threadpool
-from fastapi.responses import JSONResponse
 from starlette.datastructures import State
 from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.middleware.gzip import GZipMiddleware
@@ -15,6 +14,7 @@ from starlette.types import ASGIApp
 
 import core.config as core_config
 import core.environment as core_environment
+import core.exceptions as core_exceptions
 import core.logger as core_logger
 
 logger = core_logger.get_logger(__name__)
@@ -254,9 +254,12 @@ class CSRFMiddleware(BaseHTTPMiddleware):
             csrf_header = request.headers.get("X-CSRF-Token")
 
             if not csrf_header:
-                return JSONResponse(
+                return core_exceptions.build_problem_response(
+                    request=request,
                     status_code=status.HTTP_403_FORBIDDEN,
-                    content={"detail": "CSRF token required"},
+                    code="permission-denied",
+                    title="Forbidden",
+                    detail="CSRF token required",
                 )
 
         response = await call_next(request)

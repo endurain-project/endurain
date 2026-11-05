@@ -242,8 +242,14 @@ def upload_identity_provider_icon(
         NotFoundError: 404 if the provider is not found.
         PayloadTooLargeError: 413 if the image is larger than the icon cap.
     """
-    data = core_file_uploads.read_validated_upload_sync(file, kind=core_file_uploads.UploadKind.IMAGE)
-    return idp_schema.IdentityProviderIconRead(version=idp_icon_service.upload_icon(idp_id, data, storage, db))
+    return idp_schema.IdentityProviderIconRead(
+        version=idp_icon_service.upload_icon(
+            idp_id,
+            lambda: core_file_uploads.read_validated_upload_sync(file, kind=core_file_uploads.UploadKind.IMAGE),
+            storage,
+            db,
+        )
+    )
 
 
 @router.delete(

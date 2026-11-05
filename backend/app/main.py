@@ -367,6 +367,10 @@ def create_app() -> FastAPI:
     # seed the built-in providers here; startup replaces them with the configured list.
     fastapi_app.state.allowed_tile_domains = server_settings_constants.DEFAULT_ALLOWED_TILE_DOMAINS.copy()
 
+    # Refuse a state-changing web request without the CSRF header. Added first, so it sits inside CORS and the security
+    # headers and its 403 carries both.
+    fastapi_app.add_middleware(core_middleware.CSRFMiddleware)
+
     # Refuse a NUL character, which a text column cannot store. Added before the body cap, so it sits inside it and
     # reads the body through the cap.
     fastapi_app.add_middleware(core_middleware_nul_bytes.NulByteMiddleware)
@@ -397,11 +401,8 @@ def create_app() -> FastAPI:
         max_age=600,
     )
 
-    # Add security headers middleware (before CSRF for proper header ordering)
+    # Add security headers middleware
     fastapi_app.add_middleware(core_middleware.SecurityHeadersMiddleware)
-
-    # Add CSRF protection middleware
-    fastapi_app.add_middleware(core_middleware.CSRFMiddleware)
 
     # Add rate limiting
     fastapi_app.state.limiter = core_rate_limit.limiter

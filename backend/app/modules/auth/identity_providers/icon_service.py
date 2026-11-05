@@ -1,5 +1,7 @@
 """The uploaded icon of an identity provider: upload, removal and serving."""
 
+from collections.abc import Callable
+
 import jasil.audit as jasil_audit
 import jasil.providers as platform_providers
 from sqlalchemy.orm import Session
@@ -36,9 +38,12 @@ def _stage_icon_audit(idp_id: int, db: Session) -> None:
     )
 
 
-def upload_icon(idp_id: int, data: bytes, storage: platform_providers.StorageProvider, db: Session) -> int:
+def upload_icon(
+    idp_id: int, read_data: Callable[[], bytes], storage: platform_providers.StorageProvider, db: Session
+) -> int:
     """Save a provider's icon and mark it as set.
 
+    The provider is checked before ``read_data`` is called, so an unknown provider reads no upload.
     The read transaction that checked the provider is ended before the blob is written, so storage latency
     holds neither a connection nor the provider row. A blob without the flag is invisible, whereas a flag
     without a blob would point the login page at nothing, so the flag is committed last. The stored content type
@@ -47,7 +52,7 @@ def upload_icon(idp_id: int, data: bytes, storage: platform_providers.StoragePro
 
     Args:
         idp_id: The provider the icon belongs to.
-        data: The uploaded image, already validated as an image.
+        read_data: Reads and validates the uploaded image, returning its bytes.
         storage: The platform storage provider.
         db: Database session.
 
@@ -62,6 +67,7 @@ def upload_icon(idp_id: int, data: bytes, storage: platform_providers.StoragePro
     """
     if not idp_crud.identity_provider_exists(idp_id, db):
         raise core_exceptions.NotFoundError("Identity provider not found")
+    data = read_data()
     if len(data) > idp_constants.ICON_MAX_BYTES:
         raise core_exceptions.PayloadTooLargeError("Identity provider icon is too large")
     media_type = core_file_uploads.sniff_image_type(data)

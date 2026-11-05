@@ -127,8 +127,9 @@ def _get_rate_limit_key(request: Request) -> str:
     reset the bucket.  The token must be a signed, unexpired
     access token, otherwise a client could mint a fresh bucket
     per request with a random or refresh token.  Falls back to
-    the proxy-aware client IP for unauthenticated callers and
-    any other token.
+    the proxy-aware client network (an IPv6 address by its /64,
+    so rotating through a block does not give a fresh bucket) for
+    unauthenticated callers and any other token.
 
     Args:
         request: Incoming Starlette/FastAPI request.
@@ -139,7 +140,7 @@ def _get_rate_limit_key(request: Request) -> str:
     auth = request.headers.get("authorization", "")
     if auth.startswith("Bearer ") and len(auth) > 7 and (subject := _verified_subject(auth[7:])):
         return f"user:{subject}"
-    return core_network.get_ip_address(request)
+    return core_network.client_network(core_network.get_ip_address(request))
 
 
 def build_limiter(*, storage_uri: str, enabled: bool) -> Limiter:

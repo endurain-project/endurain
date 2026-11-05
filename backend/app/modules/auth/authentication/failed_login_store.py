@@ -1,6 +1,5 @@
 """Shared-state store for failed password login attempts."""
 
-import ipaddress
 from dataclasses import dataclass
 from datetime import datetime
 from typing import Protocol, runtime_checkable
@@ -8,6 +7,7 @@ from typing import Protocol, runtime_checkable
 from jasil.providers import StateProvider
 
 import core.dependencies as core_dependencies
+import core.network as core_network
 import modules.auth.lockout.contracts as lockout_contracts
 import modules.auth.lockout.integration_service as lockout_integration
 
@@ -78,23 +78,10 @@ class FailedLoginAttempts:
             normalize_key=lockout_integration.normalize_username_key,
         )
 
-    @staticmethod
-    def _client_network(ip_address: str) -> str:
-        """Reduce an address to the network one client controls: an IPv6 address to its /64, IPv4 unchanged."""
-        try:
-            address = ipaddress.ip_address(ip_address)
-        except ValueError:
-            return ip_address
-        if isinstance(address, ipaddress.IPv6Address):
-            if address.ipv4_mapped is not None:
-                return str(address.ipv4_mapped)
-            return str(ipaddress.ip_network(f"{address}/64", strict=False))
-        return str(address)
-
     @classmethod
     def _client_key(cls, username: str, ip_address: str) -> str:
         """Build the per-client key; a network never contains ``|``, so the pair cannot be forged by a username."""
-        return f"{lockout_integration.normalize_username_key(username)}|{cls._client_network(ip_address)}"
+        return f"{lockout_integration.normalize_username_key(username)}|{core_network.client_network(ip_address)}"
 
     def is_locked_out(self, username: str, ip_address: str, *, known_device: bool = False) -> bool:
         """Check if a username is locked out for this client network or, unless a known device, account-wide."""

@@ -43,7 +43,7 @@ Authentication and authorization failures use the same shape. Typical causes:
 | ------ | ------------- |
 | `400` | Missing required fields, invalid client type, no pending MFA login |
 | `401` | Invalid credentials, expired token, invalid MFA code |
-| `403` | Insufficient permissions, missing required scope |
+| `403` | Insufficient permissions, missing required scope, a web write without `X-CSRF-Token` |
 | `404` | Invalid session ID, user not found |
 | `429` | Too many login or OAuth attempts |
 
@@ -126,7 +126,7 @@ Every route that takes a file has its own limit on the request body: the largest
 
 ## Rate limits
 
-Limits are counted per caller: an authenticated request is counted per access token, so users behind the same network address do not share a bucket, and an unauthenticated request is counted per client address.
+Limits are counted per caller: an authenticated request is counted per access token, so users behind the same network address do not share a bucket, and an unauthenticated request is counted per client address, and an IPv6 address by its `/64` network, so a client cannot get a fresh bucket by changing address within its block.
 
 <!-- generated:rate-limits -->
 

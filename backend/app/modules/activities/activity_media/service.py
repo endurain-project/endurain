@@ -13,6 +13,7 @@ the token-gated route, not pinned to one node's disk.
 
 import re
 import uuid
+from collections.abc import Callable
 from pathlib import PurePosixPath
 
 import jasil.providers as platform_providers
@@ -394,14 +395,15 @@ def store_activity_media(
     activity_id: int,
     requester_user_id: int,
     original_filename: str | None,
-    data: bytes,
+    read_data: Callable[[], bytes],
     storage: platform_providers.StorageProvider,
     db: Session,
 ) -> activity_media_schema.ActivityMediaRead:
     """Persist an uploaded image and register it against an activity.
 
-    The caller has already validated the bytes (magic number and size). They are
-    written through the storage provider under a server-generated key. If the
+    The activity is checked before ``read_data`` is called, so a request for an activity that is not the
+    caller's reads no upload. The bytes ``read_data`` returns are already validated (magic number and size);
+    they are written through the storage provider under a server-generated key. If the
     database row cannot be created the blob is removed again, so a failed upload
     leaves nothing behind.
 
@@ -409,7 +411,7 @@ def store_activity_media(
         activity_id: The activity to attach the media to.
         requester_user_id: The authenticated user, who must own the activity.
         original_filename: The uploaded filename, used only for its extension.
-        data: The validated image bytes.
+        read_data: Reads and validates the uploaded image, returning its bytes.
         storage: The blob-storage provider.
         db: Database session.
 
@@ -420,10 +422,12 @@ def store_activity_media(
 
     Raises:
         NotFoundError: When the activity is not the user's.
+        DomainError: Whatever ``read_data`` raises when the upload fails validation.
         UnsupportedMediaTypeError: For an unsupported extension.
         ConflictError: On a duplicate key.
     """
     _require_owned_activity(activity_id, requester_user_id, db)
+    data = read_data()
 
     created = _persist_media_bytes(activity_id, original_filename, data, storage, db)
 

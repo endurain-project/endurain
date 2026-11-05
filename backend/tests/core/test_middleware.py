@@ -121,7 +121,7 @@ class TestCSRFMiddlewareWebClients:
             headers={"X-Client-Type": "web"},
         )
         assert response.status_code == 403
-        assert response.json() == {"detail": "CSRF token required"}
+        assert response.json()["detail"] == "CSRF token required"
 
     def test_post_with_csrf_success(self, client):
         """
@@ -364,7 +364,7 @@ class TestCSRFMiddlewareSameSiteCookie:
             headers={"X-Client-Type": "web"},
         )
         assert response.status_code == 403
-        assert response.json() == {"detail": "CSRF token required"}
+        assert response.json()["detail"] == "CSRF token required"
 
         # Request with both cookie and header - header wins
         client.cookies.clear()
@@ -726,3 +726,54 @@ class TestAllowedTileDomainsRefresh:
         csp = self._client(read_at=-1e9).get("/html").headers["Content-Security-Policy"]
 
         assert "old.example.com" in csp
+
+
+class TestCSRFRefusalIsAProblemDocument:
+    """The CSRF 403 is a problem document and sits inside CORS and the security headers."""
+
+    def _app(self) -> FastAPI:
+        from fastapi.middleware.cors import CORSMiddleware
+
+        from core.middleware import SecurityHeadersMiddleware
+
+        app = FastAPI()
+        # Added in the order create_app adds them: CSRF innermost, CORS and security headers outside it.
+        app.add_middleware(CSRFMiddleware)
+        app.add_middleware(CORSMiddleware, allow_origins=["https://app.example"], allow_credentials=True)
+        app.add_middleware(SecurityHeadersMiddleware)
+
+        @app.post("/write")
+        async def write():
+            return {"ok": True}
+
+        return app
+
+    def test_refusal_is_problem_json_with_the_permission_type(self):
+        response = TestClient(self._app()).post("/write", headers={"X-Client-Type": "web"})
+
+        assert response.status_code == 403
+        assert response.headers["content-type"].startswith("application/problem+json")
+        body = response.json()
+        assert body["type"] == "urn:endurain:error:permission-denied"
+        assert body["status"] == 403
+        assert body["detail"] == "CSRF token required"
+        assert body["instance"] == "/write"
+
+    def test_refusal_carries_security_and_cors_headers(self):
+        response = TestClient(self._app()).post(
+            "/write", headers={"X-Client-Type": "web", "Origin": "https://app.example"}
+        )
+
+        assert response.status_code == 403
+        assert response.headers["X-Content-Type-Options"] == "nosniff"
+        assert response.headers["access-control-allow-origin"] == "https://app.example"
+
+    def test_create_app_adds_csrf_before_cors_and_security_headers(self):
+        from pathlib import Path
+
+        main_source = (Path(__file__).resolve().parents[2] / "app" / "main.py").read_text()
+        source = main_source[main_source.index("def create_app") :]
+
+        csrf = source.index("CSRFMiddleware")
+        assert csrf < source.index("CORSMiddleware")
+        assert csrf < source.index("SecurityHeadersMiddleware")

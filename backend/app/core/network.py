@@ -253,6 +253,30 @@ def get_user_agent(request: Request) -> str:
     return request.headers.get("user-agent", "")
 
 
+def client_network(ip_address: str) -> str:
+    """Reduce an address to the network one client controls: an IPv6 address to its /64, IPv4 unchanged.
+
+    An IPv6 client usually holds a whole /64, so keying by the exact address would let it rotate
+    through addresses. An IPv4-mapped IPv6 address is its IPv4 address. A value that is not an IP
+    literal (such as ``"unknown"``) is returned as is.
+
+    Args:
+        ip_address: A client address as :func:`get_ip_address` returns it.
+
+    Returns:
+        The IPv4 address, the IPv6 /64 network in CIDR form, or the input when it is not an IP.
+    """
+    try:
+        address = ipaddress.ip_address(ip_address)
+    except ValueError:
+        return ip_address
+    if isinstance(address, ipaddress.IPv6Address):
+        if address.ipv4_mapped is not None:
+            return str(address.ipv4_mapped)
+        return str(ipaddress.ip_network(f"{address}/64", strict=False))
+    return str(address)
+
+
 def get_ip_address(request: Request) -> str:
     """
     Extract client IP address from request, respecting TRUSTED_PROXIES.

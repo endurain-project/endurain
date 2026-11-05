@@ -189,11 +189,10 @@ def test_delete_returns_precondition_failed_for_a_stale_etag(service):
     assert response.status_code == 412
 
 
-def test_upload_icon_validates_the_image_then_hands_the_bytes_to_the_service(monkeypatch):
+def test_upload_icon_hands_the_service_a_reader_for_the_upload(monkeypatch):
     icon_service = MagicMock()
     icon_service.upload_icon.return_value = 5
     monkeypatch.setattr(idp_router, "idp_icon_service", icon_service)
-    monkeypatch.setattr(idp_router.core_file_uploads, "read_validated_upload_sync", lambda *_a, **_k: b"png-bytes")
 
     response = _client().post(
         "/auth/identity_providers/1/icon",
@@ -203,7 +202,9 @@ def test_upload_icon_validates_the_image_then_hands_the_bytes_to_the_service(mon
 
     assert response.status_code == 201
     assert response.json() == {"version": 5}
-    assert icon_service.upload_icon.call_args.args[:2] == (1, b"png-bytes")
+    idp_id, read_data = icon_service.upload_icon.call_args.args[:2]
+    assert idp_id == 1
+    assert callable(read_data)
 
 
 def test_upload_icon_rejects_nonpositive_id(monkeypatch):

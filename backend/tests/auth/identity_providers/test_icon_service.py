@@ -16,6 +16,11 @@ from tests._helpers import images
 PNG = images.png_with_text()
 
 
+def _upload(data: bytes):
+    """The reader the service is handed; it returns the validated bytes."""
+    return lambda: data
+
+
 def _state(**overrides) -> idp_contracts.IdentityProviderState:
     values = {
         "id": 7,
@@ -51,7 +56,7 @@ class TestUploadIcon:
             patch.object(icon_service.idp_crud, "identity_provider_exists", return_value=True),
             patch.object(icon_service.idp_crud, "set_icon_uploaded", return_value=5) as set_flag,
         ):
-            version = icon_service.upload_icon(7, PNG, storage, db)
+            version = icon_service.upload_icon(7, _upload(PNG), storage, db)
 
         assert version == 5
         area, key, data, content_type = storage.save.call_args.args
@@ -60,14 +65,15 @@ class TestUploadIcon:
         set_flag.assert_called_once_with(7, True, db)
         db.commit.assert_called_once()
 
-    def test_a_missing_provider_stores_nothing(self):
-        storage = MagicMock()
+    def test_a_missing_provider_is_refused_before_the_upload_is_read(self):
+        storage, read_upload = MagicMock(), MagicMock()
         with (
             patch.object(icon_service.idp_crud, "identity_provider_exists", return_value=False),
             pytest.raises(core_exceptions.NotFoundError),
         ):
-            icon_service.upload_icon(7, PNG, storage, MagicMock())
+            icon_service.upload_icon(7, read_upload, storage, MagicMock())
 
+        read_upload.assert_not_called()
         storage.save.assert_not_called()
 
     def test_an_oversized_image_is_refused(self):
@@ -77,7 +83,7 @@ class TestUploadIcon:
             patch.object(icon_service.idp_crud, "identity_provider_exists", return_value=True),
             pytest.raises(core_exceptions.PayloadTooLargeError),
         ):
-            icon_service.upload_icon(7, data, storage, MagicMock())
+            icon_service.upload_icon(7, _upload(data), storage, MagicMock())
 
         storage.save.assert_not_called()
 
@@ -87,7 +93,7 @@ class TestUploadIcon:
             patch.object(icon_service.idp_crud, "identity_provider_exists", return_value=True),
             pytest.raises(core_exceptions.UnsupportedMediaTypeError),
         ):
-            icon_service.upload_icon(7, b"<svg></svg>", storage, MagicMock())
+            icon_service.upload_icon(7, _upload(b"<svg></svg>"), storage, MagicMock())
 
         storage.save.assert_not_called()
 
@@ -98,7 +104,7 @@ class TestUploadIcon:
             patch.object(icon_service.idp_crud, "set_icon_uploaded", return_value=None),
             pytest.raises(core_exceptions.NotFoundError),
         ):
-            icon_service.upload_icon(7, PNG, storage, db)
+            icon_service.upload_icon(7, _upload(PNG), storage, db)
 
         storage.delete.assert_called_once_with(idp_constants.ICON_STORAGE_AREA, "7")
         db.commit.assert_not_called()
@@ -114,7 +120,7 @@ class TestUploadIconTransaction:
             patch.object(icon_service.idp_crud, "identity_provider_exists", return_value=True),
             patch.object(icon_service.idp_crud, "set_icon_uploaded", return_value=5),
         ):
-            icon_service.upload_icon(7, PNG, storage, db)
+            icon_service.upload_icon(7, _upload(PNG), storage, db)
 
         assert [call[0] for call in order.mock_calls] == ["rollback", "save"]
 
@@ -129,7 +135,7 @@ class TestUploadIconTransaction:
             patch.object(icon_service.idp_crud, "set_icon_uploaded", return_value=None),
             pytest.raises(core_exceptions.NotFoundError),
         ):
-            icon_service.upload_icon(7, PNG, storage, db)
+            icon_service.upload_icon(7, _upload(PNG), storage, db)
 
         assert [call[0] for call in order.mock_calls] == ["rollback", "save", "rollback", "delete"]
 
@@ -233,7 +239,7 @@ class TestIconAudit:
             patch.object(icon_service.idp_crud, "set_icon_uploaded", return_value=5),
             jasil_testing.capture_audit() as audit,
         ):
-            icon_service.upload_icon(7, PNG, MagicMock(), MagicMock())
+            icon_service.upload_icon(7, _upload(PNG), MagicMock(), MagicMock())
 
         entry = audit.assert_audited(
             idp_audit_actions.IDENTITY_PROVIDER_UPDATE.id, target_type="identity_provider", target_id="7"
@@ -246,7 +252,7 @@ class TestIconAudit:
             jasil_testing.capture_audit() as audit,
             pytest.raises(core_exceptions.UnsupportedMediaTypeError),
         ):
-            icon_service.upload_icon(7, b"not an image", MagicMock(), MagicMock())
+            icon_service.upload_icon(7, _upload(b"not an image"), MagicMock(), MagicMock())
 
         audit.assert_not_audited(idp_audit_actions.IDENTITY_PROVIDER_UPDATE.id)
 

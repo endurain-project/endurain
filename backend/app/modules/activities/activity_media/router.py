@@ -61,8 +61,8 @@ def create_activity_media(
 ) -> activity_media_schema.ActivityMediaRead:
     """Upload an image file to associate with an activity.
 
-    The file is validated by magic number (not extension) and size limits via
-    the centralized image upload helper before the ownership check, stored through the platform
+    The activity is checked before the file is read. The file is validated by magic number (not
+    extension) and size limits via the centralized image upload helper, stored through the platform
     ``StorageProvider`` under a server-generated key, and registered in the
     database. The response carries a signed URL; the blob itself has no public
     path.
@@ -74,10 +74,15 @@ def create_activity_media(
     Not found when the activity is not the caller's, rejected when the extension
     is unsupported, and a conflict when a media with the same path already exists.
     """
-    # The route is synchronous and runs on a worker thread, so the blocking read
-    # never touches the event loop.
-    data = core_file_uploads.read_validated_upload_sync(file, kind=core_file_uploads.UploadKind.IMAGE)
-    return activity_media_service.store_activity_media(activity_id, token_user_id, file.filename, data, storage, db)
+    # The route is synchronous and runs on a worker thread, so the blocking read never touches the event loop.
+    return activity_media_service.store_activity_media(
+        activity_id,
+        token_user_id,
+        file.filename,
+        lambda: core_file_uploads.read_validated_upload_sync(file, kind=core_file_uploads.UploadKind.IMAGE),
+        storage,
+        db,
+    )
 
 
 @router.delete(
