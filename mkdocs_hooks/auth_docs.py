@@ -31,7 +31,7 @@ def _scopes() -> str:
 
 
 def _api_key_scopes() -> str:
-    scopes = sorted(_assigned_literal(APP / "modules/auth/api_keys/utils.py", "SUPPORTED_API_KEY_SCOPES"))
+    scopes = sorted(_assigned_literal(APP / "modules/auth/api_keys/constants.py", "SUPPORTED_API_KEY_SCOPES"))
     scope_dict = _assigned_literal(APP / "modules/auth/constants.py", "SCOPE_DICT")
     rows = "".join(f"| `{scope}` | {scope_dict[scope]} |\n" for scope in scopes)
     return "| Scope | Description |\n| ----- | ----------- |\n" + rows

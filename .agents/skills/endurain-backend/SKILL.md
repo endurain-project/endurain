@@ -21,6 +21,7 @@ cannot drift. What an agent most often gets wrong:
 - Resolve providers (`get_active_platform()`) only at entry points; below that, take the provider as an argument.
 - Never import `jasil.backends` or `jasil._core`; request identity comes from `modules.auth.dependencies`, while behavior crosses auth package boundaries through the owning child's `integration_service.py`.
 - A security-relevant write stages a `jasil.audit` row in the transaction that commits it, and a refusal uses `record_detached`; `docs/developer-guide/audit-trail.md` says what to audit and how. A new write route goes into `_AUDITED_WRITES` or `_UNAUDITED_WRITES` in `tests/architecture/test_audit_trail.py`, or that test fails.
+- A route follows `docs/developer-guide/http-api.md`; `tests/architecture/test_api_contract.py` fails a new violation, and its registers only shrink, so never add an entry to make it pass.
 - A new editable resource follows `docs/developer-guide/optimistic-concurrency.md` ("Adding a versioned resource"); `TestVersionedAndOwnedRoutes` fails a `PUT`/`PATCH` without `IfMatch`.
 - Never block a request or hold a database session across a provider or network call; hand the work to a job or `core.local_pool` and answer 202.
 - KISS, YAGNI, DRY: search the module and `core` for an existing helper first; add no parameter, wrapper, base class or `integration_service` operation without a current caller; extract on the second repetition.
@@ -37,6 +38,7 @@ cannot drift. What an agent most often gets wrong:
 | Handling uploads, access control, secrets, outbound requests | `references/security.md` |
 | Writing or fixing tests | `references/testing.md` |
 | Reviewing code for horizontal scaling (replicas, shared state, durable work) | `references/scaling-review.md` |
+| Adding, changing or reviewing a route (data exposure, auth flows, uploads, async, client docs) | `references/api-review.md` |
 
 ## Before finishing a structural change
 

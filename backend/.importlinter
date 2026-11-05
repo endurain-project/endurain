@@ -42,6 +42,38 @@ source_modules =
 forbidden_modules =
     redis
 
+# Image decoding and the image allow-list have one home, ``core.file_uploads``, so the metadata
+# stripping planned there cannot be bypassed by a module that opens or validates an image itself.
+[importlinter:contract:images-through-file-uploads]
+name = Only core.file_uploads may import PIL or safeuploads
+type = forbidden
+allow_indirect_imports = True
+source_modules =
+    modules
+    core
+forbidden_modules =
+    PIL
+    safeuploads
+ignore_imports =
+    core.file_uploads -> PIL
+    core.file_uploads -> safeuploads
+
+# Encryption has one home, ``core.cryptography``, so key rotation changes one place. ``core.config``
+# imports Fernet only to validate the format of the configured key at startup. import-linter treats an
+# external package as a whole, so the contract names ``cryptography`` (Fernet is all the app uses of it).
+[importlinter:contract:encryption-owned-by-cryptography]
+name = Only core.cryptography may import the cryptography package
+type = forbidden
+allow_indirect_imports = True
+source_modules =
+    modules
+    core
+forbidden_modules =
+    cryptography
+ignore_imports =
+    core.cryptography -> cryptography
+    core.config -> cryptography
+
 # A layers contract (not a denylist) that states the substrate's internal direction
 # once: the composition root (container) sits above the adapters (backends), which sit
 # above the ports (providers) and the event envelope (events). Higher layers may import

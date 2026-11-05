@@ -18,6 +18,7 @@ Deployment: Docker multi-stage image (amd64, arm64).
 | Module rules and file roles | `docs/developer-guide/module-structure.md` |
 | Identity and auth boundary | `docs/developer-guide/auth-boundary.md` |
 | Events, subscribers and reconciliation nets | `docs/developer-guide/events-and-subscribers.md` |
+| HTTP API shape (URLs, status codes, headers, bodies, client docs) | `docs/developer-guide/http-api.md` |
 | Versioned writes (`ETag`, `If-Match`) | `docs/developer-guide/optimistic-concurrency.md` |
 | Audit trail (what to record and how) | `docs/developer-guide/audit-trail.md` |
 | Activity ingestion pipeline | `docs/developer-guide/activity-ingestion.md` |
@@ -112,7 +113,10 @@ npm run gen:api      # after backend API changes
 - State shared across requests or replicas (rate limits, OAuth state, tickets, claims) goes through the platform `StateProvider`, never a module-level dict, lock or cache; review against `.agents/skills/endurain-backend/references/scaling-review.md`.
 - A security-relevant change or refusal (auth, credentials, admin actions, integrations, data leaving or entering, who can see data) writes an audit row as `docs/developer-guide/audit-trail.md` says; `details` never hold a value or a secret.
 - A provider rate-limit response becomes `TooManyRequestsError` with `retry_at`, so ingestion defers the work instead of burning retries.
-- Python 3.13 syntax, 120-character lines, Google-style PEP 257 docstrings (`Args`, `Returns`, `Raises` where applicable; ruff `D` enforces them on converted modules).
+- A route follows `docs/developer-guide/http-api.md`; `backend/tests/architecture/test_api_contract.py` enforces it, and its registers of existing violations only shrink.
+- A request schema never accepts a field the server owns: `id`, `user_id`, `version`, `created_at`, `updated_at`, `source` or a provider id.
+- An API change updates `docs/integrate/` in the same change; a privacy or security default stated in `docs/features/` is pinned by a test.
+- Python 3.13 syntax, 120-character lines, Google-style PEP 257 docstrings (`Args`, `Returns`, `Raises` where applicable; ruff `D` enforces them on converted modules). An endpoint docstring is the public API description and has no sections.
 
 ## Frontend invariants
 
