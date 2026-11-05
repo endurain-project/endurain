@@ -193,7 +193,6 @@ _DOCSTRING_SECTIONS: dict[str, int] = {
     "modules/server_settings/router.py": 8,
     "modules/strava/router.py": 1,
     "modules/users/users/photo_router.py": 1,
-    "modules/users/users/public_router.py": 1,
     "modules/users/users/router.py": 16,
     "modules/users/users_default_gear/router.py": 2,
     "modules/users/users_goals/router.py": 5,

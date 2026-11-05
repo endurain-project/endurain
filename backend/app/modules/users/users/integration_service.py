@@ -83,6 +83,23 @@ def get_public_profile(user_id: int, db: Session) -> users_schema.UserPublicRead
     return users_service.get_public_profile(user_id, db)
 
 
+def get_public_user(user_id: int, db: Session) -> users_schema.UserPublicRead:
+    """Return a user's public projection for an anonymous viewer, when sharing allows it.
+
+    Args:
+        user_id: The user to look up.
+        db: Database session.
+
+    Returns:
+        The public projection.
+
+    Raises:
+        NotFoundError: If public user info is not shared, or the user does not exist, is inactive
+            or awaits approval.
+    """
+    return users_service.get_public_user(user_id, db)
+
+
 def require_active_user(user: users_schema.UsersRead) -> None:
     """Require a user to be active.
 

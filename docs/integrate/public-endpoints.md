@@ -11,13 +11,13 @@ These serve an activity that its owner made public. They work only when an admin
 | Method and path | Returns |
 | --------------- | ------- |
 | `GET /public/activities/{activity_id}` | The activity |
+| `GET /public/activities/{activity_id}/owner` | The owner's public profile: id, name, username, city and photo URL |
 | `GET /public/activities/{activity_id}/laps` | A page of laps |
 | `GET /public/activities/{activity_id}/sets` | A page of workout sets |
 | `GET /public/activities/{activity_id}/workout-steps` | A page of workout steps |
 | `GET /public/activities/{activity_id}/streams` | A page of streams |
 | `GET /public/activities/{activity_id}/streams/{stream_type}` | One stream |
 | `GET /public/activities/exercise-titles` | The exercise title reference table |
-| `GET /public/users/id/{user_id}` | The owner's public profile: id, name, username, city and photo URL |
 
 ```mermaid
 flowchart TD
@@ -33,7 +33,7 @@ What to expect:
 
 - **404 for everything that is not shareable.** An activity that does not exist, is not public, is hidden, or whose links are switched off all answer `404` with the same body, so an id cannot be probed to see which activities exist.
 - **Hidden details are removed.** What the owner chose to [hide from others](../features/activities.md#visibility-and-hiding-details) (location, map, heart rate and so on) is missing from the response, and the laps, sets, streams and steps of an activity that hides them are not served.
-- **The user endpoint needs two settings.** It answers only when public links and **Show user info on public links** are both on; otherwise `404`. It never includes an email, birthdate or access level.
+- **The owner endpoint needs two settings.** It answers only for the owner of a shareable activity, and only when public links and **Show user info on public links** are both on; otherwise `404`, the same answer as an activity that is not shareable. There is no public lookup of a user by id. It never includes an email, birthdate or access level.
 - **Lists are paged** with `page_number` and `num_records` (the same envelope as the authenticated lists).
 
 ## Signed media links

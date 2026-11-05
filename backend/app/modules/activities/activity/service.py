@@ -39,6 +39,7 @@ import modules.followers.integration_service as followers_integration
 import modules.gears.gear.integration_service as gears_integration
 import modules.server_settings.integration_service as server_settings_integration
 import modules.users.users.integration_service as users_integration
+import modules.users.users.schema as users_schema
 
 logger = core_logger.get_logger(__name__)
 
@@ -676,6 +677,27 @@ def get_activity(activity_id: int, requester_user_id: int, db: Session) -> activ
     return _with_thumbnail_urls([activity])[0]
 
 
+def _require_public_activity(activity_id: int, db: Session) -> activity_schema.ActivityRead:
+    """Return an activity that anonymous viewers may see, as stored.
+
+    Args:
+        activity_id: The activity to read.
+        db: Database session.
+
+    Returns:
+        The activity.
+
+    Raises:
+        NotFoundError: When public links are off or the activity does not exist or is not public.
+    """
+    if not server_settings_integration.public_shareable_links_enabled(db):
+        raise core_exceptions.NotFoundError("Activity not found")
+    activity = activity_crud.get_activity_by_id_if_is_public(activity_id, db)
+    if activity is None:
+        raise core_exceptions.NotFoundError("Activity not found")
+    return activity
+
+
 def get_public_activity(activity_id: int, db: Session) -> activity_schema.ActivityRead:
     """Return a publicly shared activity.
 
@@ -689,12 +711,30 @@ def get_public_activity(activity_id: int, db: Session) -> activity_schema.Activi
     Raises:
         NotFoundError: When the activity does not exist or is not public.
     """
-    if not server_settings_integration.public_shareable_links_enabled(db):
-        raise core_exceptions.NotFoundError("Activity not found")
-    activity = activity_crud.get_activity_by_id_if_is_public(activity_id, db)
-    if activity is None:
-        raise core_exceptions.NotFoundError("Activity not found")
-    return _with_thumbnail_urls([activity])[0]
+    return _with_thumbnail_urls([_require_public_activity(activity_id, db)])[0]
+
+
+def get_public_activity_owner(activity_id: int, db: Session) -> users_schema.UserPublicRead:
+    """Return the owner of a publicly shared activity.
+
+    Args:
+        activity_id: The shared activity.
+        db: Database session.
+
+    Returns:
+        The owner's public projection.
+
+    Raises:
+        NotFoundError: When the activity is not publicly readable or its owner is not shown, all
+            answered alike so a viewer cannot tell which check refused.
+    """
+    try:
+        activity = _require_public_activity(activity_id, db)
+        if activity.user_id is None:
+            raise core_exceptions.NotFoundError("Activity owner not found")
+        return users_integration.get_public_user(activity.user_id, db)
+    except core_exceptions.NotFoundError:
+        raise core_exceptions.NotFoundError("Activity owner not found") from None
 
 
 def _is_visibility_field(field: str) -> bool:

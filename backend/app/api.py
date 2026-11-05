@@ -53,7 +53,6 @@ import modules.server_settings.public_router as server_settings_public_router
 import modules.server_settings.router as server_settings_router
 import modules.strava.router as strava_router
 import modules.users.users.photo_router as users_photo_router
-import modules.users.users.public_router as users_public_router
 import modules.users.users.router as users_router
 import modules.users.users_default_gear.router as user_default_gear_router
 import modules.users.users_goals.router as user_goals_router
@@ -478,11 +477,6 @@ router.include_router(
     server_settings_public_router.router,
     prefix=core_config.ROOT_PATH + "/public/server-settings",
     tags=["public_server_settings"],
-)
-router.include_router(
-    users_public_router.router,
-    prefix=core_config.ROOT_PATH + "/public/users",
-    tags=["public_users"],
 )
 router.include_router(
     core_router.router,

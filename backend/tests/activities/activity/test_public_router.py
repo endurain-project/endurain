@@ -91,3 +91,80 @@ class TestReadPublicActivity:
         response = client.get("/public/activities/1")
         assert response.status_code == 404
         mock_get.assert_not_called()
+
+
+_SETTINGS = "modules.activities.activity.service.server_settings_integration.public_shareable_links_enabled"
+_PUBLIC_ACTIVITY = "modules.activities.activity.service.activity_crud.get_activity_by_id_if_is_public"
+_USER_SETTINGS = "modules.users.users.service.server_settings_integration.get_server_settings"
+_USER_CRUD = "modules.users.users.service.users_crud.get_user_by_id"
+
+
+def _owner(**kw):
+    from modules.users.users.schema import UsersRead
+
+    data = dict(id=1, name="Owner", username="owner", email="o@example.com", active=True, pending_admin_approval=False)
+    data.update(kw)
+    return UsersRead.model_construct(**data)
+
+
+def _settings(user_info=True):
+    from unittest.mock import MagicMock
+
+    return MagicMock(public_shareable_links=True, public_shareable_links_user_info=user_info)
+
+
+class TestReadPublicActivityOwner:
+    def _get(self, mock_db, *, links=True, activity="ok", user_info=True, owner="ok"):
+        activity = _valid_activity() if activity == "ok" else activity
+        owner = _owner() if owner == "ok" else owner
+        with (
+            patch(_SETTINGS, return_value=links),
+            patch(_PUBLIC_ACTIVITY, return_value=activity),
+            patch(_USER_SETTINGS, return_value=_settings(user_info)),
+            patch(_USER_CRUD, return_value=owner),
+        ):
+            return TestClient(_build_app(mock_db)).get("/public/activities/1/owner")
+
+    def test_returns_owner_public_projection(self, mock_db):
+        response = self._get(mock_db)
+
+        assert response.status_code == 200
+        assert set(response.json()) == {"id", "name", "username", "city", "photo_path"}
+        assert response.json()["id"] == 1
+
+    def test_every_refusal_is_the_same_404(self, mock_db):
+        refusals = [
+            self._get(mock_db, links=False),
+            self._get(mock_db, user_info=False),
+            self._get(mock_db, activity=None),
+            self._get(mock_db, owner=None),
+            self._get(mock_db, owner=_owner(active=False)),
+            self._get(mock_db, owner=_owner(pending_admin_approval=True)),
+        ]
+
+        assert [r.status_code for r in refusals] == [404] * len(refusals)
+        assert {r.json()["detail"] for r in refusals} == {"Activity owner not found"}
+
+    def test_private_activity_never_reaches_users(self, mock_db):
+        with (
+            patch(_SETTINGS, return_value=True),
+            patch(_PUBLIC_ACTIVITY, return_value=None),
+            patch(_USER_CRUD) as get_user,
+        ):
+            response = TestClient(_build_app(mock_db)).get("/public/activities/1/owner")
+
+        assert response.status_code == 404
+        get_user.assert_not_called()
+
+
+def test_public_user_route_is_removed():
+    from fastapi import FastAPI
+
+    from api import router
+
+    app = FastAPI()
+    app.include_router(router)
+    paths = set(app.openapi()["paths"])
+
+    assert any(path.endswith("/public/activities/{activity_id}/owner") for path in paths)
+    assert not any("/public/users" in path for path in paths)

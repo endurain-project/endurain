@@ -91,7 +91,7 @@ export function useActivityQuery(id: MaybeRefOrGetter<number | null>) {
  * Loads the activity owner's public-facing identity (name + avatar). The owner
  * viewing their own activity is resolved from the cached current user, so this
  * only fetches for other viewers — authenticated viewers via the authed user
- * endpoint, anonymous viewers via the public one (which the backend gates on the
+ * endpoint, anonymous viewers via the public activity owner one (which the backend gates on the
  * "show user info on public links" setting, returning `null` when disabled).
  *
  * @param activity - Reactive activity supplying the owner's user id.
@@ -100,13 +100,24 @@ export function useActivityQuery(id: MaybeRefOrGetter<number | null>) {
 export function useActivityOwnerQuery(activity: MaybeRefOrGetter<Activity | null | undefined>) {
   const auth = useAuthStore()
   const { data: currentUser } = useCurrentUser()
+  const activityId = computed(() => toValue(activity)?.id ?? null)
   const ownerId = computed(() => toValue(activity)?.userId ?? null)
 
   return useQuery<ActivityOwner | null>({
     queryKey: computed(() => queryKeys.activities.owner(ownerId.value ?? 0)),
     queryFn: ({ signal }) =>
-      fetchActivityOwner(ownerId.value as number, auth.isAuthenticated, signal),
-    enabled: computed(() => ownerId.value !== null && currentUser.value?.id !== ownerId.value),
+      fetchActivityOwner(
+        activityId.value as number,
+        ownerId.value as number,
+        auth.isAuthenticated,
+        signal,
+      ),
+    enabled: computed(
+      () =>
+        activityId.value !== null &&
+        ownerId.value !== null &&
+        currentUser.value?.id !== ownerId.value,
+    ),
     staleTime: 5 * 60_000,
   })
 }

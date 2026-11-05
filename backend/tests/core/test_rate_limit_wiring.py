@@ -77,7 +77,6 @@ import modules.server_settings.public_router as server_settings_public_router
 import modules.server_settings.router as server_settings_router
 import modules.strava.router as strava_router
 import modules.users.users.photo_router as users_photo_router
-import modules.users.users.public_router as users_public_router
 import modules.users.users.router as users_router
 import modules.users.users_default_gear.router as users_default_gear_router
 import modules.users.users_goals.router as users_goals_router
@@ -334,6 +333,9 @@ _TIERED_ENDPOINTS = [
         id="public-workout-steps",
     ),
     pytest.param(
+        activity_public_router.read_public_activity_owner, core_rate_limit.PUBLIC_READ, id="public-activity-owner"
+    ),
+    pytest.param(
         activity_exercise_titles_public_router.list_public_activity_exercise_titles,
         core_rate_limit.PUBLIC_READ,
         id="public-exercise-titles",
@@ -345,7 +347,6 @@ _TIERED_ENDPOINTS = [
         activity_thumbnail_public_router.read_activity_thumbnail, core_rate_limit.PUBLIC_READ, id="public-thumbnail"
     ),
     pytest.param(onboarding_public_router.read_onboarding_status, core_rate_limit.PUBLIC_READ, id="onboarding-status"),
-    pytest.param(users_public_router.read_users_id, core_rate_limit.PUBLIC_READ, id="public-user"),
     pytest.param(users_photo_router.read_user_photo, core_rate_limit.PUBLIC_READ, id="user-photo"),
     pytest.param(
         server_settings_public_router.read_public_server_settings,

@@ -3945,6 +3945,30 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/public/activities/{activity_id}/owner": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Read Public Activity Owner
+         * @description Return the owner of a public activity.
+         *
+         *     Answers 404 when the activity does not exist or is not public, or when the server does not
+         *     share user info publicly — the cases are deliberately indistinguishable, so this
+         *     unauthenticated endpoint cannot be used to enumerate users.
+         */
+        get: operations["read_public_activity_owner_api_v1_public_activities__activity_id__owner_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/public/activities/{activity_id}/sets": {
         parameters: {
             query?: never;
@@ -4335,37 +4359,6 @@ export interface paths {
          *         List of tile map template configurations available for the server.
          */
         get: operations["list_tile_maps_templates_api_v1_public_server_settings_tile_maps_templates_get"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/v1/public/users/id/{user_id}": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /**
-         * Read Users Id
-         * @description Get public user info by ID.
-         *
-         *     Args:
-         *         request: The incoming request, read by the rate limiter.
-         *         user_id: The user ID to retrieve.
-         *         db: Database session dependency.
-         *
-         *     Returns:
-         *         User data if found and public sharing enabled.
-         *
-         *     Raises:
-         *         NotFoundError: If the user does not exist or public sharing is off.
-         */
-        get: operations["read_users_id_api_v1_public_users_id__user_id__get"];
         put?: never;
         post?: never;
         delete?: never;
@@ -19894,6 +19887,46 @@ export interface operations {
             };
         };
     };
+    read_public_activity_owner_api_v1_public_activities__activity_id__owner_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                activity_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["UserPublicRead"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Unexpected error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+        };
+    };
     list_public_activity_sets_api_v1_public_activities__activity_id__sets_get: {
         parameters: {
             query?: {
@@ -20440,46 +20473,6 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["TileMapsTemplate"][];
-                };
-            };
-            /** @description Unexpected error */
-            default: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/problem+json": components["schemas"]["ProblemDetail"];
-                };
-            };
-        };
-    };
-    read_users_id_api_v1_public_users_id__user_id__get: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                user_id: number;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["UserPublicRead"];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/problem+json": components["schemas"]["ProblemDetail"];
                 };
             };
             /** @description Unexpected error */

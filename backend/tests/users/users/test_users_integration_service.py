@@ -38,6 +38,14 @@ def test_public_profile_reaches_the_service():
     profile.assert_called_once_with(7, db)
 
 
+def test_public_user_reaches_the_service():
+    db = MagicMock()
+    with patch.object(users_integration.users_service, "get_public_user", return_value="profile") as profile:
+        assert users_integration.get_public_user(7, db) == "profile"
+
+    profile.assert_called_once_with(7, db)
+
+
 def test_decisions_reach_the_service():
     db = MagicMock()
     service = users_integration.users_service
