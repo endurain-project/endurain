@@ -284,3 +284,37 @@ class TestMarkAllNotificationsAsRead:
         assert result is None
         mock_db.execute.assert_called_once()
         mock_db.flush.assert_called_once()
+
+
+class TestDeleteNotificationsNamingUser:
+    @pytest.fixture
+    def db(self):
+        import modules.notifications.models as m
+
+        session = create_sqlite_session()
+        named = {"user_id": 7, "user_name": "Ana", "user_username": "ana"}
+        other = {"user_id": 8, "user_name": "Bo", "user_username": "bo"}
+        for notification_id, user_id, notification_type, options in [
+            (1, 1, 11, named),  # follow request
+            (2, 2, 12, named),  # follow accepted
+            (3, 3, 41, named),  # admin sign-up approval
+            (4, 1, 11, other),
+            (5, 1, 1, {"activity_id": 7}),
+            (6, 2, 21, {}),
+            (7, 2, 21, None),
+        ]:
+            session.add(m.Notification(id=notification_id, user_id=user_id, type=notification_type, options=options))
+        session.commit()
+        yield session
+        session.close()
+
+    def test_deletes_every_owners_notifications_that_name_the_user(self, db):
+        import modules.notifications.crud as crud
+        import modules.notifications.models as m
+
+        deleted = crud.delete_notifications_naming_user(7, db)
+        db.commit()
+
+        assert deleted == 3
+        remaining = {n.id for n in db.query(m.Notification).all()}
+        assert remaining == {4, 5, 6, 7}

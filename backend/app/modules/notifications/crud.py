@@ -289,6 +289,26 @@ def delete_user_reference_notifications(
     return matched
 
 
+def delete_notifications_naming_user(referenced_user_id: int, db: Session) -> int:
+    """Stage deleting every notification, whoever owns it, whose options name a user.
+
+    Args:
+        referenced_user_id: The user named in the notification options.
+        db: Database session.
+
+    Returns:
+        Number of notifications staged for deletion.
+    """
+    matched = core_database.rowcount(
+        db,
+        delete(notifications_models.Notification).where(
+            notifications_models.Notification.options["user_id"].as_integer() == referenced_user_id
+        ),
+    )
+    db.flush()
+    return matched
+
+
 def delete_read_notifications_before(cutoff: datetime, limit: int, db: Session) -> int:
     """Stage deleting up to ``limit`` read notifications created before ``cutoff``.
 

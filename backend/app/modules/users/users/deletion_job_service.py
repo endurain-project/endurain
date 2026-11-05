@@ -366,6 +366,9 @@ def _erase_photo(user_id: int, storage: platform_providers.StorageProvider) -> N
 def _delete_user_row(user_id: int) -> None:
     """Delete the user row, which removes everything else that references it through the database cascade.
 
+    The notifications other users hold that name the user go in the same transaction, so a committed
+    deletion leaves none behind.
+
     A row that is already gone means an earlier attempt committed it, so there is nothing to do.
 
     Args:
@@ -379,6 +382,7 @@ def _delete_user_row(user_id: int) -> None:
         if users_crud.get_user_by_id(user_id, db) is None:
             logger.debug("The user row was already deleted", extra=core_logger.context(user_id=user_id))
             return
+        users_contributor_registry.erasers().delete_notifications(user_id, db)
         users_crud.delete_user(user_id, db)
         db.commit()
     logger.debug("Deleted the user row", extra=core_logger.context(user_id=user_id))

@@ -76,3 +76,13 @@ def create_strava_token_expired_notification(
         db,
     )
     return notification, notifications_constants.STRAVA_UNLINKED_WS_MESSAGE
+
+
+def delete_notifications_naming_user(user_id: int, db: Session) -> None:
+    """Stage deleting the notifications, whoever owns them, that name a user being erased.
+
+    Args:
+        user_id: The user whose name and username the notifications carry.
+        db: Database session.
+    """
+    notifications_crud.delete_notifications_naming_user(user_id, db)

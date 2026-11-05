@@ -90,6 +90,7 @@ import modules.health.health_steps.integration_service as health_steps_integrati
 import modules.health.health_targets.integration_service as health_targets_integration
 import modules.health.health_water.integration_service as health_water_integration
 import modules.health.health_weight.integration_service as health_weight_integration
+import modules.notifications.integration_service as notifications_integration
 import modules.notifications.scheduled_jobs as notifications_scheduled_jobs
 import modules.notifications.subscriber_registry as notifications_subscriber_registry
 import modules.server_settings.audit_actions as server_settings_audit_actions
@@ -537,6 +538,7 @@ def configure_user_contributors() -> None:
     users_contributor_registry.register(
         users_contributors.UserErasers(
             delete_activities=activity_integration.delete_activities_batch_for_user,
+            delete_notifications=notifications_integration.delete_notifications_naming_user,
             delete_staged_files=users_profile_integration.delete_staged_transfers,
             delete_bulk_import_errors=activity_ingestion_integration.delete_bulk_import_errors,
         )

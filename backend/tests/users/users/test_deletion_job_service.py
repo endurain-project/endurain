@@ -200,6 +200,7 @@ class TestRunDeletion:
         users_crud.delete_user.assert_called_once()
         erasers.delete_staged_files.assert_called_once_with(1, storage)
         erasers.delete_bulk_import_errors.assert_called_once_with(1, storage)
+        erasers.delete_notifications.assert_called_once_with(1, session_local.return_value.__enter__.return_value)
         assert states.get(1, _Kind).status == _Status.COMPLETED
         # Every batch, the cleared photo reference and the row commit in a transaction of their own.
         assert session_local.return_value.__enter__.return_value.commit.call_count == 5

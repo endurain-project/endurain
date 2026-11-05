@@ -34,3 +34,13 @@ def test_strava_token_expired_stages_without_committing(mock_db):
     assert notification is stored
     assert ws_message == notifications_constants.STRAVA_UNLINKED_WS_MESSAGE
     mock_db.commit.assert_not_called()
+
+
+def test_delete_notifications_naming_user_stages_through_the_crud(mock_db):
+    with patch(
+        "modules.notifications.integration_service.notifications_crud.delete_notifications_naming_user"
+    ) as delete:
+        notifications_integration.delete_notifications_naming_user(7, mock_db)
+
+    delete.assert_called_once_with(7, mock_db)
+    mock_db.commit.assert_not_called()
