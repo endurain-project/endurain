@@ -1,14 +1,17 @@
-"""Tests for the storage, refresh and revocation of identity-provider tokens."""
+"""Tests for the storage and refresh of the identity-provider token of a session."""
 
+from contextlib import ExitStack
 from datetime import UTC, datetime, timedelta
 from unittest.mock import MagicMock, patch
 
 import httpx2
+import jasil.testing as jasil_testing
 import pytest
 from sqlalchemy.exc import OperationalError
 
 import core.exceptions as core_exceptions
 import modules.auth.identity_providers.token_service as token_service_module
+import modules.auth.sessions.audit_actions as sessions_audit_actions
 from modules.auth.identity_providers.token_policy import TokenAction
 
 
@@ -16,71 +19,91 @@ def _service():
     return token_service_module.IdpTokenService(MagicMock())
 
 
+SESSION = "11111111-1111-1111-1111-111111111111"
+
+
+def _row(**overrides):
+    values = {"session_id": SESSION, "user_id": 7, "idp_id": 3, "refresh_token": "encrypted"}
+    values.update(overrides)
+    return MagicMock(**values)
+
+
 class TestRequestIdpTokenRefresh:
     """The request clears what needs no network call and queues the rest; it never calls the provider."""
 
-    def _request(self, mock_db, actions):
+    def _request(self, mock_db, action, row="default"):
         service = _service()
-        links = [MagicMock(idp_id=3 + index) for index in range(len(actions))]
+        row = _row() if row == "default" else row
         service.refresh_idp_session = MagicMock()
         with (
             patch.object(
-                token_service_module.identity_provider_links_integration,
-                "get_user_identity_providers_by_user_id",
-                return_value=links,
+                token_service_module.identity_provider_links_integration, "get_idp_session_token", return_value=row
             ),
             patch.object(
                 token_service_module.identity_provider_links_integration,
-                "clear_user_identity_provider_refresh_token",
+                "clear_idp_session_refresh_token_if_unchanged",
             ) as clear,
             patch.object(token_service_module.idp_event_publishers, "publish_idp_token_refresh_requested") as publish,
-            patch.object(token_service_module.token_policy, "should_refresh_idp_token", side_effect=actions),
+            patch.object(token_service_module.token_policy, "should_refresh_idp_token", return_value=action),
         ):
-            service.request_idp_token_refresh(7, mock_db)
+            service.request_idp_token_refresh(7, SESSION, mock_db)
         return service, clear, publish
 
-    def test_a_link_to_refresh_queues_one_job_and_a_link_to_clear_is_cleared_now(self, mock_db):
-        service, clear, publish = self._request(
-            mock_db, [TokenAction.SKIP, TokenAction.REFRESH, TokenAction.CLEAR, TokenAction.REFRESH]
-        )
+    def test_an_expiring_token_queues_one_job_for_that_session(self, mock_db):
+        service, clear, publish = self._request(mock_db, TokenAction.REFRESH)
 
-        publish.assert_called_once_with(7, mock_db)
-        clear.assert_called_once_with(7, 5, mock_db)
+        publish.assert_called_once_with(7, SESSION, mock_db)
+        clear.assert_not_called()
         service.refresh_idp_session.assert_not_called()
 
-    def test_nothing_to_refresh_queues_nothing(self, mock_db):
-        _, clear, publish = self._request(mock_db, [TokenAction.SKIP, TokenAction.CLEAR])
+    def test_a_token_policy_retires_is_cleared_now(self, mock_db):
+        _, clear, publish = self._request(mock_db, TokenAction.CLEAR)
 
         publish.assert_not_called()
-        clear.assert_called_once_with(7, 4, mock_db)
+        clear.assert_called_once_with(SESSION, "encrypted", mock_db)
+
+    def test_a_valid_token_queues_nothing(self, mock_db):
+        _, clear, publish = self._request(mock_db, TokenAction.SKIP)
+
+        publish.assert_not_called()
+        clear.assert_not_called()
+
+    @pytest.mark.parametrize("row", [None, _row(refresh_token=None)])
+    def test_a_session_without_a_token_is_left_alone(self, mock_db, row):
+        with patch.object(token_service_module.token_policy, "should_refresh_idp_token") as policy:
+            _, clear, publish = self._request(mock_db, TokenAction.REFRESH, row=row)
+
+        policy.assert_not_called()
+        publish.assert_not_called()
+        clear.assert_not_called()
 
     def test_a_failed_clear_propagates_so_the_caller_rolls_back(self, mock_db):
         service = _service()
         with (
             patch.object(
                 token_service_module.identity_provider_links_integration,
-                "get_user_identity_providers_by_user_id",
-                return_value=[MagicMock(idp_id=3)],
+                "get_idp_session_token",
+                return_value=_row(),
             ),
             patch.object(
                 token_service_module.identity_provider_links_integration,
-                "clear_user_identity_provider_refresh_token",
+                "clear_idp_session_refresh_token_if_unchanged",
                 side_effect=OperationalError("UPDATE", {}, Exception("db down")),
             ),
             patch.object(token_service_module.idp_event_publishers, "publish_idp_token_refresh_requested") as publish,
             patch.object(token_service_module.token_policy, "should_refresh_idp_token", return_value=TokenAction.CLEAR),
             pytest.raises(OperationalError),
         ):
-            service.request_idp_token_refresh(7, mock_db)
+            service.request_idp_token_refresh(7, SESSION, mock_db)
         publish.assert_not_called()
 
 
 class TestRefreshIdpTokens:
-    """The job reads links in a short session and refreshes each outside any session."""
+    """The job reads the session's sign-in in a short session and refreshes it outside any session."""
 
-    def _run(self, actions, refresh_side_effect=None):
+    def _run(self, action, row="default", refresh_side_effect=None):
         service = _service()
-        links = [MagicMock(idp_id=3 + index) for index in range(len(actions))]
+        row = _row() if row == "default" else row
         open_sessions = 0
         open_during_refresh: list[int] = []
 
@@ -95,67 +118,64 @@ class TestRefreshIdpTokens:
                 open_sessions -= 1
                 return False
 
-        def refresh(user_id, idp_id, claims):
+        def refresh(session_id, claims):
             open_during_refresh.append(open_sessions)
             if refresh_side_effect is not None:
-                refresh_side_effect(idp_id)
+                refresh_side_effect()
 
         service.refresh_idp_session = MagicMock(side_effect=refresh)
         with (
             patch.object(token_service_module.core_database, "SessionLocal", _Session),
             patch.object(
-                token_service_module.identity_provider_links_integration,
-                "get_user_identity_providers_by_user_id",
-                return_value=links,
+                token_service_module.identity_provider_links_integration, "get_idp_session_token", return_value=row
             ),
-            patch.object(token_service_module.token_policy, "should_refresh_idp_token", side_effect=actions),
+            patch.object(token_service_module.token_policy, "should_refresh_idp_token", return_value=action),
         ):
-            service.refresh_idp_tokens(7, self.claims)
+            service.refresh_idp_tokens(7, SESSION, self.claims)
         return service, open_during_refresh
 
     claims = MagicMock()
 
-    def test_only_links_with_a_refresh_action_are_refreshed_with_no_session_open(self):
-        service, open_during_refresh = self._run([TokenAction.SKIP, TokenAction.REFRESH, TokenAction.REFRESH])
+    def test_an_expiring_token_is_refreshed_with_no_session_open(self):
+        service, open_during_refresh = self._run(TokenAction.REFRESH)
 
-        assert [call.args for call in service.refresh_idp_session.call_args_list] == [
-            (7, 4, self.claims),
-            (7, 5, self.claims),
-        ]
-        assert open_during_refresh == [0, 0]
+        service.refresh_idp_session.assert_called_once_with(SESSION, self.claims)
+        assert open_during_refresh == [0]
 
-    def test_a_provider_that_fails_does_not_stop_the_others(self):
-        def fail_first(idp_id):
-            if idp_id == 3:
-                raise core_exceptions.NotFoundError("disabled")
+    @pytest.mark.parametrize("action", [TokenAction.SKIP, TokenAction.CLEAR])
+    def test_a_token_that_is_not_expiring_is_not_refreshed(self, action):
+        service, _ = self._run(action)
 
-        service, _ = self._run([TokenAction.REFRESH, TokenAction.REFRESH], refresh_side_effect=fail_first)
+        service.refresh_idp_session.assert_not_called()
 
-        assert service.refresh_idp_session.call_count == 2
+    def test_a_session_without_a_sign_in_is_not_refreshed(self):
+        service, _ = self._run(TokenAction.REFRESH, row=None)
+
+        service.refresh_idp_session.assert_not_called()
 
     @pytest.mark.parametrize(
         "error",
         [
+            core_exceptions.NotFoundError("disabled"),
             core_exceptions.UpstreamError("token endpoint unresolved"),
             core_exceptions.ProcessingError("bad client secret"),
             OperationalError("SELECT", {}, Exception("db down")),
         ],
     )
-    def test_the_errors_a_link_can_raise_do_not_stop_the_others(self, error):
-        def fail_first(idp_id):
-            if idp_id == 3:
-                raise error
+    def test_the_errors_a_refresh_can_raise_are_logged(self, error):
+        def fail():
+            raise error
 
-        service, _ = self._run([TokenAction.REFRESH, TokenAction.REFRESH], refresh_side_effect=fail_first)
+        service, _ = self._run(TokenAction.REFRESH, refresh_side_effect=fail)
 
-        assert service.refresh_idp_session.call_count == 2
+        service.refresh_idp_session.assert_called_once()
 
-    def test_an_error_no_link_should_raise_is_not_hidden(self):
-        def fail(_idp_id):
+    def test_an_error_no_refresh_should_raise_is_not_hidden(self):
+        def fail():
             raise RuntimeError("bug")
 
         with pytest.raises(RuntimeError):
-            self._run([TokenAction.REFRESH, TokenAction.REFRESH], refresh_side_effect=fail)
+            self._run(TokenAction.REFRESH, refresh_side_effect=fail)
 
 
 class TestRefreshIdpSession:
@@ -183,32 +203,33 @@ class TestRefreshIdpSession:
         service._oidc.decrypt_client_id = MagicMock(return_value="cid")
         service._oidc.decrypt_client_secret = MagicMock(return_value="secret")
         service._oidc.create_oauth_client = MagicMock(return_value=client)
-        service.store_idp_tokens = MagicMock(side_effect=lambda *a, **k: events.append("store"))
+        service._store_refreshed_token = MagicMock(side_effect=lambda *a, **k: events.append("store"))
         patches = [
             patch.object(token_service_module.core_database, "SessionLocal", _Session),
             patch.object(token_service_module.idp_crud, "get_identity_provider", return_value=idp),
             patch.object(
-                token_service_module.identity_provider_links_integration,
-                "get_user_identity_provider_refresh_token_by_user_id_and_idp_id",
-                return_value="encrypted",
+                token_service_module.identity_provider_links_integration, "get_idp_session_token", return_value=_row()
             ),
             patch.object(token_service_module.core_cryptography, "decrypt_token_fernet", return_value="plain"),
             patch.object(
                 token_service_module.identity_provider_links_integration,
-                "clear_user_identity_provider_refresh_token_if_unchanged",
+                "clear_idp_session_refresh_token_if_unchanged",
                 side_effect=lambda *a: events.append("clear") or True,
+            ),
+            patch.object(
+                token_service_module.sessions_integration,
+                "delete_session",
+                side_effect=lambda *a: events.append("end-session"),
             ),
         ]
         return client, events, state, patches
 
     def _refresh(self, service, patches, claims=None):
-        from contextlib import ExitStack
-
         self.claims = claims or MagicMock(**{"claim.return_value": True})
         with ExitStack() as stack:
             for patcher in patches:
                 stack.enter_context(patcher)
-            return service.refresh_idp_session(7, 3, self.claims)
+            return service.refresh_idp_session(SESSION, self.claims)
 
     def test_the_provider_is_called_with_no_session_open_and_the_new_tokens_are_committed(self):
         service = _service()
@@ -222,12 +243,14 @@ class TestRefreshIdpSession:
         assert result == {"access_token": "new"}
         assert open_during_call == [0]
         assert events == ["store", "commit"]
-        # The new token is written only over the one this refresh read.
-        assert service.store_idp_tokens.call_args.kwargs["expected_refresh_token"] == "encrypted"
+        # The new token is written only over the one this refresh read, for this session.
+        store_args = service._store_refreshed_token.call_args.args
+        assert store_args[:5] == (SESSION, 7, 3, {"access_token": "new"}, "encrypted")
         client.close.assert_called_once()
-        self.claims.release.assert_called_once_with(7, 3)
+        self.claims.claim.assert_called_once_with(SESSION)
+        self.claims.release.assert_called_once_with(SESSION)
 
-    def test_a_token_the_provider_revoked_is_cleared_and_committed(self, caplog):
+    def test_a_token_the_provider_revoked_ends_that_session_and_audits_it(self, caplog):
         import logging
 
         from authlib.integrations.base_client import OAuthError
@@ -239,14 +262,38 @@ class TestRefreshIdpSession:
 
         _, events, _, patches = self._setup(service, fetch=reject)
 
-        with caplog.at_level(logging.DEBUG):
+        with jasil_testing.capture_audit() as audit, caplog.at_level(logging.DEBUG):
             assert self._refresh(service, patches) is None
 
-        assert events == ["clear", "commit"]
-        assert [record.levelno for record in caplog.records if record.levelno >= logging.WARNING] == [logging.WARNING]
-        self.claims.release.assert_called_once_with(7, 3)
+        assert events == ["clear", "commit", "end-session", "commit"]
+        entry = audit.assert_audited(
+            sessions_audit_actions.SESSION_REVOKE.id, target_type="session", target_id=SESSION, target_owner_id="7"
+        )
+        assert entry.details == {"sessions_revoked": 1}
+        assert [record.levelno for record in caplog.records if record.levelno == logging.WARNING] == [logging.WARNING]
+        self.claims.release.assert_called_once_with(SESSION)
 
-    def test_a_server_error_from_the_provider_keeps_the_token(self):
+    def test_a_rejected_session_that_already_ended_is_not_audited_again(self):
+        from authlib.integrations.base_client import OAuthError
+
+        service = _service()
+
+        def reject(*_a, **_k):
+            raise OAuthError("invalid_grant", "revoked")
+
+        _, _, _, patches = self._setup(service, fetch=reject)
+        patches[5] = patch.object(
+            token_service_module.sessions_integration,
+            "delete_session",
+            side_effect=core_exceptions.NotFoundError("Session not found"),
+        )
+
+        with jasil_testing.capture_audit() as audit:
+            assert self._refresh(service, patches) is None
+
+        audit.assert_not_audited(sessions_audit_actions.SESSION_REVOKE.id)
+
+    def test_a_server_error_from_the_provider_keeps_the_token_and_the_session(self):
         service = _service()
         response = MagicMock(status_code=503, text="unavailable")
 
@@ -258,8 +305,8 @@ class TestRefreshIdpSession:
         assert self._refresh(service, patches) is None
         assert events == []
 
-    def test_a_rejection_clears_only_the_token_this_refresh_read(self):
-        """A slower refresh's invalid_grant must not wipe the token a faster one just stored."""
+    def test_a_rejection_after_another_refresh_stored_a_token_keeps_the_session(self):
+        """A slower refresh's invalid_grant must neither wipe the token a faster one stored nor end the session."""
         from authlib.integrations.base_client import OAuthError
 
         service = _service()
@@ -267,16 +314,17 @@ class TestRefreshIdpSession:
         def reject(*_a, **_k):
             raise OAuthError("invalid_grant", "revoked")
 
-        _, _, _, patches = self._setup(service, fetch=reject)
+        _, events, _, patches = self._setup(service, fetch=reject)
         with patch.object(
             token_service_module.identity_provider_links_integration,
-            "clear_user_identity_provider_refresh_token_if_unchanged",
+            "clear_idp_session_refresh_token_if_unchanged",
             return_value=False,
         ) as clear:
-            patches.pop()
+            patches.pop(4)
             assert self._refresh(service, patches) is None
 
-        assert clear.call_args.args[:3] == (7, 3, "encrypted")
+        assert clear.call_args.args[:2] == (SESSION, "encrypted")
+        assert "end-session" not in events
 
     def test_a_refresh_another_worker_is_running_is_skipped(self):
         service = _service()
@@ -287,6 +335,29 @@ class TestRefreshIdpSession:
         assert events == []
         self.claims.release.assert_not_called()
 
+    def test_a_session_that_signed_in_through_no_provider_is_not_refreshed(self):
+        service = _service()
+        client, _, _, patches = self._setup(service, fetch=lambda *a, **k: {"access_token": "new"})
+        patches[2] = patch.object(
+            token_service_module.identity_provider_links_integration, "get_idp_session_token", return_value=None
+        )
+
+        assert self._refresh(service, patches) is None
+        client.fetch_token.assert_not_called()
+        self.claims.release.assert_called_once_with(SESSION)
+
+    def test_a_session_without_a_stored_token_is_not_refreshed(self):
+        service = _service()
+        client, _, _, patches = self._setup(service, fetch=lambda *a, **k: {"access_token": "new"})
+        patches[2] = patch.object(
+            token_service_module.identity_provider_links_integration,
+            "get_idp_session_token",
+            return_value=_row(refresh_token=None),
+        )
+
+        assert self._refresh(service, patches) is None
+        client.fetch_token.assert_not_called()
+
     def test_the_claim_is_released_when_the_refresh_raises(self):
         service = _service()
         _, _, _, patches = self._setup(service, fetch=lambda *a, **k: {})
@@ -294,7 +365,7 @@ class TestRefreshIdpSession:
 
         with pytest.raises(core_exceptions.NotFoundError):
             self._refresh(service, patches)
-        self.claims.release.assert_called_once_with(7, 3)
+        self.claims.release.assert_called_once_with(SESSION)
 
     def test_a_provider_outage_keeps_the_token(self):
         service = _service()
@@ -306,7 +377,18 @@ class TestRefreshIdpSession:
 
         assert self._refresh(service, patches) is None
         assert events == []
-        self.claims.release.assert_called_once_with(7, 3)
+        self.claims.release.assert_called_once_with(SESSION)
+
+    def test_a_network_error_keeps_the_token(self):
+        service = _service()
+
+        def refuse(*_a, **_k):
+            raise httpx2.ConnectError("down")
+
+        _, events, _, patches = self._setup(service, fetch=refuse)
+
+        assert self._refresh(service, patches) is None
+        assert events == []
 
     def test_another_provider_error_response_keeps_the_token_with_a_warning(self, caplog):
         import logging
@@ -326,7 +408,7 @@ class TestRefreshIdpSession:
         assert events == []
         assert [record.levelno for record in caplog.records if record.levelno >= logging.WARNING] == [logging.WARNING]
         assert all(record.exc_info is None for record in caplog.records if record.levelno >= logging.WARNING)
-        self.claims.release.assert_called_once_with(7, 3)
+        self.claims.release.assert_called_once_with(SESSION)
 
     @pytest.mark.parametrize(
         "error",
@@ -352,7 +434,7 @@ class TestRefreshIdpSession:
 
         assert events == []
         assert [record.levelno for record in caplog.records if record.levelno >= logging.WARNING] == [logging.WARNING]
-        self.claims.release.assert_called_once_with(7, 3)
+        self.claims.release.assert_called_once_with(SESSION)
 
     def test_an_unexpected_failure_propagates_and_keeps_the_token(self):
         service = _service()
@@ -366,7 +448,7 @@ class TestRefreshIdpSession:
             self._refresh(service, patches)
 
         assert events == []
-        self.claims.release.assert_called_once_with(7, 3)
+        self.claims.release.assert_called_once_with(SESSION)
 
     def test_a_key_that_cannot_be_loaded_keeps_the_token_and_propagates(self):
         """A missing or unreadable FERNET_KEY says nothing about the token, so the token is not cleared."""
@@ -384,9 +466,9 @@ class TestRefreshIdpSession:
         assert not isinstance(exc_info.value, core_exceptions.UndecryptableError)
         assert events == []
         client.fetch_token.assert_not_called()
-        self.claims.release.assert_called_once_with(7, 3)
+        self.claims.release.assert_called_once_with(SESSION)
 
-    def test_a_token_the_key_cannot_decrypt_is_cleared(self):
+    def test_a_token_the_key_cannot_decrypt_is_cleared_and_the_session_lives_on(self):
         service = _service()
         client, events, _, patches = self._setup(service, fetch=lambda *a, **k: {"access_token": "new"})
         patches[3] = patch.object(
@@ -400,7 +482,7 @@ class TestRefreshIdpSession:
         assert events == ["clear", "commit"]
         client.fetch_token.assert_not_called()
 
-    def test_a_token_that_decrypts_to_nothing_is_cleared(self):
+    def test_a_token_that_decrypts_to_nothing_is_cleared_and_the_session_lives_on(self):
         service = _service()
         client, events, _, patches = self._setup(service, fetch=lambda *a, **k: {"access_token": "new"})
         patches[3] = patch.object(token_service_module.core_cryptography, "decrypt_token_fernet", return_value="")
@@ -419,153 +501,123 @@ class TestRefreshIdpSession:
             self._refresh(service, patches)
 
 
-def test_service_clears_the_stored_token_of_every_link(mock_db):
-    service = _service()
-    with (
-        patch.object(
-            token_service_module.identity_provider_links_integration,
-            "get_user_identity_providers_by_user_id",
-            return_value=[MagicMock(idp_id=3), MagicMock(idp_id=4)],
-        ),
-        patch.object(
-            token_service_module.identity_provider_links_integration,
-            "clear_user_identity_provider_refresh_token",
-        ) as clear,
-    ):
-        service.clear_all_idp_tokens(7, mock_db)
-    assert [call.args for call in clear.call_args_list] == [(7, 3, mock_db), (7, 4, mock_db)]
+class TestStoreSessionTokens:
+    """A sign-in stores a row tied to its session, with a token when the provider issued one."""
 
-
-def test_a_failed_clear_on_logout_propagates_so_the_caller_rolls_back(mock_db):
-    service = _service()
-    with (
-        patch.object(
-            token_service_module.identity_provider_links_integration,
-            "get_user_identity_providers_by_user_id",
-            return_value=[MagicMock(idp_id=3)],
-        ),
-        patch.object(
-            token_service_module.identity_provider_links_integration,
-            "clear_user_identity_provider_refresh_token",
-            side_effect=OperationalError("UPDATE", {}, Exception("db down")),
-        ),
-        pytest.raises(OperationalError),
-    ):
-        service.clear_all_idp_tokens(7, mock_db)
-
-
-class TestStoreIdpTokens:
-    """The callbacks store unconditionally; a refresh stores only over the token it read."""
-
-    def _store(self, expected=None):
+    def _store(self, token_response, *, encrypt=None):
         with (
-            patch.object(token_service_module.core_cryptography, "encrypt_token_fernet", return_value="ciphertext"),
             patch.object(
-                token_service_module.identity_provider_links_integration, "store_user_identity_provider_tokens"
-            ) as store,
+                token_service_module.core_cryptography,
+                "encrypt_token_fernet",
+                **({"side_effect": encrypt} if encrypt else {"return_value": "ciphertext"}),
+            ),
             patch.object(
-                token_service_module.identity_provider_links_integration,
-                "replace_user_identity_provider_tokens_if_unchanged",
-                return_value=False,
-            ) as replace,
-        ):
-            _service().store_idp_tokens(
-                7, 3, {"refresh_token": "rt", "expires_in": 60}, MagicMock(), expected_refresh_token=expected
-            )
-        return store, replace
-
-    def test_a_callback_store_is_unconditional(self):
-        store, replace = self._store()
-
-        assert store.call_args.kwargs["encrypted_refresh_token"] == "ciphertext"
-        replace.assert_not_called()
-
-    def test_a_refresh_store_is_conditional_on_the_token_read(self):
-        store, replace = self._store(expected="read-ciphertext")
-
-        store.assert_not_called()
-        assert replace.call_args.args[:4] == (7, 3, "read-ciphertext", "ciphertext")
-
-
-class TestStoreIdpTokensExpiry:
-    """The access-token expiry is read the way authlib accepts it, so no refresh token is silently dropped."""
-
-    def _stored_expiry(self, token_response):
-        with (
-            patch.object(token_service_module.core_cryptography, "encrypt_token_fernet", return_value="ciphertext"),
-            patch.object(
-                token_service_module.identity_provider_links_integration, "store_user_identity_provider_tokens"
-            ) as store,
+                token_service_module.identity_provider_links_integration, "create_idp_session_token"
+            ) as create,
         ):
             before = datetime.now(UTC)
-            _service().store_idp_tokens(7, 3, token_response, MagicMock())
+            _service().store_session_tokens(SESSION, 7, 3, token_response, MagicMock())
             after = datetime.now(UTC)
-        store.assert_called_once()
-        return store.call_args.kwargs["access_token_expires_at"], before, after
+        return create, before, after
+
+    def test_a_refresh_token_is_stored_encrypted_with_its_expiry(self):
+        create, before, after = self._store({"refresh_token": "rt", "expires_in": 60})
+
+        args = create.call_args.args
+        assert args[:4] == (SESSION, 7, 3, "ciphertext")
+        assert before + timedelta(seconds=60) <= args[4] <= after + timedelta(seconds=60)
+
+    def test_a_provider_that_issues_no_refresh_token_still_records_the_sign_in(self):
+        create, _, _ = self._store({"access_token": "at"})
+
+        assert create.call_args.args[:5] == (SESSION, 7, 3, None, None)
+
+    def test_a_failed_encryption_is_logged_and_the_sign_in_is_recorded_without_a_token(self, caplog):
+        import logging
+
+        with caplog.at_level(logging.DEBUG):
+            create, _, _ = self._store(
+                {"refresh_token": "rt", "expires_in": 60}, encrypt=core_exceptions.CryptographyError()
+            )
+
+        assert create.call_args.args[:5] == (SESSION, 7, 3, None, None)
+        assert [record.levelno for record in caplog.records if record.levelno >= logging.WARNING] == [logging.ERROR]
 
     def test_a_numeric_string_expires_in_is_stored(self):
-        expires_at, before, after = self._stored_expiry({"refresh_token": "rt", "expires_in": "300"})
+        create, before, after = self._store({"refresh_token": "rt", "expires_in": "300"})
 
-        assert before + timedelta(seconds=300) <= expires_at <= after + timedelta(seconds=300)
+        assert before + timedelta(seconds=300) <= create.call_args.args[4] <= after + timedelta(seconds=300)
 
     @pytest.mark.parametrize("token_response", [{"refresh_token": "rt"}, {"refresh_token": "rt", "expires_in": None}])
     def test_an_absent_or_null_expires_in_uses_the_default(self, token_response):
-        expires_at, before, after = self._stored_expiry(token_response)
+        create, before, after = self._store(token_response)
 
         default = timedelta(seconds=token_service_module.DEFAULT_TOKEN_EXPIRY_SECONDS)
-        assert before + default <= expires_at <= after + default
+        assert before + default <= create.call_args.args[4] <= after + default
 
     def test_a_non_numeric_expires_in_is_not_swallowed(self):
         with (
             patch.object(token_service_module.core_cryptography, "encrypt_token_fernet", return_value="ciphertext"),
             patch.object(
-                token_service_module.identity_provider_links_integration, "store_user_identity_provider_tokens"
-            ) as store,
+                token_service_module.identity_provider_links_integration, "create_idp_session_token"
+            ) as create,
             pytest.raises(ValueError),
         ):
-            _service().store_idp_tokens(7, 3, {"refresh_token": "rt", "expires_in": "soon"}, MagicMock())
-        store.assert_not_called()
+            _service().store_session_tokens(SESSION, 7, 3, {"refresh_token": "rt", "expires_in": "soon"}, MagicMock())
+        create.assert_not_called()
 
-
-class TestStoreIdpTokensFailures:
-    """Only a failed encryption degrades; a database error reaches the caller, whose transaction it spoils."""
-
-    @pytest.mark.parametrize("expected", [None, "read-ciphertext"])
-    def test_a_database_error_propagates(self, expected):
-        error = OperationalError("UPDATE", {}, Exception("db down"))
+    def test_a_database_error_propagates(self):
         with (
             patch.object(token_service_module.core_cryptography, "encrypt_token_fernet", return_value="ciphertext"),
             patch.object(
                 token_service_module.identity_provider_links_integration,
-                "store_user_identity_provider_tokens",
-                side_effect=error,
-            ),
-            patch.object(
-                token_service_module.identity_provider_links_integration,
-                "replace_user_identity_provider_tokens_if_unchanged",
-                side_effect=error,
+                "create_idp_session_token",
+                side_effect=OperationalError("INSERT", {}, Exception("db down")),
             ),
             pytest.raises(OperationalError),
         ):
-            _service().store_idp_tokens(
-                7, 3, {"refresh_token": "rt", "expires_in": 60}, MagicMock(), expected_refresh_token=expected
-            )
+            _service().store_session_tokens(SESSION, 7, 3, {"refresh_token": "rt"}, MagicMock())
 
-    def test_a_failed_encryption_is_logged_and_login_continues(self, caplog):
-        import logging
 
+class TestStoreRefreshedToken:
+    """A refresh stores only over the token it read, and only when the provider returned a new one."""
+
+    def _store(self, token_response, *, replaced=True):
         with (
+            patch.object(token_service_module.core_cryptography, "encrypt_token_fernet", return_value="ciphertext"),
             patch.object(
-                token_service_module.core_cryptography,
-                "encrypt_token_fernet",
-                side_effect=core_exceptions.CryptographyError(),
-            ),
-            patch.object(
-                token_service_module.identity_provider_links_integration, "store_user_identity_provider_tokens"
-            ) as store,
-            caplog.at_level(logging.DEBUG),
+                token_service_module.identity_provider_links_integration,
+                "replace_idp_session_token_if_unchanged",
+                return_value=replaced,
+            ) as replace,
         ):
-            _service().store_idp_tokens(7, 3, {"refresh_token": "rt", "expires_in": 60}, MagicMock())
+            _service()._store_refreshed_token(SESSION, 7, 3, token_response, "read-ciphertext", MagicMock())
+        return replace
 
-        store.assert_not_called()
-        assert [record.levelno for record in caplog.records if record.levelno >= logging.WARNING] == [logging.ERROR]
+    def test_the_new_token_replaces_the_one_that_was_read(self):
+        replace = self._store({"refresh_token": "rt", "expires_in": 60})
+
+        assert replace.call_args.args[:4] == (SESSION, "read-ciphertext", "ciphertext", replace.call_args.args[3])
+        assert replace.call_args.args[3] > datetime.now(UTC)
+
+    def test_a_response_without_a_refresh_token_stores_nothing(self):
+        replace = self._store({"access_token": "at"})
+
+        replace.assert_not_called()
+
+    def test_a_token_another_refresh_stored_is_kept(self):
+        replace = self._store({"refresh_token": "rt"}, replaced=False)
+
+        replace.assert_called_once()
+
+    def test_a_database_error_propagates(self):
+        with (
+            patch.object(token_service_module.core_cryptography, "encrypt_token_fernet", return_value="ciphertext"),
+            patch.object(
+                token_service_module.identity_provider_links_integration,
+                "replace_idp_session_token_if_unchanged",
+                side_effect=OperationalError("UPDATE", {}, Exception("db down")),
+            ),
+            pytest.raises(OperationalError),
+        ):
+            _service()._store_refreshed_token(SESSION, 7, 3, {"refresh_token": "rt"}, "read", MagicMock())

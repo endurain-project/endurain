@@ -99,11 +99,6 @@ def redeem_step_up_ticket(state: StateProvider, ticket: str) -> identity_provide
     return identity_providers_step_up_tickets.StepUpTicketStore(state).redeem(ticket)
 
 
-def request_idp_token_refresh(user_id: int, db: Session) -> None:
-    """Clear the user's retired IdP tokens now and queue the refresh of those expiring, with the caller's commit."""
-    identity_providers_tokens.IdpTokenService(_oidc_client()).request_idp_token_refresh(user_id, db)
-
-
-def clear_all_idp_tokens(user_id: int, db: Session) -> None:
-    """Clear all locally stored IdP refresh tokens."""
-    identity_providers_tokens.IdpTokenService(_oidc_client()).clear_all_idp_tokens(user_id, db)
+def request_idp_token_refresh(user_id: int, session_id: str, db: Session) -> None:
+    """Clear the session's retired IdP token now and queue its refresh if it is expiring, with the caller's commit."""
+    identity_providers_tokens.IdpTokenService(_oidc_client()).request_idp_token_refresh(user_id, session_id, db)

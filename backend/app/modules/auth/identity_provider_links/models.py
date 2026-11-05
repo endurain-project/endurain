@@ -1,4 +1,4 @@
-"""Auth-owned user-to-identity-provider link database models (table: ``users_identity_providers``)."""
+"""Auth-owned identity-provider link and sign-in database models (tables: ``users_identity_providers``, ``idp_session_tokens``)."""
 
 from datetime import datetime
 
@@ -19,9 +19,6 @@ class IdentityLink(Base):
         idp_subject: Subject/ID from the identity provider.
         linked_at: Timestamp when the IdP was linked.
         last_login: Last login timestamp using this IdP.
-        idp_refresh_token: Encrypted refresh token.
-        idp_access_token_expires_at: Access token expiry time.
-        idp_refresh_token_updated_at: Refresh token update time.
     """
 
     __tablename__ = "users_identity_providers"
@@ -62,18 +59,64 @@ class IdentityLink(Base):
         nullable=True,
         comment="Last login using this IdP",
     )
-    idp_refresh_token: Mapped[str | None] = mapped_column(
+
+
+class IdpSessionToken(Base):
+    """The identity-provider sign-in behind one Endurain session, with the refresh token it was issued.
+
+    There is no foreign key to the sessions table: the row outlives the session long enough for its token to be
+    revoked at the provider.
+
+    Attributes:
+        id: Primary key.
+        session_id: The Endurain session the user signed in with.
+        user_id: Foreign key to users table.
+        idp_id: Foreign key to identity_providers table.
+        refresh_token: Encrypted refresh token; ``None`` when the provider issued none.
+        access_token_expires_at: Access token expiry time.
+        refresh_token_updated_at: When the refresh token was last stored.
+        created_at: When the session signed in.
+    """
+
+    __tablename__ = "idp_session_tokens"
+
+    id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
+    session_id: Mapped[str] = mapped_column(
+        String(length=36),
+        nullable=False,
+        unique=True,
+        comment="Endurain session the sign-in created; no foreign key, so the token outlives the session row",
+    )
+    user_id: Mapped[int] = mapped_column(
+        ForeignKey("users.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+        comment="User ID",
+    )
+    idp_id: Mapped[int] = mapped_column(
+        ForeignKey("identity_providers.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+        comment="Identity Provider ID",
+    )
+    refresh_token: Mapped[str | None] = mapped_column(
         Text,
         nullable=True,
         comment="Encrypted refresh token",
     )
-    idp_access_token_expires_at: Mapped[datetime | None] = mapped_column(
+    access_token_expires_at: Mapped[datetime | None] = mapped_column(
         DateTime(timezone=True),
         nullable=True,
         comment="Access token expiry time",
     )
-    idp_refresh_token_updated_at: Mapped[datetime | None] = mapped_column(
+    refresh_token_updated_at: Mapped[datetime | None] = mapped_column(
         DateTime(timezone=True),
         nullable=True,
         comment="Last refresh token update",
+    )
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        nullable=False,
+        server_default=func.now(),
+        comment="When the session signed in through the provider",
     )

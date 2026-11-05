@@ -354,6 +354,49 @@ class TestIdentityUnlinkAudit:
         assert entry.details == {"idp_id": 3}
         assert_event(published, Change.IDENTITY_PROVIDER_UNLINKED, idp_id=3)
 
+    @pytest.mark.parametrize("admin", [False, True])
+    def test_an_unlink_audits_the_sessions_it_ends(self, mock_db, published, admin):
+        p = self._patches()
+        with (
+            p[0],
+            p[1],
+            p[2],
+            p[3],
+            p[4],
+            patch.object(identity_link_service.step_up_service, "verify_step_up_credentials"),
+            patch.object(
+                identity_link_service.identity_provider_links_integration, "end_idp_sessions", return_value=2
+            ) as end_sessions,
+            jasil_testing.capture_audit() as audit,
+        ):
+            if admin:
+                account_security_integration.admin_delete_identity_provider_link(7, 3, mock_db)
+            else:
+                step_up = users_schema.StepUpVerification(current_password="pw")
+                identity_link_service.delete_identity_provider_link(3, step_up, 7, "sid", MagicMock(), mock_db)
+
+        end_sessions.assert_called_once_with(7, 3, mock_db)
+        entry = audit.assert_audited(
+            sessions_audit_actions.SESSION_REVOKE.id, target_type="user", target_id="7", target_owner_id="7"
+        )
+        assert entry.details == {"sessions_revoked": 2}
+        audit.assert_audited(account_security_audit_actions.IDENTITY_LINK_UNLINK.id)
+
+    def test_an_unlink_that_ends_no_session_audits_no_revocation(self, mock_db, published):
+        p = self._patches()
+        with (
+            p[0],
+            p[1],
+            p[2],
+            p[3],
+            p[4],
+            patch.object(identity_link_service.identity_provider_links_integration, "end_idp_sessions", return_value=0),
+            jasil_testing.capture_audit() as audit,
+        ):
+            account_security_integration.admin_delete_identity_provider_link(7, 3, mock_db)
+
+        audit.assert_not_audited(sessions_audit_actions.SESSION_REVOKE.id)
+
     def test_admin_unlink(self, mock_db, published):
         p = self._patches()
         with p[0], p[1], p[2], p[3], p[4], jasil_testing.capture_audit() as audit:

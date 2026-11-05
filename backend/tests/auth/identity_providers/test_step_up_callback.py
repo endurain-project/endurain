@@ -126,7 +126,7 @@ class TestFreshSignIn:
         _complete(service)
 
         oidc.get_userinfo.assert_not_called()
-        service._tokens.store_idp_tokens.assert_not_called()
+        service._tokens.store_session_tokens.assert_not_called()
 
     def test_the_link_is_found_by_the_verified_subject(self, service):
         _, _, find_link = _complete(service)

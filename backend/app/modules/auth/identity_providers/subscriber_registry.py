@@ -1,9 +1,10 @@
-"""Registration surface and reconciliation declarations for identity-provider token refresh."""
+"""Registration surface and reconciliation declarations for identity-provider token refresh and revocation."""
 
 from jasil.jobs.reconciliation import DurableSubscriberNet
 from jasil.jobs.registry import JobHandlerRegistry
 from jasil.providers import EventBusProvider
 
+import modules.auth.identity_providers.scheduled_jobs as idp_scheduled_jobs
 import modules.auth.identity_providers.subscribers as idp_subscribers
 
 
@@ -22,8 +23,12 @@ DURABLE_SUBSCRIBER_NETS: tuple[DurableSubscriberNet, ...] = (
         idp_subscribers.IDP_TOKEN_REFRESH_SUBSCRIBER_ID,
         None,
         exempt_reason=(
-            "The refresh is opportunistic: every session refresh re-evaluates the stored tokens and "
-            "queues it again, and the link rows hold the state it acts on."
+            "The refresh is opportunistic: every session refresh re-evaluates the session's stored token and "
+            "queues it again, and the session's row holds the state it acts on."
         ),
+    ),
+    DurableSubscriberNet(
+        idp_subscribers.IDP_TOKEN_REVOKE_SUBSCRIBER_ID,
+        idp_scheduled_jobs.revoke_ended_session_tokens,
     ),
 )

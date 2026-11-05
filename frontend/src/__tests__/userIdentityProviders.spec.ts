@@ -25,8 +25,6 @@ function makeIdpDto(overrides: Partial<UserIdentityProviderDto> = {}): UserIdent
     idp_icon_uploaded: false,
     idp_provider_type: 'oidc',
     idp_subject: 'auth|abc123',
-    idp_access_token_expires_at: null,
-    idp_refresh_token_updated_at: null,
     last_login: '2026-06-02T11:00:00Z',
     linked_at: '2026-06-01T10:00:00Z',
     ...overrides,

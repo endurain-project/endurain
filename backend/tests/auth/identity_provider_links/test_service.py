@@ -3,60 +3,8 @@
 from datetime import UTC, datetime
 from unittest.mock import MagicMock, patch
 
-import modules.auth.identity_provider_links.integration_service as identity_links_integration
 import modules.auth.identity_providers.integration_service as identity_links_utils
 from modules.auth.identity_provider_links.schema import IdentityProviderLinkRead
-
-
-class TestGetUserIdentityProviderRefreshToken:
-    """Tests for get_user_identity_provider_refresh_token_by_user_id_and_idp_id."""
-
-    def test_returns_refresh_token_when_link_exists(self, mock_db):
-        """
-        Returns encrypted refresh token from the link.
-
-        Args:
-            mock_db: Mocked database session.
-
-        Asserts:
-            - Returns idp_refresh_token from the found link.
-        """
-        mock_link = MagicMock()
-        mock_link.idp_refresh_token = "encrypted-token-abc"
-
-        with patch(
-            "modules.auth.identity_provider_links.service.identity_provider_links_integration.get_user_identity_provider_by_user_id_and_idp_id",
-            return_value=mock_link,
-        ):
-            result = identity_links_integration.get_user_identity_provider_refresh_token_by_user_id_and_idp_id(
-                user_id=1,
-                idp_id=2,
-                db=mock_db,
-            )
-
-        assert result == "encrypted-token-abc"
-
-    def test_returns_none_when_link_not_found(self, mock_db):
-        """
-        Returns None when no link exists for user + IdP.
-
-        Args:
-            mock_db: Mocked database session.
-
-        Asserts:
-            - Returns None.
-        """
-        with patch(
-            "modules.auth.identity_provider_links.service.identity_provider_links_integration.get_user_identity_provider_by_user_id_and_idp_id",
-            return_value=None,
-        ):
-            result = identity_links_integration.get_user_identity_provider_refresh_token_by_user_id_and_idp_id(
-                user_id=1,
-                idp_id=2,
-                db=mock_db,
-            )
-
-        assert result is None
 
 
 class TestEnrichUserIdentityProviders:
@@ -98,8 +46,6 @@ class TestEnrichUserIdentityProviders:
         mock_link.idp_subject = "sub-123"
         mock_link.linked_at = now
         mock_link.last_login = now
-        mock_link.idp_access_token_expires_at = None
-        mock_link.idp_refresh_token_updated_at = None
 
         mock_idp = MagicMock()
         mock_idp.id = 1
@@ -142,8 +88,6 @@ class TestEnrichUserIdentityProviders:
         mock_link.idp_subject = "sub-xyz"
         mock_link.linked_at = now
         mock_link.last_login = None
-        mock_link.idp_access_token_expires_at = None
-        mock_link.idp_refresh_token_updated_at = None
 
         with patch(
             "modules.auth.identity_providers.crud.get_identity_providers_by_ids",
@@ -174,8 +118,6 @@ class TestEnrichUserIdentityProviders:
             link.idp_subject = f"sub-{i}"
             link.linked_at = now
             link.last_login = None
-            link.idp_access_token_expires_at = None
-            link.idp_refresh_token_updated_at = None
             mock_links.append(link)
 
         mock_idps = []

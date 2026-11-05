@@ -61,39 +61,58 @@ def update_user_identity_provider_last_login(
     return identity_link_crud.update_user_identity_provider_last_login(user_id, idp_id, db)
 
 
-def store_user_identity_provider_tokens(
-    user_id: int, idp_id: int, encrypted_refresh_token: str, access_token_expires_at: datetime, db: Session
-) -> identity_link_contracts.IdentityLinkRead | None:
-    """Stage encrypted provider-token metadata on a link."""
-    return identity_link_crud.store_user_identity_provider_tokens(
-        user_id, idp_id, encrypted_refresh_token, access_token_expires_at, db
+def create_idp_session_token(
+    session_id: str,
+    user_id: int,
+    idp_id: int,
+    encrypted_refresh_token: str | None,
+    access_token_expires_at: datetime | None,
+    db: Session,
+) -> identity_link_contracts.IdpSessionTokenRead:
+    """Stage the identity-provider sign-in behind a session, with its encrypted refresh token when one was issued."""
+    return identity_link_crud.create_idp_session_token(
+        session_id, user_id, idp_id, encrypted_refresh_token, access_token_expires_at, db
     )
 
 
-def clear_user_identity_provider_refresh_token(user_id: int, idp_id: int, db: Session) -> bool:
-    """Stage removal of stored provider-token metadata."""
-    return identity_link_crud.clear_user_identity_provider_refresh_token_by_user_id_and_idp_id(user_id, idp_id, db)
+def get_idp_session_token(session_id: str, db: Session) -> identity_link_contracts.IdpSessionTokenRead | None:
+    """Return the identity-provider sign-in behind a session, if it signed in through one."""
+    return identity_link_crud.get_idp_session_token(session_id, db)
 
 
-def replace_user_identity_provider_tokens_if_unchanged(
-    user_id: int,
-    idp_id: int,
+def replace_idp_session_token_if_unchanged(
+    session_id: str,
     expected_refresh_token: str,
     encrypted_refresh_token: str,
     access_token_expires_at: datetime,
     db: Session,
 ) -> bool:
-    """Stage new provider-token metadata only while the link still holds the token that was read."""
+    """Stage a session's new provider-token metadata only while it still holds the token that was read."""
     return identity_link_crud.replace_refresh_token_if_unchanged(
-        user_id, idp_id, expected_refresh_token, encrypted_refresh_token, access_token_expires_at, db
+        session_id, expected_refresh_token, encrypted_refresh_token, access_token_expires_at, db
     )
 
 
-def clear_user_identity_provider_refresh_token_if_unchanged(
-    user_id: int, idp_id: int, expected_refresh_token: str, db: Session
-) -> bool:
-    """Stage removal of provider-token metadata only while the link still holds the token that was read."""
-    return identity_link_crud.clear_refresh_token_if_unchanged(user_id, idp_id, expected_refresh_token, db)
+def clear_idp_session_refresh_token_if_unchanged(session_id: str, expected_refresh_token: str, db: Session) -> bool:
+    """Stage removal of a session's provider-token metadata only while it still holds the token that was read."""
+    return identity_link_crud.clear_refresh_token_if_unchanged(session_id, expected_refresh_token, db)
+
+
+def delete_idp_session_token_if_unchanged(session_id: str, expected_refresh_token: str | None, db: Session) -> bool:
+    """Stage deletion of a session's sign-in only while it still holds the token that was read."""
+    return identity_link_crud.delete_idp_session_token_if_unchanged(session_id, expected_refresh_token, db)
+
+
+def get_orphaned_idp_session_tokens_page(
+    after_id: int, limit: int, db: Session, *, user_id: int | None = None
+) -> tuple[list[identity_link_contracts.IdpSessionTokenRead], int | None]:
+    """Return the sign-ins in one window whose session no longer exists, and the window's last id."""
+    return identity_link_service.get_orphaned_idp_session_tokens_page(after_id, limit, db, user_id=user_id)
+
+
+def end_idp_sessions(user_id: int, idp_id: int, db: Session) -> int:
+    """Stage the end of every session the user signed in to through the provider; the caller commits."""
+    return identity_link_service.end_idp_sessions(user_id, idp_id, db)
 
 
 def delete_user_identity_provider(user_id: int, idp_id: int, db: Session) -> bool:
@@ -104,15 +123,6 @@ def delete_user_identity_provider(user_id: int, idp_id: int, db: Session) -> boo
 def get_identity_link_counts_for_users(user_ids: list[int], db: Session) -> dict[int, int]:
     """Return the number of identity-provider links for each matching user."""
     return identity_link_crud.get_identity_link_counts_for_users(user_ids, db)
-
-
-def get_user_identity_provider_refresh_token_by_user_id_and_idp_id(
-    user_id: int,
-    idp_id: int,
-    db: Session,
-) -> str | None:
-    """Return an encrypted provider refresh token, if one is stored."""
-    return identity_link_service.get_user_identity_provider_refresh_token_by_user_id_and_idp_id(user_id, idp_id, db)
 
 
 def enrich_user_identity_providers(

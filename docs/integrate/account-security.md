@@ -18,6 +18,8 @@ Certain sensitive account operations require the user to re-prove possession of 
 | Remove IdP link | `POST /profile/identity-providers/{idp_id}/unlink` |
 | Delete own account | `POST /profile/delete-account` |
 
+Removing an identity provider link, yourself or as an administrator, also ends every session of that user that signed in through the provider, the caller's own session included when it did. A client holding such a session gets `401` on its next request and refreshes no further. The link responses carry no `idp_access_token_expires_at` or `idp_refresh_token_updated_at`: Endurain keeps provider tokens per session, not per link.
+
 ### Step-up Request Body
 
 All step-up operations accept the following fields in their JSON request body (alongside any operation-specific fields):

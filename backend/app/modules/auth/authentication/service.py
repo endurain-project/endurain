@@ -21,7 +21,6 @@ import modules.auth.authentication.token_service as authentication_token_service
 import modules.auth.computation as auth_computation
 import modules.auth.constants as auth_constants
 import modules.auth.credentials.integration_service as credentials_integration
-import modules.auth.identity_providers.integration_service as identity_providers_integration
 import modules.auth.known_devices.events as known_devices_events
 import modules.auth.known_devices.integration_service as known_devices_integration
 import modules.auth.lockout.contracts as lockout_contracts
@@ -937,10 +936,6 @@ def logout(
             jasil_audit.stage(
                 db, authentication_audit_actions.LOGOUT, **login_audit_integration.user_target(token_user_id)
             )
-        db.commit()
-
-        # Clear all IdP refresh tokens for security
-        identity_providers_integration.clear_all_idp_tokens(token_user_id, db)
         db.commit()
 
     return auth_schema.LogoutRead(message="Logout successful")

@@ -41,7 +41,7 @@ class IdentityProviderDetails(Protocol):
 
 
 class IdentityLinkRead(BaseModel):
-    """Persisted identity-link data, including secrets for internal use."""
+    """Persisted identity-link data."""
 
     id: int
     user_id: int
@@ -49,8 +49,20 @@ class IdentityLinkRead(BaseModel):
     idp_subject: str
     linked_at: datetime
     last_login: datetime | None
-    idp_refresh_token: str | None
-    idp_access_token_expires_at: datetime | None
-    idp_refresh_token_updated_at: datetime | None
+
+    model_config = ConfigDict(from_attributes=True)
+
+
+class IdpSessionTokenRead(BaseModel):
+    """Persisted identity-provider sign-in of one Endurain session, including its encrypted refresh token."""
+
+    id: int
+    session_id: str
+    user_id: int
+    idp_id: int
+    refresh_token: str | None
+    access_token_expires_at: datetime | None
+    refresh_token_updated_at: datetime | None
+    created_at: datetime
 
     model_config = ConfigDict(from_attributes=True)

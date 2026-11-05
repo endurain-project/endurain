@@ -12,21 +12,20 @@ def _store(state=None) -> refresh_claim_store.IdpRefreshClaimStore:
     return refresh_claim_store.IdpRefreshClaimStore(state or MemoryState())
 
 
-def test_a_link_is_claimed_once_until_released():
+def test_a_session_is_claimed_once_until_released():
     store = _store()
 
-    assert store.claim(7, 3) is True
-    assert store.claim(7, 3) is False
-    store.release(7, 3)
-    assert store.claim(7, 3) is True
+    assert store.claim("session-1") is True
+    assert store.claim("session-1") is False
+    store.release("session-1")
+    assert store.claim("session-1") is True
 
 
-def test_each_link_has_its_own_claim():
+def test_each_session_has_its_own_claim():
     store = _store()
 
-    assert store.claim(7, 3) is True
-    assert store.claim(7, 4) is True
-    assert store.claim(8, 3) is True
+    assert store.claim("session-1") is True
+    assert store.claim("session-2") is True
 
 
 def test_an_unreachable_state_store_lets_the_refresh_run():
@@ -36,5 +35,5 @@ def test_an_unreachable_state_store_lets_the_refresh_run():
     state.delete.side_effect = platform_providers.StateBackendUnavailableError("down")
     store = _store(state)
 
-    assert store.claim(7, 3) is True
-    store.release(7, 3)
+    assert store.claim("session-1") is True
+    store.release("session-1")

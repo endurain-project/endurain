@@ -274,7 +274,6 @@ class TestLogoutAndReuse:
         with (
             patch(f"{_SERVICE}.sessions_integration.get_session_by_id_not_expired", return_value=self._session()),
             patch(f"{_SERVICE}.sessions_integration.delete_session"),
-            patch(f"{_SERVICE}.identity_providers_integration.clear_all_idp_tokens"),
             jasil_testing.capture_audit() as audit,
         ):
             authentication_service.logout("sid", "rt", 1, hasher, mock_db)

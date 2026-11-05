@@ -1,4 +1,4 @@
-"""Policy deciding when a stored identity-provider token is refreshed, kept or cleared."""
+"""Policy deciding when the identity-provider token of a session is refreshed, kept or cleared."""
 
 from datetime import UTC, datetime, timedelta
 from enum import Enum
@@ -28,7 +28,7 @@ class TokenAction(Enum):
     CLEAR = "clear"
 
 
-def is_token_expired_by_age(link: auth_identity_links_contracts.IdentityLinkRead) -> bool:
+def is_token_expired_by_age(session_token: auth_identity_links_contracts.IdpSessionTokenRead) -> bool:
     """Check if an IdP refresh token has exceeded the maximum age policy.
 
     According to security best practices, refresh tokens should have a maximum lifetime
@@ -36,15 +36,15 @@ def is_token_expired_by_age(link: auth_identity_links_contracts.IdentityLinkRead
     configured maximum age.
 
     Args:
-        link (auth_identity_links_contracts.IdentityLinkRead): The user-IdP link containing token metadata.
+        session_token: The session's identity-provider sign-in containing token metadata.
 
     Returns:
         bool: True if the token exceeds maximum age, False otherwise.
 
     Policy:
         - Tokens older than MAX_IDP_TOKEN_AGE_DAYS are considered expired
-        - Age is calculated from idp_refresh_token_updated_at (last refresh time)
-        - If idp_refresh_token_updated_at is None, use linked_at (initial link time)
+        - Age is calculated from refresh_token_updated_at (last refresh time)
+        - If refresh_token_updated_at is None, use created_at (the sign-in time)
 
     Security Note:
         Enforcing maximum token age:
@@ -53,33 +53,17 @@ def is_token_expired_by_age(link: auth_identity_links_contracts.IdentityLinkRead
         - Limits damage from undetected token theft
         - Complies with security frameworks (e.g., NIST 800-63B)
     """
-    if not link or not link.idp_refresh_token:
+    if not session_token or not session_token.refresh_token:
         # No token stored - not expired
         return False
 
-    now = datetime.now(UTC)
-
-    # Determine when the token was first issued or last refreshed
-    token_timestamp = link.idp_refresh_token_updated_at or link.linked_at
-
-    if not token_timestamp:
-        # No timestamp available - cannot determine age (should not happen)
-        logger.warning(
-            "Warning: IdP link user_id=<user_id>, idp_id=<idp_id> has no timestamp for age calculation",
-            extra=core_logger.context(user_id=link.user_id, idp_id=link.idp_id),
-        )
-        return False
-
-    # Calculate token age (TIMESTAMPTZ returns aware datetimes)
-    token_age = now - token_timestamp
-
-    # Check if token exceeds maximum age
-    max_age = timedelta(days=MAX_IDP_TOKEN_AGE_DAYS)
-    return token_age > max_age
+    token_timestamp = session_token.refresh_token_updated_at or session_token.created_at
+    token_age = datetime.now(UTC) - token_timestamp
+    return token_age > timedelta(days=MAX_IDP_TOKEN_AGE_DAYS)
 
 
-def should_refresh_idp_token(link: auth_identity_links_contracts.IdentityLinkRead) -> TokenAction:
-    """Determine what action to take for an IdP token based on expiry and age policies.
+def should_refresh_idp_token(session_token: auth_identity_links_contracts.IdpSessionTokenRead) -> TokenAction:
+    """Determine what action to take for a session's IdP token based on expiry and age policies.
 
     This method checks multiple conditions to decide the appropriate action:
     1. Token age - if token exceeds maximum age, it must be cleared
@@ -88,7 +72,7 @@ def should_refresh_idp_token(link: auth_identity_links_contracts.IdentityLinkRea
     4. Rate limiting - whether the token was refreshed very recently
 
     Args:
-        link (auth_identity_links_contracts.IdentityLinkRead): The user-IdP link containing token metadata.
+        session_token: The session's identity-provider sign-in containing token metadata.
 
     Returns:
         TokenAction: The action to take (SKIP, REFRESH, or CLEAR).
@@ -100,50 +84,40 @@ def should_refresh_idp_token(link: auth_identity_links_contracts.IdentityLinkRea
         - SKIP if token was refreshed in last defined time(rate limiting)
         - REFRESH if access token expires within defined minutes
         - SKIP if token is still valid and not close to expiry
-
-    Example usage:
-        link = identity_provider_links_integration.get_user_identity_provider_by_user_id_and_idp_id(
-            user_id, idp_id, db
-        )
-        action = should_refresh_idp_token(link)
-        if action == TokenAction.REFRESH:
-            tokens.refresh_idp_session(user_id, idp_id, claims)
-        elif action == TokenAction.CLEAR:
-            identity_provider_links_integration.clear_user_identity_provider_refresh_token(
-                user_id, idp_id, db
-            )
     """
     # Check if refresh token exists
-    if not link or not link.idp_refresh_token:
+    if not session_token or not session_token.refresh_token:
         return TokenAction.SKIP
 
     # Check if token has exceeded maximum age (security policy)
-    if is_token_expired_by_age(link):
+    if is_token_expired_by_age(session_token):
         logger.info(
             "IdP refresh token for user_id=<user_id>, idp_id=<idp_id> has exceeded maximum age "
             "(<MAX_IDP_TOKEN_AGE_DAYS> days). Will be cleared.",
             extra=core_logger.context(
-                user_id=link.user_id, idp_id=link.idp_id, MAX_IDP_TOKEN_AGE_DAYS=MAX_IDP_TOKEN_AGE_DAYS
+                user_id=session_token.user_id,
+                idp_id=session_token.idp_id,
+                MAX_IDP_TOKEN_AGE_DAYS=MAX_IDP_TOKEN_AGE_DAYS,
             ),
         )
         return TokenAction.CLEAR
 
     # Check if we know when the access token expires
-    if not link.idp_access_token_expires_at:
+    if not session_token.access_token_expires_at:
         # No expiry info - assume token is still valid
         return TokenAction.SKIP
 
     now = datetime.now(UTC)
 
     # Check if token was refreshed very recently (rate limiting)
-    if link.idp_refresh_token_updated_at:
-        time_since_refresh = now - link.idp_refresh_token_updated_at
+    if session_token.refresh_token_updated_at:
+        time_since_refresh = now - session_token.refresh_token_updated_at
         if time_since_refresh < timedelta(minutes=TOKEN_REFRESH_RATE_LIMIT_MINUTES):
             # Refreshed less than defined - don't refresh again
             return TokenAction.SKIP
 
     # Check if access token is close to expiry
-    time_until_expiry = link.idp_access_token_expires_at - now
+    time_until_expiry = session_token.access_token_expires_at - now
     if time_until_expiry < timedelta(minutes=TOKEN_EXPIRY_THRESHOLD_MINUTES):
         # Token expires soon - should refresh
         return TokenAction.REFRESH

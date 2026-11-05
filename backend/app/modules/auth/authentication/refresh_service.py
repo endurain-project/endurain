@@ -362,9 +362,9 @@ def refresh_token(
     )
     db.commit()
 
-    # Retire expired IdP tokens now and queue the refresh of those about to expire; the provider
-    # calls run on a worker, never in this request.
-    identity_providers_integration.request_idp_token_refresh(user.id, db)
+    # Retire the session's expired IdP token now and queue its refresh if about to expire; the provider
+    # call runs on a worker, never in this request.
+    identity_providers_integration.request_idp_token_refresh(user.id, session_id, db)
     db.commit()
 
     # Token delivery based on client type (web cookie vs mobile body) is

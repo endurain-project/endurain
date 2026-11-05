@@ -427,6 +427,31 @@ class OidcClientService:
 
         return token_endpoint
 
+    def resolve_revocation_endpoint(self, idp: identity_provider_contracts.IdentityProviderState) -> str | None:
+        """Resolve the RFC 7009 revocation endpoint a provider advertises in its discovery document.
+
+        Args:
+            idp: The identity provider configuration.
+
+        Returns:
+            The revocation endpoint URL, or None when the provider has no issuer URL or its discovery document
+            names no revocation endpoint.
+
+        Raises:
+            UpstreamError: If the discovery document cannot be retrieved, so the provider may still have one.
+            InvalidInputError: If the SSRF guard refuses the advertised endpoint.
+        """
+        if not idp.issuer_url:
+            return None
+        config = self.get_oidc_configuration(idp)
+        if config is None:
+            raise core_exceptions.UpstreamError(f"Identity provider {idp.name} discovery document is unavailable")
+        revocation_endpoint = config.get("revocation_endpoint")
+        if not isinstance(revocation_endpoint, str) or not revocation_endpoint:
+            return None
+        core_network.reject_private_url(revocation_endpoint, purpose="oidc_revocation", require_tls=True)
+        return revocation_endpoint
+
     def create_oauth_client(
         self,
         client_id: str,

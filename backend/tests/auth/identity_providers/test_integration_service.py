@@ -7,14 +7,8 @@ from modules.auth.identity_providers import integration_service
 
 def test_requesting_a_refresh_delegates_to_request_scoped_service(mock_db):
     with patch.object(integration_service.identity_providers_tokens, "IdpTokenService") as token_service:
-        integration_service.request_idp_token_refresh(7, mock_db)
-    token_service.return_value.request_idp_token_refresh.assert_called_once_with(7, mock_db)
-
-
-def test_clear_tokens_delegates_to_the_token_service(mock_db):
-    with patch.object(integration_service.identity_providers_tokens, "IdpTokenService") as token_service:
-        integration_service.clear_all_idp_tokens(7, mock_db)
-    token_service.return_value.clear_all_idp_tokens.assert_called_once_with(7, mock_db)
+        integration_service.request_idp_token_refresh(7, "session-1", mock_db)
+    token_service.return_value.request_idp_token_refresh.assert_called_once_with(7, "session-1", mock_db)
 
 
 def test_get_identity_provider_delegates_to_crud():

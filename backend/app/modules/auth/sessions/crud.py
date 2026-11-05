@@ -1,5 +1,6 @@
 """Persistence operations for auth sessions."""
 
+from collections.abc import Sequence
 from datetime import UTC, datetime
 
 from sqlalchemy import Select, delete, func, select, update
@@ -58,6 +59,14 @@ def get_session_by_id_and_user_id(
         )
     ).scalar_one_or_none()
     return sessions_serializers.to_read_schema(row) if row is not None else None
+
+
+def get_existing_session_ids(session_ids: Sequence[str], db: Session) -> set[str]:
+    """Return which of the given session ids still name a session."""
+    if not session_ids:
+        return set()
+    model = sessions_models.UsersSessions
+    return set(db.execute(select(model.id).where(model.id.in_(session_ids))).scalars())
 
 
 def get_session_by_id_not_expired(session_id: str, db: Session) -> sessions_contracts.SessionRead | None:

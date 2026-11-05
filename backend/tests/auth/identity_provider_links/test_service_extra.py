@@ -3,7 +3,6 @@
 from datetime import UTC, datetime
 from unittest.mock import MagicMock, patch
 
-import modules.auth.identity_provider_links.integration_service as identity_links_integration
 import modules.auth.identity_providers.integration_service as user_idp_utils
 
 
@@ -174,81 +173,3 @@ class TestEnrichUserIdentityProviders:
         # Assert
         assert result == []
         assert len(mock_logger.method_calls) == 1
-
-
-class TestGetUserIdentityProviderRefreshTokenByUserIdAndIdpId:
-    """Test suite for get_user_identity_provider_refresh_token_by_user_id_and_idp_id."""
-
-    def test_get_refresh_token_success(self, mock_db):
-        """Test retrieving refresh token.
-
-        Args:
-            mock_db: Mocked database session
-
-        Asserts:
-            - Returns refresh token when link exists
-            - Returns None when token is not set
-        """
-        # Arrange
-        with patch(
-            "modules.auth.identity_provider_links.service.identity_provider_links_integration.get_user_identity_provider_by_user_id_and_idp_id"
-        ) as mock_get:
-            mock_link = MagicMock()
-            mock_link.idp_refresh_token = "encrypted_token_xyz"
-            mock_get.return_value = mock_link
-
-            # Act
-            result = identity_links_integration.get_user_identity_provider_refresh_token_by_user_id_and_idp_id(
-                1, 1, mock_db
-            )
-
-        # Assert
-        assert result == "encrypted_token_xyz"
-
-    def test_get_refresh_token_not_found(self, mock_db):
-        """Test retrieving token when link doesn't exist.
-
-        Args:
-            mock_db: Mocked database session
-
-        Asserts:
-            - Returns None when link not found
-        """
-        # Arrange
-        with patch(
-            "modules.auth.identity_provider_links.service.identity_provider_links_integration.get_user_identity_provider_by_user_id_and_idp_id"
-        ) as mock_get:
-            mock_get.return_value = None
-
-            # Act
-            result = identity_links_integration.get_user_identity_provider_refresh_token_by_user_id_and_idp_id(
-                1, 1, mock_db
-            )
-
-        # Assert
-        assert result is None
-
-    def test_get_refresh_token_none_value(self, mock_db):
-        """Test retrieving when token value is None.
-
-        Args:
-            mock_db: Mocked database session
-
-        Asserts:
-            - Returns None when token is not set
-        """
-        # Arrange
-        with patch(
-            "modules.auth.identity_provider_links.service.identity_provider_links_integration.get_user_identity_provider_by_user_id_and_idp_id"
-        ) as mock_get:
-            mock_link = MagicMock()
-            mock_link.idp_refresh_token = None
-            mock_get.return_value = mock_link
-
-            # Act
-            result = identity_links_integration.get_user_identity_provider_refresh_token_by_user_id_and_idp_id(
-                1, 1, mock_db
-            )
-
-        # Assert
-        assert result is None

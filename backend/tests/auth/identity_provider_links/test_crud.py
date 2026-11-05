@@ -24,9 +24,6 @@ def _link(**overrides):
         "idp_subject": "subject-1",
         "linked_at": datetime.now(UTC),
         "last_login": None,
-        "idp_refresh_token": None,
-        "idp_access_token_expires_at": None,
-        "idp_refresh_token_updated_at": None,
     }
     values.update(overrides)
     return SimpleNamespace(**values)
@@ -72,21 +69,17 @@ def test_create_link_stages_row_and_translates_unique_race(mock_db):
         identity_links_crud.create_user_identity_provider(7, 3, "subject-1", mock_db)
 
 
-def test_update_and_clear_provider_tokens_stage_changes(mock_db):
+def test_update_last_login_stages_the_change(mock_db):
     row = _link()
     mock_db.execute.return_value.scalar_one_or_none.return_value = row
     result = identity_links_crud.update_user_identity_provider_last_login(7, 3, mock_db)
     assert result.last_login is not None
-    assert identity_links_crud.clear_user_identity_provider_refresh_token_by_user_id_and_idp_id(7, 3, mock_db)
     mock_db.commit.assert_not_called()
 
 
-def test_missing_token_metadata_link_returns_none_or_false(mock_db):
+def test_update_last_login_of_a_missing_link_returns_none(mock_db):
     mock_db.execute.return_value.scalar_one_or_none.return_value = None
-    assert (
-        identity_links_crud.store_user_identity_provider_tokens(7, 3, "encrypted", datetime.now(UTC), mock_db) is None
-    )
-    assert identity_links_crud.clear_user_identity_provider_refresh_token_by_user_id_and_idp_id(7, 3, mock_db) is False
+    assert identity_links_crud.update_user_identity_provider_last_login(7, 3, mock_db) is None
 
 
 def test_delete_link_stages_deletion(mock_db):
@@ -95,68 +88,168 @@ def test_delete_link_stages_deletion(mock_db):
     mock_db.commit.assert_not_called()
 
 
-class TestCompareAndSetTokens:
-    """A refresh writes only over the token it read, so a slower one cannot undo a faster one."""
+SESSION = "11111111-1111-1111-1111-111111111111"
+
+
+class TestSessionTokens:
+    """Each session that signed in through a provider has one row, written and compared by session."""
 
     @pytest.fixture(autouse=True)
     def _fernet_key(self, monkeypatch):
         monkeypatch.setenv("FERNET_KEY", Fernet.generate_key().decode())
 
     @staticmethod
-    def _db_with_link(refresh_token):
+    def _db_with_token(refresh_token, session_id=SESSION, *, user_id=7, idp_id=3):
         db = create_sqlite_session()
-        db.add(
-            identity_links_models.IdentityLink(
-                user_id=7, idp_id=3, idp_subject="subject-1", idp_refresh_token=refresh_token
-            )
-        )
+        identity_links_crud.create_idp_session_token(session_id, user_id, idp_id, refresh_token, None, db)
         db.commit()
         return db
 
-    def _stored(self, db):
-        return identity_links_crud.get_user_identity_provider_by_user_id_and_idp_id(7, 3, db)
+    def _stored(self, db, session_id=SESSION):
+        return identity_links_crud.get_idp_session_token(session_id, db)
+
+    def test_a_sign_in_is_stored_with_its_token_and_timestamps(self):
+        db = create_sqlite_session()
+        expires = datetime(2026, 11, 1, tzinfo=UTC)
+
+        created = identity_links_crud.create_idp_session_token(SESSION, 7, 3, "encrypted", expires, db)
+        db.commit()
+
+        stored = self._stored(db)
+        assert stored == created
+        assert (stored.session_id, stored.user_id, stored.idp_id, stored.refresh_token) == (SESSION, 7, 3, "encrypted")
+        # SQLite returns the stored instant without its zone.
+        assert stored.access_token_expires_at.replace(tzinfo=UTC) == expires
+        assert stored.refresh_token_updated_at is not None
+        assert stored.created_at is not None
+        db.close()
+
+    def test_a_provider_that_issued_no_token_still_leaves_a_row(self):
+        db = self._db_with_token(None)
+
+        stored = self._stored(db)
+        assert stored.refresh_token is None
+        assert stored.refresh_token_updated_at is None
+        db.close()
+
+    def test_a_session_that_signed_in_through_no_provider_has_no_row(self):
+        db = self._db_with_token("encrypted")
+
+        assert self._stored(db, "another-session") is None
+        db.close()
+
+    def test_the_sessions_of_one_user_and_provider_are_listed(self):
+        db = self._db_with_token("a", "s1")
+        for session_id, user_id, idp_id in (("s2", 7, 3), ("s3", 7, 4), ("s4", 8, 3)):
+            identity_links_crud.create_idp_session_token(session_id, user_id, idp_id, None, None, db)
+        db.commit()
+
+        assert sorted(identity_links_crud.get_idp_session_token_ids_by_user_and_idp(7, 3, db)) == ["s1", "s2"]
+        db.close()
+
+    def test_a_page_walks_the_rows_in_id_order_and_can_be_one_users(self):
+        db = self._db_with_token("a", "s1")
+        for session_id, user_id in (("s2", 8), ("s3", 7)):
+            identity_links_crud.create_idp_session_token(session_id, user_id, 3, None, None, db)
+        db.commit()
+
+        first = identity_links_crud.get_idp_session_tokens_page(0, 2, db)
+        second = identity_links_crud.get_idp_session_tokens_page(first[-1].id, 2, db)
+        mine = identity_links_crud.get_idp_session_tokens_page(0, 10, db, user_id=7)
+
+        assert [row.session_id for row in first] == ["s1", "s2"]
+        assert [row.session_id for row in second] == ["s3"]
+        assert [row.session_id for row in mine] == ["s1", "s3"]
+        db.close()
 
     def test_a_replace_over_the_token_read_is_applied(self):
-        db = self._db_with_link(core_cryptography.encrypt_token_fernet("old"))
+        db = self._db_with_token(core_cryptography.encrypt_token_fernet("old"))
         expires = datetime(2026, 11, 1, tzinfo=UTC)
 
         assert (
             identity_links_crud.replace_refresh_token_if_unchanged(
-                7, 3, core_cryptography.encrypt_token_fernet("old"), "new", expires, db
+                SESSION, core_cryptography.encrypt_token_fernet("old"), "new", expires, db
             )
             is True
         )
-        assert self._stored(db).idp_refresh_token == "new"
-        # SQLite returns the stored instant without its zone.
-        assert self._stored(db).idp_access_token_expires_at.replace(tzinfo=UTC) == expires
+        assert self._stored(db).refresh_token == "new"
+        assert self._stored(db).access_token_expires_at.replace(tzinfo=UTC) == expires
         db.close()
 
     def test_a_replace_over_a_token_another_refresh_stored_is_dropped(self):
-        db = self._db_with_link("stored-by-another")
+        db = self._db_with_token("stored-by-another")
 
         assert (
-            identity_links_crud.replace_refresh_token_if_unchanged(7, 3, "old", "new", datetime.now(UTC), db) is False
+            identity_links_crud.replace_refresh_token_if_unchanged(SESSION, "old", "new", datetime.now(UTC), db)
+            is False
         )
-        assert self._stored(db).idp_refresh_token == "stored-by-another"
+        assert self._stored(db).refresh_token == "stored-by-another"
+        db.close()
+
+    def test_a_replace_of_another_sessions_token_changes_nothing(self):
+        db = self._db_with_token("mine", "s1")
+        identity_links_crud.create_idp_session_token("s2", 7, 3, "theirs", None, db)
+
+        assert identity_links_crud.replace_refresh_token_if_unchanged("s1", "mine", "new", datetime.now(UTC), db)
+        assert self._stored(db, "s2").refresh_token == "theirs"
         db.close()
 
     def test_a_clear_of_the_token_read_is_applied(self):
-        db = self._db_with_link(core_cryptography.encrypt_token_fernet("old"))
+        db = self._db_with_token(core_cryptography.encrypt_token_fernet("old"))
 
         assert (
             identity_links_crud.clear_refresh_token_if_unchanged(
-                7, 3, core_cryptography.encrypt_token_fernet("old"), db
+                SESSION, core_cryptography.encrypt_token_fernet("old"), db
             )
             is True
         )
-        assert self._stored(db).idp_refresh_token is None
+        assert self._stored(db).refresh_token is None
         db.close()
 
     def test_a_clear_never_wipes_a_token_another_refresh_stored(self):
-        db = self._db_with_link("stored-by-another")
+        db = self._db_with_token("stored-by-another")
 
-        assert identity_links_crud.clear_refresh_token_if_unchanged(7, 3, "old", db) is False
-        assert self._stored(db).idp_refresh_token == "stored-by-another"
+        assert identity_links_crud.clear_refresh_token_if_unchanged(SESSION, "old", db) is False
+        assert self._stored(db).refresh_token == "stored-by-another"
+        db.close()
+
+    def test_a_token_no_key_decrypts_is_cleared_by_its_own_ciphertext(self):
+        db = self._db_with_token("not-a-fernet-token")
+
+        assert identity_links_crud.clear_refresh_token_if_unchanged(SESSION, "not-a-fernet-token", db) is True
+        assert self._stored(db).refresh_token is None
+        db.close()
+
+    def test_a_delete_of_the_token_read_removes_the_row(self):
+        db = self._db_with_token(core_cryptography.encrypt_token_fernet("old"))
+
+        assert (
+            identity_links_crud.delete_idp_session_token_if_unchanged(
+                SESSION, core_cryptography.encrypt_token_fernet("old"), db
+            )
+            is True
+        )
+        assert self._stored(db) is None
+        db.close()
+
+    def test_a_delete_of_a_row_that_holds_no_token_removes_it(self):
+        db = self._db_with_token(None)
+
+        assert identity_links_crud.delete_idp_session_token_if_unchanged(SESSION, None, db) is True
+        assert self._stored(db) is None
+        db.close()
+
+    def test_a_delete_never_removes_a_token_another_refresh_stored(self):
+        db = self._db_with_token("stored-by-another")
+
+        assert identity_links_crud.delete_idp_session_token_if_unchanged(SESSION, "old", db) is False
+        assert self._stored(db).refresh_token == "stored-by-another"
+        db.close()
+
+    def test_a_delete_of_a_missing_row_does_nothing(self):
+        db = create_sqlite_session()
+
+        assert identity_links_crud.delete_idp_session_token_if_unchanged(SESSION, None, db) is False
         db.close()
 
 

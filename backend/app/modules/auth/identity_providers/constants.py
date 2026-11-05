@@ -12,6 +12,9 @@ ICON_STORAGE_AREA = "identity_provider_icons"
 #: How often the icon area is swept for blobs no provider names.
 ICON_SWEEP_INTERVAL_MINUTES = 1440
 
+#: How often the sign-ins of ended sessions that still hold a token are revoked at their provider.
+TOKEN_REVOCATION_SWEEP_INTERVAL_MINUTES = 15
+
 #: Largest accepted icon upload, in bytes. A provider logo is a small image shown to every visitor of the login page.
 ICON_MAX_BYTES = 1024 * 1024
 

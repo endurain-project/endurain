@@ -327,6 +327,56 @@ class TestResolveTokenEndpoint:
             service.resolve_token_endpoint(self._idp())
 
 
+class TestResolveRevocationEndpoint:
+    @staticmethod
+    def _idp(**overrides):
+        values = {"id": 5, "issuer_url": "https://idp.example.com"}
+        values.update(overrides)
+        idp = MagicMock(**values)
+        idp.name = "Test IdP"
+        return idp
+
+    def test_the_advertised_endpoint_is_used_and_guarded(self, service):
+        with (
+            patch.object(
+                service, "get_oidc_configuration", return_value={"revocation_endpoint": "https://idp.example.com/r"}
+            ),
+            patch("modules.auth.identity_providers.oidc_client_service.core_network.reject_private_url") as guard,
+        ):
+            assert service.resolve_revocation_endpoint(self._idp()) == "https://idp.example.com/r"
+        guard.assert_called_once_with("https://idp.example.com/r", purpose="oidc_revocation", require_tls=True)
+
+    @pytest.mark.parametrize("config", [{}, {"revocation_endpoint": ""}, {"revocation_endpoint": None}])
+    def test_a_document_without_a_revocation_endpoint_names_none(self, service, config):
+        with patch.object(service, "get_oidc_configuration", return_value=config):
+            assert service.resolve_revocation_endpoint(self._idp()) is None
+
+    def test_a_provider_without_an_issuer_has_no_discovery_to_ask(self, service):
+        with patch.object(service, "get_oidc_configuration") as discovery:
+            assert service.resolve_revocation_endpoint(self._idp(issuer_url=None)) is None
+        discovery.assert_not_called()
+
+    def test_an_unavailable_discovery_document_is_upstream(self, service):
+        with (
+            patch.object(service, "get_oidc_configuration", return_value=None),
+            pytest.raises(core_exceptions.UpstreamError),
+        ):
+            service.resolve_revocation_endpoint(self._idp())
+
+    def test_an_endpoint_the_ssrf_guard_refuses_is_not_returned(self, service):
+        with (
+            patch.object(
+                service, "get_oidc_configuration", return_value={"revocation_endpoint": "https://10.0.0.1/revoke"}
+            ),
+            patch(
+                "modules.auth.identity_providers.oidc_client_service.core_network.reject_private_url",
+                side_effect=core_exceptions.InvalidInputError("private"),
+            ),
+            pytest.raises(core_exceptions.InvalidInputError),
+        ):
+            service.resolve_revocation_endpoint(self._idp())
+
+
 class TestForgetDiscovery:
     def test_it_deletes_the_cached_document(self, service, state_provider):
         key = service._discovery_key(9)

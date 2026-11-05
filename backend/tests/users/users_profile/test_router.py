@@ -1109,8 +1109,6 @@ class TestGetMyIdentityProviders:
             "idp_subject": "sub",
             "linked_at": "2025-01-01T00:00:00",
             "last_login": None,
-            "idp_access_token_expires_at": None,
-            "idp_refresh_token_updated_at": None,
             "idp_name": "TestIdP",
             "idp_slug": "testidp",
             "idp_icon": "icon.png",

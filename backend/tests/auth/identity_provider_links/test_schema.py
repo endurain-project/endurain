@@ -10,7 +10,6 @@ from modules.auth.identity_provider_links.schema import (
     UsersIdentityProviderBase,
     UsersIdentityProviderCreate,
     UsersIdentityProviderRead,
-    UsersIdentityProviderTokenUpdate,
 )
 
 
@@ -223,8 +222,6 @@ class TestUserIdentityProviderRead:
             "idp_subject": "user123@example.com",
             "linked_at": now,
             "last_login": now,
-            "idp_access_token_expires_at": now,
-            "idp_refresh_token_updated_at": now,
         }
 
         # Act
@@ -233,8 +230,6 @@ class TestUserIdentityProviderRead:
         # Assert
         assert obj.id == 1
         assert obj.last_login == now
-        assert obj.idp_access_token_expires_at == now
-        assert obj.idp_refresh_token_updated_at == now
 
     def test_user_identity_provider_read_missing_linked_at(self):
         """Test validation error when linked_at is missing.
@@ -330,8 +325,6 @@ class TestUserIdentityProviderResponse:
             idp_subject = "user123@example.com"
             linked_at = datetime.now(UTC)
             last_login = None
-            idp_access_token_expires_at = None
-            idp_refresh_token_updated_at = None
 
         # Act
         obj = IdentityProviderLinkRead.model_validate(MockORM())
@@ -341,63 +334,9 @@ class TestUserIdentityProviderResponse:
         assert obj.idp_subject == "user123@example.com"
 
 
-class TestUserIdentityProviderTokenUpdate:
-    """Test suite for UsersIdentityProviderTokenUpdate schema."""
+class TestLinkReadHoldsNoTokenMetadata:
+    """The link carries no token data: tokens belong to sessions."""
 
-    def test_user_identity_provider_token_update_valid_minimal(self):
-        """Test creating UsersIdentityProviderTokenUpdate with no fields.
-
-        Asserts:
-            - All fields are optional
-            - Empty object is valid
-        """
-        # Arrange
-        data = {}
-
-        # Act
-        obj = UsersIdentityProviderTokenUpdate(**data)
-
-        # Assert
-        assert obj.idp_refresh_token is None
-        assert obj.idp_access_token_expires_at is None
-        assert obj.idp_refresh_token_updated_at is None
-
-    def test_user_identity_provider_token_update_valid_all_fields(self):
-        """Test creating TokenUpdate with all fields.
-
-        Asserts:
-            - All fields are properly stored
-        """
-        # Arrange
-        now = datetime.now(UTC)
-        data = {
-            "idp_refresh_token": "encrypted_token_xyz",
-            "idp_access_token_expires_at": now,
-            "idp_refresh_token_updated_at": now,
-        }
-
-        # Act
-        obj = UsersIdentityProviderTokenUpdate(**data)
-
-        # Assert
-        assert obj.idp_refresh_token == "encrypted_token_xyz"
-        assert obj.idp_access_token_expires_at == now
-        assert obj.idp_refresh_token_updated_at == now
-
-    def test_user_identity_provider_token_update_extra_fields_forbidden(self):
-        """Test that extra fields are not allowed.
-
-        Asserts:
-            - ValidationError is raised for extra fields
-        """
-        # Arrange
-        data = {
-            "idp_refresh_token": "token",
-            "extra_field": "should_fail",
-        }
-
-        # Act & Assert
-        with pytest.raises(ValidationError) as exc_info:
-            UsersIdentityProviderTokenUpdate(**data)
-
-        assert "extra_field" in str(exc_info.value)
+    def test_a_link_has_no_token_fields(self):
+        assert not {name for name in UsersIdentityProviderRead.model_fields if "token" in name}
+        assert not {name for name in IdentityProviderLinkRead.model_fields if "token" in name}

@@ -152,3 +152,35 @@ def test_csrf_hash_and_oauth_reference_updates_are_staged(mock_db):
     sessions_crud.update_session_csrf_hash("session-id", "csrf-hash", mock_db)
     assert mock_db.execute.call_count == 2
     mock_db.commit.assert_not_called()
+
+
+def test_existing_session_ids_names_only_the_sessions_that_still_exist():
+    from tests._helpers.db import create_sqlite_session
+
+    db = create_sqlite_session()
+    now = datetime.now(UTC)
+    for session_id in ("s1", "s2"):
+        db.add(
+            sessions_models.UsersSessions(
+                id=session_id,
+                user_id=7,
+                refresh_token="hash",
+                ip_address="127.0.0.1",
+                device_type="PC",
+                operating_system="Linux",
+                operating_system_version="1",
+                browser="Firefox",
+                browser_version="1",
+                created_at=now,
+                last_activity_at=now,
+                expires_at=now + timedelta(days=1),
+                tokens_exchanged=True,
+                token_family_id=session_id,
+                rotation_count=0,
+            )
+        )
+    db.commit()
+
+    assert sessions_crud.get_existing_session_ids(["s1", "gone"], db) == {"s1"}
+    assert sessions_crud.get_existing_session_ids([], db) == set()
+    db.close()

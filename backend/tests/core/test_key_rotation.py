@@ -194,15 +194,15 @@ class TestModuleWiring:
 
     def test_identity_provider_links(self, db, rotating_keys):
         db.execute(
-            insert(identity_link_models.IdentityLink).values(
-                id=1, user_id=1, idp_id=1, idp_subject="subject", idp_refresh_token=_token(OLD_KEY, "refresh")
+            insert(identity_link_models.IdpSessionToken).values(
+                id=1, session_id="session-1", user_id=1, idp_id=1, refresh_token=_token(OLD_KEY, "refresh")
             )
         )
         db.commit()
 
         identity_links_service.reencrypt_stored_secrets(db)
 
-        stored = db.execute(select(identity_link_models.IdentityLink.idp_refresh_token)).scalar_one()
+        stored = db.execute(select(identity_link_models.IdpSessionToken.refresh_token)).scalar_one()
         assert _plain(stored) == "refresh"
         Fernet(NEW_KEY.encode()).decrypt(stored.encode())
 
@@ -293,8 +293,8 @@ class TestTokenSwapsSurviveRotation:
 
     def _link_row(self, db, stored):
         db.execute(
-            insert(identity_link_models.IdentityLink).values(
-                id=1, user_id=1, idp_id=1, idp_subject="subject", idp_refresh_token=stored
+            insert(identity_link_models.IdpSessionToken).values(
+                id=1, session_id="session-1", user_id=1, idp_id=1, refresh_token=stored
             )
         )
         db.commit()
@@ -334,31 +334,33 @@ class TestTokenSwapsSurviveRotation:
         self._link_row(db, self._rotate(read))
         replacement = _token(NEW_KEY, "next")
 
-        assert identity_links_crud.replace_refresh_token_if_unchanged(1, 1, read, replacement, datetime.now(UTC), db)
-        assert db.execute(select(identity_link_models.IdentityLink.idp_refresh_token)).scalar_one() == replacement
+        assert identity_links_crud.replace_refresh_token_if_unchanged(
+            "session-1", read, replacement, datetime.now(UTC), db
+        )
+        assert db.execute(select(identity_link_models.IdpSessionToken.refresh_token)).scalar_one() == replacement
 
     def test_idp_replace_with_other_token_fails(self, db, rotating_keys):
         stored = _token(NEW_KEY, "refresh")
         self._link_row(db, stored)
 
         assert not identity_links_crud.replace_refresh_token_if_unchanged(
-            1, 1, _token(OLD_KEY, "other"), _token(NEW_KEY, "next"), datetime.now(UTC), db
+            "session-1", _token(OLD_KEY, "other"), _token(NEW_KEY, "next"), datetime.now(UTC), db
         )
-        assert db.execute(select(identity_link_models.IdentityLink.idp_refresh_token)).scalar_one() == stored
+        assert db.execute(select(identity_link_models.IdpSessionToken.refresh_token)).scalar_one() == stored
 
     def test_idp_clear_after_rotation(self, db, rotating_keys):
         read = _token(OLD_KEY, "refresh")
         self._link_row(db, self._rotate(read))
 
-        assert identity_links_crud.clear_refresh_token_if_unchanged(1, 1, read, db)
-        assert db.execute(select(identity_link_models.IdentityLink.idp_refresh_token)).scalar_one() is None
+        assert identity_links_crud.clear_refresh_token_if_unchanged("session-1", read, db)
+        assert db.execute(select(identity_link_models.IdpSessionToken.refresh_token)).scalar_one() is None
 
     def test_idp_clear_with_other_token_fails(self, db, rotating_keys):
         stored = _token(NEW_KEY, "refresh")
         self._link_row(db, stored)
 
-        assert not identity_links_crud.clear_refresh_token_if_unchanged(1, 1, _token(OLD_KEY, "other"), db)
-        assert db.execute(select(identity_link_models.IdentityLink.idp_refresh_token)).scalar_one() == stored
+        assert not identity_links_crud.clear_refresh_token_if_unchanged("session-1", _token(OLD_KEY, "other"), db)
+        assert db.execute(select(identity_link_models.IdpSessionToken.refresh_token)).scalar_one() == stored
 
     def _garmin_row(self, db, stored):
         db.execute(

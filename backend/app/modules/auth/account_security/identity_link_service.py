@@ -20,6 +20,7 @@ import modules.auth.identity_providers.constants as identity_providers_constants
 import modules.auth.identity_providers.contracts as identity_providers_contracts
 import modules.auth.identity_providers.integration_service as identity_providers_integration
 import modules.auth.identity_providers.schema as identity_providers_schema
+import modules.auth.sessions.audit_actions as sessions_audit_actions
 import modules.users.users.schema as users_schema
 
 logger = core_logger.get_logger(__name__)
@@ -143,7 +144,10 @@ def start_idp_step_up(
 
 
 def _stage_unlink(user_id: int, idp_id: int, db: Session) -> None:
-    """Stage the audit row and the event of an identity provider unlinked from an account.
+    """Stage the audit rows and the event of an identity provider unlinked from an account.
+
+    Every session the user signed in to through the provider ends with the link, which is audited as a
+    session revocation of its own.
 
     Args:
         user_id: ID of the user whose account lost the link.
@@ -158,6 +162,16 @@ def _stage_unlink(user_id: int, idp_id: int, db: Session) -> None:
         target_owner_id=str(user_id),
         details=account_security_audit_actions.IdentityLinkDetails(idp_id=idp_id),
     )
+    ended = identity_provider_links_integration.end_idp_sessions(user_id, idp_id, db)
+    if ended:
+        jasil_audit.stage(
+            db,
+            sessions_audit_actions.SESSION_REVOKE,
+            target_type="user",
+            target_id=str(user_id),
+            target_owner_id=str(user_id),
+            details=sessions_audit_actions.SessionsRevokedDetails(sessions_revoked=ended),
+        )
     account_security_event_publishers.publish_account_security_changed(
         user_id, account_security_events.AccountSecurityChange.IDENTITY_PROVIDER_UNLINKED, db, idp_id=idp_id
     )

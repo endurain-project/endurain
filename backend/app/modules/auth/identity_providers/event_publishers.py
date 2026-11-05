@@ -7,14 +7,15 @@ import core.event_metadata as core_event_metadata
 import modules.auth.identity_providers.events as idp_events
 
 
-def publish_idp_token_refresh_requested(user_id: int, db: Session) -> None:
+def publish_idp_token_refresh_requested(user_id: int, session_id: str, db: Session) -> None:
     """Stage ``auth.idp_token_refresh_requested`` in the caller's transaction.
 
     Args:
-        user_id: The user whose identity-provider tokens are to be refreshed.
+        user_id: The user whose identity-provider token is to be refreshed.
+        session_id: The session whose sign-in token is to be refreshed.
         db: The producer's DB session; the event is published when it commits.
     """
-    payload = idp_events.IdpTokenRefreshPayload(user_id=user_id)
+    payload = idp_events.IdpTokenRefreshPayload(user_id=user_id, session_id=session_id)
     platform_publisher.publish_on_commit(
         idp_events.IDP_TOKEN_REFRESH_REQUESTED,
         payload.model_dump(),

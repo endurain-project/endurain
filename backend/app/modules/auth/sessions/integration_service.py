@@ -1,5 +1,6 @@
 """Session operations exposed to auth peers."""
 
+from collections.abc import Sequence
 from datetime import datetime
 
 from sqlalchemy.orm import Session
@@ -33,6 +34,11 @@ def parse_user_agent(user_agent: str) -> sessions_contracts.DeviceInfo:
 def get_session_by_id_not_expired(session_id: str, db: Session) -> sessions_contracts.SessionRead | None:
     """Return an unexpired session by ID."""
     return sessions_crud.get_session_by_id_not_expired(session_id, db)
+
+
+def get_existing_session_ids(session_ids: Sequence[str], db: Session) -> set[str]:
+    """Return which of the given session ids still name a session."""
+    return sessions_crud.get_existing_session_ids(session_ids, db)
 
 
 def get_session_with_oauth_state(

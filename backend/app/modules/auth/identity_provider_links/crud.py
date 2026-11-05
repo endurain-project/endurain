@@ -118,128 +118,6 @@ def update_user_identity_provider_last_login(
     return identity_link_serializers.to_read_schema(row)
 
 
-def store_user_identity_provider_tokens(
-    user_id: int,
-    idp_id: int,
-    encrypted_refresh_token: str,
-    access_token_expires_at: datetime,
-    db: Session,
-) -> identity_link_contracts.IdentityLinkRead | None:
-    """Stage encrypted provider-token metadata on a link."""
-    row = db.execute(
-        select(identity_link_models.IdentityLink).where(
-            identity_link_models.IdentityLink.user_id == user_id,
-            identity_link_models.IdentityLink.idp_id == idp_id,
-        )
-    ).scalar_one_or_none()
-    if row is None:
-        return None
-    row.idp_refresh_token = encrypted_refresh_token
-    row.idp_access_token_expires_at = access_token_expires_at
-    row.idp_refresh_token_updated_at = datetime.now(UTC)
-    db.flush()
-    return identity_link_serializers.to_read_schema(row)
-
-
-def clear_user_identity_provider_refresh_token_by_user_id_and_idp_id(
-    user_id: int,
-    idp_id: int,
-    db: Session,
-) -> bool:
-    """Stage removal of stored provider-token metadata."""
-    row = db.execute(
-        select(identity_link_models.IdentityLink).where(
-            identity_link_models.IdentityLink.user_id == user_id,
-            identity_link_models.IdentityLink.idp_id == idp_id,
-        )
-    ).scalar_one_or_none()
-    if row is None:
-        return False
-    row.idp_refresh_token = None
-    row.idp_access_token_expires_at = None
-    row.idp_refresh_token_updated_at = None
-    db.flush()
-    return True
-
-
-def _lock_link_holding_token(
-    user_id: int, idp_id: int, expected_refresh_token: str, db: Session
-) -> identity_link_models.IdentityLink | None:
-    """Lock a link and return it only while its refresh token is the one the caller read.
-
-    The comparison is on what the tokens decrypt to, so a re-encryption under a new key is not a change.
-
-    Args:
-        user_id: The link's user.
-        idp_id: The link's provider.
-        expected_refresh_token: The encrypted refresh token the caller read.
-        db: Database session.
-
-    Returns:
-        The locked link, or None when it is gone or holds another token now.
-    """
-    model = identity_link_models.IdentityLink
-    link = db.execute(
-        select(model).where(model.user_id == user_id, model.idp_id == idp_id).with_for_update()
-    ).scalar_one_or_none()
-    if link is None or not core_cryptography.same_secret(link.idp_refresh_token, expected_refresh_token):
-        return None
-    return link
-
-
-def replace_refresh_token_if_unchanged(
-    user_id: int,
-    idp_id: int,
-    expected_refresh_token: str,
-    encrypted_refresh_token: str,
-    access_token_expires_at: datetime,
-    db: Session,
-) -> bool:
-    """Stage new provider-token metadata only while the link still holds the token that was read.
-
-    Args:
-        user_id: The link's user.
-        idp_id: The link's provider.
-        expected_refresh_token: The encrypted refresh token the caller read; compared by what it decrypts to.
-        encrypted_refresh_token: The encrypted refresh token to store.
-        access_token_expires_at: When the new access token expires.
-        db: Database session.
-
-    Returns:
-        True when the token was replaced, False when the link holds another one now.
-    """
-    link = _lock_link_holding_token(user_id, idp_id, expected_refresh_token, db)
-    if link is None:
-        return False
-    link.idp_refresh_token = encrypted_refresh_token
-    link.idp_access_token_expires_at = access_token_expires_at
-    link.idp_refresh_token_updated_at = datetime.now(UTC)
-    db.flush()
-    return True
-
-
-def clear_refresh_token_if_unchanged(user_id: int, idp_id: int, expected_refresh_token: str, db: Session) -> bool:
-    """Stage removal of provider-token metadata only while the link still holds the token that was read.
-
-    Args:
-        user_id: The link's user.
-        idp_id: The link's provider.
-        expected_refresh_token: The encrypted refresh token the caller read; compared by what it decrypts to.
-        db: Database session.
-
-    Returns:
-        True when the token was cleared, False when the link holds another one now.
-    """
-    link = _lock_link_holding_token(user_id, idp_id, expected_refresh_token, db)
-    if link is None:
-        return False
-    link.idp_refresh_token = None
-    link.idp_access_token_expires_at = None
-    link.idp_refresh_token_updated_at = None
-    db.flush()
-    return True
-
-
 def delete_user_identity_provider(user_id: int, idp_id: int, db: Session) -> bool:
     """Stage deletion of a user's identity-provider link."""
     matched = core_database.rowcount(
@@ -268,7 +146,150 @@ def get_identity_link_counts_for_users(user_ids: list[int], db: Session) -> dict
     return {user_id: count for user_id, count in db.execute(statement).all()}
 
 
-def stage_reencrypt_batch_links(after_id: int, limit: int, db: Session) -> core_key_rotation.BatchResult:
-    """Stage the re-encryption of up to ``limit`` links rows after ``after_id`` (flushed, not committed)."""
-    model = identity_link_models.IdentityLink
-    return core_key_rotation.stage_reencrypt_batch(model, model.id, (model.idp_refresh_token,), after_id, limit, db)
+def create_idp_session_token(
+    session_id: str,
+    user_id: int,
+    idp_id: int,
+    encrypted_refresh_token: str | None,
+    access_token_expires_at: datetime | None,
+    db: Session,
+) -> identity_link_contracts.IdpSessionTokenRead:
+    """Stage the identity-provider sign-in behind a session, with the encrypted refresh token when one was issued."""
+    row = identity_link_models.IdpSessionToken(
+        session_id=session_id,
+        user_id=user_id,
+        idp_id=idp_id,
+        refresh_token=encrypted_refresh_token,
+        access_token_expires_at=access_token_expires_at,
+        refresh_token_updated_at=datetime.now(UTC) if encrypted_refresh_token is not None else None,
+    )
+    db.add(row)
+    db.flush()
+    db.refresh(row)
+    return identity_link_serializers.to_session_token_read_schema(row)
+
+
+def get_idp_session_token(session_id: str, db: Session) -> identity_link_contracts.IdpSessionTokenRead | None:
+    """Return the identity-provider sign-in behind a session, if it signed in through one."""
+    model = identity_link_models.IdpSessionToken
+    row = db.execute(select(model).where(model.session_id == session_id)).scalar_one_or_none()
+    return identity_link_serializers.to_session_token_read_schema(row) if row is not None else None
+
+
+def get_idp_session_token_ids_by_user_and_idp(user_id: int, idp_id: int, db: Session) -> list[str]:
+    """Return the ids of the sessions the user signed in to through the provider."""
+    model = identity_link_models.IdpSessionToken
+    return list(db.execute(select(model.session_id).where(model.user_id == user_id, model.idp_id == idp_id)).scalars())
+
+
+def get_idp_session_tokens_page(
+    after_id: int, limit: int, db: Session, *, user_id: int | None = None
+) -> list[identity_link_contracts.IdpSessionTokenRead]:
+    """Return up to ``limit`` identity-provider sign-ins after ``after_id``, in id order, optionally one user's."""
+    model = identity_link_models.IdpSessionToken
+    stmt = select(model).where(model.id > after_id).order_by(model.id).limit(limit)
+    if user_id is not None:
+        stmt = stmt.where(model.user_id == user_id)
+    return [identity_link_serializers.to_session_token_read_schema(row) for row in db.execute(stmt).scalars()]
+
+
+def _lock_session_token_holding(
+    session_id: str, expected_refresh_token: str | None, db: Session
+) -> identity_link_models.IdpSessionToken | None:
+    """Lock a session's sign-in and return it only while its refresh token is the one the caller read.
+
+    The comparison is on what the tokens decrypt to, so a re-encryption under a new key is not a change; a
+    token no configured key decrypts matches only itself.
+
+    Args:
+        session_id: The session whose sign-in to lock.
+        expected_refresh_token: The encrypted refresh token the caller read, or None when it read none.
+        db: Database session.
+
+    Returns:
+        The locked row, or None when it is gone or holds another token now.
+    """
+    model = identity_link_models.IdpSessionToken
+    row = db.execute(select(model).where(model.session_id == session_id).with_for_update()).scalar_one_or_none()
+    if row is None:
+        return None
+    if row.refresh_token == expected_refresh_token or core_cryptography.same_secret(
+        row.refresh_token, expected_refresh_token
+    ):
+        return row
+    return None
+
+
+def replace_refresh_token_if_unchanged(
+    session_id: str,
+    expected_refresh_token: str,
+    encrypted_refresh_token: str,
+    access_token_expires_at: datetime,
+    db: Session,
+) -> bool:
+    """Stage new provider-token metadata only while the session still holds the token that was read.
+
+    Args:
+        session_id: The session whose token to replace.
+        expected_refresh_token: The encrypted refresh token the caller read; compared by what it decrypts to.
+        encrypted_refresh_token: The encrypted refresh token to store.
+        access_token_expires_at: When the new access token expires.
+        db: Database session.
+
+    Returns:
+        True when the token was replaced, False when the session holds another one now.
+    """
+    row = _lock_session_token_holding(session_id, expected_refresh_token, db)
+    if row is None:
+        return False
+    row.refresh_token = encrypted_refresh_token
+    row.access_token_expires_at = access_token_expires_at
+    row.refresh_token_updated_at = datetime.now(UTC)
+    db.flush()
+    return True
+
+
+def clear_refresh_token_if_unchanged(session_id: str, expected_refresh_token: str, db: Session) -> bool:
+    """Stage removal of provider-token metadata only while the session still holds the token that was read.
+
+    Args:
+        session_id: The session whose token to clear.
+        expected_refresh_token: The encrypted refresh token the caller read; compared by what it decrypts to.
+        db: Database session.
+
+    Returns:
+        True when the token was cleared, False when the session holds another one now.
+    """
+    row = _lock_session_token_holding(session_id, expected_refresh_token, db)
+    if row is None:
+        return False
+    row.refresh_token = None
+    row.access_token_expires_at = None
+    row.refresh_token_updated_at = None
+    db.flush()
+    return True
+
+
+def delete_idp_session_token_if_unchanged(session_id: str, expected_refresh_token: str | None, db: Session) -> bool:
+    """Stage deletion of a session's sign-in only while it still holds the token that was read.
+
+    Args:
+        session_id: The session whose sign-in to delete.
+        expected_refresh_token: The encrypted refresh token the caller read, or None when it read none.
+        db: Database session.
+
+    Returns:
+        True when the row was deleted, False when it is gone or holds another token now.
+    """
+    row = _lock_session_token_holding(session_id, expected_refresh_token, db)
+    if row is None:
+        return False
+    db.delete(row)
+    db.flush()
+    return True
+
+
+def stage_reencrypt_batch_session_tokens(after_id: int, limit: int, db: Session) -> core_key_rotation.BatchResult:
+    """Stage the re-encryption of up to ``limit`` session-token rows after ``after_id`` (flushed, not committed)."""
+    model = identity_link_models.IdpSessionToken
+    return core_key_rotation.stage_reencrypt_batch(model, model.id, (model.refresh_token,), after_id, limit, db)

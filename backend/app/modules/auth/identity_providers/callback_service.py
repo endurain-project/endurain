@@ -1,7 +1,7 @@
 """The end of an SSO login, link or step-up flow: the provider's callback, user matching and session creation."""
 
 import hmac
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from datetime import UTC, datetime, timedelta
 from typing import Any, Literal
 from urllib.parse import quote
@@ -53,12 +53,15 @@ class CallbackResult:
         userinfo: The claims the provider returned for the user.
         mode: Whether the callback signed the user in or linked the provider.
         redirect_path: Where the frontend sends the user after a sign-in, when the flow named one.
+        token_response: The provider's token response of a sign-in, kept for the session it creates; empty for a
+            link, which creates no session. It holds secrets, so it is left out of the representation.
     """
 
     user: users_schema.UsersRead
     userinfo: dict[str, Any]
     mode: Literal["login", "link"]
     redirect_path: str | None = None
+    token_response: dict[str, Any] = field(default_factory=dict, repr=False)
 
 
 class CallbackService:
@@ -241,7 +244,9 @@ class CallbackService:
                 )
 
             # Login: a session without tokens, which the token exchange completes after PKCE.
-            session_id = self.create_callback_session(user, ip_address, user_agent, password_hasher, oauth_state.id, db)
+            session_id = self.create_callback_session(
+                user, ip_address, user_agent, password_hasher, oauth_state.id, idp.id, result.token_response, db
+            )
             redirect_url = f"{self._frontend_host}/login?sso=success&session_id={session_id}"
             redirect_path = result.redirect_path
             if redirect_path:
@@ -343,7 +348,7 @@ class CallbackService:
             - State parameter must be valid and not older than 10 minutes (CSRF protection)
             - In link mode, validates that the IdP account is not already linked to any user
             - In login mode, creates new user accounts if they don't exist (SSO provisioning)
-            - Stores IdP tokens securely for future session renewal
+            - In login mode, returns the provider's tokens so the session that signs the user in stores them
             - OIDC providers must return an ID token that verifies against the discovered issuer and signing keys
             - Cleans up OAuth state from database after successful completion
         """
@@ -490,9 +495,6 @@ class CallbackService:
                 if idp.sync_user_info:
                     user = user_provisioning_service.update_user_from_idp(user, idp, userinfo, db)
 
-                # Store IdP tokens for future use
-                self._tokens.store_idp_tokens(link_user_id, idp.id, token_response, db)
-
                 logger.info(
                     "User <username_log_id> (id=<link_user_id>) linked IdP <name> (subject=<subject>)",
                     extra=core_logger.context(
@@ -517,11 +519,8 @@ class CallbackService:
                     )
                     raise
 
-                # A new account awaiting verification or approval has no session to renew; it is committed so the
-                # administrator sees it, and the sign-in is refused when the session is created.
-                if user.active:
-                    self._tokens.store_idp_tokens(user.id, idp.id, token_response, db)
-
+                # A new account awaiting verification or approval is committed so the administrator sees it, and
+                # the sign-in is refused when the session is created; the tokens are stored with that session.
                 db.commit()
                 logger.info(
                     "User <username_log_id> authenticated via IdP <name>",
@@ -530,7 +529,13 @@ class CallbackService:
                     ),
                 )
 
-                return CallbackResult(user=user, userinfo=userinfo, mode="login", redirect_path=redirect_path)
+                return CallbackResult(
+                    user=user,
+                    userinfo=userinfo,
+                    mode="login",
+                    redirect_path=redirect_path,
+                    token_response=token_response,
+                )
 
         except core_exceptions.DomainError:
             # Re-raise domain errors as-is (already have proper status codes and messages)
@@ -790,9 +795,30 @@ class CallbackService:
         user_agent: str,
         password_hasher: credentials_integration.PasswordHasher,
         oauth_state_id: str,
+        idp_id: int,
+        token_response: dict[str, Any],
         db: Session,
     ) -> str:
-        """Create the token-exchange session for a successful SSO login."""
+        """Create the token-exchange session for a successful SSO login, with the provider tokens it signed in with.
+
+        The session and the provider's sign-in are committed together.
+
+        Args:
+            user: The user who signed in.
+            ip_address: Client address, recorded on the session.
+            user_agent: Client user agent, recorded on the session.
+            password_hasher: Hasher for the session's refresh token.
+            oauth_state_id: The OAuth state the token exchange will validate.
+            idp_id: The provider the user signed in through.
+            token_response: The provider's token response.
+            db: Database session.
+
+        Returns:
+            The new session's id.
+
+        Raises:
+            PermissionDeniedError: If the account is not active.
+        """
         try:
             users_integration.require_active_user(user)
         except core_exceptions.PermissionDeniedError:
@@ -814,6 +840,7 @@ class CallbackService:
             db,
             oauth_state_id=oauth_state_id,
         )
+        self._tokens.store_session_tokens(session_id, user_read.id, idp_id, token_response, db)
         db.commit()
         logger.debug("SSO callback session created", extra=core_logger.context(user_id=user_read.id))
         return session_id

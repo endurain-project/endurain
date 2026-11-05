@@ -9017,11 +9017,6 @@ export interface components {
              */
             id: number;
             /**
-             * Idp Access Token Expires At
-             * @description Access token expiry
-             */
-            idp_access_token_expires_at?: string | null;
-            /**
              * Idp Icon
              * @description Identity provider icon
              */
@@ -9047,11 +9042,6 @@ export interface components {
              * @description Provider type
              */
             idp_provider_type?: string | null;
-            /**
-             * Idp Refresh Token Updated At
-             * @description Last refresh token update
-             */
-            idp_refresh_token_updated_at?: string | null;
             /**
              * Idp Slug
              * @description Identity provider slug

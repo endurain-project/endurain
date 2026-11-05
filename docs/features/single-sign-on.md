@@ -164,6 +164,18 @@ Save the generated **Client ID** and **Client Secret**.
 3. Verify that a **Sign in with `Provider Name`** button appears
 4. Test the authentication flow
 
+## What Endurain does with the provider's tokens
+
+Each time you sign in through a provider, Endurain keeps the refresh token the provider issued for that sign-in, encrypted, together with the Endurain session it created. A second device signed in through the same provider has its own token. Linking a provider to an existing account does not sign you in, so it stores no token.
+
+- **Refreshing.** The token is renewed in the background as your Endurain session is refreshed, never during a request. If the provider is unreachable or fails, the token is kept and the next refresh tries again.
+- **A refused refresh ends that sign-in.** When the provider refuses the refresh token (for example because you were removed from the provider or revoked the application there), Endurain signs out that one session and records it in the audit trail. Your other sessions are not affected. A token that Endurain can no longer decrypt, such as after a lost encryption key, is dropped without ending the session.
+- **Signing out revokes the token.** Signing out, revoking a session, changing or resetting the password, deactivating the account and a detected refresh-token reuse all end Endurain sessions. For each one Endurain asks the provider to revoke the session's refresh token ([RFC 7009](https://datatracker.ietf.org/doc/html/rfc7009)), when the provider advertises a `revocation_endpoint` in its discovery document, and then forgets it. A provider without one is not asked. If the provider cannot be reached, Endurain tries again every 15 minutes. Sessions that simply expire are handled by the same job.
+- **Unlinking a provider signs out its sessions.** Unlinking a provider, yourself or as an administrator, ends every session of that user that signed in through it, including your current one when it did, and revokes their tokens.
+- **Sessions from before the upgrade** keep working until they expire, but are not refreshed against the provider and have no token to revoke.
+
+Deleting an account, or an identity provider, removes the stored tokens with it without asking the provider to revoke them.
+
 ## Accounts with MFA enabled
 
 Signing in through your identity provider does not replace the multi-factor authentication you set up in Endurain. If your account has MFA enabled, Endurain asks for your authentication code (or a backup code) after the provider signs you in, and only then finishes the login. Wrong codes count toward the same lockout as the password login. Accounts without MFA sign in as before.

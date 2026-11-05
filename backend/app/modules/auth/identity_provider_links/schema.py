@@ -51,14 +51,11 @@ class UsersIdentityProviderRead(UsersIdentityProviderBase):
     """Schema for reading user identity provider links.
 
     Extends base with identifier and timestamp fields.
-    Refresh token is excluded for security.
 
     Attributes:
         id: Unique identifier for the link.
         linked_at: When this IdP was linked.
         last_login: Last login using this IdP.
-        idp_access_token_expires_at: Access token expiry.
-        idp_refresh_token_updated_at: Last refresh token update.
     """
 
     id: StrictInt = Field(..., description="Link ID")
@@ -66,14 +63,6 @@ class UsersIdentityProviderRead(UsersIdentityProviderBase):
     last_login: datetime | None = Field(
         default=None,
         description="Last login using this IdP",
-    )
-    idp_access_token_expires_at: datetime | None = Field(
-        default=None,
-        description="Access token expiry",
-    )
-    idp_refresh_token_updated_at: datetime | None = Field(
-        default=None,
-        description="Last refresh token update",
     )
 
 
@@ -110,38 +99,6 @@ class IdentityProviderLinkRead(UsersIdentityProviderRead):
     idp_provider_type: StrictStr | None = Field(
         default=None,
         description="Provider type",
-    )
-
-
-class UsersIdentityProviderTokenUpdate(BaseModel):
-    """Internal schema for updating IdP token data.
-
-    Used only by service layer, never exposed via API.
-    Refresh token must be encrypted before storage.
-
-    Attributes:
-        idp_refresh_token: Encrypted refresh token.
-        idp_access_token_expires_at: Access token expiry.
-        idp_refresh_token_updated_at: Last refresh token update.
-    """
-
-    idp_refresh_token: StrictStr | None = Field(
-        default=None,
-        description="Encrypted refresh token",
-    )
-    idp_access_token_expires_at: datetime | None = Field(
-        default=None,
-        description="Access token expiry",
-    )
-    idp_refresh_token_updated_at: datetime | None = Field(
-        default=None,
-        description="Last refresh token update",
-    )
-
-    model_config = ConfigDict(
-        from_attributes=True,
-        extra="forbid",
-        validate_assignment=True,
     )
 
 

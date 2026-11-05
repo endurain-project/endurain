@@ -9,6 +9,8 @@ import pytest
 import core.exceptions as core_exceptions
 import modules.auth.authentication.refresh_service as authentication_service_refresh_service
 import modules.auth.authentication.service as authentication_service
+import modules.auth.identity_provider_links.crud as identity_links_crud
+from tests._helpers.db import create_sqlite_session
 
 _SERVICE = "modules.auth.authentication.service"
 _OLD_EXP = datetime(2026, 11, 28, tzinfo=UTC)
@@ -69,7 +71,7 @@ def test_a_rotation_records_the_presented_tokens_own_expiry(mock_db):
             f"{_SERVICE}.sessions_integration.edit_session",
             return_value=SimpleNamespace(expires_at=datetime(2027, 1, 1, tzinfo=UTC)),
         ),
-        patch(f"{_SERVICE}.identity_providers_integration.request_idp_token_refresh"),
+        patch("modules.auth.authentication.refresh_service.identity_providers_integration.request_idp_token_refresh"),
     ):
         authentication_service_refresh_service.refresh_token(
             "127.0.0.1", "agent", 1, "sid", "old", _OLD_EXP, hasher, MagicMock(), "mobile", mock_db
@@ -97,7 +99,7 @@ def test_a_rotation_reports_the_sessions_capped_expiry_for_the_body_and_the_cook
         patch("modules.auth.authentication.token_service.create_tokens", return_value=tokens),
         patch("modules.auth.authentication.refresh_service.rotated_refresh_tokens_integration.store_rotated_token"),
         patch(f"{_SERVICE}.sessions_integration.edit_session", return_value=SimpleNamespace(expires_at=session_expiry)),
-        patch(f"{_SERVICE}.identity_providers_integration.request_idp_token_refresh"),
+        patch("modules.auth.authentication.refresh_service.identity_providers_integration.request_idp_token_refresh"),
     ):
         outcome = authentication_service_refresh_service.refresh_token(
             "127.0.0.1", "agent", 1, "sid", "old", _OLD_EXP, hasher, MagicMock(), "web", mock_db
@@ -113,9 +115,28 @@ def test_logout_commits_the_session_deletion(mock_db):
     with (
         patch(f"{_SERVICE}.sessions_integration.get_session_by_id_not_expired", return_value=_session()),
         patch(f"{_SERVICE}.sessions_integration.delete_session") as delete_session,
-        patch(f"{_SERVICE}.identity_providers_integration.clear_all_idp_tokens"),
     ):
         authentication_service.logout("sid", "rt", 1, hasher, mock_db)
 
     delete_session.assert_called_once_with("sid", 1, mock_db)
-    assert mock_db.commit.call_count == 2
+    mock_db.commit.assert_called_once()
+
+
+def test_a_logout_leaves_the_identity_provider_tokens_of_the_users_other_sessions_alone():
+    db = create_sqlite_session()
+    for session_id, idp_id in (("sid", 3), ("other-device", 3), ("other-provider", 4)):
+        identity_links_crud.create_idp_session_token(session_id, 1, idp_id, "encrypted", None, db)
+    db.commit()
+    hasher = MagicMock()
+    hasher.verify_password.return_value = True
+    with (
+        patch(f"{_SERVICE}.sessions_integration.get_session_by_id_not_expired", return_value=_session()),
+        patch(f"{_SERVICE}.sessions_integration.delete_session"),
+    ):
+        authentication_service.logout("sid", "rt", 1, hasher, db)
+
+    remaining = {
+        row.session_id: row.refresh_token for row in identity_links_crud.get_idp_session_tokens_page(0, 10, db)
+    }
+    assert remaining == {"sid": "encrypted", "other-device": "encrypted", "other-provider": "encrypted"}
+    db.close()
