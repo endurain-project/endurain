@@ -21,7 +21,7 @@ The following environment variables control authentication behavior:
 | -------- | ----------- | ------- | -------- |
 | `SESSION_IDLE_TIMEOUT_ENABLED` | Deprecated in v0.21: set in Settings > Server > Sessions, removed in v0.22. Enable session idle timeout | `false` | No |
 | `SESSION_IDLE_TIMEOUT_HOURS` | Deprecated in v0.21: set in Settings > Server > Sessions, removed in v0.22. Hours of inactivity before session expires | `1` | No |
-| `SESSION_ABSOLUTE_TIMEOUT_HOURS` | Deprecated in v0.21: set in Settings > Server > Sessions, removed in v0.22. Maximum session lifetime in hours | `24` | No |
+| `SESSION_ABSOLUTE_TIMEOUT_HOURS` | Deprecated in v0.21: set in Settings > Server > Sessions, removed in v0.22. Maximum session lifetime in hours. Used only when the variable is set; otherwise the server setting keeps its own default of 720 hours (30 days) | `720` (server setting) | No |
 
 #### Security Configuration
 
@@ -56,7 +56,7 @@ For web clients, the refresh token cookie is configured with:
 | **Secure** | `true` when `ENVIRONMENT=production` or `demo`; applies consistently to login, refresh, and OAuth/SSO token exchange | Only sent over HTTPS |
 | **SameSite** | `Strict` | The browser does not send the cookie on cross-site requests, which is the main CSRF defence for it |
 | **Path** | `/api/v1/auth` | Sent only to auth endpoints that need the refresh token |
-| **Expires** | 7 days (default) | Matches refresh token lifetime |
+| **Expires** | 7 days (default) | Matches refresh token lifetime, or the time left before the absolute session timeout when that comes first |
 
 ## Security Scopes
 

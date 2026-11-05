@@ -99,9 +99,6 @@ _MESSAGE_ONLY_RESPONSES: dict[str, str] = {
     "StravaDetail": "B2",
 }
 
-#: Request-body properties the server owns, as ``"<schema>.<field>"``. Remove an entry when the audit item
-#: drops the field from the request schema (DOM-2 and DOM-17).
-_SERVER_OWNED_REQUEST_FIELDS: dict[str, str] = {}
 
 #: Request datetime fields that accept a naive value, as ``"<model>.<field>"``. Remove an entry when the field
 #: becomes ``pydantic.AwareDatetime`` (DOM-3).
@@ -181,16 +178,6 @@ _DOCSTRING_SECTIONS: dict[str, int] = {
     "modules/websocket/router.py": 1,
 }
 
-#: Files that build an error response by hand, as ``{path relative to app/: reason}``. Raise a
-#: ``core.exceptions`` error instead and remove the entry (HTTP-1).
-_HAND_BUILT_ERRORS: dict[str, str] = {}
-
-#: Documented API paths that are not in the OpenAPI document, as ``"<file>: <path>"`` (file relative to
-#: ``docs/`` or ``app/``). Fix the page or the route and remove the entry.
-_DOCUMENTED_PATHS_MISSING: dict[str, str] = {
-    "integrate/api-keys.md: /activities/create/upload": "AUTH-6",
-    "integrate/authentication.md: /activities/create/upload": "AUTH-6",
-}
 
 # --- The OpenAPI document and its handlers -----------------------------------------------------------------
 
@@ -400,7 +387,7 @@ class TestApiContract:
             if owned.fullmatch(field)
         }
 
-        _compare("A request body accepts a server-owned field", found, _SERVER_OWNED_REQUEST_FIELDS, "Drop the field")
+        _compare("A request body accepts a server-owned field", found, {}, "Drop the field")
 
     def test_request_datetimes_require_an_offset(self):
         """A datetime field of a request body model is ``pydantic.AwareDatetime`` or otherwise rejects a naive value.
@@ -494,7 +481,7 @@ class TestApiContract:
                 ):
                     found.add(relative)
 
-        _compare("A file builds an error response by hand", found, _HAND_BUILT_ERRORS, "Raise a core.exceptions error")
+        _compare("A file builds an error response by hand", found, {}, "Raise a core.exceptions error")
 
     def test_documented_api_paths_exist(self):
         """Every API path in backticks in the integration and reference docs and in route docstrings exists.
@@ -525,7 +512,7 @@ class TestApiContract:
                 if not any(_same_path(segments, other[: len(segments)]) for other in known):
                     missing.add(f"{name}: /{'/'.join(segments)}")
 
-        _compare("A documented path is not in the API", missing, _DOCUMENTED_PATHS_MISSING, "Fix the page or the route")
+        _compare("A documented path is not in the API", missing, {}, "Fix the page or the route")
 
 
 # --- Helpers for the rules ------------------------------------------------------------------------------------

@@ -1,4 +1,4 @@
-"""The signed-in user's own identity provider links, mounted under ``/profile/idp``."""
+"""The signed-in user's own identity provider links, mounted under ``/profile/identity-providers``."""
 
 from typing import Annotated
 

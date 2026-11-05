@@ -89,7 +89,7 @@ sequenceDiagram
     E-->>You: Connected
 ```
 
-Open **Settings → Integrations → Strava → Connect**, enter the client ID and secret, and authorize on Strava. You return to Endurain, which finishes the connection. Endurain asks only for read access (`read`, `profile:read_all`, `activity:read_all`). Strava's consent screen lets you untick permissions: if you do, Endurain refuses the connection and asks you to connect again and keep every permission ticked. Connections made earlier are not affected. The tokens are stored encrypted, and so are your client ID and secret. If the exchange fails, Endurain clears what it stored so you can start again.
+Open **Settings → Integrations → Strava → Connect**, enter the client ID and secret, and authorize on Strava. You return to Endurain, which finishes the connection. Endurain asks only for read access (`read`, `profile:read_all`, `activity:read_all`). Strava's consent screen lets you untick permissions: if you do, Endurain refuses the connection and asks you to connect again and keep every permission ticked. Connections made earlier are not affected. The tokens are stored encrypted, and so are your client ID and secret. If the exchange fails, Endurain keeps your client ID and secret and stores no tokens. Authorize on Strava again to retry: the code from the failed attempt is used up, but you do not need to enter the credentials again.
 
 ### What syncs and when
 

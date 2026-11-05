@@ -19,14 +19,18 @@ The system is extensible and can be configured to work with:
 - Others/custom OIDC providers
 
 ### OAuth Configuration
-Identity providers must be configured with the following parameters:
+Identity providers are configured by an administrator with these parameters:
 
-- `client_id`: OAuth client identifier
-- `client_secret`: OAuth client secret
-- `authorization_endpoint`: Provider's authorization URL
-- `token_endpoint`: Provider's token exchange URL
-- `userinfo_endpoint`: Provider's user information URL
-- `redirect_uri`: Callback URL (typically `/public/idp/callback/{idp_slug}`)
+- `name`, `slug` and `provider_type` (`oidc` by default)
+- `client_id` and `client_secret`: OAuth client identifier and secret
+- `issuer_url`: the OIDC issuer. Endurain reads `{issuer_url}/.well-known/openid-configuration` and requires its `issuer` to match. An `oidc` provider needs it: sign-in verifies the ID token against the issuer and the signing keys (`jwks_uri`) the discovery document publishes, and a provider without them is refused. Step-up re-authentication also needs it
+- `authorization_endpoint`, `token_endpoint`, `userinfo_endpoint`: optional. A blank endpoint is discovered from the issuer; a value set here takes precedence
+- `scopes`: `openid profile email` by default
+
+The callback URL is not a setting. Endurain always uses `{frontend host}/api/v1/public/idp/callback/{idp_slug}`, so register exactly that URL as the redirect URI at the provider.
+
+### SSO failures
+The callback always ends in a redirect, never a JSON error, once its state is accepted. When a login fails, the browser lands on the Endurain frontend at `/login?error=<code>`: `sso_email_missing` when the provider did not share an email address for a new account, and `sso_failed` for every other failure (the provider refused the code or answered with an error, or the account could not be created). A failed link returns to the page that started it (`/settings/security` by default) with `idp_link=error`. A failed step-up returns to its `redirect` with `#step_up_error=failed|not_fresh` in the fragment. An unknown, expired, reused or wrong-provider `state` is refused before that with `400`.
 
 ### Linking Accounts
 Users can link their Endurain account to an OAuth provider:
@@ -52,20 +56,20 @@ When authenticating via OAuth, the response format matches the standard authenti
 - **Mobile clients**: Redirected or deep-linked with a `session_id`; the app exchanges the session and receives access + refresh tokens in the response body
 
 !!! info "Mobile OAuth/SSO"
-  OAuth/SSO login requires PKCE for all clients. Mobile apps should still prefer the system browser flow because it keeps provider credentials outside the app process.
+  OAuth/SSO login requires PKCE for all clients. Mobile apps must use the system browser (`ASWebAuthenticationSession` or Custom Tabs), never an embedded WebView, so provider credentials stay outside the app process.
 
 ## Mobile Password Login with PKCE
 
 ### Overview
 
-Mobile apps can use PKCE (Proof Key for Code Exchange, RFC 7636) for password authentication, providing enhanced security by preventing token interception in WebViews. This flow mirrors the OAuth/SSO PKCE flow but for local password authentication.
+Mobile apps can use PKCE (Proof Key for Code Exchange, RFC 7636) for password authentication, so the tokens are never part of a browser or login response. This flow mirrors the OAuth/SSO PKCE flow but for local password authentication.
 
 ### Why Use PKCE for Password Login?
 
 | Traditional Mobile Password Login | PKCE Password Login |
 | --------------------------------- | ------------------- |
 | Tokens returned in response | Tokens exchanged via secure API |
-| Tokens visible in WebView context | Only session_id visible |
+| Tokens visible in the login response | Only session_id visible |
 | Potential token interception | No token in response body |
 | Simple but less secure | Secure, requires verifier |
 
@@ -246,49 +250,53 @@ Then exchange for tokens as in Step 3 above.
 ## Mobile SSO with PKCE
 
 ### Overview
-PKCE (Proof Key for Code Exchange, RFC 7636) is required for OAuth/SSO authentication. It provides enhanced security by eliminating the need to extract tokens from WebView cookies, preventing authorization code interception attacks, and enabling a cleaner separation between browser/WebView and app contexts.
+PKCE (Proof Key for Code Exchange, RFC 7636) is required for OAuth/SSO authentication. Mobile apps must sign in through the **system browser** (`ASWebAuthenticationSession` on iOS, Custom Tabs on Android), as [RFC 8252](https://datatracker.ietf.org/doc/html/rfc8252) requires. Do not load the identity provider in an embedded WebView: the app could read the user's credentials, the user cannot check the address bar, and some providers (Google, for one) refuse it. The system browser returns the app a `session_id` through a deep link, and the app exchanges it for tokens with its PKCE verifier.
 
 ### Why Use PKCE?
 
-| Traditional WebView Flow | PKCE Flow |
-| ------------------------ | --------- |
-| Extract tokens from cookies | Tokens delivered via secure API |
-| Cookies may leak across contexts | No cookie extraction needed |
-| Complex WebView cookie management | Simple token exchange |
-| Potential timing issues | Atomic token exchange |
+| Without PKCE | PKCE Flow |
+| ------------ | --------- |
+| A stolen `session_id` could be exchanged by anyone | Only the client that holds the verifier can exchange it |
+| Tokens would have to reach the app through the browser | Tokens are delivered by an API call from the app |
+| Authorization codes can be intercepted by other apps | An intercepted code or `session_id` is useless without the verifier |
 
-### PKCE Flow Overview
+### Flow Overview
 
 ```
-┌─────────────┐     ┌─────────────┐     ┌─────────────┐     ┌─────────────┐
-│  Mobile App │     │   Backend   │     │   WebView   │     │     IdP     │
-└──────┬──────┘     └──────┬──────┘     └──────┬──────┘     └──────┬──────┘
-       │                   │                   │                   │
-       │ Generate verifier │                   │                   │
-       │ & challenge       │                   │                   │
-       │──────────────────>│                   │                   │
-       │                   │                   │                   │
-       │     Open WebView with challenge       │                   │
-       │──────────────────────────────────────>│                   │
-       │                   │                   │                   │
-       │                   │      Redirect to IdP                  │
-       │                   │──────────────────────────────────────>│
-       │                   │                   │                   │
-       │                   │                   │   User logs in    │
-       │                   │                   │<─────────────────>│
-       │                   │                   │                   │
-       │                   │   Callback with code & state          │
-       │                   │<──────────────────────────────────────│
-       │                   │                   │                   │
-       │     Redirect with session_id          │                   │
-       │<──────────────────────────────────────│                   │
-       │                   │                   │                   │
-       │ POST token exchange with verifier     │                   │
-       │──────────────────>│                   │                   │
-       │                   │                   │                   │
-       │   Return tokens   │                   │                   │
-       │<──────────────────│                   │                   │
-       │                   │                   │                   │
+┌─────────────┐     ┌─────────────────┐     ┌──────────────┐     ┌─────────────┐
+│  Mobile App │     │ Endurain Backend│     │System Browser│     │     IdP     │
+└──────┬──────┘     └────────┬────────┘     └──────┬───────┘     └──────┬──────┘
+       │                     │                     │                    │
+       │ 1. Generate PKCE    │                     │                    │
+       │    verifier+challenge                     │                    │
+       │                     │                     │                    │
+       │ 2. Open system browser to:                │                    │
+       │    /public/idp/login/{slug}               │                    │
+       │    ?code_challenge=X                      │                    │
+       │    &redirect={custom_scheme}://callback   │                    │
+       │──────────────────────────────────────────>│                    │
+       │                     │ 3. Validate redirect, store state        │
+       │                     │<────────────────────│                    │
+       │                     │     Redirect to IdP │                    │
+       │                     │─────────────────────────────────────────>│
+       │                     │                     │   User logs in     │
+       │                     │                     │<──────────────────>│
+       │                     │   code + state      │                    │
+       │                     │<─────────────────────────────────────────│
+       │                     │ 4. Redirect to frontend:                 │
+       │                     │    /login?sso=success&session_id=UUID    │
+       │                     │    &redirect={custom_scheme}://callback  │
+       │                     │    &external_redirect=true               │
+       │                     │────────────────────>│                    │
+       │                     │                     │ 5. Frontend forwards to
+       │                     │                     │    {custom_scheme}://callback
+       │                     │                     │    ?session_id=UUID
+       │ Deep link received  │                     │                    │
+       │<──────────────────────────────────────────│                    │
+       │ 6. POST token exchange with own verifier  │                    │
+       │────────────────────>│                     │                    │
+       │    JWT tokens       │                     │                    │
+       │<────────────────────│                     │                    │
 ```
 
 ### Step-by-Step PKCE Implementation
@@ -309,23 +317,12 @@ Before initiating the OAuth flow, generate a cryptographically random code verif
 code_challenge = BASE64URL(SHA256(code_verifier))
 ```
 
-#### Step 2: Initiate OAuth with PKCE Challenge
+#### Step 2: Open the System Browser
 
-Initiate OAuth from an app-controlled HTTP request so the backend records `X-Client-Type: mobile`, then open the returned redirect target in WebView.
-
-**Initiate Request:**
+Open the initiate URL in the system browser, with the app's custom scheme as `redirect`:
 
 ```http
-GET /api/v1/public/idp/login/{idp_slug}?code_challenge={challenge}&code_challenge_method=S256&redirect=/dashboard
-X-Client-Type: mobile
-```
-
-The response is a redirect to the IdP authorization URL. Load that redirect target in WebView.
-
-**Direct Initiate URL (reference):**
-
-```http
-https://your-endurain-instance.com/api/v1/public/idp/login/{idp_slug}?code_challenge={challenge}&code_challenge_method=S256&redirect=/dashboard
+https://your-endurain-instance.com/api/v1/public/idp/login/{idp_slug}?code_challenge={challenge}&code_challenge_method=S256&redirect={custom_scheme}://callback
 ```
 
 **Query Parameters:**
@@ -334,23 +331,26 @@ https://your-endurain-instance.com/api/v1/public/idp/login/{idp_slug}?code_chall
 | --------- | -------- | ----------- |
 | `code_challenge` | Yes (PKCE) | Base64url-encoded SHA256 hash of code_verifier |
 | `code_challenge_method` | Yes (PKCE) | Must be `S256` |
-| `redirect` | No | Frontend path after successful login |
+| `redirect` | Yes for mobile | The app's custom-scheme URL, for example `org.endurain.app://callback`. The scheme must be allowed by the administrator (see [Redirect schemes](#redirect-schemes)) |
 
-#### Step 3: Monitor WebView for Callback
+!!! note "What marks the flow as mobile"
+    A browser cannot attach custom headers, so Endurain decides the client type from the `redirect`: a validated custom-scheme redirect always records the flow as `mobile`, whatever `X-Client-Type` says. Without a custom-scheme redirect the backend uses the `X-Client-Type` header (`web` or `mobile`) and falls back to `web` when it is absent or invalid. An app that sends the request itself may still include `X-Client-Type: mobile`.
 
-The OAuth flow proceeds as normal. Monitor the WebView URL for the success redirect:
+#### Step 3: Receive the Deep Link
 
-**Success URL Pattern:**
+The user signs in with the identity provider in the system browser. On success the backend redirects to the Endurain frontend with `external_redirect=true`, and the frontend forwards the browser to:
 
-```http
-https://your-endurain-instance.com/login?sso=success&session_id={uuid}&redirect=/dashboard
+```
+{custom_scheme}://callback?session_id={uuid}
 ```
 
-Extract the `session_id` from the URL - this is needed for token exchange.
+The OS invokes the app's deep-link or intent handler with that URL. Extract the `session_id`.
+
+On failure the browser stays on the Endurain login page with an `error` query parameter (`sso_failed`, or `sso_email_missing` when the provider shared no email address for a new account). The app receives no deep link, so it must also handle the user closing the browser or a timeout. The state expires after 10 minutes.
 
 #### Step 4: Exchange Session for Tokens (PKCE Verification)
 
-After obtaining the `session_id`, close the WebView and exchange it for tokens using the code verifier:
+After obtaining the `session_id`, exchange it for tokens using the code verifier:
 
 **Token Exchange Request:**
 
@@ -411,118 +411,11 @@ Authorization: Bearer {access_token}
 X-Client-Type: mobile
 ```
 
-### System Browser Alternative (RFC 8252 Recommended)
+### Redirect schemes
 
-For maximum security, mobile apps should use the **system browser** instead of an
-embedded WebView. This follows [RFC 8252 - OAuth 2.0 for Native Apps](https://tools.ietf.org/html/rfc8252).
+The `redirect` scheme must be listed in `ALLOWED_REDIRECT_SCHEMES` (see [Configuration](auth-reference.md#configuration)). It is a comma-separated list, matched case-insensitively. The default is `endurain` only, and setting the variable replaces the default instead of adding to it. An operator who runs an app that uses another scheme must set it, for example `ALLOWED_REDIRECT_SCHEMES=org.endurain.app`, and restart Endurain. A redirect with a scheme that is not listed is refused with `400`.
 
-#### Advantages over WebView
-
-| WebView | System Browser |
-| ------- | -------------- |
-| Full page rendered in-app | OS-managed, isolated process |
-| Cannot verify address bar URL | Address bar visible to user (phishing resistance) |
-| Cookies shared with app | No app access to browser storage |
-| App must extract session_id from URL | App receives session_id via deep-link |
-
-#### System Browser Flow
-
-```
-┌─────────────┐     ┌─────────────────┐     ┌─────────────┐     ┌─────────────┐
-│  Mobile App │     │ Endurain Backend│     │System Browser│    │     IdP     │
-└──────┬──────┘     └────────┬────────┘     └──────┬──────┘     └──────┬──────┘
-       │                     │                     │                   │
-       │ 1. Generate PKCE    │                     │                   │
-       │    verifier+challenge                     │                   │
-       │                     │                     │                   │
-       │ 2. Open system browser to:                │                   │
-       │    /public/idp/login/{slug}               │                   │
-       │    ?code_challenge=X                      │                   │
-       │    &redirect={custom_scheme}://callback   │                   │
-       │────────────────────────────────────────────────────────────────────>
-       │                     │                     │                   │
-       │                     │ 3. Validate redirect │                  │
-       │                     │    Store in DB       │                  │
-       │                     │──────────────────────>                  │
-       │                     │     Redirect to IdP                     │
-       │                     │────────────────────────────────────────>│
-       │                     │                     │                   │
-       │                     │                     │  User logs in     │
-       │                     │                     │<─────────────────>│
-       │                     │  code + state       │                   │
-       │                     │<────────────────────────────────────────│
-       │                     │                     │                   │
-       │                     │ 4. Redirect to frontend:                │
-       │                     │    /login?sso=success&session_id=UUID   │
-       │                     │    &redirect={custom_scheme}://callback │
-       │                     │    &external_redirect=true              │
-       │                     │────────────────────────────────────────>│
-       │                     │                     │                   │
-       │                     │  5. Frontend detects external_redirect  │
-       │                     │     Forwards to custom scheme:          │
-       │                     │     {custom_scheme}://callback          │
-       │                     │     ?session_id=UUID                    │
-       │ Deep-link received  │                     │                   │
-       │<────────────────────────────────────────────                  │
-       │                     │                     │                   │
-       │ 6. POST token exchange with own verifier  │                   │
-       │────────────────────>│                     │                   │
-       │    JWT tokens       │                     │                   │
-       │<────────────────────│                     │                   │
-```
-
-#### Step-by-Step: System Browser Flow
-
-**Step 1:** Mobile app generates PKCE pair (same as WebView — see [Step 1](#step-1-generate-pkce-code-verifier-and-challenge)).
-
-**Step 2:** First call the initiate endpoint with the custom scheme redirect target, then open the returned redirect target in the system browser.
-
-```http
-GET /api/v1/public/idp/login/{idp_slug}?code_challenge={challenge}&code_challenge_method=S256&redirect={custom_scheme}://callback
-X-Client-Type: mobile
-```
-
-!!! note "Custom Scheme Auto-Detection"
-    When using a custom URI scheme redirect (e.g., `gadgetbridge://callback`), the backend automatically detects this as a mobile flow and sets the client type to `mobile`. This means the `X-Client-Type: mobile` header is optional for custom scheme redirects. However, including it is still recommended for clarity and consistency.
-
-    If your mobile platform cannot attach custom headers when directly opening a browser URL, you can still use the direct URL without the header and rely on the custom scheme for auto-detection:
-    ```http
-    https://your-endurain-instance.com/api/v1/public/idp/login/{idp_slug}?code_challenge={challenge}&code_challenge_method=S256&redirect={custom_scheme}://callback
-    ```
-
-**Direct Initiate URL (reference):**
-
-```http
-https://your-endurain-instance.com/api/v1/public/idp/login/{idp_slug}?code_challenge={challenge}&code_challenge_method=S256&redirect={custom_scheme}://callback
-```
-
-The `{custom_scheme}` (e.g., `endurain,gadgetbridge`) must be configured by the Endurain
-administrator via `ALLOWED_REDIRECT_SCHEMES` (see [Configuration](auth-reference.md#configuration)).
-
-**Step 3:** User completes SSO. The system browser is redirected to:
-
-```
-{custom_scheme}://callback?session_id={uuid}
-```
-
-In the current web flow, the backend first redirects to the Endurain frontend with `external_redirect=true`; the frontend then forwards the `session_id` to the configured custom scheme.
-
-**Step 4:** The OS invokes the app's deep-link/intent handler with the above URL.
-Extract the `session_id`.
-
-**Step 5:** Perform token exchange using the app's **own** `code_verifier`:
-
-```http
-POST /api/v1/public/idp/session/{session_id}/tokens
-Content-Type: application/json
-X-Client-Type: mobile
-
-{
-  "code_verifier": "<the verifier generated in step 1>"
-}
-```
-
-**Step 6:** Store and use tokens (see [Step 5](#step-5-store-tokens-securely) and [Step 6](#step-6-use-tokens-for-api-requests)).
+App authors should register a reverse-DNS scheme based on a domain they control, such as `org.endurain.app`, as RFC 8252 section 7.1 recommends. A short word such as `endurain` or `gadgetbridge` can be claimed by any other app on the device, which could then receive the `session_id` (the PKCE verifier still stops it from getting tokens). `http`, `https`, `javascript`, `data`, `file`, `vbscript` and `blob` are never allowed, and Endurain refuses to start if one is listed.
 
 #### Redirect URL Validation Rules
 
@@ -530,8 +423,8 @@ X-Client-Type: mobile
 | -------------- | ------- | ----- |
 | `/dashboard` | ✅ | Relative paths always allowed |
 | `/settings?tab=devices` | ✅ | Query strings OK in relative paths |
-| `gadgetbridge://callback` | ✅ | If `gadgetbridge` in `ALLOWED_REDIRECT_SCHEMES`; automatically detected as mobile client type |
-| `myapp://callback` | ❌ | If `myapp` not configured — 400 returned |
+| `org.endurain.app://callback` | ✅ | If `org.endurain.app` is in `ALLOWED_REDIRECT_SCHEMES`; recorded as a mobile flow |
+| `myapp://callback` | ❌ | If `myapp` is not configured — 400 returned |
 | `https://evil.com` | ❌ | External HTTP URLs always rejected |
 | `http://localhost` | ❌ | External HTTP URLs always rejected |
 | `/../etc/passwd` | ❌ | Path traversal rejected |

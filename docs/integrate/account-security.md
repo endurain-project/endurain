@@ -135,7 +135,7 @@ The per-client counters key an IPv6 address by its /64 network and an IPv4 addre
 
 **Features:**
 
-- Per-username tracking prevents targeted attacks
+- Failures count per username and client network (an IPv6 address by its /64), so one client cannot lock a user out for everyone; the account-wide lock below counts failures from every address
 - Lockout persists through MFA flow (prevents bypass)
 - Counter resets on successful authentication
 - Graceful error messages with remaining lockout time
@@ -220,15 +220,7 @@ X-Client-Type: web|mobile
 
 The bodies below show only the `detail` member. Every error is an RFC 9457 problem document with more members (`type`, `title`, `status`, `request_id`); see [Errors, concurrency and rate limits](errors-and-limits.md).
 
-- **No pending MFA login**: HTTP 400 Bad Request
-
-```json
-{
-  "detail": "No pending MFA login found for this username"
-}
-```
-
-- **Invalid MFA code**: HTTP 400 Bad Request
+- **Invalid MFA code**: HTTP 400 Bad Request. The same answer covers a wrong code, a used backup code, and an unknown or expired `mfa_challenge`, so a client cannot tell them apart
 
 ```json
 {

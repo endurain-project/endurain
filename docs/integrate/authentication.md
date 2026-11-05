@@ -1,6 +1,6 @@
 # Handling authentication
 
-Endurain supports integration with other apps through a comprehensive OAuth 2.1 compliant authentication system that includes standard username/password authentication, Multi-Factor Authentication (MFA), OAuth/SSO integration, and JWT-based session management with refresh token rotation.
+Endurain supports integration with other apps through an authentication system that includes username/password authentication, Multi-Factor Authentication (MFA), OAuth/SSO integration with PKCE (S256), and JWT-based session management with refresh token rotation and reuse detection. `/auth/login` is a username/password grant, which OAuth 2.1 does not include, so Endurain does not claim to be OAuth 2.1 compliant.
 
 ## API Requirements
 
@@ -19,24 +19,25 @@ Endurain supports integration with other apps through a comprehensive OAuth 2.1 
 - The backend generates an `access_token` valid for 15 minutes (default) and a `refresh_token` valid for 7 days (default).
 - The `access_token` is used for authorization; the `refresh_token` is used to obtain new access tokens.
 - A `csrf_token` is generated for CSRF protection on state-changing requests.
-- Token expiration times are set by an administrator in Settings > Server > Sessions (see [Configuration, scopes and best practices](auth-reference.md#configuration) for the deprecated environment variables).
+- Token and session lifetimes are set by an administrator in Settings > Server > Sessions (see [Configuration, scopes and best practices](auth-reference.md#configuration) for the deprecated environment variables).
+- A session ends at the absolute session timeout whatever its activity: 720 hours (30 days) by default. An optional idle timeout (off by default, 1 hour when enabled) also ends a session after inactivity. Administrators change the access token, refresh token, idle and absolute settings in Settings > Server > Sessions. A client should read `refresh_token_expires_in` rather than assume a lifetime.
 
-### OAuth 2.1 Token Storage Model (Hybrid Approach)
+### Token storage model (hybrid approach)
 
-Endurain implements an OAuth 2.1 compliant hybrid token storage model that provides both security and usability:
+Endurain splits web tokens between memory and an httpOnly cookie:
 
 | Token | Storage Location | Lifetime | Security Purpose |
 |-------|------------------|----------|------------------|
-| **Access Token** | In-memory (JavaScript) | 15 minutes | Short-lived, XSS-resistant (not persisted) |
+| **Access Token** | In-memory (JavaScript) | 15 minutes | Short-lived, never written to storage |
 | **Refresh Token** | httpOnly cookie | 7 days | `SameSite=Strict`, sent only to `/api/v1/auth` |
 | **CSRF Token** | In-memory (JavaScript) | Session | Sent as `X-CSRF-Token` on state-changing requests; its value is checked only by `/auth/refresh` |
 | **Device id** | Web: httpOnly cookie (`endurain_device`, path `/api/v1`, `SameSite=Strict`). Mobile: the app's own storage, sent as the `X-Device-Id` header | 400 days from the last sign-in | Recognises the browser or app, so a sign-in from a new one sends a [security notice](../features/accounts-and-sign-in.md#security-notifications), and a known one is not held by the [account lock](account-security.md#progressive-account-lockout). Not a credential; the server stores only its SHA-256 hash |
 
 **Security Properties:**
 
-- **XSS Protection:** Access tokens stored in memory cannot be exfiltrated via XSS attacks
+- **XSS exposure:** Keeping the access token in memory keeps it out of storage that a browser extension or a later page can read, and it expires in minutes. It does not stop script running in the page: that script can call `POST /auth/refresh`, which the browser answers with the httpOnly cookie, and read the fresh access token from the response. The refresh route does not require the `X-CSRF-Token` header (a bootstrap refresh after a page reload sends none), and the CSP allows inline scripts (next point).
 - **CSRF Protection:** Protected routes authenticate with the `Authorization` header, which a browser never sends on its own, and the refresh token is an httpOnly `SameSite=Strict` cookie limited to `/api/v1/auth`. The `X-CSRF-Token` header is a presence check on top of that, and `/auth/refresh` also validates its value when the client sends it and the session has a stored CSRF binding.
-- **Content Security Policy:** HTML responses carry a CSP whose `script-src` and `style-src` include `'unsafe-inline'`, so the policy does not stop an injected inline script. This is an accepted risk. The defences that remain are never rendering user data with `v-html`, keeping the access token in memory only, and the `SameSite=Strict`, path-limited refresh cookie. The policy has no `frame-ancestors` directive; clickjacking is blocked by `X-Frame-Options: DENY` on every response.
+- **Content Security Policy:** HTML responses carry a CSP whose `script-src` and `style-src` include `'unsafe-inline'`, so the policy does not stop an injected inline script. This is an accepted risk. The defences that remain are never rendering user data with `v-html`, keeping the access token out of persistent storage, and the `SameSite=Strict`, path-limited refresh cookie. The policy has no `frame-ancestors` directive; clickjacking is blocked by `X-Frame-Options: DENY` on every response.
 - **Self-declared client type:** `X-Client-Type` is chosen by the caller, so it selects the response shape and whether the CSRF header is required but proves nothing about who is calling. This is an accepted risk: a caller that omits `web` only skips a presence check that is not the CSRF defence, and it still needs a valid access token.
 - **Session Persistence:** Page reload triggers `/auth/refresh` with httpOnly cookie to restore tokens
 - **Multi-tab Support:** httpOnly cookie shared across browser tabs
@@ -71,7 +72,7 @@ Endurain implements an OAuth 2.1 compliant hybrid token storage model that provi
 ### OAuth/SSO Flow
 
 1. Client requests list of enabled providers from `/public/idp`
-2. Client initiates OAuth at `/public/idp/login/{idp_slug}` with a PKCE challenge. Mobile clients should include `X-Client-Type: mobile`; if the header is absent or invalid, the backend records the flow as `web`.
+2. Client initiates OAuth at `/public/idp/login/{idp_slug}` with a PKCE challenge. A custom-scheme `redirect` (an allowed scheme, for example `org.endurain.app://callback`) always records the flow as `mobile`, which is how a system browser, unable to send headers, starts a mobile flow. Otherwise the backend uses the `X-Client-Type` header and records `web` when it is absent or invalid.
 3. User authenticates with the OAuth provider
 4. Provider redirects back to `/public/idp/callback/{idp_slug}` with authorization code
 5. Backend exchanges code for provider tokens and user info
@@ -82,7 +83,7 @@ Endurain implements an OAuth 2.1 compliant hybrid token storage model that provi
 
 ### Token Refresh Flow
 
-The token refresh flow implements OAuth 2.1 compliant refresh token rotation:
+The token refresh flow rotates the refresh token on every call:
 
 1. When access token expires, client calls `POST /auth/refresh`:
     - **Web clients:** Include `X-CSRF-Token` header with the current CSRF token, except bootstrap refresh after page reload may omit it
@@ -182,18 +183,21 @@ The API is reachable under `/api/v1`. Below are the authentication-related endpo
 | What | Url | Expected Information | Rate Limit |
 | ---- | --- | -------------------- | ---------- |
 | **Get Enabled Providers** | `/public/idp` | None (public endpoint). Paged: optional `page_number` (default 1) and `num_records` (default 25, maximum 200); the response is `{items, total, page, num_records, next}` | - |
-| **Initiate OAuth Login** | `/public/idp/login/{idp_slug}` | Header: `X-Client-Type` (`web` or `mobile`). For mobile OAuth/PKCE this must be `mobile`; query params: `redirect`, `code_challenge`, `code_challenge_method` | 10 requests/min per IP |
-| **OAuth Callback** | `/public/idp/callback/{idp_slug}` | Query params: `code=<code>`, `state=<state>` | 10 requests/min per IP |
+| **Initiate OAuth Login** | `/public/idp/login/{idp_slug}` | Header: `X-Client-Type` (`web` or `mobile`), optional when `redirect` is a custom scheme (that marks the flow as mobile). Query params: `redirect`, `code_challenge`, `code_challenge_method` | 10 requests/min per IP |
+| **OAuth Callback** | `/public/idp/callback/{idp_slug}` | Query params: `state=<state>` and `code=<code>`, or `error=<provider error code>` when the provider refused. Always answers with a redirect to the frontend; a failed login lands on `/login?error=sso_failed` (or `sso_email_missing`), see [SSO failures](oauth-sso-pkce.md#sso-failures) | 10 requests/min per IP |
 | **Token Exchange (PKCE)** | `/public/idp/session/{session_id}/tokens` | JSON: `{"code_verifier": "<verifier>"}` (password PKCE or SSO PKCE). Optional Header: `X-Client-Type`; if present, it must match the client type stored on the PKCE/OAuth state. | 10 requests/min |
 | **Start IdP Link** | `POST /profile/identity-providers/{idp_id}/link` | Requires authenticated session and a step-up JSON body: `current_password` for local-password accounts, `idp_reauth` for accounts without one, and `mfa_code` when MFA is enabled; plus an optional `redirect` (relative frontend path). Returns `authorization_url` and sets the `endurain_idp_binding` cookie. The browser then navigates to `authorization_url`. `409` if already linked | 10 requests/min |
-| **Start IdP Step-up** | `/profile/identity-providers/{idp_id}/step-up` | Requires authenticated session. JSON: `code_challenge`, `action`, `redirect` (relative path). Returns `authorization_url` and sets the `endurain_idp_binding` cookie. See [Account security](account-security.md#step-up-for-accounts-without-a-password) | - |
+| **Start IdP Step-up** | `/profile/identity-providers/{idp_id}/step-up` | Requires authenticated session. JSON: `code_challenge`, `action`, `redirect` (relative path). Returns `authorization_url` and sets the `endurain_idp_binding` cookie. See [Account security](account-security.md#step-up-for-accounts-without-a-password) | 10 requests/min |
 
 ### Session Management Endpoints
 
 | What | Url | Expected Information |
 | ---- | --- | -------------------- |
-| **Get User Sessions** | `/users/{user_id}/sessions` | Headers: `Authorization: Bearer <Access Token>`, `X-Client-Type`; requires `sessions:read` scope. Paged: optional `page_number` (default 1) and `num_records` (default 25, maximum 200); the response is `{items, total, page, num_records, next}` |
-| **Delete Session** | `/users/{user_id}/sessions/{session_id}` | Headers: `Authorization: Bearer <Access Token>`, `X-Client-Type`; requires `sessions:write` scope; web clients must also include `X-CSRF-Token` |
+| **Get Own Sessions** | `/profile/sessions` | Headers: `Authorization: Bearer <Access Token>`, `X-Client-Type`; requires `profile` scope. Paged like the admin list |
+| **Delete Own Session** | `/profile/sessions/{session_id}` | Same headers and scope; web clients must also include `X-CSRF-Token` |
+| **Delete Own Other Sessions** | `/profile/sessions` (`DELETE`) | Same headers and scope; ends every session except the current one |
+| **Get User Sessions (admin)** | `/users/{user_id}/sessions` | Headers: `Authorization: Bearer <Access Token>`, `X-Client-Type`; requires `sessions:read` scope. Paged: optional `page_number` (default 1) and `num_records` (default 25, maximum 200); the response is `{items, total, page, num_records, next}` |
+| **Delete Session (admin)** | `/users/{user_id}/sessions/{session_id}` | Headers: `Authorization: Bearer <Access Token>`, `X-Client-Type`; requires `sessions:write` scope; web clients must also include `X-CSRF-Token` |
 
 ### API Key Management Endpoints
 
@@ -205,6 +209,7 @@ Require JWT authentication with the standard `X-Client-Type` requirement; state-
 
 | What | Url | Expected Information |
 | ---- | --- | -------------------- |
-| **Activity Upload** | `/activities/create/upload` | .gpx, .tcx, .gz or .fit file. Accepts JWT **or** API key (`X-API-Key` header, or `?api_key=` query param only when `ALLOW_API_KEY_QUERY_PARAM=true`) with `activities:upload` scope. This unified-auth endpoint does not require `X-Client-Type` |
+| **Activity Upload** | `POST /activities/upload` | .gpx, .tcx, .gz or .fit file. Accepts JWT **or** API key (`X-API-Key` header, or `?api_key=` query param only when `ALLOW_API_KEY_QUERY_PARAM=true`) with `activities:upload` scope. Answers `202` with an ingestion job. This unified-auth endpoint does not require `X-Client-Type` |
+| **Ingestion Job** | `GET /activities/ingestion-jobs/{job_id}` | Poll the job returned by the upload. Accepts JWT or API key with the `activities:upload` scope |
 | **Set Weight** | `/health/weight` | JSON `{'weight': <number>, 'created_at': 'yyyy-MM-dd'}` |
 

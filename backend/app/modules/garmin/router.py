@@ -34,8 +34,8 @@ def garminconnect_link(
 ) -> garmin_schema.GarminLinkStatus:
     """Start linking a Garmin Connect account and return at once.
 
-    The login runs in the background. Poll ``GET /garminconnect/link/status``: when it reports
-    ``mfa_required``, submit the code to ``POST /garminconnect/mfa`` and keep polling until it
+    The login runs in the background. Poll ``GET /garmin/link/status``: when it reports
+    ``mfa_required``, submit the code to ``POST /garmin/mfa`` and keep polling until it
     reports ``completed`` or ``failed``. A second request while one is running is answered 409.
     """
     return garmin_link_service.start_link(token_user_id, garmin_user, mfa_codes, link_states)
@@ -112,7 +112,7 @@ def garminconnect_retrieve_gear(
 ) -> garmin_schema.GarminSyncStatus:
     """Queue a sync of the user's Garmin Connect gear; a background job runs it.
 
-    Poll ``GET /garminconnect/sync/gear`` for the outcome. A second request while one is
+    Poll ``GET /garmin/sync/gear`` for the outcome. A second request while one is
     pending is answered 409.
     """
     return garmin_sync_service.request_gear_sync(token_user_id, sync_states, rate_limits, db)
@@ -137,7 +137,7 @@ def garminconnect_retrieve_health_days(
     """Queue a sync of the user's Garmin Connect health data for a date range.
 
     The range must not exceed 31 days; a background job runs it. Poll
-    ``GET /garminconnect/sync/health`` for the outcome. A second request while one is pending is
+    ``GET /garmin/sync/health`` for the outcome. A second request while one is pending is
     answered 409.
     """
     return garmin_sync_service.request_health_sync(token_user_id, start_date, end_date, sync_states, rate_limits, db)

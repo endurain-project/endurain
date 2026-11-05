@@ -52,10 +52,14 @@ The server sends JSON text frames. The client sends nothing: a text or binary fr
 | `NEW_FOLLOWER_REQUEST_REMOVED_NOTIFICATION` | A follow request to you was withdrawn |
 | `NEW_FOLLOWER_REQUEST_ACCEPTED_NOTIFICATION` | Someone accepted your follow request |
 | `GARMIN_TOKEN_EXPIRED_NOTIFICATION` | Garmin Connect was unlinked because its login expired |
+| `STRAVA_TOKEN_EXPIRED_NOTIFICATION` | Strava was unlinked because it rejected the stored token |
+| `IDP_LINKED_NOTIFICATION` | An identity provider was linked to your account |
+| `ACCOUNT_SECURITY_CHANGED_NOTIFICATION` | A security setting of your account changed, or it was locked |
+| `NEW_DEVICE_SIGN_IN_NOTIFICATION` | Your account was signed in to from a new device |
 | `ADMIN_NEW_SIGN_UP_APPROVAL_REQUEST_NOTIFICATION` | A sign-up waits for an administrator |
 | `GEARS_CHANGED` | A Garmin Connect or Strava gear sync finished and stored your gear |
 | `HEALTH_CHANGED` | A Garmin Connect health sync finished and stored your health data |
-| `JOB_STATUS_CHANGED` | A background job you started finished, failed or needs input. The frame also carries `job`: `garmin-link`, `strava:link`, `strava:unlink` or `ingestion:<job id>` |
+| `JOB_STATUS_CHANGED` | One of a few background jobs you started finished, failed or needs input. The frame also carries `job`: `garmin-link`, `strava:link`, `strava:unlink` or `ingestion:<job id>`. Only those jobs send it; see [which jobs send the hint](background-operations.md#realtime-hint) |
 
 Ignore a `message` you do not recognise: new types can be added. The notification meanings are in [Notifications](../features/notifications.md).
 

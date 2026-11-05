@@ -90,7 +90,7 @@ Under **Settings → Security** you can:
 
 Accounts that sign in only through single sign-on have no local password. They cannot change a password themselves, and they confirm sensitive changes by signing in again with their identity provider; see [Single Sign-On](single-sign-on.md#confirming-sensitive-changes-without-a-password).
 
-Deleting an account signs you out at once and deletes its data in the background, including activities, photos, thumbnails and stored files. The only administrator of a server cannot delete or demote themselves; make another user an administrator first.
+Deleting an account signs you out at once and deletes its data in the background, including activities, photos, thumbnails and stored files. The request answers `202` and there is no progress to follow: the account is already signed out and deactivated, so you cannot check it, and an administrator can follow the job with `GET /users/{user_id}/deletion`. How long it takes depends on how many activities the account has. If it fails, Endurain queues it again every hour, up to five times; see [Background operations](../integrate/background-operations.md#delete-your-account). The only administrator of a server cannot delete or demote themselves; make another user an administrator first.
 
 ### Security notifications
 

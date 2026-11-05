@@ -46,12 +46,20 @@ Thumbnails, activity photos and profile photos are served by URLs that carry a s
 | `GET /activities/{activity_id}/media/{media_id}/file?t=<token>` | One activity photo |
 | The `photo_path` URL in a user | A profile photo |
 
+How the link looks depends on where the server keeps its files (the `STORAGE_URI` setting, see [Storage and backups](../getting-started/storage-and-backups.md)):
+
+| Storage | The link | Lifetime |
+| ------- | -------- | -------- |
+| Local disk | The paths above, with `?t=<token>`, a token signed with the server's `SECRET_KEY` | 24 hours from the moment the token was signed |
+| S3 or an S3-compatible service | A presigned URL on the storage service's own origin. It has no `?t=` token and does not pass through the API | 1 hour |
+
 You do not build these URLs. The API puts a ready-to-use URL in the field of the response (`map_thumbnail_url`, a media item's URL, a user's `photo_path`), and it only does so for something the caller may see. Treat them as opaque:
 
-- A wrong, forged or expired token answers `404`, never `403`, so the response does not confirm that the file exists.
-- A link is valid for 24 hours. Reading the activity again returns a fresh link, so a client should use the URL from the response it just received, not store it.
-- The token is derived from the server's `SECRET_KEY`, so changing the key makes every previously issued link stop working until it is fetched again.
-- Responses are cacheable by the browser for an hour (`Cache-Control: private`).
+- Reading the activity or user again returns a fresh link, so a client should use the URL from the response it just received, not store it. A presigned S3 link lasts only 1 hour, so do not keep it longer than that.
+- A `?t=` token is derived from the server's `SECRET_KEY`, so changing the key makes every previously issued local link stop working until it is fetched again. It does not affect presigned S3 links.
+- A local link that is wrong, forged or expired answers `404`. An S3 link is checked by the storage service, which answers with its own error.
+- Local responses are cacheable by the browser for an hour (`Cache-Control: private`).
+- A browser fetches S3 links from the storage origin, so a client that sets its own content security policy must allow it.
 - Anyone who holds a link can open that one file until it expires. Do not post links from a private activity.
 
 ## Server information
@@ -60,7 +68,7 @@ You do not build these URLs. The API puts a ready-to-use URL in the field of the
 | --------------- | ------- |
 | `GET /about` | API name, version and licence. Does not touch the database |
 | `GET /health` | `{"status": "ok"}` if the database answers, otherwise `503`. See [Monitoring](../getting-started/monitoring.md) |
-| `GET /public/server-settings` | The public subset of the server settings: units, currency, records per page, whether sign-up, SSO and local login are on, the SSO auto-redirect flag, the public sharing flags, the tile server URL, attribution and background colour, the minimum password lengths (so the sign-up form can validate), whether a login photo is set and the allowed SSO redirect schemes. The sign-up approval and verification switches, geocoding, session and retention settings, API keys and every other secret are not included |
+| `GET /public/server-settings` | The public subset of the server settings: units, currency, records per page, whether sign-up, SSO and local login are on, whether a new sign-up must verify its email address (`signup_require_email_verification`), the SSO auto-redirect flag, the public sharing flags, the tile server URL, attribution and background colour, the minimum password lengths (so the sign-up form can validate), whether a login photo is set and the allowed SSO redirect schemes. The sign-up approval switch, geocoding, session and retention settings, API keys and every other secret are not included |
 | `GET /public/server-settings/tile-maps-templates` | The map tile presets an administrator can pick |
 | `GET /public/idp/{slug}/icon` | The image uploaded for an identity provider, or `404` if it has none. Supports `ETag` and `If-None-Match` |
 | `GET /public/server-settings/login-photo` | The login page photo, or `404` if none is set. Supports `ETag` and `If-None-Match`, so a client that has the photo gets `304` |

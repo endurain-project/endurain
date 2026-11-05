@@ -41,8 +41,8 @@ Authentication and authorization failures use the same shape. Typical causes:
 
 | Status | Common causes |
 | ------ | ------------- |
-| `400` | Missing required fields, invalid client type, no pending MFA login |
-| `401` | Invalid credentials, expired token, invalid MFA code |
+| `400` | Missing required fields, invalid client type, no pending MFA login, a wrong MFA or backup code (problem type `urn:endurain:error:invalid-input`) |
+| `401` | Invalid credentials, expired or invalid token |
 | `403` | Insufficient permissions, missing required scope, a web write without `X-CSRF-Token` |
 | `404` | Invalid session ID, user not found |
 | `429` | Too many login or OAuth attempts |
@@ -89,10 +89,12 @@ If-Match: "3"
 | --------- | ------ | ------ |
 | The header is missing | `428` | `urn:endurain:error:precondition-required` |
 | The header names a version that is no longer current | `412` | `urn:endurain:error:precondition-failed` |
+| The header is `*`, alone or in a list | `400` | `urn:endurain:error:invalid-input` |
 | The header names the current version | `200` or `204` | The edit applies and the version goes up. |
-| `If-Match: *` | `200` or `204` | The edit applies whatever the version is. |
 
-On a `412`, read the record again, apply your change on top of what is there now and retry with the new version. Do not retry the same request: it will fail the same way. Use `If-Match: *` only when you really mean "overwrite whatever is there".
+Send the `ETag` you read, never `*`. The wildcard would match any version and so defeat the check, so the API refuses it on every route. A client that wants to overwrite what is there must read the record first and send the `ETag` it got.
+
+On a `412`, read the record again, apply your change on top of what is there now and retry with the new version. Do not retry the same request: it will fail the same way.
 
 A list of tags is accepted (`If-Match: "3", "4"`). A weak tag (`W/"3"`) never matches, as the HTTP standard requires for `If-Match`.
 
@@ -108,12 +110,12 @@ A list of tags is accepted (`If-Match: "3", "4"`). A weak tag (`W/"3"`) never ma
 | Your privacy settings | `PATCH /profile/privacy`, using `privacy_settings_version` from `GET /profile` (the privacy settings have their own version) |
 | Your default gear | `PATCH /profile/default-gear` |
 | Your goals | `PUT` and `DELETE /profile/goals/{id}` |
-| Users (administrators) | `PUT /users/{id}` and `DELETE /users/{id}`, which still answers `202` because the account is erased by a background job |
+| Users (administrators) | `PUT /users/{id}` and `DELETE /users/{id}`, which still answers `202` because the account is erased by a [background job](background-operations.md#delete-a-user-administrators) |
 | Your Strava client credentials | `PUT /strava/client`, using `integrations_version` from `GET /profile` |
 | Identity providers (administrators) | `PUT` and `DELETE /identity-providers/{idp_id}` |
 | Server and mail settings (administrators) | `PUT /server-settings`, `PUT /server-settings/email/settings` |
 
-Creating and the action endpoints (approve a user, change a password, link an account) do not take `If-Match`. Neither does deleting anything not listed above, such as an API key, a session, an activity photo or the login photo. Deleting your own account (`POST /profile/delete-account`) is confirmed with step-up instead.
+Creating and the action endpoints (approve a user, change a password, link an account) do not take `If-Match`. Neither does deleting anything not listed above, such as an API key, a session, an activity photo or the login photo. Deleting your own account (`POST /profile/delete-account`) is confirmed with step-up instead; see [Background operations](background-operations.md#delete-your-account).
 
 `PATCH /profile` and `PATCH /profile/privacy` answer `200` with the updated record and its new `ETag`, so the next edit needs no extra read.
 
@@ -122,11 +124,11 @@ Creating and the action endpoints (approve a user, change a password, link an ac
 
 ## Upload size limits
 
-Every route that takes a file has its own limit on the request body: the largest file the route accepts plus 1 MiB for the multipart framing and form fields. The limit is published in the OpenAPI document as the `x-max-body-bytes` extension of the route's operation, so a client can read it instead of hard-coding a number. A body over the limit is refused with `413` and `urn:endurain:error:payload-too-large` before the route runs, whether the request declares a `Content-Length` or streams the body. Every other request body is limited to 10 MiB. A reverse proxy in front of Endurain must allow at least the largest of these limits.
+Every route that takes a file has its own limit on the request body: the largest file the route accepts plus 1 MiB for the multipart framing and form fields. The limit is published in the OpenAPI document as the `x-max-body-bytes` extension of the route's operation, so a client can read it instead of hard-coding a number. A body over the limit is refused with `413` and `urn:endurain:error:payload-too-large` before the route runs, whether the request declares a `Content-Length` or streams the body. Every other request body is limited to 10 MiB. A reverse proxy in front of Endurain must allow at least the largest of these limits. The limit of each upload and the formats it accepts are listed in [Background operations](background-operations.md#upload-limits-and-formats).
 
 ## Rate limits
 
-Limits are counted per caller: an authenticated request is counted per access token, so users behind the same network address do not share a bucket, and an unauthenticated request is counted per client address, and an IPv6 address by its `/64` network, so a client cannot get a fresh bucket by changing address within its block.
+Limits are counted per caller. A request with a valid, unexpired access token is counted per user (the token's `sub`), so users behind the same network address do not share a bucket and a token refresh does not reset it. Any other request, including one with a refresh token, a malformed or expired token or an API key, is counted per client network, and an IPv6 address by its `/64` network, so a client cannot get a fresh bucket by changing address within its block.
 
 <!-- generated:rate-limits -->
 

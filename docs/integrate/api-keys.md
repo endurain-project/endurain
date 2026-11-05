@@ -34,7 +34,7 @@ API keys bypass the standard JWT and `X-Client-Type` requirements. Send the raw 
 **Option 1: `X-API-Key` header (recommended):**
 
 ```http
-POST /api/v1/activities/create/upload
+POST /api/v1/activities/upload
 X-API-Key: endurain_abc12345...
 Content-Type: multipart/form-data
 
@@ -44,7 +44,7 @@ Content-Type: multipart/form-data
 **Option 2: `api_key` query parameter (for tools that cannot set custom headers):**
 
 ```http
-POST /api/v1/activities/create/upload?api_key=endurain_abc12345...
+POST /api/v1/activities/upload?api_key=endurain_abc12345...
 Content-Type: multipart/form-data
 
 (file body)
@@ -61,9 +61,10 @@ If both the `X-API-Key` header and the `?api_key=` query parameter are present, 
 
 | Method | Endpoint | Required Scope | Description |
 | ------ | -------- | -------------- | ----------- |
-| `POST` | `/activities/create/upload` | `activities:upload` | Upload a .gpx, .tcx, .fit, or .gz activity file |
+| `POST` | `/activities/upload` | `activities:upload` | Upload a .gpx, .tcx, .fit, or .gz activity file. Answers `202` with an ingestion job |
+| `GET` | `/activities/ingestion-jobs/{job_id}` | `activities:upload` | Poll the state of an ingestion job you started |
 
-The upload endpoint also accepts JWT authentication through the same unified-auth dependency. JWT upload requests still require `Authorization: Bearer <access token>` and the `activities:upload` scope, but this endpoint does not require `X-Client-Type`.
+Both endpoints also accept JWT authentication through the same unified-auth dependency. JWT requests still require `Authorization: Bearer <access token>` and the `activities:upload` scope, but these endpoints do not require `X-Client-Type`. No other endpoint accepts an API key. The upload may carry an `Idempotency-Key` header so a retry does not import the file twice.
 
 ## Managing API Keys
 
@@ -112,7 +113,7 @@ Content-Type: application/json
   "user_id": 1,
   "name": "Home Server Integration",
   "key_prefix": "abc12345",
-  "scopes": "[\"activities:upload\"]",
+  "scopes": ["activities:upload"],
   "expires_at": "2027-01-01T00:00:00Z",
   "last_used_at": null,
   "created_at": "2026-03-02T10:00:00Z",
@@ -134,7 +135,7 @@ Content-Type: application/json
       "user_id": 1,
       "name": "Home Server Integration",
       "key_prefix": "abc12345",
-      "scopes": "[\"activities:upload\"]",
+      "scopes": ["activities:upload"],
       "expires_at": "2027-01-01T00:00:00Z",
       "last_used_at": "2026-03-01T08:30:00Z",
       "created_at": "2026-03-02T10:00:00Z",
@@ -163,10 +164,10 @@ Permanently removes the key from the database. Returns HTTP 204 on success.
 | Property | Detail |
 | -------- | ------ |
 | **Storage** | SHA-256 hex digest stored server-side; raw key never persisted |
-| **Comparison** | Constant-time (`hmac.compare_digest`) prevents timing attacks |
+| **Lookup** | The server hashes the presented key with SHA-256 and finds the row by an indexed equality match on the digest. The 256-bit random key cannot be guessed from timing differences in that lookup |
 | **Revocation** | Immediate — revoked keys are rejected at validation time |
 | **Expiry** | Every key expires, at most the server's maximum API key lifetime (365 days by default) after creation; expired keys are rejected at validation time with timezone-aware comparison |
-| **Audit logging** | Every successful authentication is logged with key prefix, user ID, endpoint, and client IP |
+| **Audit and usage tracking** | A successful authentication stamps `last_used_at` on the key and writes a debug log line with key prefix, user ID, endpoint and client IP; it is not an audit row. Every refusal (unknown, revoked or expired key, inactive owner) is audited as `auth.api_key.authenticate` without the key, its prefix or its hash |
 | **No self-escalation** | An API key cannot create, list, or revoke other API keys (JWT required) |
 | **Minimum privilege** | Keys carry only the scopes explicitly granted at creation time |
 
