@@ -183,9 +183,10 @@ class TestListsCarryTheOtherUsersProfile:
 
 
 class TestFollowUser:
+    @patch("modules.followers.service.users_integration")
     @patch("modules.followers.service.followers_event_publishers")
     @patch("modules.followers.service.followers_crud")
-    def test_creates_and_publishes(self, mock_crud, mock_pub):
+    def test_creates_and_publishes(self, mock_crud, mock_pub, mock_users):
         from modules.followers.schema import FollowRelationshipRead
         from modules.followers.service import follow_user
 
@@ -214,9 +215,10 @@ class TestFollowUser:
         mock_crud.create_follower.assert_not_called()
         mock_pub.publish_follower_requested.assert_not_called()
 
+    @patch("modules.followers.service.users_integration")
     @patch("modules.followers.service.followers_event_publishers")
     @patch("modules.followers.service.followers_crud")
-    def test_a_target_with_too_many_pending_requests_is_refused(self, mock_crud, mock_pub):
+    def test_a_target_with_too_many_pending_requests_is_refused(self, mock_crud, mock_pub, mock_users):
         import core.exceptions as core_exceptions
         from modules.followers.constants import MAX_PENDING_REQUESTS
         from modules.followers.service import follow_user
@@ -232,10 +234,61 @@ class TestFollowUser:
         mock_pub.publish_follower_requested.assert_not_called()
 
 
-class TestPendingCapIsSerialised:
+class TestFollowUserHiddenTargets:
+    """A target that is missing, inactive or awaiting approval answers the same not found."""
+
+    @pytest.fixture
+    def factory(self):
+        from tests._helpers.db import create_sqlite_session_factory, ensure_user
+
+        factory = create_sqlite_session_factory()
+        ensure_user(factory, 1)
+        yield factory
+        factory.kw["bind"].dispose()
+
+    @staticmethod
+    def _set_target_state(factory, state: str) -> None:
+        import modules.users.users.models as users_models
+        from tests._helpers.db import ensure_user
+
+        if state == "missing":
+            return
+        ensure_user(factory, 2)
+        with factory() as db:
+            user = db.get(users_models.Users, 2)
+            user.active = state != "inactive"
+            user.pending_admin_approval = state == "pending"
+            db.commit()
+
+    @pytest.mark.parametrize("state", ["missing", "inactive", "pending"])
     @patch("modules.followers.service.followers_event_publishers")
     @patch("modules.followers.service.followers_crud")
-    def test_the_targets_requests_are_locked_before_they_are_counted(self, mock_crud, mock_pub):
+    def test_hidden_target_is_not_found_even_when_its_pending_requests_are_full(
+        self, mock_crud, mock_pub, factory, state
+    ):
+        import core.exceptions as core_exceptions
+        from modules.followers.constants import MAX_PENDING_REQUESTS
+        from modules.followers.service import follow_user
+
+        self._set_target_state(factory, state)
+        mock_crud.count_pending_requests_for_user_id.return_value = MAX_PENDING_REQUESTS
+
+        with factory() as db, pytest.raises(core_exceptions.NotFoundError) as e:
+            follow_user(1, 2, db)
+
+        assert e.value.status_code == 404
+        assert e.value.detail == "User not found"
+        mock_crud.lock_pending_requests.assert_not_called()
+        mock_crud.count_pending_requests_for_user_id.assert_not_called()
+        mock_crud.create_follower.assert_not_called()
+        mock_pub.publish_follower_requested.assert_not_called()
+
+
+class TestPendingCapIsSerialised:
+    @patch("modules.followers.service.users_integration")
+    @patch("modules.followers.service.followers_event_publishers")
+    @patch("modules.followers.service.followers_crud")
+    def test_the_targets_requests_are_locked_before_they_are_counted(self, mock_crud, mock_pub, mock_users):
         from modules.followers.service import follow_user
 
         calls = MagicMock()
@@ -420,9 +473,10 @@ class TestStateChangesLogAtInfo:
             (lambda s, db: s.delete_relationship(2, 1, 1, db), "Deleted a follow relationship"),
         ],
     )
+    @patch("modules.followers.service.users_integration")
     @patch("modules.followers.service.followers_event_publishers")
     @patch("modules.followers.service.followers_crud")
-    def test_a_completed_change_is_logged_once_at_info(self, mock_crud, _mock_pub, call, message, caplog):
+    def test_a_completed_change_is_logged_once_at_info(self, mock_crud, _mock_pub, _mock_users, call, message, caplog):
         from modules.followers import service
 
         mock_crud.count_pending_requests_for_user_id.return_value = 0
@@ -512,9 +566,10 @@ class TestFollowAudit:
 
         audit.assert_not_audited(FOLLOW_REMOVE.id)
 
+    @patch("modules.followers.service.users_integration")
     @patch("modules.followers.service.followers_event_publishers")
     @patch("modules.followers.service.followers_crud")
-    def test_creating_a_request_is_not_audited(self, mock_crud, mock_pub):
+    def test_creating_a_request_is_not_audited(self, mock_crud, mock_pub, mock_users):
         from modules.followers.service import follow_user
 
         mock_crud.count_pending_requests_for_user_id.return_value = 0

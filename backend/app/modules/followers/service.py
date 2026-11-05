@@ -394,15 +394,18 @@ def follow_user(requester_user_id: int, target_user_id: int, db: Session) -> fol
 
     Raises:
         InvalidInputError: If the requester targets themselves.
+        NotFoundError: If the target user does not exist, is inactive or awaits approval. The
+            answer is the same for all three, so a follow reveals nothing about hidden accounts.
         ConflictError: If the relationship already exists or the target already has the maximum
             pending requests.
-        NotFoundError: If the target user does not exist.
     """
     if requester_user_id == target_user_id:
         # Prevent self-follow, which would otherwise pollute counts and
         # notifications.
         raise core_exceptions.InvalidInputError("Cannot follow yourself")
 
+    # Checked before the pending cap, so a hidden account answers not found, never "too many pending".
+    users_integration.get_public_profile(target_user_id, db)
     followers_crud.lock_pending_requests(target_user_id, db)
     if (
         followers_crud.count_pending_requests_for_user_id(target_user_id, db)
