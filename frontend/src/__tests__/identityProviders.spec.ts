@@ -151,13 +151,18 @@ describe('identity providers service requests', () => {
     vi.clearAllMocks()
   })
 
-  it('fetchIdentityProviders maps the list and tolerates a null payload', async () => {
-    vi.mocked(apiFetch).mockResolvedValueOnce([makeProviderDto()])
-    expect(await fetchIdentityProviders()).toHaveLength(1)
-    expect(apiFetch).toHaveBeenCalledWith('/identity-providers', { signal: undefined })
+  it('fetchIdentityProviders reads every page and maps the providers', async () => {
+    vi.mocked(apiFetch)
+      .mockResolvedValueOnce({ items: [makeProviderDto()], next: 2 })
+      .mockResolvedValueOnce({ items: [makeProviderDto({ id: 4 })], next: null })
 
-    vi.mocked(apiFetch).mockResolvedValueOnce(null)
-    expect(await fetchIdentityProviders()).toEqual([])
+    expect((await fetchIdentityProviders()).map((provider) => provider.id)).toEqual([3, 4])
+    expect(apiFetch).toHaveBeenNthCalledWith(1, '/identity-providers?page_number=1', {
+      signal: undefined,
+    })
+    expect(apiFetch).toHaveBeenNthCalledWith(2, '/identity-providers?page_number=2', {
+      signal: undefined,
+    })
   })
 
   it('fetchIdentityProviderTemplates reads the templates endpoint', async () => {

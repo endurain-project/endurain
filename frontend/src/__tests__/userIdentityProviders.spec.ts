@@ -63,18 +63,14 @@ describe('user identity providers service', () => {
   })
 
   it('fetchUserIdentityProviders calls the endpoint and maps records', async () => {
-    vi.mocked(apiFetch).mockResolvedValue([makeIdpDto()])
+    vi.mocked(apiFetch).mockResolvedValue({ items: [makeIdpDto()], next: null })
 
     const providers = await fetchUserIdentityProviders(7)
 
-    expect(apiFetch).toHaveBeenCalledWith('/users/7/identity-providers', { signal: undefined })
+    expect(apiFetch).toHaveBeenCalledWith('/users/7/identity-providers?page_number=1', {
+      signal: undefined,
+    })
     expect(providers[0]?.name).toBe('Authelia')
-  })
-
-  it('fetchUserIdentityProviders maps a null payload to an empty array', async () => {
-    vi.mocked(apiFetch).mockResolvedValue(null)
-
-    expect(await fetchUserIdentityProviders(7)).toEqual([])
   })
 
   it('unlinkUserIdentityProvider issues a scoped DELETE by provider id', async () => {

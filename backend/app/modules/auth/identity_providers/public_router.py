@@ -15,6 +15,7 @@ import core.dependencies as core_dependencies
 import core.etag as core_etag
 import core.exceptions as core_exceptions
 import core.network as core_network
+import core.pagination as core_pagination
 import core.rate_limit as core_rate_limit
 import modules.auth.credentials.integration_service as credentials_integration
 import modules.auth.dependencies as auth_dependencies
@@ -29,21 +30,22 @@ router = APIRouter()
 
 @router.get(
     "",
-    response_model=list[idp_schema.IdentityProviderPublicRead],
+    response_model=idp_schema.IdentityProviderPublicPage,
 )
 def get_enabled_identity_providers(
+    page: core_pagination.ListPage,
     db: core_dependencies.DbSession,
-) -> list[idp_schema.IdentityProviderPublicRead]:
-    """Retrieve a list of enabled identity providers from the database.
+) -> idp_schema.IdentityProviderPublicPage:
+    """Retrieve one page of the enabled identity providers.
 
     Args:
-        db (Session): SQLAlchemy database session dependency.
+        page: The requested window.
+        db: SQLAlchemy database session dependency.
 
     Returns:
-        List[IdentityProviderPublic]: A list of enabled identity providers, each represented as an
-        IdentityProviderPublic schema.
+        The page of enabled identity providers, public fields only, ordered by name.
     """
-    return idp_provider_service.get_enabled_identity_providers(db)
+    return idp_provider_service.get_enabled_identity_providers(page, db)
 
 
 @router.get("/login/{idp_slug}", status_code=status.HTTP_307_TEMPORARY_REDIRECT, response_class=RedirectResponse)

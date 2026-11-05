@@ -6,6 +6,7 @@ import type {
 } from '@/features/security/types'
 
 import { API_BASE_URL, apiFetch } from '@/services/http'
+import { fetchAllPages } from '@/services/pagination'
 import { toStepUpWire } from '@/features/security/services/security'
 
 /**
@@ -38,8 +39,10 @@ export function mapLinkedProvider(dto: LinkedProviderDto): LinkedProvider {
  * @throws {HttpError} When the request fails.
  */
 export async function fetchLinkedProviders(signal?: AbortSignal): Promise<LinkedProvider[]> {
-  const dtos = await apiFetch<LinkedProviderDto[] | null>('/profile/identity-providers', { signal })
-  return (dtos ?? []).map(mapLinkedProvider)
+  const dtos = await fetchAllPages<LinkedProviderDto>('/profile/identity-providers', undefined, {
+    signal,
+  })
+  return dtos.map(mapLinkedProvider)
 }
 
 /**

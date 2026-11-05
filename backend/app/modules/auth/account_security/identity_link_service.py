@@ -7,6 +7,7 @@ from sqlalchemy.orm import Session
 
 import core.exceptions as core_exceptions
 import core.logger as core_logger
+import core.pagination as core_pagination
 import modules.auth.account_security.audit_actions as account_security_audit_actions
 import modules.auth.account_security.event_publishers as account_security_event_publishers
 import modules.auth.account_security.events as account_security_events
@@ -290,11 +291,20 @@ def admin_delete_identity_provider_link(
 
 def get_user_identity_provider_links(
     user_id: int,
+    page: core_pagination.PageParams,
     db: Session,
-) -> list[auth_identity_links_schema.IdentityProviderLinkRead]:
-    """Return enriched identity provider links for the authenticated user."""
-    idp_links = identity_provider_links_integration.get_user_identity_providers_by_user_id(user_id, db)
-    return identity_providers_integration.enrich_user_identity_providers(idp_links, user_id, db)
+) -> auth_identity_links_schema.IdentityProviderLinkPage:
+    """Return one page of a user's identity provider links, enriched with provider details."""
+    idp_links = identity_provider_links_integration.get_identity_links_page(
+        user_id, db, limit=page.num_records, offset=(page.page_number - 1) * page.num_records
+    )
+    total = identity_provider_links_integration.count_identity_links(user_id, db)
+    return auth_identity_links_schema.IdentityProviderLinkPage.build(
+        identity_providers_integration.enrich_user_identity_providers(idp_links, user_id, db),
+        total,
+        page.page_number,
+        page.num_records,
+    )
 
 
 def validate_and_claim_browser_link_token(

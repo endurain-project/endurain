@@ -240,7 +240,7 @@ export async function regenerateBackupCodes(input: StepUpInput): Promise<BackupC
  * @throws {HttpError} When the request fails.
  */
 export async function fetchSessions(signal?: AbortSignal): Promise<SecuritySession[]> {
-  const dtos = await fetchAllPages<SecuritySessionDto>('/profile/sessions', undefined, signal)
+  const dtos = await fetchAllPages<SecuritySessionDto>('/profile/sessions', undefined, { signal })
   return dtos.map(mapSecuritySession)
 }
 
@@ -280,7 +280,7 @@ export async function revokeOtherSessions(): Promise<void> {
  * @throws {HttpError} When the request fails.
  */
 export async function fetchApiKeys(signal?: AbortSignal): Promise<ApiKey[]> {
-  const dtos = await fetchAllPages<ApiKeyDto>('/profile/api-keys', undefined, signal)
+  const dtos = await fetchAllPages<ApiKeyDto>('/profile/api-keys', undefined, { signal })
   return dtos.map(mapApiKey)
 }
 

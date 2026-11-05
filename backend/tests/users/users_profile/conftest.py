@@ -239,7 +239,7 @@ def profile_app(
     monkeypatch.setattr(
         identity_link_service,
         "get_user_identity_provider_links",
-        lambda user_id, db: mock_auth_services.get_user_identity_provider_links(user_id),
+        lambda user_id, page, db: mock_auth_services.get_user_identity_provider_links(user_id, page),
     )
     monkeypatch.setattr(
         identity_link_service,

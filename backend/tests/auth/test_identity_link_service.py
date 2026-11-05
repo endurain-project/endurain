@@ -1,48 +1,42 @@
 """Service-level tests for auth.identity_link_service."""
 
+from datetime import UTC, datetime
 from unittest.mock import MagicMock, patch
 
 import pytest
 
 import core.exceptions as core_exceptions
+import core.pagination as core_pagination
 import modules.auth.account_security.identity_link_service as identity_link_service
+import modules.auth.identity_provider_links.schema as auth_identity_links_schema
 
 
 class TestGetUserIdentityProviderLinks:
-    """get_user_identity_provider_links: returns enriched links for a user."""
+    """get_user_identity_provider_links: one page of a user's links, enriched with provider details."""
 
-    def test_returns_enriched_links(self, mock_db):
-        mock_link = MagicMock()
-        enriched = [MagicMock()]
+    def test_enriches_the_requested_window_and_counts_every_link(self, mock_db):
+        link = MagicMock()
+        enriched = auth_identity_links_schema.IdentityProviderLinkRead(
+            id=1, user_id=1, idp_id=2, idp_subject="sub", linked_at=datetime(2026, 1, 1, tzinfo=UTC)
+        )
+        links = identity_link_service.identity_provider_links_integration
 
         with (
-            patch(
-                "modules.auth.account_security.identity_link_service.identity_provider_links_integration.get_user_identity_providers_by_user_id",
-                return_value=[mock_link],
-            ),
-            patch(
-                "modules.auth.account_security.identity_link_service.identity_providers_integration.enrich_user_identity_providers",
-                return_value=enriched,
-            ),
+            patch.object(links, "get_identity_links_page", return_value=[link]) as get_page,
+            patch.object(links, "count_identity_links", return_value=3),
+            patch.object(
+                identity_link_service.identity_providers_integration,
+                "enrich_user_identity_providers",
+                return_value=[enriched],
+            ) as enrich,
         ):
-            result = identity_link_service.get_user_identity_provider_links(1, mock_db)
+            result = identity_link_service.get_user_identity_provider_links(
+                1, core_pagination.PageParams(2, 1), mock_db
+            )
 
-        assert result is enriched
-
-    def test_returns_empty_list_when_no_links(self, mock_db):
-        with (
-            patch(
-                "modules.auth.account_security.identity_link_service.identity_provider_links_integration.get_user_identity_providers_by_user_id",
-                return_value=[],
-            ),
-            patch(
-                "modules.auth.account_security.identity_link_service.identity_providers_integration.enrich_user_identity_providers",
-                return_value=[],
-            ),
-        ):
-            result = identity_link_service.get_user_identity_provider_links(1, mock_db)
-
-        assert result == []
+        get_page.assert_called_once_with(1, mock_db, limit=1, offset=1)
+        enrich.assert_called_once_with([link], 1, mock_db)
+        assert result == auth_identity_links_schema.IdentityProviderLinkPage.build([enriched], 3, 2, 1)
 
 
 class TestGetIdentityLinkCountsForUsers:

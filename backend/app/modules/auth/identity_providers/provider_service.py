@@ -9,6 +9,7 @@ import core.etag as core_etag
 import core.exceptions as core_exceptions
 import core.logger as core_logger
 import core.network as core_network
+import core.pagination as core_pagination
 import modules.auth.identity_provider_links.integration_service as identity_provider_links_integration
 import modules.auth.identity_providers.audit_actions as idp_audit_actions
 import modules.auth.identity_providers.constants as identity_provider_constants
@@ -24,19 +25,41 @@ logger = core_logger.get_logger(__name__)
 _URL_FIELDS = ("issuer_url", "authorization_endpoint", "token_endpoint", "userinfo_endpoint", "jwks_uri")
 
 
-def list_identity_providers(db: Session) -> list[identity_provider_schema.IdentityProviderRead]:
-    """List configured providers for the admin interface."""
-    return [identity_provider_serializers.to_read_schema(state) for state in idp_crud.get_all_identity_providers(db)]
+def list_identity_providers(
+    page: core_pagination.PageParams, db: Session
+) -> identity_provider_schema.IdentityProviderPage:
+    """Return one page of the configured providers for the admin interface."""
+    states = idp_crud.get_identity_providers_page(
+        db, enabled_only=False, limit=page.num_records, offset=(page.page_number - 1) * page.num_records
+    )
+    total = idp_crud.count_identity_providers(db, enabled_only=False)
+    return identity_provider_schema.IdentityProviderPage.build(
+        [identity_provider_serializers.to_read_schema(state) for state in states],
+        total,
+        page.page_number,
+        page.num_records,
+    )
 
 
-def get_enabled_identity_providers(db: Session) -> list[identity_provider_schema.IdentityProviderPublicRead]:
-    """Return public fields for enabled identity providers."""
-    return [
-        identity_provider_schema.IdentityProviderPublicRead(
-            id=state.id, name=state.name, slug=state.slug, icon=state.icon, icon_uploaded=state.icon_uploaded
-        )
-        for state in idp_crud.get_enabled_identity_providers(db)
-    ]
+def get_enabled_identity_providers(
+    page: core_pagination.PageParams, db: Session
+) -> identity_provider_schema.IdentityProviderPublicPage:
+    """Return one page of the enabled providers, public fields only."""
+    states = idp_crud.get_identity_providers_page(
+        db, enabled_only=True, limit=page.num_records, offset=(page.page_number - 1) * page.num_records
+    )
+    total = idp_crud.count_identity_providers(db, enabled_only=True)
+    return identity_provider_schema.IdentityProviderPublicPage.build(
+        [
+            identity_provider_schema.IdentityProviderPublicRead(
+                id=state.id, name=state.name, slug=state.slug, icon=state.icon, icon_uploaded=state.icon_uploaded
+            )
+            for state in states
+        ],
+        total,
+        page.page_number,
+        page.num_records,
+    )
 
 
 def get_idp_templates() -> list[identity_provider_schema.IdentityProviderTemplateRead]:

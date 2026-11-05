@@ -38,7 +38,9 @@ export async function fetchUserSessions(
   userId: number,
   signal?: AbortSignal,
 ): Promise<UserSession[]> {
-  const dtos = await fetchAllPages<UserSessionDto>(`/users/${userId}/sessions`, undefined, signal)
+  const dtos = await fetchAllPages<UserSessionDto>(`/users/${userId}/sessions`, undefined, {
+    signal,
+  })
   return dtos.map(mapUserSession)
 }
 

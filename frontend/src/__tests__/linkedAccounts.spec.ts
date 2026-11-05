@@ -81,18 +81,12 @@ describe('linked-accounts service requests', () => {
   })
 
   it('fetchLinkedProviders reads /profile/identity-providers and maps the records', async () => {
-    vi.mocked(apiFetch).mockResolvedValue([linkedDto])
+    vi.mocked(apiFetch).mockResolvedValue({ items: [linkedDto], next: null })
 
     expect(await fetchLinkedProviders()).toEqual([mappedLinked])
-    expect(apiFetch).toHaveBeenCalledWith(
-      '/profile/identity-providers',
-      expect.objectContaining({ signal: undefined }),
-    )
-  })
-
-  it('maps a null payload to an empty array', async () => {
-    vi.mocked(apiFetch).mockResolvedValue(null)
-    await expect(fetchLinkedProviders()).resolves.toEqual([])
+    expect(apiFetch).toHaveBeenCalledWith('/profile/identity-providers?page_number=1', {
+      signal: undefined,
+    })
   })
 
   it('generateLinkToken POSTs the step-up body and returns the token', async () => {

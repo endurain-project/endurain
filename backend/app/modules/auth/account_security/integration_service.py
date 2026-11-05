@@ -3,6 +3,7 @@
 from sqlalchemy.orm import Session
 
 import core.dependencies as core_dependencies
+import core.pagination as core_pagination
 import modules.auth.account_security.account_security_service as account_security_service
 import modules.auth.account_security.identity_link_service as identity_link_service
 import modules.auth.account_security.mfa_workflow_service as mfa_workflow_service
@@ -99,10 +100,11 @@ def get_mfa_status(user_id: int, db: Session) -> mfa_schema.MFAStatusRead:
 
 def get_user_identity_provider_links(
     user_id: int,
+    page: core_pagination.PageParams,
     db: Session,
-) -> list[identity_links_schema.IdentityProviderLinkRead]:
-    """Return enriched identity-provider links for a user."""
-    return identity_link_service.get_user_identity_provider_links(user_id, db)
+) -> identity_links_schema.IdentityProviderLinkPage:
+    """Return one page of a user's enriched identity-provider links."""
+    return identity_link_service.get_user_identity_provider_links(user_id, page, db)
 
 
 def admin_delete_identity_provider_link(user_id: int, idp_id: int, db: Session) -> None:

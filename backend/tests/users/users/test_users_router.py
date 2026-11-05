@@ -332,6 +332,18 @@ class TestReadUserDeletionStatus:
         assert client.get("/users/1/deletion").status_code == 404
 
 
+class TestReadUserIdentityProviders:
+    @patch("modules.users.users.router.account_security_integration.get_user_identity_provider_links")
+    def test_returns_the_page_for_the_requested_window(self, mock_links, client, mock_db):
+        mock_links.return_value = {"items": [], "total": 3, "page": 2, "num_records": 1, "next": 3}
+
+        response = client.get("/users/4/identity-providers", params={"page_number": 2, "num_records": 1})
+
+        assert response.status_code == 200
+        assert response.json() == {"items": [], "total": 3, "page": 2, "num_records": 1, "next": 3}
+        mock_links.assert_called_once_with(4, core_pagination.PageParams(2, 1), mock_db)
+
+
 class TestLookupPathParametersAreBounded:
     """A lookup key longer than the column can hold is refused before it reaches the database."""
 

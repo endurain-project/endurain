@@ -1,15 +1,16 @@
 import type { IdentityProviderPublic, SsoTokenExchangeResponse } from '@/types'
 
 import { apiFetch, API_BASE_URL } from './http'
+import { fetchAllPages } from './pagination'
 
 /**
- * Fetches enabled public identity providers.
+ * Fetches every enabled public identity provider, without credentials.
  *
  * @returns Enabled SSO providers.
  * @throws {HttpError} When provider discovery fails.
  */
 export function fetchEnabledIdentityProviders(): Promise<IdentityProviderPublic[]> {
-  return apiFetch<IdentityProviderPublic[]>('/public/idp', {
+  return fetchAllPages<IdentityProviderPublic>('/public/idp', undefined, {
     auth: false,
     retryOnUnauthorized: false,
   })

@@ -21,6 +21,18 @@ def get_user_identity_providers_by_user_id(user_id: int, db: Session) -> list[id
     return identity_link_crud.get_user_identity_providers_by_user_id(user_id, db)
 
 
+def get_identity_links_page(
+    user_id: int, db: Session, *, limit: int, offset: int
+) -> list[identity_link_contracts.IdentityLinkRead]:
+    """Return one window of the user's identity-provider links."""
+    return identity_link_crud.get_identity_links_page(user_id, db, limit=limit, offset=offset)
+
+
+def count_identity_links(user_id: int, db: Session) -> int:
+    """Return how many identity-provider links the user has."""
+    return identity_link_crud.count_identity_links(user_id, db)
+
+
 def get_user_identity_provider_by_user_id_and_idp_id(
     user_id: int, idp_id: int, db: Session
 ) -> identity_link_contracts.IdentityLinkRead | None:

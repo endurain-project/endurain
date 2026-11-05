@@ -11,6 +11,8 @@ from pydantic import (
     StrictStr,
 )
 
+import core.pagination as core_pagination
+
 
 class UsersIdentityProviderBase(BaseModel):
     """Base schema for users identity provider association.
@@ -141,3 +143,7 @@ class UsersIdentityProviderTokenUpdate(BaseModel):
         extra="forbid",
         validate_assignment=True,
     )
+
+
+#: One page of a user's identity-provider links.
+IdentityProviderLinkPage = core_pagination.Page[IdentityProviderLinkRead]

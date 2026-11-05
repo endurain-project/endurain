@@ -171,3 +171,35 @@ def test_get_ids_with_icon_returns_only_the_given_providers_that_have_an_uploade
 
     assert idp_crud.get_ids_with_icon([1, 2, 4], db) == {1}
     db.close()
+
+
+def _db_with_providers():
+    db = create_sqlite_session()
+    for idp_id, name, enabled in ((1, "Zitadel", True), (2, "Authelia", False), (3, "Keycloak", True)):
+        db.add(
+            idp_models.IdentityProvider(id=idp_id, name=name, slug=name.lower(), provider_type="oidc", enabled=enabled)
+        )
+    db.commit()
+    return db
+
+
+def test_providers_page_is_ordered_by_name_and_windowed():
+    db = _db_with_providers()
+
+    first = idp_crud.get_identity_providers_page(db, enabled_only=False, limit=2, offset=0)
+    second = idp_crud.get_identity_providers_page(db, enabled_only=False, limit=2, offset=2)
+
+    assert [state.name for state in first] == ["Authelia", "Keycloak"]
+    assert [state.name for state in second] == ["Zitadel"]
+    assert idp_crud.count_identity_providers(db, enabled_only=False) == 3
+    db.close()
+
+
+def test_enabled_providers_page_leaves_out_disabled_providers():
+    db = _db_with_providers()
+
+    page = idp_crud.get_identity_providers_page(db, enabled_only=True, limit=25, offset=0)
+
+    assert [state.name for state in page] == ["Keycloak", "Zitadel"]
+    assert idp_crud.count_identity_providers(db, enabled_only=True) == 2
+    db.close()

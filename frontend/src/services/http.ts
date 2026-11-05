@@ -23,7 +23,7 @@ const DEFAULT_TIMEOUT_MS = 30_000
 
 type ResponseType = 'json' | 'text' | 'blob' | 'void'
 
-interface ApiFetchOptions extends RequestInit {
+export interface ApiFetchOptions extends RequestInit {
   auth?: boolean
   responseType?: ResponseType
   retryOnUnauthorized?: boolean

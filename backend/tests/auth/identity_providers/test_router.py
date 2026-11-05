@@ -10,6 +10,7 @@ from fastapi.testclient import TestClient
 import core.database as core_database
 import core.dependencies as core_dependencies
 import core.exceptions as core_exceptions
+import core.pagination as core_pagination
 import modules.auth.dependencies as auth_dependencies
 import modules.auth.identity_providers.dependencies as idp_dependencies
 import modules.auth.identity_providers.router as idp_router
@@ -44,15 +45,21 @@ def _provider(version: int = 1) -> idp_schema.IdentityProviderRead:
     )
 
 
-def test_list_identity_providers_delegates_to_service(service):
-    service.list_identity_providers.return_value = [_provider()]
+def test_list_identity_providers_returns_the_page_for_the_requested_window(service):
+    service.list_identity_providers.return_value = idp_schema.IdentityProviderPage.build([_provider()], 3, 2, 1)
 
-    response = _client().get("/auth/identity_providers", headers={"Authorization": "Bearer x"})
+    response = _client().get(
+        "/auth/identity_providers",
+        params={"page_number": 2, "num_records": 1},
+        headers={"Authorization": "Bearer x"},
+    )
 
     assert response.status_code == 200
-    assert response.json()[0]["slug"] == "google"
-    assert response.json()[0]["version"] == 1
-    service.list_identity_providers.assert_called_once()
+    body = response.json()
+    assert body["items"][0]["slug"] == "google"
+    assert body["items"][0]["version"] == 1
+    assert (body["total"], body["page"], body["next"]) == (3, 2, 3)
+    assert service.list_identity_providers.call_args.args[0] == core_pagination.PageParams(2, 1)
 
 
 def test_list_templates_delegates_to_service(service):

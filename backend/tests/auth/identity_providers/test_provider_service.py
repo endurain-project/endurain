@@ -6,8 +6,11 @@ import pytest
 from sqlalchemy.orm.exc import StaleDataError
 
 import core.exceptions as core_exceptions
+import core.pagination as core_pagination
+import modules.auth.identity_providers.models as idp_models
 import modules.auth.identity_providers.provider_service as provider_service
 import modules.auth.identity_providers.schema as idp_schema
+from tests._helpers.db import create_sqlite_session
 
 
 def test_a_delete_that_races_past_the_version_check_is_a_precondition_failure(mock_db):
@@ -169,6 +172,40 @@ class TestDiscoveryCacheEviction:
             crud.delete_identity_provider.return_value = True
             provider_service.delete_identity_provider(3, MagicMock(), oidc, mock_db, if_match='"1"')
         assert order.mock_calls == [call.commit(), call.forget(3)]
+
+
+class TestListProviders:
+    """The admin and public lists are pages of the stored providers."""
+
+    @staticmethod
+    def _db():
+        db = create_sqlite_session()
+        for idp_id, name, enabled in ((1, "Zitadel", True), (2, "Authelia", False), (3, "Keycloak", True)):
+            db.add(
+                idp_models.IdentityProvider(
+                    id=idp_id, name=name, slug=name.lower(), provider_type="oidc", enabled=enabled
+                )
+            )
+        db.commit()
+        return db
+
+    def test_the_admin_list_pages_every_provider(self):
+        db = self._db()
+
+        page = provider_service.list_identity_providers(core_pagination.PageParams(1, 2), db)
+
+        assert [provider.slug for provider in page.items] == ["authelia", "keycloak"]
+        assert (page.total, page.next) == (3, 2)
+        db.close()
+
+    def test_the_public_list_pages_only_enabled_providers_and_their_public_fields(self):
+        db = self._db()
+
+        page = provider_service.get_enabled_identity_providers(core_pagination.PageParams(2, 1), db)
+
+        assert page.items == [idp_schema.IdentityProviderPublicRead(id=1, name="Zitadel", slug="zitadel")]
+        assert (page.total, page.page, page.next) == (2, 2, None)
+        db.close()
 
 
 class TestGetIdpTemplates:

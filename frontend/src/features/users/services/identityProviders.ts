@@ -1,6 +1,7 @@
 import type { UserIdentityProvider, UserIdentityProviderDto } from '@/features/users/types'
 
 import { apiFetch } from '@/services/http'
+import { fetchAllPages } from '@/services/pagination'
 
 /**
  * Maps a raw `IdentityProviderLinkRead` payload to the clean
@@ -35,11 +36,12 @@ export async function fetchUserIdentityProviders(
   userId: number,
   signal?: AbortSignal,
 ): Promise<UserIdentityProvider[]> {
-  const dtos = await apiFetch<UserIdentityProviderDto[] | null>(
+  const dtos = await fetchAllPages<UserIdentityProviderDto>(
     `/users/${userId}/identity-providers`,
+    undefined,
     { signal },
   )
-  return (dtos ?? []).map(mapUserIdentityProvider)
+  return dtos.map(mapUserIdentityProvider)
 }
 
 /**

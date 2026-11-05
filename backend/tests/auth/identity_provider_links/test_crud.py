@@ -142,3 +142,25 @@ class TestCompareAndSetTokens:
         assert identity_links_crud.clear_refresh_token_if_unchanged(7, 3, "old", db) is False
         assert self._stored(db).idp_refresh_token == "stored-by-another"
         db.close()
+
+
+def test_links_page_holds_only_the_users_links_oldest_first_and_windowed():
+    db = create_sqlite_session()
+    for idp_id, user_id, day in ((1, 7, 3), (2, 7, 1), (3, 8, 2), (4, 7, 2)):
+        db.add(
+            identity_links_models.IdentityLink(
+                user_id=user_id,
+                idp_id=idp_id,
+                idp_subject=f"subject-{idp_id}",
+                linked_at=datetime(2026, 1, day, tzinfo=UTC),
+            )
+        )
+    db.commit()
+
+    first = identity_links_crud.get_identity_links_page(7, db, limit=2, offset=0)
+    second = identity_links_crud.get_identity_links_page(7, db, limit=2, offset=2)
+
+    assert [link.idp_id for link in first] == [2, 4]
+    assert [link.idp_id for link in second] == [1]
+    assert identity_links_crud.count_identity_links(7, db) == 3
+    db.close()

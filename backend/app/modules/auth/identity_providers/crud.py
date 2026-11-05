@@ -1,6 +1,6 @@
 """Persistence operations for identity providers."""
 
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 from sqlalchemy.orm.attributes import flag_modified
 
@@ -28,16 +28,29 @@ def get_identity_provider_by_slug(slug: str, db: Session) -> identity_provider_c
     return identity_provider_serializers.to_state(row) if row is not None else None
 
 
-def get_all_identity_providers(db: Session) -> list[identity_provider_contracts.IdentityProviderState]:
-    """Return every provider ordered by name."""
-    rows = (
-        db.execute(
-            select(identity_provider_models.IdentityProvider).order_by(identity_provider_models.IdentityProvider.name)
-        )
-        .scalars()
-        .all()
-    )
+def get_identity_providers_page(
+    db: Session,
+    *,
+    enabled_only: bool,
+    limit: int,
+    offset: int,
+) -> list[identity_provider_contracts.IdentityProviderState]:
+    """Return one window of providers ordered by name, with the id as tiebreak."""
+    model = identity_provider_models.IdentityProvider
+    stmt = select(model).order_by(model.name, model.id).limit(limit).offset(offset)
+    if enabled_only:
+        stmt = stmt.where(model.enabled.is_(True))
+    rows = db.execute(stmt).scalars()
     return [identity_provider_serializers.to_state(row) for row in rows]
+
+
+def count_identity_providers(db: Session, *, enabled_only: bool) -> int:
+    """Return how many providers exist, or how many are enabled."""
+    model = identity_provider_models.IdentityProvider
+    stmt = select(func.count(model.id))
+    if enabled_only:
+        stmt = stmt.where(model.enabled.is_(True))
+    return db.execute(stmt).scalar_one()
 
 
 def get_identity_providers_by_ids(
@@ -51,20 +64,6 @@ def get_identity_providers_by_ids(
             select(identity_provider_models.IdentityProvider).where(
                 identity_provider_models.IdentityProvider.id.in_(idp_ids)
             )
-        )
-        .scalars()
-        .all()
-    )
-    return [identity_provider_serializers.to_state(row) for row in rows]
-
-
-def get_enabled_identity_providers(db: Session) -> list[identity_provider_contracts.IdentityProviderState]:
-    """Return enabled providers ordered by name."""
-    rows = (
-        db.execute(
-            select(identity_provider_models.IdentityProvider)
-            .where(identity_provider_models.IdentityProvider.enabled.is_(True))
-            .order_by(identity_provider_models.IdentityProvider.name)
         )
         .scalars()
         .all()

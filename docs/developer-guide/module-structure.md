@@ -715,9 +715,10 @@ one pattern. Recorded here so a review does not reopen them.
   a parser or an archive rather than a client is `<Thing>Create` in `contracts.py`. A
   `<Thing>Read` is never accepted as input (`TestReadModelsAreStoredRows`).
 - **Collections.** A list a client receives is a `core.pagination.Page`; a
-  collection that is absent is `[]`, never `None`. The two exceptions are the
-  exercise-title reference table (`/all`, read whole by design) and the response
-  to a bulk import (the handles of the jobs that POST created).
+  collection that is absent is `[]`, never `None`. The exceptions are fixed
+  catalogues built into the code, which a client reads whole: the identity-provider
+  templates and the tile-map templates. `test_a_collection_is_a_page` enforces the
+  rule and names the exceptions.
   `None` is kept only where it is a distinct signal: the ingestion store
   functions return `None` for "this file failed" and a list for "it parsed".
 
@@ -834,9 +835,3 @@ These constraints remain visible until a coordinated design change resolves them
   bounds the list; relationships accepted before the cap existed may exceed it. A followee subquery published by
   `followers` would avoid the list, but it would be the first SQL fragment to cross a module surface, so the
   bounded list is kept.
-- **Collections that are not paginated.** `GET /identity-providers`, `GET /identity-providers/templates`,
-  `GET /profile/identity-providers`, `GET /users/{user_id}/identity-providers`, `GET /public/idp` and
-  `GET /public/server-settings/tile-maps-templates` return bare arrays, against the convention that a list a
-  client receives is a `core.pagination.Page`. Changing these shapes breaks
-  existing API clients, including the mobile app, so it waits for a coordinated
-  client release.

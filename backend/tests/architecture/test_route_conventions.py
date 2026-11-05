@@ -28,6 +28,15 @@ _DEPENDENCY_ALIASES = {
 }
 
 
+#: Routes that return a bare array: fixed catalogues built into the code, which a client reads whole.
+_WHOLE_LIST_ROUTES = frozenset(
+    {
+        "auth/identity_providers/router.py::list_idp_templates",
+        "server_settings/public_router.py::list_tile_maps_templates",
+    }
+)
+
+
 #: Roles whose functions are FastAPI handlers or dependencies. FastAPI reads their parameters by
 #: name, so they order them by dependency and are outside the ``db``-position rule.
 _FRAMEWORK_ROLES = frozenset({"router", "public_router", "dependencies"})
@@ -78,6 +87,30 @@ class TestRouteConventions:
         ]
 
         assert offenders == [], "Remove the default status_code=200 from:\n  " + "\n  ".join(offenders)
+
+    def test_a_collection_is_a_page(self):
+        """A list a client receives is a ``core.pagination.Page``, not a bare array.
+
+        A bare array cannot say how many records exist or whether another page follows, and
+        wrapping it later breaks every client. Only the fixed catalogues in ``_WHOLE_LIST_ROUTES``
+        return one.
+        """
+        bare_lists = {
+            f"{path.relative_to(_ROOT).as_posix()}::{function.name}"
+            for path, function in router_functions()
+            for _, call in route_decorators(function)
+            for keyword in call.keywords
+            if keyword.arg == "response_model"
+            and isinstance(keyword.value, ast.Subscript)
+            and ast.unparse(keyword.value.value) == "list"
+        }
+
+        offenders = sorted(bare_lists - _WHOLE_LIST_ROUTES)
+        assert offenders == [], "Return a core_pagination.Page from:\n  " + "\n  ".join(offenders)
+        stale = sorted(_WHOLE_LIST_ROUTES - bare_lists)
+        assert stale == [], "Remove from _WHOLE_LIST_ROUTES, they no longer return a bare list:\n  " + "\n  ".join(
+            stale
+        )
 
     def test_every_write_route_is_rate_limited(self):
         """Reads rely on the global default; a write, upload or sync names its own tier.

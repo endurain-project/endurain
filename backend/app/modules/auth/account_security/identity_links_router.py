@@ -6,6 +6,7 @@ from fastapi import APIRouter, Depends, Request, Response, Security, status
 
 import core.dependencies as core_dependencies
 import core.network as core_network
+import core.pagination as core_pagination
 import core.rate_limit as core_rate_limit
 import modules.auth.account_security.identity_link_service as identity_link_service
 import modules.auth.dependencies as auth_dependencies
@@ -140,43 +141,27 @@ def start_idp_step_up(
 # Identity Provider Management Endpoints
 @router.get(
     "",
-    response_model=list[auth_identity_links_schema.IdentityProviderLinkRead],
+    response_model=auth_identity_links_schema.IdentityProviderLinkPage,
     dependencies=[Security(auth_dependencies.check_scopes, scopes=["profile"])],
 )
 def get_my_identity_providers(
     token_user_id: auth_dependencies.CurrentUserId,
+    page: core_pagination.ListPage,
     db: core_dependencies.DbSession,
-) -> list[auth_identity_links_schema.IdentityProviderLinkRead]:
-    """Retrieve all identity provider links for the authenticated user.
+) -> auth_identity_links_schema.IdentityProviderLinkPage:
+    """Retrieve one page of the authenticated user's identity provider links.
 
-    This endpoint fetches all external identity provider (IdP) connections associated
-    with the current user's account. Each link includes connection metadata and enriched
-    details about the identity provider (name, slug, icon, and provider type).
+    Each link carries its connection metadata and the provider's name, slug, icon and type.
 
     Args:
-        token_user_id (int): The authenticated user's ID extracted from the JWT access token.
-            Injected automatically via dependency injection.
+        token_user_id: The authenticated user's ID from the access token.
+        page: The requested window.
         db: Database session.
 
     Returns:
-        list[dict]: A list of dictionaries representing the user's IdP links. Each dictionary contains:
-            - id (int): Unique identifier for the user-IdP link
-            - user_id (int): ID of the user
-            - idp_id (int): ID of the identity provider
-            - idp_subject (str): User's unique identifier at the IdP
-            - linked_at (datetime): Timestamp when the link was created
-            - last_login (datetime): Timestamp of the last login via this IdP
-            - idp_access_token_expires_at (datetime): Expiration time of the IdP access token
-            - idp_refresh_token_updated_at (datetime): Last update time of the refresh token
-            - idp_name (str): Display name of the identity provider (if available)
-            - idp_slug (str): URL-safe identifier for the IdP (if available)
-            - idp_icon (str): Icon/logo URL for the IdP (if available)
-            - idp_provider_type (str): Type of provider (e.g., "oauth2", "oidc") (if available)
-
-    Raises:
-        DomainError: May raise authentication/authorization errors via the dependency injection.
+        The page of the user's identity provider links, oldest first.
     """
-    return identity_link_service.get_user_identity_provider_links(token_user_id, db)
+    return identity_link_service.get_user_identity_provider_links(token_user_id, page, db)
 
 
 @router.post(

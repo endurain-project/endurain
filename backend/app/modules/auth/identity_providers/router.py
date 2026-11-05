@@ -5,6 +5,7 @@ from fastapi import APIRouter, Request, Response, Security, UploadFile, status
 import core.dependencies as core_dependencies
 import core.etag as core_etag
 import core.file_uploads as core_file_uploads
+import core.pagination as core_pagination
 import core.rate_limit as core_rate_limit
 import modules.auth.dependencies as auth_dependencies
 import modules.auth.identity_providers.dependencies as idp_dependencies
@@ -17,21 +18,23 @@ router = APIRouter()
 
 @router.get(
     "",
-    response_model=list[idp_schema.IdentityProviderRead],
+    response_model=idp_schema.IdentityProviderPage,
     dependencies=[Security(auth_dependencies.check_scopes, scopes=["identity_providers:read"])],
 )
 def list_identity_providers(
+    page: core_pagination.ListPage,
     db: core_dependencies.DbSession,
-) -> list[idp_schema.IdentityProviderRead]:
-    """Retrieve a list of all identity providers.
+) -> idp_schema.IdentityProviderPage:
+    """Retrieve one page of the configured identity providers.
 
     Args:
+        page: The requested window.
         db: SQLAlchemy database session dependency.
 
     Returns:
-        A list of all configured identity providers.
+        The page of identity providers, ordered by name.
     """
-    return idp_provider_service.list_identity_providers(db)
+    return idp_provider_service.list_identity_providers(page, db)
 
 
 @router.get(

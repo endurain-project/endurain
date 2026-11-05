@@ -16,6 +16,7 @@ from pydantic import (
 )
 
 import core.cryptography as core_cryptography
+import core.pagination as core_pagination
 import modules.auth.identity_providers.constants as idp_constants
 
 
@@ -301,3 +302,10 @@ class StepUpStartRead(BaseModel):
     """
 
     authorization_url: StrictStr = Field(..., description="Identity provider authorization URL")
+
+
+#: One page of the configured identity providers.
+IdentityProviderPage = core_pagination.Page[IdentityProviderRead]
+
+#: One page of the enabled identity providers, public fields only.
+IdentityProviderPublicPage = core_pagination.Page[IdentityProviderPublicRead]

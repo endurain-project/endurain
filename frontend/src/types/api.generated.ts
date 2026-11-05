@@ -2291,13 +2291,14 @@ export interface paths {
         };
         /**
          * List Identity Providers
-         * @description Retrieve a list of all identity providers.
+         * @description Retrieve one page of the configured identity providers.
          *
          *     Args:
+         *         page: The requested window.
          *         db: SQLAlchemy database session dependency.
          *
          *     Returns:
-         *         A list of all configured identity providers.
+         *         The page of identity providers, ordered by name.
          */
         get: operations["list_identity_providers_api_v1_identity_providers_get"];
         put?: never;
@@ -3143,34 +3144,17 @@ export interface paths {
         };
         /**
          * Get My Identity Providers
-         * @description Retrieve all identity provider links for the authenticated user.
+         * @description Retrieve one page of the authenticated user's identity provider links.
          *
-         *     This endpoint fetches all external identity provider (IdP) connections associated
-         *     with the current user's account. Each link includes connection metadata and enriched
-         *     details about the identity provider (name, slug, icon, and provider type).
+         *     Each link carries its connection metadata and the provider's name, slug, icon and type.
          *
          *     Args:
-         *         token_user_id (int): The authenticated user's ID extracted from the JWT access token.
-         *             Injected automatically via dependency injection.
+         *         token_user_id: The authenticated user's ID from the access token.
+         *         page: The requested window.
          *         db: Database session.
          *
          *     Returns:
-         *         list[dict]: A list of dictionaries representing the user's IdP links. Each dictionary contains:
-         *             - id (int): Unique identifier for the user-IdP link
-         *             - user_id (int): ID of the user
-         *             - idp_id (int): ID of the identity provider
-         *             - idp_subject (str): User's unique identifier at the IdP
-         *             - linked_at (datetime): Timestamp when the link was created
-         *             - last_login (datetime): Timestamp of the last login via this IdP
-         *             - idp_access_token_expires_at (datetime): Expiration time of the IdP access token
-         *             - idp_refresh_token_updated_at (datetime): Last update time of the refresh token
-         *             - idp_name (str): Display name of the identity provider (if available)
-         *             - idp_slug (str): URL-safe identifier for the IdP (if available)
-         *             - idp_icon (str): Icon/logo URL for the IdP (if available)
-         *             - idp_provider_type (str): Type of provider (e.g., "oauth2", "oidc") (if available)
-         *
-         *     Raises:
-         *         DomainError: May raise authentication/authorization errors via the dependency injection.
+         *         The page of the user's identity provider links, oldest first.
          */
         get: operations["get_my_identity_providers_api_v1_profile_identity_providers_get"];
         put?: never;
@@ -4052,14 +4036,14 @@ export interface paths {
         };
         /**
          * Get Enabled Identity Providers
-         * @description Retrieve a list of enabled identity providers from the database.
+         * @description Retrieve one page of the enabled identity providers.
          *
          *     Args:
-         *         db (Session): SQLAlchemy database session dependency.
+         *         page: The requested window.
+         *         db: SQLAlchemy database session dependency.
          *
          *     Returns:
-         *         List[IdentityProviderPublic]: A list of enabled identity providers, each represented as an
-         *         IdentityProviderPublic schema.
+         *         The page of enabled identity providers, public fields only, ordered by name.
          */
         get: operations["get_enabled_identity_providers_api_v1_public_idp_get"];
         put?: never;
@@ -5398,14 +5382,15 @@ export interface paths {
         };
         /**
          * Get User Identity Providers
-         * @description List the identity provider links of a specific user (admin).
+         * @description List one page of a specific user's identity provider links (admin).
          *
          *     Args:
          *         user_id: ID of the user whose identity provider links to retrieve.
+         *         page: The requested window.
          *         db: Database session.
          *
          *     Returns:
-         *         The user's enriched identity provider links (empty list if none).
+         *         The page of the user's enriched identity provider links, oldest first.
          */
         get: operations["get_user_identity_providers_api_v1_users__user_id__identity_providers_get"];
         put?: never;
@@ -10516,6 +10501,45 @@ export interface components {
         Page_HealthWeightRead_: {
             /** Items */
             items: components["schemas"]["HealthWeightRead"][];
+            /** Next */
+            next?: number | null;
+            /** Num Records */
+            num_records: number;
+            /** Page */
+            page: number;
+            /** Total */
+            total: number;
+        };
+        /** Page[IdentityProviderLinkRead] */
+        Page_IdentityProviderLinkRead_: {
+            /** Items */
+            items: components["schemas"]["IdentityProviderLinkRead"][];
+            /** Next */
+            next?: number | null;
+            /** Num Records */
+            num_records: number;
+            /** Page */
+            page: number;
+            /** Total */
+            total: number;
+        };
+        /** Page[IdentityProviderPublicRead] */
+        Page_IdentityProviderPublicRead_: {
+            /** Items */
+            items: components["schemas"]["IdentityProviderPublicRead"][];
+            /** Next */
+            next?: number | null;
+            /** Num Records */
+            num_records: number;
+            /** Page */
+            page: number;
+            /** Total */
+            total: number;
+        };
+        /** Page[IdentityProviderRead] */
+        Page_IdentityProviderRead_: {
+            /** Items */
+            items: components["schemas"]["IdentityProviderRead"][];
             /** Next */
             next?: number | null;
             /** Num Records */
@@ -17561,7 +17585,10 @@ export interface operations {
     };
     list_identity_providers_api_v1_identity_providers_get: {
         parameters: {
-            query?: never;
+            query?: {
+                page_number?: number | null;
+                num_records?: number | null;
+            };
             header?: never;
             path?: never;
             cookie?: never;
@@ -17574,7 +17601,16 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["IdentityProviderRead"][];
+                    "application/json": components["schemas"]["Page_IdentityProviderRead_"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
                 };
             };
             /** @description Unexpected error */
@@ -18895,7 +18931,10 @@ export interface operations {
     };
     get_my_identity_providers_api_v1_profile_identity_providers_get: {
         parameters: {
-            query?: never;
+            query?: {
+                page_number?: number | null;
+                num_records?: number | null;
+            };
             header?: never;
             path?: never;
             cookie?: never;
@@ -18908,7 +18947,16 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["IdentityProviderLinkRead"][];
+                    "application/json": components["schemas"]["Page_IdentityProviderLinkRead_"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
                 };
             };
             /** @description Unexpected error */
@@ -20015,7 +20063,10 @@ export interface operations {
     };
     get_enabled_identity_providers_api_v1_public_idp_get: {
         parameters: {
-            query?: never;
+            query?: {
+                page_number?: number | null;
+                num_records?: number | null;
+            };
             header?: never;
             path?: never;
             cookie?: never;
@@ -20028,7 +20079,16 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["IdentityProviderPublicRead"][];
+                    "application/json": components["schemas"]["Page_IdentityProviderPublicRead_"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
                 };
             };
             /** @description Unexpected error */
@@ -22095,7 +22155,10 @@ export interface operations {
     };
     get_user_identity_providers_api_v1_users__user_id__identity_providers_get: {
         parameters: {
-            query?: never;
+            query?: {
+                page_number?: number | null;
+                num_records?: number | null;
+            };
             header?: never;
             path: {
                 user_id: number;
@@ -22110,7 +22173,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["IdentityProviderLinkRead"][];
+                    "application/json": components["schemas"]["Page_IdentityProviderLinkRead_"];
                 };
             };
             /** @description Validation Error */

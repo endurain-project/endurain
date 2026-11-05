@@ -9,6 +9,7 @@ import type {
 } from '@/features/identityProviders/types'
 
 import { apiFetch } from '@/services/http'
+import { fetchAllPages } from '@/services/pagination'
 import { ifMatchHeaders, rowVersion } from '@/services/ifMatch'
 
 /**
@@ -115,8 +116,10 @@ function toWireBase(input: IdentityProviderInput) {
  * @throws {HttpError} When the request fails.
  */
 export async function fetchIdentityProviders(signal?: AbortSignal): Promise<IdentityProvider[]> {
-  const dtos = await apiFetch<IdentityProviderDto[] | null>('/identity-providers', { signal })
-  return (dtos ?? []).map(mapIdentityProvider)
+  const dtos = await fetchAllPages<IdentityProviderDto>('/identity-providers', undefined, {
+    signal,
+  })
+  return dtos.map(mapIdentityProvider)
 }
 
 /**

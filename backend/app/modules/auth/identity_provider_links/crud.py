@@ -26,6 +26,26 @@ def get_user_identity_providers_by_user_id(user_id: int, db: Session) -> list[id
     return [identity_link_serializers.to_read_schema(row) for row in rows]
 
 
+def get_identity_links_page(
+    user_id: int,
+    db: Session,
+    *,
+    limit: int,
+    offset: int,
+) -> list[identity_link_contracts.IdentityLinkRead]:
+    """Return one window of the user's links, oldest first with the id as tiebreak."""
+    model = identity_link_models.IdentityLink
+    stmt = select(model).where(model.user_id == user_id).order_by(model.linked_at, model.id).limit(limit).offset(offset)
+    rows = db.execute(stmt).scalars()
+    return [identity_link_serializers.to_read_schema(row) for row in rows]
+
+
+def count_identity_links(user_id: int, db: Session) -> int:
+    """Return how many links the user has."""
+    model = identity_link_models.IdentityLink
+    return db.execute(select(func.count(model.id)).where(model.user_id == user_id)).scalar_one()
+
+
 def get_user_identity_provider_by_user_id_and_idp_id(
     user_id: int,
     idp_id: int,

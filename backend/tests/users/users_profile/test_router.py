@@ -1156,43 +1156,54 @@ class TestGetMyIdentityProviders:
         profile_client,
         mock_auth_services,
     ):
-        """Happy path: returns enriched IdP links."""
-        mock_auth_services.get_user_identity_provider_links.return_value = [
-            {
-                "id": 1,
-                "user_id": 1,
-                "idp_id": 1,
-                "idp_subject": "sub",
-                "linked_at": "2025-01-01T00:00:00",
-                "last_login": None,
-                "idp_access_token_expires_at": None,
-                "idp_refresh_token_updated_at": None,
-                "idp_name": "TestIdP",
-                "idp_slug": "testidp",
-                "idp_icon": "icon.png",
-                "idp_provider_type": "oauth2",
-            }
-        ]
+        """Happy path: returns one page of enriched IdP links for the requested window."""
+        link = {
+            "id": 1,
+            "user_id": 1,
+            "idp_id": 1,
+            "idp_subject": "sub",
+            "linked_at": "2025-01-01T00:00:00",
+            "last_login": None,
+            "idp_access_token_expires_at": None,
+            "idp_refresh_token_updated_at": None,
+            "idp_name": "TestIdP",
+            "idp_slug": "testidp",
+            "idp_icon": "icon.png",
+            "idp_provider_type": "oauth2",
+        }
+        mock_auth_services.get_user_identity_provider_links.return_value = {
+            "items": [link],
+            "total": 3,
+            "page": 2,
+            "num_records": 1,
+            "next": 3,
+        }
 
-        response = profile_client.get(PREFIX + "/identity-providers")
+        response = profile_client.get(PREFIX + "/identity-providers", params={"page_number": 2, "num_records": 1})
 
         assert response.status_code == 200
         data = response.json()
-        assert len(data) == 1
-        assert data[0]["idp_name"] == "TestIdP"
+        assert [item["idp_name"] for item in data["items"]] == ["TestIdP"]
+        assert (data["total"], data["next"]) == (3, 3)
+        mock_auth_services.get_user_identity_provider_links.assert_called_once_with(1, core_pagination.PageParams(2, 1))
 
     def test_no_links(
         self,
         profile_client,
         mock_auth_services,
     ):
-        """No IdP links → empty list."""
-        mock_auth_services.get_user_identity_provider_links.return_value = []
+        """No IdP links → an empty page."""
+        mock_auth_services.get_user_identity_provider_links.return_value = {
+            "items": [],
+            "total": 0,
+            "page": 1,
+            "num_records": 25,
+        }
 
         response = profile_client.get(PREFIX + "/identity-providers")
 
         assert response.status_code == 200
-        assert response.json() == []
+        assert response.json()["items"] == []
 
 
 # ===================================================================

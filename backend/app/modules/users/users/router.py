@@ -458,23 +458,25 @@ def read_user_deletion_status(
 
 @router.get(
     "/{user_id}/identity-providers",
-    response_model=list[auth_identity_links_schema.IdentityProviderLinkRead],
+    response_model=auth_identity_links_schema.IdentityProviderLinkPage,
     dependencies=[Security(auth_dependencies.check_scopes, scopes=["users:read_all"])],
 )
 def get_user_identity_providers(
     user_id: core_dependencies.PositiveId,
+    page: core_pagination.ListPage,
     db: core_dependencies.DbSession,
-) -> list[auth_identity_links_schema.IdentityProviderLinkRead]:
-    """List the identity provider links of a specific user (admin).
+) -> auth_identity_links_schema.IdentityProviderLinkPage:
+    """List one page of a specific user's identity provider links (admin).
 
     Args:
         user_id: ID of the user whose identity provider links to retrieve.
+        page: The requested window.
         db: Database session.
 
     Returns:
-        The user's enriched identity provider links (empty list if none).
+        The page of the user's enriched identity provider links, oldest first.
     """
-    return account_security_integration.get_user_identity_provider_links(user_id, db)
+    return account_security_integration.get_user_identity_provider_links(user_id, page, db)
 
 
 @router.delete(

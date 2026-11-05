@@ -12,9 +12,11 @@ from fastapi.testclient import TestClient
 import core.config as core_config
 import core.database as core_db
 import core.exceptions as core_exceptions
+import core.pagination as core_pagination
 import modules.auth.credentials.integration_service as credentials_integration
 import modules.auth.identity_providers.dependencies as idp_dependencies
 import modules.auth.identity_providers.public_router as public_router
+import modules.auth.identity_providers.schema as idp_schema
 
 PREFIX = "/api/v1/public/idp"
 CHALLENGE = "E9Melhoa2OwvFrEMTJguCHaoeK1t8URWbuGJSstw-cM"
@@ -39,13 +41,19 @@ def client(service, monkeypatch):
 
 
 class TestListProviders:
-    def test_returns_what_the_service_lists(self, client, service):
-        service.get_enabled_identity_providers.return_value = []
+    def test_returns_the_page_the_service_lists(self, client, service):
+        provider = idp_schema.IdentityProviderPublicRead(id=1, name="Pocket ID", slug="pocket-id")
+        service.get_enabled_identity_providers.return_value = idp_schema.IdentityProviderPublicPage.build(
+            [provider], 1, 1, 25
+        )
 
         response = client.get(PREFIX)
 
         assert response.status_code == 200
-        assert response.json() == []
+        body = response.json()
+        assert [item["slug"] for item in body["items"]] == ["pocket-id"]
+        assert (body["total"], body["next"]) == (1, None)
+        assert service.get_enabled_identity_providers.call_args.args[0] == core_pagination.PageParams(1, 25)
 
 
 class TestInitiateLogin:
