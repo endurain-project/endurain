@@ -11,8 +11,9 @@ import modules.auth.identity_providers.audit_actions as idp_audit_actions
 import modules.auth.identity_providers.constants as idp_constants
 import modules.auth.identity_providers.contracts as idp_contracts
 import modules.auth.identity_providers.icon_service as icon_service
+from tests._helpers import images
 
-PNG = b"\x89PNG\r\n\x1a\n" + b"0" * 16
+PNG = images.png_with_text()
 
 
 def _state(**overrides) -> idp_contracts.IdentityProviderState:
@@ -53,7 +54,9 @@ class TestUploadIcon:
             version = icon_service.upload_icon(7, PNG, storage, db)
 
         assert version == 5
-        storage.save.assert_called_once_with(idp_constants.ICON_STORAGE_AREA, "7", PNG, "image/png")
+        area, key, data, content_type = storage.save.call_args.args
+        assert (area, key, content_type) == (idp_constants.ICON_STORAGE_AREA, "7", "image/png")
+        assert not images.has_metadata(data)
         set_flag.assert_called_once_with(7, True, db)
         db.commit.assert_called_once()
 

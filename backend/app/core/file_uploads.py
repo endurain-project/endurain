@@ -38,7 +38,7 @@ from pathlib import Path, PurePosixPath, PureWindowsPath
 from typing import BinaryIO
 
 from fastapi import UploadFile
-from PIL import Image, UnidentifiedImageError
+from PIL import Image, ImageOps, UnidentifiedImageError
 from safeuploads import (
     ErrorCode,
     FileSecurityConfig,
@@ -528,6 +528,64 @@ def sniff_image_type(data: bytes) -> str | None:
     if data[:4] == b"RIFF" and data[8:12] == b"WEBP":
         return "image/webp"
     return None
+
+
+#: Image formats :func:`strip_image_metadata` can rewrite, with the options each encoder is given.
+_REWRITABLE_IMAGE_FORMATS: dict[str, dict[str, int]] = {
+    "JPEG": {"quality": 90},
+    "PNG": {},
+    "WEBP": {"quality": 90},
+}
+
+
+def strip_image_metadata(data: bytes, *, max_dimension: int | None = None) -> bytes:
+    """Re-encode an image without its metadata.
+
+    EXIF (including GPS), XMP, PNG text chunks and comments are dropped; the ICC colour profile and PNG
+    transparency are kept. The EXIF orientation is applied to the pixels first, so the picture stays upright
+    without the tag. The image keeps its format, since callers derive the stored content type from it.
+
+    Args:
+        data: The image bytes, already accepted by the byte-level validator.
+        max_dimension: When set, the longest edge is reduced to at most this many pixels, keeping the aspect
+            ratio. An image already within it is never upscaled.
+
+    Returns:
+        The re-encoded image bytes.
+
+    Raises:
+        InvalidInputError: When the bytes are not a decodable JPEG, PNG or WebP image.
+        PayloadTooLargeError: When the image would decode to more than the pixel cap.
+    """
+    try:
+        with Image.open(io.BytesIO(data)) as source:
+            image_format = source.format
+            if image_format not in _REWRITABLE_IMAGE_FORMATS:
+                raise core_exceptions.InvalidInputError("The image must be a JPEG, PNG or WebP file")
+            if source.width * source.height > _MAX_IMAGE_PIXELS:
+                raise core_exceptions.PayloadTooLargeError("Image dimensions are too large")
+            icc_profile = source.info.get("icc_profile")
+            transposed = ImageOps.exif_transpose(source)
+            # The transposed copy owns its pixels, so it outlives the closed source file.
+            image = transposed if transposed is not None else source.copy()
+            image.load()
+    except Image.DecompressionBombError as err:
+        raise core_exceptions.PayloadTooLargeError("Image dimensions are too large") from err
+    except (UnidentifiedImageError, OSError, ValueError, SyntaxError) as err:
+        raise core_exceptions.InvalidInputError("The image could not be read") from err
+
+    if max_dimension is not None:
+        image.thumbnail((max_dimension, max_dimension))
+    # Only what is named here is written: the decoded metadata in ``info`` never reaches the encoder.
+    options: dict[str, object] = dict(_REWRITABLE_IMAGE_FORMATS[image_format])
+    if icc_profile:
+        options["icc_profile"] = icc_profile
+    if "transparency" in image.info:
+        options["transparency"] = image.info["transparency"]
+    image.info = {}
+    output = io.BytesIO()
+    image.save(output, format=image_format, **options)
+    return output.getvalue()
 
 
 # ---------------------------------------------------------------------------

@@ -42,7 +42,8 @@ def upload_icon(idp_id: int, data: bytes, storage: platform_providers.StoragePro
     The read transaction that checked the provider is ended before the blob is written, so storage latency
     holds neither a connection nor the provider row. A blob without the flag is invisible, whereas a flag
     without a blob would point the login page at nothing, so the flag is committed last. The stored content type
-    is the one detected from the bytes, not the one the client claimed.
+    is the one detected from the bytes, not the one the client claimed. The image is re-encoded without its
+    metadata.
 
     Args:
         idp_id: The provider the icon belongs to.
@@ -57,6 +58,7 @@ def upload_icon(idp_id: int, data: bytes, storage: platform_providers.StoragePro
         NotFoundError: If the provider does not exist.
         PayloadTooLargeError: If the image exceeds the icon size cap.
         UnsupportedMediaTypeError: If the image is not a PNG, JPEG, GIF or WebP.
+        InvalidInputError: If the image cannot be decoded for the metadata strip.
     """
     if not idp_crud.identity_provider_exists(idp_id, db):
         raise core_exceptions.NotFoundError("Identity provider not found")
@@ -67,7 +69,9 @@ def upload_icon(idp_id: int, data: bytes, storage: platform_providers.StoragePro
         raise core_exceptions.UnsupportedMediaTypeError("Identity provider icon must be a PNG, JPEG, GIF or WebP image")
     # End the read transaction: storage is a network call.
     db.rollback()
-    storage.save(idp_constants.ICON_STORAGE_AREA, _storage_key(idp_id), data, media_type)
+    storage.save(
+        idp_constants.ICON_STORAGE_AREA, _storage_key(idp_id), core_file_uploads.strip_image_metadata(data), media_type
+    )
     version = idp_crud.set_icon_uploaded(idp_id, True, db)
     if version is None:
         # The provider was deleted while the blob was being written. End the transaction before storage is called.

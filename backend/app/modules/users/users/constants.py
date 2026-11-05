@@ -30,6 +30,9 @@ PROFILE_SELF_SERVICE_FIELDS: frozenset[str] = frozenset(
     }
 )
 
+#: Longest edge, in pixels, a stored profile photo is reduced to.
+USER_IMAGE_MAX_DIMENSION = 512
+
 #: Photo extensions accepted on upload.
 ALLOWED_USER_IMAGE_EXTENSIONS: frozenset[str] = frozenset({".png", ".jpg", ".jpeg", ".webp"})
 

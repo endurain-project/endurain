@@ -10,7 +10,9 @@ import jasil.providers as platform_providers
 import pytest
 from fastapi import UploadFile
 from jasil.backends.storage_local import LocalStorage
+from PIL import Image
 from starlette.datastructures import Headers
+from tests._helpers import images
 from tests._helpers.db import create_sqlite_session
 
 import core.blob_sweep as core_blob_sweep
@@ -19,6 +21,7 @@ import modules.users.users.models as users_models
 import modules.users.users.photo_service as users_photo_service
 
 _CRUD = "modules.users.users.photo_service.users_crud"
+_PNG = images.png_with_text()
 
 
 def _upload(filename: str | None, content_type: str = "image/jpeg") -> UploadFile:
@@ -151,12 +154,14 @@ class TestUploadPhoto:
 
         with patch(
             "modules.users.users.photo_service.core_file_uploads.read_validated_upload_sync",
-            return_value=b"bytes",
+            return_value=_PNG,
         ):
             key = users_photo_service.upload_photo(7, _upload("Avatar.JPG"), storage, mock_db)
 
         assert key == "7.jpg"
-        assert storage.save.call_args.args == ("user_images", "7.jpg", b"bytes", "image/jpeg")
+        area, key, data, content_type = storage.save.call_args.args
+        assert (area, key, content_type) == ("user_images", "7.jpg", "image/jpeg")
+        assert not images.has_metadata(data)
         assert mock_crud.replace_photo_key.call_args.args[:2] == (7, "7.jpg")
 
     @patch(_CRUD)
@@ -187,6 +192,20 @@ class TestUploadPhoto:
 
 class TestStorePhoto:
     @patch(_CRUD)
+    def test_the_stored_photo_has_no_metadata_and_is_capped_at_512_pixels(self, mock_crud, mock_db):
+        mock_crud.get_user_by_id.return_value = MagicMock()
+        storage = MagicMock()
+        buffer = io.BytesIO()
+        Image.new("RGB", (2000, 1000)).save(buffer, "JPEG", exif=images.exif_with_gps())
+
+        users_photo_service.store_photo(7, ".jpg", buffer.getvalue(), storage, mock_db)
+
+        stored = storage.save.call_args.args[2]
+        assert not images.has_metadata(stored)
+        with Image.open(io.BytesIO(stored)) as image:
+            assert image.size == (512, 256)
+
+    @patch(_CRUD)
     def test_the_read_transaction_ends_before_the_blob_is_written(self, mock_crud, mock_db):
         mock_crud.get_user_by_id.return_value = MagicMock()
         storage = MagicMock()
@@ -195,7 +214,7 @@ class TestStorePhoto:
         order.attach_mock(mock_db.commit, "commit")
         order.attach_mock(storage.save, "save")
 
-        users_photo_service.store_photo(7, ".png", b"bytes", storage, mock_db)
+        users_photo_service.store_photo(7, ".png", _PNG, storage, mock_db)
 
         assert [call[0] for call in order.mock_calls] == ["commit", "save", "commit"]
 
@@ -208,7 +227,7 @@ class TestStorePhoto:
         order.attach_mock(mock_db.commit, "commit")
         order.attach_mock(storage.delete, "delete")
 
-        users_photo_service.store_photo(7, ".png", b"bytes", storage, mock_db)
+        users_photo_service.store_photo(7, ".png", _PNG, storage, mock_db)
 
         assert [call.args for call in storage.delete.call_args_list] == [("user_images", "7.jpg")]
         storage.list_keys.assert_not_called()
@@ -220,7 +239,7 @@ class TestStorePhoto:
         mock_crud.replace_photo_key.return_value = "7.png"
         storage = MagicMock()
 
-        users_photo_service.store_photo(7, ".png", b"bytes", storage, mock_db)
+        users_photo_service.store_photo(7, ".png", _PNG, storage, mock_db)
 
         storage.delete.assert_not_called()
 
@@ -231,14 +250,14 @@ class TestStorePhoto:
         storage = MagicMock()
         storage.delete.side_effect = platform_providers.StorageBackendUnavailableError("storage down")
 
-        assert users_photo_service.store_photo(7, ".webp", b"bytes", storage, mock_db) == "7.webp"
+        assert users_photo_service.store_photo(7, ".webp", _PNG, storage, mock_db) == "7.webp"
 
     @patch(_CRUD)
     def test_unknown_extension_stores_nothing(self, mock_crud, mock_db):
         storage = MagicMock()
 
         with pytest.raises(core_exceptions.UnsupportedMediaTypeError):
-            users_photo_service.store_photo(7, ".gif", b"bytes", storage, mock_db)
+            users_photo_service.store_photo(7, ".gif", _PNG, storage, mock_db)
 
         storage.save.assert_not_called()
 
@@ -248,6 +267,6 @@ class TestStorePhoto:
         storage = MagicMock()
 
         with pytest.raises(core_exceptions.NotFoundError):
-            users_photo_service.store_photo(7, ".png", b"bytes", storage, mock_db)
+            users_photo_service.store_photo(7, ".png", _PNG, storage, mock_db)
 
         storage.save.assert_not_called()

@@ -62,3 +62,4 @@ def test_registered_data_migration_ids_are_unique() -> None:
             )
             seen[migration_id] = path
     assert "11" in seen, "Migration 11 must be registered by an Alembic revision"
+    assert "12" in seen, "Migration 12 must be registered by an Alembic revision"

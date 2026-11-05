@@ -20,6 +20,7 @@ from sqlalchemy.orm import Session
 
 import core.blob_sweep as core_blob_sweep
 import core.exceptions as core_exceptions
+import core.file_uploads as core_file_uploads
 import core.hashing as core_hashing
 import core.logger as core_logger
 import core.pagination as core_pagination
@@ -169,12 +170,16 @@ def _persist_media_bytes(
     storage: platform_providers.StorageProvider,
     db: Session,
 ) -> activity_media_contracts.ActivityMediaRecord:
-    """Store validated image bytes, no-op'ing a byte-for-byte repeat.
+    """Store validated image bytes without their metadata, no-op'ing a byte-for-byte repeat.
 
     Shared by the multipart upload and server-side ingestion paths — both hand
     over already-validated bytes for one activity, and neither should create a
     second row for a photo already stored there (a retried upload, or a Strava
     bulk-export re-run reprocessing files it already imported).
+
+    The duplicate check and the recorded hash use the bytes as received, before the metadata is
+    stripped, so a re-import of the same original photo is recognised, including one stored before
+    the strip existed. The blob holds the stripped bytes.
 
     Args:
         activity_id: The activity to attach the media to.
@@ -189,6 +194,7 @@ def _persist_media_bytes(
 
     Raises:
         UnsupportedMediaTypeError: For an unsupported extension.
+        InvalidInputError: If the bytes are not a decodable image.
         ConflictError: On a ``media_path`` collision (astronomically unlikely —
             the key is a server-generated UUID — so not a content duplicate).
     """
@@ -205,7 +211,12 @@ def _persist_media_bytes(
     # The check above read, which holds a pooled connection until the transaction ends; the write is slow
     # on object storage, and the row is committed after it either way.
     db.commit()
-    storage.save(activity_media_constants.MEDIA_STORAGE_AREA, storage_key, data, _content_type_for(storage_key))
+    storage.save(
+        activity_media_constants.MEDIA_STORAGE_AREA,
+        storage_key,
+        core_file_uploads.strip_image_metadata(data),
+        _content_type_for(storage_key),
+    )
 
     try:
         record = activity_media_crud.create_activity_media(activity_id, storage_key, db, content_hash=content_hash)

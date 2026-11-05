@@ -192,7 +192,8 @@ def store_photo(
     """Store a user's already validated photo, record its key and commit.
 
     The read that checks the user ends before the blob is written, so no transaction stays open
-    across the storage call. The blob the row named before is removed after the commit.
+    across the storage call. The image is re-encoded without its metadata and reduced to the photo size
+    cap before it is written. The blob the row named before is removed after the commit.
 
     Args:
         user_id: ID of the user whose photo is being saved.
@@ -209,6 +210,7 @@ def store_photo(
     Raises:
         NotFoundError: If the user does not exist.
         UnsupportedMediaTypeError: If the extension is not an allowed image type.
+        InvalidInputError: If the bytes are not a decodable image.
     """
     extension = extension.lower()
     if extension not in users_constants.ALLOWED_USER_IMAGE_EXTENSIONS:
@@ -218,6 +220,7 @@ def store_photo(
         raise core_exceptions.NotFoundError("User not found")
     db.commit()
 
+    data = core_file_uploads.strip_image_metadata(data, max_dimension=users_constants.USER_IMAGE_MAX_DIMENSION)
     key = f"{user_id}{extension}"
     storage.save(users_constants.USER_IMAGE_STORAGE_AREA, key, data, PHOTO_CONTENT_TYPES[extension])
 

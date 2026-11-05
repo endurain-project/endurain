@@ -27,6 +27,7 @@ import modules.server_settings.login_photo_service as server_settings_login_phot
 import modules.server_settings.mail_service as server_settings_mail_service
 import modules.server_settings.schema as server_settings_schema
 import modules.server_settings.service as server_settings_service
+from tests._helpers import images
 
 
 def _stored(**overrides) -> server_settings_schema.ServerSettingsRead:
@@ -79,7 +80,7 @@ def _full_edit(stored: server_settings_schema.ServerSettingsRead, **overrides):
     return server_settings_schema.ServerSettingsEdit(**body)
 
 
-_PNG = b"\x89PNG\r\n\x1a\n" + b"0" * 16
+_PNG = images.png_with_text()
 
 
 @pytest.fixture
@@ -823,7 +824,9 @@ class TestLoginPhoto:
         assert photo == server_settings_schema.LoginPhotoRead(version=4)
         assert calls == ["save", "commit"]
         # The type is detected from the bytes, not taken from the client's claim.
-        storage.save.assert_called_once_with("server_images", "login.png", _PNG, "image/png")
+        area, key, data, content_type = storage.save.call_args.args
+        assert (area, key, content_type) == ("server_images", "login.png", "image/png")
+        assert not images.has_metadata(data)
 
     def test_upload_rejects_a_photo_over_the_login_cap(self):
         big = _PNG + b"0" * server_settings_constants.LOGIN_PHOTO_MAX_BYTES

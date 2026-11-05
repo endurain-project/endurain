@@ -26,7 +26,7 @@ def upload_login_photo(
     holds the lock. A blob without the flag is invisible, whereas a flag without a
     blob would point the login page at nothing, so the flag is committed last. The
     stored content type is the one detected from the bytes, not the one the client
-    claimed.
+    claimed. The image is re-encoded without its metadata.
 
     Args:
         file: The uploaded image.
@@ -38,6 +38,7 @@ def upload_login_photo(
 
     Raises:
         DomainError: If the upload fails validation or exceeds the login-photo size cap.
+        InvalidInputError: If the image cannot be decoded for the metadata strip.
         ServiceUnavailableError: If the settings row does not exist.
     """
     data = core_file_uploads.read_validated_upload_sync(file, kind=core_file_uploads.UploadKind.IMAGE)
@@ -49,7 +50,7 @@ def upload_login_photo(
     storage.save(
         server_settings_constants.LOGIN_PHOTO_STORAGE_AREA,
         server_settings_constants.LOGIN_PHOTO_STORAGE_KEY,
-        data,
+        core_file_uploads.strip_image_metadata(data),
         media_type,
     )
     version = server_settings_crud.set_login_photo(True, db)

@@ -4,6 +4,7 @@ from unittest.mock import MagicMock, patch
 
 import jasil.testing as jasil_testing
 import pytest
+from tests._helpers import images
 
 import core.exceptions as core_exceptions
 import modules.users.users.audit_actions as users_audit_actions
@@ -13,6 +14,7 @@ import modules.users.users.service as users_service
 
 _SERVICE_CRUD = "modules.users.users.service.users_crud"
 _PHOTO_CRUD = "modules.users.users.photo_service.users_crud"
+_PNG = images.png_with_text()
 _TARGET = {"target_type": "user", "target_id": "7", "target_owner_id": "7"}
 
 
@@ -47,7 +49,7 @@ class TestAdministratorPhotoChange:
         crud.get_user_by_id.return_value = MagicMock()
 
         with jasil_testing.capture_audit() as audit:
-            users_photo_service.store_photo(7, ".png", b"bytes", MagicMock(), mock_db, audit=True)
+            users_photo_service.store_photo(7, ".png", _PNG, MagicMock(), mock_db, audit=True)
 
         entry = audit.assert_audited(users_audit_actions.USER_UPDATE.id, **_TARGET)
         assert entry.details == {"changed_fields": ["photo_path"]}
@@ -77,7 +79,7 @@ class TestAdministratorPhotoChange:
         crud.replace_photo_key.return_value = "7.jpg"
 
         with jasil_testing.capture_audit() as audit:
-            users_photo_service.store_photo(7, ".png", b"bytes", MagicMock(), mock_db)
+            users_photo_service.store_photo(7, ".png", _PNG, MagicMock(), mock_db)
             users_photo_service.delete_photo(7, MagicMock(), mock_db)
             users_integration.delete_user_photo(7, MagicMock(), mock_db)
 
@@ -88,6 +90,6 @@ class TestAdministratorPhotoChange:
         crud.get_user_by_id.return_value = None
 
         with jasil_testing.capture_audit() as audit, pytest.raises(core_exceptions.NotFoundError):
-            users_photo_service.store_photo(7, ".png", b"bytes", MagicMock(), mock_db, audit=True)
+            users_photo_service.store_photo(7, ".png", _PNG, MagicMock(), mock_db, audit=True)
 
         audit.assert_not_audited(users_audit_actions.USER_UPDATE.id)

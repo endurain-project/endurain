@@ -13,6 +13,7 @@ from pathlib import Path
 
 import pytest
 from fastapi import UploadFile
+from PIL import Image, ImageCms
 from safeuploads import ErrorCode
 from safeuploads.exceptions import (
     CompressionSecurityError,
@@ -45,6 +46,7 @@ from core.file_uploads import (
     validate_bytes_sync,
     validate_local_file_sync,
 )
+from tests._helpers import images
 
 # ---------------------------------------------------------------------------
 # Fixtures: minimal valid payloads per UploadKind
@@ -1267,3 +1269,114 @@ def test_decompress_gzip_rejects_decompression_bomb(tmp_path: Path, monkeypatch:
     with pytest.raises(core_exceptions.DomainError) as exc:
         file_uploads.decompress_gzip(archive)
     assert exc.value.status_code == 413
+
+
+# ---------------------------------------------------------------------------
+# Metadata strip
+# ---------------------------------------------------------------------------
+
+
+class TestStripImageMetadata:
+    def test_jpeg_loses_exif_gps_and_keeps_format(self):
+        original = images.jpeg_with_exif()
+        assert images.has_metadata(original)
+
+        stripped = core_file_uploads.strip_image_metadata(original)
+
+        with Image.open(io.BytesIO(stripped)) as image:
+            assert image.format == "JPEG"
+            assert not image.getexif()
+        assert not images.has_metadata(stripped)
+
+    def test_exif_orientation_is_applied_so_the_picture_stays_upright(self):
+        original = images.jpeg_with_exif((40, 20), orientation=6)
+
+        stripped = core_file_uploads.strip_image_metadata(original)
+
+        with Image.open(io.BytesIO(stripped)) as image:
+            assert image.size == (20, 40)
+
+    def test_png_loses_text_chunks_and_keeps_alpha(self):
+        original = images.png_with_text()
+        assert images.has_metadata(original)
+
+        stripped = core_file_uploads.strip_image_metadata(original)
+
+        with Image.open(io.BytesIO(stripped)) as image:
+            assert image.format == "PNG"
+            assert image.mode == "RGBA"
+            assert image.getpixel((0, 0))[3] == 0
+        assert not images.has_metadata(stripped)
+
+    def test_palette_png_keeps_its_transparency(self):
+        buffer = io.BytesIO()
+        Image.new("P", (4, 4), 0).save(buffer, "PNG", transparency=0)
+
+        stripped = core_file_uploads.strip_image_metadata(buffer.getvalue())
+
+        with Image.open(io.BytesIO(stripped)) as image:
+            assert image.mode == "P"
+            assert "transparency" in image.info
+
+    def test_webp_loses_exif_and_keeps_format(self):
+        exif = Image.Exif()
+        exif[0x010F] = "TestCamera"
+        buffer = io.BytesIO()
+        Image.new("RGB", (8, 8)).save(buffer, "WEBP", exif=exif)
+
+        stripped = core_file_uploads.strip_image_metadata(buffer.getvalue())
+
+        with Image.open(io.BytesIO(stripped)) as image:
+            assert image.format == "WEBP"
+        assert not images.has_metadata(stripped)
+
+    def test_the_icc_profile_is_kept(self):
+        profile = ImageCms.ImageCmsProfile(ImageCms.createProfile("sRGB")).tobytes()
+        buffer = io.BytesIO()
+        Image.new("RGB", (8, 8)).save(buffer, "JPEG", icc_profile=profile)
+
+        stripped = core_file_uploads.strip_image_metadata(buffer.getvalue())
+
+        with Image.open(io.BytesIO(stripped)) as image:
+            assert image.info["icc_profile"] == profile
+
+    def test_max_dimension_downsizes_the_long_edge_keeping_the_ratio(self):
+        buffer = io.BytesIO()
+        Image.new("RGB", (400, 200)).save(buffer, "PNG")
+
+        stripped = core_file_uploads.strip_image_metadata(buffer.getvalue(), max_dimension=100)
+
+        with Image.open(io.BytesIO(stripped)) as image:
+            assert image.size == (100, 50)
+
+    def test_max_dimension_never_upscales(self):
+        buffer = io.BytesIO()
+        Image.new("RGB", (40, 20)).save(buffer, "PNG")
+
+        stripped = core_file_uploads.strip_image_metadata(buffer.getvalue(), max_dimension=512)
+
+        with Image.open(io.BytesIO(stripped)) as image:
+            assert image.size == (40, 20)
+
+    def test_undecodable_bytes_are_refused(self):
+        with pytest.raises(core_exceptions.InvalidInputError):
+            core_file_uploads.strip_image_metadata(b"not an image")
+
+    def test_a_truncated_image_is_refused(self):
+        with pytest.raises(core_exceptions.InvalidInputError):
+            core_file_uploads.strip_image_metadata(images.jpeg_with_exif()[:200])
+
+    def test_a_format_that_cannot_be_rewritten_is_refused(self):
+        buffer = io.BytesIO()
+        Image.new("P", (4, 4)).save(buffer, "GIF")
+
+        with pytest.raises(core_exceptions.InvalidInputError):
+            core_file_uploads.strip_image_metadata(buffer.getvalue())
+
+    @pytest.mark.filterwarnings("ignore::PIL.Image.DecompressionBombWarning")
+    def test_an_image_over_the_pixel_cap_is_refused(self):
+        buffer = io.BytesIO()
+        Image.new("1", (20_000, 6_000)).save(buffer, "PNG")
+
+        with pytest.raises(core_exceptions.PayloadTooLargeError):
+            core_file_uploads.strip_image_metadata(buffer.getvalue())
