@@ -99,6 +99,7 @@ class TestSelfServiceEmailChange:
             privacy.get_privacy_settings.return_value = MagicMock(
                 version=1,
                 default_activity_visibility="public",
+                discoverable=True,
                 **{
                     f"hide_activity_{name}": False
                     for name in (

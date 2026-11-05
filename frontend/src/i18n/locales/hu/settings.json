@@ -1031,6 +1031,8 @@
       "hideLaps": "Körök",
       "hideWorkoutSetsSteps": "Edzéssorozatok és -lépések",
       "hideGear": "Felszerelés",
+      "discoverable": "Engedem, hogy mások megtaláljanak a keresésben",
+      "discoverableHint": "Más felhasználók keresés közben felhasználónév alapján megtalálhatnak. A profilod közvetlen hivatkozással továbbra is elérhető.",
       "save": "Adatvédelem mentése",
       "saving": "Mentés…",
       "saveSuccess": "Adatvédelmi beállítások frissítve",

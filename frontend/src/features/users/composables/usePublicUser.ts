@@ -6,7 +6,11 @@ import type { PublicUser, UserProfileOverview } from '@/features/users/types'
 
 import { queryKeys } from '@/services/queryKeys'
 import { useAuthStore } from '@/features/auth/stores/auth'
-import { fetchPublicUser, searchPublicUsers } from '@/features/users/services/publicUsers'
+import {
+  fetchPublicUser,
+  MIN_USER_SEARCH_LENGTH,
+  searchPublicUsers,
+} from '@/features/users/services/publicUsers'
 import { fetchUserProfileOverview } from '@/features/users/services/profileOverview'
 import { todayIsoDate } from '@/utils/datetime'
 
@@ -57,7 +61,8 @@ export function useUserProfileOverviewQuery(userId: MaybeRefOrGetter<number | nu
 
 /**
  * Username "contains" search over active users. Enabled only once the
- * (debounced) term is non-empty so an empty box never fires a request; gated on
+ * (debounced) term has {@link MIN_USER_SEARCH_LENGTH} characters, which the
+ * server requires, so an empty box never fires a request; gated on
  * authentication.
  *
  * @param term - The reactive (debounced) search term.
@@ -70,6 +75,8 @@ export function useUserSearchQuery(term: MaybeRefOrGetter<string>) {
   return useQuery<PublicUser[]>({
     queryKey: computed(() => queryKeys.users.search(trimmed.value)),
     queryFn: ({ signal }) => searchPublicUsers(trimmed.value, signal),
-    enabled: computed(() => isAuthenticated.value && trimmed.value.length > 0),
+    enabled: computed(
+      () => isAuthenticated.value && trimmed.value.length >= MIN_USER_SEARCH_LENGTH,
+    ),
   })
 }

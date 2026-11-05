@@ -82,3 +82,13 @@ class TestEditUserPrivacySettings:
 
         with pytest.raises(core_exceptions.NotFoundError):
             users_privacy_settings_crud.edit_user_privacy_settings(1, update, mock_db, if_match="*")
+
+
+class TestListUndiscoverableUserIds:
+    def test_selects_the_users_who_switched_discovery_off(self, mock_db):
+        mock_db.execute.return_value.scalars.return_value.all.return_value = [3, 5]
+
+        assert users_privacy_settings_crud.list_undiscoverable_user_ids(mock_db) == [3, 5]
+
+        sql = str(mock_db.execute.call_args.args[0].compile(compile_kwargs={"literal_binds": True}))
+        assert "discoverable IS false" in sql

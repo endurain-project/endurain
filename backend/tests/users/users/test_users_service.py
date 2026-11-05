@@ -256,8 +256,10 @@ class TestPublicProjection:
         with pytest.raises(core_exceptions.NotFoundError):
             users_service.get_public_profile(3, mock_db)
 
+    @patch("modules.users.users.service.users_privacy_settings_integration")
     @patch(_CRUD)
-    def test_search_is_paged_and_projected(self, mock_crud, mock_db):
+    def test_search_is_paged_and_projected(self, mock_crud, mock_privacy, mock_db):
+        mock_privacy.list_undiscoverable_user_ids.return_value = []
         mock_crud.search_active_users_by_username.return_value = [_user(1), _user(2)]
         mock_crud.get_users_number.return_value = 30
 
@@ -265,8 +267,20 @@ class TestPublicProjection:
 
         assert [type(user) for user in found.items] == [users_schema.UserPublicRead] * 2
         assert (found.total, found.page, found.next) == (30, 2, None)
-        mock_crud.search_active_users_by_username.assert_called_once_with("user", 25, 25, mock_db)
+        mock_crud.search_active_users_by_username.assert_called_once_with("user", 25, 25, mock_db, exclude_user_ids=[])
         assert mock_crud.get_users_number.call_args.kwargs["username"] == "user"
+
+    @patch("modules.users.users.service.users_privacy_settings_integration")
+    @patch(_CRUD)
+    def test_search_leaves_out_users_who_opted_out_of_it_and_their_count(self, mock_crud, mock_privacy, mock_db):
+        mock_privacy.list_undiscoverable_user_ids.return_value = [7, 8]
+        mock_crud.search_active_users_by_username.return_value = []
+        mock_crud.get_users_number.return_value = 0
+
+        users_service.search_public_users("user", core_pagination.PageParams(1, 25), mock_db)
+
+        assert mock_crud.search_active_users_by_username.call_args.kwargs["exclude_user_ids"] == [7, 8]
+        assert mock_crud.get_users_number.call_args.kwargs["exclude_user_ids"] == [7, 8]
 
 
 class TestListUsers:

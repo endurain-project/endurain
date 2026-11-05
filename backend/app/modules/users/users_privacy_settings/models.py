@@ -1,6 +1,6 @@
 """User privacy settings database models."""
 
-from sqlalchemy import ForeignKey, String
+from sqlalchemy import ForeignKey, String, true
 from sqlalchemy.orm import Mapped, mapped_column
 
 from core.database import Base
@@ -27,6 +27,7 @@ class UsersPrivacySettings(Base):
         hide_activity_workout_sets_steps: Hide activity workout
             sets and steps.
         hide_activity_gear: Hide activity gear.
+        discoverable: Appear in other users' username search.
     """
 
     __tablename__ = "users_privacy_settings"
@@ -44,7 +45,7 @@ class UsersPrivacySettings(Base):
     )
     default_activity_visibility: Mapped[str] = mapped_column(
         String(20),
-        default="public",
+        default="private",
         nullable=False,
         comment="public, followers, private",
     )
@@ -107,6 +108,12 @@ class UsersPrivacySettings(Base):
         default=False,
         nullable=False,
         comment="Hide activity gear",
+    )
+    discoverable: Mapped[bool] = mapped_column(
+        default=True,
+        server_default=true(),
+        nullable=False,
+        comment="Appear in other users' username search",
     )
 
     version: Mapped[int] = mapped_column(

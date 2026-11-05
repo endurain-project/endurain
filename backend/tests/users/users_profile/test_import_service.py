@@ -236,6 +236,17 @@ class TestImportedRowsLoseTheirIdentity:
         edit.assert_called_once()
         assert service.counts["user_privacy_settings"] == 1
 
+    def test_the_discoverable_choice_is_imported_and_an_old_archive_without_it_leaves_it_alone(self) -> None:
+        service = self._service()
+
+        with patch.object(profile_import_service.users_privacy_settings_integration, "edit_privacy_settings") as edit:
+            service.collect_and_import_user_privacy_settings([{"discoverable": False}])
+            service.collect_and_import_user_privacy_settings([{"hide_activity_map": True}])
+
+        imported, old_archive = (call.args[1] for call in edit.call_args_list)
+        assert imported.model_dump(exclude_unset=True) == {"discoverable": False}
+        assert "discoverable" not in old_archive.model_dump(exclude_unset=True)
+
 
 class TestImportServiceUserData:
     def test_import_user_default_gear_empty(self) -> None:

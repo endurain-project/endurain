@@ -1031,6 +1031,8 @@
       "hideLaps": "Apļi",
       "hideWorkoutSetsSteps": "Treniņa piegājieni un soļi",
       "hideGear": "Inventārs",
+      "discoverable": "Ļaut citiem mani atrast meklēšanā",
+      "discoverableHint": "Citi lietotāji var jūs atrast pēc lietotājvārda, meklējot. Jūsu profils joprojām ir pieejams, izmantojot tiešo saiti.",
       "save": "Saglabāt privātumu",
       "saving": "Notiek saglabāšana…",
       "saveSuccess": "Privātuma iestatījumi atjaunināti",

@@ -38,7 +38,10 @@ const VISIBILITY_OPTIONS: { value: ActivityVisibility; labelKey: string }[] = [
 ]
 
 /** The per-field hide toggles, in display order. */
-type HideKey = Exclude<keyof PrivacySettings, 'defaultActivityVisibility' | 'version'>
+type HideKey = Exclude<
+  keyof PrivacySettings,
+  'defaultActivityVisibility' | 'version' | 'discoverable'
+>
 const HIDE_FIELDS: { key: HideKey; labelKey: string }[] = [
   { key: 'hideStartTime', labelKey: 'settings.profile.privacy.hideStartTime' },
   { key: 'hideLocation', labelKey: 'settings.profile.privacy.hideLocation' },
@@ -163,6 +166,13 @@ const { values, isSubmitting, handleSubmit } = useForm<PrivacySettings>({
           {{ t(field.labelKey) }}
         </Switch>
       </div>
+    </div>
+
+    <div class="flex flex-col gap-1">
+      <Switch v-model="values.discoverable" :disabled="isSubmitting">
+        {{ t('settings.profile.privacy.discoverable') }}
+      </Switch>
+      <p class="text-caption">{{ t('settings.profile.privacy.discoverableHint') }}</p>
     </div>
 
     <div class="flex justify-begin">

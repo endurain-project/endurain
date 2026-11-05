@@ -62,6 +62,7 @@ export type ActivityVisibility = Schemas['ActivityVisibility']
  * @property hideLaps - Hide lap splits.
  * @property hideWorkoutSetsSteps - Hide workout sets and steps.
  * @property hideGear - Hide the gear used.
+ * @property discoverable - Appear in other users' username search.
  */
 export interface PrivacySettings {
   /** The row version, sent back in `If-Match` so an edit of a stale copy is refused. */
@@ -79,6 +80,7 @@ export interface PrivacySettings {
   hideLaps: boolean
   hideWorkoutSetsSteps: boolean
   hideGear: boolean
+  discoverable: boolean
 }
 
 /**

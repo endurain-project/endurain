@@ -1031,6 +1031,8 @@
       "hideLaps": "Okruhy",
       "hideWorkoutSetsSteps": "Série a kroky tréninku",
       "hideGear": "Vybavení",
+      "discoverable": "Nechat ostatní, aby mě našli ve vyhledávání",
+      "discoverableHint": "Ostatní uživatelé vás mohou při hledání najít podle uživatelského jména. Váš profil zůstává dostupný přes přímý odkaz.",
       "save": "Uložit soukromí",
       "saving": "Ukládání…",
       "saveSuccess": "Nastavení soukromí aktualizováno",

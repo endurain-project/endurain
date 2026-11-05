@@ -241,6 +241,38 @@ class TestAnchoredPeriodBounds:
         month_stats.assert_called_once_with(1, 1, "db", anchor=date(2026, 2, 17))
 
 
+class TestAnotherUsersActivitiesNeedAVisibleOwner:
+    """A signed-in viewer reads someone else's activities only while that user is active and approved."""
+
+    @patch("modules.activities.activity.service.users_integration.get_public_profile")
+    def test_page_of_an_inactive_owner_is_not_found(self, mock_profile):
+        from modules.activities.activity import service
+
+        mock_profile.side_effect = core_exceptions.NotFoundError("User not found")
+        with pytest.raises(core_exceptions.NotFoundError):
+            service.page_user_activities(2, 1, MagicMock(), page_number=1, num_records=25)
+
+        mock_profile.assert_called_once()
+
+    @patch("modules.activities.activity.service.users_integration.get_public_profile")
+    def test_stats_of_an_inactive_owner_are_not_found(self, mock_profile):
+        from modules.activities.activity import service
+
+        mock_profile.side_effect = core_exceptions.NotFoundError("User not found")
+        with pytest.raises(core_exceptions.NotFoundError):
+            service.period_stats(2, "week", 1, MagicMock())
+
+    @patch("modules.activities.activity.service.users_integration.get_public_profile")
+    @patch("modules.activities.activity.service.week_stats")
+    def test_the_owner_is_not_checked_against_their_own_visibility(self, mock_week, mock_profile):
+        from modules.activities.activity import service
+
+        service.period_stats(1, "week", 1, MagicMock())
+
+        mock_profile.assert_not_called()
+        mock_week.assert_called_once()
+
+
 class TestEditPublishesUpdated:
     """An edit is a domain fact: without it consumers can only see create/delete."""
 

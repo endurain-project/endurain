@@ -102,12 +102,21 @@ describe('mapProfileDetails', () => {
 })
 
 describe('mapPrivacySettings', () => {
-  it('defaults a missing visibility to public and null flags to false', () => {
+  it('defaults a missing visibility to private, null flags to false and discoverable to on', () => {
     const privacy = mapPrivacySettings(
-      makeProfileDto({ default_activity_visibility: null, hide_activity_start_time: null }),
+      makeProfileDto({
+        default_activity_visibility: null,
+        hide_activity_start_time: null,
+        discoverable: null,
+      }),
     )
-    expect(privacy.defaultActivityVisibility).toBe('public')
+    expect(privacy.defaultActivityVisibility).toBe('private')
     expect(privacy.hideStartTime).toBe(false)
+    expect(privacy.discoverable).toBe(true)
+  })
+
+  it('maps an explicit discoverable opt-out', () => {
+    expect(mapPrivacySettings(makeProfileDto({ discoverable: false })).discoverable).toBe(false)
   })
 })
 
@@ -192,6 +201,7 @@ describe('profile service requests', () => {
       hideLaps: false,
       hideWorkoutSetsSteps: false,
       hideGear: true,
+      discoverable: false,
     }
 
     await updatePrivacySettings(privacy)
@@ -206,6 +216,7 @@ describe('profile service requests', () => {
     expect(parsed.hide_activity_location).toBe(true)
     expect(parsed.hide_activity_gear).toBe(true)
     expect(parsed.hide_activity_map).toBe(false)
+    expect(parsed.discoverable).toBe(false)
   })
 
   it('uploadProfilePhoto posts the file as multipart form data', async () => {

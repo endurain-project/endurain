@@ -26,7 +26,8 @@
   },
   "idle": {
     "title": "Otsi Endurainist",
-    "description": "Vali, mida otsida, seejärel hakka tippima, et näha vasteid."
+    "description": "Vali, mida otsida, seejärel hakka tippima, et näha vasteid.",
+    "usersDescription": "Kasutajate otsimiseks sisesta vähemalt {min} tähemärki."
   },
   "empty": {
     "title": "Vasteid ei leitud",

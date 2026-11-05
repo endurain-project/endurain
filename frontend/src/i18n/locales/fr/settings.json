@@ -1031,6 +1031,8 @@
       "hideLaps": "Tours",
       "hideWorkoutSetsSteps": "Séries et étapes de séance",
       "hideGear": "Équipement",
+      "discoverable": "Permettre aux autres de me trouver dans la recherche",
+      "discoverableHint": "Les autres utilisateurs peuvent vous trouver par nom d'utilisateur lors d'une recherche. Votre profil reste accessible depuis un lien direct.",
       "save": "Enregistrer la confidentialité",
       "saving": "Enregistrement…",
       "saveSuccess": "Paramètres de confidentialité mis à jour",

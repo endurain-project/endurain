@@ -77,6 +77,7 @@ def _make_privacy_mock() -> MagicMock:
     p.hide_activity_laps = False
     p.hide_activity_workout_sets_steps = False
     p.hide_activity_gear = False
+    p.discoverable = True
     return p
 
 

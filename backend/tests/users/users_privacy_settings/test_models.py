@@ -121,7 +121,19 @@ class TestUsersPrivacySettingsModel:
         visibility_column = user_privacy_settings_models.UsersPrivacySettings.default_activity_visibility
 
         # Assert
-        assert visibility_column.default.arg == "public"
+        assert visibility_column.default.arg == "private"
+
+    def test_users_privacy_settings_model_discoverable_defaults_to_on(self):
+        """
+        Test a user is findable in search unless they switch it off, for new and existing rows alike.
+        """
+        # Arrange
+        column = user_privacy_settings_models.UsersPrivacySettings.discoverable
+
+        # Assert
+        assert column.default.arg is True
+        assert column.server_default is not None
+        assert column.nullable is False
 
     def test_users_privacy_settings_model_boolean_defaults(self):
         """

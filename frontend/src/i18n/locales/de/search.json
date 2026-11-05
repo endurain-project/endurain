@@ -26,7 +26,8 @@
   },
   "idle": {
     "title": "Endurain durchsuchen",
-    "description": "Wähle, wonach du suchen möchtest, und fange an zu tippen, um Treffer zu sehen."
+    "description": "Wähle, wonach du suchen möchtest, und fange an zu tippen, um Treffer zu sehen.",
+    "usersDescription": "Gib mindestens {min} Zeichen ein, um nach Nutzern zu suchen."
   },
   "empty": {
     "title": "Keine Treffer gefunden",

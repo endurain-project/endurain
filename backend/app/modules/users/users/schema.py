@@ -505,6 +505,7 @@ class UsersMe(UsersRead):
         hide_activity_workout_sets_steps: Hide workout
             sets/steps.
         hide_activity_gear: Hide gear setting.
+        discoverable: Whether other users can find the user in username search.
         has_local_password: Whether the account has a local
             password (False for accounts that sign in through an
             identity provider).
@@ -534,6 +535,7 @@ class UsersMe(UsersRead):
         default=None, description="Hide activity workout sets and steps"
     )
     hide_activity_gear: StrictBool | None = Field(default=None, description="Hide activity gear")
+    discoverable: StrictBool | None = Field(default=None, description="Appear in other users' username search")
     has_local_password: StrictBool = Field(
         ...,
         description=(

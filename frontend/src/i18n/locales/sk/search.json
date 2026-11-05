@@ -26,7 +26,8 @@
   },
   "idle": {
     "title": "Hľadať v Endurain",
-    "description": "Vyberte, čo chcete hľadať, a začnite písať na zobrazenie zhôd."
+    "description": "Vyberte, čo chcete hľadať, a začnite písať na zobrazenie zhôd.",
+    "usersDescription": "Na vyhľadávanie používateľov zadajte aspoň {min} znaky."
   },
   "empty": {
     "title": "Žiadne zhody",

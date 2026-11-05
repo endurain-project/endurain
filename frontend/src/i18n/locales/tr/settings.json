@@ -1031,6 +1031,8 @@
       "hideLaps": "Turlar",
       "hideWorkoutSetsSteps": "Antrenman setleri ve adımları",
       "hideGear": "Ekipman",
+      "discoverable": "Başkalarının beni aramada bulmasına izin ver",
+      "discoverableHint": "Diğer kullanıcılar arama yaparken sizi kullanıcı adınızla bulabilir. Profiliniz doğrudan bağlantıyla erişilebilir kalır.",
       "save": "Gizliliği kaydet",
       "saving": "Kaydediliyor…",
       "saveSuccess": "Gizlilik ayarları güncellendi",

@@ -1031,6 +1031,8 @@
       "hideLaps": "Ringid",
       "hideWorkoutSetsSteps": "Treeningu seeriad ja sammud",
       "hideGear": "Varustus",
+      "discoverable": "Luba teistel mind otsingus leida",
+      "discoverableHint": "Teised kasutajad leiavad sind otsingus kasutajanime järgi. Sinu profiil jääb kättesaadavaks otselingi kaudu.",
       "save": "Salvesta privaatsus",
       "saving": "Salvestamine…",
       "saveSuccess": "Privaatsusseaded uuendatud",

@@ -39,6 +39,13 @@ def _build_app(mock_db):
     return app
 
 
+@pytest.fixture(autouse=True)
+def visible_owner():
+    """Treat another user's activities as readable; the owner check itself is a service rule."""
+    with patch("modules.activities.activity.service.users_integration.get_public_profile") as mock:
+        yield mock
+
+
 def _valid_activity(**kw):
     from modules.activities.activity.schema import ActivityRead
 
@@ -345,6 +352,16 @@ class TestListUserActivities:
             resp = TestClient(_build_app(mock_db)).get("/users/2/activities", headers={"Authorization": "Bearer x"})
             assert resp.status_code == 200
             assert resp.json()["total"] == 1
+
+
+class TestAnotherUsersActivitiesOfAnInactiveOwner:
+    @pytest.mark.parametrize("path", ["/users/2/activities", "/users/2/activities/stats"])
+    def test_an_inactive_or_pending_owner_is_not_found(self, mock_db, visible_owner, path):
+        visible_owner.side_effect = core_exceptions.NotFoundError("User not found")
+
+        resp = TestClient(_build_app(mock_db)).get(path, headers={"Authorization": "Bearer x"})
+
+        assert resp.status_code == 404
 
 
 class TestReadByID:

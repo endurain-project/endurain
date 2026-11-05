@@ -26,7 +26,8 @@
   },
   "idle": {
     "title": "Hledat v Endurain",
-    "description": "Vyberte, co chcete najít, a začněte psát, abyste viděli shody."
+    "description": "Vyberte, co chcete najít, a začněte psát, abyste viděli shody.",
+    "usersDescription": "Pro hledání uživatelů zadejte alespoň {min} znaky."
   },
   "empty": {
     "title": "Nenalezeny žádné shody",

@@ -10,6 +10,7 @@ import { searchActivitiesByName } from '@/features/activities/services/activitie
 import { useAuthStore } from '@/features/auth/stores/auth'
 import { useGearSearchQuery } from '@/features/gears/composables/useGears'
 import { useUserSearchQuery } from '@/features/users/composables/usePublicUser'
+import { MIN_USER_SEARCH_LENGTH } from '@/features/users/services/publicUsers'
 import {
   ALL_ACTIVITY_CATEGORIES,
   ALL_GEAR_TYPES,
@@ -98,8 +99,14 @@ export function useSearch() {
     filterGearsByType(gearQuery.data.value ?? [], gearTypeFilter.value),
   )
 
-  /** Whether a (debounced) search is currently in flight or showing results. */
-  const isSearching = computed(() => debouncedSearch.value.trim().length > 0)
+  /**
+   * Whether a (debounced) search is currently in flight or showing results. A user
+   * term shorter than the server's minimum never runs, so it stays in the idle state.
+   */
+  const isSearching = computed(() => {
+    const length = debouncedSearch.value.trim().length
+    return scope.value === 'users' ? length >= MIN_USER_SEARCH_LENGTH : length > 0
+  })
 
   // Each derived flag reads only the active scope's query so the disabled
   // queries (which report `pending`) never leak into the UI state.
@@ -165,6 +172,7 @@ export function useSearch() {
     activityCategory,
     gearTypeFilter,
     isSearching,
+    minUserSearchLength: MIN_USER_SEARCH_LENGTH,
     isPending,
     isError,
     isEmpty,

@@ -1031,6 +1031,8 @@
       "hideLaps": "圈数",
       "hideWorkoutSetsSteps": "锻炼组数和步骤",
       "hideGear": "装备",
+      "discoverable": "允许他人通过搜索找到我",
+      "discoverableHint": "其他用户搜索时可以通过用户名找到你。你的个人资料仍可通过直接链接访问。",
       "save": "保存隐私设置",
       "saving": "保存中…",
       "saveSuccess": "隐私设置已更新",

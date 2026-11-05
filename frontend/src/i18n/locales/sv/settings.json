@@ -1031,6 +1031,8 @@
       "hideLaps": "Varv",
       "hideWorkoutSetsSteps": "Träningsset och steg",
       "hideGear": "Utrustning",
+      "discoverable": "Låt andra hitta mig i sökningen",
+      "discoverableHint": "Andra användare kan hitta dig via användarnamn när de söker. Din profil är fortfarande nåbar via en direktlänk.",
       "save": "Spara sekretess",
       "saving": "Sparar…",
       "saveSuccess": "Sekretessinställningar uppdaterade",

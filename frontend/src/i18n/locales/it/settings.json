@@ -1031,6 +1031,8 @@
       "hideLaps": "Giri",
       "hideWorkoutSetsSteps": "Serie e passi dell'allenamento",
       "hideGear": "Attrezzatura",
+      "discoverable": "Consenti agli altri di trovarmi nella ricerca",
+      "discoverableHint": "Gli altri utenti possono trovarti per nome utente quando cercano. Il tuo profilo resta raggiungibile da un link diretto.",
       "save": "Salva privacy",
       "saving": "Salvataggio…",
       "saveSuccess": "Impostazioni privacy aggiornate",

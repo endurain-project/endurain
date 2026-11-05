@@ -5073,7 +5073,11 @@ export interface paths {
         };
         /**
          * Read Users Contain Username
-         * @description Search active users by partial username match, one page at a time.
+         * @description Search active users by partial username, one page at a time.
+         *
+         *     The term needs at least 3 characters. `num_records` defaults to the server's page size and may not exceed
+         *     it; a larger value is refused with 422. Users who switched off "Let others find me in search" are not listed;
+         *     their profile stays reachable by id.
          *
          *     Args:
          *         username: Partial username to search for.
@@ -5207,6 +5211,8 @@ export interface paths {
         /**
          * List User Activities
          * @description List another user's visible activities, with the matching total.
+         *
+         *     Answered 404 when that user does not exist, is inactive or awaits approval.
          */
         get: operations["list_user_activities_api_v1_users__user_id__activities_get"];
         put?: never;
@@ -5227,6 +5233,8 @@ export interface paths {
         /**
          * Read User Activity Stats
          * @description Aggregate per-sport stats for a user's current ``week`` or ``month``.
+         *
+         *     Another user's stats are answered 404 when that user does not exist, is inactive or awaits approval.
          */
         get: operations["read_user_activity_stats_api_v1_users__user_id__activities_stats_get"];
         put?: never;
@@ -12820,6 +12828,7 @@ export interface components {
          *         hide_activity_workout_sets_steps: Hide workout
          *             sets/steps.
          *         hide_activity_gear: Hide gear setting.
+         *         discoverable: Whether other users can find the user in username search.
          *         has_local_password: Whether the account has a local
          *             password (False for accounts that sign in through an
          *             identity provider).
@@ -12852,6 +12861,11 @@ export interface components {
              * @description Default activity visibility
              */
             default_activity_visibility?: string | null;
+            /**
+             * Discoverable
+             * @description Appear in other users' username search
+             */
+            discoverable?: boolean | null;
             /**
              * Email
              * Format: email
@@ -13052,9 +13066,15 @@ export interface components {
         UsersPrivacySettingsRead: {
             /**
              * @description Default activity visibility (public, followers, private)
-             * @default public
+             * @default private
              */
             default_activity_visibility: components["schemas"]["ActivityVisibility"] | null;
+            /**
+             * Discoverable
+             * @description Appear in other users' username search
+             * @default true
+             */
+            discoverable: boolean | null;
             /**
              * Hide Activity Cadence
              * @description Hide activity cadence
@@ -13154,9 +13174,15 @@ export interface components {
         UsersPrivacySettingsUpdate: {
             /**
              * @description Default activity visibility (public, followers, private)
-             * @default public
+             * @default private
              */
             default_activity_visibility: components["schemas"]["ActivityVisibility"] | null;
+            /**
+             * Discoverable
+             * @description Appear in other users' username search
+             * @default true
+             */
+            discoverable: boolean | null;
             /**
              * Hide Activity Cadence
              * @description Hide activity cadence
@@ -21588,6 +21614,7 @@ export interface operations {
         parameters: {
             query?: {
                 page_number?: number | null;
+                /** @description Page size; defaults to and may not exceed the server's page size */
                 num_records?: number | null;
             };
             header?: never;

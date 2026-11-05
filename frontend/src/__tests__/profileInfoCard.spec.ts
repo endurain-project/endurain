@@ -73,6 +73,7 @@ function makeProfile(overrides: Partial<ProfileDetails> = {}): ProfileDetails {
       hideLaps: false,
       hideWorkoutSetsSteps: false,
       hideGear: false,
+      discoverable: true,
     },
     ...overrides,
   }

@@ -23,6 +23,18 @@ def get_privacy_settings(user_id: int, db: Session) -> users_privacy_settings_sc
     return users_privacy_settings_crud.get_user_privacy_settings_by_user_id(user_id, db)
 
 
+def list_undiscoverable_user_ids(db: Session) -> list[int]:
+    """Return the users who opted out of the username search.
+
+    Args:
+        db: Database session.
+
+    Returns:
+        The IDs of the users whose ``discoverable`` setting is off.
+    """
+    return users_privacy_settings_crud.list_undiscoverable_user_ids(db)
+
+
 def create_privacy_settings(user_id: int, db: Session) -> users_privacy_settings_schema.UsersPrivacySettingsRead:
     """Stage default privacy settings for a new user.
 

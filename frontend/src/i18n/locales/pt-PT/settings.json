@@ -1031,6 +1031,8 @@
       "hideLaps": "Voltas",
       "hideWorkoutSetsSteps": "Séries e passos do treino",
       "hideGear": "Equipamento",
+      "discoverable": "Permitir que outros me encontrem na pesquisa",
+      "discoverableHint": "Outros utilizadores podem encontrá-lo pelo nome de utilizador quando pesquisam. O seu perfil continua acessível através de uma ligação direta.",
       "save": "Guardar privacidade",
       "saving": "A guardar…",
       "saveSuccess": "Definições de privacidade atualizadas",

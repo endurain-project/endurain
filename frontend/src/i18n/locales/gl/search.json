@@ -26,7 +26,8 @@
   },
   "idle": {
     "title": "Buscar en Endurain",
-    "description": "Escolle o que queres buscar e comeza a escribir para ver resultados."
+    "description": "Escolle o que queres buscar e comeza a escribir para ver resultados.",
+    "usersDescription": "Escribe polo menos {min} caracteres para buscar usuarios."
   },
   "empty": {
     "title": "Sen resultados",

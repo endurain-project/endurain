@@ -35,7 +35,10 @@ def read_user_activity_stats(
         ),
     ] = None,
 ) -> activity_schema.ActivityStatsRead:
-    """Aggregate per-sport stats for a user's current ``week`` or ``month``."""
+    """Aggregate per-sport stats for a user's current ``week`` or ``month``.
+
+    Another user's stats are answered 404 when that user does not exist, is inactive or awaits approval.
+    """
     return activity_service.period_stats(user_id, period, token_user_id, db, anchor=anchor_date)
 
 
@@ -56,7 +59,10 @@ def list_user_activities(
     sort_by: activity_dependencies.SortBy = None,
     sort_order: activity_dependencies.SortOrder = None,
 ) -> activity_schema.ActivityPage:
-    """List another user's visible activities, with the matching total."""
+    """List another user's visible activities, with the matching total.
+
+    Answered 404 when that user does not exist, is inactive or awaits approval.
+    """
     return activity_service.page_user_activities(
         user_id,
         token_user_id,

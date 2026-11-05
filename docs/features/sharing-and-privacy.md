@@ -1,6 +1,6 @@
 # Sharing, privacy and followers
 
-Endurain is private by default. Profiles are never public: only individual activities can be shared, and only in the ways described here.
+Endurain is private by default: new activities are Private until you choose otherwise. There is no public profile page. Other people on your server see only your name, username, city and photo, plus the activities you made visible to them, in the ways described here.
 
 ## Who can see an activity
 
@@ -8,11 +8,11 @@ Every activity has a **visibility**:
 
 | Visibility | Who sees it |
 | ---------- | ----------- |
-| Public | Anyone with a link, including people who are not signed in, when the server allows public links (see below). |
+| Public | Every signed-in user on this server, including on your profile's activity list and stats, and anyone with a link, even without signing in, when the administrator has enabled public links (see below). |
 | Followers | You and the users whose follow request you accepted. |
 | Private | Only you. |
 
-Set the default for new activities in **Settings → My profile → Privacy → Default activity visibility**. It applies to new activities only. To change the activities you already have, use **Existing activities visibility**, which updates every activity in your account after a confirmation. You can also change one activity from its edit dialog.
+Set the default for new activities in **Settings → My profile → Privacy → Default activity visibility**. It is Private for new accounts. It applies to new activities only. To change the activities you already have, use **Existing activities visibility**, which updates every activity in your account after a confirmation. You can also change one activity from its edit dialog.
 
 ## Hiding details
 
@@ -21,6 +21,10 @@ For activities that others can see, you can hide individual details: start time,
 Hidden details are removed from what followers and public viewers receive. You always see your own activities in full.
 
 An activity can also be hidden from everyone with **Hide this activity from everyone**. Endurain uses this itself when an import looks like a duplicate (see [Duplicate detection](importing.md#duplicate-detection)); you can switch it off in the activity's edit dialog if the activity is not a duplicate.
+
+## Finding people
+
+Signed-in users find each other by username in **Search**. A search needs at least 3 characters and shows one page of matches, sized by the server's records-per-page setting. Switch off **Let others find me in search** in your privacy settings to stay out of the results; it is on by default. Your profile can still be opened from a direct link, and the activities you made visible still follow the table above. Inactive accounts and accounts awaiting approval are never listed or shown.
 
 ## Public links
 

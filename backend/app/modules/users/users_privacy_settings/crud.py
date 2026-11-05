@@ -30,6 +30,21 @@ def get_user_privacy_settings_by_user_id(
     return users_privacy_settings_serializers.to_read_schema(db_privacy_settings) if db_privacy_settings else None
 
 
+def list_undiscoverable_user_ids(db: Session) -> list[int]:
+    """Retrieve the IDs of the users who opted out of the username search.
+
+    Args:
+        db: Database session.
+
+    Returns:
+        The IDs of the users whose ``discoverable`` setting is off.
+    """
+    stmt = select(users_privacy_settings_models.UsersPrivacySettings.user_id).where(
+        users_privacy_settings_models.UsersPrivacySettings.discoverable.is_(False)
+    )
+    return list(db.execute(stmt).scalars().all())
+
+
 def create_user_privacy_settings(user_id: int, db: Session) -> users_privacy_settings_schema.UsersPrivacySettingsRead:
     """Stage privacy settings for a user with the model defaults (flushed, not committed).
 

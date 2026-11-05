@@ -3,6 +3,9 @@ import type { PublicUser, PublicUserDto } from '@/features/users/types'
 import { resolveAvatarUrl } from '@/features/auth/services/mappers'
 import { apiFetch, HttpError } from '@/services/http'
 
+/** The fewest characters the server accepts in a user search term. */
+export const MIN_USER_SEARCH_LENGTH = 3
+
 /**
  * Maps a raw `UserPublicRead` payload to the {@link PublicUser} model shown on
  * the public profile page, resolving the servable avatar URL from the stored
@@ -75,8 +78,8 @@ export async function fetchPublicUser(
 
 /**
  * Searches active users whose username contains the given term. Any signed-in
- * user may search; the backend returns the public projection and caps the
- * result count.
+ * user may search with at least {@link MIN_USER_SEARCH_LENGTH} characters; the
+ * backend returns the public projection, one page of the server's page size.
  *
  * @param username - The search term.
  * @param signal - Optional abort signal for cancellation.

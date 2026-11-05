@@ -103,6 +103,7 @@ def get_profile(
             "hide_activity_laps": privacy_settings.hide_activity_laps,
             "hide_activity_workout_sets_steps": privacy_settings.hide_activity_workout_sets_steps,
             "hide_activity_gear": privacy_settings.hide_activity_gear,
+            "discoverable": privacy_settings.discoverable,
             # Lets the frontend tell an account that signs in through an identity provider from one with a
             # local password, so a step-up asks for the right proof. Both flags are auth-owned and come
             # through the auth boundary, so the hash never leaves it.

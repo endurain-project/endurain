@@ -91,11 +91,15 @@ def read_users_all_pagination(
     dependencies=[Security(auth_dependencies.check_scopes, scopes=["users:read"])],
 )
 def read_users_contain_username(
-    username: users_dependencies.Username,
-    page: core_pagination.ListPage,
+    username: users_dependencies.SearchTerm,
+    page: users_dependencies.DirectoryPage,
     db: core_dependencies.DbSession,
 ) -> users_schema.UserPublicPage:
-    """Search active users by partial username match, one page at a time.
+    """Search active users by partial username, one page at a time.
+
+    The term needs at least 3 characters. `num_records` defaults to the server's page size and may not exceed
+    it; a larger value is refused with 422. Users who switched off "Let others find me in search" are not listed;
+    their profile stays reachable by id.
 
     Args:
         username: Partial username to search for.

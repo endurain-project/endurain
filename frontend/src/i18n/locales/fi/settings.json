@@ -1031,6 +1031,8 @@
       "hideLaps": "Kierrokset",
       "hideWorkoutSetsSteps": "Harjoitussarjat ja -liikkeet",
       "hideGear": "Varuste",
+      "discoverable": "Anna muiden löytää minut haussa",
+      "discoverableHint": "Muut käyttäjät voivat löytää sinut käyttäjänimellä hakiessaan. Profiilisi on edelleen avattavissa suoralla linkillä.",
       "save": "Tallenna yksityisyys",
       "saving": "Tallennetaan…",
       "saveSuccess": "Yksityisyysasetukset päivitetty",

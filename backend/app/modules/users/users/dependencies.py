@@ -2,13 +2,62 @@
 
 from typing import Annotated
 
-from fastapi import Depends, Path
+from fastapi import Depends, Path, Query
+from fastapi.exceptions import RequestValidationError
 
 import core.dependencies as core_dependencies
+import core.pagination as core_pagination
+import modules.server_settings.integration_service as server_settings_integration
 import modules.users.users.deletion_state_store as users_deletion_state_store
 
 #: A username path segment: required, as long as the column allows, and decoded and lower-cased by the lookup.
 Username = Annotated[str, Path(min_length=1, max_length=250)]
+
+#: The fewest characters a directory search term may have, so a search cannot enumerate every user.
+MIN_SEARCH_TERM_LENGTH = 3
+
+#: A username search term: long enough not to list the whole directory, and as long as the column allows.
+SearchTerm = Annotated[str, Path(min_length=MIN_SEARCH_TERM_LENGTH, max_length=250)]
+
+
+def directory_page_params(
+    db: core_dependencies.DbSession,
+    page_number: Annotated[int | None, Query(ge=1, le=core_pagination.MAX_PAGE_NUMBER)] = None,
+    num_records: Annotated[
+        int | None, Query(ge=1, description="Page size; defaults to and may not exceed the server's page size")
+    ] = None,
+) -> core_pagination.PageParams:
+    """Resolve the paging window of the user directory from the server's page size.
+
+    Args:
+        db: Database session dependency.
+        page_number: Requested 1-based page, or None when omitted.
+        num_records: Requested page size, or None when omitted.
+
+    Returns:
+        The resolved window; an omitted size is the server's ``num_records_per_page``.
+
+    Raises:
+        RequestValidationError: When the requested size is above the server's page size (422).
+    """
+    page_size = server_settings_integration.get_server_settings(db).num_records_per_page
+    if num_records is not None and num_records > page_size:
+        raise RequestValidationError(
+            [
+                {
+                    "type": "less_than_equal",
+                    "loc": ("query", "num_records"),
+                    "msg": f"Input should be less than or equal to {page_size}",
+                    "input": num_records,
+                    "ctx": {"le": page_size},
+                }
+            ]
+        )
+    return core_pagination.PageParams(page_number or 1, num_records or page_size)
+
+
+#: The user directory's paging window, declared as ``page: users_dependencies.DirectoryPage``.
+DirectoryPage = Annotated[core_pagination.PageParams, Depends(directory_page_params)]
 
 
 def get_user_deletion_state_store(

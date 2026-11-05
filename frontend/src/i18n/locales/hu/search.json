@@ -26,7 +26,8 @@
   },
   "idle": {
     "title": "Keresés az Endurainben",
-    "description": "Válaszd ki, mit keresel, majd kezdj el gépelni a találatokhoz."
+    "description": "Válaszd ki, mit keresel, majd kezdj el gépelni a találatokhoz.",
+    "usersDescription": "Felhasználók kereséséhez írj be legalább {min} karaktert."
   },
   "empty": {
     "title": "Nincs találat",

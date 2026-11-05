@@ -24,7 +24,7 @@ export function mapPrivacySettings(dto: ProfileDto): PrivacySettings {
     version: rowVersion(dto.privacy_settings_version),
     defaultActivityVisibility:
       (dto.default_activity_visibility as PrivacySettings['defaultActivityVisibility'] | null) ??
-      'public',
+      'private',
     hideStartTime: dto.hide_activity_start_time ?? false,
     hideLocation: dto.hide_activity_location ?? false,
     hideMap: dto.hide_activity_map ?? false,
@@ -37,6 +37,7 @@ export function mapPrivacySettings(dto: ProfileDto): PrivacySettings {
     hideLaps: dto.hide_activity_laps ?? false,
     hideWorkoutSetsSteps: dto.hide_activity_workout_sets_steps ?? false,
     hideGear: dto.hide_activity_gear ?? false,
+    discoverable: dto.discoverable ?? true,
   }
 }
 
@@ -144,6 +145,7 @@ export async function updatePrivacySettings(privacy: PrivacySettings): Promise<v
     hide_activity_laps: privacy.hideLaps,
     hide_activity_workout_sets_steps: privacy.hideWorkoutSetsSteps,
     hide_activity_gear: privacy.hideGear,
+    discoverable: privacy.discoverable,
   }
   await apiFetch('/profile/privacy', {
     method: 'PATCH',

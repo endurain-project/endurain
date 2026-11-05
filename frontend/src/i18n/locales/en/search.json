@@ -26,7 +26,8 @@
   },
   "idle": {
     "title": "Search Endurain",
-    "description": "Pick what to look for, then start typing to see matches."
+    "description": "Pick what to look for, then start typing to see matches.",
+    "usersDescription": "Type at least {min} characters to search for users."
   },
   "empty": {
     "title": "No matches found",

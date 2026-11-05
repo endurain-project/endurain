@@ -67,8 +67,15 @@ class TestReadUsers:
         assert mock_list.call_args.kwargs["page_number"] == 1
         assert mock_list.call_args.kwargs["show_external_auth"] is False
 
+    @pytest.fixture
+    def page_size_setting(self):
+        """The server's ``num_records_per_page``, which the user search takes as its page size."""
+        with patch("modules.users.users.dependencies.server_settings_integration.get_server_settings") as mock:
+            mock.return_value = MagicMock(num_records_per_page=20)
+            yield mock
+
     @patch(f"{_SERVICE}.search_public_users")
-    def test_contains_username(self, mock_search, client):
+    def test_contains_username(self, mock_search, client, page_size_setting):
         mock_search.return_value = users_schema.UserPublicPage.build(
             [
                 users_schema.UserPublicRead(id=1, name="A", username="testuser1"),
@@ -76,15 +83,43 @@ class TestReadUsers:
             ],
             2,
             1,
-            25,
+            20,
         )
 
-        response = client.get("/users/username/contains/test?page_number=1&num_records=25")
+        response = client.get("/users/username/contains/test?page_number=1&num_records=20")
 
         assert response.status_code == 200
         body = response.json()
         assert [u["username"] for u in body["items"]] == ["testuser1", "testuser2"]
         assert (body["total"], body["next"]) == (2, None)
+
+    @patch(f"{_SERVICE}.search_public_users")
+    def test_search_page_size_defaults_to_the_server_setting(self, mock_search, client, page_size_setting):
+        mock_search.return_value = users_schema.UserPublicPage.build([], 0, 1, 20)
+
+        assert client.get("/users/username/contains/test").status_code == 200
+
+        assert mock_search.call_args.args[1] == core_pagination.PageParams(1, 20)
+
+    @patch(f"{_SERVICE}.search_public_users")
+    def test_search_page_size_above_the_server_setting_is_refused(self, mock_search, client, page_size_setting):
+        response = client.get("/users/username/contains/test?num_records=21")
+
+        assert response.status_code == 422
+        body = response.json()
+        assert body["errors"][0]["field"] == "query.num_records"
+        mock_search.assert_not_called()
+
+    @patch(f"{_SERVICE}.search_public_users")
+    def test_search_term_shorter_than_three_characters_is_refused(self, mock_search, client, page_size_setting):
+        assert client.get("/users/username/contains/ab").status_code == 422
+        mock_search.assert_not_called()
+
+    @patch(f"{_SERVICE}.require_user_by_username")
+    def test_exact_username_lookup_keeps_accepting_short_names(self, mock_get, client):
+        mock_get.return_value = _user(1)
+
+        assert client.get("/users/username/ab").status_code == 200
 
     @patch(f"{_SERVICE}.require_user_by_username")
     def test_exact_username_not_found_is_404(self, mock_get, client):
@@ -350,7 +385,9 @@ class TestLookupPathParametersAreBounded:
 
     @pytest.mark.parametrize("path", ["/users/username/{}", "/users/username/contains/{}"])
     def test_a_value_longer_than_the_column_is_refused(self, client, path):
-        assert client.get(path.format("a" * 251)).status_code == 422
+        with patch("modules.users.users.dependencies.server_settings_integration.get_server_settings") as settings:
+            settings.return_value = MagicMock(num_records_per_page=20)
+            assert client.get(path.format("a" * 251)).status_code == 422
 
     def test_an_email_longer_than_the_column_is_refused(self, client):
         assert client.post("/users/email/lookup", json={"email": "a" * 251}).status_code == 422

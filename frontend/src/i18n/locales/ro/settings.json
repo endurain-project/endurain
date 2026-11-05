@@ -1031,6 +1031,8 @@
       "hideLaps": "Ture",
       "hideWorkoutSetsSteps": "Seturile și pașii antrenamentului",
       "hideGear": "Echipament",
+      "discoverable": "Permite altora să mă găsească în căutare",
+      "discoverableHint": "Alți utilizatori te pot găsi după numele de utilizator când caută. Profilul tău rămâne accesibil printr-un link direct.",
       "save": "Salvează confidențialitatea",
       "saving": "Se salvează…",
       "saveSuccess": "Setările de confidențialitate au fost actualizate",

@@ -1031,6 +1031,8 @@
       "hideLaps": "Okrążenia",
       "hideWorkoutSetsSteps": "Serie i etapy treningu",
       "hideGear": "Sprzęt",
+      "discoverable": "Pozwól innym znaleźć mnie w wyszukiwarce",
+      "discoverableHint": "Inni użytkownicy mogą znaleźć Cię po nazwie użytkownika podczas wyszukiwania. Twój profil pozostaje dostępny przez bezpośredni link.",
       "save": "Zapisz prywatność",
       "saving": "Zapisywanie…",
       "saveSuccess": "Zaktualizowano ustawienia prywatności",

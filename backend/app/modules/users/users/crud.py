@@ -49,6 +49,7 @@ def _filtered[RowT: tuple[object, ...]](
     show_email_unverified: bool | None,
     show_pending_approval: bool | None,
     username: str | None = None,
+    exclude_user_ids: Collection[int] = (),
 ) -> Select[RowT]:
     """Apply the optional list filters to a users statement.
 
@@ -59,6 +60,7 @@ def _filtered[RowT: tuple[object, ...]](
         show_email_unverified: If False, excludes users with unverified emails.
         show_pending_approval: If False, excludes users pending admin approval.
         username: If set, keeps only users whose username contains it.
+        exclude_user_ids: Users to leave out.
 
     Returns:
         The filtered statement.
@@ -72,6 +74,8 @@ def _filtered[RowT: tuple[object, ...]](
     if username:
         escaped = core_sanitization.escape_like(_normalized_username(username))
         stmt = stmt.where(func.lower(users_models.Users.username).like(f"%{escaped}%", escape="\\"))
+    if exclude_user_ids:
+        stmt = stmt.where(users_models.Users.id.not_in(exclude_user_ids))
 
     return stmt
 
@@ -95,6 +99,7 @@ def get_users_number(
     show_email_unverified: bool | None = True,
     show_pending_approval: bool | None = True,
     username: str | None = None,
+    exclude_user_ids: Collection[int] = (),
 ) -> int:
     """Count users matching the optional list filters.
 
@@ -104,12 +109,18 @@ def get_users_number(
         show_email_unverified: If False, excludes users with unverified emails.
         show_pending_approval: If False, excludes users pending admin approval.
         username: If set, counts only users whose username contains it.
+        exclude_user_ids: Users to leave out of the count.
 
     Returns:
         Number of users matching the filters.
     """
     stmt = _filtered(
-        select(func.count(users_models.Users.id)), show_inactive, show_email_unverified, show_pending_approval, username
+        select(func.count(users_models.Users.id)),
+        show_inactive,
+        show_email_unverified,
+        show_pending_approval,
+        username,
+        exclude_user_ids,
     )
     return db.execute(stmt).scalar_one()
 
@@ -174,7 +185,7 @@ def get_user_by_username(username: str, db: Session) -> users_schema.UsersRead |
 
 
 def search_active_users_by_username(
-    username: str, limit: int, offset: int, db: Session
+    username: str, limit: int, offset: int, db: Session, *, exclude_user_ids: Collection[int] = ()
 ) -> list[users_schema.UsersRead]:
     """Retrieve the active users whose username contains the search term.
 
@@ -183,12 +194,13 @@ def search_active_users_by_username(
         limit: The most users to return.
         offset: How many matching users to skip.
         db: Database session.
+        exclude_user_ids: Users to leave out.
 
     Returns:
         The matching users, ordered by username.
     """
     stmt = (
-        _filtered(select(users_models.Users), False, True, True, username)
+        _filtered(select(users_models.Users), False, True, True, username, exclude_user_ids)
         .order_by(users_models.Users.username)
         .limit(limit)
         .offset(offset)

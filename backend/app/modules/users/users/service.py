@@ -185,7 +185,7 @@ def require_user_by_username(username: str, db: Session) -> users_schema.UsersRe
 
 
 def search_public_users(username: str, page: core_pagination.PageParams, db: Session) -> users_schema.UserPublicPage:
-    """Return one page of the active users whose username contains the search term, as public projections.
+    """Return one page of the active, discoverable users whose username contains the search term.
 
     Args:
         username: The partial username to search for.
@@ -195,10 +195,11 @@ def search_public_users(username: str, page: core_pagination.PageParams, db: Ses
     Returns:
         The page of matching users.
     """
+    hidden = users_privacy_settings_integration.list_undiscoverable_user_ids(db)
     matches = users_crud.search_active_users_by_username(
-        username, page.num_records, (page.page_number - 1) * page.num_records, db
+        username, page.num_records, (page.page_number - 1) * page.num_records, db, exclude_user_ids=hidden
     )
-    total = users_crud.get_users_number(db, show_inactive=False, username=username)
+    total = users_crud.get_users_number(db, show_inactive=False, username=username, exclude_user_ids=hidden)
     return users_schema.UserPublicPage.build(
         [users_schema.UserPublicRead.model_validate(user) for user in matches],
         total,

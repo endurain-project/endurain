@@ -26,7 +26,8 @@
   },
   "idle": {
     "title": "Hae Endurainista",
-    "description": "Valitse mitä etsit ja ala kirjoittaa nähdäksesi osumat."
+    "description": "Valitse mitä etsit ja ala kirjoittaa nähdäksesi osumat.",
+    "usersDescription": "Kirjoita vähintään {min} merkkiä hakeaksesi käyttäjiä."
   },
   "empty": {
     "title": "Ei osumia",

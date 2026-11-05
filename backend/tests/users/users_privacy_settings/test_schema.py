@@ -44,7 +44,8 @@ class TestUsersPrivacySettingsBaseSchema:
         settings = user_privacy_settings_schema.UsersPrivacySettingsBase()
 
         # Assert - defaults remain as enum objects (not converted due to Pydantic behavior)
-        assert settings.default_activity_visibility == user_privacy_settings_schema.ActivityVisibility.PUBLIC
+        assert settings.default_activity_visibility == user_privacy_settings_schema.ActivityVisibility.PRIVATE
+        assert settings.discoverable is True
         assert settings.hide_activity_start_time is False
         assert settings.hide_activity_location is False
         assert settings.hide_activity_map is False
@@ -343,7 +344,7 @@ class TestUsersPrivacySettingsCreateSchema:
         settings = user_privacy_settings_schema.UsersPrivacySettingsCreate()
 
         # Assert - defaults remain as enum objects (not converted due to Pydantic behavior)
-        assert settings.default_activity_visibility == user_privacy_settings_schema.ActivityVisibility.PUBLIC
+        assert settings.default_activity_visibility == user_privacy_settings_schema.ActivityVisibility.PRIVATE
         assert settings.hide_activity_start_time is False
 
     def test_create_schema_custom_values(self):
@@ -359,3 +360,12 @@ class TestUsersPrivacySettingsCreateSchema:
         # Assert
         assert settings.default_activity_visibility == user_privacy_settings_schema.ActivityVisibility.PRIVATE.value
         assert settings.hide_activity_map is True
+
+
+class TestDiscoverableSetting:
+    def test_update_accepts_the_choice_and_refuses_clearing_it(self):
+        update = user_privacy_settings_schema.UsersPrivacySettingsUpdate(discoverable=False)
+
+        assert update.model_dump(exclude_unset=True) == {"discoverable": False}
+        with pytest.raises(ValueError):
+            user_privacy_settings_schema.UsersPrivacySettingsUpdate(discoverable=None)

@@ -26,7 +26,8 @@
   },
   "idle": {
     "title": "Zoek in Endurain",
-    "description": "Kies wat je wilt zoeken en begin dan te typen om resultaten te zien."
+    "description": "Kies wat je wilt zoeken en begin dan te typen om resultaten te zien.",
+    "usersDescription": "Typ minstens {min} tekens om naar gebruikers te zoeken."
   },
   "empty": {
     "title": "Geen resultaten gevonden",

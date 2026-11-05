@@ -1031,6 +1031,8 @@
       "hideLaps": "Ratai",
       "hideWorkoutSetsSteps": "Treniruotės serijos ir žingsniai",
       "hideGear": "Įranga",
+      "discoverable": "Leisti kitiems rasti mane paieškoje",
+      "discoverableHint": "Kiti naudotojai gali rasti jus pagal naudotojo vardą ieškodami. Jūsų profilis išlieka pasiekiamas tiesioginiu saitu.",
       "save": "Išsaugoti privatumą",
       "saving": "Išsaugoma…",
       "saveSuccess": "Privatumo nustatymai atnaujinti",

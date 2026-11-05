@@ -1031,6 +1031,8 @@
       "hideLaps": "Rondes",
       "hideWorkoutSetsSteps": "Trainingssets en -stappen",
       "hideGear": "Uitrusting",
+      "discoverable": "Laat anderen mij vinden in zoekresultaten",
+      "discoverableHint": "Andere gebruikers kunnen je op gebruikersnaam vinden als ze zoeken. Je profiel blijft bereikbaar via een directe link.",
       "save": "Privacy opslaan",
       "saving": "Opslaan…",
       "saveSuccess": "Privacy-instellingen bijgewerkt",

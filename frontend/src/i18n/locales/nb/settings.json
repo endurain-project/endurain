@@ -1031,6 +1031,8 @@
       "hideLaps": "Runder",
       "hideWorkoutSetsSteps": "Treningssett og -trinn",
       "hideGear": "Utstyr",
+      "discoverable": "La andre finne meg i søk",
+      "discoverableHint": "Andre brukere kan finne deg på brukernavn når de søker. Profilen din er fortsatt tilgjengelig via en direkte lenke.",
       "save": "Lagre personvern",
       "saving": "Lagrer…",
       "saveSuccess": "Personverninnstillinger oppdatert",

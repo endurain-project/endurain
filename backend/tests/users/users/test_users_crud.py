@@ -91,6 +91,13 @@ class TestReads:
         assert "LIMIT 7" in sql
         assert "OFFSET 14" in sql
 
+    def test_search_leaves_out_the_excluded_users(self, mock_db):
+        _many(mock_db, [])
+
+        users_crud.search_active_users_by_username("ann", 7, 0, mock_db, exclude_user_ids=[4, 9])
+
+        assert "NOT IN (4, 9)" in _sql(mock_db)
+
     def test_get_users_admin_filters_on_access_type(self, mock_db):
         _many(mock_db, [])
 

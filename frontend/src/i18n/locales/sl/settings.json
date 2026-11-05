@@ -1031,6 +1031,8 @@
       "hideLaps": "Krogi",
       "hideWorkoutSetsSteps": "Serije in koraki vadbe",
       "hideGear": "Oprema",
+      "discoverable": "Naj me drugi najdejo v iskanju",
+      "discoverableHint": "Drugi uporabniki vas lahko pri iskanju najdejo po uporabniškem imenu. Vaš profil ostane dosegljiv prek neposredne povezave.",
       "save": "Shrani zasebnost",
       "saving": "Shranjevanje…",
       "saveSuccess": "Nastavitve zasebnosti posodobljene",

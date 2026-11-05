@@ -1031,6 +1031,8 @@
       "hideLaps": "Laps",
       "hideWorkoutSetsSteps": "Workout sets and steps",
       "hideGear": "Gear",
+      "discoverable": "Let others find me in search",
+      "discoverableHint": "Other users can find you by username when they search. Your profile stays reachable from a direct link.",
       "save": "Save privacy",
       "saving": "Saving…",
       "saveSuccess": "Privacy settings updated",

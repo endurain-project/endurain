@@ -26,7 +26,8 @@
   },
   "idle": {
     "title": "Przeszukaj Endurain",
-    "description": "Wybierz, czego szukać, a następnie zacznij pisać, aby zobaczyć dopasowania."
+    "description": "Wybierz, czego szukać, a następnie zacznij pisać, aby zobaczyć dopasowania.",
+    "usersDescription": "Wpisz co najmniej {min} znaki, aby wyszukać użytkowników."
   },
   "empty": {
     "title": "Nie znaleziono dopasowań",

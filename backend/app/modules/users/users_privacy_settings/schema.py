@@ -52,10 +52,11 @@ class UsersPrivacySettingsBase(BaseModel):
             steps from activities.
         hide_activity_gear: Hide gear information from
             activities.
+        discoverable: Appear in other users' username search.
     """
 
     default_activity_visibility: ActivityVisibility | None = Field(
-        default=ActivityVisibility.PUBLIC,
+        default=ActivityVisibility.PRIVATE,
         description="Default activity visibility (public, followers, private)",
     )
     hide_activity_start_time: StrictBool | None = Field(default=False, description="Hide activity start time")
@@ -72,6 +73,7 @@ class UsersPrivacySettingsBase(BaseModel):
         default=False, description="Hide activity workout sets and steps"
     )
     hide_activity_gear: StrictBool | None = Field(default=False, description="Hide activity gear")
+    discoverable: StrictBool | None = Field(default=True, description="Appear in other users' username search")
 
     model_config = ConfigDict(
         from_attributes=True,
@@ -109,6 +111,7 @@ class UsersPrivacySettingsUpdate(core_partial_update.NotClearable, UsersPrivacyS
         "hide_activity_laps",
         "hide_activity_workout_sets_steps",
         "hide_activity_gear",
+        "discoverable",
     )
 
 

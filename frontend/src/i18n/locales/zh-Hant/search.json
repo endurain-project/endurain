@@ -26,7 +26,8 @@
   },
   "idle": {
     "title": "搜尋 Endurain",
-    "description": "選擇要搜尋的內容，然後開始輸入以查看符合的結果。"
+    "description": "選擇要搜尋的內容，然後開始輸入以查看符合的結果。",
+    "usersDescription": "請輸入至少 {min} 個字元以搜尋使用者。"
   },
   "empty": {
     "title": "找不到符合的結果",

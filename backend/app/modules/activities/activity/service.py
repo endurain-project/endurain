@@ -239,6 +239,22 @@ def month_stats(
     )
 
 
+def _require_visible_owner(user_id: int, requester_user_id: int, db: Session) -> None:
+    """Refuse another user's activities when that user is inactive or awaits approval.
+
+    Args:
+        user_id: The owner whose activities are requested.
+        requester_user_id: The authenticated caller; their own activities are always readable.
+        db: Database session.
+
+    Raises:
+        NotFoundError: If the owner does not exist, is inactive or awaits approval, so the caller
+            cannot tell the three apart.
+    """
+    if user_id != requester_user_id:
+        users_integration.get_public_profile(user_id, db)
+
+
 def period_stats(
     user_id: int,
     period: str,
@@ -259,7 +275,11 @@ def period_stats(
 
     Returns:
         The aggregated stats.
+
+    Raises:
+        NotFoundError: If another user owns the stats and is inactive or awaits approval.
     """
+    _require_visible_owner(user_id, requester_user_id, db)
     logger.debug(
         "Aggregating period stats",
         extra=core_logger.context(user_id=user_id, period=period, requester_user_id=requester_user_id, anchor=anchor),
@@ -532,7 +552,11 @@ def page_user_activities(
     Returns:
         The page envelope. ``total`` carries the same filters and the same
         visibility scoping as ``items``.
+
+    Raises:
+        NotFoundError: If another user owns the activities and is inactive or awaits approval.
     """
+    _require_visible_owner(user_id, requester_user_id, db)
     items = list_user_activities_paginated(
         user_id,
         requester_user_id,

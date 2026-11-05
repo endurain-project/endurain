@@ -1031,6 +1031,8 @@
       "hideLaps": "Krugovi",
       "hideWorkoutSetsSteps": "Serije i koraci treninga",
       "hideGear": "Oprema",
+      "discoverable": "Dopusti drugima da me pronađu u pretrazi",
+      "discoverableHint": "Drugi korisnici mogu vas pronaći po korisničkom imenu kad pretražuju. Vaš profil ostaje dostupan putem izravne poveznice.",
       "save": "Spremi privatnost",
       "saving": "Spremanje…",
       "saveSuccess": "Postavke privatnosti su ažurirane",
