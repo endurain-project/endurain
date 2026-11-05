@@ -28,6 +28,7 @@ import modules.activities.activity_media.models as media_models
 import modules.activities.activity_media.service as media_service
 import modules.followers.crud as followers_crud
 import modules.followers.models as followers_models
+from tests._helpers import images
 from tests._helpers.db import ensure_user
 
 _PRIVACY_FLAGS = (
@@ -147,7 +148,7 @@ class TestMediaStoreRace:
         """
         activity_id = _add_activity(pg_factory)
         storage = MagicMock()
-        data = b"identical photo bytes"
+        data = images.jpeg_with_exif()
 
         with pg_factory() as db:
             winner = media_service.store_activity_media_bytes(activity_id, "photo.jpg", data, storage, db)
