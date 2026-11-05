@@ -23,6 +23,7 @@ import modules.auth.account_security.integration_service as account_security_int
 import modules.auth.credentials.integration_service as credentials_integration
 import modules.auth.identity_provider_links.integration_service as identity_provider_links_integration
 import modules.auth.mfa.integration_service as mfa_integration
+import modules.auth.password_reset_tokens.integration_service as password_reset_tokens_integration
 import modules.auth.sign_up_tokens.integration_service as sign_up_tokens_integration
 import modules.server_settings.integration_service as server_settings_integration
 import modules.server_settings.schema as server_settings_schema
@@ -630,7 +631,9 @@ def stage_user_edit(
 
     Intended for admin endpoints that legitimately set fields like ``access_type``, ``active``
     or ``pending_admin_approval``. Self-service updates go through :func:`stage_profile_edit`,
-    whose allow-list prevents privilege escalation through mass assignment.
+    whose allow-list prevents privilege escalation through mass assignment. A changed email also
+    voids the user's unused password-reset tokens, so this covers every writer of this edit,
+    such as the identity-provider sync.
 
     Args:
         user_id: ID of the user to update.
@@ -658,6 +661,9 @@ def stage_user_edit(
     changes["email"] = user.email.lower()
 
     updated = users_crud.update_user(user_id, changes, db, if_match=if_match)
+    if existing.email != updated.email:
+        # A reset link mailed to the old address must not set a password once the recovery address moved.
+        password_reset_tokens_integration.revoke_unused_tokens(user_id, db)
     if existing.active and not updated.active:
         # Verifying an email activates the account, so a link issued before the deactivation must not work.
         sign_up_tokens_integration.revoke_pending_tokens(user_id, db)
@@ -733,7 +739,8 @@ def _stage_edit_with_email_change(
     An address the administrator marks verified is applied now. Any other address is requested: the
     edit keeps the stored ``email`` and ``email_verified`` and a confirmation link goes to the new
     address, which replaces the stored one once confirmed. Without outgoing mail nothing can be
-    confirmed, so the address is applied now, unverified.
+    confirmed, so the address is applied now, unverified. An address applied now also voids the user's
+    unused verification tokens, and, through :func:`stage_user_edit`, their unused password-reset tokens.
 
     Args:
         existing: The user as stored.
@@ -872,8 +879,9 @@ def stage_profile_edit(
 def stage_email_change(user_id: int, email: str, db: Session) -> bool:
     """Stage a new email address for a user and mark it unverified.
 
-    Does nothing when the address is the one the user already has, so re-submitting it does not
-    cost them their verified status.
+    A changed address also voids the user's unused verification and password-reset tokens. Does nothing
+    when the address is the one the user already has, so re-submitting it does not cost them their
+    verified status.
 
     Args:
         user_id: ID of the user whose email changes.
@@ -895,6 +903,7 @@ def stage_email_change(user_id: int, email: str, db: Session) -> bool:
     users_crud.update_user(user_id, {"email": normalized, "email_verified": False}, db)
     # A link issued for the old address or a pending one must not confirm over the address just applied.
     sign_up_tokens_integration.revoke_pending_tokens(user_id, db)
+    password_reset_tokens_integration.revoke_unused_tokens(user_id, db)
     return True
 
 
@@ -918,7 +927,7 @@ def require_email_available(user_id: int, email: str, db: Session) -> None:
 
 
 def stage_confirmed_email_change(user_id: int, email: str, db: Session) -> None:
-    """Stage a confirmed email address for a user and mark it verified.
+    """Stage a confirmed email address for a user, mark it verified and void their unused password-reset tokens.
 
     Args:
         user_id: ID of the user whose email changes.
@@ -932,6 +941,7 @@ def stage_confirmed_email_change(user_id: int, email: str, db: Session) -> None:
     normalized = email.lower()
     require_email_available(user_id, normalized, db)
     users_crud.update_user(user_id, {"email": normalized, "email_verified": True}, db)
+    password_reset_tokens_integration.revoke_unused_tokens(user_id, db)
     jasil_audit.stage(
         db,
         users_audit_actions.USER_EMAIL_CHANGE,

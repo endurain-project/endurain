@@ -11,6 +11,7 @@ from sqlalchemy.orm import sessionmaker
 import core.exceptions as core_exceptions
 import modules.auth.computation as token_hashing
 import modules.auth.credentials.integration_service as credentials_integration
+import modules.auth.password_reset_tokens.models as password_reset_models
 import modules.auth.sign_up_tokens.crud as sign_up_crud
 import modules.auth.sign_up_tokens.integration_service as sign_up_integration
 import modules.auth.sign_up_tokens.models as sign_up_models
@@ -366,6 +367,67 @@ class TestVerifyEmailOnAnInactiveAccount:
         user = db.get(users_models.Users, 7)
         assert (user.active, user.email_verified, user.pending_admin_approval) == (False, True, True)
         approval_emails.assert_called_once_with(7, db)
+
+
+class TestVerifyEmailVoidsPasswordResetTokens:
+    @staticmethod
+    def _reset_token(db, *, user_id=7):
+        now = datetime.now(UTC)
+        db.add(
+            password_reset_models.PasswordResetToken(
+                id="reset-1",
+                user_id=user_id,
+                token_hash="reset-hash",
+                created_at=now,
+                expires_at=now + timedelta(hours=1),
+                used=False,
+            )
+        )
+        db.commit()
+
+    @staticmethod
+    def _reset_used(db):
+        db.expire_all()
+        return db.get(password_reset_models.PasswordResetToken, "reset-1").used
+
+    def test_a_sign_up_confirmation_that_sets_a_password_voids_the_reset_token(self, db, mail_configured):
+        user = db.get(users_models.Users, 7)
+        user.active = False
+        user.email_verified = False
+        db.commit()
+        self._reset_token(db)
+        _add_token(db, token_id="t1", token="plain", email="user7@example.com", previous_email=None)
+        settings = MagicMock(
+            signup_require_email_verification=True,
+            signup_require_admin_approval=False,
+            password_length_regular_users=8,
+            password_length_admin_users=12,
+        )
+
+        with (
+            patch(f"{_SERVICE}.server_settings_integration.get_server_settings", return_value=settings),
+            patch(_PUBLISH),
+        ):
+            sign_up_service.verify_email("plain", "ChosenPass1!", db)
+
+        assert self._reset_used(db) is True
+
+    def test_a_confirmed_email_change_voids_the_reset_token(self, db):
+        user = db.get(users_models.Users, 7)
+        user.active = True
+        user.email_verified = False
+        db.commit()
+        self._reset_token(db)
+        _add_token(db, token_id="t1", token="plain", email="user7@example.com", previous_email="old@example.com")
+        settings = MagicMock(signup_require_email_verification=False, signup_require_admin_approval=False)
+
+        with (
+            patch(f"{_SERVICE}.server_settings_integration.get_server_settings", return_value=settings),
+            patch(_PUBLISH),
+        ):
+            sign_up_service.verify_email("plain", None, db)
+
+        assert self._reset_used(db) is True
 
 
 class TestGetPendingEmailChanges:

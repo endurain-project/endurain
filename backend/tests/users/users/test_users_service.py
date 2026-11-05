@@ -73,6 +73,13 @@ def sign_up():
 
 
 @pytest.fixture(autouse=True)
+def password_reset():
+    """Replace the password-reset-token boundary."""
+    with patch("modules.users.users.service.password_reset_tokens_integration") as integration:
+        yield integration
+
+
+@pytest.fixture(autouse=True)
 def _auth_integration_mocks(monkeypatch):
     """Mock auth integration boundaries while preserving each test's configured values."""
     global _auth_service_mock
@@ -856,6 +863,45 @@ class TestEdits:
         mock_db.commit.assert_called_once()
         _delete_all_sessions_mock.assert_called_once_with(1, mock_db)
 
+    def test_an_email_applied_now_voids_the_reset_tokens(self, mock_crud, mock_weight, mock_db, password_reset):
+        mock_crud.get_user_by_id.return_value = _user(1)
+        mock_crud.update_user.return_value = _user(1, email="other@example.com", email_verified=True)
+        _identity()
+
+        users_service.edit_user(1, _edit(1, email="other@example.com", email_verified=True), 9, mock_db, if_match="*")
+
+        password_reset.revoke_unused_tokens.assert_called_once_with(1, mock_db)
+
+    def test_a_staged_edit_that_changes_the_email_voids_the_reset_tokens(
+        self, mock_crud, mock_weight, mock_db, password_reset
+    ):
+        mock_crud.get_user_by_id.return_value = _user(1)
+        mock_crud.update_user.return_value = _user(1, email="other@example.com")
+
+        users_service.stage_user_edit(1, _edit(1, email="other@example.com"), mock_db, if_match="*")
+
+        password_reset.revoke_unused_tokens.assert_called_once_with(1, mock_db)
+
+    def test_a_staged_edit_that_keeps_the_email_keeps_the_reset_tokens(
+        self, mock_crud, mock_weight, mock_db, password_reset
+    ):
+        mock_crud.get_user_by_id.return_value = _user(1)
+        mock_crud.update_user.return_value = _user(1, name="Renamed")
+
+        users_service.stage_user_edit(1, _edit(1, name="Renamed"), mock_db, if_match="*")
+
+        password_reset.revoke_unused_tokens.assert_not_called()
+
+    def test_an_email_only_requested_keeps_the_reset_tokens(self, mock_crud, mock_weight, mock_db, password_reset):
+        mock_crud.get_user_by_id.return_value = _user(1)
+        mock_crud.get_user_by_email.return_value = None
+        mock_crud.update_user.return_value = _user(1)
+        _identity()
+
+        users_service.edit_user(1, _edit(1, email="other@example.com"), 9, mock_db, if_match="*")
+
+        password_reset.revoke_unused_tokens.assert_not_called()
+
     def test_an_edit_that_keeps_the_email_never_touches_pending_changes(self, mock_crud, mock_weight, mock_db, sign_up):
         mock_crud.get_user_by_id.return_value = _user(1)
         mock_crud.update_user.return_value = _user(1, name="Renamed")
@@ -1208,6 +1254,22 @@ class TestStageEmailChange:
         sign_up.revoke_pending_tokens.assert_called_once_with(1, mock_db)
 
     @patch(_CRUD)
+    def test_a_changed_address_voids_the_reset_tokens(self, mock_crud, mock_db, password_reset):
+        mock_crud.get_user_by_id.return_value = _user(1, email="old@example.com")
+
+        users_service.stage_email_change(1, "new@example.com", mock_db)
+
+        password_reset.revoke_unused_tokens.assert_called_once_with(1, mock_db)
+
+    @patch(_CRUD)
+    def test_resubmitting_the_current_address_keeps_the_reset_tokens(self, mock_crud, mock_db, password_reset):
+        mock_crud.get_user_by_id.return_value = _user(1, email="same@example.com")
+
+        users_service.stage_email_change(1, "same@example.com", mock_db)
+
+        password_reset.revoke_unused_tokens.assert_not_called()
+
+    @patch(_CRUD)
     def test_resubmitting_the_current_address_keeps_it_verified(self, mock_crud, mock_db):
         mock_crud.get_user_by_id.return_value = _user(1, email="same@example.com")
 
@@ -1225,6 +1287,14 @@ class TestStageEmailChange:
 
 
 class TestStageConfirmedEmailChange:
+    @patch(_CRUD)
+    def test_a_confirmed_address_voids_the_reset_tokens(self, mock_crud, mock_db, password_reset):
+        mock_crud.get_user_by_email.return_value = None
+
+        users_service.stage_confirmed_email_change(1, "New@Example.com", mock_db)
+
+        password_reset.revoke_unused_tokens.assert_called_once_with(1, mock_db)
+
     @patch(_CRUD)
     def test_stores_the_lower_cased_address_as_verified(self, mock_crud, mock_db):
         mock_crud.get_user_by_email.return_value = None

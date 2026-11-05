@@ -18,13 +18,16 @@ from tests._helpers.db import create_sqlite_session_factory, ensure_user
 
 
 class TestUsePasswordResetToken:
+    @patch(
+        "modules.auth.password_reset_tokens.service.password_reset_event_publishers.publish_password_reset_completed"
+    )
     @patch("modules.auth.password_reset_tokens.service.mfa_integration.clear_pending_mfa_for_user")
     @patch("modules.auth.password_reset_tokens.service.sessions_integration.delete_sessions_by_user")
     @patch("modules.auth.password_reset_tokens.service.password_reset_crud.mark_user_password_reset_tokens_used")
     @patch("modules.auth.password_reset_tokens.service.credentials_integration.set_local_password_hash")
     @patch("modules.auth.password_reset_tokens.service.password_reset_crud.claim_password_reset_token")
     def test_password_and_sessions_commit_before_pending_mfa_is_cleared(
-        self, claim, set_password, mark_tokens, delete_sessions, clear_pending, mock_db
+        self, claim, set_password, mark_tokens, delete_sessions, clear_pending, publish_completed, mock_db
     ):
         user = MagicMock(active=True, access_type="regular", username="alice", email="alice@example.com")
         settings = MagicMock(local_login_enabled=True)
@@ -67,8 +70,11 @@ class TestUsePasswordResetToken:
             "clear_pending",
         ]
         clear_pending.assert_called_once_with(42)
+        publish_completed.assert_called_once_with(42, mock_db)
 
-    @patch("modules.auth.password_reset_tokens.service.account_security_integration.stage_password_reset")
+    @patch(
+        "modules.auth.password_reset_tokens.service.password_reset_event_publishers.publish_password_reset_completed"
+    )
     @patch("modules.auth.password_reset_tokens.service.sessions_integration.delete_sessions_by_user")
     @patch("modules.auth.password_reset_tokens.service.credentials_integration.set_local_password_hash")
     @patch("modules.auth.password_reset_tokens.service.password_reset_crud.claim_password_reset_token", return_value=42)

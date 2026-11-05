@@ -23,3 +23,21 @@ def publish_password_reset_requested(user_id: int, db: Session) -> None:
         db=db,
         schema_version=payload.SCHEMA_VERSION,
     )
+
+
+def publish_password_reset_completed(user_id: int, db: Session) -> None:
+    """Stage ``auth.password_reset_completed`` in the caller's transaction.
+
+    Args:
+        user_id: The user whose password was reset.
+        db: The producer's DB session; the event is published when it commits.
+    """
+    payload = password_reset_tokens_events.PasswordResetCompletedPayload(user_id=user_id)
+    platform_publisher.publish_on_commit(
+        password_reset_tokens_events.PASSWORD_RESET_COMPLETED,
+        payload.model_dump(),
+        source="api:confirm_password_reset",
+        metadata={core_event_metadata.META_USER_ID: user_id},
+        db=db,
+        schema_version=payload.SCHEMA_VERSION,
+    )

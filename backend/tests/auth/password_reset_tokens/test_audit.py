@@ -1,4 +1,4 @@
-"""Audit rows and the security-change event of a password reset."""
+"""Audit rows and the completion event of a password reset."""
 
 from unittest.mock import MagicMock, patch
 
@@ -33,7 +33,9 @@ def test_a_reset_is_audited_and_announced(mock_db):
     audit.assert_audited(
         password_reset_audit_actions.PASSWORD_RESET.id, target_type="user", target_id="7", target_owner_id="7"
     )
-    assert publish.call_args.args[1] == {"user_id": 7, "change": "password_reset", "idp_id": None}
+    publish.assert_called_once()
+    assert publish.call_args.args[0] == "auth.password_reset_completed"
+    assert publish.call_args.args[1] == {"user_id": 7}
 
 
 def test_an_invalid_token_is_recorded_without_a_target(mock_db):

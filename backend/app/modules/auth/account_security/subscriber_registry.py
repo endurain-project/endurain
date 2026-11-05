@@ -35,6 +35,14 @@ DURABLE_SUBSCRIBER_NETS: tuple[DurableSubscriberNet, ...] = (
         ),
     ),
     DurableSubscriberNet(
+        account_security_subscribers.PASSWORD_RESET_COMPLETED_EMAIL_SUBSCRIBER_ID,
+        None,
+        exempt_reason=(
+            "A reset notice is a one-off reaction to a password that is already stored and audited; "
+            "nothing is left to backfill once the reset is made."
+        ),
+    ),
+    DurableSubscriberNet(
         account_security_subscribers.NEW_DEVICE_SIGN_IN_EMAIL_SUBSCRIBER_ID,
         None,
         exempt_reason=(

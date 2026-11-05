@@ -17,6 +17,7 @@ import modules.auth.access_tokens.integration_service as access_tokens_integrati
 import modules.auth.computation as token_hashing
 import modules.auth.credentials.integration_service as credentials_integration
 import modules.auth.mfa.integration_service as mfa_integration
+import modules.auth.password_reset_tokens.integration_service as password_reset_tokens_integration
 import modules.auth.sessions.integration_service as sessions_integration
 import modules.auth.sign_up_tokens.audit_actions as sign_up_audit_actions
 import modules.auth.sign_up_tokens.contracts as sign_up_contracts
@@ -511,8 +512,9 @@ def verify_email(token: str, password: str | None, db: Session) -> sign_up_schem
     """Consume a verification token and apply the server's email-verification policy.
 
     Confirming a sign-up also sets the account's password, replacing any credential the account already has, and
-    ends its sessions, as a password reset does. A sign-up confirmation without a password is refused before
-    anything is committed, so the token stays usable for the retry that carries one.
+    ends its sessions and voids its unused password-reset tokens, as a password reset does. A sign-up confirmation
+    without a password is refused before anything is committed, so the token stays usable for the retry that carries
+    one.
 
     A token that replaces the account's address (an email-change token) first switches the account to the
     confirmed address and stages the notice to the previous one; a conflict or any later failure rolls the
@@ -572,6 +574,7 @@ def verify_email(token: str, password: str | None, db: Session) -> sign_up_schem
             email=user.email,
         )
         credentials_integration.set_local_password_hash(user_id, hashed_password, db)
+        password_reset_tokens_integration.revoke_unused_tokens(user_id, db)
         sessions_integration.delete_sessions_by_user(user_id, db)
 
     if claim.previous_email is None:

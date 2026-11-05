@@ -1,4 +1,4 @@
-"""Event subscribers for account-security change and new-device sign-in emails."""
+"""Event subscribers for account-security change, password-reset and new-device sign-in emails."""
 
 from collections.abc import Callable
 
@@ -20,11 +20,13 @@ import modules.auth.account_security.email_messages as account_security_email_me
 import modules.auth.account_security.events as account_security_events
 import modules.auth.identity_providers.events as idp_events
 import modules.auth.known_devices.events as known_devices_events
+import modules.auth.password_reset_tokens.events as password_reset_events
 
 logger = core_logger.get_logger(__name__)
 ACCOUNT_SECURITY_CHANGED_EMAIL_SUBSCRIBER_ID = "auth.send_account_security_changed_email"
 IDP_LINKED_EMAIL_SUBSCRIBER_ID = "auth.send_idp_linked_email"
 NEW_DEVICE_SIGN_IN_EMAIL_SUBSCRIBER_ID = "auth.send_new_device_sign_in_email"
+PASSWORD_RESET_COMPLETED_EMAIL_SUBSCRIBER_ID = "auth.send_password_reset_completed_email"  # noqa: S105 (name matches the password-secret heuristic, not a secret)
 
 
 def _send_security_email(
@@ -99,6 +101,22 @@ def send_idp_linked_email_for_event(event: Event) -> None:
     logger.debug("Identity-provider-linked event processed", extra=core_logger.context(user_id=payload.user_id))
 
 
+def send_password_reset_completed_email_for_event(event: Event) -> None:
+    """Send the user an email saying their password was reset through an emailed link."""
+    payload = platform_event_versioning.parse_payload(password_reset_events.PasswordResetCompletedPayload, event)
+    mail = platform_runtime.get_active_platform().mail
+    change = account_security_events.AccountSecurityChange.PASSWORD_RESET.value
+    _send_security_email(
+        payload.user_id,
+        change,
+        lambda db: account_security_service.prepare_security_change_email(
+            payload.user_id, change, None, core_config.settings.ENDURAIN_HOST, db
+        ),
+        mail,
+    )
+    logger.debug("Password-reset-completed event processed", extra=core_logger.context(user_id=payload.user_id))
+
+
 def send_new_device_sign_in_email_for_event(event: Event) -> None:
     """Send the user an email saying their account was signed in to from a new device."""
     payload = platform_event_versioning.parse_payload(known_devices_events.NewDeviceSignInPayload, event)
@@ -123,6 +141,7 @@ def send_new_device_sign_in_email_for_event(event: Event) -> None:
 
 on_security_changed = best_effort(send_security_changed_email_for_event)
 on_idp_linked = best_effort(send_idp_linked_email_for_event)
+on_password_reset_completed = best_effort(send_password_reset_completed_email_for_event)
 on_new_device_sign_in = best_effort(send_new_device_sign_in_email_for_event)
 
 
@@ -130,6 +149,7 @@ def register_bus_subscribers(events: EventBusProvider) -> None:
     """Register the account-security and new-device sign-in email bus subscribers."""
     events.subscribe(account_security_events.ACCOUNT_SECURITY_CHANGED, on_security_changed)
     events.subscribe(idp_events.IDP_LINKED, on_idp_linked)
+    events.subscribe(password_reset_events.PASSWORD_RESET_COMPLETED, on_password_reset_completed)
     events.subscribe(known_devices_events.NEW_DEVICE_SIGN_IN, on_new_device_sign_in)
 
 
@@ -144,6 +164,11 @@ def register_durable_handlers(registry: JobHandlerRegistry) -> None:
         idp_events.IDP_LINKED,
         IDP_LINKED_EMAIL_SUBSCRIBER_ID,
         send_idp_linked_email_for_event,
+    )
+    registry.register(
+        password_reset_events.PASSWORD_RESET_COMPLETED,
+        PASSWORD_RESET_COMPLETED_EMAIL_SUBSCRIBER_ID,
+        send_password_reset_completed_email_for_event,
     )
     registry.register(
         known_devices_events.NEW_DEVICE_SIGN_IN,

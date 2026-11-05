@@ -80,3 +80,16 @@ class TestPublisher:
         mock_bare.assert_not_called()
         mock_staged.assert_called_once()
         db.commit.assert_not_called()
+
+
+class TestCompletedPublisher:
+    @patch("modules.auth.password_reset_tokens.event_publishers.platform_publisher.publish_on_commit")
+    def test_stages_the_completed_event_with_the_user_id_only(self, mock_publish):
+        db = MagicMock()
+
+        password_reset_publishers.publish_password_reset_completed(4, db)
+
+        assert mock_publish.call_args.args[0] == "auth.password_reset_completed"
+        assert mock_publish.call_args.args[1] == {"user_id": 4}
+        assert mock_publish.call_args.kwargs["db"] is db
+        db.commit.assert_not_called()

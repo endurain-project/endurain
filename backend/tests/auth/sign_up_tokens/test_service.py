@@ -321,7 +321,13 @@ def _claim(*, previous_email=None):
 class TestVerifyEmailPassword:
     @pytest.fixture
     def deps(self):
-        names = ["credentials_integration", "sessions_integration", "mfa_integration", "users_integration"]
+        names = [
+            "credentials_integration",
+            "sessions_integration",
+            "mfa_integration",
+            "users_integration",
+            "password_reset_tokens_integration",
+        ]
         mocks = {name: MagicMock() for name in names}
         with (
             patch(
@@ -357,6 +363,7 @@ class TestVerifyEmailPassword:
         }
         creds.set_local_password_hash.assert_called_once_with(7, "hashed", mock_db)
         deps["sessions_integration"].delete_sessions_by_user.assert_called_once_with(7, mock_db)
+        deps["password_reset_tokens_integration"].revoke_unused_tokens.assert_called_once_with(7, mock_db)
         deps["mfa_integration"].clear_pending_mfa_for_user.assert_called_once_with(7)
         deps["users_integration"].stage_email_verification.assert_called_once()
         assert "log in" in result.message
@@ -407,6 +414,7 @@ class TestVerifyEmailPassword:
         result = sign_up_service.verify_email("tok", None, mock_db)
 
         deps["sessions_integration"].delete_sessions_by_user.assert_not_called()
+        deps["password_reset_tokens_integration"].revoke_unused_tokens.assert_not_called()
         mock_db.commit.assert_called_once()
         assert "verified" in result.message.lower()
 

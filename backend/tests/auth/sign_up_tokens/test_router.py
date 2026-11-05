@@ -363,6 +363,7 @@ class TestVerifyEmailEndpoint:
         with (
             patch("modules.auth.sign_up_tokens.service.credentials_integration") as credentials,
             patch("modules.auth.sign_up_tokens.service.sessions_integration"),
+            patch("modules.auth.sign_up_tokens.service.password_reset_tokens_integration"),
             patch("modules.auth.sign_up_tokens.service.mfa_integration"),
             patch("modules.auth.sign_up_tokens.service.users_schema.normalize_access_type", return_value="regular"),
         ):

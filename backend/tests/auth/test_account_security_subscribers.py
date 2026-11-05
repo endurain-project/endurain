@@ -13,6 +13,7 @@ import modules.auth.account_security.subscriber_registry as account_security_sub
 import modules.auth.account_security.subscribers as account_security_subscribers
 import modules.auth.identity_providers.events as idp_events
 import modules.auth.known_devices.events as known_devices_events
+import modules.auth.password_reset_tokens.events as password_reset_events
 
 SERVICE = "modules.auth.account_security.account_security_service"
 SUBSCRIBERS = "modules.auth.account_security.subscribers"
@@ -144,7 +145,54 @@ class TestIdpLinkedHandler:
         send_email.assert_called_once_with(get_platform.return_value.mail, *prepare.return_value)
 
 
+class TestPasswordResetCompletedHandler:
+    @patch(f"{SUBSCRIBERS}.core_mail.send_email", return_value=True)
+    @patch(f"{SUBSCRIBERS}.account_security_service.prepare_security_change_email")
+    @patch(f"{SUBSCRIBERS}.platform_runtime.get_active_platform")
+    @patch(f"{SUBSCRIBERS}.core_database.SessionLocal")
+    def test_sends_the_password_reset_notice(self, session_local, get_platform, prepare, send_email):
+        db = session_local.return_value.__enter__.return_value
+        prepare.return_value = ("alice@example.test", "subject", "html", "text")
+        event = platform_events.new_event(password_reset_events.PASSWORD_RESET_COMPLETED, {"user_id": 4}, source="test")
+
+        account_security_subscribers.send_password_reset_completed_email_for_event(event)
+
+        prepare.assert_called_once_with(
+            4, "password_reset", None, account_security_subscribers.core_config.settings.ENDURAIN_HOST, db
+        )
+        send_email.assert_called_once_with(get_platform.return_value.mail, *prepare.return_value)
+
+    @patch(f"{SUBSCRIBERS}.core_mail.send_email", return_value=True)
+    @patch(f"{SUBSCRIBERS}.account_security_service.prepare_security_change_email")
+    @patch(f"{SUBSCRIBERS}.platform_runtime.get_active_platform")
+    @patch(f"{SUBSCRIBERS}.core_database.SessionLocal")
+    def test_an_outbox_event_published_as_an_account_security_change_is_still_handled(
+        self, _session_local, _get_platform, prepare, _send_email
+    ):
+        prepare.return_value = ("alice@example.test", "subject", "html", "text")
+
+        account_security_subscribers.send_security_changed_email_for_event(_changed_event("password_reset"))
+
+        assert prepare.call_args.args[:3] == (4, "password_reset", None)
+
+
 class TestRegistration:
+    def test_the_password_reset_completed_event_has_a_bus_subscriber_and_a_durable_handler(self):
+        events = MagicMock()
+        registry = MagicMock()
+
+        account_security_subscribers.register_bus_subscribers(events)
+        account_security_subscribers.register_durable_handlers(registry)
+
+        events.subscribe.assert_any_call(
+            password_reset_events.PASSWORD_RESET_COMPLETED, account_security_subscribers.on_password_reset_completed
+        )
+        registry.register.assert_any_call(
+            password_reset_events.PASSWORD_RESET_COMPLETED,
+            "auth.send_password_reset_completed_email",
+            account_security_subscribers.send_password_reset_completed_email_for_event,
+        )
+
     def test_both_events_are_registered_on_the_bus_and_as_durable_handlers_with_distinct_ids(self):
         events = MagicMock()
         registry = MagicMock()

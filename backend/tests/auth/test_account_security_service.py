@@ -7,6 +7,15 @@ import pytest
 import modules.auth.account_security.account_security_service as account_security_service
 import modules.auth.credentials.contracts as credentials_contracts
 
+_PREFIX = "modules.auth.account_security.account_security_service."
+
+
+@pytest.fixture(autouse=True)
+def password_reset_tokens():
+    """Replace the password-reset-token boundary."""
+    with patch(_PREFIX + "password_reset_tokens_integration") as integration:
+        yield integration
+
 
 class TestChangeOwnPassword:
     """Tests for self-service password changes."""
@@ -201,6 +210,21 @@ class TestChangeOwnPassword:
 class TestChangeManagedUserPassword:
     """Tests for managed user password changes."""
 
+    def test_voids_the_users_unused_reset_tokens(self, mock_db, password_reset_tokens):
+        """A reset link mailed before the administrator set a password stops working."""
+        mock_user = MagicMock(access_type="regular", username="alice", email="alice@example.com")
+        with (
+            patch(_PREFIX + "server_settings_integration.get_server_settings"),
+            patch(_PREFIX + "users_integration.require_user", return_value=mock_user),
+            patch(_PREFIX + "credentials_integration.validate_and_hash_password_for_user", return_value="hashed"),
+            patch(_PREFIX + "credentials_integration.set_local_password_hash"),
+            patch(_PREFIX + "sessions_integration.delete_sessions_by_user"),
+            patch(_PREFIX + "mfa_integration.clear_pending_mfa_for_user"),
+        ):
+            account_security_service.change_managed_user_password(42, "new-pass", mock_db)
+
+        password_reset_tokens.revoke_unused_tokens.assert_called_once_with(42, mock_db)
+
     @patch("modules.auth.account_security.account_security_service.mfa_integration.clear_pending_mfa_for_user")
     @patch("modules.auth.account_security.account_security_service.sessions_integration.delete_sessions_by_user")
     def test_updates_password_revokes_sessions_and_clears_pending_mfa(
@@ -253,6 +277,29 @@ class TestChangeManagedUserPassword:
 
         mock_delete_sessions.assert_called_once_with(42, mock_db)
         mock_clear_pending_mfa.assert_called_once_with(42)
+
+
+class TestChangeOwnPasswordResetTokens:
+    """A password change voids the reset links mailed before it."""
+
+    def test_voids_the_users_unused_reset_tokens(self, mock_db, password_reset_tokens):
+        mock_user = MagicMock(access_type="regular", username="alice", email="alice@example.com")
+        with (
+            patch(_PREFIX + "step_up_service.verify_step_up_credentials"),
+            patch(_PREFIX + "mfa_integration.clear_pending_mfa_for_user"),
+            patch(_PREFIX + "server_settings_integration.get_server_settings"),
+            patch(_PREFIX + "credentials_integration.has_local_password", return_value=True),
+            patch(_PREFIX + "credentials_integration.ensure_password_differs_from_current"),
+            patch(_PREFIX + "users_integration.require_user", return_value=mock_user),
+            patch(_PREFIX + "credentials_integration.validate_and_hash_password_for_user", return_value="hashed"),
+            patch(_PREFIX + "credentials_integration.set_local_password_hash"),
+            patch(_PREFIX + "sessions_integration.delete_sessions_by_user"),
+        ):
+            account_security_service.stage_change_own_password(
+                7, "old-pass", "new-pass", None, MagicMock(), mock_db, revoke_other_sessions=False
+            )
+
+        password_reset_tokens.revoke_unused_tokens.assert_called_once_with(7, mock_db)
 
 
 class TestDeleteOtherUserSessions:

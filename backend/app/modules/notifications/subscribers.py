@@ -16,6 +16,7 @@ import modules.activities.activity.events as activity_events
 import modules.auth.account_security.events as account_security_events
 import modules.auth.identity_providers.events as idp_events
 import modules.auth.known_devices.events as known_devices_events
+import modules.auth.password_reset_tokens.events as password_reset_events
 import modules.auth.sign_up_tokens.events as sign_up_events
 import modules.followers.events as followers_events
 import modules.notifications.constants as notifications_constants
@@ -32,6 +33,7 @@ FOLLOWER_ACCEPTED_NOTIFICATION_SUBSCRIBER_ID = "followers.notify_accepted"
 FOLLOWER_REQUEST_REMOVED_NOTIFICATION_SUBSCRIBER_ID = "followers.clear_request_notification"
 IDP_LINKED_NOTIFICATION_SUBSCRIBER_ID = "auth.notify_idp_linked"
 ACCOUNT_SECURITY_CHANGED_NOTIFICATION_SUBSCRIBER_ID = "auth.notify_account_security_changed"
+PASSWORD_RESET_COMPLETED_NOTIFICATION_SUBSCRIBER_ID = "auth.notify_password_reset_completed"  # noqa: S105 (name matches the password-secret heuristic, not a secret)
 NEW_DEVICE_SIGN_IN_NOTIFICATION_SUBSCRIBER_ID = "auth.notify_new_device_sign_in"
 ADMIN_SIGN_UP_APPROVAL_NOTIFICATION_SUBSCRIBER_ID = "auth.notify_admin_sign_up_approval"
 
@@ -174,6 +176,23 @@ def notify_account_security_changed_for_event(event: Event) -> None:
         )
 
 
+def notify_password_reset_completed_for_event(event: Event) -> None:
+    """Notify the user that their password was reset through an emailed link."""
+    payload = platform_event_versioning.parse_payload(password_reset_events.PasswordResetCompletedPayload, event)
+    change = account_security_events.AccountSecurityChange.PASSWORD_RESET.value
+    created = _notify_and_push(
+        event,
+        payload.user_id,
+        lambda db: notifications_service.create_account_security_changed_notification(
+            payload.user_id, change, None, event.event_id, db
+        ),
+    )
+    if created:
+        logger.debug(
+            "Created password-reset-completed notification", extra=core_logger.context(user_id=payload.user_id)
+        )
+
+
 def notify_new_device_sign_in_for_event(event: Event) -> None:
     """Notify the user that their account was signed in to from a new device."""
     payload = platform_event_versioning.parse_payload(known_devices_events.NewDeviceSignInPayload, event)
@@ -235,6 +254,7 @@ on_follower_accepted_notify = best_effort(notify_follower_accepted_for_event)
 on_follower_request_removed_clear = best_effort(clear_follower_request_notification_for_event)
 on_idp_linked_notify = best_effort(notify_idp_linked_for_event)
 on_account_security_changed_notify = best_effort(notify_account_security_changed_for_event)
+on_password_reset_completed_notify = best_effort(notify_password_reset_completed_for_event)
 on_new_device_sign_in_notify = best_effort(notify_new_device_sign_in_for_event)
 on_admin_sign_up_approval_notify = best_effort(notify_admin_sign_up_approval_for_event)
 
@@ -247,6 +267,7 @@ def register_bus_subscribers(events: EventBusProvider) -> None:
     events.subscribe(followers_events.FOLLOWER_REQUEST_REMOVED, on_follower_request_removed_clear)
     events.subscribe(idp_events.IDP_LINKED, on_idp_linked_notify)
     events.subscribe(account_security_events.ACCOUNT_SECURITY_CHANGED, on_account_security_changed_notify)
+    events.subscribe(password_reset_events.PASSWORD_RESET_COMPLETED, on_password_reset_completed_notify)
     events.subscribe(known_devices_events.NEW_DEVICE_SIGN_IN, on_new_device_sign_in_notify)
     events.subscribe(sign_up_events.SIGN_UP_APPROVAL_REQUESTED, on_admin_sign_up_approval_notify)
 
@@ -282,6 +303,11 @@ def register_durable_handlers(registry: JobHandlerRegistry) -> None:
         account_security_events.ACCOUNT_SECURITY_CHANGED,
         ACCOUNT_SECURITY_CHANGED_NOTIFICATION_SUBSCRIBER_ID,
         notify_account_security_changed_for_event,
+    )
+    registry.register(
+        password_reset_events.PASSWORD_RESET_COMPLETED,
+        PASSWORD_RESET_COMPLETED_NOTIFICATION_SUBSCRIBER_ID,
+        notify_password_reset_completed_for_event,
     )
     registry.register(
         known_devices_events.NEW_DEVICE_SIGN_IN,

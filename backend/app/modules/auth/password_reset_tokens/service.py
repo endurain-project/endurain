@@ -13,7 +13,6 @@ import core.exceptions as core_exceptions
 import core.i18n as core_i18n
 import core.logger as core_logger
 import modules.auth.access_tokens.integration_service as access_tokens_integration
-import modules.auth.account_security.integration_service as account_security_integration
 import modules.auth.computation as token_hashing
 import modules.auth.credentials.integration_service as credentials_integration
 import modules.auth.mfa.integration_service as mfa_integration
@@ -261,7 +260,7 @@ def use_password_reset_token(token: str, new_password: str, db: Session) -> None
         target_id=str(token_user_id),
         target_owner_id=str(token_user_id),
     )
-    account_security_integration.stage_password_reset(token_user_id, db)
+    password_reset_event_publishers.publish_password_reset_completed(token_user_id, db)
     db.commit()
     mfa_integration.clear_pending_mfa_for_user(token_user_id)
     logger.info("Password reset completed", extra=core_logger.context(user_id=token_user_id))

@@ -23,6 +23,7 @@ import modules.auth.account_security.step_up_service as step_up_service
 import modules.auth.credentials.integration_service as credentials_integration
 import modules.auth.identity_providers.integration_service as identity_providers_integration
 import modules.auth.mfa.integration_service as mfa_integration
+import modules.auth.password_reset_tokens.integration_service as password_reset_tokens_integration
 import modules.auth.sessions.audit_actions as sessions_audit_actions
 import modules.auth.sessions.integration_service as sessions_integration
 import modules.auth.sessions.schema as auth_sessions_schema
@@ -187,6 +188,8 @@ def stage_change_own_password(
 ) -> None:
     """Stage a change of a user's own password after step-up verification; the caller commits.
 
+    The user's unused password-reset tokens are voided with the change.
+
     Args:
         user_id: ID of the authenticated user.
         current_password: Current password supplied for step-up.
@@ -241,6 +244,7 @@ def stage_change_own_password(
         email=db_user.email,
     )
     credentials_integration.set_local_password_hash(user_id, hashed_password, db)
+    password_reset_tokens_integration.revoke_unused_tokens(user_id, db)
     mfa_integration.clear_pending_mfa_for_user(user_id)
 
     revoked = 0
@@ -265,24 +269,14 @@ def stage_change_own_password(
     logger.info("User <user_id> changed password (step-up verified)", extra=core_logger.context(user_id=user_id))
 
 
-def stage_password_reset_event(user_id: int, db: Session) -> None:
-    """Stage the event of a password set through an emailed reset link; the caller commits.
-
-    Args:
-        user_id: ID of the user whose password was reset.
-        db: SQLAlchemy session.
-    """
-    account_security_event_publishers.publish_account_security_changed(
-        user_id, account_security_events.AccountSecurityChange.PASSWORD_RESET, db
-    )
-
-
 def change_managed_user_password(
     user_id: int,
     new_password: str,
     db: Session,
 ) -> None:
     """Stage a change of a managed user's password and the revocation of their auth state; the caller commits.
+
+    The user's sessions and unused password-reset tokens are revoked with the change.
 
     Args:
         user_id: ID of the user whose password is changed.
@@ -308,6 +302,7 @@ def change_managed_user_password(
         email=db_user.email,
     )
     credentials_integration.set_local_password_hash(user_id, hashed_password, db)
+    password_reset_tokens_integration.revoke_unused_tokens(user_id, db)
     revoked = sessions_integration.delete_sessions_by_user(user_id, db)
     mfa_integration.clear_pending_mfa_for_user(user_id)
     _stage_password_written(
