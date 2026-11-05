@@ -7,7 +7,6 @@ username and email, exports again and expects the two archives to describe the s
 second imports a checked-in archive, so an archive written by an older release keeps importing.
 """
 
-import asyncio
 import base64
 import io
 import json
@@ -430,7 +429,7 @@ def _import(
             db,
             profile_import_service.ImportPerformanceConfig(batch_size=_BATCH_SIZE // 2),
         )
-        return asyncio.run(importer.import_from_zip_data(archive))
+        return importer.import_from_zip_data(archive)
 
 
 def _wipe(factory: sessionmaker[Session], storage: platform_providers.StorageProvider, user_id: int) -> None:

@@ -6,7 +6,7 @@ archive only through the writer and reader protocols and the contexts below, so 
 the profile package itself.
 """
 
-from collections.abc import Awaitable, Callable, Iterable, Sequence
+from collections.abc import Callable, Iterable, Sequence
 from dataclasses import dataclass
 from typing import Any, Protocol
 
@@ -180,7 +180,7 @@ class ProfileImportContext:
 type ExportFiles = Callable[[], None]
 
 #: Runs after the import has committed its rows, so it may name the stored ids.
-type RestoreFiles = Callable[[], Awaitable[None]]
+type RestoreFiles = Callable[[], None]
 
 
 @dataclass(frozen=True, kw_only=True)

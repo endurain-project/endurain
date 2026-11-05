@@ -16,15 +16,6 @@ jasil = false
 safeuploads = false
 
 [[package]]
-name = "aiofiles"
-version = "25.1.0"
-source = { registry = "https://pypi.org/simple" }
-sdist = { url = "https://files.pythonhosted.org/packages/41/c3/534eac40372d8ee36ef40df62ec129bee4fdb5ad9706e58a29be53b2c970/aiofiles-25.1.0.tar.gz", hash = "sha256:a8d728f0a29de45dc521f18f07297428d56992a742f0cd2701ba86e44d23d5b2", size = 46354, upload-time = "2025-10-09T20:51:04.358Z" }
-wheels = [
-    { url = "https://files.pythonhosted.org/packages/bc/8a/340a1555ae33d7354dbca4faa54948d76d89a27ceef032c8c3bc661d003e/aiofiles-25.1.0-py3-none-any.whl", hash = "sha256:abe311e527c862958650f9438e859c1fa7568a141b22abcd015e120e86a85695", size = 14668, upload-time = "2025-10-09T20:51:03.174Z" },
-]
-
-[[package]]
 name = "alembic"
 version = "1.20.0"
 source = { registry = "https://pypi.org/simple" }
@@ -833,7 +824,6 @@ name = "endurain"
 version = "0.21.0b1"
 source = { editable = "." }
 dependencies = [
-    { name = "aiofiles" },
     { name = "alembic" },
     { name = "apscheduler" },
     { name = "authlib" },
@@ -895,7 +885,6 @@ dev = [
     { name = "redis" },
     { name = "ruff" },
     { name = "ty" },
-    { name = "types-aiofiles" },
     { name = "types-authlib" },
     { name = "types-psutil" },
     { name = "types-qrcode" },
@@ -924,7 +913,6 @@ test = [
 typecheck = [
     { name = "mypy" },
     { name = "ty" },
-    { name = "types-aiofiles" },
     { name = "types-authlib" },
     { name = "types-psutil" },
     { name = "types-qrcode" },
@@ -933,7 +921,6 @@ typecheck = [
 
 [package.metadata]
 requires-dist = [
-    { name = "aiofiles", specifier = ">=25.1.0" },
     { name = "alembic", specifier = ">=1.20.0" },
     { name = "apscheduler", specifier = ">=3.11.3" },
     { name = "authlib", specifier = ">=1.8.0" },
@@ -964,7 +951,7 @@ requires-dist = [
     { name = "qrcode", extras = ["pil"], specifier = ">=8.2" },
     { name = "redis", marker = "extra == 'distributed'", specifier = ">=8.1.0" },
     { name = "requests", specifier = ">=2.34.2" },
-    { name = "safeuploads", extras = ["fastapi"], specifier = ">=2.0.0" },
+    { name = "safeuploads", extras = ["fastapi"], specifier = ">=2.1.0" },
     { name = "slowapi", specifier = ">=0.1.10" },
     { name = "sqlalchemy", specifier = ">=2.0.54" },
     { name = "staticmap", specifier = ">=0.5.7" },
@@ -992,7 +979,6 @@ dev = [
     { name = "redis", specifier = ">=8.1.0" },
     { name = "ruff", specifier = ">=0.16.8" },
     { name = "ty", specifier = ">=0.0.83" },
-    { name = "types-aiofiles" },
     { name = "types-authlib" },
     { name = "types-psutil" },
     { name = "types-qrcode" },
@@ -1019,7 +1005,6 @@ test = [
 typecheck = [
     { name = "mypy", specifier = ">=2.3.1" },
     { name = "ty", specifier = ">=0.0.83" },
-    { name = "types-aiofiles" },
     { name = "types-authlib" },
     { name = "types-psutil" },
     { name = "types-qrcode" },
@@ -2818,15 +2803,15 @@ wheels = [
 
 [[package]]
 name = "safeuploads"
-version = "2.0.0"
+version = "2.1.0"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "defusedxml" },
     { name = "python-magic" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/e7/a0/cf264cca5f55071286d4996f4da3fba8f124391807a8f24b3c272229fb56/safeuploads-2.0.0.tar.gz", hash = "sha256:1ec41a09dc399adfbafefc21a871a65d8f21791e18e915caa7f1d1ef795c691d", size = 305379, upload-time = "2026-11-02T11:11:07.746Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/92/c6/5e36212dd4f5abdd185e780abf9efe15c7d42b9492dc3850529ba97b073a/safeuploads-2.1.0.tar.gz", hash = "sha256:cea6cb48eb48dea518410ae198e292f09e5e0aa526a4558917e359e14e61320c", size = 320289, upload-time = "2026-11-05T08:01:34.295Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/14/13/7d25b5cdb3d97e8c0b930e958d69ccf3dfc39d9dca44957baa6c58f27bef/safeuploads-2.0.0-py3-none-any.whl", hash = "sha256:047cf427c5385eefcc2e164c0ec02360629c88f87441ddf0475968e3ba7ec678", size = 79751, upload-time = "2026-11-02T11:11:06.601Z" },
+    { url = "https://files.pythonhosted.org/packages/17/a9/dfab44cdd712601aea9432fdbbadede509550767bd10fcbcb3e9a7669490/safeuploads-2.1.0-py3-none-any.whl", hash = "sha256:08b61c3726df1d62973fb120d411d1dd1aae3d078462e291ad94a4c35e8cb6b6", size = 81696, upload-time = "2026-11-05T08:01:33.281Z" },
 ]
 
 [package.optional-dependencies]
@@ -3063,15 +3048,6 @@ wheels = [
     { url = "https://files.pythonhosted.org/packages/d8/b2/c941ce83a59e46ef31dd04bdf6067530e7ec77d5f0cdd1e223fbc6fc351b/ty-0.0.83-py3-none-win32.whl", hash = "sha256:0391017dac6ba3e452e0322301f50bba12fbccadac07d7fd888c46951ad37638", size = 13105291, upload-time = "2026-09-21T22:47:19.807Z" },
     { url = "https://files.pythonhosted.org/packages/b2/8a/5eef9458505698b144643cbd2062f465c5d860d8cf86a8710d74505ad9a0/ty-0.0.83-py3-none-win_amd64.whl", hash = "sha256:1b67d86f5bbad4076ae1a2ff23a6a4493219885d72d4b148cb0193e090390060", size = 13901557, upload-time = "2026-09-21T22:47:23.429Z" },
     { url = "https://files.pythonhosted.org/packages/9f/27/a06061513f1de25569c2e8898018bd552ab7b31afa7cfe818703269b3350/ty-0.0.83-py3-none-win_arm64.whl", hash = "sha256:a916a3d7d68fe30b7aacdb9fe16d461fa944d722e59e96ea0fa9d206a1b6625f", size = 13627960, upload-time = "2026-09-21T22:47:26.305Z" },
-]
-
-[[package]]
-name = "types-aiofiles"
-version = "25.1.0.20260518"
-source = { registry = "https://pypi.org/simple" }
-sdist = { url = "https://files.pythonhosted.org/packages/df/42/f5b9b90162d2196f016b87228d6bf43f2c2c0c6501bfd5415001b3eb68bb/types_aiofiles-25.1.0.20260518.tar.gz", hash = "sha256:c0c95eb78755d4fa7b397d4f0332c632714dd7cd0d17f49b96e31d4d7a8d8c76", size = 14891, upload-time = "2026-05-18T06:05:27.804Z" }
-wheels = [
-    { url = "https://files.pythonhosted.org/packages/ca/3d/7a9ed9faafeae3aa3b5bc22fa5b979ff9cf3c83ecbe919b58eae07795b8c/types_aiofiles-25.1.0.20260518-py3-none-any.whl", hash = "sha256:f776bdfb4bec17f743d9ef042e61edf03bdcc7821fc08556fba9b63d873fdea9", size = 14377, upload-time = "2026-05-18T06:05:26.871Z" },
 ]
 
 [[package]]

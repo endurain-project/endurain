@@ -2,12 +2,16 @@
 
 All file uploads in the backend MUST go through this module:
 
-- :func:`validate_upload` — content-type-aware validation (no write).
-- :func:`save_validated_upload` — validate + persist to disk
-  (optionally streamed for large files).
-- :func:`save_validated_upload_sync` / :func:`validate_local_file_sync` —
-  synchronous variants for sync FastAPI routes and threadpool workers.
+- :func:`read_validated_upload_sync` / :func:`save_validated_upload_sync` —
+  validate an upload, then return its bytes or stream it to disk.
+- :func:`validate_bytes_sync` / :func:`save_validated_bytes_sync` /
+  :func:`validate_local_file_sync` — the same for bytes and files on disk.
+- :func:`extract_validated_zip_sync` — zip-slip-safe extraction.
 - :data:`file_validator` — single shared :class:`FileValidator` instance.
+
+Every entry point blocks: the safeuploads synchronous validators refuse a
+thread that runs an event loop, so they are called from synchronous FastAPI
+routes (Starlette runs them on a threadpool worker), jobs and worker pools.
 
 The unified pipeline gives every upload the same defenses:
 
@@ -19,7 +23,6 @@ The unified pipeline gives every upload the same defenses:
 - Structured audit logging with a per-request correlation ID.
 """
 
-import asyncio
 import contextlib
 import gzip
 import hashlib
@@ -28,14 +31,12 @@ import os
 import shutil
 import tempfile
 import zipfile
-from collections.abc import Awaitable, Callable, Coroutine, Iterable
+from collections.abc import Callable, Iterable
 from dataclasses import dataclass
 from enum import StrEnum
 from pathlib import Path, PurePosixPath, PureWindowsPath
-from typing import Any
+from typing import BinaryIO
 
-import aiofiles
-import aiofiles.os
 from fastapi import UploadFile
 from PIL import Image, UnidentifiedImageError
 from safeuploads import (
@@ -43,6 +44,7 @@ from safeuploads import (
     FileSecurityConfig,
     FileValidator,
     SecurityLimits,
+    SeekableFile,
 )
 from safeuploads.exceptions import (
     CompressionSecurityError,
@@ -133,16 +135,16 @@ class UploadKind(StrEnum):
 
 def _validator_for(
     kind: UploadKind,
-) -> Callable[[UploadFile], Awaitable[None]]:
-    """Return the safeuploads validator coroutine for a kind."""
+) -> Callable[[SeekableFile, str], str]:
+    """Return the safeuploads synchronous validator for a kind."""
     if kind is UploadKind.IMAGE:
-        return file_validator.validate_image_file
+        return file_validator.validate_image_file_sync
     if kind is UploadKind.ZIP:
-        return file_validator.validate_zip_file
+        return file_validator.validate_zip_file_sync
     if kind is UploadKind.ACTIVITY:
-        return file_validator.validate_activity_file
+        return file_validator.validate_activity_file_sync
     if kind is UploadKind.GZIP:
-        return file_validator.validate_gzip_file
+        return file_validator.validate_gzip_file_sync
     raise ValueError(f"Unsupported UploadKind: {kind!r}")
 
 
@@ -207,113 +209,69 @@ def _to_domain_error(err: FileSecurityError) -> core_exceptions.DomainError:
 # ---------------------------------------------------------------------------
 
 
-def _check_image_pixels(file: UploadFile) -> None:
+def _check_image_pixels(file: BinaryIO) -> None:
     """Refuse an image that would decode to more than :data:`_MAX_IMAGE_PIXELS`.
 
     Only the header is read, so the check costs no decode. The file is rewound afterwards.
 
     Args:
-        file: The image upload, already accepted by the byte-level validator.
+        file: The image, already accepted by the byte-level validator.
 
     Raises:
         PayloadTooLargeError: When the image has too many pixels.
         InvalidInputError: When the image header cannot be read.
     """
     try:
-        with Image.open(file.file) as image:
+        with Image.open(file) as image:
             width, height = image.size
     except Image.DecompressionBombError as err:
         raise core_exceptions.PayloadTooLargeError("Image dimensions are too large") from err
     except (UnidentifiedImageError, OSError, ValueError) as err:
         raise core_exceptions.InvalidInputError("The image could not be read") from err
     finally:
-        file.file.seek(0)
+        file.seek(0)
     if width * height > _MAX_IMAGE_PIXELS:
         raise core_exceptions.PayloadTooLargeError("Image dimensions are too large")
 
 
-async def validate_upload(file: UploadFile, *, kind: UploadKind) -> None:
-    """Validate an upload's content without persisting it to disk.
+def _validate_file(file: BinaryIO, filename: str, *, kind: UploadKind) -> str:
+    """Validate a seekable binary file's content on the calling thread.
 
-    Use this when the caller wants to consume the file in memory
-    (e.g. ZIP profile-import) but still needs the unified safety
-    guarantees.
+    The file is rewound to position 0 on success.
+
+    Args:
+        file: The content to validate.
+        filename: Logical filename used for filename and extension checks.
+        kind: Logical content type to validate against.
+
+    Returns:
+        The sanitized filename.
+
+    Raises:
+        DomainError: 400/413/500 mapped from the underlying
+            safeuploads exception (see :func:`_to_domain_error`).
+    """
+    try:
+        sanitized = _validator_for(kind)(file, filename)
+    except FileSecurityError as err:
+        logger.warning("Upload validation failed", exc_info=err, extra=core_logger.context(kind=kind.value))
+        raise _to_domain_error(err) from err
+    if kind is UploadKind.IMAGE:
+        _check_image_pixels(file)
+    return sanitized
+
+
+def _validate_upload(file: UploadFile, *, kind: UploadKind) -> None:
+    """Validate an upload and replace its filename with the sanitized one.
 
     Args:
         file: Incoming :class:`fastapi.UploadFile`.
         kind: Logical content type to validate against.
 
     Raises:
-        DomainError: 400/413/500 mapped from the underlying
-            safeuploads exception (see :func:`_to_domain_error`).
+        DomainError: As :func:`_validate_file`.
     """
-    validator = _validator_for(kind)
-    try:
-        await validator(file)
-    except FileSecurityError as err:
-        logger.warning("Upload validation failed", exc_info=err, extra=core_logger.context(kind=kind.value))
-        raise _to_domain_error(err) from err
-    if kind is UploadKind.IMAGE:
-        _check_image_pixels(file)
-
-
-async def validate_local_file(
-    path: str | os.PathLike[str],
-    *,
-    kind: UploadKind,
-    filename: str | None = None,
-) -> None:
-    """Run :func:`validate_upload` against a file already on disk.
-
-    Wraps the on-disk file in an :class:`UploadFile` so the same
-    safeuploads validator can be applied (e.g. after decompressing
-    a ``.gz`` activity upload).
-
-    Args:
-        path: Filesystem path of the file to validate.
-        kind: Logical content type to validate against.
-        filename: Optional logical filename used for filename and
-            extension checks. Defaults to ``os.path.basename(path)``.
-
-    Raises:
-        DomainError: As :func:`validate_upload`.
-    """
-    actual_filename = filename or os.path.basename(os.fspath(path))
-    # Open in binary mode; UploadFile accepts any binary file object.
-    with open(path, "rb") as fh:
-        wrapped = UploadFile(file=fh, filename=actual_filename)
-        try:
-            await validate_upload(wrapped, kind=kind)
-        finally:
-            await wrapped.close()
-
-
-# ---------------------------------------------------------------------------
-# Synchronous entry points (for sync FastAPI routes + threadpool workers)
-# ---------------------------------------------------------------------------
-
-
-def _run_validator_sync(coro: Coroutine[Any, Any, None]) -> None:
-    """Drive an async validator coroutine to completion synchronously.
-
-    The safeuploads validators are async, but sync callers — a synchronous
-    FastAPI route (Starlette runs it on a threadpool worker) or the bulk-import
-    ``ThreadPoolExecutor`` — have no running event loop. A private loop is created
-    for the duration of validation via :func:`asyncio.run`.
-
-    Must **not** be called from the main async thread (``asyncio.run`` refuses to
-    run inside an already-running loop); use the ``async`` entry points there.
-
-    Args:
-        coro: The validator coroutine to run (e.g. ``validate_upload(...)``).
-
-    Returns:
-        None.
-
-    Raises:
-        DomainError: Whatever the wrapped validator raises.
-    """
-    asyncio.run(coro)
+    file.filename = _validate_file(file.file, file.filename or "", kind=kind)
 
 
 def validate_local_file_sync(
@@ -322,11 +280,10 @@ def validate_local_file_sync(
     kind: UploadKind,
     filename: str | None = None,
 ) -> None:
-    """Synchronous counterpart of :func:`validate_local_file`.
+    """Validate a file already on disk.
 
-    Validates a file already on disk (e.g. the inner payload after decompressing a
-    ``.gz`` activity) from a synchronous context. Runs the shared safeuploads
-    validator to completion on a private event loop.
+    Used for content that did not arrive as an upload, such as the inner payload
+    after decompressing a ``.gz`` activity.
 
     Args:
         path: Filesystem path of the file to validate.
@@ -335,12 +292,11 @@ def validate_local_file_sync(
             checks. Defaults to ``os.path.basename(path)``.
 
     Raises:
-        DomainError: As :func:`validate_upload`.
+        DomainError: As :func:`_validate_file`.
     """
     actual_filename = filename or os.path.basename(os.fspath(path))
     with open(path, "rb") as fh:
-        wrapped = UploadFile(file=fh, filename=actual_filename)
-        _run_validator_sync(validate_upload(wrapped, kind=kind))
+        _validate_file(fh, actual_filename, kind=kind)
 
 
 # ---------------------------------------------------------------------------
@@ -378,65 +334,6 @@ def _resolve_upload_path(upload_dir: str, filename: str) -> Path:
     except ValueError as err:
         raise core_exceptions.InvalidInputError("Invalid filename") from err
     return file_path
-
-
-async def save_file(
-    file: UploadFile | bytes,
-    upload_dir: str,
-    filename: str,
-) -> str:
-    """
-    Save uploaded bytes to a validated destination path.
-
-    Internal write primitive used by :func:`save_validated_upload`.
-    Callers that need security validation MUST go through the
-    :func:`save_validated_upload` entry point so that filename
-    sanitization, magic-number, and size checks are applied.
-
-    Args:
-        file: Uploaded FastAPI file or raw bytes.
-        upload_dir: Trusted upload directory.
-        filename: Filename to write within upload_dir.
-
-    Returns:
-        Full filesystem path where the file was saved.
-
-    Raises:
-        DomainError: 400 for unsafe names, 500 for write failures.
-    """
-    file_path: Path | None = None
-    try:
-        # Ensure upload directory exists
-        await aiofiles.os.makedirs(upload_dir, exist_ok=True)
-
-        file_path = _resolve_upload_path(upload_dir, filename)
-
-        # Save file asynchronously
-        if isinstance(file, bytes):
-            content = file
-        else:
-            # Defensive: validators leave the cursor at 0, but a
-            # caller may have read the stream. Always rewind.
-            with contextlib.suppress(Exception):
-                await file.seek(0)
-            content = await file.read()
-        async with aiofiles.open(file_path, "wb") as save_file:
-            await save_file.write(content)
-
-        logger.debug("File saved successfully", extra=core_logger.context(file_name=os.path.basename(file_path)))
-
-        return str(file_path)
-    except core_exceptions.DomainError:
-        raise
-    except Exception as err:
-        logger.debug("Error in save_file", exc_info=err)
-
-        # Remove the file if it was created
-        if file_path and await aiofiles.os.path.exists(file_path):
-            await aiofiles.os.remove(file_path)
-
-        # Raise a ProcessingError (500) with a caller-safe message
-        raise core_exceptions.ProcessingError("Failed to save file") from err
 
 
 # ---------------------------------------------------------------------------
@@ -487,15 +384,6 @@ def _stream_to_path_sync(file: UploadFile, destination: Path, max_bytes: int) ->
         raise
 
 
-async def _stream_to_path(file: UploadFile, destination: Path, max_bytes: int) -> None:
-    """Async wrapper around :func:`_stream_to_path_sync`.
-
-    Runs the blocking I/O in a worker thread to avoid stalling the
-    event loop on large uploads.
-    """
-    await asyncio.to_thread(_stream_to_path_sync, file, destination, max_bytes)
-
-
 def _bytes_to_path_sync(data: bytes, destination: Path, max_bytes: int) -> None:
     """Write bytes to ``destination`` via an atomic sibling file.
 
@@ -528,78 +416,9 @@ def _bytes_to_path_sync(data: bytes, destination: Path, max_bytes: int) -> None:
         raise
 
 
-async def _bytes_to_path(data: bytes, destination: Path, max_bytes: int) -> None:
-    """Async wrapper around :func:`_bytes_to_path_sync`.
-
-    Args:
-        data: Bytes to persist.
-        destination: Final path to write to.
-        max_bytes: Hard cap on total bytes accepted.
-
-    Returns:
-        None.
-
-    Raises:
-        DomainError: As :func:`_bytes_to_path_sync`.
-        OSError: As :func:`_bytes_to_path_sync`.
-    """
-    await asyncio.to_thread(_bytes_to_path_sync, data, destination, max_bytes)
-
-
 # ---------------------------------------------------------------------------
 # Unified validated-write entry point
 # ---------------------------------------------------------------------------
-
-
-async def save_validated_upload(
-    file: UploadFile,
-    *,
-    kind: UploadKind,
-    upload_dir: str,
-    filename: str,
-    stream: bool = False,
-) -> str:
-    """Validate an upload then persist it to ``upload_dir/filename``.
-
-    This is the single sanctioned entry point for any router that
-    needs to write an :class:`UploadFile` to disk.
-
-    Args:
-        file: Incoming FastAPI UploadFile.
-        kind: Logical content type, drives validator + size cap.
-        upload_dir: Trusted destination directory.
-        filename: **Server-generated** filename within ``upload_dir``.
-            Must not contain path separators; verified by
-            :func:`_resolve_upload_path` as defense in depth.
-        stream: When True, persist via the streaming writer (used
-            for large activity files). When False, the validated
-            content is written via :func:`save_file`.
-
-    Returns:
-        Absolute filesystem path of the saved file.
-
-    Raises:
-        DomainError: 400/413/500 depending on the failure mode.
-    """
-    # Validate first; safeuploads rewinds the stream on success.
-    await validate_upload(file, kind=kind)
-
-    try:
-        await aiofiles.os.makedirs(upload_dir, exist_ok=True)
-        destination = _resolve_upload_path(upload_dir, filename)
-
-        if stream:
-            await _stream_to_path(file, destination, _max_bytes_for(kind))
-            saved_path = str(destination)
-        else:
-            saved_path = await save_file(file, upload_dir, filename)
-
-        return saved_path
-    except core_exceptions.DomainError:
-        raise
-    except Exception as err:
-        logger.debug("Error in save_validated_upload", exc_info=err)
-        raise core_exceptions.ProcessingError("Failed to save file") from err
 
 
 def _read_capped_sync(file: UploadFile, max_bytes: int) -> bytes:
@@ -627,17 +446,11 @@ def save_validated_upload_sync(
     upload_dir: str,
     filename: str,
 ) -> str:
-    """Synchronous counterpart of :func:`save_validated_upload`.
+    """Validate an upload then stream it to ``upload_dir/filename``.
 
-    For synchronous FastAPI routes (Starlette runs them on a threadpool worker)
-    and other sync contexts. Validates the upload with the shared safeuploads
-    validator, then streams it to ``upload_dir/filename`` with the synchronous
-    streaming writer (``.part``-then-rename, size-capped) — the same defenses as
-    the async path, without touching the event loop.
-
-    Content validation runs on a private event loop (:func:`_run_validator_sync`),
-    so this must be called from a thread with **no** running loop. Use
-    :func:`save_validated_upload` from async code.
+    This is the single sanctioned entry point for any route that needs to write
+    an :class:`UploadFile` to disk. The write goes through a ``.part`` file that
+    is renamed on success and is capped at the kind's size limit.
 
     Args:
         file: Incoming FastAPI UploadFile.
@@ -653,7 +466,7 @@ def save_validated_upload_sync(
         DomainError: 400/413/500 depending on the failure mode.
     """
     # Validate first; safeuploads rewinds the stream on success.
-    _run_validator_sync(validate_upload(file, kind=kind))
+    _validate_upload(file, kind=kind)
 
     try:
         os.makedirs(upload_dir, exist_ok=True)
@@ -676,9 +489,6 @@ def read_validated_upload_sync(file: UploadFile, *, kind: UploadKind) -> bytes:
     validator and size cap apply, so the only thing that differs is the
     destination.
 
-    Content validation runs on a private event loop (:func:`_run_validator_sync`),
-    so this must be called from a thread with **no** running loop.
-
     Args:
         file: Incoming FastAPI UploadFile.
         kind: Logical content type, drives validator + size cap.
@@ -689,7 +499,7 @@ def read_validated_upload_sync(file: UploadFile, *, kind: UploadKind) -> bytes:
     Raises:
         DomainError: 400/413/500 depending on the failure mode.
     """
-    _run_validator_sync(validate_upload(file, kind=kind))
+    _validate_upload(file, kind=kind)
 
     return _read_capped_sync(file, _max_bytes_for(kind))
 
@@ -730,16 +540,16 @@ def sniff_image_type(data: bytes) -> str | None:
 # ---------------------------------------------------------------------------
 
 
-async def validate_bytes(
+def validate_bytes_sync(
     data: bytes,
     *,
     kind: UploadKind,
     filename: str,
 ) -> None:
-    """Validate raw bytes as if they were an :class:`UploadFile`.
+    """Validate raw bytes as if they were an upload.
 
     Used for server-side ingestion paths where the bytes did not
-    arrive via multipart upload (e.g. Garmin Connect download).
+    arrive via multipart upload (e.g. a file read from a profile import archive).
 
     Args:
         data: Raw byte payload to validate.
@@ -750,14 +560,10 @@ async def validate_bytes(
     Raises:
         DomainError: 400/413/500 mapped from safeuploads.
     """
-    wrapped = UploadFile(file=io.BytesIO(data), filename=filename)
-    try:
-        await validate_upload(wrapped, kind=kind)
-    finally:
-        await wrapped.close()
+    _validate_file(io.BytesIO(data), filename, kind=kind)
 
 
-async def save_validated_bytes(
+def save_validated_bytes_sync(
     data: bytes,
     *,
     kind: UploadKind,
@@ -766,9 +572,8 @@ async def save_validated_bytes(
 ) -> str:
     """Validate raw bytes then persist them to ``upload_dir/filename``.
 
-    Equivalent of :func:`save_validated_upload` for byte payloads
-    obtained outside the multipart pipeline (Garmin downloads,
-    test fixtures, migrations).
+    Equivalent of :func:`save_validated_upload_sync` for byte payloads
+    obtained outside the multipart pipeline (Garmin downloads, migrations).
 
     Args:
         data: Raw byte payload.
@@ -782,53 +587,24 @@ async def save_validated_bytes(
     Raises:
         DomainError: 400/413/500 depending on failure mode.
     """
-    await validate_bytes(data, kind=kind, filename=filename)
+    validate_bytes_sync(data, kind=kind, filename=filename)
     try:
-        await aiofiles.os.makedirs(upload_dir, exist_ok=True)
+        os.makedirs(upload_dir, exist_ok=True)
         destination = _resolve_upload_path(upload_dir, filename)
-        await _bytes_to_path(data, destination, _max_bytes_for(kind))
+        _bytes_to_path_sync(data, destination, _max_bytes_for(kind))
         return str(destination)
     except core_exceptions.DomainError:
         raise
     except Exception as err:
-        logger.debug("save_validated_bytes failed", exc_info=err)
+        logger.debug("save_validated_bytes_sync failed", exc_info=err)
         raise core_exceptions.ProcessingError("Failed to save file") from err
-
-
-def save_validated_bytes_sync(
-    data: bytes,
-    *,
-    kind: UploadKind,
-    upload_dir: str,
-    filename: str,
-) -> str:
-    """Synchronous counterpart of :func:`save_validated_bytes`.
-
-    For a worker thread with no running event loop (a durable job, the ingestion
-    pool): it drives the async validator on a private loop, as
-    :func:`validate_local_file_sync` does. Must not be called from the main
-    async thread.
-
-    Args:
-        data: Raw byte payload.
-        kind: Logical content type.
-        upload_dir: Trusted destination directory.
-        filename: **Server-generated** filename within ``upload_dir``.
-
-    Returns:
-        Absolute filesystem path of the saved file.
-
-    Raises:
-        DomainError: As :func:`save_validated_bytes`.
-    """
-    return asyncio.run(save_validated_bytes(data, kind=kind, upload_dir=upload_dir, filename=filename))
 
 
 # ---------------------------------------------------------------------------
 # Zip-slip-safe extraction
 # ---------------------------------------------------------------------------
 
-# Per-entry safety caps for extract_validated_zip. These mirror the
+# Per-entry safety caps for extract_validated_zip_sync. These mirror the
 # safeuploads SecurityLimits but apply during *consumer* iteration so
 # that a malformed entry cannot exceed limits even after the archive
 # itself passed validation.
@@ -868,12 +644,12 @@ def _is_safe_extraction_target(entry_name: str, dest_dir: Path) -> Path | None:
     return target
 
 
-def _extract_validated_zip_sync(
+def _extract_to_staging(
     zip_path: Path,
     dest_dir: Path,
     max_entries: int | None,
 ) -> tuple[Path, list[tuple[Path, Path]]]:
-    """Synchronous core of :func:`extract_validated_zip`.
+    """Extract ``zip_path`` into a staging directory under ``dest_dir``.
 
     Performs zip-slip-safe extraction into a private staging dir with
     per-entry and total-size enforcement. Skips directory entries;
@@ -1013,7 +789,7 @@ def _promote_extracted_files_sync(
                 # and ``dest_dir`` to live on the same filesystem. We
                 # guarantee this by creating ``staging_dir`` via
                 # ``tempfile.mkdtemp(dir=dest_resolved)`` in
-                # :func:`_extract_validated_zip_sync`. Do not relocate
+                # :func:`_extract_to_staging`. Do not relocate
                 # the staging dir without revisiting this contract.
                 os.link(staged_path, final_resolved)
             except FileExistsError as err:
@@ -1034,92 +810,6 @@ def _promote_extracted_files_sync(
         raise
 
     return final_paths
-
-
-async def extract_validated_zip(
-    zip_path: str | os.PathLike[str],
-    *,
-    dest_dir: str | os.PathLike[str],
-    per_entry_kind: UploadKind | None = None,
-    max_entries: int | None = None,
-) -> list[Path]:
-    """Extract ``zip_path`` into ``dest_dir`` with zip-slip safety.
-
-    The ZIP archive itself MUST already have been validated via
-    :func:`validate_local_file` (or arrived through
-    :func:`save_validated_upload`) — this helper enforces *consumer*
-    safety during iteration.
-
-    Args:
-        zip_path: Path of the ZIP archive to extract.
-        dest_dir: Destination directory; created if missing.
-        per_entry_kind: When provided, every extracted entry is
-            re-validated via :func:`validate_local_file` against the
-            given :class:`UploadKind` and removed if invalid.
-        max_entries: Hard cap on number of entries; defaults to the
-            module-wide ``_MAX_FILES_SAME_TYPE`` if not specified.
-
-    Returns:
-        List of extracted file paths under ``dest_dir``.
-
-    Raises:
-        DomainError: 400 for zip-slip / symlink / unsafe entries,
-            413 for size-cap violations, 500 for I/O failures.
-    """
-    if max_entries is None:
-        max_entries = _MAX_FILES_SAME_TYPE
-    dest_path = Path(os.fspath(dest_dir))
-    await aiofiles.os.makedirs(dest_path, exist_ok=True)
-
-    staging_dir: Path | None = None
-    try:
-        staging_dir, extracted = await asyncio.to_thread(
-            _extract_validated_zip_sync,
-            Path(os.fspath(zip_path)),
-            dest_path,
-            max_entries,
-        )
-    except core_exceptions.DomainError:
-        raise
-    except (zipfile.BadZipFile, OSError) as err:
-        logger.warning("extract_validated_zip failed", exc_info=err)
-        raise core_exceptions.InvalidInputError("Failed to extract archive") from err
-
-    try:
-        if per_entry_kind is not None:
-            kept: list[tuple[Path, Path]] = []
-            for staged_entry, final_entry in extracted:
-                try:
-                    await validate_local_file(
-                        staged_entry,
-                        kind=per_entry_kind,
-                        filename=final_entry.name,
-                    )
-                except core_exceptions.DomainError:
-                    with contextlib.suppress(OSError):
-                        staged_entry.unlink(missing_ok=True)
-                    logger.warning(
-                        "extract_validated_zip dropped an invalid entry",
-                        extra=core_logger.context(entry=final_entry.name),
-                    )
-                    continue
-                kept.append((staged_entry, final_entry))
-            extracted = kept
-
-        try:
-            return await asyncio.to_thread(
-                _promote_extracted_files_sync,
-                extracted,
-                dest_path.resolve(),
-            )
-        except core_exceptions.DomainError:
-            raise
-        except OSError as err:
-            logger.debug("extract_validated_zip promotion failed", exc_info=err)
-            raise core_exceptions.ProcessingError("Failed to promote extracted files") from err
-    finally:
-        if staging_dir is not None:
-            await asyncio.to_thread(shutil.rmtree, staging_dir, ignore_errors=True)
 
 
 # ---------------------------------------------------------------------------
@@ -1175,7 +865,7 @@ def move_within(
             ``src`` must resolve under it.
         overwrite: When ``False`` (default) an existing destination
             file aborts the move with HTTP 400 — mirrors the
-            no-overwrite contract of :func:`extract_validated_zip`.
+            no-overwrite contract of :func:`extract_validated_zip_sync`.
             Callers that intentionally need to replace an existing
             file must opt in explicitly.
 
@@ -1360,26 +1050,70 @@ def extract_validated_zip_sync(
     per_entry_kind: UploadKind | None = None,
     max_entries: int | None = None,
 ) -> list[Path]:
-    """Synchronous counterpart of :func:`extract_validated_zip`.
+    """Extract ``zip_path`` into ``dest_dir`` with zip-slip safety.
 
-    For a worker thread with no running event loop. Must not be called from the
-    main async thread.
+    The ZIP archive itself MUST already have been validated (it arrived
+    through :func:`save_validated_bytes_sync` or
+    :func:`save_validated_upload_sync`); this helper enforces *consumer*
+    safety during iteration.
 
     Args:
         zip_path: Path of the ZIP archive to extract.
         dest_dir: Destination directory; created if missing.
-        per_entry_kind: When provided, every entry is re-validated against it.
-        max_entries: Hard cap on number of entries.
+        per_entry_kind: When provided, every extracted entry is
+            re-validated via :func:`validate_local_file_sync` against the
+            given :class:`UploadKind` and removed if invalid.
+        max_entries: Hard cap on number of entries; defaults to the
+            module-wide ``_MAX_FILES_SAME_TYPE`` if not specified.
 
     Returns:
         List of extracted file paths under ``dest_dir``.
 
     Raises:
-        DomainError: As :func:`extract_validated_zip`.
+        DomainError: 400 for zip-slip / symlink / unsafe entries,
+            413 for size-cap violations, 500 for I/O failures.
     """
-    return asyncio.run(
-        extract_validated_zip(zip_path, dest_dir=dest_dir, per_entry_kind=per_entry_kind, max_entries=max_entries)
-    )
+    if max_entries is None:
+        max_entries = _MAX_FILES_SAME_TYPE
+    dest_path = Path(os.fspath(dest_dir))
+    os.makedirs(dest_path, exist_ok=True)
+
+    staging_dir: Path | None = None
+    try:
+        staging_dir, extracted = _extract_to_staging(Path(os.fspath(zip_path)), dest_path, max_entries)
+    except core_exceptions.DomainError:
+        raise
+    except (zipfile.BadZipFile, OSError) as err:
+        logger.warning("extract_validated_zip_sync failed", exc_info=err)
+        raise core_exceptions.InvalidInputError("Failed to extract archive") from err
+
+    try:
+        if per_entry_kind is not None:
+            kept: list[tuple[Path, Path]] = []
+            for staged_entry, final_entry in extracted:
+                try:
+                    validate_local_file_sync(staged_entry, kind=per_entry_kind, filename=final_entry.name)
+                except core_exceptions.DomainError:
+                    with contextlib.suppress(OSError):
+                        staged_entry.unlink(missing_ok=True)
+                    logger.warning(
+                        "extract_validated_zip_sync dropped an invalid entry",
+                        extra=core_logger.context(entry=final_entry.name),
+                    )
+                    continue
+                kept.append((staged_entry, final_entry))
+            extracted = kept
+
+        try:
+            return _promote_extracted_files_sync(extracted, dest_path.resolve())
+        except core_exceptions.DomainError:
+            raise
+        except OSError as err:
+            logger.debug("extract_validated_zip_sync promotion failed", exc_info=err)
+            raise core_exceptions.ProcessingError("Failed to promote extracted files") from err
+    finally:
+        if staging_dir is not None:
+            shutil.rmtree(staging_dir, ignore_errors=True)
 
 
 #: Caps for a bulk-import archive, which is read member by member and never

@@ -317,7 +317,7 @@ class TestRunImporter:
             def __init__(self, user_id, store, db, on_database_committed):
                 self.on_database_committed = on_database_committed
 
-            async def import_from_zip_data(self, data):
+            def import_from_zip_data(self, data):
                 self.on_database_committed()
                 seen.append(states.get(1).status)
                 return {"gears": 2}

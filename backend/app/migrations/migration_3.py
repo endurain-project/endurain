@@ -5,11 +5,9 @@ Processes every existing activity from FIT/GPX files or Strava and populates
 the laps, workout steps, and sets tables.
 """
 
-import asyncio
 import glob
 import os
 from collections.abc import Mapping, Sequence
-from pathlib import Path
 
 import fitdecode
 import jasil.runtime as platform_runtime
@@ -219,34 +217,27 @@ def get_fit_file_from_garminconnect(
         dl_fmt=garminconnect_client.ActivityDownloadFormat.ORIGINAL,
     )
 
-    # Persist + extract through the unified pipeline. Migrations are
-    # synchronous, so we drive the async helpers via a single
-    # ``asyncio.run`` over both calls — one event-loop setup per
-    # archive instead of two.
+    # Persist + extract through the unified pipeline.
     zip_filename = f"{gc_id}.zip"
     files_dir = core_config.settings.FILES_DIR
     fallback_path = os.path.join(core_config.FILES_PROCESSED_DIR, f"{activity.id}.fit")
 
-    async def _save_and_extract() -> tuple[str, list[Path]]:
-        saved = await file_uploads.save_validated_bytes(
+    try:
+        output_file = file_uploads.save_validated_bytes_sync(
             zip_data,
             kind=file_uploads.UploadKind.ZIP,
             upload_dir=files_dir,
             filename=zip_filename,
         )
         try:
-            paths = await file_uploads.extract_validated_zip(
-                saved,
+            extracted_paths = file_uploads.extract_validated_zip_sync(
+                output_file,
                 dest_dir=files_dir,
                 per_entry_kind=file_uploads.UploadKind.ACTIVITY,
             )
         except BaseException:
-            file_uploads.safe_remove_within(saved, base_dir=files_dir)
+            file_uploads.safe_remove_within(output_file, base_dir=files_dir)
             raise
-        return saved, paths
-
-    try:
-        output_file, extracted_paths = asyncio.run(_save_and_extract())
     except Exception as err:
         logger.error(
             f"Migration 3 - Garmin ZIP handling failed for activity {activity.id}: {type(err).__name__}",

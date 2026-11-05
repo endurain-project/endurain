@@ -823,13 +823,6 @@ These constraints remain visible until a coordinated design change resolves them
   - `users` ⇄ `server_settings`: user creation reads the server settings and the users schema uses their units and
     currency, while the settings router reads the admin user for the test email and the mail service uses a users
     schema.
-- **Profile import runs its own event loop.** `users_profile.import_job_service` calls `asyncio.run` on the
-  worker's thread, because the import awaits `core.file_uploads.validate_bytes` for each user image
-  (`ImportService`) and for each activity file and media file (the activities section's
-  `activity_profile_transfer.import_service`); storage writes already run through `asyncio.to_thread`. The
-  validators come from `safeuploads`, which is async only, and each synchronous form in `core.file_uploads` runs
-  one through `asyncio.run`. A synchronous importer would therefore move the loop into `core.file_uploads` and
-  start one per file instead of one per import. The importer shares no loop-bound resource, so the single loop is safe.
 - **Followee id list.** The followee set reaches `activity.crud` as an id list
   (`followers.integration_service.list_accepted_followee_ids`), which grows with the follow count and is passed
   again for every page of the following feed. Accepting a follow enforces `MAX_ACCEPTED_FOLLOWEES` (1000), which

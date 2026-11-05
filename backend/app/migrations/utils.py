@@ -50,8 +50,7 @@ async def check_migrations_not_executed(
     Iterates over unexecuted migrations and runs each migration handler in
     order. Async handlers are awaited. Sync handlers run on a worker thread: they do
     blocking work (provider calls, file handling) that would otherwise stall the
-    startup event loop, and some start an event loop of their own, which
-    ``asyncio.run`` refuses to do on a thread that already runs one.
+    startup event loop, and the file validators refuse a thread that runs one.
 
     Args:
         db: Database session.

@@ -5,7 +5,6 @@ activities the archive lists. The retained source files and the media are writte
 committed, because their storage keys name the restored activity ids.
 """
 
-import asyncio
 import os
 from typing import Any
 
@@ -50,10 +49,10 @@ def restore_profile(ctx: users_profile_contracts.ProfileImportContext) -> users_
     if not any(name.startswith(folders) for name in ctx.archive.names):
         return None
 
-    async def restore_files() -> None:
+    def restore_files() -> None:
         """Write the archived activity files and media under the restored activity ids."""
-        await _restore_activity_files(ctx, activities_id_mapping)
-        await _restore_activity_media(ctx, activities_id_mapping)
+        _restore_activity_files(ctx, activities_id_mapping)
+        _restore_activity_media(ctx, activities_id_mapping)
 
     return restore_files
 
@@ -298,7 +297,7 @@ def _load_components_for_batch(
     return all_components
 
 
-async def _restore_activity_files(
+def _restore_activity_files(
     ctx: users_profile_contracts.ProfileImportContext, activities_id_mapping: dict[int, int]
 ) -> None:
     """Extract and store the archived activity files under the restored ids.
@@ -332,12 +331,11 @@ async def _restore_activity_files(
             # Read bytes from the archive, validate as an activity file, then
             # persist through the platform StorageProvider (the same store
             # the ingestion path writes to) rather than the local
-            # processed directory. The blocking save is offloaded so it
-            # never stalls the import's event loop.
+            # processed directory.
             activity_limit = file_uploads.file_validator.config.limits.max_activity_file_size
             file_bytes = ctx.archive.read_bytes(file_path, max_bytes=activity_limit)
             try:
-                await file_uploads.validate_bytes(
+                file_uploads.validate_bytes_sync(
                     file_bytes,
                     kind=file_uploads.UploadKind.ACTIVITY,
                     filename=new_file_name,
@@ -348,17 +346,11 @@ async def _restore_activity_files(
                     extra=core_logger.context(file_name=new_file_name, detail=err.detail),
                 )
                 continue
-            await asyncio.to_thread(
-                activity_file_storage_integration.store_activity_file,
-                new_id,
-                ext,
-                file_bytes,
-                ctx.storage,
-            )
+            activity_file_storage_integration.store_activity_file(new_id, ext, file_bytes, ctx.storage)
             ctx.counts["activity_files"] += 1
 
 
-async def _restore_activity_media(
+def _restore_activity_media(
     ctx: users_profile_contracts.ProfileImportContext, activities_id_mapping: dict[int, int]
 ) -> None:
     """Extract and store the archived activity media under the restored ids.
@@ -399,7 +391,7 @@ async def _restore_activity_media(
                 image_limit = file_uploads.file_validator.config.limits.max_image_size
                 file_bytes = ctx.archive.read_bytes(file_path, max_bytes=image_limit)
                 try:
-                    await file_uploads.validate_bytes(
+                    file_uploads.validate_bytes_sync(
                         file_bytes,
                         kind=file_uploads.UploadKind.IMAGE,
                         filename=new_file_name,
@@ -410,12 +402,5 @@ async def _restore_activity_media(
                         extra=core_logger.context(file_name=new_file_name, detail=err.detail),
                     )
                     continue
-                await asyncio.to_thread(
-                    activity_media_integration.store_media_blob,
-                    new_id,
-                    suffix,
-                    ext,
-                    file_bytes,
-                    ctx.storage,
-                )
+                activity_media_integration.store_media_blob(new_id, suffix, ext, file_bytes, ctx.storage)
                 ctx.counts["media"] += 1

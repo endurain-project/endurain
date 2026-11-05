@@ -11,7 +11,6 @@ Key Features:
 - Memory and timeout monitoring
 """
 
-import asyncio
 import os
 import time
 import zipfile
@@ -184,7 +183,7 @@ class ImportService:
             ),
         )
 
-    async def import_from_zip_data(self, zip_data: bytes) -> dict[str, int]:
+    def import_from_zip_data(self, zip_data: bytes) -> dict[str, int]:
         """Import profile data from ZIP file bytes.
 
         The database part is one transaction, committed once before the files are written, so a
@@ -253,7 +252,7 @@ class ImportService:
                 user_integrations_data = archive.load_json("data/user_integrations.json")
                 user_privacy_settings_data = archive.load_json("data/user_privacy_settings.json")
 
-                await self.collect_and_import_user_data(
+                self.collect_and_import_user_data(
                     user_data, user_goals_data, user_integrations_data, user_privacy_settings_data
                 )
                 del user_data, user_integrations_data
@@ -288,8 +287,8 @@ class ImportService:
                 # ids. They are keyed by those ids, so writing them again overwrites in place.
                 check_import_timeout()
                 for restore_files in section_files:
-                    await restore_files()
-                await self.add_user_images_from_zip(archive)
+                    restore_files()
+                self.add_user_images_from_zip(archive)
 
         except zipfile.BadZipFile as e:
             raise FileFormatError(f"Invalid ZIP file format: {e!s}") from e
@@ -327,7 +326,7 @@ class ImportService:
         if not (same_username or same_email):
             raise ImportAccountMismatchError("The archive was exported from a different account")
 
-    async def collect_and_import_user_data(
+    def collect_and_import_user_data(
         self,
         user_data: list[dict[str, Any]],
         user_goals_data: list[dict[str, Any]],
@@ -366,9 +365,9 @@ class ImportService:
         # Import user-related settings — always attempt, even if
         # user_data was empty, so that sub-setting data loaded from
         # the ZIP is not silently discarded.
-        await self.collect_and_import_user_goals(user_goals_data)
-        await self.collect_and_import_user_integrations(user_integrations_data)
-        await self.collect_and_import_user_privacy_settings(user_privacy_settings_data)
+        self.collect_and_import_user_goals(user_goals_data)
+        self.collect_and_import_user_integrations(user_integrations_data)
+        self.collect_and_import_user_privacy_settings(user_privacy_settings_data)
 
     def import_user_default_gear(
         self, user_default_gear_data: list[dict[str, Any]], ids: users_profile_contracts.ProfileIdMaps
@@ -457,7 +456,7 @@ class ImportService:
                 f"Too many activities ({count}). Maximum allowed: {self.performance_config.max_activities}"
             )
 
-    async def collect_and_import_user_integrations(self, user_integrations_data: list[dict[str, Any]]) -> None:
+    def collect_and_import_user_integrations(self, user_integrations_data: list[dict[str, Any]]) -> None:
         """Import user integration settings.
 
         Args:
@@ -488,7 +487,7 @@ class ImportService:
         logger.debug("Imported user integrations")
         self.counts["user_integrations"] += 1
 
-    async def collect_and_import_user_goals(self, user_goals_data: list[dict[str, Any]]) -> None:
+    def collect_and_import_user_goals(self, user_goals_data: list[dict[str, Any]]) -> None:
         """Import user goals data.
 
         Args:
@@ -516,7 +515,7 @@ class ImportService:
 
         logger.debug("Imported user goals", extra=core_logger.context(count=self.counts["user_goals"]))
 
-    async def collect_and_import_user_privacy_settings(self, user_privacy_settings_data: list[dict[str, Any]]) -> None:
+    def collect_and_import_user_privacy_settings(self, user_privacy_settings_data: list[dict[str, Any]]) -> None:
         """Import user privacy settings.
 
         Args:
@@ -540,7 +539,7 @@ class ImportService:
         logger.debug("Imported user privacy settings")
         self.counts["user_privacy_settings"] += 1
 
-    async def add_user_images_from_zip(
+    def add_user_images_from_zip(
         self,
         archive: profile_utils.ZipArchiveReader,
     ) -> None:
@@ -572,7 +571,7 @@ class ImportService:
                 image_limit = file_uploads.file_validator.config.limits.max_image_size
                 file_bytes = archive.read_bytes(file_path, max_bytes=image_limit)
                 try:
-                    await file_uploads.validate_bytes(
+                    file_uploads.validate_bytes_sync(
                         file_bytes,
                         kind=file_uploads.UploadKind.IMAGE,
                         filename=new_file_name,
@@ -583,7 +582,5 @@ class ImportService:
                         extra=core_logger.context(file_name=new_file_name, detail=err.detail),
                     )
                     continue
-                await asyncio.to_thread(
-                    users_integration.store_user_photo, self.user_id, ext, file_bytes, self.storage, self.db
-                )
+                users_integration.store_user_photo(self.user_id, ext, file_bytes, self.storage, self.db)
                 self.counts["user_images"] += 1

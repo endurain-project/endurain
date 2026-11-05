@@ -3,7 +3,7 @@
 import json
 import zipfile
 from io import BytesIO
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import MagicMock, patch
 
 import pytest
 from sqlalchemy.orm import Session
@@ -105,24 +105,24 @@ class TestRestoreProfile:
             assert import_service.restore_profile(ctx) is None
 
     @pytest.mark.parametrize("name", ["activity_files/1.gpx", "activity_media/1_a.png"])
-    async def test_files_or_media_in_the_archive_return_the_after_commit_work(self, name) -> None:
+    def test_files_or_media_in_the_archive_return_the_after_commit_work(self, name) -> None:
         ctx = _ctx({"data/activities.json": [], name: b"x"})
         activity_patch, global_patch = _no_contributors()
         with (
             activity_patch,
             global_patch,
-            patch.object(import_service, "_restore_activity_files", new_callable=AsyncMock) as files,
-            patch.object(import_service, "_restore_activity_media", new_callable=AsyncMock) as media,
+            patch.object(import_service, "_restore_activity_files") as files,
+            patch.object(import_service, "_restore_activity_media") as media,
         ):
             restore_files = import_service.restore_profile(ctx)
             assert restore_files is not None
             files.assert_not_called()
-            await restore_files()
+            restore_files()
 
-        files.assert_awaited_once_with(ctx, {})
-        media.assert_awaited_once_with(ctx, {})
+        files.assert_called_once_with(ctx, {})
+        media.assert_called_once_with(ctx, {})
 
-    async def test_the_after_commit_work_holds_the_restored_activity_ids(self) -> None:
+    def test_the_after_commit_work_holds_the_restored_activity_ids(self) -> None:
         ctx = _ctx({"data/activities.json": [_ACTIVITY], "activity_files/1.gpx": b"x"})
         ctx.counts["activities"] = 0
         activity_patch, global_patch = _no_contributors()
@@ -132,14 +132,14 @@ class TestRestoreProfile:
             activity_patch,
             global_patch,
             patch.object(import_service.activity_integration, "restore_activity", return_value=restored),
-            patch.object(import_service, "_restore_activity_files", new_callable=AsyncMock) as files,
-            patch.object(import_service, "_restore_activity_media", new_callable=AsyncMock),
+            patch.object(import_service, "_restore_activity_files") as files,
+            patch.object(import_service, "_restore_activity_media"),
         ):
             restore_files = import_service.restore_profile(ctx)
             assert restore_files is not None
-            await restore_files()
+            restore_files()
 
-        files.assert_awaited_once_with(ctx, {1: 10})
+        files.assert_called_once_with(ctx, {1: 10})
         assert ctx.ids == {}
 
     def test_the_gear_ids_published_by_the_gear_section_are_read(self) -> None:
@@ -479,37 +479,37 @@ class TestLoadComponentsForBatch:
 
 
 class TestRestoreActivityFiles:
-    async def test_a_valid_file_is_stored_under_the_new_id(self) -> None:
+    def test_a_valid_file_is_stored_under_the_new_id(self) -> None:
         ctx = _ctx({"activity_files/1.gpx": b"<gpx></gpx>"})
         ctx.counts["activity_files"] = 0
         validator = MagicMock()
         validator.config.limits.max_activity_file_size = 1000000
         with (
             patch.object(import_service.file_uploads, "file_validator", validator),
-            patch.object(import_service.file_uploads, "validate_bytes", new_callable=AsyncMock),
+            patch.object(import_service.file_uploads, "validate_bytes_sync"),
             patch.object(import_service.activity_file_storage_integration, "store_activity_file") as store,
         ):
-            await import_service._restore_activity_files(ctx, {1: 10})
+            import_service._restore_activity_files(ctx, {1: 10})
 
         assert ctx.counts["activity_files"] == 1
         store.assert_called_once_with(10, ".gpx", b"<gpx></gpx>", ctx.storage)
 
-    async def test_the_memory_check_keeps_its_operation_name(self) -> None:
+    def test_the_memory_check_keeps_its_operation_name(self) -> None:
         check_memory = MagicMock()
-        await import_service._restore_activity_files(_ctx(check_memory=check_memory), {})
+        import_service._restore_activity_files(_ctx(check_memory=check_memory), {})
 
         check_memory.assert_called_once_with("activity files import")
 
-    async def test_a_file_without_a_mapping_is_skipped(self) -> None:
+    def test_a_file_without_a_mapping_is_skipped(self) -> None:
         ctx = _ctx({"activity_files/999.gpx": b"<gpx></gpx>"})
         ctx.counts["activity_files"] = 0
         with patch.object(import_service.activity_file_storage_integration, "store_activity_file") as store:
-            await import_service._restore_activity_files(ctx, {1: 10})
+            import_service._restore_activity_files(ctx, {1: 10})
 
         store.assert_not_called()
         assert ctx.counts["activity_files"] == 0
 
-    async def test_an_invalid_file_is_dropped(self) -> None:
+    def test_an_invalid_file_is_dropped(self) -> None:
         ctx = _ctx({"activity_files/1.gpx": b"<gpx></gpx>"})
         ctx.counts["activity_files"] = 0
         validator = MagicMock()
@@ -518,32 +518,31 @@ class TestRestoreActivityFiles:
             patch.object(import_service.file_uploads, "file_validator", validator),
             patch.object(
                 import_service.file_uploads,
-                "validate_bytes",
-                new_callable=AsyncMock,
+                "validate_bytes_sync",
                 side_effect=core_exceptions.InvalidInputError("invalid file"),
             ),
             patch.object(import_service.activity_file_storage_integration, "store_activity_file") as store,
         ):
-            await import_service._restore_activity_files(ctx, {1: 10})
+            import_service._restore_activity_files(ctx, {1: 10})
 
         store.assert_not_called()
         assert ctx.counts["activity_files"] == 0
 
-    async def test_a_file_without_a_numeric_id_is_skipped_and_logged(self) -> None:
+    def test_a_file_without_a_numeric_id_is_skipped_and_logged(self) -> None:
         ctx = _ctx({"activity_files/notes.gpx": b"data"})
         with (
             patch.object(import_service.activity_file_storage_integration, "store_activity_file") as store,
             patch.object(import_service.logger, "debug") as debug,
         ):
-            await import_service._restore_activity_files(ctx, {1: 2})
+            import_service._restore_activity_files(ctx, {1: 2})
 
         store.assert_not_called()
         assert any("without an activity id" in str(call.args[0]) for call in debug.call_args_list)
 
-    async def test_a_value_error_from_storing_is_not_swallowed(self) -> None:
+    def test_a_value_error_from_storing_is_not_swallowed(self) -> None:
         ctx = _ctx({"activity_files/1.gpx": b"data"})
         with (
-            patch.object(import_service.file_uploads, "validate_bytes", new_callable=AsyncMock),
+            patch.object(import_service.file_uploads, "validate_bytes_sync"),
             patch.object(
                 import_service.activity_file_storage_integration,
                 "store_activity_file",
@@ -551,11 +550,11 @@ class TestRestoreActivityFiles:
             ),
             pytest.raises(ValueError, match="storage rejected"),
         ):
-            await import_service._restore_activity_files(ctx, {1: 2})
+            import_service._restore_activity_files(ctx, {1: 2})
 
 
 class TestRestoreActivityMedia:
-    async def test_a_valid_image_is_stored_under_the_new_id(self) -> None:
+    def test_a_valid_image_is_stored_under_the_new_id(self) -> None:
         storage = MagicMock()
         ctx = _ctx({"activity_media/1_photo.jpg": b"image-data"}, storage=storage)
         ctx.counts["media"] = 0
@@ -563,29 +562,29 @@ class TestRestoreActivityMedia:
         validator.config.limits.max_image_size = 1000000
         with (
             patch.object(import_service.file_uploads, "file_validator", validator),
-            patch.object(import_service.file_uploads, "validate_bytes", new_callable=AsyncMock),
+            patch.object(import_service.file_uploads, "validate_bytes_sync"),
         ):
-            await import_service._restore_activity_media(ctx, {1: 10})
+            import_service._restore_activity_media(ctx, {1: 10})
 
         assert ctx.counts["media"] == 1
         storage.save.assert_called_once_with("activity_media", "10_photo.jpg", b"image-data")
 
-    async def test_the_memory_check_keeps_its_operation_name(self) -> None:
+    def test_the_memory_check_keeps_its_operation_name(self) -> None:
         check_memory = MagicMock()
-        await import_service._restore_activity_media(_ctx(check_memory=check_memory), {})
+        import_service._restore_activity_media(_ctx(check_memory=check_memory), {})
 
         check_memory.assert_called_once_with("activity media import")
 
-    async def test_an_image_without_a_mapping_is_skipped(self) -> None:
+    def test_an_image_without_a_mapping_is_skipped(self) -> None:
         storage = MagicMock()
         ctx = _ctx({"activity_media/999_photo.jpg": b"image-data"}, storage=storage)
         ctx.counts["media"] = 0
-        await import_service._restore_activity_media(ctx, {1: 10})
+        import_service._restore_activity_media(ctx, {1: 10})
 
         storage.save.assert_not_called()
         assert ctx.counts["media"] == 0
 
-    async def test_an_invalid_image_is_never_stored(self) -> None:
+    def test_an_invalid_image_is_never_stored(self) -> None:
         storage = MagicMock()
         ctx = _ctx({"activity_media/1_bad.jpg": b"image-data"}, storage=storage)
         ctx.counts["media"] = 0
@@ -595,33 +594,32 @@ class TestRestoreActivityMedia:
             patch.object(import_service.file_uploads, "file_validator", validator),
             patch.object(
                 import_service.file_uploads,
-                "validate_bytes",
-                new_callable=AsyncMock,
+                "validate_bytes_sync",
                 side_effect=core_exceptions.InvalidInputError("invalid image"),
             ),
         ):
-            await import_service._restore_activity_media(ctx, {1: 10})
+            import_service._restore_activity_media(ctx, {1: 10})
 
         assert ctx.counts["media"] == 0
         storage.save.assert_not_called()
 
-    async def test_an_image_without_a_numeric_id_is_skipped_and_logged(self) -> None:
+    def test_an_image_without_a_numeric_id_is_skipped_and_logged(self) -> None:
         ctx = _ctx({"activity_media/abc_photo.png": b"data"})
         ctx.counts["media"] = 0
         with (
             patch.object(import_service.activity_media_integration, "store_media_blob") as store,
             patch.object(import_service.logger, "debug") as debug,
         ):
-            await import_service._restore_activity_media(ctx, {1: 2})
+            import_service._restore_activity_media(ctx, {1: 2})
 
         store.assert_not_called()
         assert ctx.counts["media"] == 0
         assert any("without an activity id" in str(call.args[0]) for call in debug.call_args_list)
 
-    async def test_a_value_error_from_storing_is_not_swallowed(self) -> None:
+    def test_a_value_error_from_storing_is_not_swallowed(self) -> None:
         ctx = _ctx({"activity_media/1_photo.png": b"data"})
         with (
-            patch.object(import_service.file_uploads, "validate_bytes", new_callable=AsyncMock),
+            patch.object(import_service.file_uploads, "validate_bytes_sync"),
             patch.object(
                 import_service.activity_media_integration,
                 "store_media_blob",
@@ -629,4 +627,4 @@ class TestRestoreActivityMedia:
             ),
             pytest.raises(ValueError, match="storage rejected"),
         ):
-            await import_service._restore_activity_media(ctx, {1: 2})
+            import_service._restore_activity_media(ctx, {1: 2})

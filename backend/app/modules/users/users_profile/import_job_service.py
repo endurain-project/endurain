@@ -10,7 +10,6 @@ behind and can be retried. Once it is committed a retry would import everything 
 from then on is final.
 """
 
-import asyncio
 import tempfile
 from collections.abc import Callable
 from typing import Protocol
@@ -286,9 +285,7 @@ def _run_importer(
             db,
             on_database_committed=on_committed,
         )
-        # The importer awaits file validation, so it needs a loop; this runs on a worker thread
-        # with none, and the importer shares no loop-bound resources.
-        return asyncio.run(importer.import_from_zip_data(zip_data))
+        return importer.import_from_zip_data(zip_data)
 
 
 def run_import(
