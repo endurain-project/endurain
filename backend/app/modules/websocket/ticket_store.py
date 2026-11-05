@@ -11,6 +11,7 @@ import secrets
 from jasil.providers import StateBackendUnavailableError, StateProvider
 
 import core.attempt_state as core_attempt_state
+import core.hashing as core_hashing
 import core.logger as core_logger
 
 logger = core_logger.get_logger(__name__)
@@ -19,8 +20,8 @@ TICKET_TTL_SECONDS = 30
 
 
 def _ticket_key(ticket: str) -> str:
-    """Build the storage key of a ticket."""
-    return core_attempt_state.key("websocket", "ticket", ticket)
+    """Build the storage key of a ticket, keyed by its SHA-256 so the raw credential is never stored."""
+    return core_attempt_state.key("websocket", "ticket", core_hashing.sha256_hex(ticket))
 
 
 class WsTicketStore:

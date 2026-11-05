@@ -7,6 +7,7 @@ from jasil.backends.state_memory import MemoryState
 from jasil.providers import StateBackendUnavailableError
 
 import core.attempt_state as core_attempt_state
+import core.hashing as core_hashing
 from modules.websocket.ticket_store import (
     TICKET_TTL_SECONDS,
     WsTicketStore,
@@ -49,6 +50,14 @@ class TestWsTicketStore:
             ticket = store.create_ticket(user_id=3)
             clock.return_value = TICKET_TTL_SECONDS + 1
             assert store.consume_ticket(ticket) is None
+
+    def test_state_key_holds_hash_not_raw_ticket(self):
+        state = MemoryState()
+        ticket = WsTicketStore(state=state).create_ticket(user_id=5)
+        keys = list(state.iter_keys("endurain:websocket:ticket"))
+        assert len(keys) == 1
+        assert ticket not in keys[0]
+        assert keys[0] == core_attempt_state.key("websocket", "ticket", core_hashing.sha256_hex(ticket))
 
     def test_ticket_ttl_is_30_seconds(self):
         assert TICKET_TTL_SECONDS == 30
