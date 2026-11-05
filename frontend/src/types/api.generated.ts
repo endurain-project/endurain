@@ -2978,12 +2978,16 @@ export interface paths {
          * Export Profile Data
          * @description Queue an export of all profile data as a ZIP archive.
          *
-         *     A worker builds the archive; poll ``GET /profile/export`` for the outcome and fetch it from
-         *     ``GET /profile/export/download``.
+         *     Requires step-up verification: the current password (or, for an account without one, a fresh
+         *     identity-provider sign-in), and an MFA code when MFA is enabled. A worker builds the archive;
+         *     poll ``GET /profile/export`` for the outcome and fetch it from ``GET /profile/export/download``.
          *
          *     Args:
          *         request: The incoming request, read by the rate limiter.
+         *         step_up: Step-up verification payload.
          *         token_user_id: User ID from access token.
+         *         token_session_id: Session ID from access token.
+         *         step_up_store: Step-up lockout store.
          *         export_states: Shared store of the export's state.
          *         db: Database session.
          *
@@ -11353,12 +11357,13 @@ export interface components {
          *         IDP_UNLINK: Unlink an identity provider.
          *         EMAIL_CHANGE: Change the account's email address.
          *         ACCOUNT_DELETE: Delete the account.
+         *         PROFILE_EXPORT: Export all of the account's data.
          *         MFA_ENABLE: Enable MFA.
          *         MFA_DISABLE: Disable MFA.
          *         MFA_BACKUP_CODES: Regenerate MFA backup codes.
          * @enum {string}
          */
-        StepUpAction: "api_key_create" | "idp_link" | "idp_unlink" | "email_change" | "account_delete" | "mfa_enable" | "mfa_disable" | "mfa_backup_codes";
+        StepUpAction: "api_key_create" | "idp_link" | "idp_unlink" | "email_change" | "account_delete" | "profile_export" | "mfa_enable" | "mfa_disable" | "mfa_backup_codes";
         /**
          * StepUpStartRequest
          * @description Start a step-up re-authentication with a linked identity provider.
@@ -18632,7 +18637,11 @@ export interface operations {
             path?: never;
             cookie?: never;
         };
-        requestBody?: never;
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["StepUpVerification"];
+            };
+        };
         responses: {
             /** @description Successful Response */
             202: {
@@ -18641,6 +18650,15 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["ProfileExportStatus"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
                 };
             };
             /** @description Unexpected error */

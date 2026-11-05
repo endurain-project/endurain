@@ -1090,6 +1090,10 @@
       "exportQueued": "Izvoz je pokrenut. Možete napustiti ovu stranicu.",
       "exportError": "Nije moguće izvesti vaše podatke. Pokušajte ponovno.",
       "exportInProgress": "Izvoz je već u tijeku.",
+      "exportStepUp": {
+        "title": "Potvrdite da ste to vi",
+        "description": "Izvoz kopira sve vaše podatke, stoga prvo potvrdite svoj identitet."
+      },
       "exportStatus": {
         "queued": "Čeka se početak izvoza…",
         "running": "Priprema izvoza…",

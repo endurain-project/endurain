@@ -3,6 +3,7 @@
 import io
 import os
 from datetime import UTC, datetime
+from typing import ClassVar
 from unittest.mock import MagicMock, patch
 
 import pytest
@@ -12,6 +13,7 @@ import core.config as core_config
 import core.dependencies as core_dependencies
 import core.exceptions as core_exceptions
 import core.pagination as core_pagination
+import modules.auth.identity_providers.constants as identity_providers_constants
 import modules.auth.mfa.schema as mfa_schema
 import modules.auth.sessions.schema as auth_sessions_schema
 import modules.users.users.schema as users_schema
@@ -606,19 +608,46 @@ class TestExportProfileData:
 
     _PUBLISH = "modules.users.users_profile.export_job_service.profile_event_publishers.publish_export_requested"
 
-    def test_queues_the_export_and_answers_at_once(self, profile_client, export_states):
+    _BODY: ClassVar[dict[str, str]] = {"current_password": "secret-password", "mfa_code": "123456"}
+
+    def test_queues_the_export_and_answers_at_once(self, profile_client, export_states, mock_auth_services):
         with patch(self._PUBLISH) as publish:
-            response = profile_client.post(PREFIX + "/export")
+            response = profile_client.post(PREFIX + "/export", json=self._BODY)
 
         assert response.status_code == 202
         assert response.json() == {"status": "queued", "failure": None, "size_bytes": None, "expires_at": None}
         assert publish.call_args.args[0] == 1
         assert export_states.get(1).status == "queued"
+        step_up, user_id, session_id, action, _store = mock_auth_services.verify_step_up.call_args.args
+        assert step_up.current_password == "secret-password"
+        assert step_up.mfa_code == "123456"
+        assert (user_id, session_id, action) == (
+            1,
+            "session-1",
+            identity_providers_constants.StepUpAction.PROFILE_EXPORT,
+        )
+
+    def test_a_refused_step_up_queues_nothing(self, profile_client, export_states, mock_auth_services):
+        mock_auth_services.verify_step_up.side_effect = HTTPException(status_code=401, detail="Invalid credentials")
+
+        with patch(self._PUBLISH) as publish:
+            response = profile_client.post(PREFIX + "/export", json={"current_password": "wrong"})
+
+        assert response.status_code == 401
+        publish.assert_not_called()
+        assert export_states.get(1) is None
+
+    def test_an_export_without_a_body_is_refused(self, profile_client):
+        with patch(self._PUBLISH) as publish:
+            response = profile_client.post(PREFIX + "/export")
+
+        assert response.status_code == 422
+        publish.assert_not_called()
 
     def test_a_second_export_while_one_is_pending_is_a_conflict(self, profile_client):
         with patch(self._PUBLISH):
-            first = profile_client.post(PREFIX + "/export")
-            second = profile_client.post(PREFIX + "/export")
+            first = profile_client.post(PREFIX + "/export", json=self._BODY)
+            second = profile_client.post(PREFIX + "/export", json=self._BODY)
 
         assert (first.status_code, second.status_code) == (202, 409)
 

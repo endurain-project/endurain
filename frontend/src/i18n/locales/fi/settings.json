@@ -1090,6 +1090,10 @@
       "exportQueued": "Vienti käynnistetty. Voit poistua tältä sivulta.",
       "exportError": "Tietojasi ei voitu viedä. Yritä uudelleen.",
       "exportInProgress": "Vienti on jo käynnissä.",
+      "exportStepUp": {
+        "title": "Vahvista, että se olet sinä",
+        "description": "Vienti kopioi kaikki tietosi, joten vahvista ensin henkilöllisyytesi."
+      },
       "exportStatus": {
         "queued": "Odotetaan viennin alkamista…",
         "running": "Valmistellaan vientiäsi…",

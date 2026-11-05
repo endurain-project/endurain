@@ -42,6 +42,7 @@ class StepUpAction(StrEnum):
         IDP_UNLINK: Unlink an identity provider.
         EMAIL_CHANGE: Change the account's email address.
         ACCOUNT_DELETE: Delete the account.
+        PROFILE_EXPORT: Export all of the account's data.
         MFA_ENABLE: Enable MFA.
         MFA_DISABLE: Disable MFA.
         MFA_BACKUP_CODES: Regenerate MFA backup codes.
@@ -52,6 +53,7 @@ class StepUpAction(StrEnum):
     IDP_UNLINK = "idp_unlink"
     EMAIL_CHANGE = "email_change"
     ACCOUNT_DELETE = "account_delete"
+    PROFILE_EXPORT = "profile_export"
     MFA_ENABLE = "mfa_enable"
     MFA_DISABLE = "mfa_disable"
     MFA_BACKUP_CODES = "mfa_backup_codes"

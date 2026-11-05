@@ -182,7 +182,7 @@ Signing in through your identity provider does not replace the multi-factor auth
 
 ## Confirming sensitive changes without a password
 
-An account that signs in only through an identity provider has no local password. To create an API key, link or unlink a provider, change the email, delete the account, or turn MFA on or off or regenerate its backup codes, Endurain sends you back to your provider to sign in again. The provider must show that you signed in within the last 60 seconds and must be one already linked to your account; if it reuses an existing provider session, Endurain refuses with a "not fresh" error. If MFA is on you also enter your code, and a wrong code does not force a new provider sign-in. MFA alone is not enough.
+An account that signs in only through an identity provider has no local password. To create an API key, link or unlink a provider, change the email, delete the account, export your data, or turn MFA on or off or regenerate its backup codes, Endurain sends you back to your provider to sign in again. The provider must show that you signed in within the last 60 seconds and must be one already linked to your account; if it reuses an existing provider session, Endurain refuses with a "not fresh" error. If MFA is on you also enter your code, and a wrong code does not force a new provider sign-in. MFA alone is not enough.
 
 These accounts cannot change their password themselves. An administrator sets one in [user management](user-management.md#resetting-a-password).
 

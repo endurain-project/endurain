@@ -1,17 +1,24 @@
 import type { ProfileExportStatus, ProfileImportStatus } from '@/features/profile/types'
+import type { StepUpInput } from '@/features/security/types'
 
 import { apiFetch } from '@/services/http'
+import { toStepUpWire } from '@/features/security/services/security'
 
 /**
- * Queues an export of all of the authenticated user's profile data. A worker
- * builds the archive, so the request returns at once. Follow the outcome with
- * {@link fetchProfileExport} and fetch the archive with {@link downloadProfileExport}.
+ * Queues an export of all of the authenticated user's profile data after step-up
+ * verification. A worker builds the archive, so the request returns at once.
+ * Follow the outcome with {@link fetchProfileExport} and fetch the archive with
+ * {@link downloadProfileExport}.
  *
+ * @param input - The step-up credentials (password or identity-provider proof, and with MFA a code).
  * @returns The queued export's state.
- * @throws {HttpError} When the export is refused (e.g. `409` while another export is still running).
+ * @throws {HttpError} When the export is refused (`401` step-up, `409` while another export is still running).
  */
-export function requestProfileExport(): Promise<ProfileExportStatus> {
-  return apiFetch<ProfileExportStatus>('/profile/export', { method: 'POST' })
+export function requestProfileExport(input: StepUpInput): Promise<ProfileExportStatus> {
+  return apiFetch<ProfileExportStatus>('/profile/export', {
+    method: 'POST',
+    body: JSON.stringify(toStepUpWire(input)),
+  })
 }
 
 /**

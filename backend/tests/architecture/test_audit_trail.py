@@ -169,7 +169,12 @@ _AUDITED_WRITES: dict[tuple[str, str], tuple[str, ...]] = {
     ),
     ("users/users_profile/router.py", "edit_profile_privacy_settings"): ("users.privacy.update",),
     ("users/users_profile/router.py", "edit_user"): ("users.profile.update",),
-    ("users/users_profile/router.py", "export_profile_data"): ("users.profile_export.request",),
+    ("users/users_profile/router.py", "export_profile_data"): (
+        "auth.backup_codes.use",
+        "auth.lockout.apply",
+        "auth.step_up.verify",
+        "users.profile_export.request",
+    ),
     ("users/users_profile/router.py", "import_profile_data"): ("users.profile_import.request",),
 }
 

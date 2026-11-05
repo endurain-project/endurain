@@ -1090,6 +1090,10 @@
       "exportQueued": "Az exportálás elindult. Elhagyhatod ezt az oldalt.",
       "exportError": "Nem sikerült exportálni az adataidat. Kérjük, próbáld újra.",
       "exportInProgress": "Már folyamatban van egy exportálás.",
+      "exportStepUp": {
+        "title": "Erősítse meg, hogy Ön az",
+        "description": "Az exportálás az összes adatát lemásolja, ezért először igazolja a személyazonosságát."
+      },
       "exportStatus": {
         "queued": "Várakozás az exportálás indulására…",
         "running": "Az exportálás előkészítése…",

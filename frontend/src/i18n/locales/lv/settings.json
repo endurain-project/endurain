@@ -1090,6 +1090,10 @@
       "exportQueued": "Eksports sākts. Varat pamest šo lapu.",
       "exportError": "Neizdevās eksportēt jūsu datus. Lūdzu, mēģiniet vēlreiz.",
       "exportInProgress": "Eksports jau tiek veikts.",
+      "exportStepUp": {
+        "title": "Apstipriniet, ka tas esat jūs",
+        "description": "Eksports nokopē visus jūsu datus, tāpēc vispirms apstipriniet savu identitāti."
+      },
       "exportStatus": {
         "queued": "Tiek gaidīts eksporta sākums…",
         "running": "Tiek sagatavots jūsu eksports…",

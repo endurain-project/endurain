@@ -1090,6 +1090,10 @@
       "exportQueued": "导出已开始，您可以离开此页面。",
       "exportError": "无法导出您的数据，请重试。",
       "exportInProgress": "已有导出正在进行。",
+      "exportStepUp": {
+        "title": "确认是你本人",
+        "description": "导出会复制你的所有数据，请先验证你的身份。"
+      },
       "exportStatus": {
         "queued": "正在等待导出开始…",
         "running": "正在准备您的导出…",

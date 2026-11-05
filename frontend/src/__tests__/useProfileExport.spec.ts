@@ -68,7 +68,7 @@ describe('profile export composables', () => {
     const { mutation } = mountComposables(queryClient)
     await flushPromises()
 
-    await mutation.mutateAsync()
+    await mutation.mutateAsync({ currentPassword: 'pw', mfaCode: null, idpReauth: null })
 
     expect(queryClient.getQueryData(queryKeys.profile.export())).toEqual(queued)
   })

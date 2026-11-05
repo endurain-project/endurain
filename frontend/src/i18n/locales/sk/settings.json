@@ -1090,6 +1090,10 @@
       "exportQueued": "Export bol spustený. Túto stránku môžete opustiť.",
       "exportError": "Vaše údaje sa nepodarilo exportovať. Skúste to znova.",
       "exportInProgress": "Export už prebieha.",
+      "exportStepUp": {
+        "title": "Potvrďte, že ste to vy",
+        "description": "Export skopíruje všetky vaše údaje, preto najprv potvrďte svoju totožnosť."
+      },
       "exportStatus": {
         "queued": "Čaká sa na spustenie exportu…",
         "running": "Pripravuje sa váš export…",

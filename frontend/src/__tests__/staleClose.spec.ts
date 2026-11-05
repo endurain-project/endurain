@@ -3,6 +3,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { computed, defineComponent, ref } from 'vue'
 import { flushPromises, mount } from '@vue/test-utils'
 import { QueryClient, VueQueryPlugin } from '@tanstack/vue-query'
+import { createPinia } from 'pinia'
 
 import type { Component } from 'vue'
 import type { Activity } from '@/features/activities/types'
@@ -347,6 +348,7 @@ function countingStub(mounted: { count: number }): Component {
 describe('inline forms keyed on the resource version', () => {
   const plugins = () => [
     i18n,
+    createPinia(),
     [VueQueryPlugin, { queryClient: new QueryClient() }] as [typeof VueQueryPlugin, unknown],
   ]
 

@@ -1090,6 +1090,10 @@
       "exportQueued": "Exportação iniciada. Podes sair desta página.",
       "exportError": "Não foi possível exportar os teus dados. Tenta novamente.",
       "exportInProgress": "Já existe uma exportação em curso.",
+      "exportStepUp": {
+        "title": "Confirme que é você",
+        "description": "A exportação copia todos os seus dados, por isso confirme primeiro a sua identidade."
+      },
       "exportStatus": {
         "queued": "A aguardar o início da exportação…",
         "running": "A preparar a tua exportação…",

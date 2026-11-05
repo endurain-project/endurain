@@ -3,6 +3,7 @@ import { storeToRefs } from 'pinia'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/vue-query'
 
 import type { ProfileExportStatus, ProfileImportStatus } from '@/features/profile/types'
+import type { StepUpInput } from '@/features/security/types'
 
 import { invalidateActivityData } from '@/composables/useInvalidatingMutation'
 import { queryKeys } from '@/services/queryKeys'
@@ -19,7 +20,7 @@ import {
 const POLL_MS = 3000
 
 /**
- * Export mutation. It only queues the export; the outcome comes from
+ * Export mutation, run after step-up. It only queues the export; the outcome comes from
  * {@link useProfileExportQuery}, which this seeds with the queued state so
  * polling starts straight away.
  *
@@ -28,8 +29,8 @@ const POLL_MS = 3000
 export function useExportProfileMutation() {
   const client = useQueryClient()
 
-  return useMutation<ProfileExportStatus, Error, void>({
-    mutationFn: () => requestProfileExport(),
+  return useMutation<ProfileExportStatus, Error, StepUpInput>({
+    mutationFn: (input) => requestProfileExport(input),
     onSuccess: (status) => client.setQueryData(queryKeys.profile.export(), status),
   })
 }

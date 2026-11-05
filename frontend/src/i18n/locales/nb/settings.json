@@ -1090,6 +1090,10 @@
       "exportQueued": "Eksporten er startet. Du kan forlate denne siden.",
       "exportError": "Kunne ikke eksportere dataene dine. Vennligst prøv igjen.",
       "exportInProgress": "En eksport pågår allerede.",
+      "exportStepUp": {
+        "title": "Bekreft at det er deg",
+        "description": "Eksporten kopierer alle dataene dine, så bekreft identiteten din først."
+      },
       "exportStatus": {
         "queued": "Venter på at eksporten skal starte…",
         "running": "Forbereder eksporten din…",

@@ -1090,6 +1090,10 @@
       "exportQueued": "Eksport rozpoczęty. Możesz opuścić tę stronę.",
       "exportError": "Nie udało się wyeksportować danych. Spróbuj ponownie.",
       "exportInProgress": "Eksport jest już w toku.",
+      "exportStepUp": {
+        "title": "Potwierdź, że to Ty",
+        "description": "Eksport kopiuje wszystkie Twoje dane, dlatego najpierw potwierdź swoją tożsamość."
+      },
       "exportStatus": {
         "queued": "Oczekiwanie na rozpoczęcie eksportu…",
         "running": "Przygotowywanie eksportu…",

@@ -1,13 +1,18 @@
 <script setup lang="ts">
-import { computed, ref } from 'vue'
+import { computed, onMounted, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { Download, LoaderCircle, Upload } from '@lucide/vue'
 
+import type { IdpReauth, StepUpInput } from '@/features/security/types'
+import type { IdpStepUpResume } from '@/features/security/composables/useIdpStepUp'
+
+import StepUpDialog from '@/features/security/components/StepUpDialog.vue'
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
 import { useToasts } from '@/composables/useToasts'
 import { HttpError } from '@/services/http'
 import { downloadBlob } from '@/lib/download'
+import { useIdpReauthChallenge } from '@/features/security/composables/useIdpStepUp'
 import { isTerminalProfileExport, isTerminalProfileImport } from '@/features/profile/types'
 import {
   useDownloadProfileExportMutation,
@@ -20,6 +25,12 @@ import {
 const props = defineProps<{
   /** The current user's id, used to name the export archive. */
   userId: number
+  /** Whether the account has a local password (gates the step-up password field). */
+  hasLocalPassword: boolean
+  /** Whether MFA is enabled (gates the step-up MFA-code field). */
+  mfaEnabled: boolean
+  /** The identity-provider sign-in the browser just returned from, if any. */
+  resume: IdpStepUpResume | null
 }>()
 
 const { t } = useI18n()
@@ -29,6 +40,18 @@ const exportQuery = useProfileExportQuery()
 const downloadMutation = useDownloadProfileExportMutation()
 const importMutation = useImportProfileMutation()
 const importQuery = useProfileImportQuery()
+const handleIdpChallenge = useIdpReauthChallenge()
+
+const isStepUpOpen = ref(false)
+const idpReauth = ref<IdpReauth | null>(null)
+
+/** Reopens the dialog once the identity-provider sign-in returns. */
+onMounted(() => {
+  if (props.resume?.action === 'profile_export') {
+    idpReauth.value = props.resume.reauth
+    isStepUpOpen.value = true
+  }
+})
 
 const exportStatus = computed(() => exportQuery.data.value ?? null)
 /** Whether an export is queued or being built, so a second one cannot start. */
@@ -80,16 +103,26 @@ const importMessage = computed<string | null>(() => {
 
 const fileInput = ref<HTMLInputElement | null>(null)
 
-/** Queues an export of the user's data; the finished archive is downloaded from the card. */
-function handleExport(): void {
-  exportMutation.mutate(undefined, {
-    onSuccess: () => toasts.success(t('settings.profile.dataTransfer.exportQueued')),
-    onError: (error) =>
-      toasts.error(
-        error instanceof HttpError && error.status === 409
-          ? t('settings.profile.dataTransfer.exportInProgress')
-          : t('settings.profile.dataTransfer.exportError'),
-      ),
+/** Queues an export of the user's data after step-up; the finished archive is downloaded from the card. */
+function handleExport(input: StepUpInput): void {
+  exportMutation.mutate(input, {
+    onSuccess: () => {
+      isStepUpOpen.value = false
+      toasts.success(t('settings.profile.dataTransfer.exportQueued'))
+    },
+    onError: (error) => {
+      if (handleIdpChallenge(error)) {
+        return
+      }
+      if (error instanceof HttpError && error.status === 409) {
+        isStepUpOpen.value = false
+        toasts.error(t('settings.profile.dataTransfer.exportInProgress'))
+      } else if (error instanceof HttpError && error.status === 401) {
+        toasts.error(t('settings.security.linked.invalidCredentials'))
+      } else {
+        toasts.error(t('settings.profile.dataTransfer.exportError'))
+      }
+    },
   })
 }
 
@@ -163,7 +196,7 @@ function onArchiveChange(event: Event): void {
         variant="outline"
         class="w-full sm:w-auto"
         :disabled="exportMutation.isPending.value || isExportActive"
-        @click="handleExport"
+        @click="isStepUpOpen = true"
       >
         <LoaderCircle
           v-if="exportMutation.isPending.value || isExportActive"
@@ -212,5 +245,18 @@ function onArchiveChange(event: Event): void {
     </p>
 
     <p class="text-hint">{{ t('settings.profile.dataTransfer.note') }}</p>
+
+    <StepUpDialog
+      v-model:open="isStepUpOpen"
+      v-model:reauth="idpReauth"
+      action="profile_export"
+      :title="t('settings.profile.dataTransfer.exportStepUp.title')"
+      :description="t('settings.profile.dataTransfer.exportStepUp.description')"
+      :confirm-label="t('settings.profile.dataTransfer.export')"
+      :require-password="props.hasLocalPassword"
+      :require-mfa="props.mfaEnabled"
+      :pending="exportMutation.isPending.value"
+      @confirm="handleExport"
+    />
   </Card>
 </template>

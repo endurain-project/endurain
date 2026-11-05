@@ -27,6 +27,12 @@ _IMPORT = "modules.users.users_profile.import_job_service"
 _TARGET = {"target_type": "user", "target_id": "7", "target_owner_id": "7"}
 
 
+def _request_export(states, db):
+    return export_job_service.request_export(
+        7, "session-1", users_schema.StepUpVerification(current_password="pw"), MagicMock(), states, db
+    )
+
+
 def _user(**overrides) -> users_schema.UsersRead:
     fields = {
         "id": 7,
@@ -175,8 +181,9 @@ class TestProfileExport:
         with (
             jasil_testing.capture_audit() as audit,
             patch(f"{_EXPORT}.profile_event_publishers.publish_export_requested"),
+            patch(f"{_EXPORT}.account_security_integration.verify_step_up"),
         ):
-            export_job_service.request_export(7, states, mock_db)
+            _request_export(states, mock_db)
 
         entry = audit.assert_audited(profile_audit_actions.PROFILE_EXPORT_REQUEST.id, **_TARGET)
         assert entry.details is None
@@ -184,8 +191,12 @@ class TestProfileExport:
     def test_a_refused_request_writes_no_row(self, states, mock_db):
         states.begin(7)
 
-        with jasil_testing.capture_audit() as audit, pytest.raises(core_exceptions.ConflictError):
-            export_job_service.request_export(7, states, mock_db)
+        with (
+            jasil_testing.capture_audit() as audit,
+            patch(f"{_EXPORT}.account_security_integration.verify_step_up"),
+            pytest.raises(core_exceptions.ConflictError),
+        ):
+            _request_export(states, mock_db)
 
         audit.assert_not_audited(profile_audit_actions.PROFILE_EXPORT_REQUEST.id)
 

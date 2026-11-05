@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed } from 'vue'
+import { computed, onMounted } from 'vue'
 import { useI18n } from 'vue-i18n'
 
 import PrivacySettingsCard from '@/features/profile/components/PrivacySettingsCard.vue'
@@ -11,11 +11,30 @@ import { Card } from '@/components/ui/card'
 import { ErrorState } from '@/components/ui/error-state'
 import { Skeleton } from '@/components/ui/skeleton'
 import { useProfileQuery } from '@/features/profile/composables/useProfile'
+import { useToasts } from '@/composables/useToasts'
+import { consumeIdpStepUpReturn } from '@/features/security/composables/useIdpStepUp'
+import { useMfaStatusQuery } from '@/features/security/composables/useSecurity'
 
 const { t } = useI18n()
+const toasts = useToasts()
+
+// Returning from an identity-provider sign-in, the callback leaves its outcome in the URL fragment. It is
+// consumed once; the data-transfer card reopens its dialog with the resume, and a failure is reported once the
+// page is shown.
+const stepUpReturn = consumeIdpStepUpReturn()
+const resume = stepUpReturn && !stepUpReturn.error ? stepUpReturn : null
+onMounted(() => {
+  if (stepUpReturn?.error === 'not_fresh') {
+    toasts.error(t('settings.security.stepUp.notFresh'))
+  } else if (stepUpReturn?.error) {
+    toasts.error(t('settings.security.stepUp.failed'))
+  }
+})
 
 const profileQuery = useProfileQuery()
 const profile = computed(() => profileQuery.data.value ?? null)
+const mfaStatusQuery = useMfaStatusQuery()
+const mfaEnabled = computed(() => mfaStatusQuery.data.value?.enabled ?? false)
 </script>
 
 <template>
@@ -67,7 +86,12 @@ const profile = computed(() => profileQuery.data.value ?? null)
       <DefaultGearCard />
       <!-- Keyed on the version: a refetch that changes it rebuilds the form, so its If-Match is the one it shows. -->
       <PrivacySettingsCard :key="profile.privacy.version" :privacy="profile.privacy" />
-      <DataTransferCard :user-id="profile.id" />
+      <DataTransferCard
+        :user-id="profile.id"
+        :has-local-password="profile.hasLocalPassword"
+        :mfa-enabled="mfaEnabled"
+        :resume="resume"
+      />
     </template>
   </div>
 </template>

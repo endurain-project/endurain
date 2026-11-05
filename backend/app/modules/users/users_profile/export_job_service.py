@@ -20,6 +20,9 @@ import core.config as core_config
 import core.database as core_database
 import core.exceptions as core_exceptions
 import core.logger as core_logger
+import modules.auth.account_security.integration_service as account_security_integration
+import modules.auth.identity_providers.constants as identity_providers_constants
+import modules.users.users.schema as users_schema
 import modules.users.users_profile.audit_actions as profile_audit_actions
 import modules.users.users_profile.constants as profile_constants
 import modules.users.users_profile.event_publishers as profile_event_publishers
@@ -39,13 +42,22 @@ _STREAM_CHUNK_BYTES = 64 * 1024
 
 def request_export(
     user_id: int,
+    session_id: str,
+    step_up: users_schema.StepUpVerification,
+    step_up_store: account_security_integration.StepUpStore,
     states: profile_export_state_store.ProfileExportStateStore,
     db: Session,
 ) -> profile_export_state_store.ProfileExportState:
     """Queue an export of the user's profile.
 
+    The caller must prove their identity again first, so a stolen access token cannot take the account's data.
+
     Args:
         user_id: The exporting user.
+        session_id: The caller's session.
+        step_up: Step-up verification payload (password or identity-provider sign-in, and an MFA code when MFA
+            is enabled).
+        step_up_store: Step-up lockout store.
         states: Shared store of the export's state.
         db: Database session.
 
@@ -53,9 +65,13 @@ def request_export(
         The export's initial state.
 
     Raises:
+        UnauthenticatedError: If step-up verification fails.
         ConflictError: When the user already has an export pending.
         ServiceUnavailableError: When there is no durable worker and the in-process pool is full.
     """
+    account_security_integration.verify_step_up(
+        step_up, user_id, session_id, identity_providers_constants.StepUpAction.PROFILE_EXPORT, step_up_store, db
+    )
     if not core_config.settings.JOBS_ENABLED:
         profile_transfer_pool.pool.require_capacity()
     if not states.begin(user_id):

@@ -20,12 +20,20 @@ describe('data transfer service requests', () => {
     vi.clearAllMocks()
   })
 
-  it('requestProfileExport queues the export with a POST', async () => {
+  it('requestProfileExport queues the export with a POST carrying the step-up credentials', async () => {
     const status = { status: 'queued', failure: null, size_bytes: null } as const
     vi.mocked(apiFetch).mockResolvedValue(status)
 
-    expect(await requestProfileExport()).toEqual(status)
-    expect(apiFetch).toHaveBeenCalledWith('/profile/export', { method: 'POST' })
+    expect(
+      await requestProfileExport({ currentPassword: 'secret', mfaCode: '123456', idpReauth: null }),
+    ).toEqual(status)
+    expect(apiFetch).toHaveBeenCalledWith('/profile/export', {
+      method: 'POST',
+      body: JSON.stringify({
+        current_password: 'secret',
+        mfa_code: '123456',
+      }),
+    })
   })
 
   it('downloadProfileExport requests the archive as a blob with no timeout', async () => {

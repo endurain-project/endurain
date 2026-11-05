@@ -1090,6 +1090,10 @@
       "exportQueued": "Export gestart. Je kunt deze pagina verlaten.",
       "exportError": "Gegevens konden niet worden geëxporteerd. Probeer het opnieuw.",
       "exportInProgress": "Er loopt al een export.",
+      "exportStepUp": {
+        "title": "Bevestig dat jij het bent",
+        "description": "De export kopieert al je gegevens, dus bevestig eerst je identiteit."
+      },
       "exportStatus": {
         "queued": "Wachten tot de export start…",
         "running": "Je export wordt voorbereid…",

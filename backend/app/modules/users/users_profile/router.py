@@ -409,25 +409,37 @@ def delete_my_account(
 @core_rate_limit.limiter.limit(core_rate_limit.SENSITIVE)
 def export_profile_data(
     request: Request,
+    step_up: users_schema.StepUpVerification,
     token_user_id: auth_dependencies.CurrentUserId,
+    token_session_id: auth_dependencies.CurrentSessionId,
+    step_up_store: Annotated[
+        auth_dependencies.StepUpStore,
+        Depends(auth_dependencies.get_step_up_attempts),
+    ],
     export_states: profile_dependencies.ProfileExportStateStoreDep,
     db: core_dependencies.DbSession,
 ) -> profile_schema.ProfileExportStatus:
     """Queue an export of all profile data as a ZIP archive.
 
-    A worker builds the archive; poll ``GET /profile/export`` for the outcome and fetch it from
-    ``GET /profile/export/download``.
+    Requires step-up verification: the current password (or, for an account without one, a fresh
+    identity-provider sign-in), and an MFA code when MFA is enabled. A worker builds the archive;
+    poll ``GET /profile/export`` for the outcome and fetch it from ``GET /profile/export/download``.
 
     Args:
         request: The incoming request, read by the rate limiter.
+        step_up: Step-up verification payload.
         token_user_id: User ID from access token.
+        token_session_id: Session ID from access token.
+        step_up_store: Step-up lockout store.
         export_states: Shared store of the export's state.
         db: Database session.
 
     Returns:
         The queued export's state.
     """
-    state = profile_export_job_service.request_export(token_user_id, export_states, db)
+    state = profile_export_job_service.request_export(
+        token_user_id, token_session_id, step_up, step_up_store, export_states, db
+    )
     return profile_schema.ProfileExportStatus.model_validate(state)
 
 

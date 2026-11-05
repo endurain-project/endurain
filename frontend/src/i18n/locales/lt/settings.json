@@ -1090,6 +1090,10 @@
       "exportQueued": "Eksportas pradėtas. Galite palikti šį puslapį.",
       "exportError": "Nepavyko eksportuoti jūsų duomenų. Bandykite dar kartą.",
       "exportInProgress": "Eksportas jau vyksta.",
+      "exportStepUp": {
+        "title": "Patvirtinkite, kad tai jūs",
+        "description": "Eksportas nukopijuoja visus jūsų duomenis, todėl pirmiausia patvirtinkite savo tapatybę."
+      },
       "exportStatus": {
         "queued": "Laukiama, kol prasidės eksportas…",
         "running": "Ruošiamas jūsų eksportas…",

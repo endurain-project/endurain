@@ -1090,6 +1090,10 @@
       "exportQueued": "Dışa aktarım başladı. Bu sayfadan ayrılabilirsiniz.",
       "exportError": "Verileriniz dışa aktarılamadı. Lütfen tekrar deneyin.",
       "exportInProgress": "Zaten devam eden bir dışa aktarım var.",
+      "exportStepUp": {
+        "title": "Kimliğinizi doğrulayın",
+        "description": "Dışa aktarım tüm verilerinizi kopyalar, bu yüzden önce kimliğinizi doğrulayın."
+      },
       "exportStatus": {
         "queued": "Dışa aktarımın başlaması bekleniyor…",
         "running": "Dışa aktarımınız hazırlanıyor…",

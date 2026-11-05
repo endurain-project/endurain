@@ -1090,6 +1090,10 @@
       "exportQueued": "Eksport algas. Võid sellelt lehelt lahkuda.",
       "exportError": "Sinu andmeid ei õnnestunud eksportida. Palun proovi uuesti.",
       "exportInProgress": "Eksport on juba käimas.",
+      "exportStepUp": {
+        "title": "Kinnita, et see oled sina",
+        "description": "Eksport kopeerib kõik sinu andmed, seega kinnita esmalt oma isik."
+      },
       "exportStatus": {
         "queued": "Ootame ekspordi algust…",
         "running": "Sinu ekspordi ettevalmistamine…",

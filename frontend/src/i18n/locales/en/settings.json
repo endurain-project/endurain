@@ -1090,6 +1090,10 @@
       "exportQueued": "Export started. You can leave this page.",
       "exportError": "Couldn't start the export. Please try again.",
       "exportInProgress": "An export is already in progress.",
+      "exportStepUp": {
+        "title": "Confirm it's you",
+        "description": "Exporting copies all of your data, so confirm your identity first."
+      },
       "exportStatus": {
         "queued": "Waiting for the export to start…",
         "running": "Preparing your export…",

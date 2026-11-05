@@ -1090,6 +1090,10 @@
       "exportQueued": "Exportul a început. Poți părăsi această pagină.",
       "exportError": "Nu am putut exporta datele tale. Te rugăm să încerci din nou.",
       "exportInProgress": "Un export este deja în desfășurare.",
+      "exportStepUp": {
+        "title": "Confirmă că ești tu",
+        "description": "Exportul copiază toate datele tale, așa că confirmă mai întâi identitatea."
+      },
       "exportStatus": {
         "queued": "Se așteaptă începerea exportului…",
         "running": "Se pregătește exportul…",

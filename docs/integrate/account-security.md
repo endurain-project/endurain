@@ -17,6 +17,7 @@ Certain sensitive account operations require the user to re-prove possession of 
 | Start IdP link | `POST /profile/identity-providers/{idp_id}/link` |
 | Remove IdP link | `POST /profile/identity-providers/{idp_id}/unlink` |
 | Delete own account | `POST /profile/delete-account` |
+| Export own profile data | `POST /profile/export` |
 
 Removing an identity provider link, yourself or as an administrator, also ends every session of that user that signed in through the provider, the caller's own session included when it did. A client holding such a session gets `401` on its next request and refreshes no further. The link responses carry no `idp_access_token_expires_at` or `idp_refresh_token_updated_at`: Endurain keeps provider tokens per session, not per link.
 
@@ -43,7 +44,7 @@ Account deletion and email change use the same fields. Password change (`POST /p
 
 ### Step-up for accounts without a password
 
-An account without a local password cannot prove a password, and MFA alone does not pass step-up for it. It must prove a fresh sign-in with an identity provider linked to the account. This covers API key creation, IdP link, IdP unlink, email change, account deletion, MFA enable, MFA disable and backup-code regeneration.
+An account without a local password cannot prove a password, and MFA alone does not pass step-up for it. It must prove a fresh sign-in with an identity provider linked to the account. This covers API key creation, IdP link, IdP unlink, email change, account deletion, profile export, MFA enable, MFA disable and backup-code regeneration.
 
 1. The sensitive request arrives without `idp_reauth`. The API answers `401` with problem type `urn:endurain:error:idp-reauth-required` and `WWW-Authenticate: Bearer error="insufficient_user_authentication", max_age="60"` ([RFC 9470](https://datatracker.ietf.org/doc/html/rfc9470)). A missing proof is not counted as a failed attempt.
 2. The client generates a PKCE verifier and starts the sign-in with `POST /profile/identity-providers/{idp_id}/step-up`:
@@ -56,7 +57,7 @@ An account without a local password cannot prove a password, and MFA alone does 
     }
     ```
 
-    `action` is one of `api_key_create`, `idp_link`, `idp_unlink`, `email_change`, `account_delete`, `mfa_enable`, `mfa_disable`, `mfa_backup_codes`. `redirect` must be a relative path; other values, including custom schemes, are refused. The response is `{"authorization_url": "..."}` and sets the HttpOnly, `SameSite=Lax` cookie `endurain_idp_binding`, scoped to the callback path, which ties the flow to that browser.
+    `action` is one of `api_key_create`, `idp_link`, `idp_unlink`, `email_change`, `account_delete`, `profile_export`, `mfa_enable`, `mfa_disable`, `mfa_backup_codes`. `redirect` must be a relative path; other values, including custom schemes, are refused. The response is `{"authorization_url": "..."}` and sets the HttpOnly, `SameSite=Lax` cookie `endurain_idp_binding`, scoped to the callback path, which ties the flow to that browser.
 3. The browser opens `authorization_url`. Endurain asks the provider for a new sign-in (`prompt=login`, `max_age=60`, PKCE). The callback verifies the ID token (signature, `iss`, `aud`, `azp`, `exp`/`iat` with 60 seconds of leeway, `nonce`) and requires `auth_time` to be no earlier than 60 seconds before the step-up started. The userinfo endpoint is not used, and the provider account must be the one linked to the user.
 4. The callback redirects to `redirect` with the result in the URL fragment: `#step_up_ticket=<ticket>` on success, or `#step_up_error=failed` or `#step_up_error=not_fresh`. `not_fresh` means the provider did not make the user sign in again.
 5. The client repeats the sensitive request with `idp_reauth`:
@@ -336,4 +337,4 @@ A response that carries a secret is sent with `Cache-Control: no-store` and `Pra
 
 ## Profile export
 
-`POST /profile/export` queues an export and answers `202`. `GET /profile/export` reports its state: `status` (`queued`, `running`, `completed` or `failed`), `failure`, `size_bytes` and `expires_at`. Once the export is `completed`, `expires_at` is the instant after which `GET /profile/export/download` stops working (two hours after completion). It is `null` for an export that is not completed, and `GET /profile/export` answers `null` once the state has expired. Request a new export then.
+`POST /profile/export` requires [step-up](#step-up-authentication) in its JSON body, so a stolen access token cannot take the account's data. It queues an export and answers `202`; a refused step-up answers `401` and queues nothing. `GET /profile/export` reports its state: `status` (`queued`, `running`, `completed` or `failed`), `failure`, `size_bytes` and `expires_at`. Once the export is `completed`, `expires_at` is the instant after which `GET /profile/export/download` stops working (two hours after completion). It is `null` for an export that is not completed, and `GET /profile/export` answers `null` once the state has expired. Request a new export then.
