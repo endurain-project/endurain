@@ -125,7 +125,7 @@ def stage_create_health_weight(
 
 
 def _stage_upsert_create(
-    user_id: int, health_weight: health_weight_schema.HealthWeightCreate, db: Session
+    user_id: int, health_weight: health_weight_schema.HealthWeightImport, db: Session
 ) -> health_weight_schema.HealthWeightRead:
     """Stage a new weight record from a provider or an archive, which carry their own BMI.
 
@@ -142,9 +142,10 @@ def _stage_upsert_create(
     Raises:
         ConflictError: If the user already has a record for that date.
     """
+    record: health_weight_schema.HealthWeightCreate = health_weight
     if health_weight.bmi is None:
-        health_weight = _with_bmi(health_weight, user_id, db)
-    return health_weight_crud.create_health_weight(user_id, health_weight, db)
+        record = _with_bmi(health_weight, user_id, db)
+    return health_weight_crud.create_health_weight(user_id, record, db)
 
 
 def stage_edit_health_weight(
@@ -184,7 +185,7 @@ def stage_edit_health_weight(
 def _stage_upsert_edit(
     user_id: int,
     health_weight_id: int,
-    health_weight: health_weight_schema.HealthWeightUpdate,
+    health_weight: health_weight_schema.HealthWeightImportUpdate,
     db: Session,
 ) -> health_weight_schema.HealthWeightRead:
     """Stage an update to a weight record from a provider or an archive, which carry their own BMI.
@@ -203,13 +204,14 @@ def _stage_upsert_edit(
     Raises:
         NotFoundError: If the user has no such record.
     """
+    changes: health_weight_schema.HealthWeightUpdate = health_weight
     if health_weight.bmi is None and health_weight.weight is not None:
-        health_weight = _with_bmi(health_weight, user_id, db)
-    return health_weight_crud.edit_health_weight(user_id, health_weight_id, health_weight, db, if_match="*")
+        changes = _with_bmi(health_weight, user_id, db)
+    return health_weight_crud.edit_health_weight(user_id, health_weight_id, changes, db, if_match="*")
 
 
 def stage_upsert_health_weight(
-    user_id: int, health_weight: health_weight_schema.HealthWeightCreate, db: Session
+    user_id: int, health_weight: health_weight_schema.HealthWeightImport, db: Session
 ) -> health_weight_schema.HealthWeightRead:
     """Stage a weight record, or an update to the user's record for the same date.
 
@@ -232,7 +234,7 @@ def stage_upsert_health_weight(
     return health_record_service.upsert_dated(
         user_id,
         health_weight,
-        health_weight_schema.HealthWeightUpdate,
+        health_weight_schema.HealthWeightImportUpdate,
         lambda day: health_weight_crud.get_health_weight_by_date_and_user_id(user_id, day, db),
         lambda record: _stage_upsert_create(user_id, record, db),
         lambda record_id, update: _stage_upsert_edit(user_id, record_id, update, db),
@@ -385,7 +387,7 @@ def restore_profile_records(
                     health_weight[field] = None
 
         try:
-            data = health_weight_schema.HealthWeightCreate(**health_weight)
+            data = health_weight_schema.HealthWeightImport(**health_weight)
         except ValidationError:
             logger.warning("Skipped an invalid health weight record")
             continue

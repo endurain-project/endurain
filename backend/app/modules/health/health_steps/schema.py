@@ -26,12 +26,11 @@ class HealthStepsBase(BaseModel):
     """Base model for health steps data.
 
     Represents the core attributes of a user's step count record, including the user reference,
-    date of the record, number of steps taken, and the source of the data.
+    date of the record and number of steps taken.
 
     Attributes:
         date (datetime_date | None): Calendar date of the steps record. Optional field.
         steps (StrictInt | None): Number of steps taken. Must be a non-negative integer. Optional field.
-        source (Source | None): Source of the steps data (e.g., device, API, manual entry). Optional field.
 
     Configuration:
         - from_attributes: Allows model to be populated from ORM objects.
@@ -42,7 +41,6 @@ class HealthStepsBase(BaseModel):
 
     date: datetime_date | None = Field(default=None, description="Calendar date of the steps")
     steps: StrictInt | None = Field(default=None, ge=0, le=MAX_STEPS, description="Number of steps taken")
-    source: Source | None = Field(default=None, description="Source of the steps data")
 
     model_config = ConfigDict(
         from_attributes=True,
@@ -74,10 +72,12 @@ class HealthStepsRead(HealthStepsBase):
     or referencing existing steps records in the database.
 
     Attributes:
+        source (Source | None): Source of the steps data (e.g., device, API, manual entry). Optional field.
         id (StrictInt): Unique identifier for the steps record to update. Required field.
         user_id (StrictInt): Foreign key reference to the user. Required field.
     """
 
+    source: Source | None = Field(default=None, description="Source of the steps data")
     id: StrictInt = Field(..., description="Unique identifier for the steps record to update")
     user_id: StrictInt = Field(..., description="Foreign key reference to the user")
     version: StrictInt = Field(default=1, ge=1, description="Optimistic-concurrency counter, also sent as the ETag")
@@ -91,3 +91,26 @@ class HealthStepsUpdate(core_partial_update.NotClearable, HealthStepsWrite):
     """
 
     not_clearable = ("date", "steps")
+
+
+class HealthStepsImport(HealthStepsCreate):
+    """Steps record written by the server itself: a provider sync or a profile import.
+
+    Unlike :class:`HealthStepsCreate` it carries the provenance, which a client never sets. Every
+    server-side writer of ``source`` takes ``Health<Kind>Import`` (create) or ``Health<Kind>ImportUpdate``.
+
+    Attributes:
+        source (Source | None): The source the record came from.
+    """
+
+    source: Source | None = Field(default=None, description="Source of the steps data")
+
+
+class HealthStepsImportUpdate(HealthStepsUpdate):
+    """Fields a provider sync or a profile import changes on a steps record, provenance included.
+
+    Attributes:
+        source (Source | None): The source the record came from.
+    """
+
+    source: Source | None = Field(default=None, description="Source of the steps data")

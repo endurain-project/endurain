@@ -141,7 +141,7 @@ def edit_health_water(
 
 
 def add_health_water_amount(
-    user_id: int, health_water_id: int, amount_ml: Decimal, source: str | None, db: Session
+    user_id: int, health_water_id: int, amount_ml: Decimal, db: Session
 ) -> health_water_schema.HealthWaterRead:
     """Stage an intake added to the total of a user's water intake record.
 
@@ -153,7 +153,6 @@ def add_health_water_amount(
         user_id: The record's owner.
         health_water_id: The record to add to.
         amount_ml: Water consumed, in milliliters.
-        source: Source of the intake.
         db: Database session.
 
     Returns:
@@ -172,7 +171,8 @@ def add_health_water_amount(
         )
         .values(
             amount_ml=health_water_models.HealthWater.amount_ml + amount_ml,
-            source=source,
+            # An intake a user adds makes the day's record theirs, whatever wrote it before.
+            source=None,
             # A bulk UPDATE skips the ORM's version bump, and an intake is a change another client must see.
             version=health_water_models.HealthWater.version + 1,
         )

@@ -40,7 +40,6 @@ class HealthWaterBase(BaseModel):
     Attributes:
         date: Calendar date of the water intake record.
         amount_ml: Water consumed in milliliters.
-        source: Source of the water intake data.
     """
 
     date: datetime_date | None = Field(
@@ -52,10 +51,6 @@ class HealthWaterBase(BaseModel):
         ge=0,
         le=MAX_WATER_ML,
         description="Water consumed in milliliters",
-    )
-    source: Source | None = Field(
-        default=None,
-        description="Source of the water intake data",
     )
 
     model_config = ConfigDict(
@@ -85,10 +80,15 @@ class HealthWaterRead(HealthWaterBase):
     """Schema for reading a water intake record.
 
     Attributes:
+        source: Source of the water intake data.
         id: Unique identifier for the water intake record.
         user_id: Foreign key reference to the user.
     """
 
+    source: Source | None = Field(
+        default=None,
+        description="Source of the water intake data",
+    )
     id: StrictInt = Field(
         ...,
         description=("Unique identifier for the water intake record"),
@@ -108,3 +108,26 @@ class HealthWaterUpdate(core_partial_update.NotClearable, HealthWaterWrite):
     """
 
     not_clearable = ("date", "amount_ml")
+
+
+class HealthWaterImport(HealthWaterCreate):
+    """Water record written by the server itself: a profile import.
+
+    Unlike :class:`HealthWaterCreate` it carries the provenance, which a client never sets. Every
+    server-side writer of ``source`` takes ``Health<Kind>Import`` (create) or ``Health<Kind>ImportUpdate``.
+
+    Attributes:
+        source: The source the record came from.
+    """
+
+    source: Source | None = Field(default=None, description="Source of the water intake data")
+
+
+class HealthWaterImportUpdate(HealthWaterUpdate):
+    """Fields a profile import changes on a water record, provenance included.
+
+    Attributes:
+        source: The source the record came from.
+    """
+
+    source: Source | None = Field(default=None, description="Source of the water intake data")

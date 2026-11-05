@@ -103,13 +103,14 @@ def create_health_poop(
     Raises:
         ConflictError: If the insert violates a database constraint.
     """
-    created = health_poop_crud.create_health_poop(user_id, health_poop, db)
+    stored = health_poop_schema.HealthPoopImport(**health_poop.model_dump(), source=health_poop_schema.Source.MANUAL)
+    created = health_poop_crud.create_health_poop(user_id, stored, db)
     db.commit()
     logger.info("Stored a bowel movement record", extra=core_logger.context(user_id=user_id))
     return created
 
 
-def stage_import_health_poop(user_id: int, health_poop: health_poop_schema.HealthPoopCreate, db: Session) -> bool:
+def stage_import_health_poop(user_id: int, health_poop: health_poop_schema.HealthPoopImport, db: Session) -> bool:
     """Stage an imported poop record unless the user already has one at that time.
 
     Args:
@@ -229,7 +230,7 @@ def restore_profile_records(
     """
     return health_record_service.restore_archived_records(
         records,
-        health_poop_schema.HealthPoopCreate,
+        health_poop_schema.HealthPoopImport,
         stage_import_health_poop,
         user_id,
         db,

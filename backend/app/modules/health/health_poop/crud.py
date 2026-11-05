@@ -134,7 +134,7 @@ def health_poop_exists_at(user_id: int, date_time: datetime, db: Session) -> boo
 
 
 def create_health_poop(
-    user_id: int, health_poop: health_poop_schema.HealthPoopCreate, db: Session
+    user_id: int, health_poop: health_poop_schema.HealthPoopImport, db: Session
 ) -> health_poop_schema.HealthPoopRead:
     """Stage a new poop record for a user.
 

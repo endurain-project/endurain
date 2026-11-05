@@ -14,6 +14,12 @@ class TestHealthFastingCreateSchema:
         data = HealthFastingCreate(fast_start_time=datetime(2024, 1, 15, 8, 0, 0))
         assert data.fast_start_time is not None
         assert data.status == "in_progress"
+        assert not hasattr(data, "source")
+
+    def test_an_imported_session_without_a_source_is_manual(self):
+        from modules.health.health_fasting.schema import HealthFastingImport
+
+        data = HealthFastingImport(fast_start_time=datetime(2024, 1, 15, 8, 0, 0))
         assert data.source == "manual"
 
     def test_missing_start_time(self):

@@ -166,7 +166,7 @@ class TestFailuresPropagate:
 
 class TestStore:
     def test_the_record_is_handed_to_the_upsert_and_committed(self):
-        record = health_utils.health_steps_schema.HealthStepsBase(
+        record = health_utils.health_steps_schema.HealthStepsImport(
             date="2026-09-29", steps=10, source=health_utils.health_steps_schema.Source.GARMIN
         )
         upsert = MagicMock()
@@ -176,7 +176,6 @@ class TestStore:
                 record,
                 label="Daily steps",
                 upsert=upsert,
-                create_schema=health_utils.health_steps_schema.HealthStepsCreate,
             )
 
         assert stored is True
@@ -185,7 +184,7 @@ class TestStore:
         session_local.return_value.__enter__.return_value.commit.assert_called_once()
 
     def test_a_kept_record_is_not_written(self):
-        record = health_utils.health_steps_schema.HealthStepsBase(
+        record = health_utils.health_steps_schema.HealthStepsImport(
             date="2026-09-29", steps=10, source=health_utils.health_steps_schema.Source.GARMIN
         )
         upsert = MagicMock()
@@ -195,7 +194,6 @@ class TestStore:
                 record,
                 label="Daily steps",
                 upsert=upsert,
-                create_schema=health_utils.health_steps_schema.HealthStepsCreate,
                 keep_existing=lambda *_: True,
             )
 

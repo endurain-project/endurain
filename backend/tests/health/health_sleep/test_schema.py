@@ -273,10 +273,10 @@ class TestSourceEnum:
 
     def test_source_enum_use_in_schema(self):
         """
-        Test Source enum can be used in HealthSleepBase schema.
+        Test Source enum can be used in HealthSleepRead schema.
         """
         # Arrange & Act
-        health_sleep = health_sleep_schema.HealthSleepBase(source=health_sleep_schema.Source.GARMIN)
+        health_sleep = health_sleep_schema.HealthSleepRead(id=1, user_id=1, source=health_sleep_schema.Source.GARMIN)
 
         # Assert
         assert health_sleep.source == "garmin"

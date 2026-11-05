@@ -45,7 +45,6 @@ class HealthWeightBase(BaseModel):
         physique_rating (StrictInt | None): Physique rating score. Must be greater than or equal to 0.
         visceral_fat (StrictFloat | None): Visceral fat percentage. Must be between 0 and 100.
         metabolic_age (StrictInt | None): Metabolic age in years. Must be between 0 and 120.
-        source (Source | None): The source or device from which the weight data was obtained.
 
     Model Configuration:
         - Populates from ORM attributes
@@ -69,7 +68,6 @@ class HealthWeightBase(BaseModel):
     physique_rating: StrictInt | None = Field(default=None, ge=0, description="Physique rating")
     visceral_fat: StrictFloat | None = Field(default=None, ge=0, le=100, description="Visceral fat")
     metabolic_age: StrictInt | None = Field(default=None, ge=0, le=120, description="Metabolic age")
-    source: Source | None = Field(default=None, description="Source of the weight data")
 
     model_config = ConfigDict(
         from_attributes=True,
@@ -101,10 +99,12 @@ class HealthWeightRead(HealthWeightBase):
     and referencing weight records in the system.
 
     Attributes:
+        source (Source | None): The source or device from which the weight data was obtained.
         id (StrictInt): Unique identifier for the weight record to update.
         user_id (StrictInt): Foreign key reference to the user.
     """
 
+    source: Source | None = Field(default=None, description="Source of the weight data")
     id: StrictInt = Field(..., description="Unique identifier for the weight record to update")
     user_id: StrictInt = Field(..., description="Foreign key reference to the user")
     version: StrictInt = Field(default=1, ge=1, description="Optimistic-concurrency counter, also sent as the ETag")
@@ -118,3 +118,26 @@ class HealthWeightUpdate(core_partial_update.NotClearable, HealthWeightWrite):
     """
 
     not_clearable = ("date", "weight")
+
+
+class HealthWeightImport(HealthWeightCreate):
+    """Weight record written by the server itself: a provider sync or a profile import.
+
+    Unlike :class:`HealthWeightCreate` it carries the provenance, which a client never sets. Every
+    server-side writer of ``source`` takes ``Health<Kind>Import`` (create) or ``Health<Kind>ImportUpdate``.
+
+    Attributes:
+        source (Source | None): The source the record came from.
+    """
+
+    source: Source | None = Field(default=None, description="Source of the weight data")
+
+
+class HealthWeightImportUpdate(HealthWeightUpdate):
+    """Fields a provider sync or a profile import changes on a weight record, provenance included.
+
+    Attributes:
+        source (Source | None): The source the record came from.
+    """
+
+    source: Source | None = Field(default=None, description="Source of the weight data")

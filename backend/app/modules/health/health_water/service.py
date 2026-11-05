@@ -116,13 +116,11 @@ def stage_add_health_water(
             )
             if existing is None:
                 raise
-    return health_water_crud.add_health_water_amount(
-        user_id, existing.id, Decimal(str(health_water.amount_ml)), health_water.source, db
-    )
+    return health_water_crud.add_health_water_amount(user_id, existing.id, Decimal(str(health_water.amount_ml)), db)
 
 
 def stage_upsert_health_water(
-    user_id: int, health_water: health_water_schema.HealthWaterCreate, db: Session
+    user_id: int, health_water: health_water_schema.HealthWaterImport, db: Session
 ) -> health_water_schema.HealthWaterRead:
     """Stage a water record, or replace the amount of the user's record for the same date.
 
@@ -146,7 +144,7 @@ def stage_upsert_health_water(
     return health_record_service.upsert_dated(
         user_id,
         health_water,
-        health_water_schema.HealthWaterUpdate,
+        health_water_schema.HealthWaterImportUpdate,
         lambda day: health_water_crud.get_health_water_by_date_and_user_id(user_id, day, db),
         lambda record: health_water_crud.create_health_water(user_id, record, db),
         lambda record_id, update: stage_edit_health_water(user_id, record_id, update, db, if_match="*"),
@@ -271,7 +269,7 @@ def restore_profile_records(
     """
     return health_record_service.restore_archived_records(
         records,
-        health_water_schema.HealthWaterCreate,
+        health_water_schema.HealthWaterImport,
         stage_upsert_health_water,
         user_id,
         db,

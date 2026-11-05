@@ -41,7 +41,6 @@ class TestHealthStepsSchema:
         # Assert
         assert health_steps.date is None
         assert health_steps.steps is None
-        assert health_steps.source is None
 
     def test_health_steps_with_none_values(self):
         """
@@ -168,10 +167,10 @@ class TestSourceEnum:
 
     def test_source_enum_use_in_schema(self):
         """
-        Test Source enum can be used in HealthStepsBase schema.
+        Test Source enum can be used in HealthStepsRead schema.
         """
         # Arrange & Act
-        health_steps = health_steps_schema.HealthStepsBase(source=health_steps_schema.Source.GARMIN)
+        health_steps = health_steps_schema.HealthStepsRead(id=1, user_id=1, source=health_steps_schema.Source.GARMIN)
 
         # Assert
         assert health_steps.source == "garmin"
@@ -181,7 +180,7 @@ class TestSourceEnum:
         Test Source enum accepts string value directly.
         """
         # Arrange & Act
-        health_steps = health_steps_schema.HealthStepsBase(source="garmin")
+        health_steps = health_steps_schema.HealthStepsRead(id=1, user_id=1, source="garmin")
 
         # Assert
         assert health_steps.source == "garmin"
@@ -192,7 +191,7 @@ class TestSourceEnum:
         """
         # Arrange & Act & Assert
         with pytest.raises(ValidationError) as exc_info:
-            health_steps_schema.HealthStepsBase(source="invalid")
+            health_steps_schema.HealthStepsRead(id=1, user_id=1, source="invalid")
 
         assert "source" in str(exc_info.value)
 

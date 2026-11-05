@@ -244,7 +244,9 @@ def create_health_fasting(
 
     created = health_fasting_crud.create_health_fasting(
         user_id,
-        health_fasting,
+        health_fasting_schema.HealthFastingImport(
+            **health_fasting.model_dump(), source=health_fasting_schema.Source.MANUAL
+        ),
         db,
         actual_duration_seconds=_duration_seconds(health_fasting.fast_start_time, health_fasting.fast_end_time),
     )
@@ -254,7 +256,7 @@ def create_health_fasting(
 
 
 def stage_import_health_fasting(
-    user_id: int, health_fasting: health_fasting_schema.HealthFastingCreate, db: Session
+    user_id: int, health_fasting: health_fasting_schema.HealthFastingImport, db: Session
 ) -> bool:
     """Stage an imported fasting session unless the user already has it.
 
@@ -439,7 +441,7 @@ def restore_profile_records(
     """
     return health_record_service.restore_archived_records(
         records,
-        health_fasting_schema.HealthFastingCreate,
+        health_fasting_schema.HealthFastingImport,
         stage_import_health_fasting,
         user_id,
         db,

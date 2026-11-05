@@ -26,7 +26,7 @@ def get_health_steps_by_date(user_id: int, date: str, db: Session) -> health_ste
 
 
 def upsert_health_steps(
-    user_id: int, health_steps: health_steps_schema.HealthStepsCreate, db: Session
+    user_id: int, health_steps: health_steps_schema.HealthStepsImport, db: Session
 ) -> health_steps_schema.HealthStepsRead:
     """Stage a steps record for a user, or an update to their record for the same date.
 

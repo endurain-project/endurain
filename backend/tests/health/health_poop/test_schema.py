@@ -12,6 +12,12 @@ class TestHealthPoopCreateSchema:
 
         data = HealthPoopCreate(date_time=datetime(2024, 1, 15, 10, 0, 0))
         assert data.date_time is not None
+        assert not hasattr(data, "source")
+
+    def test_an_imported_record_without_a_source_is_manual(self):
+        from modules.health.health_poop.schema import HealthPoopImport
+
+        data = HealthPoopImport(date_time=datetime(2024, 1, 15, 10, 0, 0))
         assert data.source == "manual"
 
     def test_missing_date_time(self):

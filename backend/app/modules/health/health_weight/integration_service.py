@@ -44,7 +44,7 @@ def get_health_weight_by_date(user_id: int, date: str, db: Session) -> health_we
 
 
 def upsert_health_weight(
-    user_id: int, health_weight: health_weight_schema.HealthWeightCreate, db: Session
+    user_id: int, health_weight: health_weight_schema.HealthWeightImport, db: Session
 ) -> health_weight_schema.HealthWeightRead:
     """Stage a weight record for a user, or an update to their record for the same date.
 

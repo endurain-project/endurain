@@ -155,9 +155,7 @@ class HealthSleepBase(BaseModel):
         sleep_score_overall (StrictInt | None): Overall sleep score (0-100).
         sleep_score_duration (SleepScore | None): Sleep duration score.
         sleep_score_quality (SleepScore | None): Sleep quality score.
-        garminconnect_sleep_id (StrictStr | None): Garmin Connect sleep record ID.
         sleep_stages (list[SleepStage] | None): List of sleep stages.
-        source (Source | None): Source of the sleep data.
         hrv_status (HRVStatus | None): Heart rate variability status.
         resting_heart_rate (StrictInt | None): Resting heart rate (20-220 bpm).
         avg_skin_temp_deviation (StrictFloat | None): Average skin temperature deviation.
@@ -215,11 +213,7 @@ class HealthSleepBase(BaseModel):
     sleep_score_overall: StrictInt | None = Field(default=None, ge=0, le=100, description="Overall sleep score (0-100)")
     sleep_score_duration: SleepScore | None = Field(default=None, description="Sleep duration score")
     sleep_score_quality: SleepScore | None = Field(default=None, description="Sleep quality score")
-    garminconnect_sleep_id: StrictStr | None = Field(
-        default=None, min_length=1, description="Garmin Connect sleep record ID"
-    )
     sleep_stages: Sequence[HealthSleepStage] | None = Field(default=None, description="List of sleep stages")
-    source: Source | None = Field(default=None, description="Source of the sleep data")
     hrv_status: HRVStatus | None = Field(default=None, description="Heart rate variability status")
     resting_heart_rate: StrictInt | None = Field(default=None, ge=20, le=220, description="Resting heart rate")
     avg_skin_temp_deviation: StrictFloat | None = Field(default=None, description="Average skin temperature deviation")
@@ -297,10 +291,16 @@ class HealthSleepRead(HealthSleepBase):
     or referencing existing sleep records in the database.
 
     Attributes:
+        garminconnect_sleep_id (StrictStr | None): Garmin Connect sleep record ID.
+        source (Source | None): Source of the sleep data.
         user_id (StrictInt): Foreign key reference to the user.
         id (StrictInt): Unique identifier for the sleep record to update or retrieve.
     """
 
+    garminconnect_sleep_id: StrictStr | None = Field(
+        default=None, min_length=1, description="Garmin Connect sleep record ID"
+    )
+    source: Source | None = Field(default=None, description="Source of the sleep data")
     id: StrictInt = Field(..., description="Unique identifier for the sleep record to update")
     user_id: StrictInt = Field(..., description="Foreign key reference to the user")
     version: StrictInt = Field(default=1, ge=1, description="Optimistic-concurrency counter, also sent as the ETag")
@@ -314,3 +314,34 @@ class HealthSleepUpdate(core_partial_update.NotClearable, HealthSleepWrite):
     """
 
     not_clearable = ("date",)
+
+
+class HealthSleepImport(HealthSleepCreate):
+    """Sleep record written by the server itself: a provider sync or a profile import.
+
+    Unlike :class:`HealthSleepCreate` it carries the provenance, which a client never sets. Every
+    server-side writer of ``source`` takes ``Health<Kind>Import`` (create) or ``Health<Kind>ImportUpdate``.
+
+    Attributes:
+        garminconnect_sleep_id (StrictStr | None): Garmin Connect sleep record ID.
+        source (Source | None): The source the record came from.
+    """
+
+    garminconnect_sleep_id: StrictStr | None = Field(
+        default=None, min_length=1, description="Garmin Connect sleep record ID"
+    )
+    source: Source | None = Field(default=None, description="Source of the sleep data")
+
+
+class HealthSleepImportUpdate(HealthSleepUpdate):
+    """Fields a provider sync or a profile import changes on a sleep record, provenance included.
+
+    Attributes:
+        garminconnect_sleep_id (StrictStr | None): Garmin Connect sleep record ID.
+        source (Source | None): The source the record came from.
+    """
+
+    garminconnect_sleep_id: StrictStr | None = Field(
+        default=None, min_length=1, description="Garmin Connect sleep record ID"
+    )
+    source: Source | None = Field(default=None, description="Source of the sleep data")

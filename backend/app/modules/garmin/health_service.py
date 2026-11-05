@@ -63,13 +63,12 @@ class _SourcedRecord(Protocol):
         ...
 
 
-def _store[CreateT: BaseModel](
+def _store[RecordT: BaseModel](
     user_id: int,
-    record: BaseModel,
+    record: RecordT,
     *,
     label: str,
-    upsert: Callable[[int, CreateT, Session], object],
-    create_schema: type[CreateT],
+    upsert: Callable[[int, RecordT, Session], object],
     keep_existing: Callable[[int, str, Session], bool] | None = None,
 ) -> bool:
     """Store a health record in a short session of its own: create the day's record, or update it.
@@ -79,7 +78,6 @@ def _store[CreateT: BaseModel](
         record: The record built from Garmin Connect, carrying its ``date``.
         label: The kind of record, for the log.
         upsert: Stages the record, or an update to the owner's record for its date.
-        create_schema: The schema ``upsert`` takes.
         keep_existing: Tells whether the owner's record for a date must be left as it is.
 
     Returns:
@@ -93,7 +91,7 @@ def _store[CreateT: BaseModel](
                 extra=core_logger.context(user_id=user_id, record=label, date=fields["date"]),
             )
             return False
-        upsert(user_id, create_schema(**fields), db)
+        upsert(user_id, record, db)
         db.commit()
     logger.debug(
         "Garmin Connect health record stored",
@@ -166,14 +164,17 @@ def fetch_and_process_bc_by_dates(
     )
     count_processed = 0
     for bc in garmin_bc["dateWeightList"]:
+        if bc["weight"] is None:
+            continue
+
         # A metabolic age outside 1-150 years is a bad reading
         metabolic_age = bc.get("metabolicAge")
         if metabolic_age is not None and (metabolic_age < 1 or metabolic_age > 150):
             metabolic_age = None
 
-        health_weight = health_weight_schema.HealthWeightBase(
+        health_weight = health_weight_schema.HealthWeightImport(
             date=bc["calendarDate"],
-            weight=bc["weight"] / 1000 if bc["weight"] is not None else None,
+            weight=bc["weight"] / 1000,
             bmi=bc["bmi"],
             body_fat=bc["bodyFat"],
             body_water=bc["bodyWater"],
@@ -189,7 +190,6 @@ def fetch_and_process_bc_by_dates(
             health_weight,
             label="Body composition",
             upsert=health_weight_integration.upsert_health_weight,
-            create_schema=health_weight_schema.HealthWeightCreate,
             keep_existing=keep_existing,
         )
         count_processed += stored
@@ -230,7 +230,7 @@ def fetch_and_process_ds_by_dates(
         if ds["totalSteps"] is None:
             continue
 
-        health_steps = health_steps_schema.HealthStepsBase(
+        health_steps = health_steps_schema.HealthStepsImport(
             date=ds["calendarDate"],
             steps=ds["totalSteps"],
             source=health_steps_schema.Source.GARMIN,
@@ -240,14 +240,13 @@ def fetch_and_process_ds_by_dates(
             health_steps,
             label="Daily steps",
             upsert=health_steps_integration.upsert_health_steps,
-            create_schema=health_steps_schema.HealthStepsCreate,
             keep_existing=keep_existing,
         )
         count_processed += stored
     return count_processed
 
 
-def _parse_sleep_stages(sleep_levels: list[dict[str, Any]] | None) -> list[health_sleep_schema.HealthSleepStage]:
+def _parse_sleep_stages(sleep_levels: list[dict[str, Any]] | None) -> list[health_sleep_schema.HealthSleepStageWrite]:
     """Build the sleep stages a Garmin Connect ``sleepLevels`` payload names.
 
     Args:
@@ -272,7 +271,7 @@ def _parse_sleep_stages(sleep_levels: list[dict[str, Any]] | None) -> list[healt
         end_gmt = datetime.strptime(end_gmt_str, "%Y-%m-%dT%H:%M:%S.%f").replace(tzinfo=UTC) if end_gmt_str else None
 
         sleep_stages.append(
-            health_sleep_schema.HealthSleepStage(
+            health_sleep_schema.HealthSleepStageWrite(
                 stage_type=stage_type,
                 start_time_gmt=start_gmt,
                 end_time_gmt=end_gmt,
@@ -282,7 +281,7 @@ def _parse_sleep_stages(sleep_levels: list[dict[str, Any]] | None) -> list[healt
     return sleep_stages
 
 
-def _build_sleep(garmin_sleep: dict[str, Any], sleep_dto: dict[str, Any]) -> health_sleep_schema.HealthSleepBase:
+def _build_sleep(garmin_sleep: dict[str, Any], sleep_dto: dict[str, Any]) -> health_sleep_schema.HealthSleepImport:
     """Build the sleep record a day's Garmin Connect sleep payload describes.
 
     Args:
@@ -307,7 +306,7 @@ def _build_sleep(garmin_sleep: dict[str, Any], sleep_dto: dict[str, Any]) -> hea
     sleep_scores = sleep_dto.get("sleepScores", {})
     hrv_status = garmin_sleep.get("hrvStatus")
 
-    return health_sleep_schema.HealthSleepBase(
+    return health_sleep_schema.HealthSleepImport(
         date=sleep_dto["calendarDate"],
         sleep_start_time_gmt=_epoch_ms_to_utc(sleep_dto.get("sleepStartTimestampGMT")),
         sleep_end_time_gmt=_epoch_ms_to_utc(sleep_dto.get("sleepEndTimestampGMT")),
@@ -404,7 +403,6 @@ def fetch_and_process_sleep_by_dates(
             _build_sleep(garmin_sleep, sleep_dto),
             label="Sleep data",
             upsert=health_sleep_integration.upsert_health_sleep,
-            create_schema=health_sleep_schema.HealthSleepCreate,
             keep_existing=_is_other_source_sleep,
         )
         count_processed += stored

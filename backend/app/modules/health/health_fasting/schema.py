@@ -85,7 +85,6 @@ class HealthFastingBase(BaseModel):
         fasting_type: Type of fasting protocol.
         status: Current status of the fasting session.
         notes: Optional notes about the fasting session.
-        source: Data source for the record.
     """
 
     fast_start_time: datetime | None = Field(
@@ -114,10 +113,6 @@ class HealthFastingBase(BaseModel):
         default=None,
         max_length=500,
         description="Optional notes about the fasting session",
-    )
-    source: Source | None = Field(
-        default=None,
-        description="Data source for the record",
     )
 
     model_config = ConfigDict(
@@ -161,8 +156,6 @@ class HealthFastingCreate(HealthFastingWrite):
         """
         if self.status is None:
             self.status = FastingStatus.IN_PROGRESS
-        if self.source is None:
-            self.source = Source.MANUAL
         return self
 
 
@@ -170,11 +163,16 @@ class HealthFastingRead(HealthFastingBase):
     """Schema for reading a fasting record.
 
     Attributes:
+        source: Data source for the record.
         id: Unique identifier for the fasting record.
         user_id: Foreign key reference to the user.
         actual_duration_seconds: Seconds between the start and end time, derived by the server.
     """
 
+    source: Source | None = Field(
+        default=None,
+        description="Data source for the record",
+    )
     id: StrictInt = Field(
         ...,
         description="Unique identifier for the fasting record",
@@ -203,6 +201,31 @@ class HealthFastingUpdate(core_partial_update.NotClearable, HealthFastingWrite):
     """
 
     not_clearable = ("fast_start_time", "status")
+
+
+class HealthFastingImport(HealthFastingCreate):
+    """Fasting session written by the server itself: a profile import, or a client's session with its source.
+
+    Unlike :class:`HealthFastingCreate` it carries the provenance, which a client never sets. Every
+    server-side writer of ``source`` takes ``Health<Kind>Import`` (create) or ``Health<Kind>ImportUpdate``. A
+    session without a source is a manual one.
+
+    Attributes:
+        source: The source the session came from; ``manual`` when none is given.
+    """
+
+    source: Source | None = Field(default=None, description="Data source for the record")
+
+    @model_validator(mode="after")
+    def set_default_source(self) -> "HealthFastingImport":
+        """Make a session without a source a manual one.
+
+        Returns:
+            The validated model instance with the source set.
+        """
+        if self.source is None:
+            self.source = Source.MANUAL
+        return self
 
 
 class HealthFastingComplete(BaseModel):

@@ -85,7 +85,6 @@ class HealthPoopBase(BaseModel):
         bristol_type: Bristol Stool Scale type (1-7).
         color: Stool color description.
         notes: Optional notes about the bowel movement.
-        source: Source of the data.
     """
 
     date_time: datetime | None = Field(
@@ -104,10 +103,6 @@ class HealthPoopBase(BaseModel):
         default=None,
         max_length=500,
         description=("Optional notes about the bowel movement"),
-    )
-    source: Source | None = Field(
-        default=None,
-        description="Source of the data",
     )
 
     model_config = ConfigDict(
@@ -130,7 +125,7 @@ class HealthPoopWrite(HealthPoopBase):
 class HealthPoopCreate(HealthPoopWrite):
     """Schema for creating a new poop record.
 
-    Requires date_time and sets defaults for source.
+    Requires date_time.
     """
 
     date_time: core_types.RecordDateTime = Field(
@@ -138,28 +133,20 @@ class HealthPoopCreate(HealthPoopWrite):
         description="Date and time of the bowel movement",
     )
 
-    @model_validator(mode="after")
-    def set_defaults_and_validate(
-        self,
-    ) -> "HealthPoopCreate":
-        """Set the defaults of the fields left out.
-
-        Returns:
-            The validated model instance with defaults set.
-        """
-        if self.source is None:
-            self.source = Source.MANUAL
-        return self
-
 
 class HealthPoopRead(HealthPoopBase):
     """Schema for reading a poop record.
 
     Attributes:
+        source: Source of the data.
         id: Unique identifier for the poop record.
         user_id: Foreign key reference to the user.
     """
 
+    source: Source | None = Field(
+        default=None,
+        description="Source of the data",
+    )
     id: StrictInt = Field(
         ...,
         description=("Unique identifier for the poop record"),
@@ -183,3 +170,28 @@ class HealthPoopUpdate(core_partial_update.NotClearable, HealthPoopWrite):
     """
 
     not_clearable = ("date_time",)
+
+
+class HealthPoopImport(HealthPoopCreate):
+    """Poop record written by the server itself: a profile import, or a client's record with its assigned source.
+
+    Unlike :class:`HealthPoopCreate` it carries the provenance, which a client never sets. Every
+    server-side writer of ``source`` takes ``Health<Kind>Import`` (create) or ``Health<Kind>ImportUpdate``. A record
+    without a source is a manual one.
+
+    Attributes:
+        source: The source the record came from; ``manual`` when none is given.
+    """
+
+    source: Source | None = Field(default=None, description="Source of the data")
+
+    @model_validator(mode="after")
+    def set_default_source(self) -> "HealthPoopImport":
+        """Make a record without a source a manual one.
+
+        Returns:
+            The validated model instance with the source set.
+        """
+        if self.source is None:
+            self.source = Source.MANUAL
+        return self

@@ -7441,8 +7441,6 @@ export interface components {
              * @description Optional notes about the fasting session
              */
             notes?: string | null;
-            /** @description Data source for the record */
-            source?: components["schemas"]["modules__health__health_fasting__schema__Source"] | null;
             /** @description Current status of the fasting session */
             status?: components["schemas"]["FastingStatus"] | null;
             /**
@@ -7495,6 +7493,7 @@ export interface components {
          * @description Schema for reading a fasting record.
          *
          *     Attributes:
+         *         source: Data source for the record.
          *         id: Unique identifier for the fasting record.
          *         user_id: Foreign key reference to the user.
          *         actual_duration_seconds: Seconds between the start and end time, derived by the server.
@@ -7618,8 +7617,6 @@ export interface components {
              * @description Optional notes about the fasting session
              */
             notes?: string | null;
-            /** @description Data source for the record */
-            source?: components["schemas"]["modules__health__health_fasting__schema__Source"] | null;
             /** @description Current status of the fasting session */
             status?: components["schemas"]["FastingStatus"] | null;
             /**
@@ -7632,7 +7629,7 @@ export interface components {
          * HealthPoopCreate
          * @description Schema for creating a new poop record.
          *
-         *     Requires date_time and sets defaults for source.
+         *     Requires date_time.
          */
         HealthPoopCreate: {
             /** @description Bristol Stool Scale type (1-7) */
@@ -7650,8 +7647,6 @@ export interface components {
              * @description Optional notes about the bowel movement
              */
             notes?: string | null;
-            /** @description Source of the data */
-            source?: components["schemas"]["modules__health__health_poop__schema__Source"] | null;
         };
         /**
          * HealthPoopDashboard
@@ -7672,6 +7667,7 @@ export interface components {
          * @description Schema for reading a poop record.
          *
          *     Attributes:
+         *         source: Source of the data.
          *         id: Unique identifier for the poop record.
          *         user_id: Foreign key reference to the user.
          */
@@ -7732,8 +7728,6 @@ export interface components {
              * @description Optional notes about the bowel movement
              */
             notes?: string | null;
-            /** @description Source of the data */
-            source?: components["schemas"]["modules__health__health_poop__schema__Source"] | null;
         };
         /**
          * HealthResponse
@@ -7824,11 +7818,6 @@ export interface components {
              * @description Duration of deep sleep in seconds
              */
             deep_sleep_seconds?: number | null;
-            /**
-             * Garminconnect Sleep Id
-             * @description Garmin Connect sleep record ID
-             */
-            garminconnect_sleep_id?: string | null;
             /**
              * Highest Respiration
              * @description Highest respiration rate
@@ -7926,8 +7915,6 @@ export interface components {
             sleep_start_time_local?: string | null;
             /** @description Sleep stress score */
             sleep_stress_score?: components["schemas"]["SleepScore"] | null;
-            /** @description Source of the sleep data */
-            source?: components["schemas"]["modules__health__health_sleep__schema__Source"] | null;
             /**
              * Total Sleep Seconds
              * @description Total duration of sleep in seconds
@@ -7979,6 +7966,8 @@ export interface components {
          *     or referencing existing sleep records in the database.
          *
          *     Attributes:
+         *         garminconnect_sleep_id (StrictStr | None): Garmin Connect sleep record ID.
+         *         source (Source | None): Source of the sleep data.
          *         user_id (StrictInt): Foreign key reference to the user.
          *         id (StrictInt): Unique identifier for the sleep record to update or retrieve.
          */
@@ -8286,11 +8275,6 @@ export interface components {
              */
             deep_sleep_seconds?: number | null;
             /**
-             * Garminconnect Sleep Id
-             * @description Garmin Connect sleep record ID
-             */
-            garminconnect_sleep_id?: string | null;
-            /**
              * Highest Respiration
              * @description Highest respiration rate
              */
@@ -8387,8 +8371,6 @@ export interface components {
             sleep_start_time_local?: string | null;
             /** @description Sleep stress score */
             sleep_stress_score?: components["schemas"]["SleepScore"] | null;
-            /** @description Source of the sleep data */
-            source?: components["schemas"]["modules__health__health_sleep__schema__Source"] | null;
             /**
              * Total Sleep Seconds
              * @description Total duration of sleep in seconds
@@ -8412,8 +8394,6 @@ export interface components {
              * @description Calendar date of the steps
              */
             date?: string | null;
-            /** @description Source of the steps data */
-            source?: components["schemas"]["modules__health__health_steps__schema__Source"] | null;
             /**
              * Steps
              * @description Number of steps taken
@@ -8442,6 +8422,7 @@ export interface components {
          *     or referencing existing steps records in the database.
          *
          *     Attributes:
+         *         source (Source | None): Source of the steps data (e.g., device, API, manual entry). Optional field.
          *         id (StrictInt): Unique identifier for the steps record to update. Required field.
          *         user_id (StrictInt): Foreign key reference to the user. Required field.
          */
@@ -8488,8 +8469,6 @@ export interface components {
              * @description Calendar date of the steps
              */
             date?: string | null;
-            /** @description Source of the steps data */
-            source?: components["schemas"]["modules__health__health_steps__schema__Source"] | null;
             /**
              * Steps
              * @description Number of steps taken
@@ -8609,8 +8588,6 @@ export interface components {
              * @description Calendar date of the water intake
              */
             date?: string | null;
-            /** @description Source of the water intake data */
-            source?: components["schemas"]["modules__health__health_water__schema__Source"] | null;
         };
         /**
          * HealthWaterDashboard
@@ -8631,6 +8608,7 @@ export interface components {
          * @description Schema for reading a water intake record.
          *
          *     Attributes:
+         *         source: Source of the water intake data.
          *         id: Unique identifier for the water intake record.
          *         user_id: Foreign key reference to the user.
          */
@@ -8682,8 +8660,6 @@ export interface components {
              * @description Calendar date of the water intake
              */
             date?: string | null;
-            /** @description Source of the water intake data */
-            source?: components["schemas"]["modules__health__health_water__schema__Source"] | null;
         };
         /**
          * HealthWeightCreate
@@ -8732,8 +8708,6 @@ export interface components {
              * @description Physique rating
              */
             physique_rating?: number | null;
-            /** @description Source of the weight data */
-            source?: components["schemas"]["modules__health__health_weight__schema__Source"] | null;
             /**
              * Visceral Fat
              * @description Visceral fat
@@ -8773,6 +8747,7 @@ export interface components {
          *     and referencing weight records in the system.
          *
          *     Attributes:
+         *         source (Source | None): The source or device from which the weight data was obtained.
          *         id (StrictInt): Unique identifier for the weight record to update.
          *         user_id (StrictInt): Foreign key reference to the user.
          */
@@ -8894,8 +8869,6 @@ export interface components {
              * @description Physique rating
              */
             physique_rating?: number | null;
-            /** @description Source of the weight data */
-            source?: components["schemas"]["modules__health__health_weight__schema__Source"] | null;
             /**
              * Visceral Fat
              * @description Visceral fat

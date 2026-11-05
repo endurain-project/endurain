@@ -596,8 +596,8 @@ export async function fetchFastingStats(signal?: AbortSignal): Promise<FastingSt
 
 /**
  * Starts a new fasting session. The backend rejects a second active fast, so
- * the caller only exposes this when no session is in progress. The source is
- * fixed to manual for user-started fasts.
+ * the caller only exposes this when no session is in progress. The server
+ * records user-started fasts as manual.
  *
  * @param input - The clean fasting input (start time, type, target, notes).
  * @returns The persisted fasting session.
@@ -609,7 +609,6 @@ export async function createFastingEntry(input: FastingEntryInput): Promise<Fast
     fasting_type: input.fastingType,
     target_duration_seconds: input.targetDurationSeconds,
     notes: input.notes,
-    source: 'manual',
   }
   return createHealthResource('fasting', payload, mapFastingEntry)
 }

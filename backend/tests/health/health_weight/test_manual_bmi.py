@@ -88,7 +88,7 @@ class TestManualEdit:
 
 class TestProviderUpsert:
     def _upsert(self, db, bmi):
-        record = weight_schema.HealthWeightCreate(date=_DAY, weight=75.0, bmi=bmi, source="garmin")
+        record = weight_schema.HealthWeightImport(date=_DAY, weight=75.0, bmi=bmi, source="garmin")
         return weight_integration.upsert_health_weight(1, record, db)
 
     def test_a_new_record_keeps_the_provider_bmi(self, db):

@@ -215,10 +215,12 @@ class TestSourceEnum:
 
     def test_source_enum_use_in_schema(self):
         """
-        Test Source enum can be used in HealthWeightBase schema.
+        Test Source enum can be used in HealthWeightRead schema.
         """
         # Arrange & Act
-        health_weight = health_weight_schema.HealthWeightBase(source=health_weight_schema.Source.GARMIN)
+        health_weight = health_weight_schema.HealthWeightRead(
+            id=1, user_id=1, source=health_weight_schema.Source.GARMIN
+        )
 
         # Assert
         assert health_weight.source == "garmin"
@@ -228,7 +230,7 @@ class TestSourceEnum:
         Test Source enum accepts string value directly.
         """
         # Arrange & Act
-        health_weight = health_weight_schema.HealthWeightBase(source="garmin")
+        health_weight = health_weight_schema.HealthWeightRead(id=1, user_id=1, source="garmin")
 
         # Assert
         assert health_weight.source == "garmin"
@@ -239,6 +241,6 @@ class TestSourceEnum:
         """
         # Arrange & Act & Assert
         with pytest.raises(ValidationError) as exc_info:
-            health_weight_schema.HealthWeightBase(source="invalid")
+            health_weight_schema.HealthWeightRead(id=1, user_id=1, source="invalid")
 
         assert "source" in str(exc_info.value)

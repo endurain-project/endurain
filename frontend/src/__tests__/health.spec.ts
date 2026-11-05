@@ -868,7 +868,7 @@ describe('fasting service requests', () => {
     })
   })
 
-  it('createFastingEntry POSTs the snake-cased payload with manual source', async () => {
+  it('createFastingEntry POSTs the snake-cased payload without a source', async () => {
     vi.mocked(apiFetch).mockResolvedValue(makeFastingDto())
 
     await createFastingEntry(fastingInput)
@@ -880,7 +880,6 @@ describe('fasting service requests', () => {
         fasting_type: '16:8',
         target_duration_seconds: 57600,
         notes: 'Felt good',
-        source: 'manual',
       }),
     })
   })

@@ -81,7 +81,7 @@ def stage_edit_health_steps(
 
 
 def stage_upsert_health_steps(
-    user_id: int, health_steps: health_steps_schema.HealthStepsCreate, db: Session
+    user_id: int, health_steps: health_steps_schema.HealthStepsImport, db: Session
 ) -> health_steps_schema.HealthStepsRead:
     """Stage a steps record, or an update to the user's record for the same date.
 
@@ -102,7 +102,7 @@ def stage_upsert_health_steps(
     return health_record_service.upsert_dated(
         user_id,
         health_steps,
-        health_steps_schema.HealthStepsUpdate,
+        health_steps_schema.HealthStepsImportUpdate,
         lambda day: health_steps_crud.get_health_steps_by_date_and_user_id(user_id, day, db),
         lambda record: health_steps_crud.create_health_steps(user_id, record, db),
         lambda record_id, update: stage_edit_health_steps(user_id, record_id, update, db, if_match="*"),
@@ -229,7 +229,7 @@ def restore_profile_records(
     """
     return health_record_service.restore_archived_records(
         records,
-        health_steps_schema.HealthStepsCreate,
+        health_steps_schema.HealthStepsImport,
         stage_upsert_health_steps,
         user_id,
         db,

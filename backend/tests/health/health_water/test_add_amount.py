@@ -29,7 +29,7 @@ class TestAddHealthWaterAmountBound:
         )
 
         result = health_water_crud.add_health_water_amount(
-            1, record.id, Decimal(health_water_schema.MAX_WATER_ML - 19000), "manual", db
+            1, record.id, Decimal(health_water_schema.MAX_WATER_ML - 19000), db
         )
 
         assert result.amount_ml == health_water_schema.MAX_WATER_ML
@@ -41,7 +41,7 @@ class TestAddHealthWaterAmountBound:
         )
 
         with pytest.raises(core_exceptions.ConflictError):
-            health_water_crud.add_health_water_amount(1, record.id, Decimal(1001), "manual", db)
+            health_water_crud.add_health_water_amount(1, record.id, Decimal(1001), db)
 
         stored = health_water_crud.get_health_water_by_date_and_user_id(1, "2024-01-15", db)
         assert stored is not None

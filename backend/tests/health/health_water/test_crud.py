@@ -133,7 +133,7 @@ class TestAddHealthWaterAmount:
         mock_get_model.return_value = _row(7)
         mock_db.execute.return_value.scalar_one_or_none.return_value = 7
 
-        result = health_water_crud.add_health_water_amount(1, 7, Decimal(250), "web", mock_db)
+        result = health_water_crud.add_health_water_amount(1, 7, Decimal(250), mock_db)
 
         mock_db.execute.assert_called_once()
         mock_db.refresh.assert_called_once_with(mock_get_model.return_value)

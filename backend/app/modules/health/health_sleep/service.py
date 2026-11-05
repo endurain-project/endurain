@@ -133,7 +133,7 @@ def stage_edit_health_sleep(
 
 
 def stage_upsert_health_sleep(
-    user_id: int, health_sleep: health_sleep_schema.HealthSleepCreate, db: Session
+    user_id: int, health_sleep: health_sleep_schema.HealthSleepImport, db: Session
 ) -> health_sleep_schema.HealthSleepRead:
     """Stage a sleep record, or an update to the user's record for the same date.
 
@@ -156,7 +156,7 @@ def stage_upsert_health_sleep(
     return health_record_service.upsert_dated(
         user_id,
         health_sleep,
-        health_sleep_schema.HealthSleepUpdate,
+        health_sleep_schema.HealthSleepImportUpdate,
         lambda day: health_sleep_crud.get_health_sleep_by_date_and_user_id(user_id, day, db),
         lambda record: health_sleep_crud.create_health_sleep(user_id, record, db),
         lambda record_id, update: stage_edit_health_sleep(user_id, record_id, update, db, if_match="*"),
@@ -343,7 +343,7 @@ def restore_profile_records(
     """
     return health_record_service.restore_archived_records(
         records,
-        health_sleep_schema.HealthSleepCreate,
+        health_sleep_schema.HealthSleepImport,
         stage_upsert_health_sleep,
         user_id,
         db,

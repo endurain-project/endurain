@@ -27,7 +27,7 @@ def get_health_sleep_by_date(user_id: int, date: str, db: Session) -> health_sle
 
 
 def upsert_health_sleep(
-    user_id: int, health_sleep: health_sleep_schema.HealthSleepCreate, db: Session
+    user_id: int, health_sleep: health_sleep_schema.HealthSleepImport, db: Session
 ) -> health_sleep_schema.HealthSleepRead:
     """Stage a sleep record for a user, or an update to their record for the same date.
 

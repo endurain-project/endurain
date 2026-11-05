@@ -136,6 +136,6 @@ class TestEdit:
 
 class TestProviderUpsert:
     def test_a_provider_record_is_stored_as_given(self, db):
-        record = sleep_schema.HealthSleepCreate(date=_DAY, **_GARMIN_NIGHT, source="garmin")
+        record = sleep_schema.HealthSleepImport(date=_DAY, **_GARMIN_NIGHT, source="garmin")
 
         assert sleep_integration.upsert_health_sleep(1, record, db).total_sleep_seconds == 27000

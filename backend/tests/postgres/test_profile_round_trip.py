@@ -318,14 +318,14 @@ def _seed_health(db: Session, user_id: int) -> None:
     for day in range(1, 4):
         weight_integration.upsert_health_weight(
             user_id,
-            weight_schema.HealthWeightCreate(
+            weight_schema.HealthWeightImport(
                 date=date(2026, 7, day), weight=70.0 + day, body_fat=15.5, source="garmin"
             ),
             db,
         )
         sleep_integration.upsert_health_sleep(
             user_id,
-            sleep_schema.HealthSleepCreate(
+            sleep_schema.HealthSleepImport(
                 date=date(2026, 7, day),
                 sleep_start_time_gmt=datetime(2026, 7, day, 22, 0, tzinfo=UTC),
                 sleep_end_time_gmt=datetime(2026, 7, day + 1, 6, 0, tzinfo=UTC),
@@ -336,10 +336,10 @@ def _seed_health(db: Session, user_id: int) -> None:
             db,
         )
         steps_health_integration.upsert_health_steps(
-            user_id, steps_health_schema.HealthStepsCreate(date=date(2026, 7, day), steps=8_000 + day), db
+            user_id, steps_health_schema.HealthStepsImport(date=date(2026, 7, day), steps=8_000 + day), db
         )
         water_service.stage_upsert_health_water(
-            user_id, water_schema.HealthWaterCreate(date=date(2026, 7, day), amount_ml=1_500.0 + day), db
+            user_id, water_schema.HealthWaterImport(date=date(2026, 7, day), amount_ml=1_500.0 + day), db
         )
     targets_crud.edit_health_targets(
         targets_schema.HealthTargetsUpdate(weight=68.0, steps=10_000, sleep=28_800, water_ml=2_000, poop_count=1),
@@ -349,7 +349,7 @@ def _seed_health(db: Session, user_id: int) -> None:
     )
     fasting_service.stage_import_health_fasting(
         user_id,
-        fasting_schema.HealthFastingCreate(
+        fasting_schema.HealthFastingImport(
             fast_start_time=datetime(2026, 7, 1, 20, 0, tzinfo=UTC),
             fast_end_time=datetime(2026, 7, 2, 12, 0, tzinfo=UTC),
             target_duration_seconds=57_600,
@@ -360,7 +360,7 @@ def _seed_health(db: Session, user_id: int) -> None:
     )
     poop_service.stage_import_health_poop(
         user_id,
-        poop_schema.HealthPoopCreate(date_time=datetime(2026, 7, 1, 8, 0, tzinfo=UTC), bristol_type=4, notes="ok"),
+        poop_schema.HealthPoopImport(date_time=datetime(2026, 7, 1, 8, 0, tzinfo=UTC), bristol_type=4, notes="ok"),
         db,
     )
 

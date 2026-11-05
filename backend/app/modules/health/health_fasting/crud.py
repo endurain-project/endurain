@@ -221,7 +221,7 @@ def health_fasting_exists_at(user_id: int, fast_start_time: datetime, db: Sessio
 
 def create_health_fasting(
     user_id: int,
-    health_fasting: health_fasting_schema.HealthFastingCreate,
+    health_fasting: health_fasting_schema.HealthFastingImport,
     db: Session,
     *,
     actual_duration_seconds: int | None,
