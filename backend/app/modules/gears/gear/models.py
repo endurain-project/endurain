@@ -1,9 +1,9 @@
 """Gear database models."""
 
-from datetime import datetime as datetime_type
+from datetime import date
 from decimal import Decimal
 
-from sqlalchemy import DateTime, ForeignKey, Index, Numeric, String, UniqueConstraint
+from sqlalchemy import Date, ForeignKey, Index, Numeric, String, UniqueConstraint
 from sqlalchemy.orm import Mapped, mapped_column
 from sqlalchemy.sql import func
 
@@ -20,7 +20,7 @@ class Gear(Base):
         nickname: Gear nickname.
         gear_type: Gear type identifier.
         user_id: Foreign key to users table.
-        created_at: Gear creation timestamp.
+        acquired_on: Date the user acquired the gear.
         active: Whether the gear is active.
         initial_kms: Initial kilometers.
         purchase_value: Gear purchase value.
@@ -64,11 +64,12 @@ class Gear(Base):
         nullable=False,
         comment=("User ID that the gear belongs to"),
     )
-    created_at: Mapped[datetime_type] = mapped_column(
-        DateTime(timezone=True),
+    acquired_on: Mapped[date] = mapped_column(
+        Date,
         nullable=False,
-        default=func.now(),
-        comment="Gear creation date (DateTime)",
+        default=func.current_date(),
+        server_default=func.current_date(),
+        comment="Date the user acquired the gear (today when not given)",
     )
     active: Mapped[bool] = mapped_column(
         nullable=False,

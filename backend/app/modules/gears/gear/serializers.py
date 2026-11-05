@@ -29,15 +29,15 @@ def _normalize_payload(data: dict[str, object]) -> dict[str, object]:
         data: Mapping of gear field names to values.
 
     Returns:
-        The mapping with text fields trimmed and a None ``created_at`` removed so
+        The mapping with text fields trimmed and a None ``acquired_on`` removed so
         the column default applies.
     """
     for field in _TEXT_FIELDS:
         value = data.get(field)
         if isinstance(value, str):
             data[field] = value.strip()
-    if data.get("created_at") is None:
-        data.pop("created_at", None)
+    if data.get("acquired_on") is None:
+        data.pop("acquired_on", None)
     return data
 
 

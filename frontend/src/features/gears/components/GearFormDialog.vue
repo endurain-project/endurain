@@ -56,7 +56,7 @@ interface GearFormValues {
   brand: string
   model: string
   active: boolean
-  createdAt: string
+  acquiredOn: string
   initialDistance: string
   purchaseValue: string
 }
@@ -80,7 +80,7 @@ function defaultValues(): GearFormValues {
     brand: '',
     model: '',
     active: true,
-    createdAt: todayIsoDate(),
+    acquiredOn: todayIsoDate(),
     initialDistance: '',
     purchaseValue: '',
   }
@@ -110,7 +110,7 @@ function buildInput(values: GearFormValues): GearInput {
     brand: brand.length > 0 ? brand : null,
     model: model.length > 0 ? model : null,
     active: values.active,
-    createdAt: values.createdAt || null,
+    acquiredOn: values.acquiredOn || null,
     initialKms,
     purchaseValue: toNumberOrNull(values.purchaseValue),
   }
@@ -163,7 +163,7 @@ const FORM_KEYS = [
   'brand',
   'model',
   'active',
-  'createdAt',
+  'acquiredOn',
   'initialDistance',
   'purchaseValue',
 ] as const
@@ -188,7 +188,7 @@ const {
     ),
     brand: maxLength(NICKNAME_MAX, t('gears.form.brandTooLong')),
     model: maxLength(NICKNAME_MAX, t('gears.form.modelTooLong')),
-    createdAt: required<string>(t('gears.form.createdAtRequired')),
+    acquiredOn: required<string>(t('gears.form.acquiredOnRequired')),
   },
   onSubmit: submitForm,
 })
@@ -210,7 +210,7 @@ const purchaseValueLabel = computed(
 /** Seeds the form from the gear being edited, or pristine defaults for "add". */
 function populate(): void {
   reset()
-  values.createdAt = todayIsoDate()
+  values.acquiredOn = todayIsoDate()
   const gear = props.gear
   if (!gear) {
     return
@@ -220,7 +220,7 @@ function populate(): void {
   values.brand = gear.brand ?? ''
   values.model = gear.model ?? ''
   values.active = gear.active
-  values.createdAt = gear.createdAt ? gear.createdAt.slice(0, 10) : todayIsoDate()
+  values.acquiredOn = gear.acquiredOn ? gear.acquiredOn.slice(0, 10) : todayIsoDate()
   values.initialDistance = displayDistanceFromKm(gear.initialKms)
   values.purchaseValue = gear.purchaseValue !== null ? String(gear.purchaseValue) : ''
   markPristine()
@@ -279,17 +279,17 @@ watch(open, (isOpen) => {
         </template>
       </FormField>
 
-      <FormField :label="t('gears.form.createdAt')" :error="errors.createdAt" required>
+      <FormField :label="t('gears.form.acquiredOn')" :error="errors.acquiredOn" required>
         <template #default="{ fieldId, describedBy, invalid }">
           <input
             :id="fieldId"
-            v-model="values.createdAt"
+            v-model="values.acquiredOn"
             :class="inputFieldClass"
             :aria-describedby="describedBy"
             :aria-invalid="invalid"
             type="date"
             :disabled="isSubmitting"
-            @blur="handleBlur('createdAt')"
+            @blur="handleBlur('acquiredOn')"
           />
         </template>
       </FormField>

@@ -102,8 +102,6 @@ _MESSAGE_ONLY_RESPONSES: dict[str, str] = {
 #: Request-body properties the server owns, as ``"<schema>.<field>"``. Remove an entry when the audit item
 #: drops the field from the request schema (DOM-2 and DOM-17).
 _SERVER_OWNED_REQUEST_FIELDS: dict[str, str] = {
-    "GearCreateRequest.created_at": "DOM-17",
-    "GearUpdate.created_at": "DOM-17",
     "HealthFastingCreate.source": "DOM-2",
     "HealthFastingUpdate.source": "DOM-2",
     "HealthPoopCreate.source": "DOM-2",
@@ -123,8 +121,6 @@ _SERVER_OWNED_REQUEST_FIELDS: dict[str, str] = {
 #: Request datetime fields that accept a naive value, as ``"<model>.<field>"``. Remove an entry when the field
 #: becomes ``pydantic.AwareDatetime`` (DOM-3).
 _NAIVE_REQUEST_DATETIMES: dict[str, str] = {
-    "GearCreateRequest.created_at": "DOM-3",
-    "GearUpdate.created_at": "DOM-3",
     "HealthFastingComplete.fast_end_time": "DOM-3",
     "HealthFastingCreate.fast_end_time": "DOM-3",
     "HealthFastingCreate.fast_start_time": "DOM-3",

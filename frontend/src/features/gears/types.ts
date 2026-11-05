@@ -25,7 +25,7 @@ export type GearType = Schemas['GearType']
  * @property brand - Manufacturer brand, or `null`.
  * @property model - Model name, or `null`.
  * @property active - Whether the gear is in active use.
- * @property createdAt - Acquisition/creation date (ISO string), or `null`.
+ * @property acquiredOn - Date the user acquired the gear (`YYYY-MM-DD`), or `null`.
  * @property initialKms - Initial distance offset in kilometres, or `null`.
  * @property purchaseValue - Purchase price in the user's currency, or `null`.
  * @property stravaGearId - Linked Strava gear id, or `null`.
@@ -41,7 +41,7 @@ export interface Gear {
   brand: string | null
   model: string | null
   active: boolean
-  createdAt: string | null
+  acquiredOn: string | null
   initialKms: number | null
   purchaseValue: number | null
   stravaGearId: string | null
@@ -74,7 +74,7 @@ export interface GearInput {
   brand: string | null
   model: string | null
   active: boolean
-  createdAt: string | null
+  acquiredOn: string | null
   initialKms: number | null
   purchaseValue: number | null
 }

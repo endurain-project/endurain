@@ -65,8 +65,8 @@ def test_the_migration_renames_duplicates_before_enforcing_the_index(factory):
         for user_id, nickname in ((1, "Bike"), (1, " bike "), (1, "BIKE"), (2, "bike"), (1, "Shoes")):
             db.execute(
                 text(
-                    "INSERT INTO gear (nickname, gear_type, user_id, active, initial_kms, created_at) "
-                    "VALUES (:n, 1, :u, true, 0, now())"
+                    "INSERT INTO gear (nickname, gear_type, user_id, active, initial_kms, acquired_on) "
+                    "VALUES (:n, 1, :u, true, 0, current_date)"
                 ),
                 {"n": nickname, "u": user_id},
             )

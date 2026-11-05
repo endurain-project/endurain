@@ -118,7 +118,7 @@ describe('an untouched imperial field keeps the stored metric value', () => {
       brand: null,
       model: null,
       active: true,
-      createdAt: '2026-01-01',
+      acquiredOn: '2026-01-01',
       initialKms: 100,
       purchaseValue: null,
       stravaGearId: null,

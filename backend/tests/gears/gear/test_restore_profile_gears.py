@@ -1,3 +1,5 @@
+from datetime import date
+
 import modules.gears.gear.crud as crud
 import modules.gears.gear.service as service
 from tests._helpers.gears import gear_create
@@ -53,3 +55,33 @@ def test_no_archived_gears_still_publishes_an_empty_map(db):
 
     assert service.restore_profile_gears([], 1, ids, db) == 0
     assert ids == {"gears": {}}
+
+
+def test_an_archive_from_before_the_rename_maps_the_creation_timestamp_to_its_utc_day(db):
+    ids: dict[str, dict[int, int]] = {}
+    record = {"id": 5, "nickname": "Old", "gear_type": 1, "created_at": "2024-03-05T23:30:00-02:00"}
+
+    service.restore_profile_gears([record], 1, ids, db)
+
+    assert crud.get_gear_user(1, db)[0].acquired_on == date(2024, 3, 6)
+
+
+def test_an_archive_with_the_new_field_keeps_it(db):
+    ids: dict[str, dict[int, int]] = {}
+
+    service.restore_profile_gears(
+        [{"id": 5, "nickname": "New", "gear_type": 1, "acquired_on": "2022-02-03"}], 1, ids, db
+    )
+
+    assert crud.get_gear_user(1, db)[0].acquired_on == date(2022, 2, 3)
+
+
+def test_an_unreadable_creation_timestamp_falls_back_to_the_default(db):
+    ids: dict[str, dict[int, int]] = {}
+
+    restored = service.restore_profile_gears(
+        [{"id": 5, "nickname": "Odd", "gear_type": 1, "created_at": "nope"}], 1, ids, db
+    )
+
+    assert restored == 1
+    assert crud.get_gear_user(1, db)[0].acquired_on == date.today()

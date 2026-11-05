@@ -183,7 +183,7 @@ const gear: Gear = {
   brand: null,
   model: null,
   active: true,
-  createdAt: null,
+  acquiredOn: null,
   initialKms: null,
   purchaseValue: null,
   stravaGearId: null,

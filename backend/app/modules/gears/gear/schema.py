@@ -1,6 +1,6 @@
 """Gear schema definitions."""
 
-from datetime import datetime as datetime_type
+from datetime import date
 from enum import IntEnum
 from typing import Annotated
 
@@ -91,7 +91,7 @@ class GearBase(BaseModel):
         model: Gear model name.
         nickname: Gear display nickname.
         gear_type: Gear type identifier.
-        created_at: Gear creation timestamp.
+        acquired_on: Date the user acquired the gear; today when a gear is created without one.
         active: Whether the gear is active.
         initial_kms: Initial kilometers.
         purchase_value: Purchase value.
@@ -116,9 +116,9 @@ class GearBase(BaseModel):
         default=None,
         description="Gear type identifier",
     )
-    created_at: datetime_type | None = Field(
+    acquired_on: date | None = Field(
         default=None,
-        description="Gear creation timestamp",
+        description="Date the user acquired the gear",
     )
     active: StrictBool | None = Field(
         default=None,
@@ -159,6 +159,10 @@ class GearCreateRequest(GearBase):
     gear_type: GearType = Field(
         ...,
         description="Gear type identifier",
+    )
+    acquired_on: core_types.RecordDate | None = Field(
+        default=None,
+        description="Date the user acquired the gear",
     )
 
 
@@ -252,7 +256,12 @@ class GearUpdate(core_partial_update.NotClearable, GearBase):
     The gear comes from the path; provider gear IDs cannot be changed.
     """
 
-    not_clearable = ("nickname", "gear_type", "created_at", "active", "initial_kms")
+    not_clearable = ("nickname", "gear_type", "acquired_on", "active", "initial_kms")
+
+    acquired_on: core_types.RecordDate | None = Field(
+        default=None,
+        description="Date the user acquired the gear",
+    )
 
     nickname: RequiredNickname | None = Field(
         default=None,

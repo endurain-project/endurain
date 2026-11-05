@@ -7019,6 +7019,11 @@ export interface components {
          */
         GearCreateRequest: {
             /**
+             * Acquired On
+             * @description Date the user acquired the gear
+             */
+            acquired_on?: string | null;
+            /**
              * Active
              * @description Whether the gear is active
              */
@@ -7028,11 +7033,6 @@ export interface components {
              * @description Gear brand name
              */
             brand?: string | null;
-            /**
-             * Created At
-             * @description Gear creation timestamp
-             */
-            created_at?: string | null;
             /** @description Gear type identifier */
             gear_type: components["schemas"]["GearType"];
             /**
@@ -7067,6 +7067,11 @@ export interface components {
          */
         GearDetailRead: {
             /**
+             * Acquired On
+             * @description Date the user acquired the gear
+             */
+            acquired_on?: string | null;
+            /**
              * Active
              * @description Whether the gear is active
              */
@@ -7076,11 +7081,6 @@ export interface components {
              * @description Gear brand name
              */
             brand?: string | null;
-            /**
-             * Created At
-             * @description Gear creation timestamp
-             */
-            created_at?: string | null;
             /**
              * Garminconnect Gear Id
              * @description Garmin Connect gear ID
@@ -7159,6 +7159,11 @@ export interface components {
          */
         GearRead: {
             /**
+             * Acquired On
+             * @description Date the user acquired the gear
+             */
+            acquired_on?: string | null;
+            /**
              * Active
              * @description Whether the gear is active
              */
@@ -7168,11 +7173,6 @@ export interface components {
              * @description Gear brand name
              */
             brand?: string | null;
-            /**
-             * Created At
-             * @description Gear creation timestamp
-             */
-            created_at?: string | null;
             /**
              * Garminconnect Gear Id
              * @description Garmin Connect gear ID
@@ -7246,6 +7246,11 @@ export interface components {
          */
         GearUpdate: {
             /**
+             * Acquired On
+             * @description Date the user acquired the gear
+             */
+            acquired_on?: string | null;
+            /**
              * Active
              * @description Whether the gear is active
              */
@@ -7255,11 +7260,6 @@ export interface components {
              * @description Gear brand name
              */
             brand?: string | null;
-            /**
-             * Created At
-             * @description Gear creation timestamp
-             */
-            created_at?: string | null;
             /** @description Gear type identifier */
             gear_type?: components["schemas"]["GearType"] | null;
             /**

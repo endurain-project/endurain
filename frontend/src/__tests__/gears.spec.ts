@@ -36,7 +36,7 @@ const gearDto: GearDto = {
   active: true,
   brand: 'Canyon',
   model: 'Endurace',
-  created_at: '2024-01-15',
+  acquired_on: '2024-01-15',
   initial_kms: 100,
   purchase_value: 2500,
   strava_gear_id: 'b123',
@@ -52,7 +52,7 @@ const mappedGear = {
   brand: 'Canyon',
   model: 'Endurace',
   active: true,
-  createdAt: '2024-01-15',
+  acquiredOn: '2024-01-15',
   initialKms: 100,
   purchaseValue: 2500,
   stravaGearId: 'b123',
@@ -66,7 +66,7 @@ const gearInput: GearInput = {
   brand: 'Trek',
   model: 'Domane',
   active: true,
-  createdAt: '2024-02-01',
+  acquiredOn: '2024-02-01',
   initialKms: 0,
   purchaseValue: 1000,
 }
@@ -77,7 +77,7 @@ const expectedWirePayload = {
   brand: 'Trek',
   model: 'Domane',
   active: true,
-  created_at: '2024-02-01',
+  acquired_on: '2024-02-01',
   initial_kms: 0,
   purchase_value: 1000,
 }
@@ -96,7 +96,7 @@ describe('mapGear', () => {
       brand: null,
       model: null,
       active: true,
-      createdAt: null,
+      acquiredOn: null,
       initialKms: null,
       purchaseValue: null,
       stravaGearId: null,
@@ -213,10 +213,10 @@ describe('gear service requests', () => {
   it('leaves the fields the backend cannot clear out of a partial update', async () => {
     vi.mocked(apiFetch).mockResolvedValue(gearDto)
 
-    await updateGear(5, { ...gearInput, createdAt: null, initialKms: null }, 3)
+    await updateGear(5, { ...gearInput, acquiredOn: null, initialKms: null }, 3)
 
     const body = JSON.parse(vi.mocked(apiFetch).mock.calls[0]![1]!.body as string)
-    expect(body).not.toHaveProperty('created_at')
+    expect(body).not.toHaveProperty('acquired_on')
     expect(body).not.toHaveProperty('initial_kms')
   })
 

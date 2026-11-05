@@ -41,7 +41,7 @@ export function mapGear(dto: GearDto): Gear {
     brand: dto.brand ?? null,
     model: dto.model ?? null,
     active: dto.active ?? true,
-    createdAt: dto.created_at ?? null,
+    acquiredOn: dto.acquired_on ?? null,
     initialKms: dto.initial_kms ?? null,
     purchaseValue: dto.purchase_value ?? null,
     stravaGearId: dto.strava_gear_id ?? null,
@@ -80,7 +80,7 @@ function toGearWireFields(input: GearInput) {
     brand: input.brand,
     model: input.model,
     active: input.active,
-    created_at: input.createdAt,
+    acquired_on: input.acquiredOn,
     initial_kms: input.initialKms,
     purchase_value: input.purchaseValue,
   }
@@ -197,7 +197,7 @@ export async function createGear(input: GearInput): Promise<Gear> {
 /**
  * Updates an existing gear and returns the persisted record.
  *
- * `created_at` and `initial_kms` cannot be cleared on the backend, so they are left out of
+ * `acquired_on` and `initial_kms` cannot be cleared on the backend, so they are left out of
  * the partial update when empty.
  *
  * @param id - The gear id to update.
@@ -207,10 +207,10 @@ export async function createGear(input: GearInput): Promise<Gear> {
  * @throws {HttpError} When the request fails, including 412 when the copy is stale.
  */
 export async function updateGear(id: number, input: GearInput, version: number): Promise<Gear> {
-  const { created_at, initial_kms, ...fields } = toGearWireFields(input)
+  const { acquired_on, initial_kms, ...fields } = toGearWireFields(input)
   const payload: Schemas['GearUpdate'] = {
     ...fields,
-    ...(created_at === null ? {} : { created_at }),
+    ...(acquired_on === null ? {} : { acquired_on }),
     ...(initial_kms === null ? {} : { initial_kms }),
   }
   const dto = await apiFetch<GearDto>(`/gears/${id}`, {

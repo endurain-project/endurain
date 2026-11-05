@@ -1,3 +1,5 @@
+from datetime import date
+
 import pytest
 
 import core.exceptions as core_exceptions
@@ -78,6 +80,24 @@ class TestWrites:
         created = crud.create_gear(gear_create("  Road Bike  ", brand=" Trek "), 7, db)
 
         assert (created.nickname, created.brand, created.user_id) == ("Road Bike", "Trek", 7)
+
+    def test_the_acquisition_date_is_stored_as_sent(self, db):
+        created = crud.create_gear(gear_create(acquired_on=date(2023, 6, 1)), 1, db)
+
+        assert created.acquired_on == date(2023, 6, 1)
+        assert crud.get_gear_user_by_id(1, created.id, db).acquired_on == date(2023, 6, 1)
+
+    def test_a_gear_created_without_an_acquisition_date_gets_today(self, db):
+        created = crud.create_gear(gear_create(), 1, db)
+
+        assert created.acquired_on == date.today()
+
+    def test_an_update_changes_the_acquisition_date(self, db):
+        created = crud.create_gear(gear_create(), 1, db)
+
+        updated = crud.edit_gear(created.id, schema.GearUpdate(acquired_on=date(2020, 1, 2)), 1, db, if_match="*")
+
+        assert updated.acquired_on == date(2020, 1, 2)
 
     def test_the_owner_comes_from_the_caller_not_the_payload(self, db):
         created = crud.create_gear(gear_create(user_id=99), 7, db)

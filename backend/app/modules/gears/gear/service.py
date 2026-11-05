@@ -6,6 +6,7 @@ lives in :mod:`modules.gears.gear.integration_service`.
 """
 
 from collections.abc import Iterable
+from datetime import UTC, datetime
 from typing import Any
 
 from pydantic import ValidationError
@@ -175,6 +176,7 @@ def restore_profile_gears(
         record["user_id"] = user_id
         original_id = record.pop("id", None)
         record.pop("version", None)
+        _read_legacy_creation_timestamp(record)
 
         try:
             gear = gears_schema.GearCreate(**record)
@@ -189,6 +191,24 @@ def restore_profile_gears(
 
     logger.debug("Imported gears", extra=core_logger.context(count=restored))
     return restored
+
+
+def _read_legacy_creation_timestamp(record: dict[str, Any]) -> None:
+    """Turn the ``created_at`` timestamp of an archive exported before ``acquired_on`` into its UTC day.
+
+    An unreadable timestamp is dropped, so the gear gets the default date.
+
+    Args:
+        record: The archived gear; ``created_at`` is removed and ``acquired_on`` set from it when absent.
+    """
+    legacy = record.pop("created_at", None)
+    if record.get("acquired_on") is not None or not isinstance(legacy, str):
+        return
+    try:
+        moment = datetime.fromisoformat(legacy)
+    except ValueError:
+        return
+    record["acquired_on"] = (moment.astimezone(UTC) if moment.tzinfo else moment).date()
 
 
 def _restore_gear(gear: gears_schema.GearCreate, user_id: int, db: Session) -> int:

@@ -17,7 +17,7 @@ Manage gear on the **Gears** pages.
 | Windsurf | Takes windsurf components |
 | Water sports board | For example a stand up paddle or surf board |
 
-Each piece has a nickname (required, and unique among your gear), and optionally a brand, model, purchase value, creation date and an initial distance. Switch **Active** off for gear you no longer use. The purchase value is shown in the currency set in your profile.
+Each piece has a nickname (required, and unique among your gear), and optionally a brand, model, purchase value, acquisition date (the day you got it; today when left empty) and an initial distance. Switch **Active** off for gear you no longer use. The purchase value is shown in the currency set in your profile.
 
 The detail page shows:
 

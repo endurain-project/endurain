@@ -70,11 +70,11 @@ const totalCostLabel = computed(() => {
   const total = props.gear.purchaseValue + props.gear.totalComponentsCost
   return `${currencySymbol(props.currency)}${formatNumber(total, { maximumFractionDigits: 2 })}`
 })
-const createdAtLabel = computed(() => {
-  if (!props.gear.createdAt) {
+const acquiredOnLabel = computed(() => {
+  if (!props.gear.acquiredOn) {
     return null
   }
-  const date = new Date(props.gear.createdAt)
+  const date = new Date(props.gear.acquiredOn)
   return Number.isNaN(date.getTime())
     ? null
     : new Intl.DateTimeFormat(locale.value, { dateStyle: 'medium', timeZone: 'UTC' }).format(date)
@@ -109,9 +109,9 @@ const createdAtLabel = computed(() => {
           <dt class="text-hint">{{ t('gears.form.model') }}</dt>
           <dd class="text-body">{{ gear.model }}</dd>
         </div>
-        <div v-if="createdAtLabel" class="flex flex-col gap-0.5">
-          <dt class="text-hint">{{ t('gears.form.createdAt') }}</dt>
-          <dd class="text-body">{{ createdAtLabel }}</dd>
+        <div v-if="acquiredOnLabel" class="flex flex-col gap-0.5">
+          <dt class="text-hint">{{ t('gears.form.acquiredOn') }}</dt>
+          <dd class="text-body">{{ acquiredOnLabel }}</dd>
         </div>
         <div v-if="purchaseValueLabel" class="flex flex-col gap-0.5">
           <dt class="text-hint">{{ t('gears.form.purchaseValue') }}</dt>
