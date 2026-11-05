@@ -180,6 +180,16 @@ class TestCreateActivityMedias:
         mock_db.flush.assert_called_once()
         mock_db.commit.assert_not_called()
 
+    @patch("modules.activities.activity_media.crud.activity_media_models.ActivityMedia")
+    def test_persists_the_content_hash(self, mock_media_model, mock_db):
+        import modules.activities.activity_media.crud as crud
+        from modules.activities.activity_media.contracts import ActivityMediaCreate
+
+        crud.create_activity_medias(
+            [ActivityMediaCreate(media_path="1_p.jpg", media_type=1, content_hash="a" * 64)], 1, mock_db
+        )
+        assert mock_media_model.call_args.kwargs["content_hash"] == "a" * 64
+
     def test_empty(self, mock_db):
         import modules.activities.activity_media.crud as crud
 

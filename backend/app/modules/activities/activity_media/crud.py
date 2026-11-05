@@ -294,6 +294,7 @@ def create_activity_medias(
                 activity_id=activity_id,
                 media_path=media_item.media_path,
                 media_type=media_item.media_type,
+                content_hash=media_item.content_hash,
             )
         )
 

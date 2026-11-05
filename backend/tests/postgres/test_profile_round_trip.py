@@ -23,6 +23,7 @@ import jasil.providers as platform_providers
 import pytest
 from sqlalchemy.orm import Session, sessionmaker
 
+import core.hashing as core_hashing
 import module_registry
 import modules.activities.activity.contracts as activity_contracts
 import modules.activities.activity.crud as activity_crud
@@ -299,10 +300,17 @@ def _seed_activities(db: Session, user_id: int, gear_ids: list[int], storage: pl
             db,
         )
         media_key = f"{activity_id}_seed{index}.png"
+        blob = _png(shade=100 + index)
         media_crud.create_activity_medias(
-            [media_contracts.ActivityMediaCreate(media_path=media_key, media_type=1)], activity_id, db
+            [
+                media_contracts.ActivityMediaCreate(
+                    media_path=media_key, media_type=1, content_hash=core_hashing.sha256_hex(blob)
+                )
+            ],
+            activity_id,
+            db,
         )
-        storage.save(media_constants.MEDIA_STORAGE_AREA, media_key, _png(shade=100 + index))
+        storage.save(media_constants.MEDIA_STORAGE_AREA, media_key, blob)
         if index != 1:
             activity_file_storage_integration.store_activity_file(activity_id, ".gpx", _GPX, storage)
 

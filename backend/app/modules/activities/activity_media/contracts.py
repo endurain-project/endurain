@@ -14,6 +14,9 @@ reader had to null-check fields that are in fact always present on a read.
 
 from pydantic import BaseModel, ConfigDict, Field, StrictInt
 
+#: A media content hash: the SHA-256 of the bytes as 64 lowercase hex characters (``core.hashing.sha256_hex``).
+CONTENT_HASH_PATTERN = r"^[0-9a-f]{64}$"
+
 
 class ActivityMediaCreate(BaseModel):
     """The fields needed to persist a new media row.
@@ -26,12 +29,15 @@ class ActivityMediaCreate(BaseModel):
     Attributes:
         media_path: The ``StorageProvider`` key the blob was saved under.
         media_type: Media kind (1 = photo).
+        content_hash: SHA-256 of the media bytes as 64 lowercase hex characters,
+            when known. Restoring it keeps a re-import of the same photo a no-op.
     """
 
     model_config = ConfigDict(from_attributes=True, extra="forbid")
 
     media_path: str = Field(min_length=1, max_length=250)
     media_type: StrictInt = Field(ge=1, le=1)
+    content_hash: str | None = Field(default=None, pattern=CONTENT_HASH_PATTERN)
 
 
 class ActivityMediaRecord(BaseModel):
