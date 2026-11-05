@@ -91,7 +91,7 @@ def create_sign_up_token(
     Returns:
         The raw token, which is not stored.
     """
-    token = access_tokens_integration.hmac_sha256(f"sign-up:{event_id}")
+    token = access_tokens_integration.derive_email_token(f"sign-up:{event_id}")
     if sign_up_crud.sign_up_token_exists(token_hashing.sha256_hex(token), db):
         return token
     _stage_sign_up_token(user_id, email, previous_email, db, token=token)

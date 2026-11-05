@@ -244,7 +244,7 @@ def complete_login(
     # This enables the OAuth 2.1 bootstrap pattern where the first /refresh call
     # after page reload establishes the CSRF binding. The httpOnly cookie is
     # sufficient authentication for the bootstrap refresh.
-    sessions_integration.create_session(
+    session = sessions_integration.create_session(
         session_id,
         user,
         ip_address,
@@ -270,6 +270,7 @@ def complete_login(
         access_token_exp,
         refresh_token,
         refresh_token_exp,
+        session.expires_at,
         csrf_token,
     )
 

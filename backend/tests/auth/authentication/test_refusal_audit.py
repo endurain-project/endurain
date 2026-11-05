@@ -32,7 +32,7 @@ def _db_key(**overrides):
         "name": "CLI",
         "key_prefix": "abcd1234",
         "is_active": True,
-        "expires_at": None,
+        "expires_at": datetime.now(UTC) + timedelta(days=30),
         "created_at": datetime.now(UTC),
         "scopes": "[]",
     }

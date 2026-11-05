@@ -52,7 +52,10 @@ def password_sign_in():
         patch(f"{_SERVICE}.credentials_integration.allows_password_sign_in", return_value=True),
         patch(f"{_SERVICE}.mfa_integration.is_mfa_enabled_for_user", return_value=False),
         patch("modules.auth.authentication.token_service.create_tokens", return_value=_TOKENS),
-        patch(f"{_SERVICE}.sessions_integration.create_session"),
+        patch(
+            f"{_SERVICE}.sessions_integration.create_session",
+            return_value=MagicMock(expires_at=datetime.now(UTC) + timedelta(days=30)),
+        ),
     ):
         yield
 
@@ -175,7 +178,10 @@ class TestPasswordSignIn:
             patch(f"{_SERVICE}.mfa_integration.verify_user_mfa", return_value=True),
             patch(f"{_SERVICE}.server_settings_integration.get_session_policy"),
             patch("modules.auth.authentication.token_service.create_tokens", return_value=_TOKENS),
-            patch(f"{_SERVICE}.sessions_integration.create_session"),
+            patch(
+                f"{_SERVICE}.sessions_integration.create_session",
+                return_value=MagicMock(expires_at=datetime.now(UTC) + timedelta(days=30)),
+            ),
             patch(_RECORD, return_value=_signed(_ISSUED)) as record,
         ):
             outcome = authentication_service.verify_mfa_and_login(
@@ -205,7 +211,7 @@ class TestSsoSignIn:
             client_type=client_type,
             idp_id=idp_id,
         )
-        session = SimpleNamespace(user_id=5, tokens_exchanged=False)
+        session = SimpleNamespace(user_id=5, tokens_exchanged=False, expires_at=datetime(2027, 1, 1, tzinfo=UTC))
         with (
             patch(f"{_SERVICE}.sessions_integration.get_session_with_oauth_state", return_value=(session, oauth_state)),
             patch(f"{_SERVICE}.auth_computation.validate_pkce_verifier"),

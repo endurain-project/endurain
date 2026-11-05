@@ -1,5 +1,8 @@
 """An API key stored in the database resolves to its owner's principal."""
 
+from datetime import UTC, datetime, timedelta
+from unittest.mock import patch
+
 import pytest
 
 import core.exceptions as core_exceptions
@@ -10,6 +13,20 @@ import modules.auth.authentication.principal_service as principal_service
 from tests._helpers.db import create_sqlite_session_factory, ensure_user
 
 _USER_ID = 5
+
+
+class _NaiveUtcDatetime(datetime):
+    """The clock as SQLite hands timestamps back: UTC without an offset."""
+
+    @classmethod
+    def now(cls, tz=None):
+        return super().now(UTC).replace(tzinfo=None)
+
+
+@pytest.fixture(autouse=True)
+def _sqlite_naive_clock():
+    with patch.object(principal_service, "datetime", _NaiveUtcDatetime):
+        yield
 
 
 @pytest.fixture
@@ -29,6 +46,7 @@ def _store_key(factory, raw_key: str) -> api_keys_schema.UsersApiKeyRead:
             raw_key,
             api_keys_utils.hash_api_key(raw_key),
             api_keys_utils.scopes_to_json(scopes),
+            datetime.now(UTC) + timedelta(days=30),
             db,
         )
         db.commit()

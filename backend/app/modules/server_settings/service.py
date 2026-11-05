@@ -106,6 +106,7 @@ def get_session_policy(db: Session) -> server_settings_contracts.SessionPolicy:
         refresh_token_ttl=timedelta(days=settings.refresh_token_expire_days),
         idle_timeout=timedelta(hours=settings.session_idle_timeout_hours) if idle_timeout_enabled else None,
         absolute_timeout=timedelta(hours=settings.session_absolute_timeout_hours),
+        api_key_max_lifetime=timedelta(days=settings.api_key_max_lifetime_days),
     )
 
 

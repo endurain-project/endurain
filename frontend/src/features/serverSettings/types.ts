@@ -83,6 +83,7 @@ export type GeocodingService = Schemas['GeocodingService']
  * @property sessionAbsoluteTimeoutHours - Hours after which a session ends whatever its activity.
  * @property accessTokenExpireMinutes - Access token lifetime in minutes.
  * @property refreshTokenExpireDays - Refresh token lifetime in days.
+ * @property apiKeyMaxLifetimeDays - Longest lifetime of a new API key, and its default, in days.
  * @property readNotificationRetentionDays - Days after which read notifications are purged (0 keeps them forever).
  * @property auditRetentionDays - Days after which audit trail days are dropped (0 keeps everything, otherwise at least 30).
  * @property auditLegalHold - Whether all pruning of the audit trail is paused.
@@ -120,6 +121,7 @@ export interface ServerSettings {
   sessionAbsoluteTimeoutHours: number
   accessTokenExpireMinutes: number
   refreshTokenExpireDays: number
+  apiKeyMaxLifetimeDays: number
   readNotificationRetentionDays: number
   auditRetentionDays: number
   auditLegalHold: boolean
@@ -174,6 +176,7 @@ export type ServerSettingsFormValues = Omit<
   | 'sessionAbsoluteTimeoutHours'
   | 'accessTokenExpireMinutes'
   | 'refreshTokenExpireDays'
+  | 'apiKeyMaxLifetimeDays'
   | 'readNotificationRetentionDays'
   | 'auditRetentionDays'
 > & {
@@ -187,6 +190,7 @@ export type ServerSettingsFormValues = Omit<
   sessionAbsoluteTimeoutHours: string
   accessTokenExpireMinutes: string
   refreshTokenExpireDays: string
+  apiKeyMaxLifetimeDays: string
   readNotificationRetentionDays: string
   auditRetentionDays: string
 }

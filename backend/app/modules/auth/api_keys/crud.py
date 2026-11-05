@@ -62,6 +62,7 @@ def create_api_key(
     raw_key: str,
     key_hash: str,
     scopes_json: str,
+    expires_at: datetime,
     db: Session,
 ) -> api_keys_schema.UsersApiKeyRead:
     """Stage a new API key and return its raw value and safe representation."""
@@ -72,7 +73,7 @@ def create_api_key(
         key_prefix=raw_key[9:17],
         key_hash=key_hash,
         scopes=scopes_json,
-        expires_at=data.expires_at,
+        expires_at=expires_at,
         last_used_at=None,
         created_at=datetime.now(UTC),
         is_active=True,

@@ -81,6 +81,7 @@ def session_policy() -> server_settings_contracts.SessionPolicy:
         refresh_token_ttl=timedelta(days=7),
         idle_timeout=None,
         absolute_timeout=timedelta(hours=720),
+        api_key_max_lifetime=timedelta(days=365),
     )
 
 

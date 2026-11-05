@@ -90,6 +90,22 @@ def mint_access_token(
     )
 
 
+def cap_refresh_expiry(refresh_token_exp: datetime, session_expires_at: datetime) -> datetime:
+    """Return when the client must treat the refresh token as expired.
+
+    The session ends at its own expiry, which the absolute session timeout can put before the refresh
+    token's, so the client is told whichever comes first.
+
+    Args:
+        refresh_token_exp: Expiry of the refresh token.
+        session_expires_at: Expiry of the session the token belongs to.
+
+    Returns:
+        The earlier of the two.
+    """
+    return min(refresh_token_exp, session_expires_at)
+
+
 def build_token_response(
     client_type: auth_constants.ClientType,
     session_id: str,
@@ -97,6 +113,7 @@ def build_token_response(
     access_token_exp: datetime,
     refresh_token: str,
     refresh_token_exp: datetime,
+    session_expires_at: datetime,
     csrf_token: str,
 ) -> auth_schema.AuthOutcome[auth_schema.TokenRead]:
     """Build the OAuth 2.1 token-response body for login and refresh.
@@ -111,7 +128,8 @@ def build_token_response(
       token.
 
     ``expires_in`` / ``refresh_token_expires_in`` are seconds-until-expiry
-    per RFC 6749 §5.1.
+    per RFC 6749 §5.1. The refresh lifetime and the cookie expiry are those of the
+    session when it ends before the refresh token does.
 
     Args:
         client_type: The client type.
@@ -120,12 +138,14 @@ def build_token_response(
         access_token_exp: Access-token expiry datetime.
         refresh_token: Newly minted refresh token.
         refresh_token_exp: Refresh-token expiry datetime.
+        session_expires_at: Expiry of the session the refresh token belongs to.
         csrf_token: CSRF token, returned only to web clients.
 
     Returns:
         The response body and, for a web client, the refresh cookie the router sets.
     """
     now = datetime.now(UTC)
+    refresh_token_exp = cap_refresh_expiry(refresh_token_exp, session_expires_at)
     expires_in = int((access_token_exp - now).total_seconds())
     refresh_token_expires_in = int((refresh_token_exp - now).total_seconds())
 

@@ -47,6 +47,7 @@ class ServerSettings(Base):
         session_absolute_timeout_hours: Hours after which a session ends.
         access_token_expire_minutes: Access token lifetime in minutes.
         refresh_token_expire_days: Refresh token lifetime in days.
+        api_key_max_lifetime_days: Longest lifetime of a new API key, and its default, in days.
         read_notification_retention_days: Days after which read notifications are purged (0 - never).
         audit_retention_days: Days after which audit trail partitions are dropped (0 - never).
         audit_legal_hold: Suspend all pruning of the audit trail.
@@ -224,6 +225,12 @@ class ServerSettings(Base):
         nullable=False,
         comment="Refresh token lifetime in days",
     )
+    api_key_max_lifetime_days: Mapped[int] = mapped_column(
+        default=365,
+        server_default=text("365"),
+        nullable=False,
+        comment="Longest lifetime of a new API key, and its default, in days",
+    )
 
     read_notification_retention_days: Mapped[int] = mapped_column(
         default=90,
@@ -272,6 +279,7 @@ class ServerSettings(Base):
         ),
         CheckConstraint("access_token_expire_minutes BETWEEN 1 AND 1440", name="access_token_expire_minutes_check"),
         CheckConstraint("refresh_token_expire_days BETWEEN 1 AND 365", name="refresh_token_expire_days_check"),
+        CheckConstraint("api_key_max_lifetime_days BETWEEN 1 AND 3650", name="api_key_max_lifetime_days_check"),
         CheckConstraint(
             "session_absolute_timeout_hours >= session_idle_timeout_hours", name="session_absolute_not_below_idle_check"
         ),

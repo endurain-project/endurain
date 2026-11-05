@@ -16,8 +16,12 @@ import core.config as core_config
 #: Signs and verifies access tokens.
 JWT: Final = "jwt"
 
-#: Keys the digests of refresh tokens, CSRF tokens and emailed single-use tokens.
+#: Keys the digests of refresh tokens and CSRF tokens.
 TOKEN_HMAC: Final = "token-hmac"  # noqa: S105 - purpose name, not a credential
+
+#: Derives the raw emailed single-use tokens (password reset, sign-up and email change), so a digest kept for
+#: lookup is never the value a mail carries.
+EMAIL_TOKEN: Final = "email-token"  # noqa: S105 - purpose name, not a credential
 
 #: Signs the capability URLs for photos, thumbnails and media.
 CAPABILITY_URLS: Final = "capability-urls"

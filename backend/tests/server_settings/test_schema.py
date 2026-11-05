@@ -319,6 +319,7 @@ class TestServerSettingsEdit:
             session_absolute_timeout_hours=24,
             access_token_expire_minutes=15,
             refresh_token_expire_days=7,
+            api_key_max_lifetime_days=365,
             read_notification_retention_days=90,
             audit_retention_days=90,
             audit_legal_hold=False,
@@ -445,6 +446,8 @@ class TestSessionPolicyFields:
             ("access_token_expire_minutes", 1441),
             ("refresh_token_expire_days", 0),
             ("refresh_token_expire_days", 366),
+            ("api_key_max_lifetime_days", 0),
+            ("api_key_max_lifetime_days", 3651),
         ],
     )
     def test_out_of_range_values_are_rejected(self, field, value):
@@ -458,6 +461,7 @@ class TestSessionPolicyFields:
                 session_absolute_timeout_hours=8760,
                 access_token_expire_minutes=1440,
                 refresh_token_expire_days=365,
+                api_key_max_lifetime_days=3650,
             )
         )
 

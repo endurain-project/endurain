@@ -85,7 +85,7 @@ Under **Settings → Security** you can:
 - turn two-step verification (a TOTP authenticator app) on or off, and regenerate its ten one-time backup codes. Each code has the form `XXXX-XXXX` and works once, and generating new ones invalidates the old;
 - see your signed-in sessions and sign out of any of them or all the others;
 - link or unlink identity providers;
-- create and revoke [API keys](../integrate/api-keys.md), which can upload activities;
+- create and revoke [API keys](../integrate/api-keys.md), which can upload activities and always expire, after at most the lifetime the administrator allows (365 days by default);
 - delete your account.
 
 Accounts that sign in only through single sign-on have no local password. They cannot change a password themselves, and they confirm sensitive changes by signing in again with their identity provider; see [Single Sign-On](single-sign-on.md#confirming-sensitive-changes-without-a-password).

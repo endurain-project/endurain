@@ -267,6 +267,7 @@ class ServerSettingsSessionPolicy(BaseModel):
         session_absolute_timeout_hours: Hours after which a session ends (1-8760, not below the idle timeout).
         access_token_expire_minutes: Access token lifetime in minutes (1-1440).
         refresh_token_expire_days: Refresh token lifetime in days (1-365).
+        api_key_max_lifetime_days: Longest lifetime of a new API key, and its default, in days (1-3650).
     """
 
     session_idle_timeout_enabled: StrictBool = Field(
@@ -281,6 +282,9 @@ class ServerSettingsSessionPolicy(BaseModel):
     )
     access_token_expire_minutes: StrictInt = Field(..., ge=1, le=1440, description="Access token lifetime in minutes")
     refresh_token_expire_days: StrictInt = Field(..., ge=1, le=365, description="Refresh token lifetime in days")
+    api_key_max_lifetime_days: StrictInt = Field(
+        ..., ge=1, le=3650, description="Longest lifetime of a new API key, and its default, in days"
+    )
 
     @model_validator(mode="after")
     def validate_absolute_timeout(self) -> "ServerSettingsSessionPolicy":

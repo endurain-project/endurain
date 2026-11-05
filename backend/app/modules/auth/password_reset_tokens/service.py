@@ -47,7 +47,7 @@ def create_password_reset_token(user_id: int, event_id: str, db: Session) -> str
     Returns:
         The raw token, which is not stored.
     """
-    token = access_tokens_integration.hmac_sha256(f"password-reset:{event_id}")
+    token = access_tokens_integration.derive_email_token(f"password-reset:{event_id}")
     token_hash = token_hashing.sha256_hex(token)
     if password_reset_crud.password_reset_token_exists(token_hash, db):
         return token

@@ -1,6 +1,6 @@
 """The authentication service commits what the session and IdP surfaces only stage."""
 
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 from types import SimpleNamespace
 from unittest.mock import MagicMock, patch
 
@@ -65,7 +65,10 @@ def test_a_rotation_records_the_presented_tokens_own_expiry(mock_db):
         patch(
             "modules.auth.authentication.refresh_service.rotated_refresh_tokens_integration.store_rotated_token"
         ) as store,
-        patch(f"{_SERVICE}.sessions_integration.edit_session"),
+        patch(
+            f"{_SERVICE}.sessions_integration.edit_session",
+            return_value=SimpleNamespace(expires_at=datetime(2027, 1, 1, tzinfo=UTC)),
+        ),
         patch(f"{_SERVICE}.identity_providers_integration.request_idp_token_refresh"),
     ):
         authentication_service_refresh_service.refresh_token(
@@ -73,6 +76,35 @@ def test_a_rotation_records_the_presented_tokens_own_expiry(mock_db):
         )
 
     assert store.call_args.kwargs["refresh_token_exp"] == _OLD_EXP
+
+
+def test_a_rotation_reports_the_sessions_capped_expiry_for_the_body_and_the_cookie(mock_db):
+    """The absolute session timeout can end the session before the new refresh token expires."""
+    hasher = MagicMock()
+    hasher.verify_password.return_value = True
+    session_expiry = datetime.now(UTC) + timedelta(hours=2)
+    tokens = ("sid", datetime.now(UTC) + timedelta(minutes=15), "at", datetime.now(UTC) + timedelta(days=7), "rt", "c")
+    with (
+        patch(f"{_SERVICE}.sessions_integration.get_session_by_id_not_expired", return_value=_session()),
+        patch(f"{_SERVICE}.server_settings_integration.get_session_policy"),
+        patch(f"{_SERVICE}.sessions_integration.validate_session_timeout"),
+        patch(
+            "modules.auth.authentication.refresh_service.rotated_refresh_tokens_integration.check_token_reuse",
+            return_value=(False, False),
+        ),
+        patch(f"{_SERVICE}.users_integration.get_user", return_value=SimpleNamespace(id=1)),
+        patch(f"{_SERVICE}.users_integration.require_active_user"),
+        patch("modules.auth.authentication.token_service.create_tokens", return_value=tokens),
+        patch("modules.auth.authentication.refresh_service.rotated_refresh_tokens_integration.store_rotated_token"),
+        patch(f"{_SERVICE}.sessions_integration.edit_session", return_value=SimpleNamespace(expires_at=session_expiry)),
+        patch(f"{_SERVICE}.identity_providers_integration.request_idp_token_refresh"),
+    ):
+        outcome = authentication_service_refresh_service.refresh_token(
+            "127.0.0.1", "agent", 1, "sid", "old", _OLD_EXP, hasher, MagicMock(), "web", mock_db
+        )
+
+    assert outcome.body.refresh_token_expires_in == pytest.approx(2 * 3600, abs=2)
+    assert outcome.refresh_cookie.expires_at == session_expiry
 
 
 def test_logout_commits_the_session_deletion(mock_db):

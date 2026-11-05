@@ -241,7 +241,10 @@ class TestCompleteLogin:
         response = Response()
         client_type = "web"
 
-        with patch("modules.auth.authentication.service.sessions_integration.create_session"):
+        with patch(
+            "modules.auth.authentication.service.sessions_integration.create_session",
+            return_value=MagicMock(expires_at=datetime.now(UTC) + timedelta(days=30)),
+        ):
             # Act
             outcome = auth_utils.complete_login(
                 "127.0.0.1",
@@ -275,7 +278,10 @@ class TestCompleteLogin:
         response = Response()
         client_type = "mobile"
 
-        with patch("modules.auth.authentication.service.sessions_integration.create_session"):
+        with patch(
+            "modules.auth.authentication.service.sessions_integration.create_session",
+            return_value=MagicMock(expires_at=datetime.now(UTC) + timedelta(days=30)),
+        ):
             # Act
             outcome = auth_utils.complete_login(
                 "127.0.0.1",
@@ -304,7 +310,10 @@ class TestCompleteLogin:
         response = Response()
         client_type = "web"
 
-        with patch("modules.auth.authentication.service.sessions_integration.create_session") as mock_create_session:
+        with patch(
+            "modules.auth.authentication.service.sessions_integration.create_session",
+            return_value=MagicMock(expires_at=datetime.now(UTC) + timedelta(days=30)),
+        ) as mock_create_session:
             # Act
             outcome = auth_utils.complete_login(
                 "127.0.0.1",
@@ -343,7 +352,10 @@ class TestCompleteLogin:
                 "modules.auth.authentication.service.server_settings_integration.get_session_policy",
                 return_value=policy,
             ),
-            patch("modules.auth.authentication.service.sessions_integration.create_session") as mock_create_session,
+            patch(
+                "modules.auth.authentication.service.sessions_integration.create_session",
+                return_value=MagicMock(expires_at=datetime.now(UTC) + timedelta(days=30)),
+            ) as mock_create_session,
         ):
             outcome = auth_utils.complete_login(
                 "127.0.0.1", "pytest-agent", sample_user_read, "web", password_hasher, token_manager, mock_db
@@ -356,6 +368,25 @@ class TestCompleteLogin:
         assert session_expiry - datetime.now(UTC) == pytest.approx(timedelta(days=3), abs=timedelta(seconds=2))
         cookie = _set_cookie_headers(response)[-1].lower()
         assert f"{session_expiry:%d %b %Y}".lower() in cookie
+
+    def test_complete_login_tells_the_client_the_sessions_capped_expiry(
+        self, password_hasher, token_manager, mock_db, sample_user_read, mock_request
+    ):
+        """A session capped below the refresh token's lifetime is what the body and the cookie report."""
+        session_expiry = datetime.now(UTC) + timedelta(hours=2)
+        response = Response()
+
+        with patch(
+            "modules.auth.authentication.service.sessions_integration.create_session",
+            return_value=MagicMock(expires_at=session_expiry),
+        ):
+            outcome = auth_utils.complete_login(
+                "127.0.0.1", "pytest-agent", sample_user_read, "web", password_hasher, token_manager, mock_db
+            )
+            result = authentication_dependencies.deliver_auth_outcome(response, outcome).model_dump()
+
+        assert result["refresh_token_expires_in"] == pytest.approx(2 * 3600, abs=2)
+        assert outcome.refresh_cookie.expires_at == session_expiry
 
     def test_set_refresh_token_cookie_expires_at_the_given_time(self):
         response = Response()
@@ -375,7 +406,10 @@ class TestCompleteLogin:
         client_type = "web"
 
         with (
-            patch("modules.auth.authentication.service.sessions_integration.create_session"),
+            patch(
+                "modules.auth.authentication.service.sessions_integration.create_session",
+                return_value=MagicMock(expires_at=datetime.now(UTC) + timedelta(days=30)),
+            ),
             patch("modules.auth.authentication.dependencies.core_config.settings.ENVIRONMENT", "production"),
         ):
             # Act
@@ -403,7 +437,10 @@ class TestCompleteLogin:
         client_type = "web"
 
         with (
-            patch("modules.auth.authentication.service.sessions_integration.create_session"),
+            patch(
+                "modules.auth.authentication.service.sessions_integration.create_session",
+                return_value=MagicMock(expires_at=datetime.now(UTC) + timedelta(days=30)),
+            ),
             patch("modules.auth.authentication.dependencies.core_config.settings.ENVIRONMENT", "development"),
         ):
             # Act
@@ -430,7 +467,10 @@ class TestCompleteLogin:
         response = Response()
         client_type = "web"
 
-        with patch("modules.auth.authentication.service.sessions_integration.create_session"):
+        with patch(
+            "modules.auth.authentication.service.sessions_integration.create_session",
+            return_value=MagicMock(expires_at=datetime.now(UTC) + timedelta(days=30)),
+        ):
             # Act
             outcome = auth_utils.complete_login(
                 "127.0.0.1",
@@ -498,7 +538,10 @@ class TestCompleteLogin:
         response2 = Response()
         client_type = "web"
 
-        with patch("modules.auth.authentication.service.sessions_integration.create_session"):
+        with patch(
+            "modules.auth.authentication.service.sessions_integration.create_session",
+            return_value=MagicMock(expires_at=datetime.now(UTC) + timedelta(days=30)),
+        ):
             # Act
             outcome = auth_utils.complete_login(
                 "127.0.0.1",
@@ -604,7 +647,10 @@ class TestCreateMobilePkceSessionResponse:
         with (
             patch("modules.auth.authentication.service.auth_computation.validate_pkce_challenge"),
             patch("modules.auth.authentication.service.oauth_state_integration.create_oauth_state"),
-            patch("modules.auth.authentication.service.sessions_integration.create_session"),
+            patch(
+                "modules.auth.authentication.service.sessions_integration.create_session",
+                return_value=MagicMock(expires_at=datetime.now(UTC) + timedelta(days=30)),
+            ),
         ):
             result = auth_utils.create_mobile_pkce_session_response(
                 ip_address="127.0.0.1",

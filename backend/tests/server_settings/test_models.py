@@ -93,6 +93,7 @@ class TestServerSettingsModel:
             "session_absolute_timeout_hours_check",
             "access_token_expire_minutes_check",
             "refresh_token_expire_days_check",
+            "api_key_max_lifetime_days_check",
             "read_notification_retention_days_check",
             "audit_retention_days_check",
         }
@@ -105,6 +106,15 @@ class TestSessionAbsoluteTimeoutDefault:
         column = server_settings_models.ServerSettings.__table__.c.session_absolute_timeout_hours
         assert column.default.arg == 720
         assert str(column.server_default.arg) == "720"
+
+
+class TestApiKeyMaxLifetimeDefault:
+    """New API keys last at most 365 days unless an administrator changes it (docs/features and docs/integrate)."""
+
+    def test_default_and_server_default_are_365_days(self):
+        column = server_settings_models.ServerSettings.__table__.c.api_key_max_lifetime_days
+        assert column.default.arg == 365
+        assert str(column.server_default.arg) == "365"
 
 
 class TestAuditRetentionColumns:

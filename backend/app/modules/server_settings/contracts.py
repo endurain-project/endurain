@@ -35,12 +35,14 @@ class SessionPolicy:
         refresh_token_ttl: Lifetime of a new refresh token and of the session it renews.
         idle_timeout: Inactivity after which a session ends, or None when the idle timeout is disabled.
         absolute_timeout: Age after which a session ends whatever its activity; always applies.
+        api_key_max_lifetime: Longest lifetime of a new API key, and the lifetime it gets when none is asked for.
     """
 
     access_token_ttl: timedelta
     refresh_token_ttl: timedelta
     idle_timeout: timedelta | None
     absolute_timeout: timedelta
+    api_key_max_lifetime: timedelta
 
 
 @dataclass(frozen=True)

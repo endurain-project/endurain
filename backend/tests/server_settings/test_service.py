@@ -63,6 +63,7 @@ def _stored(**overrides) -> server_settings_schema.ServerSettingsRead:
         session_absolute_timeout_hours=24,
         access_token_expire_minutes=15,
         refresh_token_expire_days=7,
+        api_key_max_lifetime_days=365,
         read_notification_retention_days=90,
         audit_retention_days=90,
         audit_legal_hold=False,
@@ -566,6 +567,7 @@ class TestGetSessionPolicy:
                 "session_absolute_timeout_hours": 48,
                 "access_token_expire_minutes": 30,
                 "refresh_token_expire_days": 14,
+                "api_key_max_lifetime_days": 90,
             }
         )
         with patch.object(server_settings_service.server_settings_crud, "get_server_settings", return_value=stored):
@@ -575,6 +577,7 @@ class TestGetSessionPolicy:
         assert policy.refresh_token_ttl == timedelta(days=14)
         assert policy.idle_timeout == timedelta(hours=2)
         assert policy.absolute_timeout == timedelta(hours=48)
+        assert policy.api_key_max_lifetime == timedelta(days=90)
 
     def test_disabled_idle_timeout_is_none_but_absolute_timeout_and_lifetimes_stay(self, edit_env):
         policy = server_settings_service.get_session_policy(MagicMock())
@@ -583,6 +586,7 @@ class TestGetSessionPolicy:
         assert policy.absolute_timeout == timedelta(hours=edit_env.stored.session_absolute_timeout_hours)
         assert policy.access_token_ttl == timedelta(minutes=15)
         assert policy.refresh_token_ttl == timedelta(days=7)
+        assert policy.api_key_max_lifetime == timedelta(days=365)
 
     def test_a_missing_row_raises(self):
         with (
@@ -1378,6 +1382,7 @@ class TestGetServerSettingsForPublic:
             session_absolute_timeout_hours=24,
             access_token_expire_minutes=15,
             refresh_token_expire_days=7,
+            api_key_max_lifetime_days=365,
             read_notification_retention_days=90,
             audit_retention_days=90,
             audit_legal_hold=False,

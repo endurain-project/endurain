@@ -128,6 +128,8 @@ Cookie: endurain_refresh_token={refresh_token}
 }
 ```
 
+`refresh_token_expires_in` is the number of seconds until the client must sign in again: the refresh token's remaining lifetime, or the time left before the session reaches the absolute session timeout when that comes first. The refresh cookie of a web client expires at the same time. Every response that carries it (login, MFA verification, refresh and the SSO token exchange) follows this rule.
+
 ### Refresh Token Rotation & Reuse Detection
 
 Endurain implements automatic refresh token rotation with reuse detection to prevent token theft:

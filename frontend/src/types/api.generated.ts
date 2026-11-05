@@ -10893,6 +10893,11 @@ export interface components {
              */
             access_token_expire_minutes: number;
             /**
+             * Api Key Max Lifetime Days
+             * @description Longest lifetime of a new API key, and its default, in days
+             */
+            api_key_max_lifetime_days: number;
+            /**
              * Audit Legal Hold
              * @description Suspend all pruning of the audit trail (true - yes, false - no)
              */
@@ -11082,6 +11087,11 @@ export interface components {
              * @description Access token lifetime in minutes
              */
             access_token_expire_minutes: number;
+            /**
+             * Api Key Max Lifetime Days
+             * @description Longest lifetime of a new API key, and its default, in days
+             */
+            api_key_max_lifetime_days: number;
             /**
              * Audit Legal Hold
              * @description Suspend all pruning of the audit trail (true - yes, false - no)
@@ -11982,8 +11992,8 @@ export interface components {
          *     Attributes:
          *         name: User-friendly label for the key.
          *         scopes: List containing the supported API key scope.
-         *         expires_at: Optional expiration datetime.
-         *             None means the key never expires.
+         *         expires_at: Optional expiration datetime, at most the server's maximum API key lifetime from now. When
+         *             omitted the key expires at that maximum.
          *         current_password: Caller's existing password
          *             (step-up verification). Required when the account
          *             has a local password.
@@ -12000,7 +12010,7 @@ export interface components {
             current_password?: string | null;
             /**
              * Expires At
-             * @description Optional expiration datetime. None means the key never expires.
+             * @description Optional expiration datetime, at most the server's maximum API key lifetime from now. When omitted the key expires at that maximum.
              */
             expires_at?: string | null;
             /** @description Fresh identity-provider sign-in, required when the account has no local password */
@@ -12042,9 +12052,10 @@ export interface components {
             created_at: string;
             /**
              * Expires At
-             * @description Optional expiration timestamp
+             * Format: date-time
+             * @description Expiration timestamp
              */
-            expires_at?: string | null;
+            expires_at: string;
             /**
              * Id
              * @description Unique key identifier (UUID)
@@ -12099,7 +12110,7 @@ export interface components {
          *         name: User-friendly label.
          *         key_prefix: First 8 chars of the random part.
          *         scopes: Granted scopes.
-         *         expires_at: Optional expiration timestamp.
+         *         expires_at: Expiration timestamp.
          *         last_used_at: Last successful use timestamp.
          *         created_at: Key creation timestamp.
          *         is_active: Whether the key is currently active.
@@ -12113,9 +12124,10 @@ export interface components {
             created_at: string;
             /**
              * Expires At
-             * @description Optional expiration timestamp
+             * Format: date-time
+             * @description Expiration timestamp
              */
-            expires_at?: string | null;
+            expires_at: string;
             /**
              * Id
              * @description Unique key identifier (UUID)

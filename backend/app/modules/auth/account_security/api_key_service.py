@@ -1,5 +1,7 @@
 """API-key lifecycle operations owned by account security."""
 
+from datetime import datetime
+
 import jasil.audit as jasil_audit
 from jasil.event_versioning import VersionedPayload
 from sqlalchemy.orm import Session
@@ -50,10 +52,11 @@ def create_user_api_key(
     user_id: int,
     session_id: str,
     data: api_keys_schema.UsersApiKeyCreate,
+    expires_at: datetime,
     step_up_store: step_up_store_module.StepUpStore,
     db: Session,
 ) -> api_keys_schema.UsersApiKeyCreatedRead:
-    """Verify step-up, stage a key, and commit it before returning its secret once.
+    """Verify step-up, stage a key expiring at ``expires_at``, and commit it before returning its secret once.
 
     The request schema has already refused unsupported scopes, so such a request never spends an
     identity-provider step-up ticket.
@@ -70,7 +73,7 @@ def create_user_api_key(
     )
     users_integration.require_user(user_id, db)
     raw_key = api_keys_integration.generate_api_key()
-    api_key = api_keys_integration.create_api_key(user_id, data, raw_key, db)
+    api_key = api_keys_integration.create_api_key(user_id, data, raw_key, expires_at, db)
     _stage_key_audit(
         account_security_audit_actions.API_KEY_CREATE,
         api_key.id,

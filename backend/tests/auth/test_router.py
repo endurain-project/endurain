@@ -940,6 +940,7 @@ class TestRefreshEndpoint:
 
         now = datetime.now(UTC)
         mock_session = MagicMock()
+        mock_session.expires_at = datetime.now(UTC) + timedelta(days=30)
         mock_session.id = "sid-1"
         mock_session.user_id = 1
         mock_session.refresh_token = password_hasher.hash_password("mock_refresh_token")
@@ -963,7 +964,7 @@ class TestRefreshEndpoint:
             "new-rt",
             "new-csrf",
         )
-        mock_edit_session.return_value = None
+        mock_edit_session.return_value = MagicMock(expires_at=datetime.now(UTC) + timedelta(days=30))
         mock_idp_refresh.return_value = None
 
         # Need to override refresh-specific dependencies
@@ -1012,6 +1013,7 @@ class TestRefreshEndpoint:
     ):
         """Session owned by a different user than the token sub returns 401."""
         mock_session = MagicMock()
+        mock_session.expires_at = datetime.now(UTC) + timedelta(days=30)
         mock_session.id = "sid-1"
         # Session belongs to user 999, but the refresh token's sub is 1.
         mock_session.user_id = 999
@@ -1046,6 +1048,7 @@ class TestRefreshEndpoint:
     ):
         """Token reuse detected invalidates family and returns 401."""
         mock_session = MagicMock()
+        mock_session.expires_at = datetime.now(UTC) + timedelta(days=30)
         mock_session.id = "sid-1"
         mock_session.user_id = 1
         mock_session.refresh_token = "hashed-rt"
@@ -1125,6 +1128,7 @@ class TestRefreshEndpoint:
 
         now = datetime.now(UTC)
         mock_session = MagicMock()
+        mock_session.expires_at = datetime.now(UTC) + timedelta(days=30)
         mock_session.id = "sid-csrf-1"
         mock_session.user_id = 1
         mock_session.refresh_token = password_hasher.hash_password("mock_rt")
@@ -1145,7 +1149,7 @@ class TestRefreshEndpoint:
             "new-rt",
             "new-csrf",
         )
-        mock_edit_session.return_value = None
+        mock_edit_session.return_value = MagicMock(expires_at=datetime.now(UTC) + timedelta(days=30))
         mock_idp_refresh.return_value = None
 
         app = auth_app
@@ -1194,6 +1198,7 @@ class TestRefreshEndpoint:
             AssertionError: If status is not 403 or side effects called.
         """
         mock_session = MagicMock()
+        mock_session.expires_at = datetime.now(UTC) + timedelta(days=30)
         mock_session.id = "sid-bad-csrf"
         mock_session.user_id = 1
         mock_session.refresh_token = "some-hashed-token"
@@ -1270,6 +1275,7 @@ class TestRefreshEndpoint:
 
         now = datetime.now(UTC)
         mock_session = MagicMock()
+        mock_session.expires_at = datetime.now(UTC) + timedelta(days=30)
         mock_session.id = "sid-reload"
         mock_session.user_id = 1
         mock_session.refresh_token = password_hasher.hash_password("mock_rt")
@@ -1289,7 +1295,7 @@ class TestRefreshEndpoint:
             "new-rt",
             "new-csrf",
         )
-        mock_edit_session.return_value = None
+        mock_edit_session.return_value = MagicMock(expires_at=datetime.now(UTC) + timedelta(days=30))
         mock_idp_refresh.return_value = None
 
         app = auth_app
@@ -1363,6 +1369,7 @@ class TestRefreshEndpoint:
         auth_app.state._client_type = "mobile"
         now = datetime.now(UTC)
         mock_session = MagicMock()
+        mock_session.expires_at = datetime.now(UTC) + timedelta(days=30)
         mock_session.id = "sid-mob-csrf"
         mock_session.user_id = 1
         mock_session.refresh_token = password_hasher.hash_password("mock_rt")
@@ -1382,7 +1389,7 @@ class TestRefreshEndpoint:
             "new-rt",
             None,
         )
-        mock_edit_session.return_value = None
+        mock_edit_session.return_value = MagicMock(expires_at=datetime.now(UTC) + timedelta(days=30))
         mock_idp_refresh.return_value = None
 
         app = auth_app
@@ -1424,6 +1431,7 @@ class TestRefreshEndpoint:
             AssertionError: If response status is not 401.
         """
         mock_session = MagicMock()
+        mock_session.expires_at = datetime.now(UTC) + timedelta(days=30)
         mock_session.id = "sid-pkce"
         mock_session.user_id = 1
         mock_session.refresh_token = None
@@ -1479,6 +1487,7 @@ class TestRefreshEndpoint:
             AssertionError: If status not 401 or side effects called.
         """
         mock_session = MagicMock()
+        mock_session.expires_at = datetime.now(UTC) + timedelta(days=30)
         mock_session.id = "sid-bad-rt"
         mock_session.user_id = 1
         mock_session.refresh_token = password_hasher.hash_password("real_token")
@@ -1545,6 +1554,7 @@ class TestRefreshEndpoint:
             AssertionError: If response status is not 401.
         """
         mock_session = MagicMock()
+        mock_session.expires_at = datetime.now(UTC) + timedelta(days=30)
         mock_session.id = "sid-no-user"
         mock_session.user_id = 1
         mock_session.refresh_token = password_hasher.hash_password("mock_rt")
@@ -1623,6 +1633,7 @@ class TestRefreshEndpoint:
         auth_app.state._client_type = "mobile"
         now = datetime.now(UTC)
         mock_session = MagicMock()
+        mock_session.expires_at = datetime.now(UTC) + timedelta(days=30)
         mock_session.id = "sid-mob"
         mock_session.user_id = 1
         mock_session.refresh_token = password_hasher.hash_password("mock_rt")
@@ -1642,7 +1653,7 @@ class TestRefreshEndpoint:
             "new-rt",
             None,
         )
-        mock_edit_session.return_value = None
+        mock_edit_session.return_value = MagicMock(expires_at=datetime.now(UTC) + timedelta(days=30))
         mock_idp_refresh.return_value = None
 
         app = auth_app
@@ -1692,6 +1703,7 @@ class TestRefreshEndpoint:
         auth_app.state._client_type = "mobile"
         now = datetime.now(UTC)
         mock_session = MagicMock()
+        mock_session.expires_at = datetime.now(UTC) + timedelta(days=30)
         mock_session.id = "sid-replay-mob"
         mock_session.user_id = 1
         mock_session.refresh_token = password_hasher.hash_password("current_rt")
@@ -1758,6 +1770,7 @@ class TestRefreshEndpoint:
         auth_app.state._client_type = "mobile"
         now = datetime.now(UTC)
         mock_session = MagicMock()
+        mock_session.expires_at = datetime.now(UTC) + timedelta(days=30)
         mock_session.id = "sid-race"
         mock_session.user_id = 1
         mock_session.refresh_token = password_hasher.hash_password("old_rt")
@@ -1824,6 +1837,7 @@ class TestRefreshEndpoint:
 
         now = datetime.now(UTC)
         mock_session = MagicMock()
+        mock_session.expires_at = datetime.now(UTC) + timedelta(days=30)
         mock_session.id = "sid-replay-web"
         mock_session.user_id = 1
         mock_session.refresh_token = password_hasher.hash_password("current_rt")
@@ -1883,6 +1897,7 @@ class TestRefreshEndpoint:
     ):
         """In-grace replay with no stored replacement returns 401."""
         mock_session = MagicMock()
+        mock_session.expires_at = datetime.now(UTC) + timedelta(days=30)
         mock_session.id = "sid-replay-none"
         mock_session.user_id = 1
         mock_session.refresh_token = password_hasher.hash_password("current_rt")
@@ -1931,6 +1946,7 @@ class TestLogoutEndpoint:
     ):
         """Successful logout deletes session."""
         mock_session = MagicMock()
+        mock_session.expires_at = datetime.now(UTC) + timedelta(days=30)
         mock_session.id = "sid-1"
         mock_session.refresh_token = password_hasher.hash_password("mock_refresh_token")
         mock_get_session.return_value = mock_session
@@ -1962,6 +1978,7 @@ class TestLogoutEndpoint:
     ):
         """Invalid refresh token returns 401."""
         mock_session = MagicMock()
+        mock_session.expires_at = datetime.now(UTC) + timedelta(days=30)
         mock_session.id = "sid-1"
         mock_session.refresh_token = password_hasher.hash_password("real_token")
         mock_get_session.return_value = mock_session
@@ -2039,6 +2056,7 @@ class TestLogoutEndpoint:
             AssertionError: If response status is not 401.
         """
         mock_session = MagicMock()
+        mock_session.expires_at = datetime.now(UTC) + timedelta(days=30)
         mock_session.id = "sid-pkce"
         mock_session.refresh_token = None
         mock_get_session.return_value = mock_session
@@ -2087,6 +2105,7 @@ class TestLogoutEndpoint:
             AssertionError: If status not 200 or cookies not cleared.
         """
         mock_session = MagicMock()
+        mock_session.expires_at = datetime.now(UTC) + timedelta(days=30)
         mock_session.id = "sid-web"
         mock_session.refresh_token = password_hasher.hash_password("mock_rt")
         mock_get_session.return_value = mock_session
@@ -2138,6 +2157,7 @@ class TestLogoutEndpoint:
         """
         auth_app.state._client_type = "mobile"
         mock_session = MagicMock()
+        mock_session.expires_at = datetime.now(UTC) + timedelta(days=30)
         mock_session.id = "sid-mob"
         mock_session.refresh_token = password_hasher.hash_password("mock_rt")
         mock_get_session.return_value = mock_session

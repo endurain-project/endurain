@@ -196,7 +196,7 @@ export type ApiKeyCreateDto = Schemas['UsersApiKeyCreate']
  * @property name - User-friendly label.
  * @property keyPrefix - First characters of the key, shown for identification.
  * @property scopes - The granted scopes.
- * @property expiresAt - When the key expires (ISO), or `null` for no expiry.
+ * @property expiresAt - When the key expires (ISO).
  * @property lastUsedAt - When the key was last used (ISO), or `null`.
  * @property createdAt - When the key was created (ISO).
  * @property isActive - Whether the key is active (not revoked).
@@ -206,7 +206,7 @@ export interface ApiKey {
   name: string
   keyPrefix: string
   scopes: string[]
-  expiresAt: string | null
+  expiresAt: string
   lastUsedAt: string | null
   createdAt: string
   isActive: boolean
@@ -216,7 +216,7 @@ export interface ApiKey {
  * The clean inputs the create-API-key dialog collects. Step-up credentials are
  * required because minting a key is a persistent grant of account access.
  *
- * @property expiresAt - A `YYYY-MM-DD` date, or `null` for a key that never expires.
+ * @property expiresAt - A `YYYY-MM-DD` date, or `null` for the longest lifetime the server allows.
  */
 export interface ApiKeyCreateInput {
   name: string

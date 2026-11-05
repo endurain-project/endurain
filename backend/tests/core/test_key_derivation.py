@@ -33,9 +33,9 @@ class TestDeriveKey:
 
     def test_differs_per_purpose_and_from_the_secret(self):
         with patch("core.key_derivation.core_config.read_secret", return_value=_SECRET):
-            keys = {core_key_derivation.derive_key(p) for p in ("jwt", "token-hmac", "capability-urls")}
+            keys = {core_key_derivation.derive_key(p) for p in ("jwt", "token-hmac", "email-token", "capability-urls")}
 
-        assert len(keys) == 3
+        assert len(keys) == 4
         assert _SECRET not in keys
 
     def test_is_long_enough_to_key_an_hmac(self):
@@ -66,6 +66,16 @@ class TestPurposesAreIsolated:
         assert access_tokens_integration.hmac_sha256("v") != auth_computation.hmac_sha256(
             "v", core_jwt_keys.SIGNING_KEY
         )
+
+    def test_the_email_token_key_is_not_the_token_digest_key(self):
+        assert core_key_derivation.derive_key(core_key_derivation.EMAIL_TOKEN) != core_key_derivation.derive_key(
+            core_key_derivation.TOKEN_HMAC
+        )
+
+    def test_a_raw_emailed_token_is_not_the_token_digest_value(self):
+        assert access_tokens_integration.derive_email_token(
+            "password-reset:e"
+        ) != access_tokens_integration.hmac_sha256("password-reset:e")
 
     def test_capability_tokens_do_not_validate_under_the_raw_secret(self):
         token = core_signing.sign_token("salt", 1)

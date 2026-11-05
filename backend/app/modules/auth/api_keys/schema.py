@@ -34,8 +34,8 @@ class UsersApiKeyCreate(BaseModel):
     Attributes:
         name: User-friendly label for the key.
         scopes: List containing the supported API key scope.
-        expires_at: Optional expiration datetime.
-            None means the key never expires.
+        expires_at: Optional expiration datetime, at most the server's maximum API key lifetime from now. When
+            omitted the key expires at that maximum.
         current_password: Caller's existing password
             (step-up verification). Required when the account
             has a local password.
@@ -58,7 +58,10 @@ class UsersApiKeyCreate(BaseModel):
     )
     expires_at: datetime | None = Field(
         None,
-        description=("Optional expiration datetime. None means the key never expires."),
+        description=(
+            "Optional expiration datetime, at most the server's maximum API key lifetime from now. "
+            "When omitted the key expires at that maximum."
+        ),
     )
     current_password: StrictStr | None = Field(
         default=None,
@@ -102,7 +105,7 @@ class UsersApiKeyCreate(BaseModel):
         A naive datetime is read as UTC.
 
         Args:
-            v: Expiration datetime, or None for a key that never expires.
+            v: Expiration datetime, or None to take the server's maximum lifetime.
 
         Returns:
             The expiration as a UTC-aware datetime, or None.
@@ -137,7 +140,7 @@ class UsersApiKeyRead(BaseModel):
         name: User-friendly label.
         key_prefix: First 8 chars of the random part.
         scopes: Granted scopes.
-        expires_at: Optional expiration timestamp.
+        expires_at: Expiration timestamp.
         last_used_at: Last successful use timestamp.
         created_at: Key creation timestamp.
         is_active: Whether the key is currently active.
@@ -148,7 +151,7 @@ class UsersApiKeyRead(BaseModel):
     name: StrictStr = Field(..., description="User-friendly label")
     key_prefix: StrictStr = Field(..., description="First 8 chars of the random part")
     scopes: list[StrictStr] = Field(..., description="Granted scopes")
-    expires_at: datetime | None = Field(None, description="Optional expiration timestamp")
+    expires_at: datetime = Field(..., description="Expiration timestamp")
     last_used_at: datetime | None = Field(None, description="Last successful use timestamp")
     created_at: datetime = Field(..., description="Key creation timestamp")
     is_active: StrictBool = Field(..., description="Whether the key is currently active")

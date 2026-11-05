@@ -173,7 +173,9 @@ class TestCreatePasswordResetToken:
     @patch(
         "modules.auth.password_reset_tokens.service.password_reset_crud.password_reset_token_exists", return_value=False
     )
-    @patch("modules.auth.password_reset_tokens.service.access_tokens_integration.hmac_sha256", return_value="plain")
+    @patch(
+        "modules.auth.password_reset_tokens.service.access_tokens_integration.derive_email_token", return_value="plain"
+    )
     def test_stages_replacement_and_commits(self, _derive, _exists, invalidate, create, mock_db):
 
         assert password_reset_service.create_password_reset_token(7, "event-1", mock_db) == "plain"

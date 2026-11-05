@@ -1,5 +1,6 @@
 """The SSO token exchange audits the sign-ins it refuses as ``auth.session.login`` rows."""
 
+from datetime import UTC, datetime
 from types import SimpleNamespace
 from unittest.mock import MagicMock, patch
 
@@ -17,9 +18,9 @@ def _exchange(db, *, tokens_exchanged=False, pkce_error=None, inactive=False, cl
     oauth_state = SimpleNamespace(
         id="state", purpose="login", code_challenge="c", code_challenge_method="S256", client_type="web", idp_id=3
     )
-    session = SimpleNamespace(user_id=5, tokens_exchanged=tokens_exchanged)
+    session = SimpleNamespace(user_id=5, tokens_exchanged=tokens_exchanged, expires_at=datetime(2027, 1, 1, tzinfo=UTC))
     inactive_error = core_exceptions.PermissionDeniedError("Inactive user") if inactive else None
-    tokens = ("sid", MagicMock(), "at", MagicMock(), "rt", "csrf")
+    tokens = ("sid", datetime(2026, 11, 1, tzinfo=UTC), "at", datetime(2026, 12, 1, tzinfo=UTC), "rt", "csrf")
     with (
         patch(f"{_SERVICE}.sessions_integration.get_session_with_oauth_state", return_value=(session, oauth_state)),
         patch(f"{_SERVICE}.auth_computation.validate_pkce_verifier", side_effect=pkce_error),

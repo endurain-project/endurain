@@ -207,7 +207,7 @@ def resolve_from_api_key(
         )
         raise core_exceptions.UnauthenticatedError("API key has been revoked", scheme="ApiKey")
 
-    if db_key.expires_at is not None and datetime.now(UTC) > db_key.expires_at:
+    if datetime.now(UTC) > db_key.expires_at:
         _refuse_api_key(
             authentication_audit_actions.ApiKeyRefusalReason.EXPIRED,
             jasil_audit.Outcome.FAILURE,

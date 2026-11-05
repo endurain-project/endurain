@@ -1,6 +1,6 @@
 """The authentication service writes the sign-in, sign-out and refresh-reuse audit trail."""
 
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 from types import SimpleNamespace
 from unittest.mock import MagicMock, patch
 
@@ -152,7 +152,10 @@ class TestSuccessfulSignIn:
             patch(f"{_SERVICE}.credentials_integration.allows_password_sign_in", return_value=True),
             patch(f"{_SERVICE}.mfa_integration.is_mfa_enabled_for_user", return_value=False),
             patch("modules.auth.authentication.token_service.create_tokens", return_value=tokens),
-            patch(f"{_SERVICE}.sessions_integration.create_session"),
+            patch(
+                f"{_SERVICE}.sessions_integration.create_session",
+                return_value=MagicMock(expires_at=datetime.now(UTC) + timedelta(days=30)),
+            ),
         ):
             return _login(db, **kwargs)
 
@@ -199,7 +202,10 @@ class TestMfaSignIn:
             patch(f"{_SERVICE}.lockout_integration.report_lockout_applied"),
             patch(f"{_SERVICE}.server_settings_integration.get_session_policy"),
             patch("modules.auth.authentication.token_service.create_tokens", return_value=tokens),
-            patch(f"{_SERVICE}.sessions_integration.create_session"),
+            patch(
+                f"{_SERVICE}.sessions_integration.create_session",
+                return_value=MagicMock(expires_at=datetime.now(UTC) + timedelta(days=30)),
+            ),
         ):
             return authentication_service.verify_mfa_and_login(
                 "127.0.0.1",
@@ -364,7 +370,7 @@ class TestSsoSignIn:
             client_type="web",
             idp_id=idp_id,
         )
-        session = SimpleNamespace(user_id=5, tokens_exchanged=False)
+        session = SimpleNamespace(user_id=5, tokens_exchanged=False, expires_at=datetime(2027, 1, 1, tzinfo=UTC))
         tokens = ("sid", datetime(2999, 1, 1, tzinfo=UTC), "at", datetime(2999, 1, 1, tzinfo=UTC), "rt", "csrf")
         hasher = MagicMock()
         with (

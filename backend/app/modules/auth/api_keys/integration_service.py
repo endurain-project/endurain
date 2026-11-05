@@ -1,5 +1,7 @@
 """Operations exposed to authentication peers."""
 
+from datetime import datetime
+
 from sqlalchemy.orm import Session
 
 import core.pagination as core_pagination
@@ -38,15 +40,17 @@ def create_api_key(
     user_id: int,
     data: api_keys_schema.UsersApiKeyCreate,
     raw_key: str,
+    expires_at: datetime,
     db: Session,
 ) -> api_keys_schema.UsersApiKeyRead:
-    """Stage a new API key for the account-security owner to commit."""
+    """Stage a new API key expiring at ``expires_at`` for the account-security owner to commit."""
     return api_keys_crud.create_api_key(
         user_id,
         data,
         raw_key,
         api_keys_utils.hash_api_key(raw_key),
         api_keys_utils.scopes_to_json(data.scopes),
+        expires_at,
         db,
     )
 

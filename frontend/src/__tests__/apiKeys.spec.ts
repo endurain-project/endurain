@@ -44,11 +44,9 @@ describe('mapApiKey', () => {
   it('defaults nullable fields', () => {
     const mapped = mapApiKey({
       ...apiKeyDto,
-      expires_at: null,
       last_used_at: null,
       is_active: false,
     })
-    expect(mapped.expiresAt).toBeNull()
     expect(mapped.lastUsedAt).toBeNull()
     expect(mapped.isActive).toBe(false)
   })

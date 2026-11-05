@@ -53,11 +53,14 @@ A minimum length for regular users and for administrators, from 8 to 128 charact
 | ------- | ----- |
 | Access token lifetime | 1 to 1440 minutes |
 | Refresh token lifetime | 1 to 365 days |
+| API key maximum lifetime | 1 to 3650 days, 365 by default |
 | Enforce idle and absolute timeouts | On or off |
 | Idle timeout | 1 to 8760 hours of inactivity |
 | Absolute timeout | 1 to 8760 hours, not below the idle timeout |
 
-The refresh token lifetime is how long a login on a device stays valid. The idle and absolute timeouts are off by default.
+The refresh token lifetime is how long a login on a device stays valid. When the absolute timeout ends a session before its refresh token expires, the client is told the earlier time. The idle and absolute timeouts are off by default.
+
+Every API key expires. A new key lasts the API key maximum lifetime unless its owner picks an earlier date, and a later date is refused. Changing the maximum does not shorten keys that already exist; lower it and review existing keys under each user's **Settings → Security**.
 
 ### Data retention
 

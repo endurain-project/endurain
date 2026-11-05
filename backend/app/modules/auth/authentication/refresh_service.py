@@ -117,6 +117,7 @@ def _replay_rotation(
         replay_access_token_exp,
         replay_refresh_token,
         replay_refresh_token_exp,
+        session.expires_at,
         replay_csrf_token,
     )
 
@@ -349,7 +350,7 @@ def refresh_token(
     # Edit session and store in database
     # Note: edit_session automatically increments rotation_count
     # and updates last_rotation_at
-    sessions_integration.edit_session(
+    rotated_session = sessions_integration.edit_session(
         session,
         ip_address,
         user_agent,
@@ -376,5 +377,6 @@ def refresh_token(
         new_access_token_exp,
         new_refresh_token,
         new_refresh_token_exp,
+        rotated_session.expires_at,
         new_csrf_token,
     )

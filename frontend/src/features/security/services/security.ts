@@ -112,7 +112,7 @@ export function mapApiKey(dto: ApiKeyDto): ApiKey {
     name: dto.name,
     keyPrefix: dto.key_prefix,
     scopes: dto.scopes,
-    expiresAt: dto.expires_at ?? null,
+    expiresAt: dto.expires_at,
     lastUsedAt: dto.last_used_at ?? null,
     createdAt: dto.created_at,
     isActive: dto.is_active,

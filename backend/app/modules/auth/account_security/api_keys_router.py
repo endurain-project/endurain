@@ -9,6 +9,7 @@ import core.dependencies as core_dependencies
 import core.pagination as core_pagination
 import core.rate_limit as core_rate_limit
 import modules.auth.account_security.api_key_service as api_key_service
+import modules.auth.account_security.dependencies as account_security_dependencies
 import modules.auth.api_keys.schema as api_keys_schema
 import modules.auth.dependencies as auth_dependencies
 
@@ -47,6 +48,7 @@ def list_user_api_keys(
 @core_rate_limit.limiter.limit(core_rate_limit.SENSITIVE)
 def create_user_api_key(
     data: api_keys_schema.UsersApiKeyCreate,
+    expires_at: account_security_dependencies.ApiKeyExpiry,
     request: Request,
     response: Response,
     token_user_id: auth_dependencies.CurrentUserId,
@@ -59,7 +61,7 @@ def create_user_api_key(
 ) -> api_keys_schema.UsersApiKeyCreatedRead:
     """Create an API key after step-up verification."""
     core_cache_control.set_no_store(response)
-    return api_key_service.create_user_api_key(token_user_id, token_session_id, data, step_up_store, db)
+    return api_key_service.create_user_api_key(token_user_id, token_session_id, data, expires_at, step_up_store, db)
 
 
 @router.post(

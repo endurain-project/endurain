@@ -1,6 +1,6 @@
 """An account locked by 100 failed sign-ins in a row still admits its known devices, and tells its owner."""
 
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 from types import SimpleNamespace
 from unittest.mock import MagicMock, patch
 
@@ -59,7 +59,10 @@ def password_sign_in():
         patch(f"{_SERVICE}.credentials_integration.allows_password_sign_in", return_value=True),
         patch(f"{_SERVICE}.mfa_integration.is_mfa_enabled_for_user", return_value=False),
         patch("modules.auth.authentication.token_service.create_tokens", return_value=_TOKENS),
-        patch(f"{_SERVICE}.sessions_integration.create_session"),
+        patch(
+            f"{_SERVICE}.sessions_integration.create_session",
+            return_value=MagicMock(expires_at=datetime.now(UTC) + timedelta(days=30)),
+        ),
         patch(f"{_SERVICE}.known_devices_integration.record_sign_in", return_value=record),
     ):
         yield

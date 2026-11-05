@@ -14,7 +14,7 @@ class TestCreateSignUpToken:
     @patch("modules.auth.sign_up_tokens.service.sign_up_crud.create_sign_up_token")
     @patch("modules.auth.sign_up_tokens.service.sign_up_crud.mark_user_sign_up_tokens_used")
     @patch("modules.auth.sign_up_tokens.service.sign_up_crud.sign_up_token_exists", return_value=False)
-    @patch("modules.auth.sign_up_tokens.service.access_tokens_integration.hmac_sha256", return_value="plain")
+    @patch("modules.auth.sign_up_tokens.service.access_tokens_integration.derive_email_token", return_value="plain")
     def test_invalidates_old_tokens_then_stages_new_one(self, _derive, _exists, invalidate, create, mock_db):
         order = MagicMock()
         order.attach_mock(invalidate, "invalidate")

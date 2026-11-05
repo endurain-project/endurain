@@ -1,6 +1,6 @@
 # API key authentication
 
-API keys provide a stateless, long-lived authentication mechanism for programmatic access and third-party integrations. Unlike JWT sessions, API keys do not require a login flow or token refresh, and are scoped to specific operations.
+API keys provide a stateless authentication mechanism for programmatic access and third-party integrations. Unlike JWT sessions, API keys do not require a login flow or token refresh, and are scoped to specific operations.
 
 !!! warning "Security Notice"
     API keys are powerful credentials. Treat them like passwords: store them securely and never expose them in client-side code, public repositories, or logs.
@@ -69,6 +69,8 @@ The upload endpoint also accepts JWT authentication through the same unified-aut
 
 API keys are managed through the Endurain web UI (Settings → Security → API Keys) or via the REST API. All management endpoints require a valid JWT access token.
 
+Every API key expires. The maximum lifetime is set by an administrator (**Settings → Server settings → Sessions**, 365 days by default, 1 to 3650), and `expires_at` is always present in the responses. Keys that never expired before the upgrade now expire 365 days after it.
+
 Creating an API key also requires step-up verification because the key is a long-lived credential:
 
 - Local-password accounts must provide `current_password`
@@ -97,7 +99,7 @@ Content-Type: application/json
 | ----- | -------- | ----------- |
 | `name` | Yes | Human-readable label (max 100 characters) |
 | `scopes` | Yes | Array of API-key scopes to grant. Currently only `activities:upload` is accepted |
-| `expires_at` | No | ISO 8601 expiry datetime. Omit or `null` for no expiry |
+| `expires_at` | No | ISO 8601 expiry datetime. Omit or `null` for the longest lifetime the server allows (365 days unless an administrator changed it). A later date is refused with `422` and a field error on `expires_at` |
 | `current_password` | Conditionally | Required for accounts with a local password |
 | `idp_reauth` | Conditionally | Required for accounts without a local password. Without it the API answers `401` with `urn:endurain:error:idp-reauth-required` |
 | `mfa_code` | Conditionally | Required when MFA is enabled on the account |
@@ -163,7 +165,7 @@ Permanently removes the key from the database. Returns HTTP 204 on success.
 | **Storage** | SHA-256 hex digest stored server-side; raw key never persisted |
 | **Comparison** | Constant-time (`hmac.compare_digest`) prevents timing attacks |
 | **Revocation** | Immediate — revoked keys are rejected at validation time |
-| **Expiry** | Optional; expired keys are rejected at validation time with timezone-aware comparison |
+| **Expiry** | Every key expires, at most the server's maximum API key lifetime (365 days by default) after creation; expired keys are rejected at validation time with timezone-aware comparison |
 | **Audit logging** | Every successful authentication is logged with key prefix, user ID, endpoint, and client IP |
 | **No self-escalation** | An API key cannot create, list, or revoke other API keys (JWT required) |
 | **Minimum privilege** | Keys carry only the scopes explicitly granted at creation time |

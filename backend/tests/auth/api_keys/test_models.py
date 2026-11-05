@@ -85,9 +85,9 @@ class TestUsersApiKeysModel:
         """Test scopes column is not nullable."""
         assert users_api_keys_models.UsersApiKeys.scopes.nullable is False
 
-    def test_users_api_keys_model_expires_at_nullable(self):
-        """Test expires_at column is nullable (no expiry means NULL)."""
-        assert users_api_keys_models.UsersApiKeys.expires_at.nullable is True
+    def test_users_api_keys_model_expires_at_required(self):
+        """Test expires_at column is required: every key expires."""
+        assert users_api_keys_models.UsersApiKeys.expires_at.nullable is False
 
     def test_users_api_keys_model_last_used_at_nullable(self):
         """Test last_used_at column is nullable (not yet used means NULL)."""

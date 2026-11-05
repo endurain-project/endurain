@@ -100,6 +100,12 @@ function onCreate(input: ApiKeyCreateInput): void {
       }
       if (error instanceof HttpError && error.status === 401) {
         toasts.error(t('settings.security.apiKeys.invalidCredentials'))
+      } else if (
+        error instanceof HttpError &&
+        error.status === 422 &&
+        error.errors.some((fieldError) => fieldError.field === 'body.expires_at')
+      ) {
+        toasts.error(t('settings.security.apiKeys.expiryTooLate'))
       } else if (error instanceof HttpError && error.status === 400) {
         toasts.error(t('settings.security.apiKeys.invalidScopes'))
       } else {
@@ -213,11 +219,7 @@ function confirmDelete(): void {
                 : t('settings.security.apiKeys.neverUsed')
             }}
             ·
-            {{
-              key.expiresAt
-                ? t('settings.security.apiKeys.expires', { date: formatDate(key.expiresAt) })
-                : t('settings.security.apiKeys.neverExpires')
-            }}
+            {{ t('settings.security.apiKeys.expires', { date: formatDate(key.expiresAt) }) }}
           </p>
         </div>
         <div class="flex shrink-0 gap-1">

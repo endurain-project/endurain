@@ -224,6 +224,27 @@ const SESSION_ENV_FIELDS = [
             />
           </template>
         </FormField>
+
+        <FormField
+          data-setting="session-api-key-days"
+          :label="t('settings.server.session.apiKeyDays')"
+          :hint="t('settings.server.session.apiKeyDaysHint')"
+          :error="errors.apiKeyMaxLifetimeDays"
+        >
+          <template #default="{ fieldId, describedBy, invalid }">
+            <Input
+              :id="fieldId"
+              v-model="values.apiKeyMaxLifetimeDays"
+              :aria-describedby="describedBy"
+              :aria-invalid="invalid"
+              type="text"
+              inputmode="numeric"
+              maxlength="4"
+              :disabled="isSubmitting"
+              @blur="handleBlur('apiKeyMaxLifetimeDays')"
+            />
+          </template>
+        </FormField>
       </div>
     </Card>
 

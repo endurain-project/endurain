@@ -1,6 +1,6 @@
 """Tests for staged API-key persistence operations."""
 
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 from types import SimpleNamespace
 from unittest.mock import patch
 
@@ -20,7 +20,7 @@ def _row(**overrides):
         "key_prefix": "12345678",
         "key_hash": "h" * 64,
         "scopes": '["activities:upload"]',
-        "expires_at": None,
+        "expires_at": datetime.now(UTC) + timedelta(days=30),
         "last_used_at": None,
         "created_at": datetime.now(UTC),
         "is_active": True,
@@ -56,11 +56,12 @@ def test_create_api_key_stages_hashed_key(mock_db):
     row = _row()
     data = api_keys_schema.UsersApiKeyCreate(name="CLI", scopes=["activities:upload"])
     raw_key = "endurain_12345678secret"
+    expires_at = datetime.now(UTC) + timedelta(days=30)
     with (
         patch.object(api_keys_models, "UsersApiKeys", return_value=row) as constructor,
         patch("modules.auth.api_keys.crud.uuid.uuid4", return_value="api-key-id"),
     ):
-        result = api_keys_crud.create_api_key(1, data, raw_key, "h" * 64, '["activities:upload"]', mock_db)
+        result = api_keys_crud.create_api_key(1, data, raw_key, "h" * 64, '["activities:upload"]', expires_at, mock_db)
 
     constructor.assert_called_once()
     assert result.id == row.id

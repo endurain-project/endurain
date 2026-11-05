@@ -23,6 +23,7 @@ function mountAccessTab(idleEnabled: boolean) {
       sessionIdleTimeoutEnabled: idleEnabled,
       sessionIdleTimeoutHours: '24',
       sessionAbsoluteTimeoutHours: '720',
+      apiKeyMaxLifetimeDays: '365',
     }),
     errors: reactive({}),
     isSubmitting: ref(false),
@@ -59,6 +60,16 @@ describe('AccessTab session timeouts', () => {
     expect(
       wrapper.get('[data-setting="session-idle-hours"] input').attributes('disabled'),
     ).toBeUndefined()
+  })
+})
+
+describe('AccessTab API key lifetime', () => {
+  it('shows the maximum API key lifetime among the session settings', () => {
+    const wrapper = mountAccessTab(false)
+
+    const input = wrapper.get('[data-setting="session-api-key-days"] input')
+    expect((input.element as HTMLInputElement).value).toBe('365')
+    expect(input.attributes('disabled')).toBeUndefined()
   })
 })
 

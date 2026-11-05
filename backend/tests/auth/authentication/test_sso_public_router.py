@@ -47,6 +47,7 @@ def _session_and_state(client_type: str = "mobile", idp_id: int | None = 5) -> t
     session = MagicMock()
     session.user_id = 42
     session.tokens_exchanged = False
+    session.expires_at = datetime.now(UTC) + timedelta(days=30)
     oauth_state = MagicMock()
     oauth_state.id = "oauth-state-id"
     oauth_state.code_challenge = _VERIFIER
@@ -105,14 +106,12 @@ class TestTokenExchange:
         mock_require_user.return_value = user
         mock_create_tokens.return_value = (
             None,
-            MagicMock(),
+            datetime.now(UTC) + timedelta(minutes=15),
             "access-token",
-            MagicMock(),
+            datetime.now(UTC) + timedelta(days=7),
             "refresh-token",
             "csrf-token",
         )
-        mock_create_tokens.return_value[1].__sub__.return_value.total_seconds.return_value = 900
-        mock_create_tokens.return_value[3].__sub__.return_value.total_seconds.return_value = 604800
 
         response = _client(mock_db).post(
             "/api/v1/public/idp/session/session-id/tokens",
@@ -148,6 +147,37 @@ class TestTokenExchange:
         mock_create_tokens.assert_not_called()
         mock_claim_session.assert_not_called()
 
+    @patch(f"{_SERVICE}.users_integration.require_user")
+    @patch(f"{_SERVICE}.users_integration.require_active_user")
+    @patch("modules.auth.authentication.token_service.create_tokens")
+    @patch(f"{_SERVICE}.sessions_integration.claim_session_for_token_exchange", return_value=True)
+    @patch(f"{_SERVICE}.auth_computation.validate_pkce_verifier")
+    @patch(f"{_SERVICE}.sessions_integration.get_session_with_oauth_state")
+    def test_the_refresh_lifetime_told_to_the_client_is_capped_by_the_session(
+        self, mock_get_session, _validate, _claim, mock_create_tokens, _active, _require_user, mock_db
+    ):
+        _require_user.return_value.username = "testuser"
+        session, state = _session_and_state()
+        session.expires_at = datetime.now(UTC) + timedelta(hours=2)
+        mock_get_session.return_value = (session, state)
+        mock_create_tokens.return_value = (
+            None,
+            datetime.now(UTC) + timedelta(minutes=15),
+            "access-token",
+            datetime.now(UTC) + timedelta(days=7),
+            "refresh-token",
+            "csrf-token",
+        )
+
+        response = _client(mock_db).post(
+            "/api/v1/public/idp/session/session-id/tokens",
+            json={"code_verifier": _VERIFIER},
+            headers={"X-Client-Type": "mobile"},
+        )
+
+        assert response.status_code == 200
+        assert response.json()["refresh_token_expires_in"] == pytest.approx(2 * 3600, abs=2)
+
     @patch(f"{_SERVICE}.sessions_integration.claim_session_for_token_exchange", return_value=False)
     @patch("modules.auth.authentication.token_service.create_tokens")
     @patch(f"{_SERVICE}.users_integration.require_active_user")
@@ -158,7 +188,14 @@ class TestTokenExchange:
         self, mock_get_session, _validate, _require_user, _require_active, mock_create_tokens, _claim, mock_db
     ):
         mock_get_session.return_value = _session_and_state()
-        mock_create_tokens.return_value = (None, MagicMock(), "a", MagicMock(), "r", "c")
+        mock_create_tokens.return_value = (
+            None,
+            datetime.now(UTC) + timedelta(minutes=15),
+            "a",
+            datetime.now(UTC) + timedelta(days=7),
+            "r",
+            "c",
+        )
 
         response = _client(mock_db).post("/api/v1/public/idp/session/s/tokens", json={"code_verifier": _VERIFIER})
 
@@ -181,9 +218,14 @@ class TestTokenExchangeMfa:
         user = MagicMock()
         user.id = 42
         user.username = "testuser"
-        tokens = (None, MagicMock(), "access-token", MagicMock(), "refresh-token", "csrf-token")
-        tokens[1].__sub__.return_value.total_seconds.return_value = 900
-        tokens[3].__sub__.return_value.total_seconds.return_value = 604800
+        tokens = (
+            None,
+            datetime.now(UTC) + timedelta(minutes=15),
+            "access-token",
+            datetime.now(UTC) + timedelta(days=7),
+            "refresh-token",
+            "csrf-token",
+        )
         with (
             patch(f"{_SERVICE}.sessions_integration.get_session_with_oauth_state") as get_session,
             patch(f"{_SERVICE}.auth_computation.validate_pkce_verifier") as validate_pkce,

@@ -56,6 +56,7 @@ function makeSettings(overrides: Partial<ServerSettings> = {}): ServerSettings {
     sessionAbsoluteTimeoutHours: 720,
     accessTokenExpireMinutes: 15,
     refreshTokenExpireDays: 7,
+    apiKeyMaxLifetimeDays: 365,
     readNotificationRetentionDays: 90,
     auditRetentionDays: 90,
     auditLegalHold: false,

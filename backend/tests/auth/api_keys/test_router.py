@@ -1,13 +1,23 @@
 """Tests for users_api_keys API endpoints."""
 
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 from unittest.mock import MagicMock, patch
 
+import pytest
 from fastapi import HTTPException, status
 
 import core.exceptions as core_exceptions
 import modules.auth.api_keys.models as users_api_keys_models
 import modules.auth.api_keys.schema as api_keys_schema
+
+
+@pytest.fixture(autouse=True)
+def _session_policy(session_policy):
+    with patch(
+        "modules.auth.account_security.dependencies.server_settings_integration.get_session_policy",
+        return_value=session_policy,
+    ):
+        yield
 
 
 class TestGetUserApiKeys:
@@ -26,7 +36,7 @@ class TestGetUserApiKeys:
         mock_key.name = "FitoTrack"
         mock_key.key_prefix = "abcdefgh"
         mock_key.scopes = '["activities:upload"]'
-        mock_key.expires_at = None
+        mock_key.expires_at = now + timedelta(days=30)
         mock_key.last_used_at = None
         mock_key.created_at = now
         mock_key.is_active = True
@@ -86,7 +96,7 @@ class TestCreateUserApiKey:
         mock_orm_key.name = "FitoTrack"
         mock_orm_key.key_prefix = "abcdefgh"
         mock_orm_key.scopes = '["activities:upload"]'
-        mock_orm_key.expires_at = None
+        mock_orm_key.expires_at = now + timedelta(days=30)
         mock_orm_key.last_used_at = None
         mock_orm_key.created_at = now
         mock_orm_key.is_active = True
@@ -96,7 +106,7 @@ class TestCreateUserApiKey:
             name=mock_orm_key.name,
             key_prefix=mock_orm_key.key_prefix,
             scopes=mock_orm_key.scopes,
-            expires_at=None,
+            expires_at=now + timedelta(days=30),
             last_used_at=None,
             created_at=now,
             is_active=True,
@@ -163,6 +173,21 @@ class TestCreateUserApiKey:
         )
 
         assert response.status_code == 422
+
+    def test_create_user_api_key_expiry_beyond_the_maximum_returns_422_on_expires_at(
+        self, fast_api_client, fast_api_app
+    ):
+        """An expiry later than the maximum API key lifetime is a field error on expires_at."""
+        payload = {
+            "name": "FitoTrack",
+            "scopes": ["activities:upload"],
+            "expires_at": (datetime.now(UTC) + timedelta(days=366)).isoformat(),
+        }
+
+        response = fast_api_client.post("/api-keys", json=payload, headers={"Authorization": "Bearer mock_token"})
+
+        assert response.status_code == 422
+        assert response.json()["errors"][0]["field"] == "body.expires_at"
 
     def test_create_user_api_key_invalid_scope_message_has_no_set_repr(self, fast_api_client, fast_api_app):
         """Test that the 422 body names the scopes without a Python set repr."""
@@ -492,7 +517,7 @@ class TestApiKeyResponseSafety:
         mock_key.key_prefix = "abcdefgh"
         mock_key.key_hash = "deadbeef" * 8  # ORM has it
         mock_key.scopes = '["activities:upload"]'
-        mock_key.expires_at = None
+        mock_key.expires_at = now + timedelta(days=30)
         mock_key.last_used_at = None
         mock_key.created_at = now
         mock_key.is_active = True
@@ -533,7 +558,7 @@ class TestApiKeyResponseSafety:
         mock_orm_key.key_prefix = "abcdefgh"
         mock_orm_key.key_hash = "deadbeef" * 8
         mock_orm_key.scopes = '["activities:upload"]'
-        mock_orm_key.expires_at = None
+        mock_orm_key.expires_at = now + timedelta(days=30)
         mock_orm_key.last_used_at = None
         mock_orm_key.created_at = now
         mock_orm_key.is_active = True
@@ -543,7 +568,7 @@ class TestApiKeyResponseSafety:
             name=mock_orm_key.name,
             key_prefix=mock_orm_key.key_prefix,
             scopes=mock_orm_key.scopes,
-            expires_at=None,
+            expires_at=now + timedelta(days=30),
             last_used_at=None,
             created_at=now,
             is_active=True,
@@ -589,7 +614,7 @@ class TestApiKeyResponseSafety:
         mock_orm_key.key_prefix = "abcdefgh"
         mock_orm_key.key_hash = "deadbeef" * 8
         mock_orm_key.scopes = '["activities:upload"]'
-        mock_orm_key.expires_at = None
+        mock_orm_key.expires_at = now + timedelta(days=30)
         mock_orm_key.last_used_at = None
         mock_orm_key.created_at = now
         mock_orm_key.is_active = True
@@ -599,7 +624,7 @@ class TestApiKeyResponseSafety:
             name=mock_orm_key.name,
             key_prefix=mock_orm_key.key_prefix,
             scopes=mock_orm_key.scopes,
-            expires_at=None,
+            expires_at=now + timedelta(days=30),
             last_used_at=None,
             created_at=now,
             is_active=True,

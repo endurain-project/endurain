@@ -201,6 +201,7 @@ def exchange_tokens_for_session(
         )
     )
     now = datetime.now(UTC)
+    refresh_token_exp = authentication_token_service.cap_refresh_expiry(refresh_token_exp, session_obj.expires_at)
     expires_in = int((access_token_exp - now).total_seconds())
     refresh_token_expires_in = int((refresh_token_exp - now).total_seconds())
 

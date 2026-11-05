@@ -15,6 +15,7 @@ _POLICY = server_settings_contracts.SessionPolicy(
     refresh_token_ttl=timedelta(days=7),
     idle_timeout=timedelta(hours=1),
     absolute_timeout=timedelta(hours=24),
+    api_key_max_lifetime=timedelta(days=365),
 )
 _NO_IDLE_POLICY = dataclasses.replace(_POLICY, idle_timeout=None)
 

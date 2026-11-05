@@ -1,5 +1,6 @@
 """Audit rows and ``auth.account_security_changed`` events written by the account-security workflows."""
 
+from datetime import UTC, datetime
 from unittest.mock import MagicMock, patch
 
 import jasil.publisher as platform_publisher
@@ -234,7 +235,7 @@ class TestApiKeyAudit:
             patch.object(api_keys_schema, "UsersApiKeyCreatedRead"),
             jasil_testing.capture_audit() as audit,
         ):
-            api_key_service.create_user_api_key(7, "sid", data, MagicMock(), mock_db)
+            api_key_service.create_user_api_key(7, "sid", data, datetime.now(UTC), MagicMock(), mock_db)
 
         entry = audit.assert_audited(
             account_security_audit_actions.API_KEY_CREATE.id,

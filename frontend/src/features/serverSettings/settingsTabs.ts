@@ -43,6 +43,7 @@ export const FIELD_TABS: Record<keyof ServerSettingsFormValues, SettingsTab> = {
   sessionAbsoluteTimeoutHours: 'access',
   accessTokenExpireMinutes: 'access',
   refreshTokenExpireDays: 'access',
+  apiKeyMaxLifetimeDays: 'access',
   publicShareableLinks: 'access',
   publicShareableLinksUserInfo: 'access',
   tileserverUrl: 'maps',
