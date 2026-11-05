@@ -3422,7 +3422,7 @@ export interface paths {
          *     their second factor.
          *
          *     Args:
-         *         response: FastAPI response object.
+         *         response: The response, marked as not cacheable because it carries the codes.
          *         request: FastAPI request object for rate limiting.
          *         step_up: Step-up verification payload.
          *         token_user_id: User ID from access token.
@@ -3544,6 +3544,7 @@ export interface paths {
          *
          *     Args:
          *         request: The incoming request, read by the rate limiter.
+         *         response: The response, marked as not cacheable because it carries the backup codes.
          *         mfa_request: MFA setup request with TOTP code and (when the
          *             account has a local password) current password.
          *         token_user_id: User ID from access token.
@@ -3581,6 +3582,7 @@ export interface paths {
          *
          *     Args:
          *         request: The incoming request, read by the rate limiter.
+         *         response: The response, marked as not cacheable because it carries the secret.
          *         token_user_id: User ID from access token.
          *         mfa_secret_store: Temporary secret storage.
          *         db: Database session.
@@ -5636,6 +5638,7 @@ export interface paths {
          *
          *     Args:
          *         request: The request, which the rate limiter keys on.
+         *         response: The response, marked as not cacheable because it carries the credential.
          *         user_id: Authenticated user ID from auth dependency.
          *         ticket_store: WsTicketStore for issuing tickets.
          *
@@ -10758,8 +10761,14 @@ export interface components {
          *         status: Lifecycle state of the export.
          *         failure: Why the export failed; set only when it failed.
          *         size_bytes: Size of the archive; set only when it completed and can be downloaded.
+         *         expires_at: When the download stops working; set only when it completed and can be downloaded.
          */
         ProfileExportStatus: {
+            /**
+             * Expires At
+             * @description Instant after which the download stops working, once completed
+             */
+            expires_at?: string | null;
             /** @description Reason the export failed */
             failure?: components["schemas"]["ExportFailure"] | null;
             /**

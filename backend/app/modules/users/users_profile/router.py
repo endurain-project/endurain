@@ -17,6 +17,7 @@ from typing import Annotated
 from fastapi import APIRouter, Depends, Request, Response, Security, UploadFile, status
 from fastapi.responses import StreamingResponse
 
+import core.cache_control as core_cache_control
 import core.config as core_config
 import core.dependencies as core_dependencies
 import core.etag as core_etag
@@ -478,6 +479,7 @@ def download_profile_export(
         headers={
             "Content-Disposition": f"attachment; filename=user_{token_user_id}_export.zip",
             "Content-Length": str(size),
+            **core_cache_control.NO_STORE_HEADERS,
         },
     )
 

@@ -326,3 +326,10 @@ X-Client-Type: web|mobile
     - Regenerating codes invalidates ALL previous backup codes
     - Store backup codes in a secure location separate from your authenticator device
 
+## Responses that carry a secret
+
+A response that carries a secret is sent with `Cache-Control: no-store` and `Pragma: no-cache`, so no browser or proxy cache keeps it. These are the token responses, `POST /profile/api-keys`, `POST /profile/mfa/setup`, `POST /profile/mfa/enable`, `POST /profile/mfa/backup-codes`, `POST /ws/ticket` and the profile export download, `GET /profile/export/download`.
+
+## Profile export
+
+`POST /profile/export` queues an export and answers `202`. `GET /profile/export` reports its state: `status` (`queued`, `running`, `completed` or `failed`), `failure`, `size_bytes` and `expires_at`. Once the export is `completed`, `expires_at` is the instant after which `GET /profile/export/download` stops working (two hours after completion). It is `null` for an export that is not completed, and `GET /profile/export` answers `null` once the state has expired. Request a new export then.

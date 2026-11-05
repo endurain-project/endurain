@@ -2,8 +2,9 @@
 
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, Request, Security, status
+from fastapi import APIRouter, Depends, Request, Response, Security, status
 
+import core.cache_control as core_cache_control
 import core.dependencies as core_dependencies
 import core.pagination as core_pagination
 import core.rate_limit as core_rate_limit
@@ -47,6 +48,7 @@ def list_user_api_keys(
 def create_user_api_key(
     data: api_keys_schema.UsersApiKeyCreate,
     request: Request,
+    response: Response,
     token_user_id: auth_dependencies.CurrentUserId,
     token_session_id: auth_dependencies.CurrentSessionId,
     step_up_store: Annotated[
@@ -56,6 +58,7 @@ def create_user_api_key(
     db: core_dependencies.DbSession,
 ) -> api_keys_schema.UsersApiKeyCreatedRead:
     """Create an API key after step-up verification."""
+    core_cache_control.set_no_store(response)
     return api_key_service.create_user_api_key(token_user_id, token_session_id, data, step_up_store, db)
 
 

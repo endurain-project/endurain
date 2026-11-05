@@ -2,10 +2,11 @@
 
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, Query, Request, Security, WebSocket, WebSocketException, status
+from fastapi import APIRouter, Depends, Query, Request, Response, Security, WebSocket, WebSocketException, status
 from starlette.concurrency import run_in_threadpool
 
 import core.attempt_state as core_attempt_state
+import core.cache_control as core_cache_control
 import core.rate_limit as core_rate_limit
 import modules.auth.dependencies as auth_dependencies
 import modules.websocket.dependencies as websocket_dependencies
@@ -26,6 +27,7 @@ router = APIRouter()
 @core_rate_limit.limiter.limit(core_rate_limit.WRITE)
 def issue_ws_ticket(
     request: Request,
+    response: Response,
     user_id: auth_dependencies.CurrentUserId,
     ticket_store: Annotated[
         websocket_ticket_store.WsTicketStore,
@@ -41,12 +43,14 @@ def issue_ws_ticket(
 
     Args:
         request: The request, which the rate limiter keys on.
+        response: The response, marked as not cacheable because it carries the credential.
         user_id: Authenticated user ID from auth dependency.
         ticket_store: WsTicketStore for issuing tickets.
 
     Returns:
         The ticket.
     """
+    core_cache_control.set_no_store(response)
     return websocket_schema.WsTicketRead(ticket=ticket_store.create_ticket(user_id))
 
 

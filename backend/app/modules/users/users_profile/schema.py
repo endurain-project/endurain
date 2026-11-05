@@ -1,5 +1,7 @@
 """Pydantic response shapes for the profile import and export."""
 
+from datetime import datetime
+
 from pydantic import BaseModel, ConfigDict, Field
 
 import modules.activities.activity.schema as activity_schema
@@ -52,10 +54,14 @@ class ProfileExportStatus(BaseModel):
         status: Lifecycle state of the export.
         failure: Why the export failed; set only when it failed.
         size_bytes: Size of the archive; set only when it completed and can be downloaded.
+        expires_at: When the download stops working; set only when it completed and can be downloaded.
     """
 
     status: profile_constants.ExportStatus = Field(..., description="Lifecycle state of the export")
     failure: profile_constants.ExportFailure | None = Field(default=None, description="Reason the export failed")
     size_bytes: int | None = Field(default=None, description="Archive size in bytes, once completed")
+    expires_at: datetime | None = Field(
+        default=None, description="Instant after which the download stops working, once completed"
+    )
 
     model_config = ConfigDict(from_attributes=True, extra="forbid")

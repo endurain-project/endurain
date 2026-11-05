@@ -670,7 +670,7 @@ class TestExportProfileData:
             response = profile_client.post(PREFIX + "/export")
 
         assert response.status_code == 202
-        assert response.json() == {"status": "queued", "failure": None, "size_bytes": None}
+        assert response.json() == {"status": "queued", "failure": None, "size_bytes": None, "expires_at": None}
         assert publish.call_args.args[0] == 1
         assert export_states.get(1).status == "queued"
 
@@ -692,7 +692,9 @@ class TestReadProfileExportStatus:
         response = profile_client.get(PREFIX + "/export")
 
         assert response.status_code == 200
-        assert response.json() == {"status": "completed", "failure": None, "size_bytes": 9}
+        body = response.json()
+        assert (body["status"], body["failure"], body["size_bytes"]) == ("completed", None, 9)
+        assert datetime.fromisoformat(body["expires_at"]) > datetime.now(UTC)
 
     def test_is_null_when_nothing_was_exported(self, profile_client):
         response = profile_client.get(PREFIX + "/export")
@@ -724,6 +726,8 @@ class TestDownloadProfileExport:
         assert response.status_code == 200
         assert response.content == b"zip-data"
         assert response.headers["content-length"] == "8"
+        assert response.headers["cache-control"] == "no-store"
+        assert response.headers["pragma"] == "no-cache"
         storage.open_stream.assert_called_once_with("profile_export_staging", "1.zip")
 
     def test_is_not_found_before_the_export_has_finished(self, profile_client, export_states):

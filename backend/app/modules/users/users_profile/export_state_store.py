@@ -11,6 +11,8 @@ Interface::
     get(user_id)                            - read the current state, or None once expired
 """
 
+from datetime import UTC, datetime, timedelta
+
 from jasil.providers import StateProvider
 from pydantic import BaseModel
 
@@ -25,11 +27,14 @@ class ProfileExportState(BaseModel):
         status: Where the export is.
         failure: Why it failed; set only when ``status`` is ``FAILED``.
         size_bytes: Size of the staged archive; set only when ``status`` is ``COMPLETED``.
+        expires_at: When the state, and with it the download, expires; set only when ``status`` is
+            ``COMPLETED``. A state recorded before this field existed reads as None.
     """
 
     status: profile_constants.ExportStatus
     failure: profile_constants.ExportFailure | None = None
     size_bytes: int | None = None
+    expires_at: datetime | None = None
 
 
 _FINISHED = (profile_constants.ExportStatus.COMPLETED, profile_constants.ExportStatus.FAILED)
@@ -39,6 +44,7 @@ class ProfileExportStateStore:
     """Profile export state backed by the platform ``StateProvider``.
 
     Attributes:
+        _ttl_seconds: How long a recorded state lasts.
         _attempts: The claim and state storage for exports.
     """
 
@@ -49,6 +55,7 @@ class ProfileExportStateStore:
             state: The platform state provider.
             ttl_seconds: How long an export's claim and state last.
         """
+        self._ttl_seconds = ttl_seconds
         self._attempts = core_attempt_state.AttemptStateStore(state, "users", "profile_export", ttl_seconds)
 
     def begin(self, user_id: int) -> bool:
@@ -80,10 +87,17 @@ class ProfileExportStateStore:
             status: The new status.
             failure: Why the export failed, when ``status`` is ``FAILED``.
             size_bytes: The archive size, when ``status`` is ``COMPLETED``.
+
+        A completed state is written with a fresh lifetime, so its ``expires_at`` is that lifetime from now.
         """
+        expires_at = (
+            datetime.now(UTC) + timedelta(seconds=self._ttl_seconds)
+            if status == profile_constants.ExportStatus.COMPLETED
+            else None
+        )
         self._attempts.record(
             str(user_id),
-            ProfileExportState(status=status, failure=failure, size_bytes=size_bytes),
+            ProfileExportState(status=status, failure=failure, size_bytes=size_bytes, expires_at=expires_at),
             finished=status in _FINISHED,
         )
 

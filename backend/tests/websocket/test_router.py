@@ -34,6 +34,12 @@ class TestIssueWsTicket:
         assert isinstance(response.json()["ticket"], str)
         assert len(response.json()["ticket"]) > 0
 
+    def test_response_is_not_cacheable(self):
+        """The ticket is a single-use credential, so no cache may keep it."""
+        response = self._client(WsTicketStore(MemoryState())).post("/ws/ticket")
+        assert response.headers["cache-control"] == "no-store"
+        assert response.headers["pragma"] == "no-cache"
+
     def test_ticket_is_consumable_for_correct_user(self):
         """The returned ticket is valid and bound to the authenticated user."""
         store = WsTicketStore(MemoryState())

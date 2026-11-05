@@ -120,7 +120,7 @@ Content-Type: application/json
 ```
 
 !!! warning "Save the key immediately"
-    The `key` field is returned **only in this response**. It is not stored by the server and cannot be retrieved later. Store it in a secure location (e.g., a password manager or secrets vault) before dismissing the response.
+    The `key` field is returned **only in this response**. It is not stored by the server and cannot be retrieved later. Store it in a secure location (e.g., a password manager or secrets vault) before dismissing the response. The response is sent with `Cache-Control: no-store`.
 
 **List API Keys Response (`GET /profile/api-keys?page_number=1&num_records=25`):**
 

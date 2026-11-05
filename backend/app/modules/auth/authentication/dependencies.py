@@ -10,6 +10,7 @@ from fastapi.security import APIKeyCookie, APIKeyHeader, OAuth2PasswordBearer, O
 from joserfc.errors import MissingClaimError
 from pydantic import BaseModel
 
+import core.cache_control as core_cache_control
 import core.config as core_config
 import core.exceptions as core_exceptions
 import core.logger as core_logger
@@ -98,8 +99,7 @@ def deliver_auth_outcome[BodyT: BaseModel](response: Response, outcome: auth_sch
     Returns:
         The outcome's response body.
     """
-    response.headers["Cache-Control"] = "no-store"
-    response.headers["Pragma"] = "no-cache"
+    core_cache_control.set_no_store(response)
     if outcome.refresh_cookie is not None:
         set_refresh_token_cookie(
             response,

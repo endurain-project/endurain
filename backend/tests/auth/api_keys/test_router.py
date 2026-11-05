@@ -121,6 +121,8 @@ class TestCreateUserApiKey:
         assert "key" in data
         assert data["key"] == "endurain_rawsecretkey"
         assert data["scopes"] == ["activities:upload"]
+        assert response.headers["cache-control"] == "no-store"
+        assert response.headers["pragma"] == "no-cache"
 
     @patch("modules.auth.account_security.api_key_service.users_integration.require_user")
     def test_create_user_api_key_user_not_found_returns_404(

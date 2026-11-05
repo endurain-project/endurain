@@ -4,6 +4,7 @@ from typing import Annotated
 
 from fastapi import APIRouter, Depends, Request, Response, Security, status
 
+import core.cache_control as core_cache_control
 import core.dependencies as core_dependencies
 import core.rate_limit as core_rate_limit
 import modules.auth.account_security.mfa_workflow_service as mfa_workflow_service
@@ -67,6 +68,7 @@ def get_backup_code_status(
 @core_rate_limit.limiter.limit(core_rate_limit.SENSITIVE)
 def setup_mfa(
     request: Request,
+    response: Response,
     token_user_id: auth_dependencies.CurrentUserId,
     mfa_secret_store: Annotated[
         auth_dependencies.MFASecretStoreBackend,
@@ -78,6 +80,7 @@ def setup_mfa(
 
     Args:
         request: The incoming request, read by the rate limiter.
+        response: The response, marked as not cacheable because it carries the secret.
         token_user_id: User ID from access token.
         mfa_secret_store: Temporary secret storage.
         db: Database session.
@@ -85,6 +88,7 @@ def setup_mfa(
     Returns:
         MFA setup response with secret and QR code.
     """
+    core_cache_control.set_no_store(response)
     return mfa_workflow_service.setup_mfa(token_user_id, mfa_secret_store, db)
 
 
@@ -96,6 +100,7 @@ def setup_mfa(
 @core_rate_limit.limiter.limit(core_rate_limit.SENSITIVE)
 def enable_mfa(
     request: Request,
+    response: Response,
     mfa_request: mfa_schema.MFASetupRequest,
     token_user_id: auth_dependencies.CurrentUserId,
     token_session_id: auth_dependencies.CurrentSessionId,
@@ -125,6 +130,7 @@ def enable_mfa(
 
     Args:
         request: The incoming request, read by the rate limiter.
+        response: The response, marked as not cacheable because it carries the backup codes.
         mfa_request: MFA setup request with TOTP code and (when the
             account has a local password) current password.
         token_user_id: User ID from access token.
@@ -140,6 +146,7 @@ def enable_mfa(
         DomainError: 400 if no setup is in progress or the TOTP
             code is invalid; 401 if step-up verification fails.
     """
+    core_cache_control.set_no_store(response)
     return mfa_workflow_service.enable_mfa(
         mfa_request, token_user_id, token_session_id, step_up_store, mfa_secret_store, db
     )
@@ -255,7 +262,7 @@ def generate_mfa_backup_codes(
     their second factor.
 
     Args:
-        response: FastAPI response object.
+        response: The response, marked as not cacheable because it carries the codes.
         request: FastAPI request object for rate limiting.
         step_up: Step-up verification payload.
         token_user_id: User ID from access token.
@@ -270,4 +277,5 @@ def generate_mfa_backup_codes(
         DomainError: 401 if step-up verification fails, 404 if
             user not found, 400 if MFA is not enabled.
     """
+    core_cache_control.set_no_store(response)
     return mfa_workflow_service.generate_backup_codes(step_up, token_user_id, token_session_id, step_up_store, db)
