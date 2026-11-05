@@ -10,7 +10,6 @@ import core.pagination as core_pagination
 import core.rate_limit as core_rate_limit
 import modules.auth.account_security.identity_link_service as identity_link_service
 import modules.auth.dependencies as auth_dependencies
-import modules.auth.identity_provider_link_tokens.schema as idp_link_token_schema
 import modules.auth.identity_provider_links.schema as auth_identity_links_schema
 import modules.auth.identity_providers.schema as identity_providers_schema
 import modules.users.users.schema as users_schema
@@ -19,16 +18,16 @@ router = APIRouter()
 
 
 @router.post(
-    "/{idp_id}/link/token",
-    status_code=status.HTTP_201_CREATED,
-    response_model=idp_link_token_schema.IdentityProviderLinkTokenRead,
+    "/{idp_id}/link",
+    response_model=identity_providers_schema.BrowserFlowStartRead,
     dependencies=[Security(auth_dependencies.check_scopes, scopes=["profile"])],
 )
 @core_rate_limit.limiter.limit(core_rate_limit.SENSITIVE)
-def generate_link_token(
+def start_idp_link(
     idp_id: core_dependencies.PositiveId,
-    link_request: idp_link_token_schema.IdpLinkTokenRequest,
+    link: users_schema.IdentityProviderLinkStart,
     request: Request,
+    response: Response,
     token_user_id: auth_dependencies.CurrentUserId,
     token_session_id: auth_dependencies.CurrentSessionId,
     step_up_store: Annotated[
@@ -36,58 +35,43 @@ def generate_link_token(
         Depends(auth_dependencies.get_step_up_attempts),
     ],
     db: core_dependencies.DbSession,
-) -> idp_link_token_schema.IdentityProviderLinkTokenRead:
-    """Generate a one-time token for linking an identity provider.
+) -> identity_providers_schema.BrowserFlowStartRead:
+    """Start linking an identity provider to the authenticated user's account.
 
-    This endpoint creates a short-lived (60 seconds), single-use token
-    that can be used to securely initiate the OAuth flow for linking
-    an identity provider to the authenticated user's account.
-
-    Linking an identity provider is a sensitive operation that enables
-    persistent authentication. Step-up verification is required: the
-    caller MUST supply ``current_password`` (or, for an account without
-    one, ``idp_reauth``), and an MFA code when MFA is enabled.
-
-    This approach is more secure than passing access tokens in query
-    parameters, as the link token:
-    - Expires in 60 seconds
-    - Can only be used once
-    - Is scoped specifically for IdP linking
-    - Limits exposure in server logs and browser history
+    Linking enables persistent sign-in, so it needs step-up verification: ``current_password`` (or, for an
+    account without one, ``idp_reauth``), and an MFA code when MFA is enabled. The browser then follows
+    ``authorization_url``, signs in at the provider, and the callback returns to ``redirect``. The response
+    sets a cookie that binds the link to this browser.
 
     Args:
-        idp_id (int): The ID of the identity provider to link.
-        link_request (IdpLinkTokenRequest): Request with step-up credentials.
-        request (Request): The FastAPI request object.
-        token_user_id (int): The authenticated user's ID extracted from the access token.
+        idp_id: The identity provider to link.
+        link: Step-up credentials and the frontend return path.
+        request: The incoming request, read by the rate limiter and for the client address.
+        response: The response, which receives the browser-binding cookie.
+        token_user_id: User ID from access token.
         token_session_id: Session ID from access token.
         step_up_store: Step-up lockout store.
         db: Database session.
 
     Returns:
-        IdpLinkTokenResponse: Contains the one-time token and expiration time.
-
-    Raises:
-        DomainError:
-            - 401 UNAUTHORIZED: If step-up verification fails.
-            - 404 NOT_FOUND: If the identity provider doesn't exist or is disabled.
-            - 409 CONFLICT: If the identity provider is already linked.
-            - 500 INTERNAL_SERVER_ERROR: If token generation fails.
+        The provider's authorization URL.
     """
-    return identity_link_service.generate_link_token(
+    flow = identity_link_service.start_idp_link(
         idp_id,
-        link_request,
+        link,
         core_network.get_ip_address(request),
         token_user_id,
         token_session_id,
         step_up_store,
         db,
     )
+    auth_dependencies.set_idp_browser_binding_cookie(response, flow.browser_binding)
+    return identity_providers_schema.BrowserFlowStartRead(authorization_url=flow.authorization_url)
 
 
 @router.post(
     "/{idp_id}/step-up",
-    response_model=identity_providers_schema.StepUpStartRead,
+    response_model=identity_providers_schema.BrowserFlowStartRead,
     dependencies=[Security(auth_dependencies.check_scopes, scopes=["profile"])],
 )
 @core_rate_limit.limiter.limit(core_rate_limit.SENSITIVE)
@@ -103,7 +87,7 @@ def start_idp_step_up(
         Depends(auth_dependencies.get_step_up_attempts),
     ],
     db: core_dependencies.DbSession,
-) -> identity_providers_schema.StepUpStartRead:
+) -> identity_providers_schema.BrowserFlowStartRead:
     """Start a fresh sign-in with a linked identity provider, for an account without a local password.
 
     Such an account has no password to prove, so a sensitive operation asks for this instead: the browser
@@ -135,7 +119,7 @@ def start_idp_step_up(
         db,
     )
     auth_dependencies.set_idp_browser_binding_cookie(response, flow.browser_binding)
-    return identity_providers_schema.StepUpStartRead(authorization_url=flow.authorization_url)
+    return identity_providers_schema.BrowserFlowStartRead(authorization_url=flow.authorization_url)
 
 
 # Identity Provider Management Endpoints

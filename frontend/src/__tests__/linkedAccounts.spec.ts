@@ -4,10 +4,9 @@ import type { LinkedProviderDto, StepUpInput } from '@/features/security/types'
 
 import { apiFetch } from '@/services/http'
 import {
-  buildLinkStartUrl,
   fetchLinkedProviders,
-  generateLinkToken,
   mapLinkedProvider,
+  startProviderLink,
   unlinkProvider,
 } from '@/features/security/services/linkedAccounts'
 
@@ -89,16 +88,35 @@ describe('linked-accounts service requests', () => {
     })
   })
 
-  it('generateLinkToken POSTs the step-up body and returns the token', async () => {
-    vi.mocked(apiFetch).mockResolvedValue({ token: 'tok-1', expires_at: '2026-01-01T00:01:00Z' })
+  it('startProviderLink POSTs the step-up body and return path and returns the provider URL', async () => {
+    vi.mocked(apiFetch).mockResolvedValue({ authorization_url: 'https://idp.example.com/auth' })
 
-    const token = await generateLinkToken(2, stepUp)
+    const url = await startProviderLink(2, stepUp)
 
-    expect(apiFetch).toHaveBeenCalledWith('/profile/identity-providers/2/link/token', {
+    expect(apiFetch).toHaveBeenCalledWith('/profile/identity-providers/2/link', {
       method: 'POST',
-      body: JSON.stringify({ current_password: 'pw', mfa_code: '123456' }),
+      body: JSON.stringify({
+        current_password: 'pw',
+        mfa_code: '123456',
+        redirect: '/settings/security',
+      }),
     })
-    expect(token).toBe('tok-1')
+    expect(url).toBe('https://idp.example.com/auth')
+  })
+
+  it('startProviderLink honors an explicit return path', async () => {
+    vi.mocked(apiFetch).mockResolvedValue({ authorization_url: 'https://idp.example.com/auth' })
+
+    await startProviderLink(3, stepUp, '/settings/security?foo=bar')
+
+    expect(apiFetch).toHaveBeenCalledWith('/profile/identity-providers/3/link', {
+      method: 'POST',
+      body: JSON.stringify({
+        current_password: 'pw',
+        mfa_code: '123456',
+        redirect: '/settings/security?foo=bar',
+      }),
+    })
   })
 
   it('unlinkProvider POSTs the step-up body to the unlink path', async () => {
@@ -111,19 +129,5 @@ describe('linked-accounts service requests', () => {
       body: JSON.stringify({ current_password: 'pw', mfa_code: '123456' }),
       responseType: 'void',
     })
-  })
-})
-
-describe('buildLinkStartUrl', () => {
-  it('builds the link-start URL with the encoded token and default return path', () => {
-    expect(buildLinkStartUrl(2, 'tok 1')).toBe(
-      '/api/v1/profile/identity-providers/2/link?link_token=tok+1&redirect=%2Fsettings%2Fsecurity',
-    )
-  })
-
-  it('honors an explicit return path', () => {
-    expect(buildLinkStartUrl(3, 'abc', '/settings/security?foo=bar')).toBe(
-      '/api/v1/profile/identity-providers/3/link?link_token=abc&redirect=%2Fsettings%2Fsecurity%3Ffoo%3Dbar',
-    )
   })
 })

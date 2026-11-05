@@ -59,6 +59,11 @@ def _sign(key: RSAKey, claims: dict, *, alg: str = "RS256", kid: str = KID) -> s
     return jwt.encode({"alg": alg, "kid": kid}, claims, key)
 
 
+def _sign_without_kid(key: RSAKey, claims: dict) -> str:
+    """Sign claims with a header that carries no ``kid``."""
+    return jwt.encode({"alg": "RS256"}, claims, key)
+
+
 def _valid_claims(**overrides) -> dict:
     """Return a baseline set of valid OIDC claims, with optional overrides."""
     now = int(time.time())
@@ -110,13 +115,6 @@ class TestVerifyIdTokenHeaderGuards:
             _verify(service, "only.two", JWKS_URI, ISS, AUD)
         assert exc_info.value.status_code == status.HTTP_401_UNAUTHORIZED
         assert "format" in exc_info.value.detail.lower()
-
-    def test_missing_kid_raises_401(self, service):
-        token = _fake_jwt({"alg": "RS256"})
-        with pytest.raises(core_exceptions.DomainError) as exc_info:
-            _verify(service, token, JWKS_URI, ISS, AUD)
-        assert exc_info.value.status_code == status.HTTP_401_UNAUTHORIZED
-        assert "key identifier" in exc_info.value.detail.lower()
 
     def test_missing_alg_raises_401(self, service):
         token = _fake_jwt({"kid": KID})
@@ -200,6 +198,74 @@ class TestVerifyIdTokenKeyResolution:
         with patch.object(service, "fetch_jwks", fetch):
             _verify(service, token, JWKS_URI, ISS, AUD)
         fetch.assert_called_once_with(JWKS_URI)
+
+    def test_a_token_without_kid_is_verified_with_the_only_usable_key(self, service, rsa_key):
+        token = _sign_without_kid(rsa_key, _valid_claims())
+        jwks = {"keys": [{**rsa_key.as_dict(private=False), "use": "sig"}]}
+        fetch = MagicMock(return_value=jwks)
+        with patch.object(service, "fetch_jwks", fetch):
+            claims = _verify(service, token, JWKS_URI, ISS, AUD)
+        assert claims["sub"] == "user-1"
+        fetch.assert_called_once_with(JWKS_URI)
+
+    def test_keys_of_another_use_type_or_algorithm_are_not_candidates(self, service, rsa_key, other_rsa_key):
+        token = _sign_without_kid(rsa_key, _valid_claims())
+        ec_key = ECKey.generate_key("P-256")
+        jwks = {
+            "keys": [
+                {**other_rsa_key.as_dict(private=False), "use": "enc"},
+                {**other_rsa_key.as_dict(private=False), "alg": "RS512"},
+                ec_key.as_dict(private=False),
+                rsa_key.as_dict(private=False),
+            ]
+        }
+        with patch.object(service, "fetch_jwks", MagicMock(return_value=jwks)):
+            claims = _verify(service, token, JWKS_URI, ISS, AUD)
+        assert claims["sub"] == "user-1"
+
+    def test_a_token_without_kid_is_refused_when_several_keys_could_have_signed_it(
+        self, service, rsa_key, other_rsa_key
+    ):
+        token = _sign_without_kid(rsa_key, _valid_claims())
+        jwks = {"keys": [rsa_key.as_dict(private=False), other_rsa_key.as_dict(private=False)]}
+        fetch = MagicMock(return_value=jwks)
+        with (
+            patch.object(service, "fetch_jwks", fetch),
+            pytest.raises(core_exceptions.DomainError) as exc_info,
+        ):
+            _verify(service, token, JWKS_URI, ISS, AUD)
+        assert exc_info.value.status_code == status.HTTP_401_UNAUTHORIZED
+        assert "unknown key" in exc_info.value.detail.lower()
+        assert fetch.call_count == 2
+
+    def test_a_token_without_kid_is_refused_when_no_key_could_have_signed_it(self, service, rsa_key):
+        token = _sign_without_kid(rsa_key, _valid_claims())
+        fetch = MagicMock(return_value={"keys": []})
+        with (
+            patch.object(service, "fetch_jwks", fetch),
+            pytest.raises(core_exceptions.DomainError) as exc_info,
+        ):
+            _verify(service, token, JWKS_URI, ISS, AUD)
+        assert exc_info.value.status_code == status.HTTP_401_UNAUTHORIZED
+        assert fetch.call_count == 2
+
+    def test_a_token_without_kid_looks_in_a_fresh_set_when_the_cached_one_has_no_candidate(self, service, rsa_key):
+        token = _sign_without_kid(rsa_key, _valid_claims())
+        fetch = MagicMock(side_effect=[{"keys": []}, {"keys": [rsa_key.as_dict(private=False)]}])
+        with patch.object(service, "fetch_jwks", fetch):
+            claims = _verify(service, token, JWKS_URI, ISS, AUD)
+        assert claims["sub"] == "user-1"
+        assert fetch.call_args_list[1].kwargs == {"refresh": True}
+
+    def test_a_token_naming_a_kid_still_needs_that_key_even_when_the_set_has_one_key(self, service, rsa_key):
+        token = _sign(rsa_key, _valid_claims(), kid="named")
+        jwks = {"keys": [rsa_key.as_dict(private=False)]}
+        with (
+            patch.object(service, "fetch_jwks", MagicMock(return_value=jwks)),
+            pytest.raises(core_exceptions.DomainError) as exc_info,
+        ):
+            _verify(service, token, JWKS_URI, ISS, AUD)
+        assert "unknown key" in exc_info.value.detail.lower()
 
     def test_unsupported_key_type_raises_401(self, service, rsa_key):
         token = _sign(rsa_key, _valid_claims())

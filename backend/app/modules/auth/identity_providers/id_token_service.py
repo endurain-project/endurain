@@ -50,12 +50,39 @@ ID_TOKEN_ALLOWED_ALGORITHMS: frozenset[str] = frozenset(
 )
 
 
-def _find_key(jwks: dict[str, Any], kid: str) -> dict[str, Any] | None:
-    """Return the key with the given ``kid`` from a JWKS, or None."""
-    for key_data in jwks.get("keys", []):
-        if key_data.get("kid") == kid:
-            return key_data
-    return None
+#: The JWK key type that signs with each family of ``alg`` values.
+_KEY_TYPE_BY_ALG_PREFIX = {"RS": "RSA", "PS": "RSA", "ES": "EC"}
+
+
+def _can_verify(key_data: dict[str, Any], alg: str) -> bool:
+    """Return whether a JWK may verify a signature made with ``alg``."""
+    if key_data.get("use", "sig") != "sig":
+        return False
+    if key_data.get("kty") != _KEY_TYPE_BY_ALG_PREFIX.get(alg[:2]):
+        return False
+    return key_data.get("alg", alg) == alg
+
+
+def _find_key(jwks: dict[str, Any], kid: str | None, alg: str) -> dict[str, Any] | None:
+    """Return the key that verifies a token from a JWKS, or None.
+
+    A token that names a ``kid`` takes the key with that ``kid``. A token without one is accepted only when the
+    set holds exactly one key usable for ``alg`` (signature use, matching ``kty`` and, when the key declares one,
+    ``alg``), because OIDC requires a ``kid`` only when the set holds several keys.
+
+    Args:
+        jwks: The provider's JWKS document.
+        kid: The ``kid`` of the token header, if it has one.
+        alg: The ``alg`` of the token header.
+
+    Returns:
+        The key, or None when no key, or more than one key, could have signed the token.
+    """
+    keys = jwks.get("keys", [])
+    if kid is not None:
+        return next((key_data for key_data in keys if key_data.get("kid") == kid), None)
+    candidates = [key_data for key_data in keys if _can_verify(key_data, alg)]
+    return candidates[0] if len(candidates) == 1 else None
 
 
 class FetchJwks(Protocol):
@@ -86,8 +113,9 @@ def verify_id_token(
 
     This method performs comprehensive JWT verification following OIDC Core 1.0 spec:
     1. Fetches the JWKS (public keys) from the IdP
-    2. Extracts the 'kid' (key ID) from the JWT header
-    3. Finds the matching public key in the JWKS, fetching the set afresh once when the key is not in it
+    2. Extracts the 'kid' (key ID) and 'alg' from the JWT header
+    3. Finds the matching public key in the JWKS (the one with that 'kid', or, for a token without one, the only key
+       usable for its 'alg'), fetching the set afresh once when there is none
     4. Imports the key based on its type (RSA, EC, or Oct)
     5. Verifies the JWT signature using joserfc
     6. Validates standard claims (iss, aud, sub, exp, iat), allowing a small clock skew, and the authorized party
@@ -139,10 +167,6 @@ def verify_id_token(
         kid = header.get("kid")
         alg = header.get("alg")
 
-        if not kid:
-            logger.warning("ID token header missing 'kid' claim")
-            raise core_exceptions.UnauthenticatedError("ID token missing key identifier")
-
         if not alg:
             logger.warning("ID token header missing 'alg' claim")
             raise core_exceptions.UnauthenticatedError("ID token missing algorithm")
@@ -160,14 +184,17 @@ def verify_id_token(
         # Step 2: Fetch JWKS from IdP
         jwks = fetch_jwks(jwks_uri)
 
-        # Step 3: Find the matching key in JWKS. A kid the cached set lacks may be a key the provider added since,
-        # so the set is fetched afresh once before the token is refused.
-        matching_key = _find_key(jwks, kid)
+        # Step 3: Find the matching key in JWKS. A key the cached set lacks (or, without a kid, a set that does not
+        # single one out) may have changed since, so the set is fetched afresh once before the token is refused.
+        matching_key = _find_key(jwks, kid, alg)
         if matching_key is None:
-            matching_key = _find_key(fetch_jwks(jwks_uri, refresh=True), kid)
+            matching_key = _find_key(fetch_jwks(jwks_uri, refresh=True), kid, alg)
 
         if not matching_key:
-            logger.warning("No matching key found in JWKS for kid=<kid>", extra=core_logger.context(kid=kid))
+            logger.warning(
+                "No single matching key found in JWKS for kid=<kid>, alg=<alg>",
+                extra=core_logger.context(kid=kid, alg=alg),
+            )
             raise core_exceptions.UnauthenticatedError("ID token signed with unknown key")
 
         logger.debug(

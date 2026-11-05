@@ -41,10 +41,9 @@ def _idp(enabled: bool = True) -> identity_provider_contracts.IdentityProviderSt
     )
 
 
-def _stage(*, redirect=None, provider=_UNSET, claim=None):
+def _stage(*, redirect=None, provider=_UNSET):
     if provider is _UNSET:
         provider = _idp()
-    claim = claim or MagicMock(return_value=7)
     db = MagicMock()
     service = authorization_service.AuthorizationService(MagicMock(), "https://app.example")
     with (
@@ -60,23 +59,22 @@ def _stage(*, redirect=None, provider=_UNSET, claim=None):
         ),
         patch.object(authorization_service.oauth_state_integration, "create_oauth_state") as create_state,
     ):
-        staged = integration_service.stage_browser_link("token", 1, redirect, "10.0.0.1", claim, db)
-    return staged, claim, service, create_state
+        staged = integration_service.stage_browser_link(7, 1, redirect, "10.0.0.1", db)
+    return staged, service, create_state
 
 
 def test_stage_browser_link_stages_a_link_state_for_the_claimed_user():
-    staged, claim, _, create_state = _stage()
+    staged, _, create_state = _stage()
 
     assert staged.purpose == oauth_state_constants.OAuthStatePurpose.LINK
     assert staged.state_id == "state"
     assert staged.nonce == "nonce"
-    claim.assert_called_once_with(link_token="token", idp_id=1, client_ip="10.0.0.1")
     assert create_state.call_args.kwargs["user_id"] == 7
     assert create_state.call_args.kwargs["purpose"] == oauth_state_constants.OAuthStatePurpose.LINK
 
 
 def test_authorization_url_is_built_from_the_staged_flow_without_the_database():
-    staged, _, service, _ = _stage()
+    staged, service, _ = _stage()
 
     with (
         patch.object(
@@ -93,8 +91,8 @@ def test_authorization_url_is_built_from_the_staged_flow_without_the_database():
 
 def test_the_state_stores_only_a_digest_of_a_fresh_browser_binding():
     """The browser keeps the binding; the row keeps its digest, so the row alone cannot reproduce it."""
-    first, _, _, create_state = _stage()
-    second, _, _, _ = _stage()
+    first, _, create_state = _stage()
+    second, _, _ = _stage()
 
     assert len(first.browser_binding) >= 43
     assert first.browser_binding != second.browser_binding
@@ -102,8 +100,8 @@ def test_the_state_stores_only_a_digest_of_a_fresh_browser_binding():
 
 
 def test_a_link_state_keeps_a_fresh_pkce_verifier_for_the_provider():
-    _, _, _, first = _stage()
-    _, _, _, second = _stage()
+    _, _, first = _stage()
+    _, _, second = _stage()
 
     verifier = first.call_args.kwargs["idp_code_verifier"]
     assert 43 <= len(verifier) <= 128
@@ -111,17 +109,15 @@ def test_a_link_state_keeps_a_fresh_pkce_verifier_for_the_provider():
 
 
 def test_stage_browser_link_preserves_redirect_and_client_type():
-    _, _, _, create_state = _stage(redirect="/settings/security")
+    _, _, create_state = _stage(redirect="/settings/security")
     assert create_state.call_args.kwargs["redirect_path"] == "/settings/security"
     assert create_state.call_args.kwargs["client_type"] == "web"
 
 
-def test_bad_redirect_is_rejected_before_token_claim():
-    claim = MagicMock()
+def test_bad_redirect_is_rejected():
     with pytest.raises(core_exceptions.DomainError) as exc:
-        _stage(redirect="https://evil.example.com", claim=claim)
+        _stage(redirect="https://evil.example.com")
     assert exc.value.status_code == 400
-    claim.assert_not_called()
 
 
 def test_missing_or_disabled_provider_is_not_found():

@@ -9,10 +9,6 @@ import pytest
 from sqlalchemy import func, select
 
 import core.database as core_database
-import modules.auth.identity_provider_link_tokens.crud as idp_link_token_crud
-import modules.auth.identity_provider_link_tokens.models as idp_link_token_models
-import modules.auth.identity_provider_link_tokens.scheduled_jobs as idp_link_jobs
-import modules.auth.identity_provider_link_tokens.service as idp_link_token_service
 import modules.auth.oauth_state.constants as oauth_state_constants
 import modules.auth.oauth_state.crud as oauth_state_crud
 import modules.auth.oauth_state.models as oauth_state_models
@@ -39,7 +35,7 @@ from tests._helpers.db import create_sqlite_session
 
 def test_token_and_session_packages_publish_cleanup_jobs():
     """Each state-owning package publishes its recurring cleanup job."""
-    modules = (idp_link_jobs, oauth_state_jobs, password_reset_jobs, rotated_token_jobs, sessions_jobs, sign_up_jobs)
+    modules = (oauth_state_jobs, password_reset_jobs, rotated_token_jobs, sessions_jobs, sign_up_jobs)
     assert all(module.recurring_jobs() for module in modules)
 
 
@@ -61,10 +57,6 @@ def _password_reset(key: str, expires_at: datetime) -> Any:
 
 def _sign_up(key: str, expires_at: datetime) -> Any:
     return sign_up_models.SignUpToken(id=key, user_id=1, token_hash=key, created_at=expires_at, expires_at=expires_at)
-
-
-def _idp_link(key: str, expires_at: datetime) -> Any:
-    return idp_link_token_models.IdpLinkToken(id=key, token_hash=key, user_id=1, idp_id=1, expires_at=expires_at)
 
 
 def _session(key: str, at: datetime, *, column: str) -> Any:
@@ -105,7 +97,6 @@ _PURGES: list[tuple[str, type, Callable[[str, datetime], Any], Callable[..., int
         password_reset_crud.delete_expired_password_reset_tokens,
     ),
     ("sign_up", sign_up_models.SignUpToken, _sign_up, sign_up_crud.delete_expired_sign_up_tokens),
-    ("idp_link", idp_link_token_models.IdpLinkToken, _idp_link, idp_link_token_crud.delete_expired_tokens),
     (
         "expired_session",
         sessions_models.UsersSessions,
@@ -158,11 +149,6 @@ _SERVICE_PURGES = [
         sign_up_service,
         "sign_up_crud.delete_expired_sign_up_tokens",
         lambda db: sign_up_service.delete_expired_sign_up_tokens(db),
-    ),
-    (
-        idp_link_token_service,
-        "idp_link_token_crud.delete_expired_tokens",
-        lambda db: idp_link_token_service.delete_expired_tokens(db),
     ),
     (
         sessions_service,

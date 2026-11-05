@@ -19,7 +19,6 @@ import modules.activities.activity.integration_service as activities_integration
 import modules.auth.account_security.integration_service as account_security_integration
 import modules.auth.credentials.integration_service as credentials_integration
 import modules.auth.identity_providers.constants as identity_providers_constants
-import modules.auth.identity_providers.contracts as identity_provider_contracts
 import modules.auth.sign_up_tokens.integration_service as sign_up_tokens_integration
 import modules.users.contributor_registry as users_contributor_registry
 import modules.users.users.integration_service as users_integration
@@ -459,33 +458,3 @@ def change_password(
     )
     db.commit()
     logger.info("Password changed", extra=core_logger.context(user_id=user_id))
-
-
-def start_identity_provider_link(
-    link_token: str,
-    idp_id: int,
-    redirect: str | None,
-    client_ip: str,
-    db: Session,
-) -> identity_provider_contracts.BrowserFlowStart:
-    """Claim a one-time link token and return the identity provider's authorization URL and browser binding.
-
-    Args:
-        link_token: One-time token minted for the link.
-        idp_id: ID of the identity provider to link.
-        redirect: Frontend return path after linking.
-        client_ip: Client address of the request, checked against the address the token was issued to.
-        db: Database session.
-
-    Returns:
-        The provider's authorization URL, and the secret the browser must keep for the callback.
-    """
-    staged = account_security_integration.stage_browser_idp_link(link_token, idp_id, redirect, client_ip, db)
-    # Committed before the provider URL is built: building it may run OIDC discovery, a network call no open
-    # transaction may span.
-    db.commit()
-    authorization_url = account_security_integration.browser_flow_authorization_url(staged)
-    logger.info("Identity provider link started", extra=core_logger.context(idp_id=idp_id))
-    return identity_provider_contracts.BrowserFlowStart(
-        authorization_url=authorization_url, browser_binding=staged.browser_binding
-    )

@@ -23,7 +23,6 @@ import modules.auth.credentials.integration_service as credentials_integration
 import modules.auth.dependencies as auth_dependencies
 import modules.auth.mfa.dependencies as auth_mfa_dependencies
 import modules.auth.sign_up_tokens.integration_service as sign_up_tokens_integration
-import modules.users.users_profile.browser_redirect_router as profile_browser_redirect_router
 import modules.users.users_profile.dependencies as profile_dependencies
 import modules.users.users_profile.export_state_store as profile_export_state_store
 import modules.users.users_profile.import_state_store as profile_import_state_store
@@ -72,25 +71,6 @@ def mock_auth_services() -> MagicMock:
     services = MagicMock()
     services.has_local_password.return_value = False
     return services
-
-
-@pytest.fixture
-def redirect_app(local_mock_db) -> FastAPI:
-    app = FastAPI()
-
-    app.include_router(
-        profile_browser_redirect_router.router,
-        prefix=core_config.ROOT_PATH + "/profile",
-    )
-
-    app.dependency_overrides[core_database.get_db] = lambda: local_mock_db
-
-    return app
-
-
-@pytest.fixture
-def redirect_client(redirect_app: FastAPI) -> TestClient:
-    return TestClient(redirect_app)
 
 
 @pytest.fixture
@@ -222,18 +202,6 @@ def profile_app(
         "generate_backup_codes",
         lambda step_up, user_id, session_id, store, db: mock_auth_services.generate_backup_codes(
             step_up=step_up, user_id=user_id, session_id=session_id, step_up_store=store
-        ),
-    )
-    monkeypatch.setattr(
-        identity_link_service,
-        "generate_link_token",
-        lambda idp_id, request, http_request, user_id, session_id, store, db: mock_auth_services.generate_link_token(
-            idp_id=idp_id,
-            link_request=request,
-            request=http_request,
-            user_id=user_id,
-            session_id=session_id,
-            step_up_store=store,
         ),
     )
     monkeypatch.setattr(

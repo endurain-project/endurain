@@ -743,6 +743,21 @@ class StepUpVerification(BaseModel):
     )
 
 
+class IdentityProviderLinkStart(StepUpVerification):
+    """Start linking an identity provider to the signed-in user's account, authorised by step-up verification.
+
+    Attributes:
+        redirect: Frontend return path after linking (a relative path or a configured custom scheme).
+    """
+
+    redirect: StrictStr | None = Field(
+        default=None,
+        min_length=1,
+        max_length=500,
+        description="Frontend return path after linking (relative path or a configured custom scheme)",
+    )
+
+
 class EmailChange(StepUpVerification):
     """Self-service email change, authorised by step-up verification.
 

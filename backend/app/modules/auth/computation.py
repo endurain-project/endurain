@@ -4,8 +4,8 @@ Centralizes the two token-hashing strategies used across the auth token
 modules so the choice is made in one place and cannot drift:
 
 - :func:`sha256_hex` — plain SHA-256 hex digest. Used for high-entropy,
-  single-purpose opaque tokens (API keys, password-reset, sign-up, and IdP
-  link tokens). These are 256-bit ``secrets.token_urlsafe(32)`` values, so a
+  single-purpose opaque tokens (API keys, password-reset and sign-up
+  tokens). These are 256-bit ``secrets.token_urlsafe(32)`` values, so a
   slow KDF (Argon2/bcrypt) is unnecessary; SHA-256 is the standard choice for
   hashing tokens of this entropy level.
 - :func:`hmac_sha256` — keyed HMAC-SHA256 using the key derived for token digests.

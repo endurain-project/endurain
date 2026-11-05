@@ -186,7 +186,7 @@ This needs the provider to be configured with an issuer URL, so Endurain can use
 
 If your provider cannot prove a fresh sign-in, an administrator sets a local password for you. Keep at least one administrator account with a local password: an administrator cannot reset their own password through the admin route, so create it before relying only on SSO.
 
-Linking an identity provider sends a notification to the account.
+Linking an identity provider asks you to confirm with your password (or a fresh provider sign-in) and MFA code first, then sends you to the provider; the browser that started the link must be the one that finishes it. It sends a notification to the account.
 
 ## Usernames of new accounts
 

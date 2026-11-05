@@ -28,7 +28,6 @@ The credential is a discriminated union of `PasswordCred`, `AccessTokenCred`, `A
 | `authentication` | Login, MFA login, refresh/logout, principal resolution and failed-login state |
 | `account_security` | Password changes, session management, step-up, MFA workflows, API-key routes and IdP link management |
 | `credentials` | Local password hashes and password policy |
-| `identity_provider_link_tokens` | One-time browser IdP-link tokens |
 | `identity_provider_links` | User-to-provider link persistence |
 | `identity_providers` | Provider configuration, OIDC flows, callbacks and provider tokens |
 | `lockout` | Shared lockout-state operations |

@@ -3182,89 +3182,31 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /**
-         * Link Identity Provider
-         * @description Initiate linking an identity provider using a one-time link token.
-         *
-         *     This endpoint validates the one-time link token and initiates the OAuth flow
-         *     to link an external identity provider (IdP) to the user's account. The user
-         *     will be redirected to the IdP's authorization page.
-         *
-         *     Security:
-         *         - Uses one-time, short-lived (60s) link tokens instead of access tokens
-         *         - Validates token expiry and single-use constraint
-         *         - Optional IP address validation
-         *         - Binds the link to this browser with a cookie the callback requires
-         *
-         *     Args:
-         *         idp_id (int): The ID of the identity provider to link.
-         *         link_token (str): One-time link token from query parameter.
-         *         request (Request): The FastAPI request object containing request context.
-         *         db: Database session.
-         *         redirect: Optional frontend return path after linking.
-         *
-         *     Returns:
-         *         RedirectResponse: A redirect to the identity provider's authorization URL
-         *             with HTTP 307 status code.
-         */
-        get: operations["link_identity_provider_api_v1_profile_identity_providers__idp_id__link_get"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/v1/profile/identity-providers/{idp_id}/link/token": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
         get?: never;
         put?: never;
         /**
-         * Generate Link Token
-         * @description Generate a one-time token for linking an identity provider.
+         * Start Idp Link
+         * @description Start linking an identity provider to the authenticated user's account.
          *
-         *     This endpoint creates a short-lived (60 seconds), single-use token
-         *     that can be used to securely initiate the OAuth flow for linking
-         *     an identity provider to the authenticated user's account.
-         *
-         *     Linking an identity provider is a sensitive operation that enables
-         *     persistent authentication. Step-up verification is required: the
-         *     caller MUST supply ``current_password`` (or, for an account without
-         *     one, ``idp_reauth``), and an MFA code when MFA is enabled.
-         *
-         *     This approach is more secure than passing access tokens in query
-         *     parameters, as the link token:
-         *     - Expires in 60 seconds
-         *     - Can only be used once
-         *     - Is scoped specifically for IdP linking
-         *     - Limits exposure in server logs and browser history
+         *     Linking enables persistent sign-in, so it needs step-up verification: ``current_password`` (or, for an
+         *     account without one, ``idp_reauth``), and an MFA code when MFA is enabled. The browser then follows
+         *     ``authorization_url``, signs in at the provider, and the callback returns to ``redirect``. The response
+         *     sets a cookie that binds the link to this browser.
          *
          *     Args:
-         *         idp_id (int): The ID of the identity provider to link.
-         *         link_request (IdpLinkTokenRequest): Request with step-up credentials.
-         *         request (Request): The FastAPI request object.
-         *         token_user_id (int): The authenticated user's ID extracted from the access token.
+         *         idp_id: The identity provider to link.
+         *         link: Step-up credentials and the frontend return path.
+         *         request: The incoming request, read by the rate limiter and for the client address.
+         *         response: The response, which receives the browser-binding cookie.
+         *         token_user_id: User ID from access token.
          *         token_session_id: Session ID from access token.
          *         step_up_store: Step-up lockout store.
          *         db: Database session.
          *
          *     Returns:
-         *         IdpLinkTokenResponse: Contains the one-time token and expiration time.
-         *
-         *     Raises:
-         *         DomainError:
-         *             - 401 UNAUTHORIZED: If step-up verification fails.
-         *             - 404 NOT_FOUND: If the identity provider doesn't exist or is disabled.
-         *             - 409 CONFLICT: If the identity provider is already linked.
-         *             - 500 INTERNAL_SERVER_ERROR: If token generation fails.
+         *         The provider's authorization URL.
          */
-        post: operations["generate_link_token_api_v1_profile_identity_providers__idp_id__link_token_post"];
+        post: operations["start_idp_link_api_v1_profile_identity_providers__idp_id__link_post"];
         delete?: never;
         options?: never;
         head?: never;
@@ -6508,6 +6450,20 @@ export interface components {
          */
         BristolType: 1 | 2 | 3 | 4 | 5 | 6 | 7;
         /**
+         * BrowserFlowStartRead
+         * @description Where to send the browser to start a link or step-up sign-in with an identity provider.
+         *
+         *     Attributes:
+         *         authorization_url: The identity provider's authorization URL.
+         */
+        BrowserFlowStartRead: {
+            /**
+             * Authorization Url
+             * @description Identity provider authorization URL
+             */
+            authorization_url: string;
+        };
+        /**
          * ChartBucket
          * @description Calendar span one chart point aggregates.
          *
@@ -9124,21 +9080,30 @@ export interface components {
             user_id: number;
         };
         /**
-         * IdentityProviderLinkTokenRead
-         * @description Schema for IdP link token response.
+         * IdentityProviderLinkStart
+         * @description Start linking an identity provider to the signed-in user's account, authorised by step-up verification.
+         *
+         *     Attributes:
+         *         redirect: Frontend return path after linking (a relative path or a configured custom scheme).
          */
-        IdentityProviderLinkTokenRead: {
+        IdentityProviderLinkStart: {
             /**
-             * Expires At
-             * Format: date-time
-             * @description Token expiration timestamp
+             * Current Password
+             * @description Current password (step-up verification). Required when the account has a local password.
              */
-            expires_at: string;
+            current_password?: string | null;
+            /** @description Fresh identity-provider sign-in, required when the account has no local password */
+            idp_reauth?: components["schemas"]["IdpReauthProof"] | null;
             /**
-             * Token
-             * @description One-time link token
+             * Mfa Code
+             * @description TOTP or backup code, required when MFA is enabled
              */
-            token: string;
+            mfa_code?: string | null;
+            /**
+             * Redirect
+             * @description Frontend return path after linking (relative path or a configured custom scheme)
+             */
+            redirect?: string | null;
         };
         /**
          * IdentityProviderPublicRead
@@ -9436,41 +9401,6 @@ export interface components {
              * @description OIDC userinfo endpoint
              */
             userinfo_endpoint?: string | null;
-        };
-        /**
-         * IdpLinkTokenRequest
-         * @description Schema for requesting an IdP link token with step-up verification.
-         *
-         *     Linking an identity provider is a sensitive operation that enables
-         *     persistent authentication without local password verification.
-         *     It must be gated by step-up verification: the caller MUST supply
-         *     ``current_password``, and an MFA code when MFA is enabled.
-         *
-         *     An account without a local password (it signs in through an identity
-         *     provider) proves a fresh sign-in with a linked provider instead, in
-         *     ``idp_reauth``.
-         *
-         *     Attributes:
-         *         current_password: Caller's existing password (step-up verification).
-         *             Required when the account has a local password.
-         *         mfa_code: TOTP or backup code, required when MFA is enabled on
-         *             the account.
-         *         idp_reauth: Proof of a fresh identity-provider sign-in. Required
-         *             when the account has no local password.
-         */
-        IdpLinkTokenRequest: {
-            /**
-             * Current Password
-             * @description Current password (step-up verification). Required when the account has a local password.
-             */
-            current_password?: string | null;
-            /** @description Fresh identity-provider sign-in, required when the account has no local password */
-            idp_reauth?: components["schemas"]["IdpReauthProof"] | null;
-            /**
-             * Mfa Code
-             * @description TOTP or backup code, required when MFA is enabled
-             */
-            mfa_code?: string | null;
         };
         /**
          * IdpReauthProof
@@ -11439,20 +11369,6 @@ export interface components {
          * @enum {string}
          */
         StepUpAction: "api_key_create" | "idp_link" | "idp_unlink" | "email_change" | "account_delete" | "mfa_enable" | "mfa_disable" | "mfa_backup_codes";
-        /**
-         * StepUpStartRead
-         * @description Where to send the browser for a step-up re-authentication.
-         *
-         *     Attributes:
-         *         authorization_url: The identity provider's authorization URL.
-         */
-        StepUpStartRead: {
-            /**
-             * Authorization Url
-             * @description Identity provider authorization URL
-             */
-            authorization_url: string;
-        };
         /**
          * StepUpStartRequest
          * @description Start a step-up re-authentication with a linked identity provider.
@@ -19019,49 +18935,7 @@ export interface operations {
             };
         };
     };
-    link_identity_provider_api_v1_profile_identity_providers__idp_id__link_get: {
-        parameters: {
-            query: {
-                link_token: string;
-                /** @description Frontend return path after linking (relative path or a configured custom scheme) */
-                redirect?: string | null;
-            };
-            header?: never;
-            path: {
-                idp_id: number;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            307: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/problem+json": components["schemas"]["ProblemDetail"];
-                };
-            };
-            /** @description Unexpected error */
-            default: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/problem+json": components["schemas"]["ProblemDetail"];
-                };
-            };
-        };
-    };
-    generate_link_token_api_v1_profile_identity_providers__idp_id__link_token_post: {
+    start_idp_link_api_v1_profile_identity_providers__idp_id__link_post: {
         parameters: {
             query?: never;
             header?: never;
@@ -19072,17 +18946,17 @@ export interface operations {
         };
         requestBody: {
             content: {
-                "application/json": components["schemas"]["IdpLinkTokenRequest"];
+                "application/json": components["schemas"]["IdentityProviderLinkStart"];
             };
         };
         responses: {
             /** @description Successful Response */
-            201: {
+            200: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["IdentityProviderLinkTokenRead"];
+                    "application/json": components["schemas"]["BrowserFlowStartRead"];
                 };
             };
             /** @description Validation Error */
@@ -19126,7 +19000,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["StepUpStartRead"];
+                    "application/json": components["schemas"]["BrowserFlowStartRead"];
                 };
             };
             /** @description Validation Error */

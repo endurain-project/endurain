@@ -14,7 +14,7 @@ Certain sensitive account operations require the user to re-prove possession of 
 | Disable MFA | `POST /profile/mfa/disable` |
 | Regenerate MFA backup codes | `POST /profile/mfa/backup-codes` |
 | Create API key | `POST /profile/api-keys` |
-| Generate IdP link token | `POST /profile/identity-providers/{idp_id}/link/token` |
+| Start IdP link | `POST /profile/identity-providers/{idp_id}/link` |
 | Remove IdP link | `POST /profile/identity-providers/{idp_id}/unlink` |
 | Delete own account | `POST /profile/delete-account` |
 
@@ -41,7 +41,7 @@ Account deletion and email change use the same fields. Password change (`POST /p
 
 ### Step-up for accounts without a password
 
-An account without a local password cannot prove a password, and MFA alone does not pass step-up for it. It must prove a fresh sign-in with an identity provider linked to the account. This covers API key creation, IdP link token, IdP unlink, email change, account deletion, MFA enable, MFA disable and backup-code regeneration.
+An account without a local password cannot prove a password, and MFA alone does not pass step-up for it. It must prove a fresh sign-in with an identity provider linked to the account. This covers API key creation, IdP link, IdP unlink, email change, account deletion, MFA enable, MFA disable and backup-code regeneration.
 
 1. The sensitive request arrives without `idp_reauth`. The API answers `401` with problem type `urn:endurain:error:idp-reauth-required` and `WWW-Authenticate: Bearer error="insufficient_user_authentication", max_age="60"` ([RFC 9470](https://datatracker.ietf.org/doc/html/rfc9470)). A missing proof is not counted as a failed attempt.
 2. The client generates a PKCE verifier and starts the sign-in with `POST /profile/identity-providers/{idp_id}/step-up`:

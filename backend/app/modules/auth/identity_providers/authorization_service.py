@@ -1,7 +1,6 @@
 """The start of an SSO login, link or step-up flow: authorization URLs and the OAuth state behind them."""
 
 import secrets
-from collections.abc import Callable
 
 from authlib.integrations.httpx_client import OAuth2Client
 from sqlalchemy.orm import Session
@@ -81,25 +80,23 @@ class AuthorizationService:
 
     def stage_browser_link(
         self,
-        link_token: str,
+        user_id: int,
         idp_id: int,
         redirect: str | None,
         client_ip: str | None,
-        claim_link_token: Callable[..., int],
         allowed_schemes: set[str],
         db: Session,
     ) -> identity_provider_contracts.StagedBrowserFlow:
-        """Claim a browser link token and stage the link's OAuth state; the caller commits.
+        """Stage the OAuth state of a user linking a provider from the browser; the caller commits.
 
         The state stores only a digest of the browser binding, so the callback can tell the browser that started
         the link from one that was handed its provider URL, and the row alone cannot reproduce the cookie.
 
         Args:
-            link_token: One-time token minted for the link.
+            user_id: The signed-in user linking the provider.
             idp_id: Provider to link.
             redirect: Frontend path or custom scheme to return to.
             client_ip: Address of the client that started the link.
-            claim_link_token: Claims the link token and returns its user.
             allowed_schemes: Custom URI schemes a redirect may use.
             db: Database session.
 
@@ -111,7 +108,6 @@ class AuthorizationService:
             NotFoundError: If the provider does not exist or is disabled.
         """
         identity_provider_utils.validate_redirect_url(redirect, allowed_schemes)
-        user_id = claim_link_token(link_token=link_token, idp_id=idp_id, client_ip=client_ip)
         idp = idp_crud.get_identity_provider(idp_id, db)
         if idp is None or not idp.enabled:
             raise core_exceptions.NotFoundError("Identity provider not found or disabled")

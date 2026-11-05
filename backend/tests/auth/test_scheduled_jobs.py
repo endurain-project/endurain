@@ -13,7 +13,6 @@ def test_auth_runtime_modules_are_registered():
         "oauth_state",
         "sessions",
         "rotated_refresh_tokens",
-        "identity_provider_link_tokens",
         "password_reset_tokens",
         "sign_up_tokens",
     } <= names
@@ -21,13 +20,11 @@ def test_auth_runtime_modules_are_registered():
 
 def test_token_purges_are_startup_tasks():
     modules = {module.name: module for module in runtime_module_registry.MODULES}
-    for name in ("oauth_state", "identity_provider_link_tokens", "password_reset_tokens", "sign_up_tokens"):
+    for name in ("oauth_state", "password_reset_tokens", "sign_up_tokens"):
         assert modules[name].startup_tasks
 
 
-@pytest.mark.parametrize(
-    "module_name", ["oauth_state", "identity_provider_link_tokens", "password_reset_tokens", "sign_up_tokens"]
-)
+@pytest.mark.parametrize("module_name", ["oauth_state", "password_reset_tokens", "sign_up_tokens"])
 def test_startup_purges_hold_a_distributed_lock(module_name):
     module = next(module for module in runtime_module_registry.MODULES if module.name == module_name)
     assert module.startup_tasks
@@ -35,7 +32,7 @@ def test_startup_purges_hold_a_distributed_lock(module_name):
 
 
 def test_startup_purges_share_the_lock_of_their_recurring_job():
-    for name in ("oauth_state", "identity_provider_link_tokens", "password_reset_tokens", "sign_up_tokens"):
+    for name in ("oauth_state", "password_reset_tokens", "sign_up_tokens"):
         module = next(module for module in runtime_module_registry.MODULES if module.name == name)
         assert {task.lock_name for task in module.startup_tasks} == {job.lock_name for job in module.recurring_jobs()}
 
@@ -72,7 +69,6 @@ def _recurring_jobs(module_name: str):
     [
         "oauth_state",
         "rotated_refresh_tokens",
-        "identity_provider_link_tokens",
         "password_reset_tokens",
         "sign_up_tokens",
         "sessions",
@@ -94,7 +90,6 @@ def test_cleanup_job_lock_names_are_distinct():
         for module_name in (
             "oauth_state",
             "rotated_refresh_tokens",
-            "identity_provider_link_tokens",
             "password_reset_tokens",
             "sign_up_tokens",
             "sessions",

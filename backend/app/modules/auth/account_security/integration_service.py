@@ -11,8 +11,6 @@ import modules.auth.account_security.step_up_service as step_up_service
 import modules.auth.account_security.step_up_store as step_up_store_module
 import modules.auth.identity_provider_links.schema as identity_links_schema
 import modules.auth.identity_providers.constants as identity_providers_constants
-import modules.auth.identity_providers.contracts as identity_providers_contracts
-import modules.auth.identity_providers.integration_service as identity_providers_integration
 import modules.auth.mfa.schema as mfa_schema
 import modules.users.users.schema as users_schema
 
@@ -105,24 +103,3 @@ def get_user_identity_provider_links(
 def admin_delete_identity_provider_link(user_id: int, idp_id: int, db: Session) -> None:
     """Stage the unlinking of an identity provider from a user as an administrator."""
     identity_link_service.admin_delete_identity_provider_link(user_id, idp_id, db)
-
-
-def stage_browser_idp_link(
-    link_token: str, idp_id: int, redirect: str | None, client_ip: str, db: Session
-) -> identity_providers_contracts.StagedBrowserFlow:
-    """Stage the claim of a one-time IdP link token and the link's OAuth state; the caller commits."""
-    return identity_providers_integration.stage_browser_link(
-        link_token,
-        idp_id,
-        redirect,
-        client_ip,
-        lambda *, link_token, idp_id, client_ip: identity_link_service.validate_and_claim_browser_link_token(
-            link_token, idp_id, client_ip, db
-        ),
-        db,
-    )
-
-
-def browser_flow_authorization_url(staged: identity_providers_contracts.StagedBrowserFlow) -> str:
-    """Build the provider URL of a committed link; it touches no database."""
-    return identity_providers_integration.authorization_url(staged)

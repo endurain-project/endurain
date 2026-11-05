@@ -69,7 +69,7 @@ _AUDITED_WRITES: dict[tuple[str, str], tuple[str, ...]] = {
         "auth.lockout.apply",
         "auth.step_up.verify",
     ),
-    ("auth/account_security/identity_links_router.py", "generate_link_token"): (
+    ("auth/account_security/identity_links_router.py", "start_idp_link"): (
         "auth.backup_codes.use",
         "auth.lockout.apply",
         "auth.step_up.verify",

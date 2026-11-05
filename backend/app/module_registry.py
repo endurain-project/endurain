@@ -52,7 +52,6 @@ import modules.auth.account_security.subscriber_registry as account_security_sub
 import modules.auth.authentication.audit_actions as authentication_audit_actions
 import modules.auth.authentication.subscriber_registry as authentication_subscriber_registry
 import modules.auth.dependencies as auth_dependencies
-import modules.auth.identity_provider_link_tokens.scheduled_jobs as identity_provider_link_tokens_scheduled_jobs
 import modules.auth.identity_providers.audit_actions as identity_providers_audit_actions
 import modules.auth.identity_providers.constants as identity_providers_constants
 import modules.auth.identity_providers.scheduled_jobs as identity_providers_scheduled_jobs
@@ -351,18 +350,6 @@ MODULES: tuple[RuntimeModule, ...] = (
         register_durable=identity_providers_subscriber_registry.register_durable_handlers,
         nets=identity_providers_subscriber_registry.DURABLE_SUBSCRIBER_NETS,
         audit_actions=identity_providers_audit_actions.ACTIONS,
-    ),
-    RuntimeModule(
-        name="identity_provider_link_tokens",
-        recurring_jobs=identity_provider_link_tokens_scheduled_jobs.recurring_jobs,
-        startup_tasks=(
-            StartupTask(
-                "purge_expired_identity_provider_link_tokens",
-                "Purging expired identity-provider link tokens",
-                identity_provider_link_tokens_scheduled_jobs.delete_expired_tokens_from_db,
-                lock_name=identity_provider_link_tokens_scheduled_jobs.PURGE_LOCK_NAME,
-            ),
-        ),
     ),
     RuntimeModule(
         name="onboarding",

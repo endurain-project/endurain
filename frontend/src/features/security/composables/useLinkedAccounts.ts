@@ -8,7 +8,7 @@ import { fetchEnabledIdentityProviders } from '@/services/identityProviders'
 import { useAuthStore } from '@/features/auth/stores/auth'
 import {
   fetchLinkedProviders,
-  generateLinkToken,
+  startProviderLink,
   unlinkProvider,
 } from '@/features/security/services/linkedAccounts'
 
@@ -67,14 +67,14 @@ export function useUnlinkProviderMutation() {
 }
 
 /**
- * Generate-link-token mutation. Resolves to the one-time token; the caller then
- * navigates the browser to the link-start URL to begin the OAuth round-trip.
+ * Start-link mutation. Resolves to the provider's authorization URL; the caller
+ * then navigates the browser there to begin the OAuth round-trip.
  *
- * @returns The TanStack Query mutation for generating a link token.
+ * @returns The TanStack Query mutation for starting a provider link.
  */
-export function useGenerateLinkTokenMutation() {
+export function useStartProviderLinkMutation() {
   return useMutation<string, Error, { idpId: number; input: StepUpInput }>({
     mutationKey: queryKeys.security.all(),
-    mutationFn: ({ idpId, input }) => generateLinkToken(idpId, input),
+    mutationFn: ({ idpId, input }) => startProviderLink(idpId, input),
   })
 }

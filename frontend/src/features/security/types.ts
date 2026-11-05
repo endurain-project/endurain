@@ -68,7 +68,7 @@ export type IdpReauthDto = Schemas['IdpReauthProof']
 export type StepUpStartDto = Schemas['StepUpStartRequest']
 
 /** Response of the step-up start endpoint. */
-export type StepUpStartResultDto = Schemas['StepUpStartRead']
+export type StepUpStartResultDto = Schemas['BrowserFlowStartRead']
 
 /**
  * Proof of a fresh identity-provider sign-in.
@@ -146,8 +146,8 @@ export interface SecuritySession {
 /** Raw linked identity-provider payload (snake_case wire shape). */
 export type LinkedProviderDto = Schemas['IdentityProviderLinkRead']
 
-/** Raw link-token payload from the generate-link-token step. */
-export type LinkTokenDto = Schemas['IdentityProviderLinkTokenRead']
+/** Request body that starts linking an identity provider. */
+export type IdentityProviderLinkStartDto = Schemas['IdentityProviderLinkStart']
 
 /** A provider a user can link to (an enabled public provider). */
 export type AvailableProvider = Schemas['IdentityProviderPublicRead']

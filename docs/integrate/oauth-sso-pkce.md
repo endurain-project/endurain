@@ -32,10 +32,13 @@ Identity providers must be configured with the following parameters:
 Users can link their Endurain account to an OAuth provider:
 
 1. User must be authenticated with a valid session
-2. Create a one-time link token with `POST /profile/identity-providers/{idp_id}/link/token`. Local-password accounts must include `current_password`; accounts without one must include `idp_reauth` ([step-up](account-security.md#step-up-for-accounts-without-a-password)); accounts with MFA enabled must also include `mfa_code`.
-3. Open `/profile/identity-providers/{idp_id}/link?link_token=<token>` in the browser before the token expires (60 seconds)
+2. Start the link with `POST /profile/identity-providers/{idp_id}/link`. Local-password accounts must include `current_password`; accounts without one must include `idp_reauth` ([step-up](account-security.md#step-up-for-accounts-without-a-password)); accounts with MFA enabled must also include `mfa_code`. An optional `redirect` is the relative frontend path to return to. The response carries `authorization_url` and sets the `endurain_idp_binding` cookie that binds the link to this browser, so send the request with credentials.
+3. Navigate the browser to `authorization_url`
 4. Authenticate with the identity provider
 5. Provider is linked to the existing account
+
+!!! warning "Breaking change"
+    The one-time link-token route (`.../link/token`) and the unauthenticated browser `GET` of the link route that took `link_token` are removed. No credential travels in a URL any more; the flow starts from the authenticated `POST` above.
 
 ### Step-up re-authentication
 An account without a local password proves a sensitive change by signing in again with a linked provider. `POST /profile/identity-providers/{idp_id}/step-up` takes `code_challenge`, `action` and a relative `redirect`, and returns an `authorization_url`. The authorize request carries `prompt=login`, `max_age=60` and PKCE, and the callback requires an ID token whose `auth_time` is recent. It returns to `redirect` with `#step_up_ticket=...` or `#step_up_error=failed|not_fresh` in the fragment. The flow is in [Account security](account-security.md#step-up-for-accounts-without-a-password). It needs a provider with an issuer URL and does not work for native clients.

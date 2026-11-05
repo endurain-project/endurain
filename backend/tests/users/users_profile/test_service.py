@@ -308,12 +308,3 @@ class TestStateChangesAreLoggedAtInfo:
             profile_service.edit_privacy_settings(1, MagicMock(), mock_db, if_match="*")
 
         assert [record.levelname for record in caplog.records] == ["INFO"]
-
-    def test_starting_an_identity_provider_link_logs_at_info(self, mock_db, caplog):
-        with patch(f"{_MODULE}.account_security_integration") as account_security:
-            account_security.stage_browser_idp_link.return_value = MagicMock(browser_binding="binding")
-            account_security.browser_flow_authorization_url.return_value = "https://idp.example.com/auth"
-            with caplog.at_level("DEBUG", logger=profile_service.logger.name):
-                profile_service.start_identity_provider_link("token", 2, "/settings", "10.0.0.1", mock_db)
-
-        assert [record.levelname for record in caplog.records] == ["INFO"]

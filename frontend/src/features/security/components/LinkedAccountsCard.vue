@@ -22,11 +22,10 @@ import { useToasts } from '@/composables/useToasts'
 import { formatMediumDate } from '@/utils/datetime'
 import { queryKeys } from '@/services/queryKeys'
 import { HttpError } from '@/services/http'
-import { buildLinkStartUrl } from '@/features/security/services/linkedAccounts'
 import { useIdpReauthChallenge } from '@/features/security/composables/useIdpStepUp'
 import {
   useAvailableProvidersQuery,
-  useGenerateLinkTokenMutation,
+  useStartProviderLinkMutation,
   useLinkedProvidersQuery,
   useUnlinkProviderMutation,
 } from '@/features/security/composables/useLinkedAccounts'
@@ -50,7 +49,7 @@ const client = useQueryClient()
 const linkedQuery = useLinkedProvidersQuery()
 const availableQuery = useAvailableProvidersQuery()
 const unlinkMutation = useUnlinkProviderMutation()
-const linkTokenMutation = useGenerateLinkTokenMutation()
+const startLinkMutation = useStartProviderLinkMutation()
 
 const linked = computed(() => linkedQuery.data.value ?? [])
 const linkedIdpIds = computed(() => new Set(linked.value.map((item) => item.idpId)))
@@ -67,7 +66,7 @@ const isStepUpOpen = ref(false)
 const idpReauth = ref<IdpReauth | null>(null)
 
 const isActionPending = computed(
-  () => unlinkMutation.isPending.value || linkTokenMutation.isPending.value,
+  () => unlinkMutation.isPending.value || startLinkMutation.isPending.value,
 )
 
 const stepUpTitle = computed(() =>
@@ -104,15 +103,15 @@ function openUnlink(item: LinkedProvider): void {
   isStepUpOpen.value = true
 }
 
-/** Begins the OAuth link: generates a token, then navigates to the backend. */
+/** Begins the OAuth link: starts it on the backend, then navigates to the provider. */
 function confirmLink(idpId: number, input: StepUpInput): void {
-  linkTokenMutation.mutate(
+  startLinkMutation.mutate(
     { idpId, input },
     {
-      onSuccess: (token) => {
-        // Full-page navigation: the backend 307-redirects on to the provider,
-        // then back to this page with an `idp_link` result handled on mount.
-        window.location.assign(buildLinkStartUrl(idpId, token))
+      onSuccess: (authorizationUrl) => {
+        // Full-page navigation to the provider, which returns to this page
+        // with an `idp_link` result handled on mount.
+        window.location.assign(authorizationUrl)
       },
       onError: (error) => {
         if (handleIdpChallenge(error)) {

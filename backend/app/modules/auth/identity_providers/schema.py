@@ -294,8 +294,8 @@ class StepUpStartRequest(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
 
-class StepUpStartRead(BaseModel):
-    """Where to send the browser for a step-up re-authentication.
+class BrowserFlowStartRead(BaseModel):
+    """Where to send the browser to start a link or step-up sign-in with an identity provider.
 
     Attributes:
         authorization_url: The identity provider's authorization URL.

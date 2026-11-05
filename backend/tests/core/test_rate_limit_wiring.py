@@ -151,9 +151,9 @@ _TIERED_ENDPOINTS = [
     pytest.param(identity_providers_router.upload_identity_provider_icon, core_rate_limit.UPLOAD, id="idp-upload-icon"),
     pytest.param(identity_providers_router.delete_identity_provider_icon, core_rate_limit.WRITE, id="idp-delete-icon"),
     pytest.param(
-        auth_idp_profile_router.generate_link_token,
+        auth_idp_profile_router.start_idp_link,
         core_rate_limit.SENSITIVE,
-        id="sso-link-token",
+        id="sso-link-start",
     ),
     pytest.param(
         auth_mfa_profile_router.generate_mfa_backup_codes,

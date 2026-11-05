@@ -56,7 +56,6 @@ import modules.users.users.photo_router as users_photo_router
 import modules.users.users.router as users_router
 import modules.users.users_default_gear.router as user_default_gear_router
 import modules.users.users_goals.router as user_goals_router
-import modules.users.users_profile.browser_redirect_router as profile_browser_redirect_router
 import modules.users.users_profile.overview_router as profile_overview_router
 import modules.users.users_profile.router as profile_router
 import modules.websocket.router as websocket_router
@@ -302,12 +301,6 @@ router.include_router(
     password_reset_tokens_router.router,
     prefix=core_config.ROOT_PATH,
     tags=["password_reset_tokens"],
-)
-router.include_router(
-    profile_browser_redirect_router.router,
-    prefix=core_config.ROOT_PATH + "/profile",
-    tags=["profile"],
-    # No authentication required - endpoints validate via link_token parameter
 )
 _PROFILE_DEPENDENCIES = [
     Depends(auth_dependencies.validate_access_token),

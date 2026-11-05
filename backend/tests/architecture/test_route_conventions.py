@@ -207,7 +207,6 @@ class TestRouteConventions:
         """
         credentialed_by_url = {
             "photo_router.py": "the signed token in the URL is the credential (an <img> cannot send a header)",
-            "browser_redirect_router.py": "the one-time link_token parameter is the credential",
         }
         scope_checks = {"check_scopes", "check_auth_scopes"}
         offenders = []

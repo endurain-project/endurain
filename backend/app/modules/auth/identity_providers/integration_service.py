@@ -1,7 +1,5 @@
 """Identity-provider operations exposed to auth peers."""
 
-from collections.abc import Callable
-
 import jasil.runtime as platform_runtime
 from jasil.providers import StateProvider
 from sqlalchemy.orm import Session
@@ -17,6 +15,7 @@ import modules.auth.identity_providers.crud as identity_providers_crud
 import modules.auth.identity_providers.oidc_client_service as identity_providers_oidc_client
 import modules.auth.identity_providers.step_up_ticket_store as identity_providers_step_up_tickets
 import modules.auth.identity_providers.token_service as identity_providers_tokens
+import modules.auth.identity_providers.utils as identity_providers_utils
 
 
 def _oidc_client() -> identity_providers_oidc_client.OidcClientService:
@@ -46,21 +45,24 @@ def enrich_user_identity_providers(
     return identity_provider_links_integration.enrich_user_identity_providers(idp_links, idps, user_id)
 
 
+def validate_redirect(redirect: str | None) -> None:
+    """Refuse a frontend return path that is not a relative path or a configured custom scheme."""
+    identity_providers_utils.validate_redirect_url(redirect, core_config.settings.ALLOWED_REDIRECT_SCHEMES)
+
+
 def stage_browser_link(
-    link_token: str,
+    user_id: int,
     idp_id: int,
     redirect: str | None,
     client_ip: str | None,
-    claim_link_token: Callable[..., int],
     db: Session,
 ) -> identity_providers_contracts.StagedBrowserFlow:
-    """Claim a browser link token and stage the link's OAuth state; the caller commits, then builds the URL."""
+    """Stage the OAuth state of a user linking a provider from the browser; the caller commits, then builds the URL."""
     return _authorization_service().stage_browser_link(
-        link_token,
+        user_id,
         idp_id,
         redirect,
         client_ip,
-        claim_link_token,
         core_config.settings.ALLOWED_REDIRECT_SCHEMES,
         db,
     )

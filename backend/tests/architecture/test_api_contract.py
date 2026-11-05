@@ -177,7 +177,6 @@ _DOCSTRING_SECTIONS: dict[str, int] = {
     "modules/users/users/router.py": 16,
     "modules/users/users_default_gear/router.py": 2,
     "modules/users/users_goals/router.py": 5,
-    "modules/users/users_profile/browser_redirect_router.py": 1,
     "modules/users/users_profile/router.py": 15,
     "modules/websocket/router.py": 1,
 }

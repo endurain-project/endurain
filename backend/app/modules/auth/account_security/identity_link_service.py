@@ -14,8 +14,6 @@ import modules.auth.account_security.events as account_security_events
 import modules.auth.account_security.step_up_service as step_up_service
 import modules.auth.account_security.step_up_store as account_security_step_up_store
 import modules.auth.credentials.integration_service as credentials_integration
-import modules.auth.identity_provider_link_tokens.integration_service as identity_provider_link_tokens_integration
-import modules.auth.identity_provider_link_tokens.schema as idp_link_token_schema
 import modules.auth.identity_provider_links.integration_service as identity_provider_links_integration
 import modules.auth.identity_provider_links.schema as auth_identity_links_schema
 import modules.auth.identity_providers.constants as identity_providers_constants
@@ -27,36 +25,39 @@ import modules.users.users.schema as users_schema
 logger = core_logger.get_logger(__name__)
 
 
-def generate_link_token(
+def start_idp_link(
     idp_id: int,
-    link_request: idp_link_token_schema.IdpLinkTokenRequest,
-    ip_address: str,
+    link: users_schema.IdentityProviderLinkStart,
+    client_ip: str,
     token_user_id: int,
     session_id: str,
     step_up_store: account_security_step_up_store.StepUpStore,
     db: Session,
-) -> idp_link_token_schema.IdentityProviderLinkTokenRead:
-    """Generate a one-time IdP link token after step-up verification.
+) -> identity_providers_contracts.BrowserFlowStart:
+    """Start linking an identity provider to the signed-in user's account, after step-up verification.
 
-    The provider and the existing links are checked before step-up, so a refused request does not spend an
-    identity-provider step-up ticket.
+    The return path, the provider and the existing links are checked before step-up, so a refused request does
+    not spend an identity-provider step-up ticket or count a step-up attempt. The OAuth state is committed before the provider URL is built, because
+    building it may run OIDC discovery, a network call no open transaction may span.
 
     Args:
         idp_id: The identity provider to link.
-        link_request: Step-up credentials.
-        ip_address: Client address the token is bound to.
+        link: Step-up credentials and the frontend return path.
+        client_ip: Address of the client.
         token_user_id: The authenticated user's ID.
         session_id: The caller's session.
         step_up_store: Step-up lockout store.
         db: Database session.
 
     Returns:
-        The one-time link token and its expiry.
+        The provider URL and the browser binding the route sets as a cookie.
 
     Raises:
         NotFoundError: If the identity provider is missing or disabled.
         ConflictError: If the provider is already linked.
+        InvalidInputError: If the return path is not allowed.
     """
+    identity_providers_integration.validate_redirect(link.redirect)
     idp = identity_providers_integration.get_identity_provider(idp_id, db)
     if not idp or not idp.enabled:
         raise core_exceptions.NotFoundError("Identity provider not found or disabled")
@@ -71,29 +72,25 @@ def generate_link_token(
 
     step_up_service.verify_step_up_credentials(
         token_user_id,
-        link_request.current_password,
-        link_request.mfa_code,
+        link.current_password,
+        link.mfa_code,
         step_up_store,
         db,
-        idp_reauth=link_request.idp_reauth,
+        idp_reauth=link.idp_reauth,
         session_id=session_id,
         action=identity_providers_constants.StepUpAction.IDP_LINK,
     )
 
-    link_token = identity_provider_link_tokens_integration.generate_idp_link_token(
-        user_id=token_user_id,
-        idp_id=idp_id,
-        ip_address=ip_address,
-        db=db,
-    )
+    staged = identity_providers_integration.stage_browser_link(token_user_id, idp_id, link.redirect, client_ip, db)
     db.commit()
-
-    logger.debug(
-        "Generated link token for user <token_user_id>, idp_id=<idp_id> (<name>)",
+    logger.info(
+        "Identity provider link started for user <token_user_id>: idp_id=<idp_id> (<name>)",
         extra=core_logger.context(token_user_id=token_user_id, idp_id=idp_id, name=idp.name),
     )
-
-    return link_token
+    return identity_providers_contracts.BrowserFlowStart(
+        authorization_url=identity_providers_integration.authorization_url(staged),
+        browser_binding=staged.browser_binding,
+    )
 
 
 def start_idp_step_up(
@@ -305,71 +302,6 @@ def get_user_identity_provider_links(
         page.page_number,
         page.num_records,
     )
-
-
-def validate_and_claim_browser_link_token(
-    link_token: str,
-    idp_id: int,
-    client_ip: str | None,
-    db: Session,
-) -> int:
-    """Validate, IP-check, and atomically claim a browser-redirect link token.
-
-    Encapsulates all auth-owned CRUD operations (identity_provider_link_tokens_integration and
-    identity_provider_links_integration) so that the browser redirect router does not import
-    low-level auth persistence modules directly.
-
-    Args:
-        link_token: Plaintext one-time link token from query parameter.
-        idp_id: The identity provider ID expected in the token.
-        client_ip: Caller IP address for soft IP-match check.
-        db: SQLAlchemy database session.
-
-    Returns:
-        The user ID encoded in the token.
-
-    Raises:
-        DomainError: 401 if token is invalid, expired, or IdP mismatch.
-        DomainError: 400 if token was already used (race/replay).
-        DomainError: 409 if the IdP is already linked to the user.
-    """
-    link_token_hash = identity_provider_link_tokens_integration.hash_idp_link_token(link_token)
-    db_token = identity_provider_link_tokens_integration.get_idp_link_token_by_hash(link_token_hash, db)
-    if not db_token:
-        logger.warning("IdP link refused: unknown or expired link token", extra=core_logger.context(idp_id=idp_id))
-        raise core_exceptions.UnauthenticatedError("Invalid or expired link token")
-
-    if db_token.idp_id != idp_id:
-        logger.warning(
-            "Link token IdP mismatch: token idp_id=<idp_id>, requested idp_id=<idp_id_2>",
-            extra=core_logger.context(idp_id=db_token.idp_id, idp_id_2=idp_id),
-        )
-        raise core_exceptions.UnauthenticatedError("Invalid link token for this identity provider")
-
-    if db_token.ip_address and client_ip and db_token.ip_address != client_ip:
-        logger.warning(
-            "Link token IP mismatch: token ip=<ip_address>, request ip=<client_ip>",
-            extra=core_logger.context(ip_address=db_token.ip_address, client_ip=client_ip),
-        )
-        # Soft check — log but don't fail (NAT, proxies, etc.)
-
-    token_user_id = db_token.user_id
-    existing_link = identity_provider_links_integration.get_user_identity_provider_by_user_id_and_idp_id(
-        token_user_id, idp_id, db
-    )
-    if existing_link:
-        idp = identity_providers_integration.get_identity_provider(idp_id, db)
-        idp_name = idp.name if idp else f"ID {idp_id}"
-        raise core_exceptions.ConflictError(f"Identity provider {idp_name} is already linked to your account")
-
-    if not identity_provider_link_tokens_integration.mark_token_as_used(link_token_hash, db):
-        logger.warning(
-            "IdP link token replay/race rejected for user <token_user_id>: token row <id>",
-            extra=core_logger.context(token_user_id=token_user_id, id=db_token.id),
-        )
-        raise core_exceptions.InvalidInputError("Invalid or expired link token")
-
-    return token_user_id
 
 
 def get_identity_link_counts_for_users(
