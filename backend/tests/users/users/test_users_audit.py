@@ -2,10 +2,12 @@
 
 from unittest.mock import MagicMock, patch
 
+import jasil.audit as jasil_audit
 import jasil.testing as jasil_testing
 import pytest
 from jasil.backends.state_memory import MemoryState
 
+import core.exceptions as core_exceptions
 import modules.users.users.audit_actions as users_audit_actions
 import modules.users.users.deletion_job_service as job_service
 import modules.users.users.deletion_state_store as deletion_state_store
@@ -154,10 +156,31 @@ class TestApprove:
         ):
             settings.get_server_settings.return_value = MagicMock(signup_require_email_verification=False)
             crud.get_user_by_id.return_value = _user(1)
+            crud.approve_pending_user.return_value = True
             users_service.approve_user(1, mock_db)
 
         audit.assert_audited(
             users_audit_actions.USER_APPROVE.id, target_type="user", target_id="1", target_owner_id="1"
+        )
+
+    def test_refusing_a_user_who_is_not_awaiting_approval_is_audited_as_denied(self, mock_db):
+        with (
+            patch(_CRUD) as crud,
+            patch(_SETTINGS) as settings,
+            jasil_testing.capture_audit() as audit,
+        ):
+            settings.get_server_settings.return_value = MagicMock(signup_require_email_verification=False)
+            crud.get_user_by_id.return_value = _user(1)
+            crud.approve_pending_user.return_value = False
+            with pytest.raises(core_exceptions.ConflictError):
+                users_service.approve_user(1, mock_db)
+
+        audit.assert_audited(
+            users_audit_actions.USER_APPROVE.id,
+            outcome=jasil_audit.Outcome.DENIED,
+            target_type="user",
+            target_id="1",
+            target_owner_id="1",
         )
 
 

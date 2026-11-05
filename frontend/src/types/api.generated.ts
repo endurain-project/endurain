@@ -5249,6 +5249,8 @@ export interface paths {
          * Approve User
          * @description Approve pending user account.
          *
+         *     A user who is not awaiting approval, is deactivated or is queued for deletion is refused with 409.
+         *
          *     Args:
          *         request: The incoming request, read by the rate limiter.
          *         user_id: ID of user to approve.

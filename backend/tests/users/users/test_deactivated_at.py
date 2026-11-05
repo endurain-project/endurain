@@ -2,10 +2,14 @@
 
 from unittest.mock import MagicMock, patch
 
+import jasil.audit as jasil_audit
+import jasil.testing as jasil_testing
 import pytest
 from sqlalchemy.orm import sessionmaker
 from tests._helpers.db import create_sqlite_session, ensure_user
 
+import core.exceptions as core_exceptions
+import modules.users.users.audit_actions as users_audit_actions
 import modules.users.users.crud as users_crud
 import modules.users.users.models as users_models
 import modules.users.users.schema as users_schema
@@ -76,16 +80,33 @@ class TestApprovalAndVerification:
         assert _user(db).active is True
         assert _user(db).deactivated_at is None
 
-    def test_approving_a_deactivated_account_clears_the_marker(self, db):
-        _edit(db, active=False)
+    @pytest.mark.parametrize("state", ["active", "deactivated", "deletion_queued"])
+    def test_approving_a_user_who_is_not_awaiting_approval_changes_nothing(self, db, state):
+        if state == "deactivated":
+            _edit(db, active=False)
+        elif state == "deletion_queued":
+            users_crud.stage_deletion_request(7, db)
+            db.commit()
+        before = (_user(db).active, _user(db).deactivated_at, _user(db).deletion_requested_at, _user(db).version)
         with (
-            patch(f"{_SERVICE}.sign_up_tokens_integration"),
+            patch(f"{_SERVICE}.sign_up_tokens_integration") as sign_up,
             patch(f"{_SERVICE}.server_settings_integration.get_server_settings", return_value=MagicMock()) as settings,
+            jasil_testing.capture_audit() as audit,
         ):
             settings.return_value.signup_require_email_verification = False
-            users_service.approve_user(7, db)
+            with pytest.raises(core_exceptions.ConflictError, match="not awaiting approval"):
+                users_service.approve_user(7, db)
 
-        assert _user(db).deactivated_at is None
+        sign_up.request_sign_up_approved_email.assert_not_called()
+        assert len(audit.matching(users_audit_actions.USER_APPROVE.id)) == 1
+        audit.assert_audited(users_audit_actions.USER_APPROVE.id, outcome=jasil_audit.Outcome.DENIED, target_id="7")
+        db.rollback()
+        assert (
+            _user(db).active,
+            _user(db).deactivated_at,
+            _user(db).deletion_requested_at,
+            _user(db).version,
+        ) == before
 
 
 class TestStageEmailVerification:

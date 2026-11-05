@@ -457,6 +457,39 @@ def update_user(
     return users_serializers.to_read_schema(db_user)
 
 
+def approve_pending_user(user_id: int, db: Session) -> bool:
+    """Activate a user who is awaiting approval (flushed, not committed).
+
+    The row is locked while its state is read, so the check and the write cannot be split by a concurrent
+    deactivation or deletion request.
+
+    Args:
+        user_id: ID of the user to approve.
+        db: Database session.
+
+    Returns:
+        True when the user was pending approval, not deactivated and not queued for deletion, and is now
+        approved and active. False when the user is in any other state, which is left untouched.
+
+    Raises:
+        NotFoundError: If the user does not exist.
+    """
+    stmt = select(users_models.Users).where(users_models.Users.id == user_id).with_for_update()
+    db_user = db.execute(stmt).scalar_one_or_none()
+    if db_user is None:
+        raise core_exceptions.NotFoundError("User not found")
+    if (
+        not db_user.pending_admin_approval
+        or db_user.deactivated_at is not None
+        or db_user.deletion_requested_at is not None
+    ):
+        return False
+    db_user.pending_admin_approval = False
+    db_user.active = True
+    db.flush()
+    return True
+
+
 def is_deactivated(user_id: int, db: Session) -> bool:
     """Tell whether an administrator or a deletion request deactivated a user.
 

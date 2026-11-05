@@ -952,7 +952,10 @@ def stage_confirmed_email_change(user_id: int, email: str, db: Session) -> None:
 
 
 def approve_user(user_id: int, db: Session) -> None:
-    """Approve a pending user, staging the notice event in the same transaction.
+    """Approve a user awaiting approval, staging the notice event in the same transaction.
+
+    A user who is not awaiting approval, is deactivated or is queued for deletion is refused and left as it was,
+    so an approval never reactivates an account or cancels a deletion.
 
     A verified email is required only while the sign-up policy requires verification: with approval
     alone no verification email is sent, so the user could never meet it.
@@ -964,6 +967,7 @@ def approve_user(user_id: int, db: Session) -> None:
     Raises:
         NotFoundError: If the user does not exist.
         InvalidInputError: If verification is required and the user's email is not verified.
+        ConflictError: If the user is not awaiting approval, is deactivated or is queued for deletion.
     """
     user = require_user(user_id, db)
     if (
@@ -973,7 +977,16 @@ def approve_user(user_id: int, db: Session) -> None:
         logger.debug("Refused to approve a user with an unverified email", extra=core_logger.context(user_id=user_id))
         raise core_exceptions.InvalidInputError("User email is not verified")
 
-    users_crud.update_user(user_id, {"pending_admin_approval": False, "active": True}, db)
+    if not users_crud.approve_pending_user(user_id, db):
+        logger.debug("Refused to approve a user not awaiting approval", extra=core_logger.context(user_id=user_id))
+        jasil_audit.record_detached(
+            users_audit_actions.USER_APPROVE,
+            outcome=jasil_audit.Outcome.DENIED,
+            target_type="user",
+            target_id=str(user_id),
+            target_owner_id=str(user_id),
+        )
+        raise core_exceptions.ConflictError("User is not awaiting approval")
     notified = sign_up_tokens_integration.request_sign_up_approved_email(user_id, db)
     jasil_audit.stage(
         db, users_audit_actions.USER_APPROVE, target_type="user", target_id=str(user_id), target_owner_id=str(user_id)

@@ -1040,7 +1040,7 @@ class TestApproveAndVerify:
         ) as mock_request:
             users_service.approve_user(1, mock_db)
 
-        mock_crud.update_user.assert_called_once_with(1, {"pending_admin_approval": False, "active": True}, mock_db)
+        mock_crud.approve_pending_user.assert_called_once_with(1, mock_db)
         mock_request.assert_called_once_with(1, mock_db)
         mock_db.commit.assert_called_once()
 
@@ -1052,7 +1052,7 @@ class TestApproveAndVerify:
         ):
             users_service.approve_user(1, mock_db)
 
-        mock_crud.update_user.assert_called_once()
+        mock_crud.approve_pending_user.assert_called_once()
         mock_db.commit.assert_called_once()
 
     def test_approval_event_does_not_escape_a_failed_commit(self, mock_crud, mock_db):
@@ -1068,9 +1068,24 @@ class TestApproveAndVerify:
         ):
             users_service.approve_user(1, mock_db)
 
-        mock_crud.update_user.assert_called_once()
+        mock_crud.approve_pending_user.assert_called_once()
         mock_request.assert_called_once_with(1, mock_db)
         mock_db.commit.assert_called_once()
+
+    def test_approve_refuses_a_user_who_is_not_awaiting_approval(self, mock_crud, mock_db):
+        mock_crud.get_user_by_id.return_value = _user(1, email_verified=True)
+        mock_crud.approve_pending_user.return_value = False
+
+        with (
+            patch(
+                "modules.users.users.service.sign_up_tokens_integration.request_sign_up_approved_email"
+            ) as mock_request,
+            pytest.raises(core_exceptions.ConflictError, match="not awaiting approval"),
+        ):
+            users_service.approve_user(1, mock_db)
+
+        mock_request.assert_not_called()
+        mock_db.commit.assert_not_called()
 
     def test_approve_refuses_an_unverified_email_while_verification_is_required(self, mock_crud, mock_db):
         mock_crud.get_user_by_id.return_value = _user(1, email_verified=False)
@@ -1078,7 +1093,7 @@ class TestApproveAndVerify:
         with pytest.raises(core_exceptions.InvalidInputError):
             users_service.approve_user(1, mock_db)
 
-        mock_crud.update_user.assert_not_called()
+        mock_crud.approve_pending_user.assert_not_called()
 
     def test_approve_needs_no_verified_email_when_verification_is_off(self, mock_crud, mock_db, settings):
         """With approval alone no verification email is ever sent, so requiring one made approval impossible."""
@@ -1088,7 +1103,7 @@ class TestApproveAndVerify:
         with patch("modules.users.users.service.sign_up_tokens_integration.request_sign_up_approved_email"):
             users_service.approve_user(1, mock_db)
 
-        mock_crud.update_user.assert_called_once_with(1, {"pending_admin_approval": False, "active": True}, mock_db)
+        mock_crud.approve_pending_user.assert_called_once_with(1, mock_db)
         mock_db.commit.assert_called_once()
 
     def test_verification_activates_without_approval_policy(self, mock_crud, mock_db):

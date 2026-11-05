@@ -90,3 +90,47 @@ def test_reactivating_the_account_cancels_the_queued_deletion(factory):
     assert _stalled(factory) == []
     with factory() as db:
         assert users_crud.record_deletion_attempt(1, db) is None
+
+
+def _approve(factory) -> bool:
+    with factory() as db:
+        approved = users_crud.approve_pending_user(1, db)
+        db.commit()
+    return approved
+
+
+def _set(factory, **fields) -> None:
+    with factory() as db:
+        for name, value in fields.items():
+            setattr(db.get(users_models.Users, 1), name, value)
+        db.commit()
+
+
+def test_approving_a_pending_user_activates_it_and_bumps_the_version(factory):
+    _set(factory, active=False, pending_admin_approval=True)
+    with factory() as db:
+        before = db.get(users_models.Users, 1).version
+
+    assert _approve(factory) is True
+
+    with factory() as db:
+        user = db.get(users_models.Users, 1)
+        assert (user.active, user.pending_admin_approval, user.version) == (True, False, before + 1)
+
+
+@pytest.mark.parametrize("marker", ["deactivated_at", "deletion_requested_at"])
+def test_approval_leaves_a_deactivated_or_queued_user_untouched(factory, marker):
+    _set(factory, active=False, pending_admin_approval=True, **{marker: _LATER})
+    with factory() as db:
+        before = db.get(users_models.Users, 1).version
+
+    assert _approve(factory) is False
+
+    with factory() as db:
+        user = db.get(users_models.Users, 1)
+        assert (user.active, user.pending_admin_approval, user.version) == (False, True, before)
+        assert getattr(user, marker) is not None
+
+
+def test_approval_leaves_an_already_approved_user_untouched(factory):
+    assert _approve(factory) is False
