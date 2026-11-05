@@ -38,6 +38,10 @@ const RECONNECT_JITTER_RATIO = 0.3
 // Close code the server sends to a connection pushed out by a newer one (more tabs than it
 // allows). Reconnecting would evict another tab in turn, so the loop would never settle.
 const EVICTED_CLOSE_CODE = 4001
+// Close code the server sends when the connection's session was revoked or its user deactivated or
+// deleted. A new ticket needs a valid session, so reconnecting at once would only be refused; the tab
+// waits until it is visible again, when the ticket request either succeeds or signs the user out.
+const SESSION_ENDED_CLOSE_CODE = 4401
 
 /** A cache invalidation a realtime event triggers. */
 interface Invalidation {
@@ -103,7 +107,8 @@ let socket: WebSocket | null = null
 let reconnectAttempts = 0
 let reconnectTimer: ReturnType<typeof setTimeout> | null = null
 let intentionalClose = false
-// Set when the server evicted this tab's connection; the tab reconnects once it is visible again.
+// Set when the server ended this tab's connection for good (evicted, or its session ended); the tab
+// reconnects once it is visible again.
 let evicted = false
 // Guards against overlapping ticket fetches while a connection is being opened.
 let connecting = false
@@ -273,7 +278,7 @@ async function openSocket(): Promise<void> {
     }
     socket = null
     status.value = 'closed'
-    if (event.code === EVICTED_CLOSE_CODE) {
+    if (event.code === EVICTED_CLOSE_CODE || event.code === SESSION_ENDED_CLOSE_CODE) {
       evicted = true
     } else {
       scheduleReconnect()
@@ -281,7 +286,7 @@ async function openSocket(): Promise<void> {
   }
 }
 
-// An evicted tab stays closed while hidden; showing it again is the user's signal that it wants live updates.
+// A tab the server ended stays closed while hidden; showing it again is the user's signal that it wants live updates.
 if (typeof document !== 'undefined') {
   document.addEventListener('visibilitychange', () => {
     if (document.visibilityState === 'visible' && evicted && !intentionalClose) {

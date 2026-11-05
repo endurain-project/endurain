@@ -5655,7 +5655,7 @@ export interface paths {
          * @description Issue a short-lived WebSocket authentication ticket.
          *
          *     Returns a single-use opaque ticket valid for 30 seconds,
-         *     bound to the authenticated user. Use the ticket as the
+         *     bound to the authenticated user and session. Use the ticket as the
          *     ?ticket= query parameter when connecting to the WebSocket
          *     endpoint, so the real access token never appears in a URL.
          *
@@ -5663,6 +5663,7 @@ export interface paths {
          *         request: The request, which the rate limiter keys on.
          *         response: The response, marked as not cacheable because it carries the credential.
          *         user_id: Authenticated user ID from auth dependency.
+         *         session_id: Session of the access token, which the socket ends with.
          *         ticket_store: WsTicketStore for issuing tickets.
          *
          *     Returns:

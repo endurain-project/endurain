@@ -18,6 +18,7 @@ import modules.auth.rotated_refresh_tokens.integration_service as rotated_refres
 import modules.auth.sessions.audit_actions as sessions_audit_actions
 import modules.auth.sessions.contracts as sessions_contracts
 import modules.auth.sessions.crud as sessions_crud
+import modules.auth.sessions.event_publishers as sessions_event_publishers
 import modules.auth.sessions.schema as sessions_schema
 import modules.auth.sessions.utils as sessions_utils
 import modules.server_settings.contracts as server_settings_contracts
@@ -168,6 +169,7 @@ def stage_delete_session(session_id: str, user_id: int, db: Session) -> None:
     if session.oauth_state_id:
         oauth_state_integration.delete_oauth_state(session.oauth_state_id, db)
     rotated_refresh_tokens_integration.delete_by_family(session.token_family_id, db)
+    sessions_event_publishers.publish_sessions_revoked(user_id, db, session_id=session_id)
 
 
 def delete_session(session_id: str, user_id: int, db: Session) -> None:
@@ -217,7 +219,10 @@ def _clear_oauth_state(session: sessions_contracts.SessionRead | None, db: Sessi
 
 def invalidate_token_family(token_family_id: str, db: Session) -> int:
     """Stage deletion of a token family from sessions and rotated-token persistence; the caller commits."""
+    owners = sessions_crud.list_session_owners_by_family(token_family_id, db)
     sessions_deleted = sessions_crud.delete_sessions_by_family(token_family_id, db)
+    for owner_id, session_id in owners:
+        sessions_event_publishers.publish_sessions_revoked(owner_id, db, session_id=session_id)
     tokens_deleted = rotated_refresh_tokens_integration.delete_by_family(token_family_id, db)
     logger.warning(
         "Invalidated refresh-token family after reuse detection",
@@ -232,12 +237,15 @@ def invalidate_token_family(token_family_id: str, db: Session) -> int:
 
 def delete_sessions_by_user(user_id: int, db: Session, exclude_session_id: str | None = None) -> int:
     """Stage deletion of a user's sessions for a larger auth transaction."""
-    return sessions_crud.delete_sessions_by_user(user_id, db, exclude_session_id)
+    deleted_count = sessions_crud.delete_sessions_by_user(user_id, db, exclude_session_id)
+    if deleted_count:
+        sessions_event_publishers.publish_sessions_revoked(user_id, db, except_session_id=exclude_session_id)
+    return deleted_count
 
 
 def delete_sessions_by_user_and_commit(user_id: int, db: Session, exclude_session_id: str | None = None) -> int:
     """Delete a user's sessions, audit the revocation when any ended, and commit the standalone operation."""
-    deleted_count = sessions_crud.delete_sessions_by_user(user_id, db, exclude_session_id)
+    deleted_count = delete_sessions_by_user(user_id, db, exclude_session_id)
     if deleted_count:
         jasil_audit.stage(
             db,

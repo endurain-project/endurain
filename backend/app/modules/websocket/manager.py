@@ -23,6 +23,24 @@ MAX_CONNECTIONS_PER_USER = 5
 # not reconnect on it, or tabs past the cap would evict each other in a loop.
 EVICTED_CLOSE_CODE = 4001
 
+# Close code (private-use range) for a connection whose session was revoked or whose user was deactivated or
+# deleted. The client must not reconnect on its own: a new ticket needs a valid session, so it would only be refused.
+SESSION_ENDED_CLOSE_CODE = 4401
+
+
+async def close_quietly(websocket: WebSocket, code: int, user_id: int) -> None:
+    """Close a connection with a code, giving up on one that is stalled or already gone.
+
+    Args:
+        websocket: The connection to close.
+        code: The close code to send.
+        user_id: The connection's owner, named in the log context.
+    """
+    try:
+        await asyncio.wait_for(websocket.close(code=code), timeout=SEND_TIMEOUT_SECONDS)
+    except (TimeoutError, WebSocketDisconnect, RuntimeError) as err:
+        logger.debug("WebSocket close failed", exc_info=err, extra=core_logger.context(user_id=user_id, code=code))
+
 
 async def send_json_to_all(
     websockets: Sequence[WebSocket], message: dict[str, Any]
@@ -61,31 +79,31 @@ class WebSocketManager:
 
     Attributes:
         active_connections: Maps user IDs to their WebSockets, oldest first.
+        session_ids: Maps each registered WebSocket to the session it was opened for.
     """
 
     def __init__(self) -> None:
         """Initialize the WebSocket manager with empty connections."""
         self.active_connections: dict[int, list[WebSocket]] = {}
+        self.session_ids: dict[WebSocket, str] = {}
 
-    async def connect(self, user_id: int, websocket: WebSocket) -> None:
+    async def connect(self, user_id: int, session_id: str, websocket: WebSocket) -> None:
         """Accept and register a new WebSocket connection.
 
         Args:
             user_id: The user's unique identifier.
+            session_id: The session the connection was opened for.
             websocket: The WebSocket connection to register.
         """
         await websocket.accept()
+        self.session_ids[websocket] = session_id
         connections = self.active_connections.setdefault(user_id, [])
         connections.append(websocket)
         evicted = connections[:-MAX_CONNECTIONS_PER_USER]
         del connections[:-MAX_CONNECTIONS_PER_USER]
         for stale in evicted:
-            try:
-                await asyncio.wait_for(stale.close(code=EVICTED_CLOSE_CODE), timeout=SEND_TIMEOUT_SECONDS)
-            except (TimeoutError, WebSocketDisconnect, RuntimeError) as err:
-                logger.debug(
-                    "WebSocket eviction close failed", exc_info=err, extra=core_logger.context(user_id=user_id)
-                )
+            self.session_ids.pop(stale, None)
+            await close_quietly(stale, EVICTED_CLOSE_CODE, user_id)
         logger.debug("WebSocket connected", extra=core_logger.context(user_id=user_id))
 
     def disconnect(self, user_id: int, websocket: WebSocket) -> None:
@@ -99,6 +117,7 @@ class WebSocketManager:
         if connections is None or websocket not in connections:
             return
         connections.remove(websocket)
+        self.session_ids.pop(websocket, None)
         if not connections:
             del self.active_connections[user_id]
         logger.debug("WebSocket disconnected", extra=core_logger.context(user_id=user_id))
@@ -119,6 +138,26 @@ class WebSocketManager:
             for user_id, connections in list(self.active_connections.items()):
                 if websocket in connections:
                     self.disconnect(user_id, websocket)
+
+    def get_session_connections(
+        self, user_id: int, session_id: str | None, except_session_id: str | None
+    ) -> list[WebSocket]:
+        """Retrieve the connections a session revocation ends.
+
+        Args:
+            user_id: The user whose sessions were revoked.
+            session_id: The one revoked session, or None for every session of the user.
+            except_session_id: With no ``session_id``, the session that was kept.
+
+        Returns:
+            A snapshot of the matching connections, empty if there are none.
+        """
+        return [
+            websocket
+            for websocket in self.active_connections.get(user_id, ())
+            if (session_id is None or self.session_ids.get(websocket) == session_id)
+            and (session_id is not None or self.session_ids.get(websocket) != except_session_id)
+        ]
 
     def get_connections(self, user_id: int) -> list[WebSocket]:
         """Retrieve a user's WebSocket connections.

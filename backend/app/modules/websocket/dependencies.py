@@ -8,16 +8,18 @@ import modules.websocket.ticket_store as websocket_ticket_store
 
 def get_ws_ticket_store(
     state: core_dependencies.PlatformState,
+    clock: core_dependencies.PlatformClock,
 ) -> websocket_ticket_store.WsTicketStore:
     """Provide the ticket store over the platform state.
 
     Args:
         state: The platform state provider.
+        clock: The platform clock.
 
     Returns:
         A ticket store backed by that state.
     """
-    return websocket_ticket_store.WsTicketStore(state)
+    return websocket_ticket_store.WsTicketStore(state, clock)
 
 
 def require_allowed_origin(websocket: WebSocket) -> None:

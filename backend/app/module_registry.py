@@ -456,6 +456,7 @@ MODULES: tuple[RuntimeModule, ...] = (
     RuntimeModule(name="followers", audit_actions=followers_audit_actions.ACTIONS),
     RuntimeModule(
         name="websocket",
+        register_bus=websocket_subscriber_registry.register_bus_subscribers,
         register_realtime=websocket_subscriber_registry.register_realtime_subscribers,
     ),
 )

@@ -5,13 +5,16 @@ from typing import Any
 
 from fastapi import WebSocket, WebSocketDisconnect, status
 
+import core.database as core_database
 import core.logger as core_logger
+import modules.auth.sessions.integration_service as sessions_integration
 import modules.websocket.manager as websocket_manager
 
 logger = core_logger.get_logger(__name__)
 
-# The ticket is checked only at connect time, so a connection is closed after this long: the client
-# reconnects with a fresh ticket, which needs a valid access token, and a revoked session loses its socket.
+# A revoked session closes its sockets at once (``close_revoked_connections``); this is the backstop for a revocation
+# that was not announced and for one that happened while the ticket was in flight. The client reconnects with a fresh
+# ticket, which needs a valid access token.
 MAX_CONNECTION_SECONDS = 900
 
 
@@ -44,7 +47,46 @@ async def deliver_hint(user_id: int, message: dict[str, Any], manager: websocket
     return len(failures) < len(connections)
 
 
-async def serve_connection(websocket: WebSocket, user_id: int, manager: websocket_manager.WebSocketManager) -> None:
+def has_live_session(user_id: int, session_id: str) -> bool:
+    """Say whether a user's session still exists and has not expired.
+
+    Opens its own short-lived database session, so nothing is held while the socket lives. It blocks on the
+    database, so the caller runs it off the event loop.
+
+    Args:
+        user_id: The user the ticket was issued to.
+        session_id: The session the ticket was issued for.
+
+    Returns:
+        True when the session exists, belongs to the user and has not expired.
+    """
+    with core_database.SessionLocal() as db:
+        session = sessions_integration.get_session_by_id_not_expired(session_id, db)
+    return session is not None and session.user_id == user_id
+
+
+async def close_revoked_connections(
+    user_id: int,
+    session_id: str | None,
+    except_session_id: str | None,
+    manager: websocket_manager.WebSocketManager,
+) -> None:
+    """Close the websockets of a user's revoked sessions that this process holds.
+
+    Args:
+        user_id: The user whose sessions were revoked.
+        session_id: The one revoked session, or None for every session of the user.
+        except_session_id: With no ``session_id``, the session that was kept.
+        manager: The process-local connection registry.
+    """
+    for websocket in manager.get_session_connections(user_id, session_id, except_session_id):
+        manager.disconnect(user_id, websocket)
+        await websocket_manager.close_quietly(websocket, websocket_manager.SESSION_ENDED_CLOSE_CODE, user_id)
+
+
+async def serve_connection(
+    websocket: WebSocket, user_id: int, session_id: str, manager: websocket_manager.WebSocketManager
+) -> None:
     """Register an authenticated connection and keep it open until the client leaves.
 
     Traffic is one-way: the client has nothing to send, so a data frame is a protocol
@@ -55,9 +97,10 @@ async def serve_connection(websocket: WebSocket, user_id: int, manager: websocke
     Args:
         websocket: The connection to serve.
         user_id: The authenticated owner of the connection.
+        session_id: The session the connection was opened for; its revocation closes the connection.
         manager: The process-local connection registry.
     """
-    await manager.connect(user_id, websocket)
+    await manager.connect(user_id, session_id, websocket)
     try:
         async with asyncio.timeout(MAX_CONNECTION_SECONDS):
             while (frame := await websocket.receive())["type"] != "websocket.disconnect":

@@ -7,6 +7,7 @@ the shared state (Redis), so any replica can accept it when the socket connects.
 # ruff: noqa: T201 - a process entry point: it extends sys.path before importing, and prints for its parent.
 
 import sys
+from datetime import UTC, datetime, timedelta
 
 sys.path.insert(0, ".")
 
@@ -19,7 +20,10 @@ import core.config as core_config
 import core.platform_settings as core_platform_settings
 import model_registry
 import module_registry
+import modules.auth.sessions.models as sessions_models
+import modules.users.users.models as users_models
 import modules.websocket.ticket_store as websocket_ticket_store
+from core.database import SessionLocal
 
 user_id = int(sys.argv[1])
 model_registry.import_all_models()
@@ -30,6 +34,46 @@ jasil_settings.configure(substrate_settings)
 platform = container.build_platform(substrate_settings)
 runtime.set_active_platform(platform)
 
-print(f"TICKET {websocket_ticket_store.WsTicketStore(platform.state).create_ticket(user_id)}")
+# A socket needs a live session, so the user and a session for it are stored first.
+session_id = f"session-{user_id}"
+now = datetime.now(UTC)
+with SessionLocal() as db:
+    if db.get(users_models.Users, user_id) is None:
+        db.add(
+            users_models.Users(
+                id=user_id,
+                name="socket-user",
+                username="socket-user",
+                email="socket-user@example.com",
+                preferred_language="en",
+                access_type="regular",
+                timezone="UTC",
+            )
+        )
+        # The session's foreign key needs the user row first; the models share no relationship to order the inserts.
+        db.flush()
+    db.add(
+        sessions_models.UsersSessions(
+            id=session_id,
+            user_id=user_id,
+            ip_address="127.0.0.1",
+            device_type="PC",
+            operating_system="Linux",
+            operating_system_version="1",
+            browser="Firefox",
+            browser_version="1",
+            created_at=now,
+            last_activity_at=now,
+            expires_at=now + timedelta(hours=1),
+            tokens_exchanged=True,
+            token_family_id=session_id,
+            rotation_count=0,
+        )
+    )
+    db.commit()
+
+print(
+    f"TICKET {websocket_ticket_store.WsTicketStore(platform.state, platform.clock).create_ticket(user_id, session_id)}"
+)
 
 lifecycle.shutdown()

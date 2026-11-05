@@ -501,6 +501,29 @@ describe('useRealtime', () => {
     expect(MockWebSocket.instances).toHaveLength(2)
   })
 
+  it('does not reconnect when the server ends the connection because its session was revoked', async () => {
+    vi.useFakeTimers()
+    const realtime = useRealtime()
+    realtime.connect()
+    await flushPromises()
+    const first = latestSocket()
+    first.open()
+
+    first.onclose?.({ code: 4401 })
+    vi.advanceTimersByTime(60_000)
+    await flushPromises()
+
+    expect(realtime.status.value).toBe('closed')
+    expect(MockWebSocket.instances).toHaveLength(1)
+    expect(apiFetch).toHaveBeenCalledTimes(1)
+
+    // Showing the tab asks for a new ticket; with a revoked session the request fails and signs the user out.
+    document.dispatchEvent(new Event('visibilitychange'))
+    await flushPromises()
+
+    expect(apiFetch).toHaveBeenCalledTimes(2)
+  })
+
   it('refetches notifications after both the initial connection and reconnect', async () => {
     vi.useFakeTimers()
     const realtime = useRealtime()

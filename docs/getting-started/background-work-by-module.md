@@ -299,6 +299,8 @@ These modules publish events and subscribe to none. `activity.created`, `activit
 
 Delivered best effort over the WebSocket, and over a Redis channel when several processes run. See [Realtime updates](../integrate/realtime.md).
 
+A revoked session (sign-out, revocation, password change or reset, a deactivated or deleted account, a detected refresh-token reuse) publishes `auth.sessions_revoked` when its transaction commits. A bus handler in the websocket module turns it into a control message on the realtime channel, and every API replica closes the sockets of that session with close code `4401`. Nothing repairs a lost close: the socket ends with its 15-minute connection lifetime.
+
 ## Subscriber catalog
 
 Every durable job is one subscriber reacting to one event. The **subscriber id** is what you see in `jasil_processing_jobs.subscriber_id` and `jasil_event_log.handler_name`, and it is stable across refactors, so you can filter on it. See [Troubleshooting](troubleshooting.md#inspect-background-jobs-durable-jobs-only) for the queries, and [Events and subscribers](../developer-guide/events-and-subscribers.md#register-it) for how an id is chosen.

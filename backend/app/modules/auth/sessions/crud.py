@@ -192,6 +192,16 @@ def _delete_sessions(session_ids: Select[tuple[str]], db: Session) -> int:
     )
 
 
+def list_session_owners_by_family(token_family_id: str, db: Session) -> list[tuple[int, str]]:
+    """Return the owner and id of each session in a token family."""
+    rows = db.execute(
+        select(sessions_models.UsersSessions.user_id, sessions_models.UsersSessions.id).where(
+            sessions_models.UsersSessions.token_family_id == token_family_id
+        )
+    )
+    return [(user_id, session_id) for user_id, session_id in rows]
+
+
 def delete_sessions_by_family(token_family_id: str, db: Session) -> int:
     """Stage deletion of sessions in a token family."""
     return core_database.rowcount(

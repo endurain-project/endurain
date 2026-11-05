@@ -81,6 +81,20 @@ def get_platform_state() -> platform_providers.StateProvider:
 PlatformState = Annotated[platform_providers.StateProvider, Depends(get_platform_state)]
 
 
+def get_platform_clock() -> platform_providers.ClockProvider:
+    """
+    Return the active platform's clock.
+
+    Returns:
+        The clock provider.
+    """
+    return platform_runtime.get_active_platform().clock
+
+
+#: The active platform's clock, injected into a route or dependency.
+PlatformClock = Annotated[platform_providers.ClockProvider, Depends(get_platform_clock)]
+
+
 def get_mail() -> platform_providers.MailProvider:
     """
     Return the active platform's outbound-mail provider.

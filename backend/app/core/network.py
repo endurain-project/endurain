@@ -18,6 +18,7 @@ from functools import partial
 from urllib.parse import urlparse
 
 from fastapi import Request
+from starlette.requests import HTTPConnection
 
 import core.config as core_config
 import core.exceptions as core_exceptions
@@ -277,7 +278,7 @@ def client_network(ip_address: str) -> str:
     return str(address)
 
 
-def get_ip_address(request: Request) -> str:
+def get_ip_address(request: HTTPConnection) -> str:
     """
     Extract client IP address from request, respecting TRUSTED_PROXIES.
 
@@ -297,7 +298,7 @@ def get_ip_address(request: Request) -> str:
     default in every environment) trusts no proxy.
 
     Args:
-        request: Request object with headers and client info.
+        request: Request or WebSocket with headers and client info.
 
     Returns:
         Client IP address or "unknown" if indeterminate.

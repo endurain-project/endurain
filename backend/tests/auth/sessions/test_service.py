@@ -295,3 +295,56 @@ def test_edit_session_keeps_an_earlier_expiry(mock_db):
     ):
         sessions_service.edit_session(session, "127.0.0.2", _FIREFOX_UA, "r", _hasher(), requested, mock_db)
     assert edit.call_args.args[0].expires_at == requested
+
+
+def test_stage_delete_session_announces_the_revoked_session(mock_db):
+    with (
+        patch("modules.auth.sessions.service.sessions_crud.delete_session", return_value=_session()),
+        patch("modules.auth.sessions.service.rotated_refresh_tokens_integration.delete_by_family"),
+        patch("modules.auth.sessions.service.sessions_event_publishers.publish_sessions_revoked") as publish,
+    ):
+        sessions_service.stage_delete_session("sid", 7, mock_db)
+
+    publish.assert_called_once_with(7, mock_db, session_id="sid")
+
+
+def test_deleting_all_sessions_announces_a_user_wide_revocation(mock_db):
+    with (
+        patch("modules.auth.sessions.service.sessions_crud.delete_sessions_by_user", return_value=2),
+        patch("modules.auth.sessions.service.sessions_event_publishers.publish_sessions_revoked") as publish,
+    ):
+        sessions_service.delete_sessions_by_user(7, mock_db)
+
+    publish.assert_called_once_with(7, mock_db, except_session_id=None)
+
+
+def test_deleting_the_other_sessions_names_the_one_kept(mock_db):
+    with (
+        patch("modules.auth.sessions.service.sessions_crud.delete_sessions_by_user", return_value=1),
+        patch("modules.auth.sessions.service.sessions_event_publishers.publish_sessions_revoked") as publish,
+    ):
+        sessions_service.delete_sessions_by_user_and_commit(7, mock_db, exclude_session_id="keep")
+
+    publish.assert_called_once_with(7, mock_db, except_session_id="keep")
+
+
+def test_family_invalidation_announces_each_revoked_session(mock_db):
+    with (
+        patch("modules.auth.sessions.service.sessions_crud.list_session_owners_by_family", return_value=[(7, "fam")]),
+        patch("modules.auth.sessions.service.sessions_crud.delete_sessions_by_family", return_value=1),
+        patch("modules.auth.sessions.service.rotated_refresh_tokens_integration.delete_by_family", return_value=0),
+        patch("modules.auth.sessions.service.sessions_event_publishers.publish_sessions_revoked") as publish,
+    ):
+        sessions_service.invalidate_token_family("fam", mock_db)
+
+    publish.assert_called_once_with(7, mock_db, session_id="fam")
+
+
+def test_deleting_no_sessions_announces_nothing(mock_db):
+    with (
+        patch("modules.auth.sessions.service.sessions_crud.delete_sessions_by_user", return_value=0),
+        patch("modules.auth.sessions.service.sessions_event_publishers.publish_sessions_revoked") as publish,
+    ):
+        sessions_service.delete_sessions_by_user(7, mock_db)
+
+    publish.assert_not_called()

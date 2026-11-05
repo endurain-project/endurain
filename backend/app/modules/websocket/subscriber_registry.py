@@ -1,8 +1,17 @@
-"""Registers the websocket module's realtime subscriber."""
+"""Registers the websocket module's bus and realtime subscribers."""
 
-from jasil.providers import RealtimeProvider
+from jasil.providers import EventBusProvider, RealtimeProvider
 
 import modules.websocket.subscribers as websocket_subscribers
+
+
+def register_bus_subscribers(events: EventBusProvider) -> None:
+    """Register the websocket event consumers on the running bus.
+
+    Args:
+        events: The event bus to subscribe on.
+    """
+    websocket_subscribers.register_bus_subscribers(events)
 
 
 def register_realtime_subscribers(realtime: RealtimeProvider) -> None:

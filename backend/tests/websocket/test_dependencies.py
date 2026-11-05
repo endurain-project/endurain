@@ -5,6 +5,7 @@ from types import SimpleNamespace
 import pytest
 from fastapi import WebSocketException
 from jasil.backends.state_memory import MemoryState
+from jasil.testing import FixedClock
 
 import modules.websocket.dependencies as websocket_dependencies
 
@@ -12,9 +13,9 @@ import modules.websocket.dependencies as websocket_dependencies
 def test_the_ticket_store_runs_over_the_given_state():
     state = MemoryState()
 
-    ticket = websocket_dependencies.get_ws_ticket_store(state).create_ticket(7)
+    ticket = websocket_dependencies.get_ws_ticket_store(state, FixedClock()).create_ticket(7, "s1")
 
-    assert websocket_dependencies.get_ws_ticket_store(state).consume_ticket(ticket) == 7
+    assert websocket_dependencies.get_ws_ticket_store(state, FixedClock()).consume_ticket(ticket).user_id == 7
 
 
 def _websocket(origin, allowed):
