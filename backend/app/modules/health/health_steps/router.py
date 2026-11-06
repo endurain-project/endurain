@@ -6,6 +6,7 @@ from fastapi import APIRouter, Query, Request, Response, Security, status
 
 import core.dependencies as core_dependencies
 import core.etag as core_etag
+import core.location as core_location
 import core.pagination as core_pagination
 import core.rate_limit as core_rate_limit
 import modules.auth.dependencies as auth_dependencies
@@ -80,6 +81,23 @@ def read_health_steps_chart(
     return health_steps_service.get_health_steps_chart(token_user_id, interval, db)
 
 
+@router.get(
+    "/{health_steps_id}",
+    response_model=health_steps_schema.HealthStepsRead,
+    dependencies=[Security(auth_dependencies.check_scopes, scopes=["health:read"])],
+)
+def read_health_steps_by_id(
+    health_steps_id: core_dependencies.PositiveId,
+    token_user_id: auth_dependencies.CurrentUserId,
+    db: core_dependencies.DbSession,
+    response: Response,
+) -> health_steps_schema.HealthStepsRead:
+    """Retrieve one of the authenticated user's steps records; its ``ETag`` is the version for ``If-Match``."""
+    record = health_steps_service.get_health_steps(token_user_id, health_steps_id, db)
+    core_etag.set_etag(response, record.version)
+    return record
+
+
 @router.post(
     "",
     response_model=health_steps_schema.HealthStepsRead,
@@ -92,6 +110,7 @@ def create_health_steps(
     health_steps: health_steps_schema.HealthStepsCreate,
     token_user_id: auth_dependencies.CurrentUserId,
     db: core_dependencies.DbSession,
+    response: Response,
 ) -> health_steps_schema.HealthStepsRead:
     """Create health steps data for a user.
 
@@ -104,12 +123,16 @@ def create_health_steps(
         token_user_id (int): The ID of the authenticated user extracted from the
             access token.
         db (Session): Database session dependency for database operations.
+        response: The response, whose ``Location`` names where the record is read.
 
     Returns:
         health_steps_schema.HealthSteps: The created health steps data.
 
     """
-    return health_steps_service.create_health_steps(token_user_id, health_steps, db)
+    created = health_steps_service.create_health_steps(token_user_id, health_steps, db)
+    core_location.set_location(response, request, "read_health_steps_by_id", health_steps_id=created.id)
+    core_etag.set_etag(response, created.version)
+    return created
 
 
 @router.patch(

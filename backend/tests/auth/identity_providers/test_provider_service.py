@@ -286,3 +286,23 @@ class TestGetIdpTemplates:
             assert template.user_mapping is not None
             assert "username" in template.user_mapping
             assert "email" in template.user_mapping
+
+
+class TestGetIdentityProvider:
+    def test_returns_the_provider_as_its_read_schema(self, mock_db):
+        state = MagicMock()
+        with (
+            patch.object(provider_service.idp_crud, "get_identity_provider", return_value=state),
+            patch.object(provider_service.identity_provider_serializers, "to_read_schema") as to_read,
+        ):
+            result = provider_service.get_identity_provider(3, mock_db)
+
+        assert result is to_read.return_value
+        to_read.assert_called_once_with(state)
+
+    def test_a_missing_provider_is_not_found(self, mock_db):
+        with (
+            patch.object(provider_service.idp_crud, "get_identity_provider", return_value=None),
+            pytest.raises(core_exceptions.NotFoundError),
+        ):
+            provider_service.get_identity_provider(3, mock_db)

@@ -42,6 +42,25 @@ def list_identity_providers(
     )
 
 
+def get_identity_provider(idp_id: int, db: Session) -> identity_provider_schema.IdentityProviderRead:
+    """Return one configured provider for the admin interface.
+
+    Args:
+        idp_id: Identity-provider row to read.
+        db: Database session.
+
+    Returns:
+        The provider, without its client secret.
+
+    Raises:
+        NotFoundError: When the provider does not exist.
+    """
+    state = idp_crud.get_identity_provider(idp_id, db)
+    if state is None:
+        raise core_exceptions.NotFoundError("Identity provider not found")
+    return identity_provider_serializers.to_read_schema(state)
+
+
 def get_enabled_identity_providers(
     page: core_pagination.PageParams, db: Session
 ) -> identity_provider_schema.IdentityProviderPublicPage:

@@ -6,6 +6,7 @@ from fastapi import APIRouter, Query, Request, Response, Security, status
 
 import core.dependencies as core_dependencies
 import core.etag as core_etag
+import core.location as core_location
 import core.pagination as core_pagination
 import core.rate_limit as core_rate_limit
 import modules.auth.dependencies as auth_dependencies
@@ -109,6 +110,23 @@ def read_health_sleep_resting_heart_rate_chart(
     return health_sleep_service.get_health_sleep_resting_heart_rate_chart(token_user_id, interval, db)
 
 
+@router.get(
+    "/{health_sleep_id}",
+    response_model=health_sleep_schema.HealthSleepRead,
+    dependencies=[Security(auth_dependencies.check_scopes, scopes=["health:read"])],
+)
+def read_health_sleep_by_id(
+    health_sleep_id: core_dependencies.PositiveId,
+    token_user_id: auth_dependencies.CurrentUserId,
+    db: core_dependencies.DbSession,
+    response: Response,
+) -> health_sleep_schema.HealthSleepRead:
+    """Retrieve one of the authenticated user's sleep records; its ``ETag`` is the version for ``If-Match``."""
+    record = health_sleep_service.get_health_sleep(token_user_id, health_sleep_id, db)
+    core_etag.set_etag(response, record.version)
+    return record
+
+
 @router.post(
     "",
     response_model=health_sleep_schema.HealthSleepRead,
@@ -121,6 +139,7 @@ def create_health_sleep(
     health_sleep: health_sleep_schema.HealthSleepCreate,
     token_user_id: auth_dependencies.CurrentUserId,
     db: core_dependencies.DbSession,
+    response: Response,
 ) -> health_sleep_schema.HealthSleepRead:
     """Create health sleep data for a user.
 
@@ -133,12 +152,16 @@ def create_health_sleep(
         token_user_id (int): The ID of the authenticated user extracted from the
             access token.
         db (Session): Database session dependency for database operations.
+        response: The response, whose ``Location`` names where the record is read.
 
     Returns:
         health_sleep_schema.HealthSleepRead: The created health sleep data.
 
     """
-    return health_sleep_service.create_health_sleep(token_user_id, health_sleep, db)
+    created = health_sleep_service.create_health_sleep(token_user_id, health_sleep, db)
+    core_location.set_location(response, request, "read_health_sleep_by_id", health_sleep_id=created.id)
+    core_etag.set_etag(response, created.version)
+    return created
 
 
 @router.patch(

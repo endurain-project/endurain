@@ -6,6 +6,7 @@ from fastapi import APIRouter, Query, Request, Response, Security, status
 
 import core.dependencies as core_dependencies
 import core.etag as core_etag
+import core.location as core_location
 import core.pagination as core_pagination
 import core.rate_limit as core_rate_limit
 import modules.auth.dependencies as auth_dependencies
@@ -88,6 +89,23 @@ def get_user_goals_results(
     return user_goals_progress_service.get_goals_progress(token_user_id, page, db)
 
 
+@router.get(
+    "/{goal_id}",
+    response_model=user_goals_schema.UsersGoalRead,
+    dependencies=[Security(auth_dependencies.check_scopes, scopes=["profile"])],
+)
+def get_user_goal(
+    goal_id: core_dependencies.PositiveId,
+    token_user_id: auth_dependencies.CurrentUserId,
+    db: core_dependencies.DbSession,
+    response: Response,
+) -> user_goals_schema.UsersGoalRead:
+    """Retrieve one of the authenticated user's goals; its ``ETag`` is the version for ``If-Match``."""
+    goal = user_goals_service.get_goal(token_user_id, goal_id, db)
+    core_etag.set_etag(response, goal.version)
+    return goal
+
+
 @router.post(
     "",
     response_model=user_goals_schema.UsersGoalRead,
@@ -100,6 +118,7 @@ def create_user_goal(
     user_goal: user_goals_schema.UsersGoalCreate,
     token_user_id: auth_dependencies.CurrentUserId,
     db: core_dependencies.DbSession,
+    response: Response,
 ) -> user_goals_schema.UsersGoalRead:
     """Create a new goal for the authenticated user.
 
@@ -108,11 +127,15 @@ def create_user_goal(
         user_goal: Goal data to create.
         token_user_id: User ID from access token.
         db: Database session dependency.
+        response: The response, whose ``Location`` names where the goal is read.
 
     Returns:
         The created goal object.
     """
-    return user_goals_service.create_goal(token_user_id, user_goal, db)
+    created = user_goals_service.create_goal(token_user_id, user_goal, db)
+    core_location.set_location(response, request, "get_user_goal", goal_id=created.id)
+    core_etag.set_etag(response, created.version)
+    return created
 
 
 @router.put(

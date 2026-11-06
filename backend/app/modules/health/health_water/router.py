@@ -17,6 +17,7 @@ from fastapi import (
 
 import core.dependencies as core_dependencies
 import core.etag as core_etag
+import core.location as core_location
 import core.pagination as core_pagination
 import core.rate_limit as core_rate_limit
 import modules.auth.dependencies as auth_dependencies
@@ -96,6 +97,23 @@ def read_health_water_chart(
     return health_water_service.get_health_water_chart(token_user_id, interval, db)
 
 
+@router.get(
+    "/{health_water_id}",
+    response_model=health_water_schema.HealthWaterRead,
+    dependencies=[Security(auth_dependencies.check_scopes, scopes=["health:read"])],
+)
+def read_health_water_by_id(
+    health_water_id: core_dependencies.PositiveId,
+    token_user_id: auth_dependencies.CurrentUserId,
+    db: core_dependencies.DbSession,
+    response: Response,
+) -> health_water_schema.HealthWaterRead:
+    """Retrieve one of the authenticated user's water records; its ``ETag`` is the version for ``If-Match``."""
+    record = health_water_service.get_health_water(token_user_id, health_water_id, db)
+    core_etag.set_etag(response, record.version)
+    return record
+
+
 @router.post(
     "",
     response_model=health_water_schema.HealthWaterRead,
@@ -113,6 +131,7 @@ def create_health_water(
     health_water: health_water_schema.HealthWaterCreate,
     token_user_id: auth_dependencies.CurrentUserId,
     db: core_dependencies.DbSession,
+    response: Response,
 ) -> health_water_schema.HealthWaterRead:
     """Record a water intake for the user's day.
 
@@ -123,12 +142,16 @@ def create_health_water(
         health_water: Water intake data to create.
         token_user_id: User ID from the access token.
         db: Database session dependency.
+        response: The response, whose ``Location`` names where the record is read.
 
     Returns:
         The day's HealthWaterRead record, with the intake added.
 
     """
-    return health_water_service.create_health_water(token_user_id, health_water, db)
+    created = health_water_service.create_health_water(token_user_id, health_water, db)
+    core_location.set_location(response, request, "read_health_water_by_id", health_water_id=created.id)
+    core_etag.set_etag(response, created.version)
+    return created
 
 
 @router.patch(

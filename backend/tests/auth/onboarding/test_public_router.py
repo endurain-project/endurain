@@ -61,6 +61,7 @@ class TestComplete:
 
         assert response.status_code == status.HTTP_201_CREATED
         assert response.json()["access_type"] == "admin"
+        assert response.headers["ETag"] == '"1"'
         sent = complete.call_args.args[0]
         assert sent.token == "setup-token" and sent.username == "owner"
 

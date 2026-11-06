@@ -169,6 +169,23 @@ def edit_health_steps(
     return updated
 
 
+def get_health_steps(user_id: int, health_steps_id: int, db: Session) -> health_steps_schema.HealthStepsRead:
+    """Return one of a user's steps records.
+
+    Args:
+        user_id: The record's owner.
+        health_steps_id: The record to fetch.
+        db: Database session.
+
+    Returns:
+        The record.
+
+    Raises:
+        NotFoundError: If the user has no such record.
+    """
+    return health_record_service.get_record(health_steps_crud.SPEC, health_steps_id, user_id, db)
+
+
 def delete_health_steps(user_id: int, health_steps_id: int, db: Session, *, if_match: str) -> None:
     """Delete a steps record and commit.
 

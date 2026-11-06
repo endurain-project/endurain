@@ -169,6 +169,23 @@ def count_user_goals(
     return db.execute(stmt).scalar_one()
 
 
+def get_user_goal(user_id: int, goal_id: int, db: Session) -> user_goals_schema.UsersGoalRead:
+    """Retrieve one of a user's goals.
+
+    Args:
+        user_id: The ID of the user.
+        goal_id: The ID of the goal.
+        db: Database session.
+
+    Returns:
+        The goal.
+
+    Raises:
+        NotFoundError: If the user has no such goal.
+    """
+    return user_goals_serializers.to_read_schema(_select_goal(user_id, goal_id, db))
+
+
 def create_user_goal(
     user_id: int,
     user_goal: user_goals_schema.UsersGoalCreate,

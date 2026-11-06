@@ -1,8 +1,9 @@
 """Unauthenticated first-run onboarding endpoints."""
 
-from fastapi import APIRouter, Request, status
+from fastapi import APIRouter, Request, Response, status
 
 import core.dependencies as core_dependencies
+import core.etag as core_etag
 import core.rate_limit as core_rate_limit
 import modules.auth.onboarding.dependencies as onboarding_dependencies
 import modules.auth.onboarding.schema as onboarding_schema
@@ -29,6 +30,9 @@ def complete_onboarding(
     onboarding: onboarding_schema.OnboardingCreate,
     store: onboarding_dependencies.OnboardingTokens,
     db: core_dependencies.DbSession,
+    response: Response,
 ) -> users_schema.UsersRead:
     """Create the first administrator with the setup token printed in the server log."""
-    return onboarding_service.complete_onboarding(onboarding, store, db)
+    created = onboarding_service.complete_onboarding(onboarding, store, db)
+    core_etag.set_etag(response, created.version)
+    return created

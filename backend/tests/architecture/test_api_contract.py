@@ -48,26 +48,6 @@ _NOT_READABLE_ITEMS: dict[str, str] = {
     "/users/{user_id}/sessions/{session_id}": "a session is revoked, read through the session list",
 }
 
-#: Items with writes but no ``GET`` that should have one. Remove an entry when A1 adds the read.
-_MISSING_ITEM_GET: dict[str, str] = {
-    "/gear-components/{gear_component_id}": "A1",
-    "/health/sleep/{health_sleep_id}": "A1",
-    "/health/steps/{health_steps_id}": "A1",
-    "/health/water/{health_water_id}": "A1",
-    "/health/weight/{health_weight_id}": "A1",
-    "/identity-providers/{idp_id}": "A1",
-    "/profile/goals/{goal_id}": "A1",
-}
-
-#: Creates of a readable resource that do not send a header, as ``"<handler>: <Header>"``. Remove an entry when
-#: the create sends the header (A2 for ``Location``, A3 for ``ETag``).
-_CREATE_WITHOUT_HEADER: dict[str, str] = {
-    "create_gear: ETag": "A3",
-    "create_health_fasting: ETag": "A3",
-    "create_health_poop: ETag": "A3",
-    "create_user: ETag": "A3",
-}
-
 #: Optional properties of a ``PUT`` body whose omission is part of a full replacement, as
 #: ``"PUT <route>: <field>"``. Permanent; the value says what omitting the field means: a write-only secret the
 #: server never returns is kept, any other optional field is cleared.
@@ -295,36 +275,42 @@ class TestApiContract:
         _compare(
             "An item with PUT/PATCH/DELETE has no GET",
             unreadable,
-            {**_NOT_READABLE_ITEMS, **_MISSING_ITEM_GET},
+            _NOT_READABLE_ITEMS,
             "Add a GET by id",
         )
 
-    def test_a_create_of_a_readable_resource_sends_location_and_etag(self):
-        """A ``POST`` answering 201 where ``GET <path>/{x_id}`` exists sets ``Location`` and ``ETag``.
+    def test_a_create_sends_location_and_etag(self):
+        """A ``POST`` answering 201 sets ``Location`` where the item has a ``GET``, and ``ETag`` when versioned.
 
         ``Location`` names where the new record is read and ``ETag`` is the version the client sends back as
-        ``If-Match`` on its first edit, so the client needs no second request to learn either.
+        ``If-Match`` on its first edit, so the client needs no second request to learn either. OpenAPI does not
+        declare ``Location``, so the handler's calls are read: it must call ``set_location`` or ``set_etag``.
+        A resource is readable when ``GET <path>/{x_id}`` exists and versioned when its response schema has an
+        ``id`` and a ``version`` (an upload that only reports its parent's version is not a created resource).
         """
         paths = _paths()
         missing: set[str] = set()
         for method, path, operation in _operations():
+            if method != "post" or "201" not in operation["responses"]:
+                continue
             readable = any(
                 other.startswith(path + "/{") and other.count("/") == path.count("/") + 1 and "get" in item
                 for other, item in paths.items()
             )
-            if method != "post" or "201" not in operation["responses"] or not readable:
-                continue
+            body = operation["responses"]["201"].get("content", {}).get("application/json", {}).get("schema", {})
+            versioned = {"id", "version"} <= _resolve(body).get("properties", {}).keys()
             _, function = _handlers()[(method, path)]
             calls = _calls(function)
             missing |= {
                 f"{function.name}: {header}"
-                for header, call in (("Location", "set_location"), ("ETag", "set_etag"))
-                if call not in calls
+                for header, call, needed in (
+                    ("Location", "set_location", readable),
+                    ("ETag", "set_etag", versioned),
+                )
+                if needed and call not in calls
             }
 
-        _compare(
-            "A create does not send its headers", missing, _CREATE_WITHOUT_HEADER, "Call set_location and set_etag"
-        )
+        _compare("A create does not send its headers", missing, {}, "Call set_location and set_etag")
 
     def test_a_put_replaces_the_whole_resource(self):
         """Every optional property of a ``PUT`` body is listed with what omitting it means.

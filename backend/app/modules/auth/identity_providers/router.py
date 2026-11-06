@@ -5,6 +5,7 @@ from fastapi import APIRouter, Request, Response, Security, UploadFile, status
 import core.dependencies as core_dependencies
 import core.etag as core_etag
 import core.file_uploads as core_file_uploads
+import core.location as core_location
 import core.middleware_body_limit as core_middleware_body_limit
 import core.pagination as core_pagination
 import core.rate_limit as core_rate_limit
@@ -51,6 +52,35 @@ def list_idp_templates() -> list[idp_schema.IdentityProviderTemplateRead]:
         A list of identity provider templates.
     """
     return idp_provider_service.get_idp_templates()
+
+
+@router.get(
+    "/{idp_id}",
+    response_model=idp_schema.IdentityProviderRead,
+    responses={
+        status.HTTP_200_OK: {
+            "headers": {
+                "ETag": {
+                    "description": "The version of this identity provider",
+                    "schema": {"type": "string"},
+                }
+            }
+        }
+    },
+    dependencies=[Security(auth_dependencies.check_scopes, scopes=["identity_providers:read"])],
+)
+def read_identity_provider(
+    idp_id: core_dependencies.PositiveId,
+    db: core_dependencies.DbSession,
+    response: Response,
+) -> idp_schema.IdentityProviderRead:
+    """Retrieve one identity provider (admin only); its ``ETag`` is the version for ``If-Match``.
+
+    The client secret is write-only and never returned.
+    """
+    provider = idp_provider_service.get_identity_provider(idp_id, db)
+    core_etag.set_etag(response, provider.version)
+    return provider
 
 
 @router.post(
@@ -106,6 +136,7 @@ def create_identity_provider(
             slug already exists, 500 on database errors.
     """
     provider = idp_provider_service.create_identity_provider(idp_data, db)
+    core_location.set_location(response, request, "read_identity_provider", idp_id=provider.id)
     core_etag.set_etag(response, provider.version)
     return provider
 

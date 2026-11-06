@@ -50,6 +50,23 @@ def list_goals(
     return user_goals_schema.UsersGoalPage.build(goals, total, page.page_number, page.num_records)
 
 
+def get_goal(user_id: int, goal_id: int, db: Session) -> user_goals_schema.UsersGoalRead:
+    """Return one of a user's goals.
+
+    Args:
+        user_id: The user who owns the goal.
+        goal_id: The goal to fetch.
+        db: Database session.
+
+    Returns:
+        The goal.
+
+    Raises:
+        NotFoundError: If the user has no such goal.
+    """
+    return user_goals_crud.get_user_goal(user_id, goal_id, db)
+
+
 def create_goal(
     user_id: int,
     user_goal: user_goals_schema.UsersGoalCreate,

@@ -102,6 +102,7 @@ class TestWrites:
 
         assert response.status_code == 201
         assert response.headers["Location"] == f"/gears/{response.json()['id']}"
+        assert response.headers["ETag"] == '"1"'
 
     @patch("modules.gears.gear.service.create_gear")
     def test_create_conflict_is_409(self, mock_create, client):

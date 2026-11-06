@@ -190,3 +190,41 @@ class TestDeleteHealthWeight:
 
         # Assert
         assert response.status_code == 404
+
+
+_GET = "modules.health.health_weight.router.health_weight_service.get_health_weight"
+
+
+class TestReadHealthWeightById:
+    @patch(_GET)
+    def test_returns_the_record_with_its_etag(self, mock_get, fast_api_client, fast_api_app):
+        mock_get.return_value = _record(1, 15, 75.5)
+
+        response = fast_api_client.get("/health_weight/1", headers={"Authorization": "Bearer mock_token"})
+
+        assert response.status_code == 200
+        assert response.headers["ETag"] == '"1"'
+        assert mock_get.call_args.args[:2] == (1, 1)
+
+    @patch(_GET)
+    def test_a_record_the_user_does_not_have_is_404(self, mock_get, fast_api_client, fast_api_app):
+        mock_get.side_effect = core_exceptions.NotFoundError("Health weight not found")
+
+        response = fast_api_client.get("/health_weight/99", headers={"Authorization": "Bearer mock_token"})
+
+        assert response.status_code == 404
+
+
+class TestCreateHealthWeightHeaders:
+    @patch("modules.health.health_weight.router.health_weight_service.create_health_weight")
+    def test_create_names_the_record_and_its_version(self, mock_create, fast_api_client, fast_api_app):
+        mock_create.return_value = _record(7, 15, 75.5)
+
+        response = fast_api_client.post(
+            "/health_weight",
+            json={"date": "2024-01-15", "weight": 75.5},
+            headers={"Authorization": "Bearer mock_token"},
+        )
+
+        assert response.headers["Location"] == "/health_weight/7"
+        assert response.headers["ETag"] == '"1"'

@@ -163,6 +163,7 @@ def create_health_fasting(
     """
     created = health_fasting_service.create_health_fasting(token_user_id, health_fasting, db)
     core_location.set_location(response, request, "read_health_fasting_by_id", health_fasting_id=created.id)
+    core_etag.set_etag(response, created.version)
     return created
 
 

@@ -262,6 +262,23 @@ def edit_health_sleep(
     return updated
 
 
+def get_health_sleep(user_id: int, health_sleep_id: int, db: Session) -> health_sleep_schema.HealthSleepRead:
+    """Return one of a user's sleep records.
+
+    Args:
+        user_id: The record's owner.
+        health_sleep_id: The record to fetch.
+        db: Database session.
+
+    Returns:
+        The record.
+
+    Raises:
+        NotFoundError: If the user has no such record.
+    """
+    return health_record_service.get_record(health_sleep_crud.SPEC, health_sleep_id, user_id, db)
+
+
 def delete_health_sleep(user_id: int, health_sleep_id: int, db: Session, *, if_match: str) -> None:
     """Delete a sleep record and commit.
 

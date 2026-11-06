@@ -165,6 +165,8 @@ class TestCreateUserGoal:
         data = response.json()
         assert data["id"] == 1
         assert data["goal_calories"] == 5000
+        assert response.headers["Location"] == "/user_goals/1"
+        assert response.headers["ETag"] == '"1"'
 
     def test_create_user_goal_invalid_data(self, fast_api_client, fast_api_app):
         """Test creation fails with invalid data."""
@@ -334,3 +336,25 @@ class TestUpdateNeedsIfMatch:
         )
 
         assert response.status_code == 428
+
+
+class TestGetUserGoal:
+    @patch("modules.users.users_goals.router.user_goals_service.get_goal")
+    def test_returns_the_goal_with_its_etag(self, mock_get, fast_api_client, fast_api_app):
+        mock_get.return_value = user_goals_schema.UsersGoalRead(
+            id=4, user_id=1, version=2, interval="weekly", activity_type="run", goal_type="calories", goal_calories=5000
+        )
+
+        response = fast_api_client.get("/user_goals/4", headers={"Authorization": "Bearer mock_token"})
+
+        assert response.status_code == 200
+        assert response.headers["ETag"] == '"2"'
+        assert mock_get.call_args.args[:2] == (1, 4)
+
+    @patch("modules.users.users_goals.router.user_goals_service.get_goal")
+    def test_a_goal_the_user_does_not_have_is_404(self, mock_get, fast_api_client, fast_api_app):
+        mock_get.side_effect = core_exceptions.NotFoundError("User goal not found")
+
+        response = fast_api_client.get("/user_goals/99", headers={"Authorization": "Bearer mock_token"})
+
+        assert response.status_code == 404

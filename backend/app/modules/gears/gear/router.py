@@ -79,6 +79,7 @@ def create_gear(
     """Create a gear for the authenticated user; ``Location`` names where it is read."""
     created = gears_service.create_gear(gear, token_user_id, db)
     core_location.set_location(response, request, "read_gear_id", gear_id=created.id)
+    core_etag.set_etag(response, created.version)
     return created
 
 

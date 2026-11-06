@@ -247,6 +247,26 @@ def restore_profile_gear_components(
     return restored
 
 
+def get_gear_component(user_id: int, gear_component_id: int, db: Session) -> gear_components_schema.GearComponentRead:
+    """Return one of the user's components.
+
+    Args:
+        user_id: Owner user ID.
+        gear_component_id: Component ID to fetch.
+        db: Database session.
+
+    Returns:
+        The component.
+
+    Raises:
+        NotFoundError: If the user has no such component.
+    """
+    component = gear_components_crud.get_gear_component_user_by_id(user_id, gear_component_id, db)
+    if component is None:
+        raise core_exceptions.NotFoundError("Gear component not found")
+    return component
+
+
 def edit_gear_component(
     gear_component_id: int,
     gear_component: gear_components_schema.GearComponentUpdate,

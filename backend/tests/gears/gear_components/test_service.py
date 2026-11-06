@@ -48,6 +48,25 @@ class TestCreate:
         assert created.type == "anything"
 
 
+class TestGet:
+    def test_returns_the_users_component(self, db):
+        created = crud.create_gear_component(component_create(_gear(db)), 1, db)
+
+        assert service.get_gear_component(1, created.id, db).id == created.id
+
+    def test_a_component_of_another_user_is_not_found(self, db):
+        created = crud.create_gear_component(
+            component_create(
+                _gear(db, user_id=2),
+            ),
+            2,
+            db,
+        )
+
+        with pytest.raises(core_exceptions.NotFoundError):
+            service.get_gear_component(1, created.id, db)
+
+
 class TestEditAndDelete:
     def test_retiring_before_purchase_is_refused(self, db):
         gear_id = _gear(db)

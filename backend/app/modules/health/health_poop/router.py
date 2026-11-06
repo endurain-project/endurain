@@ -169,6 +169,7 @@ def create_health_poop(
     """
     created = health_poop_service.create_health_poop(token_user_id, health_poop, db)
     core_location.set_location(response, request, "read_health_poop_by_id", health_poop_id=created.id)
+    core_etag.set_etag(response, created.version)
     return created
 
 

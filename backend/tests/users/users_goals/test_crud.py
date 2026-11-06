@@ -82,6 +82,22 @@ class TestGetUserGoalsPage:
         assert "interval" in str(mock_db.execute.call_args.args[0])
 
 
+class TestGetUserGoal:
+    def test_reads_the_goal_of_that_user_only(self, mock_db):
+        goal = MagicMock(spec=user_goals_models.UsersGoal)
+        _one(mock_db, goal)
+
+        assert user_goals_crud.get_user_goal(1, 7, mock_db) is goal
+        compiled = str(mock_db.execute.call_args.args[0].compile(compile_kwargs={"literal_binds": True}))
+        assert "users_goals.user_id = 1" in compiled and "users_goals.id = 7" in compiled
+
+    def test_a_goal_the_user_does_not_have_is_not_found(self, mock_db):
+        _one(mock_db, None)
+
+        with pytest.raises(core_exceptions.NotFoundError):
+            user_goals_crud.get_user_goal(1, 7, mock_db)
+
+
 class TestCreateUserGoal:
     def test_stages_without_committing(self, mock_db):
         _one(mock_db, None)

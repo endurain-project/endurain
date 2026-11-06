@@ -1056,7 +1056,7 @@ export interface paths {
         put?: never;
         /**
          * Create Gear Component
-         * @description Create a component on one of the authenticated user's gears.
+         * @description Create a component on one of the authenticated user's gears; ``Location`` names where it is read.
          */
         post: operations["create_gear_component_api_v1_gear_components_post"];
         delete?: never;
@@ -1092,7 +1092,11 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        get?: never;
+        /**
+         * Read Gear Component By Id
+         * @description Retrieve one of the authenticated user's gear components; its ``ETag`` is the version for ``If-Match``.
+         */
+        get: operations["read_gear_component_by_id_api_v1_gear_components__gear_component_id__get"];
         put?: never;
         post?: never;
         /**
@@ -1648,6 +1652,7 @@ export interface paths {
          *         token_user_id (int): The ID of the authenticated user extracted from the
          *             access token.
          *         db (Session): Database session dependency for database operations.
+         *         response: The response, whose ``Location`` names where the record is read.
          *
          *     Returns:
          *         health_sleep_schema.HealthSleepRead: The created health sleep data.
@@ -1728,7 +1733,11 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        get?: never;
+        /**
+         * Read Health Sleep By Id
+         * @description Retrieve one of the authenticated user's sleep records; its ``ETag`` is the version for ``If-Match``.
+         */
+        get: operations["read_health_sleep_by_id_api_v1_health_sleep__health_sleep_id__get"];
         put?: never;
         post?: never;
         /**
@@ -1855,6 +1864,7 @@ export interface paths {
          *         token_user_id (int): The ID of the authenticated user extracted from the
          *             access token.
          *         db (Session): Database session dependency for database operations.
+         *         response: The response, whose ``Location`` names where the record is read.
          *
          *     Returns:
          *         health_steps_schema.HealthSteps: The created health steps data.
@@ -1904,7 +1914,11 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        get?: never;
+        /**
+         * Read Health Steps By Id
+         * @description Retrieve one of the authenticated user's steps records; its ``ETag`` is the version for ``If-Match``.
+         */
+        get: operations["read_health_steps_by_id_api_v1_health_steps__health_steps_id__get"];
         put?: never;
         post?: never;
         /**
@@ -2057,6 +2071,7 @@ export interface paths {
          *         health_water: Water intake data to create.
          *         token_user_id: User ID from the access token.
          *         db: Database session dependency.
+         *         response: The response, whose ``Location`` names where the record is read.
          *
          *     Returns:
          *         The day's HealthWaterRead record, with the intake added.
@@ -2106,7 +2121,11 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        get?: never;
+        /**
+         * Read Health Water By Id
+         * @description Retrieve one of the authenticated user's water records; its ``ETag`` is the version for ``If-Match``.
+         */
+        get: operations["read_health_water_by_id_api_v1_health_water__health_water_id__get"];
         put?: never;
         post?: never;
         /**
@@ -2187,6 +2206,7 @@ export interface paths {
          *             Must include a date field.
          *         token_user_id (int): The ID of the authenticated user extracted from the access token.
          *         db (Session): Database session dependency for performing database operations.
+         *         response: The response, whose ``Location`` names where the record is read.
          *
          *     Returns:
          *         health_weight_schema.HealthWeightRead: The created health weight record.
@@ -2236,7 +2256,11 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        get?: never;
+        /**
+         * Read Health Weight By Id
+         * @description Retrieve one of the authenticated user's weight records; its ``ETag`` is the version for ``If-Match``.
+         */
+        get: operations["read_health_weight_by_id_api_v1_health_weight__health_weight_id__get"];
         put?: never;
         post?: never;
         /**
@@ -2366,7 +2390,13 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        get?: never;
+        /**
+         * Read Identity Provider
+         * @description Retrieve one identity provider (admin only); its ``ETag`` is the version for ``If-Match``.
+         *
+         *     The client secret is write-only and never returned.
+         */
+        get: operations["read_identity_provider_api_v1_identity_providers__idp_id__get"];
         /**
          * Update Identity Provider
          * @description Update an existing identity provider.
@@ -3063,6 +3093,7 @@ export interface paths {
          *         user_goal: Goal data to create.
          *         token_user_id: User ID from access token.
          *         db: Database session dependency.
+         *         response: The response, whose ``Location`` names where the goal is read.
          *
          *     Returns:
          *         The created goal object.
@@ -3110,7 +3141,11 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        get?: never;
+        /**
+         * Get User Goal
+         * @description Retrieve one of the authenticated user's goals; its ``ETag`` is the version for ``If-Match``.
+         */
+        get: operations["get_user_goal_api_v1_profile_goals__goal_id__get"];
         /**
          * Update User Goal
          * @description Replace an existing goal for the authenticated user.
@@ -15581,6 +15616,46 @@ export interface operations {
             };
         };
     };
+    read_gear_component_by_id_api_v1_gear_components__gear_component_id__get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                gear_component_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["GearComponentRead"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Unexpected error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+        };
+    };
     delete_component_gear_api_v1_gear_components__gear_component_id__delete: {
         parameters: {
             query?: never;
@@ -16732,6 +16807,46 @@ export interface operations {
             };
         };
     };
+    read_health_sleep_by_id_api_v1_health_sleep__health_sleep_id__get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                health_sleep_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HealthSleepRead"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Unexpected error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+        };
+    };
     delete_health_sleep_api_v1_health_sleep__health_sleep_id__delete: {
         parameters: {
             query?: never;
@@ -16951,6 +17066,46 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["HealthChartSeries"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Unexpected error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+        };
+    };
+    read_health_steps_by_id_api_v1_health_steps__health_steps_id__get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                health_steps_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HealthStepsRead"];
                 };
             };
             /** @description Validation Error */
@@ -17258,6 +17413,46 @@ export interface operations {
             };
         };
     };
+    read_health_water_by_id_api_v1_health_water__health_water_id__get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                health_water_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HealthWaterRead"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Unexpected error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+        };
+    };
     delete_health_water_api_v1_health_water__health_water_id__delete: {
         parameters: {
             query?: never;
@@ -17470,6 +17665,46 @@ export interface operations {
             };
         };
     };
+    read_health_weight_by_id_api_v1_health_weight__health_weight_id__get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                health_weight_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HealthWeightRead"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Unexpected error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+        };
+    };
     delete_health_weight_api_v1_health_weight__health_weight_id__delete: {
         parameters: {
             query?: never;
@@ -17657,6 +17892,48 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["IdentityProviderTemplateRead"][];
+                };
+            };
+            /** @description Unexpected error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+        };
+    };
+    read_identity_provider_api_v1_identity_providers__idp_id__get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                idp_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    /** @description The version of this identity provider */
+                    ETag?: string;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["IdentityProviderRead"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
                 };
             };
             /** @description Unexpected error */
@@ -18807,6 +19084,46 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["Page_UsersGoalProgress_"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Unexpected error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+        };
+    };
+    get_user_goal_api_v1_profile_goals__goal_id__get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                goal_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["UsersGoalRead"];
                 };
             };
             /** @description Validation Error */

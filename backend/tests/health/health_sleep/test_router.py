@@ -144,3 +144,36 @@ class TestDeleteHealthSleep:
         response = fast_api_client.delete("/health_sleep/999", headers=_IF_MATCH_HEADERS)
 
         assert response.status_code == 404
+
+
+class TestReadHealthSleepById:
+    @patch(f"{_SERVICE}.get_health_sleep")
+    def test_returns_the_record_with_its_etag(self, mock_get, fast_api_client, fast_api_app):
+        mock_get.return_value = _record()
+
+        response = fast_api_client.get("/health_sleep/1", headers=_HEADERS)
+
+        assert response.status_code == 200
+        assert response.headers["ETag"] == '"1"'
+        assert mock_get.call_args.args[:2] == (1, 1)
+
+    @patch(f"{_SERVICE}.get_health_sleep")
+    def test_a_record_the_user_does_not_have_is_404(self, mock_get, fast_api_client, fast_api_app):
+        mock_get.side_effect = core_exceptions.NotFoundError("Health sleep not found")
+
+        response = fast_api_client.get("/health_sleep/99", headers=_HEADERS)
+
+        assert response.status_code == 404
+
+
+class TestCreateHealthSleepHeaders:
+    @patch(f"{_SERVICE}.create_health_sleep")
+    def test_create_names_the_record_and_its_version(self, mock_create, fast_api_client, fast_api_app):
+        mock_create.return_value = _record(record_id=7)
+
+        response = fast_api_client.post(
+            "/health_sleep", json={"date": "2024-01-15", "total_sleep_seconds": 28800}, headers=_HEADERS
+        )
+
+        assert response.headers["Location"] == "/health_sleep/7"
+        assert response.headers["ETag"] == '"1"'

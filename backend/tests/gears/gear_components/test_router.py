@@ -64,7 +64,29 @@ def test_a_non_positive_gear_id_is_rejected(client):
 def test_create(mock_create, client):
     mock_create.return_value = _read()
 
-    assert client.post("/gear_components", json=_BODY, headers=_HEADERS).status_code == 201
+    response = client.post("/gear_components", json=_BODY, headers=_HEADERS)
+
+    assert response.status_code == 201
+    assert response.headers["Location"] == "/gear_components/1"
+    assert response.headers["ETag"] == '"1"'
+
+
+@patch("modules.gears.gear_components.service.get_gear_component")
+def test_read_returns_the_component_with_its_etag(mock_get, client, mock_db):
+    mock_get.return_value = _read(version=3)
+
+    response = client.get("/gear_components/1", headers=_HEADERS)
+
+    assert response.status_code == 200
+    assert response.headers["ETag"] == '"3"'
+    mock_get.assert_called_once_with(1, 1, mock_db)
+
+
+@patch("modules.gears.gear_components.service.get_gear_component")
+def test_read_of_a_component_the_user_does_not_have_is_404(mock_get, client):
+    mock_get.side_effect = core_exceptions.NotFoundError("Gear component not found")
+
+    assert client.get("/gear_components/99", headers=_HEADERS).status_code == 404
 
 
 @pytest.mark.parametrize(

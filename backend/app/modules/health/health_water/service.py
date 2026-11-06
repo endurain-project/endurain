@@ -209,6 +209,23 @@ def edit_health_water(
     return updated
 
 
+def get_health_water(user_id: int, health_water_id: int, db: Session) -> health_water_schema.HealthWaterRead:
+    """Return one of a user's water records.
+
+    Args:
+        user_id: The record's owner.
+        health_water_id: The record to fetch.
+        db: Database session.
+
+    Returns:
+        The record.
+
+    Raises:
+        NotFoundError: If the user has no such record.
+    """
+    return health_record_service.get_record(health_water_crud.SPEC, health_water_id, user_id, db)
+
+
 def delete_health_water(user_id: int, health_water_id: int, db: Session, *, if_match: str) -> None:
     """Delete a water intake record and commit.
 

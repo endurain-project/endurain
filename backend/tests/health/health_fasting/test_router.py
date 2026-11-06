@@ -131,6 +131,7 @@ class TestCreateHealthFasting:
 
         assert response.status_code == 201
         assert response.headers["Location"] == "/health_fasting/1"
+        assert response.headers["ETag"] == '"1"'
 
     @patch(f"{_SERVICE}.create_health_fasting")
     def test_already_active_is_400(self, mock_create, mock_db):

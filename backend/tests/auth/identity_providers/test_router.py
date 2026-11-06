@@ -82,7 +82,27 @@ def test_create_identity_provider_delegates_to_service(service):
 
     assert response.status_code == 201
     assert response.headers["etag"] == '"1"'
+    assert response.headers["location"] == "/auth/identity_providers/1"
     service.create_identity_provider.assert_called_once()
+
+
+def test_read_identity_provider_returns_it_with_its_etag(service):
+    service.get_identity_provider.return_value = _provider(version=3)
+
+    response = _client().get("/auth/identity_providers/1", headers={"Authorization": "Bearer x"})
+
+    assert response.status_code == 200
+    assert response.headers["etag"] == '"3"'
+    assert "client_secret" not in response.json()
+    assert service.get_identity_provider.call_args.args[0] == 1
+
+
+def test_read_of_a_missing_identity_provider_is_404(service):
+    service.get_identity_provider.side_effect = core_exceptions.NotFoundError("Identity provider not found")
+
+    response = _client().get("/auth/identity_providers/99", headers={"Authorization": "Bearer x"})
+
+    assert response.status_code == 404
 
 
 def test_update_identity_provider_requires_if_match_and_returns_new_etag(service):

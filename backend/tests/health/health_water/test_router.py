@@ -130,3 +130,36 @@ class TestDeleteHealthWater:
         response = TestClient(_build_app(mock_db)).delete("/health_water/9", headers=_IF_MATCH_HEADERS)
 
         assert response.status_code == 404
+
+
+class TestReadHealthWaterById:
+    @patch(f"{_SERVICE}.get_health_water")
+    def test_returns_the_record_with_its_etag(self, mock_get, mock_db):
+        mock_get.return_value = HealthWaterRead(id=1, user_id=1, amount_ml=500.0)
+
+        response = TestClient(_build_app(mock_db)).get("/health_water/1", headers=_HEADERS)
+
+        assert response.status_code == 200
+        assert response.headers["ETag"] == '"1"'
+        assert mock_get.call_args.args[:2] == (1, 1)
+
+    @patch(f"{_SERVICE}.get_health_water")
+    def test_a_record_the_user_does_not_have_is_404(self, mock_get, mock_db):
+        mock_get.side_effect = core_exceptions.NotFoundError("Health water not found")
+
+        response = TestClient(_build_app(mock_db)).get("/health_water/99", headers=_HEADERS)
+
+        assert response.status_code == 404
+
+
+class TestCreateHealthWaterHeaders:
+    @patch(f"{_SERVICE}.create_health_water")
+    def test_create_names_the_record_and_its_version(self, mock_create, mock_db):
+        mock_create.return_value = HealthWaterRead(id=7, user_id=1, amount_ml=500.0)
+
+        response = TestClient(_build_app(mock_db)).post(
+            "/health_water", json={"amount_ml": 500, "date": "2024-01-15"}, headers=_HEADERS
+        )
+
+        assert response.headers["Location"] == "/health_water/7"
+        assert response.headers["ETag"] == '"1"'

@@ -77,6 +77,27 @@ def commit_write[ModelT: health_record_crud.Row, ReadT: BaseModel, ResultT](
     return result
 
 
+def get_record[ModelT: health_record_crud.Row, ReadT: BaseModel](
+    spec: health_record_crud.RecordSpec[ModelT, ReadT], record_id: int, user_id: int, db: Session
+) -> ReadT:
+    """Return one of a user's records.
+
+    Args:
+        spec: The record type.
+        record_id: The record to fetch.
+        user_id: The record's owner.
+        db: Database session.
+
+    Returns:
+        The record.
+
+    Raises:
+        NotFoundError: If the user has no such record.
+    """
+    row = health_record_crud.get_owned(spec, record_id, user_id, db)
+    return health_computation.to_read_schema(spec.read_schema, row)
+
+
 def chart(
     user_id: int,
     interval: health_constants.Interval,

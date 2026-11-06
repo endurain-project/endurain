@@ -179,3 +179,21 @@ class TestRestoreArchivedRecords:
 
         with pytest.raises(core_exceptions.ConflictError):
             self._restore([{"date": "2024-01-15", "steps": 5}], stage)
+
+
+class TestGetRecord:
+    @patch("modules.health.record_crud.get_owned")
+    def test_returns_the_owned_row_as_its_read_schema(self, mock_get_owned, mock_db):
+        mock_get_owned.return_value = MagicMock(
+            id=3, user_id=2, date=date(2024, 1, 15), steps=900, version=4, source=None
+        )
+
+        record = health_record_service.get_record(health_steps_crud.SPEC, 3, 2, mock_db)
+
+        assert (record.id, record.steps, record.version) == (3, 900, 4)
+        mock_get_owned.assert_called_once_with(health_steps_crud.SPEC, 3, 2, mock_db)
+
+    @patch("modules.health.record_crud.get_owned", side_effect=core_exceptions.NotFoundError("Health steps not found"))
+    def test_a_record_of_another_user_is_not_found(self, _get_owned, mock_db):
+        with pytest.raises(core_exceptions.NotFoundError, match="Health steps not found"):
+            health_record_service.get_record(health_steps_crud.SPEC, 3, 2, mock_db)

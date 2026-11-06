@@ -70,7 +70,9 @@ sequenceDiagram
 ### Where to read the version
 
 - **The `version` field** of every record in a response, including each item of a list. It is an integer that goes up by one whenever the record changes.
-- **The `ETag` header** of a response that returns a single record, and of every write that returns the updated record. It is the same number in quotes, such as `"7"`.
+- **The `ETag` header** of a response that returns a single record, of every write that returns the updated record, and of every `201` that creates a record. It is the same number in quotes, such as `"7"`.
+
+Every record you can edit or delete by id can also be read by id (`GET /health/weight/{id}`, `GET /gear-components/{id}`, `GET /profile/goals/{id}`, `GET /identity-providers/{id}` and so on). A `201` that creates one of them also sends a `Location` header with the path of that read. After a `412`, read the record again to get its current `ETag`. The exceptions are items you only revoke or remove, such as API keys, sessions, follow requests and identity links.
 
 Use whichever is convenient. They always agree.
 

@@ -252,6 +252,7 @@ def create_user(
     """
     created = users_service.create_user(user, db)
     core_location.set_location(response, request, "read_users_full", user_id=created.id)
+    core_etag.set_etag(response, created.version)
     return created
 
 

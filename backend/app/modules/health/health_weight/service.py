@@ -306,6 +306,23 @@ def edit_health_weight(
     return updated
 
 
+def get_health_weight(user_id: int, health_weight_id: int, db: Session) -> health_weight_schema.HealthWeightRead:
+    """Return one of a user's weight records.
+
+    Args:
+        user_id: The record's owner.
+        health_weight_id: The record to fetch.
+        db: Database session.
+
+    Returns:
+        The record.
+
+    Raises:
+        NotFoundError: If the user has no such record.
+    """
+    return health_record_service.get_record(health_weight_crud.SPEC, health_weight_id, user_id, db)
+
+
 def delete_health_weight(user_id: int, health_weight_id: int, db: Session, *, if_match: str) -> None:
     """Delete a weight record and commit.
 

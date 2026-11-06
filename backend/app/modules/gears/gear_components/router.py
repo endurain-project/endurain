@@ -4,6 +4,7 @@ from fastapi import APIRouter, Request, Response, Security, status
 
 import core.dependencies as core_dependencies
 import core.etag as core_etag
+import core.location as core_location
 import core.pagination as core_pagination
 import core.rate_limit as core_rate_limit
 import modules.auth.dependencies as auth_dependencies
@@ -39,6 +40,23 @@ def read_gear_components(
     )
 
 
+@router.get(
+    "/{gear_component_id}",
+    response_model=gear_components_schema.GearComponentRead,
+    dependencies=[Security(auth_dependencies.check_scopes, scopes=["gears:read"])],
+)
+def read_gear_component_by_id(
+    gear_component_id: core_dependencies.PositiveId,
+    token_user_id: auth_dependencies.CurrentUserId,
+    db: core_dependencies.DbSession,
+    response: Response,
+) -> gear_components_schema.GearComponentRead:
+    """Retrieve one of the authenticated user's gear components; its ``ETag`` is the version for ``If-Match``."""
+    component = gear_components_service.get_gear_component(token_user_id, gear_component_id, db)
+    core_etag.set_etag(response, component.version)
+    return component
+
+
 @router.post(
     "",
     response_model=gear_components_schema.GearComponentRead,
@@ -51,9 +69,13 @@ def create_gear_component(
     gear_component: gear_components_schema.GearComponentCreate,
     token_user_id: auth_dependencies.CurrentUserId,
     db: core_dependencies.DbSession,
+    response: Response,
 ) -> gear_components_schema.GearComponentRead:
-    """Create a component on one of the authenticated user's gears."""
-    return gear_components_service.create_gear_component(gear_component, token_user_id, db)
+    """Create a component on one of the authenticated user's gears; ``Location`` names where it is read."""
+    created = gear_components_service.create_gear_component(gear_component, token_user_id, db)
+    core_location.set_location(response, request, "read_gear_component_by_id", gear_component_id=created.id)
+    core_etag.set_etag(response, created.version)
+    return created
 
 
 @router.patch(
