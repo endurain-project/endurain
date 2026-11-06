@@ -232,8 +232,8 @@ If **Allow local username and password login** is enabled, the auto-redirect is 
 
 **Problem**: "Cannot link this identity provider to an existing account because the provider did not verify the email address" (HTTP 403)
 
-- **Cause**: For security (account-takeover prevention), Endurain auto-links an SSO identity to an **existing** local account by email only when the identity provider asserts the email is verified via the standard OIDC `email_verified` claim. Providers that omit this claim, or report the email as unverified, are refused.
-- **Solution**: Configure the identity provider to verify email addresses and include `email_verified: true` in the userinfo/ID token (request the `email` scope), or link the provider from **Settings → Security** while signed in to the existing account.
+- **Cause**: For security (account-takeover prevention), Endurain auto-links an SSO identity to an **existing** local account by email only when the identity provider asserts the email is verified via the standard OIDC `email_verified` claim. `email_verified` describes only the standard `email` claim, so an address taken from `mail` (the Authentik and Keycloak templates map `email` first and fall back to `mail`, so they link only when the provider sends `email`) or from a custom claim mapping is never treated as verified and is refused too. Providers that omit the flag, or report the email as unverified, are refused.
+- **Solution**: Configure the identity provider to verify email addresses and send the address in the `email` claim with `email_verified: true` in the userinfo/ID token (request the `email` scope), or link the provider from **Settings → Security** while signed in to the existing account.
 
 **Problem**: "Cannot link this identity provider to an existing account because the account email is not verified" (HTTP 403)
 

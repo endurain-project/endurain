@@ -208,7 +208,7 @@ def find_or_create_user(
     if email:
         user = users_integration.get_user_by_email(email, db)
         if user:
-            if not claim_mapping.is_email_verified(userinfo):
+            if not claim_mapping.is_email_verified(idp, userinfo):
                 record_identity_link_refused(
                     user.id, idp.id, idp_audit_actions.IdentityLinkRefusal.PROVIDER_EMAIL_UNVERIFIED
                 )
@@ -268,7 +268,9 @@ def find_or_create_user(
         )
         raise core_exceptions.PermissionDeniedError("User account creation is disabled for this identity provider")
 
-    user = create_user_from_idp(idp, subject, mapped_data, db, email_verified=claim_mapping.is_email_verified(userinfo))
+    user = create_user_from_idp(
+        idp, subject, mapped_data, db, email_verified=claim_mapping.is_email_verified(idp, userinfo)
+    )
 
     return user
 
@@ -378,7 +380,7 @@ def update_user_from_idp(
 
     # Check email - verify not already in use. An email the IdP did not verify is never copied onto
     # the account, since it carries the account's own verified flag with it.
-    if "email" in mapped_data and mapped_data["email"] != user.email and claim_mapping.is_email_verified(userinfo):
+    if "email" in mapped_data and mapped_data["email"] != user.email and claim_mapping.is_email_verified(idp, userinfo):
         existing_user = users_integration.get_user_by_email(mapped_data["email"], db)
         if existing_user and existing_user.id != user.id:
             logger.warning(

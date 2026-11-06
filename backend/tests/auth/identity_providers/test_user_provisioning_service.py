@@ -60,6 +60,30 @@ class TestFindOrCreateUserEmailLinking:
         # No link must be created for the unverified takeover attempt.
         mock_link.assert_not_called()
 
+    def test_mail_claim_with_verified_flag_existing_account_is_rejected(self):
+        """An address from ``mail`` never auto-links, even when email_verified is true."""
+        idp = _make_idp()
+        mock_db = MagicMock(spec=Session)
+        existing_user = MagicMock()
+        existing_user.username = "victim"
+
+        userinfo = {"mail": "victim@example.com", "email_verified": True}
+
+        base = "modules.auth.identity_providers.user_provisioning_service"
+        with (
+            patch(
+                f"{base}.identity_provider_links_integration.get_user_identity_provider_by_subject_and_idp_id",
+                return_value=None,
+            ),
+            patch(f"{base}.users_integration.get_user_by_email", return_value=existing_user),
+            patch(f"{base}.identity_provider_links_integration.create_user_identity_provider") as mock_link,
+            pytest.raises(core_exceptions.DomainError) as exc_info,
+        ):
+            user_provisioning_service.find_or_create_user(idp, "subject-123", userinfo, mock_db)
+
+        assert exc_info.value.status_code == 403
+        mock_link.assert_not_called()
+
     def test_verified_email_existing_account_is_linked(self):
         """Linking to an existing account succeeds when email is verified."""
         idp = _make_idp()

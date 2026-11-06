@@ -74,23 +74,53 @@ class TestMapUserClaims:
 
 
 class TestIsEmailVerified:
-    """Unit tests for the is_email_verified claim parser."""
+    """is_email_verified trusts email_verified only for an address taken from the standard email claim."""
+
+    @staticmethod
+    def _idp(user_mapping=None) -> MagicMock:
+        idp = MagicMock()
+        idp.user_mapping = user_mapping
+        return idp
 
     @pytest.mark.parametrize(
-        ("claims", "expected"),
+        ("flag", "expected"),
         [
-            ({"email_verified": True}, True),
-            ({"email_verified": "true"}, True),
-            ({"email_verified": "True"}, True),
-            ({"email_verified": " TRUE "}, True),
-            ({"email_verified": False}, False),
-            ({"email_verified": "false"}, False),
-            ({"email_verified": "1"}, False),
-            ({"email_verified": 1}, False),
-            ({"email_verified": None}, False),
-            ({}, False),
+            (True, True),
+            ("true", True),
+            ("True", True),
+            (" TRUE ", True),
+            (False, False),
+            ("false", False),
+            ("1", False),
+            (1, False),
+            (None, False),
         ],
     )
-    def test_is_email_verified(self, claims, expected):
-        """Only an explicit boolean/'true' assertion counts as verified."""
-        assert claim_mapping.is_email_verified(claims) is expected
+    def test_email_claim_needs_a_true_flag(self, flag, expected):
+        """Only an explicit boolean or 'true' assertion counts as verified."""
+        claims = {"email": "a@example.com", "email_verified": flag}
+        assert claim_mapping.is_email_verified(self._idp(), claims) is expected
+
+    def test_missing_flag_is_unverified(self):
+        assert claim_mapping.is_email_verified(self._idp(), {"email": "a@example.com"}) is False
+
+    def test_mail_claim_is_never_verified(self):
+        claims = {"mail": "a@example.com", "email_verified": True}
+        assert claim_mapping.is_email_verified(self._idp(), claims) is False
+
+    def test_email_claim_wins_over_mail(self):
+        claims = {"email": "a@example.com", "mail": "b@example.com", "email_verified": True}
+        assert claim_mapping.is_email_verified(self._idp(), claims) is True
+
+    def test_custom_mapping_claim_is_never_verified(self):
+        idp = self._idp(user_mapping={"email": ["work_email"]})
+        claims = {"work_email": "a@example.com", "email": "other@example.com", "email_verified": True}
+        assert claim_mapping.is_email_verified(idp, claims) is False
+
+    def test_custom_mapping_to_the_email_claim_is_verified(self):
+        idp = self._idp(user_mapping={"email": "email"})
+        claims = {"email": "a@example.com", "email_verified": True}
+        assert claim_mapping.is_email_verified(idp, claims) is True
+
+    def test_no_email_is_unverified(self):
+        assert claim_mapping.is_email_verified(self._idp(), {"email_verified": True}) is False
