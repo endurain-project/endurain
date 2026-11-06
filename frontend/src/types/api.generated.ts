@@ -14,11 +14,8 @@ export interface paths {
         /**
          * About
          * @description Returns metadata information about the Endurain API.
-         *
-         *     Returns:
-         *         API name, version, and license details.
          */
-        get: operations["about_api_v1_about_get"];
+        get: operations["about"];
         put?: never;
         post?: never;
         delete?: never;
@@ -38,7 +35,7 @@ export interface paths {
          * List Own Activities
          * @description List the authenticated user's activities, with the matching total.
          */
-        get: operations["list_own_activities_api_v1_activities_get"];
+        get: operations["list_own_activities"];
         put?: never;
         post?: never;
         delete?: never;
@@ -56,24 +53,8 @@ export interface paths {
          *
          *     The edit can touch a whole library, so it runs as a background job: poll
          *     ``GET /activities/bulk-edit`` for the outcome.
-         *
-         *     Args:
-         *         request: The incoming request, read by the rate limiter.
-         *         response: The response, which names the status route and when to poll it.
-         *         body: The fields to apply; only those present are changed.
-         *         token_user_id: User ID from the access token.
-         *         states: Shared store of the edit's state.
-         *         db: Database session dependency.
-         *
-         *     Returns:
-         *         The edit's initial status.
-         *
-         *     Raises:
-         *         InvalidInputError: When the body asks for no change at all. An empty
-         *             patch is a client bug, not a no-op worth reporting as success.
-         *         ConflictError: When a bulk edit is already pending.
          */
-        patch: operations["edit_activities_api_v1_activities_patch"];
+        patch: operations["edit_activities"];
         trace?: never;
     };
     "/api/v1/activities/bulk-edit": {
@@ -88,19 +69,8 @@ export interface paths {
          * @description Report where the authenticated user's bulk edit is.
          *
          *     ``Retry-After`` says when to poll again while the edit is not finished.
-         *
-         *     Args:
-         *         token_user_id: User ID from the access token.
-         *         states: Shared store of the edit's state.
-         *         response: The response, which carries ``Retry-After`` while the edit runs.
-         *
-         *     Returns:
-         *         The edit's status.
-         *
-         *     Raises:
-         *         NotFoundError: If no bulk edit is recorded or it has expired.
          */
-        get: operations["read_bulk_edit_status_api_v1_activities_bulk_edit_get"];
+        get: operations["read_bulk_edit_status"];
         put?: never;
         post?: never;
         delete?: never;
@@ -134,7 +104,7 @@ export interface paths {
          *     Send an ``Idempotency-Key`` to make a retry safe: a repeat of the same archive and ``source`` returns the
          *     original job instead of starting another, and the same key with a different archive is ``409``.
          */
-        post: operations["create_bulk_import_from_archive_api_v1_activities_bulk_import_post"];
+        post: operations["create_bulk_import_from_archive"];
         delete?: never;
         options?: never;
         head?: never;
@@ -163,7 +133,7 @@ export interface paths {
          *     One bulk import runs per user at a time; a second request while one is running
          *     is answered ``409`` with the running job's ``job_id`` and a ``Content-Location`` naming its status.
          */
-        post: operations["create_bulk_import_from_folder_api_v1_activities_bulk_import_folder_post"];
+        post: operations["create_bulk_import_from_folder"];
         delete?: never;
         options?: never;
         head?: never;
@@ -180,15 +150,8 @@ export interface paths {
         /**
          * List Activity Exercise Titles
          * @description Return one page of the activity exercise titles.
-         *
-         *     Args:
-         *         page: The requested window; a page holds up to the maximum when no size is given.
-         *         db: Database session dependency.
-         *
-         *     Returns:
-         *         The page of exercise titles.
          */
-        get: operations["list_activity_exercise_titles_api_v1_activities_exercise_titles_get"];
+        get: operations["list_activity_exercise_titles"];
         put?: never;
         post?: never;
         delete?: never;
@@ -211,7 +174,7 @@ export interface paths {
          *     The slice also carries the public profile of each owner on it in ``users`` (the projection
          *     ``GET /users/id/{user_id}`` returns), so a token with ``activities:read`` alone receives it too.
          */
-        get: operations["list_following_feed_api_v1_activities_feed_get"];
+        get: operations["list_following_feed"];
         put?: never;
         post?: never;
         delete?: never;
@@ -239,7 +202,7 @@ export interface paths {
          *     found rather than forbidden, so the endpoint does not confirm that an id
          *     exists.
          */
-        get: operations["read_activity_ingestion_job_api_v1_activities_ingestion_jobs__job_id__get"];
+        get: operations["read_activity_ingestion_job"];
         put?: never;
         post?: never;
         delete?: never;
@@ -267,7 +230,7 @@ export interface paths {
          *     The sync runs as a job, so no provider call blocks a request thread or the
          *     event loop.
          */
-        post: operations["refresh_activities_api_v1_activities_refresh_post"];
+        post: operations["refresh_activities"];
         delete?: never;
         options?: never;
         head?: never;
@@ -285,7 +248,7 @@ export interface paths {
          * Read Activity Summary
          * @description Return the authenticated user's activity summary for one period.
          */
-        get: operations["read_activity_summary_api_v1_activities_summaries_get"];
+        get: operations["read_activity_summary"];
         put?: never;
         post?: never;
         delete?: never;
@@ -305,7 +268,7 @@ export interface paths {
          * List Activity Types
          * @description Return the distinct activity types the user has recorded, keyed by type with the English name as value.
          */
-        get: operations["list_activity_types_api_v1_activities_types_get"];
+        get: operations["list_activity_types"];
         put?: never;
         post?: never;
         delete?: never;
@@ -345,7 +308,7 @@ export interface paths {
          *     query parameter). Requires the
          *     ``activities:upload`` scope.
          */
-        post: operations["create_activity_with_uploaded_file_api_v1_activities_upload_post"];
+        post: operations["create_activity_with_uploaded_file"];
         delete?: never;
         options?: never;
         head?: never;
@@ -363,7 +326,7 @@ export interface paths {
          * Read Activity
          * @description Read a single activity the requester owns or is permitted to see.
          */
-        get: operations["read_activity_api_v1_activities__activity_id__get"];
+        get: operations["read_activity"];
         put?: never;
         post?: never;
         /**
@@ -373,7 +336,7 @@ export interface paths {
          *     Answers ``204`` with no body: the resource is gone, and the status says so.
          *     Send ``If-Match`` with the activity's ``version`` as an ETag; a stale tag is refused with 412.
          */
-        delete: operations["delete_activity_api_v1_activities__activity_id__delete"];
+        delete: operations["delete_activity"];
         options?: never;
         head?: never;
         /**
@@ -384,7 +347,7 @@ export interface paths {
          *     a stale tag is refused with 412 rather than silently overwriting whoever
          *     saved in between.
          */
-        patch: operations["edit_activity_api_v1_activities__activity_id__patch"];
+        patch: operations["edit_activity"];
         trace?: never;
     };
     "/api/v1/activities/{activity_id}/detail": {
@@ -402,7 +365,7 @@ export interface paths {
          *     once. Streams and media stay on their own routes. The ``ETag`` is the activity's, to echo in
          *     ``If-Match`` when saving it.
          */
-        get: operations["read_activity_detail_api_v1_activities__activity_id__detail_get"];
+        get: operations["read_activity_detail"];
         put?: never;
         post?: never;
         delete?: never;
@@ -422,7 +385,7 @@ export interface paths {
          * List Activity Laps
          * @description Return one page of the given activity's laps, with the matching total.
          */
-        get: operations["list_activity_laps_api_v1_activities__activity_id__laps_get"];
+        get: operations["list_activity_laps"];
         put?: never;
         post?: never;
         delete?: never;
@@ -445,7 +408,7 @@ export interface paths {
          *     The page is empty when the activity has no media or is not accessible to the
          *     caller.
          */
-        get: operations["list_activity_media_api_v1_activities__activity_id__media_get"];
+        get: operations["list_activity_media"];
         put?: never;
         /**
          * Create Activity Media
@@ -464,7 +427,7 @@ export interface paths {
          *     Not found when the activity is not the caller's, rejected when the extension
          *     is unsupported, and a conflict when a media with the same path already exists.
          */
-        post: operations["create_activity_media_api_v1_activities__activity_id__media_post"];
+        post: operations["create_activity_media"];
         delete?: never;
         options?: never;
         head?: never;
@@ -488,7 +451,7 @@ export interface paths {
          *     Not found when the media is missing, does not belong to this activity, or its
          *     activity is not the caller's.
          */
-        delete: operations["delete_activity_media_api_v1_activities__activity_id__media__media_id__delete"];
+        delete: operations["delete_activity_media"];
         options?: never;
         head?: never;
         patch?: never;
@@ -509,7 +472,7 @@ export interface paths {
          *     to the activity, or no blob exists. A ``404`` rather than ``403`` avoids
          *     confirming the resource to an unauthorized caller.
          */
-        get: operations["read_activity_media_file_api_v1_activities__activity_id__media__media_id__file_get"];
+        get: operations["read_activity_media_file"];
         put?: never;
         post?: never;
         delete?: never;
@@ -529,7 +492,7 @@ export interface paths {
          * List Activity Sets
          * @description Return one page of the activity's sets, with the matching total.
          */
-        get: operations["list_activity_sets_api_v1_activities__activity_id__sets_get"];
+        get: operations["list_activity_sets"];
         put?: never;
         post?: never;
         delete?: never;
@@ -549,7 +512,7 @@ export interface paths {
          * List Activity Streams
          * @description Return one page of the given activity's streams, with the matching total.
          */
-        get: operations["list_activity_streams_api_v1_activities__activity_id__streams_get"];
+        get: operations["list_activity_streams"];
         put?: never;
         post?: never;
         delete?: never;
@@ -574,7 +537,7 @@ export interface paths {
          *     ``200 null``, and the two cases are indistinguishable so the endpoint cannot
          *     be used to probe which activities exist.
          */
-        get: operations["read_activity_stream_api_v1_activities__activity_id__streams__stream_type__get"];
+        get: operations["read_activity_stream"];
         put?: never;
         post?: never;
         delete?: never;
@@ -596,7 +559,7 @@ export interface paths {
          *
          *     Answers ``404`` when the token is invalid or forged, or no thumbnail exists.
          */
-        get: operations["read_activity_thumbnail_api_v1_activities__activity_id__thumbnail_get"];
+        get: operations["read_activity_thumbnail"];
         put?: never;
         post?: never;
         delete?: never;
@@ -616,7 +579,7 @@ export interface paths {
          * List Activity Workout Steps
          * @description Return one page of the activity's workout steps, with the matching total.
          */
-        get: operations["list_activity_workout_steps_api_v1_activities__activity_id__workout_steps_get"];
+        get: operations["list_activity_workout_steps"];
         put?: never;
         post?: never;
         delete?: never;
@@ -659,32 +622,8 @@ export interface paths {
          *     - For mobile clients with PKCE parameters, tokens are not returned directly
          *         - Instead, a session_id is returned for secure token exchange via
          *             /public/idp/session/{session_id}/tokens
-         *
-         *     Args:
-         *         response: The HTTP response object
-         *         request: The HTTP request object
-         *         form_data: Form data containing username and password
-         *         client_type: The type of client making the request ("web" or "mobile")
-         *         failed_attempts: Failed login attempts tracker for progressive lockout
-         *         pending_mfa_store: Store for pending MFA logins
-         *         password_hasher: The password hasher instance used for verifying passwords
-         *         token_manager: The token manager instance used for token operations
-         *         db: Database session
-         *         device_id: Device id from the browser's device cookie or the mobile app's X-Device-Id header, or None when
-         *             the client sent no valid one
-         *         code_challenge: PKCE code challenge (base64url-encoded SHA256, optional for mobile)
-         *         code_challenge_method: PKCE method (must be S256 if provided, optional for mobile)
-         *
-         *     Returns:
-         *         Union[auth_schema.MFARequiredResponse, dict, str]:
-         *             - If MFA is required, returns an MFA-required response (schema or dict depending on client type)
-         *             - If MFA is not required and mobile client with PKCE, returns session_id for token exchange
-         *             - If MFA is not required and no PKCE, proceeds with normal login via auth_utils.complete_login()
-         *
-         *     Raises:
-         *         HTTPException: If authentication fails, user is inactive, or account is locked
          */
-        post: operations["login_for_access_token_api_v1_auth_login_post"];
+        post: operations["login_for_access_token"];
         delete?: never;
         options?: never;
         head?: never;
@@ -703,25 +642,8 @@ export interface paths {
         /**
          * Logout
          * @description Log out a user by validating and deleting their session.
-         *
-         *     Args:
-         *         response: The HTTP response object to modify cookies.
-         *         request: The HTTP request object, read by the rate limiter.
-         *         _validate_refresh_token: Dependency to validate the refresh token.
-         *         token_session_id: The session ID extracted from the refresh token.
-         *         refresh_token_value: The refresh token value from the request.
-         *         client_type: The type of client ("web" or "mobile").
-         *         token_user_id: The user ID extracted from the refresh token.
-         *         password_hasher: Utility for verifying the refresh token.
-         *         db: Database session for CRUD operations.
-         *
-         *     Returns:
-         *         The logout confirmation.
-         *
-         *     Raises:
-         *         HTTPException: If refresh token is invalid (401 Unauthorized).
          */
-        post: operations["logout_api_v1_auth_logout_post"];
+        post: operations["logout"];
         delete?: never;
         options?: never;
         head?: never;
@@ -749,29 +671,8 @@ export interface paths {
          *     - For mobile clients with PKCE parameters, tokens are not returned directly
          *         - Instead, a session_id is returned for secure token exchange via
          *             /public/idp/session/{session_id}/tokens
-         *
-         *     Args:
-         *         response: The HTTP response object
-         *         request: The HTTP request object
-         *         failed_attempts: Failed login attempts tracker for progressive lockout
-         *         mfa_request: MFA login request containing username and MFA code
-         *         client_type: The type of client making the request ("web" or "mobile")
-         *         pending_mfa_store: Store for pending MFA logins
-         *         password_hasher: The password hasher instance used for verifying passwords
-         *         token_manager: The token manager instance used for token operations
-         *         db: Database session
-         *         device_id: Device id from the browser's device cookie or the mobile app's X-Device-Id header, or None when
-         *             the client sent no valid one
-         *         code_challenge: PKCE code challenge (base64url-encoded SHA256, optional for mobile)
-         *         code_challenge_method: PKCE method (must be S256 if provided, optional for mobile)
-         *
-         *     Returns:
-         *         Result from auth_utils.complete_login() or PKCE session response
-         *
-         *     Raises:
-         *         HTTPException: If no pending login found, MFA code is invalid, or user not found
          */
-        post: operations["verify_mfa_and_login_api_v1_auth_mfa_verify_post"];
+        post: operations["verify_mfa_and_login"];
         delete?: never;
         options?: never;
         head?: never;
@@ -800,29 +701,8 @@ export interface paths {
          *         - If CSRF header provided: Validate it (legitimate request with cached token)
          *         - Security: httpOnly cookie + SameSite=Strict prevents CSRF at browser level
          *         - CSRF validation adds defense-in-depth but is not the primary protection
-         *
-         *     Args:
-         *         response: The HTTP response object.
-         *         request: The HTTP request object.
-         *         _validate_refresh_token: Dependency to validate the refresh token.
-         *         token_user_id: User ID extracted from the refresh token.
-         *         token_session_id: Session ID extracted from the refresh token.
-         *         refresh_token_value: The raw refresh token value.
-         *         refresh_token_exp: Expiry of the presented refresh token.
-         *         password_hasher: Utility for verifying token hashes.
-         *         token_manager: Utility for creating tokens.
-         *         db: Database session.
-         *         client_type: Client type (\"web\" or \"mobile\").
-         *         x_csrf_token: CSRF token header (web clients only, optional on page reload).
-         *
-         *     Returns:
-         *         dict: Contains session_id, access_token, csrf_token, token_type, expires_in, refresh_token_expires_in.
-         *
-         *     Raises:
-         *         HTTPException: If session not found, refresh token invalid,
-         *                        user is inactive, or CSRF token is invalid (when provided).
          */
-        post: operations["refresh_token_api_v1_auth_refresh_post"];
+        post: operations["refresh_token"];
         delete?: never;
         options?: never;
         head?: never;
@@ -845,7 +725,7 @@ export interface paths {
          *     ``users`` (the projection ``GET /users/id/{user_id}`` returns), so a token with
          *     ``followers:read`` alone receives it too.
          */
-        get: operations["list_follow_requests_api_v1_followers_follow_requests_get"];
+        get: operations["list_follow_requests"];
         put?: never;
         post?: never;
         delete?: never;
@@ -873,7 +753,7 @@ export interface paths {
          *     Scoped to pending requests, so removing an accepted follower goes through the
          *     relationship route rather than arriving here by accident.
          */
-        delete: operations["reject_follow_request_api_v1_followers_follow_requests__follower_id__delete"];
+        delete: operations["reject_follow_request"];
         options?: never;
         head?: never;
         /**
@@ -888,7 +768,7 @@ export interface paths {
          *     Returns the row as persisted rather than one assembled from the request, so
          *     the response cannot claim a state the database does not hold.
          */
-        patch: operations["accept_follow_request_api_v1_followers_follow_requests__follower_id__patch"];
+        patch: operations["accept_follow_request"];
         trace?: never;
     };
     "/api/v1/garmin/activities": {
@@ -908,7 +788,7 @@ export interface paths {
          *     for the outcome. The range is fetched by a background job, never on this
          *     request or an API worker thread.
          */
-        post: operations["garminconnect_retrieve_activities_days_api_v1_garmin_activities_post"];
+        post: operations["garminconnect_retrieve_activities_days"];
         delete?: never;
         options?: never;
         head?: never;
@@ -931,7 +811,7 @@ export interface paths {
          *     Poll ``GET /garmin/sync/gear`` for the outcome. A second request while one is
          *     pending is answered 409.
          */
-        post: operations["garminconnect_retrieve_gear_api_v1_garmin_gear_post"];
+        post: operations["garminconnect_retrieve_gear"];
         delete?: never;
         options?: never;
         head?: never;
@@ -955,7 +835,7 @@ export interface paths {
          *     ``GET /garmin/sync/health`` for the outcome. A second request while one is pending is
          *     answered 409.
          */
-        post: operations["garminconnect_retrieve_health_days_api_v1_garmin_health_post"];
+        post: operations["garminconnect_retrieve_health_days"];
         delete?: never;
         options?: never;
         head?: never;
@@ -980,12 +860,12 @@ export interface paths {
          *     reports ``completed`` or ``failed``. A second request while one is running is answered 409 with a
          *     ``Content-Location`` naming the status.
          */
-        post: operations["garminconnect_link_api_v1_garmin_link_post"];
+        post: operations["garminconnect_link"];
         /**
          * Garminconnect Unlink
          * @description Unlink the user's Garmin Connect account.
          */
-        delete: operations["garminconnect_unlink_api_v1_garmin_link_delete"];
+        delete: operations["garminconnect_unlink"];
         options?: never;
         head?: never;
         patch?: never;
@@ -1004,7 +884,7 @@ export interface paths {
          *
          *     ``Retry-After`` says when to poll again while the attempt is not finished.
          */
-        get: operations["garminconnect_link_status_api_v1_garmin_link_status_get"];
+        get: operations["garminconnect_link_status"];
         put?: never;
         post?: never;
         delete?: never;
@@ -1026,7 +906,7 @@ export interface paths {
          * Garminconnect Mfa Code
          * @description Hand the MFA code to the Garmin Connect login waiting for it.
          */
-        post: operations["garminconnect_mfa_code_api_v1_garmin_mfa_post"];
+        post: operations["garminconnect_mfa_code"];
         delete?: never;
         options?: never;
         head?: never;
@@ -1046,7 +926,7 @@ export interface paths {
          *
          *     ``Retry-After`` says when to poll again while the sync is not finished.
          */
-        get: operations["garminconnect_sync_status_api_v1_garmin_sync__kind__get"];
+        get: operations["garminconnect_sync_status"];
         put?: never;
         post?: never;
         delete?: never;
@@ -1066,13 +946,13 @@ export interface paths {
          * Read Gear Components
          * @description Retrieve one page of the authenticated user's gear components, with the total.
          */
-        get: operations["read_gear_components_api_v1_gear_components_get"];
+        get: operations["read_gear_components"];
         put?: never;
         /**
          * Create Gear Component
          * @description Create a component on one of the authenticated user's gears; ``Location`` names where it is read.
          */
-        post: operations["create_gear_component_api_v1_gear_components_post"];
+        post: operations["create_gear_component"];
         delete?: never;
         options?: never;
         head?: never;
@@ -1090,7 +970,7 @@ export interface paths {
          * Read Gear Component Types
          * @description Retrieve the valid component types, grouped by gear type.
          */
-        get: operations["read_gear_component_types_api_v1_gear_components_types_get"];
+        get: operations["read_gear_component_types"];
         put?: never;
         post?: never;
         delete?: never;
@@ -1110,7 +990,7 @@ export interface paths {
          * Read Gear Component By Id
          * @description Retrieve one of the authenticated user's gear components; its ``ETag`` is the version for ``If-Match``.
          */
-        get: operations["read_gear_component_by_id_api_v1_gear_components__gear_component_id__get"];
+        get: operations["read_gear_component_by_id"];
         put?: never;
         post?: never;
         /**
@@ -1119,7 +999,7 @@ export interface paths {
          *
          *     Send ``If-Match`` with the component's ``version`` as an ETag; a stale tag is refused with 412.
          */
-        delete: operations["delete_component_gear_api_v1_gear_components__gear_component_id__delete"];
+        delete: operations["delete_component_gear"];
         options?: never;
         head?: never;
         /**
@@ -1139,7 +1019,7 @@ export interface paths {
          *     Send ``If-Match`` with the component's ``version`` as an ETag to make the write
          *     conditional; a stale tag is refused with 412.
          */
-        patch: operations["edit_gear_component_api_v1_gear_components__gear_component_id__patch"];
+        patch: operations["edit_gear_component"];
         trace?: never;
     };
     "/api/v1/gears": {
@@ -1153,13 +1033,13 @@ export interface paths {
          * List Gears
          * @description Retrieve one page of the authenticated user's gears, with the matching total.
          */
-        get: operations["list_gears_api_v1_gears_get"];
+        get: operations["list_gears"];
         put?: never;
         /**
          * Create Gear
          * @description Create a gear for the authenticated user; ``Location`` names where it is read.
          */
-        post: operations["create_gear_api_v1_gears_post"];
+        post: operations["create_gear"];
         delete?: never;
         options?: never;
         head?: never;
@@ -1177,7 +1057,7 @@ export interface paths {
          * Read Gear Id
          * @description Retrieve a gear by ID with its total distance, time and components cost.
          */
-        get: operations["read_gear_id_api_v1_gears__gear_id__get"];
+        get: operations["read_gear_id"];
         put?: never;
         post?: never;
         /**
@@ -1186,7 +1066,7 @@ export interface paths {
          *
          *     Send ``If-Match`` with the gear's ``version`` as an ETag; a stale tag is refused with 412.
          */
-        delete: operations["delete_gear_api_v1_gears__gear_id__delete"];
+        delete: operations["delete_gear"];
         options?: never;
         head?: never;
         /**
@@ -1200,7 +1080,7 @@ export interface paths {
          *     conditional; a stale tag is refused with 412. Changing `gear_type` is refused with 409
          *     while the gear has components that are not valid for the new type; remove them first.
          */
-        patch: operations["edit_gear_api_v1_gears__gear_id__patch"];
+        patch: operations["edit_gear"];
         trace?: never;
     };
     "/api/v1/gears/{gear_id}/activities": {
@@ -1214,7 +1094,7 @@ export interface paths {
          * List Gear Activities
          * @description List the authenticated user's activities for a gear, with the matching total.
          */
-        get: operations["list_gear_activities_api_v1_gears__gear_id__activities_get"];
+        get: operations["list_gear_activities"];
         put?: never;
         post?: never;
         delete?: never;
@@ -1234,7 +1114,7 @@ export interface paths {
          * Read Gear Components Gear Id
          * @description Retrieve one page of a gear's components with the distance and time each has accumulated.
          */
-        get: operations["read_gear_components_gear_id_api_v1_gears__gear_id__components_get"];
+        get: operations["read_gear_components_gear_id"];
         put?: never;
         post?: never;
         delete?: never;
@@ -1260,19 +1140,8 @@ export interface paths {
          *     routes (rate limits fall back to per-process counters), and restarting or
          *     de-routing replicas would not bring the backend back. It answers 200 with
          *     ``degraded`` so a monitor can alert on the body. An unhealthy audit trail does the same.
-         *
-         *     Args:
-         *         db: Database session.
-         *         state: The platform state provider.
-         *
-         *     Returns:
-         *         ``ok`` when the database and the state backend answer and the audit trail is healthy,
-         *         ``degraded`` when only the state backend or the audit trail is not.
-         *
-         *     Raises:
-         *         ServiceUnavailableError: When no connection can be obtained or the query fails, with ``Retry-After``.
          */
-        get: operations["health_api_v1_health_get"];
+        get: operations["health"];
         put?: never;
         post?: never;
         delete?: never;
@@ -1294,37 +1163,14 @@ export interface paths {
          *
          *     One page of records, newest first, optionally limited to an interval. Access is
          *     restricted to users with the 'health:read' scope.
-         *
-         *     Args:
-         *         token_user_id: The ID of the authenticated user extracted from the access token.
-         *         db: Database session for executing queries.
-         *         page: The requested page and page size.
-         *         interval: Optional interval looking back from today; ignored when a date range is given.
-         *         date_range: Optional inclusive start and end dates, which replace the interval.
-         *
-         *     Returns:
-         *         The page of records with the total matching the interval.
          */
-        get: operations["read_health_fasting_all_pagination_api_v1_health_fasting_get"];
+        get: operations["read_health_fasting_all_pagination"];
         put?: never;
         /**
          * Create Health Fasting
          * @description Create a new fasting session.
-         *
-         *     Args:
-         *         request: The incoming request, read by the rate limiter.
-         *         health_fasting: Fasting data to create.
-         *         token_user_id: User ID from the access token.
-         *         db: Database session dependency.
-         *         response: The response, whose ``Location`` names where the session is read.
-         *
-         *     Returns:
-         *         Created HealthFastingRead record.
-         *
-         *     Raises:
-         *         ConflictError: If user already has an active fast.
          */
-        post: operations["create_health_fasting_api_v1_health_fasting_post"];
+        post: operations["create_health_fasting"];
         delete?: never;
         options?: never;
         head?: never;
@@ -1341,16 +1187,8 @@ export interface paths {
         /**
          * Read Active Fasting
          * @description Retrieve the active fasting session for the authenticated user.
-         *
-         *     Args:
-         *         token_user_id: User ID from the access token.
-         *         db: Database session dependency.
-         *         response: The response, which carries the session's ETag.
-         *
-         *     Returns:
-         *         Active HealthFastingRead if exists, None otherwise.
          */
-        get: operations["read_active_fasting_api_v1_health_fasting_active_get"];
+        get: operations["read_active_fasting"];
         put?: never;
         post?: never;
         delete?: never;
@@ -1369,15 +1207,8 @@ export interface paths {
         /**
          * Read Fasting Stats
          * @description Retrieve fasting statistics for the authenticated user.
-         *
-         *     Args:
-         *         token_user_id: User ID from the access token.
-         *         db: Database session dependency.
-         *
-         *     Returns:
-         *         HealthFastingStatsResponse with statistics.
          */
-        get: operations["read_fasting_stats_api_v1_health_fasting_stats_get"];
+        get: operations["read_fasting_stats"];
         put?: never;
         post?: never;
         delete?: never;
@@ -1396,57 +1227,22 @@ export interface paths {
         /**
          * Read Health Fasting By Id
          * @description Retrieve a specific fasting record by ID.
-         *
-         *     Args:
-         *         health_fasting_id: ID of the fasting record.
-         *         token_user_id: User ID from the access token.
-         *         db: Database session dependency.
-         *         response: The response, which carries the record's ETag.
-         *
-         *     Returns:
-         *         HealthFastingRead for the specified record.
-         *
-         *     Raises:
-         *         NotFoundError: If record not found.
          */
-        get: operations["read_health_fasting_by_id_api_v1_health_fasting__health_fasting_id__get"];
+        get: operations["read_health_fasting_by_id"];
         put?: never;
         post?: never;
         /**
          * Delete Health Fasting
          * @description Delete a fasting record.
-         *
-         *     Args:
-         *         request: The incoming request, read by the rate limiter.
-         *         health_fasting_id: ID of the fasting record to delete.
-         *         token_user_id: User ID from the access token.
-         *         if_match: The ``If-Match`` precondition.
-         *         db: Database session dependency.
-         *
-         *     Raises:
-         *         NotFoundError: If the user has no such record.
-         *         PreconditionFailedError: If the record changed since the client read it.
          */
-        delete: operations["delete_health_fasting_api_v1_health_fasting__health_fasting_id__delete"];
+        delete: operations["delete_health_fasting"];
         options?: never;
         head?: never;
         /**
          * Edit Health Fasting
          * @description Edit an existing fasting record.
-         *
-         *     Args:
-         *         request: The incoming request, read by the rate limiter.
-         *         health_fasting_id: ID of the record to change.
-         *         health_fasting: Fasting data to update.
-         *         token_user_id: User ID from the access token.
-         *         db: Database session dependency.
-         *         response: The response, which carries the new ETag.
-         *         if_match: The ``If-Match`` precondition.
-         *
-         *     Returns:
-         *         Updated HealthFastingRead record.
          */
-        patch: operations["edit_health_fasting_api_v1_health_fasting__health_fasting_id__patch"];
+        patch: operations["edit_health_fasting"];
         trace?: never;
     };
     "/api/v1/health/fasting/{health_fasting_id}/complete": {
@@ -1461,20 +1257,8 @@ export interface paths {
         /**
          * Complete Health Fasting
          * @description Complete or end a fasting session.
-         *
-         *     Args:
-         *         request: The incoming request, read by the rate limiter.
-         *         health_fasting_id: ID of the fasting record to complete.
-         *         complete_data: Completion data with end time and status.
-         *         token_user_id: User ID from the access token.
-         *         db: Database session dependency.
-         *         response: The response, which carries the new ETag.
-         *         if_match: The ``If-Match`` precondition.
-         *
-         *     Returns:
-         *         Updated HealthFastingRead record.
          */
-        post: operations["complete_health_fasting_api_v1_health_fasting__health_fasting_id__complete_post"];
+        post: operations["complete_health_fasting"];
         delete?: never;
         options?: never;
         head?: never;
@@ -1494,18 +1278,8 @@ export interface paths {
          *
          *     One page of records, newest first, optionally limited to an interval. Access is
          *     restricted to users with the 'health:read' scope.
-         *
-         *     Args:
-         *         token_user_id: The ID of the authenticated user extracted from the access token.
-         *         db: Database session for executing queries.
-         *         page: The requested page and page size.
-         *         interval: Optional interval looking back from today; ignored when a date range is given.
-         *         date_range: Optional inclusive start and end dates, which replace the interval.
-         *
-         *     Returns:
-         *         The page of records with the total matching the interval.
          */
-        get: operations["read_health_poop_all_pagination_api_v1_health_poop_get"];
+        get: operations["read_health_poop_all_pagination"];
         put?: never;
         /**
          * Create Health Poop
@@ -1513,18 +1287,8 @@ export interface paths {
          *
          *     Unlike other health modules, multiple poop records can exist
          *     per day.
-         *
-         *     Args:
-         *         request: The incoming request, read by the rate limiter.
-         *         health_poop: Poop data to create.
-         *         token_user_id: User ID from the access token.
-         *         db: Database session dependency.
-         *         response: The response, whose ``Location`` names where the record is read.
-         *
-         *     Returns:
-         *         Created HealthPoopRead record.
          */
-        post: operations["create_health_poop_api_v1_health_poop_post"];
+        post: operations["create_health_poop"];
         delete?: never;
         options?: never;
         head?: never;
@@ -1545,17 +1309,8 @@ export interface paths {
          *     One aggregated point per day, week or month depending on the interval, so the response stays small
          *     however long the history. Declared before the ``/{health_poop_id}`` route so ``chart`` is not read as an id.
          *     Access is restricted to users with the 'health:read' scope.
-         *
-         *     Args:
-         *         token_user_id: The ID of the authenticated user extracted from the access token.
-         *         db: Database session for executing queries.
-         *         interval: The window to chart, looking back from today; ignored when a date range is given.
-         *         date_range: Optional inclusive start and end dates to chart instead of the interval.
-         *
-         *     Returns:
-         *         The interval's bucket size and its points, oldest first.
          */
-        get: operations["read_health_poop_chart_api_v1_health_poop_chart_get"];
+        get: operations["read_health_poop_chart"];
         put?: never;
         post?: never;
         delete?: never;
@@ -1574,61 +1329,22 @@ export interface paths {
         /**
          * Read Health Poop By Id
          * @description Retrieve a specific poop record by ID.
-         *
-         *     Args:
-         *         health_poop_id: ID of the poop record.
-         *         token_user_id: User ID from the access token.
-         *         db: Database session dependency.
-         *         response: The response, which carries the record's ETag.
-         *
-         *     Returns:
-         *         HealthPoopRead for the specified record.
-         *
-         *     Raises:
-         *         NotFoundError: If the user has no such record.
          */
-        get: operations["read_health_poop_by_id_api_v1_health_poop__health_poop_id__get"];
+        get: operations["read_health_poop_by_id"];
         put?: never;
         post?: never;
         /**
          * Delete Health Poop
          * @description Delete a poop record for the authenticated user.
-         *
-         *     Args:
-         *         request: The incoming request, read by the rate limiter.
-         *         health_poop_id: ID of the poop record to delete.
-         *         token_user_id: User ID from the access token.
-         *         if_match: The ``If-Match`` precondition.
-         *         db: Database session dependency.
-         *
-         *     Raises:
-         *         PreconditionFailedError: If the record changed since the client read it.
-         *         NotFoundError: If the user has no such record.
          */
-        delete: operations["delete_health_poop_api_v1_health_poop__health_poop_id__delete"];
+        delete: operations["delete_health_poop"];
         options?: never;
         head?: never;
         /**
          * Edit Health Poop
          * @description Edit an existing poop record.
-         *
-         *     Args:
-         *         request: The incoming request, read by the rate limiter.
-         *         health_poop_id: ID of the record to change.
-         *         health_poop: Poop data to update.
-         *         token_user_id: User ID from the access token.
-         *         db: Database session dependency.
-         *         response: The response, which carries the new ETag.
-         *         if_match: The ``If-Match`` precondition.
-         *
-         *     Returns:
-         *         Updated HealthPoopRead record.
-         *
-         *     Raises:
-         *         NotFoundError: If the user has no such record.
-         *         PreconditionFailedError: If the record changed since the client read it.
          */
-        patch: operations["edit_health_poop_api_v1_health_poop__health_poop_id__patch"];
+        patch: operations["edit_health_poop"];
         trace?: never;
     };
     "/api/v1/health/sleep": {
@@ -1644,38 +1360,16 @@ export interface paths {
          *
          *     One page of records, newest first, optionally limited to an interval. Access is
          *     restricted to users with the 'health:read' scope.
-         *
-         *     Args:
-         *         token_user_id: The ID of the authenticated user extracted from the access token.
-         *         db: Database session for executing queries.
-         *         page: The requested page and page size.
-         *         interval: Optional interval looking back from today; ignored when a date range is given.
-         *         date_range: Optional inclusive start and end dates, which replace the interval.
-         *
-         *     Returns:
-         *         The page of records with the total matching the interval.
          */
-        get: operations["read_health_sleep_all_pagination_api_v1_health_sleep_get"];
+        get: operations["read_health_sleep_all_pagination"];
         put?: never;
         /**
          * Create Health Sleep
          * @description Create health sleep data for a user.
          *
          *     A date that already has a record is answered with a 409; change it with ``PATCH /{id}``.
-         *
-         *     Args:
-         *         request: The incoming request, read by the rate limiter.
-         *         health_sleep (health_sleep_schema.HealthSleepCreate): The health sleep data to create,
-         *             including the date and sleep duration.
-         *         token_user_id (int): The ID of the authenticated user extracted from the
-         *             access token.
-         *         db (Session): Database session dependency for database operations.
-         *         response: The response, whose ``Location`` names where the record is read.
-         *
-         *     Returns:
-         *         health_sleep_schema.HealthSleepRead: The created health sleep data.
          */
-        post: operations["create_health_sleep_api_v1_health_sleep_post"];
+        post: operations["create_health_sleep"];
         delete?: never;
         options?: never;
         head?: never;
@@ -1695,17 +1389,8 @@ export interface paths {
          *
          *     One aggregated point per day, week or month depending on the interval, so the response stays small
          *     however long the history. Access is restricted to users with the 'health:read' scope.
-         *
-         *     Args:
-         *         token_user_id: The ID of the authenticated user extracted from the access token.
-         *         db: Database session for executing queries.
-         *         interval: The window to chart, looking back from today; ignored when a date range is given.
-         *         date_range: Optional inclusive start and end dates to chart instead of the interval.
-         *
-         *     Returns:
-         *         The interval's bucket size and its points, oldest first.
          */
-        get: operations["read_health_sleep_chart_api_v1_health_sleep_chart_get"];
+        get: operations["read_health_sleep_chart"];
         put?: never;
         post?: never;
         delete?: never;
@@ -1727,17 +1412,8 @@ export interface paths {
          *
          *     One aggregated point per day, week or month depending on the interval, so the response stays small
          *     however long the history. Access is restricted to users with the 'health:read' scope.
-         *
-         *     Args:
-         *         token_user_id: The ID of the authenticated user extracted from the access token.
-         *         db: Database session for executing queries.
-         *         interval: The window to chart, looking back from today; ignored when a date range is given.
-         *         date_range: Optional inclusive start and end dates to chart instead of the interval.
-         *
-         *     Returns:
-         *         The interval's bucket size and its points, oldest first.
          */
-        get: operations["read_health_sleep_resting_heart_rate_chart_api_v1_health_sleep_chart_resting_heart_rate_get"];
+        get: operations["read_health_sleep_resting_heart_rate_chart"];
         put?: never;
         post?: never;
         delete?: never;
@@ -1757,7 +1433,7 @@ export interface paths {
          * Read Health Sleep By Id
          * @description Retrieve one of the authenticated user's sleep records; its ``ETag`` is the version for ``If-Match``.
          */
-        get: operations["read_health_sleep_by_id_api_v1_health_sleep__health_sleep_id__get"];
+        get: operations["read_health_sleep_by_id"];
         put?: never;
         post?: never;
         /**
@@ -1766,22 +1442,8 @@ export interface paths {
          *
          *     This endpoint removes a specific health sleep entry from the database for the user
          *     identified by the access token. The user must have 'health:write' scope permission.
-         *
-         *     Args:
-         *         request: The incoming request, read by the rate limiter.
-         *         health_sleep_id (int): The unique identifier of the health sleep record to delete.
-         *         token_user_id (int): The user ID extracted from the access token.
-         *         if_match: The ``If-Match`` precondition.
-         *         db (Session): Database session dependency for executing the delete operation.
-         *
-         *     Returns:
-         *         None: This function does not return a value.
-         *
-         *     Raises:
-         *         PreconditionFailedError: If the record changed since the client read it.
-         *         NotFoundError: If the user has no such record.
          */
-        delete: operations["delete_health_sleep_api_v1_health_sleep__health_sleep_id__delete"];
+        delete: operations["delete_health_sleep"];
         options?: never;
         head?: never;
         /**
@@ -1790,27 +1452,8 @@ export interface paths {
          *
          *     This endpoint updates existing health sleep records in the database for the authenticated user.
          *     Requires 'health:write' scope for authorization.
-         *
-         *     Args:
-         *         request: The incoming request, read by the rate limiter.
-         *         health_sleep_id: ID of the record to change.
-         *         health_sleep (health_sleep_schema.HealthSleepUpdate): The health sleep data to be updated,
-         *             containing the new values for the health sleep record.
-         *         token_user_id (int): The user ID extracted from the JWT access token, used to identify
-         *             the user making the request.
-         *         db (Session): Database session dependency for performing database operations.
-         *         response: The response, which carries the new ETag.
-         *         if_match: The ``If-Match`` precondition.
-         *
-         *     Returns:
-         *         health_sleep_schema.HealthSleepRead: The updated health sleep record with the new values
-         *             as stored in the database.
-         *
-         *     Raises:
-         *         NotFoundError: If the user has no such record.
-         *         PreconditionFailedError: If the record changed since the client read it.
          */
-        patch: operations["edit_health_sleep_api_v1_health_sleep__health_sleep_id__patch"];
+        patch: operations["edit_health_sleep"];
         trace?: never;
     };
     "/api/v1/health/stats/daily": {
@@ -1825,19 +1468,8 @@ export interface paths {
          * @description Retrieve the user's health dashboard for today.
          *
          *     The `targets` field is null unless the caller holds the `health_targets:read` scope.
-         *
-         *     Args:
-         *         request: The incoming request, read by the rate limiter.
-         *         token_user_id: The ID of the authenticated user extracted from the
-         *             access token.
-         *         scopes: The scopes granted to the caller.
-         *         db: Database session for executing queries.
-         *
-         *     Returns:
-         *         The consolidated daily metrics and, when the caller holds
-         *         ``health_targets:read``, the user's health targets.
          */
-        get: operations["read_health_daily_stats_api_v1_health_stats_daily_get"];
+        get: operations["read_health_daily_stats"];
         put?: never;
         post?: never;
         delete?: never;
@@ -1859,38 +1491,16 @@ export interface paths {
          *
          *     One page of records, newest first, optionally limited to an interval. Access is
          *     restricted to users with the 'health:read' scope.
-         *
-         *     Args:
-         *         token_user_id: The ID of the authenticated user extracted from the access token.
-         *         db: Database session for executing queries.
-         *         page: The requested page and page size.
-         *         interval: Optional interval looking back from today; ignored when a date range is given.
-         *         date_range: Optional inclusive start and end dates, which replace the interval.
-         *
-         *     Returns:
-         *         The page of records with the total matching the interval.
          */
-        get: operations["read_health_steps_all_pagination_api_v1_health_steps_get"];
+        get: operations["read_health_steps_all_pagination"];
         put?: never;
         /**
          * Create Health Steps
          * @description Create health steps data for a user.
          *
          *     A date that already has a record is answered with a 409; change it with ``PATCH /{id}``.
-         *
-         *     Args:
-         *         request: The incoming request, read by the rate limiter.
-         *         health_steps (health_steps_schema.HealthSteps): The health steps data to create,
-         *             including the date and step count.
-         *         token_user_id (int): The ID of the authenticated user extracted from the
-         *             access token.
-         *         db (Session): Database session dependency for database operations.
-         *         response: The response, whose ``Location`` names where the record is read.
-         *
-         *     Returns:
-         *         health_steps_schema.HealthSteps: The created health steps data.
          */
-        post: operations["create_health_steps_api_v1_health_steps_post"];
+        post: operations["create_health_steps"];
         delete?: never;
         options?: never;
         head?: never;
@@ -1910,17 +1520,8 @@ export interface paths {
          *
          *     One aggregated point per day, week or month depending on the interval, so the response stays small
          *     however long the history. Access is restricted to users with the 'health:read' scope.
-         *
-         *     Args:
-         *         token_user_id: The ID of the authenticated user extracted from the access token.
-         *         db: Database session for executing queries.
-         *         interval: The window to chart, looking back from today; ignored when a date range is given.
-         *         date_range: Optional inclusive start and end dates to chart instead of the interval.
-         *
-         *     Returns:
-         *         The interval's bucket size and its points, oldest first.
          */
-        get: operations["read_health_steps_chart_api_v1_health_steps_chart_get"];
+        get: operations["read_health_steps_chart"];
         put?: never;
         post?: never;
         delete?: never;
@@ -1940,7 +1541,7 @@ export interface paths {
          * Read Health Steps By Id
          * @description Retrieve one of the authenticated user's steps records; its ``ETag`` is the version for ``If-Match``.
          */
-        get: operations["read_health_steps_by_id_api_v1_health_steps__health_steps_id__get"];
+        get: operations["read_health_steps_by_id"];
         put?: never;
         post?: never;
         /**
@@ -1949,22 +1550,8 @@ export interface paths {
          *
          *     This endpoint removes a specific health steps entry from the database for the user
          *     identified by the access token. The user must have 'health:write' scope permission.
-         *
-         *     Args:
-         *         request: The incoming request, read by the rate limiter.
-         *         health_steps_id (int): The unique identifier of the health steps record to delete.
-         *         token_user_id (int): The user ID extracted from the access token.
-         *         if_match: The ``If-Match`` precondition.
-         *         db (Session): Database session dependency for executing the delete operation.
-         *
-         *     Returns:
-         *         None: This function does not return a value.
-         *
-         *     Raises:
-         *         PreconditionFailedError: If the record changed since the client read it.
-         *         NotFoundError: If the user has no such record.
          */
-        delete: operations["delete_health_steps_api_v1_health_steps__health_steps_id__delete"];
+        delete: operations["delete_health_steps"];
         options?: never;
         head?: never;
         /**
@@ -1973,27 +1560,8 @@ export interface paths {
          *
          *     This endpoint updates existing health steps records in the database for the authenticated user.
          *     Requires 'health:write' scope for authorization.
-         *
-         *     Args:
-         *         request: The incoming request, read by the rate limiter.
-         *         health_steps_id: ID of the record to change.
-         *         health_steps (health_steps_schema.HealthSteps): The health steps data to be updated,
-         *             containing the new values for the health steps record.
-         *         token_user_id (int): The user ID extracted from the JWT access token, used to identify
-         *             the user making the request.
-         *         db (Session): Database session dependency for performing database operations.
-         *         response: The response, which carries the new ETag.
-         *         if_match: The ``If-Match`` precondition.
-         *
-         *     Returns:
-         *         health_steps_schema.HealthSteps: The updated health steps record with the new values
-         *             as stored in the database.
-         *
-         *     Raises:
-         *         NotFoundError: If the user has no such record.
-         *         PreconditionFailedError: If the record changed since the client read it.
          */
-        patch: operations["edit_health_steps_api_v1_health_steps__health_steps_id__patch"];
+        patch: operations["edit_health_steps"];
         trace?: never;
     };
     "/api/v1/health/targets": {
@@ -2009,19 +1577,8 @@ export interface paths {
          *
          *     This endpoint fetches all health targets associated with the user identified by the
          *     access token. It requires the 'health_targets:read' scope for authorization.
-         *
-         *     Args:
-         *         token_user_id (int): The user ID extracted from the JWT access token, automatically
-         *             injected by the authentication dependency.
-         *         db (Session): SQLAlchemy database session dependency for executing database queries.
-         *         response: The response, which carries the targets' ETag.
-         *
-         *     Returns:
-         *         health_targets_schema.HealthTargetsRead | None: The
-         *             health targets object containing all targets for
-         *             the user, or None if no targets are found.
          */
-        get: operations["read_health_targets_all_api_v1_health_targets_get"];
+        get: operations["read_health_targets_all"];
         put?: never;
         post?: never;
         delete?: never;
@@ -2033,28 +1590,8 @@ export interface paths {
          *
          *     This endpoint allows users to modify their health-related targets such as
          *     weight goals, activity targets, or other health metrics.
-         *
-         *     Args:
-         *         request: The incoming request, read by the rate limiter.
-         *         health_targets: The health targets to update, containing the new values for
-         *             the health metrics.
-         *         token_user_id (int): The authenticated user's ID
-         *             extracted from the access token.
-         *         db (Session): Database session dependency for database
-         *             operations.
-         *         response: The response, which carries the new ETag.
-         *         if_match: The ``If-Match`` precondition.
-         *
-         *     Returns:
-         *         health_targets_schema.HealthTargetsRead: The updated
-         *             health targets object reflecting the changes made
-         *             in the database.
-         *
-         *     Raises:
-         *         NotFoundError: If the user has no targets.
-         *         PreconditionFailedError: If the targets changed since the client read them.
          */
-        patch: operations["update_health_targets_api_v1_health_targets_patch"];
+        patch: operations["update_health_targets"];
         trace?: never;
     };
     "/api/v1/health/water": {
@@ -2070,36 +1607,16 @@ export interface paths {
          *
          *     One page of records, newest first, optionally limited to an interval. Access is
          *     restricted to users with the 'health:read' scope.
-         *
-         *     Args:
-         *         token_user_id: The ID of the authenticated user extracted from the access token.
-         *         db: Database session for executing queries.
-         *         page: The requested page and page size.
-         *         interval: Optional interval looking back from today; ignored when a date range is given.
-         *         date_range: Optional inclusive start and end dates, which replace the interval.
-         *
-         *     Returns:
-         *         The page of records with the total matching the interval.
          */
-        get: operations["read_health_water_all_pagination_api_v1_health_water_get"];
+        get: operations["read_health_water_all_pagination"];
         put?: never;
         /**
          * Create Health Water
          * @description Record a water intake for the user's day.
          *
          *     The intake is added to the day's total, so several intakes in one day are all counted.
-         *
-         *     Args:
-         *         request: The incoming request, read by the rate limiter.
-         *         health_water: Water intake data to create.
-         *         token_user_id: User ID from the access token.
-         *         db: Database session dependency.
-         *         response: The response, whose ``Location`` names where the record is read.
-         *
-         *     Returns:
-         *         The day's HealthWaterRead record, with the intake added.
          */
-        post: operations["create_health_water_api_v1_health_water_post"];
+        post: operations["create_health_water"];
         delete?: never;
         options?: never;
         head?: never;
@@ -2119,17 +1636,8 @@ export interface paths {
          *
          *     One aggregated point per day, week or month depending on the interval, so the response stays small
          *     however long the history. Access is restricted to users with the 'health:read' scope.
-         *
-         *     Args:
-         *         token_user_id: The ID of the authenticated user extracted from the access token.
-         *         db: Database session for executing queries.
-         *         interval: The window to chart, looking back from today; ignored when a date range is given.
-         *         date_range: Optional inclusive start and end dates to chart instead of the interval.
-         *
-         *     Returns:
-         *         The interval's bucket size and its points, oldest first.
          */
-        get: operations["read_health_water_chart_api_v1_health_water_chart_get"];
+        get: operations["read_health_water_chart"];
         put?: never;
         post?: never;
         delete?: never;
@@ -2149,48 +1657,21 @@ export interface paths {
          * Read Health Water By Id
          * @description Retrieve one of the authenticated user's water records; its ``ETag`` is the version for ``If-Match``.
          */
-        get: operations["read_health_water_by_id_api_v1_health_water__health_water_id__get"];
+        get: operations["read_health_water_by_id"];
         put?: never;
         post?: never;
         /**
          * Delete Health Water
          * @description Delete a water intake record for the authenticated user.
-         *
-         *     Args:
-         *         request: The incoming request, read by the rate limiter.
-         *         health_water_id: ID of the water intake record.
-         *         token_user_id: User ID from the access token.
-         *         if_match: The ``If-Match`` precondition.
-         *         db: Database session dependency.
-         *
-         *     Raises:
-         *         PreconditionFailedError: If the record changed since the client read it.
-         *         NotFoundError: If the user has no such record.
          */
-        delete: operations["delete_health_water_api_v1_health_water__health_water_id__delete"];
+        delete: operations["delete_health_water"];
         options?: never;
         head?: never;
         /**
          * Edit Health Water
          * @description Edit an existing water intake record.
-         *
-         *     Args:
-         *         request: The incoming request, read by the rate limiter.
-         *         health_water_id: ID of the record to change.
-         *         health_water: Water intake data to update.
-         *         token_user_id: User ID from the access token.
-         *         db: Database session dependency.
-         *         response: The response, which carries the new ETag.
-         *         if_match: The ``If-Match`` precondition.
-         *
-         *     Returns:
-         *         Updated HealthWaterRead record.
-         *
-         *     Raises:
-         *         NotFoundError: If the user has no such record.
-         *         PreconditionFailedError: If the record changed since the client read it.
          */
-        patch: operations["edit_health_water_api_v1_health_water__health_water_id__patch"];
+        patch: operations["edit_health_water"];
         trace?: never;
     };
     "/api/v1/health/weight": {
@@ -2206,37 +1687,16 @@ export interface paths {
          *
          *     One page of records, newest first, optionally limited to an interval. Access is
          *     restricted to users with the 'health:read' scope.
-         *
-         *     Args:
-         *         token_user_id: The ID of the authenticated user extracted from the access token.
-         *         db: Database session for executing queries.
-         *         page: The requested page and page size.
-         *         interval: Optional interval looking back from today; ignored when a date range is given.
-         *         date_range: Optional inclusive start and end dates, which replace the interval.
-         *
-         *     Returns:
-         *         The page of records with the total matching the interval.
          */
-        get: operations["read_health_weight_all_pagination_api_v1_health_weight_get"];
+        get: operations["read_health_weight_all_pagination"];
         put?: never;
         /**
          * Create Health Weight
          * @description Create a health weight record for the authenticated user.
          *
          *     A date that already has a record is answered with a 409; change it with ``PATCH /{id}``.
-         *
-         *     Args:
-         *         request: The incoming request, read by the rate limiter.
-         *         health_weight (health_weight_schema.HealthWeightCreate): The health weight data to create.
-         *             Must include a date field.
-         *         token_user_id (int): The ID of the authenticated user extracted from the access token.
-         *         db (Session): Database session dependency for performing database operations.
-         *         response: The response, whose ``Location`` names where the record is read.
-         *
-         *     Returns:
-         *         health_weight_schema.HealthWeightRead: The created health weight record.
          */
-        post: operations["create_health_weight_api_v1_health_weight_post"];
+        post: operations["create_health_weight"];
         delete?: never;
         options?: never;
         head?: never;
@@ -2256,17 +1716,8 @@ export interface paths {
          *
          *     One aggregated point per day, week or month depending on the interval, so the response stays small
          *     however long the history. Access is restricted to users with the 'health:read' scope.
-         *
-         *     Args:
-         *         token_user_id: The ID of the authenticated user extracted from the access token.
-         *         db: Database session for executing queries.
-         *         interval: The window to chart, looking back from today; ignored when a date range is given.
-         *         date_range: Optional inclusive start and end dates to chart instead of the interval.
-         *
-         *     Returns:
-         *         The interval's bucket size and its points, oldest first.
          */
-        get: operations["read_health_weight_chart_api_v1_health_weight_chart_get"];
+        get: operations["read_health_weight_chart"];
         put?: never;
         post?: never;
         delete?: never;
@@ -2286,7 +1737,7 @@ export interface paths {
          * Read Health Weight By Id
          * @description Retrieve one of the authenticated user's weight records; its ``ETag`` is the version for ``If-Match``.
          */
-        get: operations["read_health_weight_by_id_api_v1_health_weight__health_weight_id__get"];
+        get: operations["read_health_weight_by_id"];
         put?: never;
         post?: never;
         /**
@@ -2295,23 +1746,8 @@ export interface paths {
          *
          *     This endpoint allows users to delete their own health weight records. It requires
          *     the 'health:write' scope for authorization.
-         *
-         *     Args:
-         *         request: The incoming request, read by the rate limiter.
-         *         health_weight_id (int): The unique identifier of the health weight entry to delete.
-         *         token_user_id (int): The user ID extracted from the access token, used to ensure
-         *             users can only delete their own weight entries.
-         *         if_match: The ``If-Match`` precondition.
-         *         db (Session): Database session dependency for performing database operations.
-         *
-         *     Returns:
-         *         None: This function does not return any value upon successful deletion.
-         *
-         *     Raises:
-         *         PreconditionFailedError: If the record changed since the client read it.
-         *         NotFoundError: If the entry doesn't exist for the user.
          */
-        delete: operations["delete_health_weight_api_v1_health_weight__health_weight_id__delete"];
+        delete: operations["delete_health_weight"];
         options?: never;
         head?: never;
         /**
@@ -2320,26 +1756,8 @@ export interface paths {
          *
          *     This endpoint allows users with 'health:write' scope to update an existing
          *     health weight record in the database.
-         *
-         *     Args:
-         *         request: The incoming request, read by the rate limiter.
-         *         health_weight_id: ID of the record to change.
-         *         health_weight (health_weight_schema.HealthWeight): The health weight data
-         *             to be updated, containing the weight information and associated metadata.
-         *         token_user_id (int): The ID of the authenticated user extracted from the
-         *             access token.
-         *         db (Session): Database session dependency for executing database operations.
-         *         response: The response, which carries the new ETag.
-         *         if_match: The ``If-Match`` precondition.
-         *
-         *     Returns:
-         *         The updated health weight record from the database.
-         *
-         *     Raises:
-         *         PermissionDeniedError: If the record names another user.
-         *         NotFoundError: If the entry doesn't exist.
          */
-        patch: operations["edit_health_weight_api_v1_health_weight__health_weight_id__patch"];
+        patch: operations["edit_health_weight"];
         trace?: never;
     };
     "/api/v1/identity-providers": {
@@ -2352,34 +1770,14 @@ export interface paths {
         /**
          * List Identity Providers
          * @description Retrieve one page of the configured identity providers.
-         *
-         *     Args:
-         *         page: The requested window.
-         *         db: SQLAlchemy database session dependency.
-         *
-         *     Returns:
-         *         The page of identity providers, ordered by name.
          */
-        get: operations["list_identity_providers_api_v1_identity_providers_get"];
+        get: operations["list_identity_providers"];
         put?: never;
         /**
          * Create Identity Provider
          * @description Create a new identity provider.
-         *
-         *     Args:
-         *         idp_data: Data required to create the identity provider.
-         *         db: SQLAlchemy database session dependency.
-         *         request: Incoming request.
-         *
-         *     Returns:
-         *         The newly created identity provider.
-         *
-         *     Raises:
-         *         HTTPException: 400 if a URL is plain http to a host outside
-         *             SSRF_ALLOWED_HOSTS or non-public, 409 if the slug already
-         *             exists, 500 on database errors.
          */
-        post: operations["create_identity_provider_api_v1_identity_providers_post"];
+        post: operations["create_identity_provider"];
         delete?: never;
         options?: never;
         head?: never;
@@ -2396,11 +1794,8 @@ export interface paths {
         /**
          * List Idp Templates
          * @description Get the list of pre-configured IdP templates (admin only).
-         *
-         *     Returns:
-         *         A list of identity provider templates.
          */
-        get: operations["list_idp_templates_api_v1_identity_providers_templates_get"];
+        get: operations["list_idp_templates"];
         put?: never;
         post?: never;
         delete?: never;
@@ -2422,45 +1817,18 @@ export interface paths {
          *
          *     The client secret is write-only and never returned.
          */
-        get: operations["read_identity_provider_api_v1_identity_providers__idp_id__get"];
+        get: operations["read_identity_provider"];
         /**
          * Update Identity Provider
          * @description Update an existing identity provider.
-         *
-         *     Args:
-         *         idp_id: The unique identifier of the identity provider to update.
-         *         idp_data: The data to update the identity provider with.
-         *         db: SQLAlchemy database session dependency.
-         *         request: Incoming request.
-         *
-         *     Returns:
-         *         The updated identity provider.
-         *
-         *     Raises:
-         *         HTTPException: 400 if a URL is plain http to a host outside
-         *             SSRF_ALLOWED_HOSTS or non-public, 404 if the provider is not
-         *             found, 409 on slug conflict, 500 on database errors.
          */
-        put: operations["update_identity_provider_api_v1_identity_providers__idp_id__put"];
+        put: operations["update_identity_provider"];
         post?: never;
         /**
          * Delete Identity Provider
          * @description Delete an identity provider by ID.
-         *
-         *     Args:
-         *         idp_id: The unique identifier of the identity provider to delete.
-         *         request: Incoming request.
-         *         if_match: The ``If-Match`` precondition.
-         *         db: SQLAlchemy database session dependency.
-         *         storage: The platform storage provider.
-         *         oidc: The identity-provider client, whose cached discovery document for the provider is dropped.
-         *
-         *     Raises:
-         *         HTTPException: 404 if the provider is not found, 409 if users
-         *             are still linked to the provider, 412 if the provider changed
-         *             since the client read it.
          */
-        delete: operations["delete_identity_provider_api_v1_identity_providers__idp_id__delete"];
+        delete: operations["delete_identity_provider"];
         options?: never;
         head?: never;
         patch?: never;
@@ -2481,38 +1849,15 @@ export interface paths {
          *
          *     Requires admin authentication with identity_providers:write scope. The icon replaces any custom icon URL
          *     until it is removed.
-         *
-         *     Args:
-         *         idp_id: The identity provider the icon belongs to.
-         *         request: Incoming request.
-         *         file: The image to upload (JPEG, PNG or WebP).
-         *         storage: The platform storage provider.
-         *         db: SQLAlchemy database session dependency.
-         *
-         *     Returns:
-         *         The provider version that identifies the stored icon.
-         *
-         *     Raises:
-         *         NotFoundError: 404 if the provider is not found.
-         *         PayloadTooLargeError: 413 if the image is larger than the icon cap.
          */
-        post: operations["upload_identity_provider_icon_api_v1_identity_providers__idp_id__icon_post"];
+        post: operations["upload_identity_provider_icon"];
         /**
          * Delete Identity Provider Icon
          * @description Remove the uploaded icon of an identity provider.
          *
          *     Requires admin authentication with identity_providers:write scope.
-         *
-         *     Args:
-         *         idp_id: The identity provider the icon belongs to.
-         *         request: Incoming request.
-         *         storage: The platform storage provider.
-         *         db: SQLAlchemy database session dependency.
-         *
-         *     Raises:
-         *         NotFoundError: 404 if the provider is not found.
          */
-        delete: operations["delete_identity_provider_icon_api_v1_identity_providers__idp_id__icon_delete"];
+        delete: operations["delete_identity_provider_icon"];
         options?: never;
         head?: never;
         patch?: never;
@@ -2528,18 +1873,8 @@ export interface paths {
         /**
          * Read Notifications User Pagination
          * @description Retrieve paginated notifications for the user.
-         *
-         *     Args:
-         *         token_user_id: ID of the user from the access token.
-         *         db: Database session dependency.
-         *         page: Resolved page number and size.
-         *         unread_only: Keep only the notifications that have not been read. ``total`` follows the
-         *             same filter, so ``unread_only=true&num_records=1`` is the unread count.
-         *
-         *     Returns:
-         *         The page of notifications with the user's total.
          */
-        get: operations["read_notifications_user_pagination_api_v1_notifications_get"];
+        get: operations["read_notifications_user_pagination"];
         put?: never;
         post?: never;
         delete?: never;
@@ -2558,15 +1893,8 @@ export interface paths {
         /**
          * Read Notifications Number
          * @description Retrieve notification count for the user.
-         *
-         *     Args:
-         *         token_user_id: ID of the user from the access token.
-         *         db: Database session dependency.
-         *
-         *     Returns:
-         *         Number of notifications for the user.
          */
-        get: operations["read_notifications_number_api_v1_notifications_number_get"];
+        get: operations["read_notifications_number"];
         put?: never;
         post?: never;
         delete?: never;
@@ -2587,16 +1915,8 @@ export interface paths {
         /**
          * Mark All Notifications As Read
          * @description Mark all of the user's notifications as read.
-         *
-         *     Args:
-         *         request: The incoming request, used by the rate limiter.
-         *         token_user_id: ID of the user from the access token.
-         *         db: Database session dependency.
-         *
-         *     Returns:
-         *         None.
          */
-        post: operations["mark_all_notifications_as_read_api_v1_notifications_read_post"];
+        post: operations["mark_all_notifications_as_read"];
         delete?: never;
         options?: never;
         head?: never;
@@ -2613,16 +1933,8 @@ export interface paths {
         /**
          * Read Notifications By Id
          * @description Retrieve a notification by ID for the user.
-         *
-         *     Args:
-         *         notification_id: Unique ID of the notification.
-         *         token_user_id: ID of the user from the access token.
-         *         db: Database session dependency.
-         *
-         *     Returns:
-         *         The notification.
          */
-        get: operations["read_notifications_by_id_api_v1_notifications__notification_id__get"];
+        get: operations["read_notifications_by_id"];
         put?: never;
         post?: never;
         delete?: never;
@@ -2643,17 +1955,8 @@ export interface paths {
         /**
          * Mark Notification As Read
          * @description Mark a specific notification as read.
-         *
-         *     Args:
-         *         request: The incoming request, used by the rate limiter.
-         *         notification_id: ID of the notification to mark as read.
-         *         token_user_id: ID of the user from the access token.
-         *         db: Database session dependency.
-         *
-         *     Returns:
-         *         None.
          */
-        post: operations["mark_notification_as_read_api_v1_notifications__notification_id__read_post"];
+        post: operations["mark_notification_as_read"];
         delete?: never;
         options?: never;
         head?: never;
@@ -2673,7 +1976,7 @@ export interface paths {
          * Confirm Password Reset
          * @description Confirm a password reset using a token and replacement password.
          */
-        post: operations["confirm_password_reset_api_v1_password_reset_confirm_post"];
+        post: operations["confirm_password_reset"];
         delete?: never;
         options?: never;
         head?: never;
@@ -2693,7 +1996,7 @@ export interface paths {
          * Request Password Reset
          * @description Request a password reset without revealing whether the email exists.
          */
-        post: operations["request_password_reset_api_v1_password_reset_request_post"];
+        post: operations["request_password_reset"];
         delete?: never;
         options?: never;
         head?: never;
@@ -2715,7 +2018,7 @@ export interface paths {
          *
          *     Sent as a body so the token stays out of URLs and logs. Does not consume the token.
          */
-        post: operations["validate_password_reset_token_api_v1_password_reset_validate_post"];
+        post: operations["validate_password_reset_token"];
         delete?: never;
         options?: never;
         head?: never;
@@ -2735,23 +2038,15 @@ export interface paths {
          *
          *     The ETag is the user's version, which a later ``PATCH /profile`` echoes in ``If-Match``. The
          *     privacy settings have their own version, ``privacy_settings_version``.
-         *
-         *     Args:
-         *         token_user_id: User ID from access token.
-         *         db: Database session.
-         *         response: The response, which carries the user's ETag.
-         *
-         *     Returns:
-         *         User object with integration and privacy settings.
          */
-        get: operations["read_users_me_api_v1_profile_get"];
+        get: operations["read_users_me"];
         put?: never;
         post?: never;
         delete?: never;
         options?: never;
         head?: never;
         /**
-         * Edit User
+         * Edit Profile
          * @description Edit self-service profile fields for the authenticated user.
          *
          *     Uses an explicit allow-list (:class:`users_schema.ProfileUpdate`)
@@ -2759,19 +2054,8 @@ export interface paths {
          *     ``active``, ``mfa_enabled``, ``mfa_secret``, ``email_verified``,
          *     and ``pending_admin_approval`` cannot be modified through this
          *     endpoint, even if a malicious client submits them.
-         *
-         *     Args:
-         *         request: The incoming request, read by the rate limiter.
-         *         response: The response, which carries the user's new ETag.
-         *         user_attributtes: Allow-listed profile updates.
-         *         token_user_id: User ID from access token.
-         *         db: Database session.
-         *         if_match: The ``If-Match`` precondition, the ``version`` the client read.
-         *
-         *     Returns:
-         *         The edited profile; its ``version`` is also sent as the ETag.
          */
-        patch: operations["edit_user_api_v1_profile_patch"];
+        patch: operations["edit_profile"];
         trace?: never;
     };
     "/api/v1/profile/api-keys": {
@@ -2784,22 +2068,14 @@ export interface paths {
         /**
          * List User Api Keys
          * @description List one page of API keys for the authenticated user.
-         *
-         *     Args:
-         *         token_user_id: User ID from access token.
-         *         page: The requested window.
-         *         db: Database session.
-         *
-         *     Returns:
-         *         The page of API keys, newest first.
          */
-        get: operations["list_user_api_keys_api_v1_profile_api_keys_get"];
+        get: operations["list_user_api_keys"];
         put?: never;
         /**
          * Create User Api Key
          * @description Create an API key after step-up verification.
          */
-        post: operations["create_user_api_key_api_v1_profile_api_keys_post"];
+        post: operations["create_user_api_key"];
         delete?: never;
         options?: never;
         head?: never;
@@ -2820,7 +2096,7 @@ export interface paths {
          * Delete User Api Key
          * @description Permanently delete an API key owned by the authenticated user.
          */
-        delete: operations["delete_user_api_key_api_v1_profile_api_keys__api_key_id__delete"];
+        delete: operations["delete_user_api_key"];
         options?: never;
         head?: never;
         patch?: never;
@@ -2839,7 +2115,7 @@ export interface paths {
          * Revoke User Api Key
          * @description Revoke an API key owned by the authenticated user.
          */
-        post: operations["revoke_user_api_key_api_v1_profile_api_keys__api_key_id__revoke_post"];
+        post: operations["revoke_user_api_key"];
         delete?: never;
         options?: never;
         head?: never;
@@ -2856,16 +2132,8 @@ export interface paths {
         /**
          * Read User Default Gear
          * @description Retrieve default gear settings for authenticated user.
-         *
-         *     Args:
-         *         token_user_id: User ID from access token.
-         *         db: Database session dependency.
-         *         response: The response, which carries the settings' ETag.
-         *
-         *     Returns:
-         *         User default gear settings.
          */
-        get: operations["read_user_default_gear_api_v1_profile_default_gear_get"];
+        get: operations["read_user_default_gear"];
         put?: never;
         post?: never;
         delete?: never;
@@ -2874,19 +2142,8 @@ export interface paths {
         /**
          * Edit User Default Gear
          * @description Update default gear settings for authenticated user.
-         *
-         *     Args:
-         *         request: The incoming request, read by the rate limiter.
-         *         user_default_gear: Updated gear settings.
-         *         token_user_id: User ID from access token.
-         *         db: Database session dependency.
-         *         response: The response, which carries the new ETag.
-         *         if_match: The ``If-Match`` precondition.
-         *
-         *     Returns:
-         *         Updated user default gear settings.
          */
-        patch: operations["edit_user_default_gear_api_v1_profile_default_gear_patch"];
+        patch: operations["edit_user_default_gear"];
         trace?: never;
     };
     "/api/v1/profile/delete-account": {
@@ -2907,22 +2164,8 @@ export interface paths {
          *     account is signed out and deactivated at once and a background job erases the data, which is
          *     permanent and cannot be undone. Export the profile first to keep a copy. The browser's
          *     refresh-token cookie is cleared on the response.
-         *
-         *     Args:
-         *         request: The incoming request, read by the rate limiter.
-         *         response: The response, which receives the cookie-deletion headers.
-         *         step_up: Step-up verification payload.
-         *         token_user_id: User ID from access token.
-         *         token_session_id: Session ID from access token.
-         *         step_up_store: Step-up lockout store.
-         *         state: The platform state provider.
-         *         storage: The platform storage provider.
-         *         db: Database session.
-         *
-         *     Returns:
-         *         The deletion's initial status.
          */
-        post: operations["delete_my_account_api_v1_profile_delete_account_post"];
+        post: operations["delete_my_account"];
         delete?: never;
         options?: never;
         head?: never;
@@ -2949,33 +2192,13 @@ export interface paths {
          *     cancels a pending change. When the server cannot send mail the address changes at once, unverified.
          *     The user's other sessions are revoked when the request asks for it. The answer is the profile as it
          *     stands afterwards, so the client can tell a pending change (``pending_email``) from an applied one.
-         *
-         *     Args:
-         *         request: The incoming request, read by the rate limiter.
-         *         response: The response, which carries the user's current ETag.
-         *         email_change: The new address with the step-up credentials.
-         *         token_user_id: User ID from access token.
-         *         token_session_id: Session ID of the caller, preserved when other sessions are revoked.
-         *         step_up_store: Step-up lockout store.
-         *         db: Database session.
-         *
-         *     Returns:
-         *         The profile after the request; its ``version`` is also sent as the ETag.
-         *
-         *     Raises:
-         *         HTTPException: 401 if step-up verification fails, 409 if another account uses the address.
          */
-        post: operations["edit_profile_email_api_v1_profile_email_change_post"];
+        post: operations["edit_profile_email"];
         /**
          * Cancel Profile Email Change
          * @description Cancel the pending email change, so its confirmation link stops working.
-         *
-         *     Args:
-         *         request: The incoming request, read by the rate limiter.
-         *         token_user_id: User ID from access token.
-         *         db: Database session.
          */
-        delete: operations["cancel_profile_email_change_api_v1_profile_email_change_delete"];
+        delete: operations["cancel_profile_email_change"];
         options?: never;
         head?: never;
         patch?: never;
@@ -2996,14 +2219,8 @@ export interface paths {
          *
          *     The answer is the same whether or not an email was queued: there may be no pending change,
          *     the server may not send mail, or an email may already have gone out within the cooldown.
-         *
-         *     Args:
-         *         request: The incoming request, read by the rate limiter.
-         *         token_user_id: User ID from access token.
-         *         state: The platform state provider, for the resend cooldown.
-         *         db: Database session.
          */
-        post: operations["resend_profile_email_change_api_v1_profile_email_change_resend_post"];
+        post: operations["resend_profile_email_change"];
         delete?: never;
         options?: never;
         head?: never;
@@ -3022,16 +2239,8 @@ export interface paths {
          * @description Report where the authenticated user's profile export is.
          *
          *     ``Retry-After`` says when to poll again while the export is not finished.
-         *
-         *     Args:
-         *         token_user_id: User ID from access token.
-         *         export_states: Shared store of the export's state.
-         *         response: The response, which carries ``Retry-After`` while the export runs.
-         *
-         *     Returns:
-         *         The export's state, or None when no export is recorded.
          */
-        get: operations["read_profile_export_status_api_v1_profile_export_get"];
+        get: operations["read_profile_export_status"];
         put?: never;
         /**
          * Export Profile Data
@@ -3040,21 +2249,8 @@ export interface paths {
          *     Requires step-up verification: the current password (or, for an account without one, a fresh
          *     identity-provider sign-in), and an MFA code when MFA is enabled. A worker builds the archive;
          *     poll ``GET /profile/export`` for the outcome and fetch it from ``GET /profile/export/download``.
-         *
-         *     Args:
-         *         request: The incoming request, read by the rate limiter.
-         *         response: The response, which names the status route and when to poll it.
-         *         step_up: Step-up verification payload.
-         *         token_user_id: User ID from access token.
-         *         token_session_id: Session ID from access token.
-         *         step_up_store: Step-up lockout store.
-         *         export_states: Shared store of the export's state.
-         *         db: Database session.
-         *
-         *     Returns:
-         *         The queued export's state.
          */
-        post: operations["export_profile_data_api_v1_profile_export_post"];
+        post: operations["export_profile_data"];
         delete?: never;
         options?: never;
         head?: never;
@@ -3071,17 +2267,8 @@ export interface paths {
         /**
          * Download Profile Export
          * @description Download the authenticated user's finished profile export.
-         *
-         *     Args:
-         *         request: The incoming request, read by the rate limiter.
-         *         token_user_id: User ID from access token.
-         *         export_states: Shared store of the export's state.
-         *         storage: The platform storage provider.
-         *
-         *     Returns:
-         *         Streaming response with the ZIP archive.
          */
-        get: operations["download_profile_export_api_v1_profile_export_download_get"];
+        get: operations["download_profile_export"];
         put?: never;
         post?: never;
         delete?: never;
@@ -3100,35 +2287,14 @@ export interface paths {
         /**
          * Get User Goals
          * @description Retrieve one page of goals for the authenticated user with optional filters.
-         *
-         *     Args:
-         *         token_user_id: User ID from access token.
-         *         page: The requested window.
-         *         db: Database session dependency.
-         *         interval: Optional filter by goal interval.
-         *         activity_type: Optional filter by activity type.
-         *         goal_type: Optional filter by goal type.
-         *
-         *     Returns:
-         *         The page of user goals matching the filters.
          */
-        get: operations["get_user_goals_api_v1_profile_goals_get"];
+        get: operations["get_user_goals"];
         put?: never;
         /**
          * Create User Goal
          * @description Create a new goal for the authenticated user.
-         *
-         *     Args:
-         *         request: The incoming request, read by the rate limiter.
-         *         user_goal: Goal data to create.
-         *         token_user_id: User ID from access token.
-         *         db: Database session dependency.
-         *         response: The response, whose ``Location`` names where the goal is read.
-         *
-         *     Returns:
-         *         The created goal object.
          */
-        post: operations["create_user_goal_api_v1_profile_goals_post"];
+        post: operations["create_user_goal"];
         delete?: never;
         options?: never;
         head?: never;
@@ -3145,17 +2311,8 @@ export interface paths {
         /**
          * Get User Goals Results
          * @description Calculate and retrieve one page of goal progress for the authenticated user.
-         *
-         *     Args:
-         *         request: The incoming request, read by the rate limiter.
-         *         token_user_id: User ID from access token.
-         *         page: The requested window.
-         *         db: Database session dependency.
-         *
-         *     Returns:
-         *         The page of goal progress objects, empty if no goals.
          */
-        get: operations["get_user_goals_results_api_v1_profile_goals_results_get"];
+        get: operations["get_user_goals_results"];
         put?: never;
         post?: never;
         delete?: never;
@@ -3175,40 +2332,18 @@ export interface paths {
          * Get User Goal
          * @description Retrieve one of the authenticated user's goals; its ``ETag`` is the version for ``If-Match``.
          */
-        get: operations["get_user_goal_api_v1_profile_goals__goal_id__get"];
+        get: operations["get_user_goal"];
         /**
          * Update User Goal
          * @description Replace an existing goal for the authenticated user.
-         *
-         *     Args:
-         *         request: The incoming request, read by the rate limiter.
-         *         goal_id: ID of the goal to replace.
-         *         user_goal: The goal's new values.
-         *         token_user_id: User ID from access token.
-         *         db: Database session dependency.
-         *         response: The response, which carries the new ETag.
-         *         if_match: The ``If-Match`` precondition.
-         *
-         *     Returns:
-         *         The updated goal object.
          */
-        put: operations["update_user_goal_api_v1_profile_goals__goal_id__put"];
+        put: operations["update_user_goal"];
         post?: never;
         /**
          * Delete User Goal
          * @description Delete a goal for the authenticated user.
-         *
-         *     Args:
-         *         request: The incoming request, read by the rate limiter.
-         *         goal_id: ID of the goal to delete.
-         *         token_user_id: User ID from access token.
-         *         if_match: The ``If-Match`` precondition.
-         *         db: Database session dependency.
-         *
-         *     Raises:
-         *         PreconditionFailedError: If the goal changed since the client read it.
          */
-        delete: operations["delete_user_goal_api_v1_profile_goals__goal_id__delete"];
+        delete: operations["delete_user_goal"];
         options?: never;
         head?: never;
         patch?: never;
@@ -3226,16 +2361,8 @@ export interface paths {
          * @description Retrieve one page of the authenticated user's identity provider links.
          *
          *     Each link carries its connection metadata and the provider's name, slug, icon and type.
-         *
-         *     Args:
-         *         token_user_id: The authenticated user's ID from the access token.
-         *         page: The requested window.
-         *         db: Database session.
-         *
-         *     Returns:
-         *         The page of the user's identity provider links, oldest first.
          */
-        get: operations["get_my_identity_providers_api_v1_profile_identity_providers_get"];
+        get: operations["get_my_identity_providers"];
         put?: never;
         post?: never;
         delete?: never;
@@ -3261,21 +2388,8 @@ export interface paths {
          *     account without one, ``idp_reauth``), and an MFA code when MFA is enabled. The browser then follows
          *     ``authorization_url``, signs in at the provider, and the callback returns to ``redirect``. The response
          *     sets a cookie that binds the link to this browser.
-         *
-         *     Args:
-         *         idp_id: The identity provider to link.
-         *         link: Step-up credentials and the frontend return path.
-         *         request: The incoming request, read by the rate limiter and for the client address.
-         *         response: The response, which receives the browser-binding cookie.
-         *         token_user_id: User ID from access token.
-         *         token_session_id: Session ID from access token.
-         *         step_up_store: Step-up lockout store.
-         *         db: Database session.
-         *
-         *     Returns:
-         *         The provider's authorization URL.
          */
-        post: operations["start_idp_link_api_v1_profile_identity_providers__idp_id__link_post"];
+        post: operations["start_idp_link"];
         delete?: never;
         options?: never;
         head?: never;
@@ -3300,21 +2414,8 @@ export interface paths {
          *     ``redirect`` with a single-use ``step_up_ticket`` in the URL fragment. The sensitive request then sends the
          *     ticket and the PKCE verifier of ``code_challenge`` as ``idp_reauth``. The response sets a cookie that binds
          *     the sign-in to this browser.
-         *
-         *     Args:
-         *         idp_id: The linked provider to sign in with again.
-         *         start: The PKCE challenge, the operation and the return path.
-         *         request: The incoming request, read by the rate limiter.
-         *         response: The response, which receives the browser-binding cookie.
-         *         token_user_id: User ID from access token.
-         *         token_session_id: Session ID from access token.
-         *         step_up_store: Step-up lockout store.
-         *         db: Database session.
-         *
-         *     Returns:
-         *         The provider's authorization URL.
          */
-        post: operations["start_idp_step_up_api_v1_profile_identity_providers__idp_id__step_up_post"];
+        post: operations["start_idp_step_up"];
         delete?: never;
         options?: never;
         head?: never;
@@ -3341,36 +2442,8 @@ export interface paths {
          *     safety checks to prevent account lockout by ensuring users maintain
          *     at least one authentication method (either a password or another
          *     IdP link).
-         *
-         *     Args:
-         *         idp_id (int): The ID of the identity provider to unlink.
-         *         step_up (StepUpVerification): Step-up verification payload.
-         *         request (Request): The FastAPI request object.
-         *         token_user_id (int): User ID extracted from the access token.
-         *         token_session_id: Session ID from access token.
-         *         step_up_store: Step-up lockout store.
-         *         db: Database session.
-         *
-         *     Returns:
-         *         None: Returns 204 No Content on successful deletion.
-         *
-         *     Raises:
-         *         DomainError (401): If step-up verification fails.
-         *         DomainError (404): If the identity provider doesn't exist or
-         *             is not linked to the user's account.
-         *         DomainError (400): If attempting to unlink the last authentication method
-         *             without having a password set (prevents account lockout).
-         *         DomainError (500): If the deletion operation fails at the database level.
-         *
-         *     Notes:
-         *         - Enforces step-up verification before unlinking.
-         *         - Prevents account lockout by ensuring users have at least one
-         *           authentication method (password or remaining IdP link).
-         *         - Logs the unlinking action for audit purposes.
-         *         - Uses token-based authentication to ensure users can only
-         *           unlink their own IdPs.
          */
-        post: operations["delete_my_identity_provider_api_v1_profile_identity_providers__idp_id__unlink_post"];
+        post: operations["delete_my_identity_provider"];
         delete?: never;
         options?: never;
         head?: never;
@@ -3389,16 +2462,8 @@ export interface paths {
          * @description Report where the authenticated user's profile import is.
          *
          *     ``Retry-After`` says when to poll again while the import is not finished.
-         *
-         *     Args:
-         *         token_user_id: User ID from access token.
-         *         import_states: Shared store of the import's state.
-         *         response: The response, which carries ``Retry-After`` while the import runs.
-         *
-         *     Returns:
-         *         The import's state, or None when no import is recorded.
          */
-        get: operations["read_profile_import_status_api_v1_profile_import_get"];
+        get: operations["read_profile_import_status"];
         put?: never;
         /**
          * Import Profile Data
@@ -3406,20 +2471,8 @@ export interface paths {
          *
          *     The archive is validated and staged, and a worker imports it; poll ``GET /profile/import`` for
          *     the outcome. The database part is all-or-nothing, so a failed import leaves nothing behind.
-         *
-         *     Args:
-         *         request: The incoming request, read by the rate limiter.
-         *         response: The response, which names the status route and when to poll it.
-         *         file: ZIP file containing profile data.
-         *         token_user_id: User ID from access token.
-         *         import_states: Shared store of the import's state.
-         *         storage: The platform storage provider.
-         *         db: Database session.
-         *
-         *     Returns:
-         *         The queued import's state.
          */
-        post: operations["import_profile_data_api_v1_profile_import_post"];
+        post: operations["import_profile_data"];
         delete?: never;
         options?: never;
         head?: never;
@@ -3444,24 +2497,8 @@ export interface paths {
          *     the previous set, so an attacker holding only an access
          *     token must not be able to lock the legitimate user out of
          *     their second factor.
-         *
-         *     Args:
-         *         response: The response, marked as not cacheable because it carries the codes.
-         *         request: FastAPI request object for rate limiting.
-         *         step_up: Step-up verification payload.
-         *         token_user_id: User ID from access token.
-         *         token_session_id: Session ID from access token.
-         *         step_up_store: Step-up lockout store.
-         *         db: Database session.
-         *
-         *     Returns:
-         *         Response with generated backup codes and timestamp.
-         *
-         *     Raises:
-         *         DomainError: 401 if step-up verification fails, 404 if
-         *             user not found, 400 if MFA is not enabled.
          */
-        post: operations["generate_mfa_backup_codes_api_v1_profile_mfa_backup_codes_post"];
+        post: operations["generate_mfa_backup_codes"];
         delete?: never;
         options?: never;
         head?: never;
@@ -3478,15 +2515,8 @@ export interface paths {
         /**
          * Get Backup Code Status
          * @description Retrieve MFA backup code status for authenticated user.
-         *
-         *     Args:
-         *         token_user_id: User ID from access token.
-         *         db: Database session.
-         *
-         *     Returns:
-         *         Backup code status with counts and creation date.
          */
-        get: operations["get_backup_code_status_api_v1_profile_mfa_backup_codes_status_get"];
+        get: operations["get_backup_code_status"];
         put?: never;
         post?: never;
         delete?: never;
@@ -3516,25 +2546,8 @@ export interface paths {
          *     same set of factors accepted at login. Step-up verification
          *     is the single source of truth for the MFA check;
          *     :func:`modules.auth.mfa.service.disable_user_mfa` only clears state.
-         *
-         *     Args:
-         *         request: The incoming request, read by the rate limiter.
-         *         mfa_request: MFA disable request with current password and
-         *             MFA code.
-         *         token_user_id: User ID from access token.
-         *         token_session_id: Session ID from access token.
-         *         step_up_store: Step-up lockout store.
-         *         db: Database session.
-         *
-         *     Returns:
-         *         Success message.
-         *
-         *     Raises:
-         *         DomainError: 401 if the current password is wrong or
-         *             the MFA code is invalid; 400 if MFA is not currently
-         *             enabled.
          */
-        post: operations["disable_mfa_api_v1_profile_mfa_disable_post"];
+        post: operations["disable_mfa"];
         delete?: never;
         options?: never;
         head?: never;
@@ -3565,26 +2578,8 @@ export interface paths {
          *     issued by ``POST /profile/mfa/setup``. An account without a local
          *     password sends ``idp_reauth`` instead of ``current_password`` (see
          *     :func:`modules.auth.account_security.step_up_service.verify_step_up_credentials`).
-         *
-         *     Args:
-         *         request: The incoming request, read by the rate limiter.
-         *         response: The response, marked as not cacheable because it carries the backup codes.
-         *         mfa_request: MFA setup request with TOTP code and (when the
-         *             account has a local password) current password.
-         *         token_user_id: User ID from access token.
-         *         token_session_id: Session ID from access token.
-         *         mfa_secret_store: Temporary secret storage.
-         *         step_up_store: Step-up lockout store.
-         *         db: Database session.
-         *
-         *     Returns:
-         *         Success message and the freshly issued backup codes.
-         *
-         *     Raises:
-         *         DomainError: 400 if no setup is in progress or the TOTP
-         *             code is invalid; 401 if step-up verification fails.
          */
-        post: operations["enable_mfa_api_v1_profile_mfa_enable_post"];
+        post: operations["enable_mfa"];
         delete?: never;
         options?: never;
         head?: never;
@@ -3603,18 +2598,8 @@ export interface paths {
         /**
          * Setup Mfa
          * @description Initiate MFA setup for authenticated user.
-         *
-         *     Args:
-         *         request: The incoming request, read by the rate limiter.
-         *         response: The response, marked as not cacheable because it carries the secret.
-         *         token_user_id: User ID from access token.
-         *         mfa_secret_store: Temporary secret storage.
-         *         db: Database session.
-         *
-         *     Returns:
-         *         MFA setup response with secret and QR code.
          */
-        post: operations["setup_mfa_api_v1_profile_mfa_setup_post"];
+        post: operations["setup_mfa"];
         delete?: never;
         options?: never;
         head?: never;
@@ -3631,15 +2616,8 @@ export interface paths {
         /**
          * Get Mfa Status
          * @description Return MFA enabled status for authenticated user.
-         *
-         *     Args:
-         *         token_user_id: User ID from access token.
-         *         db: Database session.
-         *
-         *     Returns:
-         *         MFA status response with enabled flag.
          */
-        get: operations["get_mfa_status_api_v1_profile_mfa_status_get"];
+        get: operations["get_mfa_status"];
         put?: never;
         post?: never;
         delete?: never;
@@ -3660,21 +2638,8 @@ export interface paths {
         /**
          * Verify Mfa
          * @description Verify MFA code for authenticated user.
-         *
-         *     Args:
-         *         request: The incoming request, read by the rate limiter.
-         *         mfa_request: MFA request with code to verify.
-         *         token_user_id: User ID from access token.
-         *         step_up_store: Shared state, which records the TOTP step so the code works once.
-         *         db: Database session.
-         *
-         *     Returns:
-         *         Success message.
-         *
-         *     Raises:
-         *         DomainError: If MFA code is invalid.
          */
-        post: operations["verify_mfa_api_v1_profile_mfa_verify_post"];
+        post: operations["verify_mfa"];
         delete?: never;
         options?: never;
         head?: never;
@@ -3704,24 +2669,8 @@ export interface paths {
          *     while the current session is preserved, unless the request sets
          *     ``revoke_other_sessions`` to false, so a password change evicts
          *     a suspected attacker without logging the caller out.
-         *
-         *     Args:
-         *         request: The incoming request, read by the rate limiter.
-         *         user_attributtes: Schema with current password, new
-         *             password, optional MFA code, and the optional
-         *             ``revoke_other_sessions`` flag.
-         *         token_user_id: ID of the user extracted from the access
-         *             token.
-         *         token_session_id: Session ID of the caller, preserved when
-         *             other sessions are revoked.
-         *         step_up_store: Step-up lockout store.
-         *         db: Database session.
-         *
-         *     Raises:
-         *         HTTPException: 401 if step-up verification fails; 422 if the new password is too short, too common or
-         *             matches the account's details.
          */
-        post: operations["edit_profile_password_api_v1_profile_password_change_post"];
+        post: operations["edit_profile_password"];
         delete?: never;
         options?: never;
         head?: never;
@@ -3740,29 +2689,13 @@ export interface paths {
         /**
          * Upload Profile Image
          * @description Upload user profile image with security validation.
-         *
-         *     Args:
-         *         request: The incoming request, read by the rate limiter.
-         *         file: Image file to upload.
-         *         token_user_id: User ID from access token.
-         *         storage: The platform storage provider.
-         *         db: Database session.
-         *
-         *     Returns:
-         *         The servable URL of the new photo.
          */
-        post: operations["upload_profile_image_api_v1_profile_photo_post"];
+        post: operations["upload_profile_image"];
         /**
          * Delete Profile Photo
          * @description Delete authenticated user's profile photo.
-         *
-         *     Args:
-         *         request: The incoming request, read by the rate limiter.
-         *         token_user_id: User ID from access token.
-         *         storage: The platform storage provider.
-         *         db: Database session.
          */
-        delete: operations["delete_profile_photo_api_v1_profile_photo_delete"];
+        delete: operations["delete_profile_photo"];
         options?: never;
         head?: never;
         patch?: never;
@@ -3781,7 +2714,7 @@ export interface paths {
          *
          *     The ETag is the settings' version, which a later ``PATCH /profile/privacy`` echoes in ``If-Match``.
          */
-        get: operations["read_profile_privacy_settings_api_v1_profile_privacy_get"];
+        get: operations["read_profile_privacy_settings"];
         put?: never;
         post?: never;
         delete?: never;
@@ -3790,19 +2723,8 @@ export interface paths {
         /**
          * Edit Profile Privacy Settings
          * @description Edit privacy settings for authenticated user.
-         *
-         *     Args:
-         *         request: The incoming request, read by the rate limiter.
-         *         response: The response, which carries the settings' new ETag.
-         *         user_privacy_settings: New privacy settings.
-         *         token_user_id: User ID from access token.
-         *         db: Database session.
-         *         if_match: The ``If-Match`` precondition, the ``privacy_settings_version`` the client read.
-         *
-         *     Returns:
-         *         The edited settings; their ``version`` is also sent as the ETag.
          */
-        patch: operations["edit_profile_privacy_settings_api_v1_profile_privacy_patch"];
+        patch: operations["edit_profile_privacy_settings"];
         trace?: never;
     };
     "/api/v1/profile/sessions": {
@@ -3815,16 +2737,8 @@ export interface paths {
         /**
          * Read Sessions Me
          * @description Retrieve one page of the authenticated user's sessions.
-         *
-         *     Args:
-         *         token_user_id: User ID from access token.
-         *         page: The requested window.
-         *         db: Database session.
-         *
-         *     Returns:
-         *         The page of session objects for the user.
          */
-        get: operations["read_sessions_me_api_v1_profile_sessions_get"];
+        get: operations["read_sessions_me"];
         put?: never;
         post?: never;
         /**
@@ -3836,17 +2750,8 @@ export interface paths {
          *     other sessions without logging themselves out. This is the
          *     standalone form of the password change's
          *     ``revoke_other_sessions`` option.
-         *
-         *     Args:
-         *         request: The incoming request, read by the rate limiter.
-         *         token_user_id: User ID from access token.
-         *         token_session_id: The caller's current session, preserved.
-         *         db: Database session.
-         *
-         *     Returns:
-         *         None.
          */
-        delete: operations["delete_profile_other_sessions_api_v1_profile_sessions_delete"];
+        delete: operations["delete_profile_other_sessions"];
         options?: never;
         head?: never;
         patch?: never;
@@ -3865,17 +2770,8 @@ export interface paths {
         /**
          * Delete Profile Session
          * @description Delete user session from database.
-         *
-         *     Args:
-         *         request: The incoming request, read by the rate limiter.
-         *         session_id: Session identifier to delete.
-         *         token_user_id: User ID from access token.
-         *         db: Database session.
-         *
-         *     Returns:
-         *         None.
          */
-        delete: operations["delete_profile_session_api_v1_profile_sessions__session_id__delete"];
+        delete: operations["delete_profile_session"];
         options?: never;
         head?: never;
         patch?: never;
@@ -3891,16 +2787,8 @@ export interface paths {
         /**
          * List Public Activity Exercise Titles
          * @description Return one page of the activity exercise titles via the public endpoint.
-         *
-         *     Args:
-         *         request: The incoming request, read by the rate limiter.
-         *         page: The requested window; a page holds up to the maximum when no size is given.
-         *         db: Database session dependency.
-         *
-         *     Returns:
-         *         The page of exercise titles, empty when public shareable links are disabled.
          */
-        get: operations["list_public_activity_exercise_titles_api_v1_public_activities_exercise_titles_get"];
+        get: operations["list_public_activity_exercise_titles"];
         put?: never;
         post?: never;
         delete?: never;
@@ -3924,7 +2812,7 @@ export interface paths {
          *     deliberately indistinguishable so this unauthenticated endpoint cannot be
          *     used to enumerate which activity ids exist.
          */
-        get: operations["read_public_activity_api_v1_public_activities__activity_id__get"];
+        get: operations["read_public_activity"];
         put?: never;
         post?: never;
         delete?: never;
@@ -3947,7 +2835,7 @@ export interface paths {
          *     Answers 404 when the activity does not exist *or* is not public, so it cannot be used to
          *     enumerate which ids exist. A collection the owner hides is an empty page.
          */
-        get: operations["read_public_activity_detail_api_v1_public_activities__activity_id__detail_get"];
+        get: operations["read_public_activity_detail"];
         put?: never;
         post?: never;
         delete?: never;
@@ -3967,7 +2855,7 @@ export interface paths {
          * List Public Activity Laps
          * @description Return one page of public laps for an activity exposed via shareable link.
          */
-        get: operations["list_public_activity_laps_api_v1_public_activities__activity_id__laps_get"];
+        get: operations["list_public_activity_laps"];
         put?: never;
         post?: never;
         delete?: never;
@@ -3991,7 +2879,7 @@ export interface paths {
          *     share user info publicly — the cases are deliberately indistinguishable, so this
          *     unauthenticated endpoint cannot be used to enumerate users.
          */
-        get: operations["read_public_activity_owner_api_v1_public_activities__activity_id__owner_get"];
+        get: operations["read_public_activity_owner"];
         put?: never;
         post?: never;
         delete?: never;
@@ -4011,7 +2899,7 @@ export interface paths {
          * List Public Activity Sets
          * @description Return one page of a publicly shared activity's sets.
          */
-        get: operations["list_public_activity_sets_api_v1_public_activities__activity_id__sets_get"];
+        get: operations["list_public_activity_sets"];
         put?: never;
         post?: never;
         delete?: never;
@@ -4031,7 +2919,7 @@ export interface paths {
          * List Public Activity Streams
          * @description Return one page of a publicly shared activity's streams, with the matching total.
          */
-        get: operations["list_public_activity_streams_api_v1_public_activities__activity_id__streams_get"];
+        get: operations["list_public_activity_streams"];
         put?: never;
         post?: never;
         delete?: never;
@@ -4055,7 +2943,7 @@ export interface paths {
          *     are disabled. The cases are indistinguishable on purpose, since this endpoint
          *     is unauthenticated.
          */
-        get: operations["read_public_activity_stream_api_v1_public_activities__activity_id__streams__stream_type__get"];
+        get: operations["read_public_activity_stream"];
         put?: never;
         post?: never;
         delete?: never;
@@ -4075,7 +2963,7 @@ export interface paths {
          * List Public Activity Workout Steps
          * @description Return one page of a publicly shared activity's workout steps.
          */
-        get: operations["list_public_activity_workout_steps_api_v1_public_activities__activity_id__workout_steps_get"];
+        get: operations["list_public_activity_workout_steps"];
         put?: never;
         post?: never;
         delete?: never;
@@ -4094,15 +2982,8 @@ export interface paths {
         /**
          * Get Enabled Identity Providers
          * @description Retrieve one page of the enabled identity providers.
-         *
-         *     Args:
-         *         page: The requested window.
-         *         db: SQLAlchemy database session dependency.
-         *
-         *     Returns:
-         *         The page of enabled identity providers, public fields only, ordered by name.
          */
-        get: operations["get_enabled_identity_providers_api_v1_public_idp_get"];
+        get: operations["get_enabled_identity_providers"];
         put?: never;
         post?: never;
         delete?: never;
@@ -4124,38 +3005,8 @@ export interface paths {
          *
          *     This endpoint processes the OAuth authorization callback from external identity providers.
          *     It finishes a login, a link of the provider to the signed-in account, or a step-up re-authentication.
-         *
-         *     Args:
-         *         request: The incoming HTTP request.
-         *         idp_slug: The slug identifier of the identity provider.
-         *         password_hasher: Password hasher dependency for session management.
-         *         db: Database session dependency.
-         *         service: Identity provider service.
-         *         browser_binding: The cookie that binds a link or step-up to the browser that started it.
-         *         code: Authorization code received from the identity provider; absent when it returned an error.
-         *         error: The provider's error code, such as ``login_required`` when it could not sign the user in again.
-         *         state: State parameter used for CSRF protection (database state ID).
-         *
-         *     Returns:
-         *         RedirectResponse: A redirect response to either:
-         *             - Settings page (link mode): /settings with success parameters
-         *             - Login page (login mode): /login with session_id for token exchange
-         *             - The page that started a step-up, with its ticket or error in the fragment
-         *             - Error page: /login with error parameter if callback fails
-         *
-         *     Raises:
-         *         NotFoundError: If the identity provider is not found or disabled.
-         *         InvalidInputError: If the state is unknown, expired, bound to another provider or already used.
-         *             Any failure after the state is claimed redirects instead, so the browser never ends on a JSON error.
-         *
-         *     Notes:
-         *         - In link mode: Redirects to settings without creating a new session
-         *         - In login mode: Creates session, redirects with session_id (client must exchange for tokens)
-         *         - All clients must call /tokens exchange endpoint with PKCE verifier to get JWT tokens
-         *         - On error: Redirects to login page with error parameter
-         *         - All redirects use HTTP 307 (Temporary Redirect) status code
          */
-        get: operations["handle_callback_api_v1_public_idp_callback__idp_slug__get"];
+        get: operations["handle_callback"];
         put?: never;
         post?: never;
         delete?: never;
@@ -4179,22 +3030,8 @@ export interface paths {
          *     Both code_challenge and code_challenge_method=S256 must be provided.
          *
          *     Rate Limit: 10 requests per minute per IP
-         *     Args:
-         *         idp_slug (str): The slug identifier for the identity provider.
-         *         request (Request): The incoming HTTP request object.
-         *         db (Session): Database session dependency.
-         *         redirect (str | None): Optional frontend path to redirect to after login.
-         *         code_challenge (str): PKCE code challenge (base64url-encoded SHA256, 43-128 chars). REQUIRED.
-         *         code_challenge_method (str): PKCE method (only S256 supported). REQUIRED.
-         *
-         *     Returns:
-         *         RedirectResponse: A redirect response to the identity provider's authorization URL.
-         *
-         *     Raises:
-         *         NotFoundError: If the identity provider is not found or disabled.
-         *         InvalidInputError: If PKCE validation or the redirect check fails.
          */
-        get: operations["initiate_login_api_v1_public_idp_login__idp_slug__get"];
+        get: operations["initiate_login"];
         put?: never;
         post?: never;
         delete?: never;
@@ -4220,23 +3057,8 @@ export interface paths {
          *     receives the tokens. The exchange succeeds once per session. An identity-provider session of an account with MFA
          *     enabled also needs ``mfa_code``; without it the answer is a ``403`` with the ``mfa-required`` problem type and the
          *     session stays usable.
-         *
-         *     Args:
-         *         session_id: Session created by the identity-provider callback.
-         *         request: Incoming request, read for the ``X-Client-Type`` header, the client address and the user agent.
-         *         response: Response that receives the refresh and device cookies for web clients.
-         *         token_exchange: Body carrying the PKCE code verifier and, when MFA applies, the MFA code.
-         *         pending_mfa_store: Store for the MFA lockout and the TOTP replay guard.
-         *         password_hasher: Hasher for the stored refresh token.
-         *         token_manager: Token manager that signs the tokens.
-         *         db: Database session.
-         *         device_id: Device id from the browser's device cookie or the mobile app's X-Device-Id header, or None when
-         *             the client sent no valid one.
-         *
-         *     Returns:
-         *         The access token and, per client type, the CSRF token or the refresh token.
          */
-        post: operations["exchange_tokens_for_session_api_v1_public_idp_session__session_id__tokens_post"];
+        post: operations["exchange_tokens_for_session"];
         delete?: never;
         options?: never;
         head?: never;
@@ -4258,20 +3080,8 @@ export interface paths {
          *     admin-chosen image, not user data. The response carries an ETag derived from the provider version and must
          *     be revalidated, so a replaced icon shows at once while a client that holds it gets a 304 without storage
          *     being read.
-         *
-         *     Args:
-         *         idp_slug: The provider slug.
-         *         request: The HTTP request, for its ``If-None-Match`` header.
-         *         storage: The platform storage provider.
-         *         db: Database session.
-         *
-         *     Returns:
-         *         The image bytes, or a 304 when the client's copy is current.
-         *
-         *     Raises:
-         *         NotFoundError: 404 when the provider is unknown or has no uploaded icon.
          */
-        get: operations["read_identity_provider_icon_api_v1_public_idp__idp_slug__icon_get"];
+        get: operations["read_identity_provider_icon"];
         put?: never;
         post?: never;
         delete?: never;
@@ -4291,13 +3101,13 @@ export interface paths {
          * Read Onboarding Status
          * @description Tell whether the installation has no account yet and needs its first administrator.
          */
-        get: operations["read_onboarding_status_api_v1_public_onboarding_get"];
+        get: operations["read_onboarding_status"];
         put?: never;
         /**
          * Complete Onboarding
          * @description Create the first administrator with the setup token printed in the server log.
          */
-        post: operations["complete_onboarding_api_v1_public_onboarding_post"];
+        post: operations["complete_onboarding"];
         delete?: never;
         options?: never;
         head?: never;
@@ -4321,11 +3131,8 @@ export interface paths {
          *     Returns only the public subset of server configuration
          *     (sensitive signup approval/verification settings excluded).
          *     Pydantic model filtering automatically excludes sensitive fields.
-         *
-         *     Returns:
-         *         Public subset of server configuration.
          */
-        get: operations["read_public_server_settings_api_v1_public_server_settings_get"];
+        get: operations["read_public_server_settings"];
         put?: never;
         post?: never;
         delete?: never;
@@ -4349,19 +3156,8 @@ export interface paths {
          *     design; it is one admin-chosen image, not user data. The response carries an
          *     ETag derived from the settings version, so a client that already holds the photo
          *     gets a 304 without storage being read.
-         *
-         *     Args:
-         *         request: The HTTP request, for its ``If-None-Match`` header.
-         *         storage: The platform storage provider.
-         *         db: Database session.
-         *
-         *     Returns:
-         *         The image bytes, or a 304 when the client's copy is current.
-         *
-         *     Raises:
-         *         NotFoundError: 404 when no custom photo is stored.
          */
-        get: operations["read_login_photo_api_v1_public_server_settings_login_photo_get"];
+        get: operations["read_login_photo"];
         put?: never;
         post?: never;
         delete?: never;
@@ -4386,11 +3182,8 @@ export interface paths {
          *
          *     This endpoint returns a list of all available tile map templates that can be
          *     used for configuring map display options in server settings.
-         *
-         *     Returns:
-         *         List of tile map template configurations available for the server.
          */
-        get: operations["list_tile_maps_templates_api_v1_public_server_settings_tile_maps_templates_get"];
+        get: operations["list_tile_maps_templates"];
         put?: never;
         post?: never;
         delete?: never;
@@ -4411,16 +3204,8 @@ export interface paths {
          * @description Get current server settings.
          *
          *     Requires admin authentication with server_settings:read scope.
-         *
-         *     Args:
-         *         db: Database session.
-         *         response: The response, which carries the ETag.
-         *
-         *     Returns:
-         *         Current server settings configuration. The tile API key is never returned,
-         *         only whether one is stored.
          */
-        get: operations["read_server_settings_api_v1_server_settings_get"];
+        get: operations["read_server_settings"];
         /**
          * Edit Server Settings
          * @description Update server settings.
@@ -4429,18 +3214,8 @@ export interface paths {
          *     the whole configuration; only the API keys may be omitted, which keeps the stored
          *     ones. Send ``If-Match`` with the ETag from the read to make the write conditional;
          *     a stale tag is refused with 412 rather than reverting an admin who saved in between.
-         *
-         *     Args:
-         *         request: The HTTP request object.
-         *         server_settings_attributes: Settings to update.
-         *         db: Database session.
-         *         response: The response, which carries the new ETag.
-         *         if_match: The ``If-Match`` precondition.
-         *
-         *     Returns:
-         *         Updated server settings configuration, without the tile API key.
          */
-        put: operations["edit_server_settings_api_v1_server_settings_put"];
+        put: operations["edit_server_settings"];
         post?: never;
         delete?: never;
         options?: never;
@@ -4460,14 +3235,8 @@ export interface paths {
          * @description Get whether outgoing email is usable.
          *
          *     Requires admin authentication with server_settings:read scope.
-         *
-         *     Args:
-         *         db: Database session.
-         *
-         *     Returns:
-         *         Whether email is configured and, when not, the reasons (setting names only).
          */
-        get: operations["read_email_status_api_v1_server_settings_email_get"];
+        get: operations["read_email_status"];
         put?: never;
         post?: never;
         delete?: never;
@@ -4488,16 +3257,8 @@ export interface paths {
          * @description Get the mail server settings.
          *
          *     Requires admin authentication with server_settings:read scope.
-         *
-         *     Args:
-         *         db: Database session.
-         *         response: The response, which carries the ETag.
-         *
-         *     Returns:
-         *         The mail settings. The password is never returned, only whether one is stored;
-         *         ``env_managed`` names the fields an environment variable currently sets.
          */
-        get: operations["read_mail_settings_api_v1_server_settings_email_settings_get"];
+        get: operations["read_mail_settings"];
         /**
          * Edit Mail Settings
          * @description Update the mail server settings.
@@ -4506,23 +3267,8 @@ export interface paths {
          *     the whole configuration; only the password may be omitted, which keeps the stored one.
          *     Send ``If-Match`` with the ETag from the read to make the write conditional; a stale
          *     tag is refused with 412.
-         *
-         *     Args:
-         *         request: The HTTP request object.
-         *         mail_settings_attributes: Settings to update.
-         *         db: Database session.
-         *         response: The response, which carries the new ETag.
-         *         if_match: The ``If-Match`` precondition.
-         *
-         *     Returns:
-         *         Updated mail settings, without the password.
-         *
-         *     Raises:
-         *         InvalidInputError: 400 if the configuration is not usable.
-         *         ConflictError: 409 if a field is set by an environment variable.
-         *         PreconditionFailedError: 412 if the settings changed since the client read them.
          */
-        put: operations["edit_mail_settings_api_v1_server_settings_email_settings_put"];
+        put: operations["edit_mail_settings"];
         post?: never;
         delete?: never;
         options?: never;
@@ -4545,18 +3291,8 @@ export interface paths {
          *
          *     Requires admin authentication with server_settings:write scope. The recipient
          *     is always the caller's own email address.
-         *
-         *     Args:
-         *         request: The HTTP request object.
-         *         token_user_id: The requesting admin's user ID, from the access token.
-         *         mail: The platform mail provider.
-         *         db: Database session.
-         *
-         *     Raises:
-         *         ServiceUnavailableError: 503 if email is not configured.
-         *         UpstreamError: 502 if the mail server did not accept the message.
          */
-        post: operations["send_test_email_api_v1_server_settings_email_test_post"];
+        post: operations["send_test_email"];
         delete?: never;
         options?: never;
         head?: never;
@@ -4577,29 +3313,15 @@ export interface paths {
          * @description Upload custom login page photo.
          *
          *     Requires admin authentication with server_settings:write scope.
-         *
-         *     Args:
-         *         request: The HTTP request object.
-         *         file: Image file to upload.
-         *         storage: The platform storage provider.
-         *         db: Database session.
-         *
-         *     Returns:
-         *         The stored photo's version.
          */
-        post: operations["upload_login_photo_api_v1_server_settings_login_photo_post"];
+        post: operations["upload_login_photo"];
         /**
          * Delete Login Photo
          * @description Delete custom login page photo.
          *
          *     Requires admin authentication with server_settings:write scope.
-         *
-         *     Args:
-         *         request: The HTTP request object.
-         *         storage: The platform storage provider.
-         *         db: Database session.
          */
-        delete: operations["delete_login_photo_api_v1_server_settings_login_photo_delete"];
+        delete: operations["delete_login_photo"];
         options?: never;
         head?: never;
         patch?: never;
@@ -4619,20 +3341,8 @@ export interface paths {
          *     Requires admin authentication with server_settings:logs scope. Without ``after``
          *     the newest matching records are returned; pass the returned ``cursor`` as
          *     ``after`` to receive only what was written since.
-         *
-         *     Args:
-         *         limit: Most records to return.
-         *         level: Lowest severity to include.
-         *         search: Case-insensitive text a record must contain.
-         *         after: Cursor from an earlier page.
-         *
-         *     Returns:
-         *         The matching records, oldest first, and the cursor for the next call.
-         *
-         *     Raises:
-         *         NotFoundError: 404 if the log viewer is not available on this deployment.
          */
-        get: operations["read_logs_api_v1_server_settings_logs_get"];
+        get: operations["read_logs"];
         put?: never;
         post?: never;
         /**
@@ -4641,15 +3351,8 @@ export interface paths {
          *
          *     Requires admin authentication with server_settings:logs_clear scope. The action is
          *     recorded as the first line of the new log.
-         *
-         *     Args:
-         *         request: The HTTP request object.
-         *         token_user_id: The requesting admin's user ID, from the access token.
-         *
-         *     Raises:
-         *         NotFoundError: 404 if the log viewer is not available on this deployment.
          */
-        delete: operations["clear_logs_api_v1_server_settings_logs_delete"];
+        delete: operations["clear_logs"];
         options?: never;
         head?: never;
         patch?: never;
@@ -4668,14 +3371,8 @@ export interface paths {
          *
          *     Requires admin authentication with server_settings:logs scope. Rotated backups
          *     are not included.
-         *
-         *     Returns:
-         *         The log file as plain text.
-         *
-         *     Raises:
-         *         NotFoundError: 404 if the log viewer is not available or no log has been written.
          */
-        get: operations["download_logs_api_v1_server_settings_logs_download_get"];
+        get: operations["download_logs"];
         put?: never;
         post?: never;
         delete?: never;
@@ -4696,11 +3393,8 @@ export interface paths {
          * @description Get whether the log viewer is available.
          *
          *     Requires admin authentication with server_settings:logs scope.
-         *
-         *     Returns:
-         *         Whether the log can be read through the API on this deployment.
          */
-        get: operations["read_logs_status_api_v1_server_settings_logs_status_get"];
+        get: operations["read_logs_status"];
         put?: never;
         post?: never;
         delete?: never;
@@ -4722,7 +3416,7 @@ export interface paths {
          * Verify Email
          * @description Verify an account's email address using its one-time token; a sign-up also chooses its password.
          */
-        post: operations["verify_email_api_v1_sign_up_confirm_post"];
+        post: operations["verify_email"];
         delete?: never;
         options?: never;
         head?: never;
@@ -4742,7 +3436,7 @@ export interface paths {
          * Signup
          * @description Create an account using the configured sign-up policy.
          */
-        post: operations["signup_api_v1_sign_up_request_post"];
+        post: operations["signup"];
         delete?: never;
         options?: never;
         head?: never;
@@ -4762,7 +3456,7 @@ export interface paths {
          * Resend Verification Email
          * @description Send a sign-up's verification email again; the answer is the same whether or not the address is registered.
          */
-        post: operations["resend_verification_email_api_v1_sign_up_resend_post"];
+        post: operations["resend_verification_email"];
         delete?: never;
         options?: never;
         head?: never;
@@ -4786,7 +3480,7 @@ export interface paths {
          *     for the outcome. The range is fetched by a background job, never on this
          *     request or an API worker thread.
          */
-        post: operations["strava_retrieve_activities_days_api_v1_strava_activities_post"];
+        post: operations["strava_retrieve_activities_days"];
         delete?: never;
         options?: never;
         head?: never;
@@ -4804,19 +3498,8 @@ export interface paths {
         /**
          * Strava Set User Client
          * @description Store the user's Strava API client id and secret.
-         *
-         *     Args:
-         *         request: The incoming request, read by the rate limiter.
-         *         client: The Strava application's client id and secret.
-         *         token_user_id: User ID from the access token.
-         *         db: Database session dependency.
-         *         response: The response, which carries the new ETag.
-         *         if_match: The ``If-Match`` precondition, the ``integrations_version`` the client read.
-         *
-         *     Returns:
-         *         A confirmation message.
          */
-        put: operations["strava_set_user_client_api_v1_strava_client_put"];
+        put: operations["strava_set_user_client"];
         post?: never;
         delete?: never;
         options?: never;
@@ -4840,7 +3523,7 @@ export interface paths {
          *     Poll ``GET /strava/sync/gear`` for the outcome. A second request while one is
          *     pending is answered 409.
          */
-        post: operations["strava_retrieve_gear_api_v1_strava_gear_post"];
+        post: operations["strava_retrieve_gear"];
         delete?: never;
         options?: never;
         head?: never;
@@ -4860,7 +3543,7 @@ export interface paths {
          * Import Bikes From Strava Export
          * @description Create the bikes listed in an uploaded Strava ``bikes.csv`` and report how many.
          */
-        post: operations["import_bikes_from_strava_export_api_v1_strava_import_bikes_post"];
+        post: operations["import_bikes_from_strava_export"];
         delete?: never;
         options?: never;
         head?: never;
@@ -4880,7 +3563,7 @@ export interface paths {
          * Import Shoes From Strava Export
          * @description Create the shoes listed in an uploaded Strava ``shoes.csv`` and report how many.
          */
-        post: operations["import_shoes_from_strava_export_api_v1_strava_import_shoes_post"];
+        post: operations["import_shoes_from_strava_export"];
         delete?: never;
         options?: never;
         head?: never;
@@ -4906,7 +3589,7 @@ export interface paths {
          *     the code is exchanged. Poll ``GET /strava/sync/link`` for the outcome. A second request while one is
          *     pending is answered 409.
          */
-        post: operations["strava_link_api_v1_strava_link_post"];
+        post: operations["strava_link"];
         /**
          * Strava Unlink
          * @description Queue the disconnection of the user's Strava account; a background job runs it.
@@ -4914,7 +3597,7 @@ export interface paths {
          *     The job revokes the authorization with Strava and deletes the activities and gear
          *     imported from it. Poll ``GET /strava/sync/unlink`` for the outcome.
          */
-        delete: operations["strava_unlink_api_v1_strava_link_delete"];
+        delete: operations["strava_unlink"];
         options?: never;
         head?: never;
         patch?: never;
@@ -4935,12 +3618,12 @@ export interface paths {
          *
          *     Replaces any state the user issued earlier.
          */
-        post: operations["strava_begin_state_api_v1_strava_state_post"];
+        post: operations["strava_begin_state"];
         /**
          * Strava Clear User State
          * @description Forget the user's pending OAuth state.
          */
-        delete: operations["strava_clear_user_state_api_v1_strava_state_delete"];
+        delete: operations["strava_clear_user_state"];
         options?: never;
         head?: never;
         patch?: never;
@@ -4959,7 +3642,7 @@ export interface paths {
          *
          *     ``Retry-After`` says when to poll again while the sync is not finished.
          */
-        get: operations["strava_sync_status_api_v1_strava_sync__kind__get"];
+        get: operations["strava_sync_status"];
         put?: never;
         post?: never;
         delete?: never;
@@ -4978,36 +3661,14 @@ export interface paths {
         /**
          * Read Users All Pagination
          * @description Retrieve paginated list of all users.
-         *
-         *     Args:
-         *         db: Database session dependency.
-         *         page: The requested page and page size.
-         *         show_inactive: Optional filter by inactive status.
-         *         show_email_unverified: Optional filter by email verification status.
-         *         show_pending_approval: Optional filter by pending approval status.
-         *         show_external_auth: Optional filter by external authentication status.
-         *         show_local_auth: Optional filter by local authentication status.
-         *         username: Optional text the username must contain.
-         *
-         *     Returns:
-         *         Paginated list of users with total count.
          */
-        get: operations["read_users_all_pagination_api_v1_users_get"];
+        get: operations["read_users_all_pagination"];
         put?: never;
         /**
          * Create User
          * @description Create a new user (admin operation).
-         *
-         *     Args:
-         *         request: The incoming request, read by the rate limiter.
-         *         user: User creation data.
-         *         db: Database session dependency.
-         *         response: The response, whose ``Location`` names where the user is read.
-         *
-         *     Returns:
-         *         Created user data.
          */
-        post: operations["create_user_api_v1_users_post"];
+        post: operations["create_user"];
         delete?: never;
         options?: never;
         head?: never;
@@ -5029,20 +3690,8 @@ export interface paths {
          *
          *     The address travels in the request body, so it never reaches access logs or proxy caches
          *     through the URL.
-         *
-         *     Args:
-         *         request: The incoming request, read by the rate limiter.
-         *         lookup: The email address to search for.
-         *         db: Database session dependency.
-         *         response: The response, which carries the user's ETag.
-         *
-         *     Returns:
-         *         The user.
-         *
-         *     Raises:
-         *         NotFoundError: If there is no such user.
          */
-        post: operations["lookup_user_by_email_api_v1_users_email_lookup_post"];
+        post: operations["lookup_user_by_email"];
         delete?: never;
         options?: never;
         head?: never;
@@ -5059,18 +3708,8 @@ export interface paths {
         /**
          * Read Users Id
          * @description Get a user's public projection by ID.
-         *
-         *     Args:
-         *         user_id: User ID to retrieve.
-         *         db: Database session dependency.
-         *
-         *     Returns:
-         *         The public projection.
-         *
-         *     Raises:
-         *         NotFoundError: If the user does not exist.
          */
-        get: operations["read_users_id_api_v1_users_id__user_id__get"];
+        get: operations["read_users_id"];
         put?: never;
         post?: never;
         delete?: never;
@@ -5090,7 +3729,7 @@ export interface paths {
          * Read User Profile Overview
          * @description Return the public profile and summary values the profile page displays.
          */
-        get: operations["read_user_profile_overview_api_v1_users_id__user_id__overview_get"];
+        get: operations["read_user_profile_overview"];
         put?: never;
         post?: never;
         delete?: never;
@@ -5113,16 +3752,8 @@ export interface paths {
          *     The term needs at least 3 characters. `num_records` defaults to the server's page size and may not exceed
          *     it; a larger value is refused with 422. Users who switched off "Let others find me in search" are not listed;
          *     their profile stays reachable by id.
-         *
-         *     Args:
-         *         username: Partial username to search for.
-         *         page: The requested window of matches.
-         *         db: Database session dependency.
-         *
-         *     Returns:
-         *         The page of matching users' public projections.
          */
-        get: operations["read_users_contain_username_api_v1_users_username_contains__username__get"];
+        get: operations["read_users_contain_username"];
         put?: never;
         post?: never;
         delete?: never;
@@ -5141,19 +3772,8 @@ export interface paths {
         /**
          * Read Users Username
          * @description Get user by exact username.
-         *
-         *     Args:
-         *         username: Exact username to search for.
-         *         db: Database session dependency.
-         *         response: The response, which carries the user's ETag.
-         *
-         *     Returns:
-         *         The user.
-         *
-         *     Raises:
-         *         NotFoundError: If there is no such user.
          */
-        get: operations["read_users_username_api_v1_users_username__username__get"];
+        get: operations["read_users_username"];
         put?: never;
         post?: never;
         delete?: never;
@@ -5172,38 +3792,15 @@ export interface paths {
         /**
          * Read Users Full
          * @description Get a user's full record by ID (admin operation).
-         *
-         *     Args:
-         *         user_id: User ID to retrieve.
-         *         db: Database session dependency.
-         *         response: The response, which carries the user's ETag.
-         *
-         *     Returns:
-         *         The full record.
-         *
-         *     Raises:
-         *         NotFoundError: If the user does not exist.
          */
-        get: operations["read_users_full_api_v1_users__user_id__get"];
+        get: operations["read_users_full"];
         /**
          * Edit User
          * @description Update user information.
          *
          *     A change of email, access type or active flag signs the edited user out everywhere.
-         *
-         *     Args:
-         *         request: The incoming request, read by the rate limiter.
-         *         user_id: ID of user to update.
-         *         user_attributtes: User data to update.
-         *         token_user_id: ID of the administrator making the edit.
-         *         db: Database session dependency.
-         *         response: The response, which carries the new ETag.
-         *         if_match: The ``If-Match`` precondition.
-         *
-         *     Returns:
-         *         Updated user data.
          */
-        put: operations["edit_user_api_v1_users__user_id__put"];
+        put: operations["edit_user"];
         post?: never;
         /**
          * Delete User
@@ -5211,27 +3808,8 @@ export interface paths {
          *
          *     The user is signed out and deactivated at once and a background job erases their data. Poll
          *     ``GET /users/{user_id}/deletion`` for the outcome; a failed deletion is requested again.
-         *
-         *     Args:
-         *         request: The incoming request, read by the rate limiter.
-         *         response: The response, which names the status route and when to poll it.
-         *         user_id: ID of user to delete.
-         *         token_user_id: ID of the administrator making the request.
-         *         states: Shared store of the deletion's state.
-         *         storage: The platform storage provider.
-         *         if_match: The ``If-Match`` precondition.
-         *         db: Database session dependency.
-         *
-         *     Returns:
-         *         The deletion's initial status.
-         *
-         *     Raises:
-         *         PermissionDeniedError: If the administrator targets their own account.
-         *         NotFoundError: If the user does not exist.
-         *         PreconditionFailedError: If the user changed since the client read it.
-         *         ConflictError: If the user is the only administrator, or a deletion is already pending.
          */
-        delete: operations["delete_user_api_v1_users__user_id__delete"];
+        delete: operations["delete_user"];
         options?: never;
         head?: never;
         patch?: never;
@@ -5250,7 +3828,7 @@ export interface paths {
          *
          *     Answered 404 when that user does not exist, is inactive or awaits approval.
          */
-        get: operations["list_user_activities_api_v1_users__user_id__activities_get"];
+        get: operations["list_user_activities"];
         put?: never;
         post?: never;
         delete?: never;
@@ -5272,7 +3850,7 @@ export interface paths {
          *
          *     Another user's stats are answered 404 when that user does not exist, is inactive or awaits approval.
          */
-        get: operations["read_user_activity_stats_api_v1_users__user_id__activities_stats_get"];
+        get: operations["read_user_activity_stats"];
         put?: never;
         post?: never;
         delete?: never;
@@ -5295,13 +3873,8 @@ export interface paths {
          * @description Approve pending user account.
          *
          *     A user who is not awaiting approval, is deactivated or is queued for deletion is refused with 409.
-         *
-         *     Args:
-         *         request: The incoming request, read by the rate limiter.
-         *         user_id: ID of user to approve.
-         *         db: Database session dependency.
          */
-        post: operations["approve_user_api_v1_users__user_id__approve_post"];
+        post: operations["approve_user"];
         delete?: never;
         options?: never;
         head?: never;
@@ -5320,19 +3893,8 @@ export interface paths {
          * @description Report where a user's account deletion is.
          *
          *     ``Retry-After`` says when to poll again while the deletion is not finished.
-         *
-         *     Args:
-         *         user_id: ID of the user being deleted.
-         *         states: Shared store of the deletion's state.
-         *         response: The response, which carries ``Retry-After`` while the deletion runs.
-         *
-         *     Returns:
-         *         The deletion's status.
-         *
-         *     Raises:
-         *         NotFoundError: If no deletion is recorded or it has expired.
          */
-        get: operations["read_user_deletion_status_api_v1_users__user_id__deletion_get"];
+        get: operations["read_user_deletion_status"];
         put?: never;
         post?: never;
         delete?: never;
@@ -5356,7 +3918,7 @@ export interface paths {
          *     carries each follower's public profile in ``users`` (the projection ``GET /users/id/{user_id}``
          *     returns), so a token with ``followers:read`` alone receives it too.
          */
-        get: operations["list_user_followers_api_v1_users__user_id__followers_get"];
+        get: operations["list_user_followers"];
         put?: never;
         /**
          * Follow User
@@ -5365,7 +3927,7 @@ export interface paths {
          *     Always created pending: a follow takes effect only once the target accepts
          *     it, so the returned ``status`` is ``pending`` and the target is notified.
          */
-        post: operations["follow_user_api_v1_users__user_id__followers_post"];
+        post: operations["follow_user"];
         delete?: never;
         options?: never;
         head?: never;
@@ -5390,7 +3952,7 @@ export interface paths {
          *     a follower is ``user_id`` = the caller. Either party may delete it, and the
          *     caller must be one of them.
          */
-        delete: operations["delete_follow_relationship_api_v1_users__user_id__followers__follower_id__delete"];
+        delete: operations["delete_follow_relationship"];
         options?: never;
         head?: never;
         patch?: never;
@@ -5411,7 +3973,7 @@ export interface paths {
          *     carries each followee's public profile in ``users`` (the projection ``GET /users/id/{user_id}``
          *     returns), so a token with ``followers:read`` alone receives it too.
          */
-        get: operations["list_user_following_api_v1_users__user_id__following_get"];
+        get: operations["list_user_following"];
         put?: never;
         post?: never;
         delete?: never;
@@ -5430,16 +3992,8 @@ export interface paths {
         /**
          * Get User Identity Providers
          * @description List one page of a specific user's identity provider links (admin).
-         *
-         *     Args:
-         *         user_id: ID of the user whose identity provider links to retrieve.
-         *         page: The requested window.
-         *         db: Database session.
-         *
-         *     Returns:
-         *         The page of the user's enriched identity provider links, oldest first.
          */
-        get: operations["get_user_identity_providers_api_v1_users__user_id__identity_providers_get"];
+        get: operations["get_user_identity_providers"];
         put?: never;
         post?: never;
         delete?: never;
@@ -5461,18 +4015,8 @@ export interface paths {
         /**
          * Delete User Identity Provider
          * @description Unlink an identity provider from another user (admin).
-         *
-         *     Args:
-         *         request: The incoming request, read by the rate limiter.
-         *         user_id: ID of the user to unlink the identity provider from.
-         *         idp_id: ID of the identity provider to unlink.
-         *         token_user_id: ID of the administrator making the change.
-         *         db: Database session.
-         *
-         *     Returns:
-         *         None
          */
-        delete: operations["delete_user_identity_provider_api_v1_users__user_id__identity_providers__idp_id__delete"];
+        delete: operations["delete_user_identity_provider"];
         options?: never;
         head?: never;
         patch?: never;
@@ -5490,18 +4034,8 @@ export interface paths {
         /**
          * Edit User Password
          * @description Update another user's password.
-         *
-         *     Args:
-         *         request: The incoming request, read by the rate limiter.
-         *         user_id: ID of user to update password for.
-         *         user_attributes: New password data.
-         *         token_user_id: ID of the administrator making the change.
-         *         db: Database session dependency.
-         *
-         *     Raises:
-         *         HTTPException: 422 if the password is too short, too common or matches the account's details.
          */
-        post: operations["edit_user_password_api_v1_users__user_id__password_change_post"];
+        post: operations["edit_user_password"];
         delete?: never;
         options?: never;
         head?: never;
@@ -5518,48 +4052,19 @@ export interface paths {
         /**
          * Read User Photo
          * @description Serve a user's profile photo when the signed token is valid.
-         *
-         *     Args:
-         *         request: The incoming request, read by the rate limiter.
-         *         user_id: The user whose photo to serve.
-         *         storage: The platform storage provider.
-         *         db: Database session dependency.
-         *         token: The signed access token (``?t=``) minted at serialization time.
-         *
-         *     Returns:
-         *         The image bytes.
          */
-        get: operations["read_user_photo_api_v1_users__user_id__photo_get"];
+        get: operations["read_user_photo"];
         put?: never;
         /**
          * Upload User Image
          * @description Upload user profile image.
-         *
-         *     Args:
-         *         request: The incoming request, read by the rate limiter.
-         *         user_id: ID of user to upload image for.
-         *         file: Uploaded image file.
-         *         storage: The platform storage provider.
-         *         db: Database session dependency.
-         *
-         *     Returns:
-         *         The servable URL of the new photo.
          */
-        post: operations["upload_user_image_api_v1_users__user_id__photo_post"];
+        post: operations["upload_user_image"];
         /**
          * Delete User Photo
          * @description Delete user profile photo.
-         *
-         *     Args:
-         *         request: The incoming request, read by the rate limiter.
-         *         user_id: ID of user whose photo to delete.
-         *         storage: The platform storage provider.
-         *         db: Database session dependency.
-         *
-         *     Returns:
-         *         None
          */
-        delete: operations["delete_user_photo_api_v1_users__user_id__photo_delete"];
+        delete: operations["delete_user_photo"];
         options?: never;
         head?: never;
         patch?: never;
@@ -5580,7 +4085,7 @@ export interface paths {
          *     incoming follow of the requester; only relationships the requester is part of
          *     are ever exposed.
          */
-        get: operations["read_user_relationship_api_v1_users__user_id__relationship_get"];
+        get: operations["read_user_relationship"];
         put?: never;
         post?: never;
         delete?: never;
@@ -5599,17 +4104,8 @@ export interface paths {
         /**
          * Read Sessions User
          * @description Retrieve one page of the sessions associated with a specific user.
-         *
-         *     Args:
-         *         user_id: The ID of the user whose sessions to retrieve.
-         *         page: The requested window.
-         *         db: Database session dependency.
-         *         request: Incoming request.
-         *
-         *     Returns:
-         *         The page of session objects for the specified user.
          */
-        get: operations["read_sessions_user_api_v1_users__user_id__sessions_get"];
+        get: operations["read_sessions_user"];
         put?: never;
         post?: never;
         /**
@@ -5620,17 +4116,8 @@ export interface paths {
          *     ``exclude_session_id`` to sign out every other device while staying
          *     logged in, or omit it (an admin acting on another user) to revoke
          *     all of that user's sessions.
-         *
-         *     Args:
-         *         user_id: The ID of the user whose sessions to revoke.
-         *         db: Database session dependency.
-         *         exclude_session_id: Optional session to leave intact.
-         *         request: Incoming request.
-         *
-         *     Returns:
-         *         None.
          */
-        delete: operations["delete_sessions_user_api_v1_users__user_id__sessions_delete"];
+        delete: operations["delete_sessions_user"];
         options?: never;
         head?: never;
         patch?: never;
@@ -5649,20 +4136,8 @@ export interface paths {
         /**
          * Delete Session User
          * @description Delete a user session.
-         *
-         *     Args:
-         *         session_id: The ID of the session to delete.
-         *         user_id: The ID of the user who owns the session.
-         *         db: Database session dependency.
-         *         request: Incoming request.
-         *
-         *     Returns:
-         *         None.
-         *
-         *     Raises:
-         *         HTTPException: If session not found or unauthorized.
          */
-        delete: operations["delete_session_user_api_v1_users__user_id__sessions__session_id__delete"];
+        delete: operations["delete_session_user"];
         options?: never;
         head?: never;
         patch?: never;
@@ -5685,18 +4160,8 @@ export interface paths {
          *     bound to the authenticated user and session. Use the ticket as the
          *     ?ticket= query parameter when connecting to the WebSocket
          *     endpoint, so the real access token never appears in a URL.
-         *
-         *     Args:
-         *         request: The request, which the rate limiter keys on.
-         *         response: The response, marked as not cacheable because it carries the credential.
-         *         user_id: Authenticated user ID from auth dependency.
-         *         session_id: Session of the access token, which the socket ends with.
-         *         ticket_store: WsTicketStore for issuing tickets.
-         *
-         *     Returns:
-         *         The ticket.
          */
-        post: operations["issue_ws_ticket_api_v1_ws_ticket_post"];
+        post: operations["issue_ws_ticket"];
         delete?: never;
         options?: never;
         head?: never;
@@ -6427,38 +4892,38 @@ export interface components {
             /** Weight Display Unit */
             weight_display_unit?: string | null;
         };
-        /** Body_create_activity_media_api_v1_activities__activity_id__media_post */
-        Body_create_activity_media_api_v1_activities__activity_id__media_post: {
+        /** Body_create_activity_media */
+        Body_create_activity_media: {
             /** File */
             file: string;
         };
-        /** Body_create_activity_with_uploaded_file_api_v1_activities_upload_post */
-        Body_create_activity_with_uploaded_file_api_v1_activities_upload_post: {
+        /** Body_create_activity_with_uploaded_file */
+        Body_create_activity_with_uploaded_file: {
             /** File */
             file: string;
         };
-        /** Body_create_bulk_import_from_archive_api_v1_activities_bulk_import_post */
-        Body_create_bulk_import_from_archive_api_v1_activities_bulk_import_post: {
+        /** Body_create_bulk_import_from_archive */
+        Body_create_bulk_import_from_archive: {
             /** File */
             file: string;
         };
-        /** Body_import_bikes_from_strava_export_api_v1_strava_import_bikes_post */
-        Body_import_bikes_from_strava_export_api_v1_strava_import_bikes_post: {
+        /** Body_import_bikes_from_strava_export */
+        Body_import_bikes_from_strava_export: {
             /** File */
             file: string;
         };
-        /** Body_import_profile_data_api_v1_profile_import_post */
-        Body_import_profile_data_api_v1_profile_import_post: {
+        /** Body_import_profile_data */
+        Body_import_profile_data: {
             /** File */
             file: string;
         };
-        /** Body_import_shoes_from_strava_export_api_v1_strava_import_shoes_post */
-        Body_import_shoes_from_strava_export_api_v1_strava_import_shoes_post: {
+        /** Body_import_shoes_from_strava_export */
+        Body_import_shoes_from_strava_export: {
             /** File */
             file: string;
         };
-        /** Body_login_for_access_token_api_v1_auth_login_post */
-        Body_login_for_access_token_api_v1_auth_login_post: {
+        /** Body_login_for_access_token */
+        Body_login_for_access_token: {
             /** Client Id */
             client_id?: string | null;
             /**
@@ -6481,23 +4946,23 @@ export interface components {
             /** Username */
             username: string;
         };
-        /** Body_upload_identity_provider_icon_api_v1_identity_providers__idp_id__icon_post */
-        Body_upload_identity_provider_icon_api_v1_identity_providers__idp_id__icon_post: {
+        /** Body_upload_identity_provider_icon */
+        Body_upload_identity_provider_icon: {
             /** File */
             file: string;
         };
-        /** Body_upload_login_photo_api_v1_server_settings_login_photo_post */
-        Body_upload_login_photo_api_v1_server_settings_login_photo_post: {
+        /** Body_upload_login_photo */
+        Body_upload_login_photo: {
             /** File */
             file: string;
         };
-        /** Body_upload_profile_image_api_v1_profile_photo_post */
-        Body_upload_profile_image_api_v1_profile_photo_post: {
+        /** Body_upload_profile_image */
+        Body_upload_profile_image: {
             /** File */
             file: string;
         };
-        /** Body_upload_user_image_api_v1_users__user_id__photo_post */
-        Body_upload_user_image_api_v1_users__user_id__photo_post: {
+        /** Body_upload_user_image */
+        Body_upload_user_image: {
             /** File */
             file: string;
         };
@@ -14176,7 +12641,7 @@ export interface components {
 }
 export type $defs = Record<string, never>;
 export interface operations {
-    about_api_v1_about_get: {
+    about: {
         parameters: {
             query?: never;
             header?: never;
@@ -14227,7 +12692,7 @@ export interface operations {
             };
         };
     };
-    list_own_activities_api_v1_activities_get: {
+    list_own_activities: {
         parameters: {
             query?: {
                 type?: components["schemas"]["ActivityType"] | null;
@@ -14316,7 +12781,7 @@ export interface operations {
             };
         };
     };
-    edit_activities_api_v1_activities_patch: {
+    edit_activities: {
         parameters: {
             query?: never;
             header?: never;
@@ -14422,7 +12887,7 @@ export interface operations {
             };
         };
     };
-    read_bulk_edit_status_api_v1_activities_bulk_edit_get: {
+    read_bulk_edit_status: {
         parameters: {
             query?: never;
             header?: never;
@@ -14495,7 +12960,7 @@ export interface operations {
             };
         };
     };
-    create_bulk_import_from_archive_api_v1_activities_bulk_import_post: {
+    create_bulk_import_from_archive: {
         parameters: {
             query?: {
                 /** @description The archive layout: `generic` for plain activity files, or a provider export such as `strava`. */
@@ -14510,7 +12975,7 @@ export interface operations {
         };
         requestBody: {
             content: {
-                "multipart/form-data": components["schemas"]["Body_create_bulk_import_from_archive_api_v1_activities_bulk_import_post"];
+                "multipart/form-data": components["schemas"]["Body_create_bulk_import_from_archive"];
             };
         };
         responses: {
@@ -14616,7 +13081,7 @@ export interface operations {
             };
         };
     };
-    create_bulk_import_from_folder_api_v1_activities_bulk_import_folder_post: {
+    create_bulk_import_from_folder: {
         parameters: {
             query?: {
                 /** @description The folder layout: `generic` for plain activity files, or a provider export such as `strava`. */
@@ -14712,7 +13177,7 @@ export interface operations {
             };
         };
     };
-    list_activity_exercise_titles_api_v1_activities_exercise_titles_get: {
+    list_activity_exercise_titles: {
         parameters: {
             query?: {
                 page_number?: number | null;
@@ -14795,7 +13260,7 @@ export interface operations {
             };
         };
     };
-    list_following_feed_api_v1_activities_feed_get: {
+    list_following_feed: {
         parameters: {
             query?: {
                 cursor?: string | null;
@@ -14878,7 +13343,7 @@ export interface operations {
             };
         };
     };
-    read_activity_ingestion_job_api_v1_activities_ingestion_jobs__job_id__get: {
+    read_activity_ingestion_job: {
         parameters: {
             query?: never;
             header?: never;
@@ -14971,7 +13436,7 @@ export interface operations {
             };
         };
     };
-    refresh_activities_api_v1_activities_refresh_post: {
+    refresh_activities: {
         parameters: {
             query?: never;
             header?: never;
@@ -15055,7 +13520,7 @@ export interface operations {
             };
         };
     };
-    read_activity_summary_api_v1_activities_summaries_get: {
+    read_activity_summary: {
         parameters: {
             query?: {
                 period?: components["schemas"]["SummaryPeriod"];
@@ -15142,7 +13607,7 @@ export interface operations {
             };
         };
     };
-    list_activity_types_api_v1_activities_types_get: {
+    list_activity_types: {
         parameters: {
             query?: never;
             header?: never;
@@ -15215,7 +13680,7 @@ export interface operations {
             };
         };
     };
-    create_activity_with_uploaded_file_api_v1_activities_upload_post: {
+    create_activity_with_uploaded_file: {
         parameters: {
             query?: never;
             header?: {
@@ -15227,7 +13692,7 @@ export interface operations {
         };
         requestBody: {
             content: {
-                "multipart/form-data": components["schemas"]["Body_create_activity_with_uploaded_file_api_v1_activities_upload_post"];
+                "multipart/form-data": components["schemas"]["Body_create_activity_with_uploaded_file"];
             };
         };
         responses: {
@@ -15333,7 +13798,7 @@ export interface operations {
             };
         };
     };
-    read_activity_api_v1_activities__activity_id__get: {
+    read_activity: {
         parameters: {
             query?: never;
             header?: never;
@@ -15426,7 +13891,7 @@ export interface operations {
             };
         };
     };
-    delete_activity_api_v1_activities__activity_id__delete: {
+    delete_activity: {
         parameters: {
             query?: never;
             header: {
@@ -15553,7 +14018,7 @@ export interface operations {
             };
         };
     };
-    edit_activity_api_v1_activities__activity_id__patch: {
+    edit_activity: {
         parameters: {
             query?: never;
             header: {
@@ -15697,7 +14162,7 @@ export interface operations {
             };
         };
     };
-    read_activity_detail_api_v1_activities__activity_id__detail_get: {
+    read_activity_detail: {
         parameters: {
             query?: never;
             header?: never;
@@ -15790,7 +14255,7 @@ export interface operations {
             };
         };
     };
-    list_activity_laps_api_v1_activities__activity_id__laps_get: {
+    list_activity_laps: {
         parameters: {
             query?: {
                 page_number?: number | null;
@@ -15884,7 +14349,7 @@ export interface operations {
             };
         };
     };
-    list_activity_media_api_v1_activities__activity_id__media_get: {
+    list_activity_media: {
         parameters: {
             query?: {
                 page_number?: number | null;
@@ -15978,7 +14443,7 @@ export interface operations {
             };
         };
     };
-    create_activity_media_api_v1_activities__activity_id__media_post: {
+    create_activity_media: {
         parameters: {
             query?: never;
             header?: never;
@@ -15989,7 +14454,7 @@ export interface operations {
         };
         requestBody: {
             content: {
-                "multipart/form-data": components["schemas"]["Body_create_activity_media_api_v1_activities__activity_id__media_post"];
+                "multipart/form-data": components["schemas"]["Body_create_activity_media"];
             };
         };
         responses: {
@@ -16100,7 +14565,7 @@ export interface operations {
             };
         };
     };
-    delete_activity_media_api_v1_activities__activity_id__media__media_id__delete: {
+    delete_activity_media: {
         parameters: {
             query?: never;
             header?: never;
@@ -16199,7 +14664,7 @@ export interface operations {
             };
         };
     };
-    read_activity_media_file_api_v1_activities__activity_id__media__media_id__file_get: {
+    read_activity_media_file: {
         parameters: {
             query: {
                 /** @description Signed media access token */
@@ -16274,7 +14739,7 @@ export interface operations {
             };
         };
     };
-    list_activity_sets_api_v1_activities__activity_id__sets_get: {
+    list_activity_sets: {
         parameters: {
             query?: {
                 page_number?: number | null;
@@ -16368,7 +14833,7 @@ export interface operations {
             };
         };
     };
-    list_activity_streams_api_v1_activities__activity_id__streams_get: {
+    list_activity_streams: {
         parameters: {
             query?: {
                 page_number?: number | null;
@@ -16462,7 +14927,7 @@ export interface operations {
             };
         };
     };
-    read_activity_stream_api_v1_activities__activity_id__streams__stream_type__get: {
+    read_activity_stream: {
         parameters: {
             query?: never;
             header?: never;
@@ -16554,7 +15019,7 @@ export interface operations {
             };
         };
     };
-    read_activity_thumbnail_api_v1_activities__activity_id__thumbnail_get: {
+    read_activity_thumbnail: {
         parameters: {
             query: {
                 /** @description Signed thumbnail access token */
@@ -16628,7 +15093,7 @@ export interface operations {
             };
         };
     };
-    list_activity_workout_steps_api_v1_activities__activity_id__workout_steps_get: {
+    list_activity_workout_steps: {
         parameters: {
             query?: {
                 page_number?: number | null;
@@ -16722,7 +15187,7 @@ export interface operations {
             };
         };
     };
-    login_for_access_token_api_v1_auth_login_post: {
+    login_for_access_token: {
         parameters: {
             query?: {
                 code_challenge?: string | null;
@@ -16737,7 +15202,7 @@ export interface operations {
         };
         requestBody: {
             content: {
-                "application/x-www-form-urlencoded": components["schemas"]["Body_login_for_access_token_api_v1_auth_login_post"];
+                "application/x-www-form-urlencoded": components["schemas"]["Body_login_for_access_token"];
             };
         };
         responses: {
@@ -16821,7 +15286,7 @@ export interface operations {
             };
         };
     };
-    logout_api_v1_auth_logout_post: {
+    logout: {
         parameters: {
             query?: never;
             header: {
@@ -16913,7 +15378,7 @@ export interface operations {
             };
         };
     };
-    verify_mfa_and_login_api_v1_auth_mfa_verify_post: {
+    verify_mfa_and_login: {
         parameters: {
             query?: {
                 code_challenge?: string | null;
@@ -17012,7 +15477,7 @@ export interface operations {
             };
         };
     };
-    refresh_token_api_v1_auth_refresh_post: {
+    refresh_token: {
         parameters: {
             query?: never;
             header: {
@@ -17106,7 +15571,7 @@ export interface operations {
             };
         };
     };
-    list_follow_requests_api_v1_followers_follow_requests_get: {
+    list_follow_requests: {
         parameters: {
             query?: {
                 page_number?: number | null;
@@ -17189,7 +15654,7 @@ export interface operations {
             };
         };
     };
-    reject_follow_request_api_v1_followers_follow_requests__follower_id__delete: {
+    reject_follow_request: {
         parameters: {
             query?: never;
             header?: never;
@@ -17287,7 +15752,7 @@ export interface operations {
             };
         };
     };
-    accept_follow_request_api_v1_followers_follow_requests__follower_id__patch: {
+    accept_follow_request: {
         parameters: {
             query?: never;
             header?: never;
@@ -17400,7 +15865,7 @@ export interface operations {
             };
         };
     };
-    garminconnect_retrieve_activities_days_api_v1_garmin_activities_post: {
+    garminconnect_retrieve_activities_days: {
         parameters: {
             query: {
                 start_date: string;
@@ -17496,7 +15961,7 @@ export interface operations {
             };
         };
     };
-    garminconnect_retrieve_gear_api_v1_garmin_gear_post: {
+    garminconnect_retrieve_gear: {
         parameters: {
             query?: never;
             header?: never;
@@ -17580,7 +16045,7 @@ export interface operations {
             };
         };
     };
-    garminconnect_retrieve_health_days_api_v1_garmin_health_post: {
+    garminconnect_retrieve_health_days: {
         parameters: {
             query: {
                 start_date: string;
@@ -17676,7 +16141,7 @@ export interface operations {
             };
         };
     };
-    garminconnect_link_api_v1_garmin_link_post: {
+    garminconnect_link: {
         parameters: {
             query?: never;
             header?: never;
@@ -17782,7 +16247,7 @@ export interface operations {
             };
         };
     };
-    garminconnect_unlink_api_v1_garmin_link_delete: {
+    garminconnect_unlink: {
         parameters: {
             query?: never;
             header?: never;
@@ -17860,7 +16325,7 @@ export interface operations {
             };
         };
     };
-    garminconnect_link_status_api_v1_garmin_link_status_get: {
+    garminconnect_link_status: {
         parameters: {
             query?: never;
             header?: never;
@@ -17933,7 +16398,7 @@ export interface operations {
             };
         };
     };
-    garminconnect_mfa_code_api_v1_garmin_mfa_post: {
+    garminconnect_mfa_code: {
         parameters: {
             query?: never;
             header?: never;
@@ -18033,7 +16498,7 @@ export interface operations {
             };
         };
     };
-    garminconnect_sync_status_api_v1_garmin_sync__kind__get: {
+    garminconnect_sync_status: {
         parameters: {
             query?: never;
             header?: never;
@@ -18126,7 +16591,7 @@ export interface operations {
             };
         };
     };
-    read_gear_components_api_v1_gear_components_get: {
+    read_gear_components: {
         parameters: {
             query?: {
                 page_number?: number | null;
@@ -18209,7 +16674,7 @@ export interface operations {
             };
         };
     };
-    create_gear_component_api_v1_gear_components_post: {
+    create_gear_component: {
         parameters: {
             query?: never;
             header?: never;
@@ -18315,7 +16780,7 @@ export interface operations {
             };
         };
     };
-    read_gear_component_types_api_v1_gear_components_types_get: {
+    read_gear_component_types: {
         parameters: {
             query?: never;
             header?: never;
@@ -18386,7 +16851,7 @@ export interface operations {
             };
         };
     };
-    read_gear_component_by_id_api_v1_gear_components__gear_component_id__get: {
+    read_gear_component_by_id: {
         parameters: {
             query?: never;
             header?: never;
@@ -18479,7 +16944,7 @@ export interface operations {
             };
         };
     };
-    delete_component_gear_api_v1_gear_components__gear_component_id__delete: {
+    delete_component_gear: {
         parameters: {
             query?: never;
             header: {
@@ -18606,7 +17071,7 @@ export interface operations {
             };
         };
     };
-    edit_gear_component_api_v1_gear_components__gear_component_id__patch: {
+    edit_gear_component: {
         parameters: {
             query?: never;
             header: {
@@ -18750,7 +17215,7 @@ export interface operations {
             };
         };
     };
-    list_gears_api_v1_gears_get: {
+    list_gears: {
         parameters: {
             query?: {
                 /** @description Filter by inactive status */
@@ -18839,7 +17304,7 @@ export interface operations {
             };
         };
     };
-    create_gear_api_v1_gears_post: {
+    create_gear: {
         parameters: {
             query?: never;
             header?: never;
@@ -18945,7 +17410,7 @@ export interface operations {
             };
         };
     };
-    read_gear_id_api_v1_gears__gear_id__get: {
+    read_gear_id: {
         parameters: {
             query?: never;
             header?: never;
@@ -19038,7 +17503,7 @@ export interface operations {
             };
         };
     };
-    delete_gear_api_v1_gears__gear_id__delete: {
+    delete_gear: {
         parameters: {
             query?: never;
             header: {
@@ -19165,7 +17630,7 @@ export interface operations {
             };
         };
     };
-    edit_gear_api_v1_gears__gear_id__patch: {
+    edit_gear: {
         parameters: {
             query?: never;
             header: {
@@ -19309,7 +17774,7 @@ export interface operations {
             };
         };
     };
-    list_gear_activities_api_v1_gears__gear_id__activities_get: {
+    list_gear_activities: {
         parameters: {
             query?: {
                 page_number?: number | null;
@@ -19403,7 +17868,7 @@ export interface operations {
             };
         };
     };
-    read_gear_components_gear_id_api_v1_gears__gear_id__components_get: {
+    read_gear_components_gear_id: {
         parameters: {
             query?: {
                 active?: boolean | null;
@@ -19498,7 +17963,7 @@ export interface operations {
             };
         };
     };
-    health_api_v1_health_get: {
+    health: {
         parameters: {
             query?: never;
             header?: never;
@@ -19549,7 +18014,7 @@ export interface operations {
             };
         };
     };
-    read_health_fasting_all_pagination_api_v1_health_fasting_get: {
+    read_health_fasting_all_pagination: {
         parameters: {
             query?: {
                 /** @description Look back from today over this interval; ignored when `start_date` or `end_date` is given */
@@ -19638,7 +18103,7 @@ export interface operations {
             };
         };
     };
-    create_health_fasting_api_v1_health_fasting_post: {
+    create_health_fasting: {
         parameters: {
             query?: never;
             header?: never;
@@ -19744,7 +18209,7 @@ export interface operations {
             };
         };
     };
-    read_active_fasting_api_v1_health_fasting_active_get: {
+    read_active_fasting: {
         parameters: {
             query?: never;
             header?: never;
@@ -19817,7 +18282,7 @@ export interface operations {
             };
         };
     };
-    read_fasting_stats_api_v1_health_fasting_stats_get: {
+    read_fasting_stats: {
         parameters: {
             query?: never;
             header?: never;
@@ -19888,7 +18353,7 @@ export interface operations {
             };
         };
     };
-    read_health_fasting_by_id_api_v1_health_fasting__health_fasting_id__get: {
+    read_health_fasting_by_id: {
         parameters: {
             query?: never;
             header?: never;
@@ -19981,7 +18446,7 @@ export interface operations {
             };
         };
     };
-    delete_health_fasting_api_v1_health_fasting__health_fasting_id__delete: {
+    delete_health_fasting: {
         parameters: {
             query?: never;
             header: {
@@ -20108,7 +18573,7 @@ export interface operations {
             };
         };
     };
-    edit_health_fasting_api_v1_health_fasting__health_fasting_id__patch: {
+    edit_health_fasting: {
         parameters: {
             query?: never;
             header: {
@@ -20252,7 +18717,7 @@ export interface operations {
             };
         };
     };
-    complete_health_fasting_api_v1_health_fasting__health_fasting_id__complete_post: {
+    complete_health_fasting: {
         parameters: {
             query?: never;
             header: {
@@ -20396,7 +18861,7 @@ export interface operations {
             };
         };
     };
-    read_health_poop_all_pagination_api_v1_health_poop_get: {
+    read_health_poop_all_pagination: {
         parameters: {
             query?: {
                 /** @description Look back from today over this interval; ignored when `start_date` or `end_date` is given */
@@ -20485,7 +18950,7 @@ export interface operations {
             };
         };
     };
-    create_health_poop_api_v1_health_poop_post: {
+    create_health_poop: {
         parameters: {
             query?: never;
             header?: never;
@@ -20591,7 +19056,7 @@ export interface operations {
             };
         };
     };
-    read_health_poop_chart_api_v1_health_poop_chart_get: {
+    read_health_poop_chart: {
         parameters: {
             query?: {
                 /** @description Interval to chart, looking back from today; ignored when `start_date` or `end_date` is given */
@@ -20678,7 +19143,7 @@ export interface operations {
             };
         };
     };
-    read_health_poop_by_id_api_v1_health_poop__health_poop_id__get: {
+    read_health_poop_by_id: {
         parameters: {
             query?: never;
             header?: never;
@@ -20771,7 +19236,7 @@ export interface operations {
             };
         };
     };
-    delete_health_poop_api_v1_health_poop__health_poop_id__delete: {
+    delete_health_poop: {
         parameters: {
             query?: never;
             header: {
@@ -20898,7 +19363,7 @@ export interface operations {
             };
         };
     };
-    edit_health_poop_api_v1_health_poop__health_poop_id__patch: {
+    edit_health_poop: {
         parameters: {
             query?: never;
             header: {
@@ -21042,7 +19507,7 @@ export interface operations {
             };
         };
     };
-    read_health_sleep_all_pagination_api_v1_health_sleep_get: {
+    read_health_sleep_all_pagination: {
         parameters: {
             query?: {
                 /** @description Look back from today over this interval; ignored when `start_date` or `end_date` is given */
@@ -21131,7 +19596,7 @@ export interface operations {
             };
         };
     };
-    create_health_sleep_api_v1_health_sleep_post: {
+    create_health_sleep: {
         parameters: {
             query?: never;
             header?: never;
@@ -21237,7 +19702,7 @@ export interface operations {
             };
         };
     };
-    read_health_sleep_chart_api_v1_health_sleep_chart_get: {
+    read_health_sleep_chart: {
         parameters: {
             query?: {
                 /** @description Interval to chart, looking back from today; ignored when `start_date` or `end_date` is given */
@@ -21324,7 +19789,7 @@ export interface operations {
             };
         };
     };
-    read_health_sleep_resting_heart_rate_chart_api_v1_health_sleep_chart_resting_heart_rate_get: {
+    read_health_sleep_resting_heart_rate_chart: {
         parameters: {
             query?: {
                 /** @description Interval to chart, looking back from today; ignored when `start_date` or `end_date` is given */
@@ -21411,7 +19876,7 @@ export interface operations {
             };
         };
     };
-    read_health_sleep_by_id_api_v1_health_sleep__health_sleep_id__get: {
+    read_health_sleep_by_id: {
         parameters: {
             query?: never;
             header?: never;
@@ -21504,7 +19969,7 @@ export interface operations {
             };
         };
     };
-    delete_health_sleep_api_v1_health_sleep__health_sleep_id__delete: {
+    delete_health_sleep: {
         parameters: {
             query?: never;
             header: {
@@ -21631,7 +20096,7 @@ export interface operations {
             };
         };
     };
-    edit_health_sleep_api_v1_health_sleep__health_sleep_id__patch: {
+    edit_health_sleep: {
         parameters: {
             query?: never;
             header: {
@@ -21775,7 +20240,7 @@ export interface operations {
             };
         };
     };
-    read_health_daily_stats_api_v1_health_stats_daily_get: {
+    read_health_daily_stats: {
         parameters: {
             query?: never;
             header?: never;
@@ -21846,7 +20311,7 @@ export interface operations {
             };
         };
     };
-    read_health_steps_all_pagination_api_v1_health_steps_get: {
+    read_health_steps_all_pagination: {
         parameters: {
             query?: {
                 /** @description Look back from today over this interval; ignored when `start_date` or `end_date` is given */
@@ -21935,7 +20400,7 @@ export interface operations {
             };
         };
     };
-    create_health_steps_api_v1_health_steps_post: {
+    create_health_steps: {
         parameters: {
             query?: never;
             header?: never;
@@ -22041,7 +20506,7 @@ export interface operations {
             };
         };
     };
-    read_health_steps_chart_api_v1_health_steps_chart_get: {
+    read_health_steps_chart: {
         parameters: {
             query?: {
                 /** @description Interval to chart, looking back from today; ignored when `start_date` or `end_date` is given */
@@ -22128,7 +20593,7 @@ export interface operations {
             };
         };
     };
-    read_health_steps_by_id_api_v1_health_steps__health_steps_id__get: {
+    read_health_steps_by_id: {
         parameters: {
             query?: never;
             header?: never;
@@ -22221,7 +20686,7 @@ export interface operations {
             };
         };
     };
-    delete_health_steps_api_v1_health_steps__health_steps_id__delete: {
+    delete_health_steps: {
         parameters: {
             query?: never;
             header: {
@@ -22348,7 +20813,7 @@ export interface operations {
             };
         };
     };
-    edit_health_steps_api_v1_health_steps__health_steps_id__patch: {
+    edit_health_steps: {
         parameters: {
             query?: never;
             header: {
@@ -22492,7 +20957,7 @@ export interface operations {
             };
         };
     };
-    read_health_targets_all_api_v1_health_targets_get: {
+    read_health_targets_all: {
         parameters: {
             query?: never;
             header?: never;
@@ -22565,7 +21030,7 @@ export interface operations {
             };
         };
     };
-    update_health_targets_api_v1_health_targets_patch: {
+    update_health_targets: {
         parameters: {
             query?: never;
             header: {
@@ -22698,7 +21163,7 @@ export interface operations {
             };
         };
     };
-    read_health_water_all_pagination_api_v1_health_water_get: {
+    read_health_water_all_pagination: {
         parameters: {
             query?: {
                 /** @description Look back from today over this interval; ignored when `start_date` or `end_date` is given */
@@ -22787,7 +21252,7 @@ export interface operations {
             };
         };
     };
-    create_health_water_api_v1_health_water_post: {
+    create_health_water: {
         parameters: {
             query?: never;
             header?: never;
@@ -22893,7 +21358,7 @@ export interface operations {
             };
         };
     };
-    read_health_water_chart_api_v1_health_water_chart_get: {
+    read_health_water_chart: {
         parameters: {
             query?: {
                 /** @description Interval to chart, looking back from today; ignored when `start_date` or `end_date` is given */
@@ -22980,7 +21445,7 @@ export interface operations {
             };
         };
     };
-    read_health_water_by_id_api_v1_health_water__health_water_id__get: {
+    read_health_water_by_id: {
         parameters: {
             query?: never;
             header?: never;
@@ -23073,7 +21538,7 @@ export interface operations {
             };
         };
     };
-    delete_health_water_api_v1_health_water__health_water_id__delete: {
+    delete_health_water: {
         parameters: {
             query?: never;
             header: {
@@ -23200,7 +21665,7 @@ export interface operations {
             };
         };
     };
-    edit_health_water_api_v1_health_water__health_water_id__patch: {
+    edit_health_water: {
         parameters: {
             query?: never;
             header: {
@@ -23344,7 +21809,7 @@ export interface operations {
             };
         };
     };
-    read_health_weight_all_pagination_api_v1_health_weight_get: {
+    read_health_weight_all_pagination: {
         parameters: {
             query?: {
                 /** @description Look back from today over this interval; ignored when `start_date` or `end_date` is given */
@@ -23433,7 +21898,7 @@ export interface operations {
             };
         };
     };
-    create_health_weight_api_v1_health_weight_post: {
+    create_health_weight: {
         parameters: {
             query?: never;
             header?: never;
@@ -23539,7 +22004,7 @@ export interface operations {
             };
         };
     };
-    read_health_weight_chart_api_v1_health_weight_chart_get: {
+    read_health_weight_chart: {
         parameters: {
             query?: {
                 /** @description Interval to chart, looking back from today; ignored when `start_date` or `end_date` is given */
@@ -23626,7 +22091,7 @@ export interface operations {
             };
         };
     };
-    read_health_weight_by_id_api_v1_health_weight__health_weight_id__get: {
+    read_health_weight_by_id: {
         parameters: {
             query?: never;
             header?: never;
@@ -23719,7 +22184,7 @@ export interface operations {
             };
         };
     };
-    delete_health_weight_api_v1_health_weight__health_weight_id__delete: {
+    delete_health_weight: {
         parameters: {
             query?: never;
             header: {
@@ -23846,7 +22311,7 @@ export interface operations {
             };
         };
     };
-    edit_health_weight_api_v1_health_weight__health_weight_id__patch: {
+    edit_health_weight: {
         parameters: {
             query?: never;
             header: {
@@ -23990,7 +22455,7 @@ export interface operations {
             };
         };
     };
-    list_identity_providers_api_v1_identity_providers_get: {
+    list_identity_providers: {
         parameters: {
             query?: {
                 page_number?: number | null;
@@ -24073,7 +22538,7 @@ export interface operations {
             };
         };
     };
-    create_identity_provider_api_v1_identity_providers_post: {
+    create_identity_provider: {
         parameters: {
             query?: never;
             header?: never;
@@ -24179,7 +22644,7 @@ export interface operations {
             };
         };
     };
-    list_idp_templates_api_v1_identity_providers_templates_get: {
+    list_idp_templates: {
         parameters: {
             query?: never;
             header?: never;
@@ -24250,7 +22715,7 @@ export interface operations {
             };
         };
     };
-    read_identity_provider_api_v1_identity_providers__idp_id__get: {
+    read_identity_provider: {
         parameters: {
             query?: never;
             header?: never;
@@ -24343,7 +22808,7 @@ export interface operations {
             };
         };
     };
-    update_identity_provider_api_v1_identity_providers__idp_id__put: {
+    update_identity_provider: {
         parameters: {
             query?: never;
             header: {
@@ -24487,7 +22952,7 @@ export interface operations {
             };
         };
     };
-    delete_identity_provider_api_v1_identity_providers__idp_id__delete: {
+    delete_identity_provider: {
         parameters: {
             query?: never;
             header: {
@@ -24614,7 +23079,7 @@ export interface operations {
             };
         };
     };
-    upload_identity_provider_icon_api_v1_identity_providers__idp_id__icon_post: {
+    upload_identity_provider_icon: {
         parameters: {
             query?: never;
             header?: never;
@@ -24625,7 +23090,7 @@ export interface operations {
         };
         requestBody: {
             content: {
-                "multipart/form-data": components["schemas"]["Body_upload_identity_provider_icon_api_v1_identity_providers__idp_id__icon_post"];
+                "multipart/form-data": components["schemas"]["Body_upload_identity_provider_icon"];
             };
         };
         responses: {
@@ -24736,7 +23201,7 @@ export interface operations {
             };
         };
     };
-    delete_identity_provider_icon_api_v1_identity_providers__idp_id__icon_delete: {
+    delete_identity_provider_icon: {
         parameters: {
             query?: never;
             header?: never;
@@ -24834,7 +23299,7 @@ export interface operations {
             };
         };
     };
-    read_notifications_user_pagination_api_v1_notifications_get: {
+    read_notifications_user_pagination: {
         parameters: {
             query?: {
                 unread_only?: boolean;
@@ -24918,7 +23383,7 @@ export interface operations {
             };
         };
     };
-    read_notifications_number_api_v1_notifications_number_get: {
+    read_notifications_number: {
         parameters: {
             query?: never;
             header?: never;
@@ -24989,7 +23454,7 @@ export interface operations {
             };
         };
     };
-    mark_all_notifications_as_read_api_v1_notifications_read_post: {
+    mark_all_notifications_as_read: {
         parameters: {
             query?: never;
             header?: never;
@@ -25067,7 +23532,7 @@ export interface operations {
             };
         };
     };
-    read_notifications_by_id_api_v1_notifications__notification_id__get: {
+    read_notifications_by_id: {
         parameters: {
             query?: never;
             header?: never;
@@ -25158,7 +23623,7 @@ export interface operations {
             };
         };
     };
-    mark_notification_as_read_api_v1_notifications__notification_id__read_post: {
+    mark_notification_as_read: {
         parameters: {
             query?: never;
             header?: never;
@@ -25256,7 +23721,7 @@ export interface operations {
             };
         };
     };
-    confirm_password_reset_api_v1_password_reset_confirm_post: {
+    confirm_password_reset: {
         parameters: {
             query?: never;
             header?: never;
@@ -25338,7 +23803,7 @@ export interface operations {
             };
         };
     };
-    request_password_reset_api_v1_password_reset_request_post: {
+    request_password_reset: {
         parameters: {
             query?: never;
             header?: never;
@@ -25420,7 +23885,7 @@ export interface operations {
             };
         };
     };
-    validate_password_reset_token_api_v1_password_reset_validate_post: {
+    validate_password_reset_token: {
         parameters: {
             query?: never;
             header?: never;
@@ -25500,7 +23965,7 @@ export interface operations {
             };
         };
     };
-    read_users_me_api_v1_profile_get: {
+    read_users_me: {
         parameters: {
             query?: never;
             header?: never;
@@ -25573,7 +24038,7 @@ export interface operations {
             };
         };
     };
-    edit_user_api_v1_profile_patch: {
+    edit_profile: {
         parameters: {
             query?: never;
             header: {
@@ -25706,7 +24171,7 @@ export interface operations {
             };
         };
     };
-    list_user_api_keys_api_v1_profile_api_keys_get: {
+    list_user_api_keys: {
         parameters: {
             query?: {
                 page_number?: number | null;
@@ -25789,7 +24254,7 @@ export interface operations {
             };
         };
     };
-    create_user_api_key_api_v1_profile_api_keys_post: {
+    create_user_api_key: {
         parameters: {
             query?: never;
             header?: never;
@@ -25891,7 +24356,7 @@ export interface operations {
             };
         };
     };
-    delete_user_api_key_api_v1_profile_api_keys__api_key_id__delete: {
+    delete_user_api_key: {
         parameters: {
             query?: never;
             header?: never;
@@ -25989,7 +24454,7 @@ export interface operations {
             };
         };
     };
-    revoke_user_api_key_api_v1_profile_api_keys__api_key_id__revoke_post: {
+    revoke_user_api_key: {
         parameters: {
             query?: never;
             header?: never;
@@ -26087,7 +24552,7 @@ export interface operations {
             };
         };
     };
-    read_user_default_gear_api_v1_profile_default_gear_get: {
+    read_user_default_gear: {
         parameters: {
             query?: never;
             header?: never;
@@ -26160,7 +24625,7 @@ export interface operations {
             };
         };
     };
-    edit_user_default_gear_api_v1_profile_default_gear_patch: {
+    edit_user_default_gear: {
         parameters: {
             query?: never;
             header: {
@@ -26293,7 +24758,7 @@ export interface operations {
             };
         };
     };
-    delete_my_account_api_v1_profile_delete_account_post: {
+    delete_my_account: {
         parameters: {
             query?: never;
             header?: never;
@@ -26395,7 +24860,7 @@ export interface operations {
             };
         };
     };
-    edit_profile_email_api_v1_profile_email_change_post: {
+    edit_profile_email: {
         parameters: {
             query?: never;
             header?: never;
@@ -26499,7 +24964,7 @@ export interface operations {
             };
         };
     };
-    cancel_profile_email_change_api_v1_profile_email_change_delete: {
+    cancel_profile_email_change: {
         parameters: {
             query?: never;
             header?: never;
@@ -26577,7 +25042,7 @@ export interface operations {
             };
         };
     };
-    resend_profile_email_change_api_v1_profile_email_change_resend_post: {
+    resend_profile_email_change: {
         parameters: {
             query?: never;
             header?: never;
@@ -26655,7 +25120,7 @@ export interface operations {
             };
         };
     };
-    read_profile_export_status_api_v1_profile_export_get: {
+    read_profile_export_status: {
         parameters: {
             query?: never;
             header?: never;
@@ -26728,7 +25193,7 @@ export interface operations {
             };
         };
     };
-    export_profile_data_api_v1_profile_export_post: {
+    export_profile_data: {
         parameters: {
             query?: never;
             header?: never;
@@ -26834,7 +25299,7 @@ export interface operations {
             };
         };
     };
-    download_profile_export_api_v1_profile_export_download_get: {
+    download_profile_export: {
         parameters: {
             query?: never;
             header?: never;
@@ -26905,7 +25370,7 @@ export interface operations {
             };
         };
     };
-    get_user_goals_api_v1_profile_goals_get: {
+    get_user_goals: {
         parameters: {
             query?: {
                 /** @description Filter by goal interval */
@@ -26994,7 +25459,7 @@ export interface operations {
             };
         };
     };
-    create_user_goal_api_v1_profile_goals_post: {
+    create_user_goal: {
         parameters: {
             query?: never;
             header?: never;
@@ -27100,7 +25565,7 @@ export interface operations {
             };
         };
     };
-    get_user_goals_results_api_v1_profile_goals_results_get: {
+    get_user_goals_results: {
         parameters: {
             query?: {
                 page_number?: number | null;
@@ -27183,7 +25648,7 @@ export interface operations {
             };
         };
     };
-    get_user_goal_api_v1_profile_goals__goal_id__get: {
+    get_user_goal: {
         parameters: {
             query?: never;
             header?: never;
@@ -27276,7 +25741,7 @@ export interface operations {
             };
         };
     };
-    update_user_goal_api_v1_profile_goals__goal_id__put: {
+    update_user_goal: {
         parameters: {
             query?: never;
             header: {
@@ -27420,7 +25885,7 @@ export interface operations {
             };
         };
     };
-    delete_user_goal_api_v1_profile_goals__goal_id__delete: {
+    delete_user_goal: {
         parameters: {
             query?: never;
             header: {
@@ -27547,7 +26012,7 @@ export interface operations {
             };
         };
     };
-    get_my_identity_providers_api_v1_profile_identity_providers_get: {
+    get_my_identity_providers: {
         parameters: {
             query?: {
                 page_number?: number | null;
@@ -27630,7 +26095,7 @@ export interface operations {
             };
         };
     };
-    start_idp_link_api_v1_profile_identity_providers__idp_id__link_post: {
+    start_idp_link: {
         parameters: {
             query?: never;
             header?: never;
@@ -27743,7 +26208,7 @@ export interface operations {
             };
         };
     };
-    start_idp_step_up_api_v1_profile_identity_providers__idp_id__step_up_post: {
+    start_idp_step_up: {
         parameters: {
             query?: never;
             header?: never;
@@ -27856,7 +26321,7 @@ export interface operations {
             };
         };
     };
-    delete_my_identity_provider_api_v1_profile_identity_providers__idp_id__unlink_post: {
+    delete_my_identity_provider: {
         parameters: {
             query?: never;
             header?: never;
@@ -27967,7 +26432,7 @@ export interface operations {
             };
         };
     };
-    read_profile_import_status_api_v1_profile_import_get: {
+    read_profile_import_status: {
         parameters: {
             query?: never;
             header?: never;
@@ -28040,7 +26505,7 @@ export interface operations {
             };
         };
     };
-    import_profile_data_api_v1_profile_import_post: {
+    import_profile_data: {
         parameters: {
             query?: never;
             header?: never;
@@ -28049,7 +26514,7 @@ export interface operations {
         };
         requestBody: {
             content: {
-                "multipart/form-data": components["schemas"]["Body_import_profile_data_api_v1_profile_import_post"];
+                "multipart/form-data": components["schemas"]["Body_import_profile_data"];
             };
         };
         responses: {
@@ -28155,7 +26620,7 @@ export interface operations {
             };
         };
     };
-    generate_mfa_backup_codes_api_v1_profile_mfa_backup_codes_post: {
+    generate_mfa_backup_codes: {
         parameters: {
             query?: never;
             header?: never;
@@ -28257,7 +26722,7 @@ export interface operations {
             };
         };
     };
-    get_backup_code_status_api_v1_profile_mfa_backup_codes_status_get: {
+    get_backup_code_status: {
         parameters: {
             query?: never;
             header?: never;
@@ -28328,7 +26793,7 @@ export interface operations {
             };
         };
     };
-    disable_mfa_api_v1_profile_mfa_disable_post: {
+    disable_mfa: {
         parameters: {
             query?: never;
             header?: never;
@@ -28430,7 +26895,7 @@ export interface operations {
             };
         };
     };
-    enable_mfa_api_v1_profile_mfa_enable_post: {
+    enable_mfa: {
         parameters: {
             query?: never;
             header?: never;
@@ -28532,7 +26997,7 @@ export interface operations {
             };
         };
     };
-    setup_mfa_api_v1_profile_mfa_setup_post: {
+    setup_mfa: {
         parameters: {
             query?: never;
             header?: never;
@@ -28612,7 +27077,7 @@ export interface operations {
             };
         };
     };
-    get_mfa_status_api_v1_profile_mfa_status_get: {
+    get_mfa_status: {
         parameters: {
             query?: never;
             header?: never;
@@ -28683,7 +27148,7 @@ export interface operations {
             };
         };
     };
-    verify_mfa_api_v1_profile_mfa_verify_post: {
+    verify_mfa: {
         parameters: {
             query?: never;
             header?: never;
@@ -28785,7 +27250,7 @@ export interface operations {
             };
         };
     };
-    edit_profile_password_api_v1_profile_password_change_post: {
+    edit_profile_password: {
         parameters: {
             query?: never;
             header?: never;
@@ -28885,7 +27350,7 @@ export interface operations {
             };
         };
     };
-    upload_profile_image_api_v1_profile_photo_post: {
+    upload_profile_image: {
         parameters: {
             query?: never;
             header?: never;
@@ -28894,7 +27359,7 @@ export interface operations {
         };
         requestBody: {
             content: {
-                "multipart/form-data": components["schemas"]["Body_upload_profile_image_api_v1_profile_photo_post"];
+                "multipart/form-data": components["schemas"]["Body_upload_profile_image"];
             };
         };
         responses: {
@@ -28996,7 +27461,7 @@ export interface operations {
             };
         };
     };
-    delete_profile_photo_api_v1_profile_photo_delete: {
+    delete_profile_photo: {
         parameters: {
             query?: never;
             header?: never;
@@ -29074,7 +27539,7 @@ export interface operations {
             };
         };
     };
-    read_profile_privacy_settings_api_v1_profile_privacy_get: {
+    read_profile_privacy_settings: {
         parameters: {
             query?: never;
             header?: never;
@@ -29147,7 +27612,7 @@ export interface operations {
             };
         };
     };
-    edit_profile_privacy_settings_api_v1_profile_privacy_patch: {
+    edit_profile_privacy_settings: {
         parameters: {
             query?: never;
             header: {
@@ -29280,7 +27745,7 @@ export interface operations {
             };
         };
     };
-    read_sessions_me_api_v1_profile_sessions_get: {
+    read_sessions_me: {
         parameters: {
             query?: {
                 page_number?: number | null;
@@ -29363,7 +27828,7 @@ export interface operations {
             };
         };
     };
-    delete_profile_other_sessions_api_v1_profile_sessions_delete: {
+    delete_profile_other_sessions: {
         parameters: {
             query?: never;
             header?: never;
@@ -29441,7 +27906,7 @@ export interface operations {
             };
         };
     };
-    delete_profile_session_api_v1_profile_sessions__session_id__delete: {
+    delete_profile_session: {
         parameters: {
             query?: never;
             header?: never;
@@ -29539,7 +28004,7 @@ export interface operations {
             };
         };
     };
-    list_public_activity_exercise_titles_api_v1_public_activities_exercise_titles_get: {
+    list_public_activity_exercise_titles: {
         parameters: {
             query?: {
                 page_number?: number | null;
@@ -29602,7 +28067,7 @@ export interface operations {
             };
         };
     };
-    read_public_activity_api_v1_public_activities__activity_id__get: {
+    read_public_activity: {
         parameters: {
             query?: never;
             header?: never;
@@ -29673,7 +28138,7 @@ export interface operations {
             };
         };
     };
-    read_public_activity_detail_api_v1_public_activities__activity_id__detail_get: {
+    read_public_activity_detail: {
         parameters: {
             query?: never;
             header?: never;
@@ -29744,7 +28209,7 @@ export interface operations {
             };
         };
     };
-    list_public_activity_laps_api_v1_public_activities__activity_id__laps_get: {
+    list_public_activity_laps: {
         parameters: {
             query?: {
                 page_number?: number | null;
@@ -29818,7 +28283,7 @@ export interface operations {
             };
         };
     };
-    read_public_activity_owner_api_v1_public_activities__activity_id__owner_get: {
+    read_public_activity_owner: {
         parameters: {
             query?: never;
             header?: never;
@@ -29889,7 +28354,7 @@ export interface operations {
             };
         };
     };
-    list_public_activity_sets_api_v1_public_activities__activity_id__sets_get: {
+    list_public_activity_sets: {
         parameters: {
             query?: {
                 page_number?: number | null;
@@ -29963,7 +28428,7 @@ export interface operations {
             };
         };
     };
-    list_public_activity_streams_api_v1_public_activities__activity_id__streams_get: {
+    list_public_activity_streams: {
         parameters: {
             query?: {
                 page_number?: number | null;
@@ -30037,7 +28502,7 @@ export interface operations {
             };
         };
     };
-    read_public_activity_stream_api_v1_public_activities__activity_id__streams__stream_type__get: {
+    read_public_activity_stream: {
         parameters: {
             query?: never;
             header?: never;
@@ -30109,7 +28574,7 @@ export interface operations {
             };
         };
     };
-    list_public_activity_workout_steps_api_v1_public_activities__activity_id__workout_steps_get: {
+    list_public_activity_workout_steps: {
         parameters: {
             query?: {
                 page_number?: number | null;
@@ -30183,7 +28648,7 @@ export interface operations {
             };
         };
     };
-    get_enabled_identity_providers_api_v1_public_idp_get: {
+    get_enabled_identity_providers: {
         parameters: {
             query?: {
                 page_number?: number | null;
@@ -30246,7 +28711,7 @@ export interface operations {
             };
         };
     };
-    handle_callback_api_v1_public_idp_callback__idp_slug__get: {
+    handle_callback: {
         parameters: {
             query: {
                 /** @description Authorization code from IdP */
@@ -30322,7 +28787,7 @@ export interface operations {
             };
         };
     };
-    initiate_login_api_v1_public_idp_login__idp_slug__get: {
+    initiate_login: {
         parameters: {
             query: {
                 /** @description PKCE code challenge (base64url-encoded SHA256, 43-128 chars). REQUIRED for OAuth 2.1 compliance. */
@@ -30398,7 +28863,7 @@ export interface operations {
             };
         };
     };
-    exchange_tokens_for_session_api_v1_public_idp_session__session_id__tokens_post: {
+    exchange_tokens_for_session: {
         parameters: {
             query?: never;
             header?: never;
@@ -30491,7 +28956,7 @@ export interface operations {
             };
         };
     };
-    read_identity_provider_icon_api_v1_public_idp__idp_slug__icon_get: {
+    read_identity_provider_icon: {
         parameters: {
             query?: never;
             header?: never;
@@ -30569,7 +29034,7 @@ export interface operations {
             };
         };
     };
-    read_onboarding_status_api_v1_public_onboarding_get: {
+    read_onboarding_status: {
         parameters: {
             query?: never;
             header?: never;
@@ -30620,7 +29085,7 @@ export interface operations {
             };
         };
     };
-    complete_onboarding_api_v1_public_onboarding_post: {
+    complete_onboarding: {
         parameters: {
             query?: never;
             header?: never;
@@ -30704,7 +29169,7 @@ export interface operations {
             };
         };
     };
-    read_public_server_settings_api_v1_public_server_settings_get: {
+    read_public_server_settings: {
         parameters: {
             query?: never;
             header?: never;
@@ -30755,7 +29220,7 @@ export interface operations {
             };
         };
     };
-    read_login_photo_api_v1_public_server_settings_login_photo_get: {
+    read_login_photo: {
         parameters: {
             query?: never;
             header?: never;
@@ -30813,7 +29278,7 @@ export interface operations {
             };
         };
     };
-    list_tile_maps_templates_api_v1_public_server_settings_tile_maps_templates_get: {
+    list_tile_maps_templates: {
         parameters: {
             query?: never;
             header?: never;
@@ -30864,7 +29329,7 @@ export interface operations {
             };
         };
     };
-    read_server_settings_api_v1_server_settings_get: {
+    read_server_settings: {
         parameters: {
             query?: never;
             header?: never;
@@ -30937,7 +29402,7 @@ export interface operations {
             };
         };
     };
-    edit_server_settings_api_v1_server_settings_put: {
+    edit_server_settings: {
         parameters: {
             query?: never;
             header: {
@@ -31070,7 +29535,7 @@ export interface operations {
             };
         };
     };
-    read_email_status_api_v1_server_settings_email_get: {
+    read_email_status: {
         parameters: {
             query?: never;
             header?: never;
@@ -31141,7 +29606,7 @@ export interface operations {
             };
         };
     };
-    read_mail_settings_api_v1_server_settings_email_settings_get: {
+    read_mail_settings: {
         parameters: {
             query?: never;
             header?: never;
@@ -31214,7 +29679,7 @@ export interface operations {
             };
         };
     };
-    edit_mail_settings_api_v1_server_settings_email_settings_put: {
+    edit_mail_settings: {
         parameters: {
             query?: never;
             header: {
@@ -31347,7 +29812,7 @@ export interface operations {
             };
         };
     };
-    send_test_email_api_v1_server_settings_email_test_post: {
+    send_test_email: {
         parameters: {
             query?: never;
             header?: never;
@@ -31425,7 +29890,7 @@ export interface operations {
             };
         };
     };
-    upload_login_photo_api_v1_server_settings_login_photo_post: {
+    upload_login_photo: {
         parameters: {
             query?: never;
             header?: never;
@@ -31434,7 +29899,7 @@ export interface operations {
         };
         requestBody: {
             content: {
-                "multipart/form-data": components["schemas"]["Body_upload_login_photo_api_v1_server_settings_login_photo_post"];
+                "multipart/form-data": components["schemas"]["Body_upload_login_photo"];
             };
         };
         responses: {
@@ -31536,7 +30001,7 @@ export interface operations {
             };
         };
     };
-    delete_login_photo_api_v1_server_settings_login_photo_delete: {
+    delete_login_photo: {
         parameters: {
             query?: never;
             header?: never;
@@ -31614,7 +30079,7 @@ export interface operations {
             };
         };
     };
-    read_logs_api_v1_server_settings_logs_get: {
+    read_logs: {
         parameters: {
             query?: {
                 /** @description Most records to return */
@@ -31703,7 +30168,7 @@ export interface operations {
             };
         };
     };
-    clear_logs_api_v1_server_settings_logs_delete: {
+    clear_logs: {
         parameters: {
             query?: never;
             header?: never;
@@ -31781,7 +30246,7 @@ export interface operations {
             };
         };
     };
-    download_logs_api_v1_server_settings_logs_download_get: {
+    download_logs: {
         parameters: {
             query?: never;
             header?: never;
@@ -31852,7 +30317,7 @@ export interface operations {
             };
         };
     };
-    read_logs_status_api_v1_server_settings_logs_status_get: {
+    read_logs_status: {
         parameters: {
             query?: never;
             header?: never;
@@ -31923,7 +30388,7 @@ export interface operations {
             };
         };
     };
-    verify_email_api_v1_sign_up_confirm_post: {
+    verify_email: {
         parameters: {
             query?: never;
             header?: never;
@@ -32005,7 +30470,7 @@ export interface operations {
             };
         };
     };
-    signup_api_v1_sign_up_request_post: {
+    signup: {
         parameters: {
             query?: never;
             header?: never;
@@ -32087,7 +30552,7 @@ export interface operations {
             };
         };
     };
-    resend_verification_email_api_v1_sign_up_resend_post: {
+    resend_verification_email: {
         parameters: {
             query?: never;
             header?: never;
@@ -32169,7 +30634,7 @@ export interface operations {
             };
         };
     };
-    strava_retrieve_activities_days_api_v1_strava_activities_post: {
+    strava_retrieve_activities_days: {
         parameters: {
             query: {
                 start_date: string;
@@ -32265,7 +30730,7 @@ export interface operations {
             };
         };
     };
-    strava_set_user_client_api_v1_strava_client_put: {
+    strava_set_user_client: {
         parameters: {
             query?: never;
             header: {
@@ -32398,7 +30863,7 @@ export interface operations {
             };
         };
     };
-    strava_retrieve_gear_api_v1_strava_gear_post: {
+    strava_retrieve_gear: {
         parameters: {
             query?: never;
             header?: never;
@@ -32482,7 +30947,7 @@ export interface operations {
             };
         };
     };
-    import_bikes_from_strava_export_api_v1_strava_import_bikes_post: {
+    import_bikes_from_strava_export: {
         parameters: {
             query?: never;
             header?: never;
@@ -32491,7 +30956,7 @@ export interface operations {
         };
         requestBody: {
             content: {
-                "multipart/form-data": components["schemas"]["Body_import_bikes_from_strava_export_api_v1_strava_import_bikes_post"];
+                "multipart/form-data": components["schemas"]["Body_import_bikes_from_strava_export"];
             };
         };
         responses: {
@@ -32593,7 +31058,7 @@ export interface operations {
             };
         };
     };
-    import_shoes_from_strava_export_api_v1_strava_import_shoes_post: {
+    import_shoes_from_strava_export: {
         parameters: {
             query?: never;
             header?: never;
@@ -32602,7 +31067,7 @@ export interface operations {
         };
         requestBody: {
             content: {
-                "multipart/form-data": components["schemas"]["Body_import_shoes_from_strava_export_api_v1_strava_import_shoes_post"];
+                "multipart/form-data": components["schemas"]["Body_import_shoes_from_strava_export"];
             };
         };
         responses: {
@@ -32704,7 +31169,7 @@ export interface operations {
             };
         };
     };
-    strava_link_api_v1_strava_link_post: {
+    strava_link: {
         parameters: {
             query?: never;
             header?: never;
@@ -32810,7 +31275,7 @@ export interface operations {
             };
         };
     };
-    strava_unlink_api_v1_strava_link_delete: {
+    strava_unlink: {
         parameters: {
             query?: never;
             header?: never;
@@ -32894,7 +31359,7 @@ export interface operations {
             };
         };
     };
-    strava_begin_state_api_v1_strava_state_post: {
+    strava_begin_state: {
         parameters: {
             query?: never;
             header?: never;
@@ -32974,7 +31439,7 @@ export interface operations {
             };
         };
     };
-    strava_clear_user_state_api_v1_strava_state_delete: {
+    strava_clear_user_state: {
         parameters: {
             query?: never;
             header?: never;
@@ -33052,7 +31517,7 @@ export interface operations {
             };
         };
     };
-    strava_sync_status_api_v1_strava_sync__kind__get: {
+    strava_sync_status: {
         parameters: {
             query?: never;
             header?: never;
@@ -33145,7 +31610,7 @@ export interface operations {
             };
         };
     };
-    read_users_all_pagination_api_v1_users_get: {
+    read_users_all_pagination: {
         parameters: {
             query?: {
                 /** @description Filter by inactive status */
@@ -33240,7 +31705,7 @@ export interface operations {
             };
         };
     };
-    create_user_api_v1_users_post: {
+    create_user: {
         parameters: {
             query?: never;
             header?: never;
@@ -33346,7 +31811,7 @@ export interface operations {
             };
         };
     };
-    lookup_user_by_email_api_v1_users_email_lookup_post: {
+    lookup_user_by_email: {
         parameters: {
             query?: never;
             header?: never;
@@ -33450,7 +31915,7 @@ export interface operations {
             };
         };
     };
-    read_users_id_api_v1_users_id__user_id__get: {
+    read_users_id: {
         parameters: {
             query?: never;
             header?: never;
@@ -33541,7 +32006,7 @@ export interface operations {
             };
         };
     };
-    read_user_profile_overview_api_v1_users_id__user_id__overview_get: {
+    read_user_profile_overview: {
         parameters: {
             query?: {
                 /** @description The viewer's local calendar date for current-week and current-month values. */
@@ -33635,7 +32100,7 @@ export interface operations {
             };
         };
     };
-    read_users_contain_username_api_v1_users_username_contains__username__get: {
+    read_users_contain_username: {
         parameters: {
             query?: {
                 page_number?: number | null;
@@ -33730,7 +32195,7 @@ export interface operations {
             };
         };
     };
-    read_users_username_api_v1_users_username__username__get: {
+    read_users_username: {
         parameters: {
             query?: never;
             header?: never;
@@ -33823,7 +32288,7 @@ export interface operations {
             };
         };
     };
-    read_users_full_api_v1_users__user_id__get: {
+    read_users_full: {
         parameters: {
             query?: never;
             header?: never;
@@ -33916,7 +32381,7 @@ export interface operations {
             };
         };
     };
-    edit_user_api_v1_users__user_id__put: {
+    edit_user: {
         parameters: {
             query?: never;
             header: {
@@ -34060,7 +32525,7 @@ export interface operations {
             };
         };
     };
-    delete_user_api_v1_users__user_id__delete: {
+    delete_user: {
         parameters: {
             query?: never;
             header: {
@@ -34193,7 +32658,7 @@ export interface operations {
             };
         };
     };
-    list_user_activities_api_v1_users__user_id__activities_get: {
+    list_user_activities: {
         parameters: {
             query?: {
                 type?: components["schemas"]["ActivityType"] | null;
@@ -34293,7 +32758,7 @@ export interface operations {
             };
         };
     };
-    read_user_activity_stats_api_v1_users__user_id__activities_stats_get: {
+    read_user_activity_stats: {
         parameters: {
             query?: {
                 period?: components["schemas"]["StatsPeriod"];
@@ -34388,7 +32853,7 @@ export interface operations {
             };
         };
     };
-    approve_user_api_v1_users__user_id__approve_post: {
+    approve_user: {
         parameters: {
             query?: never;
             header?: never;
@@ -34486,7 +32951,7 @@ export interface operations {
             };
         };
     };
-    read_user_deletion_status_api_v1_users__user_id__deletion_get: {
+    read_user_deletion_status: {
         parameters: {
             query?: never;
             header?: never;
@@ -34579,7 +33044,7 @@ export interface operations {
             };
         };
     };
-    list_user_followers_api_v1_users__user_id__followers_get: {
+    list_user_followers: {
         parameters: {
             query?: {
                 accepted_only?: boolean;
@@ -34674,7 +33139,7 @@ export interface operations {
             };
         };
     };
-    follow_user_api_v1_users__user_id__followers_post: {
+    follow_user: {
         parameters: {
             query?: never;
             header?: never;
@@ -34774,7 +33239,7 @@ export interface operations {
             };
         };
     };
-    delete_follow_relationship_api_v1_users__user_id__followers__follower_id__delete: {
+    delete_follow_relationship: {
         parameters: {
             query?: never;
             header?: never;
@@ -34873,7 +33338,7 @@ export interface operations {
             };
         };
     };
-    list_user_following_api_v1_users__user_id__following_get: {
+    list_user_following: {
         parameters: {
             query?: {
                 accepted_only?: boolean;
@@ -34968,7 +33433,7 @@ export interface operations {
             };
         };
     };
-    get_user_identity_providers_api_v1_users__user_id__identity_providers_get: {
+    get_user_identity_providers: {
         parameters: {
             query?: {
                 page_number?: number | null;
@@ -35062,7 +33527,7 @@ export interface operations {
             };
         };
     };
-    delete_user_identity_provider_api_v1_users__user_id__identity_providers__idp_id__delete: {
+    delete_user_identity_provider: {
         parameters: {
             query?: never;
             header?: never;
@@ -35161,7 +33626,7 @@ export interface operations {
             };
         };
     };
-    edit_user_password_api_v1_users__user_id__password_change_post: {
+    edit_user_password: {
         parameters: {
             query?: never;
             header?: never;
@@ -35272,7 +33737,7 @@ export interface operations {
             };
         };
     };
-    read_user_photo_api_v1_users__user_id__photo_get: {
+    read_user_photo: {
         parameters: {
             query: {
                 /** @description Signed photo access token */
@@ -35346,7 +33811,7 @@ export interface operations {
             };
         };
     };
-    upload_user_image_api_v1_users__user_id__photo_post: {
+    upload_user_image: {
         parameters: {
             query?: never;
             header?: never;
@@ -35357,7 +33822,7 @@ export interface operations {
         };
         requestBody: {
             content: {
-                "multipart/form-data": components["schemas"]["Body_upload_user_image_api_v1_users__user_id__photo_post"];
+                "multipart/form-data": components["schemas"]["Body_upload_user_image"];
             };
         };
         responses: {
@@ -35468,7 +33933,7 @@ export interface operations {
             };
         };
     };
-    delete_user_photo_api_v1_users__user_id__photo_delete: {
+    delete_user_photo: {
         parameters: {
             query?: never;
             header?: never;
@@ -35566,7 +34031,7 @@ export interface operations {
             };
         };
     };
-    read_user_relationship_api_v1_users__user_id__relationship_get: {
+    read_user_relationship: {
         parameters: {
             query?: never;
             header?: never;
@@ -35657,7 +34122,7 @@ export interface operations {
             };
         };
     };
-    read_sessions_user_api_v1_users__user_id__sessions_get: {
+    read_sessions_user: {
         parameters: {
             query?: {
                 page_number?: number | null;
@@ -35751,7 +34216,7 @@ export interface operations {
             };
         };
     };
-    delete_sessions_user_api_v1_users__user_id__sessions_delete: {
+    delete_sessions_user: {
         parameters: {
             query?: {
                 /** @description Session to keep intact (e.g. the caller's current session) */
@@ -35852,7 +34317,7 @@ export interface operations {
             };
         };
     };
-    delete_session_user_api_v1_users__user_id__sessions__session_id__delete: {
+    delete_session_user: {
         parameters: {
             query?: never;
             header?: never;
@@ -35951,7 +34416,7 @@ export interface operations {
             };
         };
     };
-    issue_ws_ticket_api_v1_ws_ticket_post: {
+    issue_ws_ticket: {
         parameters: {
             query?: never;
             header?: never;

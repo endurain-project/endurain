@@ -202,18 +202,16 @@ def _request_schemas() -> Iterator[tuple[str, str, str, dict[str, Any]]]:
 def _handlers() -> dict[tuple[str, str], tuple[pathlib.Path, ast.FunctionDef]]:
     """Map ``(method, path without prefix)`` to the route handler source, as the operation id names it.
 
-    FastAPI's operation id is ``<handler><path with non-word characters as _>_<method>``, so a handler is
-    matched to the operation whose id it generates for a path ending in the decorator's route.
+    An operation id is its handler's function name, so a handler is matched to the operation that carries its
+    name and method.
     """
     operation_ids = {operation["operationId"]: (method, path) for method, path, operation in _operations()}
     found: dict[tuple[str, str], tuple[pathlib.Path, ast.FunctionDef]] = {}
     for file, function in router_functions():
-        for method, call in route_decorators(function):
-            route = call.args[0].value if call.args and isinstance(call.args[0], ast.Constant) else ""
-            for path in _paths():
-                operation_id = f"{function.name}{re.sub(r'\W', '_', _API_PREFIX + path)}_{method}"
-                if path.endswith(str(route)) and operation_id in operation_ids:
-                    found[(method, path)] = (file, function)
+        for method, _call in route_decorators(function):
+            operation = operation_ids.get(function.name)
+            if operation is not None and operation[0] == method:
+                found[operation] = (file, function)
     return found
 
 
@@ -573,6 +571,21 @@ class TestApiContract:
                 wrong.add(f"{method.upper()} {path}: requires {sorted(requirement)}, wanted {sorted(wanted)}")
 
         _compare("A profile route requires the wrong scope", wrong, {}, "Use profile:export or profile:security")
+
+    def test_operation_ids_are_unique_handler_names(self):
+        """An operation id is its handler's name, so it survives a route moving, and no two handlers share one."""
+        ids: dict[str, list[str]] = {}
+        for method, path, operation in _operations():
+            ids.setdefault(operation["operationId"], []).append(f"{method.upper()} {path}")
+        duplicated = {f"{name}: {', '.join(operations)}" for name, operations in ids.items() if len(operations) > 1}
+        path_derived = {
+            f"{method.upper()} {path}: {operation['operationId']}"
+            for method, path, operation in _operations()
+            if "api_v1" in operation["operationId"]
+        }
+
+        _compare("Two operations share an id", duplicated, {}, "Rename one handler")
+        _compare("An operation id is derived from its path", path_derived, {}, "Name the operation by its handler")
 
     def test_error_headers_are_declared(self):
         """401 declares ``WWW-Authenticate`` and 429 and 503 declare ``Retry-After``."""

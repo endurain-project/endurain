@@ -183,7 +183,7 @@ _TIERED_ENDPOINTS = [
     pytest.param(users_router.delete_user, core_rate_limit.SENSITIVE, id="user-delete"),
     pytest.param(users_router.delete_user_identity_provider, core_rate_limit.WRITE, id="user-idp-unlink"),
     pytest.param(users_profile_router.upload_profile_image, core_rate_limit.UPLOAD, id="profile-image-upload"),
-    pytest.param(users_profile_router.edit_user, core_rate_limit.WRITE, id="profile-edit"),
+    pytest.param(users_profile_router.edit_profile, core_rate_limit.WRITE, id="profile-edit"),
     pytest.param(users_profile_router.edit_profile_email, core_rate_limit.SENSITIVE, id="profile-email-change"),
     pytest.param(
         users_profile_router.resend_profile_email_change, core_rate_limit.SENSITIVE, id="profile-email-change-resend"

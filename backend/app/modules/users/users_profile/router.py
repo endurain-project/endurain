@@ -109,7 +109,7 @@ def upload_profile_image(
     dependencies=[Security(auth_dependencies.check_scopes, scopes=["profile"])],
 )
 @core_rate_limit.limiter.limit(core_rate_limit.WRITE)
-def edit_user(
+def edit_profile(
     request: Request,
     response: Response,
     user_attributtes: users_schema.ProfileUpdate,

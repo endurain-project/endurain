@@ -9,7 +9,9 @@ derived for every operation instead of repeated on each route:
 - a path parameter can answer 404, a request body 413, an upload (``x-max-body-bytes``) 415, and a write 409;
 - ``If-Match`` is required, because its absence is refused with 428, and a stale or wildcard tag is 412 or 400;
 - a success response carrying a ``version`` sends an ``ETag``, and a create that can be read by id a ``Location``;
-- ``id``, ``version``, ``created_at`` and ``updated_at`` are ``readOnly`` in every schema a client does not send.
+- ``id``, ``version``, ``created_at`` and ``updated_at`` are ``readOnly`` in every schema a client does not send;
+- an operation's description is its docstring up to the first Google section, so ``Args:``, ``Returns:`` and
+  ``Raises:`` (which name the handler's own parameters) never reach a client.
 
 A route lists in ``responses=`` only what the document cannot derive: ``core.location.ACCEPTED_RESPONSE`` and
 ``POLLED_STATUS_HEADERS``, :data:`ETAG_HEADERS` where the version is not a field of the body, and
@@ -25,6 +27,8 @@ _METHODS = ("get", "post", "put", "patch", "delete")
 _SCHEMA_REF = "#/components/schemas/"
 _SERVER_OWNED_FIELDS = frozenset({"id", "version", "created_at", "updated_at"})
 _UPLOAD_EXTENSION = "x-max-body-bytes"
+#: A Google docstring section header. Matches what the architecture test refuses in a new route docstring.
+_SECTION = re.compile(r"^\s*(Args|Arguments|Returns|Raises|Yields|Attributes|Notes?|Examples?):\s*$", re.M)
 
 _ETAG_HEADER: dict[str, Any] = {
     "description": "The version of the resource, to send back as `If-Match` on the next write.",
@@ -169,6 +173,19 @@ def _mark_read_only(document: dict[str, Any]) -> None:
                 prop["readOnly"] = True
 
 
+def _trim_description(operation: dict[str, Any]) -> None:
+    """Cut an operation's description at the first docstring section, and drop it when nothing is left."""
+    description = operation.get("description")
+    if description is None:
+        return
+    section = _SECTION.search(description)
+    trimmed = (description[: section.start()] if section else description).strip()
+    if trimmed:
+        operation["description"] = trimmed
+    else:
+        del operation["description"]
+
+
 def declare_contract(document: dict[str, Any]) -> dict[str, Any]:
     """Declare in the OpenAPI document the errors, headers and read-only fields that follow from each operation.
 
@@ -181,6 +198,7 @@ def declare_contract(document: dict[str, Any]) -> dict[str, Any]:
     for path, item in document["paths"].items():
         for method in _METHODS:
             if method in item:
+                _trim_description(item[method])
                 _declare_errors(item[method], method)
                 _declare_headers(document, path, method, item[method])
     _mark_read_only(document)

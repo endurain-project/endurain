@@ -122,6 +122,11 @@ A resource has a collection and an item:
 
 - An endpoint docstring is the public OpenAPI description: what the endpoint does for a client, with no `Args:`,
   `Returns:` or `Raises:` sections and no internal parameter names **(test)**.
+- `core.problem_details.ProblemDetailsFastAPI` names an operation by its handler (`operationId` is the function name), so
+  the id and a generated client's method name do not change when a route moves; two handlers never share a name
+  **(test)**. Rename the handler, never add a suffix.
+- `core/openapi_contract.py` cuts an operation's description at the first Google section, so a docstring that still
+  carries `Args:` or `Returns:` does not reach a client; a new route has none.
 - A route that returns bytes declares its media types with `core.openapi_contract.binary_response` and
   `response_class=Response`.
 - `core/openapi_contract.py` derives the rest for every operation: `401`/`403` from the security requirement, `404` from a
@@ -151,4 +156,4 @@ These rules are not met everywhere yet. Each is tracked in the test registers ab
 - Uploaded images are stored as received, with their metadata.
 - Some enums are integers, some request schemas accept server-owned fields, and datetimes without an offset are
   accepted as UTC.
-- Most endpoint docstrings still carry Google sections.
+- Most endpoint docstrings still carry Google sections. The OpenAPI document cuts them, but the source should lose them.

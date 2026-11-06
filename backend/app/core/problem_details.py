@@ -29,6 +29,7 @@ import json
 from typing import Any
 
 from fastapi import FastAPI
+from fastapi.routing import APIRoute
 from pydantic import BaseModel, ConfigDict, Field
 
 import core.openapi_contract as core_openapi_contract
@@ -180,12 +181,34 @@ def _rewrite_error_responses(schema: dict[str, Any]) -> dict[str, Any]:
     return schema
 
 
+def operation_id(route: APIRoute) -> str:
+    """Name an operation by its handler, so the id does not change when a route moves.
+
+    Args:
+        route: The route being documented.
+
+    Returns:
+        The handler's function name; a client generated from the document names its method after it.
+    """
+    return route.name
+
+
 class ProblemDetailsFastAPI(FastAPI):
     """A FastAPI application whose ``openapi()`` describes the errors it actually returns.
 
     Overrides the generator rather than annotating ~30 ``include_router`` calls with ``responses=``: the
-    rule is global, so stating it once is both less noise and impossible to forget on a new router.
+    rule is global, so stating it once is both less noise and impossible to forget on a new router. An
+    operation is named by its handler (:func:`operation_id`).
     """
+
+    def __init__(self, **kwargs: Any) -> None:
+        """Build the application, naming each operation by its handler unless told otherwise.
+
+        Args:
+            **kwargs: The arguments of :class:`fastapi.FastAPI`.
+        """
+        kwargs.setdefault("generate_unique_id_function", operation_id)
+        super().__init__(**kwargs)
 
     def openapi(self) -> dict[str, Any]:
         """Return the OpenAPI document with every error response pointing at :class:`ProblemDetail`.
