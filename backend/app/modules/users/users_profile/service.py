@@ -223,7 +223,7 @@ def change_email(
         is the new address when it was applied at once.
 
     Raises:
-        UnauthenticatedError: If step-up verification fails.
+        StepUpFailedError: If step-up verification fails.
         NotFoundError: If the user does not exist.
         ConflictError: If another account uses the email.
     """
@@ -401,7 +401,7 @@ def delete_account(
         The deletion's initial status.
 
     Raises:
-        UnauthenticatedError: If step-up verification fails.
+        StepUpFailedError: If step-up verification fails.
         ConflictError: If the user is the only administrator, or a deletion is already pending.
     """
     account_security_integration.verify_step_up(
@@ -470,7 +470,7 @@ def change_password(
         db: Database session.
 
     Raises:
-        UnauthenticatedError: If step-up verification fails.
+        StepUpFailedError: If step-up verification fails.
         PasswordPolicyError: If the new password fails the configured policy.
     """
     account_security_integration.change_own_password(

@@ -18,7 +18,8 @@ const challenge = vi.fn<(error: unknown) => boolean>()
 vi.mock('@/composables/useToasts', () => ({
   useToasts: () => ({ success: toastSuccess, error: toastError }),
 }))
-vi.mock('@/features/security/composables/useIdpStepUp', () => ({
+vi.mock('@/features/security/composables/useIdpStepUp', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('@/features/security/composables/useIdpStepUp')>()),
   useIdpStepUp: () => ({ start: vi.fn<() => Promise<void>>() }),
   useIdpReauthChallenge: () => challenge,
 }))
@@ -138,7 +139,7 @@ describe('DataTransferCard', () => {
     const onError = (exportMutate.mock.calls[0]![1] as { onError: (e: unknown) => void }).onError
 
     challenge.mockReturnValue(false)
-    onError(new HttpError(401, 'Unauthorized'))
+    onError(new HttpError(403, 'Forbidden', null, 'urn:endurain:error:step-up-failed'))
     onError(new Error('boom'))
 
     expect(toastError.mock.calls.map((call) => call[0])).toEqual([
@@ -158,7 +159,7 @@ describe('DataTransferCard', () => {
     const onError = (exportMutate.mock.calls[0]![1] as { onError: (e: unknown) => void }).onError
 
     challenge.mockReturnValue(true)
-    onError(new HttpError(401, 'Unauthorized'))
+    onError(new HttpError(403, 'Forbidden', null, 'urn:endurain:error:step-up-failed'))
 
     expect(toastError).not.toHaveBeenCalled()
   })

@@ -188,7 +188,7 @@ export async function enableMfa(input: MfaEnableInput): Promise<string[]> {
  * password for accounts that have one).
  *
  * @param input - The step-up credentials.
- * @throws {HttpError} When the request fails (e.g. 401 verification failed).
+ * @throws {HttpError} When the request fails (e.g. 403 verification failed).
  */
 export async function disableMfa(input: StepUpInput): Promise<void> {
   const payload: MfaDisableDto = {
@@ -222,7 +222,7 @@ export async function fetchBackupCodeStatus(signal?: AbortSignal): Promise<Backu
  *
  * @param input - The step-up credentials.
  * @returns The newly generated backup codes.
- * @throws {HttpError} When the request fails (e.g. 401 verification failed).
+ * @throws {HttpError} When the request fails (e.g. 403 verification failed).
  */
 export async function regenerateBackupCodes(input: StepUpInput): Promise<BackupCodesResult> {
   const dto = await apiFetch<BackupCodesDto>('/profile/mfa/backup-codes', {
@@ -291,7 +291,7 @@ export async function fetchApiKeys(signal?: AbortSignal): Promise<ApiKey[]> {
  *
  * @param input - The clean create-API-key input.
  * @returns The full raw API key, shown once.
- * @throws {HttpError} When the request fails (e.g. 401 step-up, 400 invalid scopes).
+ * @throws {HttpError} When the request fails (e.g. 403 step-up, 400 invalid scopes).
  */
 export async function createApiKey(input: ApiKeyCreateInput): Promise<string> {
   const payload: ApiKeyCreateDto = {
@@ -347,7 +347,7 @@ export async function deleteApiKey(id: string): Promise<void> {
  * user is the server's only administrator.
  *
  * @param input - The step-up credentials.
- * @throws {HttpError} When the request fails (401 step-up, 409 only administrator).
+ * @throws {HttpError} When the request fails (403 step-up, 409 only administrator).
  */
 export async function deleteAccount(input: StepUpInput): Promise<void> {
   await apiFetch('/profile/delete-account', {
@@ -366,7 +366,7 @@ export async function deleteAccount(input: StepUpInput): Promise<void> {
  * @param input - The step-up credentials (password and, with MFA, a code).
  * @param revokeOtherSessions - Whether to sign out every other session after the change.
  * @returns Whether the new address awaits confirmation (`false` when it applied at once).
- * @throws {HttpError} When the request fails (401 step-up, 409 address already in use).
+ * @throws {HttpError} When the request fails (403 step-up, 409 address already in use).
  */
 export async function changeEmail(
   email: string,

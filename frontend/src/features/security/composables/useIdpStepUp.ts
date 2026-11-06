@@ -15,6 +15,7 @@ const STORED_TTL_MS = 10 * 60 * 1000
 const TICKET_PARAM = 'step_up_ticket'
 const ERROR_PARAM = 'step_up_error'
 const IDP_REAUTH_REQUIRED_PROBLEM = 'urn:endurain:error:idp-reauth-required'
+const STEP_UP_FAILED_PROBLEM = 'urn:endurain:error:step-up-failed'
 
 /** What the UI needs to reopen the right dialog after the provider round-trip. Never a secret. */
 export type StepUpPending = Record<string, unknown>
@@ -56,6 +57,17 @@ interface StoredStepUp {
  */
 export function isIdpReauthRequired(error: unknown): boolean {
   return error instanceof HttpError && error.type === IDP_REAUTH_REQUIRED_PROBLEM
+}
+
+/**
+ * Whether an error is the backend refusing the credentials sent with a sensitive request. The answer is the same
+ * for a wrong password and a wrong or missing MFA code.
+ *
+ * @param error - The error a sensitive request failed with.
+ * @returns `true` for the `step-up-failed` problem type.
+ */
+export function isStepUpFailed(error: unknown): boolean {
+  return error instanceof HttpError && error.type === STEP_UP_FAILED_PROBLEM
 }
 
 /** Reads and removes the stored entry; `null` when absent, malformed or older than the TTL. */

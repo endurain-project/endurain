@@ -42,6 +42,10 @@ All step-up operations accept the following fields in their JSON request body (a
 
 Account deletion and email change use the same fields. Password change (`POST /profile/password/change`) needs a local password and is answered `403` for an account without one; an administrator sets the first password through `POST /users/{user_id}/password/change`, which refuses the administrator's own account.
 
+### Step-up Refusal
+
+A step-up that does not verify is `403` with `urn:endurain:error:step-up-failed` and the detail `Step-up verification failed`, with no `WWW-Authenticate` header. The answer is the same for a wrong password, a wrong or missing MFA code and a ticket that does not match, so it never confirms a correct password. It is not a dead token: do not refresh the tokens or sign the user out; show the credentials form again. A request that does not match the schema is `422`. The only `401` a step-up answers is `idp-reauth-required`, below. Failures count towards the lockout.
+
 ### Step-up for accounts without a password
 
 An account without a local password cannot prove a password, and MFA alone does not pass step-up for it. It must prove a fresh sign-in with an identity provider linked to the account. This covers API key creation, IdP link, IdP unlink, email change, account deletion, profile export, MFA enable, MFA disable and backup-code regeneration.
@@ -337,4 +341,4 @@ A response that carries a secret is sent with `Cache-Control: no-store` and `Pra
 
 ## Profile export
 
-`POST /profile/export` requires [step-up](#step-up-authentication) in its JSON body, so a stolen access token cannot take the account's data. It queues an export and answers `202`; a refused step-up answers `401` and queues nothing. `GET /profile/export` reports its state: `status` (`queued`, `running`, `completed` or `failed`), `failure`, `size_bytes` and `expires_at`. Once the export is `completed`, `expires_at` is the instant after which `GET /profile/export/download` stops working (two hours after completion). It is `null` for an export that is not completed, and `GET /profile/export` answers `null` once the state has expired. Request a new export then.
+`POST /profile/export` requires [step-up](#step-up-authentication) in its JSON body, so a stolen access token cannot take the account's data. It queues an export and answers `202`; a refused step-up answers `403` and queues nothing. `GET /profile/export` reports its state: `status` (`queued`, `running`, `completed` or `failed`), `failure`, `size_bytes` and `expires_at`. Once the export is `completed`, `expires_at` is the instant after which `GET /profile/export/download` stops working (two hours after completion). It is `null` for an export that is not completed, and `GET /profile/export` answers `null` once the state has expired. Request a new export then.

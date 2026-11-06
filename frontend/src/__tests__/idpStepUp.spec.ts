@@ -3,6 +3,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import {
   consumeIdpStepUpReturn,
   isIdpReauthRequired,
+  isStepUpFailed,
   useIdpStepUp,
 } from '@/features/security/composables/useIdpStepUp'
 import { HttpError } from '@/services/http'
@@ -148,5 +149,14 @@ describe('isIdpReauthRequired', () => {
     expect(isIdpReauthRequired(new HttpError(401, 'Unauthorized', null, type))).toBe(true)
     expect(isIdpReauthRequired(new HttpError(401, 'Unauthorized'))).toBe(false)
     expect(isIdpReauthRequired(new Error('x'))).toBe(false)
+  })
+})
+
+describe('isStepUpFailed', () => {
+  it('matches the problem type, not the status', () => {
+    const type = 'urn:endurain:error:step-up-failed'
+    expect(isStepUpFailed(new HttpError(403, 'Forbidden', null, type))).toBe(true)
+    expect(isStepUpFailed(new HttpError(403, 'Forbidden'))).toBe(false)
+    expect(isStepUpFailed(new Error('x'))).toBe(false)
   })
 })

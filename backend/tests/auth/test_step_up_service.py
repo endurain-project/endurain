@@ -228,7 +228,7 @@ class TestVerifyStepUpCredentials:
                 current_password=None,
             )
 
-        assert exc.value.status_code == 401
+        assert exc.value.status_code == 403
 
     def test_password_missing_records_failure(self):
         mock_user = MagicMock()
@@ -261,7 +261,7 @@ class TestVerifyStepUpCredentials:
                 current_password="wrong",
             )
 
-        assert exc.value.status_code == 401
+        assert exc.value.status_code == 403
 
     def test_password_wrong_records_failure(self):
         mock_user = MagicMock()
@@ -315,7 +315,27 @@ class TestVerifyStepUpCredentials:
 
         assert "user:1" not in store._attempts
 
-    def test_password_correct_mfa_missing_code_raises_401(self):
+    def test_a_wrong_password_and_a_missing_mfa_code_get_the_same_answer(self):
+        """A correct password with a missing MFA code must not be told apart from a wrong password."""
+        mock_user = MagicMock()
+        mock_user.password = "hashed"
+        mock_user.has_local_password = True
+        answers = []
+        for password_valid in (False, True):
+            with pytest.raises(core_exceptions.StepUpFailedError) as exc:
+                self._call(
+                    mock_user=mock_user,
+                    password_valid=password_valid,
+                    current_password="typed",
+                    mfa_enabled=True,
+                    mfa_code=None,
+                )
+            answers.append((exc.value.status_code, exc.value.code, exc.value.detail, exc.value.headers))
+
+        assert answers[0] == answers[1]
+        assert answers[0][3] is None or "WWW-Authenticate" not in answers[0][3]
+
+    def test_password_correct_mfa_missing_code_is_refused(self):
         mock_user = MagicMock()
         mock_user.password = "hashed"
         mock_user.has_local_password = True
@@ -332,8 +352,8 @@ class TestVerifyStepUpCredentials:
                 mfa_code=None,
             )
 
-        assert exc.value.status_code == 401
-        assert exc.value.detail == "MFA code required for this operation"
+        assert exc.value.status_code == 403
+        assert exc.value.detail == "Step-up verification failed"
 
     def test_password_correct_mfa_missing_records_failure(self):
         mock_user = MagicMock()
@@ -390,7 +410,7 @@ class TestVerifyStepUpCredentials:
                 mfa_valid=False,
             )
 
-        assert exc.value.status_code == 401
+        assert exc.value.status_code == 403
 
     def test_password_correct_mfa_wrong_records_failure(self):
         mock_user = MagicMock()
@@ -478,5 +498,5 @@ class TestStepUpPasswordNormalisation:
         self._verify(hasher.hash_password(self._DECOMPOSED), self._DECOMPOSED)
 
     def test_wrong_password_is_refused(self, hasher):
-        with pytest.raises(core_exceptions.UnauthenticatedError):
+        with pytest.raises(core_exceptions.StepUpFailedError):
             self._verify(hasher.hash_password(self._COMPOSED), "not-the-password-at-all")

@@ -118,7 +118,7 @@ class TestTicket:
     def test_a_ticket_issued_for_something_else_is_refused_and_counted(self, state, store, account, issued, presented):
         ticket = _issue(state, **issued)
 
-        with pytest.raises(core_exceptions.UnauthenticatedError) as exc_info:
+        with pytest.raises(core_exceptions.StepUpFailedError) as exc_info:
             _verify(store, ticket, **presented)
 
         assert not isinstance(exc_info.value, core_exceptions.IdpReauthRequiredError)
@@ -127,20 +127,20 @@ class TestTicket:
         assert StepUpTicketStore(state).read(ticket) is not None
 
     def test_an_unknown_ticket_is_refused(self, store, account):
-        with pytest.raises(core_exceptions.UnauthenticatedError):
+        with pytest.raises(core_exceptions.StepUpFailedError):
             _verify(store, "u" * 43)
 
     def test_a_ticket_pays_for_one_request(self, state, store, account):
         ticket = _issue(state)
         _verify(store, ticket)
 
-        with pytest.raises(core_exceptions.UnauthenticatedError):
+        with pytest.raises(core_exceptions.StepUpFailedError):
             _verify(store, ticket)
 
     def test_without_a_session_or_action_no_ticket_matches(self, state, store, account):
         ticket = _issue(state)
 
-        with pytest.raises(core_exceptions.UnauthenticatedError):
+        with pytest.raises(core_exceptions.StepUpFailedError):
             step_up_service.verify_step_up_credentials(
                 USER_ID,
                 None,
@@ -157,7 +157,7 @@ class TestTicket:
         racing.read_ticket.side_effect = store.read_ticket
         racing.redeem_ticket.return_value = None
 
-        with pytest.raises(core_exceptions.UnauthenticatedError):
+        with pytest.raises(core_exceptions.StepUpFailedError):
             _verify(racing, ticket)
 
 
@@ -174,7 +174,7 @@ class TestTicketWithMfa:
         account.mfa_enabled.return_value = True
         ticket = _issue(state)
 
-        with pytest.raises(core_exceptions.UnauthenticatedError):
+        with pytest.raises(core_exceptions.StepUpFailedError):
             _verify(store, ticket)
 
         assert StepUpTicketStore(state).read(ticket) is not None
@@ -184,7 +184,7 @@ class TestTicketWithMfa:
         account.verify_mfa.return_value = False
         ticket = _issue(state)
 
-        with pytest.raises(core_exceptions.UnauthenticatedError):
+        with pytest.raises(core_exceptions.StepUpFailedError):
             _verify(store, ticket, mfa_code="000000")
 
         account.verify_mfa.return_value = True
@@ -197,7 +197,7 @@ class TestAccountsWithAPassword:
 
         with (
             patch.object(step_up_service.credentials_integration, "get_password_hash", return_value="hash"),
-            pytest.raises(core_exceptions.UnauthenticatedError),
+            pytest.raises(core_exceptions.StepUpFailedError),
         ):
             _verify(store, ticket)
 

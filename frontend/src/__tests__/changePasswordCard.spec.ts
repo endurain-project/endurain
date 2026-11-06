@@ -149,8 +149,10 @@ describe('ChangePasswordCard server refusals', () => {
     expect(toastError).toHaveBeenCalledWith(i18n.global.t('app.password.unchanged'))
   })
 
-  it('still reports a wrong current password on a 401', async () => {
-    mutateAsync.mockRejectedValue(new HttpError(401, 'Unauthorized'))
+  it('reports a refused step-up as a wrong current password', async () => {
+    mutateAsync.mockRejectedValue(
+      new HttpError(403, 'Forbidden', null, 'urn:endurain:error:step-up-failed'),
+    )
     await submitFilled()
 
     expect(toastError).toHaveBeenCalledWith(

@@ -13,6 +13,7 @@ import { Switch } from '@/components/ui/switch'
 import { useToasts } from '@/composables/useToasts'
 import { HttpError } from '@/services/http'
 import { normalizeMfaCode } from '@/features/auth/utils/mfaCode'
+import { isStepUpFailed } from '@/features/security/composables/useIdpStepUp'
 import { useChangePasswordMutation } from '@/features/security/composables/useSecurity'
 import {
   usePasswordConfirmation,
@@ -88,7 +89,7 @@ async function submit(): Promise<void> {
     const passwordProblem = policyError(error)
     if (passwordProblem) {
       toasts.error(passwordProblem)
-    } else if (error instanceof HttpError && (error.status === 400 || error.status === 401)) {
+    } else if (isStepUpFailed(error) || (error instanceof HttpError && error.status === 400)) {
       toasts.error(t('settings.security.password.invalidCredentials'))
     } else {
       toasts.error(t('settings.security.password.error'))

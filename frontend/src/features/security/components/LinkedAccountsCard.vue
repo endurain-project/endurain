@@ -22,7 +22,7 @@ import { useToasts } from '@/composables/useToasts'
 import { formatMediumDate } from '@/utils/datetime'
 import { queryKeys } from '@/services/queryKeys'
 import { HttpError } from '@/services/http'
-import { useIdpReauthChallenge } from '@/features/security/composables/useIdpStepUp'
+import { isStepUpFailed, useIdpReauthChallenge } from '@/features/security/composables/useIdpStepUp'
 import {
   useAvailableProvidersQuery,
   useStartProviderLinkMutation,
@@ -119,7 +119,7 @@ function confirmLink(idpId: number, input: StepUpInput): void {
         }
         if (error instanceof HttpError && error.status === 409) {
           toasts.error(t('settings.security.linked.alreadyLinked'))
-        } else if (error instanceof HttpError && error.status === 401) {
+        } else if (isStepUpFailed(error)) {
           toasts.error(t('settings.security.linked.invalidCredentials'))
         } else {
           toasts.error(t('settings.security.linked.linkError'))
@@ -145,7 +145,7 @@ function confirmUnlink(idpId: number, input: StepUpInput): void {
         }
         if (error instanceof HttpError && error.status === 400) {
           toasts.error(t('settings.security.linked.lastMethodError'))
-        } else if (error instanceof HttpError && error.status === 401) {
+        } else if (isStepUpFailed(error)) {
           toasts.error(t('settings.security.linked.invalidCredentials'))
         } else {
           toasts.error(t('settings.security.linked.unlinkError'))

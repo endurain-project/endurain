@@ -60,7 +60,7 @@ export async function fetchLinkedProviders(signal?: AbortSignal): Promise<Linked
  * @param input - The step-up credentials.
  * @param returnPath - The frontend route to return to after the callback.
  * @returns The identity provider's authorization URL.
- * @throws {HttpError} When the request fails (401 step-up, 409 already linked).
+ * @throws {HttpError} When the request fails (403 step-up, 409 already linked).
  */
 export async function startProviderLink(
   idpId: number,
@@ -82,7 +82,7 @@ export async function startProviderLink(
  *
  * @param idpId - The identity-provider id to unlink.
  * @param input - The step-up credentials.
- * @throws {HttpError} When the request fails (401 step-up, 400 last method).
+ * @throws {HttpError} When the request fails (403 step-up, 400 last method).
  */
 export async function unlinkProvider(idpId: number, input: StepUpInput): Promise<void> {
   await apiFetch(`/profile/identity-providers/${idpId}/unlink`, {

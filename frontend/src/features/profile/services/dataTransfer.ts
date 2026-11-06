@@ -12,7 +12,7 @@ import { toStepUpWire } from '@/features/security/services/security'
  *
  * @param input - The step-up credentials (password or identity-provider proof, and with MFA a code).
  * @returns The queued export's state.
- * @throws {HttpError} When the export is refused (`401` step-up, `409` while another export is still running).
+ * @throws {HttpError} When the export is refused (`403` step-up, `409` while another export is still running).
  */
 export function requestProfileExport(input: StepUpInput): Promise<ProfileExportStatus> {
   return apiFetch<ProfileExportStatus>('/profile/export', {

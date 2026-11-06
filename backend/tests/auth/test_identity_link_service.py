@@ -169,14 +169,14 @@ class TestStartIdpLink:
             ),
             patch(
                 f"{self._MODULE}.step_up_service.verify_step_up_credentials",
-                side_effect=core_exceptions.UnauthenticatedError("Step-up verification failed"),
+                side_effect=core_exceptions.StepUpFailedError(),
             ),
             patch(f"{self._MODULE}.identity_providers_integration.stage_browser_link") as stage,
             pytest.raises(core_exceptions.DomainError) as exc,
         ):
             identity_link_service.start_idp_link(1, self._link(), "127.0.0.1", 10, "sid", MagicMock(), mock_db)
 
-        assert exc.value.status_code == 401
+        assert exc.value.status_code == 403
         stage.assert_not_called()
         mock_db.commit.assert_not_called()
 

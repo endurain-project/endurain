@@ -432,7 +432,7 @@ class TestStepUpAudit:
         return store
 
     def test_a_wrong_password_is_a_failure(self):
-        with jasil_testing.capture_audit() as audit, pytest.raises(core_exceptions.UnauthenticatedError):
+        with jasil_testing.capture_audit() as audit, pytest.raises(core_exceptions.StepUpFailedError):
             self._verify(self._store(), password="pw")
 
         entry = audit.assert_audited(
@@ -445,7 +445,7 @@ class TestStepUpAudit:
         assert entry.details == {"method": Method.PASSWORD.value, "reason": Reason.INVALID_CREDENTIALS.value}
 
     def test_a_wrong_mfa_code_is_a_failure(self):
-        with jasil_testing.capture_audit() as audit, pytest.raises(core_exceptions.UnauthenticatedError):
+        with jasil_testing.capture_audit() as audit, pytest.raises(core_exceptions.StepUpFailedError):
             self._verify(
                 self._store(), password="pw", password_valid=True, mfa=True, mfa_valid=False, mfa_code="000000"
             )

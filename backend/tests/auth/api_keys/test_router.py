@@ -254,7 +254,7 @@ class TestCreateUserApiKey:
     @patch("modules.auth.account_security.api_key_service.step_up_service.verify_step_up_credentials")
     @patch("modules.auth.account_security.api_key_service.api_keys_integration.create_api_key")
     @patch("modules.auth.account_security.api_key_service.users_integration.require_user")
-    def test_create_user_api_key_missing_password_returns_401(
+    def test_create_user_api_key_missing_password_returns_403(
         self,
         mock_get_user,
         mock_create_api_key,
@@ -266,13 +266,13 @@ class TestCreateUserApiKey:
         Step-up with missing password propagates 401.
 
         When the account has a local password and none is
-        supplied, verify_step_up_credentials raises 401
+        supplied, verify_step_up_credentials raises 403
         and create_api_key must not be called.
         """
         mock_user = MagicMock()
         mock_user.access_type = "regular"
         mock_get_user.return_value = mock_user
-        mock_verify_step_up.side_effect = core_exceptions.UnauthenticatedError("Step-up verification failed")
+        mock_verify_step_up.side_effect = core_exceptions.StepUpFailedError()
 
         payload = {
             "name": "FitoTrack",
@@ -285,13 +285,13 @@ class TestCreateUserApiKey:
             headers={"Authorization": "Bearer mock_token"},
         )
 
-        assert response.status_code == 401
+        assert response.status_code == 403
         mock_create_api_key.assert_not_called()
 
     @patch("modules.auth.account_security.api_key_service.step_up_service.verify_step_up_credentials")
     @patch("modules.auth.account_security.api_key_service.api_keys_integration.create_api_key")
     @patch("modules.auth.account_security.api_key_service.users_integration.require_user")
-    def test_create_user_api_key_wrong_password_returns_401(
+    def test_create_user_api_key_wrong_password_returns_403(
         self,
         mock_get_user,
         mock_create_api_key,
@@ -309,7 +309,7 @@ class TestCreateUserApiKey:
         mock_user = MagicMock()
         mock_user.access_type = "regular"
         mock_get_user.return_value = mock_user
-        mock_verify_step_up.side_effect = core_exceptions.UnauthenticatedError("Step-up verification failed")
+        mock_verify_step_up.side_effect = core_exceptions.StepUpFailedError()
 
         payload = {
             "name": "FitoTrack",
@@ -323,13 +323,13 @@ class TestCreateUserApiKey:
             headers={"Authorization": "Bearer mock_token"},
         )
 
-        assert response.status_code == 401
+        assert response.status_code == 403
         mock_create_api_key.assert_not_called()
 
     @patch("modules.auth.account_security.api_key_service.step_up_service.verify_step_up_credentials")
     @patch("modules.auth.account_security.api_key_service.api_keys_integration.create_api_key")
     @patch("modules.auth.account_security.api_key_service.users_integration.require_user")
-    def test_create_user_api_key_mfa_missing_code_returns_401(
+    def test_create_user_api_key_mfa_missing_code_returns_403(
         self,
         mock_get_user,
         mock_create_api_key,
@@ -347,7 +347,7 @@ class TestCreateUserApiKey:
         mock_user = MagicMock()
         mock_user.access_type = "regular"
         mock_get_user.return_value = mock_user
-        mock_verify_step_up.side_effect = core_exceptions.UnauthenticatedError("Step-up verification failed")
+        mock_verify_step_up.side_effect = core_exceptions.StepUpFailedError()
 
         payload = {
             "name": "FitoTrack",
@@ -361,13 +361,13 @@ class TestCreateUserApiKey:
             headers={"Authorization": "Bearer mock_token"},
         )
 
-        assert response.status_code == 401
+        assert response.status_code == 403
         mock_create_api_key.assert_not_called()
 
     @patch("modules.auth.account_security.api_key_service.step_up_service.verify_step_up_credentials")
     @patch("modules.auth.account_security.api_key_service.api_keys_integration.create_api_key")
     @patch("modules.auth.account_security.api_key_service.users_integration.require_user")
-    def test_create_user_api_key_mfa_invalid_code_returns_401(
+    def test_create_user_api_key_mfa_invalid_code_returns_403(
         self,
         mock_get_user,
         mock_create_api_key,
@@ -379,13 +379,13 @@ class TestCreateUserApiKey:
         MFA with invalid code propagates 401.
 
         When MFA is enabled and an incorrect mfa_code is
-        supplied, verify_step_up_credentials raises 401
+        supplied, verify_step_up_credentials raises 403
         and create_api_key must not be called.
         """
         mock_user = MagicMock()
         mock_user.access_type = "regular"
         mock_get_user.return_value = mock_user
-        mock_verify_step_up.side_effect = core_exceptions.UnauthenticatedError("Step-up verification failed")
+        mock_verify_step_up.side_effect = core_exceptions.StepUpFailedError()
 
         payload = {
             "name": "FitoTrack",
@@ -400,7 +400,7 @@ class TestCreateUserApiKey:
             headers={"Authorization": "Bearer mock_token"},
         )
 
-        assert response.status_code == 401
+        assert response.status_code == 403
         mock_create_api_key.assert_not_called()
 
     @patch("modules.auth.account_security.api_key_service.step_up_service.verify_step_up_credentials")
@@ -423,7 +423,7 @@ class TestCreateUserApiKey:
         mock_user = MagicMock()
         mock_user.access_type = "regular"
         mock_get_user.return_value = mock_user
-        mock_verify_step_up.side_effect = core_exceptions.UnauthenticatedError("Step-up verification failed")
+        mock_verify_step_up.side_effect = core_exceptions.StepUpFailedError()
 
         payload = {
             "name": "Unwanted Key",
@@ -458,11 +458,8 @@ class TestCreateUserApiKey:
         mock_user = MagicMock()
         mock_user.access_type = "regular"
         mock_get_user.return_value = mock_user
-        # Cause a controlled 401 so we can inspect the call
-        mock_verify_step_up.side_effect = HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Step-up verification failed",
-        )
+        # Cause a controlled refusal so we can inspect the call
+        mock_verify_step_up.side_effect = core_exceptions.StepUpFailedError()
 
         payload = {
             "name": "MyKey",

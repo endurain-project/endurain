@@ -65,27 +65,27 @@ def _refuse_step_up(
     step_up_store: account_security_step_up_store.StepUpStore,
     key: str,
     user_id: int,
-    detail: str,
     method: account_security_audit_actions.StepUpMethod,
+    reason: str,
 ) -> NoReturn:
-    """Record a failed step-up attempt, log it and refuse it.
+    """Record a failed step-up attempt, log it and refuse it with the one answer every failure gets.
 
     Args:
         step_up_store: Step-up lockout store.
         key: Lockout key of the user.
         user_id: Authenticated user ID, for the log.
-        detail: Client-facing reason for the refusal.
         method: How the re-authentication was attempted.
+        reason: Which check failed, for the log only; the client never sees it.
 
     Raises:
-        UnauthenticatedError: Always raised.
+        StepUpFailedError: Always raised.
     """
     _record_failure(step_up_store, key, user_id)
     _record_refusal(user_id, method, account_security_audit_actions.StepUpFailureReason.INVALID_CREDENTIALS)
     logger.warning(
-        "Step-up refused for user <user_id>: <detail>", extra=core_logger.context(user_id=user_id, detail=detail)
+        "Step-up refused for user <user_id>: <reason>", extra=core_logger.context(user_id=user_id, reason=reason)
     )
-    raise core_exceptions.UnauthenticatedError(detail, scheme="Bearer")
+    raise core_exceptions.StepUpFailedError()
 
 
 def _step_up_key(user_id: int) -> str:
@@ -190,7 +190,8 @@ def verify_step_up_credentials(
     Raises:
         TooManyRequestsError: If the user is currently locked out.
         IdpReauthRequiredError: If the account has no local password and the request carried no ticket.
-        UnauthenticatedError: If the password, the ticket or the MFA code is missing or wrong.
+        StepUpFailedError: If the password, the ticket or the MFA code is missing or wrong; the answer is the
+            same whichever it was.
     """
     key = _step_up_key(user_id)
 
@@ -207,8 +208,8 @@ def verify_step_up_credentials(
                 step_up_store,
                 key,
                 user_id,
-                "Step-up verification failed",
                 account_security_audit_actions.StepUpMethod.PASSWORD,
+                "no password sent",
             )
         password_verified, _ = credentials_integration.verify_and_update_password(
             current_password, password_hash, credentials_integration.get_password_hasher()
@@ -218,8 +219,8 @@ def verify_step_up_credentials(
                 step_up_store,
                 key,
                 user_id,
-                "Step-up verification failed",
                 account_security_audit_actions.StepUpMethod.PASSWORD,
+                "wrong password",
             )
     else:
         if idp_reauth is None:
@@ -234,8 +235,8 @@ def verify_step_up_credentials(
                 step_up_store,
                 key,
                 user_id,
-                "Step-up verification failed",
                 account_security_audit_actions.StepUpMethod.IDENTITY_PROVIDER,
+                "ticket does not match",
             )
 
     if mfa_integration.is_mfa_enabled_for_user(user_id, db):
@@ -244,8 +245,8 @@ def verify_step_up_credentials(
                 step_up_store,
                 key,
                 user_id,
-                "MFA code required for this operation",
                 account_security_audit_actions.StepUpMethod.MFA_CODE,
+                "no MFA code sent",
             )
         if not mfa_integration.verify_user_mfa(
             user_id, mfa_code, credentials_integration.get_password_hasher(), db, replay_guard=step_up_store
@@ -254,8 +255,8 @@ def verify_step_up_credentials(
                 step_up_store,
                 key,
                 user_id,
-                "Step-up verification failed",
                 account_security_audit_actions.StepUpMethod.MFA_CODE,
+                "wrong MFA code",
             )
 
     # The ticket pays for one request: of two that raced past the checks above, only one redeems it.
@@ -264,8 +265,8 @@ def verify_step_up_credentials(
             step_up_store,
             key,
             user_id,
-            "Step-up verification failed",
             account_security_audit_actions.StepUpMethod.IDENTITY_PROVIDER,
+            "ticket already redeemed",
         )
 
     # All factors passed — reset the failure counter.

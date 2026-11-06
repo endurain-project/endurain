@@ -115,6 +115,18 @@ class PermissionDeniedError(DomainError):
     default_detail = "Forbidden"
 
 
+class StepUpFailedError(PermissionDeniedError):
+    """A sensitive operation's re-authentication did not verify.
+
+    The answer is the same whichever factor failed (password, ticket or MFA code), so it never confirms a correct
+    password. It is a ``403``, not a ``401``: the access token is fine, so the client must not refresh it or take
+    the user to the sign-in page.
+    """
+
+    code = "step-up-failed"
+    default_detail = "Step-up verification failed"
+
+
 class UnauthenticatedError(DomainError):
     """The caller did not provide valid authentication credentials."""
 

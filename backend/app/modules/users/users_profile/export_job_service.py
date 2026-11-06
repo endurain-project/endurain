@@ -65,7 +65,7 @@ def request_export(
         The export's initial state.
 
     Raises:
-        UnauthenticatedError: If step-up verification fails.
+        StepUpFailedError: If step-up verification fails.
         ConflictError: When the user already has an export pending.
         ServiceUnavailableError: When there is no durable worker and the in-process pool is full.
     """

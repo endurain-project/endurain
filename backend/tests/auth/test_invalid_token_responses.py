@@ -13,7 +13,7 @@ import modules.auth.account_security.step_up_service as step_up_service
 import modules.auth.dependencies as auth_dependencies
 
 INVALID_TOKEN = "urn:endurain:error:invalid-token"
-UNAUTHORIZED = "urn:endurain:error:unauthorized"
+STEP_UP_FAILED = "urn:endurain:error:step-up-failed"
 # Three-part JWT signed with a different secret and already expired.
 STALE_JWT = (
     "eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9."
@@ -49,7 +49,7 @@ def client():
     @app.post("/step-up")
     def _step_up():
         step_up_service._refuse_step_up(
-            _Store(), "user:1", 1, "Invalid password", account_security_audit_actions.StepUpMethod.PASSWORD
+            _Store(), "user:1", 1, account_security_audit_actions.StepUpMethod.PASSWORD, "wrong password"
         )
 
     return TestClient(app, headers={"X-Client-Type": "web"})
@@ -73,9 +73,9 @@ def test_missing_credentials_are_an_invalid_token_with_a_bare_challenge(client, 
     assert response.headers["www-authenticate"] == "Bearer"
 
 
-def test_wrong_step_up_password_is_not_an_invalid_token(client):
+def test_a_failed_step_up_is_a_403_without_a_bearer_challenge(client):
     response = client.post("/step-up")
 
-    assert response.status_code == 401
-    assert response.json()["type"] == UNAUTHORIZED
-    assert response.headers["www-authenticate"] == "Bearer"
+    assert response.status_code == 403
+    assert response.json()["type"] == STEP_UP_FAILED
+    assert "www-authenticate" not in response.headers

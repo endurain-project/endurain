@@ -13,7 +13,8 @@ const toastSuccess = vi.fn<(message: string) => void>()
 vi.mock('@/composables/useToasts', () => ({
   useToasts: () => ({ success: toastSuccess, error: vi.fn<() => void>() }),
 }))
-vi.mock('@/features/security/composables/useIdpStepUp', () => ({
+vi.mock('@/features/security/composables/useIdpStepUp', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('@/features/security/composables/useIdpStepUp')>()),
   useIdpStepUp: () => ({ start }),
   useIdpReauthChallenge: () => () => false,
 }))

@@ -17,7 +17,7 @@ import { HttpError } from '@/services/http'
 import { useToasts } from '@/composables/useToasts'
 import { formatMediumDate } from '@/utils/datetime'
 import { API_KEY_SCOPES } from '@/features/security/services/security'
-import { useIdpReauthChallenge } from '@/features/security/composables/useIdpStepUp'
+import { isStepUpFailed, useIdpReauthChallenge } from '@/features/security/composables/useIdpStepUp'
 import {
   useApiKeysQuery,
   useCreateApiKeyMutation,
@@ -98,7 +98,7 @@ function onCreate(input: ApiKeyCreateInput): void {
       if (handleIdpChallenge(error)) {
         return
       }
-      if (error instanceof HttpError && error.status === 401) {
+      if (isStepUpFailed(error)) {
         toasts.error(t('settings.security.apiKeys.invalidCredentials'))
       } else if (
         error instanceof HttpError &&
