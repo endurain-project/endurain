@@ -92,6 +92,7 @@ The token refresh flow rotates the refresh token on every call:
     - **Mobile clients:** Include refresh token in request
 2. Backend validates refresh token and session, checks for token reuse
     - **If token reuse detected:** Entire token family is invalidated (security breach response)
+    - **Every refusal** (the session ended or expired, the token is invalid, expired or reused, or the user was deleted or deactivated) is `401` with `urn:endurain:error:invalid-token`, and the response clears the web client's refresh cookie. Sign in again. A CSRF header that does not match is `403` and keeps the cookie.
 3. New tokens are generated (access, refresh, CSRF) with refresh token rotation
 4. Old refresh token is stored for reuse detection (grace period: 10 seconds; the record is kept for the refresh token lifetime)
 5. Response includes new tokens; web clients receive new httpOnly cookie

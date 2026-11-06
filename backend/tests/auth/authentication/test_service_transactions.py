@@ -61,7 +61,7 @@ def test_a_rotation_records_the_presented_tokens_own_expiry(mock_db):
             "modules.auth.authentication.refresh_service.rotated_refresh_tokens_integration.check_token_reuse",
             return_value=(False, False),
         ),
-        patch(f"{_SERVICE}.users_integration.get_user", return_value=SimpleNamespace(id=1)),
+        patch(f"{_SERVICE}.users_integration.get_user", return_value=SimpleNamespace(id=1, active=True)),
         patch(f"{_SERVICE}.users_integration.require_active_user"),
         patch("modules.auth.authentication.token_service.create_tokens", return_value=tokens),
         patch(
@@ -94,7 +94,7 @@ def test_a_rotation_reports_the_sessions_capped_expiry_for_the_body_and_the_cook
             "modules.auth.authentication.refresh_service.rotated_refresh_tokens_integration.check_token_reuse",
             return_value=(False, False),
         ),
-        patch(f"{_SERVICE}.users_integration.get_user", return_value=SimpleNamespace(id=1)),
+        patch(f"{_SERVICE}.users_integration.get_user", return_value=SimpleNamespace(id=1, active=True)),
         patch(f"{_SERVICE}.users_integration.require_active_user"),
         patch("modules.auth.authentication.token_service.create_tokens", return_value=tokens),
         patch("modules.auth.authentication.refresh_service.rotated_refresh_tokens_integration.store_rotated_token"),

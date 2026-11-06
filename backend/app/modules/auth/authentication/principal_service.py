@@ -75,8 +75,8 @@ def resolve_from_access_token(
             :class:`~auth.contracts.AccessTokenCred`.
 
     Raises:
-        InvalidTokenError: If the token is expired,
-            invalid, or its session no longer exists.
+        InvalidTokenError: If the token is expired, invalid, or its session
+            or user no longer exists or is active.
     """
     token_manager.validate_access_expiration_logged(access_token)
 
@@ -90,8 +90,11 @@ def resolve_from_access_token(
         logger.warning("Access token refused: malformed 'sid' claim")
         raise core_exceptions.InvalidTokenError("Invalid token: 'sid' claim must be a string")
 
-    user = users_integration.require_user(int(sub), db)
-    users_integration.require_active_user(user)
+    # A token of a deleted or deactivated user is a dead credential, not a refusal the caller may learn about.
+    user = users_integration.get_user(int(sub), db)
+    if user is None or not user.active:
+        logger.warning("Access token refused: its user is missing or inactive")
+        raise core_exceptions.InvalidTokenError("User is no longer valid")
 
     # The token outlives its session unless it is checked: logging out, revoking sessions or a detected
     # refresh-token theft delete the session, and that must end the access token as well.

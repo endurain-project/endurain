@@ -128,6 +128,10 @@ def auth_app(
     """Create a FastAPI app with auth router and overrides."""
     app = FastAPI()
     app.add_exception_handler(core_exceptions.DomainError, core_exceptions.domain_error_handler)
+    app.add_exception_handler(
+        authentication_dependencies.ClearRefreshTokenCookieError,
+        authentication_dependencies.clear_refresh_token_cookie_exception_handler,
+    )
     app.include_router(auth_router.router, prefix="/auth")
 
     app.state._client_type = "web"
@@ -986,8 +990,8 @@ class TestRefreshEndpoint:
         assert data["token_type"] == "bearer"
 
     @patch("modules.auth.authentication.service.sessions_integration.get_session_by_id_not_expired")
-    def test_refresh_session_not_found_returns_404(self, mock_get_session, auth_client, auth_app):
-        """Missing session returns 404."""
+    def test_refresh_session_not_found_returns_401_and_clears_the_cookie(self, mock_get_session, auth_client, auth_app):
+        """A gone session is an invalid token, and the browser drops its refresh cookie."""
         mock_get_session.return_value = None
 
         app = auth_app
@@ -999,8 +1003,9 @@ class TestRefreshEndpoint:
 
         response = auth_client.post("/auth/refresh")
 
-        assert response.status_code == 404
-        assert "Session not found" in response.json()["detail"]
+        assert response.status_code == 401
+        assert response.json()["type"] == "urn:endurain:error:invalid-token"
+        assert any("endurain_refresh_token=" in cookie for cookie in response.headers.get_list("set-cookie"))
 
     @patch("modules.auth.authentication.service.sessions_integration.validate_session_timeout")
     @patch("modules.auth.authentication.service.sessions_integration.get_session_by_id_not_expired")
@@ -1030,6 +1035,8 @@ class TestRefreshEndpoint:
 
         assert response.status_code == 401
         assert response.json()["detail"] == "Invalid refresh token"
+        assert response.json()["type"] == "urn:endurain:error:invalid-token"
+        assert any("endurain_refresh_token=" in cookie for cookie in response.headers.get_list("set-cookie"))
         # The owner check must short-circuit before session-timeout validation.
         mock_validate_timeout.assert_not_called()
 
@@ -1069,6 +1076,8 @@ class TestRefreshEndpoint:
 
         assert response.status_code == 401
         assert "reuse" in response.json()["detail"].lower()
+        assert "all sessions" not in response.json()["detail"].lower()
+        assert any("endurain_refresh_token=" in cookie for cookie in response.headers.get_list("set-cookie"))
         mock_invalidate.assert_called_once()
 
     @patch("modules.auth.authentication.refresh_service.identity_providers_integration.request_idp_token_refresh")

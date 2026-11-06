@@ -25,8 +25,7 @@ def _user(access_type="regular"):
 
 def _resolve(*, session, user, scope=None):
     with (
-        patch(f"{_MODULE}.users_integration.require_user", return_value=user),
-        patch(f"{_MODULE}.users_integration.require_active_user"),
+        patch(f"{_MODULE}.users_integration.get_user", return_value=user),
         patch(f"{_MODULE}.sessions_integration.get_session_by_id_not_expired", return_value=session) as lookup,
     ):
         principal = principal_service.resolve_from_access_token("token", _token_manager(scope), MagicMock())
@@ -40,9 +39,22 @@ def test_a_token_of_a_live_session_is_accepted():
     assert lookup.call_args.args[0] == "session-1"
 
 
+def test_a_token_of_a_deleted_user_is_an_invalid_token():
+    with pytest.raises(core_exceptions.InvalidTokenError):
+        _resolve(session=SimpleNamespace(user_id=1), user=None)
+
+
+def test_a_token_of_a_deactivated_user_is_an_invalid_token():
+    user = _user()
+    user.active = False
+
+    with pytest.raises(core_exceptions.InvalidTokenError):
+        _resolve(session=SimpleNamespace(user_id=1), user=user)
+
+
 def test_a_token_whose_session_was_revoked_is_refused():
     """Logging out, revoking sessions or a detected token theft must end the access token too."""
-    with pytest.raises(core_exceptions.UnauthenticatedError):
+    with pytest.raises(core_exceptions.InvalidTokenError):
         _resolve(session=None, user=_user())
 
 

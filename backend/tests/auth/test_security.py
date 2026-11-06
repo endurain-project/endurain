@@ -70,6 +70,14 @@ def test_validate_refresh_token_accepts_a_valid_token(token_manager, sample_user
     authentication_dependencies.validate_refresh_token(refresh_token, token_manager)
 
 
+def test_validate_refresh_token_clears_the_cookie_of_an_expired_token(token_manager, sample_user_read):
+    _, refresh_token = token_manager.create_token(
+        "session-id", sample_user_read, access_tokens_service.TokenType.REFRESH, timedelta(seconds=-60)
+    )
+    with pytest.raises(authentication_dependencies.ClearRefreshTokenCookieError):
+        authentication_dependencies.validate_refresh_token(refresh_token, token_manager)
+
+
 def test_get_and_return_refresh_token_preserves_value():
     assert authentication_dependencies.get_and_return_refresh_token("refresh") == "refresh"
 

@@ -55,7 +55,7 @@ def _replay_rotation(
         The outcome carrying the replacement refresh token.
 
     Raises:
-        UnauthenticatedError: If the replacement is gone or the user cannot authenticate.
+        InvalidTokenError: If the replacement is gone or the user cannot authenticate.
     """
     replay = rotated_refresh_tokens_integration.get_grace_replay_token(refresh_token_value, db)
 
@@ -71,7 +71,7 @@ def _replay_rotation(
             jasil_audit.Outcome.FAILURE,
             authentication_audit_actions.RefreshRefusalReason.REPLAY_UNAVAILABLE,
         )
-        raise core_exceptions.UnauthenticatedError("Invalid refresh token", scheme="Bearer")
+        raise core_exceptions.InvalidTokenError("Invalid refresh token")
 
     replay_refresh_token, replay_refresh_token_exp = replay
 
@@ -86,7 +86,7 @@ def _replay_rotation(
         authentication_refusal_audit.record_refresh_refusal(
             token_user_id, jasil_audit.Outcome.FAILURE, authentication_audit_actions.RefreshRefusalReason.USER_NOT_FOUND
         )
-        raise core_exceptions.UnauthenticatedError("Unable to authenticate", scheme="Bearer")
+        raise core_exceptions.InvalidTokenError("Unable to authenticate")
 
     try:
         users_integration.require_active_user(replay_user)
@@ -166,8 +166,9 @@ def refresh_token(
         for web clients, the refresh cookie.
 
     Raises:
-        DomainError: If session not found, refresh token invalid,
-                       user is inactive, or CSRF token is invalid (when provided).
+        InvalidTokenError: If the session is gone or expired, the refresh token is invalid or reused, or the
+            user is missing or inactive.
+        PermissionDeniedError: If the CSRF token is invalid (when provided).
     """
     # Get the session from the database
     session = sessions_integration.get_session_by_id_not_expired(token_session_id, db)
@@ -179,7 +180,7 @@ def refresh_token(
             jasil_audit.Outcome.FAILURE,
             authentication_audit_actions.RefreshRefusalReason.SESSION_NOT_FOUND,
         )
-        raise core_exceptions.NotFoundError("Session not found")
+        raise core_exceptions.InvalidTokenError("Session is no longer valid")
 
     # Defense-in-depth: ensure the session belongs to the user named in
     # the refresh token's `sub` claim. The refresh-token hash stored on
@@ -198,7 +199,7 @@ def refresh_token(
             jasil_audit.Outcome.FAILURE,
             authentication_audit_actions.RefreshRefusalReason.SESSION_OWNER_MISMATCH,
         )
-        raise core_exceptions.UnauthenticatedError("Invalid refresh token", scheme="Bearer")
+        raise core_exceptions.InvalidTokenError("Invalid refresh token")
 
     # Validate session hasn't exceeded idle or absolute timeout
     policy = server_settings_integration.get_session_policy(db)
@@ -251,9 +252,7 @@ def refresh_token(
             jasil_audit.Outcome.FAILURE,
             authentication_audit_actions.RefreshRefusalReason.TOKENS_NOT_EXCHANGED,
         )
-        raise core_exceptions.UnauthenticatedError(
-            "Tokens not yet exchanged via PKCE. Complete SSO/PKCE flow first.", scheme="Bearer"
-        )
+        raise core_exceptions.InvalidTokenError("Tokens not yet exchanged via PKCE. Complete SSO/PKCE flow first.")
 
     # Check for token reuse BEFORE validating token
     # Uses HMAC-SHA256 internally for deterministic, secure lookup
@@ -275,7 +274,7 @@ def refresh_token(
             "Refresh token reuse detected for user <token_user_id>; token family invalidated",
             extra=core_logger.context(token_user_id=token_user_id),
         )
-        raise core_exceptions.UnauthenticatedError("Token reuse detected. All sessions invalidated.", scheme="Bearer")
+        raise core_exceptions.InvalidTokenError("Refresh token reuse detected. The session was ended.")
 
     if is_reused and in_grace:
         # A retry inside the grace window (a lost rotation response, or a duplicate refresh) is answered
@@ -292,7 +291,7 @@ def refresh_token(
         authentication_refusal_audit.record_refresh_refusal(
             token_user_id, jasil_audit.Outcome.FAILURE, authentication_audit_actions.RefreshRefusalReason.INVALID_TOKEN
         )
-        raise core_exceptions.UnauthenticatedError("Invalid refresh token", scheme="Bearer")
+        raise core_exceptions.InvalidTokenError("Invalid refresh token")
 
     # get user
     user = users_integration.get_user(token_user_id, db)
@@ -305,16 +304,14 @@ def refresh_token(
         authentication_refusal_audit.record_refresh_refusal(
             token_user_id, jasil_audit.Outcome.FAILURE, authentication_audit_actions.RefreshRefusalReason.USER_NOT_FOUND
         )
-        raise core_exceptions.UnauthenticatedError("Unable to authenticate", scheme="Bearer")
+        raise core_exceptions.InvalidTokenError("Unable to authenticate")
 
-    # Check if the user is active
-    try:
-        users_integration.require_active_user(user)
-    except core_exceptions.PermissionDeniedError:
+    # A deactivated user's refresh token is dead, like a deleted user's.
+    if not user.active:
         authentication_refusal_audit.record_refresh_refusal(
             token_user_id, jasil_audit.Outcome.DENIED, authentication_audit_actions.RefreshRefusalReason.USER_INACTIVE
         )
-        raise
+        raise core_exceptions.InvalidTokenError("Unable to authenticate")
 
     # Create the new token bundle first so the rotated record can persist the
     # replacement refresh token used for idempotent in-grace replay.

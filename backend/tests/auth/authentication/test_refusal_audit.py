@@ -148,7 +148,7 @@ class TestRefreshRefusal:
         assert "old-token" not in repr(entry)
 
     def test_a_missing_session_is_a_failure(self, mock_db):
-        with jasil_testing.capture_audit() as audit, pytest.raises(core_exceptions.NotFoundError):
+        with jasil_testing.capture_audit() as audit, pytest.raises(core_exceptions.InvalidTokenError):
             _refresh(mock_db, session=None)
 
         self._assert_refused(audit, "failure", "session_not_found")
@@ -230,7 +230,7 @@ class TestRefreshRefusal:
 
     def test_an_inactive_user_is_denied(self, mock_db):
         inactive = SimpleNamespace(id=5, username="alice", active=False, access_type="regular")
-        with jasil_testing.capture_audit() as audit, pytest.raises(core_exceptions.PermissionDeniedError):
+        with jasil_testing.capture_audit() as audit, pytest.raises(core_exceptions.InvalidTokenError):
             self._refresh_with_valid_token(mock_db, user=inactive)
 
         self._assert_refused(audit, "denied", "user_inactive")

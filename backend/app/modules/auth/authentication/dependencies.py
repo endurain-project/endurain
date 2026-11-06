@@ -1,13 +1,12 @@
 """Authentication transport dependencies and refresh-cookie helpers."""
 
 from datetime import UTC, datetime
-from typing import Annotated
+from typing import Annotated, Self
 
 from fastapi import Depends, Request, Response
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
 from fastapi.security import APIKeyCookie, APIKeyHeader, OAuth2PasswordBearer, OAuth2PasswordRequestForm
-from joserfc.errors import MissingClaimError
 from pydantic import BaseModel
 
 import core.cache_control as core_cache_control
@@ -60,8 +59,20 @@ def reject_nul_in_login_form(form_data: Annotated[OAuth2PasswordRequestForm, Dep
 LoginForm = Annotated[OAuth2PasswordRequestForm, Depends(reject_nul_in_login_form)]
 
 
-class ClearRefreshTokenCookieError(core_exceptions.UnauthenticatedError):
-    """Authentication error that clears refresh-token cookies."""
+class ClearRefreshTokenCookieError(core_exceptions.InvalidTokenError):
+    """An invalid refresh token whose problem response also clears the refresh-token cookies."""
+
+    @classmethod
+    def refusing(cls, err: core_exceptions.UnauthenticatedError) -> Self:
+        """Wrap an authentication refusal so the browser drops its refresh cookie.
+
+        Args:
+            err: The refusal.
+
+        Returns:
+            The invalid-token error carrying the refusal's message.
+        """
+        return cls(err.detail)
 
 
 def set_refresh_token_cookie(
@@ -134,12 +145,12 @@ async def clear_refresh_token_cookie_exception_handler(
     request: Request,
     exc: ClearRefreshTokenCookieError,
 ) -> JSONResponse:
-    """Render an authentication failure and clear refresh-token cookies."""
+    """Render an invalid-token problem and clear refresh-token cookies."""
     response = core_exceptions.build_problem_response(
         request=request,
         status_code=exc.status_code,
-        code="authentication-failed",
-        title="Unauthorized",
+        code=exc.code,
+        title=exc.title,
         detail=str(exc.detail),
         headers=exc.headers,
     )
@@ -229,7 +240,7 @@ def validate_refresh_token(
         Depends(access_tokens_integration.get_token_manager),
     ],
 ) -> None:
-    """Validate refresh-token expiry and clear stale pre-upgrade cookies."""
+    """Validate refresh-token expiry; a refused token also clears the refresh cookies."""
     try:
         token_manager.validate_token_expiration(refresh_token, access_tokens_integration.TokenType.REFRESH)
     except core_exceptions.DomainError as http_err:
@@ -237,8 +248,8 @@ def validate_refresh_token(
             "Refresh token validation failed: <detail>",
             extra=core_logger.context(credential="refresh_token", detail=http_err.detail),
         )
-        if isinstance(http_err.__cause__, MissingClaimError):
-            raise ClearRefreshTokenCookieError(http_err.detail) from http_err
+        if isinstance(http_err, core_exceptions.UnauthenticatedError):
+            raise ClearRefreshTokenCookieError.refusing(http_err) from http_err
         raise
     except Exception as err:
         logger.debug(

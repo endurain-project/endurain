@@ -13,6 +13,7 @@ from fastapi import (
 
 import core.config as core_config
 import core.dependencies as core_dependencies
+import core.exceptions as core_exceptions
 import core.logger as core_logger
 import core.network as core_network
 import core.rate_limit as core_rate_limit
@@ -285,19 +286,22 @@ def refresh_token(
         HTTPException: If session not found, refresh token invalid,
                        user is inactive, or CSRF token is invalid (when provided).
     """
-    outcome = auth_refresh_service.refresh_token(
-        core_network.get_ip_address(request),
-        core_network.get_user_agent(request),
-        token_user_id,
-        token_session_id,
-        refresh_token_value,
-        refresh_token_exp,
-        password_hasher,
-        token_manager,
-        client_type,
-        db,
-        x_csrf_token,
-    )
+    try:
+        outcome = auth_refresh_service.refresh_token(
+            core_network.get_ip_address(request),
+            core_network.get_user_agent(request),
+            token_user_id,
+            token_session_id,
+            refresh_token_value,
+            refresh_token_exp,
+            password_hasher,
+            token_manager,
+            client_type,
+            db,
+            x_csrf_token,
+        )
+    except core_exceptions.UnauthenticatedError as err:
+        raise authentication_dependencies.ClearRefreshTokenCookieError.refusing(err) from err
     return authentication_dependencies.deliver_auth_outcome(response, outcome)
 
 

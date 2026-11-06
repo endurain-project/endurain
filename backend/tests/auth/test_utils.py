@@ -524,8 +524,9 @@ class TestCompleteLogin:
 
         set_cookie_headers = [header.lower() for header in _set_cookie_headers(response)]
         assert response.status_code == 401
-        assert response.headers["www-authenticate"] == "Bearer"
+        assert response.headers["www-authenticate"] == 'Bearer error="invalid_token"'
         assert response.headers["content-type"].startswith("application/problem+json")
+        assert b"urn:endurain:error:invalid-token" in response.body
         assert any("max-age=0" in h and "path=/;" in h for h in set_cookie_headers)
         assert any("max-age=0" in h and "path=/api/v1/auth" in h for h in set_cookie_headers)
 
