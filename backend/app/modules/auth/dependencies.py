@@ -20,7 +20,6 @@ import modules.auth.account_security.integration_service as account_security_int
 import modules.auth.authentication.audit_actions as authentication_audit_actions
 import modules.auth.authentication.dependencies as authentication_dependencies
 import modules.auth.authentication.integration_service as authentication_integration
-import modules.auth.constants as auth_constants
 import modules.auth.contracts as auth_contracts
 import modules.auth.identity_providers.dependencies as identity_providers_dependencies
 import modules.auth.mfa.dependencies as auth_mfa_dependencies
@@ -28,7 +27,7 @@ import modules.auth.mfa.dependencies as auth_mfa_dependencies
 logger = core_logger.get_logger(__name__)
 
 oauth2_scheme = authentication_dependencies.oauth2_scheme
-header_api_key_scheme = APIKeyHeader(name="X-API-Key", auto_error=False)
+header_api_key_scheme = APIKeyHeader(name="X-API-Key", scheme_name="ApiKey", auto_error=False)
 AuthContext = auth_contracts.AuthContext
 ApiKeyId = Annotated[str, Path(min_length=1)]
 IdentityProviderSlug = Annotated[str, Path(min_length=1)]
@@ -38,7 +37,6 @@ set_idp_browser_binding_cookie = identity_providers_dependencies.set_browser_bin
 
 def get_access_token(
     access_token: Annotated[str | None, Depends(oauth2_scheme)],
-    _client_type: auth_constants.ClientType = Depends(authentication_dependencies.header_client_type_scheme),
 ) -> str:
     """Require an access token from the Authorization header."""
     if access_token is None:
@@ -134,7 +132,7 @@ def validate_access_token_or_api_key(
     db: core_dependencies.DbSession,
     access_token: str | None = Depends(oauth2_scheme),
     api_key_header: str | None = Depends(header_api_key_scheme),
-    api_key_query: str | None = Query(None, alias="api_key"),
+    api_key_query: str | None = Query(None, alias="api_key", include_in_schema=False),
 ) -> AuthContext:
     """Resolve a JWT or API key, preserving request-level principal caching."""
     cached = getattr(request.state, "principal", None)

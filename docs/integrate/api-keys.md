@@ -29,7 +29,7 @@ The key-management API rejects any requested scope outside the API-key allow-lis
 
 ## How to Authenticate with an API Key
 
-API keys bypass the standard JWT and `X-Client-Type` requirements. Send the raw key using either option:
+API keys bypass the standard JWT requirements. Send the raw key using either option:
 
 **Option 1: `X-API-Key` header (recommended):**
 

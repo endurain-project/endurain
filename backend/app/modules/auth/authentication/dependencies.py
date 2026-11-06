@@ -3,10 +3,10 @@
 from datetime import UTC, datetime
 from typing import Annotated, Self
 
-from fastapi import Depends, Request, Response
+from fastapi import Depends, Header, Request, Response
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
-from fastapi.security import APIKeyCookie, APIKeyHeader, OAuth2PasswordBearer, OAuth2PasswordRequestForm
+from fastapi.security import APIKeyCookie, OAuth2PasswordBearer, OAuth2PasswordRequestForm
 from pydantic import BaseModel
 
 import core.cache_control as core_cache_control
@@ -166,31 +166,44 @@ oauth2_scheme = OAuth2PasswordBearer(
 )
 
 
-class ClientTypeHeader(APIKeyHeader):
-    """Required X-Client-Type header that reports missing input as a 400."""
+def get_client_type(
+    client_type: Annotated[
+        auth_constants.ClientType,
+        Header(alias="X-Client-Type", description="The kind of client: `web` or `mobile`."),
+    ],
+) -> auth_constants.ClientType:
+    """Return the request's client type.
 
-    async def __call__(self, request: Request) -> auth_constants.ClientType:
-        """Return the request's client type.
+    An ordinary header parameter: a missing or unknown value is a ``422``.
 
-        Args:
-            request: The incoming request.
+    Args:
+        client_type: The ``X-Client-Type`` header.
 
-        Returns:
-            The ``X-Client-Type`` header's client type.
-
-        Raises:
-            InvalidInputError: When the header is missing, empty or neither ``web`` nor ``mobile``.
-        """
-        value = request.headers.get(self.model.name)
-        try:
-            return auth_constants.ClientType(value or "")
-        except ValueError:
-            raise core_exceptions.InvalidInputError("Missing or invalid X-Client-Type header (web or mobile)") from None
+    Returns:
+        The client type.
+    """
+    return client_type
 
 
-header_client_type_scheme = ClientTypeHeader(name="X-Client-Type")
-header_csrf_token_scheme = APIKeyHeader(name="X-CSRF-Token", auto_error=False)
-cookie_refresh_token_scheme = APIKeyCookie(name=REFRESH_TOKEN_COOKIE_NAME, auto_error=False)
+def get_csrf_token(
+    csrf_token: Annotated[
+        str | None, Header(alias="X-CSRF-Token", description="The CSRF token of a web session.")
+    ] = None,
+) -> str | None:
+    """Return the ``X-CSRF-Token`` header, if the request carries one.
+
+    Args:
+        csrf_token: The header value.
+
+    Returns:
+        The CSRF token, or ``None``.
+    """
+    return csrf_token
+
+
+cookie_refresh_token_scheme = APIKeyCookie(
+    name=REFRESH_TOKEN_COOKIE_NAME, scheme_name="RefreshTokenCookie", auto_error=False
+)
 
 
 def get_token(
@@ -221,8 +234,8 @@ def get_token(
 
 def get_refresh_token(
     non_cookie_refresh_token: Annotated[str | None, Depends(oauth2_scheme)],
-    cookie_refresh_token: str | None = Depends(cookie_refresh_token_scheme),
-    client_type: auth_constants.ClientType = Depends(header_client_type_scheme),
+    cookie_refresh_token: Annotated[str | None, Depends(cookie_refresh_token_scheme)],
+    client_type: Annotated[auth_constants.ClientType, Depends(get_client_type)],
 ) -> str | None:
     """Resolve the refresh token from the client-appropriate location."""
     return get_token(

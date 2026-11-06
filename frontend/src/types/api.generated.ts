@@ -6573,6 +6573,12 @@ export interface components {
          */
         ChartBucket: "day" | "week" | "month";
         /**
+         * ClientType
+         * @description Client kinds that sign in, as named by the ``X-Client-Type`` header.
+         * @enum {string}
+         */
+        ClientType: "web" | "mobile";
+        /**
          * Color
          * @description Enumeration of common stool color descriptions.
          *
@@ -14874,9 +14880,7 @@ export interface operations {
     };
     read_activity_ingestion_job_api_v1_activities_ingestion_jobs__job_id__get: {
         parameters: {
-            query?: {
-                api_key?: string | null;
-            };
+            query?: never;
             header?: never;
             path: {
                 job_id: string;
@@ -15213,9 +15217,7 @@ export interface operations {
     };
     create_activity_with_uploaded_file_api_v1_activities_upload_post: {
         parameters: {
-            query?: {
-                api_key?: string | null;
-            };
+            query?: never;
             header?: {
                 /** @description Optional client-generated key. Replaying a request with the same key returns the original job instead of importing the file again. */
                 "Idempotency-Key"?: string | null;
@@ -16726,7 +16728,10 @@ export interface operations {
                 code_challenge?: string | null;
                 code_challenge_method?: string | null;
             };
-            header?: never;
+            header: {
+                /** @description The kind of client: `web` or `mobile`. */
+                "X-Client-Type": components["schemas"]["ClientType"];
+            };
             path?: never;
             cookie?: never;
         };
@@ -16745,20 +16750,11 @@ export interface operations {
                     "application/json": components["schemas"]["MFARequiredRead"] | components["schemas"]["MobileSessionRead"] | components["schemas"]["TokenWebRead"] | components["schemas"]["TokenMobileRead"];
                 };
             };
-            /** @description The credential is missing, invalid or no longer valid. */
+            /** @description The username or password is wrong, or the account may not sign in. */
             401: {
                 headers: {
                     /** @description The authentication challenge. */
                     "WWW-Authenticate"?: string;
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/problem+json": components["schemas"]["ProblemDetail"];
-                };
-            };
-            /** @description The caller is signed in but not allowed, for example a scope is missing. */
-            403: {
-                headers: {
                     [name: string]: unknown;
                 };
                 content: {
@@ -16828,7 +16824,10 @@ export interface operations {
     logout_api_v1_auth_logout_post: {
         parameters: {
             query?: never;
-            header?: never;
+            header: {
+                /** @description The kind of client: `web` or `mobile`. */
+                "X-Client-Type": components["schemas"]["ClientType"];
+            };
             path?: never;
             cookie?: never;
         };
@@ -16865,6 +16864,15 @@ export interface operations {
             };
             /** @description The request conflicts with the current state. */
             409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -16911,7 +16919,10 @@ export interface operations {
                 code_challenge?: string | null;
                 code_challenge_method?: string | null;
             };
-            header?: never;
+            header: {
+                /** @description The kind of client: `web` or `mobile`. */
+                "X-Client-Type": components["schemas"]["ClientType"];
+            };
             path?: never;
             cookie?: never;
         };
@@ -16930,20 +16941,11 @@ export interface operations {
                     "application/json": components["schemas"]["MobileSessionRead"] | components["schemas"]["TokenWebRead"] | components["schemas"]["TokenMobileRead"];
                 };
             };
-            /** @description The credential is missing, invalid or no longer valid. */
+            /** @description The sign-in challenge is unknown or expired, or its account can no longer sign in. */
             401: {
                 headers: {
                     /** @description The authentication challenge. */
                     "WWW-Authenticate"?: string;
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/problem+json": components["schemas"]["ProblemDetail"];
-                };
-            };
-            /** @description The caller is signed in but not allowed, for example a scope is missing. */
-            403: {
-                headers: {
                     [name: string]: unknown;
                 };
                 content: {
@@ -17013,7 +17015,12 @@ export interface operations {
     refresh_token_api_v1_auth_refresh_post: {
         parameters: {
             query?: never;
-            header?: never;
+            header: {
+                /** @description The kind of client: `web` or `mobile`. */
+                "X-Client-Type": components["schemas"]["ClientType"];
+                /** @description The CSRF token of a web session. */
+                "X-CSRF-Token"?: string | null;
+            };
             path?: never;
             cookie?: never;
         };
@@ -17050,6 +17057,15 @@ export interface operations {
             };
             /** @description The request conflicts with the current state. */
             409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
                 headers: {
                     [name: string]: unknown;
                 };

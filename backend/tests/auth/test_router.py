@@ -142,7 +142,7 @@ def auth_app(
     app.dependency_overrides[core_database.get_db] = lambda: mock_db
     app.dependency_overrides[auth_password_hasher.get_password_hasher] = lambda: password_hasher
     app.dependency_overrides[auth_token_manager.get_token_manager] = lambda: token_manager
-    app.dependency_overrides[auth_router.authentication_dependencies.header_client_type_scheme] = _client_type
+    app.dependency_overrides[auth_router.authentication_dependencies.get_client_type] = _client_type
     app.dependency_overrides[failed_login_store.get_failed_login_attempts] = lambda: fake_failed_login_store
     app.dependency_overrides[auth_mfa_dependencies.get_pending_mfa_store] = lambda: fake_pending_mfa_store
     app.dependency_overrides[authentication_dependencies.get_exp_from_refresh_token] = lambda: (
@@ -979,7 +979,7 @@ class TestRefreshEndpoint:
         app.dependency_overrides[authentication_dependencies.get_and_return_refresh_token] = lambda: (
             "mock_refresh_token"
         )
-        app.dependency_overrides[authentication_dependencies.header_csrf_token_scheme] = lambda: None
+        app.dependency_overrides[authentication_dependencies.get_csrf_token] = lambda: None
 
         response = auth_client.post("/auth/refresh")
 
@@ -999,7 +999,7 @@ class TestRefreshEndpoint:
         app.dependency_overrides[authentication_dependencies.get_sub_from_refresh_token] = lambda: 1
         app.dependency_overrides[authentication_dependencies.get_sid_from_refresh_token] = lambda: "nonexistent"
         app.dependency_overrides[authentication_dependencies.get_and_return_refresh_token] = lambda: "rt"
-        app.dependency_overrides[authentication_dependencies.header_csrf_token_scheme] = lambda: None
+        app.dependency_overrides[authentication_dependencies.get_csrf_token] = lambda: None
 
         response = auth_client.post("/auth/refresh")
 
@@ -1029,7 +1029,7 @@ class TestRefreshEndpoint:
         app.dependency_overrides[authentication_dependencies.get_sub_from_refresh_token] = lambda: 1
         app.dependency_overrides[authentication_dependencies.get_sid_from_refresh_token] = lambda: "sid-1"
         app.dependency_overrides[authentication_dependencies.get_and_return_refresh_token] = lambda: "rt"
-        app.dependency_overrides[authentication_dependencies.header_csrf_token_scheme] = lambda: None
+        app.dependency_overrides[authentication_dependencies.get_csrf_token] = lambda: None
 
         response = auth_client.post("/auth/refresh")
 
@@ -1070,7 +1070,7 @@ class TestRefreshEndpoint:
         app.dependency_overrides[authentication_dependencies.get_sub_from_refresh_token] = lambda: 1
         app.dependency_overrides[authentication_dependencies.get_sid_from_refresh_token] = lambda: "sid-1"
         app.dependency_overrides[authentication_dependencies.get_and_return_refresh_token] = lambda: "reused-token"
-        app.dependency_overrides[authentication_dependencies.header_csrf_token_scheme] = lambda: None
+        app.dependency_overrides[authentication_dependencies.get_csrf_token] = lambda: None
 
         response = auth_client.post("/auth/refresh")
 
@@ -1166,7 +1166,7 @@ class TestRefreshEndpoint:
         app.dependency_overrides[authentication_dependencies.get_sub_from_refresh_token] = lambda: 1
         app.dependency_overrides[authentication_dependencies.get_sid_from_refresh_token] = lambda: "sid-csrf-1"
         app.dependency_overrides[authentication_dependencies.get_and_return_refresh_token] = lambda: "mock_rt"
-        app.dependency_overrides[authentication_dependencies.header_csrf_token_scheme] = lambda: "valid-csrf"
+        app.dependency_overrides[authentication_dependencies.get_csrf_token] = lambda: "valid-csrf"
 
         response = auth_client.post("/auth/refresh")
 
@@ -1221,7 +1221,7 @@ class TestRefreshEndpoint:
         app.dependency_overrides[authentication_dependencies.get_sub_from_refresh_token] = lambda: 1
         app.dependency_overrides[authentication_dependencies.get_sid_from_refresh_token] = lambda: "sid-bad-csrf"
         app.dependency_overrides[authentication_dependencies.get_and_return_refresh_token] = lambda: "any-rt"
-        app.dependency_overrides[authentication_dependencies.header_csrf_token_scheme] = lambda: "wrong-csrf"
+        app.dependency_overrides[authentication_dependencies.get_csrf_token] = lambda: "wrong-csrf"
 
         response = auth_client.post("/auth/refresh")
 
@@ -1313,7 +1313,7 @@ class TestRefreshEndpoint:
         app.dependency_overrides[authentication_dependencies.get_sid_from_refresh_token] = lambda: "sid-reload"
         app.dependency_overrides[authentication_dependencies.get_and_return_refresh_token] = lambda: "mock_rt"
         # No CSRF header: simulates page reload bootstrap
-        app.dependency_overrides[authentication_dependencies.header_csrf_token_scheme] = lambda: None
+        app.dependency_overrides[authentication_dependencies.get_csrf_token] = lambda: None
 
         response = auth_client.post("/auth/refresh")
 
@@ -1406,7 +1406,7 @@ class TestRefreshEndpoint:
         app.dependency_overrides[authentication_dependencies.get_sub_from_refresh_token] = lambda: 1
         app.dependency_overrides[authentication_dependencies.get_sid_from_refresh_token] = lambda: "sid-mob-csrf"
         app.dependency_overrides[authentication_dependencies.get_and_return_refresh_token] = lambda: "mock_rt"
-        app.dependency_overrides[authentication_dependencies.header_csrf_token_scheme] = lambda: "any-csrf-value"
+        app.dependency_overrides[authentication_dependencies.get_csrf_token] = lambda: "any-csrf-value"
 
         response = auth_client.post("/auth/refresh")
 
@@ -1453,7 +1453,7 @@ class TestRefreshEndpoint:
         app.dependency_overrides[authentication_dependencies.get_sub_from_refresh_token] = lambda: 1
         app.dependency_overrides[authentication_dependencies.get_sid_from_refresh_token] = lambda: "sid-pkce"
         app.dependency_overrides[authentication_dependencies.get_and_return_refresh_token] = lambda: "rt"
-        app.dependency_overrides[authentication_dependencies.header_csrf_token_scheme] = lambda: None
+        app.dependency_overrides[authentication_dependencies.get_csrf_token] = lambda: None
 
         response = auth_client.post("/auth/refresh")
 
@@ -1512,7 +1512,7 @@ class TestRefreshEndpoint:
         app.dependency_overrides[authentication_dependencies.get_sub_from_refresh_token] = lambda: 1
         app.dependency_overrides[authentication_dependencies.get_sid_from_refresh_token] = lambda: "sid-bad-rt"
         app.dependency_overrides[authentication_dependencies.get_and_return_refresh_token] = lambda: "wrong_token"
-        app.dependency_overrides[authentication_dependencies.header_csrf_token_scheme] = lambda: None
+        app.dependency_overrides[authentication_dependencies.get_csrf_token] = lambda: None
 
         response = auth_client.post("/auth/refresh")
 
@@ -1580,7 +1580,7 @@ class TestRefreshEndpoint:
         app.dependency_overrides[authentication_dependencies.get_sub_from_refresh_token] = lambda: 1
         app.dependency_overrides[authentication_dependencies.get_sid_from_refresh_token] = lambda: "sid-no-user"
         app.dependency_overrides[authentication_dependencies.get_and_return_refresh_token] = lambda: "mock_rt"
-        app.dependency_overrides[authentication_dependencies.header_csrf_token_scheme] = lambda: None
+        app.dependency_overrides[authentication_dependencies.get_csrf_token] = lambda: None
 
         response = auth_client.post("/auth/refresh")
 
@@ -1670,7 +1670,7 @@ class TestRefreshEndpoint:
         app.dependency_overrides[authentication_dependencies.get_sub_from_refresh_token] = lambda: 1
         app.dependency_overrides[authentication_dependencies.get_sid_from_refresh_token] = lambda: "sid-mob"
         app.dependency_overrides[authentication_dependencies.get_and_return_refresh_token] = lambda: "mock_rt"
-        app.dependency_overrides[authentication_dependencies.header_csrf_token_scheme] = lambda: None
+        app.dependency_overrides[authentication_dependencies.get_csrf_token] = lambda: None
 
         response = auth_client.post("/auth/refresh")
 
@@ -1733,7 +1733,7 @@ class TestRefreshEndpoint:
         app.dependency_overrides[authentication_dependencies.get_sub_from_refresh_token] = lambda: 1
         app.dependency_overrides[authentication_dependencies.get_sid_from_refresh_token] = lambda: "sid-replay-mob"
         app.dependency_overrides[authentication_dependencies.get_and_return_refresh_token] = lambda: "old_rotated_rt"
-        app.dependency_overrides[authentication_dependencies.header_csrf_token_scheme] = lambda: None
+        app.dependency_overrides[authentication_dependencies.get_csrf_token] = lambda: None
 
         response = auth_client.post("/auth/refresh")
 
@@ -1802,7 +1802,7 @@ class TestRefreshEndpoint:
         app.dependency_overrides[authentication_dependencies.get_sub_from_refresh_token] = lambda: 1
         app.dependency_overrides[authentication_dependencies.get_sid_from_refresh_token] = lambda: "sid-race"
         app.dependency_overrides[authentication_dependencies.get_and_return_refresh_token] = lambda: "old_rt"
-        app.dependency_overrides[authentication_dependencies.header_csrf_token_scheme] = lambda: None
+        app.dependency_overrides[authentication_dependencies.get_csrf_token] = lambda: None
 
         response = auth_client.post("/auth/refresh")
 
@@ -1869,7 +1869,7 @@ class TestRefreshEndpoint:
         app.dependency_overrides[authentication_dependencies.get_sid_from_refresh_token] = lambda: "sid-replay-web"
         app.dependency_overrides[authentication_dependencies.get_and_return_refresh_token] = lambda: "old_rotated_rt"
         # No CSRF header: page-reload bootstrap / lost rotation response.
-        app.dependency_overrides[authentication_dependencies.header_csrf_token_scheme] = lambda: None
+        app.dependency_overrides[authentication_dependencies.get_csrf_token] = lambda: None
 
         response = auth_client.post("/auth/refresh")
 
@@ -1923,7 +1923,7 @@ class TestRefreshEndpoint:
         app.dependency_overrides[authentication_dependencies.get_sub_from_refresh_token] = lambda: 1
         app.dependency_overrides[authentication_dependencies.get_sid_from_refresh_token] = lambda: "sid-replay-none"
         app.dependency_overrides[authentication_dependencies.get_and_return_refresh_token] = lambda: "old_rotated_rt"
-        app.dependency_overrides[authentication_dependencies.header_csrf_token_scheme] = lambda: None
+        app.dependency_overrides[authentication_dependencies.get_csrf_token] = lambda: None
 
         response = auth_client.post("/auth/refresh")
 

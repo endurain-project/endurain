@@ -527,6 +527,25 @@ class TestApiContract:
 
         _compare("An operation does not document an error", missing, {}, "Derive it in core.openapi_contract")
 
+    def test_security_requirements_name_only_the_schemes_an_operation_accepts(self):
+        """Each operation lists its credentials, and request headers and the ``api_key`` query are not among them."""
+        document = _openapi()
+        assert set(document["components"]["securitySchemes"]) == {
+            "OAuth2PasswordBearer",
+            "ApiKey",
+            "RefreshTokenCookie",
+        }
+        cookie_routes = {"POST /auth/refresh", "POST /auth/logout"}
+        wrong: set[str] = set()
+        for method, path, operation in _operations():
+            schemes = {name for requirement in operation.get("security", []) for name in requirement}
+            if ("RefreshTokenCookie" in schemes) != (f"{method.upper()} {path}" in cookie_routes):
+                wrong.add(f"{method.upper()} {path}: the cookie scheme")
+            if any(parameter["name"] == "api_key" for parameter in operation.get("parameters", [])):
+                wrong.add(f"{method.upper()} {path}: advertises ?api_key=")
+
+        _compare("An operation lists the wrong credentials", wrong, {}, "Fix the dependency that declares it")
+
     def test_error_headers_are_declared(self):
         """401 declares ``WWW-Authenticate`` and 429 and 503 declare ``Retry-After``."""
         wanted = {"401": "WWW-Authenticate", "429": "Retry-After", "503": "Retry-After"}

@@ -41,25 +41,33 @@ def _app(mock_db) -> FastAPI:
     return app
 
 
-class TestUnknownClientType:
-    def test_login_answers_400_for_an_unknown_client_type(self, mock_db):
+class TestClientTypeHeader:
+    @pytest.mark.parametrize("headers", [{"X-Client-Type": "ios"}, {"X-Client-Type": "Web"}, {}])
+    def test_login_answers_422_for_a_missing_or_unknown_client_type(self, mock_db, headers):
         client = TestClient(_app(mock_db))
 
-        response = client.post(
-            "/api/v1/auth/login",
-            data={"username": "alice", "password": "secret"},
-            headers={"X-Client-Type": "ios"},
-        )
+        response = client.post("/api/v1/auth/login", data={"username": "alice", "password": "secret"}, headers=headers)
 
-        assert response.status_code == 400, response.text
-        assert "web or mobile" in response.json()["detail"]
+        assert response.status_code == 422, response.text
+        assert response.json()["type"] == "urn:endurain:error:validation-failed"
+        assert any("X-Client-Type" in str(error["field"]) for error in response.json()["errors"])
 
-    def test_an_authenticated_route_answers_400_for_an_unknown_client_type(self, mock_db):
+    @pytest.mark.parametrize("headers", [{}, {"X-Client-Type": "ios"}])
+    def test_an_authenticated_route_answers_401_before_it_looks_at_the_client_type(self, mock_db, headers):
         client = TestClient(_app(mock_db))
 
-        response = client.get("/protected", headers={"X-Client-Type": "ios", "Authorization": "Bearer not-a-jwt"})
+        response = client.get("/protected", headers=headers)
 
-        assert response.status_code == 400, response.text
+        assert response.status_code == 401, response.text
+        assert response.headers["www-authenticate"] == "Bearer"
+
+    def test_an_authenticated_route_does_not_need_the_header(self, mock_db):
+        client = TestClient(_app(mock_db))
+
+        response = client.get("/protected", headers={"Authorization": "Bearer not-a-jwt"})
+
+        assert response.status_code == 401, response.text
+        assert response.headers["www-authenticate"] == 'Bearer error="invalid_token"'
 
 
 class TestMfaUserAlwaysGetsTheChallenge:

@@ -136,6 +136,8 @@ def _declare_errors(operation: dict[str, Any], method: str) -> None:
             parameter["required"] = True
             parameter["schema"] = {"type": "string"}
             codes += ["400", "412", "428"]
+    # A route that answers an error of its own (a sign-in's 401) gets that error's headers too.
+    codes += [code for code in operation["responses"] if code in _ERRORS and code not in codes]
     for code in codes:
         description, headers = _ERRORS[code]
         response = operation["responses"].setdefault(code, {"description": description})

@@ -295,9 +295,7 @@ def _login_app(mock_db, client_type: str) -> TestClient:
     app.dependency_overrides[core_database.get_db] = lambda: mock_db
     app.dependency_overrides[auth_password_hasher.get_password_hasher] = lambda: MagicMock()
     app.dependency_overrides[auth_token_manager.get_token_manager] = lambda: MagicMock()
-    app.dependency_overrides[auth_public_router.authentication_dependencies.header_client_type_scheme] = lambda: (
-        client_type
-    )
+    app.dependency_overrides[auth_public_router.authentication_dependencies.get_client_type] = lambda: client_type
     app.dependency_overrides[failed_login_store.get_failed_login_attempts] = lambda: MagicMock(
         is_locked_out=MagicMock(return_value=False)
     )

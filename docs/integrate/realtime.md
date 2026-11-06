@@ -21,7 +21,7 @@ sequenceDiagram
     API-->>C: The list, including notification 42
 ```
 
-1. **Get a ticket.** `POST /api/v1/ws/ticket` with the usual authenticated headers (`Authorization`, `X-Client-Type`, and `X-CSRF-Token` for web). It needs the `notifications:read` scope and is rate limited like other writes. The response is `{"ticket": "<opaque string>"}` and is sent with `Cache-Control: no-store`.
+1. **Get a ticket.** `POST /api/v1/ws/ticket` with the usual authenticated headers (`Authorization`, and `X-CSRF-Token` for web). It needs the `notifications:read` scope and is rate limited like other writes. The response is `{"ticket": "<opaque string>"}` and is sent with `Cache-Control: no-store`.
 2. **Open the socket** with the ticket in the query string: `ws(s)://<host>/api/v1/ws?ticket=<ticket>`. Use `wss` when the site is served over HTTPS.
 
 A ticket is single use, bound to your user and to the session of the access token that asked for it, and valid for 30 seconds. Fetch a new one for every connection attempt, including every reconnect.

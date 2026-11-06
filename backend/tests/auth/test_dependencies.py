@@ -12,7 +12,6 @@ import pytest
 from fastapi.security import SecurityScopes
 
 import core.exceptions as core_exceptions
-import modules.auth.authentication.dependencies as authentication_dependencies
 import modules.auth.dependencies as auth_dependencies
 from modules.auth.contracts import ApiKeyCred, PasswordCred, Principal
 from modules.auth.dependencies import (
@@ -32,12 +31,12 @@ class TestGetAccessToken:
     """Tests for get_access_token."""
 
     def test_valid_token_returns_token_string(self):
-        result = get_access_token("my-token", "web")
+        result = get_access_token("my-token")
         assert result == "my-token"
 
     def test_none_token_raises_401(self):
         with pytest.raises(core_exceptions.UnauthenticatedError) as exc_info:
-            get_access_token(None, "web")
+            get_access_token(None)
         assert exc_info.value.status_code == 401
         assert "Access token missing" in exc_info.value.detail
 
@@ -295,42 +294,6 @@ class TestAuthContextIdentity:
         import modules.auth.dependencies as auth_security
 
         assert auth_dependencies.AuthContext is auth_security.AuthContext
-
-
-class TestClientTypeHeader:
-    """Tests for the required X-Client-Type header scheme."""
-
-    @staticmethod
-    def _request(headers: dict[str, str]):
-        from starlette.requests import Request
-
-        scope = {"type": "http", "headers": [(k.lower().encode(), v.encode()) for k, v in headers.items()]}
-        return Request(scope)
-
-    @pytest.mark.asyncio
-    async def test_missing_header_is_a_400_naming_the_header(self):
-        import core.exceptions as core_exceptions
-
-        with pytest.raises(core_exceptions.InvalidInputError) as exc_info:
-            await authentication_dependencies.header_client_type_scheme(self._request({}))
-        assert exc_info.value.status_code == 400
-        assert "X-Client-Type" in exc_info.value.detail
-
-    @pytest.mark.asyncio
-    async def test_present_header_is_returned(self):
-
-        result = await authentication_dependencies.header_client_type_scheme(self._request({"X-Client-Type": "web"}))
-        assert result == "web"
-
-    @pytest.mark.asyncio
-    @pytest.mark.parametrize("value", ["ios", "Web", "tablet"])
-    async def test_unknown_header_is_a_400_naming_the_accepted_values(self, value):
-        import core.exceptions as core_exceptions
-
-        with pytest.raises(core_exceptions.InvalidInputError) as exc_info:
-            await authentication_dependencies.header_client_type_scheme(self._request({"X-Client-Type": value}))
-        assert exc_info.value.status_code == 400
-        assert "web or mobile" in exc_info.value.detail
 
 
 class TestAuditContextFromRequest:

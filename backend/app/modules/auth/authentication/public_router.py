@@ -42,13 +42,14 @@ router = APIRouter()
         | auth_schema.TokenWebRead
         | auth_schema.TokenMobileRead
     ),
+    responses={401: {"description": "The username or password is wrong, or the account may not sign in."}},
 )
 @core_rate_limit.limiter.limit(core_rate_limit.SENSITIVE)
 def login_for_access_token(
     response: Response,
     request: Request,
     form_data: authentication_dependencies.LoginForm,
-    client_type: Annotated[auth_constants.ClientType, Depends(authentication_dependencies.header_client_type_scheme)],
+    client_type: Annotated[auth_constants.ClientType, Depends(authentication_dependencies.get_client_type)],
     failed_attempts: Annotated[
         failed_login_store.FailedLoginStore,
         Depends(failed_login_store.get_failed_login_attempts),
@@ -139,13 +140,16 @@ def login_for_access_token(
 @router.post(
     "/mfa/verify",
     response_model=(auth_schema.MobileSessionRead | auth_schema.TokenWebRead | auth_schema.TokenMobileRead),
+    responses={
+        401: {"description": "The sign-in challenge is unknown or expired, or its account can no longer sign in."}
+    },
 )
 @core_rate_limit.limiter.limit(core_rate_limit.SENSITIVE)
 def verify_mfa_and_login(
     response: Response,
     request: Request,
     mfa_request: auth_schema.MFALoginRequest,
-    client_type: Annotated[auth_constants.ClientType, Depends(authentication_dependencies.header_client_type_scheme)],
+    client_type: Annotated[auth_constants.ClientType, Depends(authentication_dependencies.get_client_type)],
     failed_attempts: Annotated[
         failed_login_store.FailedLoginStore,
         Depends(failed_login_store.get_failed_login_attempts),
@@ -250,8 +254,8 @@ def refresh_token(
         Depends(access_tokens_integration.get_token_manager),
     ],
     db: core_dependencies.DbSession,
-    client_type: Annotated[auth_constants.ClientType, Depends(authentication_dependencies.header_client_type_scheme)],
-    x_csrf_token: Annotated[str | None, Depends(authentication_dependencies.header_csrf_token_scheme)] = None,
+    client_type: Annotated[auth_constants.ClientType, Depends(authentication_dependencies.get_client_type)],
+    x_csrf_token: Annotated[str | None, Depends(authentication_dependencies.get_csrf_token)] = None,
 ) -> auth_schema.TokenRead:
     r"""Handles the refresh token process for user sessions.
 
@@ -319,7 +323,7 @@ def logout(
         str,
         Depends(authentication_dependencies.get_and_return_refresh_token),
     ],
-    client_type: Annotated[auth_constants.ClientType, Depends(authentication_dependencies.header_client_type_scheme)],
+    client_type: Annotated[auth_constants.ClientType, Depends(authentication_dependencies.get_client_type)],
     token_user_id: Annotated[
         int,
         Depends(authentication_dependencies.get_sub_from_refresh_token),
