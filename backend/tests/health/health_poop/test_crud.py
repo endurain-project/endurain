@@ -1,5 +1,5 @@
+from datetime import UTC, datetime
 from datetime import date as datetime_date
-from datetime import datetime
 from unittest.mock import MagicMock
 
 import pytest
@@ -77,7 +77,7 @@ class TestReads:
 
 class TestCreateHealthPoop:
     def test_stages_without_committing(self, mock_db, stub_model):
-        record = health_poop_schema.HealthPoopCreate(date_time=datetime(2024, 1, 15, 10, 0, 0))
+        record = health_poop_schema.HealthPoopCreate(date_time=datetime(2024, 1, 15, 10, 0, 0, tzinfo=UTC))
 
         with stub_model(health_poop_crud, _row()) as model:
             health_poop_crud.create_health_poop(1, record, mock_db)
@@ -88,7 +88,7 @@ class TestCreateHealthPoop:
 
     def test_integrity_error_is_a_conflict(self, mock_db, stub_model):
         mock_db.flush.side_effect = IntegrityError("constraint", None, None)
-        record = health_poop_schema.HealthPoopCreate(date_time=datetime(2024, 1, 15, 10, 0, 0))
+        record = health_poop_schema.HealthPoopCreate(date_time=datetime(2024, 1, 15, 10, 0, 0, tzinfo=UTC))
 
         with (
             stub_model(health_poop_crud, _row()),

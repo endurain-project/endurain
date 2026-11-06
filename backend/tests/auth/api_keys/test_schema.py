@@ -1,6 +1,6 @@
 """Tests for users_api_keys Pydantic schemas."""
 
-from datetime import UTC, datetime, timedelta
+from datetime import UTC, datetime, timedelta, timezone
 
 import pytest
 from pydantic import ValidationError
@@ -118,31 +118,29 @@ class TestUsersApiKeyCreate:
                 expires_at=datetime.now(UTC) - timedelta(days=1),
             )
 
-    def test_create_past_naive_expiry_fails(self):
-        """A naive expiry is read as UTC, so a past one is refused."""
+    def test_create_naive_expiry_is_refused(self):
+        """An expiry without a UTC offset is refused."""
+        expires = datetime.now(UTC).replace(tzinfo=None) + timedelta(days=1)
         with pytest.raises(ValidationError, match="expires_at"):
-            users_api_keys_schema.UsersApiKeyCreate(
-                name="Test Key",
-                scopes=["activities:upload"],
-                expires_at=datetime.now(UTC).replace(tzinfo=None) - timedelta(days=1),
+            users_api_keys_schema.UsersApiKeyCreate(name="Test Key", scopes=["activities:upload"], expires_at=expires)
+
+    def test_create_date_only_expiry_is_refused(self):
+        """A bare date has no offset, so it is refused."""
+        day = (datetime.now(UTC) + timedelta(days=3)).date().isoformat()
+        with pytest.raises(ValidationError, match="expires_at"):
+            users_api_keys_schema.UsersApiKeyCreate.model_validate(
+                {"name": "Test Key", "scopes": ["activities:upload"], "expires_at": day}
             )
 
-    def test_create_future_naive_expiry_is_read_as_utc(self):
-        """A naive future expiry is accepted and stored as UTC-aware."""
-        expires = datetime.now(UTC).replace(tzinfo=None) + timedelta(days=1)
+    def test_create_future_offset_expiry_is_stored_in_utc(self):
+        """An expiry with an offset is accepted and kept in UTC."""
+        expires = (datetime.now(UTC) + timedelta(days=1)).astimezone(timezone(timedelta(hours=2)))
         data = users_api_keys_schema.UsersApiKeyCreate(
             name="Test Key", scopes=["activities:upload"], expires_at=expires
         )
-        assert data.expires_at == expires.replace(tzinfo=UTC)
-
-    def test_create_future_date_only_expiry_is_accepted(self):
-        """The date-only value the frontend sends is accepted."""
-        day = (datetime.now(UTC) + timedelta(days=3)).date().isoformat()
-        data = users_api_keys_schema.UsersApiKeyCreate.model_validate(
-            {"name": "Test Key", "scopes": ["activities:upload"], "expires_at": day}
-        )
+        assert data.expires_at == expires
         assert data.expires_at is not None
-        assert data.expires_at.date().isoformat() == day
+        assert data.expires_at.utcoffset() == timedelta(0)
 
 
 class TestUsersApiKeyRead:

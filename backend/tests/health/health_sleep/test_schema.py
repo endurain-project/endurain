@@ -322,12 +322,20 @@ class TestSleepTimeOrdering:
     _NAIVE_START = datetime(2026, 1, 1, 22)
     _NAIVE_END = datetime(2026, 1, 2, 6)
 
-    @pytest.mark.parametrize("pair", ["gmt", "local"])
     @pytest.mark.parametrize("aware_first", [True, False])
-    def test_a_mixed_pair_in_order_is_accepted(self, pair, aware_first):
+    def test_a_mixed_wall_clock_pair_in_order_is_accepted(self, aware_first):
         start, end = (self._AWARE_START, self._NAIVE_END) if aware_first else (self._NAIVE_START, self._AWARE_END)
 
-        health_sleep_schema.HealthSleepCreate(**{f"sleep_start_time_{pair}": start, f"sleep_end_time_{pair}": end})
+        health_sleep_schema.HealthSleepCreate(sleep_start_time_local=start, sleep_end_time_local=end)
+
+    def test_an_instant_without_an_offset_is_refused(self):
+        with pytest.raises(ValidationError):
+            health_sleep_schema.HealthSleepCreate(sleep_start_time_gmt=self._NAIVE_START)
+
+    def test_an_import_reads_a_missing_offset_as_utc(self):
+        record = health_sleep_schema.HealthSleepImport(sleep_start_time_gmt=self._NAIVE_START)
+
+        assert record.sleep_start_time_gmt == self._AWARE_START
 
     @pytest.mark.parametrize("pair", ["gmt", "local"])
     @pytest.mark.parametrize(

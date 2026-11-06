@@ -97,7 +97,7 @@ class TestCreateHealthPoop:
         mock_create.return_value = HealthPoopRead(id=1, user_id=1, date_time=_STARTED)
 
         response = TestClient(_build_app(mock_db)).post(
-            "/health_poop", json={"date_time": "2024-01-15T10:00:00"}, headers=_HEADERS
+            "/health_poop", json={"date_time": "2024-01-15T10:00:00Z"}, headers=_HEADERS
         )
 
         assert response.status_code == 201

@@ -126,13 +126,13 @@ class HealthFastingBase(BaseModel):
 class HealthFastingWrite(HealthFastingBase):
     """Fasting fields a client writes: the times are bounded, which a stored row read back need not be."""
 
-    fast_start_time: core_types.RecordDateTime | None = Field(
+    fast_start_time: core_types.RecordInstant | None = Field(
         default=None,
-        description="Start time of fast",
+        description="Start time of fast, with a UTC offset",
     )
-    fast_end_time: core_types.RecordDateTime | None = Field(
+    fast_end_time: core_types.RecordInstant | None = Field(
         default=None,
-        description="End time of fast (null if ongoing)",
+        description="End time of fast, with a UTC offset (null if ongoing)",
     )
 
 
@@ -142,9 +142,9 @@ class HealthFastingCreate(HealthFastingWrite):
     Requires start time and sets defaults for status.
     """
 
-    fast_start_time: core_types.RecordDateTime = Field(
+    fast_start_time: core_types.RecordInstant = Field(
         ...,
-        description="Start time of fast",
+        description="Start time of fast, with a UTC offset",
     )
 
     @model_validator(mode="after")
@@ -215,6 +215,8 @@ class HealthFastingImport(HealthFastingCreate):
     """
 
     source: Source | None = Field(default=None, description="Data source for the record")
+    fast_start_time: core_types.ImportedInstant = Field(..., description="Start time of fast")
+    fast_end_time: core_types.ImportedInstant | None = Field(default=None, description="End time of fast")
 
     @model_validator(mode="after")
     def set_default_source(self) -> "HealthFastingImport":
@@ -237,9 +239,9 @@ class HealthFastingComplete(BaseModel):
         notes: Optional notes about the fasting session.
     """
 
-    fast_end_time: datetime = Field(
+    fast_end_time: core_types.RecordInstant = Field(
         ...,
-        description="End time of fast",
+        description="End time of fast, with a UTC offset",
     )
     status: FastingStatus = Field(
         default=FastingStatus.COMPLETED,

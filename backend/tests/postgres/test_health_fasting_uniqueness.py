@@ -7,7 +7,7 @@ holds, and the loser is answered as a conflict.
 
 import importlib.util
 import threading
-from datetime import datetime
+from datetime import UTC, datetime
 from pathlib import Path
 from unittest.mock import patch
 
@@ -22,7 +22,7 @@ import modules.health.health_fasting.service as fasting_service
 from tests._helpers.db import ensure_user
 
 _THREADS = 6
-_START = datetime(2026, 10, 1, 8, 0, 0)
+_START = datetime(2026, 10, 1, 8, 0, 0, tzinfo=UTC)
 _INDEX = "uq_health_fasting_one_in_progress_per_user"
 
 _MIGRATION_PATH = (
@@ -74,12 +74,12 @@ def test_a_finished_fast_does_not_block_a_new_one(factory):
         fasting_service.complete_health_fasting(
             1,
             first.id,
-            fasting_schema.HealthFastingComplete(fast_end_time=datetime(2026, 10, 1, 20, 0, 0)),
+            fasting_schema.HealthFastingComplete(fast_end_time=datetime(2026, 10, 1, 20, 0, 0, tzinfo=UTC)),
             db,
             if_match=core_etag.format_etag(first.version),
         )
         fasting_service.create_health_fasting(
-            1, fasting_schema.HealthFastingCreate(fast_start_time=datetime(2026, 10, 1, 20, 0, 0)), db
+            1, fasting_schema.HealthFastingCreate(fast_start_time=datetime(2026, 10, 1, 20, 0, 0, tzinfo=UTC)), db
         )
 
         assert db.scalar(select(func.count()).select_from(fasting_models.HealthFasting)) == 2

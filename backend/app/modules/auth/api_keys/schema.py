@@ -3,6 +3,7 @@
 from datetime import UTC, datetime
 
 from pydantic import (
+    AwareDatetime,
     BaseModel,
     ConfigDict,
     Field,
@@ -12,7 +13,6 @@ from pydantic import (
 )
 
 import core.pagination as core_pagination
-import core.timezone as core_timezone
 import modules.auth.api_keys.constants as api_keys_constants
 import modules.auth.api_keys.utils as api_keys_utils
 import modules.auth.identity_providers.schema as idp_schema
@@ -56,10 +56,10 @@ class UsersApiKeyCreate(BaseModel):
         min_length=1,
         description="List of scope strings to grant",
     )
-    expires_at: datetime | None = Field(
+    expires_at: AwareDatetime | None = Field(
         None,
         description=(
-            "Optional expiration datetime, at most the server's maximum API key lifetime from now. "
+            "Optional expiration instant with a UTC offset, at most the server's maximum API key lifetime from now. "
             "When omitted the key expires at that maximum."
         ),
     )
@@ -99,23 +99,21 @@ class UsersApiKeyCreate(BaseModel):
 
     @field_validator("expires_at")
     @classmethod
-    def expires_at_must_be_future(cls, v: datetime | None) -> datetime | None:
+    def expires_at_must_be_future(cls, v: AwareDatetime | None) -> datetime | None:
         """Validate the expiry is in the future.
 
-        A naive datetime is read as UTC.
-
         Args:
-            v: Expiration datetime, or None to take the server's maximum lifetime.
+            v: Expiration instant, or None to take the server's maximum lifetime.
 
         Returns:
-            The expiration as a UTC-aware datetime, or None.
+            The expiration in UTC, or None.
 
         Raises:
             ValueError: If the expiration is not after the current time.
         """
         if v is None:
             return None
-        expires_at = core_timezone.to_utc_aware(v)
+        expires_at = v.astimezone(UTC)
         if expires_at <= datetime.now(UTC):
             raise ValueError("expires_at must be in the future")
         return expires_at

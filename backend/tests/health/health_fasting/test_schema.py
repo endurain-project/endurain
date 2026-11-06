@@ -11,7 +11,7 @@ class TestHealthFastingCreateSchema:
     def test_valid_full_data(self):
         from modules.health.health_fasting.schema import HealthFastingCreate
 
-        data = HealthFastingCreate(fast_start_time=datetime(2024, 1, 15, 8, 0, 0))
+        data = HealthFastingCreate(fast_start_time=datetime(2024, 1, 15, 8, 0, 0, tzinfo=UTC))
         assert data.fast_start_time is not None
         assert data.status == "in_progress"
         assert not hasattr(data, "source")
@@ -21,6 +21,34 @@ class TestHealthFastingCreateSchema:
 
         data = HealthFastingImport(fast_start_time=datetime(2024, 1, 15, 8, 0, 0))
         assert data.source == "manual"
+
+    def test_an_import_reads_a_missing_offset_as_utc(self):
+        from modules.health.health_fasting.schema import HealthFastingImport
+
+        data = HealthFastingImport(fast_start_time=datetime(2024, 1, 15, 8, 0, 0))
+        assert data.fast_start_time == datetime(2024, 1, 15, 8, 0, 0, tzinfo=UTC)
+
+    def test_a_request_without_an_offset_is_refused(self):
+        import pytest
+        from pydantic import ValidationError
+
+        from modules.health.health_fasting.schema import HealthFastingComplete, HealthFastingCreate
+
+        with pytest.raises(ValidationError):
+            HealthFastingCreate(fast_start_time="2024-01-15T08:00:00")
+        with pytest.raises(ValidationError):
+            HealthFastingComplete(fast_end_time="2024-01-16T08:00:00")
+
+    def test_the_end_of_a_completed_fast_is_bounded(self):
+        import pytest
+        from pydantic import ValidationError
+
+        from modules.health.health_fasting.schema import HealthFastingComplete
+
+        with pytest.raises(ValidationError):
+            HealthFastingComplete(fast_end_time="3000-01-01T00:00:00Z")
+        with pytest.raises(ValidationError):
+            HealthFastingComplete(fast_end_time="1800-01-01T00:00:00Z")
 
     def test_missing_start_time(self):
         from modules.health.health_fasting.schema import HealthFastingCreate
@@ -45,7 +73,7 @@ class TestHealthFastingCompleteSchema:
     def test_valid(self):
         from modules.health.health_fasting.schema import FastingStatus, HealthFastingComplete
 
-        data = HealthFastingComplete(fast_end_time=datetime(2024, 1, 15, 16, 0, 0))
+        data = HealthFastingComplete(fast_end_time=datetime(2024, 1, 15, 16, 0, 0, tzinfo=UTC))
         assert data.status == FastingStatus.COMPLETED.value
 
 

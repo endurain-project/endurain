@@ -6066,7 +6066,7 @@ export interface components {
             /**
              * Fast End Time
              * Format: date-time
-             * @description End time of fast
+             * @description End time of fast, with a UTC offset
              */
             fast_end_time: string;
             /**
@@ -6089,13 +6089,13 @@ export interface components {
         HealthFastingCreate: {
             /**
              * Fast End Time
-             * @description End time of fast (null if ongoing)
+             * @description End time of fast, with a UTC offset (null if ongoing)
              */
             fast_end_time?: string | null;
             /**
              * Fast Start Time
              * Format: date-time
-             * @description Start time of fast
+             * @description Start time of fast, with a UTC offset
              */
             fast_start_time: string;
             /** @description Type of fasting protocol */
@@ -6266,12 +6266,12 @@ export interface components {
         HealthFastingUpdate: {
             /**
              * Fast End Time
-             * @description End time of fast (null if ongoing)
+             * @description End time of fast, with a UTC offset (null if ongoing)
              */
             fast_end_time?: string | null;
             /**
              * Fast Start Time
-             * @description Start time of fast
+             * @description Start time of fast, with a UTC offset
              */
             fast_start_time?: string | null;
             /** @description Type of fasting protocol */
@@ -6303,7 +6303,7 @@ export interface components {
             /**
              * Date Time
              * Format: date-time
-             * @description Date and time of the bowel movement
+             * @description Date and time of the bowel movement, with a UTC offset
              */
             date_time: string;
             /**
@@ -6384,7 +6384,7 @@ export interface components {
             color?: components["schemas"]["Color"] | null;
             /**
              * Date Time
-             * @description Date and time of the bowel movement
+             * @description Date and time of the bowel movement, with a UTC offset
              */
             date_time?: string | null;
             /**
@@ -6545,12 +6545,12 @@ export interface components {
             restless_moments_count?: number | null;
             /**
              * Sleep End Time Gmt
-             * @description End time of sleep in GMT
+             * @description End time of sleep as an instant, with a UTC offset
              */
             sleep_end_time_gmt?: string | null;
             /**
              * Sleep End Time Local
-             * @description End time of sleep in local time
+             * @description Wall-clock time the sleep ended in the athlete's own zone, sent without a UTC offset. The server keeps the reading as given and does not convert it.
              */
             sleep_end_time_local?: string | null;
             /** @description Sleep duration score */
@@ -6569,12 +6569,12 @@ export interface components {
             sleep_stages?: components["schemas"]["HealthSleepStageWrite"][] | null;
             /**
              * Sleep Start Time Gmt
-             * @description Start time of sleep in GMT
+             * @description Start time of sleep as an instant, with a UTC offset
              */
             sleep_start_time_gmt?: string | null;
             /**
              * Sleep Start Time Local
-             * @description Start time of sleep in local time
+             * @description Wall-clock time the sleep started in the athlete's own zone, sent without a UTC offset. The server keeps the reading as given and does not convert it.
              */
             sleep_start_time_local?: string | null;
             /** @description Sleep stress score */
@@ -6768,7 +6768,7 @@ export interface components {
             sleep_end_time_gmt?: string | null;
             /**
              * Sleep End Time Local
-             * @description End time of sleep in local time
+             * @description Wall-clock time the sleep ended in the athlete's own zone, sent without a UTC offset. The server keeps the reading as given and does not convert it.
              */
             sleep_end_time_local?: string | null;
             /** @description Sleep duration score */
@@ -6792,7 +6792,7 @@ export interface components {
             sleep_start_time_gmt?: string | null;
             /**
              * Sleep Start Time Local
-             * @description Start time of sleep in local time
+             * @description Wall-clock time the sleep started in the athlete's own zone, sent without a UTC offset. The server keeps the reading as given and does not convert it.
              */
             sleep_start_time_local?: string | null;
             /** @description Sleep stress score */
@@ -6855,7 +6855,7 @@ export interface components {
         };
         /**
          * HealthSleepStageWrite
-         * @description A sleep stage a client writes: its times are bounded, which a stored stage read back need not be.
+         * @description A sleep stage a client writes: its times carry a UTC offset and are bounded, which a stored stage read back need not be.
          */
         HealthSleepStageWrite: {
             /**
@@ -6865,14 +6865,14 @@ export interface components {
             duration_seconds?: number | null;
             /**
              * End Time Gmt
-             * @description End time of the stage in GMT
+             * @description End time of the stage, with a UTC offset
              */
             end_time_gmt?: string | null;
             /** @description Type of sleep stage */
             stage_type?: components["schemas"]["SleepStageType"] | null;
             /**
              * Start Time Gmt
-             * @description Start time of the stage in GMT
+             * @description Start time of the stage, with a UTC offset
              */
             start_time_gmt?: string | null;
         };
@@ -7001,12 +7001,12 @@ export interface components {
             restless_moments_count?: number | null;
             /**
              * Sleep End Time Gmt
-             * @description End time of sleep in GMT
+             * @description End time of sleep as an instant, with a UTC offset
              */
             sleep_end_time_gmt?: string | null;
             /**
              * Sleep End Time Local
-             * @description End time of sleep in local time
+             * @description Wall-clock time the sleep ended in the athlete's own zone, sent without a UTC offset. The server keeps the reading as given and does not convert it.
              */
             sleep_end_time_local?: string | null;
             /** @description Sleep duration score */
@@ -7025,12 +7025,12 @@ export interface components {
             sleep_stages?: components["schemas"]["HealthSleepStageWrite"][] | null;
             /**
              * Sleep Start Time Gmt
-             * @description Start time of sleep in GMT
+             * @description Start time of sleep as an instant, with a UTC offset
              */
             sleep_start_time_gmt?: string | null;
             /**
              * Sleep Start Time Local
-             * @description Start time of sleep in local time
+             * @description Wall-clock time the sleep started in the athlete's own zone, sent without a UTC offset. The server keeps the reading as given and does not convert it.
              */
             sleep_start_time_local?: string | null;
             /** @description Sleep stress score */
@@ -10843,7 +10843,7 @@ export interface components {
             current_password?: string | null;
             /**
              * Expires At
-             * @description Optional expiration datetime, at most the server's maximum API key lifetime from now. When omitted the key expires at that maximum.
+             * @description Optional expiration instant with a UTC offset, at most the server's maximum API key lifetime from now. When omitted the key expires at that maximum.
              */
             expires_at?: string | null;
             /** @description Fresh identity-provider sign-in, required when the account has no local password */

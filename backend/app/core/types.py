@@ -3,7 +3,7 @@
 from datetime import UTC, date, datetime, timedelta
 from typing import Annotated
 
-from pydantic import AfterValidator, Field, StrictInt, StrictStr, ValidationInfo
+from pydantic import AfterValidator, AwareDatetime, Field, StrictInt, StrictStr, ValidationInfo
 
 #: The largest value of a PostgreSQL ``integer`` column, which every id column is.
 INT32_MAX = 2**31 - 1
@@ -63,8 +63,29 @@ def _not_out_of_range_datetime(value: datetime) -> datetime:
 #: A calendar date of a record (birthdate, a day's measurement).
 RecordDate = Annotated[date, AfterValidator(_not_out_of_range_date)]
 
-#: A point in time of a record.
-RecordDateTime = Annotated[datetime, AfterValidator(_not_out_of_range_datetime)]
+
+def _read_naive_as_utc(value: datetime) -> datetime:
+    """Attach UTC to a datetime without an offset.
+
+    Args:
+        value: A datetime a provider or an old archive wrote.
+
+    Returns:
+        The datetime with an offset; one that already had an offset is unchanged.
+    """
+    return value.replace(tzinfo=UTC) if value.tzinfo is None else value
+
+
+#: An instant of a record a client sends: it carries a UTC offset, which a request without one is refused for.
+RecordInstant = Annotated[AwareDatetime, AfterValidator(_not_out_of_range_datetime)]
+
+#: An instant the server writes itself (a provider sync, a profile archive), whose source may omit the offset and
+#: means UTC.
+ImportedInstant = Annotated[datetime, AfterValidator(_read_naive_as_utc), AfterValidator(_not_out_of_range_datetime)]
+
+#: A wall-clock reading of a record that is deliberately local (a ``*_local`` field): no zone is attached, so the
+#: value is kept as sent.
+RecordLocalDateTime = Annotated[datetime, AfterValidator(_not_out_of_range_datetime)]
 
 
 #: Characters that reorder or hide text around a name: the bidirectional marks and embeddings, the isolates, the

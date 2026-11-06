@@ -85,27 +85,6 @@ _MESSAGE_ONLY_RESPONSES: dict[str, str] = {
 }
 
 
-#: Request datetime fields that accept a naive value, as ``"<model>.<field>"``. Remove an entry when the field
-#: becomes ``pydantic.AwareDatetime`` (DOM-3).
-_NAIVE_REQUEST_DATETIMES: dict[str, str] = {
-    "HealthFastingComplete.fast_end_time": "DOM-3",
-    "HealthFastingCreate.fast_end_time": "DOM-3",
-    "HealthFastingCreate.fast_start_time": "DOM-3",
-    "HealthFastingUpdate.fast_end_time": "DOM-3",
-    "HealthFastingUpdate.fast_start_time": "DOM-3",
-    "HealthPoopCreate.date_time": "DOM-3",
-    "HealthPoopUpdate.date_time": "DOM-3",
-    "HealthSleepCreate.sleep_end_time_gmt": "DOM-3",
-    "HealthSleepCreate.sleep_end_time_local": "DOM-3",
-    "HealthSleepCreate.sleep_start_time_gmt": "DOM-3",
-    "HealthSleepCreate.sleep_start_time_local": "DOM-3",
-    "HealthSleepUpdate.sleep_end_time_gmt": "DOM-3",
-    "HealthSleepUpdate.sleep_end_time_local": "DOM-3",
-    "HealthSleepUpdate.sleep_start_time_gmt": "DOM-3",
-    "HealthSleepUpdate.sleep_start_time_local": "DOM-3",
-    "UsersApiKeyCreate.expires_at": "DOM-3",
-}
-
 #: Route handlers whose docstring carries a Google section, as ``{path relative to app/: handlers}``. Move the
 #: section's content into ``Field``/``Query`` descriptions or ``responses`` and lower the count (HTTP-10).
 _DOCSTRING_SECTIONS: dict[str, int] = {
@@ -389,6 +368,7 @@ class TestApiContract:
 
         OpenAPI cannot tell ``datetime`` from ``AwareDatetime``, so the models are read: each field is
         validated with a naive timestamp. A naive one is read in a guessed zone and stored as another instant.
+        A deliberate wall clock is named ``*_local`` and its description says it is a wall-clock time.
         """
         models: dict[str, type[BaseModel]] = {}
         for route in _api_routes():
@@ -398,9 +378,14 @@ class TestApiContract:
                         models[candidate.__name__] = candidate
 
         naive: set[str] = set()
+        undocumented: set[str] = set()
         for name, model in models.items():
             for field, info in model.model_fields.items():
                 kinds = [kind for kind in _unwrap(info.annotation) if kind is datetime.datetime]
+                if kinds and field.endswith("_local"):
+                    if "wall-clock" not in (info.description or "").lower():
+                        undocumented.add(f"{name}.{field}")
+                    continue
                 if not kinds:
                     continue
                 annotation = Annotated[info.annotation, *info.metadata] if info.metadata else info.annotation
@@ -411,7 +396,10 @@ class TestApiContract:
                     continue
                 naive.add(f"{name}.{field}")
 
-        _compare("A request datetime accepts a naive value", naive, _NAIVE_REQUEST_DATETIMES, "Use AwareDatetime")
+        assert not naive, (
+            f"A request datetime accepts a naive value (use AwareDatetime, or name a wall clock *_local): {sorted(naive)}"
+        )
+        assert not undocumented, f"A *_local datetime does not say it is a wall-clock time: {sorted(undocumented)}"
 
     def test_enums_are_strings(self):
         """Enumerated values are strings and ``is_*``/``has_*`` properties are booleans.

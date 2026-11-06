@@ -39,7 +39,7 @@ class TestCreateHealthFasting:
     @patch(f"{_CRUD}.create_health_fasting")
     @patch(f"{_CRUD}.get_active_fasting_by_user_id", return_value=None)
     def test_starts_a_fast_and_commits(self, _active, mock_create, _overlaps, mock_db):
-        record = health_fasting_schema.HealthFastingCreate(fast_start_time=datetime(2024, 1, 15, 8, 0, 0))
+        record = health_fasting_schema.HealthFastingCreate(fast_start_time=datetime(2024, 1, 15, 8, 0, 0, tzinfo=UTC))
 
         assert health_fasting_service.create_health_fasting(1, record, mock_db) is mock_create.return_value
         mock_db.commit.assert_called_once()
@@ -47,7 +47,7 @@ class TestCreateHealthFasting:
     @patch(f"{_CRUD}.create_health_fasting")
     @patch(f"{_CRUD}.get_active_fasting_by_user_id")
     def test_refuses_a_second_active_fast(self, _active, mock_create, mock_db):
-        record = health_fasting_schema.HealthFastingCreate(fast_start_time=datetime(2024, 1, 15, 8, 0, 0))
+        record = health_fasting_schema.HealthFastingCreate(fast_start_time=datetime(2024, 1, 15, 8, 0, 0, tzinfo=UTC))
 
         with pytest.raises(core_exceptions.ConflictError, match="already has an active fasting session"):
             health_fasting_service.create_health_fasting(1, record, mock_db)

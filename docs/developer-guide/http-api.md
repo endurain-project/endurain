@@ -154,6 +154,5 @@ These rules are not met everywhere yet. Each is tracked in the test registers ab
 - The background jobs report their status in several shapes. The one `202` with no status resource is the account owner's `POST /profile/delete-account`.
 - Some secret-bearing responses lack `no-store`.
 - Uploaded images are stored as received, with their metadata.
-- Some enums are integers, some request schemas accept server-owned fields, and datetimes without an offset are
-  accepted as UTC.
+- Some enums are integers and some request schemas accept server-owned fields.
 - Most endpoint docstrings still carry Google sections. The OpenAPI document cuts them, but the source should lose them.

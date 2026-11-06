@@ -1,4 +1,4 @@
-from datetime import date, datetime
+from datetime import UTC, date, datetime
 from unittest.mock import MagicMock
 
 import pytest
@@ -106,7 +106,7 @@ class TestAggregates:
 
 class TestCreateHealthFasting:
     def test_stages_without_committing(self, mock_db, stub_model):
-        record = health_fasting_schema.HealthFastingCreate(fast_start_time=datetime(2024, 1, 15, 8, 0, 0))
+        record = health_fasting_schema.HealthFastingCreate(fast_start_time=datetime(2024, 1, 15, 8, 0, 0, tzinfo=UTC))
 
         with stub_model(health_fasting_crud, _row()) as model:
             health_fasting_crud.create_health_fasting(1, record, mock_db, actual_duration_seconds=None)
@@ -118,7 +118,7 @@ class TestCreateHealthFasting:
 
     def test_integrity_error_is_a_conflict(self, mock_db, stub_model):
         mock_db.flush.side_effect = IntegrityError("constraint", None, None)
-        record = health_fasting_schema.HealthFastingCreate(fast_start_time=datetime(2024, 1, 15, 8, 0, 0))
+        record = health_fasting_schema.HealthFastingCreate(fast_start_time=datetime(2024, 1, 15, 8, 0, 0, tzinfo=UTC))
 
         with (
             stub_model(health_fasting_crud, _row()),

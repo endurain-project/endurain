@@ -134,9 +134,9 @@ class HealthPoopWrite(HealthPoopBase):
         description="Bristol Stool Scale type",
     )
 
-    date_time: core_types.RecordDateTime | None = Field(
+    date_time: core_types.RecordInstant | None = Field(
         default=None,
-        description="Date and time of the bowel movement",
+        description="Date and time of the bowel movement, with a UTC offset",
     )
 
 
@@ -146,9 +146,9 @@ class HealthPoopCreate(HealthPoopWrite):
     Requires date_time.
     """
 
-    date_time: core_types.RecordDateTime = Field(
+    date_time: core_types.RecordInstant = Field(
         ...,
-        description="Date and time of the bowel movement",
+        description="Date and time of the bowel movement, with a UTC offset",
     )
 
 
@@ -206,6 +206,7 @@ class HealthPoopImport(HealthPoopCreate):
         description="Bristol Stool Scale type",
     )
     source: Source | None = Field(default=None, description="Source of the data")
+    date_time: core_types.ImportedInstant = Field(..., description="Date and time of the bowel movement")
 
     @model_validator(mode="after")
     def set_default_source(self) -> "HealthPoopImport":

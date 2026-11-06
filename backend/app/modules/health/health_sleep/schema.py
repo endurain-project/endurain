@@ -26,6 +26,15 @@ from core.stored_enum import StoredStrEnum
 
 _DATETIME = TypeAdapter(datetime)
 
+_LOCAL_START_DESCRIPTION = (
+    "Wall-clock time the sleep started in the athlete's own zone, sent without a UTC offset. "
+    "The server keeps the reading as given and does not convert it."
+)
+_LOCAL_END_DESCRIPTION = (
+    "Wall-clock time the sleep ended in the athlete's own zone, sent without a UTC offset. "
+    "The server keeps the reading as given and does not convert it."
+)
+
 
 class Source(Enum):
     """Enum representing the source of sleep health data.
@@ -187,8 +196,8 @@ class HealthSleepBase(BaseModel):
     date: datetime_date | None = Field(default=None, description="Calendar date of the sleep session")
     sleep_start_time_gmt: datetime | None = Field(default=None, description="Start time of sleep in GMT")
     sleep_end_time_gmt: datetime | None = Field(default=None, description="End time of sleep in GMT")
-    sleep_start_time_local: datetime | None = Field(default=None, description="Start time of sleep in local time")
-    sleep_end_time_local: datetime | None = Field(default=None, description="End time of sleep in local time")
+    sleep_start_time_local: datetime | None = Field(default=None, description=_LOCAL_START_DESCRIPTION)
+    sleep_end_time_local: datetime | None = Field(default=None, description=_LOCAL_END_DESCRIPTION)
     total_sleep_seconds: StrictInt | None = Field(default=None, ge=0, description="Total duration of sleep in seconds")
     nap_time_seconds: StrictInt | None = Field(default=None, ge=0, description="Duration of naps in seconds")
     unmeasurable_sleep_seconds: StrictInt | None = Field(
@@ -261,32 +270,40 @@ class HealthSleepBase(BaseModel):
 
 
 class HealthSleepStageWrite(HealthSleepStage):
-    """A sleep stage a client writes: its times are bounded, which a stored stage read back need not be."""
+    """A sleep stage a client writes: its times carry a UTC offset and are bounded, which a stored stage read back need not be."""
 
     stage_type: SleepStageType | None = Field(default=None, description="Type of sleep stage")
-    start_time_gmt: core_types.RecordDateTime | None = Field(default=None, description="Start time of the stage in GMT")
-    end_time_gmt: core_types.RecordDateTime | None = Field(default=None, description="End time of the stage in GMT")
+    start_time_gmt: core_types.RecordInstant | None = Field(
+        default=None, description="Start time of the stage, with a UTC offset"
+    )
+    end_time_gmt: core_types.RecordInstant | None = Field(
+        default=None, description="End time of the stage, with a UTC offset"
+    )
 
 
 class HealthSleepStageImport(HealthSleepStageWrite):
     """A sleep stage the server writes: a provider sync or a profile import, which may hand over the stored number."""
 
     stage_type: StoredSleepStageType | None = Field(default=None, description="Type of sleep stage")
+    start_time_gmt: core_types.ImportedInstant | None = Field(default=None, description="Start time of the stage")
+    end_time_gmt: core_types.ImportedInstant | None = Field(default=None, description="End time of the stage")
 
 
 class HealthSleepWrite(HealthSleepBase):
     """Sleep fields a client writes: the date and times are bounded, which a stored row read back need not be."""
 
     date: core_types.RecordDate | None = Field(default=None, description="Calendar date of the sleep session")
-    sleep_start_time_gmt: core_types.RecordDateTime | None = Field(
-        default=None, description="Start time of sleep in GMT"
+    sleep_start_time_gmt: core_types.RecordInstant | None = Field(
+        default=None, description="Start time of sleep as an instant, with a UTC offset"
     )
-    sleep_end_time_gmt: core_types.RecordDateTime | None = Field(default=None, description="End time of sleep in GMT")
-    sleep_start_time_local: core_types.RecordDateTime | None = Field(
-        default=None, description="Start time of sleep in local time"
+    sleep_end_time_gmt: core_types.RecordInstant | None = Field(
+        default=None, description="End time of sleep as an instant, with a UTC offset"
     )
-    sleep_end_time_local: core_types.RecordDateTime | None = Field(
-        default=None, description="End time of sleep in local time"
+    sleep_start_time_local: core_types.RecordLocalDateTime | None = Field(
+        default=None, description=_LOCAL_START_DESCRIPTION
+    )
+    sleep_end_time_local: core_types.RecordLocalDateTime | None = Field(
+        default=None, description=_LOCAL_END_DESCRIPTION
     )
     sleep_stages: Sequence[HealthSleepStageWrite] | None = Field(default=None, description="List of sleep stages")
 
@@ -345,6 +362,8 @@ class HealthSleepImport(HealthSleepCreate):
         default=None, min_length=1, description="Garmin Connect sleep record ID"
     )
     source: Source | None = Field(default=None, description="Source of the sleep data")
+    sleep_start_time_gmt: core_types.ImportedInstant | None = Field(default=None, description="Start time of sleep")
+    sleep_end_time_gmt: core_types.ImportedInstant | None = Field(default=None, description="End time of sleep")
     sleep_stages: Sequence[HealthSleepStageImport] | None = Field(default=None, description="List of sleep stages")
 
 
@@ -360,4 +379,6 @@ class HealthSleepImportUpdate(HealthSleepUpdate):
         default=None, min_length=1, description="Garmin Connect sleep record ID"
     )
     source: Source | None = Field(default=None, description="Source of the sleep data")
+    sleep_start_time_gmt: core_types.ImportedInstant | None = Field(default=None, description="Start time of sleep")
+    sleep_end_time_gmt: core_types.ImportedInstant | None = Field(default=None, description="End time of sleep")
     sleep_stages: Sequence[HealthSleepStageImport] | None = Field(default=None, description="List of sleep stages")

@@ -59,10 +59,10 @@ class TestRecordDate:
         assert self.adapter.validate_python("2000-02-03") == date(2000, 2, 3)
 
 
-class TestRecordDateTime:
-    """A record datetime follows the same bounds, compared in UTC when it carries an offset."""
+class TestRecordLocalDateTime:
+    """A wall-clock datetime follows the same bounds, compared in UTC when it carries an offset."""
 
-    adapter = TypeAdapter(core_types.RecordDateTime)
+    adapter = TypeAdapter(core_types.RecordLocalDateTime)
 
     def test_now_is_accepted(self):
         now = datetime.now(UTC)
@@ -85,3 +85,36 @@ class TestRecordDateTime:
 
         with pytest.raises(ValidationError):
             self.adapter.validate_python(just_before)
+
+
+class TestRecordInstant:
+    """An instant a client sends needs a UTC offset and the same bounds."""
+
+    adapter = TypeAdapter(core_types.RecordInstant)
+
+    def test_a_naive_datetime_is_rejected(self):
+        with pytest.raises(ValidationError):
+            self.adapter.validate_python("2024-01-01T10:00:00")
+
+    def test_an_offset_datetime_is_accepted(self):
+        assert self.adapter.validate_python("2024-01-01T10:00:00+02:00") == datetime(2024, 1, 1, 8, tzinfo=UTC)
+
+    def test_a_datetime_beyond_tomorrow_is_rejected(self):
+        with pytest.raises(ValidationError):
+            self.adapter.validate_python(datetime.now(UTC) + timedelta(days=2))
+
+
+class TestImportedInstant:
+    """An instant the server writes reads a missing offset as UTC."""
+
+    adapter = TypeAdapter(core_types.ImportedInstant)
+
+    def test_a_naive_datetime_is_read_as_utc(self):
+        assert self.adapter.validate_python("2024-01-01T10:00:00") == datetime(2024, 1, 1, 10, tzinfo=UTC)
+
+    def test_an_offset_is_kept(self):
+        assert self.adapter.validate_python("2024-01-01T10:00:00+02:00") == datetime(2024, 1, 1, 8, tzinfo=UTC)
+
+    def test_a_datetime_before_1900_is_rejected(self):
+        with pytest.raises(ValidationError):
+            self.adapter.validate_python("1899-12-31T23:59:00")

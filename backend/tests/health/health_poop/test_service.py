@@ -39,7 +39,7 @@ class TestListByDate:
 class TestWrites:
     @patch(f"{_PREFIX}.health_poop_crud.create_health_poop")
     def test_create_commits(self, mock_create, mock_db):
-        record = health_poop_schema.HealthPoopCreate(date_time=datetime(2024, 1, 15, 10, 0, 0))
+        record = health_poop_schema.HealthPoopCreate(date_time=datetime(2024, 1, 15, 10, 0, 0, tzinfo=UTC))
 
         assert health_poop_service.create_health_poop(1, record, mock_db) is mock_create.return_value
         mock_db.commit.assert_called_once()
