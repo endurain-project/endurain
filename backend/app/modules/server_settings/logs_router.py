@@ -37,24 +37,28 @@ def read_logs_status() -> logs_schema.LogsStatus:
     dependencies=[Security(auth_dependencies.check_scopes, scopes=["server_settings:logs"])],
 )
 def read_logs(
-    limit: Annotated[int, Query(ge=1, le=1000, description="Most records to return")] = 200,
+    num_records: Annotated[int, Query(ge=1, le=1000, description="Most records to return")] = 200,
     level: Annotated[logs_schema.LogLevel | None, Query(description="Lowest severity to include")] = None,
     search: Annotated[str | None, Query(max_length=200, description="Text a record must contain")] = None,
-    after: Annotated[
-        int | None, Query(ge=0, description="Cursor from an earlier page, to read only newer records")
+    cursor: Annotated[
+        str | None,
+        Query(
+            pattern=r"^\d{1,18}$",
+            description="`next_cursor` of an earlier page, to read only newer records",
+        ),
     ] = None,
 ) -> logs_schema.LogPage:
     """Read records from the end of the server log.
 
-    Requires admin authentication with server_settings:logs scope. Without ``after``
-    the newest matching records are returned; pass the returned ``cursor`` as
-    ``after`` to receive only what was written since.
+    Requires admin authentication with server_settings:logs scope. Without ``cursor``
+    the newest matching records are returned; pass the returned ``next_cursor`` as
+    ``cursor`` to receive only what was written since.
 
     Args:
-        limit: Most records to return.
+        num_records: Most records to return.
         level: Lowest severity to include.
         search: Case-insensitive text a record must contain.
-        after: Cursor from an earlier page.
+        cursor: ``next_cursor`` of an earlier page.
 
     Returns:
         The matching records, oldest first, and the cursor for the next call.
@@ -62,7 +66,7 @@ def read_logs(
     Raises:
         NotFoundError: 404 if the log viewer is not available on this deployment.
     """
-    return logs_service.read_logs(limit, level, search, after)
+    return logs_service.read_logs(num_records, level, search, None if cursor is None else int(cursor))
 
 
 @router.get(

@@ -65,23 +65,23 @@ def get_log_file_path() -> Path:
 
 
 def read_logs(
-    limit: int,
+    num_records: int,
     min_level: logs_schema.LogLevel | None,
     search: str | None,
-    after: int | None,
+    cursor: int | None,
 ) -> logs_schema.LogPage:
     """Read records from the end of the log file.
 
-    Without ``after`` this returns the newest matching records. With ``after`` it
+    Without ``cursor`` this returns the newest matching records. With ``cursor`` it
     returns only the records written since that cursor, which is how a client tails
     the log. A cursor beyond the end of the file means the file rotated, so the
     newest records are returned instead.
 
     Args:
-        limit: Most records to return.
+        num_records: Most records to return.
         min_level: Lowest severity to include, or None for all.
         search: Case-insensitive text a record must contain, or None.
-        after: Cursor from an earlier page, or None for the newest records.
+        cursor: Position from an earlier page, or None for the newest records.
 
     Returns:
         The matching records, oldest first, and the cursor for the next call.
@@ -95,11 +95,11 @@ def read_logs(
     try:
         size = path.stat().st_size
     except FileNotFoundError:
-        return logs_schema.LogPage(entries=[], cursor=0)
+        return logs_schema.LogPage(items=[], num_records=num_records, next_cursor="0")
 
     # A cursor always sits on a line boundary; any other start may fall mid-line.
-    if after is not None and after <= size:
-        start, at_line_start = after, True
+    if cursor is not None and cursor <= size:
+        start, at_line_start = cursor, True
     else:
         start, at_line_start = max(0, size - MAX_READ_BYTES), False
     if size - start > MAX_READ_BYTES:
@@ -115,7 +115,9 @@ def read_logs(
     complete_end = chunk.rfind(b"\n") + 1
     entries = _parse_entries(chunk[:complete_end].decode("utf-8", errors="replace").splitlines())
     matching = [entry for entry in entries if _matches(entry, min_level, search)]
-    return logs_schema.LogPage(entries=matching[-limit:], cursor=start + complete_end)
+    return logs_schema.LogPage(
+        items=matching[-num_records:], num_records=num_records, next_cursor=str(start + complete_end)
+    )
 
 
 def clear_logs(admin_id: int) -> None:

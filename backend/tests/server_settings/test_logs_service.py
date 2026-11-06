@@ -50,12 +50,12 @@ class TestReadLogs:
 
     def test_missing_file_returns_an_empty_page(self, logs_dir):
         page = logs_service.read_logs(10, None, None, None)
-        assert page.entries == []
-        assert page.cursor == 0
+        assert page.items == []
+        assert page.next_cursor == "0"
 
     def test_parses_json_lines(self, logs_dir):
         _write(logs_dir, [_json_line("INFO", "hello", request_id="r1", context={"user_id": 3})])
-        entry = logs_service.read_logs(10, None, None, None).entries[0]
+        entry = logs_service.read_logs(10, None, None, None).items[0]
         assert (entry.level, entry.message, entry.request_id, entry.context) == ("INFO", "hello", "r1", {"user_id": 3})
 
     def test_parses_development_lines_and_folds_tracebacks(self, logs_dir):
@@ -68,7 +68,7 @@ class TestReadLogs:
                 "2026-01-01 10:00:01,000 - main_logger.x - INFO - [] - fine",
             ],
         )
-        first, second = logs_service.read_logs(10, None, None, None).entries
+        first, second = logs_service.read_logs(10, None, None, None).items
         assert (first.level, first.request_id, first.message) == ("ERROR", "abc", "boom | a=1")
         assert first.exception == "Traceback (most recent call last):\nValueError: bad"
         assert second.request_id is None
@@ -76,46 +76,46 @@ class TestReadLogs:
     def test_returns_newest_entries_up_to_limit_oldest_first(self, logs_dir):
         _write(logs_dir, [_json_line("INFO", f"m{i}") for i in range(5)])
         page = logs_service.read_logs(2, None, None, None)
-        assert [e.message for e in page.entries] == ["m3", "m4"]
+        assert [e.message for e in page.items] == ["m3", "m4"]
 
     def test_filters_by_minimum_level(self, logs_dir):
         _write(logs_dir, [_json_line("DEBUG", "d"), _json_line("WARNING", "w"), _json_line("ERROR", "e")])
         page = logs_service.read_logs(10, logs_schema.LogLevel.WARNING, None, None)
-        assert [e.message for e in page.entries] == ["w", "e"]
+        assert [e.message for e in page.items] == ["w", "e"]
 
     def test_search_is_case_insensitive(self, logs_dir):
         _write(logs_dir, [_json_line("INFO", "Strava Sync done"), _json_line("INFO", "other")])
         page = logs_service.read_logs(10, None, "strava", None)
-        assert [e.message for e in page.entries] == ["Strava Sync done"]
+        assert [e.message for e in page.items] == ["Strava Sync done"]
 
     def test_after_cursor_returns_only_new_entries(self, logs_dir):
         _write(logs_dir, [_json_line("INFO", "old")])
-        cursor = logs_service.read_logs(10, None, None, None).cursor
+        cursor = int(logs_service.read_logs(10, None, None, None).next_cursor)
         with (logs_dir / logs_service.LOG_FILE_NAME).open("a") as log_file:
             log_file.write(_json_line("INFO", "new") + "\n")
         page = logs_service.read_logs(10, None, None, cursor)
-        assert [e.message for e in page.entries] == ["new"]
-        assert logs_service.read_logs(10, None, None, page.cursor).entries == []
+        assert [e.message for e in page.items] == ["new"]
+        assert logs_service.read_logs(10, None, None, int(page.next_cursor)).items == []
 
     def test_partial_last_line_waits_for_its_newline(self, logs_dir):
         path = logs_dir / logs_service.LOG_FILE_NAME
         path.write_text(_json_line("INFO", "done") + "\n" + '{"level": "INFO", "mess')
         page = logs_service.read_logs(10, None, None, None)
-        assert [e.message for e in page.entries] == ["done"]
-        assert page.cursor == len(_json_line("INFO", "done")) + 1
+        assert [e.message for e in page.items] == ["done"]
+        assert page.next_cursor == str(len(_json_line("INFO", "done")) + 1)
 
     def test_cursor_past_the_end_after_rotation_restarts_from_the_new_file(self, logs_dir):
         _write(logs_dir, [_json_line("INFO", "fresh")])
         page = logs_service.read_logs(10, None, None, 10_000_000)
-        assert [e.message for e in page.entries] == ["fresh"]
+        assert [e.message for e in page.items] == ["fresh"]
 
     def test_large_file_is_read_from_a_line_boundary(self, logs_dir):
         with patch.object(logs_service, "MAX_READ_BYTES", 300):
             _write(logs_dir, [_json_line("INFO", f"message-{i}") for i in range(20)])
             page = logs_service.read_logs(100, None, None, None)
-        assert page.entries
-        assert page.entries[-1].message == "message-19"
-        assert all(e.message.startswith("message-") for e in page.entries)
+        assert page.items
+        assert page.items[-1].message == "message-19"
+        assert all(e.message.startswith("message-") for e in page.items)
 
 
 class TestGetLogFilePath:

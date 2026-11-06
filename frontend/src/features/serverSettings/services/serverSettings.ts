@@ -332,14 +332,14 @@ export async function fetchLogsStatus(signal?: AbortSignal): Promise<LogsStatusD
  * Fetches records from the end of the server log (admin scope `server_settings:logs`).
  *
  * @param filters - Severity and text filters.
- * @param after - Cursor from an earlier page to read only newer records, or null for the newest.
+ * @param cursor - `next_cursor` of an earlier page to read only newer records, or null for the newest.
  * @param signal - Optional abort signal for cancellation.
- * @returns The matching records, oldest first, and the next cursor.
+ * @returns The matching records (`items`), oldest first, and `next_cursor`.
  * @throws {HttpError} When the request fails (404 when the viewer is unavailable).
  */
 export async function fetchLogs(
   filters: LogFilters,
-  after: number | null,
+  cursor: string | null,
   signal?: AbortSignal,
 ): Promise<LogPage> {
   const params = new URLSearchParams()
@@ -349,8 +349,8 @@ export async function fetchLogs(
   if (filters.search) {
     params.set('search', filters.search)
   }
-  if (after !== null) {
-    params.set('after', String(after))
+  if (cursor !== null) {
+    params.set('cursor', cursor)
   }
   return apiFetch<LogPage>(`/server-settings/logs?${params}`, { signal })
 }

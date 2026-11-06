@@ -29,7 +29,7 @@ describe('server log services', () => {
   })
 
   it('asks for the newest records when no cursor is given', async () => {
-    mockedApiFetch.mockResolvedValue({ entries: [], cursor: 0 })
+    mockedApiFetch.mockResolvedValue({ items: [], num_records: 200, next_cursor: '0' })
 
     await fetchLogs({ level: null, search: '' }, null)
 
@@ -37,15 +37,15 @@ describe('server log services', () => {
   })
 
   it('sends the filters and the cursor', async () => {
-    mockedApiFetch.mockResolvedValue({ entries: [], cursor: 9 })
+    mockedApiFetch.mockResolvedValue({ items: [], num_records: 200, next_cursor: '9' })
 
-    await fetchLogs({ level: 'WARNING', search: 'strava sync' }, 42)
+    await fetchLogs({ level: 'WARNING', search: 'strava sync' }, '42')
 
     const [path] = mockedApiFetch.mock.calls[0]!
     const params = new URL(path, 'http://localhost').searchParams
     expect(params.get('level')).toBe('WARNING')
     expect(params.get('search')).toBe('strava sync')
-    expect(params.get('after')).toBe('42')
+    expect(params.get('cursor')).toBe('42')
   })
 
   it('downloads the log file as a blob without a timeout', async () => {

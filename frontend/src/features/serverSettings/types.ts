@@ -17,7 +17,7 @@ export type LogsStatusDto = Schemas['LogsStatus']
 export type LogEntry = Schemas['LogEntry']
 
 /** A slice of the server log with the cursor for reading what follows it. */
-export type LogPage = Schemas['LogPage']
+export type LogPage = Schemas['CursorPage_LogEntry_']
 
 /** Log severity, mirrored from the backend enum (`DEBUG` to `CRITICAL`). */
 export type LogLevel = Schemas['LogLevel']

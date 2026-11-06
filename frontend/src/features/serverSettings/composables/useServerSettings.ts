@@ -235,13 +235,14 @@ export function useLogsQuery(filters: Ref<LogFilters>, live: Ref<boolean>) {
     queryKey,
     queryFn: async ({ signal }) => {
       const previous = client.getQueryData<LogPage>(queryKey.value)
-      const page = await fetchLogs(filters.value, previous?.cursor ?? null, signal)
-      if (!previous || page.cursor < previous.cursor) {
+      const page = await fetchLogs(filters.value, previous?.next_cursor ?? null, signal)
+      // The cursor is a byte offset: a smaller one means the log was rotated or cleared.
+      if (!previous || Number(page.next_cursor) < Number(previous.next_cursor)) {
         return page
       }
       return {
-        entries: [...previous.entries, ...page.entries].slice(-MAX_LOG_ENTRIES),
-        cursor: page.cursor,
+        ...page,
+        items: [...previous.items, ...page.items].slice(-MAX_LOG_ENTRIES),
       }
     },
     refetchInterval: () => (live.value ? LOG_TAIL_INTERVAL_MS : false),

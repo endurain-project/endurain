@@ -2,7 +2,9 @@
 
 from enum import StrEnum
 
-from pydantic import BaseModel, Field, StrictBool, StrictInt, StrictStr
+from pydantic import BaseModel, StrictBool, StrictStr
+
+import core.pagination as core_pagination
 
 
 class LogLevel(StrEnum):
@@ -47,13 +49,7 @@ class LogEntry(BaseModel):
     exception: StrictStr | None
 
 
-class LogPage(BaseModel):
-    """A slice of the application log.
-
-    Attributes:
-        entries: Matching records, oldest first.
-        cursor: Position to pass as ``after`` to receive only records written after this slice.
-    """
-
-    entries: list[LogEntry]
-    cursor: StrictInt = Field(..., ge=0, description="Pass as `after` to read only newer records")
+#: A slice of the application log: ``items`` are the matching records, oldest first, and ``next_cursor`` is the
+#: position to pass as ``cursor`` to receive only records written after this slice. It is always set, because the
+#: log keeps growing at its end.
+LogPage = core_pagination.CursorPage[LogEntry]

@@ -56,7 +56,7 @@ const downloadMutation = useDownloadLogsMutation()
 const clearMutation = useClearLogsMutation()
 const confirmClearOpen = ref(false)
 
-const entries = computed(() => logsQuery.data.value?.entries ?? [])
+const entries = computed(() => logsQuery.data.value?.items ?? [])
 
 /** Applies the typed search text; the query refetches because its key changed. */
 function applySearch(): void {

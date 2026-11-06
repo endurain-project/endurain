@@ -3338,9 +3338,9 @@ export interface paths {
          * Read Logs
          * @description Read records from the end of the server log.
          *
-         *     Requires admin authentication with server_settings:logs scope. Without ``after``
-         *     the newest matching records are returned; pass the returned ``cursor`` as
-         *     ``after`` to receive only what was written since.
+         *     Requires admin authentication with server_settings:logs scope. Without ``cursor``
+         *     the newest matching records are returned; pass the returned ``next_cursor`` as
+         *     ``cursor`` to receive only what was written since.
          */
         get: operations["read_logs"];
         put?: never;
@@ -5210,6 +5210,15 @@ export interface components {
          * @enum {string}
          */
         Currency: "euro" | "dollar" | "pound";
+        /** CursorPage[LogEntry] */
+        CursorPage_LogEntry_: {
+            /** Items */
+            items: components["schemas"]["LogEntry"][];
+            /** Next Cursor */
+            next_cursor?: string | null;
+            /** Num Records */
+            num_records: number;
+        };
         /**
          * DaySummary
          * @description Daily activity summary within a week.
@@ -8546,23 +8555,6 @@ export interface components {
          * @enum {string}
          */
         LogLevel: "DEBUG" | "INFO" | "WARNING" | "ERROR" | "CRITICAL";
-        /**
-         * LogPage
-         * @description A slice of the application log.
-         *
-         *     Attributes:
-         *         entries: Matching records, oldest first.
-         *         cursor: Position to pass as ``after`` to receive only records written after this slice.
-         */
-        LogPage: {
-            /**
-             * Cursor
-             * @description Pass as `after` to read only newer records
-             */
-            cursor: number;
-            /** Entries */
-            entries: components["schemas"]["LogEntry"][];
-        };
         /**
          * LoginPhotoRead
          * @description The login photo after an upload.
@@ -30410,13 +30402,13 @@ export interface operations {
         parameters: {
             query?: {
                 /** @description Most records to return */
-                limit?: number;
+                num_records?: number;
                 /** @description Lowest severity to include */
                 level?: components["schemas"]["LogLevel"] | null;
                 /** @description Text a record must contain */
                 search?: string | null;
-                /** @description Cursor from an earlier page, to read only newer records */
-                after?: number | null;
+                /** @description `next_cursor` of an earlier page, to read only newer records */
+                cursor?: string | null;
             };
             header?: never;
             path?: never;
@@ -30430,7 +30422,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["LogPage"];
+                    "application/json": components["schemas"]["CursorPage_LogEntry_"];
                 };
             };
             /** @description The credential is missing, invalid or no longer valid. */
