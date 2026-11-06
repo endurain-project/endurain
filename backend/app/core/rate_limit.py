@@ -32,7 +32,7 @@ from urllib.parse import parse_qsl, urlencode, urlsplit, urlunsplit
 from fastapi import Request
 from joserfc import jwt
 from joserfc.errors import JoseError
-from joserfc.jwk import OctKey
+from joserfc.jwk import KeySet, OctKey
 from limits import RateLimitItem
 from slowapi import Limiter
 from slowapi.errors import RateLimitExceeded
@@ -96,14 +96,14 @@ STORE_TIMEOUT_SECONDS: float = 2.0
 _REDIS_SCHEMES = frozenset({"redis", "rediss", "unix"})
 
 
-#: Expiry and type a token must carry to name a bucket; a refresh or expired token would let one
-#: client mint buckets from tokens it can no longer use.
-_ACCESS_TOKEN_CLAIMS = jwt.JWTClaimsRegistry(exp={"essential": True}, typ={"essential": True, "value": "access"})
+#: Expiry a token must carry to name a bucket, next to the ``at+jwt`` header type; a refresh or expired token
+#: would let one client mint buckets from tokens it can no longer use.
+_ACCESS_TOKEN_CLAIMS = jwt.JWTClaimsRegistry(exp={"essential": True})
 
 
-def _jwt_verification_key() -> OctKey | None:
-    """Return the key used to check Bearer token signatures, or None if unset."""
-    return core_jwt_keys.verification_key()
+def _jwt_verification_key() -> OctKey | KeySet | None:
+    """Return the keys used to check Bearer token signatures, or None if unset."""
+    return core_jwt_keys.verification_keys()
 
 
 def _verified_subject(token: str) -> str | None:
@@ -112,10 +112,13 @@ def _verified_subject(token: str) -> str | None:
     if key is None:
         return None
     try:
-        claims = core_jwt_keys.decode(token, key).claims
-        _ACCESS_TOKEN_CLAIMS.validate(claims)
+        decoded = core_jwt_keys.decode(token, key)
+        _ACCESS_TOKEN_CLAIMS.validate(decoded.claims)
     except (JoseError, ValueError):
         return None
+    if decoded.header.get("typ") != core_jwt_keys.ACCESS_JWT_TYP:
+        return None
+    claims = decoded.claims
     subject = claims.get("sub")
     return subject if isinstance(subject, str) else None
 

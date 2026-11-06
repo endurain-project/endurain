@@ -38,6 +38,21 @@ def hmac_hash_token(token: str) -> str:
     return access_tokens_integration.hmac_sha256(token)
 
 
+def hmac_hash_token_candidates(token: str) -> tuple[str, ...]:
+    """Hash a refresh token under every ``SECRET_KEY`` entry, to find a record stored before a key rotation.
+
+    Args:
+        token: The raw refresh token to hash.
+
+    Returns:
+        One digest per key, the first being what :func:`hmac_hash_token` returns.
+
+    Raises:
+        ValueError: If SECRET_KEY is not configured.
+    """
+    return access_tokens_integration.hmac_sha256_under_every_key(token)
+
+
 def store_rotated_token(
     raw_token: str,
     token_family_id: str,
@@ -111,8 +126,7 @@ def check_token_reuse(raw_token: str, db: Session) -> tuple[bool, bool]:
         ProcessingError: If lookup fails.
     """
     # Use HMAC-SHA256 for deterministic lookup
-    hashed_token = hmac_hash_token(raw_token)
-    rotated_token = rotated_token_crud.get_rotated_token_by_hash(hashed_token, db)
+    rotated_token = rotated_token_crud.get_rotated_token_by_hashes(hmac_hash_token_candidates(raw_token), db)
 
     if not rotated_token:
         return (False, False)
@@ -162,8 +176,7 @@ def get_grace_replay_token(raw_token: str, db: Session) -> tuple[str, datetime] 
     Raises:
         ProcessingError: If lookup or decryption fails.
     """
-    hashed_token = hmac_hash_token(raw_token)
-    rotated_token = rotated_token_crud.get_rotated_token_by_hash(hashed_token, db)
+    rotated_token = rotated_token_crud.get_rotated_token_by_hashes(hmac_hash_token_candidates(raw_token), db)
 
     if rotated_token is None:
         return None

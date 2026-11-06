@@ -19,9 +19,9 @@ _SECRET = "s" * 64
 
 @pytest.fixture(autouse=True)
 def _fresh_cache():
-    core_key_derivation.derive_key.cache_clear()
+    core_key_derivation.derive_keys.cache_clear()
     yield
-    core_key_derivation.derive_key.cache_clear()
+    core_key_derivation.derive_keys.cache_clear()
 
 
 class TestDeriveKey:
@@ -45,7 +45,7 @@ class TestDeriveKey:
     def test_follows_the_secret(self):
         with patch("core.key_derivation.core_config.read_secret", return_value=_SECRET):
             first = core_key_derivation.derive_key("jwt")
-        core_key_derivation.derive_key.cache_clear()
+        core_key_derivation.derive_keys.cache_clear()
         with patch("core.key_derivation.core_config.read_secret", return_value="t" * 64):
             second = core_key_derivation.derive_key("jwt")
 
@@ -54,6 +54,44 @@ class TestDeriveKey:
     def test_is_none_without_a_secret(self):
         with patch("core.key_derivation.core_config.read_secret", return_value=None):
             assert core_key_derivation.derive_key("jwt") is None
+
+
+class TestKeyList:
+    """``SECRET_KEY`` may list several secrets: the first signs, every one verifies."""
+
+    def test_a_list_derives_one_key_per_secret_in_order(self):
+        with patch("core.key_derivation.core_config.read_secret", return_value=f"{_SECRET},{'t' * 64}"):
+            keys = core_key_derivation.derive_keys("jwt")
+
+        assert keys == tuple(
+            hmac.new(secret.encode(), b"endurain:jwt", hashlib.sha256).hexdigest() for secret in (_SECRET, "t" * 64)
+        )
+
+    def test_the_single_key_is_the_first(self):
+        with patch("core.key_derivation.core_config.read_secret", return_value=f"{_SECRET},{'t' * 64}"):
+            assert core_key_derivation.derive_key("jwt") == core_key_derivation.derive_keys("jwt")[0]
+
+    def test_a_single_secret_is_a_list_of_one(self):
+        with patch("core.key_derivation.core_config.read_secret", return_value=_SECRET):
+            assert len(core_key_derivation.derive_keys("jwt")) == 1
+
+    def test_whitespace_around_an_entry_is_dropped(self):
+        with patch("core.key_derivation.core_config.read_secret", return_value=f" {_SECRET} , {'t' * 64} "):
+            keys = core_key_derivation.derive_keys("jwt")
+        core_key_derivation.derive_keys.cache_clear()
+        with patch("core.key_derivation.core_config.read_secret", return_value=f"{_SECRET},{'t' * 64}"):
+            assert keys == core_key_derivation.derive_keys("jwt")
+
+    def test_an_empty_entry_is_refused(self):
+        with (
+            patch("core.key_derivation.core_config.read_secret", return_value=f"{_SECRET},"),
+            pytest.raises(ValueError, match="SECRET_KEY contains an empty entry"),
+        ):
+            core_key_derivation.derive_keys("jwt")
+
+    def test_no_secret_is_no_keys(self):
+        with patch("core.key_derivation.core_config.read_secret", return_value=None):
+            assert core_key_derivation.derive_keys("jwt") == ()
 
 
 class TestPurposesAreIsolated:

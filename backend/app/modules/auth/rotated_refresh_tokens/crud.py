@@ -1,5 +1,6 @@
 """Persistence operations for rotated refresh tokens."""
 
+from collections.abc import Sequence
 from datetime import datetime
 
 from sqlalchemy import delete, select
@@ -13,14 +14,14 @@ import modules.auth.rotated_refresh_tokens.models as rotated_token_models
 import modules.auth.rotated_refresh_tokens.schema as rotated_token_schema
 
 
-def get_rotated_token_by_hash(
-    hashed_token: str,
+def get_rotated_token_by_hashes(
+    hashed_tokens: Sequence[str],
     db: Session,
 ) -> rotated_token_schema.RotatedRefreshTokenRead | None:
-    """Return a rotated token by hash."""
+    """Return a rotated token by any of its digests, one per key of the key list."""
     row = db.execute(
         select(rotated_token_models.RotatedRefreshToken).where(
-            rotated_token_models.RotatedRefreshToken.hashed_token == hashed_token
+            rotated_token_models.RotatedRefreshToken.hashed_token.in_(hashed_tokens)
         )
     ).scalar_one_or_none()
     return rotated_token_schema.RotatedRefreshTokenRead.model_validate(row) if row is not None else None

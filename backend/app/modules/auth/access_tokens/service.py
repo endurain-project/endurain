@@ -6,6 +6,7 @@ and mint CSRF tokens) and a singleton accessor used as a FastAPI dependency.
 
 import secrets
 import uuid
+from collections.abc import Sequence
 from datetime import UTC, datetime, timedelta
 from typing import Final
 
@@ -19,7 +20,6 @@ from joserfc.errors import (
     JoseError,
     MissingClaimError,
 )
-from joserfc.jwk import OctKey
 from joserfc.jwt import Token
 
 import core.config as core_config
@@ -69,24 +69,26 @@ class TokenManager:
         ValueError: Raised for missing or invalid parameters during token creation.
     """
 
-    def __init__(self, secret_key: str, algorithm: str = "HS256"):
+    def __init__(self, secret_key: str, algorithm: str = "HS256", *, previous_keys: Sequence[str] = ()):
         """Initializes the TokenManager with the provided secret key and algorithm.
 
         Args:
-            secret_key (str): The secret key used for token encryption and
-                decryption.
+            secret_key (str): The secret key that signs new tokens.
             algorithm (str, optional): The algorithm to use for token
                 operations. Defaults to "HS256". Must be a member of
                 :data:`modules.auth.constants.JWT_ALLOWED_ALGORITHMS` so that the
                 allow-list passed to ``jwt.decode`` cannot drift from the
                 signing algorithm.
+            previous_keys: Keys that no longer sign but still verify, so tokens issued before a key rotation stay
+                valid until they expire. A token is verified with the key its ``kid`` header names.
 
         """
         if algorithm not in JWT_ALLOWED_ALGORITHMS:
             raise ValueError(f"algorithm={algorithm!r} is not in the JWT allow-list {sorted(JWT_ALLOWED_ALGORITHMS)}.")
         self.secret_key = secret_key
         self.algorithm = algorithm
-        self._key = OctKey.import_key(secret_key)
+        self._key = core_jwt_keys.import_key(secret_key)
+        self._keys = core_jwt_keys.key_set([secret_key, *previous_keys])
 
     def get_token_claim(self, token: str, claim: str) -> str | list[str] | int:
         """Retrieves a specific claim from a decoded JWT token.
@@ -142,7 +144,7 @@ class TokenManager:
         """
         try:
             # The shared decoder pins the one allowed algorithm; see ``core.jwt_keys.decode``.
-            return core_jwt_keys.decode(token, self._key, self.algorithm)
+            return core_jwt_keys.decode(token, self._keys, self.algorithm)
         except InvalidPayloadError as payload_err:
             logger.warning(
                 "Invalid token payload",
@@ -172,7 +174,7 @@ class TokenManager:
         """Validates expiration, required claims, and type of a JWT.
 
         Checks that the token contains all essential claims, is not expired or
-        used before its valid time, and that the ``typ`` claim matches the
+        used before its valid time, and that the ``typ`` header matches the
         expected token type. This prevents refresh tokens from being used as
         access tokens and vice versa.
 
@@ -204,16 +206,20 @@ class TokenManager:
                 nbf={"essential": True},
                 exp={"essential": True},
                 jti={"essential": True},
-                typ={
-                    "essential": True,
-                    "value": expected_type.value,
-                },
             )
 
             # Decode the token to get the payload
             payload = self.decode_token(token)
 
-            # Validate token claims (incl. expiration and typ)
+            # The JOSE ``typ`` header names the kind of token (RFC 8725 section 3.11).
+            if payload.header.get("typ") != expected_type.header_type:
+                logger.warning(
+                    "JWT has the wrong type for this use",
+                    extra=core_logger.context(credential="token"),
+                )
+                raise core_exceptions.InvalidTokenError("Token has the wrong type.")
+
+            # Validate token claims (incl. expiration)
             claims_requests.validate(payload.claims)
         except MissingClaimError as missing_err:
             logger.warning(
@@ -316,16 +322,15 @@ class TokenManager:
             "iss": core_config.settings.ENDURAIN_HOST,
             "aud": core_config.settings.ENDURAIN_HOST,
             "sub": str(user.id),
-            "scope": scope,
+            "scope": " ".join(scope),
             "iat": now,
             "nbf": now,
             "exp": exp,
             "jti": str(uuid.uuid4()),
-            "typ": token_type.value,
         }
 
         encoded_token = jwt.encode(
-            {"alg": self.algorithm},
+            {"alg": self.algorithm, "typ": token_type.header_type, "kid": core_jwt_keys.key_id(self.secret_key)},
             scope_dict.copy(),
             self._key,
         )
@@ -378,4 +383,4 @@ if JWT_SECRET_KEY is None:
 if JWT_ALGORITHM is None:
     raise ValueError("JWT_ALGORITHM must be set in environment variables")
 
-token_manager = TokenManager(JWT_SECRET_KEY, JWT_ALGORITHM)
+token_manager = TokenManager(JWT_SECRET_KEY, JWT_ALGORITHM, previous_keys=core_jwt_keys.SIGNING_KEYS[1:])

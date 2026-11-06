@@ -26,6 +26,28 @@ def hmac_sha256(value: str) -> str:
     return _keyed_hmac(value, core_key_derivation.TOKEN_HMAC)
 
 
+def hmac_sha256_under_every_key(value: str) -> tuple[str, ...]:
+    """Hash a value with the token-digest key of every ``SECRET_KEY`` entry.
+
+    A digest stored before a rotation was made with a key that is no longer first, so a lookup or a comparison
+    needs the digest under each listed key. The first element is what :func:`hmac_sha256` returns, which is what
+    a new digest is stored as.
+
+    Args:
+        value: The value to hash.
+
+    Returns:
+        One digest per key, in ``SECRET_KEY`` order.
+
+    Raises:
+        ValueError: If ``SECRET_KEY`` is not configured.
+    """
+    keys = core_key_derivation.derive_keys(core_key_derivation.TOKEN_HMAC)
+    if not keys:
+        raise ValueError("SECRET_KEY is not configured")
+    return tuple(auth_computation.hmac_sha256(value, key) for key in keys)
+
+
 def derive_email_token(value: str) -> str:
     """Derive a raw emailed token from a value with the key derived for emailed tokens.
 

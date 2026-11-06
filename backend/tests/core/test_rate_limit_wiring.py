@@ -496,7 +496,7 @@ def test_buckets_are_per_caller_not_global(enabled_limiter, monkeypatch):
     key = OctKey.import_key("rate-limit-test-secret-key-min-32-chars")
     monkeypatch.setattr(core_rate_limit, "_jwt_verification_key", lambda: key)
     noisy, quiet = (
-        jwt.encode({"alg": "HS256"}, {"sub": sub, "typ": "access", "exp": int(time.time()) + 300}, key)
+        jwt.encode({"alg": "HS256", "typ": "at+jwt"}, {"sub": sub, "exp": int(time.time()) + 300}, key)
         for sub in ("noisy", "quiet")
     )
     client = TestClient(_app_with(core_rate_limit.PROVIDER_SYNC, "probe_per_caller"))

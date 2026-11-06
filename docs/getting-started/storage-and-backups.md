@@ -46,7 +46,7 @@ On local storage every area is browsable under the `data` directory the image cr
 2. **The blob store.** `backend/data` on the host for local storage, or the bucket for S3 (enable bucket versioning, or your provider's backup).
 3. **Your secrets**, kept apart from the data:
    - `FERNET_KEY` encrypts the Strava and Garmin Connect tokens and credentials, two-step verification (TOTP) secrets, identity provider client secrets, the mail password and the map and geocoding API keys. Lose it and these become unreadable: users must reconnect their accounts and set up two-step verification again, and an admin must re-enter the secrets. To change the key, see [Rotating the encryption key](#rotating-the-encryption-key).
-   - `SECRET_KEY` signs login tokens and the links to photos and thumbnails. Lose it and everyone is signed out and old links stop working. Nothing is lost. To change the key, see [Rotating the signing key](#rotating-the-signing-key).
+   - `SECRET_KEY` signs login tokens and the links to photos and thumbnails. Lose it and everyone is signed out and old links stop working. Nothing is lost. To change the key without signing anyone out, see [Rotating the signing key](#rotating-the-signing-key).
    - `AUDIT_SIGNING_KEY`, if you set one, signs the audit trail's checkpoints. Lose it and new checkpoints are signed with a new key; keep the old public key to verify the older ones.
    - `DB_PASSWORD`.
 
@@ -58,7 +58,7 @@ Take the database dump and the blob copy close together. They can disagree sligh
 
 1. Restore the database into the PostgreSQL version you run (a major-version change needs a dump and restore, not a file copy).
 2. Restore the blob store to the same place and, for local storage, give the container user write access (see [Quick start](quick-start.md#create-directory-structure)).
-3. Start Endurain with the same `FERNET_KEY` (every key, if you list several) and `SECRET_KEY`.
+3. Start Endurain with the same `FERNET_KEY` and `SECRET_KEY` (every key, if you list several).
 4. Missing thumbnails and locations are regenerated in the background. Give a large library time.
 
 ## Rotating the encryption key
@@ -73,18 +73,18 @@ Take the database dump and the blob copy close together. They can disagree sligh
 
 ## Rotating the signing key
 
-`SECRET_KEY` takes one key. Change it when it may have leaked: every token signed with the old key stops working the moment Endurain restarts with the new one.
+`SECRET_KEY` accepts several secrets separated by commas, like `FERNET_KEY`. The first one signs, and every one in the list verifies, so a rotation does not sign anyone out. A single key works as before.
 
-Changing it:
-
-- signs everyone out, in the browser and in mobile apps, so every user signs in again.
-- breaks the photo, thumbnail and media links already handed out; the app gets new ones on the next page load.
-- leaves API keys working, and the password reset, sign-up and email change links already mailed.
-- loses no data.
+Each login token names the key that signed it (the `kid` header), and the server verifies it with that key. The links to photos, thumbnails and media are checked against every key in the list too.
 
 1. Generate a new key (see [Secret Generators](../tools.md#secret-generators)).
-2. Set `SECRET_KEY=<new key>` (or the content of the file `SECRET_KEY_FILE` points to).
-3. Restart every Endurain process at the same time: the web workers, any dedicated worker and every replica. While some run with the old key and some with the new one, a token signed by one is refused by the others, and users keep being signed out until they all match.
+2. Set `SECRET_KEY=<new key>,<old key>` (or the content of the file `SECRET_KEY_FILE` points to) and restart every Endurain process: the web workers, any dedicated worker and every replica. Until they all run with the new list, a token signed with the new key is refused by a process that still has only the old one, so restart them together.
+3. Keep the old key in the list for the longest lifetime a token can have. That is the refresh token lifetime, 7 days by default (Settings > Server > Sessions), and 24 hours for the photo, thumbnail and media links.
+4. Set `SECRET_KEY=<new key>` and restart again. A session that did not refresh in that time is signed out, and the mailed links and signed URLs issued under the old key stop working.
+
+Replacing the key outright, with no list, signs everyone out in the browser and in mobile apps and breaks the links already handed out; the app gets new ones on the next page load. Use it when the old key leaked and you want its tokens dead at once. Either way, API keys keep working and so do the password reset, sign-up and email change links already mailed, and no data is lost.
+
+The digests of rotated refresh tokens and of CSRF tokens are stored under the first secret, and are looked up and compared under every listed secret. A web client's refresh keeps working after a rotation, and a refresh token that was rotated before it is still recognised as reused.
 
 ## What Endurain cleans up by itself
 

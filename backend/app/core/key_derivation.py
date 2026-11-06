@@ -3,7 +3,9 @@
 One secret must not key unrelated mechanisms: a signature or digest made for one purpose could then be
 presented to another. Every purpose that signs or hashes with the server secret takes its own key from
 here, an HMAC-SHA256 of the purpose name keyed by ``SECRET_KEY``, so the keys are independent of each
-other and the secret itself is never used as a key. Rotating ``SECRET_KEY`` rotates every derived key.
+other and the secret itself is never used as a key. ``SECRET_KEY`` may list several secrets separated by commas,
+like ``FERNET_KEY``: the first signs and every one verifies, so the secret can be rotated without signing everyone
+out. Rotating ``SECRET_KEY`` rotates every derived key.
 """
 
 import functools
@@ -28,16 +30,36 @@ CAPABILITY_URLS: Final = "capability-urls"
 
 
 @functools.cache
-def derive_key(purpose: str) -> str | None:
-    """Return the key for a purpose.
+def derive_keys(purpose: str) -> tuple[str, ...]:
+    """Return the keys for a purpose, one per ``SECRET_KEY`` entry.
 
     Args:
         purpose: What the key is for; one of the purpose constants in this module.
 
     Returns:
-        A 64-character hex key, or ``None`` when ``SECRET_KEY`` is not set.
+        64-character hex keys in the order ``SECRET_KEY`` lists its secrets: the first signs, every one
+        verifies. Empty when ``SECRET_KEY`` is not set.
+
+    Raises:
+        ValueError: If ``SECRET_KEY`` has an empty entry.
     """
-    secret = core_config.read_secret("SECRET_KEY")
-    if not secret:
-        return None
-    return hmac.new(secret.encode(), f"endurain:{purpose}".encode(), hashlib.sha256).hexdigest()
+    raw_secrets = core_config.read_secret("SECRET_KEY")
+    if not raw_secrets:
+        return ()
+    return tuple(
+        hmac.new(secret.encode(), f"endurain:{purpose}".encode(), hashlib.sha256).hexdigest()
+        for secret in core_config.parse_key_list(raw_secrets, "SECRET_KEY")
+    )
+
+
+def derive_key(purpose: str) -> str | None:
+    """Return the key that signs for a purpose.
+
+    Args:
+        purpose: What the key is for; one of the purpose constants in this module.
+
+    Returns:
+        A 64-character hex key (derived from the first ``SECRET_KEY`` entry), or ``None`` when ``SECRET_KEY`` is
+        not set.
+    """
+    return next(iter(derive_keys(purpose)), None)

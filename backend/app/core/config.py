@@ -979,14 +979,15 @@ def _is_safe_path(file_path: Path) -> bool:
         return False
 
 
-def parse_fernet_keys(raw_keys: str) -> list[str]:
+def parse_key_list(raw_keys: str, name: str) -> list[str]:
     """
-    Split a comma-separated Fernet key list into its trimmed keys.
+    Split a comma-separated key list into its trimmed keys.
 
-    The first key encrypts and every key decrypts, so a list lets the key be rotated.
+    The first key signs or encrypts and every key verifies or decrypts, so a list lets the key be rotated.
 
     Args:
-        raw_keys: Comma-separated Fernet keys; a single key is a list of one.
+        raw_keys: Comma-separated keys; a single key is a list of one.
+        name: The environment variable the list came from, for the error message.
 
     Returns:
         The keys in order, whitespace removed.
@@ -996,7 +997,7 @@ def parse_fernet_keys(raw_keys: str) -> list[str]:
     """
     keys = [key.strip() for key in raw_keys.split(",")]
     if not all(keys):
-        raise ValueError("FERNET_KEY contains an empty entry")
+        raise ValueError(f"{name} contains an empty entry")
     return keys
 
 
@@ -1015,7 +1016,7 @@ def validate_fernet_key(fernet_key: str | None) -> bool:
         return False
 
     try:
-        for key in parse_fernet_keys(fernet_key):
+        for key in parse_key_list(fernet_key, "FERNET_KEY"):
             Fernet(key.encode("utf-8"))
 
         logger.debug("FERNET_KEY validation successful", extra=core_logger.context(console=True))
@@ -1090,12 +1091,19 @@ def check_required_env_vars() -> None:
             raise ValueError(message)
 
     secret_key = read_secret("SECRET_KEY")
-    if secret_key is not None and len(secret_key) < MIN_SECRET_KEY_LENGTH:
-        message = (
-            f"SECRET_KEY must be at least {MIN_SECRET_KEY_LENGTH} characters. Generate one with 'openssl rand -hex 32'."
-        )
-        logger.error(message, extra=core_logger.context(console=True))
-        raise ValueError(message)
+    if secret_key is not None:
+        try:
+            secret_keys = parse_key_list(secret_key, "SECRET_KEY")
+        except ValueError as err:
+            logger.error(str(err), extra=core_logger.context(console=True))
+            raise
+        if any(len(key) < MIN_SECRET_KEY_LENGTH for key in secret_keys):
+            message = (
+                f"SECRET_KEY must be at least {MIN_SECRET_KEY_LENGTH} characters. "
+                "Generate one with 'openssl rand -hex 32'."
+            )
+            logger.error(message, extra=core_logger.context(console=True))
+            raise ValueError(message)
 
     validate_log_level(settings.LOG_LEVEL)
 

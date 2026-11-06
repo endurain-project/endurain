@@ -25,7 +25,7 @@ def _configured_fernets() -> list[Fernet]:
         raw_keys = core_config.read_secret("FERNET_KEY")
         if raw_keys is None:
             raise ValueError("FERNET_KEY not found in environment or secrets file")
-        return [Fernet(key.encode()) for key in core_config.parse_fernet_keys(raw_keys)]
+        return [Fernet(key.encode()) for key in core_config.parse_key_list(raw_keys, "FERNET_KEY")]
     except Exception as err:
         logger.debug("Error in _configured_fernets", exc_info=err)
 

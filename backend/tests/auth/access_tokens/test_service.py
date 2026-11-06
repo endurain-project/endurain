@@ -582,8 +582,8 @@ class TestTokenManagerSecurity:
 
         scope = token_manager.get_token_claim(token, "scope")
 
-        # Verify token has scopes (backend grants full scope to all users)
-        assert "profile" in scope
-        assert "users:read" in scope
-        assert isinstance(scope, (list, tuple))
-        assert len(scope) > 0
+        # RFC 9068 section 2.2.3: a space-delimited string.
+        assert isinstance(scope, str)
+        assert "profile" in scope.split()
+        assert "users:read" in scope.split()
+        assert "users:write" not in scope.split()

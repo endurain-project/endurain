@@ -31,7 +31,7 @@ def _token(**overrides):
 def test_get_rotated_token_returns_read_schema(mock_db):
     token = _token()
     mock_db.execute.return_value.scalar_one_or_none.return_value = token
-    assert rotated_token_crud.get_rotated_token_by_hash(token.hashed_token, mock_db) == (
+    assert rotated_token_crud.get_rotated_token_by_hashes([token.hashed_token], mock_db) == (
         rotated_token_schema.RotatedRefreshTokenRead.model_validate(token)
     )
 
@@ -89,7 +89,18 @@ def test_a_record_is_kept_until_its_refresh_token_expires():
     _stage(db, "b" * 64, rotated_at=now - timedelta(minutes=5), refresh_token_exp=now - timedelta(minutes=1))
 
     assert rotated_token_crud.delete_expired_tokens(now, 100, db) == 1
-    assert rotated_token_crud.get_rotated_token_by_hash("a" * 64, db) is not None
-    assert rotated_token_crud.get_rotated_token_by_hash("b" * 64, db) is None
+    assert rotated_token_crud.get_rotated_token_by_hashes(["a" * 64], db) is not None
+    assert rotated_token_crud.get_rotated_token_by_hashes(["b" * 64], db) is None
+
+    db.close()
+
+
+def test_a_record_is_found_by_any_of_the_digests():
+    db = create_sqlite_session()
+    now = datetime.now(UTC)
+    _stage(db, "a" * 64, rotated_at=now, refresh_token_exp=now + timedelta(days=1))
+
+    assert rotated_token_crud.get_rotated_token_by_hashes(["z" * 64, "a" * 64], db) is not None
+    assert rotated_token_crud.get_rotated_token_by_hashes(["y" * 64, "z" * 64], db) is None
 
     db.close()

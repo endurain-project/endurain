@@ -96,7 +96,7 @@ class TestCheckTokenReuse:
         """
         # Arrange
         mock_hash.return_value = "hashed-token"
-        mock_crud.get_rotated_token_by_hash.return_value = None
+        mock_crud.get_rotated_token_by_hashes.return_value = None
         mock_db = MagicMock()
 
         # Act
@@ -119,7 +119,7 @@ class TestCheckTokenReuse:
         mock_rotated_token.expires_at = now + timedelta(seconds=30)
         mock_rotated_token.token_family_id = "family-id"
         mock_rotated_token.rotation_count = 1
-        mock_crud.get_rotated_token_by_hash.return_value = mock_rotated_token
+        mock_crud.get_rotated_token_by_hashes.return_value = mock_rotated_token
         mock_db = MagicMock()
 
         # Act
@@ -143,7 +143,7 @@ class TestCheckTokenReuse:
         mock_rotated_token.token_family_id = "family-id"
         mock_rotated_token.rotation_count = 1
         mock_rotated_token.rotated_at = now - timedelta(seconds=90)
-        mock_crud.get_rotated_token_by_hash.return_value = mock_rotated_token
+        mock_crud.get_rotated_token_by_hashes.return_value = mock_rotated_token
         mock_db = MagicMock()
 
         # Act
@@ -174,7 +174,7 @@ class TestGetGraceReplayToken:
         mock_rotated_token.expires_at = now + timedelta(seconds=30)
         mock_rotated_token.replacement_refresh_token = "encrypted-replacement"
         mock_rotated_token.replacement_refresh_token_exp = replacement_exp
-        mock_crud.get_rotated_token_by_hash.return_value = mock_rotated_token
+        mock_crud.get_rotated_token_by_hashes.return_value = mock_rotated_token
         mock_crypto.decrypt_token_fernet.return_value = "decrypted-replacement"
         mock_db = MagicMock()
 
@@ -193,7 +193,7 @@ class TestGetGraceReplayToken:
         """
         # Arrange
         mock_hash.return_value = "hashed-token"
-        mock_crud.get_rotated_token_by_hash.return_value = None
+        mock_crud.get_rotated_token_by_hashes.return_value = None
         mock_db = MagicMock()
 
         # Act
@@ -215,7 +215,7 @@ class TestGetGraceReplayToken:
         mock_rotated_token.expires_at = now - timedelta(seconds=5)
         mock_rotated_token.replacement_refresh_token = "encrypted-replacement"
         mock_rotated_token.replacement_refresh_token_exp = now + timedelta(days=7)
-        mock_crud.get_rotated_token_by_hash.return_value = mock_rotated_token
+        mock_crud.get_rotated_token_by_hashes.return_value = mock_rotated_token
         mock_db = MagicMock()
 
         # Act
@@ -237,7 +237,7 @@ class TestGetGraceReplayToken:
         mock_rotated_token.expires_at = now + timedelta(seconds=30)
         mock_rotated_token.replacement_refresh_token = None
         mock_rotated_token.replacement_refresh_token_exp = None
-        mock_crud.get_rotated_token_by_hash.return_value = mock_rotated_token
+        mock_crud.get_rotated_token_by_hashes.return_value = mock_rotated_token
         mock_db = MagicMock()
 
         # Act
@@ -342,7 +342,7 @@ class TestGraceWindowTiming:
         record.rotation_count = 0
         record.replacement_refresh_token = "encrypted-replacement"
         record.replacement_refresh_token_exp = replacement_exp
-        mock_crud.get_rotated_token_by_hash.return_value = record
+        mock_crud.get_rotated_token_by_hashes.return_value = record
         _FixedClock.current = self.ROTATED_AT + timedelta(seconds=seconds_after)
         return stored
 
@@ -376,3 +376,61 @@ class TestGraceWindowTiming:
         replay = rotated_token_utils.get_grace_replay_token("raw-token", MagicMock())
         assert replay is not None
         assert replay[0] == "decrypted-replacement"
+
+
+class TestKeyRotation:
+    """A token rotated under the old ``SECRET_KEY`` is still recognised once the key list is ``new,old``."""
+
+    _OLD = "o" * 40
+    _NEW = "n" * 40
+
+    @staticmethod
+    def _with_secret(secret: str):
+        import core.key_derivation as core_key_derivation
+
+        core_key_derivation.derive_keys.cache_clear()
+        return patch("core.key_derivation.core_config.read_secret", return_value=secret)
+
+    @pytest.fixture(autouse=True)
+    def _fresh_keys(self):
+        import core.key_derivation as core_key_derivation
+
+        core_key_derivation.derive_keys.cache_clear()
+        yield
+        core_key_derivation.derive_keys.cache_clear()
+
+    def test_reuse_of_a_token_rotated_under_the_old_key_is_detected(self):
+        from tests._helpers.db import create_sqlite_session
+
+        db = create_sqlite_session()
+        now = datetime.now(UTC)
+        with (
+            self._with_secret(self._OLD),
+            patch.object(rotated_token_utils.core_cryptography, "encrypt_token_fernet", return_value="x"),
+        ):
+            rotated_token_utils.store_rotated_token(
+                "old-token",
+                "f" * 36,
+                1,
+                db,
+                refresh_token_exp=now + timedelta(days=1),
+                replacement_refresh_token="new-token",
+                replacement_refresh_token_exp=now + timedelta(days=1),
+            )
+        crud = rotated_token_utils.rotated_token_crud
+        with self._with_secret(f"{self._NEW},{self._OLD}"):
+            found = crud.get_rotated_token_by_hashes(rotated_token_utils.hmac_hash_token_candidates("old-token"), db)
+        with self._with_secret(self._NEW):
+            unseen = crud.get_rotated_token_by_hashes(rotated_token_utils.hmac_hash_token_candidates("old-token"), db)
+
+        assert found is not None
+        assert unseen is None
+        db.close()
+
+    def test_new_records_are_hashed_with_the_first_key(self):
+        with self._with_secret(f"{self._NEW},{self._OLD}"):
+            first = rotated_token_utils.hmac_hash_token("t")
+            candidates = rotated_token_utils.hmac_hash_token_candidates("t")
+
+        assert candidates[0] == first
+        assert len(set(candidates)) == 2

@@ -101,11 +101,16 @@ def _serializer(salt: str, bucket_seconds: int = 1) -> URLSafeTimedSerializer:
     Raises:
         RuntimeError: When ``SECRET_KEY`` is not configured.
     """
-    key = core_key_derivation.derive_key(core_key_derivation.CAPABILITY_URLS)
-    if not key:
+    keys = core_key_derivation.derive_keys(core_key_derivation.CAPABILITY_URLS)
+    if not keys:
         raise RuntimeError("SECRET_KEY is not configured; cannot sign capability tokens")
+    # ``itsdangerous`` signs with the last key and verifies with every one, while ``SECRET_KEY`` lists the signing
+    # key first.
     return URLSafeTimedSerializer(
-        key, salt=salt, signer=_BucketedTimestampSigner, signer_kwargs={"bucket_seconds": bucket_seconds}
+        list(reversed(keys)),
+        salt=salt,
+        signer=_BucketedTimestampSigner,
+        signer_kwargs={"bucket_seconds": bucket_seconds},
     )
 
 

@@ -409,3 +409,41 @@ def test_deleting_no_sessions_announces_nothing(mock_db):
         sessions_service.delete_sessions_by_user(7, mock_db)
 
     publish.assert_not_called()
+
+
+class TestCsrfKeyRotation:
+    """A CSRF hash stored under the old ``SECRET_KEY`` still verifies once the key list is ``new,old``."""
+
+    @pytest.fixture(autouse=True)
+    def _fresh_keys(self):
+        import core.key_derivation as core_key_derivation
+
+        core_key_derivation.derive_keys.cache_clear()
+        yield
+        core_key_derivation.derive_keys.cache_clear()
+
+    @staticmethod
+    def _with_secret(secret: str):
+        import core.key_derivation as core_key_derivation
+
+        core_key_derivation.derive_keys.cache_clear()
+        return patch("core.key_derivation.core_config.read_secret", return_value=secret)
+
+    def test_a_hash_made_under_the_old_key_verifies(self):
+        with self._with_secret("o" * 40):
+            stored = sessions_service._hash_csrf_token("csrf")
+        with self._with_secret(f"{'n' * 40},{'o' * 40}"):
+            assert sessions_service.verify_csrf_token("csrf", stored) is True
+            assert sessions_service.verify_csrf_token("other", stored) is False
+
+    def test_a_hash_made_under_a_key_that_left_the_list_does_not_verify(self):
+        with self._with_secret("o" * 40):
+            stored = sessions_service._hash_csrf_token("csrf")
+        with self._with_secret("n" * 40):
+            assert sessions_service.verify_csrf_token("csrf", stored) is False
+
+    def test_new_hashes_use_the_first_key(self):
+        with self._with_secret(f"{'n' * 40},{'o' * 40}"):
+            stored = sessions_service._hash_csrf_token("csrf")
+        with self._with_secret("n" * 40):
+            assert sessions_service.verify_csrf_token("csrf", stored) is True

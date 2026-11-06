@@ -310,8 +310,12 @@ def validate_session_timeout(
 
 
 def verify_csrf_token(candidate: str, stored_hmac: str) -> bool:
-    """Verify a CSRF token against its stored HMAC."""
-    return sessions_utils.verify_csrf_token(stored_hmac, access_tokens_integration.hmac_sha256(candidate))
+    """Verify a CSRF token against its stored HMAC, which may predate a rotation of ``SECRET_KEY``."""
+    matches = [
+        sessions_utils.verify_csrf_token(stored_hmac, digest)
+        for digest in access_tokens_integration.hmac_sha256_under_every_key(candidate)
+    ]
+    return any(matches)
 
 
 def _hash_csrf_token(token: str) -> str:

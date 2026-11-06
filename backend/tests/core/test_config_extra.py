@@ -1047,3 +1047,32 @@ class TestSecretKeyLength:
             pytest.raises(ValueError, match="SECRET_KEY must be at least 32 characters"),
         ):
             check_required_env_vars()
+
+    def test_every_key_of_a_list_must_be_long_enough(self):
+        from core.config import check_required_env_vars
+
+        env = TestCheckRequiredEnvVars()._minimal_env(SECRET_KEY=f"{'x' * 32},short")
+        with (
+            patch.dict(os.environ, env, clear=True),
+            patch("core.config.logger"),
+            pytest.raises(ValueError, match="SECRET_KEY must be at least 32 characters"),
+        ):
+            check_required_env_vars()
+
+    def test_a_list_of_long_keys_starts(self):
+        from core.config import check_required_env_vars
+
+        env = TestCheckRequiredEnvVars()._minimal_env(SECRET_KEY=f"{'x' * 32}, {'y' * 40}")
+        with patch.dict(os.environ, env, clear=True), patch("core.config.logger"):
+            check_required_env_vars()
+
+    def test_an_empty_entry_stops_startup(self):
+        from core.config import check_required_env_vars
+
+        env = TestCheckRequiredEnvVars()._minimal_env(SECRET_KEY=f"{'x' * 32},")
+        with (
+            patch.dict(os.environ, env, clear=True),
+            patch("core.config.logger"),
+            pytest.raises(ValueError, match="SECRET_KEY contains an empty entry"),
+        ):
+            check_required_env_vars()

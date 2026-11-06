@@ -6,7 +6,51 @@ from unittest.mock import MagicMock, patch
 import pytest
 
 import core.http_cache as core_http_cache
+import core.key_derivation as core_key_derivation
 import core.signing as core_signing
+
+
+class TestKeyRotation:
+    """``SECRET_KEY`` may list several secrets: the first signs, every one verifies."""
+
+    _OLD = "o" * 40
+    _NEW = "n" * 40
+
+    @pytest.fixture(autouse=True)
+    def _fresh_keys(self):
+        core_key_derivation.derive_keys.cache_clear()
+        core_signing._serializer.cache_clear()
+        yield
+        core_key_derivation.derive_keys.cache_clear()
+        core_signing._serializer.cache_clear()
+
+    def _with_secret(self, secret: str):
+        core_key_derivation.derive_keys.cache_clear()
+        core_signing._serializer.cache_clear()
+        return patch("core.key_derivation.core_config.read_secret", return_value=secret)
+
+    def test_a_token_signed_with_an_old_listed_key_still_verifies(self):
+        with self._with_secret(self._OLD):
+            token = core_signing.sign_token("salt", 7)
+
+        with self._with_secret(f"{self._NEW},{self._OLD}"):
+            assert core_signing.verify_token("salt", 7, token) is True
+
+    def test_new_tokens_are_signed_with_the_first_key(self):
+        with self._with_secret(f"{self._NEW},{self._OLD}"):
+            token = core_signing.sign_token("salt", 7)
+
+        with self._with_secret(self._NEW):
+            assert core_signing.verify_token("salt", 7, token) is True
+        with self._with_secret(self._OLD):
+            assert core_signing.verify_token("salt", 7, token) is False
+
+    def test_a_key_that_left_the_list_no_longer_verifies(self):
+        with self._with_secret(self._OLD):
+            token = core_signing.sign_token("salt", 7)
+
+        with self._with_secret(self._NEW):
+            assert core_signing.verify_token("salt", 7, token) is False
 
 
 class TestSignAndVerifyToken:

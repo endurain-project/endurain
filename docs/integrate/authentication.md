@@ -18,6 +18,7 @@ Endurain supports integration with other apps through an authentication system t
 
 - The backend generates an `access_token` valid for 15 minutes (default) and a `refresh_token` valid for 7 days (default).
 - The `access_token` is used for authorization; the `refresh_token` is used to obtain new access tokens.
+- Both tokens are JWTs signed with HS256. The JOSE header carries `typ` (`at+jwt` for an access token, `rt+jwt` for a refresh token) and `kid`, the id of the signing key; the `scope` claim is a space-separated string of the scopes the token carries ([RFC 9068](https://datatracker.ietf.org/doc/html/rfc9068)). A client treats both tokens as opaque and does not read them.
 - A `csrf_token` is generated for CSRF protection on state-changing requests.
 - Token and session lifetimes are set by an administrator in Settings > Server > Sessions (see [Configuration, scopes and best practices](auth-reference.md#configuration) for the deprecated environment variables).
 - A session ends at the absolute session timeout whatever its activity: 720 hours (30 days) by default. An optional idle timeout (off by default, 1 hour when enabled) also ends a session after inactivity. Administrators change the access token, refresh token, idle and absolute settings in Settings > Server > Sessions. A client should read `refresh_token_expires_in` rather than assume a lifetime.
