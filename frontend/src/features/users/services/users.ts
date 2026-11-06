@@ -180,7 +180,7 @@ export async function createUser(input: CreateUserInput): Promise<ManagedUser> {
 export async function updateUser(user: ManagedUser, edits: EditUserFields): Promise<ManagedUser> {
   const merged: ManagedUser = { ...user, ...edits }
   const dto = await apiFetch<UserDto>(`/users/${user.id}`, {
-    method: 'PUT',
+    method: 'PATCH',
     headers: ifMatchHeaders(user.version),
     body: JSON.stringify(toUserWire(merged)),
   })

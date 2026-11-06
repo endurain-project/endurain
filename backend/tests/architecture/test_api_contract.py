@@ -67,13 +67,6 @@ _PUT_OPTIONAL_FIELDS: dict[str, str] = {
     "PUT /server-settings/email/settings: password": "write-only secret, kept when omitted",
 }
 
-#: ``PUT`` routes whose body has optional properties that are kept when omitted, which makes the route a patch,
-#: as ``"PUT <route>"``. Remove an entry when B1 turns the route into a ``PATCH``.
-_PARTIAL_PUTS: dict[str, str] = {
-    "PUT /identity-providers/{idp_id}": "B1",
-    "PUT /users/{user_id}": "B1",
-}
-
 #: Response schemas that carry only a message, by schema name. Remove an entry when B2 gives the route a
 #: representation (or a 204).
 _MESSAGE_ONLY_RESPONSES: dict[str, str] = {
@@ -331,11 +324,9 @@ class TestApiContract:
             if optional - allowed:
                 partial.add(f"PUT {path}")
 
-        _compare(
-            "A PUT body has optional properties nobody reviewed",
-            partial,
-            _PARTIAL_PUTS,
-            "Clear the field when omitted and list it in _PUT_OPTIONAL_FIELDS, or make the route a PATCH",
+        assert not partial, (
+            "A PUT body has optional properties nobody reviewed. Clear the field when omitted and list it in "
+            "_PUT_OPTIONAL_FIELDS, or make the route a PATCH:\n  " + "\n  ".join(sorted(partial))
         )
         stale = sorted(_PUT_OPTIONAL_FIELDS.keys() - secrets)
         assert not stale, "Remove from _PUT_OPTIONAL_FIELDS, the field is no longer optional:\n  " + "\n  ".join(stale)

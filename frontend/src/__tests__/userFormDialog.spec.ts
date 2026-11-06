@@ -78,9 +78,9 @@ async function mountDialog(
  */
 async function sentUpdate(): Promise<unknown> {
   await vi.waitFor(() =>
-    expect(apiFetch).toHaveBeenCalledWith('/users/1', expect.objectContaining({ method: 'PUT' })),
+    expect(apiFetch).toHaveBeenCalledWith('/users/1', expect.objectContaining({ method: 'PATCH' })),
   )
-  const [, init] = vi.mocked(apiFetch).mock.calls.find(([, i]) => i?.method === 'PUT')!
+  const [, init] = vi.mocked(apiFetch).mock.calls.find(([, i]) => i?.method === 'PATCH')!
   return JSON.parse(String(init?.body))
 }
 
@@ -240,7 +240,7 @@ describe('UserFormDialog height', () => {
     await flushPromises()
     expect(apiFetch).not.toHaveBeenCalledWith(
       '/users/1',
-      expect.objectContaining({ method: 'PUT' }),
+      expect.objectContaining({ method: 'PATCH' }),
     )
   })
 
@@ -257,7 +257,7 @@ describe('UserFormDialog height', () => {
     await flushPromises()
     expect(apiFetch).not.toHaveBeenCalledWith(
       '/users/1',
-      expect.objectContaining({ method: 'PUT' }),
+      expect.objectContaining({ method: 'PATCH' }),
     )
   })
 })

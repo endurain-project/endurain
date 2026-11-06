@@ -208,7 +208,7 @@ describe('users service requests', () => {
     })
 
     expect(apiFetch).toHaveBeenCalledWith('/users/7', {
-      method: 'PUT',
+      method: 'PATCH',
       headers: { 'If-Match': '"5"' },
       body: JSON.stringify({
         name: 'Ada L.',

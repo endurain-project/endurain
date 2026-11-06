@@ -210,7 +210,7 @@ describe('identity providers service requests', () => {
 
     expect(apiFetch).toHaveBeenCalledWith(
       '/identity-providers/3',
-      expect.objectContaining({ method: 'PUT', headers: { 'If-Match': '"4"' } }),
+      expect.objectContaining({ method: 'PATCH', headers: { 'If-Match': '"4"' } }),
     )
     const parsed = JSON.parse(body as string) as Record<string, unknown>
     expect(parsed).not.toHaveProperty('client_secret')

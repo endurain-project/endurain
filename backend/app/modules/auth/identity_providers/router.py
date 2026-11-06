@@ -141,7 +141,7 @@ def create_identity_provider(
     return provider
 
 
-@router.put(
+@router.patch(
     "/{idp_id}",
     response_model=idp_schema.IdentityProviderRead,
     description=(

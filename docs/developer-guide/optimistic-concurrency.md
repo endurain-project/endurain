@@ -24,7 +24,7 @@ The Strava client credentials are versioned with the rest of the user's integrat
 `integrations_version`, and `PUT /strava/client` requires it in `If-Match`. Ending a fast with
 `POST /health/fasting/{id}/complete` changes the session, so it requires the session's version too.
 
-The identity-provider administration form edits a stored provider with `PUT /identity-providers/{idp_id}`. Its list items carry the
+The identity-provider administration form edits a stored provider with `PATCH /identity-providers/{idp_id}`. Its list items carry the
 version, the create and update responses return an `ETag`, and the update requires that tag in `If-Match`.
 
 ## Where each piece lives
@@ -104,7 +104,7 @@ def edit_gear(
 
 `core_dependencies.IfMatch` answers `428` before the handler runs when the header is absent. Reads of a single record set the `ETag` the same way, so a client can read it from the header instead of the body.
 
-Choose the verb by what the body is: a partial update is a `PATCH` (an omitted field is left alone), a full replacement is a `PUT` (`/server-settings`, a user, a goal). A singleton the caller owns (`/profile`, `/health/targets`) names no id.
+Choose the verb by what the body is: a partial update is a `PATCH` (an omitted field is left alone), a full replacement is a `PUT` (`/server-settings`, a goal). A singleton the caller owns (`/profile`, `/health/targets`) names no id.
 
 ## What bumps the version
 

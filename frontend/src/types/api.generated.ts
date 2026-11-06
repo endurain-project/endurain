@@ -1818,11 +1818,7 @@ export interface paths {
          *     The client secret is write-only and never returned.
          */
         get: operations["read_identity_provider"];
-        /**
-         * Update Identity Provider
-         * @description Update an existing identity provider.
-         */
-        put: operations["update_identity_provider"];
+        put?: never;
         post?: never;
         /**
          * Delete Identity Provider
@@ -1831,7 +1827,11 @@ export interface paths {
         delete: operations["delete_identity_provider"];
         options?: never;
         head?: never;
-        patch?: never;
+        /**
+         * Update Identity Provider
+         * @description Update an existing identity provider.
+         */
+        patch: operations["update_identity_provider"];
         trace?: never;
     };
     "/api/v1/identity-providers/{idp_id}/icon": {
@@ -3794,13 +3794,7 @@ export interface paths {
          * @description Get a user's full record by ID (admin operation).
          */
         get: operations["read_users_full"];
-        /**
-         * Edit User
-         * @description Update user information.
-         *
-         *     A change of email, access type or active flag signs the edited user out everywhere.
-         */
-        put: operations["edit_user"];
+        put?: never;
         post?: never;
         /**
          * Delete User
@@ -3812,7 +3806,13 @@ export interface paths {
         delete: operations["delete_user"];
         options?: never;
         head?: never;
-        patch?: never;
+        /**
+         * Edit User
+         * @description Update user information.
+         *
+         *     A change of email, access type or active flag signs the edited user out everywhere.
+         */
+        patch: operations["edit_user"];
         trace?: never;
     };
     "/api/v1/users/{user_id}/activities": {
@@ -23147,6 +23147,133 @@ export interface operations {
             };
         };
     };
+    delete_identity_provider: {
+        parameters: {
+            query?: never;
+            header: {
+                "If-Match": string;
+            };
+            path: {
+                idp_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description The request is refused, for example `If-Match: *`. */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description The credential is missing, invalid or no longer valid. */
+            401: {
+                headers: {
+                    /** @description The authentication challenge. */
+                    "WWW-Authenticate"?: string;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description The caller is signed in but not allowed, for example a scope is missing. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description The resource does not exist, or is concealed from the caller. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description The request conflicts with the current state. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description The `If-Match` tag is stale: the resource changed since it was read. */
+            412: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description The `If-Match` header is missing. */
+            428: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description The rate limit was reached. */
+            429: {
+                headers: {
+                    /** @description Seconds to wait before the request can succeed. */
+                    "Retry-After"?: number;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description A dependency is unavailable for a moment. */
+            503: {
+                headers: {
+                    /** @description Seconds to wait before the request can succeed. */
+                    "Retry-After"?: number;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Unexpected error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+        };
+    };
     update_identity_provider: {
         parameters: {
             query?: never;
@@ -23250,133 +23377,6 @@ export interface operations {
                 };
             };
             /** @description If-Match is required */
-            428: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/problem+json": components["schemas"]["ProblemDetail"];
-                };
-            };
-            /** @description The rate limit was reached. */
-            429: {
-                headers: {
-                    /** @description Seconds to wait before the request can succeed. */
-                    "Retry-After"?: number;
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/problem+json": components["schemas"]["ProblemDetail"];
-                };
-            };
-            /** @description A dependency is unavailable for a moment. */
-            503: {
-                headers: {
-                    /** @description Seconds to wait before the request can succeed. */
-                    "Retry-After"?: number;
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/problem+json": components["schemas"]["ProblemDetail"];
-                };
-            };
-            /** @description Unexpected error */
-            default: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/problem+json": components["schemas"]["ProblemDetail"];
-                };
-            };
-        };
-    };
-    delete_identity_provider: {
-        parameters: {
-            query?: never;
-            header: {
-                "If-Match": string;
-            };
-            path: {
-                idp_id: number;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            204: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-            /** @description The request is refused, for example `If-Match: *`. */
-            400: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/problem+json": components["schemas"]["ProblemDetail"];
-                };
-            };
-            /** @description The credential is missing, invalid or no longer valid. */
-            401: {
-                headers: {
-                    /** @description The authentication challenge. */
-                    "WWW-Authenticate"?: string;
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/problem+json": components["schemas"]["ProblemDetail"];
-                };
-            };
-            /** @description The caller is signed in but not allowed, for example a scope is missing. */
-            403: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/problem+json": components["schemas"]["ProblemDetail"];
-                };
-            };
-            /** @description The resource does not exist, or is concealed from the caller. */
-            404: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/problem+json": components["schemas"]["ProblemDetail"];
-                };
-            };
-            /** @description The request conflicts with the current state. */
-            409: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/problem+json": components["schemas"]["ProblemDetail"];
-                };
-            };
-            /** @description The `If-Match` tag is stale: the resource changed since it was read. */
-            412: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/problem+json": components["schemas"]["ProblemDetail"];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/problem+json": components["schemas"]["ProblemDetail"];
-                };
-            };
-            /** @description The `If-Match` header is missing. */
             428: {
                 headers: {
                     [name: string]: unknown;
@@ -32720,6 +32720,139 @@ export interface operations {
             };
         };
     };
+    delete_user: {
+        parameters: {
+            query?: never;
+            header: {
+                "If-Match": string;
+            };
+            path: {
+                user_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Accepted. The work runs in the background and `Content-Location` names where to poll it. */
+            202: {
+                headers: {
+                    /** @description Path of the status resource to poll for the outcome. */
+                    "Content-Location"?: string;
+                    /** @description Seconds to wait before the first poll. */
+                    "Retry-After"?: number;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["UserDeletionStatus"];
+                };
+            };
+            /** @description The request is refused, for example `If-Match: *`. */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description The credential is missing, invalid or no longer valid. */
+            401: {
+                headers: {
+                    /** @description The authentication challenge. */
+                    "WWW-Authenticate"?: string;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description The caller is signed in but not allowed, for example a scope is missing. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description The resource does not exist, or is concealed from the caller. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description The request conflicts with the current state. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description The `If-Match` tag is stale: the resource changed since it was read. */
+            412: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description The `If-Match` header is missing. */
+            428: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description The rate limit was reached. */
+            429: {
+                headers: {
+                    /** @description Seconds to wait before the request can succeed. */
+                    "Retry-After"?: number;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description A dependency is unavailable for a moment. */
+            503: {
+                headers: {
+                    /** @description Seconds to wait before the request can succeed. */
+                    "Retry-After"?: number;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Unexpected error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+        };
+    };
     edit_user: {
         parameters: {
             query?: never;
@@ -32806,139 +32939,6 @@ export interface operations {
             };
             /** @description The body is larger than the route accepts. */
             413: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/problem+json": components["schemas"]["ProblemDetail"];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/problem+json": components["schemas"]["ProblemDetail"];
-                };
-            };
-            /** @description The `If-Match` header is missing. */
-            428: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/problem+json": components["schemas"]["ProblemDetail"];
-                };
-            };
-            /** @description The rate limit was reached. */
-            429: {
-                headers: {
-                    /** @description Seconds to wait before the request can succeed. */
-                    "Retry-After"?: number;
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/problem+json": components["schemas"]["ProblemDetail"];
-                };
-            };
-            /** @description A dependency is unavailable for a moment. */
-            503: {
-                headers: {
-                    /** @description Seconds to wait before the request can succeed. */
-                    "Retry-After"?: number;
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/problem+json": components["schemas"]["ProblemDetail"];
-                };
-            };
-            /** @description Unexpected error */
-            default: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/problem+json": components["schemas"]["ProblemDetail"];
-                };
-            };
-        };
-    };
-    delete_user: {
-        parameters: {
-            query?: never;
-            header: {
-                "If-Match": string;
-            };
-            path: {
-                user_id: number;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Accepted. The work runs in the background and `Content-Location` names where to poll it. */
-            202: {
-                headers: {
-                    /** @description Path of the status resource to poll for the outcome. */
-                    "Content-Location"?: string;
-                    /** @description Seconds to wait before the first poll. */
-                    "Retry-After"?: number;
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["UserDeletionStatus"];
-                };
-            };
-            /** @description The request is refused, for example `If-Match: *`. */
-            400: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/problem+json": components["schemas"]["ProblemDetail"];
-                };
-            };
-            /** @description The credential is missing, invalid or no longer valid. */
-            401: {
-                headers: {
-                    /** @description The authentication challenge. */
-                    "WWW-Authenticate"?: string;
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/problem+json": components["schemas"]["ProblemDetail"];
-                };
-            };
-            /** @description The caller is signed in but not allowed, for example a scope is missing. */
-            403: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/problem+json": components["schemas"]["ProblemDetail"];
-                };
-            };
-            /** @description The resource does not exist, or is concealed from the caller. */
-            404: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/problem+json": components["schemas"]["ProblemDetail"];
-                };
-            };
-            /** @description The request conflicts with the current state. */
-            409: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/problem+json": components["schemas"]["ProblemDetail"];
-                };
-            };
-            /** @description The `If-Match` tag is stale: the resource changed since it was read. */
-            412: {
                 headers: {
                     [name: string]: unknown;
                 };

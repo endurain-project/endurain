@@ -183,7 +183,7 @@ export async function updateIdentityProvider(
     payload.client_secret = input.clientSecret
   }
   const dto = await apiFetch<IdentityProviderDto>(`/identity-providers/${id}`, {
-    method: 'PUT',
+    method: 'PATCH',
     headers: ifMatchHeaders(version),
     body: JSON.stringify(payload),
   })

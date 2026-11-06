@@ -290,7 +290,7 @@ def upload_user_image(
     return users_schema.UserPhotoRead(photo_path=users_service.require_user(user_id, db).photo_path)
 
 
-@router.put(
+@router.patch(
     "/{user_id}",
     response_model=users_schema.UsersRead,
     dependencies=[Security(auth_dependencies.check_scopes, scopes=["users:write"])],

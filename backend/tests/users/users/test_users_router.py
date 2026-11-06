@@ -230,7 +230,7 @@ class TestUploadUserImage:
 class TestEditUserNeedsIfMatch:
     @patch(f"{_SERVICE}.edit_user")
     def test_an_edit_without_if_match_is_428(self, mock_edit, client):
-        response = client.put(
+        response = client.patch(
             "/users/1",
             json={"name": "U", "username": "u", "email": "u@example.com", "active": True, "access_type": "regular"},
         )
@@ -242,7 +242,7 @@ class TestEditUserNeedsIfMatch:
 class TestEditUser:
     @pytest.mark.parametrize("read_only", [{"id": 1}, {"external_auth_count": 2}])
     def test_a_read_only_field_is_not_accepted_in_the_body(self, read_only, client):
-        response = client.put(
+        response = client.patch(
             "/users/1",
             json={"name": "U", "username": "u", "email": "u@example.com", "active": True, "access_type": "regular"}
             | read_only,
@@ -255,7 +255,7 @@ class TestEditUser:
     def test_returns_the_edited_user(self, mock_edit, client, mock_db):
         mock_edit.return_value = _user(1, name="Updated User", external_auth_count=2)
 
-        response = client.put(
+        response = client.patch(
             "/users/1",
             json={
                 "name": "Updated User",

@@ -108,7 +108,7 @@ def test_read_of_a_missing_identity_provider_is_404(service):
 def test_update_identity_provider_requires_if_match_and_returns_new_etag(service):
     service.update_identity_provider.return_value = _provider(version=2)
 
-    response = _client().put(
+    response = _client().patch(
         "/auth/identity_providers/1",
         json={"name": "Google", "slug": "google"},
         headers={"Authorization": "Bearer x", "If-Match": '"1"'},
@@ -135,7 +135,7 @@ def test_create_returns_400_for_a_refused_url(service):
 
 def test_update_requires_if_match_before_calling_service(service):
 
-    response = _client().put(
+    response = _client().patch(
         "/auth/identity_providers/1",
         json={"name": "Google", "slug": "google"},
         headers={"Authorization": "Bearer x"},
@@ -147,7 +147,7 @@ def test_update_requires_if_match_before_calling_service(service):
 
 def test_update_rejects_if_match_wildcard_before_calling_service(service):
 
-    response = _client().put(
+    response = _client().patch(
         "/auth/identity_providers/1",
         json={"name": "Google", "slug": "google"},
         headers={"Authorization": "Bearer x", "If-Match": "*"},
@@ -160,7 +160,7 @@ def test_update_rejects_if_match_wildcard_before_calling_service(service):
 def test_update_returns_precondition_failed_for_a_stale_etag(service):
     service.update_identity_provider.side_effect = core_exceptions.PreconditionFailedError("stale")
 
-    response = _client().put(
+    response = _client().patch(
         "/auth/identity_providers/1",
         json={"name": "Google", "slug": "google"},
         headers={"Authorization": "Bearer x", "If-Match": '"1"'},
@@ -172,7 +172,7 @@ def test_update_returns_precondition_failed_for_a_stale_etag(service):
 
 def test_update_rejects_nonpositive_id(service):
 
-    response = _client().put(
+    response = _client().patch(
         "/auth/identity_providers/0",
         json={"name": "Google", "slug": "google"},
         headers={"Authorization": "Bearer x", "If-Match": '"1"'},
