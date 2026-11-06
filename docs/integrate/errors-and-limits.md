@@ -126,7 +126,7 @@ A list of tags is accepted (`If-Match: "3", "4"`). A weak tag (`W/"3"`) never ma
 | Your default gear | `PATCH /profile/default-gear` |
 | Your goals | `PUT` and `DELETE /profile/goals/{id}` |
 | Users (administrators) | `PATCH /users/{id}` and `DELETE /users/{id}`, which still answers `202` because the account is erased by a [background job](background-operations.md#delete-a-user-administrators) |
-| Your Strava client credentials | `PUT /strava/client`, using `integrations_version` from `GET /profile` (the credentials hold a secret, so they have no read of their own) |
+| Your Strava client credentials | `PUT /strava/client` (answers `204` with the new `ETag`), using `integrations_version` from `GET /profile` (the credentials hold a secret, so they have no read of their own) |
 | Identity providers (administrators) | `PATCH` and `DELETE /identity-providers/{idp_id}` |
 | Server and mail settings (administrators) | `PUT /server-settings`, `PUT /server-settings/email/settings` |
 

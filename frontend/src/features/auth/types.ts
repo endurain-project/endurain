@@ -89,13 +89,6 @@ export type LoginResponse = AuthTokenResponse | MfaRequiredResponse
 export type MfaLoginRequest = Schemas['MFALoginRequest']
 
 /**
- * Logout response from the backend. Derived from the generated `LogoutRead`
- * schema so a contract change surfaces as a TypeScript error here instead of a
- * silent runtime mismatch.
- */
-export type LogoutResponse = Schemas['LogoutRead']
-
-/**
  * Sign-up request payload sent to `POST /sign-up/request`. Derived from the
  * backend's generated `UsersSignup` schema so a contract change surfaces as a
  * TypeScript error here instead of a silent runtime mismatch.

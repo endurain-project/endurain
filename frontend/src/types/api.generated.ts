@@ -8585,17 +8585,6 @@ export interface components {
             readonly version: number;
         };
         /**
-         * LogoutRead
-         * @description Response payload returned by the logout endpoint.
-         *
-         *     Attributes:
-         *         message: Human-readable confirmation message.
-         */
-        LogoutRead: {
-            /** Message */
-            message: string;
-        };
-        /**
          * LogsStatus
          * @description Whether the log viewer is available on this deployment.
          *
@@ -8648,17 +8637,6 @@ export interface components {
              * Format: date-time
              */
             readonly created_at: string;
-        };
-        /**
-         * MFADisableRead
-         * @description Response returned after MFA is disabled.
-         *
-         *     Attributes:
-         *         message: Confirmation message.
-         */
-        MFADisableRead: {
-            /** Message */
-            message: string;
         };
         /**
          * MFADisableRequest
@@ -8834,17 +8812,6 @@ export interface components {
              * @description Whether MFA is enabled
              */
             mfa_enabled: boolean;
-        };
-        /**
-         * MFAVerifyRead
-         * @description Response returned after an MFA code is verified.
-         *
-         *     Attributes:
-         *         message: Confirmation message.
-         */
-        MFAVerifyRead: {
-            /** Message */
-            message: string;
         };
         /**
          * MailSecurity
@@ -9628,20 +9595,6 @@ export interface components {
              * @description The reset token received by the user
              */
             token: string;
-        };
-        /**
-         * PasswordResetRead
-         * @description Response schema for password reset operations.
-         *
-         *     Attributes:
-         *         message: Informational message for the client.
-         */
-        PasswordResetRead: {
-            /**
-             * Message
-             * @description Informational message for the client
-             */
-            message: string;
         };
         /**
          * PasswordResetRequest
@@ -10568,14 +10521,6 @@ export interface components {
              * Format: password
              */
             client_secret: string;
-        };
-        /**
-         * StravaDetail
-         * @description The outcome of a Strava account request.
-         */
-        StravaDetail: {
-            /** Detail */
-            detail: string;
         };
         /**
          * StravaGearImportResult
@@ -15638,13 +15583,11 @@ export interface operations {
         requestBody?: never;
         responses: {
             /** @description Successful Response */
-            200: {
+            204: {
                 headers: {
                     [name: string]: unknown;
                 };
-                content: {
-                    "application/json": components["schemas"]["LogoutRead"];
-                };
+                content?: never;
             };
             /** @description The credential is missing, invalid or no longer valid. */
             401: {
@@ -24074,13 +24017,11 @@ export interface operations {
         };
         responses: {
             /** @description Successful Response */
-            200: {
+            204: {
                 headers: {
                     [name: string]: unknown;
                 };
-                content: {
-                    "application/json": components["schemas"]["PasswordResetRead"];
-                };
+                content?: never;
             };
             /** @description The request conflicts with the current state. */
             409: {
@@ -24156,13 +24097,11 @@ export interface operations {
         };
         responses: {
             /** @description Successful Response */
-            200: {
+            204: {
                 headers: {
                     [name: string]: unknown;
                 };
-                content: {
-                    "application/json": components["schemas"]["PasswordResetRead"];
-                };
+                content?: never;
             };
             /** @description The request conflicts with the current state. */
             409: {
@@ -27146,13 +27085,11 @@ export interface operations {
         };
         responses: {
             /** @description Successful Response */
-            200: {
+            204: {
                 headers: {
                     [name: string]: unknown;
                 };
-                content: {
-                    "application/json": components["schemas"]["MFADisableRead"];
-                };
+                content?: never;
             };
             /** @description The credential is missing, invalid or no longer valid. */
             401: {
@@ -27501,13 +27438,11 @@ export interface operations {
         };
         responses: {
             /** @description Successful Response */
-            200: {
+            204: {
                 headers: {
                     [name: string]: unknown;
                 };
-                content: {
-                    "application/json": components["schemas"]["MFAVerifyRead"];
-                };
+                content?: never;
             };
             /** @description The credential is missing, invalid or no longer valid. */
             401: {
@@ -30823,7 +30758,7 @@ export interface operations {
         };
         responses: {
             /** @description Successful Response */
-            201: {
+            200: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -31085,15 +31020,13 @@ export interface operations {
         };
         responses: {
             /** @description Successful Response */
-            200: {
+            204: {
                 headers: {
                     /** @description The version of the resource, to send back as `If-Match` on the next write. */
                     ETag?: string;
                     [name: string]: unknown;
                 };
-                content: {
-                    "application/json": components["schemas"]["StravaDetail"];
-                };
+                content?: never;
             };
             /** @description The request is refused, for example `If-Match: *`. */
             400: {

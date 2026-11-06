@@ -130,18 +130,6 @@ class TokenMobileRead(BaseModel):
     device_id: StrictStr | None = None
 
 
-class LogoutRead(BaseModel):
-    """Response payload returned by the logout endpoint.
-
-    Attributes:
-        message: Human-readable confirmation message.
-    """
-
-    model_config = ConfigDict(extra="forbid")
-
-    message: StrictStr
-
-
 class TokenExchangeRequest(BaseModel):
     """Request schema for mobile PKCE token exchange.
 

@@ -105,18 +105,3 @@ class PasswordResetConfirm(BaseModel):
     )
 
     model_config = ConfigDict(extra="forbid")
-
-
-class PasswordResetRead(BaseModel):
-    """Response schema for password reset operations.
-
-    Attributes:
-        message: Informational message for the client.
-    """
-
-    message: StrictStr = Field(
-        ...,
-        description="Informational message for the client",
-    )
-
-    model_config = ConfigDict(extra="forbid")

@@ -341,8 +341,7 @@ class TestDisableMfa:
         )
         mock_disable.assert_called_once_with(7, mock_db)
         assert len(mock_log.method_calls) == 1
-        assert isinstance(result, mfa_schema.MFADisableRead)
-        assert result.model_dump() == {"message": "MFA disabled successfully"}
+        assert result is None
 
     def test_step_up_failure_does_not_disable(self, mock_db, step_up_store):
         with (
@@ -392,8 +391,7 @@ class TestVerifyMfa:
             7, "123456", credentials_integration.get_password_hasher(), mock_db, replay_guard=step_up_store
         )
         step_up_store.reset_attempts.assert_called_once_with("user:7")
-        assert isinstance(result, mfa_schema.MFAVerifyRead)
-        assert result.model_dump() == {"message": "MFA code verified successfully"}
+        assert result is None
 
     def test_invalid_code_raises_400_and_counts_the_failure(self, mock_db, step_up_store):
         step_up_store.record_failed_attempt.return_value = 1

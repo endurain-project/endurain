@@ -67,16 +67,6 @@ _PUT_OPTIONAL_FIELDS: dict[str, str] = {
     "PUT /server-settings/email/settings: password": "write-only secret, kept when omitted",
 }
 
-#: Response schemas that carry only a message, by schema name. Remove an entry when B2 gives the route a
-#: representation (or a 204).
-_MESSAGE_ONLY_RESPONSES: dict[str, str] = {
-    "LogoutRead": "B2",
-    "MFADisableRead": "B2",
-    "MFAVerifyRead": "B2",
-    "PasswordResetRead": "B2",
-    "StravaDetail": "B2",
-}
-
 
 #: List filters that break the vocabulary (``<field>_contains`` for text, ``active=<bool>`` for a state), as
 #: ``"GET <route>: <parameter>"``. Remove an entry when the parameter is renamed.
@@ -347,7 +337,10 @@ class TestApiContract:
                 if properties and properties <= {"message", "detail"}:
                     message_only.add(_ref_name(schema))
 
-        _compare("A success body only carries a message", message_only, _MESSAGE_ONLY_RESPONSES, "Return the resource")
+        assert not message_only, (
+            "A success body only carries a message. Return the resource or a 204:\n  "
+            + "\n  ".join(sorted(message_only))
+        )
 
     def test_request_bodies_accept_no_server_owned_fields(self):
         """No request body property is ``id``, ``user_id``, ``version``, a timestamp, ``source`` or a provider id.

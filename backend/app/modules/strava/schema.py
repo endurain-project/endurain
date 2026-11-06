@@ -45,12 +45,6 @@ class StravaState(BaseModel):
     state: str
 
 
-class StravaDetail(BaseModel):
-    """The outcome of a Strava account request."""
-
-    detail: str
-
-
 class StravaGearImportResult(BaseModel):
     """What a Strava gear CSV import created.
 

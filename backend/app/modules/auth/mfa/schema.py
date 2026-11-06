@@ -201,27 +201,3 @@ class MFAEnableRead(BaseModel):
     backup_codes: list[StrictStr]
 
     model_config = ConfigDict(extra="forbid")
-
-
-class MFADisableRead(BaseModel):
-    """Response returned after MFA is disabled.
-
-    Attributes:
-        message: Confirmation message.
-    """
-
-    message: StrictStr
-
-    model_config = ConfigDict(extra="forbid")
-
-
-class MFAVerifyRead(BaseModel):
-    """Response returned after an MFA code is verified.
-
-    Attributes:
-        message: Confirmation message.
-    """
-
-    message: StrictStr
-
-    model_config = ConfigDict(extra="forbid")

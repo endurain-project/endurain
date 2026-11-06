@@ -11,7 +11,7 @@ Certain sensitive account operations require the user to re-prove possession of 
 | Change own password | `POST /profile/password/change` |
 | Change own email | `POST /profile/email/change` |
 | Enable MFA | `POST /profile/mfa/enable` |
-| Disable MFA | `POST /profile/mfa/disable` |
+| Disable MFA | `POST /profile/mfa/disable` (answers `204`) |
 | Regenerate MFA backup codes | `POST /profile/mfa/backup-codes` |
 | Create API key | `POST /profile/api-keys` |
 | Start IdP link | `POST /profile/identity-providers/{idp_id}/link` |

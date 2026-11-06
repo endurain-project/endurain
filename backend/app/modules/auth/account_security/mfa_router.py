@@ -154,7 +154,8 @@ def enable_mfa(
 
 @router.post(
     "/disable",
-    response_model=mfa_schema.MFADisableRead,
+    response_model=None,
+    status_code=status.HTTP_204_NO_CONTENT,
     dependencies=[Security(auth_dependencies.check_scopes, scopes=["profile:security"])],
 )
 @core_rate_limit.limiter.limit(core_rate_limit.SENSITIVE)
@@ -168,7 +169,7 @@ def disable_mfa(
         Depends(auth_dependencies.get_step_up_attempts),
     ],
     db: core_dependencies.DbSession,
-) -> mfa_schema.MFADisableRead:
+) -> None:
     """Disable MFA for authenticated user after step-up verification.
 
     Disabling MFA materially weakens the account's security
@@ -189,20 +190,18 @@ def disable_mfa(
         step_up_store: Step-up lockout store.
         db: Database session.
 
-    Returns:
-        Success message.
-
     Raises:
         DomainError: 401 if the current password is wrong or
             the MFA code is invalid; 400 if MFA is not currently
             enabled.
     """
-    return mfa_workflow_service.disable_mfa(mfa_request, token_user_id, token_session_id, step_up_store, db)
+    mfa_workflow_service.disable_mfa(mfa_request, token_user_id, token_session_id, step_up_store, db)
 
 
 @router.post(
     "/verify",
-    response_model=mfa_schema.MFAVerifyRead,
+    response_model=None,
+    status_code=status.HTTP_204_NO_CONTENT,
     dependencies=[Security(auth_dependencies.check_scopes, scopes=["profile:security"])],
 )
 @core_rate_limit.limiter.limit(core_rate_limit.SENSITIVE)
@@ -215,7 +214,7 @@ def verify_mfa(
         Depends(auth_dependencies.get_step_up_attempts),
     ],
     db: core_dependencies.DbSession,
-) -> mfa_schema.MFAVerifyRead:
+) -> None:
     """Verify MFA code for authenticated user.
 
     Args:
@@ -225,13 +224,10 @@ def verify_mfa(
         step_up_store: Shared state, which records the TOTP step so the code works once.
         db: Database session.
 
-    Returns:
-        Success message.
-
     Raises:
         DomainError: If MFA code is invalid.
     """
-    return mfa_workflow_service.verify_mfa(mfa_request, token_user_id, step_up_store, db)
+    mfa_workflow_service.verify_mfa(mfa_request, token_user_id, step_up_store, db)
 
 
 @router.post(

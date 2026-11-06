@@ -9,6 +9,7 @@ from fastapi import (
     Query,
     Request,
     Response,
+    status,
 )
 
 import core.config as core_config
@@ -309,7 +310,7 @@ def refresh_token(
     return authentication_dependencies.deliver_auth_outcome(response, outcome)
 
 
-@router.post("/logout", response_model=auth_schema.LogoutRead)
+@router.post("/logout", response_model=None, status_code=status.HTTP_204_NO_CONTENT)
 @core_rate_limit.limiter.limit(core_rate_limit.WRITE)
 def logout(
     response: Response,
@@ -333,7 +334,7 @@ def logout(
         Depends(credentials_integration.get_password_hasher),
     ],
     db: core_dependencies.DbSession,
-) -> auth_schema.LogoutRead:
+) -> None:
     """Log out a user by validating and deleting their session.
 
     Args:
@@ -347,13 +348,10 @@ def logout(
         password_hasher: Utility for verifying the refresh token.
         db: Database session for CRUD operations.
 
-    Returns:
-        The logout confirmation.
-
     Raises:
         HTTPException: If refresh token is invalid (401 Unauthorized).
     """
-    message = auth_service.logout(
+    auth_service.logout(
         token_session_id,
         refresh_token_value,
         token_user_id,
@@ -362,4 +360,3 @@ def logout(
     )
     if client_type == auth_constants.ClientType.WEB:
         authentication_dependencies.clear_refresh_token_cookies(response, environment=core_config.settings.ENVIRONMENT)
-    return message

@@ -56,7 +56,7 @@ def test_client_and_state_answer_with_their_bodies():
         patch.object(strava_router.strava_service, "begin_state", return_value="s" * 43),
         patch.object(strava_router.strava_service, "clear_state"),
     ):
-        client = strava_router.strava_set_user_client(
+        client_result = strava_router.strava_set_user_client(
             request=MagicMock(),
             client=strava_schema.StravaClientCredentials(client_id=1, client_secret="s"),
             token_user_id=7,
@@ -67,7 +67,7 @@ def test_client_and_state_answer_with_their_bodies():
         state = strava_router.strava_begin_state(request=MagicMock(), token_user_id=7, oauth_states=MagicMock())
         cleared = strava_router.strava_clear_user_state(request=MagicMock(), token_user_id=7, oauth_states=MagicMock())
 
-    assert client.detail == "Strava client edited successfully"
+    assert client_result is None
     assert state.state == "s" * 43
     assert cleared is None
 

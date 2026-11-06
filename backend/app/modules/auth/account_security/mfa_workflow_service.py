@@ -185,7 +185,7 @@ def disable_mfa(
     session_id: str,
     step_up_store: account_security_step_up_store.StepUpStore,
     db: Session,
-) -> mfa_schema.MFADisableRead:
+) -> None:
     """Disable MFA after step-up verification."""
     step_up_service.verify_step_up_credentials(
         token_user_id,
@@ -208,7 +208,6 @@ def disable_mfa(
     logger.info(
         "User <token_user_id> disabled MFA (step-up verified)", extra=core_logger.context(token_user_id=token_user_id)
     )
-    return mfa_schema.MFADisableRead(message="MFA disabled successfully")
 
 
 def verify_mfa(
@@ -216,14 +215,13 @@ def verify_mfa(
     token_user_id: int,
     step_up_store: account_security_step_up_store.StepUpStore,
     db: Session,
-) -> mfa_schema.MFAVerifyRead:
+) -> None:
     """Verify an MFA code for the authenticated user; a TOTP step is accepted once."""
     if not step_up_service.verify_mfa_code(token_user_id, request.mfa_code, step_up_store, db):
         raise core_exceptions.InvalidMfaCodeError()
 
     db.commit()
     logger.info("MFA code verified", extra=core_logger.context(user_id=token_user_id))
-    return mfa_schema.MFAVerifyRead(message="MFA code verified successfully")
 
 
 def generate_backup_codes(

@@ -138,7 +138,7 @@ describe('auth store', () => {
   it('logs out remotely and clears local auth state', async () => {
     vi.mocked(loginWithPassword).mockResolvedValue(tokenResponse)
     vi.mocked(fetchCurrentUser).mockResolvedValue(authUser)
-    vi.mocked(logoutSession).mockResolvedValue({ message: 'Logout successful' })
+    vi.mocked(logoutSession).mockResolvedValue()
 
     const auth = useAuthStore()
     await auth.login('demo', 'password123')
@@ -158,7 +158,7 @@ describe('auth store', () => {
     localStorage.setItem('endurain:locale', JSON.stringify('en'))
     vi.mocked(loginWithPassword).mockResolvedValue(tokenResponse)
     vi.mocked(fetchCurrentUser).mockResolvedValue(authUser)
-    vi.mocked(logoutSession).mockResolvedValue({ message: 'Logout successful' })
+    vi.mocked(logoutSession).mockResolvedValue()
 
     const auth = useAuthStore()
     await auth.login('demo', 'password123')

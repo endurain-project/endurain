@@ -82,10 +82,10 @@ These need no credentials because their job is to obtain them. They are document
 
 | Path | Purpose | See |
 | ---- | ------- | --- |
-| `POST /auth/login`, `/auth/mfa/verify`, `/auth/refresh`, `/auth/logout` | Password login, MFA and tokens | [Handling authentication](authentication.md) |
+| `POST /auth/login`, `/auth/mfa/verify`, `/auth/refresh`, `/auth/logout` | Password login, MFA and tokens; logout answers `204` with no body | [Handling authentication](authentication.md) |
 | `GET /public/idp`, `/public/idp/login/{slug}`, `/public/idp/callback/{slug}`, `POST /public/idp/session/{id}/tokens` | Single sign-on | [OAuth/SSO and PKCE](oauth-sso-pkce.md) |
-| `POST /sign-up/request`, `/sign-up/confirm` | Create an account and verify its email | [Accounts, sign-up and password reset](../features/accounts-and-sign-in.md#signing-up) |
-| `POST /password-reset/request`, `/password-reset/confirm` | Reset a forgotten password | [Accounts, sign-up and password reset](../features/accounts-and-sign-in.md#forgotten-password) |
+| `POST /sign-up/request`, `/sign-up/confirm` | Create an account and verify its email; both answer `200` with what the client does next (`admin_approval_required`, `email_verification_required`) | [Accounts, sign-up and password reset](../features/accounts-and-sign-in.md#signing-up) |
+| `POST /password-reset/request`, `/password-reset/confirm` | Reset a forgotten password; both answer `204` with no body, and the request answers the same for a known and an unknown address | [Accounts, sign-up and password reset](../features/accounts-and-sign-in.md#forgotten-password) |
 | `GET /public/onboarding`, `POST /public/onboarding` | Create the first administrator of a new installation | [First-run onboarding](#first-run-onboarding) |
 
 The sensitive ones (login, MFA, sign-up, reset, onboarding) have a tighter 10 requests per minute limit.

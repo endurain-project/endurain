@@ -109,7 +109,7 @@ class TestSignupEndpoint:
         signup_client,
     ) -> None:
         """
-        Returns 201 with login message when neither email
+        Returns 200 with login message when neither email
         verification nor admin approval is required.
         """
         mock_settings.return_value = MagicMock(
@@ -130,7 +130,7 @@ class TestSignupEndpoint:
             },
         )
 
-        assert response.status_code == status.HTTP_201_CREATED
+        assert response.status_code == status.HTTP_200_OK
         data = response.json()
         assert "message" in data
         assert "log in" in data["message"].lower()
@@ -148,7 +148,7 @@ class TestSignupEndpoint:
         signup_client,
     ) -> None:
         """
-        Returns 201 with email_verification_required=True and
+        Returns 200 with email_verification_required=True and
         success message when server requires email verification.
         """
         mock_settings.return_value = MagicMock(
@@ -169,7 +169,7 @@ class TestSignupEndpoint:
             },
         )
 
-        assert response.status_code == status.HTTP_201_CREATED
+        assert response.status_code == status.HTTP_200_OK
         data = response.json()
         assert data["email_verification_required"] is True
 
@@ -281,7 +281,7 @@ class TestSignupEndpoint:
         signup_client,
     ) -> None:
         """
-        Returns 201 with admin_approval_required=True when server
+        Returns 200 with admin_approval_required=True when server
         requires admin approval.
         """
         mock_settings.return_value = MagicMock(
@@ -302,7 +302,7 @@ class TestSignupEndpoint:
             },
         )
 
-        assert response.status_code == status.HTTP_201_CREATED
+        assert response.status_code == status.HTTP_200_OK
         data = response.json()
         assert data["admin_approval_required"] is True
 

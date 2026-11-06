@@ -28,9 +28,9 @@ PREFIX = core_config.ROOT_PATH + "/profile"  # /api/v1/profile
 # ---------------------------------------------------------------------------
 
 
-def _make_user_mock() -> users_schema.UsersRead:
+def _make_user_mock() -> users_schema.UserRead:
     """Return the user as ``users_integration.require_user`` serves it."""
-    return users_schema.UsersRead(
+    return users_schema.UserRead(
         id=1,
         version=1,
         name="Test User",
@@ -270,8 +270,8 @@ class TestReadSessionsMe:
 
     def test_success(self, profile_client, mock_auth_services):
         """Happy path: returns sessions."""
-        mock_auth_services.list_user_sessions.return_value = auth_sessions_schema.UsersSessionsPage.build(
-            [auth_sessions_schema.UsersSessionsRead.model_validate(_make_session_mock())], 3, 2, 1
+        mock_auth_services.list_user_sessions.return_value = auth_sessions_schema.UserSessionsPage.build(
+            [auth_sessions_schema.UserSessionsRead.model_validate(_make_session_mock())], 3, 2, 1
         )
 
         response = profile_client.get(PREFIX + "/sessions?page_number=2&num_records=1")
@@ -290,7 +290,7 @@ class TestReadSessionsMe:
 
     def test_demo_environment(self, profile_client, mock_auth_services):
         """Demo environment returns empty list."""
-        mock_auth_services.list_user_sessions.return_value = auth_sessions_schema.UsersSessionsPage.build([], 0, 1, 25)
+        mock_auth_services.list_user_sessions.return_value = auth_sessions_schema.UserSessionsPage.build([], 0, 1, 25)
 
         response = profile_client.get(PREFIX + "/sessions")
 
@@ -483,7 +483,7 @@ class TestReadProfilePrivacySettings:
     @patch("modules.users.users_profile.service.users_privacy_settings_integration.get_privacy_settings")
     def test_success_etag_is_the_version_patch_needs(self, mock_get, profile_client):
         """Happy path: the settings come with the ETag a following PATCH sends as If-Match."""
-        mock_get.return_value = users_privacy_settings_schema.UsersPrivacySettingsRead(id=1, user_id=1, version=4)
+        mock_get.return_value = users_privacy_settings_schema.UserPrivacySettingsRead(id=1, user_id=1, version=4)
 
         response = profile_client.get(PREFIX + "/privacy")
 
@@ -495,9 +495,9 @@ class TestReadProfilePrivacySettings:
     @patch("modules.users.users_profile.service.users_privacy_settings_integration.edit_privacy_settings")
     def test_patch_with_the_read_etag_succeeds(self, mock_edit, mock_get, profile_client):
         """The ETag of the read is accepted as If-Match by PATCH."""
-        current = users_privacy_settings_schema.UsersPrivacySettingsRead(id=1, user_id=1, version=4)
+        current = users_privacy_settings_schema.UserPrivacySettingsRead(id=1, user_id=1, version=4)
         mock_get.return_value = current
-        mock_edit.return_value = users_privacy_settings_schema.UsersPrivacySettingsRead(
+        mock_edit.return_value = users_privacy_settings_schema.UserPrivacySettingsRead(
             id=1, user_id=1, version=5, hide_activity_map=True
         )
         etag = profile_client.get(PREFIX + "/privacy").headers["ETag"]
@@ -536,8 +536,8 @@ class TestEditProfilePrivacySettings:
     @patch("modules.users.users_profile.service.users_privacy_settings_integration.edit_privacy_settings")
     def test_success(self, mock_edit, mock_get, profile_client):
         """Happy path: update privacy settings, answering with the version the edit produced."""
-        mock_get.return_value = users_privacy_settings_schema.UsersPrivacySettingsRead(id=1, user_id=1, version=4)
-        mock_edit.return_value = users_privacy_settings_schema.UsersPrivacySettingsRead(
+        mock_get.return_value = users_privacy_settings_schema.UserPrivacySettingsRead(id=1, user_id=1, version=4)
+        mock_edit.return_value = users_privacy_settings_schema.UserPrivacySettingsRead(
             id=1,
             user_id=1,
             version=5,
@@ -1052,15 +1052,15 @@ class TestDisableMFA:
 
     def test_success(self, profile_client, mock_auth_services):
         """Happy path: disable MFA."""
-        mock_auth_services.disable_mfa.return_value = {"message": "MFA disabled successfully"}
+        mock_auth_services.disable_mfa.return_value = None
 
         response = profile_client.post(
             PREFIX + "/mfa/disable",
             json={"mfa_code": "123456", "current_password": "pass123"},
         )
 
-        assert response.status_code == 200
-        assert response.json()["message"] == "MFA disabled successfully"
+        assert response.status_code == 204
+        assert response.content == b""
 
     def test_step_up_fails(self, profile_client, mock_auth_services):
         """Step-up fails before disable."""
@@ -1084,15 +1084,15 @@ class TestVerifyMFA:
 
     def test_valid_code(self, profile_client, mock_auth_services):
         """Valid MFA code → success."""
-        mock_auth_services.verify_mfa.return_value = {"message": "MFA code verified successfully"}
+        mock_auth_services.verify_mfa.return_value = None
 
         response = profile_client.post(
             PREFIX + "/mfa/verify",
             json={"mfa_code": "123456"},
         )
 
-        assert response.status_code == 200
-        assert response.json()["message"] == "MFA code verified successfully"
+        assert response.status_code == 204
+        assert response.content == b""
 
     def test_invalid_code(self, profile_client, mock_auth_services):
         """Invalid MFA code → 400."""

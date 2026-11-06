@@ -20,17 +20,15 @@ class TestRequestPasswordReset:
         mock_send: MagicMock,
         fast_api_client,
     ) -> None:
-        """Returns 200 with a generic message once the email is queued."""
+        """Returns 204 with no body once the email is queued."""
 
         response = fast_api_client.post(
             "/password-reset/request",
             json={"email": "user@example.com"},
         )
 
-        assert response.status_code == status.HTTP_200_OK
-        body = response.json()
-        assert "message" in body
-        assert "password reset link" in body["message"]
+        assert response.status_code == status.HTTP_204_NO_CONTENT
+        assert response.content == b""
 
     def test_request_password_reset_invalid_email_format(
         self,
@@ -79,13 +77,13 @@ class TestRequestPasswordReset:
         assert response.status_code == status.HTTP_503_SERVICE_UNAVAILABLE
 
     @patch("modules.auth.password_reset_tokens.public_router.password_reset_service.request_password_reset_email")
-    def test_request_returns_same_200_for_unknown_email(
+    def test_request_returns_same_204_for_unknown_email(
         self,
         mock_send: MagicMock,
         fast_api_client,
     ) -> None:
         """
-        Returns 200 with the same generic message for an unknown
+        Returns the same 204 with no body for an unknown
         email address, preventing user enumeration.
 
         The request_password_reset_email utility returns quietly for
@@ -98,11 +96,9 @@ class TestRequestPasswordReset:
             json={"email": "doesnotexist@example.com"},
         )
 
-        assert response.status_code == status.HTTP_200_OK
-        body = response.json()
-        assert "message" in body
         # Response must be indistinguishable from a successful send
-        assert "password reset link" in body["message"]
+        assert response.status_code == status.HTTP_204_NO_CONTENT
+        assert response.content == b""
 
 
 class TestConfirmPasswordReset:
@@ -122,7 +118,7 @@ class TestConfirmPasswordReset:
         mock_use,
         fast_api_client,
     ) -> None:
-        """Returns 200 with success message on a valid token."""
+        """Returns 204 with no body on a valid token."""
         mock_use.return_value = None
 
         response = fast_api_client.post(
@@ -133,8 +129,8 @@ class TestConfirmPasswordReset:
             },
         )
 
-        assert response.status_code == status.HTTP_200_OK
-        assert response.json()["message"] == "Password reset successful"
+        assert response.status_code == status.HTTP_204_NO_CONTENT
+        assert response.content == b""
 
     @patch(
         "modules.auth.password_reset_tokens.public_router.password_reset_service.use_password_reset_token",

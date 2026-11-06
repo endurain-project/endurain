@@ -191,8 +191,9 @@ def import_shoes_from_strava_export(
 
 @router.put(
     "/client",
-    response_model=strava_schema.StravaDetail,
-    responses={200: {"headers": core_openapi_contract.ETAG_HEADERS}},
+    response_model=None,
+    status_code=status.HTTP_204_NO_CONTENT,
+    responses={204: {"headers": core_openapi_contract.ETAG_HEADERS}},
     dependencies=[Security(auth_dependencies.check_scopes, scopes=["profile"])],
 )
 @core_rate_limit.limiter.limit(core_rate_limit.WRITE)
@@ -203,7 +204,7 @@ def strava_set_user_client(
     db: core_dependencies.DbSession,
     response: Response,
     if_match: core_dependencies.IfMatch,
-) -> strava_schema.StravaDetail:
+) -> None:
     """Store the user's Strava API client id and secret.
 
     Args:
@@ -214,12 +215,9 @@ def strava_set_user_client(
         response: The response, which carries the new ETag.
         if_match: The ``If-Match`` precondition, the ``integrations_version`` the client read.
 
-    Returns:
-        A confirmation message.
     """
     version = strava_service.set_client(token_user_id, client, db, if_match=if_match)
     core_etag.set_etag(response, version)
-    return strava_schema.StravaDetail(detail="Strava client edited successfully")
 
 
 @router.post(

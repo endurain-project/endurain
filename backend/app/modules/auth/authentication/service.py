@@ -895,7 +895,7 @@ def logout(
     token_user_id: int,
     password_hasher: credentials_integration.PasswordHasher,
     db: Session,
-) -> auth_schema.LogoutRead:
+) -> None:
     """Log out a user by validating and deleting their session.
 
     Args:
@@ -904,9 +904,6 @@ def logout(
         token_user_id: The user ID extracted from the refresh token.
         password_hasher: Utility for verifying the refresh token.
         db: Database session for CRUD operations.
-
-    Returns:
-        The logout confirmation.
 
     Raises:
         UnauthenticatedError: If the refresh token is invalid.
@@ -940,5 +937,3 @@ def logout(
                 db, authentication_audit_actions.LOGOUT, **login_audit_integration.user_target(token_user_id)
             )
         db.commit()
-
-    return auth_schema.LogoutRead(message="Logout successful")

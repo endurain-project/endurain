@@ -1969,9 +1969,8 @@ class TestLogoutEndpoint:
 
         response = auth_client.post("/auth/logout")
 
-        assert response.status_code == 200
-        data = response.json()
-        assert "message" in data
+        assert response.status_code == 204
+        assert response.content == b""
         mock_delete_session.assert_called_once()
 
     @patch("modules.auth.authentication.service.sessions_integration.get_session_by_id_not_expired")
@@ -2037,7 +2036,7 @@ class TestLogoutEndpoint:
 
         response = auth_client.post("/auth/logout")
 
-        assert response.status_code == 200
+        assert response.status_code == 204
         mock_delete_session.assert_not_called()
 
     @patch("modules.auth.authentication.service.sessions_integration.get_session_by_id_not_expired")
@@ -2122,7 +2121,7 @@ class TestLogoutEndpoint:
 
         response = auth_client.post("/auth/logout")
 
-        assert response.status_code == 200
+        assert response.status_code == 204
         mock_clear_cookies.assert_called_once()
 
     @patch("modules.auth.authentication.dependencies.clear_refresh_token_cookies")
@@ -2170,7 +2169,7 @@ class TestLogoutEndpoint:
 
         response = auth_client.post("/auth/logout")
 
-        assert response.status_code == 200
+        assert response.status_code == 204
         mock_clear_cookies.assert_not_called()
 
     @patch("modules.auth.authentication.dependencies.clear_refresh_token_cookies")
@@ -2194,6 +2193,6 @@ class TestLogoutEndpoint:
         app.dependency_overrides[authentication_dependencies.get_and_return_refresh_token] = lambda: "rt"
 
         response = auth_client.post("/auth/logout")
-        assert response.status_code == 200
+        assert response.status_code == 204
         mock_delete_session.assert_not_called()
         mock_clear_cookies.assert_not_called()
