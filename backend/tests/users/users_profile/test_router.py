@@ -476,6 +476,58 @@ class TestCancelProfileEmailChange:
         local_mock_db.commit.assert_called_once()
 
 
+class TestReadProfilePrivacySettings:
+    """Tests for GET /profile/privacy — read_profile_privacy_settings."""
+
+    @patch("modules.users.users_profile.service.users_privacy_settings_integration.get_privacy_settings")
+    def test_success_etag_is_the_version_patch_needs(self, mock_get, profile_client):
+        """Happy path: the settings come with the ETag a following PATCH sends as If-Match."""
+        mock_get.return_value = users_privacy_settings_schema.UsersPrivacySettingsRead(id=1, user_id=1, version=4)
+
+        response = profile_client.get(PREFIX + "/privacy")
+
+        assert response.status_code == 200
+        assert response.json()["version"] == 4
+        assert response.headers["ETag"] == '"4"'
+
+    @patch("modules.users.users_profile.service.users_privacy_settings_integration.get_privacy_settings")
+    @patch("modules.users.users_profile.service.users_privacy_settings_integration.edit_privacy_settings")
+    def test_patch_with_the_read_etag_succeeds(self, mock_edit, mock_get, profile_client):
+        """The ETag of the read is accepted as If-Match by PATCH."""
+        current = users_privacy_settings_schema.UsersPrivacySettingsRead(id=1, user_id=1, version=4)
+        mock_get.return_value = current
+        mock_edit.return_value = users_privacy_settings_schema.UsersPrivacySettingsRead(
+            id=1, user_id=1, version=5, hide_activity_map=True
+        )
+        etag = profile_client.get(PREFIX + "/privacy").headers["ETag"]
+
+        response = profile_client.patch(
+            PREFIX + "/privacy", json={"hide_activity_map": True}, headers={"If-Match": etag}
+        )
+
+        assert response.status_code == 200
+        assert response.headers["ETag"] == '"5"'
+        assert mock_edit.call_args.kwargs["if_match"] == etag
+
+    @patch("modules.users.users_profile.service.users_privacy_settings_integration.get_privacy_settings")
+    def test_not_found(self, mock_get, profile_client):
+        """Error: the user has no privacy settings, so 404."""
+        mock_get.return_value = None
+
+        response = profile_client.get(PREFIX + "/privacy")
+
+        assert response.status_code == 404
+
+    def test_requires_the_profile_scope(self):
+        """The route is guarded by the profile scope."""
+        import modules.users.users_profile.router as profile_router
+
+        route = next(r for r in profile_router.router.routes if r.path == "/privacy" and "GET" in r.methods)
+        scopes = {scope for dep in route.dependant.dependencies for scope in dep.own_oauth_scopes or []}
+
+        assert scopes == {"profile"}
+
+
 class TestEditProfilePrivacySettings:
     """Tests for PATCH /profile/privacy — edit_profile_privacy_settings."""
 

@@ -301,6 +301,25 @@ def cancel_email_change(user_id: int, db: Session) -> None:
     logger.info("Pending email change cancelled", extra=core_logger.context(user_id=user_id))
 
 
+def get_privacy_settings(user_id: int, db: Session) -> users_privacy_settings_schema.UsersPrivacySettingsRead:
+    """Return the user's own privacy settings.
+
+    Args:
+        user_id: The authenticated user.
+        db: Database session.
+
+    Returns:
+        The settings, whose ``version`` the client sends as ``If-Match`` on the next edit.
+
+    Raises:
+        NotFoundError: If the user has no privacy settings.
+    """
+    privacy_settings = users_privacy_settings_integration.get_privacy_settings(user_id, db)
+    if privacy_settings is None:
+        raise core_exceptions.NotFoundError("User privacy settings not found")
+    return privacy_settings
+
+
 def edit_privacy_settings(
     user_id: int,
     privacy_settings: users_privacy_settings_schema.UsersPrivacySettingsUpdate,

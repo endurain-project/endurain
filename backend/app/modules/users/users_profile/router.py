@@ -238,6 +238,25 @@ def cancel_profile_email_change(
     profile_service.cancel_email_change(token_user_id, db)
 
 
+@router.get(
+    "/privacy",
+    response_model=users_privacy_settings_schema.UsersPrivacySettingsRead,
+    dependencies=[Security(auth_dependencies.check_scopes, scopes=["profile"])],
+)
+def read_profile_privacy_settings(
+    token_user_id: auth_dependencies.CurrentUserId,
+    db: core_dependencies.DbSession,
+    response: Response,
+) -> users_privacy_settings_schema.UsersPrivacySettingsRead:
+    """Retrieve the authenticated user's privacy settings.
+
+    The ETag is the settings' version, which a later ``PATCH /profile/privacy`` echoes in ``If-Match``.
+    """
+    privacy_settings = profile_service.get_privacy_settings(token_user_id, db)
+    core_etag.set_etag(response, privacy_settings.version)
+    return privacy_settings
+
+
 @router.patch(
     "/privacy",
     response_model=users_privacy_settings_schema.UsersPrivacySettingsRead,

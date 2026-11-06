@@ -3741,7 +3741,13 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        get?: never;
+        /**
+         * Read Profile Privacy Settings
+         * @description Retrieve the authenticated user's privacy settings.
+         *
+         *     The ETag is the settings' version, which a later ``PATCH /profile/privacy`` echoes in ``If-Match``.
+         */
+        get: operations["read_profile_privacy_settings_api_v1_profile_privacy_get"];
         put?: never;
         post?: never;
         delete?: never;
@@ -19826,6 +19832,35 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content?: never;
+            };
+            /** @description Unexpected error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+        };
+    };
+    read_profile_privacy_settings_api_v1_profile_privacy_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["UsersPrivacySettingsRead"];
+                };
             };
             /** @description Unexpected error */
             default: {
