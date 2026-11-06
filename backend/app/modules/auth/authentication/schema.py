@@ -3,15 +3,16 @@
 import re
 from dataclasses import dataclass
 from datetime import datetime
-from typing import Literal
+from typing import Annotated, Literal
 
 from pydantic import (
     BaseModel,
     ConfigDict,
+    Discriminator,
     Field,
-    StrictBool,
     StrictInt,
     StrictStr,
+    Tag,
     field_validator,
 )
 
@@ -47,39 +48,61 @@ class MFALoginRequest(BaseModel):
     )
 
 
-class MFARequiredRead(BaseModel):
-    """Response indicating MFA verification is required.
+class PasswordChangeLoginRequest(BaseModel):
+    """Schema for the password-change step of a sign-in.
 
     Attributes:
-        mfa_required: Indicates whether MFA is required.
-        username: Username for which MFA is required.
-        mfa_challenge: The challenge the MFA step must send back; it names this login.
-        message: Message describing the requirement.
+        password_change_challenge: The challenge the sign-in returned for this login.
+        password: The new password; the account's password policy applies.
     """
 
     model_config = ConfigDict(extra="forbid")
 
-    mfa_required: StrictBool = True
-    username: StrictStr
+    password_change_challenge: StrictStr = Field(..., min_length=43, max_length=64)
+    password: StrictStr = Field(..., min_length=8, max_length=256)
+
+
+class MFARequiredRead(BaseModel):
+    """Sign-in answer: a second factor must be verified next.
+
+    Attributes:
+        next_step: Always ``mfa``; the client sends the MFA code to ``/auth/mfa/verify``.
+        mfa_challenge: The challenge the MFA step must send back; it names this login.
+    """
+
+    model_config = ConfigDict(extra="forbid")
+
+    next_step: Literal["mfa"]
     mfa_challenge: StrictStr
-    message: StrictStr = "MFA verification required"
+
+
+class PasswordChangeRequiredRead(BaseModel):
+    """Sign-in answer: the account's password was set by an administrator and must be replaced next.
+
+    Attributes:
+        next_step: Always ``password_change``; the client sends the new password to ``/auth/password-change``.
+        password_change_challenge: The challenge the password-change step must send back; it names this login.
+    """
+
+    model_config = ConfigDict(extra="forbid")
+
+    next_step: Literal["password_change"]
+    password_change_challenge: StrictStr
 
 
 class MobileSessionRead(BaseModel):
-    """Response for mobile password login with PKCE exchange flow.
+    """Sign-in answer for a mobile client using PKCE: a session to exchange for tokens.
 
     Attributes:
+        next_step: Always ``exchange``; the client exchanges the session at ``/public/idp/session/{session_id}/tokens``.
         session_id: Session identifier for token exchange.
-        mfa_required: Whether MFA is required.
-        message: Instructions for the client on next steps.
         device_id: The device id the app keeps and sends as ``X-Device-Id`` on later sign-ins.
     """
 
     model_config = ConfigDict(extra="forbid")
 
+    next_step: Literal["exchange"]
     session_id: StrictStr
-    mfa_required: StrictBool = False
-    message: StrictStr = "Complete authentication by exchanging tokens at /public/idp/session/{session_id}/tokens"
     device_id: StrictStr | None = None
 
 
@@ -87,6 +110,7 @@ class TokenWebRead(BaseModel):
     """Token response payload for web clients.
 
     Attributes:
+        next_step: Always ``tokens``; the client is signed in.
         session_id: Session identifier.
         access_token: Bearer access token.
         csrf_token: CSRF token bound to the session.
@@ -97,6 +121,7 @@ class TokenWebRead(BaseModel):
 
     model_config = ConfigDict(extra="forbid")
 
+    next_step: Literal["tokens"]
     session_id: StrictStr
     access_token: StrictStr
     csrf_token: StrictStr
@@ -109,6 +134,7 @@ class TokenMobileRead(BaseModel):
     """Token response payload for mobile clients.
 
     Attributes:
+        next_step: Always ``tokens``; the client is signed in.
         session_id: Session identifier.
         access_token: Bearer access token.
         refresh_token: Refresh token.
@@ -121,6 +147,7 @@ class TokenMobileRead(BaseModel):
 
     model_config = ConfigDict(extra="forbid")
 
+    next_step: Literal["tokens"]
     session_id: StrictStr
     access_token: StrictStr
     refresh_token: StrictStr
@@ -222,11 +249,31 @@ class RefreshCookie:
     expires_at: datetime
 
 
+def _next_step(body: object) -> str | None:
+    """Return the ``next_step`` of a sign-in body, whether it is a model or the dict it was parsed from."""
+    if isinstance(body, dict):
+        return body.get("next_step")
+    return getattr(body, "next_step", None)
+
+
 #: The token body of a password login or a refresh, by client type.
 type TokenRead = TokenWebRead | TokenMobileRead
 
-#: The body of a password login: an MFA challenge, a mobile PKCE session, or the tokens.
-type LoginRead = MFARequiredRead | MobileSessionRead | TokenWebRead | TokenMobileRead
+# The two token bodies share the ``tokens`` step, which a pydantic field discriminator cannot map to two models, so
+# the union is tagged by a function and the ``tokens`` step holds both.
+_Mfa = Annotated[MFARequiredRead, Tag("mfa")]
+_PasswordChange = Annotated[PasswordChangeRequiredRead, Tag("password_change")]
+_Exchange = Annotated[MobileSessionRead, Tag("exchange")]
+_Tokens = Annotated[TokenWebRead | TokenMobileRead, Tag("tokens")]
+
+#: What ends a sign-in with a session: tokens, or for a mobile PKCE client a session to exchange.
+FinishedLoginRead = Annotated[_Exchange | _Tokens, Discriminator(_next_step)]
+
+#: The answer of ``/auth/mfa/verify``: a password change, a session to exchange, or the tokens.
+MFAVerifyRead = Annotated[_PasswordChange | _Exchange | _Tokens, Discriminator(_next_step)]
+
+#: The answer of ``/auth/login``, told apart by ``next_step``.
+LoginRead = Annotated[_Mfa | _PasswordChange | _Exchange | _Tokens, Discriminator(_next_step)]
 
 
 @dataclass(frozen=True)

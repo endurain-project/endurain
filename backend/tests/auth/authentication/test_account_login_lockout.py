@@ -44,6 +44,7 @@ def _login(db, store, *, device_id=_DEVICE_ID, username="alice"):
         MagicMock(),
         MagicMock(),
         db,
+        password_change_store=MagicMock(),
         device_id=device_id,
     )
 
@@ -58,6 +59,7 @@ def password_sign_in():
         patch(f"{_SERVICE}.server_settings_integration.get_session_policy"),
         patch(f"{_SERVICE}.credentials_integration.allows_password_sign_in", return_value=True),
         patch(f"{_SERVICE}.mfa_integration.is_mfa_enabled_for_user", return_value=False),
+        patch(f"{_SERVICE}.credentials_integration.is_password_change_required", return_value=False),
         patch("modules.auth.authentication.token_service.create_tokens", return_value=_TOKENS),
         patch(
             f"{_SERVICE}.sessions_integration.create_session",

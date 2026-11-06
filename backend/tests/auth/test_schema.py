@@ -83,25 +83,21 @@ class TestMFALoginRequest:
 class TestMFARequiredResponse:
     """Tests for MFARequiredRead Pydantic model."""
 
-    def test_mfa_required_response_defaults(self):
-        """Test MFA required response with default values."""
-        response = auth_schema.MFARequiredRead(username="testuser", mfa_challenge="c" * 43)
-        assert response.mfa_required is True
-        assert response.username == "testuser"
-        assert response.message == "MFA verification required"
+    def test_mfa_required_response_names_the_next_step(self):
+        """The body holds the step and the challenge only."""
+        response = auth_schema.MFARequiredRead(next_step="mfa", mfa_challenge="c" * 43)
 
-    def test_mfa_required_response_custom_message(self):
-        """Test MFA required response with custom message."""
-        response = auth_schema.MFARequiredRead(
-            username="testuser", mfa_challenge="c" * 43, message="Custom MFA message"
-        )
-        assert response.mfa_required is True
-        assert response.message == "Custom MFA message"
+        assert response.model_dump() == {"next_step": "mfa", "mfa_challenge": "c" * 43}
 
-    def test_mfa_required_response_explicit_false(self):
-        """Test MFA required response with explicit False."""
-        response = auth_schema.MFARequiredRead(mfa_required=False, username="testuser", mfa_challenge="c" * 43)
-        assert response.mfa_required is False
+    def test_mfa_required_response_requires_the_next_step(self):
+        """A body without the step is refused rather than defaulted."""
+        with pytest.raises(ValueError, match="next_step"):
+            auth_schema.MFARequiredRead.model_validate({"mfa_challenge": "c" * 43})
+
+    def test_mfa_required_response_refuses_another_step(self):
+        """The step is the literal ``mfa``."""
+        with pytest.raises(ValueError, match="next_step"):
+            auth_schema.MFARequiredRead(next_step="tokens", mfa_challenge="c" * 43)
 
 
 class TestAuthRouterErrors:
@@ -127,6 +123,7 @@ class TestAuthRouterErrors:
                 client_type="mobile",
                 failed_attempts=object(),
                 pending_mfa_store=object(),
+                password_change_store=object(),
                 password_hasher=object(),
                 token_manager=object(),
                 db=object(),
@@ -158,6 +155,7 @@ class TestAuthRouterErrors:
                 client_type="mobile",
                 failed_attempts=object(),
                 pending_mfa_store=object(),
+                password_change_store=object(),
                 password_hasher=object(),
                 token_manager=object(),
                 db=object(),
@@ -231,6 +229,7 @@ class TestAuthRouterErrors:
                 password_hasher=object(),
                 token_manager=object(),
                 db=object(),
+                password_change_store=MagicMock(),
                 device_id=None,
             )
 
@@ -287,6 +286,7 @@ class TestAuthRouterErrors:
                 password_hasher=object(),
                 token_manager=object(),
                 db=MagicMock(),
+                password_change_store=MagicMock(),
                 device_id=None,
             )
 

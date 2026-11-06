@@ -361,7 +361,7 @@ class TestVerifyEmailPassword:
             "username": deps["users_integration"].get_user.return_value.username,
             "email": deps["users_integration"].get_user.return_value.email,
         }
-        creds.set_local_password_hash.assert_called_once_with(7, "hashed", mock_db)
+        creds.set_local_password_hash.assert_called_once_with(7, "hashed", mock_db, change_required=False)
         deps["sessions_integration"].delete_sessions_by_user.assert_called_once_with(7, mock_db)
         deps["password_reset_tokens_integration"].revoke_unused_tokens.assert_called_once_with(7, mock_db)
         deps["mfa_integration"].clear_pending_mfa_for_user.assert_called_once_with(7)
@@ -388,7 +388,9 @@ class TestVerifyEmailPassword:
         mock_db.commit.assert_not_called()
 
         sign_up_service.verify_email("tok", "ChosenPass1!", mock_db)
-        deps["credentials_integration"].set_local_password_hash.assert_called_once_with(7, "hashed", mock_db)
+        deps["credentials_integration"].set_local_password_hash.assert_called_once_with(
+            7, "hashed", mock_db, change_required=False
+        )
 
     def test_an_activated_account_with_a_password_verifies_without_one(self, deps, mock_db):
         deps["users_integration"].get_user.return_value = MagicMock(id=7, active=True, access_type="regular")

@@ -37,6 +37,12 @@ def get_credential(user_id: int, db: Session) -> credentials_contracts.Credentia
     return credentials_crud.get_credential(user_id, db)
 
 
+def is_password_change_required(user_id: int, db: Session) -> bool:
+    """Return whether the user's password was set by an administrator and its owner must replace it."""
+    credential = get_credential(user_id, db)
+    return credential is not None and credential.password_change_required
+
+
 def has_local_password(user_id: int, db: Session) -> bool:
     """Return whether the user has a local password."""
     return get_credential(user_id, db) is not None
@@ -48,9 +54,19 @@ def get_password_hash(user_id: int, db: Session) -> str | None:
     return credential.password_hash if credential else None
 
 
-def set_local_password_hash(user_id: int, password_hash: str, db: Session) -> None:
-    """Stage a user's local password hash."""
-    credentials_crud.upsert_password_hash(user_id, password_hash, db)
+def set_local_password_hash(user_id: int, password_hash: str, db: Session, *, change_required: bool) -> None:
+    """Stage a user's local password hash.
+
+    Every write of the hash says whether the owner must replace the password at the next sign-in: true when an
+    administrator wrote it, false when the owner did, and unchanged for a rehash of the same password.
+
+    Args:
+        user_id: ID of the user whose credential is written.
+        password_hash: The new password hash.
+        db: SQLAlchemy session.
+        change_required: Whether the owner must choose a new password at the next sign-in.
+    """
+    credentials_crud.upsert_password_hash(user_id, password_hash, change_required, db)
 
 
 def clear_local_password(user_id: int, db: Session) -> None:

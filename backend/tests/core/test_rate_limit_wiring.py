@@ -49,6 +49,7 @@ import modules.activities.activity_workout_steps.public_router as activity_worko
 import modules.auth.account_security.api_keys_router as auth_api_keys_router
 import modules.auth.account_security.identity_links_router as auth_idp_profile_router
 import modules.auth.account_security.mfa_router as auth_mfa_profile_router
+import modules.auth.account_security.public_router as password_change_router
 import modules.auth.account_security.sessions_router as auth_sessions_profile_router
 import modules.auth.authentication.public_router as auth_router
 import modules.auth.authentication.sso_public_router as sso_public_router
@@ -110,6 +111,7 @@ def _registered_limits(func) -> list[str]:
 _TIERED_ENDPOINTS = [
     pytest.param(auth_router.login_for_access_token, core_rate_limit.SENSITIVE, id="login"),
     pytest.param(auth_router.verify_mfa_and_login, core_rate_limit.SENSITIVE, id="mfa-verify"),
+    pytest.param(password_change_router.complete_password_change, core_rate_limit.SENSITIVE, id="password-change"),
     pytest.param(auth_router.refresh_token, core_rate_limit.WRITE, id="token-refresh"),
     pytest.param(auth_router.logout, core_rate_limit.WRITE, id="logout"),
     pytest.param(onboarding_public_router.complete_onboarding, core_rate_limit.SENSITIVE, id="onboarding-complete"),

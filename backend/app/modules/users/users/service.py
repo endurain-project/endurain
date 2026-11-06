@@ -397,7 +397,11 @@ def _stage_user(
         fields["deactivated_at"] = datetime.now(UTC)
     created = users_crud.create_user(fields, db)
 
-    credentials_integration.set_local_password_hash(created.id, hashed_password, db)
+    # An administrator knows the password they created an account with, so its owner must choose a new one at the
+    # first sign-in; the first administrator and every other creation chose their own.
+    credentials_integration.set_local_password_hash(
+        created.id, hashed_password, db, change_required=method == users_audit_actions.UserCreateMethod.ADMIN
+    )
     _stage_default_data(created.id, db)
     _stage_user_create_audit(created, access_type, method, db)
     return created
@@ -550,7 +554,7 @@ def _stage_signup_user(
     created = users_crud.create_user(fields, db)
 
     if hashed_password is not None:
-        credentials_integration.set_local_password_hash(created.id, hashed_password, db)
+        credentials_integration.set_local_password_hash(created.id, hashed_password, db, change_required=False)
     _stage_default_data(created.id, db)
     _stage_user_create_audit(created, users_schema.UserAccessType.REGULAR.value, method, db)
     return created

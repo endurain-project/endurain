@@ -25,6 +25,7 @@ import modules.activities.activity_thumbnail.public_router as activity_thumbnail
 import modules.auth.account_security.api_keys_router as auth_api_keys_router
 import modules.auth.account_security.identity_links_router as auth_idp_profile_router
 import modules.auth.account_security.mfa_router as auth_mfa_profile_router
+import modules.auth.account_security.public_router as auth_password_change_router
 import modules.auth.account_security.sessions_router as auth_sessions_profile_router
 import modules.auth.authentication.public_router as auth_router
 import modules.auth.dependencies as auth_dependencies
@@ -248,6 +249,11 @@ router.include_router(
 )
 router.include_router(
     auth_router.router,
+    prefix=core_config.ROOT_PATH + "/auth",
+    tags=["auth"],
+)
+router.include_router(
+    auth_password_change_router.router,
     prefix=core_config.ROOT_PATH + "/auth",
     tags=["auth"],
 )

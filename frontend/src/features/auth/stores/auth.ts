@@ -14,6 +14,7 @@ import { HttpError } from '@/services/http'
 import { queryKeys } from '@/services/queryKeys'
 import { fetchCurrentUser } from '@/features/auth/services/profile'
 import {
+  changePasswordAtLogin,
   loginWithPassword,
   logoutSession,
   refreshSession,
@@ -31,7 +32,21 @@ export interface MfaRequiredResult {
   challenge: string
 }
 
-export type LoginResult = AuthCompletedResult | MfaRequiredResult
+export interface PasswordChangeRequiredResult {
+  status: 'password-change-required'
+  /** Names this login; the password-change step must send it back. */
+  challenge: string
+}
+
+/** The server asked for a step this client does not know, so the sign-in cannot continue. */
+export interface UnsupportedStepResult {
+  status: 'unsupported-step'
+}
+
+export type LoginResult =
+  AuthCompletedResult | MfaRequiredResult | PasswordChangeRequiredResult | UnsupportedStepResult
+
+type LoginMethod = 'password' | 'mfa' | 'password_change'
 
 /**
  * Checks whether an auth error is an expected, non-reportable outcome (an
@@ -58,18 +73,6 @@ async function applyPreferredLocale(nextUser: User): Promise<void> {
   }
   await loadLocaleMessages(locale)
   setI18nLocale(locale)
-}
-
-/**
- * Checks whether a login response is an MFA challenge.
- *
- * @param response - Login response from the backend.
- * @returns Whether MFA is required.
- */
-function isMfaRequiredResponse(
-  response: LoginResponse,
-): response is Extract<LoginResponse, { mfa_required: true }> {
-  return 'mfa_required' in response && response.mfa_required === true
 }
 
 /**
@@ -118,23 +121,47 @@ export const useAuthStore = defineStore('auth', () => {
   }
 
   /**
+   * Continues a sign-in from the answer of the server, by its `next_step`. An
+   * unknown step (a newer server) ends the attempt without touching the
+   * session, so a later step can be added without breaking this client.
+   *
+   * @param response - Answer of the login, MFA or password-change request.
+   * @param method - The step that produced the answer, for telemetry.
+   * @returns Authenticated result, or the next step to show.
+   */
+  async function continueLogin(response: LoginResponse, method: LoginMethod): Promise<LoginResult> {
+    switch (response.next_step) {
+      case 'mfa':
+        return { status: 'mfa-required', challenge: response.mfa_challenge }
+      case 'password_change':
+        return {
+          status: 'password-change-required',
+          challenge: response.password_change_challenge,
+        }
+      case 'tokens': {
+        // The web client sends `X-Client-Type: web`, so the tokens carry a CSRF token.
+        if (!('csrf_token' in response)) {
+          return { status: 'unsupported-step' }
+        }
+        const result = await completeTokenLogin(response)
+        useTelemetry().trackEvent('login_succeeded', { method })
+        return result
+      }
+      default:
+        return { status: 'unsupported-step' }
+    }
+  }
+
+  /**
    * Authenticates with username/password.
    *
    * @param username - Username supplied by the user.
    * @param password - Password supplied by the user.
-   * @returns Login result, including an MFA-required state when needed.
+   * @returns Login result, including the MFA or password-change step when one is needed.
    * @throws {HttpError} When credentials are invalid or auth is unavailable.
    */
   async function login(username: string, password: string): Promise<LoginResult> {
-    const response = await loginWithPassword(username, password)
-
-    if (isMfaRequiredResponse(response)) {
-      return { status: 'mfa-required', challenge: response.mfa_challenge }
-    }
-
-    const result = await completeTokenLogin(response)
-    useTelemetry().trackEvent('login_succeeded', { method: 'password' })
-    return result
+    return continueLogin(await loginWithPassword(username, password), 'password')
   }
 
   /**
@@ -142,15 +169,29 @@ export const useAuthStore = defineStore('auth', () => {
    *
    * @param challenge - The challenge the password step returned.
    * @param mfaCode - TOTP or backup code.
-   * @returns Authenticated result containing the current user.
+   * @returns Authenticated result, or the password-change step when the account needs one.
    * @throws {HttpError} When the MFA code or the challenge is invalid or expired.
    */
-  async function verifyMfa(challenge: string, mfaCode: string): Promise<AuthCompletedResult> {
-    const result = await completeTokenLogin(
+  async function verifyMfa(challenge: string, mfaCode: string): Promise<LoginResult> {
+    return continueLogin(
       await verifyMfaLogin({ mfa_challenge: challenge, mfa_code: mfaCode }),
+      'mfa',
     )
-    useTelemetry().trackEvent('login_succeeded', { method: 'mfa' })
-    return result
+  }
+
+  /**
+   * Chooses the new password an administrator-set password requires and completes the sign-in.
+   *
+   * @param challenge - The challenge the earlier step returned.
+   * @param password - The new password.
+   * @returns Authenticated result.
+   * @throws {HttpError} 401 when the challenge is unknown or expired; 422 when the password is refused.
+   */
+  async function changePassword(challenge: string, password: string): Promise<LoginResult> {
+    return continueLogin(
+      await changePasswordAtLogin({ password_change_challenge: challenge, password }),
+      'password_change',
+    )
   }
 
   /**
@@ -231,6 +272,7 @@ export const useAuthStore = defineStore('auth', () => {
     completeTokenLogin,
     login,
     verifyMfa,
+    changePassword,
     restoreSession,
     handleSessionExpired,
     clearLocalSession,

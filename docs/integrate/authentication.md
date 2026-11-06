@@ -4,9 +4,9 @@ Endurain supports integration with other apps through an authentication system t
 
 ## API Requirements
 
-- **Client Type Header:** `POST /auth/login`, `/auth/mfa/verify`, `/auth/refresh` and `/auth/logout` require an `X-Client-Type` header with `web` or `mobile`; a missing or unknown value is `422`. It is an ordinary header parameter in the OpenAPI document, not a security scheme. Protected routes authenticate first and do not read it: a call without a valid token is `401` with `WWW-Authenticate` whatever the header says. The other flows follow the endpoint-specific requirements below.
+- **Client Type Header:** `POST /auth/login`, `/auth/mfa/verify`, `/auth/password-change`, `/auth/refresh` and `/auth/logout` require an `X-Client-Type` header with `web` or `mobile`; a missing or unknown value is `422`. It is an ordinary header parameter in the OpenAPI document, not a security scheme. Protected routes authenticate first and do not read it: a call without a valid token is `401` with `WWW-Authenticate` whatever the header says. The other flows follow the endpoint-specific requirements below.
 - **OAuth/PKCE Client Type Binding:** For `/public/idp/login/{idp_slug}` and password PKCE login, the backend records a `client_type` on the PKCE/OAuth state. During `/public/idp/session/{session_id}/tokens`, that stored value controls the response shape. The token-exchange `X-Client-Type` header is optional, but if provided it must match the stored value; otherwise the exchange returns `400` with `client_type does not match the OAuth state`.
-- **Authorization:** Most protected JWT requests must include an `Authorization: Bearer <access token>` header with a valid access token. Login, MFA verification, OAuth initiation/callback/token exchange, password reset, sign-up, and activity uploads authenticated with an API key are exceptions.
+- **Authorization:** Most protected JWT requests must include an `Authorization: Bearer <access token>` header with a valid access token. Login, MFA verification, the password-change step, OAuth initiation/callback/token exchange, password reset, sign-up, and activity uploads authenticated with an API key are exceptions.
 - **CSRF Protection (Web Only):** State-changing protected web requests (`POST`, `PUT`, `DELETE`, `PATCH`) must include an `X-CSRF-Token` header. The server checks only that the header is present, and only for requests that send `X-Client-Type: web`, so it is a defence in depth rather than the CSRF defence. A custom header makes a cross-origin browser request preflighted, so CORS decides whether it is sent. The protection that matters is that protected routes read the access token from the `Authorization` header, which a browser never sends on its own, and that the refresh cookie is `SameSite=Strict` and limited to `/api/v1/auth`. `/auth/refresh` supports a bootstrap refresh without this header after page reload; if the header is provided and the session has a stored CSRF binding, the token value must be valid.
 
 !!! note "API Key Authentication"
@@ -50,14 +50,14 @@ Endurain splits web tokens between memory and an httpOnly cookie:
 - **For web apps:** 
     - Access token and CSRF token returned in JSON response body (stored in-memory)
     - Refresh token set as httpOnly cookie (`endurain_refresh_token`; `__Secure-endurain_refresh_token` in production and demo)
-    - Password login, MFA verification and the SSO token exchange also set the `endurain_device` cookie (prefixed like the refresh cookie), which names the browser for new-device sign-in notices
+    - Password login, MFA verification, the password-change step and the SSO token exchange also set the `endurain_device` cookie (prefixed like the refresh cookie), which names the browser for new-device sign-in notices
     - On page reload, call `/auth/refresh` to restore in-memory tokens
 
 - **For mobile apps:** 
   - Password login without PKCE returns access and refresh tokens in the JSON response body
   - Password login with PKCE and OAuth/SSO return a `session_id` first; the app exchanges that session with its PKCE verifier to receive access and refresh tokens
     - Store tokens in secure platform storage (iOS Keychain, Android EncryptedSharedPreferences)
-  - **Device id:** send `X-Device-Id` on `/auth/login`, `/auth/mfa/verify` and the `/public/idp/session/{session_id}/tokens` exchange, with the value the server returned earlier (43 characters of `A-Z a-z 0-9 - _`; a missing or malformed value counts as none). A sign-in from an id the account has not used before sends the user a new-device notice, except the account's first device. When the app sends no valid id, the server mints one and returns it as `device_id` in the response body: in the token body of a password login without PKCE or an MFA verification, in the session body of a PKCE password login, and in the token exchange of an SSO sign-in. The field is `null` on `/auth/refresh` and in a web client's token exchange, and absent from a web client's login body (a browser keeps its id in the cookie). Store it in secure storage next to the tokens and send it on every later sign-in. It is not a credential, and responses that carry it are `Cache-Control: no-store`.
+  - **Device id:** send `X-Device-Id` on `/auth/login`, `/auth/mfa/verify`, `/auth/password-change` and the `/public/idp/session/{session_id}/tokens` exchange, with the value the server returned earlier (43 characters of `A-Z a-z 0-9 - _`; a missing or malformed value counts as none). A sign-in from an id the account has not used before sends the user a new-device notice, except the account's first device. When the app sends no valid id, the server mints one and returns it as `device_id` in the response body: in the token body of a password login without PKCE, an MFA verification or a password change, in the session body of a PKCE password login, and in the token exchange of an SSO sign-in. The field is `null` on `/auth/refresh` and in a web client's token exchange, and absent from a web client's login body (a browser keeps its id in the cookie). Store it in secure storage next to the tokens and send it on every later sign-in. It is not a credential, and responses that carry it are `Cache-Control: no-store`.
 
 ## Authentication Flows
 
@@ -65,12 +65,54 @@ Endurain splits web tokens between memory and an httpOnly cookie:
 
 1. Client sends credentials to `/auth/login` endpoint
 2. Backend validates credentials and checks for account lockout
-3. If MFA is enabled, backend returns MFA-required response
-4. If MFA is disabled or verified, backend generates tokens
+3. Backend answers with a body whose `next_step` says what the client does next (see [Sign-in steps](#sign-in-steps))
+4. The client follows the steps until it receives `tokens` or `exchange`
 5. Tokens are delivered based on client type:
     - **Web:** Access token + CSRF token in response body, refresh token as httpOnly cookie
     - **Mobile:** All tokens in response body (CSRF not included, not needed for mobile logic)
     - **Mobile with PKCE:** Session ID for secure token exchange (see [Mobile Password Login with PKCE](oauth-sso-pkce.md#mobile-password-login-with-pkce) below)
+
+#### Sign-in steps
+
+Every answer of `POST /auth/login`, `POST /auth/mfa/verify` and `POST /auth/password-change` carries a required `next_step`. A client switches on it; the other members of the body depend on its value.
+
+| `next_step` | Meaning | Body members | The client |
+| ----------- | ------- | ------------ | ---------- |
+| `mfa` | A second factor must be verified | `mfa_challenge` | Asks for the MFA code and sends it with the challenge to `POST /auth/mfa/verify` |
+| `password_change` | An administrator set the account's password, so the user must choose a new one before a session exists | `password_change_challenge` | Asks for a new password and sends it with the challenge to `POST /auth/password-change` |
+| `exchange` | A mobile client that sent a PKCE challenge gets a session to exchange | `session_id`, `device_id` | Exchanges the session at `/public/idp/session/{session_id}/tokens` with its PKCE verifier |
+| `tokens` | The client is signed in | `session_id`, `access_token`, `expires_in`, `refresh_token_expires_in`, `token_type`, and `csrf_token` (web) or `refresh_token` and `device_id` (mobile) | Stores the tokens |
+
+`POST /auth/refresh` answers the `tokens` body too. `/auth/login` can answer any step. `/auth/mfa/verify` answers `password_change`, `exchange` or `tokens`. `/auth/password-change` answers `exchange` or `tokens`.
+
+!!! warning "Treat an unknown `next_step` as \"update the app\""
+    The set of steps can grow. A client that receives a `next_step` it does not know cannot continue the sign-in: it must stop, keep no partial state and tell the user that the app needs an update. Do not guess from the other members of the body.
+
+#### Password change at sign-in
+
+When an administrator sets a user's password, or creates the account with one, the administrator knows it, so the account must replace it at its next password sign-in. `POST /auth/login` (and `POST /auth/mfa/verify` for an account with MFA, after the code is verified) then answers `password_change` instead of tokens and creates no session. The `password_change_challenge` is valid for 10 minutes, works once, and names the sign-in, its client type and its PKCE values.
+
+```http
+POST /api/v1/auth/password-change
+Content-Type: application/json
+X-Client-Type: web|mobile
+
+{
+  "password_change_challenge": "<password_change_challenge from the sign-in response>",
+  "password": "the new password"
+}
+```
+
+The new password must meet the account's password policy and differ from the current one. The answer is the one the sign-in would have given: `tokens`, or `exchange` for a mobile client that sent a PKCE challenge at sign-in. The new password, its audit entry and the session are one transaction, and unused password-reset links are voided.
+
+| Status | Meaning |
+| ------ | ------- |
+| `401` | The challenge is unknown, expired or already used, was issued to the other client type, or the account no longer needs to change its password. One answer for all of these |
+| `403` | The account is no longer active |
+| `422` | The password does not meet the policy (the `type` names why, for example `urn:endurain:error:password-too-short`). The challenge stays valid, so the client can ask again |
+| `429`, `503` | Rate limit, or the shared sign-in state is unavailable |
+
+Sign-in through an identity provider (SSO) does not use the password, so it is not affected: an account whose password an administrator set can still sign in with its provider.
 
 ### OAuth/SSO Flow
 
@@ -173,6 +215,7 @@ The API is reachable under `/api/v1`. Below are the authentication-related endpo
 | **Authorize** | `/auth/login` | Header: `X-Client-Type: web`; `FORM` with fields: `username`, `password`. HTTPS highly recommended | 10 requests/min |
 | **Refresh Token** | `/auth/refresh` | Header: `X-Client-Type: web`; Cookie: `__Secure-endurain_refresh_token` (`endurain_refresh_token` in development); optional Header: `X-CSRF-Token` (bootstrap logic) | 30 requests/min |
 | **Verify MFA** | `/auth/mfa/verify` | Header: `X-Client-Type: web`; JSON `{'mfa_challenge': <mfa_challenge from /auth/login>, 'mfa_code': '123456'}` | 10 requests/min |
+| **Change Password** | `/auth/password-change` | Header: `X-Client-Type: web`; JSON `{'password_change_challenge': <password_change_challenge from /auth/login or /auth/mfa/verify>, 'password': '<new password>'}` | 10 requests/min |
 | **Logout** | `/auth/logout` | Header: `X-Client-Type: web`; Cookie: `__Secure-endurain_refresh_token` (`endurain_refresh_token` in development) | 30 requests/min |
 
 ### Core Authentication Endpoints (Mobile)
@@ -182,6 +225,7 @@ The API is reachable under `/api/v1`. Below are the authentication-related endpo
 | **Authorize** | `/auth/login` | Header: `X-Client-Type: mobile`; `FORM` with fields: `username`, `password`. Optional query params: `code_challenge`, `code_challenge_method` (mobile PKCE). HTTPS highly recommended | 10 requests/min |
 | **Refresh Token** | `/auth/refresh` | Header: `X-Client-Type: mobile`; Header: `Authorization: Bearer <Refresh Token>` | 30 requests/min |
 | **Verify MFA** | `/auth/mfa/verify` | Header: `X-Client-Type: mobile`; JSON body: `{'mfa_challenge': <mfa_challenge from /auth/login>, 'mfa_code': '123456'}`. Optional query params: `code_challenge`, `code_challenge_method` (mobile PKCE) | 10 requests/min |
+| **Change Password** | `/auth/password-change` | Header: `X-Client-Type: mobile`; JSON `{'password_change_challenge': <password_change_challenge from /auth/login or /auth/mfa/verify>, 'password': '<new password>'}`. The PKCE values of the sign-in are kept with the challenge | 10 requests/min |
 | **Logout** | `/auth/logout` | Header: `X-Client-Type: mobile`; Header: `Authorization: Bearer <Refresh Token>` | 30 requests/min |
 
 ### OAuth/SSO Endpoints

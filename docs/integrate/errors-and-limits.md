@@ -55,7 +55,7 @@ Authentication and authorization failures use the same shape. Typical causes:
 | Status | Common causes |
 | ------ | ------------- |
 | `400` | Missing required fields, invalid client type, no pending MFA login, a wrong MFA or backup code (problem type `urn:endurain:error:invalid-input`) |
-| `401` | Invalid credentials, expired or invalid token |
+| `401` | Invalid credentials, an unknown, expired or used sign-in challenge (`mfa_challenge` is `400`; a `password_change_challenge` is `401`), expired or invalid token |
 | `403` | Insufficient permissions, missing required scope, a web write without `X-CSRF-Token` |
 | `404` | Invalid session ID, user not found |
 | `429` | Too many login or OAuth attempts |

@@ -178,6 +178,7 @@ watch(open, (isOpen) => {
       :label="t('settings.users.password.confirmLabel')"
       :placeholder="t('settings.users.password.confirmLabel')"
       :error="confirmError"
+      :hint="t('settings.users.form.mustChangePasswordHint')"
       required
     >
       <template #default="{ fieldId, describedBy, invalid, placeholder }">

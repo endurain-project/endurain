@@ -70,6 +70,7 @@ class TestUsePasswordResetToken:
             "clear_pending",
         ]
         clear_pending.assert_called_once_with(42)
+        set_password.assert_called_once_with(42, "hashed", mock_db, change_required=False)
         publish_completed.assert_called_once_with(42, mock_db)
 
     @patch(

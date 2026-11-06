@@ -82,7 +82,7 @@ These need no credentials because their job is to obtain them. They are document
 
 | Path | Purpose | See |
 | ---- | ------- | --- |
-| `POST /auth/login`, `/auth/mfa/verify`, `/auth/refresh`, `/auth/logout` | Password login, MFA and tokens; logout answers `204` with no body | [Handling authentication](authentication.md) |
+| `POST /auth/login`, `/auth/mfa/verify`, `/auth/password-change`, `/auth/refresh`, `/auth/logout` | Password login, MFA, the password change an administrator-set password requires, and tokens; every answer but logout's carries a `next_step`; logout answers `204` with no body | [Handling authentication](authentication.md) |
 | `GET /public/idp`, `/public/idp/login/{slug}`, `/public/idp/callback/{slug}`, `POST /public/idp/session/{id}/tokens` | Single sign-on | [OAuth/SSO and PKCE](oauth-sso-pkce.md) |
 | `POST /sign-up/request`, `/sign-up/confirm` | Create an account and verify its email; both answer `200` with what the client does next (`admin_approval_required`, `email_verification_required`) | [Accounts, sign-up and password reset](../features/accounts-and-sign-in.md#signing-up) |
 | `POST /password-reset/request`, `/password-reset/confirm` | Reset a forgotten password; both answer `204` with no body, and the request answers the same for a known and an unknown address | [Accounts, sign-up and password reset](../features/accounts-and-sign-in.md#forgotten-password) |

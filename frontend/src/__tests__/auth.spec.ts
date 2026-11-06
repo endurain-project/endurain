@@ -9,6 +9,7 @@ import { HttpError } from '@/services/http'
 import { queryKeys } from '@/services/queryKeys'
 import { fetchCurrentUser } from '@/features/auth/services/profile'
 import {
+  changePasswordAtLogin,
   loginWithPassword,
   logoutSession,
   refreshSession,
@@ -31,6 +32,7 @@ vi.mock('@/features/auth/services/session', () => ({
   logoutSession: vi.fn<typeof logoutSession>(),
   refreshSession: vi.fn<typeof refreshSession>(),
   verifyMfaLogin: vi.fn<typeof verifyMfaLogin>(),
+  changePasswordAtLogin: vi.fn<typeof changePasswordAtLogin>(),
 }))
 
 const realtimeConnect = vi.fn<() => void>()
@@ -40,6 +42,7 @@ vi.mock('@/composables/useRealtime', () => ({
 }))
 
 const tokenResponse: AuthTokenResponse = {
+  next_step: 'tokens',
   session_id: 'session-1',
   access_token: 'access-token',
   csrf_token: 'csrf-token',
@@ -77,10 +80,8 @@ describe('auth store', () => {
 
   it('returns an MFA-required state without storing tokens', async () => {
     vi.mocked(loginWithPassword).mockResolvedValue({
-      mfa_required: true,
-      username: 'demo',
+      next_step: 'mfa',
       mfa_challenge: 'challenge-123',
-      message: 'MFA verification required',
     })
 
     const auth = useAuthStore()
@@ -89,6 +90,35 @@ describe('auth store', () => {
     expect(result).toEqual({ status: 'mfa-required', challenge: 'challenge-123' })
     expect(setAuthTokens).not.toHaveBeenCalled()
     expect(fetchCurrentUser).not.toHaveBeenCalled()
+    expect(auth.isAuthenticated).toBe(false)
+  })
+
+  it('returns a password-change state without storing tokens', async () => {
+    vi.mocked(loginWithPassword).mockResolvedValue({
+      next_step: 'password_change',
+      password_change_challenge: 'change-123',
+    })
+
+    const auth = useAuthStore()
+    const result = await auth.login('demo', 'password123')
+
+    expect(result).toEqual({ status: 'password-change-required', challenge: 'change-123' })
+    expect(setAuthTokens).not.toHaveBeenCalled()
+    expect(fetchCurrentUser).not.toHaveBeenCalled()
+    expect(auth.isAuthenticated).toBe(false)
+  })
+
+  it.each([
+    ['an exchange session', { next_step: 'exchange', session_id: 's', device_id: null }],
+    ['a step it does not know', { next_step: 'passkey' }],
+  ])('stops at %s without touching the session', async (_label, answer) => {
+    vi.mocked(loginWithPassword).mockResolvedValue(answer as never)
+
+    const auth = useAuthStore()
+    const result = await auth.login('demo', 'password123')
+
+    expect(result).toEqual({ status: 'unsupported-step' })
+    expect(setAuthTokens).not.toHaveBeenCalled()
     expect(auth.isAuthenticated).toBe(false)
   })
 
@@ -104,6 +134,34 @@ describe('auth store', () => {
       mfa_code: '123456',
     })
     expect(result).toEqual({ status: 'authenticated', user: authUser })
+  })
+
+  it('moves on to the password change after a verified MFA code', async () => {
+    vi.mocked(verifyMfaLogin).mockResolvedValue({
+      next_step: 'password_change',
+      password_change_challenge: 'change-123',
+    })
+
+    const auth = useAuthStore()
+    const result = await auth.verifyMfa('challenge-123', '123456')
+
+    expect(result).toEqual({ status: 'password-change-required', challenge: 'change-123' })
+    expect(setAuthTokens).not.toHaveBeenCalled()
+  })
+
+  it('signs in once the new password is chosen', async () => {
+    vi.mocked(changePasswordAtLogin).mockResolvedValue(tokenResponse)
+    vi.mocked(fetchCurrentUser).mockResolvedValue(authUser)
+
+    const auth = useAuthStore()
+    const result = await auth.changePassword('change-123', 'a new passphrase')
+
+    expect(changePasswordAtLogin).toHaveBeenCalledWith({
+      password_change_challenge: 'change-123',
+      password: 'a new passphrase',
+    })
+    expect(result).toEqual({ status: 'authenticated', user: authUser })
+    expect(setAuthTokens).toHaveBeenCalledWith('access-token', 'csrf-token')
   })
 
   it('hydrates the user after successful login', async () => {

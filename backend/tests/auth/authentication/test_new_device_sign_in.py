@@ -52,6 +52,7 @@ def password_sign_in():
         patch(f"{_SERVICE}.server_settings_integration.get_session_policy"),
         patch(f"{_SERVICE}.credentials_integration.allows_password_sign_in", return_value=True),
         patch(f"{_SERVICE}.mfa_integration.is_mfa_enabled_for_user", return_value=False),
+        patch(f"{_SERVICE}.credentials_integration.is_password_change_required", return_value=False),
         patch("modules.auth.authentication.token_service.create_tokens", return_value=_TOKENS),
         patch(
             f"{_SERVICE}.sessions_integration.create_session",
@@ -73,6 +74,7 @@ def _login(db, *, client_type="web", device_id=_DEVICE_ID, **kwargs):
         MagicMock(),
         MagicMock(),
         db,
+        password_change_store=MagicMock(),
         device_id=device_id,
         **kwargs,
     )
@@ -106,7 +108,7 @@ class TestPasswordSignIn:
         }
 
     def test_a_mobile_pkce_sign_in_hands_the_app_its_device_id_in_the_session_body(self, mock_db, password_sign_in):
-        session = auth_schema.MobileSessionRead(session_id="sid")
+        session = auth_schema.MobileSessionRead(next_step="exchange", session_id="sid")
         with (
             patch(f"{_SERVICE}.create_mobile_pkce_session_response", return_value=session) as pkce,
             patch(_RECORD, return_value=_signed(_ISSUED)) as record,
@@ -149,6 +151,7 @@ class TestPasswordSignIn:
         store = MagicMock(add_pending_login=MagicMock(return_value="challenge"))
         with (
             patch(f"{_SERVICE}.mfa_integration.is_mfa_enabled_for_user", return_value=True),
+            patch(f"{_SERVICE}.credentials_integration.is_password_change_required", return_value=False),
             patch(_RECORD) as record,
         ):
             outcome = authentication_service.login_for_access_token(
@@ -162,6 +165,7 @@ class TestPasswordSignIn:
                 MagicMock(),
                 MagicMock(),
                 mock_db,
+                password_change_store=MagicMock(),
                 device_id=_DEVICE_ID,
             )
 
@@ -177,6 +181,7 @@ class TestPasswordSignIn:
             patch(f"{_SERVICE}.users_integration.get_user", return_value=_USER),
             patch(f"{_SERVICE}.users_integration.require_active_user"),
             patch(f"{_SERVICE}.mfa_integration.verify_user_mfa", return_value=True),
+            patch(f"{_SERVICE}.credentials_integration.is_password_change_required", return_value=False),
             patch(f"{_SERVICE}.server_settings_integration.get_session_policy"),
             patch("modules.auth.authentication.token_service.create_tokens", return_value=_TOKENS),
             patch(
@@ -195,6 +200,7 @@ class TestPasswordSignIn:
                 MagicMock(),
                 MagicMock(),
                 mock_db,
+                password_change_store=MagicMock(),
                 device_id=None,
             )
 
@@ -219,6 +225,7 @@ class TestSsoSignIn:
             patch(f"{_SERVICE}.users_integration.require_user", return_value=_USER),
             patch(f"{_SERVICE}.users_integration.require_active_user"),
             patch(f"{_SERVICE}.mfa_integration.is_mfa_enabled_for_user", return_value=False),
+            patch(f"{_SERVICE}.credentials_integration.is_password_change_required", return_value=False),
             patch(f"{_SERVICE}.server_settings_integration.get_session_policy"),
             patch("modules.auth.authentication.token_service.create_tokens", return_value=_TOKENS),
             patch(f"{_SERVICE}.sessions_integration.claim_session_for_token_exchange", return_value=_CLAIMED_EXPIRY),
@@ -306,6 +313,7 @@ def _login_app(mock_db, client_type: str) -> TestClient:
 @pytest.fixture
 def web_login_body():
     body = {
+        "next_step": "tokens",
         "session_id": "sid",
         "access_token": "at",
         "csrf_token": "csrf",
@@ -388,6 +396,7 @@ class TestMfaVerifyRoute:
         with patch(f"{_SERVICE}.verify_mfa_and_login") as verify:
             verify.return_value = auth_schema.AuthOutcome(
                 {
+                    "next_step": "tokens",
                     "session_id": "sid",
                     "access_token": "at",
                     "csrf_token": "csrf",

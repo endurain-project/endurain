@@ -14,7 +14,7 @@ Search by username, and filter the list by:
 
 ## Adding a user
 
-**Add user** creates an account with a name, username, email, access type (regular user or administrator) and a password. The password must satisfy the [password policy](accounts-and-sign-in.md#password-rules). Creating an administrator asks for your own password and MFA code first; creating a regular user does not. A new account starts with the default settings every account gets.
+**Add user** creates an account with a name, username, email, access type (regular user or administrator) and a password. The password must satisfy the [password policy](accounts-and-sign-in.md#password-rules). Creating an administrator asks for your own password and MFA code first; creating a regular user does not. A new account starts with the default settings every account gets. Because you know the password you chose, the user has to [choose a new one at their next sign-in](#password-set-by-an-administrator).
 
 ## Editing a user
 
@@ -48,6 +48,10 @@ Approve the user from their row. Endurain activates the account and emails the u
 ## Resetting a password
 
 **Reset password** sets a new password for the user without needing their current one. It must satisfy the password policy. Endurain revokes the user's sessions and other sign-in state, so they must sign in again with the new password. Use this when a user cannot receive the [reset email](accounts-and-sign-in.md#forgotten-password), for example because no mail server is configured. It is also how an account that has no local password gets one: such an account cannot set its own. It asks for your own password and MFA code (or a fresh identity-provider sign-in if your account has no password). An administrator cannot reset their own password here.
+
+### Password set by an administrator
+
+A password an administrator sets, whether with **Reset password** or when adding the user, is known to the administrator, so the user must change it at their next sign-in. After the right password (and the MFA code, if the account has MFA), sign-in asks for a new password and its confirmation. The new password must satisfy the [password policy](accounts-and-sign-in.md#password-rules) and differ from the one the administrator set; a rejected password can be replaced without signing in again. No session exists until the new password is saved, and the user is then signed in. The challenge for choosing the password expires after 10 minutes; after that the user signs in again. Single sign-on does not use the password, so signing in through an identity provider is not affected. A password the user chooses themselves, by changing it in **Settings → Security**, through a reset email or when confirming a sign-up, never asks for another change. The first administrator, who chooses a password during setup, is not asked either.
 
 ## Sessions and identity providers
 

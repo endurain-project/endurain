@@ -29,6 +29,8 @@ class LoginFailureReason(StrEnum):
     INVALID_MFA_CODE = "invalid_mfa_code"
     MFA_CHALLENGE_EXPIRED = "mfa_challenge_expired"
     MFA_CHALLENGE_CLAIMED = "mfa_challenge_claimed"
+    PASSWORD_CHANGE_CHALLENGE_INVALID = "password_change_challenge_invalid"
+    PASSWORD_CHANGE_CHALLENGE_CLAIMED = "password_change_challenge_claimed"
     INVALID_STATE = "invalid_state"
     INVALID_ID_TOKEN = "invalid_id_token"
     PROVISIONING_REFUSED = "provisioning_refused"

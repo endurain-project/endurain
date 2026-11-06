@@ -117,9 +117,9 @@ Instead of tokens, receive a session_id for token exchange:
 
 ```json
 {
+  "next_step": "exchange",
   "session_id": "550e8400-e29b-41d4-a716-446655440000",
-  "mfa_required": false,
-  "message": "Complete authentication by exchanging tokens at /public/idp/session/{session_id}/tokens"
+  "device_id": "<device id to send as X-Device-Id on later sign-ins>"
 }
 ```
 
@@ -206,10 +206,10 @@ Responds with tokens directly (no PKCE):
 If the user has MFA enabled, the flow includes an additional MFA verification step:
 
 1. Client sends login with PKCE parameters
-2. Backend returns `"mfa_required": true` with a message and an `mfa_challenge` that names this login
+2. Backend returns `"next_step": "mfa"` with an `mfa_challenge` that names this login
 3. Client collects MFA code from user
 4. Client sends the `mfa_challenge` and the MFA code to `/auth/mfa/verify` with PKCE parameters
-5. Backend verifies MFA and returns session_id (for PKCE) or tokens directly
+5. Backend verifies MFA and returns `next_step: "exchange"` with a session_id (for PKCE), or `tokens` directly. For an account whose password an administrator set, it returns `next_step: "password_change"` first; the PKCE values are kept with that step, so `/auth/password-change` takes no query parameters and answers `exchange` too (see [Password change at sign-in](authentication.md#password-change-at-sign-in))
 6. Client exchanges session_id for tokens using code_verifier
 
 **MFA Verification with PKCE:**
@@ -229,9 +229,9 @@ X-Client-Type: mobile
 
 ```json
 {
+  "next_step": "exchange",
   "session_id": "550e8400-e29b-41d4-a716-446655440000",
-  "mfa_required": false,
-  "message": "Complete authentication by exchanging tokens at /public/idp/session/{session_id}/tokens"
+  "device_id": "<device id to send as X-Device-Id on later sign-ins>"
 }
 ```
 

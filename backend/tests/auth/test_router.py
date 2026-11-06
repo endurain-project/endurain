@@ -169,9 +169,15 @@ class TestLoginEndpoint:
     @pytest.fixture(autouse=True)
     def _local_login_enabled(self):
         """Serve server settings that allow password sign-in instead of reading them from the database."""
-        with patch(
-            "modules.auth.authentication.service.server_settings_integration.get_server_settings",
-            return_value=MagicMock(local_login_enabled=True),
+        with (
+            patch(
+                "modules.auth.authentication.service.server_settings_integration.get_server_settings",
+                return_value=MagicMock(local_login_enabled=True),
+            ),
+            patch(
+                "modules.auth.authentication.service.credentials_integration.is_password_change_required",
+                return_value=False,
+            ),
         ):
             yield
 
@@ -196,6 +202,7 @@ class TestLoginEndpoint:
         mock_mfa_check.return_value = False
         mock_complete_login.return_value = auth_schema.AuthOutcome(
             {
+                "next_step": "tokens",
                 "session_id": "sid-1",
                 "access_token": "at-1",
                 "csrf_token": "csrf-1",
@@ -238,6 +245,7 @@ class TestLoginEndpoint:
         mock_mfa_check.return_value = False
         mock_complete_login.return_value = auth_schema.AuthOutcome(
             {
+                "next_step": "tokens",
                 "session_id": "sid-1",
                 "access_token": "at-1",
                 "refresh_token": "rt-1",
@@ -334,8 +342,8 @@ class TestLoginEndpoint:
 
         assert response.status_code == 200
         data = response.json()
-        assert data["mfa_required"] is True
-        assert data["username"] == "mfauser"
+        assert data["next_step"] == "mfa"
+        assert set(data) == {"next_step", "mfa_challenge"}
         # The only handle /auth/mfa/verify accepts, so nobody who did not sign in can submit codes.
         assert fake_pending_mfa_store.get_pending_login(data["mfa_challenge"]) == 1
 
@@ -371,7 +379,7 @@ class TestLoginEndpoint:
         mock_auth.return_value = mock_user
         mock_check_active.return_value = None
         mock_mfa_check.return_value = False
-        mock_pkce.return_value = auth_schema.MobileSessionRead(session_id="pkce-sid")
+        mock_pkce.return_value = auth_schema.MobileSessionRead(next_step="exchange", session_id="pkce-sid")
 
         challenge = "E9Melhoa2OwvFrEMTJguCHaoeK1t8URWbuGJSstw-cM"
         response = auth_client.post(
@@ -530,7 +538,7 @@ class TestLoginEndpoint:
             data={"username": "mfauser", "password": "Password1!"},
         )
         assert response.status_code == 200
-        assert response.json()["mfa_required"] is True
+        assert response.json()["next_step"] == "mfa"
         assert len(response.json()["mfa_challenge"]) >= 43
 
 
@@ -545,7 +553,13 @@ class TestMFAVerifyEndpoint:
     @pytest.fixture(autouse=True)
     def challenged_user(self):
         """The account a challenge names, read before its code is checked."""
-        with patch("modules.auth.authentication.service.users_integration.get_user") as get_user:
+        with (
+            patch("modules.auth.authentication.service.users_integration.get_user") as get_user,
+            patch(
+                "modules.auth.authentication.service.credentials_integration.is_password_change_required",
+                return_value=False,
+            ),
+        ):
             get_user.return_value = MagicMock(id=1, username="testuser", active=True)
             yield get_user
 
@@ -573,6 +587,7 @@ class TestMFAVerifyEndpoint:
         mock_check_active.return_value = None
         mock_complete_login.return_value = auth_schema.AuthOutcome(
             {
+                "next_step": "tokens",
                 "session_id": "sid-mfa",
                 "access_token": "at-mfa",
                 "csrf_token": "csrf-mfa",
@@ -647,6 +662,7 @@ class TestMFAVerifyEndpoint:
         mock_check_active.return_value = None
         mock_complete_login.return_value = auth_schema.AuthOutcome(
             {
+                "next_step": "tokens",
                 "session_id": "sid-backup",
                 "access_token": "at-backup",
                 "csrf_token": "csrf-backup",
@@ -895,7 +911,7 @@ class TestMFAVerifyEndpoint:
         mock_user.username = "testuser"
         mock_get_user.return_value = mock_user
         mock_check_active.return_value = None
-        mock_pkce.return_value = auth_schema.MobileSessionRead(session_id="pkce-sid-mfa")
+        mock_pkce.return_value = auth_schema.MobileSessionRead(next_step="exchange", session_id="pkce-sid-mfa")
         pkce_challenge = "E9Melhoa2OwvFrEMTJguCHaoeK1t8URWbuGJSstw-cM"
         response = auth_client.post(
             f"/auth/mfa/verify?code_challenge={pkce_challenge}&code_challenge_method=S256",

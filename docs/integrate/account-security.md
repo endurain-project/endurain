@@ -185,12 +185,12 @@ username=user@example.com&password=userpassword
 
 ```json
 {
-  "mfa_required": true,
-  "username": "example",
-  "mfa_challenge": "<opaque challenge>",
-  "message": "MFA verification required"
+  "next_step": "mfa",
+  "mfa_challenge": "<opaque challenge>"
 }
 ```
+
+Every sign-in answer carries a `next_step`; see [Sign-in steps](authentication.md#sign-in-steps). A client that receives a `next_step` it does not know must stop and ask the user to update the app.
 
 ### Step 2: MFA Verification
 Complete the login by providing the MFA code (TOTP or backup code) to `/auth/mfa/verify`:
@@ -213,12 +213,13 @@ X-Client-Type: web|mobile
 !!! tip "Backup Code Format"
     Users can also use a backup code instead of a TOTP code. Backup codes are in `XXXX-XXXX` format (e.g., `A3K9-7BDF`). See [MFA Backup Codes](#mfa-backup-codes) for details.
 
-**Response (successful verification):**
+**Response (successful verification):** `next_step` is `tokens`, or `exchange` for a mobile client that sent a PKCE challenge. When an administrator set the account's password the answer is `{"next_step": "password_change", "password_change_challenge": "..."}` and no session exists yet; see [Password change at sign-in](authentication.md#password-change-at-sign-in).
 
 - **Web clients**: Access token and CSRF token in response body, refresh token as httpOnly cookie
 
 ```json
 {
+  "next_step": "tokens",
   "session_id": "unique_session_id",
   "access_token": "eyJ...",
   "csrf_token": "abc123...",
@@ -232,6 +233,7 @@ X-Client-Type: web|mobile
 
 ```json
 {
+  "next_step": "tokens",
   "session_id": "unique_session_id",
   "access_token": "eyJ...",
   "refresh_token": "eyJ...",

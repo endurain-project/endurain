@@ -8,9 +8,9 @@ Rows are written and read through ``modules.auth.credentials.crud``.
 
 from datetime import datetime
 
-from sqlalchemy import DateTime, ForeignKey, String
+from sqlalchemy import Boolean, DateTime, ForeignKey, String
 from sqlalchemy.orm import Mapped, mapped_column
-from sqlalchemy.sql import func
+from sqlalchemy.sql import expression, func
 
 from core.database import Base
 
@@ -25,6 +25,8 @@ class LocalCredential(Base):
     Attributes:
         user_id: FK to ``users.id`` and primary key (one row per user).
         password_hash: Argon2/bcrypt password hash.
+        password_change_required: Whether the owner must choose a new password at the next sign-in; true after
+            an administrator wrote the password.
         created_at: Row creation timestamp.
         updated_at: Last update timestamp.
     """
@@ -39,6 +41,12 @@ class LocalCredential(Base):
         String(250),
         nullable=False,
         comment="Local account password hash",
+    )
+    password_change_required: Mapped[bool] = mapped_column(
+        Boolean,
+        nullable=False,
+        server_default=expression.false(),
+        comment="Whether the owner must choose a new password at the next sign-in (an administrator wrote it)",
     )
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),

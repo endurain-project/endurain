@@ -8,9 +8,15 @@ import core.logger as core_logger
 import core.network as core_network
 import modules.auth.access_tokens.integration_service as access_tokens_integration
 import modules.auth.authentication.failed_login_store as failed_login_store
+import modules.auth.authentication.pending_password_change_store as pending_password_change_store
 import modules.auth.authentication.principal_service as principal_service
+import modules.auth.authentication.schema as authentication_schema
+import modules.auth.authentication.service as authentication_service
+import modules.auth.constants as auth_constants
 import modules.auth.contracts as auth_contracts
+import modules.auth.credentials.integration_service as credentials_integration
 import modules.auth.lockout.contracts as lockout_contracts
+import modules.users.users.schema as users_schema
 
 logger = core_logger.get_logger(__name__)
 
@@ -38,3 +44,50 @@ def clear_account_login_lockout(username: str) -> None:
         failed_login_store.FailedLoginAttempts(core_dependencies.get_platform_state()).reset_account(username)
     except lockout_contracts.AuthSecurityStoreUnavailableError:
         logger.warning("Account sign-in lock was not cleared because the shared state is unavailable")
+
+
+PendingPasswordChange = pending_password_change_store.PendingPasswordChange
+PendingPasswordChangeStore = pending_password_change_store.PendingPasswordChangeStore
+get_pending_password_change_store = pending_password_change_store.get_pending_password_change_store
+
+
+def raise_auth_security_store_unavailable(err: lockout_contracts.AuthSecurityStoreUnavailableError) -> None:
+    """Answer an outage of the shared authentication state with a controlled 503.
+
+    Args:
+        err: The outage.
+
+    Raises:
+        ServiceUnavailableError: Always.
+    """
+    authentication_service.raise_auth_security_store_unavailable(err)
+
+
+def finish_login(
+    ip_address: str,
+    user_agent: str,
+    user: users_schema.UserRead,
+    client_type: auth_constants.ClientType,
+    code_challenge: str | None,
+    code_challenge_method: str | None,
+    password_hasher: credentials_integration.PasswordHasher,
+    token_manager: access_tokens_integration.TokenManager,
+    db: Session,
+    *,
+    mfa: bool,
+    device_id: str | None,
+) -> authentication_schema.AuthOutcome[authentication_schema.FinishedLoginRead]:
+    """Complete a verified sign-in with tokens or, for a mobile PKCE client, a session to exchange."""
+    return authentication_service.finish_login(
+        ip_address,
+        user_agent,
+        user,
+        client_type,
+        code_challenge,
+        code_challenge_method,
+        password_hasher,
+        token_manager,
+        db,
+        mfa=mfa,
+        device_id=device_id,
+    )

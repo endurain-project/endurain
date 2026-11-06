@@ -670,7 +670,7 @@ def verify_email(token: str, password: str | None, db: Session) -> sign_up_schem
             username=user.username,
             email=user.email,
         )
-        credentials_integration.set_local_password_hash(user_id, hashed_password, db)
+        credentials_integration.set_local_password_hash(user_id, hashed_password, db, change_required=False)
         password_reset_tokens_integration.revoke_unused_tokens(user_id, db)
         sessions_integration.delete_sessions_by_user(user_id, db)
 

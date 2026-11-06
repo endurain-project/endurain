@@ -98,6 +98,10 @@ _AUDITED_WRITES: dict[tuple[str, str], tuple[str, ...]] = {
         "auth.lockout.apply",
         "auth.step_up.verify",
     ),
+    ("auth/account_security/public_router.py", "complete_password_change"): (
+        "auth.password.change",
+        "auth.session.login",
+    ),
     ("auth/account_security/sessions_router.py", "delete_profile_other_sessions"): ("auth.session.revoke",),
     ("auth/account_security/sessions_router.py", "delete_profile_session"): ("auth.session.revoke",),
     ("auth/authentication/public_router.py", "login_for_access_token"): ("auth.lockout.apply", "auth.session.login"),

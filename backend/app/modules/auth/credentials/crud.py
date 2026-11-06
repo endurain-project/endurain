@@ -16,15 +16,20 @@ def get_credential(user_id: int, db: Session) -> credentials_contracts.Credentia
     return credentials_serializers.to_read_schema(row) if row is not None else None
 
 
-def upsert_password_hash(user_id: int, password_hash: str, db: Session) -> None:
-    """Stage a local password hash insert or update."""
+def upsert_password_hash(user_id: int, password_hash: str, change_required: bool, db: Session) -> None:
+    """Stage a local password hash insert or update, with whether its owner must replace the password."""
     row = db.execute(
         select(credentials_models.LocalCredential).where(credentials_models.LocalCredential.user_id == user_id)
     ).scalar_one_or_none()
     if row is None:
-        db.add(credentials_models.LocalCredential(user_id=user_id, password_hash=password_hash))
+        db.add(
+            credentials_models.LocalCredential(
+                user_id=user_id, password_hash=password_hash, password_change_required=change_required
+            )
+        )
     else:
         row.password_hash = password_hash
+        row.password_change_required = change_required
     db.flush()
 
 

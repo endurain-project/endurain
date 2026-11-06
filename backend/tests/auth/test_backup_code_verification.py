@@ -27,7 +27,9 @@ def session_factory():
     ensure_user(factory, _USER_ID)
     hasher = credentials_integration.get_password_hasher()
     with factory() as db:
-        credentials_integration.set_local_password_hash(_USER_ID, hasher.hash_password(_PASSWORD), db)
+        credentials_integration.set_local_password_hash(
+            _USER_ID, hasher.hash_password(_PASSWORD), db, change_required=False
+        )
         mfa_crud.update_user_mfa(
             _USER_ID, db, encrypted_secret=core_cryptography.encrypt_token_fernet(pyotp.random_base32())
         )

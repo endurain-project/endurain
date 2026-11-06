@@ -265,7 +265,7 @@ class TestVerifyEmailOfAPendingChange:
 
     def test_a_sign_up_token_leaves_the_address_alone_and_sends_no_notice(self, db):
         self._activate(db)
-        credentials_integration.set_local_password_hash(7, "existing-hash", db)
+        credentials_integration.set_local_password_hash(7, "existing-hash", db, change_required=False)
         _add_token(db, token_id="t1", token="plain", email="user7@example.com", previous_email=None)
 
         with patch(_PUBLISH) as publish:
@@ -583,7 +583,7 @@ class TestSignUpPrehijack:
         user = db.get(users_models.Users, 7)
         user.active = False
         credentials_integration.set_local_password_hash(
-            7, credentials_integration.get_password_hasher().hash_password("AttackerPass1!"), db
+            7, credentials_integration.get_password_hasher().hash_password("AttackerPass1!"), db, change_required=False
         )
         _add_token(db, token_id="t1", token="plain", email="user7@example.com", previous_email=None)
         db.commit()

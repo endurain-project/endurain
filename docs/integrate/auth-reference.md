@@ -34,7 +34,7 @@ The following environment variables control authentication behavior:
 #### Rate Limiting and Shared State
 
 Rate-limit counters and all auth-security state (login/step-up lockout, pending
-MFA login state, MFA setup secrets, Garmin MFA codes, websocket tickets) share
+MFA login and password-change state, MFA setup secrets, Garmin MFA codes, websocket tickets) share
 one backend selected by `DEPLOYMENT_PROFILE`.
 
 | Variable | Description | Default | Required |

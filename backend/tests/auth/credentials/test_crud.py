@@ -10,7 +10,11 @@ import modules.auth.credentials.crud as credentials_crud
 
 def test_get_credential_returns_internal_dto(mock_db):
     row = SimpleNamespace(
-        user_id=3, password_hash="secret-hash", created_at=datetime.now(UTC), updated_at=datetime.now(UTC)
+        user_id=3,
+        password_hash="secret-hash",
+        password_change_required=True,
+        created_at=datetime.now(UTC),
+        updated_at=datetime.now(UTC),
     )
     mock_db.execute.return_value.scalar_one_or_none.return_value = row
 
@@ -24,9 +28,10 @@ def test_upsert_password_hash_inserts_and_flushes(mock_db):
     row = MagicMock()
     with (
         patch("modules.auth.credentials.crud.select", return_value=MagicMock()),
-        patch("modules.auth.credentials.crud.credentials_models.LocalCredential", return_value=row),
+        patch("modules.auth.credentials.crud.credentials_models.LocalCredential", return_value=row) as model,
     ):
-        credentials_crud.upsert_password_hash(3, "new-hash", mock_db)
+        credentials_crud.upsert_password_hash(3, "new-hash", True, mock_db)
+    model.assert_called_once_with(user_id=3, password_hash="new-hash", password_change_required=True)
     mock_db.add.assert_called_once_with(row)
     mock_db.flush.assert_called_once()
     mock_db.commit.assert_not_called()
@@ -36,9 +41,10 @@ def test_upsert_password_hash_updates_existing_row(mock_db):
     row = MagicMock()
     mock_db.execute.return_value.scalar_one_or_none.return_value = row
 
-    credentials_crud.upsert_password_hash(3, "new-hash", mock_db)
+    credentials_crud.upsert_password_hash(3, "new-hash", False, mock_db)
 
     assert row.password_hash == "new-hash"
+    assert row.password_change_required is False
     mock_db.flush.assert_called_once()
     mock_db.commit.assert_not_called()
 

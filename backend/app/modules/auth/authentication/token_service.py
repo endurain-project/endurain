@@ -156,6 +156,7 @@ def build_token_response(
         # exchange stay in lockstep.
         return auth_schema.AuthOutcome(
             auth_schema.TokenWebRead(
+                next_step="tokens",
                 session_id=session_id,
                 access_token=access_token,
                 csrf_token=csrf_token,
@@ -168,6 +169,7 @@ def build_token_response(
     # Mobile: All tokens in JSON body for secure platform storage.
     return auth_schema.AuthOutcome(
         auth_schema.TokenMobileRead(
+            next_step="tokens",
             session_id=session_id,
             access_token=access_token,
             refresh_token=refresh_token,

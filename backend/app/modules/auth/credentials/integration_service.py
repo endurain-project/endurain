@@ -15,6 +15,11 @@ def get_credential(user_id: int, db: Session) -> credentials_contracts.Credentia
     return credentials_service.get_credential(user_id, db)
 
 
+def is_password_change_required(user_id: int, db: Session) -> bool:
+    """Return whether a user's password was set by an administrator and must be replaced at the next sign-in."""
+    return credentials_service.is_password_change_required(user_id, db)
+
+
 def get_password_hash(user_id: int, db: Session) -> str | None:
     """Return a user's stored local password hash."""
     return credentials_service.get_password_hash(user_id, db)
@@ -25,9 +30,9 @@ def has_local_password(user_id: int, db: Session) -> bool:
     return credentials_service.has_local_password(user_id, db)
 
 
-def set_local_password_hash(user_id: int, password_hash: str, db: Session) -> None:
-    """Stage a user's local password hash."""
-    credentials_service.set_local_password_hash(user_id, password_hash, db)
+def set_local_password_hash(user_id: int, password_hash: str, db: Session, *, change_required: bool) -> None:
+    """Stage a user's local password hash and whether its owner must replace the password at the next sign-in."""
+    credentials_service.set_local_password_hash(user_id, password_hash, db, change_required=change_required)
 
 
 def validate_and_hash_password_for_user(

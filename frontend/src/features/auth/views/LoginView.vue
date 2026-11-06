@@ -18,6 +18,11 @@ import {
 } from '@/features/auth/composables/useLoginRouteMessages'
 import { usePublicServerSettings } from '@/features/config/composables/usePublicServerSettings'
 import PasswordInput from '@/features/security/components/PasswordInput.vue'
+import PasswordStrengthMeter from '@/features/security/components/PasswordStrengthMeter.vue'
+import {
+  usePasswordConfirmation,
+  usePasswordPolicy,
+} from '@/features/security/composables/usePasswordPolicy'
 import { useSafeRedirect } from '@/composables/useSafeRedirect'
 import { useSsoLogin } from '@/features/auth/composables/useSsoLogin'
 import { useToasts } from '@/composables/useToasts'
@@ -25,7 +30,7 @@ import type { IdentityProviderPublic } from '@/types'
 
 import { resolveProviderLogo } from '@/features/identityProviders/utils/providerIcon'
 import { HttpError } from '@/services/http'
-import { useAuthStore } from '@/features/auth/stores/auth'
+import { type LoginResult, useAuthStore } from '@/features/auth/stores/auth'
 import { normalizeMfaCode } from '@/features/auth/utils/mfaCode'
 
 const auth = useAuthStore()
@@ -46,6 +51,9 @@ const username = ref('')
 const password = ref('')
 const mfaCode = ref('')
 const pendingChallenge = ref('')
+const pendingPasswordChangeChallenge = ref('')
+const newPassword = ref('')
+const confirmNewPassword = ref('')
 const forceLocalLogin = ref(false)
 const isLoading = ref(false)
 const isForgotPasswordOpen = ref(false)
@@ -54,47 +62,75 @@ const alert = ref<AlertState | null>(null)
 // A custom icon URL can 404 or be blocked; its button then shows the text alone.
 const failedLogos = reactive(new Set<string>())
 
-const isMfaStep = computed(() => pendingChallenge.value.length > 0 || isSsoMfaPending.value)
-const showLocalLogin = computed(
-  () => serverSettings.value.local_login_enabled || isMfaStep.value || forceLocalLogin.value,
+// The account tier is unknown before signing in; a stricter administrator policy answers 422.
+const { hint: passwordHint, isValid: isValidPassword, policyError } = usePasswordPolicy('regular')
+const { matches: passwordsMatch, error: confirmError } = usePasswordConfirmation(
+  newPassword,
+  confirmNewPassword,
 )
-const showSignUpLink = computed(() => !isMfaStep.value && serverSettings.value.signup_enabled)
+
+const isMfaStep = computed(() => pendingChallenge.value.length > 0 || isSsoMfaPending.value)
+const isPasswordChangeStep = computed(() => pendingPasswordChangeChallenge.value.length > 0)
+const isSecondStep = computed(() => isMfaStep.value || isPasswordChangeStep.value)
+const isNewPasswordValid = computed(
+  () => newPassword.value.length === 0 || isValidPassword(newPassword.value),
+)
+const showLocalLogin = computed(
+  () => serverSettings.value.local_login_enabled || isSecondStep.value || forceLocalLogin.value,
+)
+const showSignUpLink = computed(() => !isSecondStep.value && serverSettings.value.signup_enabled)
 const showSsoProviders = computed(
   () =>
     !isSsoLoading.value &&
-    !isMfaStep.value &&
+    !isSecondStep.value &&
     serverSettings.value.sso_enabled &&
     ssoProviders.value.length > 0,
 )
 const noLoginMethods = computed(
   () => !isSettingsLoading.value && !showLocalLogin.value && !showSsoProviders.value,
 )
-const canSubmit = computed(() =>
-  isMfaStep.value
+const canSubmit = computed(() => {
+  if (isPasswordChangeStep.value) {
+    return isValidPassword(newPassword.value) && passwordsMatch.value
+  }
+  return isMfaStep.value
     ? mfaCode.value.trim().length > 0
-    : username.value.trim().length > 0 && password.value.length > 0,
-)
-const statusText = computed(() =>
-  isMfaStep.value ? t('login.verifyingMfa') : t('login.signingIn'),
-)
-const submitText = computed(() =>
-  isMfaStep.value ? t('login.verifyMfaButton') : t('login.signInButton'),
-)
+    : username.value.trim().length > 0 && password.value.length > 0
+})
+const statusText = computed(() => {
+  if (isPasswordChangeStep.value) {
+    return t('login.changingPassword')
+  }
+  return isMfaStep.value ? t('login.verifyingMfa') : t('login.signingIn')
+})
+const submitText = computed(() => {
+  if (isPasswordChangeStep.value) {
+    return t('login.changePasswordButton')
+  }
+  return isMfaStep.value ? t('login.verifyMfaButton') : t('login.signInButton')
+})
+
+/** The step of the sign-in a request belongs to. */
+type SignInStep = 'password' | 'mfa' | 'passwordChange'
 
 /**
  * Maps a backend HTTP error to a non-enumerating user-facing message.
  *
  * @param error - Caught auth error.
- * @param duringMfa - Whether the failed request was MFA verification.
+ * @param step - The step whose request failed.
  * @returns Translated error message.
  */
-function getAuthErrorMessage(error: unknown, duringMfa: boolean): string {
+function getAuthErrorMessage(error: unknown, step: SignInStep): string {
   if (!(error instanceof HttpError)) {
     return t('login.genericError')
   }
 
-  if (duringMfa && [400, 401, 422].includes(error.status)) {
+  if (step === 'mfa' && [400, 401, 422].includes(error.status)) {
     return t('login.invalidMfa')
+  }
+
+  if (step === 'passwordChange' && error.status === 422) {
+    return policyError(error) ?? t('login.passwordChangeRejected')
   }
 
   switch (error.status) {
@@ -113,7 +149,49 @@ function getAuthErrorMessage(error: unknown, duringMfa: boolean): string {
 }
 
 /**
- * Submits either the password form or the MFA verification form.
+ * Returns to the sign-in form, forgetting every pending step.
+ */
+function resetToSignIn(): void {
+  pendingChallenge.value = ''
+  pendingPasswordChangeChallenge.value = ''
+  mfaCode.value = ''
+  newPassword.value = ''
+  confirmNewPassword.value = ''
+  password.value = ''
+}
+
+/**
+ * Shows the step the server asked for, or reports one this client cannot take.
+ *
+ * @param result - What the login, MFA or password-change request resolved to.
+ * @returns Whether the sign-in completed.
+ */
+function showNextStep(result: LoginResult): boolean {
+  switch (result.status) {
+    case 'authenticated':
+      return true
+    case 'mfa-required':
+      pendingChallenge.value = result.challenge
+      pendingPasswordChangeChallenge.value = ''
+      password.value = ''
+      alert.value = { kind: 'info', message: t('login.mfaRequired') }
+      return false
+    case 'password-change-required':
+      pendingPasswordChangeChallenge.value = result.challenge
+      pendingChallenge.value = ''
+      password.value = ''
+      mfaCode.value = ''
+      alert.value = { kind: 'info', message: t('login.passwordChangeRequired') }
+      return false
+    default:
+      resetToSignIn()
+      alert.value = { kind: 'error', message: t('login.unsupportedStep') }
+      return false
+  }
+}
+
+/**
+ * Submits the password form, the MFA verification form or the password-change form.
  */
 async function submitForm(): Promise<void> {
   if (!canSubmit.value || isLoading.value) {
@@ -122,7 +200,11 @@ async function submitForm(): Promise<void> {
 
   isLoading.value = true
   alert.value = null
-  const duringMfa = isMfaStep.value
+  const step: SignInStep = isPasswordChangeStep.value
+    ? 'passwordChange'
+    : isMfaStep.value
+      ? 'mfa'
+      : 'password'
 
   try {
     if (isSsoMfaPending.value) {
@@ -130,28 +212,49 @@ async function submitForm(): Promise<void> {
       return
     }
 
-    const result = duringMfa
-      ? await auth.verifyMfa(pendingChallenge.value, normalizeMfaCode(mfaCode.value))
-      : await auth.login(username.value.trim(), password.value)
-
-    if (result.status === 'mfa-required') {
-      pendingChallenge.value = result.challenge
-      password.value = ''
-      alert.value = { kind: 'info', message: t('login.mfaRequired') }
-      return
+    let result: LoginResult
+    if (step === 'passwordChange') {
+      result = await auth.changePassword(pendingPasswordChangeChallenge.value, newPassword.value)
+    } else if (step === 'mfa') {
+      result = await auth.verifyMfa(pendingChallenge.value, normalizeMfaCode(mfaCode.value))
+    } else {
+      result = await auth.login(username.value.trim(), password.value)
     }
 
-    await navigateAfterLogin()
+    if (showNextStep(result)) {
+      await navigateAfterLogin()
+    }
   } catch (error) {
-    if (duringMfa) {
+    if (step === 'passwordChange') {
+      handlePasswordChangeError(error)
+      return
+    }
+    if (step === 'mfa') {
       mfaCode.value = ''
     } else {
       password.value = ''
     }
-    alert.value = { kind: 'error', message: getAuthErrorMessage(error, duringMfa) }
+    alert.value = { kind: 'error', message: getAuthErrorMessage(error, step) }
   } finally {
     isLoading.value = false
   }
+}
+
+/**
+ * Handles a failed password-change request: an expired or used challenge sends the user back to the sign-in
+ * form, a refused password keeps the step so the user can choose another.
+ *
+ * @param error - Caught request error.
+ */
+function handlePasswordChangeError(error: unknown): void {
+  if (error instanceof HttpError && error.status === 401) {
+    resetToSignIn()
+    alert.value = { kind: 'error', message: t('login.passwordChangeExpired') }
+    return
+  }
+  newPassword.value = ''
+  confirmNewPassword.value = ''
+  alert.value = { kind: 'error', message: getAuthErrorMessage(error, 'passwordChange') }
 }
 
 /**
@@ -257,7 +360,47 @@ onMounted(async () => {
       </Alert>
 
       <div v-if="showLocalLogin" class="mt-5 flex flex-col gap-3">
-        <template v-if="!isMfaStep">
+        <template v-if="isPasswordChangeStep">
+          <div class="flex flex-col gap-1.5">
+            <Label for="login-new-password">
+              {{ t('login.newPassword') }}
+            </Label>
+            <PasswordInput
+              id="login-new-password"
+              v-model="newPassword"
+              name="newPassword"
+              autocomplete="new-password"
+              :aria-invalid="!isNewPasswordValid"
+              :disabled="isLoading"
+            />
+            <PasswordStrengthMeter :password="newPassword" />
+            <p class="text-hint">
+              {{ passwordHint }}
+            </p>
+            <p v-if="!isNewPasswordValid" class="text-field-error">
+              {{ t('app.password.invalid') }}
+            </p>
+          </div>
+
+          <div class="flex flex-col gap-1.5">
+            <Label for="login-confirm-new-password">
+              {{ t('login.confirmNewPassword') }}
+            </Label>
+            <PasswordInput
+              id="login-confirm-new-password"
+              v-model="confirmNewPassword"
+              name="confirmNewPassword"
+              autocomplete="new-password"
+              :aria-invalid="confirmError !== undefined"
+              :disabled="isLoading"
+            />
+            <p v-if="confirmError" class="text-field-error">
+              {{ confirmError }}
+            </p>
+          </div>
+        </template>
+
+        <template v-else-if="!isMfaStep">
           <div class="flex flex-col gap-1.5">
             <Label for="login-username">
               {{ t('login.username') }}

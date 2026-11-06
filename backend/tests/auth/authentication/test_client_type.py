@@ -80,6 +80,7 @@ class TestMfaUserAlwaysGetsTheChallenge:
             patch(f"{_SERVICE}.server_settings_integration.get_server_settings"),
             patch(f"{_SERVICE}.credentials_integration.allows_password_sign_in", return_value=True),
             patch(f"{_SERVICE}.mfa_integration.is_mfa_enabled_for_user", return_value=True),
+            patch(f"{_SERVICE}.credentials_integration.is_password_change_required", return_value=False),
         ):
             outcome = authentication_service.login_for_access_token(
                 "127.0.0.1",
@@ -92,6 +93,7 @@ class TestMfaUserAlwaysGetsTheChallenge:
                 MagicMock(),
                 MagicMock(),
                 mock_db,
+                password_change_store=MagicMock(),
                 device_id=None,
             )
 

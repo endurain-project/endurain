@@ -664,7 +664,8 @@ export interface paths {
          * @description Verify MFA code and complete login process.
          *
          *     This endpoint verifies the MFA code for a pending login and completes
-         *     the authentication process if the code is valid.
+         *     the authentication process if the code is valid. When an administrator set the
+         *     account's password, the answer is the password-change step instead of a session.
          *
          *     PKCE Support (Mobile):
          *     - Mobile clients can optionally provide code_challenge and code_challenge_method
@@ -673,6 +674,31 @@ export interface paths {
          *             /public/idp/session/{session_id}/tokens
          */
         post: operations["verify_mfa_and_login"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/auth/password-change": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Complete Password Change
+         * @description Choose the new password that an administrator-set password requires, and finish signing in.
+         *
+         *     Sign-in answers `next_step: password_change` when an administrator set the account's password; no session exists
+         *     until this step succeeds. The challenge is valid for 10 minutes, and a password that fails the account's policy
+         *     answers 422 and keeps it. The client type must be the one that signed in. The answer is the one the sign-in
+         *     would have given: `tokens`, or `exchange` for a mobile client that sent a PKCE challenge at sign-in.
+         */
+        post: operations["complete_password_change"];
         delete?: never;
         options?: never;
         head?: never;
@@ -8944,29 +8970,20 @@ export interface components {
         };
         /**
          * MFARequiredRead
-         * @description Response indicating MFA verification is required.
+         * @description Sign-in answer: a second factor must be verified next.
          *
          *     Attributes:
-         *         mfa_required: Indicates whether MFA is required.
-         *         username: Username for which MFA is required.
+         *         next_step: Always ``mfa``; the client sends the MFA code to ``/auth/mfa/verify``.
          *         mfa_challenge: The challenge the MFA step must send back; it names this login.
-         *         message: Message describing the requirement.
          */
         MFARequiredRead: {
-            /**
-             * Message
-             * @default MFA verification required
-             */
-            message: string;
             /** Mfa Challenge */
             mfa_challenge: string;
             /**
-             * Mfa Required
-             * @default true
+             * Next Step
+             * @constant
              */
-            mfa_required: boolean;
-            /** Username */
-            username: string;
+            next_step: "mfa";
         };
         /**
          * MFASetupRead
@@ -9185,27 +9202,21 @@ export interface components {
         MediaType: "photo";
         /**
          * MobileSessionRead
-         * @description Response for mobile password login with PKCE exchange flow.
+         * @description Sign-in answer for a mobile client using PKCE: a session to exchange for tokens.
          *
          *     Attributes:
+         *         next_step: Always ``exchange``; the client exchanges the session at ``/public/idp/session/{session_id}/tokens``.
          *         session_id: Session identifier for token exchange.
-         *         mfa_required: Whether MFA is required.
-         *         message: Instructions for the client on next steps.
          *         device_id: The device id the app keeps and sends as ``X-Device-Id`` on later sign-ins.
          */
         MobileSessionRead: {
             /** Device Id */
             device_id?: string | null;
             /**
-             * Message
-             * @default Complete authentication by exchanging tokens at /public/idp/session/{session_id}/tokens
+             * Next Step
+             * @constant
              */
-            message: string;
-            /**
-             * Mfa Required
-             * @default false
-             */
-            mfa_required: boolean;
+            next_step: "exchange";
             /** Session Id */
             session_id: string;
         };
@@ -9823,6 +9834,37 @@ export interface components {
             page: number;
             /** Total */
             total: number;
+        };
+        /**
+         * PasswordChangeLoginRequest
+         * @description Schema for the password-change step of a sign-in.
+         *
+         *     Attributes:
+         *         password_change_challenge: The challenge the sign-in returned for this login.
+         *         password: The new password; the account's password policy applies.
+         */
+        PasswordChangeLoginRequest: {
+            /** Password */
+            password: string;
+            /** Password Change Challenge */
+            password_change_challenge: string;
+        };
+        /**
+         * PasswordChangeRequiredRead
+         * @description Sign-in answer: the account's password was set by an administrator and must be replaced next.
+         *
+         *     Attributes:
+         *         next_step: Always ``password_change``; the client sends the new password to ``/auth/password-change``.
+         *         password_change_challenge: The challenge the password-change step must send back; it names this login.
+         */
+        PasswordChangeRequiredRead: {
+            /**
+             * Next Step
+             * @constant
+             */
+            next_step: "password_change";
+            /** Password Change Challenge */
+            password_change_challenge: string;
         };
         /**
          * PasswordResetConfirm
@@ -11138,6 +11180,7 @@ export interface components {
          * @description Token response payload for mobile clients.
          *
          *     Attributes:
+         *         next_step: Always ``tokens``; the client is signed in.
          *         session_id: Session identifier.
          *         access_token: Bearer access token.
          *         refresh_token: Refresh token.
@@ -11154,6 +11197,11 @@ export interface components {
             device_id?: string | null;
             /** Expires In */
             expires_in: number;
+            /**
+             * Next Step
+             * @constant
+             */
+            next_step: "tokens";
             /** Refresh Token */
             refresh_token: string;
             /** Refresh Token Expires In */
@@ -11172,6 +11220,7 @@ export interface components {
          * @description Token response payload for web clients.
          *
          *     Attributes:
+         *         next_step: Always ``tokens``; the client is signed in.
          *         session_id: Session identifier.
          *         access_token: Bearer access token.
          *         csrf_token: CSRF token bound to the session.
@@ -11186,6 +11235,11 @@ export interface components {
             csrf_token: string;
             /** Expires In */
             expires_in: number;
+            /**
+             * Next Step
+             * @constant
+             */
+            next_step: "tokens";
             /** Refresh Token Expires In */
             refresh_token_expires_in: number;
             /** Session Id */
@@ -15908,7 +15962,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["MFARequiredRead"] | components["schemas"]["MobileSessionRead"] | components["schemas"]["TokenWebRead"] | components["schemas"]["TokenMobileRead"];
+                    "application/json": components["schemas"]["MFARequiredRead"] | components["schemas"]["PasswordChangeRequiredRead"] | components["schemas"]["MobileSessionRead"] | (components["schemas"]["TokenWebRead"] | components["schemas"]["TokenMobileRead"]);
                 };
             };
             /** @description The username or password is wrong, or the account may not sign in. */
@@ -16097,7 +16151,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["MobileSessionRead"] | components["schemas"]["TokenWebRead"] | components["schemas"]["TokenMobileRead"];
+                    "application/json": components["schemas"]["PasswordChangeRequiredRead"] | components["schemas"]["MobileSessionRead"] | (components["schemas"]["TokenWebRead"] | components["schemas"]["TokenMobileRead"]);
                 };
             };
             /** @description The sign-in challenge is unknown or expired, or its account can no longer sign in. */
@@ -16130,6 +16184,111 @@ export interface operations {
                 };
             };
             /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description The rate limit was reached. */
+            429: {
+                headers: {
+                    /** @description Seconds to wait before the request can succeed. */
+                    "Retry-After"?: number;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description A dependency is unavailable for a moment. */
+            503: {
+                headers: {
+                    /** @description Seconds to wait before the request can succeed. */
+                    "Retry-After"?: number;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Unexpected error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+        };
+    };
+    complete_password_change: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description The kind of client: `web` or `mobile`. */
+                "X-Client-Type": components["schemas"]["ClientType"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PasswordChangeLoginRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MobileSessionRead"] | (components["schemas"]["TokenWebRead"] | components["schemas"]["TokenMobileRead"]);
+                };
+            };
+            /** @description The password-change challenge is unknown, expired or used, or its account no longer needs to change the password. */
+            401: {
+                headers: {
+                    /** @description The authentication challenge. */
+                    "WWW-Authenticate"?: string;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description The account is no longer active. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description The request conflicts with the current state. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description The body is larger than the route accepts. */
+            413: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description The new password does not meet the account's password policy; the challenge stays usable. */
             422: {
                 headers: {
                     [name: string]: unknown;

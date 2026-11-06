@@ -645,6 +645,7 @@ watch(
         :label="t('settings.users.form.confirmPassword')"
         :placeholder="t('settings.users.form.confirmPassword')"
         :error="confirmPasswordError"
+        :hint="t('settings.users.form.mustChangePasswordHint')"
         required
       >
         <template #default="{ fieldId, describedBy, invalid, placeholder }">

@@ -103,7 +103,7 @@ describe('normalizeMfaCode', () => {
 describe('LoginView MFA step', () => {
   beforeEach(() => {
     vi.clearAllMocks()
-    auth.verifyMfa.mockResolvedValue({ status: 'completed' })
+    auth.verifyMfa.mockResolvedValue({ status: 'authenticated' })
     sso.processSsoCallback.mockResolvedValue({ status: 'none' })
   })
 

@@ -45,7 +45,14 @@ class TestPasswordLogin:
                 return_value=_settings(local_login_enabled),
             ),
             patch.object(authentication_service.mfa_integration, "is_mfa_enabled_for_user", return_value=False),
-            patch.object(authentication_service, "_finish_login", return_value="tokens") as finish,
+            patch.object(
+                authentication_service.credentials_integration, "is_password_change_required", return_value=False
+            ),
+            patch.object(
+                authentication_service,
+                "finish_login",
+                return_value=SimpleNamespace(body="tokens", refresh_cookie=None, device_id=None),
+            ) as finish,
         ):
             try:
                 result = authentication_service.login_for_access_token(
@@ -59,6 +66,7 @@ class TestPasswordLogin:
                     MagicMock(),
                     MagicMock(),
                     MagicMock(),
+                    password_change_store=MagicMock(),
                     device_id=None,
                 )
             except core_exceptions.UnauthenticatedError as err:
@@ -76,12 +84,12 @@ class TestPasswordLogin:
     def test_an_administrator_still_signs_in_while_local_sign_in_is_off(self):
         result, _, _ = self._login(_user("admin"), local_login_enabled=False)
 
-        assert result == "tokens"
+        assert result.body == "tokens"
 
     def test_a_regular_user_signs_in_while_local_sign_in_is_on(self):
         result, _, _ = self._login(_user(), local_login_enabled=True)
 
-        assert result == "tokens"
+        assert result.body == "tokens"
 
 
 class TestPasswordReset:

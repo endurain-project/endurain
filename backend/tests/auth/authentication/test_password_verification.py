@@ -20,7 +20,7 @@ def hasher():
 
 
 def _authenticate(stored_hash: str, typed: str, hasher, mock_db):
-    credential = SimpleNamespace(password_hash=stored_hash)
+    credential = SimpleNamespace(password_hash=stored_hash, password_change_required=True)
     with (
         patch(f"{_SERVICE}.users_integration.get_user_by_username", return_value=SimpleNamespace(id=7)),
         patch(f"{_SERVICE}.credentials_integration.get_credential", return_value=credential),
@@ -47,6 +47,8 @@ def test_a_legacy_raw_hash_signs_in_and_is_replaced_by_the_nfc_hash(hasher, mock
     assert user.id == 7
     new_hash = set_hash.call_args.args[1]
     assert hasher.verify_password(_COMPOSED, new_hash)
+    # A rehash is not a password change: it leaves the must-change flag as it was.
+    assert set_hash.call_args.kwargs == {"change_required": True}
 
 
 def test_a_wrong_password_is_refused(hasher, mock_db):
@@ -68,10 +70,13 @@ def test_an_mfa_user_whose_hash_was_updated_has_it_committed_before_the_challeng
             f"{_SERVICE}.users_integration.get_user_by_username",
             return_value=SimpleNamespace(id=7, active=True, access_type="regular"),
         ),
-        patch(f"{_SERVICE}.credentials_integration.get_credential", return_value=SimpleNamespace(password_hash="old")),
+        patch(
+            f"{_SERVICE}.credentials_integration.get_credential",
+            return_value=SimpleNamespace(password_hash="old", password_change_required=False),
+        ),
         patch(
             f"{_SERVICE}.credentials_integration.set_local_password_hash",
-            side_effect=lambda *a: calls.set_hash(*a),
+            side_effect=lambda *a, **kw: calls.set_hash(*a),
         ),
         patch(f"{_SERVICE}.credentials_integration.allows_password_sign_in", return_value=True),
         patch(f"{_SERVICE}.server_settings_integration.get_server_settings"),
@@ -80,7 +85,18 @@ def test_an_mfa_user_whose_hash_was_updated_has_it_committed_before_the_challeng
         failed = MagicMock()
         failed.is_locked_out.return_value = False
         outcome = authentication_service.login_for_access_token(
-            "1.2.3.4", "ua", "alice", "pw", "mobile", failed, pending, hasher, MagicMock(), mock_db, device_id=None
+            "1.2.3.4",
+            "ua",
+            "alice",
+            "pw",
+            "mobile",
+            failed,
+            pending,
+            hasher,
+            MagicMock(),
+            mock_db,
+            password_change_store=MagicMock(),
+            device_id=None,
         )
 
     assert outcome is not None
@@ -92,14 +108,28 @@ def test_a_refused_mfa_login_commits_nothing(mock_db):
     hasher.verify_and_update.return_value = (False, None)
     with (
         patch(f"{_SERVICE}.users_integration.get_user_by_username", return_value=SimpleNamespace(id=7)),
-        patch(f"{_SERVICE}.credentials_integration.get_credential", return_value=SimpleNamespace(password_hash="old")),
+        patch(
+            f"{_SERVICE}.credentials_integration.get_credential",
+            return_value=SimpleNamespace(password_hash="old", password_change_required=False),
+        ),
         patch(f"{_SERVICE}.lockout_integration.report_lockout_applied"),
         pytest.raises(core_exceptions.UnauthenticatedError),
     ):
         failed = MagicMock()
         failed.is_locked_out.return_value = False
         authentication_service.login_for_access_token(
-            "1.2.3.4", "ua", "alice", "pw", "mobile", failed, MagicMock(), hasher, MagicMock(), mock_db, device_id=None
+            "1.2.3.4",
+            "ua",
+            "alice",
+            "pw",
+            "mobile",
+            failed,
+            MagicMock(),
+            hasher,
+            MagicMock(),
+            mock_db,
+            password_change_store=MagicMock(),
+            device_id=None,
         )
 
     mock_db.commit.assert_not_called()

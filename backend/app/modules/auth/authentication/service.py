@@ -16,6 +16,7 @@ import modules.auth.access_tokens.integration_service as access_tokens_integrati
 import modules.auth.authentication.audit_actions as authentication_audit_actions
 import modules.auth.authentication.event_publishers as authentication_event_publishers
 import modules.auth.authentication.failed_login_store as failed_login_store
+import modules.auth.authentication.pending_password_change_store as pending_password_change_store
 import modules.auth.authentication.refusal_audit as authentication_refusal_audit
 import modules.auth.authentication.schema as auth_schema
 import modules.auth.authentication.token_service as authentication_token_service
@@ -167,29 +168,31 @@ def authenticate_user(
         password_hasher.dummy_verify()
         _refuse_credentials(username)
 
-    # Load the user's local password hash from the auth-owned credential
+    # Load the user's local credential from the auth-owned credential
     # table. A missing row means the account has no local password.
     credential = credentials_integration.get_credential(user.id, db)
-    stored_hash = credential.password_hash if credential is not None else None
 
     # User has no local password (SSO-only account). Treat identically
     # to "wrong password" so neither the response body nor the timing
     # discloses the account's auth modality. The dummy verify keeps
     # the latency consistent with a normal Argon2 verify.
-    if stored_hash is None:
+    if credential is None:
         password_hasher.dummy_verify()
         _refuse_credentials(username, user.id)
 
     # Verify password and get updated hash if applicable
     is_password_valid, updated_hash = credentials_integration.verify_and_update_password(
-        password, stored_hash, password_hasher
+        password, credential.password_hash, password_hasher
     )
     if not is_password_valid:
         _refuse_credentials(username, user.id)
 
-    # Update user hash if applicable
+    # Update user hash if applicable. A rehash replaces the hash of the same password, so whether the owner must
+    # change it stays as it was.
     if updated_hash:
-        credentials_integration.set_local_password_hash(user.id, updated_hash, db)
+        credentials_integration.set_local_password_hash(
+            user.id, updated_hash, db, change_required=credential.password_change_required
+        )
 
     # Return the user if the password is correct
     return user
@@ -303,7 +306,7 @@ def create_mobile_pkce_session_response(
         db: Database session
 
     Returns:
-        auth_schema.MobileSessionRead: Contains session_id and mfa_required flag
+        auth_schema.MobileSessionRead: Contains the session_id to exchange for tokens
 
     Raises:
         InvalidInputError: If PKCE parameters are invalid
@@ -355,11 +358,7 @@ def create_mobile_pkce_session_response(
     logger.debug("Mobile PKCE session created", extra=core_logger.context(user_id=user.id))
 
     # Return session_id for token exchange (no tokens yet)
-    return auth_schema.MobileSessionRead(
-        session_id=session_id,
-        mfa_required=False,
-        message=("Complete authentication by exchanging tokens at /public/idp/session/{session_id}/tokens"),
-    )
+    return auth_schema.MobileSessionRead(next_step="exchange", session_id=session_id)
 
 
 def _validate_pkce_query_params(
@@ -511,7 +510,7 @@ def require_valid_mfa_code(
     db.commit()
 
 
-def _finish_login(
+def finish_login(
     ip_address: str,
     user_agent: str,
     user: users_schema.UserRead,
@@ -524,7 +523,7 @@ def _finish_login(
     *,
     mfa: bool,
     device_id: str | None,
-) -> auth_schema.AuthOutcome[auth_schema.LoginRead]:
+) -> auth_schema.AuthOutcome[auth_schema.FinishedLoginRead]:
     """Complete a verified login with tokens or, for a mobile PKCE client, a session to exchange.
 
     The sign-in is recorded against the user's known devices in the same transaction as its audit row and session.
@@ -581,6 +580,53 @@ def _finish_login(
     return auth_schema.AuthOutcome(outcome.body, outcome.refresh_cookie, device_id=sign_in.device_id)
 
 
+def _require_password_change(
+    user: users_schema.UserRead,
+    client_type: auth_constants.ClientType,
+    code_challenge: str | None,
+    code_challenge_method: str | None,
+    store: pending_password_change_store.PendingPasswordChangeStore,
+    db: Session,
+    *,
+    mfa: bool,
+) -> auth_schema.PasswordChangeRequiredRead:
+    """Answer a verified sign-in with the step that makes the owner choose a new password; no session is created.
+
+    Args:
+        user: The user whose password and second factor, if any, are verified.
+        client_type: The client type of the sign-in.
+        code_challenge: PKCE code challenge, if the client sent one.
+        code_challenge_method: PKCE challenge method, if the client sent one.
+        store: Store for pending password changes.
+        db: Database session.
+        mfa: Whether a second factor was verified for this sign-in.
+
+    Returns:
+        The body that carries the challenge the password-change step must send back.
+
+    Raises:
+        ServiceUnavailableError: If the shared state is unavailable.
+    """
+    pending = pending_password_change_store.PendingPasswordChange(
+        user_id=user.id,
+        client_type=client_type,
+        code_challenge=code_challenge,
+        code_challenge_method=code_challenge_method,
+        mfa=mfa,
+    )
+    try:
+        challenge = store.add(pending)
+    except lockout_contracts.AuthSecurityStoreUnavailableError as err:
+        raise_auth_security_store_unavailable(err)
+
+    # The password is verified, so persist a rehash staged by authenticate_user before answering the challenge.
+    db.commit()
+    logger.info(
+        "Password change required for user <user_id> before sign-in", extra=core_logger.context(user_id=user.id)
+    )
+    return auth_schema.PasswordChangeRequiredRead(next_step="password_change", password_change_challenge=challenge)
+
+
 def login_for_access_token(
     ip_address: str,
     user_agent: str,
@@ -595,6 +641,7 @@ def login_for_access_token(
     code_challenge: str | None = None,
     code_challenge_method: str | None = None,
     *,
+    password_change_store: pending_password_change_store.PendingPasswordChangeStore,
     device_id: str | None,
 ) -> auth_schema.AuthOutcome[auth_schema.LoginRead]:
     """Handles user login and access token generation, including Multi-Factor Authentication (MFA) flow.
@@ -614,8 +661,9 @@ def login_for_access_token(
 
     This endpoint authenticates a user using provided credentials, checks if the user is active,
     and determines if MFA is required. If MFA is enabled for the user, it stores the pending login
-    and returns an MFA-required response. Otherwise, it completes the login process and returns
-    the required information.
+    and returns an MFA-required response. If an administrator set the password, it stores the pending
+    password change and returns a password-change response, without a session. Otherwise, it completes
+    the login process and returns the required information.
 
     PKCE Support (Mobile):
     - Mobile clients can optionally provide code_challenge and code_challenge_method
@@ -636,12 +684,14 @@ def login_for_access_token(
         db: Database session
         code_challenge: PKCE code challenge (base64url-encoded SHA256, optional for mobile)
         code_challenge_method: PKCE method (must be S256 if provided, optional for mobile)
+        password_change_store: Store for pending password changes
         device_id: Device id from the browser's device cookie or the mobile app's X-Device-Id header, or None when
             the client sent no valid one
 
     Returns:
         The outcome whose body is:
             - If MFA is required, an MFA-required response (schema or dict depending on client type)
+            - If an administrator set the password, a password-change response
             - If MFA is not required and mobile client with PKCE, the session_id for token exchange
             - If MFA is not required and no PKCE, the tokens from complete_login(), with the refresh cookie for web
 
@@ -730,14 +780,7 @@ def login_for_access_token(
         # This prevents bypassing lockout by triggering MFA flow
 
         # Return MFA required response
-        return auth_schema.AuthOutcome(
-            auth_schema.MFARequiredRead(
-                mfa_required=True,
-                username=username,
-                mfa_challenge=mfa_challenge,
-                message="MFA verification required",
-            )
-        )
+        return auth_schema.AuthOutcome(auth_schema.MFARequiredRead(next_step="mfa", mfa_challenge=mfa_challenge))
 
     # Password authentication successful and no MFA required
     # Reset failed login attempts counter
@@ -746,7 +789,14 @@ def login_for_access_token(
     except lockout_contracts.AuthSecurityStoreUnavailableError as err:
         raise_auth_security_store_unavailable(err)
 
-    return _finish_login(
+    if credentials_integration.is_password_change_required(user.id, db):
+        return auth_schema.AuthOutcome(
+            _require_password_change(
+                user, client_type, code_challenge, code_challenge_method, password_change_store, db, mfa=False
+            )
+        )
+
+    finished = finish_login(
         ip_address,
         user_agent,
         user,
@@ -759,6 +809,7 @@ def login_for_access_token(
         mfa=False,
         device_id=device_id,
     )
+    return auth_schema.AuthOutcome(finished.body, finished.refresh_cookie, finished.device_id)
 
 
 def verify_mfa_and_login(
@@ -774,12 +825,15 @@ def verify_mfa_and_login(
     code_challenge: str | None = None,
     code_challenge_method: str | None = None,
     *,
+    password_change_store: pending_password_change_store.PendingPasswordChangeStore,
     device_id: str | None,
-) -> auth_schema.AuthOutcome[auth_schema.LoginRead]:
+) -> auth_schema.AuthOutcome[auth_schema.MFAVerifyRead]:
     """Verify MFA code and complete login process.
 
     This endpoint verifies the MFA code for a pending login and completes
-    the authentication process if the code is valid.
+    the authentication process if the code is valid. When an administrator set the
+    password, it stores the pending password change and answers a password-change
+    response instead, without a session.
 
     PKCE Support (Mobile):
     - Mobile clients can optionally provide code_challenge and code_challenge_method
@@ -799,11 +853,12 @@ def verify_mfa_and_login(
         db: Database session
         code_challenge: PKCE code challenge (base64url-encoded SHA256, optional for mobile)
         code_challenge_method: PKCE method (must be S256 if provided, optional for mobile)
+        password_change_store: Store for pending password changes
         device_id: Device id from the browser's device cookie or the mobile app's X-Device-Id header, or None when
             the client sent no valid one
 
     Returns:
-        The outcome of complete_login() or the PKCE session response
+        The outcome of complete_login(), the PKCE session response, or the password-change response
 
     Raises:
         DomainError: If the challenge or the MFA code is invalid (answered alike), or the user is not found
@@ -874,7 +929,14 @@ def verify_mfa_and_login(
     except lockout_contracts.AuthSecurityStoreUnavailableError as err:
         raise_auth_security_store_unavailable(err)
 
-    return _finish_login(
+    if credentials_integration.is_password_change_required(user.id, db):
+        return auth_schema.AuthOutcome(
+            _require_password_change(
+                user, client_type, code_challenge, code_challenge_method, password_change_store, db, mfa=True
+            )
+        )
+
+    finished = finish_login(
         ip_address,
         user_agent,
         user,
@@ -887,6 +949,7 @@ def verify_mfa_and_login(
         mfa=True,
         device_id=device_id,
     )
+    return auth_schema.AuthOutcome(finished.body, finished.refresh_cookie, finished.device_id)
 
 
 def logout(

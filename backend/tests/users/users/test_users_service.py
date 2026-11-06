@@ -135,7 +135,9 @@ def _auth_integration_mocks(monkeypatch):
     monkeypatch.setattr(
         credentials_integration,
         "set_local_password_hash",
-        lambda user_id, password_hash, db: mock_call("set_local_password_hash", user_id, password_hash),
+        lambda user_id, password_hash, db, *, change_required: mock_call(
+            "set_local_password_hash", user_id, password_hash, change_required
+        ),
     )
     _delete_all_sessions_mock.side_effect = lambda user_id, db: mock_call("delete_all_user_sessions", user_id)
     monkeypatch.setattr(account_security_integration, "delete_all_user_sessions", _delete_all_sessions_mock)
@@ -416,7 +418,8 @@ class TestCreateUser:
         assert fields["username"] == "newuser" and fields["email"] == "new@example.com"
         assert "password" not in fields
         mock_db.commit.assert_called_once()
-        identity.set_local_password_hash.assert_called_once_with(7, "hash")
+        # An administrator knows the password they set, so the user must change it at the next sign-in.
+        identity.set_local_password_hash.assert_called_once_with(7, "hash", True)
         mock_defaults.assert_called_once_with(7, mock_db)
         assert created.id == 7
 
@@ -580,7 +583,8 @@ class TestStageFirstAdmin:
             "username": "Owner",
             "email": "Owner@example.com",
         }
-        identity.set_local_password_hash.assert_called_once_with(1, "hash")
+        # The first administrator chose their own password.
+        identity.set_local_password_hash.assert_called_once_with(1, "hash", False)
         mock_defaults.assert_called_once_with(1, mock_db)
         mock_db.commit.assert_not_called()
         mock_db.rollback.assert_not_called()
@@ -725,7 +729,7 @@ class TestCreateSignupUser:
         users_service.stage_signup_user(_signup(), self._settings(False, False), mock_db)
 
         identity.set_local_password_hash.assert_called_once()
-        assert identity.set_local_password_hash.call_args.args[:2] == (3, "hashed")
+        assert identity.set_local_password_hash.call_args.args == (3, "hashed", False)
 
     @patch("modules.users.users.service._stage_default_data")
     @patch(_CRUD)

@@ -150,6 +150,7 @@ export function useSsoLogin() {
     }
 
     await auth.completeTokenLogin({
+      next_step: 'tokens',
       session_id: tokenData.session_id,
       access_token: tokenData.access_token,
       csrf_token: tokenData.csrf_token,

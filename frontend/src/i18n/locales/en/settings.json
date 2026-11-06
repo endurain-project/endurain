@@ -73,6 +73,7 @@
       "passwordHint": "At least 8 characters",
       "passwordRequired": "Password is required",
       "confirmPassword": "Confirm password",
+      "mustChangePasswordHint": "The user will have to choose a new password at their next sign-in.",
       "confirmPasswordRequired": "Confirm the password",
       "preferredLanguage": "Preferred language",
       "languages": {

@@ -251,7 +251,7 @@ def use_password_reset_token(token: str, new_password: str, db: Session) -> None
         email=user.email,
     )
 
-    credentials_integration.set_local_password_hash(token_user_id, hashed_password, db)
+    credentials_integration.set_local_password_hash(token_user_id, hashed_password, db, change_required=False)
     password_reset_crud.mark_user_password_reset_tokens_used(token_user_id, db)
     sessions_integration.delete_sessions_by_user(token_user_id, db)
     jasil_audit.stage(

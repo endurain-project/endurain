@@ -21,6 +21,7 @@ import core.rate_limit as core_rate_limit
 import modules.auth.access_tokens.integration_service as access_tokens_integration
 import modules.auth.authentication.dependencies as authentication_dependencies
 import modules.auth.authentication.failed_login_store as failed_login_store
+import modules.auth.authentication.pending_password_change_store as pending_password_change_store
 import modules.auth.authentication.refresh_service as auth_refresh_service
 import modules.auth.authentication.schema as auth_schema
 import modules.auth.authentication.service as auth_service
@@ -37,12 +38,7 @@ router = APIRouter()
 
 @router.post(
     "/login",
-    response_model=(
-        auth_schema.MFARequiredRead
-        | auth_schema.MobileSessionRead
-        | auth_schema.TokenWebRead
-        | auth_schema.TokenMobileRead
-    ),
+    response_model=auth_schema.LoginRead,
     responses={401: {"description": "The username or password is wrong, or the account may not sign in."}},
 )
 @core_rate_limit.limiter.limit(core_rate_limit.SENSITIVE)
@@ -58,6 +54,10 @@ def login_for_access_token(
     pending_mfa_store: Annotated[
         mfa_dependencies.PendingMFAStore,
         Depends(mfa_dependencies.get_pending_mfa_store),
+    ],
+    password_change_store: Annotated[
+        pending_password_change_store.PendingPasswordChangeStore,
+        Depends(pending_password_change_store.get_pending_password_change_store),
     ],
     password_hasher: Annotated[
         credentials_integration.PasswordHasher,
@@ -103,6 +103,7 @@ def login_for_access_token(
         client_type: The type of client making the request ("web" or "mobile")
         failed_attempts: Failed login attempts tracker for progressive lockout
         pending_mfa_store: Store for pending MFA logins
+        password_change_store: Store for pending password changes
         password_hasher: The password hasher instance used for verifying passwords
         token_manager: The token manager instance used for token operations
         db: Database session
@@ -114,6 +115,7 @@ def login_for_access_token(
     Returns:
         Union[auth_schema.MFARequiredResponse, dict, str]:
             - If MFA is required, returns an MFA-required response (schema or dict depending on client type)
+            - If an administrator set the password, returns a password-change response and no session
             - If MFA is not required and mobile client with PKCE, returns session_id for token exchange
             - If MFA is not required and no PKCE, proceeds with normal login via auth_utils.complete_login()
 
@@ -133,6 +135,7 @@ def login_for_access_token(
         db,
         code_challenge,
         code_challenge_method,
+        password_change_store=password_change_store,
         device_id=device_id,
     )
     return authentication_dependencies.deliver_auth_outcome(response, outcome)
@@ -140,7 +143,7 @@ def login_for_access_token(
 
 @router.post(
     "/mfa/verify",
-    response_model=(auth_schema.MobileSessionRead | auth_schema.TokenWebRead | auth_schema.TokenMobileRead),
+    response_model=auth_schema.MFAVerifyRead,
     responses={
         401: {"description": "The sign-in challenge is unknown or expired, or its account can no longer sign in."}
     },
@@ -159,6 +162,10 @@ def verify_mfa_and_login(
         mfa_dependencies.PendingMFAStore,
         Depends(mfa_dependencies.get_pending_mfa_store),
     ],
+    password_change_store: Annotated[
+        pending_password_change_store.PendingPasswordChangeStore,
+        Depends(pending_password_change_store.get_pending_password_change_store),
+    ],
     password_hasher: Annotated[
         credentials_integration.PasswordHasher,
         Depends(credentials_integration.get_password_hasher),
@@ -171,11 +178,12 @@ def verify_mfa_and_login(
     device_id: known_devices_dependencies.DeviceId,
     code_challenge: Annotated[str | None, Query()] = None,
     code_challenge_method: Annotated[str | None, Query()] = None,
-) -> auth_schema.LoginRead:
+) -> auth_schema.MFAVerifyRead:
     """Verify MFA code and complete login process.
 
     This endpoint verifies the MFA code for a pending login and completes
-    the authentication process if the code is valid.
+    the authentication process if the code is valid. When an administrator set the
+    account's password, the answer is the password-change step instead of a session.
 
     PKCE Support (Mobile):
     - Mobile clients can optionally provide code_challenge and code_challenge_method
@@ -190,6 +198,7 @@ def verify_mfa_and_login(
         mfa_request: MFA login request containing username and MFA code
         client_type: The type of client making the request ("web" or "mobile")
         pending_mfa_store: Store for pending MFA logins
+        password_change_store: Store for pending password changes
         password_hasher: The password hasher instance used for verifying passwords
         token_manager: The token manager instance used for token operations
         db: Database session
@@ -199,7 +208,7 @@ def verify_mfa_and_login(
         code_challenge_method: PKCE method (must be S256 if provided, optional for mobile)
 
     Returns:
-        Result from auth_utils.complete_login() or PKCE session response
+        Result from auth_utils.complete_login(), the PKCE session response, or the password-change response
 
     Raises:
         HTTPException: If no pending login found, MFA code is invalid, or user not found
@@ -216,6 +225,7 @@ def verify_mfa_and_login(
         db,
         code_challenge,
         code_challenge_method,
+        password_change_store=password_change_store,
         device_id=device_id,
     )
     return authentication_dependencies.deliver_auth_outcome(response, outcome)

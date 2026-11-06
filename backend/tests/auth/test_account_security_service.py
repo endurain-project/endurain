@@ -110,7 +110,7 @@ class TestChangeOwnPassword:
         mock_hash_password.assert_called_once_with(
             mock_settings, "regular", "new-pass", mock_db, username="alice", email="alice@example.com"
         )
-        mock_set_password.assert_called_once_with(7, "hashed-new-pass", mock_db)
+        mock_set_password.assert_called_once_with(7, "hashed-new-pass", mock_db, change_required=False)
         mock_clear_pending_mfa.assert_called_once_with(7)
         mock_db.commit.assert_not_called()
         assert len(mock_log.method_calls) == 1
@@ -273,7 +273,8 @@ class TestChangeManagedUserPassword:
         mock_hash_password.assert_called_once_with(
             mock_settings, "regular", "new-pass", mock_db, username="alice", email="alice@example.com"
         )
-        mock_set_password.assert_called_once_with(42, "hashed-managed-pass", mock_db)
+        # An administrator knows this password, so the user must change it at the next sign-in.
+        mock_set_password.assert_called_once_with(42, "hashed-managed-pass", mock_db, change_required=True)
 
         mock_delete_sessions.assert_called_once_with(42, mock_db)
         mock_clear_pending_mfa.assert_called_once_with(42)

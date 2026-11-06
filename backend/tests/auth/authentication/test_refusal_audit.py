@@ -312,7 +312,17 @@ class TestMfaChallengeRefusal:
             patch(f"{_SERVICE}.mfa_integration.verify_user_mfa", return_value=True),
         ):
             authentication_service.verify_mfa_and_login(
-                "127.0.0.1", "agent", request, "web", MagicMock(), store, MagicMock(), MagicMock(), db, device_id=None
+                "127.0.0.1",
+                "agent",
+                request,
+                "web",
+                MagicMock(),
+                store,
+                MagicMock(),
+                MagicMock(),
+                db,
+                password_change_store=MagicMock(),
+                device_id=None,
             )
 
     def test_an_expired_challenge_is_a_failure_with_no_target(self, mock_db):
@@ -392,6 +402,7 @@ class TestLockoutAppliedByFailedCodes:
                 MagicMock(),
                 MagicMock(),
                 mock_db,
+                password_change_store=MagicMock(),
                 device_id=None,
             )
 

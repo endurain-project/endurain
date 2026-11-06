@@ -47,6 +47,7 @@ def _login(db, *, failed_attempts=None, pending_mfa_store=None, username="alice"
         MagicMock(),
         MagicMock(),
         db,
+        password_change_store=MagicMock(),
         device_id=None,
         **kwargs,
     )
@@ -137,6 +138,7 @@ class TestRefusedPasswordSignIn:
             patch(f"{_SERVICE}.server_settings_integration.get_server_settings"),
             patch(f"{_SERVICE}.credentials_integration.allows_password_sign_in", return_value=True),
             patch(f"{_SERVICE}.mfa_integration.is_mfa_enabled_for_user", return_value=True),
+            patch(f"{_SERVICE}.credentials_integration.is_password_change_required", return_value=False),
             jasil_testing.capture_audit() as audit,
         ):
             _login(mock_db, pending_mfa_store=MagicMock(add_pending_login=MagicMock(return_value="challenge")))
@@ -153,6 +155,7 @@ class TestSuccessfulSignIn:
             patch(f"{_SERVICE}.server_settings_integration.get_session_policy"),
             patch(f"{_SERVICE}.credentials_integration.allows_password_sign_in", return_value=True),
             patch(f"{_SERVICE}.mfa_integration.is_mfa_enabled_for_user", return_value=False),
+            patch(f"{_SERVICE}.credentials_integration.is_password_change_required", return_value=False),
             patch("modules.auth.authentication.token_service.create_tokens", return_value=tokens),
             patch(
                 f"{_SERVICE}.sessions_integration.create_session",
@@ -180,6 +183,7 @@ class TestSuccessfulSignIn:
             patch(f"{_SERVICE}.server_settings_integration.get_server_settings"),
             patch(f"{_SERVICE}.credentials_integration.allows_password_sign_in", return_value=True),
             patch(f"{_SERVICE}.mfa_integration.is_mfa_enabled_for_user", return_value=False),
+            patch(f"{_SERVICE}.credentials_integration.is_password_change_required", return_value=False),
             jasil_testing.capture_audit() as audit,
         ):
             _login(mock_db, client_type="mobile", code_challenge=challenge, code_challenge_method="S256")
@@ -201,6 +205,7 @@ class TestMfaSignIn:
             patch(f"{_SERVICE}.users_integration.get_user", return_value=_USER),
             patch(f"{_SERVICE}.users_integration.require_active_user"),
             patch(f"{_SERVICE}.mfa_integration.verify_user_mfa", return_value=code_valid),
+            patch(f"{_SERVICE}.credentials_integration.is_password_change_required", return_value=False),
             patch(f"{_SERVICE}.lockout_integration.report_lockout_applied"),
             patch(f"{_SERVICE}.server_settings_integration.get_session_policy"),
             patch("modules.auth.authentication.token_service.create_tokens", return_value=tokens),
@@ -219,6 +224,7 @@ class TestMfaSignIn:
                 MagicMock(),
                 MagicMock(),
                 db,
+                password_change_store=MagicMock(),
                 device_id=None,
             )
 
@@ -250,6 +256,7 @@ class TestMfaSignIn:
                 MagicMock(),
                 MagicMock(),
                 mock_db,
+                password_change_store=MagicMock(),
                 device_id=None,
             )
 
@@ -380,6 +387,7 @@ class TestSsoSignIn:
             patch(f"{_SERVICE}.users_integration.require_user", return_value=_USER),
             patch(f"{_SERVICE}.users_integration.require_active_user"),
             patch(f"{_SERVICE}.mfa_integration.is_mfa_enabled_for_user", return_value=mfa_enabled),
+            patch(f"{_SERVICE}.credentials_integration.is_password_change_required", return_value=False),
             patch(f"{_SERVICE}.mfa_integration.verify_user_mfa", return_value=True),
             patch(f"{_SERVICE}.server_settings_integration.get_session_policy"),
             patch("modules.auth.authentication.token_service.create_tokens", return_value=tokens),

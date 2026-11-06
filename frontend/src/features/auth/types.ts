@@ -1,4 +1,4 @@
-import type { AuthTokenResponse, Schemas } from '@/types'
+import type { Schemas } from '@/types'
 
 /**
  * The authenticated user as consumed by the app: a clean, camel-cased, fully
@@ -70,23 +70,36 @@ export type UserProfileDto = Pick<
 >
 
 /**
- * Backend response indicating that MFA is required before login completes.
- * Derived from the generated `MFARequiredRead` schema, with
- * `mfa_required` narrowed to the literal `true` so it acts as the discriminant
- * of the {@link LoginResponse} union.
+ * Answer of `POST /auth/login`, told apart by its `next_step`: `mfa` and `password_change` ask for one more step,
+ * `tokens` and `exchange` end the sign-in. Derived from the generated schemas.
  */
-export type MfaRequiredResponse = Omit<Schemas['MFARequiredRead'], 'mfa_required'> & {
-  mfa_required: true
-}
+export type LoginResponse =
+  | Schemas['MFARequiredRead']
+  | Schemas['PasswordChangeRequiredRead']
+  | Schemas['MobileSessionRead']
+  | Schemas['TokenWebRead']
+  | Schemas['TokenMobileRead']
 
-/** Login response from the backend. */
-export type LoginResponse = AuthTokenResponse | MfaRequiredResponse
+/** Answer of `POST /auth/mfa/verify`: any login answer except another MFA step. */
+export type MfaVerifyResponse = Exclude<LoginResponse, Schemas['MFARequiredRead']>
+
+/** Answer of `POST /auth/password-change`: the tokens, or the session of a mobile PKCE client. */
+export type PasswordChangeResponse = Exclude<
+  MfaVerifyResponse,
+  Schemas['PasswordChangeRequiredRead']
+>
 
 /**
  * MFA verification request payload. Derived from the backend's generated
  * `MFALoginRequest` schema.
  */
 export type MfaLoginRequest = Schemas['MFALoginRequest']
+
+/**
+ * Password-change step payload. Derived from the backend's generated
+ * `PasswordChangeLoginRequest` schema.
+ */
+export type PasswordChangeLoginRequest = Schemas['PasswordChangeLoginRequest']
 
 /**
  * Sign-up request payload sent to `POST /sign-up/request`. Derived from the

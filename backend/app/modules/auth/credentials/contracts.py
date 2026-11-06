@@ -79,5 +79,6 @@ class CredentialRead(BaseModel):
 
     user_id: int
     password_hash: str
+    password_change_required: bool
     created_at: datetime
     updated_at: datetime
