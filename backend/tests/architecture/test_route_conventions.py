@@ -335,7 +335,7 @@ def _parameter_aliases(function: ast.FunctionDef) -> str:
 
 
 #: Last path segments that name an action on a resource, not a representation of it.
-_ACTION_SEGMENTS = {"approve", "revoke", "read", "enable", "disable", "unlink"}
+_ACTION_SEGMENTS = {"approve", "revoke", "read", "enable", "disable", "unlink", "accept"}
 
 
 class TestActionRoutes:

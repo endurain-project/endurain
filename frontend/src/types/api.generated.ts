@@ -709,68 +709,6 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/v1/followers/follow-requests": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /**
-         * List Follow Requests
-         * @description List the follow requests awaiting the authenticated user's decision.
-         *
-         *     Always scoped to the caller, so there is no user id to supply and no way to
-         *     read anyone else's pending requests. The page also carries each requester's public profile in
-         *     ``users`` (the projection ``GET /users/{user_id}`` returns), so a token with
-         *     ``followers:read`` alone receives it too.
-         */
-        get: operations["list_follow_requests"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/v1/followers/follow-requests/{follower_id}": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        post?: never;
-        /**
-         * Reject Follow Request
-         * @description Decline the pending follow request from ``follower_id``.
-         *
-         *     Distinct from removing an accepted follower: this refuses access that was
-         *     never granted, which is a different decision even though the row is the same.
-         *     Scoped to pending requests, so removing an accepted follower goes through the
-         *     relationship route rather than arriving here by accident.
-         */
-        delete: operations["reject_follow_request"];
-        options?: never;
-        head?: never;
-        /**
-         * Accept Follow Request
-         * @description Accept the pending follow request from ``follower_id``.
-         *
-         *     Accepting is the only transition this route writes; declining is ``DELETE``
-         *     on the same path, because it removes the request rather than moving it to a
-         *     rejected state. The route is named for what it does so a client does not read
-         *     a general "decide" surface into it and send a rejection here.
-         *
-         *     Returns the row as persisted rather than one assembled from the request, so
-         *     the response cannot claim a state the database does not hold.
-         */
-        patch: operations["accept_follow_request"];
-        trace?: never;
-    };
     "/api/v1/garmin/activities": {
         parameters: {
             query?: never;
@@ -2271,6 +2209,82 @@ export interface paths {
         get: operations["download_profile_export"];
         put?: never;
         post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/profile/follow-requests": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List Follow Requests
+         * @description List the follow requests awaiting the authenticated user's decision.
+         *
+         *     Always scoped to the caller, so there is no user id to supply and no way to
+         *     read anyone else's pending requests. The page also carries each requester's public profile in
+         *     ``users`` (the projection ``GET /users/{user_id}`` returns), so a token with
+         *     ``followers:read`` alone receives it too.
+         */
+        get: operations["list_follow_requests"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/profile/follow-requests/{follower_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /**
+         * Reject Follow Request
+         * @description Decline the pending follow request from ``follower_id``.
+         *
+         *     Distinct from removing an accepted follower: this refuses access that was
+         *     never granted, which is a different decision even though the row is the same.
+         *     Scoped to pending requests, so removing an accepted follower goes through the
+         *     relationship route rather than arriving here by accident.
+         */
+        delete: operations["reject_follow_request"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/profile/follow-requests/{follower_id}/accept": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Accept Follow Request
+         * @description Accept the pending follow request from ``follower_id``.
+         *
+         *     Declining is ``DELETE`` on the request, because it removes the request rather
+         *     than moving it to a rejected state.
+         *
+         *     Returns the row as persisted rather than one assembled from the request, so
+         *     the response cannot claim a state the database does not hold.
+         */
+        post: operations["accept_follow_request"];
         delete?: never;
         options?: never;
         head?: never;
@@ -5451,24 +5465,6 @@ export interface components {
             followee_id: number;
             /** Follower Id */
             follower_id: number;
-            status: components["schemas"]["FollowStatus"];
-        };
-        /**
-         * FollowRequestAccept
-         * @description The body of an accept applied to a pending follow request.
-         *
-         *     Named for the single transition it expresses. ``accepted`` is the only valid
-         *     one: declining deletes the request rather than parking it in a rejected
-         *     state, so a later request from the same user is a fresh decision instead of
-         *     hitting a tombstone. The field is still required so the accept is explicit in
-         *     the payload rather than implied by the route. Unknown fields are rejected
-         *     (``extra="forbid"``) rather than silently ignored, matching every other
-         *     request-body schema in the activities/followers template modules.
-         *
-         *     Attributes:
-         *         status: The target status; only ``accepted`` is valid.
-         */
-        FollowRequestAccept: {
             status: components["schemas"]["FollowStatus"];
         };
         /**
@@ -15903,300 +15899,6 @@ export interface operations {
             };
         };
     };
-    list_follow_requests: {
-        parameters: {
-            query?: {
-                page_number?: number | null;
-                num_records?: number | null;
-            };
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["FollowRelationshipPage"];
-                };
-            };
-            /** @description The credential is missing, invalid or no longer valid. */
-            401: {
-                headers: {
-                    /** @description The authentication challenge. */
-                    "WWW-Authenticate"?: string;
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/problem+json": components["schemas"]["ProblemDetail"];
-                };
-            };
-            /** @description The caller is signed in but not allowed, for example a scope is missing. */
-            403: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/problem+json": components["schemas"]["ProblemDetail"];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/problem+json": components["schemas"]["ProblemDetail"];
-                };
-            };
-            /** @description The rate limit was reached. */
-            429: {
-                headers: {
-                    /** @description Seconds to wait before the request can succeed. */
-                    "Retry-After"?: number;
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/problem+json": components["schemas"]["ProblemDetail"];
-                };
-            };
-            /** @description A dependency is unavailable for a moment. */
-            503: {
-                headers: {
-                    /** @description Seconds to wait before the request can succeed. */
-                    "Retry-After"?: number;
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/problem+json": components["schemas"]["ProblemDetail"];
-                };
-            };
-            /** @description Unexpected error */
-            default: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/problem+json": components["schemas"]["ProblemDetail"];
-                };
-            };
-        };
-    };
-    reject_follow_request: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                follower_id: number;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            204: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-            /** @description The credential is missing, invalid or no longer valid. */
-            401: {
-                headers: {
-                    /** @description The authentication challenge. */
-                    "WWW-Authenticate"?: string;
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/problem+json": components["schemas"]["ProblemDetail"];
-                };
-            };
-            /** @description The caller is signed in but not allowed, for example a scope is missing. */
-            403: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/problem+json": components["schemas"]["ProblemDetail"];
-                };
-            };
-            /** @description The resource does not exist, or is concealed from the caller. */
-            404: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/problem+json": components["schemas"]["ProblemDetail"];
-                };
-            };
-            /** @description The request conflicts with the current state. */
-            409: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/problem+json": components["schemas"]["ProblemDetail"];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/problem+json": components["schemas"]["ProblemDetail"];
-                };
-            };
-            /** @description The rate limit was reached. */
-            429: {
-                headers: {
-                    /** @description Seconds to wait before the request can succeed. */
-                    "Retry-After"?: number;
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/problem+json": components["schemas"]["ProblemDetail"];
-                };
-            };
-            /** @description A dependency is unavailable for a moment. */
-            503: {
-                headers: {
-                    /** @description Seconds to wait before the request can succeed. */
-                    "Retry-After"?: number;
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/problem+json": components["schemas"]["ProblemDetail"];
-                };
-            };
-            /** @description Unexpected error */
-            default: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/problem+json": components["schemas"]["ProblemDetail"];
-                };
-            };
-        };
-    };
-    accept_follow_request: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                follower_id: number;
-            };
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["FollowRequestAccept"];
-            };
-        };
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["FollowRelationshipRead"];
-                };
-            };
-            /** @description The credential is missing, invalid or no longer valid. */
-            401: {
-                headers: {
-                    /** @description The authentication challenge. */
-                    "WWW-Authenticate"?: string;
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/problem+json": components["schemas"]["ProblemDetail"];
-                };
-            };
-            /** @description The caller is signed in but not allowed, for example a scope is missing. */
-            403: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/problem+json": components["schemas"]["ProblemDetail"];
-                };
-            };
-            /** @description The resource does not exist, or is concealed from the caller. */
-            404: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/problem+json": components["schemas"]["ProblemDetail"];
-                };
-            };
-            /** @description The request conflicts with the current state. */
-            409: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/problem+json": components["schemas"]["ProblemDetail"];
-                };
-            };
-            /** @description The body is larger than the route accepts. */
-            413: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/problem+json": components["schemas"]["ProblemDetail"];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/problem+json": components["schemas"]["ProblemDetail"];
-                };
-            };
-            /** @description The rate limit was reached. */
-            429: {
-                headers: {
-                    /** @description Seconds to wait before the request can succeed. */
-                    "Retry-After"?: number;
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/problem+json": components["schemas"]["ProblemDetail"];
-                };
-            };
-            /** @description A dependency is unavailable for a moment. */
-            503: {
-                headers: {
-                    /** @description Seconds to wait before the request can succeed. */
-                    "Retry-After"?: number;
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/problem+json": components["schemas"]["ProblemDetail"];
-                };
-            };
-            /** @description Unexpected error */
-            default: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/problem+json": components["schemas"]["ProblemDetail"];
-                };
-            };
-        };
-    };
     garminconnect_retrieve_activities_days: {
         parameters: {
             query: {
@@ -25667,6 +25369,287 @@ export interface operations {
             };
             /** @description The caller is signed in but not allowed, for example a scope is missing. */
             403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description The rate limit was reached. */
+            429: {
+                headers: {
+                    /** @description Seconds to wait before the request can succeed. */
+                    "Retry-After"?: number;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description A dependency is unavailable for a moment. */
+            503: {
+                headers: {
+                    /** @description Seconds to wait before the request can succeed. */
+                    "Retry-After"?: number;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Unexpected error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+        };
+    };
+    list_follow_requests: {
+        parameters: {
+            query?: {
+                page_number?: number | null;
+                num_records?: number | null;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["FollowRelationshipPage"];
+                };
+            };
+            /** @description The credential is missing, invalid or no longer valid. */
+            401: {
+                headers: {
+                    /** @description The authentication challenge. */
+                    "WWW-Authenticate"?: string;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description The caller is signed in but not allowed, for example a scope is missing. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description The rate limit was reached. */
+            429: {
+                headers: {
+                    /** @description Seconds to wait before the request can succeed. */
+                    "Retry-After"?: number;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description A dependency is unavailable for a moment. */
+            503: {
+                headers: {
+                    /** @description Seconds to wait before the request can succeed. */
+                    "Retry-After"?: number;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Unexpected error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+        };
+    };
+    reject_follow_request: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                follower_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description The credential is missing, invalid or no longer valid. */
+            401: {
+                headers: {
+                    /** @description The authentication challenge. */
+                    "WWW-Authenticate"?: string;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description The caller is signed in but not allowed, for example a scope is missing. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description The resource does not exist, or is concealed from the caller. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description The request conflicts with the current state. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description The rate limit was reached. */
+            429: {
+                headers: {
+                    /** @description Seconds to wait before the request can succeed. */
+                    "Retry-After"?: number;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description A dependency is unavailable for a moment. */
+            503: {
+                headers: {
+                    /** @description Seconds to wait before the request can succeed. */
+                    "Retry-After"?: number;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Unexpected error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+        };
+    };
+    accept_follow_request: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                follower_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["FollowRelationshipRead"];
+                };
+            };
+            /** @description The credential is missing, invalid or no longer valid. */
+            401: {
+                headers: {
+                    /** @description The authentication challenge. */
+                    "WWW-Authenticate"?: string;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description The caller is signed in but not allowed, for example a scope is missing. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description The resource does not exist, or is concealed from the caller. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description The request conflicts with the current state. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
                 headers: {
                     [name: string]: unknown;
                 };

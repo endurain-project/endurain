@@ -167,10 +167,7 @@ export async function followUser(targetId: number): Promise<void> {
  * @throws {HttpError} When the request fails.
  */
 export async function acceptFollower(targetId: number): Promise<void> {
-  await apiFetch<FollowerDto>(`/followers/follow-requests/${targetId}`, {
-    method: 'PATCH',
-    body: JSON.stringify({ status: 'accepted' }),
-  })
+  await apiFetch<FollowerDto>(`/profile/follow-requests/${targetId}/accept`, { method: 'POST' })
 }
 
 /**

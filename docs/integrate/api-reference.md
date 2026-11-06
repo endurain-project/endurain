@@ -6,6 +6,8 @@ Each operation declares the errors it can answer (`401`, `403`, `404`, `409`, `4
 
 Users have one item URL, `GET /users/{user_id}`, and one list, `GET /users`. A token with `users:read_all` (an administrator) gets the full record with its `ETag`, and a token with only `users:read` gets the public projection (`id`, `name`, `username`, `city`, `photo_path`) of a user who is active and has been approved. The list filters by `username` (an exact name) and `username_contains` (at least 3 characters), and an administrator also by `active`, `email_verified`, `pending_approval`, `external_auth` (each `true` or `false`; `external_auth=false` keeps the users with a local password only); a regular token that sends one of those four gets `403`. A regular token's list leaves out users who switched off "Let others find me in search". A user's profile page data is `GET /users/{user_id}/overview`.
 
+Following a user is `POST /users/{user_id}/followers`; it always creates a `pending` request. The follow requests addressed to you are under `/profile/follow-requests`: `GET /profile/follow-requests` lists them, `POST /profile/follow-requests/{follower_id}/accept` accepts one (answers the accepted relationship) and `DELETE /profile/follow-requests/{follower_id}` declines it. Reading needs `followers:read` and the writes `followers:write`.
+
 For authentication, scopes, errors and rate limits see the other pages in this section. Requests cannot be sent from this page; use your own Endurain instance's `/docs` for that.
 
 <swagger-ui src="./openapi.json"/>

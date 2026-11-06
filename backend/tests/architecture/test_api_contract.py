@@ -40,8 +40,8 @@ _METHODS = ("get", "post", "put", "patch", "delete")
 #: the value is the reason. Remove an entry when the item gains a ``GET``.
 _NOT_READABLE_ITEMS: dict[str, str] = {
     "/activities/{activity_id}/media/{media_id}": "media is served as a file by the signed media route",
-    "/followers/follow-requests/{follower_id}": "a follow request is a relationship, read through the lists",
     "/profile/api-keys/{api_key_id}": "an API key is revoked, never read back after creation",
+    "/profile/follow-requests/{follower_id}": "a follow request is a relationship, read through the list",
     "/profile/sessions/{session_id}": "a session is revoked, read through the session list",
     "/users/{user_id}/followers/{follower_id}": "a follower link is a relationship, read through the lists",
     "/users/{user_id}/identity-providers/{idp_id}": "an identity link is removed, read through the link list",

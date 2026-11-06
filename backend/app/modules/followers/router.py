@@ -1,4 +1,4 @@
-"""API routes for follower relationships and follow requests."""
+"""API routes for the follow requests addressed to the signed-in user, served under ``/profile/follow-requests``."""
 
 from fastapi import APIRouter, Request, Security, status
 
@@ -14,7 +14,7 @@ router = APIRouter()
 
 
 @router.get(
-    "/follow-requests",
+    "",
     response_model=followers_schema.FollowRelationshipPage,
     dependencies=[Security(auth_dependencies.check_scopes, scopes=["followers:read"])],
 )
@@ -38,8 +38,8 @@ def list_follow_requests(
     )
 
 
-@router.patch(
-    "/follow-requests/{follower_id}",
+@router.post(
+    "/{follower_id}/accept",
     response_model=followers_schema.FollowRelationshipRead,
     dependencies=[Security(auth_dependencies.check_scopes, scopes=["followers:write"])],
 )
@@ -47,16 +47,13 @@ def list_follow_requests(
 def accept_follow_request(
     request: Request,
     follower_id: core_dependencies.PositiveId,
-    accept: followers_schema.FollowRequestAccept,
     token_user_id: auth_dependencies.CurrentUserId,
     db: core_dependencies.DbSession,
 ) -> followers_schema.FollowRelationshipRead:
     """Accept the pending follow request from ``follower_id``.
 
-    Accepting is the only transition this route writes; declining is ``DELETE``
-    on the same path, because it removes the request rather than moving it to a
-    rejected state. The route is named for what it does so a client does not read
-    a general "decide" surface into it and send a rejection here.
+    Declining is ``DELETE`` on the request, because it removes the request rather
+    than moving it to a rejected state.
 
     Returns the row as persisted rather than one assembled from the request, so
     the response cannot claim a state the database does not hold.
@@ -65,7 +62,7 @@ def accept_follow_request(
 
 
 @router.delete(
-    "/follow-requests/{follower_id}",
+    "/{follower_id}",
     response_model=None,
     status_code=status.HTTP_204_NO_CONTENT,
     dependencies=[Security(auth_dependencies.check_scopes, scopes=["followers:write"])],

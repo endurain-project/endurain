@@ -176,7 +176,7 @@ describe('follow-graph mutations', () => {
     expect(apiFetch).toHaveBeenCalledWith('/users/2/followers', { method: 'POST' })
   })
 
-  it('accepts a pending request by patching the follow-request resource', async () => {
+  it('accepts a pending request by posting the accept action', async () => {
     vi.mocked(apiFetch).mockResolvedValueOnce({
       follower_id: 3,
       followee_id: 1,
@@ -185,9 +185,8 @@ describe('follow-graph mutations', () => {
 
     await acceptFollower(3)
 
-    expect(apiFetch).toHaveBeenCalledWith('/followers/follow-requests/3', {
-      method: 'PATCH',
-      body: JSON.stringify({ status: 'accepted' }),
+    expect(apiFetch).toHaveBeenCalledWith('/profile/follow-requests/3/accept', {
+      method: 'POST',
     })
   })
 

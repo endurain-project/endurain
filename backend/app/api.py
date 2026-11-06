@@ -252,7 +252,7 @@ router.include_router(
 )
 router.include_router(
     followers_router.router,
-    prefix=core_config.ROOT_PATH + "/followers",
+    prefix=core_config.ROOT_PATH + "/profile/follow-requests",
     tags=["followers"],
     dependencies=[Depends(auth_dependencies.validate_access_token)],
 )
