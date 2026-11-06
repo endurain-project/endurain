@@ -6,8 +6,10 @@ from fastapi import APIRouter, Request, Response, Security, UploadFile, status
 
 import core.dependencies as core_dependencies
 import core.etag as core_etag
+import core.location as core_location
 import core.middleware_body_limit as core_middleware_body_limit
 import core.rate_limit as core_rate_limit
+import modules.activities.activity_ingestion.integration_service as activity_ingestion_integration
 import modules.activities.activity_ingestion.schema as activity_ingestion_schema
 import modules.auth.dependencies as auth_dependencies
 import modules.gears.gear.schema as gears_schema
@@ -23,15 +25,34 @@ import modules.strava.sync_service as strava_sync_service
 router = APIRouter()
 
 
+def _set_sync_location(response: Response, request: Request, sync: strava_schema.StravaSyncStatus) -> None:
+    """Name the status route of a queued link, gear sync or unlink on its ``202``.
+
+    Args:
+        response: The response of the route that queued the sync.
+        request: The request, which resolves the status route's path.
+        sync: The queued sync.
+    """
+    core_location.set_status_location(
+        response,
+        request,
+        "strava_sync_status",
+        strava_constants.SYNC_POLL_SECONDS[sync.kind],
+        kind=sync.kind.value,
+    )
+
+
 @router.post(
     "/link",
     status_code=status.HTTP_202_ACCEPTED,
     response_model=strava_schema.StravaSyncStatus,
+    responses=core_location.ACCEPTED_RESPONSE,
     dependencies=[Security(auth_dependencies.check_scopes, scopes=["profile"])],
 )
 @core_rate_limit.limiter.limit(core_rate_limit.WRITE)
 def strava_link(
     request: Request,
+    response: Response,
     link: strava_schema.StravaLinkRequest,
     token_user_id: auth_dependencies.CurrentUserId,
     oauth_states: strava_dependencies.StravaOAuthStateStoreDep,
@@ -45,18 +66,22 @@ def strava_link(
     the code is exchanged. Poll ``GET /strava/sync/link`` for the outcome. A second request while one is
     pending is answered 409.
     """
-    return strava_link_service.start_link(token_user_id, link, oauth_states, sync_states)
+    sync = strava_link_service.start_link(token_user_id, link, oauth_states, sync_states)
+    _set_sync_location(response, request, sync)
+    return sync
 
 
 @router.post(
     "/activities",
     status_code=status.HTTP_202_ACCEPTED,
     response_model=activity_ingestion_schema.ActivityIngestionJobRead,
+    responses=core_location.ACCEPTED_RESPONSE,
     dependencies=[Security(auth_dependencies.check_scopes, scopes=["activities:write"])],
 )
 @core_rate_limit.limiter.limit(core_rate_limit.PROVIDER_SYNC)
 def strava_retrieve_activities_days(
     request: Request,
+    response: Response,
     start_date: date,
     end_date: date,
     token_user_id: auth_dependencies.CurrentUserId,
@@ -69,18 +94,22 @@ def strava_retrieve_activities_days(
     for the outcome. The range is fetched by a background job, never on this
     request or an API worker thread.
     """
-    return strava_sync_service.request_activities_sync(token_user_id, start_date, end_date, storage, db)
+    job = strava_sync_service.request_activities_sync(token_user_id, start_date, end_date, storage, db)
+    activity_ingestion_integration.set_job_location(response, request, job)
+    return job
 
 
 @router.post(
     "/gear",
     status_code=status.HTTP_202_ACCEPTED,
     response_model=strava_schema.StravaSyncStatus,
+    responses=core_location.ACCEPTED_RESPONSE,
     dependencies=[Security(auth_dependencies.check_scopes, scopes=["gears:write"])],
 )
 @core_rate_limit.limiter.limit(core_rate_limit.PROVIDER_SYNC)
 def strava_retrieve_gear(
     request: Request,
+    response: Response,
     token_user_id: auth_dependencies.CurrentUserId,
     db: core_dependencies.DbSession,
     sync_states: strava_dependencies.StravaSyncStateStoreDep,
@@ -91,21 +120,30 @@ def strava_retrieve_gear(
     Poll ``GET /strava/sync/gear`` for the outcome. A second request while one is
     pending is answered 409.
     """
-    return strava_sync_service.request_gear_sync(token_user_id, sync_states, rate_limits, db)
+    sync = strava_sync_service.request_gear_sync(token_user_id, sync_states, rate_limits, db)
+    _set_sync_location(response, request, sync)
+    return sync
 
 
 @router.get(
     "/sync/{kind}",
     response_model=strava_schema.StravaSyncStatus,
+    responses={200: {"headers": core_location.POLLED_STATUS_HEADERS}},
     dependencies=[Security(auth_dependencies.check_scopes, scopes=["profile"])],
 )
 def strava_sync_status(
     kind: strava_constants.SyncKind,
     token_user_id: auth_dependencies.CurrentUserId,
     sync_states: strava_dependencies.StravaSyncStateStoreDep,
+    response: Response,
 ) -> strava_schema.StravaSyncStatus:
-    """Report where the authenticated user's queued link, gear sync or unlink is."""
-    return strava_sync_service.get_sync_status(token_user_id, kind, sync_states)
+    """Report where the authenticated user's queued link, gear sync or unlink is.
+
+    ``Retry-After`` says when to poll again while the sync is not finished.
+    """
+    sync = strava_sync_service.get_sync_status(token_user_id, kind, sync_states)
+    core_location.set_retry_after_while_running(response, sync.status, strava_constants.SYNC_POLL_SECONDS[kind])
+    return sync
 
 
 @router.post(
@@ -219,11 +257,13 @@ def strava_clear_user_state(
     "/link",
     status_code=status.HTTP_202_ACCEPTED,
     response_model=strava_schema.StravaSyncStatus,
+    responses=core_location.ACCEPTED_RESPONSE,
     dependencies=[Security(auth_dependencies.check_scopes, scopes=["profile"])],
 )
 @core_rate_limit.limiter.limit(core_rate_limit.WRITE)
 def strava_unlink(
     request: Request,
+    response: Response,
     token_user_id: auth_dependencies.CurrentUserId,
     db: core_dependencies.DbSession,
     sync_states: strava_dependencies.StravaSyncStateStoreDep,
@@ -234,4 +274,6 @@ def strava_unlink(
     The job revokes the authorization with Strava and deletes the activities and gear
     imported from it. Poll ``GET /strava/sync/unlink`` for the outcome.
     """
-    return strava_sync_service.request_unlink(token_user_id, sync_states, rate_limits, db)
+    sync = strava_sync_service.request_unlink(token_user_id, sync_states, rate_limits, db)
+    _set_sync_location(response, request, sync)
+    return sync

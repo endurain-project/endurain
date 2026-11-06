@@ -18,10 +18,6 @@ BULK_IMPORT_DIR_NAME = "strava_import"
 #: The name a shoe with no name in a Strava gear export gets, followed by a number that keeps it unique.
 UNNAMED_SHOE_NICKNAME_PREFIX = "Unnamed Shoe "
 
-#: The job names a Strava link's and unlink's realtime hints carry; the web client follows the same names.
-LINK_JOB = "strava:link"
-UNLINK_JOB = "strava:unlink"
-
 #: Largest gear CSV accepted: a gear list is a few hundred rows at most.
 GEAR_CSV_MAX_BYTES = 2 * 1024 * 1024
 
@@ -57,6 +53,22 @@ class SyncKind(StrEnum):
     LINK = "link"
     GEAR = "gear"
     UNLINK = "unlink"
+
+
+#: Seconds a client waits before polling a queued sync of each kind: a link is one token exchange.
+SYNC_POLL_SECONDS: dict[SyncKind, int] = {SyncKind.LINK: 2, SyncKind.GEAR: 5, SyncKind.UNLINK: 5}
+
+
+def job_name(kind: SyncKind) -> str:
+    """Name a queued sync in the realtime hints; the web client follows the same names.
+
+    Args:
+        kind: What the sync does.
+
+    Returns:
+        The job name, such as ``strava:link``.
+    """
+    return f"{PROVIDER_NAME}:{kind.value}"
 
 
 #: Where a queued sync is; shared by every provider's sync state.

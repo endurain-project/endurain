@@ -108,7 +108,9 @@ def request_import(
         profile_transfer_pool.pool.require_capacity()
     if not states.begin(user_id):
         logger.debug("Refused a second profile import while one is pending", extra=core_logger.context(user_id=user_id))
-        raise core_exceptions.ConflictError("A profile import is already in progress")
+        raise core_exceptions.JobAlreadyRunningError(
+            "A profile import is already in progress", status_route="read_profile_import_status"
+        )
 
     staged_key = f"{user_id}/{uuid4()}.zip"
     with tempfile.TemporaryDirectory(prefix="profile-import-") as incoming_dir:

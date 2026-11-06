@@ -18,6 +18,7 @@ from pydantic import BaseModel
 
 import core.attempt_state as core_attempt_state
 import modules.users.users_profile.constants as profile_constants
+import modules.websocket.integration_service as websocket_integration
 
 
 class ProfileExportState(BaseModel):
@@ -100,6 +101,8 @@ class ProfileExportStateStore:
             ProfileExportState(status=status, failure=failure, size_bytes=size_bytes, expires_at=expires_at),
             finished=status in _FINISHED,
         )
+        if status in _FINISHED:
+            websocket_integration.push_job_changed(user_id, profile_constants.EXPORT_JOB)
 
     def get(self, user_id: int) -> ProfileExportState | None:
         """Read a user's export state.

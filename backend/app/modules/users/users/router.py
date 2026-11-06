@@ -14,6 +14,7 @@ import core.rate_limit as core_rate_limit
 import modules.auth.account_security.integration_service as account_security_integration
 import modules.auth.dependencies as auth_dependencies
 import modules.auth.identity_provider_links.schema as auth_identity_links_schema
+import modules.users.users.constants as users_constants
 import modules.users.users.deletion_job_service as users_deletion_job_service
 import modules.users.users.dependencies as users_dependencies
 import modules.users.users.photo_service as users_photo_service
@@ -409,11 +410,13 @@ def delete_user_photo(
     "/{user_id}",
     status_code=status.HTTP_202_ACCEPTED,
     response_model=users_schema.UserDeletionStatus,
+    responses=core_location.ACCEPTED_RESPONSE,
     dependencies=[Security(auth_dependencies.check_scopes, scopes=["users:write"])],
 )
 @core_rate_limit.limiter.limit(core_rate_limit.SENSITIVE)
 def delete_user(
     request: Request,
+    response: Response,
     user_id: core_dependencies.PositiveId,
     token_user_id: auth_dependencies.CurrentUserId,
     states: users_dependencies.UserDeletionStateStoreDep,
@@ -428,6 +431,7 @@ def delete_user(
 
     Args:
         request: The incoming request, read by the rate limiter.
+        response: The response, which names the status route and when to poll it.
         user_id: ID of user to delete.
         token_user_id: ID of the administrator making the request.
         states: Shared store of the deletion's state.
@@ -444,25 +448,38 @@ def delete_user(
         PreconditionFailedError: If the user changed since the client read it.
         ConflictError: If the user is the only administrator, or a deletion is already pending.
     """
-    return users_deletion_job_service.request_deletion_by_administrator(
+    deletion = users_deletion_job_service.request_deletion_by_administrator(
         user_id, token_user_id, states, storage, db, if_match=if_match
     )
+    core_location.set_status_location(
+        response,
+        request,
+        "read_user_deletion_status",
+        users_constants.DELETION_POLL_SECONDS,
+        user_id=str(user_id),
+    )
+    return deletion
 
 
 @router.get(
     "/{user_id}/deletion",
     response_model=users_schema.UserDeletionStatus,
+    responses={200: {"headers": core_location.POLLED_STATUS_HEADERS}},
     dependencies=[Security(auth_dependencies.check_scopes, scopes=["users:read_all"])],
 )
 def read_user_deletion_status(
     user_id: core_dependencies.PositiveId,
     states: users_dependencies.UserDeletionStateStoreDep,
+    response: Response,
 ) -> users_schema.UserDeletionStatus:
     """Report where a user's account deletion is.
+
+    ``Retry-After`` says when to poll again while the deletion is not finished.
 
     Args:
         user_id: ID of the user being deleted.
         states: Shared store of the deletion's state.
+        response: The response, which carries ``Retry-After`` while the deletion runs.
 
     Returns:
         The deletion's status.
@@ -470,7 +487,9 @@ def read_user_deletion_status(
     Raises:
         NotFoundError: If no deletion is recorded or it has expired.
     """
-    return users_deletion_job_service.get_deletion_status(user_id, states)
+    deletion = users_deletion_job_service.get_deletion_status(user_id, states)
+    core_location.set_retry_after_while_running(response, deletion.status, users_constants.DELETION_POLL_SECONDS)
+    return deletion
 
 
 @router.get(

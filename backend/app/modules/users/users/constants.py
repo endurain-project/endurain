@@ -49,6 +49,9 @@ DELETION_PASS_MIN_SECONDS = 30
 #: A durable deletion pass lasts at most this fraction of the job lease.
 DELETION_PASS_LEASE_FRACTION = 3
 
+#: Seconds an administrator waits before polling an account deletion, which erases data in batches.
+DELETION_POLL_SECONDS = 10
+
 #: Deletions the in-process pool runs at once when no durable worker does.
 DELETION_POOL_WORKERS = 1
 

@@ -22,6 +22,7 @@ import core.config as core_config
 import core.dependencies as core_dependencies
 import core.etag as core_etag
 import core.file_uploads as core_file_uploads
+import core.location as core_location
 import core.middleware_body_limit as core_middleware_body_limit
 import core.rate_limit as core_rate_limit
 import modules.auth.authentication.dependencies as authentication_dependencies
@@ -29,6 +30,7 @@ import modules.auth.dependencies as auth_dependencies
 import modules.users.users.integration_service as users_integration
 import modules.users.users.schema as users_schema
 import modules.users.users_privacy_settings.schema as users_privacy_settings_schema
+import modules.users.users_profile.constants as profile_constants
 import modules.users.users_profile.dependencies as profile_dependencies
 import modules.users.users_profile.export_job_service as profile_export_job_service
 import modules.users.users_profile.import_job_service as profile_import_job_service
@@ -423,11 +425,13 @@ def delete_my_account(
     "/export",
     status_code=status.HTTP_202_ACCEPTED,
     response_model=profile_schema.ProfileExportStatus,
+    responses=core_location.ACCEPTED_RESPONSE,
     dependencies=[Security(auth_dependencies.check_scopes, scopes=["profile"])],
 )
 @core_rate_limit.limiter.limit(core_rate_limit.SENSITIVE)
 def export_profile_data(
     request: Request,
+    response: Response,
     step_up: users_schema.StepUpVerification,
     token_user_id: auth_dependencies.CurrentUserId,
     token_session_id: auth_dependencies.CurrentSessionId,
@@ -446,6 +450,7 @@ def export_profile_data(
 
     Args:
         request: The incoming request, read by the rate limiter.
+        response: The response, which names the status route and when to poll it.
         step_up: Step-up verification payload.
         token_user_id: User ID from access token.
         token_session_id: Session ID from access token.
@@ -459,29 +464,40 @@ def export_profile_data(
     state = profile_export_job_service.request_export(
         token_user_id, token_session_id, step_up, step_up_store, export_states, db
     )
+    core_location.set_status_location(
+        response, request, "read_profile_export_status", profile_constants.EXPORT_POLL_SECONDS
+    )
     return profile_schema.ProfileExportStatus.model_validate(state)
 
 
 @router.get(
     "/export",
     response_model=profile_schema.ProfileExportStatus | None,
+    responses={200: {"headers": core_location.POLLED_STATUS_HEADERS}},
     dependencies=[Security(auth_dependencies.check_scopes, scopes=["profile"])],
 )
 def read_profile_export_status(
     token_user_id: auth_dependencies.CurrentUserId,
     export_states: profile_dependencies.ProfileExportStateStoreDep,
+    response: Response,
 ) -> profile_schema.ProfileExportStatus | None:
     """Report where the authenticated user's profile export is.
+
+    ``Retry-After`` says when to poll again while the export is not finished.
 
     Args:
         token_user_id: User ID from access token.
         export_states: Shared store of the export's state.
+        response: The response, which carries ``Retry-After`` while the export runs.
 
     Returns:
         The export's state, or None when no export is recorded.
     """
     state = profile_export_job_service.get_export_status(token_user_id, export_states)
-    return profile_schema.ProfileExportStatus.model_validate(state) if state is not None else None
+    if state is None:
+        return None
+    core_location.set_retry_after_while_running(response, state.status, profile_constants.EXPORT_POLL_SECONDS)
+    return profile_schema.ProfileExportStatus.model_validate(state)
 
 
 @router.get(
@@ -523,6 +539,7 @@ def download_profile_export(
     "/import",
     status_code=status.HTTP_202_ACCEPTED,
     response_model=profile_schema.ProfileImportStatus,
+    responses=core_location.ACCEPTED_RESPONSE,
     dependencies=[Security(auth_dependencies.check_scopes, scopes=["profile"])],
     openapi_extra=core_middleware_body_limit.upload_limit(
         core_file_uploads.max_bytes_for(core_file_uploads.UploadKind.ZIP)
@@ -531,6 +548,7 @@ def download_profile_export(
 @core_rate_limit.limiter.limit(core_rate_limit.UPLOAD)
 def import_profile_data(
     request: Request,
+    response: Response,
     file: UploadFile,
     token_user_id: auth_dependencies.CurrentUserId,
     import_states: profile_dependencies.ProfileImportStateStoreDep,
@@ -544,6 +562,7 @@ def import_profile_data(
 
     Args:
         request: The incoming request, read by the rate limiter.
+        response: The response, which names the status route and when to poll it.
         file: ZIP file containing profile data.
         token_user_id: User ID from access token.
         import_states: Shared store of the import's state.
@@ -560,26 +579,37 @@ def import_profile_data(
         storage,
         db,
     )
+    core_location.set_status_location(
+        response, request, "read_profile_import_status", profile_constants.IMPORT_POLL_SECONDS
+    )
     return profile_schema.ProfileImportStatus.model_validate(state)
 
 
 @router.get(
     "/import",
     response_model=profile_schema.ProfileImportStatus | None,
+    responses={200: {"headers": core_location.POLLED_STATUS_HEADERS}},
     dependencies=[Security(auth_dependencies.check_scopes, scopes=["profile"])],
 )
 def read_profile_import_status(
     token_user_id: auth_dependencies.CurrentUserId,
     import_states: profile_dependencies.ProfileImportStateStoreDep,
+    response: Response,
 ) -> profile_schema.ProfileImportStatus | None:
     """Report where the authenticated user's profile import is.
+
+    ``Retry-After`` says when to poll again while the import is not finished.
 
     Args:
         token_user_id: User ID from access token.
         import_states: Shared store of the import's state.
+        response: The response, which carries ``Retry-After`` while the import runs.
 
     Returns:
         The import's state, or None when no import is recorded.
     """
     state = profile_import_job_service.get_import_status(token_user_id, import_states)
-    return profile_schema.ProfileImportStatus.model_validate(state) if state is not None else None
+    if state is None:
+        return None
+    core_location.set_retry_after_while_running(response, state.status, profile_constants.IMPORT_POLL_SECONDS)
+    return profile_schema.ProfileImportStatus.model_validate(state)

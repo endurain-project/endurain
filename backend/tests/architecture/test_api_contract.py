@@ -48,6 +48,11 @@ _NOT_READABLE_ITEMS: dict[str, str] = {
     "/users/{user_id}/sessions/{session_id}": "a session is revoked, read through the session list",
 }
 
+#: A ``202`` that names no status resource, by design. Permanent; the value is the reason.
+_NO_STATUS_RESOURCE: dict[str, str] = {
+    "POST /profile/delete-account": "the account is closed before the answer, so its owner can no longer poll",
+}
+
 #: Optional properties of a ``PUT`` body whose omission is part of a full replacement, as
 #: ``"PUT <route>: <field>"``. Permanent; the value says what omitting the field means: a write-only secret the
 #: server never returns is kept, any other optional field is cleared.
@@ -311,6 +316,33 @@ class TestApiContract:
             }
 
         _compare("A create does not send its headers", missing, {}, "Call set_location and set_etag")
+
+    def test_a_202_declares_where_to_poll_and_when(self):
+        """Every ``202`` declares ``Content-Location`` and ``Retry-After`` in OpenAPI, and sets them.
+
+        The ``202`` answers only "queued"; the headers say which resource reports the outcome and when to look.
+        The handler must call ``set_status_location``, or ``set_job_location`` / ``_set_sync_location``, which
+        wrap it.
+        """
+        undeclared: set[str] = set()
+        unset: set[str] = set()
+        accepted: set[str] = set()
+        for method, path, operation in _operations():
+            if "202" not in operation["responses"]:
+                continue
+            route = f"{method.upper()} {path}"
+            accepted.add(route)
+            headers = operation["responses"]["202"].get("headers", {})
+            if not {"Content-Location", "Retry-After"} <= headers.keys():
+                undeclared.add(route)
+            _, function = _handlers()[(method, path)]
+            if not {"set_status_location", "set_job_location", "_set_sync_location"} & _calls(function):
+                unset.add(route)
+
+        _compare("A 202 does not declare where to poll", undeclared, _NO_STATUS_RESOURCE, "Add ACCEPTED_RESPONSE")
+        _compare("A 202 does not set where to poll", unset, _NO_STATUS_RESOURCE, "Call set_status_location")
+        stale = sorted(_NO_STATUS_RESOURCE.keys() - accepted)
+        assert not stale, "Remove from _NO_STATUS_RESOURCE, the route no longer answers 202:\n  " + "\n  ".join(stale)
 
     def test_a_put_replaces_the_whole_resource(self):
         """Every optional property of a ``PUT`` body is listed with what omitting it means.

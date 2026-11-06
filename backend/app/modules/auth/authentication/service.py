@@ -445,7 +445,8 @@ def refuse_while_mfa_locked_out(
                     user_id=user_id,
                 )
                 raise core_exceptions.TooManyRequestsError(
-                    f"Too many failed MFA attempts. Account locked for {seconds_remaining} seconds."
+                    f"Too many failed MFA attempts. Account locked for {seconds_remaining} seconds.",
+                    retry_at=lockout_until,
                 )
     except lockout_contracts.AuthSecurityStoreUnavailableError as err:
         raise_auth_security_store_unavailable(err)
@@ -674,7 +675,8 @@ def login_for_access_token(
                     login_audit_actions.LoginFailureReason.LOCKED_OUT,
                 )
                 raise core_exceptions.TooManyRequestsError(
-                    f"Account locked due to too many failed login attempts. Try again in {seconds_remaining} seconds."
+                    f"Account locked due to too many failed login attempts. Try again in {seconds_remaining} seconds.",
+                    retry_at=lockout_until,
                 )
     except lockout_contracts.AuthSecurityStoreUnavailableError as err:
         raise_auth_security_store_unavailable(err)

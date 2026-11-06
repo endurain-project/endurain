@@ -5,6 +5,12 @@ from enum import StrEnum
 #: Domain-owned storage area holding an uploaded archive until the import job has read it.
 IMPORT_STAGING_AREA = "profile_import_staging"
 
+#: Seconds a client waits before polling a profile import, which validates, stages and writes an archive.
+IMPORT_POLL_SECONDS = 5
+
+#: The job name the import's realtime hints carry.
+IMPORT_JOB = "profile:import"
+
 #: How long an import's claim and state last. It must exceed the longest legitimate import, and
 #: every recorded progress renews the claim, so only a dead worker's claim runs out.
 IMPORT_STATE_TTL_SECONDS = 4 * 60 * 60
@@ -17,6 +23,12 @@ IMPORT_SOURCE_API = "api:profile_import"
 
 #: Domain-owned storage area holding a finished export until the user has downloaded it.
 EXPORT_STAGING_AREA = "profile_export_staging"
+
+#: Seconds a client waits before polling a profile export, which builds an archive of the user's data.
+EXPORT_POLL_SECONDS = 5
+
+#: The job name the export's realtime hints carry.
+EXPORT_JOB = "profile:export"
 
 #: How long an export's claim and state last; the download is offered for this long.
 EXPORT_STATE_TTL_SECONDS = 2 * 60 * 60

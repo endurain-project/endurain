@@ -11,9 +11,13 @@ Interface::
     close_pending(user_id, kind)        - fail a sync that is still pending
 """
 
+from enum import StrEnum
+
 from jasil.providers import StateProvider
 
 import core.attempt_state as core_attempt_state
+import modules.strava.constants as strava_constants
+import modules.websocket.integration_service as websocket_integration
 
 
 class StravaSyncStateStore(core_attempt_state.SyncStateStore):
@@ -25,4 +29,14 @@ class StravaSyncStateStore(core_attempt_state.SyncStateStore):
         Args:
             state: The platform state provider.
         """
-        super().__init__(state, "strava")
+        super().__init__(state, "strava", announce=self._announce_finished)
+
+    @staticmethod
+    def _announce_finished(user_id: int, kind: StrEnum) -> None:
+        """Tell the user's client that a link, gear sync or unlink reached a final status.
+
+        Args:
+            user_id: The user whose sync ended.
+            kind: What the sync does.
+        """
+        websocket_integration.push_job_changed(user_id, strava_constants.job_name(strava_constants.SyncKind(kind)))

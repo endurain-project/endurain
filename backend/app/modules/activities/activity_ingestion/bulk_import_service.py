@@ -21,6 +21,7 @@ Provider exports register a :class:`BulkImportFormat`; this module names none.
 """
 
 import contextlib
+import hashlib
 import lzma
 import os
 import tempfile
@@ -197,6 +198,26 @@ def _archive_key(job_id: str) -> str:
     return f"{_ARCHIVE_KEY_PREFIX}{job_id}.zip"
 
 
+def _already_running(running_id: str | None) -> core_exceptions.ConflictError:
+    """Build the refusal of a second bulk import, naming the one that is running.
+
+    Args:
+        running_id: The running import's job id, or ``None`` when it finished after the refusal was decided.
+
+    Returns:
+        A conflict that carries the running job's id and status route, or a plain one without an id.
+    """
+    detail = "A bulk import is already running"
+    if running_id is None:
+        return core_exceptions.ConflictError(detail)
+    return core_exceptions.JobAlreadyRunningError(
+        detail,
+        status_route=activity_ingestion_constants.JOB_STATUS_ROUTE,
+        status_params={"job_id": running_id},
+        job_id=running_id,
+    )
+
+
 def _ensure_none_running(user_id: int, db: Session) -> None:
     """Refuse a second bulk import while the user has one running.
 
@@ -205,10 +226,11 @@ def _ensure_none_running(user_id: int, db: Session) -> None:
         db: Database session.
 
     Raises:
-        ConflictError: When an import is already running.
+        ConflictError: When an import is already running; it names the running job.
     """
-    if activity_ingestion_crud.get_active_bulk_import_job_id(user_id, db) is not None:
-        raise core_exceptions.ConflictError("A bulk import is already running")
+    running_id = activity_ingestion_crud.get_active_bulk_import_job_id(user_id, db)
+    if running_id is not None:
+        raise _already_running(running_id)
 
 
 def _stage_import_request(
@@ -237,6 +259,22 @@ def _stage_import_request(
     )
 
 
+def _request_fingerprint(archive_path: str, source: str) -> str:
+    """Fingerprint a bulk import request: the archive's bytes and the layout they are read as.
+
+    The same archive read as another source is another import, so a reused key must not replay it.
+
+    Args:
+        archive_path: The received archive on local disk.
+        source: The archive format the request names.
+
+    Returns:
+        A hex SHA-256 digest.
+    """
+    digest = core_file_uploads.sha256_file(archive_path)
+    return hashlib.sha256(f"{source}:{digest}".encode()).hexdigest()
+
+
 def accept_archive(
     user_id: int,
     filename: str | None,
@@ -244,11 +282,17 @@ def accept_archive(
     source: str,
     storage: platform_providers.StorageProvider,
     db: Session,
+    *,
+    idempotency_key: str | None = None,
 ) -> activity_ingestion_schema.ActivityIngestionJobRead:
     """Stage an uploaded archive and queue it for import.
 
     The request validates the archive's shape from its directory listing only; no
     member is read. The import itself runs on a worker.
+
+    When the caller supplies an ``Idempotency-Key``, a replay of the same archive and source returns the
+    original job in whatever state it has now, even while that import is the one running, and the same
+    key with a different archive or source is refused. A key is kept for as long as its job row is.
 
     Args:
         user_id: The importing user.
@@ -257,14 +301,16 @@ def accept_archive(
         source: The archive format to read (``generic`` or a provider export).
         storage: The blob-storage provider the archive is staged in.
         db: Database session.
+        idempotency_key: Client-supplied key identifying this request.
 
     Returns:
-        The accepted import, in the pending state.
+        The accepted import, in the pending state, or the import the same key was accepted with before.
 
     Raises:
         InvalidInputError: For an unknown source, a non-ZIP name or an archive
             with nothing importable.
-        ConflictError: When the user already has an import running.
+        ConflictError: When the user already has an import running, or the key was already used for a
+            different archive.
         DomainError: When the shared upload validators or the archive caps reject it.
         PoolFullError: On the local profile, when the in-process pool is full.
     """
@@ -272,7 +318,17 @@ def accept_archive(
     bulk_format = resolve_format(source)
     if filename is None or os.path.splitext(filename)[1].lower() != ".zip":
         raise core_exceptions.InvalidInputError("A bulk import takes a .zip archive")
-    _ensure_none_running(user_id, db)
+    # A repeat of a request that is the running import must be answered with that import, so the key is
+    # looked up before the running-import refusal. Whether it is a repeat is decided once the archive is read.
+    prior = (
+        activity_ingestion_crud.get_job_for_idempotency(
+            idempotency_key, user_id, activity_ingestion_constants.IngestionJobKind.BULK_IMPORT, db
+        )
+        if idempotency_key
+        else None
+    )
+    if prior is None:
+        _ensure_none_running(user_id, db)
     # The check read, which holds a pooled connection until the transaction ends; the archive can be
     # 500 MiB, so staging it must not keep that connection.
     db.commit()
@@ -285,6 +341,14 @@ def accept_archive(
     job_id = str(uuid.uuid4())
     key = _archive_key(job_id)
     try:
+        fingerprint = _request_fingerprint(incoming_path, bulk_format.name) if idempotency_key else None
+        if prior is not None:
+            activity_ingestion_service.require_same_request(prior[1], fingerprint)
+            logger.info(
+                "Replayed bulk import returned the original job",
+                extra=core_logger.context(user_id=user_id, job_id=prior[0].id),
+            )
+            return prior[0]
         members = core_file_uploads.list_zip_members(incoming_path)
         files_total = sum(1 for member in members if bulk_format.is_activity_member(member.name))
         if files_total == 0:
@@ -308,6 +372,8 @@ def accept_archive(
             staged_key=key,
             import_source=bulk_format.name,
             files_total=files_total,
+            idempotency_key=idempotency_key,
+            request_fingerprint=fingerprint,
         )
         _stage_import_request(job_id, user_id, activity_ingestion_audit_actions.ImportSource.ARCHIVE, files_total, db)
         activity_ingestion_dispatch_service.commit_or_publish(
@@ -317,11 +383,21 @@ def accept_archive(
             ),
         )
     except IntegrityError as err:
-        # Two requests passed the check above together; the partial unique index
-        # decides which one runs.
+        # Two requests passed the check above together; the unique index on the key, or the one on the
+        # running import, decides which one runs.
         db.rollback()
         activity_ingestion_upload_entry_service.discard_staged_upload(key, storage)
-        raise core_exceptions.ConflictError("A bulk import is already running") from err
+        raced = (
+            activity_ingestion_crud.get_job_for_idempotency(
+                idempotency_key, user_id, activity_ingestion_constants.IngestionJobKind.BULK_IMPORT, db
+            )
+            if idempotency_key
+            else None
+        )
+        if raced is not None:
+            activity_ingestion_service.require_same_request(raced[1], fingerprint)
+            return raced[0]
+        raise _already_running(activity_ingestion_crud.get_active_bulk_import_job_id(user_id, db)) from err
     except Exception:
         activity_ingestion_upload_entry_service.discard_staged_upload(key, storage)
         raise
@@ -382,7 +458,7 @@ def start_from_directory(
         db.commit()
     except IntegrityError as err:
         db.rollback()
-        raise core_exceptions.ConflictError("A bulk import is already running") from err
+        raise _already_running(activity_ingestion_crud.get_active_bulk_import_job_id(user_id, db)) from err
 
     try:
         activity_ingestion_dispatch_service.run_on_this_node(
@@ -693,6 +769,7 @@ def _run_batch(job_id: str, storage: platform_providers.StorageProvider) -> bool
     with core_database.SessionLocal() as db:
         activity_ingestion_crud.mark_bulk_completed(job_id, cursor, done, failed, db)
         db.commit()
+    activity_ingestion_service.announce_job(state.user_id, job_id)
     activity_ingestion_upload_entry_service.discard_staged_upload(state.staged_key, storage)
     logger.info(
         "Bulk import finished",

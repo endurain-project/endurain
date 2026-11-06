@@ -6,6 +6,8 @@ from unittest.mock import MagicMock, patch
 import pytest
 
 import core.exceptions as core_exceptions
+import modules.activities.activity_ingestion.constants as activity_ingestion_constants
+import modules.activities.activity_ingestion.schema as activity_ingestion_schema
 import modules.garmin.constants as garmin_constants
 import modules.garmin.router as garmin_router
 import modules.garmin.sync_service as garmin_sync_service
@@ -29,6 +31,17 @@ _CASES = [
 ]
 
 
+def _refresh_job():
+    now = datetime(2026, 1, 8, tzinfo=UTC)
+    return activity_ingestion_schema.ActivityIngestionJobRead(
+        id="job-1",
+        kind=activity_ingestion_constants.IngestionJobKind.REFRESH,
+        status=activity_ingestion_constants.IngestionJobStatus.PENDING,
+        created_at=now,
+        updated_at=now,
+    )
+
+
 @pytest.fixture(autouse=True)
 def users_today():
     with patch.object(garmin_sync_service.users_integration, "local_today", return_value=date(2026, 1, 31)):
@@ -38,6 +51,7 @@ def users_today():
 def _call(route, **overrides):
     kwargs = {
         "request": MagicMock(),
+        "response": MagicMock(),
         "start_date": date(2026, 1, 1),
         "end_date": date(2026, 1, 8),
         "token_user_id": 7,
@@ -51,7 +65,7 @@ def _call(route, **overrides):
 @pytest.mark.parametrize(("route", "module", "provider"), _CASES)
 class TestRetrieveActivitiesRoutes:
     def test_queues_a_job_for_that_provider_and_returns_its_handle(self, route, module, provider):
-        job = MagicMock()
+        job = _refresh_job()
         with patch.object(
             module.activity_ingestion_integration.activity_ingestion_service, "accept_refresh", return_value=job
         ) as request:

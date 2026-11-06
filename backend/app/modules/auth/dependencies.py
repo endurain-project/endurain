@@ -64,8 +64,9 @@ def _require_scopes(granted: Iterable[str], required: SecurityScopes) -> None:
             outcome=jasil_audit.Outcome.DENIED,
             details=authentication_audit_actions.ScopeDeniedDetails(missing_scopes=sorted(missing)),
         )
-        error = core_exceptions.PermissionDeniedError(f"Unauthorized Access - Missing permissions: {missing}")
-        error.headers = {"WWW-Authenticate": f'Bearer scope="{required.scopes}"'}
+        error = core_exceptions.PermissionDeniedError(f"Missing permissions: {', '.join(sorted(missing))}")
+        error.headers = {"WWW-Authenticate": f'Bearer error="insufficient_scope", scope="{" ".join(required.scopes)}"'}
+        error.extensions = {"missing_scopes": sorted(missing)}
         raise error
 
 

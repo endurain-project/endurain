@@ -5,6 +5,9 @@ from enum import StrEnum
 #: Storage area holding the files a bulk import could not read, for the operator.
 BULK_IMPORT_ERROR_STORAGE_AREA = "bulk_import_errors"
 
+#: The name of the route that reads an ingestion job, which every ``202`` that returns a job points at.
+JOB_STATUS_ROUTE = "read_activity_ingestion_job"
+
 
 class IngestionJobKind(StrEnum):
     """What kind of ingestion the job performs."""
@@ -12,6 +15,15 @@ class IngestionJobKind(StrEnum):
     UPLOAD = "upload"
     REFRESH = "refresh"
     BULK_IMPORT = "bulk_import"
+
+
+#: Seconds a client waits before polling a job of each kind: an upload parses in seconds, a refresh or an
+#: archive import takes longer.
+JOB_POLL_SECONDS: dict[IngestionJobKind, int] = {
+    IngestionJobKind.UPLOAD: 2,
+    IngestionJobKind.REFRESH: 5,
+    IngestionJobKind.BULK_IMPORT: 5,
+}
 
 
 class IngestionJobStatus(StrEnum):

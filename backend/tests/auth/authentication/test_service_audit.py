@@ -94,9 +94,10 @@ class TestRefusedPasswordSignIn:
         failed_attempts = MagicMock()
         failed_attempts.is_locked_out.return_value = True
         failed_attempts.get_lockout_time.return_value = datetime(2999, 1, 1, tzinfo=UTC)
-        with jasil_testing.capture_audit() as audit, pytest.raises(core_exceptions.TooManyRequestsError):
+        with jasil_testing.capture_audit() as audit, pytest.raises(core_exceptions.TooManyRequestsError) as refusal:
             _login(mock_db, failed_attempts=failed_attempts)
 
+        assert refusal.value.retry_at == datetime(2999, 1, 1, tzinfo=UTC)
         entry = audit.assert_audited(_LOGIN, outcome="denied")
         assert entry.details == {"method": "password", "mfa": False, "reason": "locked_out", "new_device": False}
         assert entry.target_id is None

@@ -185,6 +185,7 @@ def _queue(
             states,
             rate_limits,
         ),
+        status_route="garminconnect_sync_status",
     )
     logger.info(
         "Garmin Connect sync queued",

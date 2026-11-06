@@ -87,6 +87,22 @@ def _created_activities_are_gone(job: activity_ingestion_schema.ActivityIngestio
     return not activity_integration.filter_existing_activity_ids(job.activity_ids, db)
 
 
+def require_same_request(stored_fingerprint: str | None, fingerprint: str | None) -> None:
+    """Refuse an ``Idempotency-Key`` that comes back with different content.
+
+    Answering with the first job would tell the client the second request was accepted when it never will be.
+
+    Args:
+        stored_fingerprint: The fingerprint the key was first used with.
+        fingerprint: The fingerprint of the request being checked.
+
+    Raises:
+        ConflictError: When the two differ.
+    """
+    if stored_fingerprint != fingerprint:
+        raise core_exceptions.ConflictError("This Idempotency-Key was already used for a different request")
+
+
 def accept_upload(
     token_user_id: int,
     filename: str | None,
@@ -150,8 +166,7 @@ def accept_upload(
                 idempotency_key, token_user_id, activity_ingestion_constants.IngestionJobKind.UPLOAD, db
             )
             if prior is not None:
-                if prior[1] != received.fingerprint:
-                    raise core_exceptions.ConflictError("This Idempotency-Key was already used for a different file")
+                require_same_request(prior[1], received.fingerprint)
                 if _created_activities_are_gone(prior[0], db):
                     # Staged here and committed with the new job below, so the key
                     # is never left free without a job holding it.
@@ -219,8 +234,7 @@ def accept_upload(
         if prior is None:
             raise
         replayed, fingerprint = prior
-        if fingerprint != received.fingerprint:
-            raise core_exceptions.ConflictError("This Idempotency-Key was already used for a different file") from None
+        require_same_request(fingerprint, received.fingerprint)
         return replayed
     except Exception:
         # The row is gone (or never committed), so nothing will consume the
@@ -413,7 +427,7 @@ def run_refresh_job(job_id: str, storage: platform_providers.StorageProvider) ->
     with core_database.SessionLocal() as db:
         activity_ingestion_crud.mark_completed(job_id, activity_ids, db)
         db.commit()
-    _announce_job(owner, job_id)
+    announce_job(owner, job_id)
     logger.info(
         "Refresh job synced provider activities",
         extra=core_logger.context(user_id=owner, job_id=job_id, activity_count=len(activity_ids)),
@@ -637,7 +651,7 @@ def run_upload_job(job_id: str, storage: platform_providers.StorageProvider) -> 
                 db,
             )
             db.commit()
-            _announce_job(user_id, job_id)
+            announce_job(user_id, job_id)
             # After the outcome is committed: a crash before this line retries
             # against the blob rather than finding it gone.
             activity_ingestion_upload_entry_service.discard_staged_upload(staged_key, storage)
@@ -648,7 +662,7 @@ def run_upload_job(job_id: str, storage: platform_providers.StorageProvider) -> 
             return
         activity_ingestion_crud.mark_completed(job_id, activity_ids, db)
         db.commit()
-        _announce_job(user_id, job_id)
+        announce_job(user_id, job_id)
         activity_ingestion_upload_entry_service.discard_staged_upload(staged_key, storage)
         logger.info(
             "Upload job imported activities",
@@ -716,7 +730,7 @@ def run_in_background_or_fail(
         raise
 
 
-def _announce_job(user_id: int, job_id: str) -> None:
+def announce_job(user_id: int, job_id: str) -> None:
     """Tell the job's owner it reached a terminal state, so their client stops waiting for its poll.
 
     Call it after the state is committed.
@@ -764,7 +778,7 @@ def fail_ingestion_job(
         return
 
     if owner is not None:
-        _announce_job(owner, job_id)
+        announce_job(owner, job_id)
     # After the row is terminal, so a crash in between leaves a readable blob
     # rather than a job pointing at bytes that are gone.
     if staged_key is not None:

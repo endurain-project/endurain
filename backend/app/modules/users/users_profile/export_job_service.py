@@ -76,7 +76,9 @@ def request_export(
         profile_transfer_pool.pool.require_capacity()
     if not states.begin(user_id):
         logger.debug("Refused a second profile export while one is pending", extra=core_logger.context(user_id=user_id))
-        raise core_exceptions.ConflictError("A profile export is already in progress")
+        raise core_exceptions.JobAlreadyRunningError(
+            "A profile export is already in progress", status_route="read_profile_export_status"
+        )
 
     try:
         jasil_audit.stage(

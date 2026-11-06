@@ -11,8 +11,10 @@ from datetime import UTC, date, datetime
 
 import jasil.providers as platform_providers
 import jasil.runtime as platform_runtime
+from fastapi import Request, Response
 from sqlalchemy.orm import Session
 
+import core.location as core_location
 import core.logger as core_logger
 import core.sync_runner as core_sync_runner
 import modules.activities.activity.schema as activity_schema
@@ -212,3 +214,22 @@ def delete_bulk_import_errors(user_id: int, storage: platform_providers.StorageP
             exc_info=err,
             extra=core_logger.context(user_id=user_id),
         )
+
+
+def set_job_location(
+    response: Response, request: Request, job: activity_ingestion_schema.ActivityIngestionJobRead
+) -> None:
+    """Name the ingestion job's status route and the wait before the first poll on a ``202``.
+
+    Args:
+        response: The response of the route that accepted the job.
+        request: The request, which resolves the status route's path.
+        job: The accepted job.
+    """
+    core_location.set_status_location(
+        response,
+        request,
+        activity_ingestion_constants.JOB_STATUS_ROUTE,
+        activity_ingestion_constants.JOB_POLL_SECONDS[job.kind],
+        job_id=job.id,
+    )

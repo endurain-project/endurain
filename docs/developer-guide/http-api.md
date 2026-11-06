@@ -58,14 +58,14 @@ A resource has a collection and an item:
 | `204` | A write with nothing to return | No body. A body that only carries a message is a `204` **(test)** |
 | `400` | Input the schema accepted but the domain refuses | Problem document |
 | `401` | The credential is missing, invalid or no longer valid (expired session, deleted or deactivated user) | `WWW-Authenticate` |
-| `403` | Signed in but not allowed (missing scope, a refusal the caller may know about) | `WWW-Authenticate: Bearer error="insufficient_scope"` for a scope |
+| `403` | Signed in but not allowed (missing scope, a refusal the caller may know about) | `WWW-Authenticate: Bearer error="insufficient_scope", scope="a b"` for a scope, and the `missing_scopes` member |
 | `404` | Missing, or concealed from this caller (the same answer for both) | Problem document |
 | `409` | Conflicts with the current state, including "already running" | The running job's `Content-Location` for "already running" |
 | `412` / `428` | Stale or missing `If-Match` ([Optimistic concurrency](optimistic-concurrency.md)) | Problem document |
 | `413` | The body is too large | Problem document |
 | `415` | The uploaded file is a type the route does not accept | Problem document |
 | `422` | The request does not match the schema | Problem document with `errors[]` |
-| `429` | Rate limit or lockout | `Retry-After`: the seconds until a retry can succeed |
+| `429` | Rate limit or lockout | `Retry-After`: the seconds until a retry can succeed (a `TooManyRequestsError` with `retry_at` sets it) |
 | `503` | A dependency is unavailable for a moment | `Retry-After` |
 
 `406` is only for `Accept` negotiation, never for an upload.
@@ -76,7 +76,7 @@ A resource has a collection and an item:
 - **`Location`** on a `201` whose resource has a `GET /{id}`: `core.location.set_location` writes the path.
 - **`Content-Location` and `Retry-After`** on every `202` and on a status read that is not finished.
 - **`Cache-Control: no-store`** on a response that carries a token or a secret: tokens, a new API key, an MFA secret
-  or backup codes, a websocket ticket, a profile export. Personal JSON is `private`.
+  or backup codes, a websocket ticket, a profile export. Other JSON is `private, no-cache` by default (`core.middleware.GetSemanticsMiddleware`). The `ETag` is the version for `If-Match`, not a validator of the body, so an authenticated read never answers `304`.
 - A header a browser client must read is listed in `CORS_EXPOSE_HEADERS`, and one it must send in
   `CORS_ALLOW_HEADERS` (`core/middleware.py`).
 
@@ -141,9 +141,8 @@ These rules are not met everywhere yet. Each is tracked in the test registers ab
 
 - Several resources that can be edited have no `GET /{id}`, and their creates send no `Location`; no create sends an
   `ETag` yet.
-- No `202` sends `Content-Location` or `Retry-After`, and the background jobs report their status in several shapes.
-- `Retry-After` on `429` is the length of the limit window, and lockouts send none.
-- Personal JSON has no `Cache-Control`, and some secret-bearing responses lack `no-store`.
+- The background jobs report their status in several shapes. The one `202` with no status resource is the account owner's `POST /profile/delete-account`.
+- Some secret-bearing responses lack `no-store`.
 - Uploaded images are stored as received, with their metadata.
 - Some enums are integers, some request schemas accept server-owned fields, and datetimes without an offset are
   accepted as UTC.

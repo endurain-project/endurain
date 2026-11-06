@@ -59,6 +59,7 @@ export interface paths {
          *
          *     Args:
          *         request: The incoming request, read by the rate limiter.
+         *         response: The response, which names the status route and when to poll it.
          *         body: The fields to apply; only those present are changed.
          *         token_user_id: User ID from the access token.
          *         states: Shared store of the edit's state.
@@ -86,9 +87,12 @@ export interface paths {
          * Read Bulk Edit Status
          * @description Report where the authenticated user's bulk edit is.
          *
+         *     ``Retry-After`` says when to poll again while the edit is not finished.
+         *
          *     Args:
          *         token_user_id: User ID from the access token.
          *         states: Shared store of the edit's state.
+         *         response: The response, which carries ``Retry-After`` while the edit runs.
          *
          *     Returns:
          *         The edit's status.
@@ -125,7 +129,10 @@ export interface paths {
          *     still ends ``completed``.
          *
          *     One bulk import runs per user at a time; a second request while one is running
-         *     is answered ``409``.
+         *     is answered ``409`` with the running job's ``job_id`` and a ``Content-Location`` naming its status.
+         *
+         *     Send an ``Idempotency-Key`` to make a retry safe: a repeat of the same archive and ``source`` returns the
+         *     original job instead of starting another, and the same key with a different archive is ``409``.
          */
         post: operations["create_bulk_import_from_archive_api_v1_activities_bulk_import_post"];
         delete?: never;
@@ -154,7 +161,7 @@ export interface paths {
          *     ``GET /activities/ingestion-jobs/{job_id}`` for progress.
          *
          *     One bulk import runs per user at a time; a second request while one is running
-         *     is answered ``409``.
+         *     is answered ``409`` with the running job's ``job_id`` and a ``Content-Location`` naming its status.
          */
         post: operations["create_bulk_import_from_folder_api_v1_activities_bulk_import_folder_post"];
         delete?: never;
@@ -224,8 +231,9 @@ export interface paths {
          * Read Activity Ingestion Job
          * @description Read the state of one of your ingestion requests.
          *
-         *     Serves both uploads and provider refreshes: the caller's question is the
-         *     same either way, so there is one route rather than two near-identical ones.
+         *     Serves uploads, bulk imports and provider refreshes: the caller's question is the
+         *     same either way, so there is one route rather than three near-identical ones.
+         *     ``Retry-After`` says when to poll again while the job is still running.
          *
          *     Scoped to the caller: a job belonging to another user is reported as not
          *     found rather than forbidden, so the endpoint does not confirm that an id
@@ -321,7 +329,8 @@ export interface paths {
          *
          *     Returns ``202`` once the file is stored and queued: parsing is seconds of
          *     CPU work, and doing it inline held a shared request thread for the duration.
-         *     Poll ``GET /activities/ingestion-jobs/{job_id}`` for the outcome.
+         *     Poll ``GET /activities/ingestion-jobs/{job_id}`` for the outcome; ``Content-Location`` names it and
+         *     ``Retry-After`` says when to look first.
          *
          *     Rejections that can be decided cheaply — unsupported extension, failed
          *     signature check, oversized body — still come back synchronously as a 4xx, so
@@ -968,7 +977,8 @@ export interface paths {
          *
          *     The login runs in the background. Poll ``GET /garmin/link/status``: when it reports
          *     ``mfa_required``, submit the code to ``POST /garmin/mfa`` and keep polling until it
-         *     reports ``completed`` or ``failed``. A second request while one is running is answered 409.
+         *     reports ``completed`` or ``failed``. A second request while one is running is answered 409 with a
+         *     ``Content-Location`` naming the status.
          */
         post: operations["garminconnect_link_api_v1_garmin_link_post"];
         /**
@@ -991,6 +1001,8 @@ export interface paths {
         /**
          * Garminconnect Link Status
          * @description Report where the authenticated user's Garmin Connect link attempt is.
+         *
+         *     ``Retry-After`` says when to poll again while the attempt is not finished.
          */
         get: operations["garminconnect_link_status_api_v1_garmin_link_status_get"];
         put?: never;
@@ -1031,6 +1043,8 @@ export interface paths {
         /**
          * Garminconnect Sync Status
          * @description Report where the authenticated user's queued gear or health sync is.
+         *
+         *     ``Retry-After`` says when to poll again while the sync is not finished.
          */
         get: operations["garminconnect_sync_status_api_v1_garmin_sync__kind__get"];
         put?: never;
@@ -1256,7 +1270,7 @@ export interface paths {
          *         ``degraded`` when only the state backend or the audit trail is not.
          *
          *     Raises:
-         *         HTTPException: 503 when no connection can be obtained or the query fails.
+         *         ServiceUnavailableError: When no connection can be obtained or the query fails, with ``Retry-After``.
          */
         get: operations["health_api_v1_health_get"];
         put?: never;
@@ -2995,9 +3009,12 @@ export interface paths {
          * Read Profile Export Status
          * @description Report where the authenticated user's profile export is.
          *
+         *     ``Retry-After`` says when to poll again while the export is not finished.
+         *
          *     Args:
          *         token_user_id: User ID from access token.
          *         export_states: Shared store of the export's state.
+         *         response: The response, which carries ``Retry-After`` while the export runs.
          *
          *     Returns:
          *         The export's state, or None when no export is recorded.
@@ -3014,6 +3031,7 @@ export interface paths {
          *
          *     Args:
          *         request: The incoming request, read by the rate limiter.
+         *         response: The response, which names the status route and when to poll it.
          *         step_up: Step-up verification payload.
          *         token_user_id: User ID from access token.
          *         token_session_id: Session ID from access token.
@@ -3358,9 +3376,12 @@ export interface paths {
          * Read Profile Import Status
          * @description Report where the authenticated user's profile import is.
          *
+         *     ``Retry-After`` says when to poll again while the import is not finished.
+         *
          *     Args:
          *         token_user_id: User ID from access token.
          *         import_states: Shared store of the import's state.
+         *         response: The response, which carries ``Retry-After`` while the import runs.
          *
          *     Returns:
          *         The import's state, or None when no import is recorded.
@@ -3376,6 +3397,7 @@ export interface paths {
          *
          *     Args:
          *         request: The incoming request, read by the rate limiter.
+         *         response: The response, which names the status route and when to poll it.
          *         file: ZIP file containing profile data.
          *         token_user_id: User ID from access token.
          *         import_states: Shared store of the import's state.
@@ -4922,6 +4944,8 @@ export interface paths {
         /**
          * Strava Sync Status
          * @description Report where the authenticated user's queued link, gear sync or unlink is.
+         *
+         *     ``Retry-After`` says when to poll again while the sync is not finished.
          */
         get: operations["strava_sync_status_api_v1_strava_sync__kind__get"];
         put?: never;
@@ -5178,6 +5202,7 @@ export interface paths {
          *
          *     Args:
          *         request: The incoming request, read by the rate limiter.
+         *         response: The response, which names the status route and when to poll it.
          *         user_id: ID of user to delete.
          *         token_user_id: ID of the administrator making the request.
          *         states: Shared store of the deletion's state.
@@ -5282,9 +5307,12 @@ export interface paths {
          * Read User Deletion Status
          * @description Report where a user's account deletion is.
          *
+         *     ``Retry-After`` says when to poll again while the deletion is not finished.
+         *
          *     Args:
          *         user_id: ID of the user being deleted.
          *         states: Shared store of the deletion's state.
+         *         response: The response, which carries ``Retry-After`` while the deletion runs.
          *
          *     Returns:
          *         The deletion's status.
@@ -13935,9 +13963,13 @@ export interface operations {
             };
         };
         responses: {
-            /** @description Successful Response */
+            /** @description Accepted. The work runs in the background and `Content-Location` names where to poll it. */
             202: {
                 headers: {
+                    /** @description Path of the status resource to poll for the outcome. */
+                    "Content-Location"?: string;
+                    /** @description Seconds to wait before the first poll. */
+                    "Retry-After"?: number;
                     [name: string]: unknown;
                 };
                 content: {
@@ -13976,6 +14008,8 @@ export interface operations {
             /** @description Successful Response */
             200: {
                 headers: {
+                    /** @description Seconds to wait before polling again. Sent only while the work is not finished. */
+                    "Retry-After"?: number;
                     [name: string]: unknown;
                 };
                 content: {
@@ -13999,7 +14033,10 @@ export interface operations {
                 /** @description The archive layout: `generic` for plain activity files, or a provider export such as `strava`. */
                 source?: string;
             };
-            header?: never;
+            header?: {
+                /** @description Optional client-generated key. Replaying a request with the same key returns the original job instead of importing the file again. */
+                "Idempotency-Key"?: string | null;
+            };
             path?: never;
             cookie?: never;
         };
@@ -14009,9 +14046,13 @@ export interface operations {
             };
         };
         responses: {
-            /** @description Successful Response */
+            /** @description Accepted. The work runs in the background and `Content-Location` names where to poll it. */
             202: {
                 headers: {
+                    /** @description Path of the status resource to poll for the outcome. */
+                    "Content-Location"?: string;
+                    /** @description Seconds to wait before the first poll. */
+                    "Retry-After"?: number;
                     [name: string]: unknown;
                 };
                 content: {
@@ -14050,9 +14091,13 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
-            /** @description Successful Response */
+            /** @description Accepted. The work runs in the background and `Content-Location` names where to poll it. */
             202: {
                 headers: {
+                    /** @description Path of the status resource to poll for the outcome. */
+                    "Content-Location"?: string;
+                    /** @description Seconds to wait before the first poll. */
+                    "Retry-After"?: number;
                     [name: string]: unknown;
                 };
                 content: {
@@ -14177,6 +14222,8 @@ export interface operations {
             /** @description Successful Response */
             200: {
                 headers: {
+                    /** @description Seconds to wait before polling again. Sent only while the work is not finished. */
+                    "Retry-After"?: number;
                     [name: string]: unknown;
                 };
                 content: {
@@ -14212,9 +14259,13 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
-            /** @description Successful Response */
+            /** @description Accepted. The work runs in the background and `Content-Location` names where to poll it. */
             202: {
                 headers: {
+                    /** @description Path of the status resource to poll for the outcome. */
+                    "Content-Location"?: string;
+                    /** @description Seconds to wait before the first poll. */
+                    "Retry-After"?: number;
                     [name: string]: unknown;
                 };
                 content: {
@@ -14327,9 +14378,13 @@ export interface operations {
             };
         };
         responses: {
-            /** @description Successful Response */
+            /** @description Accepted. The work runs in the background and `Content-Location` names where to poll it. */
             202: {
                 headers: {
+                    /** @description Path of the status resource to poll for the outcome. */
+                    "Content-Location"?: string;
+                    /** @description Seconds to wait before the first poll. */
+                    "Retry-After"?: number;
                     [name: string]: unknown;
                 };
                 content: {
@@ -15233,9 +15288,13 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
-            /** @description Successful Response */
+            /** @description Accepted. The work runs in the background and `Content-Location` names where to poll it. */
             202: {
                 headers: {
+                    /** @description Path of the status resource to poll for the outcome. */
+                    "Content-Location"?: string;
+                    /** @description Seconds to wait before the first poll. */
+                    "Retry-After"?: number;
                     [name: string]: unknown;
                 };
                 content: {
@@ -15271,9 +15330,13 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
-            /** @description Successful Response */
+            /** @description Accepted. The work runs in the background and `Content-Location` names where to poll it. */
             202: {
                 headers: {
+                    /** @description Path of the status resource to poll for the outcome. */
+                    "Content-Location"?: string;
+                    /** @description Seconds to wait before the first poll. */
+                    "Retry-After"?: number;
                     [name: string]: unknown;
                 };
                 content: {
@@ -15303,9 +15366,13 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
-            /** @description Successful Response */
+            /** @description Accepted. The work runs in the background and `Content-Location` names where to poll it. */
             202: {
                 headers: {
+                    /** @description Path of the status resource to poll for the outcome. */
+                    "Content-Location"?: string;
+                    /** @description Seconds to wait before the first poll. */
+                    "Retry-After"?: number;
                     [name: string]: unknown;
                 };
                 content: {
@@ -15345,9 +15412,13 @@ export interface operations {
             };
         };
         responses: {
-            /** @description Successful Response */
+            /** @description Accepted. The work runs in the background and `Content-Location` names where to poll it. */
             202: {
                 headers: {
+                    /** @description Path of the status resource to poll for the outcome. */
+                    "Content-Location"?: string;
+                    /** @description Seconds to wait before the first poll. */
+                    "Retry-After"?: number;
                     [name: string]: unknown;
                 };
                 content: {
@@ -15413,6 +15484,8 @@ export interface operations {
             /** @description Successful Response */
             200: {
                 headers: {
+                    /** @description Seconds to wait before polling again. Sent only while the work is not finished. */
+                    "Retry-After"?: number;
                     [name: string]: unknown;
                 };
                 content: {
@@ -15484,6 +15557,8 @@ export interface operations {
             /** @description Successful Response */
             200: {
                 headers: {
+                    /** @description Seconds to wait before polling again. Sent only while the work is not finished. */
+                    "Retry-After"?: number;
                     [name: string]: unknown;
                 };
                 content: {
@@ -18896,6 +18971,8 @@ export interface operations {
             /** @description Successful Response */
             200: {
                 headers: {
+                    /** @description Seconds to wait before polling again. Sent only while the work is not finished. */
+                    "Retry-After"?: number;
                     [name: string]: unknown;
                 };
                 content: {
@@ -18926,9 +19003,13 @@ export interface operations {
             };
         };
         responses: {
-            /** @description Successful Response */
+            /** @description Accepted. The work runs in the background and `Content-Location` names where to poll it. */
             202: {
                 headers: {
+                    /** @description Path of the status resource to poll for the outcome. */
+                    "Content-Location"?: string;
+                    /** @description Seconds to wait before the first poll. */
+                    "Retry-After"?: number;
                     [name: string]: unknown;
                 };
                 content: {
@@ -19421,6 +19502,8 @@ export interface operations {
             /** @description Successful Response */
             200: {
                 headers: {
+                    /** @description Seconds to wait before polling again. Sent only while the work is not finished. */
+                    "Retry-After"?: number;
                     [name: string]: unknown;
                 };
                 content: {
@@ -19451,9 +19534,13 @@ export interface operations {
             };
         };
         responses: {
-            /** @description Successful Response */
+            /** @description Accepted. The work runs in the background and `Content-Location` names where to poll it. */
             202: {
                 headers: {
+                    /** @description Path of the status resource to poll for the outcome. */
+                    "Content-Location"?: string;
+                    /** @description Seconds to wait before the first poll. */
+                    "Retry-After"?: number;
                     [name: string]: unknown;
                 };
                 content: {
@@ -21327,9 +21414,13 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
-            /** @description Successful Response */
+            /** @description Accepted. The work runs in the background and `Content-Location` names where to poll it. */
             202: {
                 headers: {
+                    /** @description Path of the status resource to poll for the outcome. */
+                    "Content-Location"?: string;
+                    /** @description Seconds to wait before the first poll. */
+                    "Retry-After"?: number;
                     [name: string]: unknown;
                 };
                 content: {
@@ -21409,9 +21500,13 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
-            /** @description Successful Response */
+            /** @description Accepted. The work runs in the background and `Content-Location` names where to poll it. */
             202: {
                 headers: {
+                    /** @description Path of the status resource to poll for the outcome. */
+                    "Content-Location"?: string;
+                    /** @description Seconds to wait before the first poll. */
+                    "Retry-After"?: number;
                     [name: string]: unknown;
                 };
                 content: {
@@ -21526,9 +21621,13 @@ export interface operations {
             };
         };
         responses: {
-            /** @description Successful Response */
+            /** @description Accepted. The work runs in the background and `Content-Location` names where to poll it. */
             202: {
                 headers: {
+                    /** @description Path of the status resource to poll for the outcome. */
+                    "Content-Location"?: string;
+                    /** @description Seconds to wait before the first poll. */
+                    "Retry-After"?: number;
                     [name: string]: unknown;
                 };
                 content: {
@@ -21564,9 +21663,13 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
-            /** @description Successful Response */
+            /** @description Accepted. The work runs in the background and `Content-Location` names where to poll it. */
             202: {
                 headers: {
+                    /** @description Path of the status resource to poll for the outcome. */
+                    "Content-Location"?: string;
+                    /** @description Seconds to wait before the first poll. */
+                    "Retry-After"?: number;
                     [name: string]: unknown;
                 };
                 content: {
@@ -21654,6 +21757,8 @@ export interface operations {
             /** @description Successful Response */
             200: {
                 headers: {
+                    /** @description Seconds to wait before polling again. Sent only while the work is not finished. */
+                    "Retry-After"?: number;
                     [name: string]: unknown;
                 };
                 content: {
@@ -22083,9 +22188,13 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
-            /** @description Successful Response */
+            /** @description Accepted. The work runs in the background and `Content-Location` names where to poll it. */
             202: {
                 headers: {
+                    /** @description Path of the status resource to poll for the outcome. */
+                    "Content-Location"?: string;
+                    /** @description Seconds to wait before the first poll. */
+                    "Retry-After"?: number;
                     [name: string]: unknown;
                 };
                 content: {
@@ -22257,6 +22366,8 @@ export interface operations {
             /** @description Successful Response */
             200: {
                 headers: {
+                    /** @description Seconds to wait before polling again. Sent only while the work is not finished. */
+                    "Retry-After"?: number;
                     [name: string]: unknown;
                 };
                 content: {

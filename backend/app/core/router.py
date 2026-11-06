@@ -7,10 +7,13 @@ import jasil.audit as jasil_audit
 import jasil.settings as jasil_settings
 from fastapi import APIRouter, HTTPException, status
 from fastapi.responses import FileResponse
+from fastapi.routing import APIRoute
 from jasil.providers import StateBackendUnavailableError
 from pydantic import BaseModel, ConfigDict
 from sqlalchemy import text
 from sqlalchemy.exc import SQLAlchemyError
+from starlette.routing import Match
+from starlette.types import Scope
 
 import core.config as core_config
 import core.dependencies as core_dependencies
@@ -99,6 +102,9 @@ class HealthResponse(BaseModel):
     audit: Literal["ok", "degraded"]
 
 
+#: Seconds a monitor is told to wait before probing an instance whose database does not answer.
+_HEALTH_RETRY_AFTER_SECONDS = 5
+
 #: Key the health probe reads. It is never written, so the probe leaves nothing in the backend.
 _STATE_PROBE_KEY = "endurain:health:probe"
 
@@ -160,12 +166,14 @@ def health(db: core_dependencies.DbSession, state: core_dependencies.PlatformSta
         ``degraded`` when only the state backend or the audit trail is not.
 
     Raises:
-        HTTPException: 503 when no connection can be obtained or the query fails.
+        ServiceUnavailableError: When no connection can be obtained or the query fails, with ``Retry-After``.
     """
     try:
         db.execute(text("SELECT 1"))
     except Exception as err:
-        raise HTTPException(status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail="Database unavailable") from err
+        unavailable = core_exceptions.ServiceUnavailableError("Database unavailable")
+        unavailable.headers = {"Retry-After": str(_HEALTH_RETRY_AFTER_SECONDS)}
+        raise unavailable from err
     state_ok = True
     try:
         state.get(_STATE_PROBE_KEY)
@@ -191,11 +199,27 @@ def health(db: core_dependencies.DbSession, state: core_dependencies.PlatformSta
 # ``{user_id}.{ext}``, it enumerated the entire user base.
 
 
-@router.get(
-    "/{path:path}",
-    include_in_schema=False,
-    response_class=FileResponse,
-)
+class _GetOnlyRoute(APIRoute):
+    """A route that only a ``GET`` matches, so another method on a path it covers falls through to a 404.
+
+    Starlette remembers a route that matches a path but not the method as a partial match, and answers ``405`` from
+    the first one it finds. The frontend fallback covers every path, so it would turn every unknown path into a 405
+    for a method other than ``GET``.
+    """
+
+    def matches(self, scope: Scope) -> tuple[Match, Scope]:
+        """Match a request, treating a method mismatch as no match.
+
+        Args:
+            scope: The ASGI scope of the request.
+
+        Returns:
+            The match and the scope entries it adds.
+        """
+        match, child_scope = super().matches(scope)
+        return (Match.NONE, {}) if match == Match.PARTIAL else (match, child_scope)
+
+
 def frontend_not_found(
     path: str,
 ) -> FileResponse:
@@ -232,3 +256,14 @@ def frontend_not_found(
             detail="Frontend index not found",
         )
     return result
+
+
+# Registered last, so every API route is tried before the frontend fallback.
+router.add_api_route(
+    "/{path:path}",
+    frontend_not_found,
+    methods=["GET"],
+    include_in_schema=False,
+    response_class=FileResponse,
+    route_class_override=_GetOnlyRoute,
+)

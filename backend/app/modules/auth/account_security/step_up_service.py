@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-from datetime import UTC, datetime
 from typing import NoReturn
 
 import jasil.audit as jasil_audit
@@ -125,13 +124,9 @@ def _raise_if_locked_out(
         lockout_until = step_up_store.get_lockout_time(key)
         logger.warning("Step-up blocked for user <user_id>: locked out", extra=core_logger.context(user_id=user_id))
         _record_refusal(user_id, method, account_security_audit_actions.StepUpFailureReason.LOCKED_OUT)
-        error = core_exceptions.TooManyRequestsError(
+        raise core_exceptions.TooManyRequestsError(
             "Too many failed step-up attempts. Try again later.", retry_at=lockout_until
         )
-        if lockout_until is not None:
-            retry_after = max(0, int((lockout_until - datetime.now(UTC)).total_seconds()))
-            error.headers = {"Retry-After": str(retry_after)}
-        raise error
 
 
 def require_not_locked_out(user_id: int, step_up_store: account_security_step_up_store.StepUpStore) -> None:

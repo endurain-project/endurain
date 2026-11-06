@@ -14,6 +14,12 @@ class BulkEditKind(StrEnum):
     VISIBILITY = "visibility"
 
 
+#: Seconds a client waits before polling a bulk edit, which can touch a whole library.
+BULK_EDIT_POLL_SECONDS = 5
+
+#: The job name the bulk edit's realtime hints carry.
+BULK_EDIT_JOB = "activities:bulk-edit"
+
 #: Lifetime of a queued bulk edit's claim and state: longer than any edit takes, so a stuck claim does not
 #: block the user from queueing another for long.
 BULK_EDIT_STATE_TTL_SECONDS = 60 * 60

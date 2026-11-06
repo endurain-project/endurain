@@ -16,6 +16,7 @@ from pydantic import BaseModel
 
 import core.attempt_state as core_attempt_state
 import modules.users.users_profile.constants as profile_constants
+import modules.websocket.integration_service as websocket_integration
 
 
 class ProfileImportState(BaseModel):
@@ -100,6 +101,8 @@ class ProfileImportStateStore:
             finished=status in _FINISHED,
             strict=strict,
         )
+        if status in _FINISHED:
+            websocket_integration.push_job_changed(user_id, profile_constants.IMPORT_JOB)
 
     def get(self, user_id: int) -> ProfileImportState | None:
         """Read a user's import state.

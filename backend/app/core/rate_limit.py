@@ -25,12 +25,15 @@ Architecture
    and document it in this module.
 """
 
+import math
+import time
 from urllib.parse import parse_qsl, urlencode, urlsplit, urlunsplit
 
 from fastapi import Request
 from joserfc import jwt
 from joserfc.errors import JoseError
 from joserfc.jwk import OctKey
+from limits import RateLimitItem
 from slowapi import Limiter
 from slowapi.errors import RateLimitExceeded
 from slowapi.middleware import SlowAPIMiddleware, _find_route_handler, _should_exempt, sync_check_limits
@@ -245,6 +248,26 @@ limiter: Limiter = build_limiter(
 # there without that constraint.
 
 
+def _seconds_until_reset(request: Request, breached: RateLimitItem) -> int:
+    """
+    Find how long a caller must wait before the breached limit lets a request through.
+
+    Args:
+        request: The request that exceeded the limit.
+        breached: The limit that was exceeded.
+
+    Returns:
+        The seconds left in the window the request was counted in, at least 1. The whole window when the
+        request carries no record of the counter it hit.
+    """
+    counter = getattr(request.state, "view_rate_limit", None)
+    if counter is None:
+        return breached.get_expiry()
+    item, identifiers = counter
+    reset_time = request.app.state.limiter.limiter.get_window_stats(item, *identifiers).reset_time
+    return max(1, math.ceil(reset_time - time.time()))
+
+
 def rate_limit_exceeded_handler(
     request: Request,
     exc: RateLimitExceeded,
@@ -280,7 +303,7 @@ def rate_limit_exceeded_handler(
     # note there for why it cannot be.
     if exc.limit is not None:
         breached = exc.limit.limit
-        response.headers["Retry-After"] = str(breached.get_expiry())
+        response.headers["Retry-After"] = str(_seconds_until_reset(request, breached))
         response.headers["X-RateLimit-Limit"] = str(breached.amount)
         response.headers["X-RateLimit-Remaining"] = "0"
     return response

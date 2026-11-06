@@ -12,10 +12,13 @@ Interface::
     close_pending(user_id, kind)        - fail an edit that is still pending
 """
 
+from enum import StrEnum
+
 from jasil.providers import StateProvider
 
 import core.attempt_state as core_attempt_state
 import modules.activities.activity.bulk_edit_constants as bulk_edit_constants
+import modules.websocket.integration_service as websocket_integration
 
 
 class ActivityBulkEditStateStore(core_attempt_state.SyncStateStore):
@@ -30,4 +33,14 @@ class ActivityBulkEditStateStore(core_attempt_state.SyncStateStore):
             state: The platform state provider.
             ttl_seconds: How long an edit's claim and state last.
         """
-        super().__init__(state, "activities", ttl_seconds)
+        super().__init__(state, "activities", ttl_seconds, announce=self._announce_finished)
+
+    @staticmethod
+    def _announce_finished(user_id: int, kind: StrEnum) -> None:
+        """Tell the user's client that a bulk edit reached a final status.
+
+        Args:
+            user_id: The user whose edit ended.
+            kind: What the edit changes.
+        """
+        websocket_integration.push_job_changed(user_id, bulk_edit_constants.BULK_EDIT_JOB)

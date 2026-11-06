@@ -13,7 +13,6 @@ import modules.strava.oauth_state_store as strava_oauth_state_store
 import modules.strava.schema as strava_schema
 import modules.strava.sync_state_store as strava_sync_state_store
 import modules.users.users_integrations.integration_service as user_integrations_integration
-import modules.websocket.integration_service as websocket_integration
 
 logger = core_logger.get_logger(__name__)
 
@@ -89,6 +88,8 @@ def start_link(
         "A Strava link is already in progress",
         lambda: _link_pool.submit(run_link, user_id, link.code, states),
         lambda: states.set_status(user_id, strava_constants.SyncKind.LINK, strava_constants.SyncStatus.FAILED),
+        status_route="strava_sync_status",
+        status_params={"kind": strava_constants.SyncKind.LINK.value},
     )
     logger.info("Strava link queued", extra=core_logger.context(user_id=user_id))
     return strava_schema.StravaSyncStatus(
@@ -172,8 +173,6 @@ def run_link(user_id: int, code: str, states: strava_sync_state_store.StravaSync
         logger.warning("Unable to link Strava account", extra=core_logger.context(user_id=user_id), exc_info=err)
         _record_refused_link(user_id, err)
         states.set_status(user_id, kind, strava_constants.SyncStatus.FAILED)
-        websocket_integration.push_job_changed(user_id, strava_constants.LINK_JOB)
         return
     states.set_status(user_id, kind, strava_constants.SyncStatus.COMPLETED)
-    websocket_integration.push_job_changed(user_id, strava_constants.LINK_JOB)
     logger.info("Strava linked", extra=core_logger.context(user_id=user_id))

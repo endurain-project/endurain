@@ -367,6 +367,9 @@ def create_app() -> FastAPI:
     # seed the built-in providers here; startup replaces them with the configured list.
     fastapi_app.state.allowed_tile_domains = server_settings_constants.DEFAULT_ALLOWED_TILE_DOMAINS.copy()
 
+    # Answer HEAD and default the caching rule of JSON. Added first, so it is the innermost middleware.
+    fastapi_app.add_middleware(core_middleware.GetSemanticsMiddleware)
+
     # Refuse a state-changing web request without the CSRF header. Added first, so it sits inside CORS and the security
     # headers and its 403 carries both.
     fastapi_app.add_middleware(core_middleware.CSRFMiddleware)

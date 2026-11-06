@@ -14,9 +14,9 @@ from typing import Annotated
 from fastapi import (
     APIRouter,
     Depends,
-    Header,
     Query,
     Request,
+    Response,
     Security,
     UploadFile,
     status,
@@ -24,10 +24,13 @@ from fastapi import (
 
 import core.dependencies as core_dependencies
 import core.file_uploads as core_file_uploads
+import core.location as core_location
 import core.middleware_body_limit as core_middleware_body_limit
 import core.rate_limit as core_rate_limit
 import modules.activities.activity_ingestion.bulk_import_service as activity_ingestion_bulk_import_service
+import modules.activities.activity_ingestion.constants as activity_ingestion_constants
 import modules.activities.activity_ingestion.dependencies as activity_ingestion_dependencies
+import modules.activities.activity_ingestion.integration_service as activity_ingestion_integration
 import modules.activities.activity_ingestion.schema as activity_ingestion_schema
 import modules.activities.activity_ingestion.service as activity_ingestion_service
 import modules.auth.dependencies as auth_dependencies
@@ -44,6 +47,7 @@ api_upload_router = APIRouter()
     "/upload",
     status_code=status.HTTP_202_ACCEPTED,
     response_model=activity_ingestion_schema.ActivityIngestionJobRead,
+    responses=core_location.ACCEPTED_RESPONSE,
     dependencies=[
         Security(
             auth_dependencies.check_auth_scopes,
@@ -65,25 +69,17 @@ def create_activity_with_uploaded_file(
         Depends(auth_dependencies.get_user_id_from_auth),
     ],
     file: UploadFile,
+    response: Response,
     db: core_dependencies.DbSession,
     storage: core_dependencies.Storage,
-    idempotency_key: Annotated[
-        str | None,
-        Header(
-            alias="Idempotency-Key",
-            max_length=255,
-            description=(
-                "Optional client-generated key. Replaying a request with the same key returns "
-                "the original job instead of importing the file again."
-            ),
-        ),
-    ] = None,
+    idempotency_key: activity_ingestion_dependencies.IdempotencyKey = None,
 ) -> activity_ingestion_schema.ActivityIngestionJobRead:
     """Upload an activity file (GPX, FIT, TCX, GZ) for import.
 
     Returns ``202`` once the file is stored and queued: parsing is seconds of
     CPU work, and doing it inline held a shared request thread for the duration.
-    Poll ``GET /activities/ingestion-jobs/{job_id}`` for the outcome.
+    Poll ``GET /activities/ingestion-jobs/{job_id}`` for the outcome; ``Content-Location`` names it and
+    ``Retry-After`` says when to look first.
 
     Rejections that can be decided cheaply — unsupported extension, failed
     signature check, oversized body — still come back synchronously as a 4xx, so
@@ -98,7 +94,7 @@ def create_activity_with_uploaded_file(
     query parameter). Requires the
     ``activities:upload`` scope.
     """
-    return activity_ingestion_service.accept_upload(
+    job = activity_ingestion_service.accept_upload(
         token_user_id,
         file.filename,
         partial(core_file_uploads.save_validated_upload_sync, file),
@@ -106,11 +102,14 @@ def create_activity_with_uploaded_file(
         db,
         idempotency_key=idempotency_key,
     )
+    activity_ingestion_integration.set_job_location(response, request, job)
+    return job
 
 
 @api_upload_router.get(
     "/ingestion-jobs/{job_id}",
     response_model=activity_ingestion_schema.ActivityIngestionJobRead,
+    responses={200: {"headers": core_location.POLLED_STATUS_HEADERS}},
     dependencies=[
         Security(
             auth_dependencies.check_auth_scopes,
@@ -125,23 +124,30 @@ def read_activity_ingestion_job(
         Depends(auth_dependencies.get_user_id_from_auth),
     ],
     db: core_dependencies.DbSession,
+    response: Response,
 ) -> activity_ingestion_schema.ActivityIngestionJobRead:
     """Read the state of one of your ingestion requests.
 
-    Serves both uploads and provider refreshes: the caller's question is the
-    same either way, so there is one route rather than two near-identical ones.
+    Serves uploads, bulk imports and provider refreshes: the caller's question is the
+    same either way, so there is one route rather than three near-identical ones.
+    ``Retry-After`` says when to poll again while the job is still running.
 
     Scoped to the caller: a job belonging to another user is reported as not
     found rather than forbidden, so the endpoint does not confirm that an id
     exists.
     """
-    return activity_ingestion_service.get_job(job_id, token_user_id, db)
+    job = activity_ingestion_service.get_job(job_id, token_user_id, db)
+    core_location.set_retry_after_while_running(
+        response, job.status, activity_ingestion_constants.JOB_POLL_SECONDS[job.kind]
+    )
+    return job
 
 
 @router.post(
     "/bulk-import",
     status_code=status.HTTP_202_ACCEPTED,
     response_model=activity_ingestion_schema.ActivityIngestionJobRead,
+    responses=core_location.ACCEPTED_RESPONSE,
     dependencies=[Security(auth_dependencies.check_scopes, scopes=["activities:write"])],
     openapi_extra=core_middleware_body_limit.upload_limit(
         core_file_uploads.max_bytes_for(core_file_uploads.UploadKind.ZIP)
@@ -152,6 +158,7 @@ def create_bulk_import_from_archive(
     request: Request,
     token_user_id: auth_dependencies.CurrentUserId,
     file: UploadFile,
+    response: Response,
     db: core_dependencies.DbSession,
     storage: core_dependencies.Storage,
     source: Annotated[
@@ -163,6 +170,7 @@ def create_bulk_import_from_archive(
             ),
         ),
     ] = activity_ingestion_bulk_import_service.GENERIC_FORMAT_NAME,
+    idempotency_key: activity_ingestion_dependencies.IdempotencyKey = None,
 ) -> activity_ingestion_schema.ActivityIngestionJobRead:
     """Import every activity file in an uploaded ZIP archive.
 
@@ -173,28 +181,36 @@ def create_bulk_import_from_archive(
     still ends ``completed``.
 
     One bulk import runs per user at a time; a second request while one is running
-    is answered ``409``.
+    is answered ``409`` with the running job's ``job_id`` and a ``Content-Location`` naming its status.
+
+    Send an ``Idempotency-Key`` to make a retry safe: a repeat of the same archive and ``source`` returns the
+    original job instead of starting another, and the same key with a different archive is ``409``.
     """
-    return activity_ingestion_bulk_import_service.accept_archive(
+    job = activity_ingestion_bulk_import_service.accept_archive(
         token_user_id,
         file.filename,
         partial(core_file_uploads.save_validated_upload_sync, file),
         source,
         storage,
         db,
+        idempotency_key=idempotency_key,
     )
+    activity_ingestion_integration.set_job_location(response, request, job)
+    return job
 
 
 @router.post(
     "/bulk-import/folder",
     status_code=status.HTTP_202_ACCEPTED,
     response_model=activity_ingestion_schema.ActivityIngestionJobRead,
+    responses=core_location.ACCEPTED_RESPONSE,
     dependencies=[Security(auth_dependencies.check_scopes, scopes=["activities:write"])],
 )
 @core_rate_limit.limiter.limit(core_rate_limit.UPLOAD)
 def create_bulk_import_from_folder(
     request: Request,
     token_user_id: auth_dependencies.CurrentUserId,
+    response: Response,
     db: core_dependencies.DbSession,
     storage: core_dependencies.Storage,
     source: Annotated[
@@ -214,21 +230,25 @@ def create_bulk_import_from_folder(
     ``GET /activities/ingestion-jobs/{job_id}`` for progress.
 
     One bulk import runs per user at a time; a second request while one is running
-    is answered ``409``.
+    is answered ``409`` with the running job's ``job_id`` and a ``Content-Location`` naming its status.
     """
-    return activity_ingestion_bulk_import_service.start_from_directory(token_user_id, source, storage, db)
+    job = activity_ingestion_bulk_import_service.start_from_directory(token_user_id, source, storage, db)
+    activity_ingestion_integration.set_job_location(response, request, job)
+    return job
 
 
 @router.post(
     "/refresh",
     status_code=status.HTTP_202_ACCEPTED,
     response_model=activity_ingestion_schema.ActivityIngestionJobRead,
+    responses=core_location.ACCEPTED_RESPONSE,
     dependencies=[Security(auth_dependencies.check_scopes, scopes=["activities:write"])],
 )
 @core_rate_limit.limiter.limit(core_rate_limit.PROVIDER_SYNC)
 def refresh_activities(
     request: Request,
     token_user_id: auth_dependencies.CurrentUserId,
+    response: Response,
     db: core_dependencies.DbSession,
     storage: core_dependencies.Storage,
 ) -> activity_ingestion_schema.ActivityIngestionJobRead:
@@ -240,4 +260,6 @@ def refresh_activities(
     The sync runs as a job, so no provider call blocks a request thread or the
     event loop.
     """
-    return activity_ingestion_service.accept_refresh(token_user_id, storage, db)
+    job = activity_ingestion_service.accept_refresh(token_user_id, storage, db)
+    activity_ingestion_integration.set_job_location(response, request, job)
+    return job

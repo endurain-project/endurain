@@ -94,8 +94,6 @@ def run_sync(
     )
     if synced is None:
         return
-    if payload.kind == strava_constants.SyncKind.UNLINK:
-        websocket_integration.push_job_changed(payload.user_id, strava_constants.UNLINK_JOB)
     if synced and payload.kind == strava_constants.SyncKind.GEAR:
         # Best effort: the synced rows are already committed, so a lost hint only delays the refresh.
         websocket_integration.push_to_user(payload.user_id, {"message": websocket_constants.GEARS_CHANGED_MESSAGE})
@@ -162,6 +160,7 @@ def _queue(
         submit=lambda: _sync_pool.submit(
             run_sync, strava_events.SyncRequestedPayload(user_id=user_id, kind=kind), states, rate_limits
         ),
+        status_route="strava_sync_status",
     )
     if audit is not None and not durable:
         jasil_audit.record_detached(

@@ -191,7 +191,7 @@ def _run(states, *, exchange_error=None):
 class TestRunLinkTellsTheBrowser:
     @pytest.mark.parametrize("exchange_error", [None, RuntimeError("rejected")], ids=["completed", "failed"])
     def test_the_outcome_is_announced_once(self, states, exchange_error):
-        with patch.object(strava_link_service.websocket_integration, "push_job_changed") as push:
+        with patch.object(strava_sync_state_store.websocket_integration, "push_job_changed") as push:
             _run(states, exchange_error=exchange_error)
 
         push.assert_called_once_with(1, "strava:link")

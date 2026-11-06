@@ -92,7 +92,6 @@ def _run(states, *, exchange_error=None, stage_error=None):
         patch.object(
             strava_link_service.strava_client_service.core_cryptography, "decrypt_token_fernet", side_effect=str
         ),
-        patch.object(strava_link_service.websocket_integration, "push_job_changed"),
     ):
         strava_link_service.run_link(1, "the-code", states)
 

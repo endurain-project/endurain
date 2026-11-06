@@ -11,9 +11,13 @@ Interface::
     close_pending(user_id, kind)        - fail a sync that is still pending
 """
 
+from enum import StrEnum
+
 from jasil.providers import StateProvider
 
 import core.attempt_state as core_attempt_state
+import modules.garmin.constants as garmin_constants
+import modules.websocket.integration_service as websocket_integration
 
 
 class GarminSyncStateStore(core_attempt_state.SyncStateStore):
@@ -25,4 +29,14 @@ class GarminSyncStateStore(core_attempt_state.SyncStateStore):
         Args:
             state: The platform state provider.
         """
-        super().__init__(state, "garmin")
+        super().__init__(state, "garmin", announce=self._announce_finished)
+
+    @staticmethod
+    def _announce_finished(user_id: int, kind: StrEnum) -> None:
+        """Tell the user's client that a sync reached a final status.
+
+        Args:
+            user_id: The user whose sync ended.
+            kind: What the sync pulled.
+        """
+        websocket_integration.push_job_changed(user_id, garmin_constants.job_name(garmin_constants.SyncKind(kind)))

@@ -25,9 +25,12 @@ Every error the API returns is an [RFC 9457](https://www.rfc-editor.org/rfc/rfc9
 | `detail` | Explanation of this occurrence. Safe to show to a user and never contains internal diagnostics. |
 | `instance` | The request path. |
 | `request_id` | The `X-Request-ID` of the request. Quote it in a bug report or to your server operator, who can find the exact log line with it. |
+| `missing_scopes` | The scopes the credential lacks. Present only for a `403` caused by a missing scope. |
 | `errors` | Field-level problems. Present only for a validation failure (`422`). |
 
 Clients that only read `detail` keep working. Some errors carry extra members, such as `code` for a machine-readable subtype.
+
+A `403` for a missing scope also sends `WWW-Authenticate: Bearer error="insufficient_scope", scope="a b"`, with the scopes the route requires separated by spaces ([RFC 6750](https://datatracker.ietf.org/doc/html/rfc6750#section-3.1)). An unknown path under `/api/v1` is `404` for every method; a known path with a method it does not offer is `405` with `Allow`. Every `GET` route also answers `HEAD` with the same headers and no body. `OPTIONS` is answered for CORS preflight only.
 
 ### Error types
 
@@ -124,6 +127,12 @@ Creating and the action endpoints (approve a user, change a password, link an ac
 !!! note
     A change made by the server itself also moves the version. For example, approving a user, a Garmin Connect sync that updates a day, or adding a water intake all change a record, so a form you opened before that gets a `412` on save. That is the intended behaviour: it tells you the record is not what you were looking at.
 
+## Caching and correlation
+
+- A JSON response that sets no `Cache-Control` of its own is `Cache-Control: private, no-cache`: a browser may keep it but must ask the server before it reuses it. A response that carries a token or a secret is `no-store`.
+- The `ETag` of a record is its version, for `If-Match` on writes. It is not a cache validator: a `GET` never answers `304`, whatever `If-None-Match` says, because a response can carry data the version does not cover.
+- Send `X-Request-ID` (letters, digits and hyphens, up to 64 characters) or a W3C `traceparent` header, and the server logs every line of the request under that id. Without `X-Request-ID` the trace id of a valid `traceparent` is the request id. The response repeats `X-Request-ID`, and `traceparent` and `tracestate` as sent. The server starts no spans of its own.
+
 ## Upload size limits
 
 Every route that takes a file has its own limit on the request body: the largest file the route accepts plus 1 MiB for the multipart framing and form fields. The limit is published in the OpenAPI document as the `x-max-body-bytes` extension of the route's operation, so a client can read it instead of hard-coding a number. A body over the limit is refused with `413` and `urn:endurain:error:payload-too-large` before the route runs, whether the request declares a `Content-Length` or streams the body. Every other request body is limited to 10 MiB. A reverse proxy in front of Endurain must allow at least the largest of these limits. The limit of each upload and the formats it accepts are listed in [Background operations](background-operations.md#upload-limits-and-formats).
@@ -138,8 +147,10 @@ When you exceed a limit the API answers `429` and sets these headers:
 
 | Header | Meaning |
 | ------ | ------- |
-| `Retry-After` | Seconds until you can retry. |
+| `Retry-After` | Seconds until the window you are counted in ends. It counts down: a caller late in the window is told less than its length. |
 | `X-RateLimit-Limit` | The limit you hit. |
 | `X-RateLimit-Remaining` | Always `0` on a `429`. |
+
+A lockout after failed sign-in, MFA or step-up attempts, and a `429` that relays a limit of Strava or Garmin Connect, also send `Retry-After` with the seconds until the lockout or the provider's limit ends. A `503` that asks you to try again later sends it too. Browsers can read `Retry-After`, `Content-Location`, `ETag` and `X-Request-ID` on cross-origin requests.
 
 Each endpoint uses one tier. The rate limits listed per endpoint in the authentication pages are these tiers, and the full API documentation shows the rest.

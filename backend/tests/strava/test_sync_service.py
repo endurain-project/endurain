@@ -100,9 +100,12 @@ class TestRunSync:
         ):
             strava_sync_service.run_sync(_payload(GEAR), states, rate_limits)
 
-        push.assert_called_once_with(7, {"message": "GEARS_CHANGED"})
+        assert [call.args for call in push.call_args_list] == [
+            (7, {"message": "JOB_STATUS_CHANGED", "job": "strava:gear"}),
+            (7, {"message": "GEARS_CHANGED"}),
+        ]
 
-    def test_a_failed_gear_sync_pushes_nothing(self, states, rate_limits):
+    def test_a_failed_gear_sync_announces_its_job_but_not_a_gear_change(self, states, rate_limits):
         states.begin(7, GEAR)
         with (
             patch.object(strava_sync_service.strava_gear_service, "get_user_gear", return_value=False),
@@ -110,7 +113,7 @@ class TestRunSync:
         ):
             strava_sync_service.run_sync(_payload(GEAR), states, rate_limits)
 
-        push.assert_not_called()
+        push.assert_called_once_with(7, {"message": "JOB_STATUS_CHANGED", "job": "strava:gear"})
 
     def test_a_finished_unlink_announces_its_job_and_no_gear_change(self, states, rate_limits):
         states.begin(7, UNLINK)

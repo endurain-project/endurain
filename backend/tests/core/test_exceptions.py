@@ -118,3 +118,57 @@ class TestRegisterHandler:
 
         assert (response.status_code, response.json()) == (418, {"path": "/missing"})
         assert [type(exc) for exc in handled] == [KeyError]
+
+
+class TestProblemHeadersAndExtensions:
+    """A domain error's headers and extension members reach the problem document."""
+
+    @staticmethod
+    def _client(error: Exception):
+        from fastapi import FastAPI
+        from fastapi.testclient import TestClient
+
+        import core.exceptions as core_exceptions
+
+        app = FastAPI()
+        core_exceptions.register_exception_handlers(app)
+
+        @app.get("/raises")
+        def raises() -> None:
+            raise error
+
+        return TestClient(app)
+
+    def test_a_retry_at_becomes_the_seconds_left_in_retry_after(self):
+        from datetime import UTC, datetime, timedelta
+
+        import core.exceptions as core_exceptions
+
+        error = core_exceptions.TooManyRequestsError("later", retry_at=datetime.now(UTC) + timedelta(seconds=90))
+
+        response = self._client(error).get("/raises")
+
+        assert response.status_code == 429
+        assert 89 <= int(response.headers["Retry-After"]) <= 90
+
+    def test_a_retry_at_in_the_past_is_zero_seconds(self):
+        from datetime import UTC, datetime, timedelta
+
+        import core.exceptions as core_exceptions
+
+        error = core_exceptions.TooManyRequestsError("now", retry_at=datetime.now(UTC) - timedelta(seconds=5))
+
+        assert self._client(error).get("/raises").headers["Retry-After"] == "0"
+
+    def test_a_limit_with_no_known_end_sends_no_retry_after(self):
+        import core.exceptions as core_exceptions
+
+        assert "Retry-After" not in self._client(core_exceptions.TooManyRequestsError("later")).get("/raises").headers
+
+    def test_extensions_are_members_of_the_problem_document(self):
+        import core.exceptions as core_exceptions
+
+        error = core_exceptions.PermissionDeniedError("no")
+        error.extensions = {"missing_scopes": ["a", "b"]}
+
+        assert self._client(error).get("/raises").json()["missing_scopes"] == ["a", "b"]

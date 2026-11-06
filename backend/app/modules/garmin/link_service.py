@@ -114,6 +114,7 @@ def start_link(
             login.is_cn,
         ),
         lambda: link_states.release(user_id),
+        status_route="garminconnect_link_status",
     )
     return garmin_schema.GarminLinkStatus(status=garmin_constants.LinkStatus.PENDING)
 

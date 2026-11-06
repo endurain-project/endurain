@@ -94,7 +94,9 @@ def request_visibility_edit(
         _pool.require_capacity()
     if not states.begin(user_id, _Kind):
         logger.debug("Refused a second bulk edit while one is pending", extra=core_logger.context(user_id=user_id))
-        raise core_exceptions.ConflictError("A bulk edit is already in progress")
+        raise core_exceptions.JobAlreadyRunningError(
+            "A bulk edit is already in progress", status_route="read_bulk_edit_status"
+        )
 
     try:
         _stage_visibility_request(user_id, visibility, db)

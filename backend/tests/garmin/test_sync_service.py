@@ -232,11 +232,13 @@ class TestRunSync:
             )
 
         assert [call.args for call in push.call_args_list] == [
+            (1, {"message": "JOB_STATUS_CHANGED", "job": "garmin:gear"}),
             (1, {"message": "GEARS_CHANGED"}),
+            (2, {"message": "JOB_STATUS_CHANGED", "job": "garmin:health"}),
             (2, {"message": "HEALTH_CHANGED"}),
         ]
 
-    def test_a_sync_that_did_not_complete_pushes_nothing(self, rate_limits, states):
+    def test_a_sync_that_did_not_complete_announces_its_job_but_not_a_refetch(self, rate_limits, states):
         with (
             patch.object(garmin_sync_service.garmin_gear_service, "get_user_gear", return_value=False),
             patch.object(garmin_sync_service.websocket_integration, "push_to_user") as push,
@@ -245,7 +247,7 @@ class TestRunSync:
                 garmin_events.SyncRequestedPayload(user_id=1, kind=Kind.GEAR), states, rate_limits
             )
 
-        push.assert_not_called()
+        push.assert_called_once_with(1, {"message": "JOB_STATUS_CHANGED", "job": "garmin:gear"})
 
     def test_a_failure_nothing_retries_is_recorded_released_and_raised(self, rate_limits, states):
         states.begin(1, Kind.GEAR)

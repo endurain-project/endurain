@@ -28,8 +28,9 @@ Every error leaves the API as an RFC 9457 problem document — see
 """
 
 import http
+import math
 from collections.abc import Awaitable, Callable
-from datetime import datetime
+from datetime import UTC, datetime
 
 from fastapi import FastAPI, HTTPException, Request, Response, status
 from fastapi.exceptions import RequestValidationError
@@ -41,6 +42,7 @@ from starlette.exceptions import HTTPException as StarletteHTTPException
 import core.logger as core_logger
 import core.middleware_request_id as core_middleware_request_id
 import core.problem_details as core_problem_details
+import core.security_headers as core_security_headers
 
 logger = core_logger.get_logger(__name__)
 
@@ -56,9 +58,12 @@ class DomainError(Exception):
             subclass; the per-occurrence message is ``detail``.
         detail: Caller-safe message returned in the response body.
         headers: Response headers the error adds (``WWW-Authenticate``, ``Retry-After``); ``None`` when it adds none.
+        extensions: RFC 9457 extension members the error adds to its problem document (the scopes a credential is
+            missing); ``None`` when it adds none.
     """
 
     headers: dict[str, str] | None = None
+    extensions: dict[str, object] | None = None
     status_code: int = status.HTTP_500_INTERNAL_SERVER_ERROR
     code: str = "internal-error"
     title: str = "Internal Server Error"
@@ -232,6 +237,41 @@ class ConflictError(DomainError):
     code = "conflict"
     title = "Conflict"
     default_detail = "Conflict"
+
+
+class JobAlreadyRunningError(ConflictError):
+    """A start route refused a second run of work that is still running.
+
+    Renders as the same ``409`` and ``conflict`` problem as :class:`ConflictError`, plus a ``Content-Location``
+    header naming the status resource of the run in progress and, when that run has an id, a ``job_id`` member,
+    so a client that lost the ``202`` of the first request can pick the run up again.
+
+    Attributes:
+        status_route: The name of the route that reads the running work's status.
+        status_params: The path parameters of that route.
+    """
+
+    def __init__(
+        self,
+        detail: str | None = None,
+        *,
+        status_route: str,
+        status_params: dict[str, str] | None = None,
+        job_id: str | None = None,
+    ) -> None:
+        """Initialise the error with the status resource of the work in progress.
+
+        Args:
+            detail: Message returned to the client.
+            status_route: The name of the route that reads the running work's status.
+            status_params: The path parameters of that route.
+            job_id: The id of the running job, for work that has one.
+        """
+        super().__init__(detail)
+        self.status_route = status_route
+        self.status_params = status_params or {}
+        if job_id is not None:
+            self.extensions = {"job_id": job_id}
 
 
 class PreconditionFailedError(DomainError):
@@ -444,13 +484,23 @@ async def domain_error_handler(request: Request, exc: DomainError) -> JSONRespon
     else:
         logger.debug("Domain error", extra=log_context)
 
+    headers = exc.headers
+    if isinstance(exc, TooManyRequestsError) and exc.retry_at is not None:
+        # Rendered when the response is built, so the seconds count from the moment the client is told.
+        seconds = max(0, math.ceil((exc.retry_at - datetime.now(UTC)).total_seconds()))
+        headers = {**(headers or {}), "Retry-After": str(seconds)}
+    if isinstance(exc, JobAlreadyRunningError):
+        location = request.url_for(exc.status_route, **exc.status_params).path
+        headers = {**(headers or {}), "Content-Location": location}
+
     return build_problem_response(
         request=request,
         status_code=exc.status_code,
         code=exc.code,
         title=exc.title,
         detail=exc.detail,
-        headers=exc.headers,
+        headers=headers,
+        **(exc.extensions or {}),
     )
 
 
@@ -541,9 +591,10 @@ async def unhandled_error_handler(request: Request, exc: Exception) -> JSONRespo
         exc_info=exc,
         extra=core_logger.context(path=request.url.path, method=request.method, error=type(exc).__name__),
     )
-    # This handler runs outside the request-id middleware, so the response header is set here.
+    # Starlette's outermost layer calls this handler, outside every middleware, so the response header and the
+    # security headers are set here.
     request_id = core_middleware_request_id.get_request_id()
-    return build_problem_response(
+    response = build_problem_response(
         request=request,
         status_code=ProcessingError.status_code,
         code=ProcessingError.code,
@@ -551,6 +602,8 @@ async def unhandled_error_handler(request: Request, exc: Exception) -> JSONRespo
         detail=ProcessingError.default_detail,
         headers={"X-Request-ID": request_id} if request_id else None,
     )
+    core_security_headers.apply(response, request.url.path)
+    return response
 
 
 async def http_exception_handler(request: Request, exc: StarletteHTTPException) -> JSONResponse:

@@ -6,6 +6,7 @@ same subject, and a state, which the poll reads. Both live in the platform ``Sta
 (in-process under ``local``, Redis under ``distributed``), so nothing about them is process-local.
 """
 
+from collections.abc import Callable
 from enum import StrEnum
 from typing import NoReturn
 
@@ -233,17 +234,28 @@ class SyncStateStore:
 
     Attributes:
         _attempts: The claim and state storage for the feature's syncs.
+        _announce: Tells the user's client that a sync reached a final status, when the feature wires it.
     """
 
-    def __init__(self, state: StateProvider, namespace: str, ttl_seconds: int = SYNC_TTL_SECONDS) -> None:
+    def __init__(
+        self,
+        state: StateProvider,
+        namespace: str,
+        ttl_seconds: int = SYNC_TTL_SECONDS,
+        *,
+        announce: Callable[[int, StrEnum], None] | None = None,
+    ) -> None:
         """Initialize the store.
 
         Args:
             state: The platform state provider.
             namespace: The feature that owns the syncs, in the storage keys.
             ttl_seconds: How long a sync's claim and state last.
+            announce: Called with the user and kind when a sync reaches a final status, to tell the user's
+                client; the store holds no transport of its own.
         """
         self._attempts = AttemptStateStore(state, namespace, "sync", ttl_seconds)
+        self._announce = announce
 
     @staticmethod
     def _subject(user_id: int, kind: StrEnum) -> str:
@@ -273,6 +285,8 @@ class SyncStateStore:
             status: The new status.
         """
         self._attempts.record(self._subject(user_id, kind), SyncState(status=status), finished=status in _FINISHED)
+        if status in _FINISHED and self._announce is not None:
+            self._announce(user_id, kind)
 
     def discard(self, user_id: int, kind: StrEnum) -> None:
         """Drop a sync's claim and state, for one that was called off.

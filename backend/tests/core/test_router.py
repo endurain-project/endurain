@@ -11,10 +11,12 @@ from jasil.providers import StateBackendUnavailableError
 from sqlalchemy.exc import OperationalError
 
 import core.dependencies as core_dependencies
+import core.exceptions as core_exceptions
 from core.database import get_db
 from core.router import router
 
 app = FastAPI()
+core_exceptions.register_exception_handlers(app)
 app.include_router(router)
 client = TestClient(app)
 
@@ -81,7 +83,12 @@ class TestHealth:
         db = MagicMock()
         db.execute.side_effect = TimeoutError("pool exhausted")
 
-        assert self._get(db, MagicMock()).status_code == 503
+        response = self._get(db, MagicMock())
+
+        assert response.status_code == 503
+        assert response.headers["Content-Type"].startswith("application/problem+json")
+        assert response.headers["Retry-After"] == "5"
+        assert response.json()["detail"] == "Database unavailable"
 
     def test_an_unreachable_state_backend_is_degraded_not_down(self, caplog):
         state = MagicMock()
@@ -268,6 +275,18 @@ class TestCatchAll(_FileResponseTestMixin):
             mock.assert_called_once_with("index.html")
             assert response.status_code == 404
             assert response.json()["detail"] == "Frontend index not found"
+
+
+class TestFrontendFallbackMethods(_FileResponseTestMixin):
+    """Only a GET reaches the frontend fallback; HEAD is served by the GET semantics middleware."""
+
+    @pytest.mark.parametrize("method", ["POST", "PUT", "PATCH", "DELETE"])
+    def test_another_method_on_a_frontend_path_is_a_404_not_a_405(self, method):
+        with patch("core.router.core_utils.return_frontend_index") as mock:
+            response = client.request(method, "/some/page")
+
+        mock.assert_not_called()
+        assert response.status_code == 404
 
 
 class TestUnknownApiPath(_FileResponseTestMixin):

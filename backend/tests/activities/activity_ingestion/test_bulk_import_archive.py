@@ -211,6 +211,25 @@ class TestRunLocally:
         assert row.staged_key is None
         assert list(storage.iter_objects(upload_entry_service.UPLOAD_STAGING_STORAGE_AREA, "")) == []
 
+    def test_a_finished_import_tells_its_owner_after_the_outcome_is_committed(
+        self, tmp_path, factory, storage, pipeline
+    ):
+        job_id = self._accept(tmp_path, factory, storage, {"a.fit": b"1"})
+        seen: list[str] = []
+
+        def announce(user_id: int, announced_job: str) -> None:
+            seen.append(_job(factory, job_id).status)
+            assert (user_id, announced_job) == (_USER, job_id)
+
+        with (
+            patch.object(bulk.core_config.settings, "JOBS_ENABLED", False),
+            patch.object(bulk.activity_ingestion_service, "announce_job", side_effect=announce) as hint,
+        ):
+            bulk.run_bulk_import_job(job_id, storage)
+
+        hint.assert_called_once_with(_USER, job_id)
+        assert seen == ["completed"]
+
     def test_one_bad_file_is_counted_kept_and_does_not_stop_the_rest(self, tmp_path, factory, storage, pipeline):
         job_id = self._accept(tmp_path, factory, storage, {"a.fit": b"1", "bad.fit": b"BAD", "c.fit": b"3"})
 

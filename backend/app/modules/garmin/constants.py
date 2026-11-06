@@ -9,6 +9,12 @@ PROVIDER_NAME = "garminconnect"
 #: The job name the link's realtime hints carry.
 LINK_JOB = "garmin-link"
 
+#: Seconds a client waits before polling a Garmin Connect link attempt (a login takes a few seconds).
+LINK_POLL_SECONDS = 2
+
+#: Seconds a client waits before polling a Garmin Connect gear or health sync.
+SYNC_POLL_SECONDS = 5
+
 # A login waits this long for the user's MFA code. The stores' lifetimes must exceed it so a live
 # attempt never expires under the poller.
 MFA_WAIT_SECONDS = 180
@@ -40,6 +46,18 @@ class SyncKind(StrEnum):
 
 #: Where a queued sync is; shared by every provider's sync state.
 SyncStatus = core_attempt_state.SyncStatus
+
+
+def job_name(kind: SyncKind) -> str:
+    """Name a queued sync in the realtime hints.
+
+    Args:
+        kind: What the sync pulls.
+
+    Returns:
+        The job name, such as ``garmin:gear``.
+    """
+    return f"garmin:{kind.value}"
 
 
 class LinkStatus(StrEnum):

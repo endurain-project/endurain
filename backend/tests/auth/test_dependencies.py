@@ -247,6 +247,25 @@ class TestCheckAuthScopes:
             check_auth_scopes(auth, security_scopes)
         assert exc_info.value.status_code == 403
 
+    def test_the_challenge_names_the_scopes_the_route_requires_as_a_space_separated_list(self):
+        auth = AuthContext(user_id=1, scopes=["profile"], auth_type="jwt")
+        security_scopes = MagicMock()
+        security_scopes.scopes = ["profile", "activities:read", "activities:write"]
+        with pytest.raises(core_exceptions.PermissionDeniedError) as exc_info:
+            check_auth_scopes(auth, security_scopes)
+        assert exc_info.value.headers == {
+            "WWW-Authenticate": 'Bearer error="insufficient_scope", scope="profile activities:read activities:write"'
+        }
+
+    def test_the_missing_scopes_are_an_extension_member_not_a_python_repr(self):
+        auth = AuthContext(user_id=1, scopes=["profile"], auth_type="jwt")
+        security_scopes = MagicMock()
+        security_scopes.scopes = ["profile", "users:write", "activities:read"]
+        with pytest.raises(core_exceptions.PermissionDeniedError) as exc_info:
+            check_auth_scopes(auth, security_scopes)
+        assert exc_info.value.extensions == {"missing_scopes": ["activities:read", "users:write"]}
+        assert exc_info.value.detail == "Missing permissions: activities:read, users:write"
+
 
 class TestResolveAndCachePrincipal:
     """Tests for _resolve_and_cache_principal."""

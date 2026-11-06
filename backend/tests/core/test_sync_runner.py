@@ -107,7 +107,7 @@ class TestStartClaimed:
     def test_a_claimed_start_runs(self):
         start, release = MagicMock(), MagicMock()
 
-        core_sync_runner.start_claimed(lambda: True, "busy", start, release)
+        core_sync_runner.start_claimed(lambda: True, "busy", start, release, status_route="status")
 
         start.assert_called_once_with()
         release.assert_not_called()
@@ -115,16 +115,21 @@ class TestStartClaimed:
     def test_a_held_claim_is_a_conflict_and_nothing_starts(self):
         start = MagicMock()
 
-        with pytest.raises(core_exceptions.ConflictError, match="busy"):
-            core_sync_runner.start_claimed(lambda: False, "busy", start, MagicMock())
+        with pytest.raises(core_exceptions.JobAlreadyRunningError, match="busy") as refused:
+            core_sync_runner.start_claimed(
+                lambda: False, "busy", start, MagicMock(), status_route="status", status_params={"kind": "gear"}
+            )
 
         start.assert_not_called()
+        assert (refused.value.status_route, refused.value.status_params) == ("status", {"kind": "gear"})
 
     def test_a_start_that_fails_releases_the_claim(self):
         release = MagicMock()
 
         with pytest.raises(RuntimeError):
-            core_sync_runner.start_claimed(lambda: True, "busy", MagicMock(side_effect=RuntimeError("boom")), release)
+            core_sync_runner.start_claimed(
+                lambda: True, "busy", MagicMock(side_effect=RuntimeError("boom")), release, status_route="status"
+            )
 
         release.assert_called_once_with()
 
@@ -133,7 +138,9 @@ class TestQueueSync:
     def test_a_durable_sync_is_published(self, states):
         publish, submit = MagicMock(), MagicMock()
 
-        core_sync_runner.queue_sync(states, 1, _Kinds.GEAR, "Provider", durable=True, publish=publish, submit=submit)
+        core_sync_runner.queue_sync(
+            states, 1, _Kinds.GEAR, "Provider", durable=True, publish=publish, submit=submit, status_route="status"
+        )
 
         publish.assert_called_once_with()
         submit.assert_not_called()
@@ -142,7 +149,9 @@ class TestQueueSync:
     def test_a_local_sync_is_submitted_to_the_pool(self, states):
         publish, submit = MagicMock(), MagicMock()
 
-        core_sync_runner.queue_sync(states, 1, _Kinds.GEAR, "Provider", durable=False, publish=publish, submit=submit)
+        core_sync_runner.queue_sync(
+            states, 1, _Kinds.GEAR, "Provider", durable=False, publish=publish, submit=submit, status_route="status"
+        )
 
         submit.assert_called_once_with()
         publish.assert_not_called()
@@ -150,10 +159,21 @@ class TestQueueSync:
     def test_a_pending_sync_is_a_conflict(self, states):
         _begin(states)
 
-        with pytest.raises(core_exceptions.ConflictError, match="Provider gear sync is already in progress"):
+        with pytest.raises(
+            core_exceptions.JobAlreadyRunningError, match="Provider gear sync is already in progress"
+        ) as refused:
             core_sync_runner.queue_sync(
-                states, 1, _Kinds.GEAR, "Provider", durable=True, publish=MagicMock(), submit=MagicMock()
+                states,
+                1,
+                _Kinds.GEAR,
+                "Provider",
+                durable=True,
+                publish=MagicMock(),
+                submit=MagicMock(),
+                status_route="status",
             )
+
+        assert (refused.value.status_route, refused.value.status_params) == ("status", {"kind": "gear"})
 
     def test_a_failure_to_queue_frees_the_claim(self, states):
         with pytest.raises(RuntimeError):
@@ -165,6 +185,7 @@ class TestQueueSync:
                 durable=True,
                 publish=MagicMock(side_effect=RuntimeError("boom")),
                 submit=MagicMock(),
+                status_route="status",
             )
 
         assert states.get(1, _Kinds.GEAR).status == Status.FAILED

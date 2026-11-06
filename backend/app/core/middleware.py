@@ -6,24 +6,20 @@ from collections.abc import Awaitable, Callable
 
 from fastapi import FastAPI, Request, status
 from fastapi.concurrency import run_in_threadpool
-from starlette.datastructures import State
+from starlette.datastructures import MutableHeaders, State
 from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.middleware.gzip import GZipMiddleware
 from starlette.responses import Response
-from starlette.types import ASGIApp
+from starlette.types import ASGIApp, Message, Receive, Scope, Send
 
 import core.config as core_config
-import core.environment as core_environment
 import core.exceptions as core_exceptions
 import core.logger as core_logger
+import core.security_headers as core_security_headers
 
 logger = core_logger.get_logger(__name__)
 
 _CSRF_METHODS = {"POST", "PUT", "DELETE", "PATCH"}
-
-#: Pages whose URL carries a one-time credential: a reset token, a verification token or an SSO session id.
-#: They send no Referer at all. Other pages keep the default, because map tile servers can rely on it.
-_NO_REFERRER_PATHS = frozenset({"/login", "/reset-password", "/verify-email"})
 
 #: gzip level. The moderate level: the library default, 9, spends several times the CPU for a few percent
 #: more. The library compresses chunks of 128 KiB or more in a worker thread and smaller ones inline.
@@ -44,12 +40,16 @@ CORS_ALLOW_HEADERS: tuple[str, ...] = (
     "If-Match",
     "X-Client-Type",
     "X-CSRF-Token",
+    "X-Request-ID",
+    "traceparent",
+    "tracestate",
 )
 
 #: Response headers a browser client may read. Anything not listed is invisible
 #: to JavaScript even though it is on the wire — which is why ``ETag`` belongs
-#: here: it is the tag the client echoes back in ``If-Match``.
-CORS_EXPOSE_HEADERS: tuple[str, ...] = ("ETag", "X-Request-ID")
+#: here: it is the tag the client echoes back in ``If-Match``. ``Retry-After`` says when to try again and
+#: ``Content-Location`` names the status resource of accepted background work.
+CORS_EXPOSE_HEADERS: tuple[str, ...] = ("ETag", "X-Request-ID", "Retry-After", "Content-Location")
 
 
 async def _reload_allowed_tile_domains(state: State, loader: Callable[[], list[str]]) -> None:
@@ -121,27 +121,9 @@ class SecurityHeadersMiddleware(BaseHTTPMiddleware):
         """
         response = await call_next(request)
 
-        # Prevent MIME sniffing
-        response.headers["X-Content-Type-Options"] = "nosniff"
+        core_security_headers.apply(response, request.url.path)
 
-        # Prevent clickjacking
-        response.headers["X-Frame-Options"] = "DENY"
-
-        # Disable legacy browser XSS auditors; CSP is the modern control.
-        response.headers["X-XSS-Protection"] = "0"
-
-        # Control referrer information leakage
-        response.headers["Referrer-Policy"] = (
-            "no-referrer" if request.url.path in _NO_REFERRER_PATHS else "strict-origin-when-cross-origin"
-        )
-
-        # Disable unnecessary browser features
-        response.headers["Permissions-Policy"] = "geolocation=(), microphone=(), camera=()"
-
-        if core_environment.is_deployed_environment(core_config.settings.ENVIRONMENT):
-            response.headers["Strict-Transport-Security"] = "max-age=31536000; includeSubDomains"
-
-        # Only HTML receives CSP to avoid surprising JSON API clients.
+        # An HTML page gets the policy of the app shell; a JSON response got its own from ``apply``.
         content_type = response.headers.get("content-type", "")
         if "text/html" in content_type:
             _refresh_allowed_tile_domains(request)
@@ -161,8 +143,7 @@ class SecurityHeadersMiddleware(BaseHTTPMiddleware):
             if extra_connect_src:
                 connect_src = f"{connect_src} {' '.join(extra_connect_src)}"
 
-            # Accepted risks (docs/integrate/authentication.md): inline scripts and styles are allowed, and
-            # framing is blocked by X-Frame-Options rather than frame-ancestors.
+            # Accepted risk (docs/integrate/authentication.md): inline scripts and styles are allowed.
             response.headers["Content-Security-Policy"] = (
                 "default-src 'self'; "
                 f"img-src 'self' data: {tile_domains_str}{blob_src} "
@@ -170,13 +151,70 @@ class SecurityHeadersMiddleware(BaseHTTPMiddleware):
                 "style-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net; "
                 "script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net; "
                 f"connect-src {connect_src}; "
-                f"media-src 'self' data:{blob_src}"
+                f"media-src 'self' data:{blob_src}; "
+                "frame-ancestors 'none'"
             )
 
         if "Server" in response.headers:
             del response.headers["Server"]
 
         return response
+
+
+#: The caching rule of a JSON response that sets none: a browser may keep it but must revalidate before reuse. Personal
+#: data must never be served from a heuristic freshness lifetime.
+DEFAULT_CACHE_CONTROL = "private, no-cache"
+
+
+class GetSemanticsMiddleware:
+    """
+    Give every ``GET`` route the HTTP semantics the routes do not repeat.
+
+    An ``ETag`` here is the version a write echoes in ``If-Match``, not a validator of the whole body, so a matching
+    ``If-None-Match`` is not answered ``304``.
+
+    * ``HEAD`` runs the ``GET`` route and sends its headers without the body (RFC 9110 section 9.3.2).
+    * A JSON response that sets no ``Cache-Control`` gets :data:`DEFAULT_CACHE_CONTROL`.
+
+    Install it first, so it is the innermost middleware.
+
+    Attributes:
+        app: The wrapped ASGI application.
+    """
+
+    def __init__(self, app: ASGIApp) -> None:
+        self.app = app
+
+    async def __call__(self, scope: Scope, receive: Receive, send: Send) -> None:
+        """
+        Run the wrapped application with the response rules applied.
+
+        Args:
+            scope: ASGI connection scope.
+            receive: ASGI receive callable.
+            send: ASGI send callable.
+        """
+        if scope["type"] != "http":
+            await self.app(scope, receive, send)
+            return
+
+        is_head = scope["method"] == "HEAD"
+        if is_head:
+            scope = {**scope, "method": "GET"}
+        drop_body = is_head
+
+        async def send_with_rules(message: Message) -> None:
+            if message["type"] == "http.response.start":
+                headers = MutableHeaders(scope=message)
+                if "cache-control" not in headers and core_security_headers.is_json(headers.get("content-type")):
+                    headers["Cache-Control"] = DEFAULT_CACHE_CONTROL
+            elif message["type"] == "http.response.body" and drop_body:
+                if message.get("more_body", False):
+                    return
+                message = {"type": "http.response.body", "body": b""}
+            await send(message)
+
+        await self.app(scope, receive, send_with_rules)
 
 
 class CSRFMiddleware(BaseHTTPMiddleware):

@@ -199,6 +199,7 @@ class TestRateLimitExceededHandler:
         request.state.view_rate_limit = "120/minute"
 
         exc = MagicMock()
+        exc.limit = None
 
         with patch("core.rate_limit.logger"):
             response = rate_limit_exceeded_handler(request, exc)
@@ -214,7 +215,7 @@ class TestRateLimitExceededHandler:
         request.url.path = "/api/v1/test"
         request.headers = {}
         request.app.state.limiter._inject_headers = MagicMock()
-        request.state.view_rate_limit = "120/minute"
+        request.state.view_rate_limit = None
 
         exc = MagicMock()
 
@@ -241,6 +242,7 @@ class TestRateLimitExceededHandler:
         request.method = "GET"
         request.url.path = "/api/v1/test"
         request.headers = {}
+        request.state.view_rate_limit = None
 
         limit = Limit(
             limit=parse("30/minute"),
@@ -265,6 +267,38 @@ class TestRateLimitExceededHandler:
         assert response.headers["Retry-After"] == "60"
         assert response.headers["X-RateLimit-Limit"] == "30"
         assert response.headers["X-RateLimit-Remaining"] == "0"
+
+
+class TestRetryAfterIsTheTimeLeftInTheWindow:
+    """``Retry-After`` counts down with the window instead of repeating its whole length."""
+
+    def test_a_caller_late_in_the_window_is_told_the_seconds_that_remain(self):
+        from fastapi import FastAPI, Request
+        from fastapi.testclient import TestClient
+        from slowapi.errors import RateLimitExceeded
+
+        import core.exceptions as core_exceptions
+        from core.rate_limit import RateLimitMiddleware, build_limiter, rate_limit_exceeded_handler
+
+        limiter = build_limiter(storage_uri="memory://", enabled=True)
+        app = FastAPI()
+        app.state.limiter = limiter
+        core_exceptions.register_sync_handler(app, RateLimitExceeded, rate_limit_exceeded_handler)
+        app.add_middleware(RateLimitMiddleware)
+
+        @app.get("/limited")
+        @limiter.limit("2/minute")
+        def limited(request: Request) -> dict[str, str]:
+            return {"ok": "yes"}
+
+        client = TestClient(app)
+        assert [client.get("/limited").status_code for _ in range(2)] == [200, 200]
+        started = time.time()
+        with patch("core.rate_limit.time.time", return_value=started + 40):
+            response = client.get("/limited")
+
+        assert response.status_code == 429
+        assert 19 <= int(response.headers["Retry-After"]) <= 21
 
 
 class TestStorageOutageFallback:

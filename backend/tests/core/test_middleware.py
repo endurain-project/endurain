@@ -487,7 +487,7 @@ class TestSecurityHeadersMiddleware:
         assert csp is not None
         assert "default-src 'self'" in csp
 
-    def test_csp_header_absent_for_non_html_response(self):
+    def test_json_response_gets_the_policy_that_loads_nothing(self):
         from fastapi import FastAPI
         from fastapi.testclient import TestClient
 
@@ -504,7 +504,7 @@ class TestSecurityHeadersMiddleware:
         response = client.get("/json")
 
         assert response.status_code == 200
-        assert "Content-Security-Policy" not in response.headers
+        assert response.headers["Content-Security-Policy"] == "default-src 'none'; frame-ancestors 'none'"
 
     def test_server_header_removed_when_present(self):
         from fastapi import FastAPI
