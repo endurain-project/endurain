@@ -39,7 +39,12 @@ def read_logs_status() -> logs_schema.LogsStatus:
 def read_logs(
     num_records: Annotated[int, Query(ge=1, le=1000, description="Most records to return")] = 200,
     level: Annotated[logs_schema.LogLevel | None, Query(description="Lowest severity to include")] = None,
-    search: Annotated[str | None, Query(max_length=200, description="Text a record must contain")] = None,
+    message_contains: Annotated[
+        str | None,
+        Query(
+            max_length=200, description="Text a record must contain, in its message, logger, request ID or exception"
+        ),
+    ] = None,
     cursor: Annotated[
         str | None,
         Query(
@@ -57,7 +62,7 @@ def read_logs(
     Args:
         num_records: Most records to return.
         level: Lowest severity to include.
-        search: Case-insensitive text a record must contain.
+        message_contains: Case-insensitive text a record must contain.
         cursor: ``next_cursor`` of an earlier page.
 
     Returns:
@@ -66,7 +71,7 @@ def read_logs(
     Raises:
         NotFoundError: 404 if the log viewer is not available on this deployment.
     """
-    return logs_service.read_logs(num_records, level, search, None if cursor is None else int(cursor))
+    return logs_service.read_logs(num_records, level, message_contains, None if cursor is None else int(cursor))
 
 
 @router.get(

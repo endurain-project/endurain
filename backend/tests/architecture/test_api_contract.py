@@ -69,12 +69,6 @@ _PUT_OPTIONAL_FIELDS: dict[str, str] = {
 }
 
 
-#: List filters that break the vocabulary (``<field>_contains`` for text, ``active=<bool>`` for a state), as
-#: ``"GET <route>: <parameter>"``. Remove an entry when the parameter is renamed.
-_FILTER_VOCABULARY: dict[str, str] = {
-    "GET /server-settings/logs: search": "DOM-6, changes with the log pagination",
-}
-
 #: Route handlers whose docstring carries a Google section, as ``{path relative to app/: handlers}``. Move the
 #: section's content into ``Field``/``Query`` descriptions or ``responses`` and lower the count (HTTP-10).
 _DOCSTRING_SECTIONS: dict[str, int] = {
@@ -437,7 +431,7 @@ class TestApiContract:
                 if parameter["in"] == "query" and (name.startswith("show_") or name in {"name", "search", "term", "q"}):
                     found.add(f"GET {path}: {name}")
 
-        _compare("A list filter breaks the vocabulary", found, _FILTER_VOCABULARY, "Use <field>_contains or active")
+        assert not found, f"A list filter breaks the vocabulary. Use <field>_contains or active: {sorted(found)}"
 
     def test_enums_are_strings(self):
         """Enumerated values are strings and ``is_*``/``has_*`` properties are booleans.

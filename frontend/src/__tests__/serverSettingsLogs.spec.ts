@@ -44,7 +44,7 @@ describe('server log services', () => {
     const [path] = mockedApiFetch.mock.calls[0]!
     const params = new URL(path, 'http://localhost').searchParams
     expect(params.get('level')).toBe('WARNING')
-    expect(params.get('search')).toBe('strava sync')
+    expect(params.get('message_contains')).toBe('strava sync')
     expect(params.get('cursor')).toBe('42')
   })
 

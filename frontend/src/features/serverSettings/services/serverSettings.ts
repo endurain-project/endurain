@@ -347,7 +347,7 @@ export async function fetchLogs(
     params.set('level', filters.level)
   }
   if (filters.search) {
-    params.set('search', filters.search)
+    params.set('message_contains', filters.search)
   }
   if (cursor !== null) {
     params.set('cursor', cursor)

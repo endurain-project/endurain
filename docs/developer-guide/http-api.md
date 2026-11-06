@@ -89,6 +89,21 @@ A resource has a collection and an item:
   member, never as a Python repr in `detail`.
 - A refusal that must not reveal whether something exists answers the same `404` as a missing record.
 
+## Naming new fields
+
+These rules are for new fields and parameters; existing names are not renamed to fit them.
+
+- A boolean is `is_<state>` for a state the resource is in (`is_blocked`), `has_<thing>` for the presence of
+  something (`has_local_password`), and a plain adjective when the field is a setting, filter or attribute that
+  reads naturally as one (`active`, `read`, `discoverable`). Never a negation, and never `hide_*`/`show_*` for a
+  new flag: state what is on.
+- An instant is `<event>_at` and carries a UTC offset (`created_at`, `declined_at`).
+- A calendar date is `<event>_date`, or `date` when the resource is about one day.
+- A wall-clock time without a zone is `<event>_local`, as the request-bodies rule says.
+- A measurement puts its unit in the name when the name can carry it (`weight_kg`, `sleep_seconds`, `*_percent`).
+- A text filter on a collection is `<field>_contains`, naming the field it matches (`name_contains`,
+  `message_contains`), and a state filter is `active=<bool>`.
+
 ## Request bodies
 
 - Request schemas set `extra="forbid"` and bound every string and number.

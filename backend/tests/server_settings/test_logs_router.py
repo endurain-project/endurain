@@ -41,7 +41,14 @@ def test_the_page_uses_the_cursor_page_names(client):
     assert read.call_args.args == (50, logs_schema.LogLevel.WARNING, None, 77)
 
 
-@pytest.mark.parametrize("query", ["after=3", "limit=5"])
+def test_the_text_filter_is_message_contains(client):
+    with patch(_SERVICE, return_value=_page()) as read:
+        client.get("/server-settings/logs?message_contains=strava")
+
+    assert read.call_args.args == (200, None, "strava", None)
+
+
+@pytest.mark.parametrize("query", ["after=3", "limit=5", "search=strava"])
 def test_the_old_names_are_ignored(client, query):
     with patch(_SERVICE, return_value=_page()) as read:
         client.get(f"/server-settings/logs?{query}")

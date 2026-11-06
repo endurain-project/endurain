@@ -31218,8 +31218,8 @@ export interface operations {
                 num_records?: number;
                 /** @description Lowest severity to include */
                 level?: components["schemas"]["LogLevel"] | null;
-                /** @description Text a record must contain */
-                search?: string | null;
+                /** @description Text a record must contain, in its message, logger, request ID or exception */
+                message_contains?: string | null;
                 /** @description `next_cursor` of an earlier page, to read only newer records */
                 cursor?: string | null;
             };
