@@ -109,7 +109,7 @@ export type GearComponentTypeLists = Schemas['GearComponentTypesRead']
  * @property purchaseDate - Purchase date (ISO string), or `null`.
  * @property retiredDate - Retirement date (ISO string), or `null`.
  * @property active - Whether the component is currently in use.
- * @property expectedBaseUnits - Backend `expected_kms`: the wear threshold in
+ * @property expectedBaseUnits - Backend `expected_usage`: the wear threshold in
  *   base units — **metres** for distance-tracked gears and **seconds** for the
  *   time-tracked racquet family — or `null` when no threshold is set.
  * @property purchaseValue - Purchase price in the user's currency, or `null`.

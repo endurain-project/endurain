@@ -31,7 +31,7 @@ class GearComponents(Base):
         purchase_date: Purchase date (calendar date, no time of day).
         retired_date: Retired date (calendar date, no time of day).
         active: Whether component is active.
-        expected_kms: Expected kilometers.
+        expected_usage: Wear threshold in meters for a distance-tracked gear and in seconds for a time-tracked one.
         purchase_value: Purchase value.
     """
 
@@ -83,9 +83,11 @@ class GearComponents(Base):
         default=False,
         comment=("Whether the gear component is active (true - yes, false - no)"),
     )
-    expected_kms: Mapped[int | None] = mapped_column(
+    expected_usage: Mapped[int | None] = mapped_column(
         nullable=True,
-        comment=("Expected kilometers of the gear component"),
+        comment=(
+            "Wear threshold of the gear component: meters for a distance-tracked gear, seconds for a time-tracked one"
+        ),
     )
     purchase_value: Mapped[Decimal | None] = mapped_column(
         Numeric(precision=11, scale=2),

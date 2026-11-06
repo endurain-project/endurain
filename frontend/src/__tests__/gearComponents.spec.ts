@@ -39,7 +39,7 @@ const componentDto: GearComponentDto = {
   purchase_date: '2024-01-10',
   retired_date: null,
   active: true,
-  expected_kms: 5_000_000,
+  expected_usage: 5_000_000,
   purchase_value: '45.00',
   current_distance: 1_200_000,
   current_time: 360_000,
@@ -83,7 +83,7 @@ const expectedComponentWire = {
   purchase_date: '2024-01-10',
   retired_date: null,
   active: true,
-  expected_kms: 5_000_000,
+  expected_usage: 5_000_000,
   purchase_value: '45.00',
 }
 

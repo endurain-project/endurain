@@ -29,7 +29,7 @@ export function mapGearComponent(dto: GearComponentDto): GearComponent {
     purchaseDate: dto.purchase_date ?? null,
     retiredDate: dto.retired_date ?? null,
     active: dto.active ?? true,
-    expectedBaseUnits: dto.expected_kms ?? null,
+    expectedBaseUnits: dto.expected_usage ?? null,
     purchaseValue: moneyToNumber(dto.purchase_value),
     currentDistance: dto.current_distance ?? 0,
     currentTime: dto.current_time ?? 0,
@@ -39,7 +39,7 @@ export function mapGearComponent(dto: GearComponentDto): GearComponent {
 
 /**
  * Translates the clean form input into the backend's shared component wire
- * fields. `expectedBaseUnits` maps straight onto the backend's `expected_kms`
+ * fields. `expectedBaseUnits` maps straight onto the backend's `expected_usage`
  * (which stores metres or seconds, not kilometres).
  *
  * @param input - The clean component input.
@@ -53,7 +53,7 @@ function toComponentWireFields(input: GearComponentInput) {
     purchase_date: input.purchaseDate,
     retired_date: input.retiredDate,
     active: input.active,
-    expected_kms: input.expectedBaseUnits,
+    expected_usage: input.expectedBaseUnits,
     purchase_value: numberToMoney(input.purchaseValue),
   }
 }

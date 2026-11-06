@@ -46,7 +46,7 @@ def to_orm(
         purchase_date=gear_component.purchase_date,
         retired_date=gear_component.retired_date,
         active=gear_component.retired_date is None and gear_component.active is not False,
-        expected_kms=gear_component.expected_kms,
+        expected_usage=gear_component.expected_usage,
         purchase_value=Decimal(gear_component.purchase_value) if gear_component.purchase_value is not None else None,
     )
 

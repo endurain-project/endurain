@@ -166,7 +166,7 @@ describe('an untouched imperial field keeps the stored metric value', () => {
         },
         editOtherField('input[name="brand"]', 'SRAM'),
       ),
-    ).toMatchObject({ expected_kms: 5_000_000 })
+    ).toMatchObject({ expected_usage: 5_000_000 })
   })
 
   it.each([

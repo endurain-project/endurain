@@ -46,9 +46,9 @@ def test_a_stored_decimal_is_read_as_a_decimal_string():
     assert read.purchase_value == "45.50"
 
 
-def test_expected_kms_beyond_the_integer_column_is_rejected():
+def test_expected_usage_beyond_the_integer_column_is_rejected():
     with pytest.raises(ValidationError):
-        component_schema.GearComponentUpdate(expected_kms=2_147_483_648)
+        component_schema.GearComponentUpdate(expected_usage=2_147_483_648)
 
 
 @pytest.mark.parametrize("schema", [gear_schema.GearCreateRequest, gear_schema.GearUpdate])

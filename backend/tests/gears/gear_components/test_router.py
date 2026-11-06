@@ -86,6 +86,25 @@ def test_create(mock_create, client):
     assert response.headers["ETag"] == '"1"'
 
 
+@patch("modules.gears.gear_components.service.create_gear_component")
+def test_create_stores_and_returns_the_expected_usage(mock_create, client):
+    mock_create.return_value = _read(expected_usage=5_000_000)
+
+    response = client.post("/gear_components", json={**_BODY, "expected_usage": 5_000_000}, headers=_HEADERS)
+
+    assert response.status_code == 201
+    assert response.json()["expected_usage"] == 5_000_000
+    assert mock_create.call_args.args[0].expected_usage == 5_000_000
+
+
+@patch("modules.gears.gear_components.service.create_gear_component")
+def test_create_refuses_the_old_expected_kms_name(mock_create, client):
+    response = client.post("/gear_components", json={**_BODY, "expected_kms": 5_000_000}, headers=_HEADERS)
+
+    assert response.status_code == 422
+    mock_create.assert_not_called()
+
+
 @patch("modules.gears.gear_components.service.get_gear_component")
 def test_read_returns_the_component_with_its_etag(mock_get, client, mock_db):
     mock_get.return_value = _read(version=3)

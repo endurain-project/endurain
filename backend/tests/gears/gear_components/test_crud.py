@@ -18,6 +18,14 @@ class TestCountOutsideTypes:
         assert crud.count_gear_components_outside_types(1, 1, ["chain", "laces"], db) == 0
 
 
+class TestExpectedUsage:
+    def test_the_expected_usage_is_stored_and_read_back(self, db):
+        created = crud.create_gear_component(component_create(1, expected_usage=5_000_000), 1, db)
+
+        assert created.expected_usage == 5_000_000
+        assert crud.get_gear_components_user(1, db)[0].expected_usage == 5_000_000
+
+
 class TestReads:
     def test_components_are_scoped_to_their_owner_and_gear(self, db):
         mine = crud.create_gear_component(component_create(1), 1, db)

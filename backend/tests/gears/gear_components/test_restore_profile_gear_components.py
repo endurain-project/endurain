@@ -45,3 +45,11 @@ def test_a_price_archived_as_a_number_is_read_as_a_decimal_string(db):
     service.restore_profile_gear_components([_record(purchase_value=45.5)], 1, {"gears": {5: gear.id}}, db)
 
     assert crud.get_gear_components_user(1, db)[0].purchase_value == "45.50"
+
+
+def test_an_archived_expected_kms_is_read_as_expected_usage(db):
+    gear = gear_crud.create_gear(gear_create(), 1, db)
+
+    service.restore_profile_gear_components([_record(expected_kms=3000)], 1, {"gears": {5: gear.id}}, db)
+
+    assert crud.get_gear_components_user(1, db)[0].expected_usage == 3000

@@ -222,7 +222,7 @@ def _seed_gears(db: Session, user_id: int) -> list[int]:
             brand="Shimano",
             model="XT",
             purchase_date=date(2026, 1, 5),
-            expected_kms=3000,
+            expected_usage=3000,
             purchase_value="45.50",
         ),
         user_id,

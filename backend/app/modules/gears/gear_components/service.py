@@ -206,7 +206,8 @@ def restore_profile_gear_components(
     """Stage the gear components of a profile archive; the caller commits.
 
     Each component moves onto the stored gear its archived gear was restored as; one whose gear is not
-    in ``ids["gears"]`` is skipped.
+    in ``ids["gears"]`` is skipped. An archive exported before the rename carries ``expected_kms``, read as
+    ``expected_usage``.
 
     Args:
         records: The archived components.
@@ -226,6 +227,10 @@ def restore_profile_gear_components(
             logger.warning("Skipped a gear component whose gear is not in the archive")
             continue
         record["gear_id"] = new_gear_id
+
+        if "expected_kms" in record:
+            legacy_threshold = record.pop("expected_kms")
+            record.setdefault("expected_usage", legacy_threshold)
 
         for owner_or_derived in ("id", "version", "user_id", "current_distance", "current_time"):
             record.pop(owner_or_derived, None)

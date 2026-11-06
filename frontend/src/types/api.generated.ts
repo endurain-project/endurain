@@ -5784,10 +5784,10 @@ export interface components {
              */
             brand: string;
             /**
-             * Expected Kms
+             * Expected Usage
              * @description Wear threshold: meters of activity distance for a distance-tracked gear, seconds of activity time for a time-tracked one (racquet)
              */
-            expected_kms?: number | null;
+            expected_usage?: number | null;
             /**
              * Gear Id
              * @description Foreign key to gear
@@ -5840,10 +5840,10 @@ export interface components {
              */
             brand: string;
             /**
-             * Expected Kms
+             * Expected Usage
              * @description Wear threshold: meters of activity distance for a distance-tracked gear, seconds of activity time for a time-tracked one (racquet)
              */
-            expected_kms?: number | null;
+            expected_usage?: number | null;
             /**
              * Gear Id
              * @description Foreign key to gear
@@ -5941,10 +5941,10 @@ export interface components {
              */
             brand?: string | null;
             /**
-             * Expected Kms
+             * Expected Usage
              * @description Wear threshold: meters of activity distance for a distance-tracked gear, seconds of activity time for a time-tracked one (racquet)
              */
-            expected_kms?: number | null;
+            expected_usage?: number | null;
             /**
              * Model
              * @description Gear component model
@@ -6003,10 +6003,10 @@ export interface components {
              */
             current_time: number;
             /**
-             * Expected Kms
+             * Expected Usage
              * @description Wear threshold: meters of activity distance for a distance-tracked gear, seconds of activity time for a time-tracked one (racquet)
              */
-            expected_kms?: number | null;
+            expected_usage?: number | null;
             /**
              * Gear Id
              * @description Foreign key to gear

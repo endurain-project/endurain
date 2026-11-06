@@ -15,8 +15,8 @@ from pydantic import (
 import core.partial_update as core_partial_update
 import core.types as core_types
 
-#: The largest value of the ``expected_kms`` column, a 32-bit integer.
-MAX_EXPECTED_KMS = core_types.INT32_MAX
+#: The largest value of the ``expected_usage`` column (meters or seconds), a 32-bit integer.
+MAX_EXPECTED_USAGE = core_types.INT32_MAX
 
 
 def is_retired_after_purchase(purchase_date: date | None, retired_date: date | None) -> bool:
@@ -42,7 +42,7 @@ class GearComponentBase(BaseModel):
         purchase_date: Purchase date (calendar date, no time of day).
         retired_date: Retired date (calendar date, no time of day).
         active: Whether component is active.
-        expected_kms: Wear threshold in meters for a distance-tracked gear and in seconds for a time-tracked one.
+        expected_usage: Wear threshold in meters for a distance-tracked gear and in seconds for a time-tracked one.
         purchase_value: Purchase price as a decimal string in the owner's currency.
     """
 
@@ -73,10 +73,10 @@ class GearComponentBase(BaseModel):
         default=None,
         description=("Whether the component is active"),
     )
-    expected_kms: StrictInt | None = Field(
+    expected_usage: StrictInt | None = Field(
         default=None,
         ge=0,
-        le=MAX_EXPECTED_KMS,
+        le=MAX_EXPECTED_USAGE,
         description=(
             "Wear threshold: meters of activity distance for a distance-tracked gear, seconds of activity time "
             "for a time-tracked one (racquet)"
