@@ -82,5 +82,13 @@
       "ownTitle": "Henüz hiç takipçiniz yok.",
       "otherTitle": "Henüz takipçi yok."
     }
+  },
+  "block": {
+    "block": "Engelle",
+    "unblock": "Engeli kaldır",
+    "confirmTitle": "{name} engellensin mi?",
+    "confirmBody": "{name} artık seni takip etme isteği gönderemez ve aranızdaki tüm takip ilişkileri kaldırılır. Kendisine bildirilmez.",
+    "blockError": "Bu kullanıcı engellenemedi. Lütfen tekrar dene.",
+    "unblockError": "Bu kullanıcının engeli kaldırılamadı. Lütfen tekrar dene."
   }
 }

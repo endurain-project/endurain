@@ -17,6 +17,17 @@ export type RelationshipDto = Schemas['RelationshipRead']
 export type FollowStatus = 'none' | 'pending' | 'accepted'
 
 /**
+ * The viewer's relationship with another user.
+ *
+ * @property status - The viewer's follow of the other user.
+ * @property isBlocked - Whether the viewer has blocked the other user.
+ */
+export interface Relationship {
+  status: FollowStatus
+  isBlocked: boolean
+}
+
+/**
  * One row in a followers/following list: the *other* user in the relationship
  * (the follower, or the followed user) plus whether the follow is accepted.
  * Mapped from {@link FollowerDto} at the service boundary so the raw directional

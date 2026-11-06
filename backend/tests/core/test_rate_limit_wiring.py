@@ -58,6 +58,7 @@ import modules.auth.onboarding.public_router as onboarding_public_router
 import modules.auth.password_reset_tokens.public_router as password_reset_router
 import modules.auth.sessions.router as auth_sessions_router
 import modules.auth.sign_up_tokens.public_router as sign_up_tokens_router
+import modules.followers.blocks_router as followers_blocks_router
 import modules.followers.router as followers_router
 import modules.followers.user_router as followers_user_router
 import modules.garmin.router as garmin_router
@@ -266,6 +267,8 @@ _TIERED_ENDPOINTS = [
     pytest.param(followers_router.accept_follow_request, core_rate_limit.WRITE, id="accept-follow-request"),
     pytest.param(followers_router.reject_follow_request, core_rate_limit.WRITE, id="reject-follow-request"),
     pytest.param(followers_user_router.delete_follow_relationship, core_rate_limit.WRITE, id="unfollow"),
+    pytest.param(followers_blocks_router.block_user, core_rate_limit.WRITE, id="block-user"),
+    pytest.param(followers_blocks_router.unblock_user, core_rate_limit.WRITE, id="unblock-user"),
     pytest.param(health_fasting_router.create_health_fasting, core_rate_limit.WRITE, id="health-fasting-create"),
     pytest.param(health_fasting_router.edit_health_fasting, core_rate_limit.WRITE, id="health-fasting-edit"),
     pytest.param(health_fasting_router.complete_health_fasting, core_rate_limit.WRITE, id="health-fasting-complete"),

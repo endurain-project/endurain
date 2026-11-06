@@ -1122,6 +1122,15 @@
         "processing_failed": "er ging iets mis. Er is niets geïmporteerd, dus je kunt het opnieuw proberen.",
         "wrong_account": "het archief is geëxporteerd vanaf een ander account. Er is niets geïmporteerd."
       }
+    },
+    "blockedUsers": {
+      "title": "Geblokkeerde gebruikers",
+      "subtitle": "Geblokkeerde gebruikers kunnen je niet vragen om te volgen. Als je iemand blokkeert, wordt ook elke volgrelatie tussen jullie verwijderd.",
+      "empty": "Je hebt niemand geblokkeerd.",
+      "unblock": "Deblokkeren",
+      "unblockError": "Deze gebruiker kon niet worden gedeblokkeerd. Probeer het opnieuw.",
+      "loadError": "Je geblokkeerde gebruikers konden niet worden geladen.",
+      "retry": "Opnieuw proberen"
     }
   }
 }

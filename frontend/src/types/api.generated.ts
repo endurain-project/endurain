@@ -2060,6 +2060,60 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/profile/blocked-users": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List Blocked Users
+         * @description List the users the caller has blocked, most recently blocked first.
+         *
+         *     Each item is the user's public profile. A blocked user who is inactive or awaiting approval has no public
+         *     profile and is neither listed nor counted.
+         */
+        get: operations["list_blocked_users"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/profile/blocked-users/{user_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /**
+         * Block User
+         * @description Block a user.
+         *
+         *     The blocked user can no longer request to follow the caller, and every follow between the two, pending
+         *     requests included, is removed without telling them. Blocking someone already blocked changes nothing. The
+         *     answer is the same for any other user id, whether or not the account exists, so the route cannot be used to
+         *     look accounts up. Blocking yourself is `422`.
+         */
+        put: operations["block_user"];
+        post?: never;
+        /**
+         * Unblock User
+         * @description Unblock a user. Follows removed by the block are not restored.
+         *
+         *     `404` when the caller has not blocked that user.
+         */
+        delete: operations["unblock_user"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/profile/default-gear": {
         parameters: {
             query?: never;
@@ -9856,9 +9910,15 @@ export interface components {
          *     Attributes:
          *         outgoing: The authenticated user's follow of the other user, if any.
          *         incoming: The other user's follow of the authenticated user, if any.
+         *         is_blocked: Whether the authenticated user has blocked the other user.
          */
         RelationshipRead: {
             incoming?: components["schemas"]["FollowRelationshipRead"] | null;
+            /**
+             * Is Blocked
+             * @default false
+             */
+            is_blocked: boolean;
             outgoing?: components["schemas"]["FollowRelationshipRead"] | null;
         };
         /**
@@ -24513,6 +24573,285 @@ export interface operations {
             header?: never;
             path: {
                 api_key_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description The credential is missing, invalid or no longer valid. */
+            401: {
+                headers: {
+                    /** @description The authentication challenge. */
+                    "WWW-Authenticate"?: string;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description The caller is signed in but not allowed, for example a scope is missing. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description The resource does not exist, or is concealed from the caller. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description The request conflicts with the current state. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description The rate limit was reached. */
+            429: {
+                headers: {
+                    /** @description Seconds to wait before the request can succeed. */
+                    "Retry-After"?: number;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description A dependency is unavailable for a moment. */
+            503: {
+                headers: {
+                    /** @description Seconds to wait before the request can succeed. */
+                    "Retry-After"?: number;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Unexpected error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+        };
+    };
+    list_blocked_users: {
+        parameters: {
+            query?: {
+                page_number?: number | null;
+                num_records?: number | null;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Page_UserPublicRead_"];
+                };
+            };
+            /** @description The credential is missing, invalid or no longer valid. */
+            401: {
+                headers: {
+                    /** @description The authentication challenge. */
+                    "WWW-Authenticate"?: string;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description The caller is signed in but not allowed, for example a scope is missing. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description The rate limit was reached. */
+            429: {
+                headers: {
+                    /** @description Seconds to wait before the request can succeed. */
+                    "Retry-After"?: number;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description A dependency is unavailable for a moment. */
+            503: {
+                headers: {
+                    /** @description Seconds to wait before the request can succeed. */
+                    "Retry-After"?: number;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Unexpected error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+        };
+    };
+    block_user: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                user_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description The credential is missing, invalid or no longer valid. */
+            401: {
+                headers: {
+                    /** @description The authentication challenge. */
+                    "WWW-Authenticate"?: string;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description The caller is signed in but not allowed, for example a scope is missing. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description The resource does not exist, or is concealed from the caller. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description The request conflicts with the current state. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description The rate limit was reached. */
+            429: {
+                headers: {
+                    /** @description Seconds to wait before the request can succeed. */
+                    "Retry-After"?: number;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description A dependency is unavailable for a moment. */
+            503: {
+                headers: {
+                    /** @description Seconds to wait before the request can succeed. */
+                    "Retry-After"?: number;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Unexpected error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+        };
+    };
+    unblock_user: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                user_id: number;
             };
             cookie?: never;
         };

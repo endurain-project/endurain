@@ -2,12 +2,15 @@ import type {
   FollowerDto,
   FollowList,
   FollowStatus,
+  Relationship,
   RelationshipDto,
 } from '@/features/followers/types'
 import type { Schemas } from '@/types'
 
 import { apiFetch } from '@/services/http'
+import { fetchAllPages } from '@/services/pagination'
 import { mapEmbeddedUsers, mapPublicUser } from '@/features/users/services/publicUsers'
+import type { PublicUser } from '@/features/users/types'
 
 /**
  * Page size used when loading a full follower/following list.
@@ -130,23 +133,23 @@ export async function fetchFollowingCount(userId: number, signal?: AbortSignal):
 }
 
 /**
- * Fetches the authenticated viewer's follow relationship to a target user,
- * backing the follow button's state. The backend's relationship endpoint reports
- * both directions; the button only needs the viewer's *outgoing* follow.
+ * Fetches the authenticated viewer's relationship with a target user, backing the follow
+ * and block buttons. The backend's relationship endpoint reports both directions; the buttons
+ * need the viewer's *outgoing* follow and whether the viewer blocked the target.
  *
  * @param targetId - The profile owner's id.
  * @param signal - Optional abort signal for cancellation.
- * @returns The viewer's {@link FollowStatus} for the target.
+ * @returns The viewer's {@link Relationship} with the target.
  * @throws {HttpError} When the request fails.
  */
-export async function fetchFollowStatus(
+export async function fetchRelationship(
   targetId: number,
   signal?: AbortSignal,
-): Promise<FollowStatus> {
+): Promise<Relationship> {
   const view = await apiFetch<RelationshipDto | null>(`/users/${targetId}/relationship`, {
     signal,
   })
-  return mapFollowStatus(view?.outgoing ?? null)
+  return { status: mapFollowStatus(view?.outgoing ?? null), isBlocked: view?.is_blocked ?? false }
 }
 
 /**
@@ -195,5 +198,46 @@ export async function removeFollower(targetId: number, viewerId: number): Promis
   // Same route as unfollow, with the viewer as the followee instead.
   await apiFetch<void>(`/users/${viewerId}/followers/${targetId}`, {
     method: 'DELETE',
+  })
+}
+
+/**
+ * Fetches the users the authenticated viewer has blocked, most recently blocked first.
+ *
+ * @param signal - Optional abort signal for cancellation.
+ * @returns The public profile of each blocked user the server lists.
+ * @throws {HttpError} When the request fails.
+ */
+export async function fetchBlockedUsers(signal?: AbortSignal): Promise<PublicUser[]> {
+  const dtos = await fetchAllPages<Schemas['UserPublicRead']>('/profile/blocked-users', undefined, {
+    signal,
+  })
+  return dtos.map(mapPublicUser)
+}
+
+/**
+ * Blocks a user: they can no longer ask to follow the viewer, and any follow between the two is
+ * removed. The answer is `204` for any user id.
+ *
+ * @param targetId - The user to block.
+ * @throws {HttpError} When the request fails.
+ */
+export async function blockUser(targetId: number): Promise<void> {
+  await apiFetch<void>(`/profile/blocked-users/${targetId}`, {
+    method: 'PUT',
+    responseType: 'void',
+  })
+}
+
+/**
+ * Unblocks a user the viewer blocked.
+ *
+ * @param targetId - The user to unblock.
+ * @throws {HttpError} When the request fails.
+ */
+export async function unblockUser(targetId: number): Promise<void> {
+  await apiFetch<void>(`/profile/blocked-users/${targetId}`, {
+    method: 'DELETE',
+    responseType: 'void',
   })
 }

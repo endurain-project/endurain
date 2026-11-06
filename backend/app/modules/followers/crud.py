@@ -1,12 +1,15 @@
 """CRUD operations for follower relationships."""
 
-from sqlalchemy import Select, delete, func, select, text, update
+from datetime import datetime
+
+from sqlalchemy import Select, and_, delete, exists, func, or_, select, text, update
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import InstrumentedAttribute, Session
 
 import core.database as core_database
 import core.exceptions as core_exceptions
 import core.pagination as core_pagination
+import core.timezone as core_timezone
 import modules.followers.constants as followers_constants
 import modules.followers.models as followers_models
 import modules.followers.schema as followers_schema
@@ -25,6 +28,9 @@ _ACCEPTED_LOCK_NAMESPACE = 7302
 
 #: The name of the model's unique (follower, followee) constraint.
 _UNIQUE_PAIR_CONSTRAINT = "uq_followers_follower_followee"
+
+#: The name of the block model's unique (blocker, blocked) constraint.
+_UNIQUE_BLOCK_CONSTRAINT = "uq_follower_blocks_blocker_blocked"
 
 
 def _invalidate_followee_cache(db: Session) -> None:
@@ -512,3 +518,167 @@ def delete_follower(
     db.flush()
     _invalidate_followee_cache(db)
     return followers_constants.FollowStatus(deleted_status)
+
+
+def delete_follows_between(
+    user_id: int, other_user_id: int, db: Session
+) -> list[followers_schema.FollowRelationshipRead]:
+    """Stage the deletion of the follow rows between two users, in both directions.
+
+    Args:
+        user_id: One of the two users.
+        other_user_id: The other user.
+        db: Database session.
+
+    Returns:
+        The rows that were deleted, with the status each had (empty list when the users were unrelated).
+    """
+    stmt = (
+        delete(followers_models.Follower)
+        .where(
+            or_(
+                and_(
+                    followers_models.Follower.follower_id == user_id,
+                    followers_models.Follower.followee_id == other_user_id,
+                ),
+                and_(
+                    followers_models.Follower.follower_id == other_user_id,
+                    followers_models.Follower.followee_id == user_id,
+                ),
+            )
+        )
+        .returning(followers_models.Follower)
+        .execution_options(synchronize_session="fetch")
+    )
+    deleted = [followers_serializers.to_read_schema(row) for row in db.execute(stmt).scalars().all()]
+    db.flush()
+    _invalidate_followee_cache(db)
+    return deleted
+
+
+def record_decline(follower_id: int, followee_id: int, declined_at: datetime, db: Session) -> None:
+    """Stage the time a follow request was declined, replacing an earlier decline of the same pair.
+
+    Declining deletes the pending request first, so two declines of one pair cannot run at once.
+
+    Args:
+        follower_id: The requester whose request was declined.
+        followee_id: The user who declined it.
+        declined_at: When the request was declined.
+        db: Database session.
+    """
+    db.execute(
+        delete(followers_models.FollowRequestDecline).where(
+            followers_models.FollowRequestDecline.follower_id == follower_id,
+            followers_models.FollowRequestDecline.followee_id == followee_id,
+        )
+    )
+    db.add(
+        followers_models.FollowRequestDecline(follower_id=follower_id, followee_id=followee_id, declined_at=declined_at)
+    )
+    db.flush()
+
+
+def get_last_decline_at(follower_id: int, followee_id: int, db: Session) -> datetime | None:
+    """Return when the followee last declined a request from the follower.
+
+    Args:
+        follower_id: The requester.
+        followee_id: The user the request was addressed to.
+        db: Database session.
+
+    Returns:
+        The UTC time of the decline, or None when no request was declined.
+    """
+    stmt = select(followers_models.FollowRequestDecline.declined_at).where(
+        followers_models.FollowRequestDecline.follower_id == follower_id,
+        followers_models.FollowRequestDecline.followee_id == followee_id,
+    )
+    return core_timezone.to_utc_aware(db.scalar(stmt))
+
+
+def is_blocked(blocker_id: int, blocked_id: int, db: Session) -> bool:
+    """Tell whether one user has blocked another.
+
+    Args:
+        blocker_id: The user who may have blocked.
+        blocked_id: The user who may be blocked.
+        db: Database session.
+
+    Returns:
+        True when the block exists.
+    """
+    stmt = select(
+        exists().where(
+            followers_models.FollowerBlock.blocker_id == blocker_id,
+            followers_models.FollowerBlock.blocked_id == blocked_id,
+        )
+    )
+    return bool(db.scalar(stmt))
+
+
+def create_block(blocker_id: int, blocked_id: int, db: Session) -> bool:
+    """Stage a block, leaving an existing one as it is.
+
+    Args:
+        blocker_id: The user who blocks.
+        blocked_id: The user who is blocked; must exist.
+        db: Database session.
+
+    Returns:
+        True when the block was created, False when it already existed.
+    """
+    if is_blocked(blocker_id, blocked_id, db):
+        return False
+    try:
+        # A savepoint keeps the caller's transaction usable when a concurrent block wins the unique pair.
+        with db.begin_nested():
+            db.add(followers_models.FollowerBlock(blocker_id=blocker_id, blocked_id=blocked_id))
+            db.flush()
+    except IntegrityError as err:
+        if core_database.violated_constraint(err) == _UNIQUE_BLOCK_CONSTRAINT:
+            return False
+        raise
+    return True
+
+
+def delete_block(blocker_id: int, blocked_id: int, db: Session) -> None:
+    """Stage the removal of a block.
+
+    Args:
+        blocker_id: The user who blocked.
+        blocked_id: The user who is blocked.
+        db: Database session.
+
+    Raises:
+        NotFoundError: If the user has not blocked that user.
+    """
+    stmt = (
+        delete(followers_models.FollowerBlock)
+        .where(
+            followers_models.FollowerBlock.blocker_id == blocker_id,
+            followers_models.FollowerBlock.blocked_id == blocked_id,
+        )
+        .returning(followers_models.FollowerBlock.id)
+    )
+    if db.execute(stmt).scalar_one_or_none() is None:
+        raise core_exceptions.NotFoundError("Blocked user not found")
+    db.flush()
+
+
+def list_blocked_user_ids(blocker_id: int, db: Session) -> list[int]:
+    """List the ids of the users a user has blocked, most recently blocked first.
+
+    Args:
+        blocker_id: The user who blocked.
+        db: Database session.
+
+    Returns:
+        Every blocked user id.
+    """
+    stmt = (
+        select(followers_models.FollowerBlock.blocked_id)
+        .where(followers_models.FollowerBlock.blocker_id == blocker_id)
+        .order_by(followers_models.FollowerBlock.id.desc())
+    )
+    return list(db.scalars(stmt).all())

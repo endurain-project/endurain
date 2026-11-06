@@ -1122,6 +1122,15 @@
         "processing_failed": "nekaj je šlo narobe. Nič ni bilo uvoženo, zato lahko poskusiš znova.",
         "wrong_account": "arhiv je bil izvožen iz drugega računa. Nič ni bilo uvoženo."
       }
+    },
+    "blockedUsers": {
+      "title": "Blokirani uporabniki",
+      "subtitle": "Blokirani uporabniki vas ne morejo prositi za sledenje. Z blokiranjem nekoga se odstrani tudi vsako sledenje med vama.",
+      "empty": "Nikogar niste blokirali.",
+      "unblock": "Odblokiraj",
+      "unblockError": "Tega uporabnika ni bilo mogoče odblokirati. Poskusite znova.",
+      "loadError": "Blokiranih uporabnikov ni bilo mogoče naložiti.",
+      "retry": "Poskusi znova"
     }
   }
 }

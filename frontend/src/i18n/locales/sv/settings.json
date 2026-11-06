@@ -1122,6 +1122,15 @@
         "processing_failed": "något gick fel. Inget importerades, så du kan försöka igen.",
         "wrong_account": "arkivet exporterades från ett annat konto. Inget importerades."
       }
+    },
+    "blockedUsers": {
+      "title": "Blockerade användare",
+      "subtitle": "Blockerade användare kan inte be om att få följa dig. När du blockerar någon tas också all följning mellan er bort.",
+      "empty": "Du har inte blockerat någon.",
+      "unblock": "Avblockera",
+      "unblockError": "Det gick inte att avblockera användaren. Försök igen.",
+      "loadError": "Det gick inte att läsa in dina blockerade användare.",
+      "retry": "Försök igen"
     }
   }
 }

@@ -33,6 +33,7 @@ import modules.auth.onboarding.public_router as onboarding_public_router
 import modules.auth.password_reset_tokens.public_router as password_reset_tokens_router
 import modules.auth.sessions.router as auth_sessions_router
 import modules.auth.sign_up_tokens.public_router as sign_up_tokens_router
+import modules.followers.blocks_router as followers_blocks_router
 import modules.followers.router as followers_router
 import modules.followers.user_router as followers_user_router
 import modules.garmin.router as garmin_router
@@ -249,6 +250,12 @@ router.include_router(
     auth_router.router,
     prefix=core_config.ROOT_PATH + "/auth",
     tags=["auth"],
+)
+router.include_router(
+    followers_blocks_router.router,
+    prefix=core_config.ROOT_PATH + "/profile/blocked-users",
+    tags=["followers"],
+    dependencies=[Depends(auth_dependencies.validate_access_token)],
 )
 router.include_router(
     followers_router.router,

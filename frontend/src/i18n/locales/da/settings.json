@@ -1122,6 +1122,15 @@
         "processing_failed": "noget gik galt. Intet blev importeret, så du kan prøve igen.",
         "wrong_account": "arkivet blev eksporteret fra en anden konto. Intet blev importeret."
       }
+    },
+    "blockedUsers": {
+      "title": "Blokerede brugere",
+      "subtitle": "Blokerede brugere kan ikke anmode om at følge dig. Når du blokerer nogen, fjernes også enhver følgning mellem jer.",
+      "empty": "Du har ikke blokeret nogen.",
+      "unblock": "Fjern blokering",
+      "unblockError": "Kunne ikke fjerne blokeringen af denne bruger. Prøv igen.",
+      "loadError": "Kunne ikke indlæse dine blokerede brugere.",
+      "retry": "Prøv igen"
     }
   }
 }

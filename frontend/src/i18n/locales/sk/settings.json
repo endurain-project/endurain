@@ -1122,6 +1122,15 @@
         "processing_failed": "niečo sa pokazilo. Nič sa neimportovalo, takže to môžete skúsiť znova.",
         "wrong_account": "archív bol exportovaný z iného účtu. Nič sa neimportovalo."
       }
+    },
+    "blockedUsers": {
+      "title": "Blokovaní používatelia",
+      "subtitle": "Blokovaní používatelia vás nemôžu požiadať o sledovanie. Zablokovaním niekoho sa zruší aj všetko sledovanie medzi vami.",
+      "empty": "Nikoho ste nezablokovali.",
+      "unblock": "Odblokovať",
+      "unblockError": "Tohto používateľa sa nepodarilo odblokovať. Skúste to znova.",
+      "loadError": "Blokovaných používateľov sa nepodarilo načítať.",
+      "retry": "Skúsiť znova"
     }
   }
 }

@@ -1122,6 +1122,15 @@
         "processing_failed": "qualcosa è andato storto. Non è stato importato nulla, quindi puoi riprovare.",
         "wrong_account": "l'archivio è stato esportato da un altro account. Non è stato importato nulla."
       }
+    },
+    "blockedUsers": {
+      "title": "Utenti bloccati",
+      "subtitle": "Gli utenti bloccati non possono chiederti di seguirti. Bloccare qualcuno rimuove anche qualsiasi follow tra voi.",
+      "empty": "Non hai bloccato nessuno.",
+      "unblock": "Sblocca",
+      "unblockError": "Impossibile sbloccare questo utente. Riprova.",
+      "loadError": "Impossibile caricare i tuoi utenti bloccati.",
+      "retry": "Riprova"
     }
   }
 }

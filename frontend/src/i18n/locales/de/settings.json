@@ -1122,6 +1122,15 @@
         "processing_failed": "etwas ist schiefgelaufen. Es wurde nichts importiert, daher kannst du es erneut versuchen.",
         "wrong_account": "das Archiv wurde von einem anderen Konto exportiert. Es wurde nichts importiert."
       }
+    },
+    "blockedUsers": {
+      "title": "Blockierte Nutzer",
+      "subtitle": "Blockierte Nutzer können keine Follow-Anfragen an dich senden. Wenn du jemanden blockierst, wird auch jedes bestehende Follow zwischen euch entfernt.",
+      "empty": "Du hast niemanden blockiert.",
+      "unblock": "Blockierung aufheben",
+      "unblockError": "Die Blockierung dieses Nutzers konnte nicht aufgehoben werden. Bitte versuche es erneut.",
+      "loadError": "Deine blockierten Nutzer konnten nicht geladen werden.",
+      "retry": "Erneut versuchen"
     }
   }
 }

@@ -1122,6 +1122,15 @@
         "processing_failed": "jokin meni pieleen. Mitään ei tuotu, joten voit yrittää uudelleen.",
         "wrong_account": "arkisto vietiin toiselta tililtä. Mitään ei tuotu."
       }
+    },
+    "blockedUsers": {
+      "title": "Estetyt käyttäjät",
+      "subtitle": "Estetyt käyttäjät eivät voi pyytää lupaa seurata sinua. Käyttäjän estäminen poistaa myös kaikki teidän väliset seuraamiset.",
+      "empty": "Et ole estänyt ketään.",
+      "unblock": "Poista esto",
+      "unblockError": "Käyttäjän eston poistaminen epäonnistui. Yritä uudelleen.",
+      "loadError": "Estettyjen käyttäjien lataaminen epäonnistui.",
+      "retry": "Yritä uudelleen"
     }
   }
 }

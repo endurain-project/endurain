@@ -1122,6 +1122,15 @@
         "processing_failed": "bir şeyler ters gitti. Hiçbir şey içe aktarılmadı, bu yüzden tekrar deneyebilirsiniz.",
         "wrong_account": "arşiv farklı bir hesaptan dışa aktarılmış. Hiçbir şey içe aktarılmadı."
       }
+    },
+    "blockedUsers": {
+      "title": "Engellenen kullanıcılar",
+      "subtitle": "Engellenen kullanıcılar seni takip etme isteği gönderemez. Birini engellemek, aranızdaki tüm takip ilişkilerini de kaldırır.",
+      "empty": "Kimseyi engellemedin.",
+      "unblock": "Engeli kaldır",
+      "unblockError": "Bu kullanıcının engeli kaldırılamadı. Lütfen tekrar dene.",
+      "loadError": "Engellenen kullanıcılar yüklenemedi.",
+      "retry": "Tekrar dene"
     }
   }
 }

@@ -21,5 +21,21 @@ FOLLOW_REMOVE = jasil_audit.AuditAction(
     description_default="An accepted follow relationship was removed",
 )
 
+BLOCK_ADD = jasil_audit.AuditAction(
+    id="followers.block.add",
+    category=jasil_audit.Category.AUTHORIZATION,
+    severity=jasil_audit.Severity.LOW,
+    description_key="audit.followers.block.add",
+    description_default="A user was blocked",
+)
+
+BLOCK_REMOVE = jasil_audit.AuditAction(
+    id="followers.block.remove",
+    category=jasil_audit.Category.AUTHORIZATION,
+    severity=jasil_audit.Severity.LOW,
+    description_key="audit.followers.block.remove",
+    description_default="A user was unblocked",
+)
+
 #: Every action this package writes, registered by the composition root.
-ACTIONS: tuple[jasil_audit.AuditAction, ...] = (FOLLOW_ACCEPT, FOLLOW_REMOVE)
+ACTIONS: tuple[jasil_audit.AuditAction, ...] = (FOLLOW_ACCEPT, FOLLOW_REMOVE, BLOCK_ADD, BLOCK_REMOVE)

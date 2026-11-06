@@ -1122,6 +1122,15 @@
         "processing_failed": "ceva nu a mers bine. Nu s-a importat nimic, deci poți încerca din nou.",
         "wrong_account": "arhiva a fost exportată dintr-un alt cont. Nu s-a importat nimic."
       }
+    },
+    "blockedUsers": {
+      "title": "Utilizatori blocați",
+      "subtitle": "Utilizatorii blocați nu pot cere să te urmărească. Blocarea cuiva elimină și orice urmărire dintre voi.",
+      "empty": "Nu ai blocat pe nimeni.",
+      "unblock": "Deblochează",
+      "unblockError": "Nu s-a putut debloca acest utilizator. Încearcă din nou.",
+      "loadError": "Nu s-au putut încărca utilizatorii blocați.",
+      "retry": "Încearcă din nou"
     }
   }
 }

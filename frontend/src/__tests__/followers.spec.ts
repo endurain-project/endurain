@@ -3,14 +3,17 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { apiFetch } from '@/services/http'
 import {
   acceptFollower,
+  blockUser,
+  fetchBlockedUsers,
   fetchFollowers,
   fetchFollowersCount,
   fetchFollowing,
   fetchFollowingCount,
-  fetchFollowStatus,
+  fetchRelationship,
   followUser,
   mapFollowStatus,
   removeFollower,
+  unblockUser,
   unfollowUser,
 } from '@/features/followers/services/followers'
 
@@ -144,22 +147,64 @@ describe('follower counts', () => {
   })
 })
 
-describe('fetchFollowStatus', () => {
-  it('maps the viewer’s outgoing relationship to a status', async () => {
+describe('fetchRelationship', () => {
+  it('maps the viewer’s outgoing relationship to a status and reports the block', async () => {
     vi.mocked(apiFetch).mockResolvedValueOnce({
       outgoing: { follower_id: 1, followee_id: 2, status: 'pending' },
       incoming: null,
+      is_blocked: true,
     })
 
-    const status = await fetchFollowStatus(2)
+    const relationship = await fetchRelationship(2)
 
     expect(apiFetch).toHaveBeenCalledWith('/users/2/relationship', { signal: undefined })
-    expect(status).toBe('pending')
+    expect(relationship).toEqual({ status: 'pending', isBlocked: true })
   })
 
-  it('returns none when there is no relationship', async () => {
+  it('returns none and not blocked when there is no relationship', async () => {
     vi.mocked(apiFetch).mockResolvedValueOnce(null)
-    expect(await fetchFollowStatus(2)).toBe('none')
+    expect(await fetchRelationship(2)).toEqual({ status: 'none', isBlocked: false })
+  })
+})
+
+describe('block list', () => {
+  it('lists the blocked users as public users', async () => {
+    vi.mocked(apiFetch).mockResolvedValueOnce({
+      items: [{ id: 7, name: 'Bob', username: 'bob', city: null, photo_path: null }],
+      total: 1,
+      page: 1,
+      num_records: 200,
+      next: null,
+    })
+
+    const users = await fetchBlockedUsers()
+
+    expect(apiFetch).toHaveBeenCalledWith('/profile/blocked-users?page_number=1', {
+      signal: undefined,
+    })
+    expect(users.map((user) => user.username)).toEqual(['bob'])
+  })
+
+  it('blocks with PUT on the blocked-user path', async () => {
+    vi.mocked(apiFetch).mockResolvedValueOnce(undefined)
+
+    await blockUser(7)
+
+    expect(apiFetch).toHaveBeenCalledWith('/profile/blocked-users/7', {
+      method: 'PUT',
+      responseType: 'void',
+    })
+  })
+
+  it('unblocks with DELETE on the blocked-user path', async () => {
+    vi.mocked(apiFetch).mockResolvedValueOnce(undefined)
+
+    await unblockUser(7)
+
+    expect(apiFetch).toHaveBeenCalledWith('/profile/blocked-users/7', {
+      method: 'DELETE',
+      responseType: 'void',
+    })
   })
 })
 

@@ -1122,6 +1122,15 @@
         "processing_failed": "radās kļūda. Nekas netika importēts, tāpēc varat mēģināt vēlreiz.",
         "wrong_account": "arhīvs tika eksportēts no cita konta. Nekas netika importēts."
       }
+    },
+    "blockedUsers": {
+      "title": "Bloķētie lietotāji",
+      "subtitle": "Bloķētie lietotāji nevar pieprasīt tev sekot. Bloķējot kādu, tiek noņemta arī jebkāda savstarpējā sekošana.",
+      "empty": "Tu neesi nevienu bloķējis.",
+      "unblock": "Atbloķēt",
+      "unblockError": "Neizdevās atbloķēt šo lietotāju. Mēģini vēlreiz.",
+      "loadError": "Neizdevās ielādēt bloķētos lietotājus.",
+      "retry": "Mēģināt vēlreiz"
     }
   }
 }

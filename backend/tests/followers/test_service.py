@@ -139,6 +139,8 @@ class TestListsCarryTheOtherUsersProfile:
         mock_crud.get_pending_requests_for_user_id.return_value = [
             FollowRelationshipRead(follower_id=6, followee_id=1, status="pending"),
         ]
+        mock_crud.is_blocked.return_value = False
+        mock_crud.get_last_decline_at.return_value = None
         mock_crud.count_pending_requests_for_user_id.return_value = 1
         mock_users.list_public_profiles.return_value = {6: _profile(6)}
         db = MagicMock()
@@ -191,6 +193,8 @@ class TestFollowUser:
         from modules.followers.service import follow_user
 
         db = MagicMock()
+        mock_crud.is_blocked.return_value = False
+        mock_crud.get_last_decline_at.return_value = None
         mock_crud.count_pending_requests_for_user_id.return_value = 0
         mock_crud.create_follower.return_value = FollowRelationshipRead(follower_id=1, followee_id=2, status="pending")
 
@@ -224,6 +228,8 @@ class TestFollowUser:
         from modules.followers.service import follow_user
 
         db = MagicMock()
+        mock_crud.is_blocked.return_value = False
+        mock_crud.get_last_decline_at.return_value = None
         mock_crud.count_pending_requests_for_user_id.return_value = MAX_PENDING_REQUESTS
 
         with pytest.raises(core_exceptions.ConflictError) as e:
@@ -271,6 +277,8 @@ class TestFollowUserHiddenTargets:
         from modules.followers.service import follow_user
 
         self._set_target_state(factory, state)
+        mock_crud.is_blocked.return_value = False
+        mock_crud.get_last_decline_at.return_value = None
         mock_crud.count_pending_requests_for_user_id.return_value = MAX_PENDING_REQUESTS
 
         with factory() as db, pytest.raises(core_exceptions.NotFoundError) as e:
@@ -295,6 +303,8 @@ class TestPendingCapIsSerialised:
         calls.attach_mock(mock_crud.lock_pending_requests, "lock")
         calls.attach_mock(mock_crud.count_pending_requests_for_user_id, "count")
         calls.attach_mock(mock_crud.create_follower, "create")
+        mock_crud.is_blocked.return_value = False
+        mock_crud.get_last_decline_at.return_value = None
         mock_crud.count_pending_requests_for_user_id.return_value = 0
 
         follow_user(1, 2, MagicMock())
@@ -479,6 +489,8 @@ class TestStateChangesLogAtInfo:
     def test_a_completed_change_is_logged_once_at_info(self, mock_crud, _mock_pub, _mock_users, call, message, caplog):
         from modules.followers import service
 
+        mock_crud.is_blocked.return_value = False
+        mock_crud.get_last_decline_at.return_value = None
         mock_crud.count_pending_requests_for_user_id.return_value = 0
         mock_crud.count_following_by_user_id.return_value = 0
 
@@ -572,6 +584,8 @@ class TestFollowAudit:
     def test_creating_a_request_is_not_audited(self, mock_crud, mock_pub, mock_users):
         from modules.followers.service import follow_user
 
+        mock_crud.is_blocked.return_value = False
+        mock_crud.get_last_decline_at.return_value = None
         mock_crud.count_pending_requests_for_user_id.return_value = 0
         with jasil_testing.capture_audit() as audit:
             follow_user(1, 2, MagicMock())

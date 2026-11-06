@@ -1122,6 +1122,15 @@
         "processing_failed": "coś poszło nie tak. Nic nie zaimportowano, więc możesz spróbować ponownie.",
         "wrong_account": "archiwum zostało wyeksportowane z innego konta. Nic nie zaimportowano."
       }
+    },
+    "blockedUsers": {
+      "title": "Zablokowani użytkownicy",
+      "subtitle": "Zablokowani użytkownicy nie mogą prosić o obserwowanie Cię. Zablokowanie kogoś usuwa też wszelkie obserwowanie między wami.",
+      "empty": "Nie zablokowano nikogo.",
+      "unblock": "Odblokuj",
+      "unblockError": "Nie udało się odblokować tego użytkownika. Spróbuj ponownie.",
+      "loadError": "Nie udało się wczytać zablokowanych użytkowników.",
+      "retry": "Spróbuj ponownie"
     }
   }
 }

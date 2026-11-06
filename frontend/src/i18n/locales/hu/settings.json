@@ -1122,6 +1122,15 @@
         "processing_failed": "valami elromlott. Semmi sem lett importálva, ezért próbálkozhatsz újra.",
         "wrong_account": "az archívum egy másik fiókból lett exportálva. Semmi sem lett importálva."
       }
+    },
+    "blockedUsers": {
+      "title": "Letiltott felhasználók",
+      "subtitle": "A letiltott felhasználók nem kérhetik, hogy követhessenek. Valaki letiltása a köztetek lévő követéseket is megszünteti.",
+      "empty": "Nem tiltottál le senkit.",
+      "unblock": "Letiltás feloldása",
+      "unblockError": "Nem sikerült feloldani a felhasználó letiltását. Próbáld újra.",
+      "loadError": "Nem sikerült betölteni a letiltott felhasználókat.",
+      "retry": "Próbáld újra"
     }
   }
 }

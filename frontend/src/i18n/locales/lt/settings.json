@@ -1122,6 +1122,15 @@
         "processing_failed": "kažkas nepavyko. Nieko neimportuota, todėl galite bandyti dar kartą.",
         "wrong_account": "archyvas buvo eksportuotas iš kitos paskyros. Nieko neimportuota."
       }
+    },
+    "blockedUsers": {
+      "title": "Užblokuoti naudotojai",
+      "subtitle": "Užblokuoti naudotojai negali prašyti tave sekti. Užblokavus žmogų, taip pat pašalinamas bet koks jūsų tarpusavio sekimas.",
+      "empty": "Nieko neužblokavai.",
+      "unblock": "Atblokuoti",
+      "unblockError": "Nepavyko atblokuoti šio naudotojo. Bandyk dar kartą.",
+      "loadError": "Nepavyko įkelti užblokuotų naudotojų.",
+      "retry": "Bandyti dar kartą"
     }
   }
 }

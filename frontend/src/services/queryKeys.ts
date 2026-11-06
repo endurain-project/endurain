@@ -399,6 +399,8 @@ export const queryKeys = {
      */
     state: (viewerId: number, targetId: number) =>
       ['followers', 'state', viewerId, targetId] as const,
+    /** The users the viewer has blocked. */
+    blocked: () => ['followers', 'blocked'] as const,
   },
 
   /**

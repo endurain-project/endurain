@@ -1122,6 +1122,15 @@
         "processing_failed": "something went wrong. Nothing was imported, so you can try again.",
         "wrong_account": "the archive was exported from a different account. Nothing was imported."
       }
+    },
+    "blockedUsers": {
+      "title": "Blocked users",
+      "subtitle": "Blocked users can't ask to follow you. Blocking someone also removes any follow between you.",
+      "empty": "You haven't blocked anyone.",
+      "unblock": "Unblock",
+      "unblockError": "Couldn't unblock this user. Please try again.",
+      "loadError": "Couldn't load your blocked users.",
+      "retry": "Try again"
     }
   }
 }

@@ -9,6 +9,7 @@ stamps the default, ``crud`` filters on it, ``service`` compares against it, and
 to learn its own column's values is backwards; a constant all four share is not.
 """
 
+from datetime import timedelta
 from enum import StrEnum
 
 
@@ -32,3 +33,7 @@ MAX_PENDING_REQUESTS = 200
 #: ``IN (...)`` list, so the count is bounded to keep those queries small. It is far above any real
 #: following list; past it, new acceptances are refused and existing relationships are left untouched.
 MAX_ACCEPTED_FOLLOWEES = 1000
+
+#: How long a requester must wait to ask the same user again after the request was declined, so a decline
+#: is not undone by sending the request, and the notification, again at once.
+FOLLOW_REQUEST_COOLDOWN = timedelta(days=7)

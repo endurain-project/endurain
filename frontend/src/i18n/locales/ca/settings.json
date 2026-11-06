@@ -1122,6 +1122,15 @@
         "processing_failed": "ha anat alguna cosa malament. No s'ha importat res, així que pots tornar-ho a provar.",
         "wrong_account": "l'arxiu s'ha exportat des d'un altre compte. No s'ha importat res."
       }
+    },
+    "blockedUsers": {
+      "title": "Usuaris blocats",
+      "subtitle": "Els usuaris blocats no poden sol·licitar seguir-te. Bloquejar algú també elimina qualsevol seguiment entre vosaltres.",
+      "empty": "No has bloquejat ningú.",
+      "unblock": "Desbloqueja",
+      "unblockError": "No s'ha pogut desbloquejar aquest usuari. Torna-ho a intentar.",
+      "loadError": "No s'han pogut carregar els teus usuaris blocats.",
+      "retry": "Torna-ho a intentar"
     }
   }
 }

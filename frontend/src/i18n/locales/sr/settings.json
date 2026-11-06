@@ -1122,6 +1122,15 @@
         "processing_failed": "nešto je pošlo naopako. Ništa nije uvezeno pa možete pokušati ponovo.",
         "wrong_account": "arhiva je izvezena sa drugog naloga. Ništa nije uvezeno."
       }
+    },
+    "blockedUsers": {
+      "title": "Blokirani korisnici",
+      "subtitle": "Blokirani korisnici ne mogu zatražiti da vas prate. Blokiranjem nekoga uklanja se i svako praćenje između vas.",
+      "empty": "Niste blokirali nikoga.",
+      "unblock": "Odblokiraj",
+      "unblockError": "Nije moguće odblokirati ovog korisnika. Pokušajte ponovo.",
+      "loadError": "Nije moguće učitati blokirane korisnike.",
+      "retry": "Pokušaj ponovo"
     }
   }
 }

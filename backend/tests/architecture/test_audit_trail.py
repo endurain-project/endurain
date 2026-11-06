@@ -125,6 +125,8 @@ _AUDITED_WRITES: dict[tuple[str, str], tuple[str, ...]] = {
     ("auth/sessions/router.py", "delete_sessions_user"): ("auth.session.revoke",),
     ("auth/sign_up_tokens/public_router.py", "signup"): ("users.user.create",),
     ("auth/sign_up_tokens/public_router.py", "verify_email"): ("auth.sign_up.confirm", "users.email.change"),
+    ("followers/blocks_router.py", "block_user"): ("followers.block.add",),
+    ("followers/blocks_router.py", "unblock_user"): ("followers.block.remove",),
     ("followers/router.py", "accept_follow_request"): ("followers.follow.accept",),
     ("followers/user_router.py", "delete_follow_relationship"): ("followers.follow.remove",),
     ("garmin/router.py", "garminconnect_link"): ("garmin.account.link",),

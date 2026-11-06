@@ -29,12 +29,14 @@ class RelationshipRead(BaseModel):
     Attributes:
         outgoing: The authenticated user's follow of the other user, if any.
         incoming: The other user's follow of the authenticated user, if any.
+        is_blocked: Whether the authenticated user has blocked the other user.
     """
 
     model_config = ConfigDict(from_attributes=True, extra="forbid")
 
     outgoing: FollowRelationshipRead | None = None
     incoming: FollowRelationshipRead | None = None
+    is_blocked: bool = False
 
 
 class FollowRelationshipPage(core_pagination.Page[FollowRelationshipRead]):

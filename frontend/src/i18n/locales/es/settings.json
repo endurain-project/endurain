@@ -1122,6 +1122,15 @@
         "processing_failed": "algo salió mal. No se importó nada, así que puedes intentarlo de nuevo.",
         "wrong_account": "el archivo se exportó desde otra cuenta. No se importó nada."
       }
+    },
+    "blockedUsers": {
+      "title": "Usuarios bloqueados",
+      "subtitle": "Los usuarios bloqueados no pueden solicitar seguirte. Bloquear a alguien también elimina cualquier seguimiento entre vosotros.",
+      "empty": "No has bloqueado a nadie.",
+      "unblock": "Desbloquear",
+      "unblockError": "No se pudo desbloquear a este usuario. Inténtalo de nuevo.",
+      "loadError": "No se pudieron cargar tus usuarios bloqueados.",
+      "retry": "Intentar de nuevo"
     }
   }
 }

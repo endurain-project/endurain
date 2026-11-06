@@ -5,6 +5,7 @@ import { RouterLink, useRoute } from 'vue-router'
 import { Activity as ActivityIcon, Settings, UserX } from '@lucide/vue'
 
 import UserProfileHeader from '@/features/users/components/UserProfileHeader.vue'
+import BlockUserButton from '@/features/followers/components/BlockUserButton.vue'
 import FollowButton from '@/features/followers/components/FollowButton.vue'
 import FollowerListItem from '@/features/followers/components/FollowerListItem.vue'
 import UserDistanceStats from '@/features/home/components/UserDistanceStats.vue'
@@ -188,7 +189,10 @@ function refetchFollowers(): void {
             {{ t('userProfile.editProfile') }}
           </RouterLink>
         </Button>
-        <FollowButton v-else :target-user-id="user.id" :target-name="user.name" />
+        <template v-else>
+          <FollowButton :target-user-id="user.id" :target-name="user.name" />
+          <BlockUserButton :target-user-id="user.id" :target-name="user.name" />
+        </template>
       </Card>
 
       <!-- Summary counts -->

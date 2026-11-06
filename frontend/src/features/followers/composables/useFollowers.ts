@@ -2,7 +2,7 @@ import { computed, type MaybeRefOrGetter, toValue } from 'vue'
 import { storeToRefs } from 'pinia'
 import { type QueryClient, useMutation, useQuery, useQueryClient } from '@tanstack/vue-query'
 
-import type { FollowEdge, FollowStatus } from '@/features/followers/types'
+import type { FollowEdge, FollowStatus, Relationship } from '@/features/followers/types'
 import type { PublicUser } from '@/features/users/types'
 
 import { queryKeys } from '@/services/queryKeys'
@@ -10,13 +10,16 @@ import { useAuthStore } from '@/features/auth/stores/auth'
 import { useCurrentUser } from '@/features/auth/composables/useCurrentUser'
 import {
   acceptFollower,
+  blockUser,
+  fetchBlockedUsers,
   fetchFollowers,
   fetchFollowersCount,
   fetchFollowing,
   fetchFollowingCount,
-  fetchFollowStatus,
+  fetchRelationship,
   followUser,
   removeFollower,
+  unblockUser,
   unfollowUser,
 } from '@/features/followers/services/followers'
 
@@ -142,22 +145,27 @@ export function useFollowingCountQuery(userId: MaybeRefOrGetter<number | null>) 
 }
 
 /**
- * The authenticated viewer's follow relationship to a target user, backing the
- * follow button. Gated on authentication and a valid target that is not the
- * viewer themselves (no self-follow state).
+ * The authenticated viewer's relationship with a target user, backing the follow and block
+ * buttons. Gated on authentication and a valid target that is not the viewer themselves (no
+ * self-follow state). Both buttons read the same cached response.
  *
  * @param targetId - Reactive id of the profile owner being viewed.
- * @returns The TanStack query result for the viewer's {@link FollowStatus}.
+ * @param select - Picks what the caller needs from the {@link Relationship}.
+ * @returns The TanStack query result for the selected part of the relationship.
  */
-export function useFollowStatusQuery(targetId: MaybeRefOrGetter<number | null>) {
+function useRelationshipQuery<T>(
+  targetId: MaybeRefOrGetter<number | null>,
+  select: (relationship: Relationship) => T,
+) {
   const { isAuthenticated } = storeToRefs(useAuthStore())
   const { data: currentUser } = useCurrentUser()
   const viewerId = computed(() => currentUser.value?.id ?? 0)
   const target = computed(() => resolveUserId(targetId))
 
-  return useQuery<FollowStatus>({
+  return useQuery<Relationship, Error, T>({
     queryKey: computed(() => queryKeys.followers.state(viewerId.value, target.value)),
-    queryFn: ({ signal }) => fetchFollowStatus(target.value, signal),
+    queryFn: ({ signal }) => fetchRelationship(target.value, signal),
+    select,
     staleTime: FOLLOWER_QUERY_STALE_TIME_MS,
     enabled: computed(
       () =>
@@ -166,6 +174,42 @@ export function useFollowStatusQuery(targetId: MaybeRefOrGetter<number | null>) 
         target.value > 0 &&
         viewerId.value !== target.value,
     ),
+  })
+}
+
+/**
+ * The authenticated viewer's follow status towards a target user, backing the follow button.
+ *
+ * @param targetId - Reactive id of the profile owner being viewed.
+ * @returns The TanStack query result for the viewer's {@link FollowStatus}.
+ */
+export function useFollowStatusQuery(targetId: MaybeRefOrGetter<number | null>) {
+  return useRelationshipQuery<FollowStatus>(targetId, (relationship) => relationship.status)
+}
+
+/**
+ * Whether the authenticated viewer has blocked a target user, backing the block button.
+ *
+ * @param targetId - Reactive id of the profile owner being viewed.
+ * @returns The TanStack query result for the block state.
+ */
+export function useIsBlockedQuery(targetId: MaybeRefOrGetter<number | null>) {
+  return useRelationshipQuery<boolean>(targetId, (relationship) => relationship.isBlocked)
+}
+
+/**
+ * The users the authenticated viewer has blocked.
+ *
+ * @returns The TanStack query result for the block list.
+ */
+export function useBlockedUsersQuery() {
+  const { isAuthenticated } = storeToRefs(useAuthStore())
+
+  return useQuery<PublicUser[]>({
+    queryKey: queryKeys.followers.blocked(),
+    queryFn: ({ signal }) => fetchBlockedUsers(signal),
+    staleTime: FOLLOWER_QUERY_STALE_TIME_MS,
+    enabled: isAuthenticated,
   })
 }
 
@@ -247,4 +291,22 @@ export function useUnfollowUserMutation() {
  */
 export function useRemoveFollowerMutation() {
   return useRelationshipDeleteMutation(removeFollower)
+}
+
+/**
+ * Blocks a user, which also removes any follow between the viewer and them.
+ *
+ * @returns The TanStack mutation taking the user id to block.
+ */
+export function useBlockUserMutation() {
+  return useFollowGraphMutation(blockUser)
+}
+
+/**
+ * Unblocks a user the viewer blocked.
+ *
+ * @returns The TanStack mutation taking the user id to unblock.
+ */
+export function useUnblockUserMutation() {
+  return useFollowGraphMutation(unblockUser)
 }

@@ -46,7 +46,7 @@ Following is by request:
 2. You accept or reject the request. Until you accept, the request is pending and they see nothing extra.
 3. Accepted followers can see your activities with visibility Followers or Public, with your hidden details removed.
 
-You can remove a follower at any time. Your follower and following lists are visible only to you and to your accepted followers, and nobody else can list them.
+You can block a user from their profile or from **Settings → My profile → Blocked users**: they can no longer ask to follow you, every follow between you is removed and they are not told. After you decline a follow request, the same person cannot ask again for 7 days. You can remove a follower at any time. Your follower and following lists are visible only to you and to your accepted followers, and nobody else can list them.
 
 ## For administrators
 

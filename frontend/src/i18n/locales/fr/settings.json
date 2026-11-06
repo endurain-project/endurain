@@ -1122,6 +1122,15 @@
         "processing_failed": "une erreur s'est produite. Rien n'a été importé, vous pouvez donc réessayer.",
         "wrong_account": "l'archive a été exportée depuis un autre compte. Rien n'a été importé."
       }
+    },
+    "blockedUsers": {
+      "title": "Utilisateurs bloqués",
+      "subtitle": "Les utilisateurs bloqués ne peuvent pas demander à vous suivre. Bloquer quelqu'un supprime aussi tout abonnement entre vous.",
+      "empty": "Vous n'avez bloqué personne.",
+      "unblock": "Débloquer",
+      "unblockError": "Impossible de débloquer cet utilisateur. Veuillez réessayer.",
+      "loadError": "Impossible de charger vos utilisateurs bloqués.",
+      "retry": "Réessayer"
     }
   }
 }

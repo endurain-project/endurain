@@ -5,6 +5,7 @@ import { useI18n } from 'vue-i18n'
 import PrivacySettingsCard from '@/features/profile/components/PrivacySettingsCard.vue'
 import ProfileInfoCard from '@/features/profile/components/ProfileInfoCard.vue'
 import DefaultGearCard from '@/features/profile/components/DefaultGearCard.vue'
+import BlockedUsersCard from '@/features/followers/components/BlockedUsersCard.vue'
 import DataTransferCard from '@/features/profile/components/DataTransferCard.vue'
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
@@ -60,8 +61,8 @@ const mfaEnabled = computed(() => mfaStatusQuery.data.value?.enabled ?? false)
           <Skeleton v-for="n in 4" :key="n" class="h-9 w-full" />
         </div>
       </Card>
-      <!-- Default gear, privacy, data transfer: titled cards. -->
-      <Card v-for="n in 3" :key="n" class="flex flex-col gap-3">
+      <!-- Default gear, privacy, blocked users, data transfer: titled cards. -->
+      <Card v-for="n in 4" :key="n" class="flex flex-col gap-3">
         <Skeleton class="h-5 w-40" />
         <Skeleton class="h-3 w-64" />
         <Skeleton class="h-9 w-full" />
@@ -86,6 +87,7 @@ const mfaEnabled = computed(() => mfaStatusQuery.data.value?.enabled ?? false)
       <DefaultGearCard />
       <!-- Keyed on the version: a refetch that changes it rebuilds the form, so its If-Match is the one it shows. -->
       <PrivacySettingsCard :key="profile.privacy.version" :privacy="profile.privacy" />
+      <BlockedUsersCard />
       <DataTransferCard
         :user-id="profile.id"
         :has-local-password="profile.hasLocalPassword"

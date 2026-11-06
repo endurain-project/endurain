@@ -1122,6 +1122,15 @@
         "processing_failed": "midagi läks valesti. Midagi ei imporditud, nii et võid uuesti proovida.",
         "wrong_account": "arhiiv eksporditi teisest kontost. Midagi ei imporditud."
       }
+    },
+    "blockedUsers": {
+      "title": "Blokeeritud kasutajad",
+      "subtitle": "Blokeeritud kasutajad ei saa sind jälgimiseks paluda. Kasutaja blokeerimine eemaldab ka kõik teie vahelised jälgimised.",
+      "empty": "Sa ei ole kedagi blokeerinud.",
+      "unblock": "Eemalda blokeering",
+      "unblockError": "Selle kasutaja blokeeringut ei õnnestunud eemaldada. Proovi uuesti.",
+      "loadError": "Sinu blokeeritud kasutajaid ei õnnestunud laadida.",
+      "retry": "Proovi uuesti"
     }
   }
 }
