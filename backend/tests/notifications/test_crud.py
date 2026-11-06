@@ -14,7 +14,13 @@ class TestGetUserNotificationById:
         import modules.notifications.models as m
 
         n = MagicMock(
-            spec=m.Notification, id=1, user_id=1, type=1, read=False, options=None, created_at=datetime(2024, 1, 1)
+            spec=m.Notification,
+            id=1,
+            user_id=1,
+            type=1,
+            read=False,
+            options={"activity_id": 5},
+            created_at=datetime(2024, 1, 1),
         )
         mock_db.execute.return_value.scalars.return_value.first.return_value = n
         r = crud.get_user_notification_by_id(notification_id=1, user_id=1, db=mock_db)
@@ -52,7 +58,13 @@ class TestGetUserNotificationsWithPagination:
         import modules.notifications.models as m
 
         n = MagicMock(
-            spec=m.Notification, id=1, user_id=1, type=1, read=False, options=None, created_at=datetime(2024, 1, 1)
+            spec=m.Notification,
+            id=1,
+            user_id=1,
+            type=1,
+            read=False,
+            options={"activity_id": 5},
+            created_at=datetime(2024, 1, 1),
         )
         mock_db.execute.return_value.scalars.return_value.all.return_value = [n]
         r = crud.get_user_notifications_with_pagination(user_id=1, db=mock_db, page_number=1, num_records=5)
@@ -98,6 +110,7 @@ class TestUnreadOnlyFilter:
                     user_id=user_id,
                     type=1,
                     read=read,
+                    options={"activity_id": notification_id},
                     created_at=datetime(2024, 1, notification_id),
                 )
             )
@@ -152,14 +165,14 @@ class TestCreateNotification:
         import modules.notifications.crud as crud
         import modules.notifications.schema as schema
 
-        notification_data = schema.NotificationCreate(user_id=1, type="new_activity", options={})
+        notification_data = schema.NotificationCreate(user_id=1, type="new_activity", options={"activity_id": 5})
 
         mock_notification = MagicMock()
         mock_notification.id = 1
         mock_notification.user_id = 1
         mock_notification.type = 1
         mock_notification.read = False
-        mock_notification.options = None
+        mock_notification.options = {"activity_id": 5}
         mock_notification.created_at = datetime(2024, 1, 1)
 
         with patch("modules.notifications.crud.notifications_models.Notification", return_value=mock_notification):
@@ -255,7 +268,13 @@ class TestMarkNotificationAsRead:
         import modules.notifications.models as m
 
         n = MagicMock(
-            spec=m.Notification, id=1, user_id=1, type=1, read=False, options=None, created_at=datetime(2024, 1, 1)
+            spec=m.Notification,
+            id=1,
+            user_id=1,
+            type=1,
+            read=False,
+            options={"activity_id": 5},
+            created_at=datetime(2024, 1, 1),
         )
         mock_db.execute.return_value.scalars.return_value.first.return_value = n
 
@@ -318,3 +337,39 @@ class TestDeleteNotificationsNamingUser:
         assert deleted == 3
         remaining = {n.id for n in db.query(m.Notification).all()}
         assert remaining == {4, 5, 6, 7}
+
+
+class TestDeleteAndMarkSeveral:
+    @pytest.fixture
+    def db(self):
+        import modules.notifications.models as m
+
+        session = create_sqlite_session()
+        for notification_id, user_id in [(1, 1), (2, 1), (3, 1), (4, 2)]:
+            session.add(
+                m.Notification(id=notification_id, user_id=user_id, type=1, options={"activity_id": 5}, read=False)
+            )
+        session.commit()
+        yield session
+        session.close()
+
+    def test_marking_several_skips_ids_that_are_not_the_users(self, db):
+        import modules.notifications.crud as crud
+        import modules.notifications.models as m
+
+        crud.mark_notifications_as_read([1, 4, 99], user_id=1, db=db)
+        db.commit()
+
+        read = {n.id for n in db.query(m.Notification).filter_by(read=True)}
+        assert read == {1}
+
+    def test_delete_removes_only_the_users_notification(self, db):
+        import modules.notifications.crud as crud
+        import modules.notifications.models as m
+
+        assert crud.delete_user_notification(2, user_id=1, db=db) is True
+        assert crud.delete_user_notification(4, user_id=1, db=db) is False
+        assert crud.delete_user_notification(99, user_id=1, db=db) is False
+        db.commit()
+
+        assert {n.id for n in db.query(m.Notification)} == {1, 3, 4}

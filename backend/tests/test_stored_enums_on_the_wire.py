@@ -19,7 +19,7 @@ import modules.gears.gear.serializers as gear_serializers
 import modules.health.health_poop.schema as poop_schema
 import modules.health.health_sleep.schema as sleep_schema
 import modules.notifications.constants as notifications_constants
-import modules.notifications.schema as notifications_schema
+import modules.notifications.serializers as notifications_serializers
 from core.stored_enum import StoredStrEnum, to_stored
 from modules.activities.activity_streams.constants import ActivityStreamType
 
@@ -97,14 +97,25 @@ class TestMedia:
 
 
 class TestNotification:
+    @staticmethod
+    def _row(stored_type):
+        return SimpleNamespace(
+            id=1,
+            type=stored_type,
+            user_id=1,
+            read=False,
+            created_at=None,
+            options={"browser": "Firefox", "operating_system": "Linux", "ip_address": "10.0.0.1"},
+        )
+
     def test_a_stored_row_reads_as_the_key(self):
-        read = notifications_schema.NotificationRead(id=1, type=33, user_id=1)
+        read = notifications_serializers.to_read_schema(self._row(33))
 
         assert read.model_dump(mode="json")["type"] == "new_device_sign_in"
 
     def test_an_unknown_stored_number_is_refused(self):
-        with pytest.raises(ValidationError):
-            notifications_schema.NotificationRead(id=1, type=9999, user_id=1)
+        with pytest.raises(ValueError):
+            notifications_serializers.to_read_schema(self._row(9999))
 
 
 class TestHealth:

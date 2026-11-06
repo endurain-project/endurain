@@ -297,8 +297,9 @@ _TIERED_ENDPOINTS = [
     pytest.param(gear_components_router.delete_component_gear, core_rate_limit.WRITE, id="gear-component-delete"),
     pytest.param(notifications_router.mark_notification_as_read, core_rate_limit.WRITE, id="notification-mark-read"),
     pytest.param(
-        notifications_router.mark_all_notifications_as_read, core_rate_limit.WRITE, id="notification-mark-all-read"
+        notifications_router.mark_notifications_as_read, core_rate_limit.WRITE, id="notification-mark-read-many"
     ),
+    pytest.param(notifications_router.delete_notification, core_rate_limit.WRITE, id="notification-delete"),
     pytest.param(
         activity_summary_router.read_activity_summary, core_rate_limit.EXPENSIVE_READ, id="activity-summary-read"
     ),

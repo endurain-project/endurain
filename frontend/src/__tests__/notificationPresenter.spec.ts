@@ -13,24 +13,31 @@ import {
   Watch,
 } from '@lucide/vue'
 
-import type { Notification, NotificationType } from '@/features/notifications/types'
+import type {
+  Notification,
+  NotificationOptionsOf,
+  NotificationType,
+} from '@/features/notifications/types'
 
 import { presentNotification } from '@/features/notifications/utils/notificationPresenter'
 
 /**
  * Builds a notification with sensible defaults so each test only states the
- * fields it cares about.
+ * fields it cares about. The caller states the options of the type it names.
  *
  * @param type - The notification type.
- * @param options - The per-type metadata bag.
+ * @param options - The options that type stores.
  * @returns A notification model for the presenter.
  */
-function make(
-  type: NotificationType,
-  options: Record<string, unknown> | null = null,
+function make<Type extends NotificationType>(
+  type: Type,
+  options: NotificationOptionsOf<Type>,
 ): Notification {
-  return { id: 1, type, read: false, options, createdAt: null, userId: 5 }
+  return { id: 1, type, read: false, options, createdAt: null, userId: 5 } as Notification
 }
+
+const USER = { user_id: 3, user_name: 'Ada', user_username: 'ada' }
+const NO_OPTIONS = {}
 
 describe('presentNotification', () => {
   it('presents a new-activity notification with a deep link', () => {
@@ -42,10 +49,6 @@ describe('presentNotification', () => {
     expect(result.to).toEqual({ name: 'activity', params: { id: '42' } })
   })
 
-  it('drops the activity link when the id is missing', () => {
-    expect(presentNotification(make('new_activity', {})).to).toBeNull()
-  })
-
   it('presents a duplicate-activity notification', () => {
     const result = presentNotification(make('duplicate_activity', { activity_id: 7 }))
 
@@ -55,12 +58,9 @@ describe('presentNotification', () => {
   })
 
   it('links a follower request to the viewer followers list', () => {
-    const result = presentNotification(
-      make('new_follower_request', { user_name: 'Ada', user_username: 'ada' }),
-      {
-        currentUserId: 9,
-      },
-    )
+    const result = presentNotification(make('new_follower_request', USER), {
+      currentUserId: 9,
+    })
 
     expect(result.icon).toBe(UserPlus)
     expect(result.bodyParams).toEqual({ name: 'Ada', username: 'ada' })
@@ -68,33 +68,25 @@ describe('presentNotification', () => {
   })
 
   it('omits the follower-request link without a current user id', () => {
-    expect(presentNotification(make('new_follower_request', {})).to).toBeNull()
-  })
-
-  it('coerces missing follower fields to empty strings', () => {
-    const result = presentNotification(make('new_follower_request', {}), { currentUserId: 1 })
-
-    expect(result.bodyParams).toEqual({ name: '', username: '' })
+    expect(presentNotification(make('new_follower_request', USER)).to).toBeNull()
   })
 
   it('links an accepted follower request to that user', () => {
-    const result = presentNotification(
-      make('new_follower_request_accepted', { user_id: 3, user_name: 'Ada', user_username: 'ada' }),
-    )
+    const result = presentNotification(make('new_follower_request_accepted', USER))
 
     expect(result.icon).toBe(UserCheck)
     expect(result.to).toEqual({ name: 'user', params: { id: '3' } })
   })
 
   it('routes a Garmin token expiry to settings integrations', () => {
-    const result = presentNotification(make('garmin_token_expired'))
+    const result = presentNotification(make('garmin_token_expired', NO_OPTIONS))
 
     expect(result.icon).toBe(Watch)
     expect(result.to).toEqual({ name: 'settings', query: { tab: 'integrations' } })
   })
 
   it('routes a Strava token expiry to settings integrations', () => {
-    const result = presentNotification(make('strava_token_expired'))
+    const result = presentNotification(make('strava_token_expired', NO_OPTIONS))
 
     expect(result.icon).toBe(Unplug)
     expect(result.titleKey).toBe('notifications.types.stravaTokenExpired.title')
@@ -113,14 +105,14 @@ describe('presentNotification', () => {
   })
 
   it('keeps the plain Strava message when no deletion day is named', () => {
-    const result = presentNotification(make('strava_token_expired'))
+    const result = presentNotification(make('strava_token_expired', NO_OPTIONS))
 
     expect(result.bodyKey).toBe('notifications.types.stravaTokenExpired.body')
     expect(result.bodyParams).toBeUndefined()
   })
 
   it('tells the user their Strava data was deleted', () => {
-    const result = presentNotification(make('strava_data_deleted'))
+    const result = presentNotification(make('strava_data_deleted', NO_OPTIONS))
 
     expect(result.titleKey).toBe('notifications.types.stravaDataDeleted.title')
     expect(result.bodyKey).toBe('notifications.types.stravaDataDeleted.body')
@@ -234,16 +226,8 @@ describe('presentNotification', () => {
     expect(result.to).toEqual({ name: 'settings-user-detail', params: { id: '7' } })
   })
 
-  it('routes an admin sign-up approval without a user id to the users list', () => {
-    const result = presentNotification(
-      make('admin_new_sign_up_approval_request', { user_name: 'Ada', user_username: 'ada' }),
-    )
-
-    expect(result.to).toEqual({ name: 'settings-users' })
-  })
-
   it('falls back to a neutral bell for unknown types', () => {
-    const result = presentNotification(make('bogus' as NotificationType))
+    const result = presentNotification(make('bogus' as NotificationType, NO_OPTIONS))
 
     expect(result.icon).toBe(Bell)
     expect(result.titleKey).toBe('notifications.types.unknown.title')

@@ -68,30 +68,6 @@ export interface NotificationPresenterContext {
 }
 
 /**
- * Reads a string field from a notification's loosely-typed `options` bag.
- *
- * @param options - The per-type metadata bag, possibly `null`.
- * @param key - The field to read.
- * @returns The string value, or an empty string when absent or not a string.
- */
-function readString(options: Record<string, unknown> | null, key: string): string {
-  const value = options?.[key]
-  return typeof value === 'string' ? value : ''
-}
-
-/**
- * Reads a numeric field from a notification's loosely-typed `options` bag.
- *
- * @param options - The per-type metadata bag, possibly `null`.
- * @param key - The field to read.
- * @returns The numeric value, or `null` when absent or not a number.
- */
-function readNumber(options: Record<string, unknown> | null, key: string): number | null {
-  const value = options?.[key]
-  return typeof value === 'number' ? value : null
-}
-
-/**
  * Maps a notification to its presentational shape: icon, localized message
  * keys, and an intended navigation target. Unknown or untyped notifications
  * degrade to a neutral "bell" fallback so a new backend type never renders
@@ -105,26 +81,23 @@ export function presentNotification(
   notification: Notification,
   context: NotificationPresenterContext = {},
 ): NotificationPresentation {
-  const { options } = notification
   const base = 'notifications.types'
 
   switch (notification.type) {
     case 'new_activity': {
-      const activityId = readNumber(options, 'activity_id')
       return {
         icon: Activity,
         titleKey: `${base}.newActivity.title`,
         bodyKey: `${base}.newActivity.body`,
-        to: activityId === null ? null : { name: 'activity', params: { id: String(activityId) } },
+        to: { name: 'activity', params: { id: String(notification.options.activity_id) } },
       }
     }
     case 'duplicate_activity': {
-      const activityId = readNumber(options, 'activity_id')
       return {
         icon: CopyCheck,
         titleKey: `${base}.duplicateActivity.title`,
         bodyKey: `${base}.duplicateActivity.body`,
-        to: activityId === null ? null : { name: 'activity', params: { id: String(activityId) } },
+        to: { name: 'activity', params: { id: String(notification.options.activity_id) } },
       }
     }
     case 'new_follower_request': {
@@ -134,8 +107,8 @@ export function presentNotification(
         titleKey: `${base}.newFollowerRequest.title`,
         bodyKey: `${base}.newFollowerRequest.body`,
         bodyParams: {
-          name: readString(options, 'user_name'),
-          username: readString(options, 'user_username'),
+          name: notification.options.user_name,
+          username: notification.options.user_username,
         },
         // The request targets the viewer, so it deep-links to their own
         // followers list rather than the requester's profile.
@@ -146,16 +119,15 @@ export function presentNotification(
       }
     }
     case 'new_follower_request_accepted': {
-      const userId = readNumber(options, 'user_id')
       return {
         icon: UserCheck,
         titleKey: `${base}.followerRequestAccepted.title`,
         bodyKey: `${base}.followerRequestAccepted.body`,
         bodyParams: {
-          name: readString(options, 'user_name'),
-          username: readString(options, 'user_username'),
+          name: notification.options.user_name,
+          username: notification.options.user_username,
         },
-        to: userId === null ? null : { name: 'user', params: { id: String(userId) } },
+        to: { name: 'user', params: { id: String(notification.options.user_id) } },
       }
     }
     case 'garmin_token_expired': {
@@ -168,7 +140,7 @@ export function presentNotification(
     }
     case 'strava_token_expired': {
       // Only a revocation on Strava names the day the Strava data is deleted.
-      const deleteOn = readString(options, 'delete_on')
+      const deleteOn = notification.options.delete_on ?? ''
       return {
         icon: Unplug,
         titleKey: `${base}.stravaTokenExpired.title`,
@@ -190,7 +162,7 @@ export function presentNotification(
       }
     }
     case 'idp_linked': {
-      const name = readString(options, 'idp_name')
+      const name = notification.options.idp_name ?? ''
       return {
         icon: KeyRound,
         titleKey: `${base}.idpLinked.title`,
@@ -201,9 +173,9 @@ export function presentNotification(
       }
     }
     case 'account_security_changed': {
-      const changeKey = ACCOUNT_SECURITY_CHANGE_KEY[readString(options, 'change')]
+      const changeKey = ACCOUNT_SECURITY_CHANGE_KEY[notification.options.change]
       const prefix = `${base}.accountSecurityChanged.${changeKey ?? 'unknown'}`
-      const name = readString(options, 'idp_name')
+      const name = notification.options.idp_name ?? ''
       return {
         icon: LockKeyhole,
         titleKey: `${prefix}.title`,
@@ -222,27 +194,23 @@ export function presentNotification(
         titleKey: `${base}.newDeviceSignIn.title`,
         bodyKey: `${base}.newDeviceSignIn.body`,
         bodyParams: {
-          browser: readString(options, 'browser'),
-          os: readString(options, 'operating_system'),
-          ip: readString(options, 'ip_address'),
+          browser: notification.options.browser,
+          os: notification.options.operating_system,
+          ip: notification.options.ip_address,
         },
         to: { name: 'settings-security' },
       }
     }
     case 'admin_new_sign_up_approval_request': {
-      const userId = readNumber(options, 'user_id')
       return {
         icon: ShieldAlert,
         titleKey: `${base}.adminSignUpApproval.title`,
         bodyKey: `${base}.adminSignUpApproval.body`,
         bodyParams: {
-          name: readString(options, 'user_name'),
-          username: readString(options, 'user_username'),
+          name: notification.options.user_name,
+          username: notification.options.user_username,
         },
-        to:
-          userId === null
-            ? { name: 'settings-users' }
-            : { name: 'settings-user-detail', params: { id: String(userId) } },
+        to: { name: 'settings-user-detail', params: { id: String(notification.options.user_id) } },
       }
     }
     default:

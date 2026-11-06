@@ -54,7 +54,7 @@ def read_notifications_by_id(
 
 @router.get(
     "",
-    response_model=core_pagination.Page[notifications_schema.NotificationRead],
+    response_model=notifications_schema.NotificationPage,
     dependencies=[Security(auth_dependencies.check_scopes, scopes=["notifications:read"])],
 )
 def read_notifications_user_pagination(
@@ -62,7 +62,7 @@ def read_notifications_user_pagination(
     db: core_dependencies.DbSession,
     page: core_pagination.ListPage,
     unread_only: Annotated[bool, Query()] = False,
-) -> core_pagination.Page[notifications_schema.NotificationRead]:
+) -> notifications_schema.NotificationPage:
     """Retrieve paginated notifications for the user.
 
     Args:
@@ -117,19 +117,35 @@ def mark_notification_as_read(
     dependencies=[Security(auth_dependencies.check_scopes, scopes=["notifications:write"])],
 )
 @core_rate_limit.limiter.limit(core_rate_limit.WRITE)
-def mark_all_notifications_as_read(
+def mark_notifications_as_read(
     request: Request,
     token_user_id: auth_dependencies.CurrentUserId,
     db: core_dependencies.DbSession,
+    body: notifications_schema.NotificationsMarkRead | None = None,
 ) -> None:
-    """Mark all of the user's notifications as read.
+    """Mark notifications as read.
 
-    Args:
-        request: The incoming request, used by the rate limiter.
-        token_user_id: ID of the user from the access token.
-        db: Database session dependency.
-
-    Returns:
-        None.
+    With `{"ids": [...]}` (at most 100) only those are marked; an id that is not the caller's is skipped, so the
+    answer does not reveal which ids exist. Without a body every unread notification of the caller is marked.
     """
-    notifications_service.mark_all_notifications_as_read(token_user_id, db)
+    if body is None:
+        notifications_service.mark_all_notifications_as_read(token_user_id, db)
+    else:
+        notifications_service.mark_notifications_as_read(body.ids, token_user_id, db)
+
+
+@router.delete(
+    "/{notification_id}",
+    response_model=None,
+    status_code=status.HTTP_204_NO_CONTENT,
+    dependencies=[Security(auth_dependencies.check_scopes, scopes=["notifications:write"])],
+)
+@core_rate_limit.limiter.limit(core_rate_limit.WRITE)
+def delete_notification(
+    request: Request,
+    notification_id: core_dependencies.PositiveId,
+    token_user_id: auth_dependencies.CurrentUserId,
+    db: core_dependencies.DbSession,
+) -> None:
+    """Delete one of the caller's notifications. `404` when the caller has no such notification."""
+    notifications_service.delete_notification(notification_id, token_user_id, db)

@@ -1,11 +1,21 @@
 from datetime import datetime
 from unittest.mock import patch
 
+import pytest
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
 
 import core.exceptions as core_exceptions
 import core.pagination as core_pagination
+
+
+def _read(**fields):
+    """Build a stored new-activity notification."""
+    import modules.notifications.schema as notifications_schema
+
+    return notifications_schema.NOTIFICATION_READ_ADAPTER.validate_python(
+        {"id": 1, "user_id": 1, "type": "new_activity", "options": {"activity_id": 5}, **fields}
+    )
 
 
 def _build_app(mock_db):
@@ -52,10 +62,8 @@ class TestReadUnreadCount:
 class TestReadNotificationById:
     @patch("modules.notifications.router.notifications_service.get_notification")
     def test_success(self, mock_get, mock_db):
-        from modules.notifications.schema import NotificationRead
-
         client = TestClient(_build_app(mock_db))
-        mock_get.return_value = NotificationRead(id=1, user_id=1, type=1, read=False)
+        mock_get.return_value = _read(read=False)
 
         response = client.get("/notifications/1", headers={"Authorization": "Bearer x"})
         assert response.status_code == 200
@@ -63,12 +71,8 @@ class TestReadNotificationById:
 
     @patch("modules.notifications.router.notifications_service.get_notification")
     def test_created_at_is_full_utc_iso_timestamp(self, mock_get, mock_db):
-        from modules.notifications.schema import NotificationRead
-
         client = TestClient(_build_app(mock_db))
-        mock_get.return_value = NotificationRead(
-            id=1, user_id=1, type=1, read=False, created_at=datetime(2026, 7, 16, 10, 30)
-        )
+        mock_get.return_value = _read(read=False, created_at=datetime(2026, 7, 16, 10, 30))
 
         response = client.get("/notifications/1", headers={"Authorization": "Bearer x"})
         assert response.status_code == 200
@@ -86,12 +90,8 @@ class TestReadNotificationById:
 class TestReadNotificationsPagination:
     @patch("modules.notifications.router.notifications_service.list_notifications")
     def test_pagination_success(self, mock_get, mock_db):
-        from modules.notifications.schema import NotificationRead
-
         client = TestClient(_build_app(mock_db))
-        mock_get.return_value = core_pagination.Page.build(
-            [NotificationRead(id=1, user_id=1, type=1, read=False)], total=1, page=1, num_records=10
-        )
+        mock_get.return_value = core_pagination.Page.build([_read(read=False)], total=1, page=1, num_records=10)
 
         response = client.get("/notifications?page_number=1&num_records=10", headers={"Authorization": "Bearer x"})
         assert response.status_code == 200
@@ -114,11 +114,9 @@ class TestReadNotificationsPagination:
 
     @patch("modules.notifications.router.notifications_service.list_notifications")
     def test_pagination_created_at_is_full_utc_iso_timestamp(self, mock_get, mock_db):
-        from modules.notifications.schema import NotificationRead
-
         client = TestClient(_build_app(mock_db))
         mock_get.return_value = core_pagination.Page.build(
-            [NotificationRead(id=1, user_id=1, type=1, read=False, created_at=datetime(2026, 7, 16, 10, 30))],
+            [_read(read=False, created_at=datetime(2026, 7, 16, 10, 30))],
             total=1,
             page=1,
             num_records=10,
@@ -176,3 +174,56 @@ class TestPathValidation:
 
         response = client.get("/notifications?page_number=0&num_records=10", headers={"Authorization": "Bearer x"})
         assert response.status_code == 422
+
+
+class TestMarkNotificationsAsRead:
+    @patch("modules.notifications.router.notifications_service.mark_notifications_as_read")
+    def test_ids_mark_only_those(self, mock_mark, mock_db):
+        client = TestClient(_build_app(mock_db))
+
+        response = client.post("/notifications/read", json={"ids": [3, 4]}, headers={"Authorization": "Bearer x"})
+
+        assert response.status_code == 204
+        mock_mark.assert_called_once_with([3, 4], 1, mock_db)
+
+    @patch("modules.notifications.router.notifications_service.mark_all_notifications_as_read")
+    def test_no_body_still_marks_everything(self, mock_all, mock_db):
+        client = TestClient(_build_app(mock_db))
+
+        response = client.post("/notifications/read", headers={"Authorization": "Bearer x"})
+
+        assert response.status_code == 204
+        mock_all.assert_called_once_with(1, mock_db)
+
+    @pytest.mark.parametrize(
+        "body",
+        [{"ids": []}, {"ids": list(range(1, 102))}, {"ids": [0]}, {"ids": ["a"]}, {"ids": [1], "all": True}, {}],
+    )
+    @patch("modules.notifications.router.notifications_service.mark_notifications_as_read")
+    def test_a_bad_list_is_refused(self, mock_mark, body, mock_db):
+        client = TestClient(_build_app(mock_db))
+
+        response = client.post("/notifications/read", json=body, headers={"Authorization": "Bearer x"})
+
+        assert response.status_code == 422
+        mock_mark.assert_not_called()
+
+
+class TestDeleteNotification:
+    @patch("modules.notifications.router.notifications_service.delete_notification")
+    def test_delete_answers_204(self, mock_delete, mock_db):
+        client = TestClient(_build_app(mock_db))
+
+        response = client.delete("/notifications/7", headers={"Authorization": "Bearer x"})
+
+        assert response.status_code == 204
+        mock_delete.assert_called_once_with(7, 1, mock_db)
+
+    @patch("modules.notifications.router.notifications_service.delete_notification")
+    def test_someone_elses_or_a_missing_id_is_404(self, mock_delete, mock_db):
+        mock_delete.side_effect = core_exceptions.NotFoundError("Notification not found")
+        client = TestClient(_build_app(mock_db))
+
+        response = client.delete("/notifications/7", headers={"Authorization": "Bearer x"})
+
+        assert response.status_code == 404

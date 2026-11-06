@@ -31,7 +31,7 @@ const dto: NotificationDto = {
   user_id: 1,
 }
 
-function notification(overrides: Partial<Notification> = {}): Notification {
+function notification(overrides: { id?: number; read?: boolean } = {}): Notification {
   return {
     id: 7,
     type: 'new_activity',
@@ -48,12 +48,20 @@ describe('mapNotification', () => {
     expect(mapNotification(dto)).toEqual(notification())
   })
 
-  it('coerces absent optional fields to null', () => {
-    expect(mapNotification({ id: 1, type: 'new_activity', read: true, user_id: 9 })).toEqual({
+  it('coerces an absent creation time to null', () => {
+    expect(
+      mapNotification({
+        id: 1,
+        type: 'garmin_token_expired',
+        read: true,
+        options: {},
+        user_id: 9,
+      }),
+    ).toEqual({
       id: 1,
-      type: 'new_activity',
+      type: 'garmin_token_expired',
       read: true,
-      options: null,
+      options: {},
       createdAt: null,
       userId: 9,
     })

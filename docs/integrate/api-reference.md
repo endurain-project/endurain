@@ -12,6 +12,20 @@ After you decline a request, the same user cannot ask you again for 7 days: thei
 
 `GET /notifications` lists your notifications, newest first, and takes `unread_only=true`. `GET /notifications/unread-count` answers `{"count": <int>}` with the number of unread ones; it needs `notifications:read`.
 
+`DELETE /notifications/{notification_id}` deletes one of your notifications (`204`, or `404` when it is not yours). `POST /notifications/read` with `{"ids": [...]}` (1 to 100 ids) marks those as read and answers `204`; an id that is not yours is skipped. Sent without a body it marks every unread notification. Both need `notifications:write`.
+
+A notification's `options` depend on its `type`, and the schema names each shape (the notification is a union discriminated by `type`):
+
+| `type` | `options` |
+| ------ | --------- |
+| `new_activity`, `duplicate_activity` | `activity_id` |
+| `new_follower_request`, `new_follower_request_accepted`, `admin_new_sign_up_approval_request` | `user_id`, `user_name`, `user_username` |
+| `garmin_token_expired`, `strava_data_deleted` | none (an empty object) |
+| `strava_token_expired` | `delete_on` (a date), only when Strava access was revoked |
+| `idp_linked` | `idp_id`, `idp_name` (null when the provider was deleted since) |
+| `account_security_changed` | `change`, and `idp_id` and `idp_name` for an unlink |
+| `new_device_sign_in` | `browser`, `operating_system`, `ip_address` |
+
 For authentication, scopes, errors and rate limits see the other pages in this section. Requests cannot be sent from this page; use your own Endurain instance's `/docs` for that.
 
 <swagger-ui src="./openapi.json"/>

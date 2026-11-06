@@ -15,7 +15,6 @@ from sqlalchemy.orm import Session
 import core.database as core_database
 import core.exceptions as core_exceptions
 import core.logger as core_logger
-import core.pagination as core_pagination
 import modules.auth.identity_providers.integration_service as idp_integration
 import modules.notifications.constants as notifications_constants
 import modules.notifications.crud as notifications_crud
@@ -79,7 +78,7 @@ def list_notifications(
     page_number: int,
     num_records: int,
     unread_only: bool = False,
-) -> core_pagination.Page[notifications_schema.NotificationRead]:
+) -> notifications_schema.NotificationPage:
     """Return one page of the user's notifications, newest first.
 
     Args:
@@ -97,7 +96,7 @@ def list_notifications(
         user_id, db, page_number, num_records, unread_only=unread_only
     )
     total = notifications_crud.get_user_notifications_count(user_id, db, unread_only=unread_only)
-    return core_pagination.Page.build(items, total, page_number, num_records)
+    return notifications_schema.NotificationPage.build(items, total, page_number, num_records)
 
 
 def mark_notification_as_read(notification_id: int, user_id: int, db: Session) -> None:
@@ -118,6 +117,36 @@ def mark_notification_as_read(notification_id: int, user_id: int, db: Session) -
         "Marked notification as read",
         extra=core_logger.context(notification_id=notification_id, user_id=user_id),
     )
+
+
+def mark_notifications_as_read(notification_ids: list[int], user_id: int, db: Session) -> None:
+    """Mark some of the user's notifications as read; ids that are not the user's are skipped.
+
+    Args:
+        notification_ids: The notifications to mark.
+        user_id: The owning user.
+        db: Database session.
+    """
+    notifications_crud.mark_notifications_as_read(notification_ids, user_id, db)
+    db.commit()
+    logger.info("Marked notifications as read", extra=core_logger.context(user_id=user_id, count=len(notification_ids)))
+
+
+def delete_notification(notification_id: int, user_id: int, db: Session) -> None:
+    """Delete one of the user's notifications.
+
+    Args:
+        notification_id: The notification to delete.
+        user_id: The owning user.
+        db: Database session.
+
+    Raises:
+        NotFoundError: When the user has no such notification.
+    """
+    if not notifications_crud.delete_user_notification(notification_id, user_id, db):
+        raise core_exceptions.NotFoundError("Notification not found")
+    db.commit()
+    logger.info("Deleted notification", extra=core_logger.context(notification_id=notification_id, user_id=user_id))
 
 
 def mark_all_notifications_as_read(user_id: int, db: Session) -> None:

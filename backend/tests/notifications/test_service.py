@@ -204,3 +204,27 @@ class TestPurgeReadNotifications:
             assert notifications_service.delete_read_notifications(mock_db) == 0
         delete.assert_not_called()
         mock_db.commit.assert_not_called()
+
+
+class TestDeleteAndMarkSeveral:
+    def test_delete_commits_when_the_notification_was_deleted(self, mock_db):
+        with patch("modules.notifications.service.notifications_crud.delete_user_notification", return_value=True):
+            notifications_service.delete_notification(3, 1, mock_db)
+
+        mock_db.commit.assert_called_once()
+
+    def test_delete_of_someone_elses_notification_is_not_found(self, mock_db):
+        with (
+            patch("modules.notifications.service.notifications_crud.delete_user_notification", return_value=False),
+            pytest.raises(core_exceptions.NotFoundError),
+        ):
+            notifications_service.delete_notification(3, 1, mock_db)
+
+        mock_db.commit.assert_not_called()
+
+    def test_marking_several_commits_once(self, mock_db):
+        with patch("modules.notifications.service.notifications_crud.mark_notifications_as_read") as crud_mark:
+            notifications_service.mark_notifications_as_read([1, 2], 1, mock_db)
+
+        crud_mark.assert_called_once_with([1, 2], 1, mock_db)
+        mock_db.commit.assert_called_once()

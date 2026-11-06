@@ -20,14 +20,8 @@ export type NotificationsPage = {
  * @returns The normalized notification model.
  */
 export function mapNotification(dto: NotificationDto): Notification {
-  return {
-    id: dto.id,
-    type: dto.type,
-    read: dto.read,
-    options: dto.options ?? null,
-    createdAt: dto.created_at ?? null,
-    userId: dto.user_id,
-  }
+  const { id, read, created_at: createdAt, user_id: userId, ...typed } = dto
+  return { id, read, createdAt: createdAt ?? null, userId, ...typed }
 }
 
 /**
@@ -43,7 +37,7 @@ export async function fetchNotifications(
   { page, numRecords }: NotificationsPage,
   signal?: AbortSignal,
 ): Promise<Notification[]> {
-  const result = await apiFetch<Schemas['Page_NotificationRead_']>(
+  const result = await apiFetch<Schemas['NotificationPage']>(
     `/notifications?page_number=${page}&num_records=${numRecords}`,
     { signal },
   )

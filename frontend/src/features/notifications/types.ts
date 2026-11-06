@@ -1,32 +1,53 @@
 import type { Schemas } from '@/types'
 
 /**
- * Raw `NotificationRead` payload from the backend. Snake-cased and nullable
- * fields mirror the API exactly; never consume this shape in components — map
- * it to {@link Notification} at the service boundary.
+ * Raw notification payload from the backend: one shape per kind of notification,
+ * told apart by `type`, each with the `options` its kind stores. Snake-cased and
+ * nullable fields mirror the API exactly; never consume this shape in components
+ * — map it to {@link Notification} at the service boundary.
  */
-export type NotificationDto = Schemas['NotificationRead']
+export type NotificationDto =
+  | Schemas['ActivityNotificationRead']
+  | Schemas['UserReferenceNotificationRead']
+  | Schemas['AccountNoticeNotificationRead']
+  | Schemas['StravaTokenExpiredNotificationRead']
+  | Schemas['IdpLinkedNotificationRead']
+  | Schemas['AccountSecurityChangedNotificationRead']
+  | Schemas['NewDeviceSignInNotificationRead']
 
 /** What a notification is about, as the backend names it. */
-export type NotificationType = Schemas['NotificationType']
+export type NotificationType = NotificationDto['type']
+
+/** What every notification carries, whatever its type. */
+interface NotificationBase {
+  /** Stable unique identifier. */
+  id: number
+  /** Whether the notification has been read. */
+  read: boolean
+  /** ISO creation timestamp, or `null` when absent. */
+  createdAt: string | null
+  /** Owning user's id. */
+  userId: number
+}
 
 /**
  * A notification as consumed by the app: a clean, camel-cased model decoupled
  * from the backend wire format so an API change is absorbed by the mapper
- * instead of rippling across the UI.
- *
- * @property id - Stable unique identifier.
- * @property type - The notification type.
- * @property read - Whether the notification has been read.
- * @property options - Arbitrary per-type metadata bag, or `null`.
- * @property createdAt - ISO creation timestamp, or `null` when absent.
- * @property userId - Owning user's id.
+ * instead of rippling across the UI. `type` decides the shape of `options`.
  */
-export interface Notification {
-  id: number
-  type: NotificationType
-  read: boolean
-  options: Record<string, unknown> | null
-  createdAt: string | null
-  userId: number
-}
+export type Notification = NotificationBase &
+  (NotificationDto extends infer Dto
+    ? Dto extends { type: infer Type; options: infer Options }
+      ? { type: Type; options: Options }
+      : never
+    : never)
+
+/** The options a notification of the given type stores. */
+export type NotificationOptionsOf<Type extends NotificationType> =
+  Notification extends infer Variant
+    ? Variant extends { type: infer VariantType; options: infer Options }
+      ? Type extends VariantType
+        ? Options
+        : never
+      : never
+    : never

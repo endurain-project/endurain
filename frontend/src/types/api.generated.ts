@@ -1831,10 +1831,13 @@ export interface paths {
         get?: never;
         put?: never;
         /**
-         * Mark All Notifications As Read
-         * @description Mark all of the user's notifications as read.
+         * Mark Notifications As Read
+         * @description Mark notifications as read.
+         *
+         *     With `{"ids": [...]}` (at most 100) only those are marked; an id that is not the caller's is skipped, so the
+         *     answer does not reveal which ids exist. Without a body every unread notification of the caller is marked.
          */
-        post: operations["mark_all_notifications_as_read"];
+        post: operations["mark_notifications_as_read"];
         delete?: never;
         options?: never;
         head?: never;
@@ -1875,7 +1878,11 @@ export interface paths {
         get: operations["read_notifications_by_id"];
         put?: never;
         post?: never;
-        delete?: never;
+        /**
+         * Delete Notification
+         * @description Delete one of the caller's notifications. `404` when the caller has no such notification.
+         */
+        delete: operations["delete_notification"];
         options?: never;
         head?: never;
         patch?: never;
@@ -4208,6 +4215,98 @@ export interface components {
             readonly version: string;
         };
         /**
+         * AccountNoticeNotificationRead
+         * @description A Garmin-unlinked or Strava-data-deleted notification, which carries no options.
+         */
+        AccountNoticeNotificationRead: {
+            /**
+             * Created At
+             * @description Timestamp of creation
+             */
+            readonly created_at?: string | null;
+            /**
+             * Id
+             * @description Unique notification ID
+             */
+            readonly id: number;
+            options: components["schemas"]["NoNotificationOptions"];
+            /**
+             * Read
+             * @description Whether notification is read
+             * @default false
+             */
+            read: boolean;
+            /**
+             * @description Type of the notification (enum property replaced by openapi-typescript)
+             * @enum {string}
+             */
+            type: "garmin_token_expired" | "strava_data_deleted";
+            /**
+             * User Id
+             * @description FK to user
+             */
+            user_id: number;
+        };
+        /**
+         * AccountSecurityChangedNotificationOptions
+         * @description Options of the notification that a security setting of the account changed.
+         *
+         *     Attributes:
+         *         change: The kind of change.
+         *         idp_id: The identity provider concerned, for an unlink.
+         *         idp_name: Its name, or None when it was deleted since.
+         */
+        AccountSecurityChangedNotificationOptions: {
+            /**
+             * Change
+             * @description Kind of security change
+             */
+            change: string;
+            /**
+             * Idp Id
+             * @description ID of the identity provider concerned
+             */
+            idp_id?: number | null;
+            /**
+             * Idp Name
+             * @description Name of the provider, when it still exists
+             */
+            idp_name?: string | null;
+        };
+        /**
+         * AccountSecurityChangedNotificationRead
+         * @description A security-setting-changed notification.
+         */
+        AccountSecurityChangedNotificationRead: {
+            /**
+             * Created At
+             * @description Timestamp of creation
+             */
+            readonly created_at?: string | null;
+            /**
+             * Id
+             * @description Unique notification ID
+             */
+            readonly id: number;
+            options: components["schemas"]["AccountSecurityChangedNotificationOptions"];
+            /**
+             * Read
+             * @description Whether notification is read
+             * @default false
+             */
+            read: boolean;
+            /**
+             * @description Type of the notification (enum property replaced by openapi-typescript)
+             * @enum {string}
+             */
+            type: "account_security_changed";
+            /**
+             * User Id
+             * @description FK to user
+             */
+            user_id: number;
+        };
+        /**
          * ActivitiesBulkEdit
          * @description Schema for a bulk (PATCH) update across the caller's own activities.
          *
@@ -4680,6 +4779,53 @@ export interface components {
             media_type: components["schemas"]["MediaType"];
             /** Url */
             url: string;
+        };
+        /**
+         * ActivityNotificationOptions
+         * @description Options of a new or duplicate activity notification.
+         *
+         *     Attributes:
+         *         activity_id: The stored activity.
+         */
+        ActivityNotificationOptions: {
+            /**
+             * Activity Id
+             * @description ID of the activity the notification is about
+             */
+            activity_id: number;
+        };
+        /**
+         * ActivityNotificationRead
+         * @description A new-activity or duplicate-activity notification.
+         */
+        ActivityNotificationRead: {
+            /**
+             * Created At
+             * @description Timestamp of creation
+             */
+            readonly created_at?: string | null;
+            /**
+             * Id
+             * @description Unique notification ID
+             */
+            readonly id: number;
+            options: components["schemas"]["ActivityNotificationOptions"];
+            /**
+             * Read
+             * @description Whether notification is read
+             * @default false
+             */
+            read: boolean;
+            /**
+             * @description Type of the notification (enum property replaced by openapi-typescript)
+             * @enum {string}
+             */
+            type: "duplicate_activity" | "new_activity";
+            /**
+             * User Id
+             * @description FK to user
+             */
+            user_id: number;
         };
         /**
          * ActivityRead
@@ -8392,6 +8538,59 @@ export interface components {
             userinfo_endpoint?: string | null;
         };
         /**
+         * IdpLinkedNotificationOptions
+         * @description Options of the notification that a sign-in provider was linked.
+         *
+         *     Attributes:
+         *         idp_id: The linked identity provider.
+         *         idp_name: Its name, or None when it was deleted since.
+         */
+        IdpLinkedNotificationOptions: {
+            /**
+             * Idp Id
+             * @description ID of the linked identity provider
+             */
+            idp_id: number;
+            /**
+             * Idp Name
+             * @description Name of the provider, when it still exists
+             */
+            idp_name?: string | null;
+        };
+        /**
+         * IdpLinkedNotificationRead
+         * @description A sign-in-provider-linked notification.
+         */
+        IdpLinkedNotificationRead: {
+            /**
+             * Created At
+             * @description Timestamp of creation
+             */
+            readonly created_at?: string | null;
+            /**
+             * Id
+             * @description Unique notification ID
+             */
+            readonly id: number;
+            options: components["schemas"]["IdpLinkedNotificationOptions"];
+            /**
+             * Read
+             * @description Whether notification is read
+             * @default false
+             */
+            read: boolean;
+            /**
+             * @description Type of the notification (enum property replaced by openapi-typescript)
+             * @enum {string}
+             */
+            type: "idp_linked";
+            /**
+             * User Id
+             * @description FK to user
+             */
+            user_id: number;
+        };
+        /**
          * IdpReauthProof
          * @description Proof that a password-less account signed in again with its identity provider.
          *
@@ -9130,17 +9329,36 @@ export interface components {
             type_breakdown?: components["schemas"]["TypeBreakdownItem"][] | null;
         };
         /**
-         * NotificationRead
-         * @description Schema for reading a notification record.
+         * NewDeviceSignInNotificationOptions
+         * @description Options of the notification that the account was signed in to from a new device.
          *
          *     Attributes:
-         *         id: Unique notification identifier.
-         *         type: Type of the notification.
-         *         user_id: FK to user.
-         *         read: Whether the notification has been read.
-         *         created_at: Timestamp of creation.
+         *         browser: The browser family of the sign-in.
+         *         operating_system: The operating-system family of the sign-in.
+         *         ip_address: The client address of the sign-in.
          */
-        NotificationRead: {
+        NewDeviceSignInNotificationOptions: {
+            /**
+             * Browser
+             * @description Browser family of the sign-in
+             */
+            browser: string;
+            /**
+             * Ip Address
+             * @description Client address of the sign-in
+             */
+            ip_address: string;
+            /**
+             * Operating System
+             * @description Operating-system family of the sign-in
+             */
+            operating_system: string;
+        };
+        /**
+         * NewDeviceSignInNotificationRead
+         * @description A new-device-sign-in notification.
+         */
+        NewDeviceSignInNotificationRead: {
             /**
              * Created At
              * @description Timestamp of creation
@@ -9151,21 +9369,18 @@ export interface components {
              * @description Unique notification ID
              */
             readonly id: number;
-            /**
-             * Options
-             * @description Additional notification metadata
-             */
-            options?: {
-                [key: string]: unknown;
-            } | null;
+            options: components["schemas"]["NewDeviceSignInNotificationOptions"];
             /**
              * Read
              * @description Whether notification is read
              * @default false
              */
             read: boolean;
-            /** @description Type of the notification */
-            type: components["schemas"]["NotificationType"];
+            /**
+             * @description Type of the notification (enum property replaced by openapi-typescript)
+             * @enum {string}
+             */
+            type: "new_device_sign_in";
             /**
              * User Id
              * @description FK to user
@@ -9173,26 +9388,26 @@ export interface components {
             user_id: number;
         };
         /**
-         * NotificationType
-         * @description Enumeration of notification types; ``stored`` is the integer in ``notifications.type``.
-         *
-         *     Attributes:
-         *         NEW_ACTIVITY: New activity notification.
-         *         DUPLICATE_ACTIVITY: Duplicate activity notification.
-         *         NEW_FOLLOWER_REQUEST: New follower request notification.
-         *         NEW_FOLLOWER_REQUEST_ACCEPTED: Follower request accepted notification.
-         *         GARMIN_TOKEN_EXPIRED: Garmin Connect account unlinked after its token expired.
-         *         STRAVA_TOKEN_EXPIRED: Strava account unlinked after Strava rejected its token; carries ``delete_on``
-         *             when Strava access was revoked and the Strava data is to be deleted that day.
-         *         STRAVA_DATA_DELETED: Strava-synced activities and gear deleted after Strava access was revoked.
-         *         IDP_LINKED: A sign-in provider was linked to the account.
-         *         ACCOUNT_SECURITY_CHANGED: A security setting of the account changed.
-         *         NEW_DEVICE_SIGN_IN: The account was signed in to from a new device.
-         *         ADMIN_NEW_SIGN_UP_APPROVAL_REQUEST: Admin sign-up approval request
-         *             notification.
-         * @enum {string}
+         * NoNotificationOptions
+         * @description The options of a notification that carries none.
          */
-        NotificationType: "new_activity" | "duplicate_activity" | "new_follower_request" | "new_follower_request_accepted" | "garmin_token_expired" | "strava_token_expired" | "strava_data_deleted" | "idp_linked" | "account_security_changed" | "new_device_sign_in" | "admin_new_sign_up_approval_request";
+        NoNotificationOptions: Record<string, never>;
+        /**
+         * NotificationPage
+         * @description One page of the caller's notifications.
+         */
+        NotificationPage: {
+            /** Items */
+            items: (components["schemas"]["ActivityNotificationRead"] | components["schemas"]["UserReferenceNotificationRead"] | components["schemas"]["AccountNoticeNotificationRead"] | components["schemas"]["StravaTokenExpiredNotificationRead"] | components["schemas"]["IdpLinkedNotificationRead"] | components["schemas"]["AccountSecurityChangedNotificationRead"] | components["schemas"]["NewDeviceSignInNotificationRead"])[];
+            /** Next */
+            next?: number | null;
+            /** Num Records */
+            num_records: number;
+            /** Page */
+            page: number;
+            /** Total */
+            total: number;
+        };
         /**
          * NotificationUnreadCount
          * @description The number of notifications a user has not read.
@@ -9206,6 +9421,20 @@ export interface components {
              * @description Number of unread notifications
              */
             count: number;
+        };
+        /**
+         * NotificationsMarkRead
+         * @description The notifications to mark as read.
+         *
+         *     Attributes:
+         *         ids: The notifications to mark; each must be one of the caller's.
+         */
+        NotificationsMarkRead: {
+            /**
+             * Ids
+             * @description IDs of the notifications to mark as read
+             */
+            ids: number[];
         };
         /**
          * OnboardingCreate
@@ -9533,19 +9762,6 @@ export interface components {
         Page_IdentityProviderRead_: {
             /** Items */
             items: components["schemas"]["IdentityProviderRead"][];
-            /** Next */
-            next?: number | null;
-            /** Num Records */
-            num_records: number;
-            /** Page */
-            page: number;
-            /** Total */
-            total: number;
-        };
-        /** Page[NotificationRead] */
-        Page_NotificationRead_: {
-            /** Items */
-            items: components["schemas"]["NotificationRead"][];
             /** Next */
             next?: number | null;
             /** Num Records */
@@ -10683,6 +10899,54 @@ export interface components {
             kind: components["schemas"]["modules__strava__constants__SyncKind"];
             /** @description Where the job is */
             status: components["schemas"]["JobState"];
+        };
+        /**
+         * StravaTokenExpiredNotificationOptions
+         * @description Options of the notification that a Strava account was unlinked.
+         *
+         *     Attributes:
+         *         delete_on: The day the Strava data is deleted when Strava access was revoked; absent when the token was
+         *             only rejected.
+         */
+        StravaTokenExpiredNotificationOptions: {
+            /**
+             * Delete On
+             * @description Day the user's Strava data is deleted
+             */
+            delete_on?: string | null;
+        };
+        /**
+         * StravaTokenExpiredNotificationRead
+         * @description A Strava-unlinked notification.
+         */
+        StravaTokenExpiredNotificationRead: {
+            /**
+             * Created At
+             * @description Timestamp of creation
+             */
+            readonly created_at?: string | null;
+            /**
+             * Id
+             * @description Unique notification ID
+             */
+            readonly id: number;
+            options: components["schemas"]["StravaTokenExpiredNotificationOptions"];
+            /**
+             * Read
+             * @description Whether notification is read
+             * @default false
+             */
+            read: boolean;
+            /**
+             * @description Type of the notification (enum property replaced by openapi-typescript)
+             * @enum {string}
+             */
+            type: "strava_token_expired";
+            /**
+             * User Id
+             * @description FK to user
+             */
+            user_id: number;
         };
         /**
          * SummaryPeriod
@@ -12596,6 +12860,65 @@ export interface components {
             readonly version: number;
             /** @description Weight units override (metric - kg, imperial - lb), follows 'units' when null */
             weight_units?: components["schemas"]["Units"] | null;
+        };
+        /**
+         * UserReferenceNotificationOptions
+         * @description Options of a notification that names another user.
+         *
+         *     Attributes:
+         *         user_id: The user the notification names.
+         *         user_name: That user's name when the notification was created.
+         *         user_username: That user's username when the notification was created.
+         */
+        UserReferenceNotificationOptions: {
+            /**
+             * User Id
+             * @description ID of the user the notification names
+             */
+            user_id: number;
+            /**
+             * User Name
+             * @description Name of that user when the notification was created
+             */
+            user_name: string;
+            /**
+             * User Username
+             * @description Username of that user when the notification was created
+             */
+            user_username: string;
+        };
+        /**
+         * UserReferenceNotificationRead
+         * @description A follow-request, follow-accepted or sign-up-approval notification, which names a user.
+         */
+        UserReferenceNotificationRead: {
+            /**
+             * Created At
+             * @description Timestamp of creation
+             */
+            readonly created_at?: string | null;
+            /**
+             * Id
+             * @description Unique notification ID
+             */
+            readonly id: number;
+            options: components["schemas"]["UserReferenceNotificationOptions"];
+            /**
+             * Read
+             * @description Whether notification is read
+             * @default false
+             */
+            read: boolean;
+            /**
+             * @description Type of the notification (enum property replaced by openapi-typescript)
+             * @enum {string}
+             */
+            type: "admin_new_sign_up_approval_request" | "new_follower_request" | "new_follower_request_accepted";
+            /**
+             * User Id
+             * @description FK to user
+             */
+            user_id: number;
         };
         /**
          * UserSessionsRead
@@ -23437,7 +23760,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["Page_NotificationRead_"];
+                    "application/json": components["schemas"]["NotificationPage"];
                 };
             };
             /** @description The credential is missing, invalid or no longer valid. */
@@ -23502,14 +23825,18 @@ export interface operations {
             };
         };
     };
-    mark_all_notifications_as_read: {
+    mark_notifications_as_read: {
         parameters: {
             query?: never;
             header?: never;
             path?: never;
             cookie?: never;
         };
-        requestBody?: never;
+        requestBody?: {
+            content: {
+                "application/json": components["schemas"]["NotificationsMarkRead"] | null;
+            };
+        };
         responses: {
             /** @description Successful Response */
             204: {
@@ -23540,6 +23867,24 @@ export interface operations {
             };
             /** @description The request conflicts with the current state. */
             409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description The body is larger than the route accepts. */
+            413: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -23668,7 +24013,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["NotificationRead"];
+                    "application/json": components["schemas"]["ActivityNotificationRead"] | components["schemas"]["UserReferenceNotificationRead"] | components["schemas"]["AccountNoticeNotificationRead"] | components["schemas"]["StravaTokenExpiredNotificationRead"] | components["schemas"]["IdpLinkedNotificationRead"] | components["schemas"]["AccountSecurityChangedNotificationRead"] | components["schemas"]["NewDeviceSignInNotificationRead"];
                 };
             };
             /** @description The credential is missing, invalid or no longer valid. */
@@ -23693,6 +24038,104 @@ export interface operations {
             };
             /** @description The resource does not exist, or is concealed from the caller. */
             404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description The rate limit was reached. */
+            429: {
+                headers: {
+                    /** @description Seconds to wait before the request can succeed. */
+                    "Retry-After"?: number;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description A dependency is unavailable for a moment. */
+            503: {
+                headers: {
+                    /** @description Seconds to wait before the request can succeed. */
+                    "Retry-After"?: number;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Unexpected error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+        };
+    };
+    delete_notification: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                notification_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description The credential is missing, invalid or no longer valid. */
+            401: {
+                headers: {
+                    /** @description The authentication challenge. */
+                    "WWW-Authenticate"?: string;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description The caller is signed in but not allowed, for example a scope is missing. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description The resource does not exist, or is concealed from the caller. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description The request conflicts with the current state. */
+            409: {
                 headers: {
                     [name: string]: unknown;
                 };

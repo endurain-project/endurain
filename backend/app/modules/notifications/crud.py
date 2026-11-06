@@ -239,6 +239,58 @@ def mark_notification_as_read(
     return notifications_serializers.to_read_schema(notification)
 
 
+def mark_notifications_as_read(
+    notification_ids: list[int],
+    user_id: int,
+    db: Session,
+) -> None:
+    """Stage marking some of a user's notifications as read; ids that are not the user's are skipped.
+
+    Args:
+        notification_ids: The notifications to mark.
+        user_id: The owning user ID.
+        db: Database session.
+    """
+    stmt = (
+        update(notifications_models.Notification)
+        .where(
+            notifications_models.Notification.user_id == user_id,
+            notifications_models.Notification.id.in_(notification_ids),
+        )
+        .values(read=True)
+    )
+    db.execute(stmt)
+    db.flush()
+
+
+def delete_user_notification(
+    notification_id: int,
+    user_id: int,
+    db: Session,
+) -> bool:
+    """Stage deleting one of a user's notifications.
+
+    Args:
+        notification_id: The notification ID.
+        user_id: The owning user ID.
+        db: Database session.
+
+    Returns:
+        True when the notification was deleted, False when the user has no such notification.
+    """
+    stmt = (
+        delete(notifications_models.Notification)
+        .where(
+            notifications_models.Notification.user_id == user_id,
+            notifications_models.Notification.id == notification_id,
+        )
+        .returning(notifications_models.Notification.id)
+    )
+    deleted = db.execute(stmt).scalar_one_or_none() is not None
+    db.flush()
+    return deleted
+
+
 def mark_all_notifications_as_read(
     user_id: int,
     db: Session,

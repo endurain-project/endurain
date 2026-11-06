@@ -50,10 +50,10 @@ def test_deleting_notifications_naming_a_user_matches_the_json_reference(pg_fact
         ensure_user(pg_factory, user_id)
     with pg_factory() as db:
         for owner, options in [
-            (1, {"user_id": 3, "user_name": "A"}),
-            (2, {"user_id": 3}),
-            (1, {"user_id": 2}),
-            (2, {}),
+            (1, {"user_id": 3, "user_name": "A", "user_username": "a"}),
+            (2, {"user_id": 3, "user_name": "A", "user_username": "a"}),
+            (1, {"user_id": 2, "user_name": "B", "user_username": "b"}),
+            (2, {"user_id": 1, "user_name": "C", "user_username": "c"}),
         ]:
             notifications_crud.create_notification(
                 notifications_schema.NotificationCreate(
