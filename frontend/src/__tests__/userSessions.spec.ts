@@ -82,24 +82,47 @@ describe('user sessions service', () => {
     expect(await fetchUserSessions(7)).toEqual([])
   })
 
-  it('revokeUserSession issues a scoped DELETE', async () => {
+  const stepUp = { currentPassword: 'admin-pw', mfaCode: '123456' }
+  const stepUpWire = { current_password: 'admin-pw', mfa_code: '123456' }
+
+  it('revokeUserSession POSTs the revoke route with the administrator step-up', async () => {
     vi.mocked(apiFetch).mockResolvedValue(undefined)
 
-    await revokeUserSession('sess-1', 7)
+    await revokeUserSession('sess-1', 7, stepUp)
 
-    expect(apiFetch).toHaveBeenCalledWith('/users/7/sessions/sess-1', {
-      method: 'DELETE',
+    expect(apiFetch).toHaveBeenCalledWith('/users/7/sessions/sess-1/revoke', {
+      method: 'POST',
+      body: JSON.stringify({ step_up: stepUpWire }),
       responseType: 'void',
     })
   })
 
-  it('revokeOtherUserSessions DELETEs with the exclude query param', async () => {
+  it('revokeUserSession sends the identity-provider proof of an administrator without a password', async () => {
     vi.mocked(apiFetch).mockResolvedValue(undefined)
 
-    await revokeOtherUserSessions(7, 'sess-1')
+    await revokeUserSession('sess-1', 7, {
+      currentPassword: null,
+      mfaCode: null,
+      idpReauth: { ticket: 't', codeVerifier: 'v' },
+    })
 
-    expect(apiFetch).toHaveBeenCalledWith('/users/7/sessions?exclude_session_id=sess-1', {
-      method: 'DELETE',
+    expect(JSON.parse(vi.mocked(apiFetch).mock.calls[0]?.[1]?.body as string)).toEqual({
+      step_up: {
+        current_password: null,
+        mfa_code: null,
+        idp_reauth: { ticket: 't', code_verifier: 'v' },
+      },
+    })
+  })
+
+  it('revokeOtherUserSessions POSTs with the exclude query param and the step-up', async () => {
+    vi.mocked(apiFetch).mockResolvedValue(undefined)
+
+    await revokeOtherUserSessions(7, stepUp, 'sess-1')
+
+    expect(apiFetch).toHaveBeenCalledWith('/users/7/sessions/revoke?exclude_session_id=sess-1', {
+      method: 'POST',
+      body: JSON.stringify({ step_up: stepUpWire }),
       responseType: 'void',
     })
   })
@@ -107,10 +130,11 @@ describe('user sessions service', () => {
   it('revokeOtherUserSessions omits the exclude param when not given', async () => {
     vi.mocked(apiFetch).mockResolvedValue(undefined)
 
-    await revokeOtherUserSessions(7)
+    await revokeOtherUserSessions(7, stepUp)
 
-    expect(apiFetch).toHaveBeenCalledWith('/users/7/sessions', {
-      method: 'DELETE',
+    expect(apiFetch).toHaveBeenCalledWith('/users/7/sessions/revoke', {
+      method: 'POST',
+      body: JSON.stringify({ step_up: stepUpWire }),
       responseType: 'void',
     })
   })

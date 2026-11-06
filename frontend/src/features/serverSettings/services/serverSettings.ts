@@ -1,3 +1,4 @@
+import type { StepUpInput } from '@/features/security/types'
 import type {
   EmailStatusDto,
   LogFilters,
@@ -18,6 +19,7 @@ import type {
 
 import { apiFetch } from '@/services/http'
 import { ifMatchHeaders } from '@/services/ifMatch'
+import { toStepUpWire } from '@/features/security/services/security'
 
 /**
  * Maps a raw `ServerSettingsAdminRead` payload to the clean {@link ServerSettings}
@@ -270,9 +272,13 @@ export function mapMailSettings(dto: MailSettingsDto): MailSettings {
  * the generated schema turns a missing field into a compile error.
  *
  * @param settings - The mail settings to persist.
+ * @param stepUp - The administrator's step-up credentials.
  * @returns The snake-cased editable body; it carries the password only when one is being set or removed.
  */
-export function toMailSettingsWire(settings: MailSettingsUpdate): MailSettingsEditDto {
+export function toMailSettingsWire(
+  settings: MailSettingsUpdate,
+  stepUp: StepUpInput,
+): MailSettingsEditDto {
   return {
     host: settings.host,
     port: settings.port,
@@ -281,6 +287,7 @@ export function toMailSettingsWire(settings: MailSettingsUpdate): MailSettingsEd
     from_address: settings.fromAddress,
     // Omitted keeps the stored password; the backend never returns it, so it cannot round-trip.
     ...(settings.password !== undefined && { password: settings.password }),
+    step_up: toStepUpWire(stepUp),
   }
 }
 
@@ -300,17 +307,21 @@ export async function fetchMailSettings(signal?: AbortSignal): Promise<MailSetti
 /**
  * Updates the mail server settings (admin scope `server_settings:write`). The
  * backend validates the configuration and rejects a change to a field an
- * environment variable currently sets.
+ * environment variable currently sets. Needs the administrator's own step-up.
  *
  * @param settings - The mail settings to persist.
+ * @param stepUp - The administrator's step-up credentials.
  * @returns The updated mail settings, mapped to the clean model.
- * @throws {HttpError} `400` when the configuration is not usable or a field is env-managed, `412` when the copy is stale.
+ * @throws {HttpError} `400` when the configuration is not usable or a field is env-managed, `403` when the step-up is refused, `412` when the copy is stale.
  */
-export async function updateMailSettings(settings: MailSettingsUpdate): Promise<MailSettings> {
+export async function updateMailSettings(
+  settings: MailSettingsUpdate,
+  stepUp: StepUpInput,
+): Promise<MailSettings> {
   const dto = await apiFetch<MailSettingsDto>('/server-settings/email/settings', {
     method: 'PUT',
     headers: ifMatchHeaders(settings.version),
-    body: JSON.stringify(toMailSettingsWire(settings)),
+    body: JSON.stringify(toMailSettingsWire(settings, stepUp)),
   })
   return mapMailSettings(dto)
 }

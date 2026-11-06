@@ -206,8 +206,8 @@ _TIERED_ENDPOINTS = [
         auth_sessions_profile_router.delete_profile_session, core_rate_limit.WRITE, id="profile-session-delete"
     ),
     pytest.param(auth_sessions_router.read_sessions_user, core_rate_limit.EXPENSIVE_READ, id="admin-sessions-read"),
-    pytest.param(auth_sessions_router.delete_session_user, core_rate_limit.WRITE, id="admin-session-delete"),
-    pytest.param(auth_sessions_router.delete_sessions_user, core_rate_limit.WRITE, id="admin-sessions-delete"),
+    pytest.param(auth_sessions_router.revoke_session_user, core_rate_limit.WRITE, id="admin-session-revoke"),
+    pytest.param(auth_sessions_router.revoke_sessions_user, core_rate_limit.WRITE, id="admin-sessions-revoke"),
     pytest.param(users_profile_router.import_profile_data, core_rate_limit.UPLOAD, id="profile-import"),
     pytest.param(users_profile_router.delete_my_account, core_rate_limit.SENSITIVE, id="profile-account-delete"),
     pytest.param(auth_mfa_profile_router.setup_mfa, core_rate_limit.SENSITIVE, id="mfa-setup"),

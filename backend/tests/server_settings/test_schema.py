@@ -5,6 +5,8 @@ This module tests Pydantic schemas for server settings,
 including validation rules and field constraints.
 """
 
+from typing import ClassVar
+
 import jasil.settings as jasil_settings
 import pytest
 from pydantic import ValidationError
@@ -552,3 +554,29 @@ class TestPublicSignUpFlag:
         public = server_settings_schema.ServerSettingsReadPublic.model_fields
         assert "signup_require_email_verification" in public
         assert "signup_require_admin_approval" not in public
+
+
+class TestMailSettingsEditRequest:
+    """The mail settings body carries the administrator's step-up apart from the settings."""
+
+    _BODY: ClassVar[dict] = {
+        "host": "mail.example.com",
+        "port": 587,
+        "security": "starttls",
+        "username": None,
+        "from_address": None,
+    }
+
+    def test_a_body_without_a_step_up_is_refused(self):
+        with pytest.raises(ValidationError):
+            server_settings_schema.MailSettingsEditRequest(**self._BODY)
+
+    def test_to_edit_drops_the_step_up_and_keeps_the_fields_sent(self):
+        request = server_settings_schema.MailSettingsEditRequest(**self._BODY, step_up={"current_password": "pw"})
+
+        edit = request.to_edit()
+
+        assert type(edit) is server_settings_schema.MailSettingsEdit
+        assert "step_up" not in edit.model_dump()
+        assert edit.model_fields_set == set(self._BODY)
+        assert "password" not in edit.model_fields_set

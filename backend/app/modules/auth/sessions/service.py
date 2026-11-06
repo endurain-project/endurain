@@ -15,6 +15,7 @@ import modules.auth.credentials.contracts as credentials_contracts
 import modules.auth.oauth_state.integration_service as oauth_state_integration
 import modules.auth.oauth_state.schema as oauth_state_schema
 import modules.auth.rotated_refresh_tokens.integration_service as rotated_refresh_tokens_integration
+import modules.auth.schema as auth_schema
 import modules.auth.sessions.audit_actions as sessions_audit_actions
 import modules.auth.sessions.contracts as sessions_contracts
 import modules.auth.sessions.crud as sessions_crud
@@ -172,12 +173,31 @@ def stage_delete_session(session_id: str, user_id: int, db: Session) -> None:
     sessions_event_publishers.publish_sessions_revoked(user_id, db, session_id=session_id)
 
 
-def delete_session(session_id: str, user_id: int, db: Session) -> None:
+def delete_session(
+    session_id: str,
+    user_id: int,
+    step_up: auth_schema.StepUpVerification,
+    verify_step_up: sessions_contracts.SessionRevokeVerifier,
+    db: Session,
+) -> None:
     """Delete a session with its token and OAuth state records, audit the revocation and commit.
 
     Backs the administrator's route; logout and self-revocation stage the deletion through
-    ``stage_delete_session`` and write their own audit rows.
+    ``stage_delete_session`` and write their own audit rows. Ending another user's session locks them out, so
+    the administrator's step-up is verified before anything is deleted.
+
+    Args:
+        session_id: The session to delete.
+        user_id: The user who owns the session.
+        step_up: The administrator's step-up verification.
+        verify_step_up: Verifies the step-up for the calling administrator.
+        db: Database session.
+
+    Raises:
+        StepUpFailedError: When the step-up does not verify.
+        NotFoundError: When the user has no such session.
     """
+    verify_step_up(step_up)
     stage_delete_session(session_id, user_id, db)
     jasil_audit.stage(
         db,
@@ -258,8 +278,29 @@ def delete_sessions_by_user(user_id: int, db: Session, exclude_session_id: str |
     return deleted_count
 
 
-def delete_sessions_by_user_and_commit(user_id: int, db: Session, exclude_session_id: str | None = None) -> int:
-    """Delete a user's sessions, audit the revocation when any ended, and commit the standalone operation."""
+def delete_sessions_by_user_and_commit(
+    user_id: int,
+    step_up: auth_schema.StepUpVerification,
+    verify_step_up: sessions_contracts.SessionRevokeVerifier,
+    db: Session,
+    exclude_session_id: str | None = None,
+) -> int:
+    """Delete a user's sessions after the administrator's step-up, audit the revocation when any ended, and commit.
+
+    Args:
+        user_id: The user whose sessions to delete.
+        step_up: The administrator's step-up verification.
+        verify_step_up: Verifies the step-up for the calling administrator.
+        db: Database session.
+        exclude_session_id: Optional session to leave intact.
+
+    Returns:
+        The number of sessions deleted.
+
+    Raises:
+        StepUpFailedError: When the step-up does not verify.
+    """
+    verify_step_up(step_up)
     deleted_count = delete_sessions_by_user(user_id, db, exclude_session_id)
     if deleted_count:
         jasil_audit.stage(

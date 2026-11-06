@@ -26,6 +26,7 @@ import modules.auth.identity_providers.contracts as identity_providers_contracts
 import modules.auth.identity_providers.dependencies as identity_providers_dependencies
 import modules.auth.mfa.dependencies as auth_mfa_dependencies
 import modules.auth.schema as auth_schema
+import modules.auth.sessions.contracts as sessions_contracts
 
 logger = core_logger.get_logger(__name__)
 
@@ -267,12 +268,36 @@ def get_step_up_verifier(
 #: Verifies the calling administrator's step-up for an operation the identity-provider package administers.
 StepUpVerifierDep = Annotated[identity_providers_contracts.StepUpVerifier, Depends(get_step_up_verifier)]
 
+
+def get_session_revoke_verifier(verify_step_up: StepUpVerifierDep) -> sessions_contracts.SessionRevokeVerifier:
+    """Return the step-up verifier for an administrator ending another user's sessions.
+
+    The sessions package cannot name the step-up action (it lives in ``identity_providers``, which depends on
+    it), so the action is bound here.
+
+    Args:
+        verify_step_up: The verifier bound to the calling administrator.
+
+    Returns:
+        A verifier that checks the step-up for the session-revoke action and refuses by raising.
+    """
+
+    def verify(step_up: auth_schema.StepUpVerification) -> None:
+        verify_step_up(step_up, identity_providers_constants.StepUpAction.ADMIN_SESSIONS_REVOKE)
+
+    return verify
+
+
+#: Verifies the calling administrator's step-up for ending another user's sessions.
+SessionRevokeVerifierDep = Annotated[sessions_contracts.SessionRevokeVerifier, Depends(get_session_revoke_verifier)]
+
 __all__ = [
     "AuthContext",
     "CurrentScopes",
     "CurrentSessionId",
     "CurrentUserId",
     "MFASecretStoreBackend",
+    "SessionRevokeVerifierDep",
     "StepUpStore",
     "StepUpVerifierDep",
     "audit_context_from_request",
@@ -281,6 +306,7 @@ __all__ = [
     "get_access_token",
     "get_mfa_secret_store",
     "get_scopes_from_access_token",
+    "get_session_revoke_verifier",
     "get_sid_from_access_token",
     "get_step_up_attempts",
     "get_step_up_verifier",

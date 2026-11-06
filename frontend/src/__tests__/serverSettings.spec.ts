@@ -368,20 +368,26 @@ describe('toMailSettingsWire', () => {
     fromAddress: 'noreply@example.com',
   }
 
-  it('sends every field so the full record is replaced', () => {
-    expect(toMailSettingsWire(update)).toEqual({
+  const stepUp = { currentPassword: 'admin-pw', mfaCode: null }
+
+  it('sends every field so the full record is replaced, with the administrator step-up', () => {
+    expect(toMailSettingsWire(update, stepUp)).toEqual({
       host: 'mail.example.com',
       port: 465,
       security: 'ssl',
       username: null,
       from_address: 'noreply@example.com',
+      step_up: { current_password: 'admin-pw', mfa_code: null },
     })
   })
 
   it('omits the password to keep it, and sends null to remove it', () => {
-    expect(toMailSettingsWire(update)).not.toHaveProperty('password')
-    expect(toMailSettingsWire({ ...update, password: null })).toHaveProperty('password', null)
-    expect(toMailSettingsWire({ ...update, password: 'new-secret' })).toHaveProperty(
+    expect(toMailSettingsWire(update, stepUp)).not.toHaveProperty('password')
+    expect(toMailSettingsWire({ ...update, password: null }, stepUp)).toHaveProperty(
+      'password',
+      null,
+    )
+    expect(toMailSettingsWire({ ...update, password: 'new-secret' }, stepUp)).toHaveProperty(
       'password',
       'new-secret',
     )
@@ -405,15 +411,18 @@ describe('mail settings service requests', () => {
   it('updateMailSettings PUTs the wire body and maps the response', async () => {
     vi.mocked(apiFetch).mockResolvedValue(makeMailDto({ port: 465 }))
 
-    const settings = await updateMailSettings({
-      version: 2,
-      host: 'mail.example.com',
-      port: 465,
-      security: 'ssl',
-      username: null,
-      fromAddress: null,
-      password: 'new-secret',
-    })
+    const settings = await updateMailSettings(
+      {
+        version: 2,
+        host: 'mail.example.com',
+        port: 465,
+        security: 'ssl',
+        username: null,
+        fromAddress: null,
+        password: 'new-secret',
+      },
+      { currentPassword: 'admin-pw', mfaCode: null },
+    )
 
     expect(apiFetch).toHaveBeenCalledWith('/server-settings/email/settings', {
       method: 'PUT',
@@ -425,6 +434,7 @@ describe('mail settings service requests', () => {
         username: null,
         from_address: null,
         password: 'new-secret',
+        step_up: { current_password: 'admin-pw', mfa_code: null },
       }),
     })
     expect(settings.port).toBe(465)

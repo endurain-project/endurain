@@ -107,6 +107,8 @@ The image shown on the login page. Upload an image of up to 5 MB, ideally square
 | Username and password | Credentials, if the server needs them. The password is write-only and stored encrypted |
 | From address | The sender. If empty, the username is used. Some providers (Brevo, for example) require a verified sender that differs from the login |
 
+Saving the email settings asks for your own password and MFA code (or a fresh identity-provider sign-in if your account has no password), because a mail server you point Endurain at receives every password-reset link.
+
 Use **Send test email** to check the settings: it sends a message to you straight away and shows the failure reason if it cannot. Email is used for sign-up verification, approval notices and password resets. Without it those flows cannot send mail; see [Accounts, sign-up and password reset](accounts-and-sign-in.md).
 
 When several replicas run, the email and geocoding settings are cached for a few seconds in each process, so a change reaches every replica quickly but not instantly.

@@ -1,9 +1,11 @@
 <script setup lang="ts">
-import { computed, onBeforeUnmount, watch } from 'vue'
+import { computed, onBeforeUnmount, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { LoaderCircle } from '@lucide/vue'
 
 import type { MailSettings, MailSettingsFormValues } from '@/features/serverSettings/types'
+import type { IdpReauth, StepUpInput } from '@/features/security/types'
+import type { IdpStepUpResume } from '@/features/security/composables/useIdpStepUp'
 import type { Validator } from '@/utils/validators'
 
 import { Alert } from '@/components/ui/alert'
@@ -15,7 +17,11 @@ import { Switch } from '@/components/ui/switch'
 import { useForm } from '@/composables/useForm'
 import { useToasts } from '@/composables/useToasts'
 import EnvManagedNotice from '@/features/serverSettings/components/EnvManagedNotice.vue'
+import StepUpDialog from '@/features/security/components/StepUpDialog.vue'
+import { useMailStepUpResume } from '@/features/serverSettings/composables/useMailStepUpResume'
 import { useUpdateMailSettingsMutation } from '@/features/serverSettings/composables/useServerSettings'
+import { isStepUpFailed, useIdpReauthChallenge } from '@/features/security/composables/useIdpStepUp'
+import { useAdminStepUp, useResumeOnce } from '@/features/security/composables/useAdminStepUp'
 import { HttpError } from '@/services/http'
 
 const props = defineProps<{
@@ -31,6 +37,13 @@ const emit = defineEmits<{
 const { t } = useI18n()
 const toasts = useToasts()
 const updateMutation = useUpdateMailSettingsMutation()
+const handleIdpChallenge = useIdpReauthChallenge()
+const { requirePassword, requireMfa } = useAdminStepUp()
+
+// Every save needs the administrator's own step-up, collected by a dialog over the form.
+const isStepUpOpen = ref(false)
+const idpReauth = ref<IdpReauth | null>(null)
+const pendingResume = useMailStepUpResume()
 
 /** Highest valid TCP port. */
 const MAX_PORT = 65535
@@ -91,28 +104,95 @@ function envHint(field: string): string | undefined {
 }
 
 /**
- * Persists the mail settings. Outcomes are surfaced as toasts; a rejection by the
- * backend (unusable configuration, env-managed field) shows its reason.
+ * The form values that survive the identity-provider sign-in. The password is left out, so it never
+ * reaches storage; `passwordTyped` tells the resumed form that the administrator has to enter it again.
  *
- * @param formValues - The validated form values.
+ * @returns The draft entries and whether a password was being set.
  */
-async function submitForm(formValues: MailSettingsFormValues): Promise<void> {
+function draftValues(): Record<string, unknown> {
+  const draft: Record<string, unknown> = { ...values }
+  delete draft.password
+  return { ...draft, passwordTyped: values.password !== '' }
+}
+
+/**
+ * Keeps the stored draft entries that have the type of the matching form field, except the password.
+ *
+ * @param raw - The draft stored when the sign-in started.
+ * @returns The entries that can be applied to the form.
+ */
+function pickDraft(raw: unknown): Partial<MailSettingsFormValues> {
+  const stored: Record<string, unknown> = typeof raw === 'object' && raw !== null ? { ...raw } : {}
+  const picked: Record<string, unknown> = {}
+  for (const [key, base] of Object.entries(toFormValues(props.settings))) {
+    if (key !== 'password' && typeof stored[key] === typeof base) {
+      picked[key] = stored[key]
+    }
+  }
+  return picked as Partial<MailSettingsFormValues>
+}
+
+/**
+ * Restores the draft and the sign-in proof. A password the administrator was setting is not stored, so then
+ * the form waits for it to be entered again instead of saving without it.
+ *
+ * @param resume - The sign-in the page returned from.
+ */
+function reopen(resume: IdpStepUpResume): void {
+  pendingResume.value = null
+  Object.assign(values, pickDraft(resume.pending.draft))
+  idpReauth.value = resume.reauth
+  const draft = resume.pending.draft
+  const passwordTyped =
+    typeof draft === 'object' &&
+    draft !== null &&
+    'passwordTyped' in draft &&
+    draft.passwordTyped === true
+  isStepUpOpen.value = !passwordTyped
+}
+
+/** Asks for the administrator's step-up before the validated form is saved. */
+function submitForm(): void {
+  isStepUpOpen.value = true
+}
+
+/**
+ * Persists the mail settings with the administrator's step-up. Outcomes are surfaced as toasts; a rejection
+ * by the backend (unusable configuration, env-managed field) shows its reason, and a refused step-up keeps
+ * the dialog open for another try.
+ *
+ * @param stepUp - The administrator's step-up from the dialog.
+ */
+async function confirmSave(stepUp: StepUpInput): Promise<void> {
   // undefined keeps the stored password, null removes it, a string replaces it.
-  const password = formValues.removePassword ? null : formValues.password || undefined
+  const password = values.removePassword ? null : values.password || undefined
   try {
     await updateMutation.mutateAsync({
-      version: props.settings.version,
-      host: formValues.host.trim() || null,
-      port: Number(formValues.port.trim()),
-      security: formValues.security,
-      username: formValues.username.trim() || null,
-      fromAddress: formValues.fromAddress.trim() || null,
-      password,
+      settings: {
+        version: props.settings.version,
+        host: values.host.trim() || null,
+        port: Number(values.port.trim()),
+        security: values.security,
+        username: values.username.trim() || null,
+        fromAddress: values.fromAddress.trim() || null,
+        password,
+      },
+      stepUp,
     })
+    isStepUpOpen.value = false
     values.password = ''
     values.removePassword = false
     toasts.success(t('settings.server.email.saveSuccess'))
   } catch (error) {
+    if (handleIdpChallenge(error)) {
+      return
+    }
+    if (isStepUpFailed(error)) {
+      toasts.error(t('settings.security.linked.invalidCredentials'))
+      return
+    }
+    // The remaining failures are corrected in the form, so the step-up dialog gives way to it.
+    isStepUpOpen.value = false
     // 412 is a refusal to overwrite: another admin saved since this form was loaded.
     if (error instanceof HttpError && error.status === 412) {
       toasts.error(t('settings.server.staleError'))
@@ -130,6 +210,14 @@ const { values, errors, isValid, isDirty, isSubmitting, handleSubmit, handleBlur
     validators: { port: portValidator(t('settings.server.email.portInvalid')) },
     onSubmit: submitForm,
   })
+
+// The form and the step-up come back once the identity-provider sign-in returns for the mail settings.
+useResumeOnce(
+  () => pendingResume.value,
+  'admin_mail_settings_edit',
+  () => true,
+  (resume) => reopen(resume),
+)
 
 const envNames = computed(() => [...new Set(Object.values(props.settings.envManaged))])
 
@@ -278,4 +366,18 @@ onBeforeUnmount(() => emit('dirtyChange', false))
       </Button>
     </div>
   </form>
+
+  <StepUpDialog
+    v-model:open="isStepUpOpen"
+    v-model:reauth="idpReauth"
+    action="admin_mail_settings_edit"
+    :title="t('settings.server.email.stepUpTitle')"
+    :description="t('settings.server.email.stepUpDescription')"
+    :confirm-label="t('settings.server.email.save')"
+    :require-password="requirePassword"
+    :require-mfa="requireMfa"
+    :pending-context="{ draft: draftValues() }"
+    :pending="updateMutation.isPending.value"
+    @confirm="confirmSave"
+  />
 </template>

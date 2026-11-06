@@ -2,6 +2,7 @@ import { storeToRefs } from 'pinia'
 import { computed, type Ref } from 'vue'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/vue-query'
 
+import type { StepUpInput } from '@/features/security/types'
 import type {
   EmailStatusDto,
   LogFilters,
@@ -182,9 +183,9 @@ export function useMailSettingsQuery() {
 export function useUpdateMailSettingsMutation() {
   const client = useQueryClient()
 
-  return useMutation<MailSettings, Error, MailSettingsUpdate>({
+  return useMutation<MailSettings, Error, { settings: MailSettingsUpdate; stepUp: StepUpInput }>({
     mutationKey: queryKeys.serverSettings.mail(),
-    mutationFn: (settings) => updateMailSettings(settings),
+    mutationFn: ({ settings, stepUp }) => updateMailSettings(settings, stepUp),
     onSettled: () => {
       void client.invalidateQueries({ queryKey: queryKeys.serverSettings.mail() })
       void client.invalidateQueries({ queryKey: queryKeys.serverSettings.email() })

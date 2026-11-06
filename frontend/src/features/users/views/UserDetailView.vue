@@ -348,7 +348,7 @@ function approve(): void {
 
       <UserIdentityProvidersList :user-id="user.id" :resume="resume" />
 
-      <UserSessionsList :user-id="user.id" />
+      <UserSessionsList :user-id="user.id" :resume="resume" />
 
       <UserPasswordDialog
         v-model:open="isPasswordOpen"

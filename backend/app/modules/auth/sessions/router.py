@@ -9,6 +9,7 @@ import core.dependencies as core_dependencies
 import core.pagination as core_pagination
 import core.rate_limit as core_rate_limit
 import modules.auth.dependencies as auth_dependencies
+import modules.auth.schema as auth_schema
 import modules.auth.sessions.schema as sessions_schema
 import modules.auth.sessions.service as sessions_service
 
@@ -41,68 +42,82 @@ def read_sessions_user(
     return sessions_service.list_user_sessions(user_id, page, db)
 
 
-@router.delete(
-    "/{user_id}/sessions/{session_id}",
+@router.post(
+    "/{user_id}/sessions/{session_id}/revoke",
     status_code=status.HTTP_204_NO_CONTENT,
     response_class=Response,
     dependencies=[Security(auth_dependencies.check_scopes, scopes=["sessions:write"])],
 )
 @core_rate_limit.limiter.limit(core_rate_limit.WRITE)
-def delete_session_user(
+def revoke_session_user(
     request: Request,
     session_id: auth_dependencies.AuthSessionId,
     user_id: core_dependencies.PositiveId,
+    body: auth_schema.StepUpRequest,
     db: core_dependencies.DbSession,
+    verify_step_up: auth_dependencies.SessionRevokeVerifierDep,
 ) -> Response:
-    """Delete a user session.
+    """End one session of a user.
+
+    Needs the administrator's own step-up verification in `step_up`, as ending a session locks the user out.
 
     Args:
-        session_id: The ID of the session to delete.
+        session_id: The ID of the session to end.
         user_id: The ID of the user who owns the session.
+        body: The administrator's step-up verification.
         db: Database session dependency.
+        verify_step_up: Verifies the administrator's step-up.
         request: Incoming request.
 
     Returns:
         None.
 
     Raises:
-        HTTPException: If session not found or unauthorized.
+        HTTPException: 403 if the step-up fails, 404 if the session is not found.
     """
-    sessions_service.delete_session(session_id, user_id, db)
+    sessions_service.delete_session(session_id, user_id, body.step_up, verify_step_up, db)
     return Response(status_code=status.HTTP_204_NO_CONTENT)
 
 
-@router.delete(
-    "/{user_id}/sessions",
+@router.post(
+    "/{user_id}/sessions/revoke",
     status_code=status.HTTP_204_NO_CONTENT,
     response_class=Response,
     dependencies=[Security(auth_dependencies.check_scopes, scopes=["sessions:write"])],
 )
 @core_rate_limit.limiter.limit(core_rate_limit.WRITE)
-def delete_sessions_user(
+def revoke_sessions_user(
     request: Request,
     user_id: core_dependencies.PositiveId,
+    body: auth_schema.StepUpRequest,
     db: core_dependencies.DbSession,
+    verify_step_up: auth_dependencies.SessionRevokeVerifierDep,
     exclude_session_id: Annotated[
         str | None,
         Query(description="Session to keep intact (e.g. the caller's current session)"),
     ] = None,
 ) -> Response:
-    """Delete every session for a user, optionally keeping one intact.
+    """End every session of a user, optionally keeping one intact.
 
-    Backs the "revoke other sessions" action: pass the caller's current
-    ``exclude_session_id`` to sign out every other device while staying
-    logged in, or omit it (an admin acting on another user) to revoke
-    all of that user's sessions.
+    Needs the administrator's own step-up verification in `step_up`, as ending sessions locks the user out.
+    Pass the caller's current ``exclude_session_id`` to sign out every other device while staying logged in, or
+    omit it to end all of that user's sessions.
 
     Args:
-        user_id: The ID of the user whose sessions to revoke.
+        user_id: The ID of the user whose sessions to end.
+        body: The administrator's step-up verification.
         db: Database session dependency.
+        verify_step_up: Verifies the administrator's step-up.
         exclude_session_id: Optional session to leave intact.
         request: Incoming request.
 
     Returns:
         None.
+
+    Raises:
+        HTTPException: 403 if the step-up fails.
     """
-    sessions_service.delete_sessions_by_user_and_commit(user_id, db, exclude_session_id=exclude_session_id)
+    sessions_service.delete_sessions_by_user_and_commit(
+        user_id, body.step_up, verify_step_up, db, exclude_session_id=exclude_session_id
+    )
     return Response(status_code=status.HTTP_204_NO_CONTENT)

@@ -4,7 +4,7 @@ import { ref, type Plugin } from 'vue'
 import { QueryClient, VueQueryPlugin } from '@tanstack/vue-query'
 
 import type { IdpStepUpResume } from '@/features/security/composables/useIdpStepUp'
-import type { ManagedUser, UserIdentityProvider } from '@/features/users/types'
+import type { ManagedUser, UserIdentityProvider, UserSession } from '@/features/users/types'
 
 import i18n from '@/i18n'
 import { HttpError } from '@/services/http'
@@ -12,11 +12,15 @@ import UserDeleteDialog from '@/features/users/components/UserDeleteDialog.vue'
 import UserDetailView from '@/features/users/views/UserDetailView.vue'
 import UserFormDialog from '@/features/users/components/UserFormDialog.vue'
 import UserIdentityProvidersList from '@/features/users/components/UserIdentityProvidersList.vue'
+import UserSessionsList from '@/features/users/components/UserSessionsList.vue'
 
 const mocks = vi.hoisted(() => ({
   deleteMutate: vi.fn<(...args: unknown[]) => void>(),
   unlinkMutate: vi.fn<(...args: unknown[]) => void>(),
   providers: [] as UserIdentityProvider[],
+  revokeMutate: vi.fn<(...args: unknown[]) => void>(),
+  revokeOthersMutate: vi.fn<(...args: unknown[]) => void>(),
+  sessions: [] as UserSession[],
   toastError: vi.fn<(message: string) => void>(),
   push: vi.fn<(to: unknown) => void>(),
   user: null as ManagedUser | null,
@@ -62,6 +66,23 @@ vi.mock('@/features/users/composables/useUserIdentityProviders', () => ({
   }),
 }))
 
+vi.mock('@/features/auth/stores/auth', () => ({
+  useAuthStore: () => ({ sessionId: ref('current') }),
+}))
+vi.mock('@/features/users/composables/useUserSessions', () => ({
+  useUserSessionsQuery: () => ({
+    data: ref(mocks.sessions),
+    isPending: ref(false),
+    isError: ref(false),
+    refetch: vi.fn<() => void>(),
+  }),
+  useRevokeUserSessionMutation: () => ({ mutate: mocks.revokeMutate, isPending: ref(false) }),
+  useRevokeOtherUserSessionsMutation: () => ({
+    mutate: mocks.revokeOthersMutate,
+    isPending: ref(false),
+  }),
+}))
+
 const passthrough = { template: '<div><slot /></div>' }
 const stubs = {
   Dialog: passthrough,
@@ -87,6 +108,9 @@ function resumeFor(action: IdpStepUpResume['action'], pending: Record<string, un
 beforeEach(() => {
   mocks.deleteMutate.mockReset()
   mocks.unlinkMutate.mockReset()
+  mocks.revokeMutate.mockReset()
+  mocks.revokeOthersMutate.mockReset()
+  mocks.sessions = []
   mocks.toastError.mockReset()
   mocks.push.mockReset()
   mocks.providers = []
@@ -194,6 +218,89 @@ describe('UserIdentityProvidersList unlink', () => {
     expect(wrapper.text()).toContain(
       i18n.global.t('settings.users.identityProviders.unlinkBody', { provider: 'Authelia' }),
     )
+  })
+})
+
+describe('UserSessionsList revoke', () => {
+  function session(id: string): UserSession {
+    return {
+      id,
+      ipAddress: '203.0.113.5',
+      deviceType: 'desktop',
+      operatingSystem: 'macOS',
+      operatingSystemVersion: '15',
+      browser: 'Chrome',
+      browserVersion: '148',
+      createdAt: '2026-06-01T10:00:00Z',
+      lastActivityAt: '2026-06-02T11:00:00Z',
+      expiresAt: '2026-06-08T10:00:00Z',
+    }
+  }
+
+  function mountList(resume: IdpStepUpResume | null = null) {
+    mocks.sessions = [session('current'), session('other')]
+    return mount(UserSessionsList, {
+      props: { userId: 7, resume },
+      global: { plugins: plugins(), stubs },
+    })
+  }
+
+  const stepUp = { currentPassword: 'admin-pw', mfaCode: null, idpReauth: null }
+
+  it('sends the administrator step-up when revoking one session', async () => {
+    const wrapper = mountList()
+    await wrapper.findAll('ul button')[1]!.trigger('click')
+    await wrapper.get('#stepup-password').setValue('admin-pw')
+    await wrapper.get('form').trigger('submit')
+
+    expect(mocks.revokeMutate).toHaveBeenCalledWith(
+      { sessionId: 'other', userId: 7, stepUp },
+      expect.any(Object),
+    )
+  })
+
+  it('sends the administrator step-up when revoking the other sessions', async () => {
+    const wrapper = mountList()
+    await wrapper.get('.justify-between button').trigger('click')
+    // Both revoke dialogs render in the stubbed page; the bulk one is the second.
+    await wrapper.findAll('#stepup-password')[1]!.setValue('admin-pw')
+    await wrapper.findAll('form')[1]!.trigger('submit')
+
+    expect(mocks.revokeOthersMutate).toHaveBeenCalledWith(
+      { userId: 7, stepUp, excludeSessionId: 'current' },
+      expect.any(Object),
+    )
+  })
+
+  it('keeps the dialog open and reports invalid credentials on a refused step-up', async () => {
+    const wrapper = mountList()
+    await wrapper.findAll('ul button')[1]!.trigger('click')
+    await wrapper.get('#stepup-password').setValue('wrong')
+    await wrapper.get('form').trigger('submit')
+    const { onError } = mocks.revokeMutate.mock.calls[0]![1] as { onError: (e: unknown) => void }
+
+    onError(new HttpError(403, 'Forbidden', null, 'urn:endurain:error:step-up-failed'))
+
+    expect(mocks.toastError).toHaveBeenCalledWith(
+      i18n.global.t('settings.security.linked.invalidCredentials'),
+    )
+    expect(wrapper.find('#stepup-password').exists()).toBe(true)
+  })
+
+  it('reopens the revoke dialog for the session the return was started for', async () => {
+    const wrapper = mountList(resumeFor('admin_sessions_revoke', { userId: 7, sessionId: 'other' }))
+    await flushPromises()
+
+    expect(wrapper.findAllComponents({ name: 'StepUpDialog' })[0]!.props('open')).toBe(true)
+    expect(wrapper.findAllComponents({ name: 'StepUpDialog' })[1]!.props('open')).toBe(false)
+  })
+
+  it('reopens the revoke-others dialog after the return', async () => {
+    const wrapper = mountList(resumeFor('admin_sessions_revoke', { userId: 7, others: true }))
+    await flushPromises()
+
+    expect(wrapper.findAllComponents({ name: 'StepUpDialog' })[0]!.props('open')).toBe(false)
+    expect(wrapper.findAllComponents({ name: 'StepUpDialog' })[1]!.props('open')).toBe(true)
   })
 })
 

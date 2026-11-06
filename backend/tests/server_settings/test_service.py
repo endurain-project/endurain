@@ -21,6 +21,8 @@ import core.file_uploads as core_file_uploads
 import core.geocoding as core_geocoding
 import core.mail as core_mail
 import core.network as core_network
+import modules.auth.identity_providers.constants as idp_constants
+import modules.auth.schema as auth_schema
 import modules.server_settings.audit_actions as server_settings_audit_actions
 import modules.server_settings.constants as server_settings_constants
 import modules.server_settings.contracts as server_settings_contracts
@@ -941,6 +943,10 @@ def _mail_edit(stored: server_settings_schema.MailSettingsRead, **overrides):
     return server_settings_schema.MailSettingsEdit(**body)
 
 
+_STEP_UP = auth_schema.StepUpVerification(current_password="admin-password")
+_VERIFY = MagicMock()
+
+
 @pytest.fixture
 def mail_env():
     """Patch the collaborators of the mail service functions and expose them."""
@@ -968,7 +974,9 @@ class TestEditMailSettings:
     def test_resending_the_unchanged_record_does_nothing(self, mail_env):
         db = MagicMock()
 
-        result = server_settings_mail_service.edit_mail_settings(_mail_edit(mail_env.stored), db, if_match="*")
+        result = server_settings_mail_service.edit_mail_settings(
+            _mail_edit(mail_env.stored), _STEP_UP, _VERIFY, db, if_match="*"
+        )
 
         mail_env.write.assert_not_called()
         db.commit.assert_not_called()
@@ -977,7 +985,7 @@ class TestEditMailSettings:
 
     def test_the_row_is_locked_for_the_edit(self, mail_env):
         server_settings_mail_service.edit_mail_settings(
-            _mail_edit(mail_env.stored, port=465), MagicMock(), if_match="*"
+            _mail_edit(mail_env.stored, port=465), _STEP_UP, _VERIFY, MagicMock(), if_match="*"
         )
 
         assert mail_env.read.call_args.kwargs == {"for_update": True}
@@ -985,7 +993,7 @@ class TestEditMailSettings:
     def test_a_stale_if_match_is_refused_and_writes_nothing(self, mail_env):
         with pytest.raises(core_exceptions.PreconditionFailedError):
             server_settings_mail_service.edit_mail_settings(
-                _mail_edit(mail_env.stored, port=465), MagicMock(), if_match='"9"'
+                _mail_edit(mail_env.stored, port=465), _STEP_UP, _VERIFY, MagicMock(), if_match='"9"'
             )
 
         mail_env.write.assert_not_called()
@@ -993,7 +1001,9 @@ class TestEditMailSettings:
     def test_an_omitted_password_keeps_the_stored_token(self, mail_env):
         db = MagicMock()
 
-        server_settings_mail_service.edit_mail_settings(_mail_edit(mail_env.stored, port=465), db, if_match="*")
+        server_settings_mail_service.edit_mail_settings(
+            _mail_edit(mail_env.stored, port=465), _STEP_UP, _VERIFY, db, if_match="*"
+        )
 
         assert "password" not in mail_env.write.call_args.args[0].model_fields_set
         db.commit.assert_called_once()
@@ -1001,14 +1011,14 @@ class TestEditMailSettings:
     def test_an_unchanged_password_keeps_its_stored_token(self, mail_env):
         body = _mail_edit(mail_env.stored, port=465, password="plain-old")
 
-        server_settings_mail_service.edit_mail_settings(body, MagicMock(), if_match="*")
+        server_settings_mail_service.edit_mail_settings(body, _STEP_UP, _VERIFY, MagicMock(), if_match="*")
 
         assert mail_env.write.call_args.args[0].password == "enc-old"
 
     @pytest.mark.parametrize("cleared", [None, ""])
     def test_clearing_the_password_stores_none(self, mail_env, cleared):
         result = server_settings_mail_service.edit_mail_settings(
-            _mail_edit(mail_env.stored, password=cleared), MagicMock(), if_match="*"
+            _mail_edit(mail_env.stored, password=cleared), _STEP_UP, _VERIFY, MagicMock(), if_match="*"
         )
 
         assert mail_env.write.call_args.args[0].password is None
@@ -1016,7 +1026,7 @@ class TestEditMailSettings:
 
     def test_a_changed_password_is_encrypted_and_never_returned(self, mail_env):
         result = server_settings_mail_service.edit_mail_settings(
-            _mail_edit(mail_env.stored, password="plain-new"), MagicMock(), if_match="*"
+            _mail_edit(mail_env.stored, password="plain-new"), _STEP_UP, _VERIFY, MagicMock(), if_match="*"
         )
 
         assert mail_env.write.call_args.args[0].password == "enc-new"
@@ -1032,7 +1042,7 @@ class TestEditMailSettings:
 
         with pytest.raises(core_exceptions.InvalidInputError) as exc_info:
             server_settings_mail_service.edit_mail_settings(
-                _mail_edit(mail_env.stored, port=465), MagicMock(), if_match="*"
+                _mail_edit(mail_env.stored, port=465), _STEP_UP, _VERIFY, MagicMock(), if_match="*"
             )
 
         assert "Port must be between" in exc_info.value.detail
@@ -1043,7 +1053,7 @@ class TestEditMailSettings:
         mail_env.problems.return_value = ["never shown"]
 
         result = server_settings_mail_service.edit_mail_settings(
-            _mail_edit(mail_env.stored, host=None), MagicMock(), if_match="*"
+            _mail_edit(mail_env.stored, host=None), _STEP_UP, _VERIFY, MagicMock(), if_match="*"
         )
 
         mail_env.problems.assert_not_called()
@@ -1051,7 +1061,7 @@ class TestEditMailSettings:
 
     def test_the_password_is_checked_in_plain_text(self, mail_env):
         server_settings_mail_service.edit_mail_settings(
-            _mail_edit(mail_env.stored, port=465), MagicMock(), if_match="*"
+            _mail_edit(mail_env.stored, port=465), _STEP_UP, _VERIFY, MagicMock(), if_match="*"
         )
 
         config = mail_env.problems.call_args.args[0]
@@ -1063,7 +1073,7 @@ class TestEditMailSettings:
 
         with pytest.raises(core_exceptions.ConflictError) as exc_info:
             server_settings_mail_service.edit_mail_settings(
-                _mail_edit(mail_env.stored, port=465), MagicMock(), if_match="*"
+                _mail_edit(mail_env.stored, port=465), _STEP_UP, _VERIFY, MagicMock(), if_match="*"
             )
 
         assert "port is set by the SMTP_PORT environment variable" in exc_info.value.detail
@@ -1073,7 +1083,7 @@ class TestEditMailSettings:
         mail_env.managed.return_value = {"host": "SMTP_HOST"}
 
         result = server_settings_mail_service.edit_mail_settings(
-            _mail_edit(mail_env.stored, port=465), MagicMock(), if_match="*"
+            _mail_edit(mail_env.stored, port=465), _STEP_UP, _VERIFY, MagicMock(), if_match="*"
         )
 
         assert result.port == 465
@@ -1082,7 +1092,7 @@ class TestEditMailSettings:
         mail_env.managed.return_value = {"host": "SMTP_HOST", "port": "SMTP_PORT"}
 
         server_settings_mail_service.edit_mail_settings(
-            _mail_edit(mail_env.stored, username="other@example.com"), MagicMock(), if_match="*"
+            _mail_edit(mail_env.stored, username="other@example.com"), _STEP_UP, _VERIFY, MagicMock(), if_match="*"
         )
 
         assert mail_env.write.call_args.args[0].username == "other@example.com"
@@ -1425,7 +1435,7 @@ class TestEditMailSettingsLocking:
             side_effect=lambda config: calls.append(("dns", {})) or [],
         ):
             server_settings_mail_service.edit_mail_settings(
-                _mail_edit(mail_env.stored, port=465), MagicMock(), if_match="*"
+                _mail_edit(mail_env.stored, port=465), _STEP_UP, _VERIFY, MagicMock(), if_match="*"
             )
 
         assert [name for name, _ in calls] == ["read", "dns", "read"]
@@ -1437,7 +1447,7 @@ class TestEditMailSettingsLocking:
 
         with pytest.raises(core_exceptions.PreconditionFailedError):
             server_settings_mail_service.edit_mail_settings(
-                _mail_edit(mail_env.stored, port=465), MagicMock(), if_match="*"
+                _mail_edit(mail_env.stored, port=465), _STEP_UP, _VERIFY, MagicMock(), if_match="*"
             )
 
         mail_env.write.assert_not_called()
@@ -1475,7 +1485,11 @@ class TestMailSettingsAudit:
     def test_a_changed_password_appears_as_its_field_name_only(self, mail_env):
         with jasil_testing.capture_audit() as audit:
             server_settings_mail_service.edit_mail_settings(
-                _mail_edit(mail_env.stored, port=465, password="plain-new"), MagicMock(), if_match="*"
+                _mail_edit(mail_env.stored, port=465, password="plain-new"),
+                _STEP_UP,
+                _VERIFY,
+                MagicMock(),
+                if_match="*",
             )
 
         entry = audit.assert_audited(server_settings_audit_actions.MAIL_UPDATE.id)
@@ -1483,7 +1497,9 @@ class TestMailSettingsAudit:
 
     def test_resending_the_unchanged_record_is_not_audited(self, mail_env):
         with jasil_testing.capture_audit() as audit:
-            server_settings_mail_service.edit_mail_settings(_mail_edit(mail_env.stored), MagicMock(), if_match="*")
+            server_settings_mail_service.edit_mail_settings(
+                _mail_edit(mail_env.stored), _STEP_UP, _VERIFY, MagicMock(), if_match="*"
+            )
 
         audit.assert_not_audited(server_settings_audit_actions.MAIL_UPDATE.id)
 
@@ -1604,3 +1620,35 @@ class TestLoginPhotoImageFormats:
 
         assert exc.value.status_code == 415
         storage.save.assert_not_called()
+
+
+class TestMailSettingsStepUp:
+    def test_the_step_up_is_verified_for_the_mail_action_before_anything_is_read(self, mail_env):
+        verifier = MagicMock()
+        order = MagicMock()
+        order.attach_mock(verifier, "step_up")
+        order.attach_mock(mail_env.read, "read")
+
+        server_settings_mail_service.edit_mail_settings(
+            _mail_edit(mail_env.stored, port=465), _STEP_UP, verifier, MagicMock(), if_match="*"
+        )
+
+        assert order.mock_calls[0][0] == "step_up"
+        verifier.assert_called_once_with(_STEP_UP, idp_constants.StepUpAction.ADMIN_MAIL_SETTINGS_EDIT)
+
+    def test_a_refused_step_up_reads_validates_and_writes_nothing(self, mail_env):
+        db = MagicMock()
+
+        with pytest.raises(core_exceptions.StepUpFailedError):
+            server_settings_mail_service.edit_mail_settings(
+                _mail_edit(mail_env.stored, port=465),
+                _STEP_UP,
+                MagicMock(side_effect=core_exceptions.StepUpFailedError()),
+                db,
+                if_match="*",
+            )
+
+        mail_env.read.assert_not_called()
+        mail_env.problems.assert_not_called()
+        mail_env.write.assert_not_called()
+        db.commit.assert_not_called()

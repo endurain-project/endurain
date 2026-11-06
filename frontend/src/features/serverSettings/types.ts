@@ -216,8 +216,8 @@ export type EmailStatusDto = Schemas['EmailStatus']
 /** Raw authenticated mail-settings payload (snake_case wire shape). */
 export type MailSettingsDto = Schemas['MailSettingsAdminRead']
 
-/** Editable mail-settings body for the `PUT`; the backend replaces the whole record. */
-export type MailSettingsEditDto = Schemas['MailSettingsEdit']
+/** Editable mail-settings body for the `PUT`: the whole record plus the administrator's step-up. */
+export type MailSettingsEditDto = Schemas['MailSettingsEditRequest']
 
 /** Mail connection security, mirrored from the backend enum (`starttls` | `ssl` | `none`). */
 export type MailSecurity = Schemas['MailSecurity']

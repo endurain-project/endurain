@@ -3346,8 +3346,10 @@ export interface paths {
          * Edit Mail Settings
          * @description Update the mail server settings.
          *
-         *     Requires admin authentication with server_settings:write scope. The body replaces
-         *     the whole configuration; only the password may be omitted, which keeps the stored one.
+         *     Requires admin authentication with server_settings:write scope and the administrator's
+         *     own step-up verification in `step_up`, as pointing mail at another server exposes
+         *     every password-reset link. The body replaces the whole configuration; only the
+         *     password may be omitted, which keeps the stored one.
          *     Send ``If-Match`` with the ETag from the read to make the write conditional; a stale
          *     tag is refused with 412.
          */
@@ -4169,22 +4171,13 @@ export interface paths {
         get: operations["read_sessions_user"];
         put?: never;
         post?: never;
-        /**
-         * Delete Sessions User
-         * @description Delete every session for a user, optionally keeping one intact.
-         *
-         *     Backs the "revoke other sessions" action: pass the caller's current
-         *     ``exclude_session_id`` to sign out every other device while staying
-         *     logged in, or omit it (an admin acting on another user) to revoke
-         *     all of that user's sessions.
-         */
-        delete: operations["delete_sessions_user"];
+        delete?: never;
         options?: never;
         head?: never;
         patch?: never;
         trace?: never;
     };
-    "/api/v1/users/{user_id}/sessions/{session_id}": {
+    "/api/v1/users/{user_id}/sessions/revoke": {
         parameters: {
             query?: never;
             header?: never;
@@ -4193,12 +4186,38 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        post?: never;
         /**
-         * Delete Session User
-         * @description Delete a user session.
+         * Revoke Sessions User
+         * @description End every session of a user, optionally keeping one intact.
+         *
+         *     Needs the administrator's own step-up verification in `step_up`, as ending sessions locks the user out.
+         *     Pass the caller's current ``exclude_session_id`` to sign out every other device while staying logged in, or
+         *     omit it to end all of that user's sessions.
          */
-        delete: operations["delete_session_user"];
+        post: operations["revoke_sessions_user"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/users/{user_id}/sessions/{session_id}/revoke": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Revoke Session User
+         * @description End one session of a user.
+         *
+         *     Needs the administrator's own step-up verification in `step_up`, as ending a session locks the user out.
+         */
+        post: operations["revoke_session_user"];
+        delete?: never;
         options?: never;
         head?: never;
         patch?: never;
@@ -9075,21 +9094,13 @@ export interface components {
             readonly version: number;
         };
         /**
-         * MailSettingsEdit
-         * @description Request body for editing the mail server settings.
-         *
-         *     A full replacement except for the password.
+         * MailSettingsEditRequest
+         * @description The body of ``PUT /server-settings/email/settings``: the mail settings and the administrator's step-up.
          *
          *     Attributes:
-         *         host: Mail server hostname; empty or null disables mail.
-         *         port: Mail server port.
-         *         security: Connection security.
-         *         username: Authentication username.
-         *         from_address: Sender address; the username is used when empty.
-         *         password: Plain-text password; stored encrypted and never returned. Omit it
-         *             to keep the stored password; send null or an empty string to remove it.
+         *         step_up: The administrator's own step-up verification; it is never a mail setting.
          */
-        MailSettingsEdit: {
+        MailSettingsEditRequest: {
             /**
              * From Address
              * @description Sender address (empty - the username is used)
@@ -9112,6 +9123,8 @@ export interface components {
             port: number;
             /** @description Connection security (starttls, ssl, none) */
             security: components["schemas"]["MailSecurity"];
+            /** @description The administrator's step-up verification, required to edit the mail settings */
+            step_up: components["schemas"]["StepUpVerification"];
             /**
              * Username
              * @description Mail server authentication username
@@ -10720,9 +10733,11 @@ export interface components {
          *         ADMIN_USER_CREATE: An administrator creates an administrator account.
          *         ADMIN_IDP_CREATE: An administrator adds an identity provider.
          *         ADMIN_IDP_EDIT: An administrator edits an identity provider.
+         *         ADMIN_SESSIONS_REVOKE: An administrator ends another user's sessions.
+         *         ADMIN_MAIL_SETTINGS_EDIT: An administrator edits the mail server settings.
          * @enum {string}
          */
-        StepUpAction: "api_key_create" | "idp_link" | "idp_unlink" | "email_change" | "account_delete" | "profile_export" | "mfa_enable" | "mfa_disable" | "mfa_backup_codes" | "admin_credential_reset" | "admin_user_edit" | "admin_user_delete" | "admin_idp_unlink" | "admin_user_create" | "admin_idp_create" | "admin_idp_edit";
+        StepUpAction: "api_key_create" | "idp_link" | "idp_unlink" | "email_change" | "account_delete" | "profile_export" | "mfa_enable" | "mfa_disable" | "mfa_backup_codes" | "admin_credential_reset" | "admin_user_edit" | "admin_user_delete" | "admin_idp_unlink" | "admin_user_create" | "admin_idp_create" | "admin_idp_edit" | "admin_sessions_revoke" | "admin_mail_settings_edit";
         /**
          * StepUpRequest
          * @description Request body of an operation that needs nothing but a step-up verification.
@@ -30765,7 +30780,7 @@ export interface operations {
         };
         requestBody: {
             content: {
-                "application/json": components["schemas"]["MailSettingsEdit"];
+                "application/json": components["schemas"]["MailSettingsEditRequest"];
             };
         };
         responses: {
@@ -35058,7 +35073,7 @@ export interface operations {
             };
         };
     };
-    delete_sessions_user: {
+    revoke_sessions_user: {
         parameters: {
             query?: {
                 /** @description Session to keep intact (e.g. the caller's current session) */
@@ -35070,7 +35085,11 @@ export interface operations {
             };
             cookie?: never;
         };
-        requestBody?: never;
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["StepUpRequest"];
+            };
+        };
         responses: {
             /** @description Successful Response */
             204: {
@@ -35110,6 +35129,15 @@ export interface operations {
             };
             /** @description The request conflicts with the current state. */
             409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description The body is larger than the route accepts. */
+            413: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -35159,7 +35187,7 @@ export interface operations {
             };
         };
     };
-    delete_session_user: {
+    revoke_session_user: {
         parameters: {
             query?: never;
             header?: never;
@@ -35169,7 +35197,11 @@ export interface operations {
             };
             cookie?: never;
         };
-        requestBody?: never;
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["StepUpRequest"];
+            };
+        };
         responses: {
             /** @description Successful Response */
             204: {
@@ -35209,6 +35241,15 @@ export interface operations {
             };
             /** @description The request conflicts with the current state. */
             409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description The body is larger than the route accepts. */
+            413: {
                 headers: {
                     [name: string]: unknown;
                 };

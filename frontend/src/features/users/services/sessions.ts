@@ -1,7 +1,9 @@
+import type { StepUpInput, StepUpRequestDto } from '@/features/security/types'
 import type { UserSession, UserSessionDto } from '@/features/users/types'
 
 import { apiFetch } from '@/services/http'
 import { fetchAllPages } from '@/services/pagination'
+import { toStepUpWire } from '@/features/security/services/security'
 
 /**
  * Maps a raw `UserSessionsRead` payload to the clean {@link UserSession} model
@@ -46,15 +48,21 @@ export async function fetchUserSessions(
 
 /**
  * Revokes a single session for a user (admin scope `sessions:write`), signing
- * that device out.
+ * that device out. Needs the administrator's own step-up.
  *
  * @param sessionId - The session id to revoke.
  * @param userId - The session owner's id.
- * @throws {HttpError} When the request fails.
+ * @param stepUp - The administrator's step-up credentials.
+ * @throws {HttpError} When the request fails (`403` when the step-up is refused).
  */
-export async function revokeUserSession(sessionId: string, userId: number): Promise<void> {
-  await apiFetch<void>(`/users/${userId}/sessions/${encodeURIComponent(sessionId)}`, {
-    method: 'DELETE',
+export async function revokeUserSession(
+  sessionId: string,
+  userId: number,
+  stepUp: StepUpInput,
+): Promise<void> {
+  await apiFetch<void>(`/users/${userId}/sessions/${encodeURIComponent(sessionId)}/revoke`, {
+    method: 'POST',
+    body: JSON.stringify({ step_up: toStepUpWire(stepUp) } satisfies StepUpRequestDto),
     responseType: 'void',
   })
 }
@@ -62,21 +70,25 @@ export async function revokeUserSession(sessionId: string, userId: number): Prom
 /**
  * Revokes all of a user's sessions in one request (admin scope
  * `sessions:write`), optionally keeping one intact. Pass the caller's current
- * session id to leave it signed in ("revoke other sessions").
+ * session id to leave it signed in ("revoke other sessions"). Needs the
+ * administrator's own step-up.
  *
  * @param userId - The session owner's id.
+ * @param stepUp - The administrator's step-up credentials.
  * @param excludeSessionId - Optional session to keep (e.g. the caller's current one).
- * @throws {HttpError} When the request fails.
+ * @throws {HttpError} When the request fails (`403` when the step-up is refused).
  */
 export async function revokeOtherUserSessions(
   userId: number,
+  stepUp: StepUpInput,
   excludeSessionId?: string,
 ): Promise<void> {
   const query = excludeSessionId
     ? `?exclude_session_id=${encodeURIComponent(excludeSessionId)}`
     : ''
-  await apiFetch<void>(`/users/${userId}/sessions${query}`, {
-    method: 'DELETE',
+  await apiFetch<void>(`/users/${userId}/sessions/revoke${query}`, {
+    method: 'POST',
+    body: JSON.stringify({ step_up: toStepUpWire(stepUp) } satisfies StepUpRequestDto),
     responseType: 'void',
   })
 }

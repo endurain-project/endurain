@@ -148,7 +148,7 @@ A provider that answers with a rate limit makes the job `failed` (gear and healt
 - **There is nothing for the user to poll.** `GET /users/{user_id}/deletion` needs an administrator scope, and the user can no longer sign in to call anything. A client should treat the `202` as final: sign the user out locally and show that the account is being deleted.
 - **How long the erasure takes is not fixed.** The data is removed in batches, so a large account takes longer. The job's record lives for 2 hours. There is no completion message.
 - **It cannot be undone.** Export the profile first to keep a copy.
-- `409` when the user is the only administrator, or a deletion is already pending. `401` when step-up fails.
+- `409` when the user is the only administrator, or a deletion is already pending. `403` with `urn:endurain:error:step-up-failed` when the step-up does not verify (or `401` `idp-reauth-required` when an account without a password sends no `idp_reauth`); nothing is deleted.
 
 ## Conflicts (`409`)
 

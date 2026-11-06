@@ -213,16 +213,14 @@
       "current": "Current session",
       "revokeOthers": "Revoke other sessions",
       "revokeOthersTitle": "Revoke other sessions",
-      "revokeOthersBody": "This signs out all other devices for this account",
+      "revokeOthersBody": "This signs out all other devices for this account. Confirm it is you to continue.",
       "revokeOthersConfirm": "Revoke others",
       "revokeOthersSuccess": "Other sessions revoked",
       "revokeOthersError": "Couldn't revoke the other sessions. Please try again.",
       "revoke": "Revoke session",
       "revokeTitle": "Revoke session",
-      "revokeBody": "This signs the device out, they'll need to sign in again",
+      "revokeBody": "This signs the device out, they'll need to sign in again. Confirm it is you to continue.",
       "revokeConfirm": "Revoke",
-      "revokeCancel": "Cancel",
-      "revokeClose": "Close",
       "revokeSuccess": "Session revoked",
       "revokeError": "Couldn't revoke the session. Please try again."
     },
@@ -483,7 +481,9 @@
       "fromAddressHint": "Leave empty to use the username.",
       "save": "Save mail settings",
       "saveSuccess": "Mail settings saved",
-      "saveError": "The mail settings could not be saved"
+      "saveError": "The mail settings could not be saved",
+      "stepUpTitle": "Confirm your identity",
+      "stepUpDescription": "The mail server receives every password-reset link. Confirm it is you to continue."
     }
   },
   "idp": {

@@ -15,6 +15,7 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
+import { useMailStepUpResume } from '@/features/serverSettings/composables/useMailStepUpResume'
 import EmailCard from '@/features/serverSettings/components/EmailCard.vue'
 import ServerSettingsSearch from '@/features/serverSettings/components/ServerSettingsSearch.vue'
 import AccessTab from '@/features/serverSettings/components/tabs/AccessTab.vue'
@@ -58,6 +59,8 @@ provideServerSettingsForm(form)
 const { isDirty, isValid, isSubmitting, dirtyTabs, handleSubmit, discard } = form
 
 const root = ref<HTMLElement | null>(null)
+// The sign-in the page returned from for the mail settings lands the user on the tab that holds them.
+const returnedForMail = useMailStepUpResume().value !== null
 const mailDirty = ref(false)
 const hasUnsaved = computed(() => isDirty.value || mailDirty.value)
 
@@ -167,7 +170,12 @@ function warnBeforeUnload(event: BeforeUnloadEvent): void {
   }
 }
 
-onMounted(() => window.addEventListener('beforeunload', warnBeforeUnload))
+onMounted(() => {
+  window.addEventListener('beforeunload', warnBeforeUnload)
+  if (returnedForMail) {
+    void selectTab('email')
+  }
+})
 onBeforeUnmount(() => window.removeEventListener('beforeunload', warnBeforeUnload))
 </script>
 

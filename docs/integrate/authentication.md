@@ -203,7 +203,8 @@ The API is reachable under `/api/v1`. Below are the authentication-related endpo
 | **Delete Own Session** | `/profile/sessions/{session_id}` | Same headers and scope; web clients must also include `X-CSRF-Token` |
 | **Delete Own Other Sessions** | `/profile/sessions` (`DELETE`) | Same headers and scope; ends every session except the current one |
 | **Get User Sessions (admin)** | `/users/{user_id}/sessions` | Headers: `Authorization: Bearer <Access Token>`, `X-Client-Type`; requires `sessions:read` scope. Paged: optional `page_number` (default 1) and `num_records` (default 25, maximum 200); the response is `{items, total, page, num_records, next}` |
-| **Delete Session (admin)** | `/users/{user_id}/sessions/{session_id}` | Headers: `Authorization: Bearer <Access Token>`, `X-Client-Type`; requires `sessions:write` scope; web clients must also include `X-CSRF-Token` |
+| **Revoke Session (admin)** | `/users/{user_id}/sessions/{session_id}/revoke` (`POST`) | Headers: `Authorization: Bearer <Access Token>`, `X-Client-Type`; requires `sessions:write` scope; web clients must also include `X-CSRF-Token`. Body: the administrator's [step-up](account-security.md#step-up-request-body); answers `204` |
+| **Revoke User Sessions (admin)** | `/users/{user_id}/sessions/revoke` (`POST`) | Same headers, scope and body; optional `exclude_session_id` query parameter keeps that session; ends every other session of the user; answers `204` |
 
 ### API Key Management Endpoints
 

@@ -214,34 +214,41 @@ def read_mail_settings(
 @core_rate_limit.limiter.limit(core_rate_limit.WRITE)
 def edit_mail_settings(
     request: Request,
-    mail_settings_attributes: server_settings_schema.MailSettingsEdit,
+    mail_settings_attributes: server_settings_schema.MailSettingsEditRequest,
     db: core_dependencies.DbSession,
     response: Response,
     if_match: core_dependencies.IfMatch,
+    verify_step_up: auth_dependencies.StepUpVerifierDep,
 ) -> server_settings_schema.MailSettingsAdminRead:
     """Update the mail server settings.
 
-    Requires admin authentication with server_settings:write scope. The body replaces
-    the whole configuration; only the password may be omitted, which keeps the stored one.
+    Requires admin authentication with server_settings:write scope and the administrator's
+    own step-up verification in `step_up`, as pointing mail at another server exposes
+    every password-reset link. The body replaces the whole configuration; only the
+    password may be omitted, which keeps the stored one.
     Send ``If-Match`` with the ETag from the read to make the write conditional; a stale
     tag is refused with 412.
 
     Args:
         request: The HTTP request object.
-        mail_settings_attributes: Settings to update.
+        mail_settings_attributes: Settings to update, and the administrator's step-up.
         db: Database session.
         response: The response, which carries the new ETag.
         if_match: The ``If-Match`` precondition.
+        verify_step_up: Verifies the administrator's step-up.
 
     Returns:
         Updated mail settings, without the password.
 
     Raises:
+        StepUpFailedError: 403 if the step-up fails.
         InvalidInputError: 400 if the configuration is not usable.
         ConflictError: 409 if a field is set by an environment variable.
         PreconditionFailedError: 412 if the settings changed since the client read them.
     """
-    updated = server_settings_mail_service.edit_mail_settings(mail_settings_attributes, db, if_match=if_match)
+    updated = server_settings_mail_service.edit_mail_settings(
+        mail_settings_attributes.to_edit(), mail_settings_attributes.step_up, verify_step_up, db, if_match=if_match
+    )
     core_etag.set_etag(response, updated.version)
     return updated
 

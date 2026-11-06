@@ -13,7 +13,18 @@ from fastapi.testclient import TestClient
 
 import core.dependencies as core_dependencies
 import core.exceptions as core_exceptions
+import modules.auth.dependencies as auth_dependencies
+import modules.auth.schema as auth_schema
 import modules.server_settings.schema as server_settings_schema
+
+VERIFIER = MagicMock()
+STEP_UP = {"current_password": "admin-password"}
+
+
+@pytest.fixture(autouse=True)
+def _step_up_verifier(fast_api_app):
+    """Install a stand-in for the calling administrator's step-up verifier."""
+    fast_api_app.dependency_overrides[auth_dependencies.get_step_up_verifier] = lambda: VERIFIER
 
 
 class TestReadServerSettings:
@@ -472,6 +483,7 @@ class TestMailSettingsRoutes:
             "username": "me@example.com",
             "from_address": None,
             "password": "super-secret-value",
+            "step_up": STEP_UP,
         }
 
         response = fast_api_client.put(
@@ -490,7 +502,14 @@ class TestMailSettingsRoutes:
     def test_edit_of_an_env_managed_field_is_a_400(self, mock_edit, fast_api_app):
         mock_edit.side_effect = core_exceptions.InvalidInputError("host is set by the SMTP_HOST environment variable")
         core_exceptions.register_exception_handlers(fast_api_app)
-        body = {"host": "x.example.com", "port": 587, "security": "starttls", "username": None, "from_address": None}
+        body = {
+            "host": "x.example.com",
+            "port": 587,
+            "security": "starttls",
+            "username": None,
+            "from_address": None,
+            "step_up": STEP_UP,
+        }
 
         response = TestClient(fast_api_app).put(
             "/server_settings/email/settings",
@@ -506,7 +525,14 @@ class TestMailSettingsRoutes:
         [{"port": 0}, {"port": 70000}, {"security": "tls"}, {"unknown": 1}],
     )
     def test_edit_rejects_invalid_bodies(self, fast_api_client, override):
-        body = {"host": "mail.example.com", "port": 587, "security": "starttls", "username": None, "from_address": None}
+        body = {
+            "host": "mail.example.com",
+            "port": 587,
+            "security": "starttls",
+            "username": None,
+            "from_address": None,
+            "step_up": STEP_UP,
+        }
         body.update(override)
 
         response = fast_api_client.put(
@@ -520,7 +546,14 @@ class TestMailSettingsRoutes:
     @patch("modules.server_settings.router.server_settings_mail_service.edit_mail_settings")
     def test_a_blank_host_is_sent_on_as_unset(self, mock_edit, fast_api_client):
         mock_edit.return_value = _mail_admin_read(host=None)
-        body = {"host": "  ", "port": 587, "security": "starttls", "username": "", "from_address": ""}
+        body = {
+            "host": "  ",
+            "port": 587,
+            "security": "starttls",
+            "username": "",
+            "from_address": "",
+            "step_up": STEP_UP,
+        }
 
         fast_api_client.put(
             "/server_settings/email/settings",
@@ -530,3 +563,54 @@ class TestMailSettingsRoutes:
 
         sent = mock_edit.call_args.args[0]
         assert (sent.host, sent.username, sent.from_address) == (None, None, None)
+
+
+class TestMailSettingsStepUp:
+    """Editing the mail settings needs the administrator's step-up, which is not a setting."""
+
+    @staticmethod
+    def _body(**extra):
+        body = {"host": "mail.example.com", "port": 587, "security": "starttls", "username": None, "from_address": None}
+        body.update(extra)
+        return body
+
+    @staticmethod
+    def _put(client, body):
+        return client.put(
+            "/server_settings/email/settings",
+            json=body,
+            headers={"Authorization": "Bearer mock_token", "If-Match": '"1"'},
+        )
+
+    @patch("modules.server_settings.router.server_settings_mail_service.edit_mail_settings")
+    def test_a_body_without_a_step_up_is_422_and_never_reaches_the_service(self, mock_edit, fast_api_client):
+        response = self._put(fast_api_client, self._body())
+
+        assert response.status_code == 422
+        mock_edit.assert_not_called()
+
+    @patch("modules.server_settings.router.server_settings_mail_service.edit_mail_settings")
+    def test_the_service_gets_the_settings_without_the_step_up_then_the_step_up_and_verifier(
+        self, mock_edit, fast_api_client
+    ):
+        mock_edit.return_value = _mail_admin_read()
+
+        response = self._put(fast_api_client, self._body(password="pw", step_up=STEP_UP))
+
+        assert response.status_code == 200
+        attributes, step_up, verifier = mock_edit.call_args.args[:3]
+        assert type(attributes) is server_settings_schema.MailSettingsEdit
+        assert "step_up" not in attributes.model_dump()
+        assert attributes.model_fields_set == {"host", "port", "security", "username", "from_address", "password"}
+        assert step_up == auth_schema.StepUpVerification(current_password="admin-password")
+        assert verifier is VERIFIER
+        assert "admin-password" not in response.text
+
+    @patch("modules.server_settings.router.server_settings_mail_service.edit_mail_settings")
+    def test_a_refused_step_up_is_403_step_up_failed(self, mock_edit, fast_api_client):
+        mock_edit.side_effect = core_exceptions.StepUpFailedError()
+
+        response = self._put(fast_api_client, self._body(step_up=STEP_UP))
+
+        assert response.status_code == 403
+        assert response.json()["type"] == "urn:endurain:error:step-up-failed"

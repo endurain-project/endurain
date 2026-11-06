@@ -426,3 +426,20 @@ class TestStepUpVerifier:
         )
 
         assert callable(verifier)
+
+
+class TestSessionRevokeVerifier:
+    """The verifier handed to the session-revoke routes is bound to the session-revoke action."""
+
+    def test_it_verifies_the_step_up_for_the_revoke_action(self):
+        step_up, underlying = auth_schema.StepUpVerification(current_password="pw"), MagicMock()
+
+        auth_dependencies.get_session_revoke_verifier(underlying)(step_up)
+
+        underlying.assert_called_once_with(step_up, StepUpAction.ADMIN_SESSIONS_REVOKE)
+
+    def test_a_refusal_propagates(self):
+        underlying = MagicMock(side_effect=core_exceptions.StepUpFailedError())
+
+        with pytest.raises(core_exceptions.StepUpFailedError):
+            auth_dependencies.get_session_revoke_verifier(underlying)(auth_schema.StepUpVerification())

@@ -8,9 +8,11 @@ import pytest
 
 import core.exceptions as core_exceptions
 import core.pagination as core_pagination
+import modules.auth.schema as auth_schema
 import modules.auth.sessions.contracts as sessions_contracts
 import modules.auth.sessions.service as sessions_service
 
+_STEP_UP = auth_schema.StepUpVerification(current_password="admin-password")
 _FIREFOX_UA = "Mozilla/5.0 (X11; Linux x86_64; rv:120.0) Gecko/20100101 Firefox/120.0"
 
 
@@ -197,7 +199,7 @@ def test_delete_session_cleans_linked_records_and_commits(mock_db):
         patch("modules.auth.sessions.service.oauth_state_integration.delete_oauth_state") as delete_state,
         patch("modules.auth.sessions.service.rotated_refresh_tokens_integration.delete_by_family") as delete_family,
     ):
-        sessions_service.delete_session("session-id", 7, mock_db)
+        sessions_service.delete_session("session-id", 7, _STEP_UP, MagicMock(), mock_db)
     delete_state.assert_called_once_with("state-id", mock_db)
     delete_family.assert_called_once_with("family-id", mock_db)
     mock_db.commit.assert_called_once()
@@ -233,7 +235,7 @@ def test_delete_user_sessions_stages_without_committing(mock_db):
 
 def test_delete_user_sessions_standalone_commits(mock_db):
     with patch("modules.auth.sessions.service.sessions_crud.delete_sessions_by_user", return_value=3):
-        assert sessions_service.delete_sessions_by_user_and_commit(7, mock_db) == 3
+        assert sessions_service.delete_sessions_by_user_and_commit(7, _STEP_UP, MagicMock(), mock_db) == 3
     mock_db.commit.assert_called_once()
 
 
@@ -245,7 +247,7 @@ def test_missing_session_deletion_propagates_domain_not_found(mock_db):
         ),
         pytest.raises(core_exceptions.NotFoundError),
     ):
-        sessions_service.delete_session("missing", 7, mock_db)
+        sessions_service.delete_session("missing", 7, _STEP_UP, MagicMock(), mock_db)
     mock_db.commit.assert_not_called()
 
 
@@ -282,7 +284,7 @@ def test_session_logs_carry_a_fingerprint_not_the_session_id(mock_db, caplog):
         patch("modules.auth.sessions.service.sessions_crud.delete_session", return_value=_session()),
         patch("modules.auth.sessions.service.rotated_refresh_tokens_integration.delete_by_family"),
     ):
-        sessions_service.delete_session("secret-session-id", 7, mock_db)
+        sessions_service.delete_session("secret-session-id", 7, _STEP_UP, MagicMock(), mock_db)
     assert "secret-session-id" not in caplog.text
     assert "secret-session-id" not in str([record.__dict__ for record in caplog.records])
 
@@ -384,7 +386,9 @@ def test_deleting_the_other_sessions_names_the_one_kept(mock_db):
         patch("modules.auth.sessions.service.sessions_crud.delete_sessions_by_user", return_value=1),
         patch("modules.auth.sessions.service.sessions_event_publishers.publish_sessions_revoked") as publish,
     ):
-        sessions_service.delete_sessions_by_user_and_commit(7, mock_db, exclude_session_id="keep")
+        sessions_service.delete_sessions_by_user_and_commit(
+            7, _STEP_UP, MagicMock(), mock_db, exclude_session_id="keep"
+        )
 
     publish.assert_called_once_with(7, mock_db, except_session_id="keep")
 
@@ -447,3 +451,50 @@ class TestCsrfKeyRotation:
             stored = sessions_service._hash_csrf_token("csrf")
         with self._with_secret("n" * 40):
             assert sessions_service.verify_csrf_token("csrf", stored) is True
+
+
+def _refusing() -> MagicMock:
+    return MagicMock(side_effect=core_exceptions.StepUpFailedError())
+
+
+def test_deleting_one_session_verifies_the_revoke_step_up_before_deleting(mock_db):
+    verifier = MagicMock()
+    order = MagicMock()
+    order.attach_mock(verifier, "step_up")
+    with patch("modules.auth.sessions.service.sessions_crud.delete_session", return_value=_session()) as delete:
+        order.attach_mock(delete, "delete")
+        with patch("modules.auth.sessions.service.rotated_refresh_tokens_integration.delete_by_family"):
+            sessions_service.delete_session("session-id", 7, _STEP_UP, verifier, mock_db)
+
+    assert [call[0] for call in order.mock_calls][:2] == ["step_up", "delete"]
+    verifier.assert_called_once_with(_STEP_UP)
+
+
+def test_a_refused_step_up_deletes_no_session(mock_db):
+    with (
+        patch("modules.auth.sessions.service.sessions_crud.delete_session") as delete,
+        pytest.raises(core_exceptions.StepUpFailedError),
+    ):
+        sessions_service.delete_session("session-id", 7, _STEP_UP, _refusing(), mock_db)
+
+    delete.assert_not_called()
+    mock_db.commit.assert_not_called()
+
+
+def test_deleting_all_sessions_verifies_the_revoke_step_up_before_deleting(mock_db):
+    verifier = MagicMock()
+    with patch("modules.auth.sessions.service.sessions_crud.delete_sessions_by_user", return_value=0):
+        sessions_service.delete_sessions_by_user_and_commit(7, _STEP_UP, verifier, mock_db)
+
+    verifier.assert_called_once_with(_STEP_UP)
+
+
+def test_a_refused_step_up_deletes_no_sessions(mock_db):
+    with (
+        patch("modules.auth.sessions.service.sessions_crud.delete_sessions_by_user") as delete,
+        pytest.raises(core_exceptions.StepUpFailedError),
+    ):
+        sessions_service.delete_sessions_by_user_and_commit(7, _STEP_UP, _refusing(), mock_db)
+
+    delete.assert_not_called()
+    mock_db.commit.assert_not_called()

@@ -10,6 +10,9 @@ import core.exceptions as core_exceptions
 import core.i18n as core_i18n
 import core.logger as core_logger
 import core.mail as core_mail
+import modules.auth.identity_providers.constants as identity_providers_constants
+import modules.auth.identity_providers.contracts as identity_providers_contracts
+import modules.auth.schema as auth_schema
 import modules.server_settings.audit_actions as server_settings_audit_actions
 import modules.server_settings.change_utils as server_settings_change_utils
 import modules.server_settings.constants as server_settings_constants
@@ -182,11 +185,16 @@ def get_mail_settings_for_admin(db: Session) -> server_settings_schema.MailSetti
 
 def edit_mail_settings(
     attributes: server_settings_schema.MailSettingsEdit,
+    step_up: auth_schema.StepUpVerification,
+    verify_step_up: identity_providers_contracts.StepUpVerifier,
     db: Session,
     *,
     if_match: str,
 ) -> server_settings_schema.MailSettingsAdminRead:
-    """Validate and persist the mail settings.
+    """Validate and persist the mail settings after the administrator's step-up.
+
+    Pointing outgoing mail at another server exposes every password-reset link, so the step-up is verified
+    before anything is read, checked or written.
 
     Validation can resolve DNS, so it runs on a snapshot before the settings row is
     locked; a slow resolver never holds the lock. The row is then locked for the rest of
@@ -195,6 +203,8 @@ def edit_mail_settings(
 
     Args:
         attributes: The settings to apply.
+        step_up: The administrator's step-up verification.
+        verify_step_up: Verifies the step-up for the calling administrator.
         db: Database session.
         if_match: The ``If-Match`` precondition.
 
@@ -202,11 +212,13 @@ def edit_mail_settings(
         The updated settings, as an admin read returns them.
 
     Raises:
+        StepUpFailedError: If the step-up does not verify.
         InvalidInputError: If the resulting configuration is not usable.
         ConflictError: If a changed field is set by an environment variable.
         PreconditionFailedError: If the mail settings changed since the client read them.
         ServiceUnavailableError: If the settings row does not exist.
     """
+    verify_step_up(step_up, identity_providers_constants.StepUpAction.ADMIN_MAIL_SETTINGS_EDIT)
     snapshot = read_mail_settings(db)
     # End the read transaction: the validation below may resolve DNS.
     db.rollback()

@@ -45,7 +45,6 @@ _NOT_READABLE_ITEMS: dict[str, str] = {
     "/profile/follow-requests/{follower_id}": "a follow request is a relationship, read through the list",
     "/profile/sessions/{session_id}": "a session is revoked, read through the session list",
     "/users/{user_id}/followers/{follower_id}": "a follower link is a relationship, read through the lists",
-    "/users/{user_id}/sessions/{session_id}": "a session is revoked, read through the session list",
 }
 
 #: A ``202`` that names no status resource, by design. Permanent; the value is the reason.

@@ -53,6 +53,8 @@ class StepUpAction(StrEnum):
         ADMIN_USER_CREATE: An administrator creates an administrator account.
         ADMIN_IDP_CREATE: An administrator adds an identity provider.
         ADMIN_IDP_EDIT: An administrator edits an identity provider.
+        ADMIN_SESSIONS_REVOKE: An administrator ends another user's sessions.
+        ADMIN_MAIL_SETTINGS_EDIT: An administrator edits the mail server settings.
     """
 
     API_KEY_CREATE = "api_key_create"
@@ -71,6 +73,8 @@ class StepUpAction(StrEnum):
     ADMIN_USER_CREATE = "admin_user_create"
     ADMIN_IDP_CREATE = "admin_idp_create"
     ADMIN_IDP_EDIT = "admin_idp_edit"
+    ADMIN_SESSIONS_REVOKE = "admin_sessions_revoke"
+    ADMIN_MAIL_SETTINGS_EDIT = "admin_mail_settings_edit"
 
 
 class IdentityProviderTemplate(TypedDict):

@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed } from 'vue'
+import { computed, onMounted } from 'vue'
 import { useI18n } from 'vue-i18n'
 
 import ServerSettingsForm from '@/features/serverSettings/components/ServerSettingsForm.vue'
@@ -7,12 +7,28 @@ import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
 import { ErrorState } from '@/components/ui/error-state'
 import { Skeleton } from '@/components/ui/skeleton'
+import { useToasts } from '@/composables/useToasts'
+import { consumeIdpStepUpReturn } from '@/features/security/composables/useIdpStepUp'
+import { provideMailStepUpResume } from '@/features/serverSettings/composables/useMailStepUpResume'
 import {
   useServerSettingsQuery,
   useTileMapsTemplatesQuery,
 } from '@/features/serverSettings/composables/useServerSettings'
 
 const { t } = useI18n()
+const toasts = useToasts()
+
+// Returning from an identity-provider sign-in, the callback leaves its outcome in the URL fragment. It is
+// consumed once; the mail form reopens its step-up dialog, and a failure is reported once the page is shown.
+const stepUpReturn = consumeIdpStepUpReturn()
+provideMailStepUpResume(stepUpReturn && !stepUpReturn.error ? stepUpReturn : null)
+onMounted(() => {
+  if (stepUpReturn?.error === 'not_fresh') {
+    toasts.error(t('settings.security.stepUp.notFresh'))
+  } else if (stepUpReturn?.error) {
+    toasts.error(t('settings.security.stepUp.failed'))
+  }
+})
 
 const settingsQuery = useServerSettingsQuery()
 const templatesQuery = useTileMapsTemplatesQuery()

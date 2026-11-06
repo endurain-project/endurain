@@ -17,6 +17,7 @@ from pydantic import (
 import core.geocoding as core_geocoding
 import core.mail as core_mail
 import core.sanitization as core_sanitization
+import modules.auth.schema as auth_schema
 import modules.server_settings.constants as server_settings_constants
 
 
@@ -586,6 +587,26 @@ class MailSettingsEdit(BaseModel):
             The stripped value, or None when it is blank.
         """
         return (value.strip() or None) if value is not None else None
+
+
+class MailSettingsEditRequest(MailSettingsEdit):
+    """The body of ``PUT /server-settings/email/settings``: the mail settings and the administrator's step-up.
+
+    Attributes:
+        step_up: The administrator's own step-up verification; it is never a mail setting.
+    """
+
+    step_up: auth_schema.StepUpVerification = Field(
+        ..., description="The administrator's step-up verification, required to edit the mail settings"
+    )
+
+    def to_edit(self) -> MailSettingsEdit:
+        """Return the mail settings the client sent, without the step-up.
+
+        Returns:
+            The settings as a :class:`MailSettingsEdit`, with the same fields set.
+        """
+        return MailSettingsEdit.model_validate(self.model_dump(exclude={"step_up"}, exclude_unset=True))
 
 
 class MailSettingsRead(MailSettingsEdit):

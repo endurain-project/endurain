@@ -7,6 +7,8 @@ from typing import Protocol
 
 from pydantic import BaseModel, ConfigDict
 
+import modules.auth.schema as auth_schema
+
 
 class SessionTimeoutPolicy(Protocol):
     """Timeout values consumed by pure session validation."""
@@ -19,6 +21,29 @@ class SessionTimeoutPolicy(Protocol):
     @property
     def absolute_timeout(self) -> timedelta:
         """Age after which a session ends whatever its activity."""
+        ...
+
+
+class SessionRevokeVerifier(Protocol):
+    """Verifies the step-up of the administrator ending another user's sessions.
+
+    The sessions package cannot verify a step-up itself: that lives in ``account_security``, and the action it
+    authorises is named in ``identity_providers``, both of which depend on this package. The auth composition layer
+    (``modules.auth.dependencies``) installs an implementation bound to the calling administrator and to the
+    session-revoke action, and the service calls it before it deletes anything.
+    """
+
+    def __call__(self, step_up: auth_schema.StepUpVerification) -> None:
+        """Verify the administrator's step-up.
+
+        Args:
+            step_up: The step-up verification the administrator sent.
+
+        Raises:
+            StepUpFailedError: When the verification fails.
+            IdpReauthRequiredError: When the administrator has no password and sent no identity-provider proof.
+            TooManyRequestsError: When the administrator is locked out of step-up.
+        """
         ...
 
 

@@ -51,7 +51,7 @@ Approve the user from their row. Endurain activates the account and emails the u
 
 ## Sessions and identity providers
 
-A user's detail page shows their sessions, which you can revoke, and the identity providers linked to the account, which you can unlink. Unlinking an identity provider removes that external sign-in. Unlinking asks for your own password and MFA code. Check that the user has another way to sign in first.
+A user's detail page shows their sessions, which you can revoke, and the identity providers linked to the account, which you can unlink. Revoking one session or all of them asks for your own password and MFA code, as ending a session locks the user out. Unlinking an identity provider removes that external sign-in. Unlinking asks for your own password and MFA code. Check that the user has another way to sign in first.
 
 ## Deleting a user
 
