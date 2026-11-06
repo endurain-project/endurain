@@ -1602,5 +1602,5 @@ class TestLoginPhotoImageFormats:
         with pytest.raises(core_exceptions.DomainError) as exc:
             server_settings_login_photo_service.upload_login_photo(self._upload(name, data), storage, MagicMock())
 
-        assert exc.value.status_code == 400
+        assert exc.value.status_code == 415
         storage.save.assert_not_called()

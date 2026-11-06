@@ -69,7 +69,7 @@ class TestParseFile:
                 file_extension=".xyz",
                 filename="/path/to/file.xyz",
             )
-        assert exc.value.status_code == 406
+        assert exc.value.status_code == 415
 
     def test_returns_none_for_bulk_import_init(self):
         result = pipeline.parse_file(

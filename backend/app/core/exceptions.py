@@ -328,10 +328,10 @@ class TooManyRequestsError(DomainError):
 class UnsupportedFormatError(DomainError):
     """The supplied payload is in a format this endpoint cannot process."""
 
-    status_code = status.HTTP_406_NOT_ACCEPTABLE
+    status_code = status.HTTP_415_UNSUPPORTED_MEDIA_TYPE
     code = "unsupported-format"
-    title = "Not Acceptable"
-    default_detail = "Not Acceptable"
+    title = "Unsupported Media Type"
+    default_detail = "Unsupported Media Type"
 
 
 class UnsupportedMediaTypeError(DomainError):

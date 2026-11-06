@@ -41,11 +41,11 @@ def test_an_image_with_too_many_pixels_is_refused_as_too_large(size):
     assert refused.value.status_code == 413
 
 
-def test_an_image_whose_header_cannot_be_read_is_refused_as_invalid():
+def test_an_image_whose_header_cannot_be_read_is_refused_as_unsupported():
     data = _png(10, 10)
     corrupt = data[:8] + b"\x00" * (len(data) - 8)
 
-    with pytest.raises(core_exceptions.InvalidInputError):
+    with pytest.raises(core_exceptions.UnsupportedMediaTypeError):
         _validate(corrupt)
 
 
@@ -58,6 +58,6 @@ def test_the_upload_can_be_read_after_the_check():
     assert upload.file.read() == data
 
 
-def test_a_png_signature_without_a_readable_header_is_invalid():
-    with pytest.raises(core_exceptions.InvalidInputError):
+def test_a_png_signature_without_a_readable_header_is_unsupported():
+    with pytest.raises(core_exceptions.UnsupportedMediaTypeError):
         _validate(b"\x89PNG\r\n\x1a\n" + b"\x00" * 64)

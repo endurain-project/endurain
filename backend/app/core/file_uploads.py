@@ -206,20 +206,20 @@ def _to_domain_error(err: FileSecurityError) -> core_exceptions.DomainError:
         err: Safeuploads exception raised during validation.
 
     Returns:
-        ``PayloadTooLargeError`` for a size violation, ``InvalidInputError``
-        for an empty file or content the validators reject, ``ProcessingError``
-        otherwise.
+        ``PayloadTooLargeError`` for a size violation,
+        ``UnsupportedMediaTypeError`` for a file type the validators refuse,
+        ``InvalidInputError`` for an empty file or other content the validators
+        reject, ``ProcessingError`` otherwise.
     """
     if isinstance(err, FileSizeError) and err.error_code == ErrorCode.FILE_EMPTY:
         return core_exceptions.InvalidInputError(str(err))
     if isinstance(err, (FileSizeError, ImageDimensionError)):
         return core_exceptions.PayloadTooLargeError(str(err))
+    if isinstance(err, (MimeTypeError, FileSignatureError, ExtensionSecurityError)):
+        return core_exceptions.UnsupportedMediaTypeError(str(err))
     if isinstance(
         err,
         (
-            MimeTypeError,
-            FileSignatureError,
-            ExtensionSecurityError,
             FilenameSecurityError,
             WindowsReservedNameError,
             UnicodeSecurityError,
@@ -251,7 +251,7 @@ def _validate_file(file: BinaryIO, filename: str, *, kind: UploadKind) -> str:
         The sanitized filename.
 
     Raises:
-        DomainError: 400/413/500 mapped from the underlying
+        DomainError: 400/413/415/500 mapped from the underlying
             safeuploads exception (see :func:`_to_domain_error`).
     """
     try:
@@ -463,7 +463,7 @@ def save_validated_upload_sync(
         Absolute filesystem path of the saved file.
 
     Raises:
-        DomainError: 400/413/500 depending on the failure mode.
+        DomainError: 400/413/415/500 depending on the failure mode.
     """
     # Validate first; safeuploads rewinds the stream on success.
     _validate_upload(file, kind=kind)
@@ -497,7 +497,7 @@ def read_validated_upload_sync(file: UploadFile, *, kind: UploadKind) -> bytes:
         The validated file contents.
 
     Raises:
-        DomainError: 400/413/500 depending on the failure mode.
+        DomainError: 400/413/415/500 depending on the failure mode.
     """
     _validate_upload(file, kind=kind)
 
@@ -552,14 +552,15 @@ def strip_image_metadata(data: bytes, *, max_dimension: int | None = None) -> by
         The re-encoded image bytes.
 
     Raises:
-        InvalidInputError: When the bytes are not a decodable JPEG, PNG or WebP image.
+        UnsupportedMediaTypeError: When the image is not a JPEG, PNG or WebP.
+        InvalidInputError: When the bytes cannot be decoded as an image.
         PayloadTooLargeError: When the image would decode to more than the pixel cap.
     """
     try:
         with Image.open(io.BytesIO(data)) as source:
             image_format = source.format
             if image_format not in _REWRITABLE_IMAGE_FORMATS:
-                raise core_exceptions.InvalidInputError("The image must be a JPEG, PNG or WebP file")
+                raise core_exceptions.UnsupportedMediaTypeError("The image must be a JPEG, PNG or WebP file")
             if source.width * source.height > _MAX_IMAGE_PIXELS:
                 raise core_exceptions.PayloadTooLargeError("Image dimensions are too large")
             icc_profile = source.info.get("icc_profile")
@@ -614,7 +615,7 @@ def validate_bytes_sync(
             checks. Server-generated names only.
 
     Raises:
-        DomainError: 400/413/500 mapped from safeuploads.
+        DomainError: 400/413/415/500 mapped from safeuploads.
     """
     _validate_file(io.BytesIO(data), filename, kind=kind)
 
@@ -641,7 +642,7 @@ def save_validated_bytes_sync(
         Absolute filesystem path of the saved file.
 
     Raises:
-        DomainError: 400/413/500 depending on failure mode.
+        DomainError: 400/413/415/500 depending on failure mode.
     """
     validate_bytes_sync(data, kind=kind, filename=filename)
     try:

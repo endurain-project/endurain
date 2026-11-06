@@ -124,9 +124,9 @@ _KIND_CASES = [
     "err,expected_status",
     [
         (FileSizeError("too big"), 413),
-        (MimeTypeError("bad mime"), 400),
-        (FileSignatureError("bad sig"), 400),
-        (ExtensionSecurityError("bad ext"), 400),
+        (MimeTypeError("bad mime"), 415),
+        (FileSignatureError("bad sig"), 415),
+        (ExtensionSecurityError("bad ext"), 415),
         (FilenameSecurityError("bad name"), 400),
         (WindowsReservedNameError("CON"), 400),
         (UnicodeSecurityError("rtl"), 400),
@@ -142,6 +142,13 @@ def test_to_domain_error_mapping(err, expected_status):
     assert isinstance(domain_err, core_exceptions.DomainError)
     assert domain_err.status_code == expected_status
     assert domain_err.detail
+
+
+def test_a_file_type_the_validators_refuse_keeps_the_unsupported_media_type_code():
+    """A refused file type is a 415 with the same problem code as a refused photo extension."""
+    domain_err = _to_domain_error(MimeTypeError("bad mime"))
+
+    assert isinstance(domain_err, core_exceptions.UnsupportedMediaTypeError)
 
 
 def test_to_domain_error_maps_an_empty_file_to_invalid_input():
@@ -229,9 +236,9 @@ def test_read_validated_upload_sync_rejects_garbage_per_kind(kind: UploadKind, f
             read_validated_upload_sync(upload, kind=kind)
         finally:
             upload.file.close()
-    # 400 for signature/MIME mismatch, 413 if size cap would
+    # 415 for signature/MIME mismatch, 413 if size cap would
     # somehow trigger first; both are acceptable rejections.
-    assert exc.value.status_code in {400, 413}
+    assert exc.value.status_code in {400, 413, 415}
 
 
 # ---------------------------------------------------------------------------
@@ -358,7 +365,7 @@ def test_validate_bytes_sync_rejects_garbage():
     """Garbage bytes with a valid extension are rejected."""
     with pytest.raises(core_exceptions.DomainError) as exc:
         validate_bytes_sync(b"not a real zip", kind=UploadKind.ZIP, filename="x.zip")
-    assert exc.value.status_code in {400, 413}
+    assert exc.value.status_code in {400, 413, 415}
 
 
 def test_save_validated_bytes_sync_writes_validated_payload(
@@ -1094,7 +1101,7 @@ def test_save_validated_upload_sync_rejects_garbage(tmp_path: Path):
             upload_dir=str(tmp_path),
             filename="server.gpx",
         )
-    assert exc.value.status_code in {400, 413}
+    assert exc.value.status_code in {400, 413, 415}
     assert list(tmp_path.iterdir()) == []
 
 
@@ -1132,7 +1139,7 @@ def test_read_validated_upload_sync_rejects_garbage():
     """Garbage bytes with a valid extension are rejected rather than returned."""
     with pytest.raises(core_exceptions.DomainError) as exc:
         read_validated_upload_sync(_upload("photo.png", b"not a real image"), kind=UploadKind.IMAGE)
-    assert exc.value.status_code in {400, 413}
+    assert exc.value.status_code in {400, 413, 415}
 
 
 def test_validate_local_file_sync_rejects_garbage(tmp_path: Path):
@@ -1141,7 +1148,7 @@ def test_validate_local_file_sync_rejects_garbage(tmp_path: Path):
     path.write_bytes(b"not a real activity file")
     with pytest.raises(core_exceptions.DomainError) as exc:
         validate_local_file_sync(str(path), kind=UploadKind.ACTIVITY)
-    assert exc.value.status_code in {400, 413}
+    assert exc.value.status_code in {400, 413, 415}
 
 
 def test_the_synchronous_forms_start_no_event_loop(tmp_path: Path, monkeypatch: pytest.MonkeyPatch):
@@ -1371,7 +1378,7 @@ class TestStripImageMetadata:
         buffer = io.BytesIO()
         Image.new("P", (4, 4)).save(buffer, "GIF")
 
-        with pytest.raises(core_exceptions.InvalidInputError):
+        with pytest.raises(core_exceptions.UnsupportedMediaTypeError):
             core_file_uploads.strip_image_metadata(buffer.getvalue())
 
     @pytest.mark.filterwarnings("ignore::PIL.Image.DecompressionBombWarning")
@@ -1414,7 +1421,7 @@ class TestImageAllowList:
     def test_gif_and_heic_are_refused(self, name: str, data: bytes):
         with pytest.raises(core_exceptions.DomainError) as exc:
             read_validated_upload_sync(_upload(name, data), kind=UploadKind.IMAGE)
-        assert exc.value.status_code == 400
+        assert exc.value.status_code == 415
 
     def test_a_gif_renamed_to_webp_is_refused(self):
         with pytest.raises(core_exceptions.DomainError):

@@ -132,8 +132,8 @@ def receive_upload(filename: str | None, save_upload: UploadSaver, *, fingerprin
         raise core_exceptions.InvalidInputError("Filename is required")
 
     # Pre-check the extension so we can short-circuit with a
-    # human-friendly 406 before invoking the validator (which would
-    # otherwise raise a generic ExtensionSecurityError -> 400).
+    # human-friendly message before invoking the validator (which would
+    # otherwise raise a generic ExtensionSecurityError).
     _, file_extension = os.path.splitext(filename)
     if file_extension.lower() not in core_config.SUPPORTED_FILE_FORMATS:
         raise core_exceptions.UnsupportedFormatError(

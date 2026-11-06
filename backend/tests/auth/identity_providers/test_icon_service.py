@@ -312,5 +312,5 @@ class TestUploadIconImageFormats:
         ):
             icon_service.upload_icon(7, self._reader(name, data), storage, MagicMock())
 
-        assert exc.value.status_code == 400
+        assert exc.value.status_code == 415
         storage.save.assert_not_called()

@@ -542,4 +542,4 @@ class TestImageFormats:
                 UploadFile(io.BytesIO(data), filename=name), kind=core_file_uploads.UploadKind.IMAGE
             )
 
-        assert exc.value.status_code == 400
+        assert exc.value.status_code == 415

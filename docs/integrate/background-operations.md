@@ -74,7 +74,7 @@ Reading the job needs the `activities:upload` scope and accepts an API key. Star
 
 ### Upload an activity file
 
-`POST /activities/upload`, a multipart form with the file in `file`. It needs the `activities:upload` scope and accepts a bearer token or an [API key](api-keys.md). The file is stored and queued, then the route answers `202` with the job. Cheap refusals come back at once as errors instead of a job: an unsupported extension is `406`, a file over the limit is `413`, and a file that is empty or fails the content checks is `400`.
+`POST /activities/upload`, a multipart form with the file in `file`. It needs the `activities:upload` scope and accepts a bearer token or an [API key](api-keys.md). The file is stored and queued, then the route answers `202` with the job. Cheap refusals come back at once as errors instead of a job: an unsupported extension or a file whose content is not that type is `415`, a file over the limit is `413`, and a file that is empty or fails the other content checks is `400`.
 
 Send an `Idempotency-Key` header (up to 255 characters) to make a retry safe. A client that never saw the `202` has no job id to poll, and a replay without a key would import the file twice.
 
@@ -151,7 +151,7 @@ Do not retry a `409` straight away. Poll the running operation until it reaches 
 
 ## Upload limits and formats
 
-Every upload route declares its body limit in the OpenAPI document as `x-max-body-bytes`: the largest file plus 1 MiB for the multipart framing. A body over the limit is `413` with `urn:endurain:error:payload-too-large`, refused before the route runs. A file the server cannot accept is `406` (`urn:endurain:error:unsupported-format`) or `400`. See [Errors, concurrency and rate limits](errors-and-limits.md#upload-size-limits).
+Every upload route declares its body limit in the OpenAPI document as `x-max-body-bytes`: the largest file plus 1 MiB for the multipart framing. A body over the limit is `413` with `urn:endurain:error:payload-too-large`, refused before the route runs. A file of a type the route does not accept is `415` (`urn:endurain:error:unsupported-format` for an activity file, `urn:endurain:error:unsupported-media-type` for an image or media file); any other file the server cannot accept is `400`. See [Errors, concurrency and rate limits](errors-and-limits.md#upload-size-limits).
 
 | Route | Accepts | Largest file |
 | ----- | ------- | ------------ |
