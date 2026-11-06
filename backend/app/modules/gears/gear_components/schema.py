@@ -131,8 +131,6 @@ class GearComponentRead(GearComponentCreate):
         id: Unique identifier.
         user_id: Foreign key to user.
         version: Optimistic-concurrency counter, also sent as the ``ETag``.
-        current_distance: Accumulated distance.
-        current_time: Accumulated time.
     """
 
     version: StrictInt = Field(
@@ -148,6 +146,16 @@ class GearComponentRead(GearComponentCreate):
         ...,
         description="Foreign key to user",
     )
+
+
+class GearComponentUsageRead(GearComponentRead):
+    """A gear component with the usage it has accumulated, served by the per-gear list only.
+
+    Attributes:
+        current_distance: Accumulated distance in meters.
+        current_time: Accumulated time in seconds.
+    """
+
     current_distance: StrictFloat = Field(
         default=0,
         ge=0,

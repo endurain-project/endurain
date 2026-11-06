@@ -43,12 +43,27 @@ def test_types_lists_every_gear_type(client):
 def test_list(mock_list, client):
     mock_list.return_value = core_pagination.Page.build([_read()], 1, 1, 200)
 
-    assert client.get("/gear_components", headers=_HEADERS).json()["items"][0]["id"] == 1
+    item = client.get("/gear_components", headers=_HEADERS).json()["items"][0]
+
+    assert item["id"] == 1
+    assert "current_distance" not in item
+    assert "current_time" not in item
+
+
+@patch("modules.gears.gear_components.service.create_gear_component")
+def test_create_response_carries_no_usage(mock_create, client):
+    mock_create.return_value = _read()
+
+    body = client.post("/gear_components", json=_BODY, headers=_HEADERS).json()
+
+    assert "current_distance" not in body
+    assert "current_time" not in body
 
 
 @patch("modules.gears.gear_components.service.list_components_for_gear")
 def test_list_for_gear_passes_the_active_filter(mock_list, client, mock_db):
-    mock_list.return_value = core_pagination.Page.build([_read(current_distance=3.0)], 1, 1, 200)
+    usage = schema.GearComponentUsageRead(**_read().model_dump(), current_distance=3.0)
+    mock_list.return_value = core_pagination.Page.build([usage], 1, 1, 200)
 
     response = client.get("/gears/1/components?active=true", headers=_HEADERS)
 

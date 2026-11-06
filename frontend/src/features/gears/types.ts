@@ -86,8 +86,12 @@ export interface GearsPage {
   total: number
 }
 
-/** Raw `GearComponentRead` payload as returned by the backend. */
-export type GearComponentDto = Schemas['GearComponentRead']
+/**
+ * Raw component payload as returned by the backend. Only the per-gear list
+ * (`GearComponentUsageRead`) carries the accumulated usage.
+ */
+export type GearComponentDto = Schemas['GearComponentRead'] &
+  Partial<Pick<Schemas['GearComponentUsageRead'], 'current_distance' | 'current_time'>>
 
 /** The four component-type catalogues, keyed by gear family. */
 export type GearComponentTypeLists = Schemas['GearComponentTypesRead']

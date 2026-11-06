@@ -36,8 +36,6 @@ const createdDto: GearComponentDto = {
   active: true,
   expected_kms: 5_000_000,
   purchase_value: 45,
-  current_distance: 0,
-  current_time: 0,
   version: 1,
 }
 

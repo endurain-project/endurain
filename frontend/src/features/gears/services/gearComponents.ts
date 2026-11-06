@@ -10,7 +10,7 @@ import { apiFetch } from '@/services/http'
 import { ifMatchHeaders } from '@/services/ifMatch'
 
 /**
- * Maps a raw `GearComponentRead` payload to the clean {@link GearComponent}
+ * Maps a raw component payload to the clean {@link GearComponent}
  * model — the single boundary where the backend wire format (snake_case,
  * nullable fields) is normalized so components never see the raw DTO.
  *
@@ -71,7 +71,7 @@ export async function fetchGearComponents(
   gearId: number,
   signal?: AbortSignal,
 ): Promise<GearComponent[]> {
-  const response = await apiFetch<Schemas['Page_GearComponentRead_']>(
+  const response = await apiFetch<Schemas['Page_GearComponentUsageRead_']>(
     `/gears/${gearId}/components`,
     { signal },
   )

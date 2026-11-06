@@ -13,7 +13,7 @@ router = APIRouter()
 
 @router.get(
     "/{gear_id}/components",
-    response_model=core_pagination.Page[gear_components_schema.GearComponentRead],
+    response_model=core_pagination.Page[gear_components_schema.GearComponentUsageRead],
     dependencies=[Security(auth_dependencies.check_scopes, scopes=["gears:read"])],
 )
 def read_gear_components_gear_id(
@@ -22,7 +22,7 @@ def read_gear_components_gear_id(
     db: core_dependencies.DbSession,
     page: core_pagination.ChildPage,
     active: bool | None = None,
-) -> core_pagination.Page[gear_components_schema.GearComponentRead]:
+) -> core_pagination.Page[gear_components_schema.GearComponentUsageRead]:
     """Retrieve one page of a gear's components with the distance and time each has accumulated."""
     return gear_components_service.list_components_for_gear(
         gear_id, token_user_id, db, active=active, page_number=page.page_number, num_records=page.num_records

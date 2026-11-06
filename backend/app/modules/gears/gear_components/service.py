@@ -122,7 +122,7 @@ def list_components_for_gear(
     active: bool | None = None,
     page_number: int = 1,
     num_records: int = core_pagination.DEFAULT_CHILD_NUM_RECORDS,
-) -> core_pagination.Page[gear_components_schema.GearComponentRead]:
+) -> core_pagination.Page[gear_components_schema.GearComponentUsageRead]:
     """Return one page of a gear's components with the distance and time each has accumulated.
 
     Each component accumulates the activities recorded against the gear between its
@@ -144,7 +144,7 @@ def list_components_for_gear(
         user_id, gear_id, db, active=active, page_number=page_number, num_records=num_records
     )
     if not components:
-        return core_pagination.Page.build(components, total, page_number, num_records)
+        return core_pagination.Page.build([], total, page_number, num_records)
 
     windows = [
         gears_contracts.UsageWindow(key=c.id, start_date=c.purchase_date, end_date=c.retired_date)
@@ -154,11 +154,10 @@ def list_components_for_gear(
     totals = gears_contributor_registry.readers().usage_by_window(gear_id, user_id, windows, db)
     no_usage = gears_contracts.UsageTotals()
     items = [
-        component.model_copy(
-            update={
-                "current_distance": totals.get(component.id, no_usage).distance,
-                "current_time": totals.get(component.id, no_usage).time,
-            }
+        gear_components_schema.GearComponentUsageRead(
+            **component.model_dump(),
+            current_distance=totals.get(component.id, no_usage).distance,
+            current_time=totals.get(component.id, no_usage).time,
         )
         for component in components
     ]

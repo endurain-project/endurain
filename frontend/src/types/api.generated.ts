@@ -5432,8 +5432,6 @@ export interface components {
          *         id: Unique identifier.
          *         user_id: Foreign key to user.
          *         version: Optimistic-concurrency counter, also sent as the ``ETag``.
-         *         current_distance: Accumulated distance.
-         *         current_time: Accumulated time.
          */
         GearComponentRead: {
             /**
@@ -5446,18 +5444,6 @@ export interface components {
              * @description Gear component brand
              */
             brand: string;
-            /**
-             * Current Distance
-             * @description Accumulated activity distance in meters
-             * @default 0
-             */
-            current_distance: number;
-            /**
-             * Current Time
-             * @description Accumulated activity time in seconds
-             * @default 0
-             */
-            current_time: number;
             /**
              * Expected Kms
              * @description Expected kilometers
@@ -5589,6 +5575,89 @@ export interface components {
              * @description Type of gear component
              */
             type?: string | null;
+        };
+        /**
+         * GearComponentUsageRead
+         * @description A gear component with the usage it has accumulated, served by the per-gear list only.
+         *
+         *     Attributes:
+         *         current_distance: Accumulated distance in meters.
+         *         current_time: Accumulated time in seconds.
+         */
+        GearComponentUsageRead: {
+            /**
+             * Active
+             * @description Whether the component is active
+             */
+            active?: boolean | null;
+            /**
+             * Brand
+             * @description Gear component brand
+             */
+            brand: string;
+            /**
+             * Current Distance
+             * @description Accumulated activity distance in meters
+             * @default 0
+             */
+            current_distance: number;
+            /**
+             * Current Time
+             * @description Accumulated activity time in seconds
+             * @default 0
+             */
+            current_time: number;
+            /**
+             * Expected Kms
+             * @description Expected kilometers
+             */
+            expected_kms?: number | null;
+            /**
+             * Gear Id
+             * @description Foreign key to gear
+             */
+            gear_id: number;
+            /**
+             * Id
+             * @description Unique identifier
+             */
+            readonly id: number;
+            /**
+             * Model
+             * @description Gear component model
+             */
+            model: string;
+            /**
+             * Purchase Date
+             * @description Purchase date
+             */
+            purchase_date?: string | null;
+            /**
+             * Purchase Value
+             * @description Purchase value
+             */
+            purchase_value?: number | null;
+            /**
+             * Retired Date
+             * @description Retired date
+             */
+            retired_date?: string | null;
+            /**
+             * Type
+             * @description Type of gear component
+             */
+            type: string;
+            /**
+             * User Id
+             * @description Foreign key to user
+             */
+            user_id: number;
+            /**
+             * Version
+             * @description Optimistic-concurrency counter
+             * @default 1
+             */
+            readonly version: number;
         };
         /**
          * GearCreateRequest
@@ -9066,6 +9135,19 @@ export interface components {
         Page_GearComponentRead_: {
             /** Items */
             items: components["schemas"]["GearComponentRead"][];
+            /** Next */
+            next?: number | null;
+            /** Num Records */
+            num_records: number;
+            /** Page */
+            page: number;
+            /** Total */
+            total: number;
+        };
+        /** Page[GearComponentUsageRead] */
+        Page_GearComponentUsageRead_: {
+            /** Items */
+            items: components["schemas"]["GearComponentUsageRead"][];
             /** Next */
             next?: number | null;
             /** Num Records */
@@ -17889,7 +17971,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["Page_GearComponentRead_"];
+                    "application/json": components["schemas"]["Page_GearComponentUsageRead_"];
                 };
             };
             /** @description The credential is missing, invalid or no longer valid. */

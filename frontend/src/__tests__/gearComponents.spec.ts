@@ -101,8 +101,6 @@ describe('mapGearComponent', () => {
         type: 'cleats',
         brand: 'Look',
         model: 'Keo',
-        current_distance: 0,
-        current_time: 0,
         version: 1,
       }),
     ).toEqual({
