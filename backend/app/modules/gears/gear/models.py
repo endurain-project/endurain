@@ -22,7 +22,7 @@ class Gear(Base):
         user_id: Foreign key to users table.
         acquired_on: Date the user acquired the gear.
         active: Whether the gear is active.
-        initial_kms: Initial kilometers.
+        initial_distance: Distance the gear had before it was tracked, in meters.
         purchase_value: Gear purchase value.
         strava_gear_id: Strava gear ID.
         garminconnect_gear_id: Garmin gear ID.
@@ -76,11 +76,11 @@ class Gear(Base):
         default=True,
         comment=("Whether the gear is active (true - yes, false - no)"),
     )
-    initial_kms: Mapped[Decimal] = mapped_column(
-        Numeric(precision=11, scale=2),
+    initial_distance: Mapped[Decimal] = mapped_column(
+        Numeric(precision=14, scale=2),
         nullable=False,
         default=0,
-        comment=("Initial kilometers of the gear"),
+        comment=("Distance of the gear before it was tracked, in meters"),
     )
     purchase_value: Mapped[Decimal | None] = mapped_column(
         Numeric(precision=11, scale=2),

@@ -9,9 +9,10 @@ are computed.
 """
 
 import datetime
-from typing import Any, TypedDict
+from typing import Annotated, Any, TypedDict
 
 import numpy as np
+from pydantic import Field
 
 import core.timezone as core_timezone
 
@@ -31,9 +32,9 @@ class HrZone(TypedDict):
         time_seconds: Timer time spent in the zone, in seconds.
     """
 
-    percent: float
-    hr: str
-    time_seconds: int
+    percent: Annotated[float, Field(description="Share of the heart-rate samples in the zone, as a percentage (0-100)")]
+    hr: Annotated[str, Field(description="The zone's heart-rate range in beats per minute, such as 120 - 139")]
+    time_seconds: Annotated[int, Field(description="Timer time spent in the zone in seconds")]
 
 
 class HrZoneBreakdown(TypedDict):

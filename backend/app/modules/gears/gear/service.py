@@ -16,6 +16,7 @@ import core.etag as core_etag
 import core.exceptions as core_exceptions
 import core.logger as core_logger
 import core.pagination as core_pagination
+import core.types as core_types
 import modules.gears.contributor_registry as gears_contributor_registry
 import modules.gears.gear.constants as gears_constants
 import modules.gears.gear.crud as gears_crud
@@ -83,12 +84,11 @@ def read_gear_detail(gear_id: int, user_id: int, db: Session) -> gears_schema.Ge
     readers = gears_contributor_registry.readers()
     usage = readers.usage(gear_id, user_id, db)
     components_cost = readers.components_cost(gear_id, user_id, db)
-    initial_kms_m = float(gear.initial_kms or 0) * 1000
     return gears_schema.GearDetailRead(
         **gear.model_dump(),
-        total_distance=usage.distance + initial_kms_m,
+        total_distance=usage.distance + (gear.initial_distance or 0.0),
         total_time=usage.time,
-        total_components_cost=components_cost,
+        total_components_cost=f"{components_cost:.2f}",
     )
 
 
@@ -177,6 +177,7 @@ def restore_profile_gears(
         original_id = record.pop("id", None)
         record.pop("version", None)
         _read_legacy_creation_timestamp(record)
+        _read_legacy_units(record)
 
         try:
             gear = gears_schema.GearCreate(**record)
@@ -191,6 +192,20 @@ def restore_profile_gears(
 
     logger.debug("Imported gears", extra=core_logger.context(count=restored))
     return restored
+
+
+def _read_legacy_units(record: dict[str, Any]) -> None:
+    """Read the units of an archive exported before gear distances were meters and prices decimal strings.
+
+    Args:
+        record: The archived gear; ``initial_kms`` (kilometers) becomes ``initial_distance`` (meters) and a
+            numeric ``purchase_value`` becomes a decimal string.
+    """
+    kilometers = record.pop("initial_kms", None)
+    if isinstance(kilometers, int | float) and not isinstance(kilometers, bool) and "initial_distance" not in record:
+        record["initial_distance"] = float(kilometers) * 1000
+    if "purchase_value" in record:
+        record["purchase_value"] = core_types.money_from_archived_number(record["purchase_value"])
 
 
 def _read_legacy_creation_timestamp(record: dict[str, Any]) -> None:

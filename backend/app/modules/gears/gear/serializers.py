@@ -3,6 +3,8 @@
 ``crud`` calls these at its edges so ORM rows never leave the persistence layer.
 """
 
+from decimal import Decimal
+
 import core.stored_enum as core_stored_enum
 import modules.gears.gear.models as gears_models
 import modules.gears.gear.schema as gears_schema
@@ -30,8 +32,8 @@ def _normalize_payload(data: dict[str, object]) -> dict[str, object]:
         data: Mapping of gear field names to values.
 
     Returns:
-        The mapping with text fields trimmed and a None ``acquired_on`` removed so
-        the column default applies.
+        The mapping with text fields trimmed, a None ``acquired_on`` removed so
+        the column default applies, and the purchase price as a ``Decimal``.
     """
     for field in _TEXT_FIELDS:
         value = data.get(field)
@@ -39,6 +41,9 @@ def _normalize_payload(data: dict[str, object]) -> dict[str, object]:
             data[field] = value.strip()
     if data.get("acquired_on") is None:
         data.pop("acquired_on", None)
+    purchase_value = data.get("purchase_value")
+    if isinstance(purchase_value, str):
+        data["purchase_value"] = Decimal(purchase_value)
     return data
 
 

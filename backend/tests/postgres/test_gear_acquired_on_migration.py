@@ -40,7 +40,7 @@ def test_upgrade_keeps_each_rows_utc_calendar_day_and_downgrade_restores_a_times
         for nickname, moment in (("late", "2024-03-05 23:30:00-02"), ("early", "2024-03-05 00:30:00+05")):
             db.execute(
                 text(
-                    "INSERT INTO gear (nickname, gear_type, user_id, active, initial_kms, created_at, version) "
+                    "INSERT INTO gear (nickname, gear_type, user_id, active, initial_distance, created_at, version) "
                     "VALUES (:n, 1, 1, true, 0, :m, 1)"
                 ),
                 {"n": nickname, "m": moment},
@@ -52,7 +52,7 @@ def test_upgrade_keeps_each_rows_utc_calendar_day_and_downgrade_restores_a_times
         upgraded = dict(db.execute(text("SELECT nickname, acquired_on FROM gear")).all())
         db.execute(
             text(
-                "INSERT INTO gear (nickname, gear_type, user_id, active, initial_kms, version) VALUES ('d', 1, 1, true, 0, 1)"
+                "INSERT INTO gear (nickname, gear_type, user_id, active, initial_distance, version) VALUES ('d', 1, 1, true, 0, 1)"
             )
         )
         defaulted = db.scalar(text("SELECT acquired_on FROM gear WHERE nickname = 'd'"))

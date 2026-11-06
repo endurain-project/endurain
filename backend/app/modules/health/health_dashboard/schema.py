@@ -31,7 +31,7 @@ class HealthSleepDashboard(BaseModel):
     )
     avg_skin_temp_deviation: StrictFloat | None = Field(
         default=None,
-        description="Average skin temperature deviation",
+        description="Average skin temperature deviation from the baseline in degrees Celsius",
     )
 
     model_config = ConfigDict(

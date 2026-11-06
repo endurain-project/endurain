@@ -11,6 +11,10 @@ import type { Schemas } from '@/types'
 
 import { apiFetch, HttpError } from '@/services/http'
 import { ifMatchHeaders } from '@/services/ifMatch'
+import { moneyToNumber, numberToMoney } from '@/utils/number'
+
+/** Meters in a kilometre: the API's gear distances are meters, the gear model keeps kilometres. */
+const METERS_PER_KM = 1000
 
 /** Largest page the list endpoint serves; the filtered lookups fetch one such page. */
 const MAX_NUM_RECORDS = 200
@@ -43,8 +47,8 @@ export function mapGear(dto: GearDto): Gear {
     model: dto.model ?? null,
     active: dto.active ?? true,
     acquiredOn: dto.acquired_on ?? null,
-    initialKms: dto.initial_kms ?? null,
-    purchaseValue: dto.purchase_value ?? null,
+    initialKms: dto.initial_distance == null ? null : dto.initial_distance / METERS_PER_KM,
+    purchaseValue: moneyToNumber(dto.purchase_value),
     stravaGearId: dto.strava_gear_id ?? null,
     garminConnectGearId: dto.garminconnect_gear_id ?? null,
     version: dto.version ?? 1,
@@ -63,7 +67,7 @@ export function mapGearDetail(dto: GearDetailDto): GearDetail {
     ...mapGear(dto),
     totalDistance: dto.total_distance,
     totalTime: dto.total_time,
-    totalComponentsCost: dto.total_components_cost,
+    totalComponentsCost: moneyToNumber(dto.total_components_cost) ?? 0,
   }
 }
 
@@ -82,8 +86,9 @@ function toGearWireFields(input: GearInput) {
     model: input.model,
     active: input.active,
     acquired_on: input.acquiredOn,
-    initial_kms: input.initialKms,
-    purchase_value: input.purchaseValue,
+    initial_distance:
+      input.initialKms === null ? null : Math.round(input.initialKms * METERS_PER_KM),
+    purchase_value: numberToMoney(input.purchaseValue),
   }
 }
 
@@ -200,7 +205,7 @@ export async function createGear(input: GearInput): Promise<Gear> {
 /**
  * Updates an existing gear and returns the persisted record.
  *
- * `acquired_on` and `initial_kms` cannot be cleared on the backend, so they are left out of
+ * `acquired_on` and `initial_distance` cannot be cleared on the backend, so they are left out of
  * the partial update when empty.
  *
  * @param id - The gear id to update.
@@ -210,11 +215,11 @@ export async function createGear(input: GearInput): Promise<Gear> {
  * @throws {HttpError} When the request fails, including 412 when the copy is stale.
  */
 export async function updateGear(id: number, input: GearInput, version: number): Promise<Gear> {
-  const { acquired_on, initial_kms, ...fields } = toGearWireFields(input)
+  const { acquired_on, initial_distance, ...fields } = toGearWireFields(input)
   const payload: Schemas['GearUpdate'] = {
     ...fields,
     ...(acquired_on === null ? {} : { acquired_on }),
-    ...(initial_kms === null ? {} : { initial_kms }),
+    ...(initial_distance === null ? {} : { initial_distance }),
   }
   const dto = await apiFetch<GearDto>(`/gears/${id}`, {
     method: 'PATCH',

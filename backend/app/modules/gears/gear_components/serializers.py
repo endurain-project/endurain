@@ -3,6 +3,8 @@
 ``crud`` calls these at its edges so ORM rows never leave the persistence layer.
 """
 
+from decimal import Decimal
+
 import modules.gears.gear_components.models as gear_components_models
 import modules.gears.gear_components.schema as gear_components_schema
 
@@ -45,5 +47,21 @@ def to_orm(
         retired_date=gear_component.retired_date,
         active=gear_component.retired_date is None and gear_component.active is not False,
         expected_kms=gear_component.expected_kms,
-        purchase_value=gear_component.purchase_value,
+        purchase_value=Decimal(gear_component.purchase_value) if gear_component.purchase_value is not None else None,
     )
+
+
+def to_update_values(gear_component: gear_components_schema.GearComponentUpdate) -> dict[str, object]:
+    """Return the columns an update payload changes.
+
+    Args:
+        gear_component: The update payload.
+
+    Returns:
+        The fields the client sent, with the purchase price as a ``Decimal``.
+    """
+    values: dict[str, object] = dict(gear_component.model_dump(exclude_unset=True))
+    purchase_value = values.get("purchase_value")
+    if isinstance(purchase_value, str):
+        values["purchase_value"] = Decimal(purchase_value)
+    return values

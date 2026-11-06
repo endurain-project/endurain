@@ -82,7 +82,13 @@ class StreamWaypoint(BaseModel):
 
     model_config = ConfigDict(extra="allow")
 
-    time: Annotated[str | _Number | None, Field(exclude_if=lambda value: value is None)] = None
+    time: Annotated[
+        str | _Number | None,
+        Field(
+            exclude_if=lambda value: value is None,
+            description="When the sample was taken: a UTC timestamp, or seconds from the start for a Strava stream",
+        ),
+    ] = None
 
 
 class HeartRateWaypoint(StreamWaypoint):
@@ -92,7 +98,7 @@ class HeartRateWaypoint(StreamWaypoint):
         hr: Heart rate in bpm.
     """
 
-    hr: _Number | None = None
+    hr: _Number | None = Field(default=None, description="Heart rate in beats per minute")
 
 
 class PowerWaypoint(StreamWaypoint):
@@ -102,7 +108,7 @@ class PowerWaypoint(StreamWaypoint):
         power: Power in watts.
     """
 
-    power: _Number | None = None
+    power: _Number | None = Field(default=None, description="Power in watts")
 
 
 class CadenceWaypoint(StreamWaypoint):
@@ -112,7 +118,9 @@ class CadenceWaypoint(StreamWaypoint):
         cad: Cadence in rpm (spm for running).
     """
 
-    cad: _Number | None = None
+    cad: _Number | None = Field(
+        default=None, description="Cadence in revolutions per minute (steps per minute for running)"
+    )
 
 
 class ElevationWaypoint(StreamWaypoint):
@@ -122,7 +130,7 @@ class ElevationWaypoint(StreamWaypoint):
         ele: Elevation in meters.
     """
 
-    ele: _Number | None = None
+    ele: _Number | None = Field(default=None, description="Elevation in meters")
 
 
 class SpeedWaypoint(StreamWaypoint):
@@ -132,7 +140,7 @@ class SpeedWaypoint(StreamWaypoint):
         vel: Speed in m/s.
     """
 
-    vel: _Number | None = None
+    vel: _Number | None = Field(default=None, description="Speed in meters per second")
 
 
 class PaceWaypoint(StreamWaypoint):
@@ -142,7 +150,7 @@ class PaceWaypoint(StreamWaypoint):
         pace: Pace in s/m; 0 where the speed is 0.
     """
 
-    pace: _Number | None = None
+    pace: _Number | None = Field(default=None, description="Pace in seconds per meter; 0 where the speed is 0")
 
 
 class MapWaypoint(StreamWaypoint):
@@ -153,8 +161,8 @@ class MapWaypoint(StreamWaypoint):
         lon: Longitude in decimal degrees.
     """
 
-    lat: _Number | None = None
-    lon: _Number | None = None
+    lat: _Number | None = Field(default=None, description="Latitude in decimal degrees")
+    lon: _Number | None = Field(default=None, description="Longitude in decimal degrees")
 
 
 class TemperatureWaypoint(StreamWaypoint):
@@ -164,7 +172,7 @@ class TemperatureWaypoint(StreamWaypoint):
         temp: Temperature in degrees Celsius.
     """
 
-    temp: _Number | None = None
+    temp: _Number | None = Field(default=None, description="Temperature in degrees Celsius")
 
 
 #: The stream type a response carries, built from the stored integer the services handle.

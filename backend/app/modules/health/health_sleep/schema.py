@@ -209,25 +209,39 @@ class HealthSleepBase(BaseModel):
     light_sleep_seconds: StrictInt | None = Field(default=None, ge=0, description="Duration of light sleep in seconds")
     rem_sleep_seconds: StrictInt | None = Field(default=None, ge=0, description="Duration of REM sleep in seconds")
     awake_sleep_seconds: StrictInt | None = Field(default=None, ge=0, description="Duration of awake time in seconds")
-    avg_heart_rate: StrictInt | None = Field(default=None, ge=20, le=220, description="Average heart rate during sleep")
-    min_heart_rate: StrictInt | None = Field(default=None, ge=20, le=220, description="Minimum heart rate during sleep")
-    max_heart_rate: StrictInt | None = Field(default=None, ge=20, le=220, description="Maximum heart rate during sleep")
+    avg_heart_rate: StrictInt | None = Field(
+        default=None, ge=20, le=220, description="Average heart rate during sleep in beats per minute"
+    )
+    min_heart_rate: StrictInt | None = Field(
+        default=None, ge=20, le=220, description="Minimum heart rate during sleep in beats per minute"
+    )
+    max_heart_rate: StrictInt | None = Field(
+        default=None, ge=20, le=220, description="Maximum heart rate during sleep in beats per minute"
+    )
     avg_spo2_percent: StrictInt | None = Field(
         default=None,
         ge=70,
         le=100,
-        description="Average SpO2 oxygen saturation percentage",
+        description="Average SpO2 oxygen saturation as a percentage (70-100)",
     )
     lowest_spo2_percent: StrictInt | None = Field(
-        default=None, ge=70, le=100, description="Lowest SpO2 reading during sleep"
+        default=None, ge=70, le=100, description="Lowest SpO2 reading during sleep as a percentage (70-100)"
     )
     highest_spo2_percent: StrictInt | None = Field(
-        default=None, ge=70, le=100, description="Highest SpO2 reading during sleep"
+        default=None, ge=70, le=100, description="Highest SpO2 reading during sleep as a percentage (70-100)"
     )
-    avg_respiration: StrictInt | None = Field(default=None, ge=0, description="Average respiration rate")
-    lowest_respiration: StrictInt | None = Field(default=None, ge=0, description="Lowest respiration rate")
-    highest_respiration: StrictInt | None = Field(default=None, ge=0, description="Highest respiration rate")
-    avg_stress_level: StrictInt | None = Field(default=None, ge=0, le=100, description="Average stress level")
+    avg_respiration: StrictInt | None = Field(
+        default=None, ge=0, description="Average respiration rate in breaths per minute"
+    )
+    lowest_respiration: StrictInt | None = Field(
+        default=None, ge=0, description="Lowest respiration rate in breaths per minute"
+    )
+    highest_respiration: StrictInt | None = Field(
+        default=None, ge=0, description="Highest respiration rate in breaths per minute"
+    )
+    avg_stress_level: StrictInt | None = Field(
+        default=None, ge=0, le=100, description="Average stress level, a score from 0 to 100"
+    )
     awake_count: StrictInt | None = Field(default=None, ge=0, description="Number of times awake during sleep")
     restless_moments_count: StrictInt | None = Field(
         default=None, ge=0, description="Number of restless moments during sleep"
@@ -237,13 +251,19 @@ class HealthSleepBase(BaseModel):
     sleep_score_quality: SleepScore | None = Field(default=None, description="Sleep quality score")
     sleep_stages: Sequence[HealthSleepStage] | None = Field(default=None, description="List of sleep stages")
     hrv_status: HRVStatus | None = Field(default=None, description="Heart rate variability status")
-    resting_heart_rate: StrictInt | None = Field(default=None, ge=20, le=220, description="Resting heart rate")
-    avg_skin_temp_deviation: StrictFloat | None = Field(default=None, description="Average skin temperature deviation")
+    resting_heart_rate: StrictInt | None = Field(
+        default=None, ge=20, le=220, description="Resting heart rate in beats per minute"
+    )
+    avg_skin_temp_deviation: StrictFloat | None = Field(
+        default=None, description="Average skin temperature deviation from the baseline in degrees Celsius"
+    )
     awake_count_score: SleepScore | None = Field(default=None, description="Awake count score")
     rem_percentage_score: SleepScore | None = Field(default=None, description="REM percentage score")
     deep_percentage_score: SleepScore | None = Field(default=None, description="Deep sleep percentage score")
     light_percentage_score: SleepScore | None = Field(default=None, description="Light sleep percentage score")
-    avg_sleep_stress: StrictInt | None = Field(default=None, ge=0, le=100, description="Average sleep stress")
+    avg_sleep_stress: StrictInt | None = Field(
+        default=None, ge=0, le=100, description="Average sleep stress, a score from 0 to 100"
+    )
     sleep_stress_score: SleepScore | None = Field(default=None, description="Sleep stress score")
 
     model_config = ConfigDict(

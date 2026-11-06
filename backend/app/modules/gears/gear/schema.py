@@ -49,8 +49,8 @@ class GearType(StoredStrEnum):
 StoredGearType = Annotated[GearType, BeforeValidator(GearType.accept_stored)]
 
 
-#: The largest value of a ``Numeric(11, 2)`` column (``initial_kms``, ``purchase_value``).
-MAX_AMOUNT = 999_999_999.99
+#: The largest value of the ``initial_distance`` column, a ``Numeric(14, 2)`` of meters.
+MAX_INITIAL_DISTANCE = 999_999_999_999.99
 
 
 def _require_nickname(value: str) -> str:
@@ -99,8 +99,8 @@ class GearBase(BaseModel):
         gear_type: Gear type identifier.
         acquired_on: Date the user acquired the gear; today when a gear is created without one.
         active: Whether the gear is active.
-        initial_kms: Initial kilometers.
-        purchase_value: Purchase value.
+        initial_distance: Distance the gear had before it was tracked, in meters.
+        purchase_value: Purchase price as a decimal string in the owner's currency.
     """
 
     brand: StrictStr | None = Field(
@@ -130,17 +130,18 @@ class GearBase(BaseModel):
         default=None,
         description="Whether the gear is active",
     )
-    initial_kms: StrictFloat | None = Field(
+    initial_distance: StrictFloat | None = Field(
         default=None,
         ge=0,
-        le=MAX_AMOUNT,
-        description="Initial kilometers",
+        le=MAX_INITIAL_DISTANCE,
+        description="Distance the gear had before it was tracked, in meters, the unit of total_distance",
     )
-    purchase_value: StrictFloat | None = Field(
+    purchase_value: core_types.Money | None = Field(
         default=None,
-        ge=0,
-        le=MAX_AMOUNT,
-        description="Purchase value",
+        description=(
+            "Purchase price as a decimal string with two decimals, in the owner's currency "
+            "(the `currency` user setting), such as 129.90"
+        ),
     )
 
     model_config = ConfigDict(
@@ -236,7 +237,7 @@ class GearDetailRead(GearRead):
     Attributes:
         total_distance: Total distance (m).
         total_time: Total time (seconds).
-        total_components_cost: Sum of parts.
+        total_components_cost: Sum of the component purchase values as a decimal string in the owner's currency.
     """
 
     total_distance: StrictFloat = Field(
@@ -249,10 +250,12 @@ class GearDetailRead(GearRead):
         ge=0,
         description=("Total activity time in seconds"),
     )
-    total_components_cost: StrictFloat = Field(
-        default=0,
-        ge=0,
-        description=("Sum of component purchase values"),
+    total_components_cost: core_types.MoneyTotal = Field(
+        default="0.00",
+        description=(
+            "Sum of the component purchase values as a decimal string with two decimals, in the owner's "
+            "currency (the `currency` user setting)"
+        ),
     )
 
 
@@ -262,7 +265,7 @@ class GearUpdate(core_partial_update.NotClearable, GearBase):
     The gear comes from the path; provider gear IDs cannot be changed.
     """
 
-    not_clearable = ("nickname", "gear_type", "acquired_on", "active", "initial_kms")
+    not_clearable = ("nickname", "gear_type", "acquired_on", "active", "initial_distance")
 
     acquired_on: core_types.RecordDate | None = Field(
         default=None,

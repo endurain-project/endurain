@@ -37,8 +37,8 @@ const gearDto: GearDto = {
   brand: 'Canyon',
   model: 'Endurace',
   acquired_on: '2024-01-15',
-  initial_kms: 100,
-  purchase_value: 2500,
+  initial_distance: 100_000,
+  purchase_value: '2500.00',
   strava_gear_id: 'b123',
   garminconnect_gear_id: 'g456',
   version: 3,
@@ -78,8 +78,8 @@ const expectedWirePayload = {
   model: 'Domane',
   active: true,
   acquired_on: '2024-02-01',
-  initial_kms: 0,
-  purchase_value: 1000,
+  initial_distance: 0,
+  purchase_value: '1000.00',
 }
 
 describe('mapGear', () => {
@@ -114,7 +114,7 @@ describe('mapGearDetail', () => {
       ...gearDto,
       total_distance: 5000,
       total_time: 3600,
-      total_components_cost: 50,
+      total_components_cost: '50.00',
     }
 
     expect(mapGearDetail(detailDto)).toEqual({
@@ -219,7 +219,7 @@ describe('gear service requests', () => {
 
     const body = JSON.parse(vi.mocked(apiFetch).mock.calls[0]![1]!.body as string)
     expect(body).not.toHaveProperty('acquired_on')
-    expect(body).not.toHaveProperty('initial_kms')
+    expect(body).not.toHaveProperty('initial_distance')
   })
 
   it('deletes a gear via a void DELETE', async () => {

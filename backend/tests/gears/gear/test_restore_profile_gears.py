@@ -85,3 +85,23 @@ def test_an_unreadable_creation_timestamp_falls_back_to_the_default(db):
 
     assert restored == 1
     assert crud.get_gear_user(1, db)[0].acquired_on == date.today()
+
+
+def test_an_archive_from_before_meters_and_decimal_prices_is_read_as_todays_units(db):
+    ids: dict[str, dict[int, int]] = {}
+    archived = {"id": 5, "nickname": "Old", "gear_type": 1, "initial_kms": 12.5, "purchase_value": 99.9}
+
+    assert service.restore_profile_gears([archived], 1, ids, db) == 1
+
+    restored = crud.get_gear_user(1, db)[0]
+    assert (restored.initial_distance, restored.purchase_value) == (12_500.0, "99.90")
+
+
+def test_an_archive_with_current_units_is_kept_as_it_is(db):
+    ids: dict[str, dict[int, int]] = {}
+    archived = {"nickname": "New", "gear_type": 1, "initial_distance": 12_500.0, "purchase_value": "99.90"}
+
+    service.restore_profile_gears([archived], 1, ids, db)
+
+    restored = crud.get_gear_user(1, db)[0]
+    assert (restored.initial_distance, restored.purchase_value) == (12_500.0, "99.90")

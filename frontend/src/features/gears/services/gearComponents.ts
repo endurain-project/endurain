@@ -8,6 +8,7 @@ import type { Schemas } from '@/types'
 
 import { apiFetch } from '@/services/http'
 import { ifMatchHeaders } from '@/services/ifMatch'
+import { moneyToNumber, numberToMoney } from '@/utils/number'
 
 /**
  * Maps a raw component payload to the clean {@link GearComponent}
@@ -29,7 +30,7 @@ export function mapGearComponent(dto: GearComponentDto): GearComponent {
     retiredDate: dto.retired_date ?? null,
     active: dto.active ?? true,
     expectedBaseUnits: dto.expected_kms ?? null,
-    purchaseValue: dto.purchase_value ?? null,
+    purchaseValue: moneyToNumber(dto.purchase_value),
     currentDistance: dto.current_distance ?? 0,
     currentTime: dto.current_time ?? 0,
     version: dto.version ?? 1,
@@ -53,7 +54,7 @@ function toComponentWireFields(input: GearComponentInput) {
     retired_date: input.retiredDate,
     active: input.active,
     expected_kms: input.expectedBaseUnits,
-    purchase_value: input.purchaseValue,
+    purchase_value: numberToMoney(input.purchaseValue),
   }
 }
 

@@ -72,7 +72,7 @@ class HealthWeightBase(BaseModel):
     )
     bone_mass_kg: StrictFloat | None = Field(default=None, ge=0, le=500, description="Bone mass in kilograms")
     muscle_mass_kg: StrictFloat | None = Field(default=None, ge=0, le=500, description="Muscle mass in kilograms")
-    physique_rating: StrictInt | None = Field(default=None, ge=0, description="Physique rating")
+    physique_rating: StrictInt | None = Field(default=None, ge=0, description="Physique rating, a score (not a unit)")
     visceral_fat: StrictFloat | None = Field(
         default=None, ge=0, le=100, description="Visceral fat rating (a score, not a unit)"
     )

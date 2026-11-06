@@ -24,8 +24,8 @@ class TestListGears:
 
 
 class TestReadGearDetail:
-    def test_totals_add_the_initial_kilometres_to_recorded_usage(self, db):
-        created = crud.create_gear(gear_create(initial_kms=10.0), 1, db)
+    def test_totals_add_the_initial_distance_to_recorded_usage(self, db):
+        created = crud.create_gear(gear_create(initial_distance=10_000.0), 1, db)
         install_readers(
             usage=lambda gear_id, user_id, _db: gears_contracts.UsageTotals(distance=500.0, time=60.0),
             components_cost=lambda gear_id, user_id, _db: 99.5,
@@ -33,7 +33,7 @@ class TestReadGearDetail:
 
         detail = service.read_gear_detail(created.id, 1, db)
 
-        assert (detail.total_distance, detail.total_time, detail.total_components_cost) == (10_500.0, 60.0, 99.5)
+        assert (detail.total_distance, detail.total_time, detail.total_components_cost) == (10_500.0, 60.0, "99.50")
 
     def test_an_unknown_gear_is_not_found_without_asking_for_usage(self, db):
         with pytest.raises(core_exceptions.NotFoundError):

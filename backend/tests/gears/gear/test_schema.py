@@ -1,4 +1,5 @@
 from datetime import date
+from decimal import Decimal
 
 import pytest
 from pydantic import ValidationError
@@ -6,30 +7,43 @@ from pydantic import ValidationError
 import modules.gears.gear.schema as gear_schema
 import modules.gears.gear_components.schema as component_schema
 
-#: The largest value a ``Numeric(11, 2)`` column holds.
-NUMERIC_11_2_MAX = 999_999_999.99
+#: The largest price a ``Numeric(11, 2)`` column holds.
+MONEY_MAX = "999999999.99"
 
 
-@pytest.mark.parametrize("field", ["initial_kms", "purchase_value"])
-def test_a_gear_amount_beyond_the_column_is_rejected(field):
+def test_an_initial_distance_beyond_the_column_is_rejected():
     with pytest.raises(ValidationError):
-        gear_schema.GearUpdate(**{field: 1e9})
+        gear_schema.GearUpdate(initial_distance=1e12)
 
 
-@pytest.mark.parametrize("field", ["initial_kms", "purchase_value"])
-def test_a_gear_amount_at_the_column_maximum_is_accepted(field):
-    assert getattr(gear_schema.GearUpdate(**{field: NUMERIC_11_2_MAX}), field) == NUMERIC_11_2_MAX
+def test_an_initial_distance_at_the_column_maximum_is_accepted():
+    update = gear_schema.GearUpdate(initial_distance=gear_schema.MAX_INITIAL_DISTANCE)
+
+    assert update.initial_distance == gear_schema.MAX_INITIAL_DISTANCE
 
 
-def test_a_component_purchase_value_beyond_the_column_is_rejected():
+def test_the_old_initial_kilometres_field_is_refused():
     with pytest.raises(ValidationError):
-        component_schema.GearComponentUpdate(purchase_value=1e9)
+        gear_schema.GearUpdate(initial_kms=10.0)
 
 
-def test_a_component_purchase_value_at_the_column_maximum_is_accepted():
-    update = component_schema.GearComponentUpdate(purchase_value=NUMERIC_11_2_MAX)
+@pytest.mark.parametrize("schema", [gear_schema.GearUpdate, component_schema.GearComponentUpdate])
+def test_a_purchase_value_is_a_decimal_string_with_two_decimals(schema):
+    assert schema(purchase_value="129.90").purchase_value == "129.90"
+    assert schema(purchase_value=MONEY_MAX).purchase_value == MONEY_MAX
 
-    assert update.purchase_value == NUMERIC_11_2_MAX
+
+@pytest.mark.parametrize("value", [129.9, 129, "129.9", "129", "129,90", "-1.00", "1000000000.00", " 12.00", "abc"])
+@pytest.mark.parametrize("schema", [gear_schema.GearUpdate, component_schema.GearComponentUpdate])
+def test_a_purchase_value_that_is_not_a_decimal_string_is_rejected(schema, value):
+    with pytest.raises(ValidationError):
+        schema(purchase_value=value)
+
+
+def test_a_stored_decimal_is_read_as_a_decimal_string():
+    read = component_schema.GearComponentUpdate.model_validate({"purchase_value": Decimal("45.5")})
+
+    assert read.purchase_value == "45.50"
 
 
 def test_expected_kms_beyond_the_integer_column_is_rejected():

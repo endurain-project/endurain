@@ -144,7 +144,7 @@ class TestWrites:
         assert (updated.nickname, updated.brand, updated.user_id) == ("Gravel", "Trek", 1)
 
     def test_edit_clears_a_nullable_field_sent_as_null(self, db):
-        created = crud.create_gear(gear_create(brand="Trek", purchase_value=10.0), 1, db)
+        created = crud.create_gear(gear_create(brand="Trek", purchase_value="10.00"), 1, db)
 
         updated = crud.edit_gear(created.id, schema.GearUpdate(brand=None, purchase_value=None), 1, db, if_match="*")
 

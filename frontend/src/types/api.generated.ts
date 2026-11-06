@@ -4432,37 +4432,85 @@ export interface components {
         ActivityLapsRead: {
             /** Activity Id */
             activity_id: number;
-            /** Avg Cadence */
+            /**
+             * Avg Cadence
+             * @description Average cadence in revolutions per minute (steps per minute for running)
+             */
             avg_cadence?: number | null;
-            /** Avg Fractional Cadence */
+            /**
+             * Avg Fractional Cadence
+             * @description Fractional part of the average cadence in revolutions per minute
+             */
             avg_fractional_cadence?: number | null;
-            /** Avg Heart Rate */
+            /**
+             * Avg Heart Rate
+             * @description Average heart rate in beats per minute
+             */
             avg_heart_rate?: number | null;
-            /** Avg Power */
+            /**
+             * Avg Power
+             * @description Average power in watts
+             */
             avg_power?: number | null;
-            /** Avg Stance Time */
+            /**
+             * Avg Stance Time
+             * @description Average ground contact time in milliseconds
+             */
             avg_stance_time?: number | null;
-            /** Avg Step Length */
+            /**
+             * Avg Step Length
+             * @description Average step length in millimeters
+             */
             avg_step_length?: number | null;
-            /** Avg Vertical Oscillation */
+            /**
+             * Avg Vertical Oscillation
+             * @description Average vertical oscillation in millimeters
+             */
             avg_vertical_oscillation?: number | null;
-            /** Avg Vertical Ratio */
+            /**
+             * Avg Vertical Ratio
+             * @description Average vertical ratio as a percentage
+             */
             avg_vertical_ratio?: number | null;
-            /** End Position Lat */
+            /**
+             * End Position Lat
+             * @description End latitude in decimal degrees
+             */
             end_position_lat?: number | null;
-            /** End Position Long */
+            /**
+             * End Position Long
+             * @description End longitude in decimal degrees
+             */
             end_position_long?: number | null;
-            /** Enhanced Avg Pace */
+            /**
+             * Enhanced Avg Pace
+             * @description Average pace in seconds per meter
+             */
             enhanced_avg_pace?: number | null;
-            /** Enhanced Avg Speed */
+            /**
+             * Enhanced Avg Speed
+             * @description Average speed in meters per second
+             */
             enhanced_avg_speed?: number | null;
-            /** Enhanced Max Altitude */
+            /**
+             * Enhanced Max Altitude
+             * @description Highest altitude in meters
+             */
             enhanced_max_altitude?: number | null;
-            /** Enhanced Max Pace */
+            /**
+             * Enhanced Max Pace
+             * @description Best pace in seconds per meter
+             */
             enhanced_max_pace?: number | null;
-            /** Enhanced Max Speed */
+            /**
+             * Enhanced Max Speed
+             * @description Maximum speed in meters per second
+             */
             enhanced_max_speed?: number | null;
-            /** Enhanced Min Altitude */
+            /**
+             * Enhanced Min Altitude
+             * @description Lowest altitude in meters
+             */
             enhanced_min_altitude?: number | null;
             /** Id */
             readonly id: number;
@@ -4470,41 +4518,86 @@ export interface components {
             intensity?: string | null;
             /** Lap Trigger */
             lap_trigger?: string | null;
-            /** Max Cadence */
+            /**
+             * Max Cadence
+             * @description Maximum cadence in revolutions per minute (steps per minute for running)
+             */
             max_cadence?: number | null;
-            /** Max Fractional Cadence */
+            /**
+             * Max Fractional Cadence
+             * @description Fractional part of the maximum cadence in revolutions per minute
+             */
             max_fractional_cadence?: number | null;
-            /** Max Heart Rate */
+            /**
+             * Max Heart Rate
+             * @description Maximum heart rate in beats per minute
+             */
             max_heart_rate?: number | null;
-            /** Max Power */
+            /**
+             * Max Power
+             * @description Maximum power in watts
+             */
             max_power?: number | null;
-            /** Normalized Power */
+            /**
+             * Normalized Power
+             * @description Normalized power in watts
+             */
             normalized_power?: number | null;
             /** Sport */
             sport?: string | null;
-            /** Start Position Lat */
+            /**
+             * Start Position Lat
+             * @description Start latitude in decimal degrees
+             */
             start_position_lat?: number | null;
-            /** Start Position Long */
+            /**
+             * Start Position Long
+             * @description Start longitude in decimal degrees
+             */
             start_position_long?: number | null;
             /** Start Time */
             start_time: string | null;
             /** Sub Sport */
             sub_sport?: string | null;
-            /** Total Ascent */
+            /**
+             * Total Ascent
+             * @description Elevation gained in the lap in meters
+             */
             total_ascent?: number | null;
-            /** Total Calories */
+            /**
+             * Total Calories
+             * @description Energy burned in the lap in kilocalories
+             */
             total_calories?: number | null;
-            /** Total Cycles */
+            /**
+             * Total Cycles
+             * @description Number of cycles in the lap, such as pedal strokes or strides
+             */
             total_cycles?: number | null;
-            /** Total Descent */
+            /**
+             * Total Descent
+             * @description Elevation lost in the lap in meters
+             */
             total_descent?: number | null;
-            /** Total Distance */
+            /**
+             * Total Distance
+             * @description Distance of the lap in meters
+             */
             total_distance?: number | null;
-            /** Total Elapsed Time */
+            /**
+             * Total Elapsed Time
+             * @description Elapsed time of the lap in seconds
+             */
             total_elapsed_time?: number | null;
-            /** Total Timer Time */
+            /**
+             * Total Timer Time
+             * @description Timer time of the lap in seconds
+             */
             total_timer_time?: number | null;
-            /** Total Work */
+            /**
+             * Total Work
+             * @description Work done in the lap in joules
+             */
             total_work?: number | null;
         };
         /**
@@ -4567,15 +4660,30 @@ export interface components {
          */
         ActivityRead: {
             activity_type: components["schemas"]["ActivityType"];
-            /** Average Cad */
+            /**
+             * Average Cad
+             * @description Average cadence in revolutions per minute (steps per minute for running)
+             */
             average_cad?: number | null;
-            /** Average Hr */
+            /**
+             * Average Hr
+             * @description Average heart rate in beats per minute
+             */
             average_hr?: number | null;
-            /** Average Power */
+            /**
+             * Average Power
+             * @description Average power output in watts
+             */
             average_power?: number | null;
-            /** Average Speed */
+            /**
+             * Average Speed
+             * @description Average speed in meters per second
+             */
             average_speed?: number | null;
-            /** Calories */
+            /**
+             * Calories
+             * @description Estimated energy burned in kilocalories
+             */
             calories?: number | null;
             /** City */
             city?: string | null;
@@ -4585,11 +4693,20 @@ export interface components {
             readonly created_at?: string | null;
             /** Description */
             description?: string | null;
-            /** Distance */
+            /**
+             * Distance
+             * @description Total distance in meters
+             */
             distance: number;
-            /** Elevation Gain */
+            /**
+             * Elevation Gain
+             * @description Total elevation gain in meters
+             */
             elevation_gain?: number | null;
-            /** Elevation Loss */
+            /**
+             * Elevation Loss
+             * @description Total elevation loss in meters
+             */
             elevation_loss?: number | null;
             /** End Time */
             end_time?: string | null;
@@ -4636,13 +4753,25 @@ export interface components {
             is_hidden: boolean;
             /** Map Thumbnail Url */
             map_thumbnail_url?: string | null;
-            /** Max Cad */
+            /**
+             * Max Cad
+             * @description Maximum cadence in revolutions per minute (steps per minute for running)
+             */
             max_cad?: number | null;
-            /** Max Hr */
+            /**
+             * Max Hr
+             * @description Maximum heart rate in beats per minute
+             */
             max_hr?: number | null;
-            /** Max Power */
+            /**
+             * Max Power
+             * @description Maximum power output in watts
+             */
             max_power?: number | null;
-            /** Max Speed */
+            /**
+             * Max Speed
+             * @description Maximum speed in meters per second
+             */
             max_speed?: number | null;
             /**
              * Media
@@ -4651,9 +4780,15 @@ export interface components {
             media?: components["schemas"]["ActivityMediaEmbedded"][];
             /** Name */
             name: string;
-            /** Normalized Power */
+            /**
+             * Normalized Power
+             * @description Normalized power in watts
+             */
             normalized_power?: number | null;
-            /** Pace */
+            /**
+             * Pace
+             * @description Average pace in seconds per meter
+             */
             pace?: number | null;
             /** Private Notes */
             private_notes?: string | null;
@@ -4665,11 +4800,20 @@ export interface components {
             strava_gear_id?: string | null;
             /** Timezone */
             timezone?: string | null;
-            /** Total Cycles */
+            /**
+             * Total Cycles
+             * @description Number of cycles recorded, such as pedal strokes or strides
+             */
             total_cycles?: number | null;
-            /** Total Elapsed Time */
+            /**
+             * Total Elapsed Time
+             * @description Total elapsed wall-clock time in seconds
+             */
             total_elapsed_time?: number | null;
-            /** Total Timer Time */
+            /**
+             * Total Timer Time
+             * @description Active timer time in seconds
+             */
             total_timer_time?: number | null;
             /** Town */
             town?: string | null;
@@ -4682,9 +4826,15 @@ export interface components {
             /** Version */
             readonly version?: number | null;
             visibility?: components["schemas"]["ActivityVisibility"] | null;
-            /** Workout Feeling */
+            /**
+             * Workout Feeling
+             * @description Subjective feeling score from 0 to 100
+             */
             workout_feeling?: number | null;
-            /** Workout Rpe */
+            /**
+             * Workout Rpe
+             * @description Rate of perceived exertion score from 10 to 100
+             */
             workout_rpe?: number | null;
         };
         /**
@@ -4709,7 +4859,10 @@ export interface components {
             category?: number | null;
             /** Category Subtype */
             category_subtype?: number | null;
-            /** Duration */
+            /**
+             * Duration
+             * @description Duration of the set in seconds
+             */
             duration: number;
             /** Id */
             readonly id: number;
@@ -4719,7 +4872,10 @@ export interface components {
             set_type: string;
             /** Start Time */
             start_time: string | null;
-            /** Weight */
+            /**
+             * Weight
+             * @description Weight used in the set in kilograms
+             */
             weight?: number | null;
         };
         /**
@@ -4752,16 +4908,19 @@ export interface components {
         ActivitySportStats: {
             /**
              * Calories
+             * @description Total energy burned in kilocalories
              * @default 0
              */
             calories: number;
             /**
              * Distance
+             * @description Total distance in meters
              * @default 0
              */
             distance: number;
             /**
              * Time
+             * @description Total active time in seconds
              * @default 0
              */
             time: number;
@@ -4867,13 +5026,19 @@ export interface components {
             activity_id: number;
             /** Duration Type */
             duration_type: string;
-            /** Duration Value */
+            /**
+             * Duration Value
+             * @description Duration of the step, in the unit its duration_type names (seconds, meters and so on)
+             */
             duration_value?: number | null;
             /** Exercise Category */
             exercise_category?: number | null;
             /** Exercise Name */
             exercise_name?: number | null;
-            /** Exercise Weight */
+            /**
+             * Exercise Weight
+             * @description Weight of the exercise in kilograms
+             */
             exercise_weight?: number | null;
             /** Id */
             readonly id: number;
@@ -4887,7 +5052,10 @@ export interface components {
             secondary_target_value?: string | null;
             /** Target Type */
             target_type?: string | null;
-            /** Target Value */
+            /**
+             * Target Value
+             * @description Target of the step, in the unit its target_type names (beats per minute, watts and so on)
+             */
             target_value?: number | null;
             /** Weight Display Unit */
             weight_display_unit?: string | null;
@@ -5019,9 +5187,15 @@ export interface components {
          *         cad: Cadence in rpm (spm for running).
          */
         CadenceWaypoint: {
-            /** Cad */
+            /**
+             * Cad
+             * @description Cadence in revolutions per minute (steps per minute for running)
+             */
             cad?: number | null;
-            /** Time */
+            /**
+             * Time
+             * @description When the sample was taken: a UTC timestamp, or seconds from the start for a Strava stream
+             */
             time?: string | number | null;
         } & {
             [key: string]: unknown;
@@ -5138,9 +5312,15 @@ export interface components {
          *         ele: Elevation in meters.
          */
         ElevationWaypoint: {
-            /** Ele */
+            /**
+             * Ele
+             * @description Elevation in meters
+             */
             ele?: number | null;
-            /** Time */
+            /**
+             * Time
+             * @description When the sample was taken: a UTC timestamp, or seconds from the start for a Strava stream
+             */
             time?: string | number | null;
         } & {
             [key: string]: unknown;
@@ -5390,7 +5570,7 @@ export interface components {
             brand: string;
             /**
              * Expected Kms
-             * @description Expected kilometers
+             * @description Wear threshold: meters of activity distance for a distance-tracked gear, seconds of activity time for a time-tracked one (racquet)
              */
             expected_kms?: number | null;
             /**
@@ -5410,9 +5590,9 @@ export interface components {
             purchase_date?: string | null;
             /**
              * Purchase Value
-             * @description Purchase value
+             * @description Purchase price as a decimal string with two decimals, in the owner's currency (the `currency` user setting), such as 129.90
              */
-            purchase_value?: number | null;
+            purchase_value?: string | null;
             /**
              * Retired Date
              * @description Retired date
@@ -5446,7 +5626,7 @@ export interface components {
             brand: string;
             /**
              * Expected Kms
-             * @description Expected kilometers
+             * @description Wear threshold: meters of activity distance for a distance-tracked gear, seconds of activity time for a time-tracked one (racquet)
              */
             expected_kms?: number | null;
             /**
@@ -5471,9 +5651,9 @@ export interface components {
             purchase_date?: string | null;
             /**
              * Purchase Value
-             * @description Purchase value
+             * @description Purchase price as a decimal string with two decimals, in the owner's currency (the `currency` user setting), such as 129.90
              */
-            purchase_value?: number | null;
+            purchase_value?: string | null;
             /**
              * Retired Date
              * @description Retired date
@@ -5547,7 +5727,7 @@ export interface components {
             brand?: string | null;
             /**
              * Expected Kms
-             * @description Expected kilometers
+             * @description Wear threshold: meters of activity distance for a distance-tracked gear, seconds of activity time for a time-tracked one (racquet)
              */
             expected_kms?: number | null;
             /**
@@ -5562,9 +5742,9 @@ export interface components {
             purchase_date?: string | null;
             /**
              * Purchase Value
-             * @description Purchase value
+             * @description Purchase price as a decimal string with two decimals, in the owner's currency (the `currency` user setting), such as 129.90
              */
-            purchase_value?: number | null;
+            purchase_value?: string | null;
             /**
              * Retired Date
              * @description Retired date
@@ -5609,7 +5789,7 @@ export interface components {
             current_time: number;
             /**
              * Expected Kms
-             * @description Expected kilometers
+             * @description Wear threshold: meters of activity distance for a distance-tracked gear, seconds of activity time for a time-tracked one (racquet)
              */
             expected_kms?: number | null;
             /**
@@ -5634,9 +5814,9 @@ export interface components {
             purchase_date?: string | null;
             /**
              * Purchase Value
-             * @description Purchase value
+             * @description Purchase price as a decimal string with two decimals, in the owner's currency (the `currency` user setting), such as 129.90
              */
-            purchase_value?: number | null;
+            purchase_value?: string | null;
             /**
              * Retired Date
              * @description Retired date
@@ -5685,10 +5865,10 @@ export interface components {
             /** @description Gear type identifier */
             gear_type: components["schemas"]["GearType"];
             /**
-             * Initial Kms
-             * @description Initial kilometers
+             * Initial Distance
+             * @description Distance the gear had before it was tracked, in meters, the unit of total_distance
              */
-            initial_kms?: number | null;
+            initial_distance?: number | null;
             /**
              * Model
              * @description Gear model name
@@ -5701,9 +5881,9 @@ export interface components {
             nickname: string;
             /**
              * Purchase Value
-             * @description Purchase value
+             * @description Purchase price as a decimal string with two decimals, in the owner's currency (the `currency` user setting), such as 129.90
              */
-            purchase_value?: number | null;
+            purchase_value?: string | null;
         };
         /**
          * GearDetailRead
@@ -5712,7 +5892,7 @@ export interface components {
          *     Attributes:
          *         total_distance: Total distance (m).
          *         total_time: Total time (seconds).
-         *         total_components_cost: Sum of parts.
+         *         total_components_cost: Sum of the component purchase values as a decimal string in the owner's currency.
          */
         GearDetailRead: {
             /**
@@ -5743,10 +5923,10 @@ export interface components {
              */
             readonly id: number;
             /**
-             * Initial Kms
-             * @description Initial kilometers
+             * Initial Distance
+             * @description Distance the gear had before it was tracked, in meters, the unit of total_distance
              */
-            initial_kms?: number | null;
+            initial_distance?: number | null;
             /**
              * Model
              * @description Gear model name
@@ -5759,9 +5939,9 @@ export interface components {
             nickname: string;
             /**
              * Purchase Value
-             * @description Purchase value
+             * @description Purchase price as a decimal string with two decimals, in the owner's currency (the `currency` user setting), such as 129.90
              */
-            purchase_value?: number | null;
+            purchase_value?: string | null;
             /**
              * Strava Gear Id
              * @description Strava gear ID
@@ -5769,10 +5949,10 @@ export interface components {
             strava_gear_id?: string | null;
             /**
              * Total Components Cost
-             * @description Sum of component purchase values
-             * @default 0
+             * @description Sum of the component purchase values as a decimal string with two decimals, in the owner's currency (the `currency` user setting)
+             * @default 0.00
              */
-            total_components_cost: number;
+            total_components_cost: string;
             /**
              * Total Distance
              * @description Total activity distance in meters
@@ -5835,10 +6015,10 @@ export interface components {
              */
             readonly id: number;
             /**
-             * Initial Kms
-             * @description Initial kilometers
+             * Initial Distance
+             * @description Distance the gear had before it was tracked, in meters, the unit of total_distance
              */
-            initial_kms?: number | null;
+            initial_distance?: number | null;
             /**
              * Model
              * @description Gear model name
@@ -5851,9 +6031,9 @@ export interface components {
             nickname: string;
             /**
              * Purchase Value
-             * @description Purchase value
+             * @description Purchase price as a decimal string with two decimals, in the owner's currency (the `currency` user setting), such as 129.90
              */
-            purchase_value?: number | null;
+            purchase_value?: string | null;
             /**
              * Strava Gear Id
              * @description Strava gear ID
@@ -5912,10 +6092,10 @@ export interface components {
             /** @description Gear type identifier */
             gear_type?: components["schemas"]["GearType"] | null;
             /**
-             * Initial Kms
-             * @description Initial kilometers
+             * Initial Distance
+             * @description Distance the gear had before it was tracked, in meters, the unit of total_distance
              */
-            initial_kms?: number | null;
+            initial_distance?: number | null;
             /**
              * Model
              * @description Gear model name
@@ -5928,9 +6108,9 @@ export interface components {
             nickname?: string | null;
             /**
              * Purchase Value
-             * @description Purchase value
+             * @description Purchase price as a decimal string with two decimals, in the owner's currency (the `currency` user setting), such as 129.90
              */
-            purchase_value?: number | null;
+            purchase_value?: string | null;
         };
         /**
          * Gender
@@ -5999,7 +6179,7 @@ export interface components {
          *
          *     Attributes:
          *         date: First day of the bucket the point aggregates.
-         *         value: The bucket's aggregated value, in the metric's stored unit.
+         *         value: The bucket's value, in the metric's unit.
          */
         HealthChartPoint: {
             /**
@@ -6007,7 +6187,10 @@ export interface components {
              * Format: date
              */
             date: string;
-            /** Value */
+            /**
+             * Value
+             * @description The bucket's value: the average for the weight (kilograms), steps (steps), water (milliliters), sleep (seconds) and resting heart rate (beats per minute) charts, and the number of movements for poop
+             */
             value: number;
         };
         /**
@@ -6436,32 +6619,32 @@ export interface components {
         HealthSleepCreate: {
             /**
              * Avg Heart Rate
-             * @description Average heart rate during sleep
+             * @description Average heart rate during sleep in beats per minute
              */
             avg_heart_rate?: number | null;
             /**
              * Avg Respiration
-             * @description Average respiration rate
+             * @description Average respiration rate in breaths per minute
              */
             avg_respiration?: number | null;
             /**
              * Avg Skin Temp Deviation
-             * @description Average skin temperature deviation
+             * @description Average skin temperature deviation from the baseline in degrees Celsius
              */
             avg_skin_temp_deviation?: number | null;
             /**
              * Avg Sleep Stress
-             * @description Average sleep stress
+             * @description Average sleep stress, a score from 0 to 100
              */
             avg_sleep_stress?: number | null;
             /**
              * Avg Spo2 Percent
-             * @description Average SpO2 oxygen saturation percentage
+             * @description Average SpO2 oxygen saturation as a percentage (70-100)
              */
             avg_spo2_percent?: number | null;
             /**
              * Avg Stress Level
-             * @description Average stress level
+             * @description Average stress level, a score from 0 to 100
              */
             avg_stress_level?: number | null;
             /**
@@ -6490,12 +6673,12 @@ export interface components {
             deep_sleep_seconds?: number | null;
             /**
              * Highest Respiration
-             * @description Highest respiration rate
+             * @description Highest respiration rate in breaths per minute
              */
             highest_respiration?: number | null;
             /**
              * Highest Spo2 Percent
-             * @description Highest SpO2 reading during sleep
+             * @description Highest SpO2 reading during sleep as a percentage (70-100)
              */
             highest_spo2_percent?: number | null;
             /** @description Heart rate variability status */
@@ -6509,22 +6692,22 @@ export interface components {
             light_sleep_seconds?: number | null;
             /**
              * Lowest Respiration
-             * @description Lowest respiration rate
+             * @description Lowest respiration rate in breaths per minute
              */
             lowest_respiration?: number | null;
             /**
              * Lowest Spo2 Percent
-             * @description Lowest SpO2 reading during sleep
+             * @description Lowest SpO2 reading during sleep as a percentage (70-100)
              */
             lowest_spo2_percent?: number | null;
             /**
              * Max Heart Rate
-             * @description Maximum heart rate during sleep
+             * @description Maximum heart rate during sleep in beats per minute
              */
             max_heart_rate?: number | null;
             /**
              * Min Heart Rate
-             * @description Minimum heart rate during sleep
+             * @description Minimum heart rate during sleep in beats per minute
              */
             min_heart_rate?: number | null;
             /**
@@ -6541,7 +6724,7 @@ export interface components {
             rem_sleep_seconds?: number | null;
             /**
              * Resting Heart Rate
-             * @description Resting heart rate
+             * @description Resting heart rate in beats per minute
              */
             resting_heart_rate?: number | null;
             /**
@@ -6609,7 +6792,7 @@ export interface components {
         HealthSleepDashboard: {
             /**
              * Avg Skin Temp Deviation
-             * @description Average skin temperature deviation
+             * @description Average skin temperature deviation from the baseline in degrees Celsius
              */
             avg_skin_temp_deviation?: number | null;
             /**
@@ -6644,32 +6827,32 @@ export interface components {
         HealthSleepRead: {
             /**
              * Avg Heart Rate
-             * @description Average heart rate during sleep
+             * @description Average heart rate during sleep in beats per minute
              */
             avg_heart_rate?: number | null;
             /**
              * Avg Respiration
-             * @description Average respiration rate
+             * @description Average respiration rate in breaths per minute
              */
             avg_respiration?: number | null;
             /**
              * Avg Skin Temp Deviation
-             * @description Average skin temperature deviation
+             * @description Average skin temperature deviation from the baseline in degrees Celsius
              */
             avg_skin_temp_deviation?: number | null;
             /**
              * Avg Sleep Stress
-             * @description Average sleep stress
+             * @description Average sleep stress, a score from 0 to 100
              */
             avg_sleep_stress?: number | null;
             /**
              * Avg Spo2 Percent
-             * @description Average SpO2 oxygen saturation percentage
+             * @description Average SpO2 oxygen saturation as a percentage (70-100)
              */
             avg_spo2_percent?: number | null;
             /**
              * Avg Stress Level
-             * @description Average stress level
+             * @description Average stress level, a score from 0 to 100
              */
             avg_stress_level?: number | null;
             /**
@@ -6703,12 +6886,12 @@ export interface components {
             garminconnect_sleep_id?: string | null;
             /**
              * Highest Respiration
-             * @description Highest respiration rate
+             * @description Highest respiration rate in breaths per minute
              */
             highest_respiration?: number | null;
             /**
              * Highest Spo2 Percent
-             * @description Highest SpO2 reading during sleep
+             * @description Highest SpO2 reading during sleep as a percentage (70-100)
              */
             highest_spo2_percent?: number | null;
             /** @description Heart rate variability status */
@@ -6727,22 +6910,22 @@ export interface components {
             light_sleep_seconds?: number | null;
             /**
              * Lowest Respiration
-             * @description Lowest respiration rate
+             * @description Lowest respiration rate in breaths per minute
              */
             lowest_respiration?: number | null;
             /**
              * Lowest Spo2 Percent
-             * @description Lowest SpO2 reading during sleep
+             * @description Lowest SpO2 reading during sleep as a percentage (70-100)
              */
             lowest_spo2_percent?: number | null;
             /**
              * Max Heart Rate
-             * @description Maximum heart rate during sleep
+             * @description Maximum heart rate during sleep in beats per minute
              */
             max_heart_rate?: number | null;
             /**
              * Min Heart Rate
-             * @description Minimum heart rate during sleep
+             * @description Minimum heart rate during sleep in beats per minute
              */
             min_heart_rate?: number | null;
             /**
@@ -6759,7 +6942,7 @@ export interface components {
             rem_sleep_seconds?: number | null;
             /**
              * Resting Heart Rate
-             * @description Resting heart rate
+             * @description Resting heart rate in beats per minute
              */
             resting_heart_rate?: number | null;
             /**
@@ -6895,32 +7078,32 @@ export interface components {
         HealthSleepUpdate: {
             /**
              * Avg Heart Rate
-             * @description Average heart rate during sleep
+             * @description Average heart rate during sleep in beats per minute
              */
             avg_heart_rate?: number | null;
             /**
              * Avg Respiration
-             * @description Average respiration rate
+             * @description Average respiration rate in breaths per minute
              */
             avg_respiration?: number | null;
             /**
              * Avg Skin Temp Deviation
-             * @description Average skin temperature deviation
+             * @description Average skin temperature deviation from the baseline in degrees Celsius
              */
             avg_skin_temp_deviation?: number | null;
             /**
              * Avg Sleep Stress
-             * @description Average sleep stress
+             * @description Average sleep stress, a score from 0 to 100
              */
             avg_sleep_stress?: number | null;
             /**
              * Avg Spo2 Percent
-             * @description Average SpO2 oxygen saturation percentage
+             * @description Average SpO2 oxygen saturation as a percentage (70-100)
              */
             avg_spo2_percent?: number | null;
             /**
              * Avg Stress Level
-             * @description Average stress level
+             * @description Average stress level, a score from 0 to 100
              */
             avg_stress_level?: number | null;
             /**
@@ -6949,12 +7132,12 @@ export interface components {
             deep_sleep_seconds?: number | null;
             /**
              * Highest Respiration
-             * @description Highest respiration rate
+             * @description Highest respiration rate in breaths per minute
              */
             highest_respiration?: number | null;
             /**
              * Highest Spo2 Percent
-             * @description Highest SpO2 reading during sleep
+             * @description Highest SpO2 reading during sleep as a percentage (70-100)
              */
             highest_spo2_percent?: number | null;
             /** @description Heart rate variability status */
@@ -6968,22 +7151,22 @@ export interface components {
             light_sleep_seconds?: number | null;
             /**
              * Lowest Respiration
-             * @description Lowest respiration rate
+             * @description Lowest respiration rate in breaths per minute
              */
             lowest_respiration?: number | null;
             /**
              * Lowest Spo2 Percent
-             * @description Lowest SpO2 reading during sleep
+             * @description Lowest SpO2 reading during sleep as a percentage (70-100)
              */
             lowest_spo2_percent?: number | null;
             /**
              * Max Heart Rate
-             * @description Maximum heart rate during sleep
+             * @description Maximum heart rate during sleep in beats per minute
              */
             max_heart_rate?: number | null;
             /**
              * Min Heart Rate
-             * @description Minimum heart rate during sleep
+             * @description Minimum heart rate during sleep in beats per minute
              */
             min_heart_rate?: number | null;
             /**
@@ -7000,7 +7183,7 @@ export interface components {
             rem_sleep_seconds?: number | null;
             /**
              * Resting Heart Rate
-             * @description Resting heart rate
+             * @description Resting heart rate in beats per minute
              */
             resting_heart_rate?: number | null;
             /**
@@ -7384,7 +7567,7 @@ export interface components {
             muscle_mass_kg?: number | null;
             /**
              * Physique Rating
-             * @description Physique rating
+             * @description Physique rating, a score (not a unit)
              */
             physique_rating?: number | null;
             /**
@@ -7473,7 +7656,7 @@ export interface components {
             muscle_mass_kg?: number | null;
             /**
              * Physique Rating
-             * @description Physique rating
+             * @description Physique rating, a score (not a unit)
              */
             physique_rating?: number | null;
             /**
@@ -7548,7 +7731,7 @@ export interface components {
             muscle_mass_kg?: number | null;
             /**
              * Physique Rating
-             * @description Physique rating
+             * @description Physique rating, a score (not a unit)
              */
             physique_rating?: number | null;
             /**
@@ -7586,9 +7769,15 @@ export interface components {
          *         hr: Heart rate in bpm.
          */
         HeartRateWaypoint: {
-            /** Hr */
+            /**
+             * Hr
+             * @description Heart rate in beats per minute
+             */
             hr?: number | null;
-            /** Time */
+            /**
+             * Time
+             * @description When the sample was taken: a UTC timestamp, or seconds from the start for a Strava stream
+             */
             time?: string | number | null;
         } & {
             [key: string]: unknown;
@@ -7603,11 +7792,20 @@ export interface components {
          *         time_seconds: Timer time spent in the zone, in seconds.
          */
         HrZone: {
-            /** Hr */
+            /**
+             * Hr
+             * @description The zone's heart-rate range in beats per minute, such as 120 - 139
+             */
             hr: string;
-            /** Percent */
+            /**
+             * Percent
+             * @description Share of the heart-rate samples in the zone, as a percentage (0-100)
+             */
             percent: number;
-            /** Time Seconds */
+            /**
+             * Time Seconds
+             * @description Timer time spent in the zone in seconds
+             */
             time_seconds: number;
         };
         /**
@@ -8774,11 +8972,20 @@ export interface components {
          *         lon: Longitude in decimal degrees.
          */
         MapWaypoint: {
-            /** Lat */
+            /**
+             * Lat
+             * @description Latitude in decimal degrees
+             */
             lat?: number | null;
-            /** Lon */
+            /**
+             * Lon
+             * @description Longitude in decimal degrees
+             */
             lon?: number | null;
-            /** Time */
+            /**
+             * Time
+             * @description When the sample was taken: a UTC timestamp, or seconds from the start for a Strava stream
+             */
             time?: string | number | null;
         } & {
             [key: string]: unknown;
@@ -9051,9 +9258,15 @@ export interface components {
          *         pace: Pace in s/m; 0 where the speed is 0.
          */
         PaceWaypoint: {
-            /** Pace */
+            /**
+             * Pace
+             * @description Pace in seconds per meter; 0 where the speed is 0
+             */
             pace?: number | null;
-            /** Time */
+            /**
+             * Time
+             * @description When the sample was taken: a UTC timestamp, or seconds from the start for a Strava stream
+             */
             time?: string | number | null;
         } & {
             [key: string]: unknown;
@@ -9483,9 +9696,15 @@ export interface components {
          *         power: Power in watts.
          */
         PowerWaypoint: {
-            /** Power */
+            /**
+             * Power
+             * @description Power in watts
+             */
             power?: number | null;
-            /** Time */
+            /**
+             * Time
+             * @description When the sample was taken: a UTC timestamp, or seconds from the start for a Strava stream
+             */
             time?: string | number | null;
         } & {
             [key: string]: unknown;
@@ -10235,9 +10454,15 @@ export interface components {
          *         vel: Speed in m/s.
          */
         SpeedWaypoint: {
-            /** Time */
+            /**
+             * Time
+             * @description When the sample was taken: a UTC timestamp, or seconds from the start for a Strava stream
+             */
             time?: string | number | null;
-            /** Vel */
+            /**
+             * Vel
+             * @description Speed in meters per second
+             */
             vel?: number | null;
         } & {
             [key: string]: unknown;
@@ -10445,9 +10670,15 @@ export interface components {
          *         temp: Temperature in degrees Celsius.
          */
         TemperatureWaypoint: {
-            /** Temp */
+            /**
+             * Temp
+             * @description Temperature in degrees Celsius
+             */
             temp?: number | null;
-            /** Time */
+            /**
+             * Time
+             * @description When the sample was taken: a UTC timestamp, or seconds from the start for a Strava stream
+             */
             time?: string | number | null;
         } & {
             [key: string]: unknown;

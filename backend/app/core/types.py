@@ -1,9 +1,10 @@
 """Annotated types for values a client sends, shared by the request schemas and routes."""
 
 from datetime import UTC, date, datetime, timedelta
+from decimal import Decimal
 from typing import Annotated
 
-from pydantic import AfterValidator, AwareDatetime, Field, StrictInt, StrictStr, ValidationInfo
+from pydantic import AfterValidator, AwareDatetime, BeforeValidator, Field, StrictInt, StrictStr, ValidationInfo
 
 #: The largest value of a PostgreSQL ``integer`` column, which every id column is.
 INT32_MAX = 2**31 - 1
@@ -86,6 +87,43 @@ ImportedInstant = Annotated[datetime, AfterValidator(_read_naive_as_utc), AfterV
 #: A wall-clock reading of a record that is deliberately local (a ``*_local`` field): no zone is attached, so the
 #: value is kept as sent.
 RecordLocalDateTime = Annotated[datetime, AfterValidator(_not_out_of_range_datetime)]
+
+
+def _stored_decimal_as_text(value: object) -> object:
+    """Write a ``Decimal`` a database row holds as the text of a money amount.
+
+    A request carries JSON, which has no ``Decimal``, so only a stored value or an internal producer is converted;
+    a JSON number stays a number and is refused by the string type.
+
+    Args:
+        value: The submitted or stored amount.
+
+    Returns:
+        The amount with two decimals when it was a ``Decimal``, otherwise the value unchanged.
+    """
+    return f"{value:.2f}" if isinstance(value, Decimal) else value
+
+
+#: A price in the owner's currency (the ``currency`` user setting) as a decimal string with two decimals, such as
+#: ``"129.90"``, up to the 999999999.99 a ``Numeric(11, 2)`` column holds.
+Money = Annotated[StrictStr, BeforeValidator(_stored_decimal_as_text), Field(pattern=r"^\d{1,9}\.\d{2}$")]
+
+#: A sum of prices as a decimal string with two decimals, which can pass what one price can be.
+MoneyTotal = Annotated[StrictStr, BeforeValidator(_stored_decimal_as_text), Field(pattern=r"^\d+\.\d{2}$")]
+
+
+def money_from_archived_number(value: object) -> object:
+    """Read a price an archive written before prices were decimal strings, a JSON number, as a money amount.
+
+    Args:
+        value: The archived price.
+
+    Returns:
+        The amount as text with two decimals when it was a number, otherwise the value unchanged.
+    """
+    if isinstance(value, bool) or not isinstance(value, int | float):
+        return value
+    return f"{Decimal(str(value)):.2f}"
 
 
 #: Characters that reorder or hide text around a name: the bidirectional marks and embeddings, the isolates, the

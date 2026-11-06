@@ -37,3 +37,10 @@ Three vocabularies name activities, and they do not all mean the same thing:
 - **Goal activity type**: `run`, `bike`, `swim`, `walk`, `strength` or `cardio`, the sports a goal can target. A goal's `run`, `bike` and `swim` count the same types as the stats sport of that name. `walk` is wider: a walking goal also counts hiking and snowshoeing. `strength` and `cardio` have no stats sport; they count strength training and workouts, and cardio training, crossfit, HIIT and jump rope.
 
 So `run`, `bike`, `swim` and `walk` mean a group of types in the stats and in the goals, while the activity type `run` is only plain running.
+
+## Units and money
+
+- **A measurement states its unit** in the field description of the OpenAPI document: meters for distance and elevation, seconds for time, meters per second for speed, seconds per meter for pace, watts for power, beats per minute for heart rate. Where the name can carry the unit it does (`weight_kg`, `amount_ml`, `total_sleep_seconds`, `body_fat_percent`).
+- **A gear's distances are meters.** `initial_distance` (the distance the gear had before it was tracked) uses the same unit as `total_distance`, which includes it. A component's `expected_kms` is the wear threshold in meters of activity distance for a distance-tracked gear and in seconds of activity time for a time-tracked one (racquets), whatever its name says.
+- **A price is a decimal string.** `purchase_value` of a gear or a component, and the gear's `total_components_cost`, are strings with two decimals such as `"129.90"`, in the owner's `currency` user setting; the API does not convert between currencies. A JSON number (`129.9`) or a string with another shape (`"129.9"`, `"129,90"`) is refused with `422`.
+- **An export from an earlier release still imports.** A gear archive with `initial_kms` (kilometers) or a numeric `purchase_value` is read as `initial_distance` in meters and a decimal string.

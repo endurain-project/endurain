@@ -59,10 +59,10 @@ class TestReads:
         assert crud.get_gear_components_number(1, db) == 3
 
     def test_total_cost_sums_the_gears_components_for_its_owner(self, db):
-        crud.create_gear_component(component_create(purchase_value=10.5), 1, db)
-        crud.create_gear_component(component_create(purchase_value=4.5), 1, db)
-        crud.create_gear_component(component_create(purchase_value=100.0), 2, db)
-        crud.create_gear_component(component_create(2, purchase_value=100.0), 1, db)
+        crud.create_gear_component(component_create(purchase_value="10.50"), 1, db)
+        crud.create_gear_component(component_create(purchase_value="4.50"), 1, db)
+        crud.create_gear_component(component_create(purchase_value="100.00"), 2, db)
+        crud.create_gear_component(component_create(2, purchase_value="100.00"), 1, db)
 
         assert crud.get_gear_components_total_cost(1, 1, db) == 15.0
         assert crud.get_gear_components_total_cost(9, 1, db) == 0.0

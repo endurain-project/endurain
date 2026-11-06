@@ -15,9 +15,6 @@ from pydantic import (
 import core.partial_update as core_partial_update
 import core.types as core_types
 
-#: The largest value of the ``purchase_value`` column, a ``Numeric(11, 2)``.
-MAX_PURCHASE_VALUE = 999_999_999.99
-
 #: The largest value of the ``expected_kms`` column, a 32-bit integer.
 MAX_EXPECTED_KMS = core_types.INT32_MAX
 
@@ -45,8 +42,8 @@ class GearComponentBase(BaseModel):
         purchase_date: Purchase date (calendar date, no time of day).
         retired_date: Retired date (calendar date, no time of day).
         active: Whether component is active.
-        expected_kms: Expected kilometers.
-        purchase_value: Purchase value.
+        expected_kms: Wear threshold in meters for a distance-tracked gear and in seconds for a time-tracked one.
+        purchase_value: Purchase price as a decimal string in the owner's currency.
     """
 
     type: StrictStr | None = Field(
@@ -80,13 +77,17 @@ class GearComponentBase(BaseModel):
         default=None,
         ge=0,
         le=MAX_EXPECTED_KMS,
-        description=("Expected kilometers"),
+        description=(
+            "Wear threshold: meters of activity distance for a distance-tracked gear, seconds of activity time "
+            "for a time-tracked one (racquet)"
+        ),
     )
-    purchase_value: StrictFloat | None = Field(
+    purchase_value: core_types.Money | None = Field(
         default=None,
-        ge=0,
-        le=MAX_PURCHASE_VALUE,
-        description="Purchase value",
+        description=(
+            "Purchase price as a decimal string with two decimals, in the owner's currency "
+            "(the `currency` user setting), such as 129.90"
+        ),
     )
 
     model_config = ConfigDict(

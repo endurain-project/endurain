@@ -286,7 +286,7 @@ def edit_gear_component(
     """
     db_gear_component = _get_gear_component_model_or_404(gear_component_id, user_id, db)
     core_etag.require_if_match(if_match, db_gear_component.version, "gear component")
-    for key, value in gear_component.model_dump(exclude_unset=True).items():
+    for key, value in gear_components_serializers.to_update_values(gear_component).items():
         setattr(db_gear_component, key, value)
     if db_gear_component.retired_date is not None:
         db_gear_component.active = False

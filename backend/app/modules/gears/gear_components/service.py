@@ -14,6 +14,7 @@ import core.etag as core_etag
 import core.exceptions as core_exceptions
 import core.logger as core_logger
 import core.pagination as core_pagination
+import core.types as core_types
 import modules.gears.contracts as gears_contracts
 import modules.gears.contributor_registry as gears_contributor_registry
 import modules.gears.gear.constants as gears_constants
@@ -228,6 +229,8 @@ def restore_profile_gear_components(
 
         for owner_or_derived in ("id", "version", "user_id", "current_distance", "current_time"):
             record.pop(owner_or_derived, None)
+        if "purchase_value" in record:
+            record["purchase_value"] = core_types.money_from_archived_number(record["purchase_value"])
 
         try:
             gear_component = gear_components_schema.GearComponentCreate(**record)

@@ -40,7 +40,7 @@ const componentDto: GearComponentDto = {
   retired_date: null,
   active: true,
   expected_kms: 5_000_000,
-  purchase_value: 45,
+  purchase_value: '45.00',
   current_distance: 1_200_000,
   current_time: 360_000,
   version: 2,
@@ -84,7 +84,7 @@ const expectedComponentWire = {
   retired_date: null,
   active: true,
   expected_kms: 5_000_000,
-  purchase_value: 45,
+  purchase_value: '45.00',
 }
 
 describe('mapGearComponent', () => {

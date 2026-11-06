@@ -37,3 +37,11 @@ def test_a_component_retired_before_its_purchase_is_skipped(db):
 
 def test_no_archived_components_restores_none(db):
     assert service.restore_profile_gear_components([], 1, {"gears": {}}, db) == 0
+
+
+def test_a_price_archived_as_a_number_is_read_as_a_decimal_string(db):
+    gear = gear_crud.create_gear(gear_create(), 1, db)
+
+    service.restore_profile_gear_components([_record(purchase_value=45.5)], 1, {"gears": {5: gear.id}}, db)
+
+    assert crud.get_gear_components_user(1, db)[0].purchase_value == "45.50"

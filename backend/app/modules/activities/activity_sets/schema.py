@@ -5,6 +5,7 @@ from datetime import datetime
 from pydantic import (
     BaseModel,
     ConfigDict,
+    Field,
     StrictFloat,
     StrictInt,
     StrictStr,
@@ -25,9 +26,9 @@ class ActivitySetsBase(BaseModel):
         category_subtype: Category sub type.
     """
 
-    duration: StrictFloat
+    duration: StrictFloat = Field(description="Duration of the set in seconds")
     repetitions: StrictInt | None = None
-    weight: StrictFloat | None = None
+    weight: StrictFloat | None = Field(default=None, description="Weight used in the set in kilograms")
     set_type: StrictStr
     category: StrictInt | None = None
     category_subtype: StrictInt | None = None

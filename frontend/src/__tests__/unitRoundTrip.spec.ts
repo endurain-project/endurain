@@ -132,7 +132,7 @@ describe('an untouched imperial field keeps the stored metric value', () => {
         { gear, units: 'imperial', currency: 'euro' },
         editOtherField('input[name="nickname"]', 'Gravel'),
       ),
-    ).toMatchObject({ initial_kms: 100 })
+    ).toMatchObject({ initial_distance: 100_000 })
   })
 
   it('gear component expected distance', async () => {

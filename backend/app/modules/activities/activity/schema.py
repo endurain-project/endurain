@@ -76,7 +76,7 @@ class ActivityBase(BaseModel):
         created_at: Record creation as a timezone-aware UTC instant.
         elevation_gain: Total elevation gain in meters.
         elevation_loss: Total elevation loss in meters.
-        pace: Average pace in seconds per kilometer.
+        pace: Average pace in seconds per meter.
         average_speed: Average speed in meters per second.
         max_speed: Maximum speed in meters per second.
         average_power: Average power output in watts.
@@ -122,33 +122,41 @@ class ActivityBase(BaseModel):
     user_id: core_types.RecordId | None = None
     description: str | None = Field(default=None, max_length=2500)
     private_notes: str | None = Field(default=None, max_length=2500)
-    distance: int = Field(ge=0)
+    distance: int = Field(ge=0, description="Total distance in meters")
     name: str = Field(max_length=250)
     activity_type: StoredActivityType
     start_time: datetime | None = None
     end_time: datetime | None = None
     timezone: str | None = Field(default=None, max_length=250)
-    total_elapsed_time: float | None = Field(default=None, ge=0)
-    total_timer_time: float | None = Field(default=None, ge=0)
+    total_elapsed_time: float | None = Field(default=None, ge=0, description="Total elapsed wall-clock time in seconds")
+    total_timer_time: float | None = Field(default=None, ge=0, description="Active timer time in seconds")
     city: str | None = Field(default=None, max_length=250)
     town: str | None = Field(default=None, max_length=250)
     country: str | None = Field(default=None, max_length=250)
     created_at: datetime | None = None
-    elevation_gain: int | None = None
-    elevation_loss: int | None = None
-    pace: float | None = None
-    average_speed: float | None = None
-    max_speed: float | None = None
-    average_power: int | None = None
-    max_power: int | None = None
-    normalized_power: int | None = None
-    average_hr: int | None = Field(default=None, ge=0)
-    max_hr: int | None = Field(default=None, ge=0)
-    average_cad: int | None = Field(default=None, ge=0)
-    max_cad: int | None = Field(default=None, ge=0)
-    workout_feeling: int | None = Field(default=None, ge=0, le=100)
-    workout_rpe: int | None = Field(default=None, ge=10, le=100)
-    calories: int | None = Field(default=None, ge=0)
+    elevation_gain: int | None = Field(default=None, description="Total elevation gain in meters")
+    elevation_loss: int | None = Field(default=None, description="Total elevation loss in meters")
+    pace: float | None = Field(default=None, description="Average pace in seconds per meter")
+    average_speed: float | None = Field(default=None, description="Average speed in meters per second")
+    max_speed: float | None = Field(default=None, description="Maximum speed in meters per second")
+    average_power: int | None = Field(default=None, description="Average power output in watts")
+    max_power: int | None = Field(default=None, description="Maximum power output in watts")
+    normalized_power: int | None = Field(default=None, description="Normalized power in watts")
+    average_hr: int | None = Field(default=None, ge=0, description="Average heart rate in beats per minute")
+    max_hr: int | None = Field(default=None, ge=0, description="Maximum heart rate in beats per minute")
+    average_cad: int | None = Field(
+        default=None, ge=0, description="Average cadence in revolutions per minute (steps per minute for running)"
+    )
+    max_cad: int | None = Field(
+        default=None, ge=0, description="Maximum cadence in revolutions per minute (steps per minute for running)"
+    )
+    workout_feeling: int | None = Field(
+        default=None, ge=0, le=100, description="Subjective feeling score from 0 to 100"
+    )
+    workout_rpe: int | None = Field(
+        default=None, ge=10, le=100, description="Rate of perceived exertion score from 10 to 100"
+    )
+    calories: int | None = Field(default=None, ge=0, description="Estimated energy burned in kilocalories")
     visibility: StoredActivityVisibility | None = None
     gear_id: core_types.RecordId | None = None
     strava_gear_id: str | None = Field(default=None, max_length=45)
@@ -171,7 +179,9 @@ class ActivityBase(BaseModel):
     hide_gear: bool | None = None
     tracker_manufacturer: str | None = Field(default=None, max_length=250)
     tracker_model: str | None = Field(default=None, max_length=250)
-    total_cycles: int | None = Field(default=None, ge=0)
+    total_cycles: int | None = Field(
+        default=None, ge=0, description="Number of cycles recorded, such as pedal strokes or strides"
+    )
 
     @field_validator("timezone", mode="after")
     @classmethod
@@ -266,9 +276,9 @@ class ActivitySportStats(BaseModel):
 
     model_config = ConfigDict(from_attributes=True, extra="forbid")
 
-    distance: float = Field(default=0.0, ge=0)
-    time: float = Field(default=0.0, ge=0)
-    calories: float = Field(default=0.0, ge=0)
+    distance: float = Field(default=0.0, ge=0, description="Total distance in meters")
+    time: float = Field(default=0.0, ge=0, description="Total active time in seconds")
+    calories: float = Field(default=0.0, ge=0, description="Total energy burned in kilocalories")
 
 
 class ActivityStatsRead(BaseModel):

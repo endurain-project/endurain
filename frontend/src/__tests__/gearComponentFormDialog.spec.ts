@@ -35,7 +35,7 @@ const createdDto: GearComponentDto = {
   retired_date: null,
   active: true,
   expected_kms: 5_000_000,
-  purchase_value: 45,
+  purchase_value: '45.00',
   version: 1,
 }
 
@@ -102,7 +102,7 @@ describe('GearComponentFormDialog submit', () => {
         retired_date: null,
         active: true,
         expected_kms: 5_000_000,
-        purchase_value: 45,
+        purchase_value: '45.00',
       }),
     })
     expect(wrapper.emitted('success')).toBeTruthy()

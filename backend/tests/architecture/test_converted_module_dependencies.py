@@ -53,7 +53,7 @@ _ALLOWED_CORE: dict[str, str] = {
     "core.date_range": "The inclusive start_date/end_date window of a list, chart or sync route.",
     "core.pagination": "Page and cursor primitives.",
     "core.partial_update": "The edit-schema base that refuses an explicit null for a NOT NULL column.",
-    "core.types": "Request-body id and date types bounded to what the database columns can store.",
+    "core.types": "Request-body id, date and money types bounded to what the database columns can store.",
     "core.sanitization": "Cleaning user-supplied text before storage.",
     "core.stored_enum": "String enums on the wire whose members map to the integer a column stores.",
     "core.signing": "The token-signing primitive behind thumbnail URLs.",

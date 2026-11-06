@@ -205,7 +205,7 @@ def _seed_gears(db: Session, user_id: int) -> list[int]:
             gear_type=gear_schema.GearType.BIKE,
             brand="Canyon",
             model="Endurace",
-            initial_kms=12.5,
+            initial_distance=12_500.0,
         ),
         user_id,
         db,
@@ -223,7 +223,7 @@ def _seed_gears(db: Session, user_id: int) -> list[int]:
             model="XT",
             purchase_date=date(2026, 1, 5),
             expected_kms=3000,
-            purchase_value=45.5,
+            purchase_value="45.50",
         ),
         user_id,
         db,
@@ -606,6 +606,15 @@ def test_an_archive_written_by_an_earlier_release_still_imports(pg_factory, stor
         assert default_gear is not None
         assert (default_gear.ride_gear_id, default_gear.run_gear_id) == (gears["Road Bike"], gears["Trail Shoes"])
         # The old names of the units are read at the import boundary.
+        road = db.execute(
+            text("SELECT initial_distance, purchase_value FROM gear WHERE user_id = :u AND nickname = 'Road Bike'"),
+            {"u": user_id},
+        ).one()
+        assert float(road.initial_distance) == 12_500.0
+        component_price = db.execute(
+            text("SELECT purchase_value FROM gear_components WHERE user_id = :u AND type = 'chain'"), {"u": user_id}
+        ).scalar_one()
+        assert float(component_price) == 45.5
         weights = db.execute(
             text("SELECT weight_kg, body_fat_percent, source FROM health_weight WHERE user_id = :u ORDER BY date"),
             {"u": user_id},
