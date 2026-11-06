@@ -86,9 +86,11 @@ class OidcClientService:
         """Open a short-lived HTTP client for one outbound request.
 
         It never follows a redirect: the SSRF guard checks only the URL the caller names, so a redirect
-        would send the request, and any secret it carries, to a host the guard never saw.
+        would send the request, and any secret it carries, to a host the guard never saw. It dials only an
+        address the guard checked (see :class:`core.network.PinnedAddressTransport`).
         """
         with httpx2.Client(
+            transport=core_network.PinnedAddressTransport(purpose="oidc_client"),
             timeout=10.0,
             follow_redirects=False,
             headers={"User-Agent": f"Endurain/{self._api_version} (OIDC Client)", "Accept": "application/json"},
@@ -479,6 +481,7 @@ class OidcClientService:
             client_id=client_id,
             client_secret=client_secret,
             redirect_uri=redirect_uri,
+            transport=core_network.PinnedAddressTransport(purpose="oidc_client"),
             timeout=10.0,
             # Like http_client: the token and userinfo calls carry the client secret and the code.
             follow_redirects=False,

@@ -17,6 +17,7 @@ from concurrent.futures import TimeoutError as FutureTimeoutError
 from functools import partial
 from urllib.parse import urlparse
 
+import httpx2
 from fastapi import Request
 from starlette.requests import HTTPConnection
 
@@ -606,12 +607,11 @@ def reject_private_url(url: str, *, purpose: str | None = None, require_tls: boo
        returns a public IP on the first lookup and a
        private IP on the next.
 
-    Note: this is a *time-of-check* guard. Callers that
-    want full TOCTOU safety should also pin the resolved
-    public IP and dial it directly with the original
-    Host header. For our current use cases (admin-set
-    OIDC discovery / JWKS endpoints) the time-of-check
-    guard is sufficient hardening.
+    This is a time-of-check guard: it refuses the URL but does not control which
+    address the connection uses. A caller that sends the request must do so through
+    :class:`PinnedAddressTransport`, which dials only an address that passed these
+    checks, so a name that resolves differently on the next lookup cannot redirect
+    the connection.
 
     Args:
         url: The fully-qualified URL the caller intends
@@ -638,6 +638,66 @@ def reject_private_url(url: str, *, purpose: str | None = None, require_tls: boo
     reason = url_rejection_reason(url, purpose=purpose, require_tls=require_tls)
     if reason is not None:
         raise core_exceptions.InvalidInputError(reason)
+
+
+class PinnedAddressTransport(httpx2.BaseTransport):
+    """HTTP transport that dials only an address the SSRF guard has checked.
+
+    Each request resolves its URL's host through :func:`resolve_url_addresses` (TLS required unless
+    ``SSRF_ALLOWED_HOSTS`` covers the host) and connects to one of the validated addresses, so the
+    connection cannot land on an address the guard did not see, whatever the name resolves to later.
+    The request keeps its ``Host`` header, and the ``sni_hostname`` extension keeps the original
+    hostname as the TLS server name, so certificate verification still covers the hostname.
+
+    A refused destination raises :class:`httpx2.ConnectError`. When a validated address does not
+    accept the connection, the next one is tried.
+    """
+
+    def __init__(self, *, purpose: str, transport: httpx2.BaseTransport | None = None) -> None:
+        """Wrap the transport that opens the connections.
+
+        Args:
+            purpose: Audit tag for allowlisted private destinations.
+            transport: Transport that sends the pinned request; a default ``httpx2.HTTPTransport`` when omitted.
+        """
+        self._purpose = purpose
+        self._transport = transport if transport is not None else httpx2.HTTPTransport()
+
+    def handle_request(self, request: httpx2.Request) -> httpx2.Response:
+        """Send a request to one of the host's validated addresses.
+
+        Args:
+            request: The request, addressed by hostname.
+
+        Returns:
+            The response.
+
+        Raises:
+            httpx2.ConnectError: If the destination is refused or no validated address accepts the connection.
+        """
+        original_url = request.url
+        addresses, reason = resolve_url_addresses(str(original_url), purpose=self._purpose, require_tls=True)
+        if reason is not None:
+            raise httpx2.ConnectError(reason, request=request)
+
+        request.extensions = {**request.extensions, "sni_hostname": original_url.raw_host.decode("ascii")}
+        last_error: httpx2.ConnectError | httpx2.ConnectTimeout | None = None
+        try:
+            for address in addresses:
+                request.url = original_url.copy_with(host=address)
+                try:
+                    return self._transport.handle_request(request)
+                except (httpx2.ConnectError, httpx2.ConnectTimeout) as err:
+                    last_error = err
+        finally:
+            request.url = original_url
+        if last_error is None:
+            raise httpx2.ConnectError(_UNRESOLVABLE, request=request)
+        raise last_error
+
+    def close(self) -> None:
+        """Close the wrapped transport."""
+        self._transport.close()
 
 
 def _get_ssrf_dns_executor() -> ThreadPoolExecutor:

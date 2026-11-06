@@ -786,3 +786,24 @@ class TestNoRedirects:
         assert client.follow_redirects is False
         assert client.code_challenge_method == "S256"
         client.close()
+
+
+class TestOutboundClientsPinCheckedAddresses:
+    """Both clients dial through the SSRF guard, so a host that resolves privately at connect time is refused."""
+
+    @staticmethod
+    def _private_answer():
+        return patch(
+            "core.network.socket.getaddrinfo",
+            return_value=[(2, 1, 0, "", ("10.0.0.1", 0))],
+        )
+
+    def test_the_plain_client_refuses_a_private_answer(self, service):
+        with self._private_answer(), service.http_client() as client, pytest.raises(httpx2.ConnectError):
+            client.get("https://idp.example.com/jwks")
+
+    def test_the_oauth_client_refuses_a_private_answer(self, service):
+        client = service.create_oauth_client("id", "secret", None)
+        with self._private_answer(), pytest.raises(httpx2.ConnectError):
+            client.request("POST", "https://idp.example.com/token", withhold_token=True)
+        client.close()
