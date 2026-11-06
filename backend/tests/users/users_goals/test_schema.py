@@ -1,5 +1,7 @@
 """Tests for user goals Pydantic schemas."""
 
+from datetime import date
+
 import pytest
 from pydantic import ValidationError
 
@@ -357,3 +359,55 @@ class TestGoalTargetBounds:
         with pytest.raises(ValidationError):
             user_goals_schema.UsersGoalCreate(**base, **{field: 2**31})
         assert getattr(user_goals_schema.UsersGoalCreate(**base, **{field: 2**31 - 1}), field) == 2**31 - 1
+
+
+class TestTargetsAndProgressDates:
+    @pytest.mark.parametrize("schema", [user_goals_schema.UsersGoalCreate, user_goals_schema.UsersGoalUpdate])
+    @pytest.mark.parametrize(
+        ("goal_type", "field"),
+        [
+            ("calories", "goal_calories"),
+            ("activities", "goal_activities_number"),
+            ("distance", "goal_distance"),
+            ("elevation", "goal_elevation"),
+            ("duration", "goal_duration"),
+        ],
+    )
+    def test_a_target_of_zero_is_refused(self, schema, goal_type, field):
+        body = {"interval": "weekly", "activity_type": "run", "goal_type": goal_type, field: 0}
+
+        with pytest.raises(ValidationError):
+            schema(**body)
+
+        assert getattr(schema(**{**body, field: 1}), field) == 1
+
+    def test_a_stored_goal_with_a_zero_target_can_still_be_read(self):
+        read = user_goals_schema.UsersGoalRead(
+            id=1, user_id=1, interval="weekly", activity_type="run", goal_type="distance", goal_distance=0
+        )
+
+        assert read.goal_distance == 0
+
+    def test_progress_dates_are_dates(self):
+        progress = user_goals_schema.UsersGoalProgress(
+            goal_id=1,
+            interval="weekly",
+            activity_type="run",
+            goal_type="distance",
+            start_date="2024-01-01",
+            end_date=date(2024, 1, 7),
+        )
+
+        assert (progress.start_date, progress.end_date) == (date(2024, 1, 1), date(2024, 1, 7))
+        assert progress.model_dump(mode="json")["start_date"] == "2024-01-01"
+
+    def test_a_progress_date_that_is_not_a_date_is_refused(self):
+        with pytest.raises(ValidationError):
+            user_goals_schema.UsersGoalProgress(
+                goal_id=1,
+                interval="weekly",
+                activity_type="run",
+                goal_type="distance",
+                start_date="last monday",
+                end_date="2024-01-07",
+            )

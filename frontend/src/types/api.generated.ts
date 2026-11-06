@@ -11758,32 +11758,33 @@ export interface components {
             activity_type: components["schemas"]["GoalActivityType"];
             /**
              * End Date
-             * @description Period end date
+             * Format: date
+             * @description Last day of the goal period
              */
             end_date: string;
             /**
              * Goal Activities Number
-             * @description Target activities count
+             * @description Target number of activities
              */
             goal_activities_number?: number | null;
             /**
              * Goal Calories
-             * @description Target calories
+             * @description Target calories in kcal
              */
             goal_calories?: number | null;
             /**
              * Goal Distance
-             * @description Target distance
+             * @description Target distance in meters
              */
             goal_distance?: number | null;
             /**
              * Goal Duration
-             * @description Target duration
+             * @description Target duration in seconds
              */
             goal_duration?: number | null;
             /**
              * Goal Elevation
-             * @description Target elevation
+             * @description Target elevation gain in meters
              */
             goal_elevation?: number | null;
             /**
@@ -11801,7 +11802,8 @@ export interface components {
             percentage_completed?: number | null;
             /**
              * Start Date
-             * @description Period start date
+             * Format: date
+             * @description First day of the goal period
              */
             start_date: string;
             /**
@@ -11811,22 +11813,22 @@ export interface components {
             total_activities_number?: number | null;
             /**
              * Total Calories
-             * @description Total calories achieved
+             * @description Total calories burned in kcal
              */
             total_calories?: number | null;
             /**
              * Total Distance
-             * @description Total distance achieved
+             * @description Total distance in meters
              */
             total_distance?: number | null;
             /**
              * Total Duration
-             * @description Total duration achieved
+             * @description Total duration in seconds
              */
             total_duration?: number | null;
             /**
              * Total Elevation
-             * @description Total elevation gained
+             * @description Total elevation gain in meters
              */
             total_elevation?: number | null;
         };

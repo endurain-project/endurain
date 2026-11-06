@@ -44,3 +44,7 @@ So `run`, `bike`, `swim` and `walk` mean a group of types in the stats and in th
 - **A gear's distances are meters.** `initial_distance` (the distance the gear had before it was tracked) uses the same unit as `total_distance`, which includes it. A component's `expected_kms` is the wear threshold in meters of activity distance for a distance-tracked gear and in seconds of activity time for a time-tracked one (racquets), whatever its name says.
 - **A price is a decimal string.** `purchase_value` of a gear or a component, and the gear's `total_components_cost`, are strings with two decimals such as `"129.90"`, in the owner's `currency` user setting; the API does not convert between currencies. A JSON number (`129.9`) or a string with another shape (`"129.9"`, `"129,90"`) is refused with `422`.
 - **An export from an earlier release still imports.** A gear archive with `initial_kms` (kilometers) or a numeric `purchase_value` is read as `initial_distance` in meters and a decimal string.
+
+## Goals
+
+A goal's target (`goal_calories`, `goal_activities_number`, `goal_distance`, `goal_elevation`, `goal_duration`) must be above zero: `0` is refused with `422`. The progress of a goal (`GET /profile/goals/results`) names its period with `start_date` and `end_date`, which are dates (`YYYY-MM-DD`).
