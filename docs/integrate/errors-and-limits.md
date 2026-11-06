@@ -38,6 +38,16 @@ A `403` for a missing scope also sends `WWW-Authenticate: Bearer error="insuffic
 
 A request validation failure is `422` with `urn:endurain:error:validation-failed` and an `errors` list. Exceeding a rate limit is `429` with `urn:endurain:error:rate-limited`. A sensitive request from an account without a local password that carries no `idp_reauth` is `401` with `urn:endurain:error:idp-reauth-required` and a `WWW-Authenticate: Bearer error="insufficient_user_authentication", max_age="60"` header. A missing, expired or malformed access token, or one whose session has ended, is `401` with `urn:endurain:error:invalid-token`: refresh the tokens and send the request again. Any other `401` is final, so do not refresh or retry it. A password the [password rules](../features/accounts-and-sign-in.md#password-rules) refuse is `422` with `urn:endurain:error:password-too-short`, `password-too-common`, `password-matches-account`, `password-blank` (only whitespace) or `password-unchanged` (the new password is the current one; password change and reset only), on every endpoint that sets a password. A Strava link whose granted scopes lack one the link needs (`read`, `profile:read_all`, `activity:read_all`) is `400` with `urn:endurain:error:provider-scope-insufficient`; send the `scope` Strava returned on the callback with `POST /strava/link`. An error raised without a specific type uses a slug of the HTTP status phrase. The user search (`GET /users/username/contains/{term}`) is stricter than other lists: the term needs at least 3 characters, and `num_records` defaults to and may not exceed the server's page size (`num_records_per_page`, at most 100), so a shorter term or a larger page is `422`.
 
+### A missing parent on a list
+
+A resource that does not exist and one you may not see look the same, so an id cannot be probed. What you see depends on the route:
+
+- **The parent itself is `404`:** `GET /activities/{activity_id}`, `GET /gears/{gear_id}`, and the single stream `GET /activities/{activity_id}/streams/{stream_type}`.
+- **The lists under a parent are an empty page (`200`, `total` `0`), not `404`,** when the parent is missing or not visible to you: an activity's `laps`, `sets`, `workout-steps`, `streams` and `media`, and a gear's `components` (`GET /gears/{gear_id}/components`). An empty page therefore means "none", "does not exist" or "not yours".
+- **Another user's lists are `404`** when that user does not exist, is inactive or awaits approval: `GET /users/{user_id}/activities` and `GET /users/{user_id}/activities/stats`.
+
+Read the parent first when you need to tell the cases apart.
+
 ### Authentication errors
 
 Authentication and authorization failures use the same shape. Typical causes:
