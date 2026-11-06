@@ -1,23 +1,23 @@
 import type { Schemas } from '@/types'
 
-/** Raw `UsersRead` payload as returned by the backend (snake_case wire shape). */
-export type UserDto = Schemas['UsersRead']
+/** Raw `UserRead` payload as returned by the backend (snake_case wire shape). */
+export type UserDto = Schemas['UserRead']
 
-/** `UsersEdit` payload: the body of an administrative edit of a user. */
-export type UserEditDto = Schemas['UsersEdit']
+/** `UserEdit` payload: the body of an administrative edit of a user. */
+export type UserEditDto = Schemas['UserEdit']
 
 /** Raw `UserPublicRead` payload: what any signed-in or anonymous viewer may learn about a user. */
 export type PublicUserDto = Schemas['UserPublicRead']
 
 /** Raw paginated users list payload. */
-export type UsersListResponseDto = Schemas['Page_UsersRead_']
+export type UsersListResponseDto = Schemas['Page_UserRead_']
 
 /** User access tier, mirrored from the backend enum (`regular` | `admin`). */
 export type UserAccessType = Schemas['UserAccessType']
 
 /**
  * The clean, camel-cased user model used across the admin users zone. Carries
- * every `UsersRead` field — not just the ones shown — because the backend's
+ * every `UserRead` field — not just the ones shown — because the backend's
  * edit endpoint replaces the whole record, so unedited fields must round-trip
  * untouched (see `toUserWire`). Mapped from {@link UserDto} at the service
  * boundary so components never touch the raw DTO.
@@ -85,7 +85,7 @@ export interface UsersPage {
 /**
  * A user's public-facing profile, shown on the `/user/:id` page and in
  * follower/following lists. A deliberately privacy-conscious subset of
- * `UsersRead` — only the fields a profile renders, omitting email, birthdate,
+ * `UserRead` — only the fields a profile renders, omitting email, birthdate,
  * and other sensitive columns. Mapped from {@link UserDto} at the service
  * boundary so components never touch the raw DTO.
  *
@@ -125,7 +125,8 @@ export interface UserProfileOverview {
 /**
  * The five admin user-list filters. Each flag, when `true`, includes that
  * category in the results; setting it to `false` excludes the category
- * server-side (mirrors v1's filter set).
+ * server-side (`active=true`, `email_verified=true`, `pending_approval=false`,
+ * `external_auth=true` or `false` when exactly one of the two authentication switches is off).
  *
  * @property showInactive - Include deactivated accounts.
  * @property showEmailUnverified - Include accounts with an unverified email.
@@ -147,7 +148,7 @@ export interface UsersListParams extends UserFilters {
   page: number
   /** Page size (records per page). */
   numRecords: number
-  /** Keep only users whose username contains this text. */
+  /** Keep only users whose username contains this text (at least 3 characters). */
   username?: string
 }
 
@@ -201,8 +202,8 @@ export interface CreateUserInput {
   maxHeartRate: number | null
 }
 
-/** Raw `UsersSessionsRead` payload as returned by the backend (snake_case). */
-export type UserSessionDto = Schemas['UsersSessionsRead']
+/** Raw `UserSessionsRead` payload as returned by the backend (snake_case). */
+export type UserSessionDto = Schemas['UserSessionsRead']
 
 /**
  * A user session in the admin view, camel-cased from {@link UserSessionDto}.

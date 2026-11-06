@@ -21,7 +21,7 @@ def list_user_sessions(
     user_id: int,
     page: core_pagination.PageParams,
     db: Session,
-) -> sessions_schema.UsersSessionsPage:
+) -> sessions_schema.UserSessionsPage:
     """Return one page of a user's sessions."""
     return sessions_service.list_user_sessions(user_id, page, db)
 
@@ -51,7 +51,7 @@ def get_session_with_oauth_state(
 
 def create_session(
     session_id: str,
-    user: users_schema.UsersRead,
+    user: users_schema.UserRead,
     ip_address: str,
     user_agent: str,
     refresh_token: str | None,

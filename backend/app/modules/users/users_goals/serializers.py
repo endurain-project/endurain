@@ -7,7 +7,7 @@ import modules.users.users_goals.models as user_goals_models
 import modules.users.users_goals.schema as user_goals_schema
 
 
-def to_read_schema(goal: user_goals_models.UsersGoal) -> user_goals_schema.UsersGoalRead:
+def to_read_schema(goal: user_goals_models.UsersGoal) -> user_goals_schema.UserGoalRead:
     """Transform a user goal ORM row into its read schema.
 
     Args:
@@ -16,4 +16,4 @@ def to_read_schema(goal: user_goals_models.UsersGoal) -> user_goals_schema.Users
     Returns:
         The user goal as a schema.
     """
-    return user_goals_schema.UsersGoalRead.model_validate(goal)
+    return user_goals_schema.UserGoalRead.model_validate(goal)

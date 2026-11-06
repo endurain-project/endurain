@@ -64,7 +64,7 @@ class TestEditUserDefaultGear:
     def test_applies_the_set_fields_and_stages(self, mock_db):
         row = MagicMock(spec=user_default_gear_models.UsersDefaultGear)
         _found(mock_db, row)
-        update = user_default_gear_schema.UsersDefaultGearUpdate(run_gear_id=10)
+        update = user_default_gear_schema.UserDefaultGearUpdate(run_gear_id=10)
 
         result = user_default_gear_crud.edit_user_default_gear(update, 1, mock_db, if_match="*")
 
@@ -75,7 +75,7 @@ class TestEditUserDefaultGear:
 
     def test_missing_settings_are_not_found(self, mock_db):
         _found(mock_db, None)
-        update = user_default_gear_schema.UsersDefaultGearUpdate(run_gear_id=10)
+        update = user_default_gear_schema.UserDefaultGearUpdate(run_gear_id=10)
 
         with pytest.raises(core_exceptions.NotFoundError):
             user_default_gear_crud.edit_user_default_gear(update, 1, mock_db, if_match="*")

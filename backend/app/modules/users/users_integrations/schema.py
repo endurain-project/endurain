@@ -13,7 +13,7 @@ from pydantic import (
 )
 
 
-class UsersIntegrationsBase(BaseModel):
+class UserIntegrationsBase(BaseModel):
     """Base schema for user integrations.
 
     Attributes:
@@ -63,22 +63,22 @@ class UsersIntegrationsBase(BaseModel):
     )
 
 
-class UsersIntegrationsCreate(UsersIntegrationsBase):
+class UserIntegrationsCreate(UserIntegrationsBase):
     """Pydantic model for creating user integrations.
 
-    Inherits all attributes from UsersIntegrationsBase.
+    Inherits all attributes from UserIntegrationsBase.
     """
 
 
-class UsersIntegrationsUpdate(UsersIntegrationsBase):
+class UserIntegrationsUpdate(UserIntegrationsBase):
     """Schema for updating user integrations.
 
-    Inherits all validation from UsersIntegrationsBase.
+    Inherits all validation from UserIntegrationsBase.
     All fields are optional for partial updates.
     """
 
 
-class UsersIntegrationsRead(UsersIntegrationsBase):
+class UserIntegrationsRead(UserIntegrationsBase):
     """Schema for reading user integrations.
 
     Attributes:

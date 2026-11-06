@@ -165,7 +165,7 @@ def _create_account(factory: sessionmaker[Session]) -> int:
     """Create the account the archive is exported from and imported into, with its default rows."""
     with factory() as db:
         created = users_service.create_user(
-            users_schema.UsersCreate(
+            users_schema.UserCreate(
                 name="Round Trip",
                 username=_USERNAME,
                 email=_EMAIL,
@@ -380,7 +380,7 @@ def _seed(factory: sessionmaker[Session], storage: platform_providers.StoragePro
         )
         gear_ids = _seed_gears(db, user_id)
         default_gear_service.stage_default_gear_edit(
-            default_gear_schema.UsersDefaultGearUpdate(ride_gear_id=gear_ids[0], run_gear_id=gear_ids[1]),
+            default_gear_schema.UserDefaultGearUpdate(ride_gear_id=gear_ids[0], run_gear_id=gear_ids[1]),
             user_id,
             db,
             if_match="*",
@@ -388,17 +388,17 @@ def _seed(factory: sessionmaker[Session], storage: platform_providers.StoragePro
         for goal_type, goal in (("calories", {"goal_calories": 5000}), ("distance", {"goal_distance": 40_000})):
             goals_integration.create_goal(
                 user_id,
-                goals_schema.UsersGoalCreate(interval="weekly", activity_type="run", goal_type=goal_type, **goal),
+                goals_schema.UserGoalCreate(interval="weekly", activity_type="run", goal_type=goal_type, **goal),
                 db,
             )
         integrations_integration.edit_integrations(
-            integrations_schema.UsersIntegrationsUpdate(strava_sync_gear=True, garminconnect_sync_gear=True),
+            integrations_schema.UserIntegrationsUpdate(strava_sync_gear=True, garminconnect_sync_gear=True),
             user_id,
             db,
         )
         privacy_integration.edit_privacy_settings(
             user_id,
-            privacy_schema.UsersPrivacySettingsUpdate(hide_activity_map=True, hide_activity_hr=True),
+            privacy_schema.UserPrivacySettingsUpdate(hide_activity_map=True, hide_activity_hr=True),
             db,
             if_match="*",
         )

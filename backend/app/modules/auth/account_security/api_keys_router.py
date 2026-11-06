@@ -18,14 +18,14 @@ router = APIRouter()
 
 @router.get(
     "",
-    response_model=api_keys_schema.UsersApiKeyPage,
+    response_model=api_keys_schema.UserApiKeyPage,
     dependencies=[Security(auth_dependencies.check_scopes, scopes=["profile:security"])],
 )
 def list_user_api_keys(
     token_user_id: auth_dependencies.CurrentUserId,
     page: core_pagination.ListPage,
     db: core_dependencies.DbSession,
-) -> api_keys_schema.UsersApiKeyPage:
+) -> api_keys_schema.UserApiKeyPage:
     """List one page of API keys for the authenticated user.
 
     Args:
@@ -41,13 +41,13 @@ def list_user_api_keys(
 
 @router.post(
     "",
-    response_model=api_keys_schema.UsersApiKeyCreatedRead,
+    response_model=api_keys_schema.UserApiKeyCreatedRead,
     status_code=status.HTTP_201_CREATED,
     dependencies=[Security(auth_dependencies.check_scopes, scopes=["profile:security"])],
 )
 @core_rate_limit.limiter.limit(core_rate_limit.SENSITIVE)
 def create_user_api_key(
-    data: api_keys_schema.UsersApiKeyCreate,
+    data: api_keys_schema.UserApiKeyCreate,
     expires_at: account_security_dependencies.ApiKeyExpiry,
     request: Request,
     response: Response,
@@ -58,7 +58,7 @@ def create_user_api_key(
         Depends(auth_dependencies.get_step_up_attempts),
     ],
     db: core_dependencies.DbSession,
-) -> api_keys_schema.UsersApiKeyCreatedRead:
+) -> api_keys_schema.UserApiKeyCreatedRead:
     """Create an API key after step-up verification."""
     core_cache_control.set_no_store(response)
     return api_key_service.create_user_api_key(token_user_id, token_session_id, data, expires_at, step_up_store, db)

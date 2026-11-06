@@ -41,7 +41,7 @@ export async function fetchActivityOwner(
   authenticated: boolean,
   signal?: AbortSignal,
 ): Promise<ActivityOwner | null> {
-  const path = authenticated ? `/users/id/${userId}` : `/public/activities/${activityId}/owner`
+  const path = authenticated ? `/users/${userId}` : `/public/activities/${activityId}/owner`
   try {
     const dto = await apiFetch<ActivityOwnerDto>(path, { auth: authenticated, signal })
     return mapActivityOwner(dto)

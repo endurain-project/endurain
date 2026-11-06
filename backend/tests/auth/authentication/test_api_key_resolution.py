@@ -37,12 +37,12 @@ def session_factory():
     factory.kw["bind"].dispose()
 
 
-def _store_key(factory, raw_key: str) -> api_keys_schema.UsersApiKeyRead:
+def _store_key(factory, raw_key: str) -> api_keys_schema.UserApiKeyRead:
     scopes = ["activities:upload"]
     with factory() as db:
         stored = api_keys_crud.create_api_key(
             _USER_ID,
-            api_keys_schema.UsersApiKeyCreate(name="CLI", scopes=scopes),
+            api_keys_schema.UserApiKeyCreate(name="CLI", scopes=scopes),
             raw_key,
             api_keys_utils.hash_api_key(raw_key),
             api_keys_utils.scopes_to_json(scopes),

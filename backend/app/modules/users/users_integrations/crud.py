@@ -44,9 +44,7 @@ def _get_user_integrations_model_by_user_id_or_404(
     return db_user_integrations
 
 
-def get_user_integrations_by_user_id(
-    user_id: int, db: Session
-) -> user_integrations_schema.UsersIntegrationsRead | None:
+def get_user_integrations_by_user_id(user_id: int, db: Session) -> user_integrations_schema.UserIntegrationsRead | None:
     """Retrieve integrations for a specific user.
 
     Args:
@@ -54,7 +52,7 @@ def get_user_integrations_by_user_id(
         db: SQLAlchemy database session.
 
     Returns:
-        The UsersIntegrationsRead schema for the user, or None if the user has none.
+        The UserIntegrationsRead schema for the user, or None if the user has none.
     """
     # Get the user integrations by the user id
     stmt = select(user_integrations_models.UsersIntegrations).where(
@@ -123,7 +121,7 @@ def list_user_ids_with_garminconnect_linked(after_id: int, limit: int, db: Sessi
     return linked[:limit]
 
 
-def create_user_integrations(user_id: int, db: Session) -> user_integrations_schema.UsersIntegrationsRead:
+def create_user_integrations(user_id: int, db: Session) -> user_integrations_schema.UserIntegrationsRead:
     """Create integration settings for a user (flushed, not committed).
 
     Args:
@@ -131,7 +129,7 @@ def create_user_integrations(user_id: int, db: Session) -> user_integrations_sch
         db: SQLAlchemy database session.
 
     Returns:
-        The created UsersIntegrationsRead schema.
+        The created UserIntegrationsRead schema.
 
     Raises:
         ConflictError: If integrations already exist.
@@ -520,10 +518,10 @@ def replace_garminconnect_token_if_token(
 
 
 def edit_user_integrations(
-    user_integrations: user_integrations_schema.UsersIntegrationsUpdate,
+    user_integrations: user_integrations_schema.UserIntegrationsUpdate,
     user_id: int,
     db: Session,
-) -> user_integrations_schema.UsersIntegrationsRead:
+) -> user_integrations_schema.UserIntegrationsRead:
     """Update user integration settings (flushed, not committed).
 
     Args:

@@ -67,7 +67,7 @@ def create_password_reset_token(user_id: int, event_id: str, db: Session) -> str
     return token
 
 
-def _may_reset_password(user: users_schema.UsersRead, db: Session) -> bool:
+def _may_reset_password(user: users_schema.UserRead, db: Session) -> bool:
     """Tell whether an account may set its password through a reset link.
 
     Args:
@@ -82,7 +82,7 @@ def _may_reset_password(user: users_schema.UsersRead, db: Session) -> bool:
     )
 
 
-def _can_reset_password(user: users_schema.UsersRead, db: Session) -> bool:
+def _can_reset_password(user: users_schema.UserRead, db: Session) -> bool:
     """Tell whether an active account may set its password through a reset link."""
     return user.active and _may_reset_password(user, db)
 

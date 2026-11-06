@@ -81,7 +81,7 @@ class FollowRelationshipPage(core_pagination.Page[FollowRelationshipRead]):
     Attributes:
         users: The public profile of the user on the other side of each row (the follower in a
             followers list, the followee in a following list, the requester among pending requests),
-            keyed by user ID. It is the projection ``GET /users/id/{user_id}`` returns, so a list needs
+            keyed by user ID. It is the projection ``GET /users/{user_id}`` returns, so a list needs
             no lookup per row. A user who is inactive or awaiting approval has no entry.
     """
 

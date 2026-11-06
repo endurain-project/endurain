@@ -31,7 +31,7 @@ def _one(mock_db, row):
 
 
 def _create_input():
-    return user_goals_schema.UsersGoalCreate(
+    return user_goals_schema.UserGoalCreate(
         interval="weekly", activity_type="run", goal_type="calories", goal_calories=5000
     )
 
@@ -117,7 +117,7 @@ class TestUpdateUserGoal:
         row = MagicMock(spec=user_goals_models.UsersGoal)
         row.version = 1
         _one(mock_db, row)
-        update = user_goals_schema.UsersGoalUpdate(
+        update = user_goals_schema.UserGoalUpdate(
             interval="weekly", activity_type="run", goal_type="calories", goal_calories=9000
         )
 
@@ -130,7 +130,7 @@ class TestUpdateUserGoal:
 
     def test_missing_goal_is_not_found(self, mock_db):
         _one(mock_db, None)
-        update = user_goals_schema.UsersGoalUpdate(
+        update = user_goals_schema.UserGoalUpdate(
             interval="weekly", activity_type="run", goal_type="calories", goal_calories=9000
         )
 
@@ -183,7 +183,7 @@ class TestGoalUniquenessInTheDatabase:
     def _goal(**overrides):
         values = {"interval": "weekly", "activity_type": "run", "goal_type": "calories", "goal_calories": 5000}
         values.update(overrides)
-        return user_goals_schema.UsersGoalCreate(**values)
+        return user_goals_schema.UserGoalCreate(**values)
 
     def test_the_same_goal_twice_is_a_conflict(self, db):
         user_goals_crud.create_user_goal(1, self._goal(), db)
@@ -199,7 +199,7 @@ class TestGoalUniquenessInTheDatabase:
     def test_editing_a_goal_into_another_one_is_a_conflict(self, db):
         user_goals_crud.create_user_goal(1, self._goal(), db)
         other = user_goals_crud.create_user_goal(1, self._goal(interval="monthly"), db)
-        change = user_goals_schema.UsersGoalUpdate(**self._goal().model_dump())
+        change = user_goals_schema.UserGoalUpdate(**self._goal().model_dump())
 
         with pytest.raises(core_exceptions.ConflictError):
             user_goals_crud.update_user_goal(1, other.id, change, db, if_match="*")
@@ -209,7 +209,7 @@ class TestGoalUniquenessInTheDatabase:
             1, self._goal(goal_type="distance", goal_calories=None, goal_distance=10000), db
         )
         # As a client sends it: the distance target is simply absent from the body.
-        replacement = user_goals_schema.UsersGoalUpdate(
+        replacement = user_goals_schema.UserGoalUpdate(
             interval="weekly", activity_type="run", goal_type="calories", goal_calories=5000
         )
 

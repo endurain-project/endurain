@@ -56,7 +56,7 @@ class CallbackResult:
             link, which creates no session. It holds secrets, so it is left out of the representation.
     """
 
-    user: users_schema.UsersRead
+    user: users_schema.UserRead
     userinfo: dict[str, Any]
     mode: Literal["login", "link"]
     redirect_path: str | None = None
@@ -789,7 +789,7 @@ class CallbackService:
 
     def create_callback_session(
         self,
-        user: users_schema.UsersRead,
+        user: users_schema.UserRead,
         ip_address: str,
         user_agent: str,
         password_hasher: credentials_integration.PasswordHasher,
@@ -827,7 +827,7 @@ class CallbackService:
                 jasil_audit.Outcome.DENIED, login_audit_actions.LoginFailureReason.INACTIVE, user_id=user.id
             )
             raise
-        user_read = users_schema.UsersRead.model_validate(user)
+        user_read = users_schema.UserRead.model_validate(user)
         session_id = str(uuid4())
         sessions_integration.create_session(
             session_id,

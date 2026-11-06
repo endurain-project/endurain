@@ -2,7 +2,7 @@
 
 Pure computation over samples and scalars: no session, no ORM, no other module.
 The athlete's max heart rate arrives as the three values it is derived from
-rather than as a user object. Taking ``users.schema.UsersRead`` would make the
+rather than as a user object. Taking ``users.schema.UserRead`` would make the
 streams package depend on another module's *wire type* to read three fields, so
 a change to what a user looks like on the API would change how heart-rate zones
 are computed.

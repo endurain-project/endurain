@@ -84,7 +84,7 @@ describe('fetchPublicUser', () => {
 
     const user = await fetchPublicUser(7)
 
-    expect(apiFetch).toHaveBeenCalledWith('/users/id/7', { signal: undefined })
+    expect(apiFetch).toHaveBeenCalledWith('/users/7', { signal: undefined })
     expect(user?.username).toBe('jane')
   })
 
@@ -100,7 +100,7 @@ describe('searchPublicUsers', () => {
 
     const users = await searchPublicUsers('a da')
 
-    expect(apiFetch).toHaveBeenCalledWith('/users/username/contains/a%20da', { signal: undefined })
+    expect(apiFetch).toHaveBeenCalledWith('/users?username_contains=a+da', { signal: undefined })
     expect(users[0]?.username).toBe('jane')
   })
 })

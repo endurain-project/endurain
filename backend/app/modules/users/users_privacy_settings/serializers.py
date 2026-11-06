@@ -9,7 +9,7 @@ import modules.users.users_privacy_settings.schema as users_privacy_settings_sch
 
 def to_read_schema(
     privacy_settings: users_privacy_settings_models.UsersPrivacySettings,
-) -> users_privacy_settings_schema.UsersPrivacySettingsRead:
+) -> users_privacy_settings_schema.UserPrivacySettingsRead:
     """Transform a privacy settings ORM row into its read schema.
 
     Args:
@@ -18,4 +18,4 @@ def to_read_schema(
     Returns:
         The user privacy settings as a schema.
     """
-    return users_privacy_settings_schema.UsersPrivacySettingsRead.model_validate(privacy_settings)
+    return users_privacy_settings_schema.UserPrivacySettingsRead.model_validate(privacy_settings)

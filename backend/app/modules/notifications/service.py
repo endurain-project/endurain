@@ -27,7 +27,7 @@ import modules.users.users.schema as users_schema
 logger = core_logger.get_logger(__name__)
 
 
-def user_reference_options(user: users_schema.UsersRead) -> dict[str, object]:
+def user_reference_options(user: users_schema.UserRead) -> dict[str, object]:
     """Build the notification options that name another user.
 
     Args:

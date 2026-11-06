@@ -80,7 +80,7 @@ TYPE_TO_FIELD = {
 }
 
 
-class UsersGoalBase(BaseModel):
+class UserGoalBase(BaseModel):
     """Base schema for users fitness goals.
 
     Attributes:
@@ -122,7 +122,7 @@ class UsersGoalBase(BaseModel):
     )
 
     @model_validator(mode="after")
-    def ensure_correct_goal_field(self) -> "UsersGoalBase":
+    def ensure_correct_goal_field(self) -> "UserGoalBase":
         """Validate exactly one goal field matches goal_type.
 
         Returns:
@@ -161,7 +161,7 @@ class UsersGoalBase(BaseModel):
         return self
 
 
-class _UsersGoalWrite(UsersGoalBase):
+class _UserGoalWrite(UserGoalBase):
     """A goal a client writes: its target is above zero, which a goal stored before that rule may not be."""
 
     goal_calories: StrictInt | None = Field(
@@ -181,14 +181,14 @@ class _UsersGoalWrite(UsersGoalBase):
     )
 
 
-class UsersGoalCreate(_UsersGoalWrite):
+class UserGoalCreate(_UserGoalWrite):
     """Schema for creating a new users goal.
 
-    Inherits all validation from UsersGoalBase.
+    Inherits all validation from UserGoalBase.
     """
 
 
-class UsersGoalRead(UsersGoalBase):
+class UserGoalRead(UserGoalBase):
     """Schema for reading a user goal.
 
     Attributes:
@@ -202,10 +202,10 @@ class UsersGoalRead(UsersGoalBase):
 
 
 #: One page of a user's goals.
-UsersGoalPage = core_pagination.Page[UsersGoalRead]
+UserGoalPage = core_pagination.Page[UserGoalRead]
 
 
-class UsersGoalUpdate(_UsersGoalWrite):
+class UserGoalUpdate(_UserGoalWrite):
     """Schema for replacing an existing users goal.
 
     The goal is named by the path, so the body carries neither an id nor an owner. It is the whole
@@ -213,7 +213,7 @@ class UsersGoalUpdate(_UsersGoalWrite):
     """
 
 
-class UsersGoalProgress(BaseModel):
+class UserGoalProgress(BaseModel):
     """Schema for user goal progress tracking.
 
     Attributes:
@@ -265,4 +265,4 @@ class UsersGoalProgress(BaseModel):
 
 
 #: One page of a user's goal progress.
-UsersGoalProgressPage = core_pagination.Page[UsersGoalProgress]
+UserGoalProgressPage = core_pagination.Page[UserGoalProgress]

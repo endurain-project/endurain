@@ -25,8 +25,7 @@ def mock_db():
     return MagicMock()
 
 
-@pytest.fixture
-def client(mock_db):
+def _app_client(mock_db, scopes: frozenset[str]) -> TestClient:
     from modules.users.users.router import router
 
     app = FastAPI()
@@ -34,13 +33,26 @@ def client(mock_db):
     core_exceptions.register_exception_handlers(app)
     app.dependency_overrides[auth_dependencies.check_scopes] = lambda: None
     app.dependency_overrides[auth_dependencies.get_sub_from_access_token] = lambda: 9
+    app.dependency_overrides[auth_dependencies.get_scopes_from_access_token] = lambda: scopes
     app.dependency_overrides[core_database.get_db] = lambda: mock_db
     app.dependency_overrides[core_dependencies.get_storage] = lambda: MagicMock()
     app.dependency_overrides[users_dependencies.get_user_deletion_state_store] = lambda: MagicMock()
     return TestClient(app)
 
 
-def _user(user_id: int, **overrides) -> users_schema.UsersRead:
+@pytest.fixture
+def client(mock_db):
+    """A client whose token holds both read scopes, like an administrator's."""
+    return _app_client(mock_db, frozenset({"users:read", "users:read_all"}))
+
+
+@pytest.fixture
+def regular_client(mock_db):
+    """A client whose token holds only ``users:read``, like a regular user's."""
+    return _app_client(mock_db, frozenset({"users:read"}))
+
+
+def _user(user_id: int, **overrides) -> users_schema.UserRead:
     fields = {
         "id": user_id,
         "name": f"User {user_id}",
@@ -50,32 +62,63 @@ def _user(user_id: int, **overrides) -> users_schema.UsersRead:
         "access_type": "regular",
     }
     fields.update(overrides)
-    return users_schema.UsersRead(**fields)
+    return users_schema.UserRead(**fields)
 
 
 class TestReadUsers:
+    @pytest.fixture
+    def page_size_setting(self):
+        """The server's ``num_records_per_page``, which the user list takes as its page size."""
+        with patch("modules.users.users.dependencies.server_settings_integration.get_server_settings") as mock:
+            mock.return_value = MagicMock(num_records_per_page=20)
+            yield mock
+
     @patch(f"{_SERVICE}.list_users")
-    def test_list_passes_the_query_through(self, mock_list, client, mock_db):
+    def test_list_passes_the_query_through(self, mock_list, client, mock_db, page_size_setting):
         mock_list.return_value = core_pagination.Page(items=[_user(1, name="Alice")], total=1, page=1, num_records=10)
 
-        response = client.get("/users?page_number=1&num_records=10&show_external_auth=false")
+        response = client.get(
+            "/users?page_number=1&num_records=10&external_auth=false&active=true&email_verified=false"
+            "&pending_approval=false&username=alice&username_contains=ali"
+        )
 
         assert response.status_code == 200
         assert response.json()["items"][0]["name"] == "Alice"
         mock_list.assert_called_once()
         assert mock_list.call_args.args == (mock_db,)
-        assert mock_list.call_args.kwargs["page_number"] == 1
-        assert mock_list.call_args.kwargs["show_external_auth"] is False
+        assert mock_list.call_args.kwargs == {
+            "page_number": 1,
+            "num_records": 10,
+            "active": True,
+            "email_verified": False,
+            "pending_approval": False,
+            "external_auth": False,
+            "username": "alice",
+            "username_contains": "ali",
+        }
 
-    @pytest.fixture
-    def page_size_setting(self):
-        """The server's ``num_records_per_page``, which the user search takes as its page size."""
-        with patch("modules.users.users.dependencies.server_settings_integration.get_server_settings") as mock:
-            mock.return_value = MagicMock(num_records_per_page=20)
-            yield mock
+    @patch(f"{_SERVICE}.list_users")
+    def test_the_page_size_above_the_server_setting_is_refused(self, mock_list, client, page_size_setting):
+        response = client.get("/users?num_records=21")
 
-    @patch(f"{_SERVICE}.search_public_users")
-    def test_contains_username(self, mock_search, client, page_size_setting):
+        assert response.status_code == 422
+        assert response.json()["errors"][0]["field"] == "query.num_records"
+        mock_list.assert_not_called()
+
+    @patch(f"{_SERVICE}.list_users")
+    def test_a_search_term_shorter_than_three_characters_is_refused(self, mock_list, client, page_size_setting):
+        assert client.get("/users?username_contains=ab").status_code == 422
+        mock_list.assert_not_called()
+
+    @patch(f"{_SERVICE}.list_users")
+    def test_an_exact_username_keeps_accepting_short_names(self, mock_list, client, page_size_setting):
+        mock_list.return_value = core_pagination.Page(items=[_user(1)], total=1, page=1, num_records=20)
+
+        assert client.get("/users?username=ab").status_code == 200
+        assert mock_list.call_args.kwargs["username"] == "ab"
+
+    @patch(f"{_SERVICE}.list_public_users")
+    def test_a_regular_token_gets_the_public_projection(self, mock_search, regular_client, page_size_setting):
         mock_search.return_value = users_schema.UserPublicPage.build(
             [
                 users_schema.UserPublicRead(id=1, name="A", username="testuser1"),
@@ -86,46 +129,51 @@ class TestReadUsers:
             20,
         )
 
-        response = client.get("/users/username/contains/test?page_number=1&num_records=20")
+        response = regular_client.get("/users?username_contains=test&page_number=1&num_records=20")
 
         assert response.status_code == 200
         body = response.json()
         assert [u["username"] for u in body["items"]] == ["testuser1", "testuser2"]
+        assert set(body["items"][0]) == {"id", "name", "username", "city", "photo_path"}
         assert (body["total"], body["next"]) == (2, None)
+        assert mock_search.call_args.args[0] == core_pagination.PageParams(1, 20)
+        assert mock_search.call_args.kwargs == {"username": None, "username_contains": "test"}
 
-    @patch(f"{_SERVICE}.search_public_users")
-    def test_search_page_size_defaults_to_the_server_setting(self, mock_search, client, page_size_setting):
+    @patch(f"{_SERVICE}.list_public_users")
+    def test_a_regular_token_looks_a_user_up_by_exact_username(self, mock_search, regular_client, page_size_setting):
         mock_search.return_value = users_schema.UserPublicPage.build([], 0, 1, 20)
 
-        assert client.get("/users/username/contains/test").status_code == 200
+        assert regular_client.get("/users?username=dee").status_code == 200
+        assert mock_search.call_args.kwargs == {"username": "dee", "username_contains": None}
 
-        assert mock_search.call_args.args[1] == core_pagination.PageParams(1, 20)
+    @pytest.mark.parametrize(
+        "query",
+        ["active=true", "email_verified=true", "pending_approval=false", "external_auth=true"],
+    )
+    @patch(f"{_SERVICE}.list_public_users")
+    def test_a_regular_token_cannot_use_a_state_filter(self, mock_search, query, regular_client, page_size_setting):
+        response = regular_client.get(f"/users?{query}")
 
-    @patch(f"{_SERVICE}.search_public_users")
-    def test_search_page_size_above_the_server_setting_is_refused(self, mock_search, client, page_size_setting):
-        response = client.get("/users/username/contains/test?num_records=21")
-
-        assert response.status_code == 422
-        body = response.json()
-        assert body["errors"][0]["field"] == "query.num_records"
+        assert response.status_code == 403
+        assert response.json()["missing_scopes"] == ["users:read_all"]
         mock_search.assert_not_called()
 
-    @patch(f"{_SERVICE}.search_public_users")
-    def test_search_term_shorter_than_three_characters_is_refused(self, mock_search, client, page_size_setting):
-        assert client.get("/users/username/contains/ab").status_code == 422
+    @patch(f"{_SERVICE}.list_public_users")
+    def test_a_regular_token_page_size_above_the_server_setting_is_refused(
+        self, mock_search, regular_client, page_size_setting
+    ):
+        assert regular_client.get("/users?username_contains=test&num_records=21").status_code == 422
         mock_search.assert_not_called()
 
-    @patch(f"{_SERVICE}.require_user_by_username")
-    def test_exact_username_lookup_keeps_accepting_short_names(self, mock_get, client):
-        mock_get.return_value = _user(1)
+    @pytest.mark.parametrize("path", ["/users/id/42", "/users/username/someone", "/users/username/contains/test"])
+    def test_the_old_lookup_paths_are_gone(self, path, client):
+        assert client.get(path).status_code == 404
 
-        assert client.get("/users/username/ab").status_code == 200
-
-    @patch(f"{_SERVICE}.require_user_by_username")
-    def test_exact_username_not_found_is_404(self, mock_get, client):
+    @patch(f"{_SERVICE}.require_user_by_email")
+    def test_email_not_found_is_404(self, mock_get, client):
         mock_get.side_effect = core_exceptions.NotFoundError("User not found")
 
-        response = client.get("/users/username/nonexistent")
+        response = client.post("/users/email/lookup", json={"email": "nobody@example.com"})
 
         assert response.status_code == 404
 
@@ -142,32 +190,34 @@ class TestReadUsers:
     def test_the_email_is_not_a_path_segment(self, client):
         assert client.get("/users/email/test@example.com").status_code in (404, 405)
 
-    @patch(f"{_SERVICE}.require_user")
-    def test_full_record_by_id_is_served_on_the_admin_route(self, mock_get, client):
-        mock_get.return_value = _user(42, name="ID User")
+    @patch(f"{_SERVICE}.require_user_with_pending_email")
+    def test_an_admin_reads_the_full_record_with_its_version(self, mock_get, client):
+        mock_get.return_value = _user(42, name="ID User", version=7)
 
         response = client.get("/users/42")
 
         assert response.status_code == 200
         assert response.json()["email"] == "user42@example.com"
+        assert response.headers["ETag"] == '"7"'
 
     @patch(f"{_SERVICE}.get_public_profile")
-    def test_id_found(self, mock_get, client):
+    def test_a_regular_token_reads_the_public_projection(self, mock_get, regular_client):
         mock_get.return_value = users_schema.UserPublicRead(id=42, name="ID User", username="u42")
 
-        response = client.get("/users/id/42")
+        response = regular_client.get("/users/42")
 
         assert response.status_code == 200
-        assert response.json()["id"] == 42
+        assert response.json() == {"id": 42, "name": "ID User", "username": "u42", "city": None, "photo_path": None}
+        assert "ETag" not in response.headers
 
     @patch(f"{_SERVICE}.get_public_profile")
-    def test_id_not_found_is_404(self, mock_get, client):
+    def test_a_regular_token_reading_an_unknown_user_is_404(self, mock_get, regular_client):
         mock_get.side_effect = core_exceptions.NotFoundError("User not found")
 
-        assert client.get("/users/id/42").status_code == 404
+        assert regular_client.get("/users/42").status_code == 404
 
     def test_id_must_be_positive(self, client):
-        assert client.get("/users/id/0").status_code == 422
+        assert client.get("/users/0").status_code == 422
 
 
 class TestCreateUser:
@@ -381,24 +431,28 @@ class TestReadUserIdentityProviders:
         mock_links.assert_called_once_with(4, core_pagination.PageParams(2, 1), mock_db)
 
 
-class TestLookupPathParametersAreBounded:
+class TestLookupParametersAreBounded:
     """A lookup key longer than the column can hold is refused before it reaches the database."""
 
-    @pytest.mark.parametrize("path", ["/users/username/{}", "/users/username/contains/{}"])
-    def test_a_value_longer_than_the_column_is_refused(self, client, path):
+    @pytest.mark.parametrize("name", ["username", "username_contains"])
+    def test_a_value_longer_than_the_column_is_refused(self, client, name):
         with patch("modules.users.users.dependencies.server_settings_integration.get_server_settings") as settings:
             settings.return_value = MagicMock(num_records_per_page=20)
-            assert client.get(path.format("a" * 251)).status_code == 422
+            assert client.get(f"/users?{name}=" + "a" * 251).status_code == 422
 
     def test_an_email_longer_than_the_column_is_refused(self, client):
         assert client.post("/users/email/lookup", json={"email": "a" * 251}).status_code == 422
 
     def test_a_value_at_the_limit_reaches_the_service(self, client):
         with (
-            patch(f"{_SERVICE}.require_user_by_username", return_value=_user(1)),
+            patch("modules.users.users.dependencies.server_settings_integration.get_server_settings") as settings,
+            patch(
+                f"{_SERVICE}.list_users", return_value=core_pagination.Page(items=[], total=0, page=1, num_records=20)
+            ),
             patch(f"{_SERVICE}.require_user_by_email", return_value=_user(1)),
         ):
-            assert client.get("/users/username/" + "a" * 250).status_code == 200
+            settings.return_value = MagicMock(num_records_per_page=20)
+            assert client.get("/users?username=" + "a" * 250).status_code == 200
             assert client.post("/users/email/lookup", json={"email": "a" * 250}).status_code == 200
 
 
@@ -412,10 +466,7 @@ class TestReadScopes:
         route = next(r for r in router.routes if r.path == path and "GET" in r.methods)
         return {scope for dep in route.dependant.dependencies for scope in dep.own_oauth_scopes or []}
 
-    @pytest.mark.parametrize(
-        "path",
-        ["", "/username/{username}", "/{user_id}", "/{user_id}/identity-providers"],
-    )
+    @pytest.mark.parametrize("path", ["/{user_id}/identity-providers"])
     def test_full_records_need_the_admin_read_scope(self, path):
         assert self._scopes(path) == {"users:read_all"}
 
@@ -426,17 +477,9 @@ class TestReadScopes:
         scopes = {scope for dep in route.dependant.dependencies for scope in dep.own_oauth_scopes or []}
         assert scopes == {"users:read_all"}
 
-    @pytest.mark.parametrize("path", ["/id/{user_id}", "/username/contains/{username}"])
-    def test_public_projections_need_only_the_regular_read_scope(self, path):
+    @pytest.mark.parametrize("path", ["", "/{user_id}"])
+    def test_reads_that_serve_both_projections_need_only_the_regular_read_scope(self, path):
         assert self._scopes(path) == {"users:read"}
-
-    @patch(f"{_SERVICE}.get_public_profile")
-    def test_id_lookup_never_returns_personal_fields(self, mock_get, client):
-        mock_get.return_value = users_schema.UserPublicRead(id=4, name="Dee", username="dee", city="Rome")
-
-        body = client.get("/users/id/4").json()
-
-        assert set(body) == {"id", "name", "username", "city", "photo_path"}
 
 
 class TestReadScopeEnforcement:
@@ -458,15 +501,13 @@ class TestReadScopeEnforcement:
                 raise HTTPException(status_code=403, detail=f"Missing permissions: {missing}")
 
         app.dependency_overrides[auth_dependencies.check_scopes] = check_scopes
+        app.dependency_overrides[auth_dependencies.get_scopes_from_access_token] = lambda: frozenset(scopes)
         app.dependency_overrides[core_database.get_db] = lambda: MagicMock()
         return TestClient(app)
 
     @pytest.mark.parametrize(
         "path",
         [
-            "/users",
-            "/users/username/admin",
-            "/users/1",
             "/users/1/identity-providers",
         ],
     )
@@ -488,12 +529,15 @@ class TestReadScopeEnforcement:
         ("path", "target"),
         [
             ("/users", "list_users"),
-            ("/users/username/admin", "require_user_by_username"),
-            ("/users/1", "require_user"),
+            ("/users/1", "require_user_with_pending_email"),
         ],
     )
     def test_admin_token_passes_the_scope_check(self, path, target):
-        with patch(f"{_SERVICE}.{target}", side_effect=core_exceptions.NotFoundError("stop")) as mock_target:
+        with (
+            patch(f"{_SERVICE}.{target}", side_effect=core_exceptions.NotFoundError("stop")) as mock_target,
+            patch("modules.users.users.dependencies.server_settings_integration.get_server_settings") as settings,
+        ):
+            settings.return_value = MagicMock(num_records_per_page=25)
             response = self._client(auth_constants.ADMIN_ACCESS_SCOPE).get(path)
 
         assert response.status_code != 403
@@ -512,18 +556,29 @@ class TestReadScopeEnforcement:
     def test_regular_token_reads_only_the_public_projection(self, mock_get):
         mock_get.return_value = users_schema.UserPublicRead(id=4, name="Dee", username="dee")
 
-        response = self._client(auth_constants.REGULAR_ACCESS_SCOPE).get("/users/id/4")
+        response = self._client(auth_constants.REGULAR_ACCESS_SCOPE).get("/users/4")
 
         assert response.status_code == 200
         assert set(response.json()) == {"id", "name", "username", "city", "photo_path"}
+
+    @patch(f"{_SERVICE}.list_public_users")
+    def test_regular_token_lists_only_public_projections(self, mock_list):
+        mock_list.return_value = users_schema.UserPublicPage.build(
+            [users_schema.UserPublicRead(id=4, name="Dee", username="dee")], 1, 1, 25
+        )
+        with patch("modules.users.users.dependencies.server_settings_integration.get_server_settings") as settings:
+            settings.return_value = MagicMock(num_records_per_page=25)
+            response = self._client(auth_constants.REGULAR_ACCESS_SCOPE).get("/users?username_contains=dee")
+
+        assert response.status_code == 200
+        assert set(response.json()["items"][0]) == {"id", "name", "username", "city", "photo_path"}
 
 
 class TestReadSendsTheETag:
     @pytest.mark.parametrize(
         ("path", "service"),
         [
-            ("/users/42", "require_user"),
-            ("/users/username/someone", "require_user_by_username"),
+            ("/users/42", "require_user_with_pending_email"),
         ],
     )
     def test_a_full_record_carries_its_version(self, path, service, client):

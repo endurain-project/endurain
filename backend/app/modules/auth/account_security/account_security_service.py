@@ -60,7 +60,7 @@ def list_user_sessions(
     token_user_id: int,
     page: core_pagination.PageParams,
     db: Session,
-) -> auth_sessions_schema.UsersSessionsPage:
+) -> auth_sessions_schema.UserSessionsPage:
     """Retrieve one page of the authenticated user's sessions."""
     return sessions_integration.list_user_sessions(token_user_id, page, db)
 

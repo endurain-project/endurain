@@ -18,7 +18,7 @@ import modules.auth.api_keys.utils as api_keys_utils
 import modules.auth.identity_providers.schema as idp_schema
 
 
-class UsersApiKeyCreate(BaseModel):
+class UserApiKeyCreate(BaseModel):
     """Schema for creating a new API key.
 
     API-key creation is a sensitive, persistent grant of
@@ -126,7 +126,7 @@ class UsersApiKeyCreate(BaseModel):
     model_config = ConfigDict(from_attributes=True, extra="forbid")
 
 
-class UsersApiKeyRead(BaseModel):
+class UserApiKeyRead(BaseModel):
     """API key read schema for list/detail responses.
 
     Never exposes the raw key or its hash. Safe to
@@ -170,10 +170,10 @@ class UsersApiKeyRead(BaseModel):
         return api_keys_utils.json_to_scopes(v) if isinstance(v, str) else v
 
 
-class UsersApiKeyCreatedRead(UsersApiKeyRead):
+class UserApiKeyCreatedRead(UserApiKeyRead):
     """API key creation response schema.
 
-    Extends UsersApiKeyRead with the raw key, returned
+    Extends UserApiKeyRead with the raw key, returned
     only once at creation time. The raw key is never
     stored and cannot be retrieved again.
 
@@ -194,4 +194,4 @@ class UsersApiKeyCreatedRead(UsersApiKeyRead):
 
 
 #: One page of a user's API keys.
-UsersApiKeyPage = core_pagination.Page[UsersApiKeyRead]
+UserApiKeyPage = core_pagination.Page[UserApiKeyRead]

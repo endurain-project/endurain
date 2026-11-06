@@ -479,7 +479,7 @@ class ImportService:
             return
 
         try:
-            user_integrations = users_integrations_schema.UsersIntegrationsUpdate(**integrations_data)
+            user_integrations = users_integrations_schema.UserIntegrationsUpdate(**integrations_data)
         except ValidationError:
             logger.warning("Skipped invalid user integrations")
             return
@@ -501,7 +501,7 @@ class ImportService:
             goal_data = users_profile_contracts.without_row_identity(goal_data)
 
             try:
-                goal = user_goals_schema.UsersGoalCreate(**goal_data)
+                goal = user_goals_schema.UserGoalCreate(**goal_data)
             except ValidationError:
                 logger.warning("Skipped an invalid user goal")
                 continue
@@ -529,7 +529,7 @@ class ImportService:
         privacy_data = users_profile_contracts.without_row_identity(privacy_data)
 
         try:
-            user_privacy_settings = users_privacy_settings_schema.UsersPrivacySettingsUpdate(**privacy_data)
+            user_privacy_settings = users_privacy_settings_schema.UserPrivacySettingsUpdate(**privacy_data)
         except ValidationError:
             logger.warning("Skipped invalid user privacy settings")
             return

@@ -3,7 +3,7 @@
 from collections.abc import Collection, Mapping
 from datetime import datetime
 
-from sqlalchemy import Select, exists, func, or_, select, text
+from sqlalchemy import Select, exists, func, select, text
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
@@ -45,42 +45,53 @@ def _get_user_model_by_id(user_id: int, db: Session) -> users_models.Users:
 
 def _filtered[RowT: tuple[object, ...]](
     stmt: Select[RowT],
-    show_inactive: bool | None,
-    show_email_unverified: bool | None,
-    show_pending_approval: bool | None,
+    *,
+    active: bool | None = None,
+    email_verified: bool | None = None,
+    pending_approval: bool | None = None,
     username: str | None = None,
+    username_contains: str | None = None,
+    external_auth: bool | None = None,
+    linked_user_ids: Select[tuple[int]] | None = None,
     exclude_user_ids: Collection[int] = (),
 ) -> Select[RowT]:
     """Apply the optional list filters to a users statement.
 
     Args:
         stmt: The statement to filter.
-        show_inactive: If False, excludes inactive users, except sign-ups awaiting approval (they
-            are inactive until approved).
-        show_email_unverified: If False, excludes users with unverified emails.
-        show_pending_approval: If False, excludes users pending admin approval.
-        username: If set, keeps only users whose username contains it.
+        active: If set, keeps only users whose active flag equals it.
+        email_verified: If set, keeps only users whose email verification flag equals it.
+        pending_approval: If set, keeps only users whose pending-approval flag equals it.
+        username: If set, keeps only the user with this exact username.
+        username_contains: If set, keeps only users whose username contains it.
+        external_auth: If set, keeps only users who are (True) or are not (False) in ``linked_user_ids``.
+        linked_user_ids: The users who have an identity-provider link; required with ``external_auth``.
         exclude_user_ids: Users to leave out.
 
     Returns:
         The filtered statement.
     """
-    if show_inactive is False:
-        stmt = stmt.where(or_(users_models.Users.active.is_(True), users_models.Users.pending_admin_approval.is_(True)))
-    if show_email_unverified is False:
-        stmt = stmt.where(users_models.Users.email_verified.is_(True))
-    if show_pending_approval is False:
-        stmt = stmt.where(users_models.Users.pending_admin_approval.is_(False))
+    if active is not None:
+        stmt = stmt.where(users_models.Users.active.is_(active))
+    if email_verified is not None:
+        stmt = stmt.where(users_models.Users.email_verified.is_(email_verified))
+    if pending_approval is not None:
+        stmt = stmt.where(users_models.Users.pending_admin_approval.is_(pending_approval))
     if username:
-        escaped = core_sanitization.escape_like(_normalized_username(username))
+        stmt = stmt.where(users_models.Users.username == _normalized_username(username))
+    if username_contains:
+        escaped = core_sanitization.escape_like(_normalized_username(username_contains))
         stmt = stmt.where(func.lower(users_models.Users.username).like(f"%{escaped}%", escape="\\"))
+    if external_auth is not None and linked_user_ids is not None:
+        linked = users_models.Users.id.in_(linked_user_ids)
+        stmt = stmt.where(linked if external_auth else ~linked)
     if exclude_user_ids:
         stmt = stmt.where(users_models.Users.id.not_in(exclude_user_ids))
 
     return stmt
 
 
-def get_all_users(db: Session) -> list[users_schema.UsersRead]:
+def get_all_users(db: Session) -> list[users_schema.UserRead]:
     """Retrieve all users.
 
     Args:
@@ -95,20 +106,27 @@ def get_all_users(db: Session) -> list[users_schema.UsersRead]:
 
 def get_users_number(
     db: Session,
-    show_inactive: bool | None = True,
-    show_email_unverified: bool | None = True,
-    show_pending_approval: bool | None = True,
+    *,
+    active: bool | None = None,
+    email_verified: bool | None = None,
+    pending_approval: bool | None = None,
     username: str | None = None,
+    username_contains: str | None = None,
+    external_auth: bool | None = None,
+    linked_user_ids: Select[tuple[int]] | None = None,
     exclude_user_ids: Collection[int] = (),
 ) -> int:
     """Count users matching the optional list filters.
 
     Args:
         db: Database session.
-        show_inactive: If False, excludes inactive users.
-        show_email_unverified: If False, excludes users with unverified emails.
-        show_pending_approval: If False, excludes users pending admin approval.
-        username: If set, counts only users whose username contains it.
+        active: If set, counts only users whose active flag equals it.
+        email_verified: If set, counts only users whose email verification flag equals it.
+        pending_approval: If set, counts only users whose pending-approval flag equals it.
+        username: If set, counts only the user with this exact username.
+        username_contains: If set, counts only users whose username contains it.
+        external_auth: If set, counts only users who are (True) or are not (False) in ``linked_user_ids``.
+        linked_user_ids: The users who have an identity-provider link; required with ``external_auth``.
         exclude_user_ids: Users to leave out of the count.
 
     Returns:
@@ -116,11 +134,14 @@ def get_users_number(
     """
     stmt = _filtered(
         select(func.count(users_models.Users.id)),
-        show_inactive,
-        show_email_unverified,
-        show_pending_approval,
-        username,
-        exclude_user_ids,
+        active=active,
+        email_verified=email_verified,
+        pending_approval=pending_approval,
+        username=username,
+        username_contains=username_contains,
+        external_auth=external_auth,
+        linked_user_ids=linked_user_ids,
+        exclude_user_ids=exclude_user_ids,
     )
     return db.execute(stmt).scalar_one()
 
@@ -129,26 +150,45 @@ def get_users_with_pagination(
     db: Session,
     page_number: int | None = None,
     num_records: int | None = None,
-    show_inactive: bool | None = True,
-    show_email_unverified: bool | None = True,
-    show_pending_approval: bool | None = True,
+    *,
+    active: bool | None = None,
+    email_verified: bool | None = None,
+    pending_approval: bool | None = None,
     username: str | None = None,
-) -> list[users_schema.UsersRead]:
+    username_contains: str | None = None,
+    external_auth: bool | None = None,
+    linked_user_ids: Select[tuple[int]] | None = None,
+    exclude_user_ids: Collection[int] = (),
+) -> list[users_schema.UserRead]:
     """Retrieve a page of users, ordered by username, with optional filters.
 
     Args:
         db: Database session.
         page_number: The 1-indexed page; pagination is skipped when it or ``num_records`` is None.
         num_records: The number of records per page.
-        show_inactive: If False, excludes inactive users.
-        show_email_unverified: If False, excludes users with unverified emails.
-        show_pending_approval: If False, excludes users pending admin approval.
-        username: If set, keeps only users whose username contains it.
+        active: If set, keeps only users whose active flag equals it.
+        email_verified: If set, keeps only users whose email verification flag equals it.
+        pending_approval: If set, keeps only users whose pending-approval flag equals it.
+        username: If set, keeps only the user with this exact username.
+        username_contains: If set, keeps only users whose username contains it.
+        external_auth: If set, keeps only users who are (True) or are not (False) in ``linked_user_ids``.
+        linked_user_ids: The users who have an identity-provider link; required with ``external_auth``.
+        exclude_user_ids: Users to leave out.
 
     Returns:
         The users matching the filters.
     """
-    stmt = _filtered(select(users_models.Users), show_inactive, show_email_unverified, show_pending_approval, username)
+    stmt = _filtered(
+        select(users_models.Users),
+        active=active,
+        email_verified=email_verified,
+        pending_approval=pending_approval,
+        username=username,
+        username_contains=username_contains,
+        external_auth=external_auth,
+        linked_user_ids=linked_user_ids,
+        exclude_user_ids=exclude_user_ids,
+    )
     stmt = stmt.order_by(users_models.Users.username)
 
     if page_number is not None and num_records is not None:
@@ -169,7 +209,7 @@ def _normalized_username(username: str) -> str:
     return username.lower()
 
 
-def get_user_by_username(username: str, db: Session) -> users_schema.UsersRead | None:
+def get_user_by_username(username: str, db: Session) -> users_schema.UserRead | None:
     """Retrieve a user by exact username.
 
     Args:
@@ -184,31 +224,7 @@ def get_user_by_username(username: str, db: Session) -> users_schema.UsersRead |
     return users_serializers.to_read_schema(user) if user else None
 
 
-def search_active_users_by_username(
-    username: str, limit: int, offset: int, db: Session, *, exclude_user_ids: Collection[int] = ()
-) -> list[users_schema.UsersRead]:
-    """Retrieve the active users whose username contains the search term.
-
-    Args:
-        username: The partial username to search for.
-        limit: The most users to return.
-        offset: How many matching users to skip.
-        db: Database session.
-        exclude_user_ids: Users to leave out.
-
-    Returns:
-        The matching users, ordered by username.
-    """
-    stmt = (
-        _filtered(select(users_models.Users), False, True, True, username, exclude_user_ids)
-        .order_by(users_models.Users.username)
-        .limit(limit)
-        .offset(offset)
-    )
-    return [users_serializers.to_read_schema(user) for user in db.execute(stmt).scalars().all()]
-
-
-def get_user_by_email(email: str, db: Session) -> users_schema.UsersRead | None:
+def get_user_by_email(email: str, db: Session) -> users_schema.UserRead | None:
     """Retrieve a user by email address.
 
     Args:
@@ -223,7 +239,7 @@ def get_user_by_email(email: str, db: Session) -> users_schema.UsersRead | None:
     return users_serializers.to_read_schema(user) if user else None
 
 
-def get_user_by_id(user_id: int, db: Session) -> users_schema.UsersRead | None:
+def get_user_by_id(user_id: int, db: Session) -> users_schema.UserRead | None:
     """Retrieve a user by ID.
 
     Args:
@@ -238,7 +254,7 @@ def get_user_by_id(user_id: int, db: Session) -> users_schema.UsersRead | None:
     return users_serializers.to_read_schema(user) if user else None
 
 
-def get_users_by_ids(user_ids: Collection[int], db: Session) -> list[users_schema.UsersRead]:
+def get_users_by_ids(user_ids: Collection[int], db: Session) -> list[users_schema.UserRead]:
     """Retrieve several users by ID in one query.
 
     Args:
@@ -255,7 +271,7 @@ def get_users_by_ids(user_ids: Collection[int], db: Session) -> list[users_schem
     return [users_serializers.to_read_schema(user) for user in db.execute(stmt).scalars().all()]
 
 
-def get_users_admin(db: Session) -> list[users_schema.UsersRead]:
+def get_users_admin(db: Session) -> list[users_schema.UserRead]:
     """Retrieve all admin users.
 
     Args:
@@ -394,7 +410,7 @@ def get_stored_photo_keys(db: Session) -> list[tuple[int, str | None]]:
     return [(row[0], row[1]) for row in rows]
 
 
-def create_user(fields: Mapping[str, object], db: Session) -> users_schema.UsersRead:
+def create_user(fields: Mapping[str, object], db: Session) -> users_schema.UserRead:
     """Stage a new user row (flushed, not committed).
 
     Args:
@@ -420,7 +436,7 @@ def create_user(fields: Mapping[str, object], db: Session) -> users_schema.Users
 
 def update_user(
     user_id: int, changes: Mapping[str, object], db: Session, *, if_match: str | None = None
-) -> users_schema.UsersRead:
+) -> users_schema.UserRead:
     """Stage column changes on a user (flushed, not committed).
 
     Args:

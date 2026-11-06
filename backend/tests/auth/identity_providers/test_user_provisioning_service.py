@@ -250,7 +250,7 @@ class TestUpdateUserFromIdpEmail:
                 return_value=None,
             ),
             patch("modules.auth.identity_providers.user_provisioning_service.users_integration.edit_user") as mock_edit,
-            patch("modules.auth.identity_providers.user_provisioning_service.users_schema.UsersEdit.from_read"),
+            patch("modules.auth.identity_providers.user_provisioning_service.users_schema.UserEdit.from_read"),
         ):
             user_provisioning_service.update_user_from_idp(user, idp, userinfo, MagicMock(spec=Session))
         return user, mock_edit
@@ -282,7 +282,7 @@ class TestUpdateUserFromIdpLogging:
                 return_value=None,
             ),
             patch("modules.auth.identity_providers.user_provisioning_service.users_integration.edit_user"),
-            patch("modules.auth.identity_providers.user_provisioning_service.users_schema.UsersEdit.from_read"),
+            patch("modules.auth.identity_providers.user_provisioning_service.users_schema.UserEdit.from_read"),
             patch("modules.auth.identity_providers.user_provisioning_service.logger") as mock_logger,
         ):
             user_provisioning_service.update_user_from_idp(

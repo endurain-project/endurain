@@ -22,7 +22,7 @@ vi.mock('@/services/http', () => ({
   apiFetch: vi.fn<typeof apiFetch>(),
 }))
 
-/** Builds a full `/profile` (`UsersMe`) wire payload, overridable per case. */
+/** Builds a full `/profile` (`UserMe`) wire payload, overridable per case. */
 function makeProfileDto(overrides: Partial<ProfileDto> = {}): ProfileDto {
   return {
     id: 5,

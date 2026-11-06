@@ -261,7 +261,7 @@ def request_sign_up_approved_email(user_id: int, db: Session) -> bool:
 
 
 def _issue_verification_email(
-    user: users_schema.UsersRead,
+    user: users_schema.UserRead,
     email: str,
     previous_email: str | None,
     event_id: str,
@@ -444,7 +444,7 @@ def _signup_response(server_settings: server_settings_schema.ServerSettingsRead)
 
 
 def signup(
-    user: users_schema.UsersSignup,
+    user: users_schema.UserSignup,
     state: StateProvider,
     db: Session,
 ) -> sign_up_schema.SignUpRead:

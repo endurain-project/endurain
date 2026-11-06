@@ -7,18 +7,18 @@ import pytest
 from pydantic import ValidationError
 
 from modules.users.users_integrations.schema import (
-    UsersIntegrationsBase,
-    UsersIntegrationsCreate,
-    UsersIntegrationsRead,
-    UsersIntegrationsUpdate,
+    UserIntegrationsBase,
+    UserIntegrationsCreate,
+    UserIntegrationsRead,
+    UserIntegrationsUpdate,
 )
 
 
 class TestUsersIntegrationsBase:
-    """Test suite for UsersIntegrationsBase schema."""
+    """Test suite for UserIntegrationsBase schema."""
 
     def test_users_integrations_base_valid_minimal(self):
-        """Test creating valid UsersIntegrationsBase with minimal fields.
+        """Test creating valid UserIntegrationsBase with minimal fields.
 
         Asserts:
             - All fields are optional and default to None/False
@@ -27,7 +27,7 @@ class TestUsersIntegrationsBase:
         data = {}
 
         # Act
-        obj = UsersIntegrationsBase(**data)
+        obj = UserIntegrationsBase(**data)
 
         # Assert
         assert obj.strava_client_id is None
@@ -40,7 +40,7 @@ class TestUsersIntegrationsBase:
         assert obj.garminconnect_sync_gear is False
 
     def test_users_integrations_base_valid_all_fields(self):
-        """Test creating UsersIntegrationsBase with all fields.
+        """Test creating UserIntegrationsBase with all fields.
 
         Asserts:
             - All fields are properly stored
@@ -59,7 +59,7 @@ class TestUsersIntegrationsBase:
         }
 
         # Act
-        obj = UsersIntegrationsBase(**data)
+        obj = UserIntegrationsBase(**data)
 
         # Assert
         assert obj.strava_client_id == "client_id"
@@ -85,7 +85,7 @@ class TestUsersIntegrationsBase:
 
         # Act & Assert
         with pytest.raises(ValidationError) as exc_info:
-            UsersIntegrationsBase(**data)
+            UserIntegrationsBase(**data)
 
         assert "extra_field" in str(exc_info.value)
 
@@ -102,7 +102,7 @@ class TestUsersIntegrationsBase:
 
         # Act & Assert
         with pytest.raises(ValidationError) as exc_info:
-            UsersIntegrationsBase(**data)
+            UserIntegrationsBase(**data)
 
         assert "strava_client_id" in str(exc_info.value)
 
@@ -119,16 +119,16 @@ class TestUsersIntegrationsBase:
 
         # Act & Assert
         with pytest.raises(ValidationError) as exc_info:
-            UsersIntegrationsBase(**data)
+            UserIntegrationsBase(**data)
 
         assert "strava_sync_gear" in str(exc_info.value)
 
 
 class TestUsersIntegrationsCreate:
-    """Test suite for UsersIntegrationsCreate schema."""
+    """Test suite for UserIntegrationsCreate schema."""
 
     def test_users_integrations_create_valid(self):
-        """Test creating UsersIntegrationsCreate instance.
+        """Test creating UserIntegrationsCreate instance.
 
         Asserts:
             - Valid data passes validation
@@ -141,7 +141,7 @@ class TestUsersIntegrationsCreate:
         }
 
         # Act
-        obj = UsersIntegrationsCreate(**data)
+        obj = UserIntegrationsCreate(**data)
 
         # Assert
         assert obj.strava_client_id == "client_id"
@@ -149,10 +149,10 @@ class TestUsersIntegrationsCreate:
 
 
 class TestUsersIntegrationsRead:
-    """Test suite for UsersIntegrationsRead schema."""
+    """Test suite for UserIntegrationsRead schema."""
 
     def test_users_integrations_read_valid_minimal(self):
-        """Test creating UsersIntegrationsRead with required fields.
+        """Test creating UserIntegrationsRead with required fields.
 
         Asserts:
             - id and user_id are required
@@ -164,7 +164,7 @@ class TestUsersIntegrationsRead:
         }
 
         # Act
-        obj = UsersIntegrationsRead(**data)
+        obj = UserIntegrationsRead(**data)
 
         # Assert
         assert obj.id == 1
@@ -183,7 +183,7 @@ class TestUsersIntegrationsRead:
 
         # Act & Assert
         with pytest.raises(ValidationError) as exc_info:
-            UsersIntegrationsRead(**data)
+            UserIntegrationsRead(**data)
 
         assert "id" in str(exc_info.value)
 
@@ -200,7 +200,7 @@ class TestUsersIntegrationsRead:
 
         # Act & Assert
         with pytest.raises(ValidationError) as exc_info:
-            UsersIntegrationsRead(**data)
+            UserIntegrationsRead(**data)
 
         assert "user_id" in str(exc_info.value)
 
@@ -218,16 +218,16 @@ class TestUsersIntegrationsRead:
 
         # Act & Assert
         with pytest.raises(ValidationError) as exc_info:
-            UsersIntegrationsRead(**data)
+            UserIntegrationsRead(**data)
 
         assert "id" in str(exc_info.value)
 
 
 class TestUsersIntegrationsUpdate:
-    """Test suite for UsersIntegrationsUpdate schema."""
+    """Test suite for UserIntegrationsUpdate schema."""
 
     def test_users_integrations_update_valid_empty(self):
-        """Test creating UsersIntegrationsUpdate with no fields.
+        """Test creating UserIntegrationsUpdate with no fields.
 
         Asserts:
             - All fields are optional
@@ -236,7 +236,7 @@ class TestUsersIntegrationsUpdate:
         data = {}
 
         # Act
-        obj = UsersIntegrationsUpdate(**data)
+        obj = UserIntegrationsUpdate(**data)
 
         # Assert
         assert obj.strava_sync_gear is False
@@ -254,7 +254,7 @@ class TestUsersIntegrationsUpdate:
         }
 
         # Act
-        obj = UsersIntegrationsUpdate(**data)
+        obj = UserIntegrationsUpdate(**data)
 
         # Assert
         assert obj.strava_client_id == "new_client_id"
@@ -280,7 +280,7 @@ class TestUsersIntegrationsUpdate:
             strava_token_expires_at: ClassVar[None] = None
 
         # Act
-        obj = UsersIntegrationsUpdate.model_validate(MockORM())
+        obj = UserIntegrationsUpdate.model_validate(MockORM())
 
         # Assert
         assert obj.strava_client_id == "client_id"

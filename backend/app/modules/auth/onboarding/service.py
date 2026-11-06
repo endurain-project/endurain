@@ -29,7 +29,7 @@ def complete_onboarding(
     request: onboarding_schema.OnboardingCreate,
     store: onboarding_token_store.OnboardingTokenStore,
     db: Session,
-) -> users_schema.UsersRead:
+) -> users_schema.UserRead:
     """Create the first administrator when the setup token is valid and no account exists.
 
     The cheap refusals come first, so a request that cannot succeed costs no password hashing. The token is

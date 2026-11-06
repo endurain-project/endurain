@@ -21,7 +21,7 @@ import modules.users.users_default_gear.schema as users_default_gear_schema
 logger = core_logger.get_logger(__name__)
 
 
-def get_default_gear(user_id: int, db: Session) -> users_default_gear_schema.UsersDefaultGearRead | None:
+def get_default_gear(user_id: int, db: Session) -> users_default_gear_schema.UserDefaultGearRead | None:
     """Return a user's default gear settings.
 
     Args:
@@ -35,12 +35,12 @@ def get_default_gear(user_id: int, db: Session) -> users_default_gear_schema.Use
 
 
 def stage_default_gear_edit(
-    user_default_gear: users_default_gear_schema.UsersDefaultGearUpdate,
+    user_default_gear: users_default_gear_schema.UserDefaultGearUpdate,
     user_id: int,
     db: Session,
     *,
     if_match: str,
-) -> users_default_gear_schema.UsersDefaultGearRead:
+) -> users_default_gear_schema.UserDefaultGearRead:
     """Stage an update of a user's default gear after checking the edit is allowed.
 
     Args:
@@ -88,7 +88,7 @@ def restore_profile_default_gear(
         settings[field] = gears_id_mapping.get(old_gear_id) if old_gear_id is not None else None
 
     try:
-        update = users_default_gear_schema.UsersDefaultGearUpdate(**settings)
+        update = users_default_gear_schema.UserDefaultGearUpdate(**settings)
     except ValidationError:
         logger.warning("Skipped invalid user default gear")
         return False
@@ -98,12 +98,12 @@ def restore_profile_default_gear(
 
 
 def edit_default_gear(
-    user_default_gear: users_default_gear_schema.UsersDefaultGearUpdate,
+    user_default_gear: users_default_gear_schema.UserDefaultGearUpdate,
     user_id: int,
     db: Session,
     *,
     if_match: str,
-) -> users_default_gear_schema.UsersDefaultGearRead:
+) -> users_default_gear_schema.UserDefaultGearRead:
     """Update a user's default gear settings and commit.
 
     Args:

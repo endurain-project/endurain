@@ -247,7 +247,7 @@ class TestAdminEmailEdit:
     @staticmethod
     def _edit(db, **overrides):
         current = users_service.require_user(7, db)
-        edit = users_schema.UsersEdit.from_read(current).model_copy(update=overrides)
+        edit = users_schema.UserEdit.from_read(current).model_copy(update=overrides)
         with patch(_ALL_SESSIONS) as sessions:
             updated = users_service.edit_user(7, edit, 9, db, if_match=str(current.version))
         return updated, sessions

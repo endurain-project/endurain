@@ -23,7 +23,7 @@ def list_goals(
     interval: user_goals_schema.Interval | None = None,
     activity_type: user_goals_schema.GoalActivityType | None = None,
     goal_type: user_goals_schema.GoalType | None = None,
-) -> user_goals_schema.UsersGoalPage:
+) -> user_goals_schema.UserGoalPage:
     """List one page of a user's goals with optional filters.
 
     Args:
@@ -47,10 +47,10 @@ def list_goals(
         offset=(page.page_number - 1) * page.num_records,
     )
     total = user_goals_crud.count_user_goals(user_id, db, interval, activity_type, goal_type)
-    return user_goals_schema.UsersGoalPage.build(goals, total, page.page_number, page.num_records)
+    return user_goals_schema.UserGoalPage.build(goals, total, page.page_number, page.num_records)
 
 
-def get_goal(user_id: int, goal_id: int, db: Session) -> user_goals_schema.UsersGoalRead:
+def get_goal(user_id: int, goal_id: int, db: Session) -> user_goals_schema.UserGoalRead:
     """Return one of a user's goals.
 
     Args:
@@ -69,9 +69,9 @@ def get_goal(user_id: int, goal_id: int, db: Session) -> user_goals_schema.Users
 
 def create_goal(
     user_id: int,
-    user_goal: user_goals_schema.UsersGoalCreate,
+    user_goal: user_goals_schema.UserGoalCreate,
     db: Session,
-) -> user_goals_schema.UsersGoalRead:
+) -> user_goals_schema.UserGoalRead:
     """Create a goal for a user and commit.
 
     Args:
@@ -94,11 +94,11 @@ def create_goal(
 def update_goal(
     user_id: int,
     goal_id: int,
-    user_goal: user_goals_schema.UsersGoalUpdate,
+    user_goal: user_goals_schema.UserGoalUpdate,
     db: Session,
     *,
     if_match: str,
-) -> user_goals_schema.UsersGoalRead:
+) -> user_goals_schema.UserGoalRead:
     """Replace a user's goal and commit.
 
     Args:

@@ -198,7 +198,7 @@ class TestUserReadSerialization:
         row.id = 7
         row.photo_path = "7.png"
 
-        with patch.object(users_serializers.users_schema.UsersRead, "model_validate") as validate:
+        with patch.object(users_serializers.users_schema.UserRead, "model_validate") as validate:
             validate.return_value = MagicMock(photo_path="7.png")
             result = users_serializers.to_read_schema(row)
 

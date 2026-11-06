@@ -14,7 +14,7 @@ import modules.users.users_default_gear.schema as users_default_gear_schema
 import modules.users.users_default_gear.service as users_default_gear_service
 
 
-def get_default_gear(user_id: int, db: Session) -> users_default_gear_schema.UsersDefaultGearRead | None:
+def get_default_gear(user_id: int, db: Session) -> users_default_gear_schema.UserDefaultGearRead | None:
     """Return a user's default gear settings.
 
     Args:
@@ -46,7 +46,7 @@ def get_default_gear_for_activity_type(user_id: int, activity_type: int, db: Ses
     return getattr(default_gear, attr_name, None)
 
 
-def create_default_gear(user_id: int, db: Session) -> users_default_gear_schema.UsersDefaultGearRead:
+def create_default_gear(user_id: int, db: Session) -> users_default_gear_schema.UserDefaultGearRead:
     """Stage empty default gear settings for a new user.
 
     Args:

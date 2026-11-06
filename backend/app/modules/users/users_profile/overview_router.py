@@ -14,7 +14,7 @@ router = APIRouter()
 
 
 @router.get(
-    "/id/{user_id}/overview",
+    "/{user_id}/overview",
     response_model=profile_schema.UserProfileOverviewRead,
     dependencies=[
         Security(

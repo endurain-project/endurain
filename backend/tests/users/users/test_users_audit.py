@@ -19,7 +19,7 @@ _SETTINGS = "modules.users.users.service.server_settings_integration"
 _JOBS = "modules.users.users.deletion_job_service"
 
 
-def _user(user_id: int = 1, **overrides) -> users_schema.UsersRead:
+def _user(user_id: int = 1, **overrides) -> users_schema.UserRead:
     fields = {
         "id": user_id,
         "name": "User",
@@ -29,7 +29,7 @@ def _user(user_id: int = 1, **overrides) -> users_schema.UsersRead:
         "access_type": "regular",
     }
     fields.update(overrides)
-    return users_schema.UsersRead(**fields)
+    return users_schema.UserRead(**fields)
 
 
 @pytest.fixture(autouse=True)
@@ -61,7 +61,7 @@ class TestAccountCreation:
                     mock_db,
                 )
             return users_service.create_user(
-                users_schema.UsersCreate(
+                users_schema.UserCreate(
                     name="N",
                     username="NewUser",
                     email="new@example.com",
@@ -92,7 +92,7 @@ class TestAccountCreation:
         with patch(_CRUD) as crud, jasil_testing.capture_audit() as audit:
             crud.create_user.return_value = _user(7)
             users_service.stage_signup_user(
-                users_schema.UsersSignup(name="N", username="NewUser", email="n@example.com", password="SecurePass1!"),
+                users_schema.UserSignup(name="N", username="NewUser", email="n@example.com", password="SecurePass1!"),
                 MagicMock(signup_require_email_verification=False, signup_require_admin_approval=False),
                 mock_db,
             )
@@ -106,7 +106,7 @@ class TestAccountCreation:
         with patch(_CRUD) as crud, jasil_testing.capture_audit() as audit:
             crud.create_user.return_value = _user(8)
             users_service.create_sso_user(
-                users_schema.UsersBase(name="N", username="sso", email="sso@example.com"),
+                users_schema.UserBase(name="N", username="sso", email="sso@example.com"),
                 MagicMock(signup_require_email_verification=False, signup_require_admin_approval=False),
                 mock_db,
                 email_verified=True,
@@ -124,7 +124,7 @@ class TestAdminEdit:
             crud.get_user_by_id.return_value = before
             crud.update_user.return_value = after
             crud.lock_active_admin_ids.return_value = [1, 2]
-            users_service.edit_user(before.id, users_schema.UsersEdit.from_read(requested), 9, mock_db, if_match="*")
+            users_service.edit_user(before.id, users_schema.UserEdit.from_read(requested), 9, mock_db, if_match="*")
         return audit
 
     def test_names_the_fields_that_changed_and_never_their_values(self, mock_db):

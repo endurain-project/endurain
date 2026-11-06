@@ -2,7 +2,7 @@
 
 from typing import Annotated
 
-from fastapi import Depends, Path, Query
+from fastapi import Depends, Query
 from fastapi.exceptions import RequestValidationError
 
 import core.dependencies as core_dependencies
@@ -10,14 +10,8 @@ import core.pagination as core_pagination
 import modules.server_settings.integration_service as server_settings_integration
 import modules.users.users.deletion_state_store as users_deletion_state_store
 
-#: A username path segment: required, as long as the column allows, and decoded and lower-cased by the lookup.
-Username = Annotated[str, Path(min_length=1, max_length=250)]
-
-#: The fewest characters a directory search term may have, so a search cannot enumerate every user.
+#: The fewest characters a username search term may have, so a search cannot enumerate every user.
 MIN_SEARCH_TERM_LENGTH = 3
-
-#: A username search term: long enough not to list the whole directory, and as long as the column allows.
-SearchTerm = Annotated[str, Path(min_length=MIN_SEARCH_TERM_LENGTH, max_length=250)]
 
 
 def directory_page_params(

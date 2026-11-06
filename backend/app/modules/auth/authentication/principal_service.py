@@ -31,7 +31,7 @@ logger = core_logger.get_logger(__name__)
 
 
 def _build_principal(
-    user: users_schema.UsersRead,
+    user: users_schema.UserRead,
     scopes: list[str],
     credential: (PasswordCred | AccessTokenCred | ApiKeyCred | SessionCookieCred | OAuthCred),
 ) -> Principal:
@@ -271,7 +271,7 @@ def resolve_from_api_key(
 
 
 def issue_token_pair(
-    user: users_schema.UsersRead,
+    user: users_schema.UserRead,
     policy: server_settings_contracts.SessionPolicy,
     token_manager: access_tokens_integration.TokenManager,
     session_id: str | None = None,

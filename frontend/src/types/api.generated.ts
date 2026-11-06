@@ -172,7 +172,7 @@ export interface paths {
          * @description List a keyset slice of the authenticated user's following feed.
          *
          *     The slice also carries the public profile of each owner on it in ``users`` (the projection
-         *     ``GET /users/id/{user_id}`` returns), so a token with ``activities:read`` alone receives it too.
+         *     ``GET /users/{user_id}`` returns), so a token with ``activities:read`` alone receives it too.
          */
         get: operations["list_following_feed"];
         put?: never;
@@ -722,7 +722,7 @@ export interface paths {
          *
          *     Always scoped to the caller, so there is no user id to supply and no way to
          *     read anyone else's pending requests. The page also carries each requester's public profile in
-         *     ``users`` (the projection ``GET /users/id/{user_id}`` returns), so a token with
+         *     ``users`` (the projection ``GET /users/{user_id}`` returns), so a token with
          *     ``followers:read`` alone receives it too.
          */
         get: operations["list_follow_requests"];
@@ -3659,10 +3659,15 @@ export interface paths {
             cookie?: never;
         };
         /**
-         * Read Users All Pagination
-         * @description Retrieve paginated list of all users.
+         * Read Users
+         * @description List users, one page at a time.
+         *
+         *     With `users:read_all` the page holds full records and every filter is available. With only `users:read` it
+         *     holds public projections of active users who are discoverable (those who switched off "Let others find me
+         *     in search" are left out; their profile stays reachable by id), and a state filter is refused with 403.
+         *     `num_records` defaults to the server's page size and may not exceed it; a larger value is refused with 422.
          */
-        get: operations["read_users_all_pagination"];
+        get: operations["read_users"];
         put?: never;
         /**
          * Create User
@@ -3698,90 +3703,6 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/v1/users/id/{user_id}": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /**
-         * Read Users Id
-         * @description Get a user's public projection by ID.
-         */
-        get: operations["read_users_id"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/v1/users/id/{user_id}/overview": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /**
-         * Read User Profile Overview
-         * @description Return the public profile and summary values the profile page displays.
-         */
-        get: operations["read_user_profile_overview"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/v1/users/username/contains/{username}": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /**
-         * Read Users Contain Username
-         * @description Search active users by partial username, one page at a time.
-         *
-         *     The term needs at least 3 characters. `num_records` defaults to the server's page size and may not exceed
-         *     it; a larger value is refused with 422. Users who switched off "Let others find me in search" are not listed;
-         *     their profile stays reachable by id.
-         */
-        get: operations["read_users_contain_username"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/v1/users/username/{username}": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /**
-         * Read Users Username
-         * @description Get user by exact username.
-         */
-        get: operations["read_users_username"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
     "/api/v1/users/{user_id}": {
         parameters: {
             query?: never;
@@ -3790,10 +3711,13 @@ export interface paths {
             cookie?: never;
         };
         /**
-         * Read Users Full
-         * @description Get a user's full record by ID (admin operation).
+         * Read User
+         * @description Get a user by ID.
+         *
+         *     With `users:read_all` the answer is the full record, with its `ETag`. With only `users:read` it is the
+         *     public projection, and a user who is inactive or awaits approval is 404.
          */
-        get: operations["read_users_full"];
+        get: operations["read_user"];
         put?: never;
         post?: never;
         /**
@@ -3915,7 +3839,7 @@ export interface paths {
          * @description List a user's followers, with the matching total.
          *
          *     Privacy-aware: only the user themselves or an accepted follower may list them. The page also
-         *     carries each follower's public profile in ``users`` (the projection ``GET /users/id/{user_id}``
+         *     carries each follower's public profile in ``users`` (the projection ``GET /users/{user_id}``
          *     returns), so a token with ``followers:read`` alone receives it too.
          */
         get: operations["list_user_followers"];
@@ -3970,7 +3894,7 @@ export interface paths {
          * @description List who a user follows, with the matching total.
          *
          *     Privacy-aware: only the user themselves or an accepted follower may list them. The page also
-         *     carries each followee's public profile in ``users`` (the projection ``GET /users/id/{user_id}``
+         *     carries each followee's public profile in ``users`` (the projection ``GET /users/{user_id}``
          *     returns), so a token with ``followers:read`` alone receives it too.
          */
         get: operations["list_user_following"];
@@ -4017,6 +3941,26 @@ export interface paths {
          * @description Unlink an identity provider from another user (admin).
          */
         delete: operations["delete_user_identity_provider"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/users/{user_id}/overview": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Read User Profile Overview
+         * @description Return the public profile and summary values the profile page displays.
+         */
+        get: operations["read_user_profile_overview"];
+        put?: never;
+        post?: never;
+        delete?: never;
         options?: never;
         head?: never;
         patch?: never;
@@ -4329,7 +4273,7 @@ export interface components {
          *     Attributes:
          *         users: The public profile of each owner on this slice, keyed by user ID, one entry per
          *             owner however many of their activities the slice holds. It is the projection
-         *             ``GET /users/id/{user_id}`` returns, so the client needs no lookup per owner. An owner
+         *             ``GET /users/{user_id}`` returns, so the client needs no lookup per owner. An owner
          *             who is inactive or awaiting approval has no entry.
          */
         ActivityFeedPage: {
@@ -5441,7 +5385,7 @@ export interface components {
          *     Attributes:
          *         users: The public profile of the user on the other side of each row (the follower in a
          *             followers list, the followee in a following list, the requester among pending requests),
-         *             keyed by user ID. It is the projection ``GET /users/id/{user_id}`` returns, so a list needs
+         *             keyed by user ID. It is the projection ``GET /users/{user_id}`` returns, so a list needs
          *             no lookup per row. A user who is inactive or awaiting approval has no entry.
          */
         FollowRelationshipPage: {
@@ -8646,7 +8590,7 @@ export interface components {
          *     and must be gated by step-up verification: the caller has to
          *     re-prove possession of the current password in addition to a
          *     valid MFA code. The password length bounds match the other
-         *     step-up schemas (see ``UsersEditPassword``) — they validate
+         *     step-up schemas (see ``UserEditPassword``) — they validate
          *     the supplied input only and do not impose a policy on the
          *     stored password.
          *
@@ -9498,6 +9442,45 @@ export interface components {
             /** Total */
             total: number;
         };
+        /** Page[UserApiKeyRead] */
+        Page_UserApiKeyRead_: {
+            /** Items */
+            items: components["schemas"]["UserApiKeyRead"][];
+            /** Next */
+            next?: number | null;
+            /** Num Records */
+            num_records: number;
+            /** Page */
+            page: number;
+            /** Total */
+            total: number;
+        };
+        /** Page[UserGoalProgress] */
+        Page_UserGoalProgress_: {
+            /** Items */
+            items: components["schemas"]["UserGoalProgress"][];
+            /** Next */
+            next?: number | null;
+            /** Num Records */
+            num_records: number;
+            /** Page */
+            page: number;
+            /** Total */
+            total: number;
+        };
+        /** Page[UserGoalRead] */
+        Page_UserGoalRead_: {
+            /** Items */
+            items: components["schemas"]["UserGoalRead"][];
+            /** Next */
+            next?: number | null;
+            /** Num Records */
+            num_records: number;
+            /** Page */
+            page: number;
+            /** Total */
+            total: number;
+        };
         /** Page[UserPublicRead] */
         Page_UserPublicRead_: {
             /** Items */
@@ -9511,10 +9494,10 @@ export interface components {
             /** Total */
             total: number;
         };
-        /** Page[UsersApiKeyRead] */
-        Page_UsersApiKeyRead_: {
+        /** Page[UserRead] */
+        Page_UserRead_: {
             /** Items */
-            items: components["schemas"]["UsersApiKeyRead"][];
+            items: components["schemas"]["UserRead"][];
             /** Next */
             next?: number | null;
             /** Num Records */
@@ -9524,49 +9507,10 @@ export interface components {
             /** Total */
             total: number;
         };
-        /** Page[UsersGoalProgress] */
-        Page_UsersGoalProgress_: {
+        /** Page[UserSessionsRead] */
+        Page_UserSessionsRead_: {
             /** Items */
-            items: components["schemas"]["UsersGoalProgress"][];
-            /** Next */
-            next?: number | null;
-            /** Num Records */
-            num_records: number;
-            /** Page */
-            page: number;
-            /** Total */
-            total: number;
-        };
-        /** Page[UsersGoalRead] */
-        Page_UsersGoalRead_: {
-            /** Items */
-            items: components["schemas"]["UsersGoalRead"][];
-            /** Next */
-            next?: number | null;
-            /** Num Records */
-            num_records: number;
-            /** Page */
-            page: number;
-            /** Total */
-            total: number;
-        };
-        /** Page[UsersRead] */
-        Page_UsersRead_: {
-            /** Items */
-            items: components["schemas"]["UsersRead"][];
-            /** Next */
-            next?: number | null;
-            /** Num Records */
-            num_records: number;
-            /** Page */
-            page: number;
-            /** Total */
-            total: number;
-        };
-        /** Page[UsersSessionsRead] */
-        Page_UsersSessionsRead_: {
-            /** Items */
-            items: components["schemas"]["UsersSessionsRead"][];
+            items: components["schemas"]["UserSessionsRead"][];
             /** Next */
             next?: number | null;
             /** Num Records */
@@ -10895,107 +10839,18 @@ export interface components {
          */
         UserAccessType: "regular" | "admin";
         /**
-         * UserDeletionStatus
-         * @description Where a queued account deletion is.
-         *
-         *     Attributes:
-         *         status: Lifecycle state of the deletion.
-         */
-        UserDeletionStatus: {
-            /** @description Lifecycle state of the account deletion */
-            status: components["schemas"]["SyncStatus"];
-        };
-        /**
-         * UserPhotoRead
-         * @description The photo a user has after an upload.
-         *
-         *     Attributes:
-         *         photo_path: Servable URL of the user's photo, or None when none is stored.
-         */
-        UserPhotoRead: {
-            /**
-             * Photo Path
-             * @description Servable URL of the user's photo
-             */
-            photo_path?: string | null;
-        };
-        /**
-         * UserProfileOverviewRead
-         * @description Public profile and summary metrics displayed on a user's profile page.
-         *
-         *     Attributes:
-         *         user: The profile's public user projection.
-         *         week_stats: Visible per-sport activity totals for the current week.
-         *         month_stats: Visible per-sport activity totals for the current month.
-         *         month_activity_count: Visible activity count for the current month.
-         *         followers_count: Accepted followers, or None when the viewer cannot see the network.
-         *         following_count: Accepted followees, or None when the viewer cannot see the network.
-         */
-        UserProfileOverviewRead: {
-            /** Followers Count */
-            followers_count?: number | null;
-            /** Following Count */
-            following_count?: number | null;
-            /** Month Activity Count */
-            month_activity_count: number;
-            month_stats: components["schemas"]["ActivityStatsRead"];
-            user: components["schemas"]["UserPublicRead"];
-            week_stats: components["schemas"]["ActivityStatsRead"];
-        };
-        /**
-         * UserPublicRead
-         * @description What any signed-in viewer, or an anonymous one on a shared link, may learn about a user.
-         *
-         *     A deliberate subset of :class:`UsersRead`: no email, birthdate, access level or account
-         *     state, so a lookup cannot be used to harvest personal data or to probe who is an admin.
-         *
-         *     Attributes:
-         *         id: User ID.
-         *         name: User's full name.
-         *         username: Unique username.
-         *         city: User's city.
-         *         photo_path: Servable URL of the user's photo.
-         */
-        UserPublicRead: {
-            /**
-             * City
-             * @description User's city
-             */
-            city?: string | null;
-            /**
-             * Id
-             * @description User ID
-             */
-            readonly id: number;
-            /**
-             * Name
-             * @description User's full name
-             */
-            name: string;
-            /**
-             * Photo Path
-             * @description Servable URL of the user's photo
-             */
-            photo_path?: string | null;
-            /**
-             * Username
-             * @description Unique username
-             */
-            username: string;
-        };
-        /**
-         * UsersAdminEditPassword
+         * UserAdminEditPassword
          * @description Schema for admin password reset operations.
          *
          *     Admin password resets are authorised by the caller's
          *     ``users:write`` scope on the admin route, not by knowing the
          *     target user's current password. Self-service password changes
-         *     must use :class:`UsersEditPassword` instead.
+         *     must use :class:`UserEditPassword` instead.
          *
          *     Attributes:
          *         password: New password (min 8 chars).
          */
-        UsersAdminEditPassword: {
+        UserAdminEditPassword: {
             /**
              * Password
              * @description New password
@@ -11003,7 +10858,7 @@ export interface components {
             password: string;
         };
         /**
-         * UsersApiKeyCreate
+         * UserApiKeyCreate
          * @description Schema for creating a new API key.
          *
          *     API-key creation is a sensitive, persistent grant of
@@ -11029,7 +10884,7 @@ export interface components {
          *         idp_reauth: Proof of a fresh identity-provider sign-in. Required
          *             when the account has no local password.
          */
-        UsersApiKeyCreate: {
+        UserApiKeyCreate: {
             /**
              * Current Password
              * @description Current password (step-up verification). Required when the account has a local password.
@@ -11059,10 +10914,10 @@ export interface components {
             scopes: string[];
         };
         /**
-         * UsersApiKeyCreatedRead
+         * UserApiKeyCreatedRead
          * @description API key creation response schema.
          *
-         *     Extends UsersApiKeyRead with the raw key, returned
+         *     Extends UserApiKeyRead with the raw key, returned
          *     only once at creation time. The raw key is never
          *     stored and cannot be retrieved again.
          *
@@ -11070,7 +10925,7 @@ export interface components {
          *         key: The full raw API key. Show to the user
          *             once and discard.
          */
-        UsersApiKeyCreatedRead: {
+        UserApiKeyCreatedRead: {
             /**
              * Created At
              * Format: date-time
@@ -11125,7 +10980,7 @@ export interface components {
             user_id: number;
         };
         /**
-         * UsersApiKeyRead
+         * UserApiKeyRead
          * @description API key read schema for list/detail responses.
          *
          *     Never exposes the raw key or its hash. Safe to
@@ -11142,7 +10997,7 @@ export interface components {
          *         created_at: Key creation timestamp.
          *         is_active: Whether the key is currently active.
          */
-        UsersApiKeyRead: {
+        UserApiKeyRead: {
             /**
              * Created At
              * Format: date-time
@@ -11192,13 +11047,13 @@ export interface components {
             user_id: number;
         };
         /**
-         * UsersCreate
+         * UserCreate
          * @description Users schema for admin user creation.
          *
          *     Attributes:
          *         password: User's password (min 8 chars).
          */
-        UsersCreate: {
+        UserCreate: {
             /** @description User access level */
             access_type: components["schemas"]["UserAccessType"];
             /**
@@ -11296,7 +11151,7 @@ export interface components {
             weight_units?: components["schemas"]["Units"] | null;
         };
         /**
-         * UsersDefaultGearRead
+         * UserDefaultGearRead
          * @description Schema for reading user default gear settings.
          *
          *     Extends base with identifier fields.
@@ -11305,7 +11160,7 @@ export interface components {
          *         id: Unique identifier for the record.
          *         user_id: User ID reference.
          */
-        UsersDefaultGearRead: {
+        UserDefaultGearRead: {
             /**
              * Alpine Ski Gear Id
              * @description Default gear for alpine ski activities
@@ -11399,13 +11254,13 @@ export interface components {
             windsurf_gear_id?: number | null;
         };
         /**
-         * UsersDefaultGearUpdate
+         * UserDefaultGearUpdate
          * @description Schema for updating user default gear settings.
          *
          *     Carries only the gear assignments, all optional for partial updates. The record is the
          *     authenticated user's own, so the body names neither the record nor the user.
          */
-        UsersDefaultGearUpdate: {
+        UserDefaultGearUpdate: {
             /**
              * Alpine Ski Gear Id
              * @description Default gear for alpine ski activities
@@ -11483,7 +11338,18 @@ export interface components {
             windsurf_gear_id?: number | null;
         };
         /**
-         * UsersEdit
+         * UserDeletionStatus
+         * @description Where a queued account deletion is.
+         *
+         *     Attributes:
+         *         status: Lifecycle state of the deletion.
+         */
+        UserDeletionStatus: {
+            /** @description Lifecycle state of the account deletion */
+            status: components["schemas"]["SyncStatus"];
+        };
+        /**
+         * UserEdit
          * @description Users schema for an administrative edit.
          *
          *     The stored columns of a user and nothing a read adds: ``id`` is the path, and
@@ -11491,7 +11357,7 @@ export interface components {
          *     projection, so a write ignores it. A name already stored is re-applied as it is, even if it would not pass as
          *     new input.
          */
-        UsersEdit: {
+        UserEdit: {
             /** @description User access level */
             access_type: components["schemas"]["UserAccessType"];
             /**
@@ -11584,7 +11450,7 @@ export interface components {
             weight_units?: components["schemas"]["Units"] | null;
         };
         /**
-         * UsersEditPassword
+         * UserEditPassword
          * @description Schema for password update operations (self-service).
          *
          *     Requires the caller to prove possession of the current
@@ -11599,7 +11465,7 @@ export interface components {
          *         mfa_code: TOTP or backup code, required when MFA is
          *             enabled on the account.
          */
-        UsersEditPassword: {
+        UserEditPassword: {
             /**
              * Current Password
              * @description Current password (step-up verification)
@@ -11623,13 +11489,13 @@ export interface components {
             revoke_other_sessions: boolean;
         };
         /**
-         * UsersEmailLookup
+         * UserEmailLookup
          * @description Schema for looking a user up by email address.
          *
          *     Attributes:
          *         email: Email address to search for, case-insensitive.
          */
-        UsersEmailLookup: {
+        UserEmailLookup: {
             /**
              * Email
              * @description Email address to search for
@@ -11637,12 +11503,12 @@ export interface components {
             email: string;
         };
         /**
-         * UsersGoalCreate
+         * UserGoalCreate
          * @description Schema for creating a new users goal.
          *
-         *     Inherits all validation from UsersGoalBase.
+         *     Inherits all validation from UserGoalBase.
          */
-        UsersGoalCreate: {
+        UserGoalCreate: {
             /** @description Type of activity for the goal */
             activity_type: components["schemas"]["GoalActivityType"];
             /**
@@ -11676,7 +11542,7 @@ export interface components {
             interval: components["schemas"]["modules__users__users_goals__schema__Interval"];
         };
         /**
-         * UsersGoalProgress
+         * UserGoalProgress
          * @description Schema for user goal progress tracking.
          *
          *     Attributes:
@@ -11698,7 +11564,7 @@ export interface components {
          *         goal_elevation: Target elevation.
          *         goal_duration: Target duration.
          */
-        UsersGoalProgress: {
+        UserGoalProgress: {
             /** @description Activity type for this goal */
             activity_type: components["schemas"]["GoalActivityType"];
             /**
@@ -11778,14 +11644,14 @@ export interface components {
             total_elevation?: number | null;
         };
         /**
-         * UsersGoalRead
+         * UserGoalRead
          * @description Schema for reading a user goal.
          *
          *     Attributes:
          *         id: Unique identifier for the goal.
          *         user_id: User who owns this goal.
          */
-        UsersGoalRead: {
+        UserGoalRead: {
             /** @description Type of activity for the goal */
             activity_type: components["schemas"]["GoalActivityType"];
             /**
@@ -11835,13 +11701,13 @@ export interface components {
             readonly version: number;
         };
         /**
-         * UsersGoalUpdate
+         * UserGoalUpdate
          * @description Schema for replacing an existing users goal.
          *
          *     The goal is named by the path, so the body carries neither an id nor an owner. It is the whole
          *     goal, because the goal type decides which target field is required.
          */
-        UsersGoalUpdate: {
+        UserGoalUpdate: {
             /** @description Type of activity for the goal */
             activity_type: components["schemas"]["GoalActivityType"];
             /**
@@ -11875,7 +11741,7 @@ export interface components {
             interval: components["schemas"]["modules__users__users_goals__schema__Interval"];
         };
         /**
-         * UsersMe
+         * UserMe
          * @description Extended users schema for current user profile.
          *
          *     Includes privacy settings and integration status.
@@ -11907,7 +11773,7 @@ export interface components {
          *             password (False for accounts that sign in through an
          *             identity provider).
          */
-        UsersMe: {
+        UserMe: {
             /** @description User access level */
             access_type: components["schemas"]["UserAccessType"];
             /**
@@ -12137,14 +12003,28 @@ export interface components {
             weight_units?: components["schemas"]["Units"] | null;
         };
         /**
-         * UsersPrivacySettingsRead
+         * UserPhotoRead
+         * @description The photo a user has after an upload.
+         *
+         *     Attributes:
+         *         photo_path: Servable URL of the user's photo, or None when none is stored.
+         */
+        UserPhotoRead: {
+            /**
+             * Photo Path
+             * @description Servable URL of the user's photo
+             */
+            photo_path?: string | null;
+        };
+        /**
+         * UserPrivacySettingsRead
          * @description Schema for reading user privacy settings.
          *
          *     Attributes:
          *         id: Unique identifier for the privacy settings record.
          *         user_id: Foreign key reference to the user.
          */
-        UsersPrivacySettingsRead: {
+        UserPrivacySettingsRead: {
             /**
              * @description Default activity visibility (public, followers, private)
              * @default private
@@ -12246,13 +12126,13 @@ export interface components {
             readonly version: number;
         };
         /**
-         * UsersPrivacySettingsUpdate
+         * UserPrivacySettingsUpdate
          * @description Schema for updating user privacy settings.
          *
-         *     Inherits all validation from UsersPrivacySettingsBase.
+         *     Inherits all validation from UserPrivacySettingsBase.
          *     All fields are optional for partial updates.
          */
-        UsersPrivacySettingsUpdate: {
+        UserPrivacySettingsUpdate: {
             /**
              * @description Default activity visibility (public, followers, private)
              * @default private
@@ -12338,7 +12218,71 @@ export interface components {
             hide_activity_workout_sets_steps: boolean | null;
         };
         /**
-         * UsersRead
+         * UserProfileOverviewRead
+         * @description Public profile and summary metrics displayed on a user's profile page.
+         *
+         *     Attributes:
+         *         user: The profile's public user projection.
+         *         week_stats: Visible per-sport activity totals for the current week.
+         *         month_stats: Visible per-sport activity totals for the current month.
+         *         month_activity_count: Visible activity count for the current month.
+         *         followers_count: Accepted followers, or None when the viewer cannot see the network.
+         *         following_count: Accepted followees, or None when the viewer cannot see the network.
+         */
+        UserProfileOverviewRead: {
+            /** Followers Count */
+            followers_count?: number | null;
+            /** Following Count */
+            following_count?: number | null;
+            /** Month Activity Count */
+            month_activity_count: number;
+            month_stats: components["schemas"]["ActivityStatsRead"];
+            user: components["schemas"]["UserPublicRead"];
+            week_stats: components["schemas"]["ActivityStatsRead"];
+        };
+        /**
+         * UserPublicRead
+         * @description What any signed-in viewer, or an anonymous one on a shared link, may learn about a user.
+         *
+         *     A deliberate subset of :class:`UserRead`: no email, birthdate, access level or account
+         *     state, so a lookup cannot be used to harvest personal data or to probe who is an admin.
+         *
+         *     Attributes:
+         *         id: User ID.
+         *         name: User's full name.
+         *         username: Unique username.
+         *         city: User's city.
+         *         photo_path: Servable URL of the user's photo.
+         */
+        UserPublicRead: {
+            /**
+             * City
+             * @description User's city
+             */
+            city?: string | null;
+            /**
+             * Id
+             * @description User ID
+             */
+            readonly id: number;
+            /**
+             * Name
+             * @description User's full name
+             */
+            name: string;
+            /**
+             * Photo Path
+             * @description Servable URL of the user's photo
+             */
+            photo_path?: string | null;
+            /**
+             * Username
+             * @description Unique username
+             */
+            username: string;
+        };
+        /**
+         * UserRead
          * @description Users schema for read operations.
          *
          *     Attributes:
@@ -12348,7 +12292,7 @@ export interface components {
          *         pending_email: Address awaiting confirmation, which replaces ``email`` once confirmed.
          *         pending_email_expires_at: When the confirmation link for ``pending_email`` expires.
          */
-        UsersRead: {
+        UserRead: {
             /** @description User access level */
             access_type: components["schemas"]["UserAccessType"];
             /**
@@ -12476,13 +12420,13 @@ export interface components {
             weight_units?: components["schemas"]["Units"] | null;
         };
         /**
-         * UsersSessionsRead
+         * UserSessionsRead
          * @description User session read schema for API responses.
          *
          *     Extends base with user_id. Excludes sensitive fields
          *     like refresh_token and csrf_token_hash.
          */
-        UsersSessionsRead: {
+        UserSessionsRead: {
             /**
              * Browser
              * @description Browser name
@@ -12543,10 +12487,10 @@ export interface components {
             user_id: number;
         };
         /**
-         * UsersSignup
+         * UserSignup
          * @description Users schema for a public sign-up request: only what an account needs.
          *
-         *     The rest of the profile starts from the ``UsersBase`` defaults and is edited after signing in.
+         *     The rest of the profile starts from the ``UserBase`` defaults and is edited after signing in.
          *
          *     Attributes:
          *         name: User's full name (1-250 chars).
@@ -12555,7 +12499,7 @@ export interface components {
          *         password: User's password (min 8 chars). Absent when the password is chosen at email verification.
          *         preferred_language: Language of the account's emails and interface.
          */
-        UsersSignup: {
+        UserSignup: {
             /**
              * Email
              * Format: email
@@ -24260,7 +24204,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["UsersMe"];
+                    "application/json": components["schemas"]["UserMe"];
                 };
             };
             /** @description The credential is missing, invalid or no longer valid. */
@@ -24339,7 +24283,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["UsersMe"];
+                    "application/json": components["schemas"]["UserMe"];
                 };
             };
             /** @description The request is refused, for example `If-Match: *`. */
@@ -24467,7 +24411,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["Page_UsersApiKeyRead_"];
+                    "application/json": components["schemas"]["Page_UserApiKeyRead_"];
                 };
             };
             /** @description The credential is missing, invalid or no longer valid. */
@@ -24541,7 +24485,7 @@ export interface operations {
         };
         requestBody: {
             content: {
-                "application/json": components["schemas"]["UsersApiKeyCreate"];
+                "application/json": components["schemas"]["UserApiKeyCreate"];
             };
         };
         responses: {
@@ -24551,7 +24495,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["UsersApiKeyCreatedRead"];
+                    "application/json": components["schemas"]["UserApiKeyCreatedRead"];
                 };
             };
             /** @description The credential is missing, invalid or no longer valid. */
@@ -24847,7 +24791,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["UsersDefaultGearRead"];
+                    "application/json": components["schemas"]["UserDefaultGearRead"];
                 };
             };
             /** @description The credential is missing, invalid or no longer valid. */
@@ -24914,7 +24858,7 @@ export interface operations {
         };
         requestBody: {
             content: {
-                "application/json": components["schemas"]["UsersDefaultGearUpdate"];
+                "application/json": components["schemas"]["UserDefaultGearUpdate"];
             };
         };
         responses: {
@@ -24926,7 +24870,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["UsersDefaultGearRead"];
+                    "application/json": components["schemas"]["UserDefaultGearRead"];
                 };
             };
             /** @description The request is refused, for example `If-Match: *`. */
@@ -25159,7 +25103,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["UsersMe"];
+                    "application/json": components["schemas"]["UserMe"];
                 };
             };
             /** @description The credential is missing, invalid or no longer valid. */
@@ -25672,7 +25616,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["Page_UsersGoalRead_"];
+                    "application/json": components["schemas"]["Page_UserGoalRead_"];
                 };
             };
             /** @description The credential is missing, invalid or no longer valid. */
@@ -25746,7 +25690,7 @@ export interface operations {
         };
         requestBody: {
             content: {
-                "application/json": components["schemas"]["UsersGoalCreate"];
+                "application/json": components["schemas"]["UserGoalCreate"];
             };
         };
         responses: {
@@ -25760,7 +25704,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["UsersGoalRead"];
+                    "application/json": components["schemas"]["UserGoalRead"];
                 };
             };
             /** @description The credential is missing, invalid or no longer valid. */
@@ -25861,7 +25805,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["Page_UsersGoalProgress_"];
+                    "application/json": components["schemas"]["Page_UserGoalProgress_"];
                 };
             };
             /** @description The credential is missing, invalid or no longer valid. */
@@ -25945,7 +25889,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["UsersGoalRead"];
+                    "application/json": components["schemas"]["UserGoalRead"];
                 };
             };
             /** @description The credential is missing, invalid or no longer valid. */
@@ -26032,7 +25976,7 @@ export interface operations {
         };
         requestBody: {
             content: {
-                "application/json": components["schemas"]["UsersGoalUpdate"];
+                "application/json": components["schemas"]["UserGoalUpdate"];
             };
         };
         responses: {
@@ -26044,7 +25988,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["UsersGoalRead"];
+                    "application/json": components["schemas"]["UserGoalRead"];
                 };
             };
             /** @description The request is refused, for example `If-Match: *`. */
@@ -27533,7 +27477,7 @@ export interface operations {
         };
         requestBody: {
             content: {
-                "application/json": components["schemas"]["UsersEditPassword"];
+                "application/json": components["schemas"]["UserEditPassword"];
             };
         };
         responses: {
@@ -27830,7 +27774,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["UsersPrivacySettingsRead"];
+                    "application/json": components["schemas"]["UserPrivacySettingsRead"];
                 };
             };
             /** @description The credential is missing, invalid or no longer valid. */
@@ -27897,7 +27841,7 @@ export interface operations {
         };
         requestBody: {
             content: {
-                "application/json": components["schemas"]["UsersPrivacySettingsUpdate"];
+                "application/json": components["schemas"]["UserPrivacySettingsUpdate"];
             };
         };
         responses: {
@@ -27909,7 +27853,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["UsersPrivacySettingsRead"];
+                    "application/json": components["schemas"]["UserPrivacySettingsRead"];
                 };
             };
             /** @description The request is refused, for example `If-Match: *`. */
@@ -28037,7 +27981,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["Page_UsersSessionsRead_"];
+                    "application/json": components["schemas"]["Page_UserSessionsRead_"];
                 };
             };
             /** @description The credential is missing, invalid or no longer valid. */
@@ -29380,7 +29324,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["UsersRead"];
+                    "application/json": components["schemas"]["UserRead"];
                 };
             };
             /** @description The request conflicts with the current state. */
@@ -30753,7 +30697,7 @@ export interface operations {
         };
         requestBody: {
             content: {
-                "application/json": components["schemas"]["UsersSignup"];
+                "application/json": components["schemas"]["UserSignup"];
             };
         };
         responses: {
@@ -31882,22 +31826,23 @@ export interface operations {
             };
         };
     };
-    read_users_all_pagination: {
+    read_users: {
         parameters: {
             query?: {
-                /** @description Filter by inactive status */
-                show_inactive?: boolean | null;
-                /** @description Filter by email verification status */
-                show_email_unverified?: boolean | null;
-                /** @description Filter by pending approval status */
-                show_pending_approval?: boolean | null;
-                /** @description Filter by external authentication status */
-                show_external_auth?: boolean | null;
-                /** @description Filter by local authentication status */
-                show_local_auth?: boolean | null;
-                /** @description Keep only users whose username contains this text */
+                /** @description Keep only active (true) or inactive (false) users; needs `users:read_all` */
+                active?: boolean | null;
+                /** @description Keep only users whose email is verified (true) or not (false); needs `users:read_all` */
+                email_verified?: boolean | null;
+                /** @description Keep only users awaiting admin approval (true) or not (false); needs `users:read_all` */
+                pending_approval?: boolean | null;
+                /** @description Keep only users with (true) or without (false) a linked identity provider; needs `users:read_all` */
+                external_auth?: boolean | null;
+                /** @description Keep only the user with this exact username */
                 username?: string | null;
+                /** @description Keep only users whose username contains this text (at least 3 characters) */
+                username_contains?: string | null;
                 page_number?: number | null;
+                /** @description Page size; defaults to and may not exceed the server's page size */
                 num_records?: number | null;
             };
             header?: never;
@@ -31912,7 +31857,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["Page_UsersRead_"];
+                    "application/json": components["schemas"]["Page_UserRead_"] | components["schemas"]["Page_UserPublicRead_"];
                 };
             };
             /** @description The credential is missing, invalid or no longer valid. */
@@ -31986,7 +31931,7 @@ export interface operations {
         };
         requestBody: {
             content: {
-                "application/json": components["schemas"]["UsersCreate"];
+                "application/json": components["schemas"]["UserCreate"];
             };
         };
         responses: {
@@ -32000,7 +31945,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["UsersRead"];
+                    "application/json": components["schemas"]["UserRead"];
                 };
             };
             /** @description The credential is missing, invalid or no longer valid. */
@@ -32092,7 +32037,7 @@ export interface operations {
         };
         requestBody: {
             content: {
-                "application/json": components["schemas"]["UsersEmailLookup"];
+                "application/json": components["schemas"]["UserEmailLookup"];
             };
         };
         responses: {
@@ -32104,7 +32049,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["UsersRead"];
+                    "application/json": components["schemas"]["UserRead"];
                 };
             };
             /** @description The credential is missing, invalid or no longer valid. */
@@ -32187,380 +32132,7 @@ export interface operations {
             };
         };
     };
-    read_users_id: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                user_id: number;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["UserPublicRead"];
-                };
-            };
-            /** @description The credential is missing, invalid or no longer valid. */
-            401: {
-                headers: {
-                    /** @description The authentication challenge. */
-                    "WWW-Authenticate"?: string;
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/problem+json": components["schemas"]["ProblemDetail"];
-                };
-            };
-            /** @description The caller is signed in but not allowed, for example a scope is missing. */
-            403: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/problem+json": components["schemas"]["ProblemDetail"];
-                };
-            };
-            /** @description The resource does not exist, or is concealed from the caller. */
-            404: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/problem+json": components["schemas"]["ProblemDetail"];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/problem+json": components["schemas"]["ProblemDetail"];
-                };
-            };
-            /** @description The rate limit was reached. */
-            429: {
-                headers: {
-                    /** @description Seconds to wait before the request can succeed. */
-                    "Retry-After"?: number;
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/problem+json": components["schemas"]["ProblemDetail"];
-                };
-            };
-            /** @description A dependency is unavailable for a moment. */
-            503: {
-                headers: {
-                    /** @description Seconds to wait before the request can succeed. */
-                    "Retry-After"?: number;
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/problem+json": components["schemas"]["ProblemDetail"];
-                };
-            };
-            /** @description Unexpected error */
-            default: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/problem+json": components["schemas"]["ProblemDetail"];
-                };
-            };
-        };
-    };
-    read_user_profile_overview: {
-        parameters: {
-            query?: {
-                /** @description The viewer's local calendar date for current-week and current-month values. */
-                date?: string | null;
-            };
-            header?: never;
-            path: {
-                user_id: number;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["UserProfileOverviewRead"];
-                };
-            };
-            /** @description The credential is missing, invalid or no longer valid. */
-            401: {
-                headers: {
-                    /** @description The authentication challenge. */
-                    "WWW-Authenticate"?: string;
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/problem+json": components["schemas"]["ProblemDetail"];
-                };
-            };
-            /** @description The caller is signed in but not allowed, for example a scope is missing. */
-            403: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/problem+json": components["schemas"]["ProblemDetail"];
-                };
-            };
-            /** @description The resource does not exist, or is concealed from the caller. */
-            404: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/problem+json": components["schemas"]["ProblemDetail"];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/problem+json": components["schemas"]["ProblemDetail"];
-                };
-            };
-            /** @description The rate limit was reached. */
-            429: {
-                headers: {
-                    /** @description Seconds to wait before the request can succeed. */
-                    "Retry-After"?: number;
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/problem+json": components["schemas"]["ProblemDetail"];
-                };
-            };
-            /** @description A dependency is unavailable for a moment. */
-            503: {
-                headers: {
-                    /** @description Seconds to wait before the request can succeed. */
-                    "Retry-After"?: number;
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/problem+json": components["schemas"]["ProblemDetail"];
-                };
-            };
-            /** @description Unexpected error */
-            default: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/problem+json": components["schemas"]["ProblemDetail"];
-                };
-            };
-        };
-    };
-    read_users_contain_username: {
-        parameters: {
-            query?: {
-                page_number?: number | null;
-                /** @description Page size; defaults to and may not exceed the server's page size */
-                num_records?: number | null;
-            };
-            header?: never;
-            path: {
-                username: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["Page_UserPublicRead_"];
-                };
-            };
-            /** @description The credential is missing, invalid or no longer valid. */
-            401: {
-                headers: {
-                    /** @description The authentication challenge. */
-                    "WWW-Authenticate"?: string;
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/problem+json": components["schemas"]["ProblemDetail"];
-                };
-            };
-            /** @description The caller is signed in but not allowed, for example a scope is missing. */
-            403: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/problem+json": components["schemas"]["ProblemDetail"];
-                };
-            };
-            /** @description The resource does not exist, or is concealed from the caller. */
-            404: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/problem+json": components["schemas"]["ProblemDetail"];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/problem+json": components["schemas"]["ProblemDetail"];
-                };
-            };
-            /** @description The rate limit was reached. */
-            429: {
-                headers: {
-                    /** @description Seconds to wait before the request can succeed. */
-                    "Retry-After"?: number;
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/problem+json": components["schemas"]["ProblemDetail"];
-                };
-            };
-            /** @description A dependency is unavailable for a moment. */
-            503: {
-                headers: {
-                    /** @description Seconds to wait before the request can succeed. */
-                    "Retry-After"?: number;
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/problem+json": components["schemas"]["ProblemDetail"];
-                };
-            };
-            /** @description Unexpected error */
-            default: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/problem+json": components["schemas"]["ProblemDetail"];
-                };
-            };
-        };
-    };
-    read_users_username: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                username: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    /** @description The version of the resource, to send back as `If-Match` on the next write. */
-                    ETag?: string;
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["UsersRead"];
-                };
-            };
-            /** @description The credential is missing, invalid or no longer valid. */
-            401: {
-                headers: {
-                    /** @description The authentication challenge. */
-                    "WWW-Authenticate"?: string;
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/problem+json": components["schemas"]["ProblemDetail"];
-                };
-            };
-            /** @description The caller is signed in but not allowed, for example a scope is missing. */
-            403: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/problem+json": components["schemas"]["ProblemDetail"];
-                };
-            };
-            /** @description The resource does not exist, or is concealed from the caller. */
-            404: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/problem+json": components["schemas"]["ProblemDetail"];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/problem+json": components["schemas"]["ProblemDetail"];
-                };
-            };
-            /** @description The rate limit was reached. */
-            429: {
-                headers: {
-                    /** @description Seconds to wait before the request can succeed. */
-                    "Retry-After"?: number;
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/problem+json": components["schemas"]["ProblemDetail"];
-                };
-            };
-            /** @description A dependency is unavailable for a moment. */
-            503: {
-                headers: {
-                    /** @description Seconds to wait before the request can succeed. */
-                    "Retry-After"?: number;
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/problem+json": components["schemas"]["ProblemDetail"];
-                };
-            };
-            /** @description Unexpected error */
-            default: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/problem+json": components["schemas"]["ProblemDetail"];
-                };
-            };
-        };
-    };
-    read_users_full: {
+    read_user: {
         parameters: {
             query?: never;
             header?: never;
@@ -32579,7 +32151,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["UsersRead"];
+                    "application/json": components["schemas"]["UserRead"] | components["schemas"]["UserPublicRead"];
                 };
             };
             /** @description The credential is missing, invalid or no longer valid. */
@@ -32799,7 +32371,7 @@ export interface operations {
         };
         requestBody: {
             content: {
-                "application/json": components["schemas"]["UsersEdit"];
+                "application/json": components["schemas"]["UserEdit"];
             };
         };
         responses: {
@@ -32811,7 +32383,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["UsersRead"];
+                    "application/json": components["schemas"]["UserRead"];
                 };
             };
             /** @description The request is refused, for example `If-Match: *`. */
@@ -33901,6 +33473,100 @@ export interface operations {
             };
         };
     };
+    read_user_profile_overview: {
+        parameters: {
+            query?: {
+                /** @description The viewer's local calendar date for current-week and current-month values. */
+                date?: string | null;
+            };
+            header?: never;
+            path: {
+                user_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["UserProfileOverviewRead"];
+                };
+            };
+            /** @description The credential is missing, invalid or no longer valid. */
+            401: {
+                headers: {
+                    /** @description The authentication challenge. */
+                    "WWW-Authenticate"?: string;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description The caller is signed in but not allowed, for example a scope is missing. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description The resource does not exist, or is concealed from the caller. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description The rate limit was reached. */
+            429: {
+                headers: {
+                    /** @description Seconds to wait before the request can succeed. */
+                    "Retry-After"?: number;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description A dependency is unavailable for a moment. */
+            503: {
+                headers: {
+                    /** @description Seconds to wait before the request can succeed. */
+                    "Retry-After"?: number;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Unexpected error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+        };
+    };
     edit_user_password: {
         parameters: {
             query?: never;
@@ -33912,7 +33578,7 @@ export interface operations {
         };
         requestBody: {
             content: {
-                "application/json": components["schemas"]["UsersAdminEditPassword"];
+                "application/json": components["schemas"]["UserAdminEditPassword"];
             };
         };
         responses: {
@@ -34417,7 +34083,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["Page_UsersSessionsRead_"];
+                    "application/json": components["schemas"]["Page_UserSessionsRead_"];
                 };
             };
             /** @description The credential is missing, invalid or no longer valid. */

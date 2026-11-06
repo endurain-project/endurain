@@ -13,7 +13,7 @@ import modules.users.users_privacy_settings.serializers as users_privacy_setting
 
 def get_user_privacy_settings_by_user_id(
     user_id: int, db: Session
-) -> users_privacy_settings_schema.UsersPrivacySettingsRead | None:
+) -> users_privacy_settings_schema.UserPrivacySettingsRead | None:
     """Retrieve privacy settings for a specific user.
 
     Args:
@@ -45,7 +45,7 @@ def list_undiscoverable_user_ids(db: Session) -> list[int]:
     return list(db.execute(stmt).scalars().all())
 
 
-def create_user_privacy_settings(user_id: int, db: Session) -> users_privacy_settings_schema.UsersPrivacySettingsRead:
+def create_user_privacy_settings(user_id: int, db: Session) -> users_privacy_settings_schema.UserPrivacySettingsRead:
     """Stage privacy settings for a user with the model defaults (flushed, not committed).
 
     Args:
@@ -71,11 +71,11 @@ def create_user_privacy_settings(user_id: int, db: Session) -> users_privacy_set
 
 def edit_user_privacy_settings(
     user_id: int,
-    user_privacy_settings_data: users_privacy_settings_schema.UsersPrivacySettingsUpdate,
+    user_privacy_settings_data: users_privacy_settings_schema.UserPrivacySettingsUpdate,
     db: Session,
     *,
     if_match: str,
-) -> users_privacy_settings_schema.UsersPrivacySettingsRead:
+) -> users_privacy_settings_schema.UserPrivacySettingsRead:
     """Stage an update of a user's privacy settings (flushed, not committed).
 
     Args:

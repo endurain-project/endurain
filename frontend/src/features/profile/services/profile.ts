@@ -42,7 +42,7 @@ export function mapPrivacySettings(dto: ProfileDto): PrivacySettings {
 }
 
 /**
- * Maps a raw `/profile` (`UsersMe`) payload to the clean {@link ProfileDetails}
+ * Maps a raw `/profile` (`UserMe`) payload to the clean {@link ProfileDetails}
  * model — the single boundary where the backend wire format is normalized.
  *
  * @param dto - Raw `/profile` payload from the backend.

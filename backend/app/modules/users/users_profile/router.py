@@ -44,14 +44,14 @@ router = APIRouter()
 
 @router.get(
     "",
-    response_model=users_schema.UsersMe,
+    response_model=users_schema.UserMe,
     dependencies=[Security(auth_dependencies.check_scopes, scopes=["profile"])],
 )
 def read_users_me(
     token_user_id: auth_dependencies.CurrentUserId,
     db: core_dependencies.DbSession,
     response: Response,
-) -> users_schema.UsersMe:
+) -> users_schema.UserMe:
     """Retrieve authenticated user profile with integrations.
 
     The ETag is the user's version, which a later ``PATCH /profile`` echoes in ``If-Match``. The
@@ -105,7 +105,7 @@ def upload_profile_image(
 
 @router.patch(
     "",
-    response_model=users_schema.UsersMe,
+    response_model=users_schema.UserMe,
     dependencies=[Security(auth_dependencies.check_scopes, scopes=["profile"])],
 )
 @core_rate_limit.limiter.limit(core_rate_limit.WRITE)
@@ -116,7 +116,7 @@ def edit_profile(
     token_user_id: auth_dependencies.CurrentUserId,
     db: core_dependencies.DbSession,
     if_match: core_dependencies.IfMatch,
-) -> users_schema.UsersMe:
+) -> users_schema.UserMe:
     """Edit self-service profile fields for the authenticated user.
 
     Uses an explicit allow-list (:class:`users_schema.ProfileUpdate`)
@@ -143,7 +143,7 @@ def edit_profile(
 
 @router.post(
     "/email/change",
-    response_model=users_schema.UsersMe,
+    response_model=users_schema.UserMe,
     dependencies=[Security(auth_dependencies.check_scopes, scopes=["profile:security"])],
 )
 @core_rate_limit.limiter.limit(core_rate_limit.SENSITIVE)
@@ -161,7 +161,7 @@ def edit_profile_email(
         Depends(auth_dependencies.get_step_up_attempts),
     ],
     db: core_dependencies.DbSession,
-) -> users_schema.UsersMe:
+) -> users_schema.UserMe:
     """Request a change of the authenticated user's email after step-up verification.
 
     The address is where password resets go, so the caller must re-prove identity with the
@@ -243,14 +243,14 @@ def cancel_profile_email_change(
 
 @router.get(
     "/privacy",
-    response_model=users_privacy_settings_schema.UsersPrivacySettingsRead,
+    response_model=users_privacy_settings_schema.UserPrivacySettingsRead,
     dependencies=[Security(auth_dependencies.check_scopes, scopes=["profile"])],
 )
 def read_profile_privacy_settings(
     token_user_id: auth_dependencies.CurrentUserId,
     db: core_dependencies.DbSession,
     response: Response,
-) -> users_privacy_settings_schema.UsersPrivacySettingsRead:
+) -> users_privacy_settings_schema.UserPrivacySettingsRead:
     """Retrieve the authenticated user's privacy settings.
 
     The ETag is the settings' version, which a later ``PATCH /profile/privacy`` echoes in ``If-Match``.
@@ -262,18 +262,18 @@ def read_profile_privacy_settings(
 
 @router.patch(
     "/privacy",
-    response_model=users_privacy_settings_schema.UsersPrivacySettingsRead,
+    response_model=users_privacy_settings_schema.UserPrivacySettingsRead,
     dependencies=[Security(auth_dependencies.check_scopes, scopes=["profile"])],
 )
 @core_rate_limit.limiter.limit(core_rate_limit.WRITE)
 def edit_profile_privacy_settings(
     request: Request,
     response: Response,
-    user_privacy_settings: users_privacy_settings_schema.UsersPrivacySettingsUpdate,
+    user_privacy_settings: users_privacy_settings_schema.UserPrivacySettingsUpdate,
     token_user_id: auth_dependencies.CurrentUserId,
     db: core_dependencies.DbSession,
     if_match: core_dependencies.IfMatch,
-) -> users_privacy_settings_schema.UsersPrivacySettingsRead:
+) -> users_privacy_settings_schema.UserPrivacySettingsRead:
     """Edit privacy settings for authenticated user.
 
     Args:
@@ -301,7 +301,7 @@ def edit_profile_privacy_settings(
 @core_rate_limit.limiter.limit(core_rate_limit.SENSITIVE)
 def edit_profile_password(
     request: Request,
-    user_attributtes: users_schema.UsersEditPassword,
+    user_attributtes: users_schema.UserEditPassword,
     token_user_id: auth_dependencies.CurrentUserId,
     token_session_id: Annotated[
         str,

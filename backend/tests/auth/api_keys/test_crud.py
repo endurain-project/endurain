@@ -35,7 +35,7 @@ def test_get_api_keys_page_returns_read_dtos(mock_db):
 
     result = api_keys_crud.get_api_keys_page(1, mock_db, limit=25, offset=0)
 
-    assert result == [api_keys_schema.UsersApiKeyRead.model_validate(row)]
+    assert result == [api_keys_schema.UserApiKeyRead.model_validate(row)]
 
 
 def test_count_api_keys_returns_owner_total(mock_db):
@@ -54,7 +54,7 @@ def test_get_api_key_by_id_and_hash_return_read_dtos(mock_db):
 
 def test_create_api_key_stages_hashed_key(mock_db):
     row = _row()
-    data = api_keys_schema.UsersApiKeyCreate(name="CLI", scopes=["activities:upload"])
+    data = api_keys_schema.UserApiKeyCreate(name="CLI", scopes=["activities:upload"])
     raw_key = "endurain_12345678secret"
     expires_at = datetime.now(UTC) + timedelta(days=30)
     with (

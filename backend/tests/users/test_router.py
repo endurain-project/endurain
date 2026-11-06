@@ -18,7 +18,7 @@ class TestEditUserPassword:
         """
         user_id = 42
         new_password = "new-secure-password"
-        user_attributes = users_schema.UsersAdminEditPassword(password=new_password)
+        user_attributes = users_schema.UserAdminEditPassword(password=new_password)
         db = MagicMock()
 
         with patch.object(account_security_integration, "change_managed_user_password") as change_password:

@@ -18,6 +18,7 @@ import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover
 import { Skeleton } from '@/components/ui/skeleton'
 import { Switch } from '@/components/ui/switch'
 import { useCurrentUser } from '@/features/auth/composables/useCurrentUser'
+import { MIN_USER_SEARCH_LENGTH } from '@/features/users/services/publicUsers'
 import { useRecordsPerPage } from '@/features/config/composables/useRecordsPerPage'
 import { useListPagination } from '@/composables/useListPagination'
 import { useToasts } from '@/composables/useToasts'
@@ -32,9 +33,12 @@ const { t } = useI18n()
 const toasts = useToasts()
 const { data: currentUser } = useCurrentUser()
 
-/** Filter defaults: hide inactive accounts, show everything else (matches v1). */
+/**
+ * Filter defaults: show everything. An account awaiting approval is inactive until it is approved,
+ * so hiding inactive accounts would hide the sign-ups an administrator has to act on.
+ */
 const DEFAULT_FILTERS: UserFilters = {
-  showInactive: false,
+  showInactive: true,
   showEmailUnverified: true,
   showPendingApproval: true,
   showExternalAuth: true,
@@ -90,12 +94,18 @@ function clearSearch(): void {
   debouncedSearch.value = ''
 }
 
-const isSearching = computed(() => debouncedSearch.value.trim().length > 0)
+/** The search term the server accepts: empty until it reaches the minimum search length. */
+const effectiveSearch = computed(() => {
+  const term = debouncedSearch.value.trim()
+  return term.length >= MIN_USER_SEARCH_LENGTH ? term : ''
+})
+
+const isSearching = computed(() => effectiveSearch.value.length > 0)
 
 // The username search is a server-side filter on the same paginated list.
 const listQuery = useUsersQuery(page, recordsPerPage, () => ({
   ...filters,
-  username: debouncedSearch.value.trim(),
+  username: effectiveSearch.value,
 }))
 
 /** Users on the current page. */
@@ -142,7 +152,7 @@ const emptyState = computed<{
 })
 
 // Changing a filter or the search term alters the result set, so restart at the first page.
-watch([filters, debouncedSearch], resetPage)
+watch([filters, effectiveSearch], resetPage)
 
 /** Refetches the list after an error. */
 function refetchActive(): void {

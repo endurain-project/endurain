@@ -35,7 +35,7 @@ def _user(db, user_id=7):
 
 
 def _edit(db, **changes):
-    edit = users_schema.UsersEdit.from_read(users_service.require_user(7, db)).model_copy(update=changes)
+    edit = users_schema.UserEdit.from_read(users_service.require_user(7, db)).model_copy(update=changes)
     with patch(f"{_SERVICE}.sign_up_tokens_integration"):
         users_service.stage_user_edit(7, edit, db, if_match="*")
     db.commit()
@@ -154,7 +154,7 @@ class TestCreation:
 
     @staticmethod
     def _create(*, active):
-        user = users_schema.UsersCreate(
+        user = users_schema.UserCreate(
             name="New",
             username="newuser",
             email="new@example.com",
@@ -182,7 +182,7 @@ class TestCreation:
     @pytest.mark.parametrize(("verification", "approval"), [(True, False), (False, True), (True, True)])
     def test_a_sign_up_awaiting_verification_or_approval_is_not_marked(self, verification, approval):
         settings = MagicMock(signup_require_email_verification=verification, signup_require_admin_approval=approval)
-        signup = users_schema.UsersSignup(
+        signup = users_schema.UserSignup(
             name="New", username="newuser", email="new@example.com", preferred_language="en", password="password123"
         )
         with (

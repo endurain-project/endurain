@@ -27,7 +27,7 @@ describe('fetchUserProfileOverview', () => {
 
     const result = await fetchUserProfileOverview(7, '2026-10-27')
 
-    expect(apiFetch).toHaveBeenCalledExactlyOnceWith('/users/id/7/overview?date=2026-10-27', {
+    expect(apiFetch).toHaveBeenCalledExactlyOnceWith('/users/7/overview?date=2026-10-27', {
       signal: undefined,
     })
     expect(result.user).toEqual({

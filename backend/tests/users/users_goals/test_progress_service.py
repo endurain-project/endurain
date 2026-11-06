@@ -16,8 +16,8 @@ import modules.users.users_goals.schema as user_goals_schema
 _PAGE = core_pagination.PageParams(1, 25)
 
 
-def _progress(goal_id: int) -> user_goals_schema.UsersGoalProgress:
-    return user_goals_schema.UsersGoalProgress(
+def _progress(goal_id: int) -> user_goals_schema.UserGoalProgress:
+    return user_goals_schema.UserGoalProgress(
         goal_id=goal_id,
         interval="weekly",
         activity_type="run",

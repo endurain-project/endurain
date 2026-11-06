@@ -113,14 +113,14 @@ def mock_db() -> MagicMock:
 
 
 @pytest.fixture
-def sample_user_read() -> user_schema.UsersRead:
+def sample_user_read() -> user_schema.UserRead:
     """
-    Creates and returns a sample instance of UsersRead for testing purposes.
+    Creates and returns a sample instance of UserRead for testing purposes.
 
     Returns:
-        user_schema.UsersRead: A sample user object with predefined attributes.
+        user_schema.UserRead: A sample user object with predefined attributes.
     """
-    return user_schema.UsersRead(
+    return user_schema.UserRead(
         id=1,
         name="Test User",
         username="testuser",
@@ -136,9 +136,9 @@ def sample_inactive_user():
     Creates and returns a sample inactive user instance for testing purposes.
 
     Returns:
-        user_schema.UsersRead: An instance representing an inactive user with predefined attributes.
+        user_schema.UserRead: An instance representing an inactive user with predefined attributes.
     """
-    return user_schema.UsersRead(
+    return user_schema.UserRead(
         id=2,
         name="Inactive User",
         username="inactive",

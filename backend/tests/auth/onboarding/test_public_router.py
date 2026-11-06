@@ -36,8 +36,8 @@ def client() -> TestClient:
     return TestClient(app)
 
 
-def _admin() -> users_schema.UsersRead:
-    return users_schema.UsersRead(
+def _admin() -> users_schema.UserRead:
+    return users_schema.UserRead(
         id=1, name="Owner", username="owner", email="owner@example.com", active=True, access_type="admin"
     )
 

@@ -4,6 +4,6 @@ import modules.auth.api_keys.models as api_keys_models
 import modules.auth.api_keys.schema as api_keys_schema
 
 
-def to_read_schema(row: api_keys_models.UsersApiKeys) -> api_keys_schema.UsersApiKeyRead:
+def to_read_schema(row: api_keys_models.UsersApiKeys) -> api_keys_schema.UserApiKeyRead:
     """Convert an API-key row to its safe read representation."""
-    return api_keys_schema.UsersApiKeyRead.model_validate(row)
+    return api_keys_schema.UserApiKeyRead.model_validate(row)

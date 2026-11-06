@@ -9,7 +9,7 @@ import modules.users.users_default_gear.schema as users_default_gear_schema
 
 def to_read_schema(
     default_gear: users_default_gear_models.UsersDefaultGear,
-) -> users_default_gear_schema.UsersDefaultGearRead:
+) -> users_default_gear_schema.UserDefaultGearRead:
     """Transform a user default gear ORM row into its read schema.
 
     Args:
@@ -18,4 +18,4 @@ def to_read_schema(
     Returns:
         The user default gear as a schema.
     """
-    return users_default_gear_schema.UsersDefaultGearRead.model_validate(default_gear)
+    return users_default_gear_schema.UserDefaultGearRead.model_validate(default_gear)

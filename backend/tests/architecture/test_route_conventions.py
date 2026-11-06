@@ -305,7 +305,7 @@ _UNVERSIONED_WRITES = {
 
 #: Routes that take a ``{user_id}`` path parameter, hold only a regular-user scope and take no ``CurrentUserId``.
 _USER_PATH_WITHOUT_OWNER = {
-    ("users/users/router.py", "read_users_id"): "returns the public projection, which any authenticated user may read",
+    ("users/users/router.py", "read_user"): "returns the public projection, which any authenticated user may read",
 }
 
 

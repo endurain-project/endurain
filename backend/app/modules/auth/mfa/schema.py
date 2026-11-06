@@ -63,7 +63,7 @@ class MFADisableRequest(MFARequest):
     and must be gated by step-up verification: the caller has to
     re-prove possession of the current password in addition to a
     valid MFA code. The password length bounds match the other
-    step-up schemas (see ``UsersEditPassword``) — they validate
+    step-up schemas (see ``UserEditPassword``) — they validate
     the supplied input only and do not impose a policy on the
     stored password.
 

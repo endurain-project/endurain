@@ -52,13 +52,13 @@ def token_manager() -> auth_token_manager.TokenManager:
 
 
 @pytest.fixture
-def sample_user_read() -> users_schema.UsersRead:
-    """Minimal UsersRead fixture.
+def sample_user_read() -> users_schema.UserRead:
+    """Minimal UserRead fixture.
 
     Returns:
-        users_schema.UsersRead: Sample user.
+        users_schema.UserRead: Sample user.
     """
-    return users_schema.UsersRead(
+    return users_schema.UserRead(
         id=1,
         name="Bench User",
         username="benchuser",
@@ -135,7 +135,7 @@ class TestResolveFromAccessTokenBenchmark:
         self,
         service_with_mocked_db: MagicMock,
         token_manager: auth_token_manager.TokenManager,
-        sample_user_read: users_schema.UsersRead,
+        sample_user_read: users_schema.UserRead,
     ):
         """100 sequential resolutions complete within WALL_CLOCK_LIMIT_S.
 
@@ -162,7 +162,7 @@ class TestResolveFromAccessTokenBenchmark:
     def test_db_roundtrip_count(
         self,
         token_manager: auth_token_manager.TokenManager,
-        sample_user_read: users_schema.UsersRead,
+        sample_user_read: users_schema.UserRead,
         mock_user_orm: MagicMock,
     ):
         """Each resolve_from_access_token makes exactly 1 DB roundtrip.

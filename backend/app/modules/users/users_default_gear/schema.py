@@ -10,7 +10,7 @@ from pydantic import (
 import core.types as core_types
 
 
-class UsersDefaultGearBase(BaseModel):
+class UserDefaultGearBase(BaseModel):
     """Base schema for users default gear assignments.
 
     Attributes:
@@ -107,7 +107,7 @@ class UsersDefaultGearBase(BaseModel):
     )
 
 
-class UsersDefaultGearRead(UsersDefaultGearBase):
+class UserDefaultGearRead(UserDefaultGearBase):
     """Schema for reading user default gear settings.
 
     Extends base with identifier fields.
@@ -122,7 +122,7 @@ class UsersDefaultGearRead(UsersDefaultGearBase):
     version: StrictInt = Field(default=1, ge=1, description="Optimistic-concurrency counter, also sent as the ETag")
 
 
-class UsersDefaultGearUpdate(UsersDefaultGearBase):
+class UserDefaultGearUpdate(UserDefaultGearBase):
     """Schema for updating user default gear settings.
 
     Carries only the gear assignments, all optional for partial updates. The record is the

@@ -30,8 +30,8 @@ class TestGetUserGoals:
         mock_goal1.goal_elevation = None
         mock_goal1.goal_duration = None
 
-        mock_get_goals.return_value = user_goals_schema.UsersGoalPage.build(
-            [user_goals_schema.UsersGoalRead.model_validate(mock_goal1)], 1, 1, 25
+        mock_get_goals.return_value = user_goals_schema.UserGoalPage.build(
+            [user_goals_schema.UserGoalRead.model_validate(mock_goal1)], 1, 1, 25
         )
 
         # Act
@@ -50,7 +50,7 @@ class TestGetUserGoals:
     def test_get_user_goals_empty(self, mock_get_goals, fast_api_client, fast_api_app):
         """Test retrieval when user has no goals."""
         # Arrange
-        mock_get_goals.return_value = user_goals_schema.UsersGoalPage.build([], 0, 1, 25)
+        mock_get_goals.return_value = user_goals_schema.UserGoalPage.build([], 0, 1, 25)
 
         # Act
         response = fast_api_client.get(
@@ -71,7 +71,7 @@ class TestGetUserGoalsResults:
     @patch("modules.users.users_goals.router.user_goals_progress_service.get_goals_progress")
     def test_get_user_goals_results_success(self, mock_calculate, fast_api_client, fast_api_app):
         """Returns the page of goal progress and forwards the window."""
-        progress = user_goals_schema.UsersGoalProgress(
+        progress = user_goals_schema.UserGoalProgress(
             goal_id=1,
             interval="weekly",
             activity_type="run",
@@ -82,7 +82,7 @@ class TestGetUserGoalsResults:
             total_calories=3750,
             goal_calories=5000,
         )
-        mock_calculate.return_value = user_goals_schema.UsersGoalProgressPage.build([progress], 3, 2, 1)
+        mock_calculate.return_value = user_goals_schema.UserGoalProgressPage.build([progress], 3, 2, 1)
 
         response = fast_api_client.get(
             "/user_goals/results?page_number=2&num_records=1",
@@ -99,7 +99,7 @@ class TestGetUserGoalsResults:
     @patch("modules.users.users_goals.router.user_goals_progress_service.get_goals_progress")
     def test_get_user_goals_results_none(self, mock_calculate, fast_api_client, fast_api_app):
         """Returns an empty page when there are no goals."""
-        mock_calculate.return_value = user_goals_schema.UsersGoalProgressPage.build([], 0, 1, 25)
+        mock_calculate.return_value = user_goals_schema.UserGoalProgressPage.build([], 0, 1, 25)
 
         response = fast_api_client.get(
             "/user_goals/results",
@@ -200,7 +200,7 @@ class TestUpdateUserGoal:
     ):
         """Test successful goal update."""
         # Arrange
-        mock_update.return_value = user_goals_schema.UsersGoalRead(
+        mock_update.return_value = user_goals_schema.UserGoalRead(
             id=1,
             user_id=1,
             interval=user_goals_schema.Interval.MONTHLY,
@@ -341,7 +341,7 @@ class TestUpdateNeedsIfMatch:
 class TestGetUserGoal:
     @patch("modules.users.users_goals.router.user_goals_service.get_goal")
     def test_returns_the_goal_with_its_etag(self, mock_get, fast_api_client, fast_api_app):
-        mock_get.return_value = user_goals_schema.UsersGoalRead(
+        mock_get.return_value = user_goals_schema.UserGoalRead(
             id=4, user_id=1, version=2, interval="weekly", activity_type="run", goal_type="calories", goal_calories=5000
         )
 

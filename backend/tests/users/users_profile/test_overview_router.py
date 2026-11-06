@@ -5,7 +5,7 @@ from unittest.mock import ANY, patch
 
 import modules.users.users_profile.schema as profile_schema
 
-PREFIX = "/api/v1/users/id/7/overview"
+PREFIX = "/api/v1/users/7/overview"
 
 
 def test_overview_route_returns_the_composed_profile(profile_client):

@@ -44,13 +44,13 @@ export interface User {
 
 /**
  * Raw `/profile` response as returned by the backend. Narrowed from the
- * generated `UsersMe` schema to the fields the app maps, so the snake-case
+ * generated `UserMe` schema to the fields the app maps, so the snake-case
  * keys and number-encoded booleans track the backend contract exactly. Never
  * consume this shape in components — map it to {@link User} at the service
  * boundary.
  */
 export type UserProfileDto = Pick<
-  Schemas['UsersMe'],
+  Schemas['UserMe'],
   | 'id'
   | 'name'
   | 'username'
@@ -90,10 +90,10 @@ export type MfaLoginRequest = Schemas['MFALoginRequest']
 
 /**
  * Sign-up request payload sent to `POST /sign-up/request`. Derived from the
- * backend's generated `UsersSignup` schema so a contract change surfaces as a
+ * backend's generated `UserSignup` schema so a contract change surfaces as a
  * TypeScript error here instead of a silent runtime mismatch.
  */
-export type SignUpRequest = Schemas['UsersSignup']
+export type SignUpRequest = Schemas['UserSignup']
 
 /**
  * Sign-up response returned by `POST /sign-up/request`, indicating whether the

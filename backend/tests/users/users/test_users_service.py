@@ -20,7 +20,7 @@ _CRUD = "modules.users.users.service.users_crud"
 _SETTINGS = "modules.users.users.service.server_settings_integration"
 
 
-def _user(user_id: int = 1, **overrides) -> users_schema.UsersRead:
+def _user(user_id: int = 1, **overrides) -> users_schema.UserRead:
     fields = {
         "id": user_id,
         "name": "User",
@@ -30,15 +30,15 @@ def _user(user_id: int = 1, **overrides) -> users_schema.UsersRead:
         "access_type": "regular",
     }
     fields.update(overrides)
-    return users_schema.UsersRead(**fields)
+    return users_schema.UserRead(**fields)
 
 
-def _edit(user_id: int = 1, **overrides) -> users_schema.UsersEdit:
-    return users_schema.UsersEdit.from_read(_user(user_id, **overrides))
+def _edit(user_id: int = 1, **overrides) -> users_schema.UserEdit:
+    return users_schema.UserEdit.from_read(_user(user_id, **overrides))
 
 
-def _signup(*, with_password: bool = True) -> users_schema.UsersSignup:
-    return users_schema.UsersSignup(
+def _signup(*, with_password: bool = True) -> users_schema.UserSignup:
+    return users_schema.UserSignup(
         name="New",
         username="NewUser",
         email="New@Example.com",
@@ -47,8 +47,8 @@ def _signup(*, with_password: bool = True) -> users_schema.UsersSignup:
     )
 
 
-def _profile(**overrides) -> users_schema.UsersBase:
-    return users_schema.UsersBase(name="New", username="NewUser", email="New@Example.com", **overrides)
+def _profile(**overrides) -> users_schema.UserBase:
+    return users_schema.UserBase(name="New", username="NewUser", email="New@Example.com", **overrides)
 
 
 _auth_service_mock: MagicMock | None = None
@@ -258,57 +258,57 @@ class TestPublicProjection:
 
     @patch("modules.users.users.service.users_privacy_settings_integration")
     @patch(_CRUD)
-    def test_search_is_paged_and_projected(self, mock_crud, mock_privacy, mock_db):
+    def test_public_list_is_paged_and_projected(self, mock_crud, mock_privacy, mock_db):
         mock_privacy.list_undiscoverable_user_ids.return_value = []
-        mock_crud.search_active_users_by_username.return_value = [_user(1), _user(2)]
+        mock_crud.get_users_with_pagination.return_value = [_user(1), _user(2)]
         mock_crud.get_users_number.return_value = 30
 
-        found = users_service.search_public_users("user", core_pagination.PageParams(2, 25), mock_db)
+        found = users_service.list_public_users(core_pagination.PageParams(2, 25), mock_db, username_contains="user")
 
         assert [type(user) for user in found.items] == [users_schema.UserPublicRead] * 2
         assert (found.total, found.page, found.next) == (30, 2, None)
-        mock_crud.search_active_users_by_username.assert_called_once_with("user", 25, 25, mock_db, exclude_user_ids=[])
-        assert mock_crud.get_users_number.call_args.kwargs["username"] == "user"
+        filters = {
+            "active": True,
+            "pending_approval": False,
+            "username": None,
+            "username_contains": "user",
+            "exclude_user_ids": [],
+        }
+        mock_crud.get_users_with_pagination.assert_called_once_with(mock_db, 2, 25, **filters)
+        mock_crud.get_users_number.assert_called_once_with(mock_db, **filters)
 
     @patch("modules.users.users.service.users_privacy_settings_integration")
     @patch(_CRUD)
-    def test_search_leaves_out_users_who_opted_out_of_it_and_their_count(self, mock_crud, mock_privacy, mock_db):
+    def test_public_list_leaves_out_users_who_opted_out_of_search_and_their_count(
+        self, mock_crud, mock_privacy, mock_db
+    ):
         mock_privacy.list_undiscoverable_user_ids.return_value = [7, 8]
-        mock_crud.search_active_users_by_username.return_value = []
+        mock_crud.get_users_with_pagination.return_value = []
         mock_crud.get_users_number.return_value = 0
 
-        users_service.search_public_users("user", core_pagination.PageParams(1, 25), mock_db)
+        users_service.list_public_users(core_pagination.PageParams(1, 25), mock_db, username="user")
 
-        assert mock_crud.search_active_users_by_username.call_args.kwargs["exclude_user_ids"] == [7, 8]
+        assert mock_crud.get_users_with_pagination.call_args.kwargs["exclude_user_ids"] == [7, 8]
         assert mock_crud.get_users_number.call_args.kwargs["exclude_user_ids"] == [7, 8]
+        assert mock_crud.get_users_number.call_args.kwargs["username"] == "user"
 
 
 class TestListUsers:
     @patch(_CRUD)
-    def test_enriches_and_filters_by_authentication(self, mock_crud, mock_db):
+    def test_enriches_each_user_with_the_authentication_status(self, mock_crud, mock_db):
         mock_crud.get_users_number.return_value = 2
         mock_crud.get_users_with_pagination.return_value = [_user(1, name="Alice"), _user(2, name="Bob")]
         identity = _identity()
         identity.get_identity_link_counts_for_users.return_value = {1: 2}
         identity.get_mfa_enabled_for_users.return_value = {2: True}
 
-        result = users_service.list_users(mock_db, page_number=1, num_records=10, show_external_auth=False)
+        result = users_service.list_users(mock_db, page_number=1, num_records=10)
 
         assert result.total == 2
-        assert [u.name for u in result.items] == ["Bob"]
-        assert result.items[0].mfa_enabled is True
-
-    @patch(_CRUD)
-    def test_local_filter_drops_users_without_a_link(self, mock_crud, mock_db):
-        mock_crud.get_users_number.return_value = 2
-        mock_crud.get_users_with_pagination.return_value = [_user(1, name="Alice"), _user(2, name="Bob")]
-        identity = _identity()
-        identity.get_identity_link_counts_for_users.return_value = {1: 1}
-        identity.get_mfa_enabled_for_users.return_value = {}
-
-        result = users_service.list_users(mock_db, show_local_auth=False)
-
-        assert [u.name for u in result.items] == ["Alice"]
+        assert [(u.name, u.external_auth_count, u.mfa_enabled) for u in result.items] == [
+            ("Alice", 2, False),
+            ("Bob", 0, True),
+        ]
 
 
 class TestPendingEmailChanges:
@@ -351,7 +351,7 @@ class TestPendingEmailChanges:
     def test_an_edit_built_from_a_read_leaves_the_pending_change_out(self):
         read = _user(1, pending_email="next@example.com", pending_email_expires_at=datetime(2030, 1, 1, tzinfo=UTC))
 
-        edit = users_schema.UsersEdit.from_read(read)
+        edit = users_schema.UserEdit.from_read(read)
 
         assert "pending_email" not in edit.model_dump()
         assert "pending_email_expires_at" not in edit.model_dump()
@@ -383,7 +383,7 @@ class TestCreateUser:
         identity = _identity()
         identity.validate_and_hash_password_for_user.return_value = "hash"
         mock_crud.create_user.return_value = _user(7)
-        user = users_schema.UsersCreate(
+        user = users_schema.UserCreate(
             name="N",
             username="NewUser",
             email="New@Example.com",
@@ -407,7 +407,7 @@ class TestCreateUser:
     def test_duplicate_rolls_back_and_stores_no_credential(self, mock_crud, mock_settings, mock_db):
         identity = _identity()
         mock_crud.create_user.side_effect = core_exceptions.ConflictError("dup")
-        user = users_schema.UsersCreate(
+        user = users_schema.UserCreate(
             name="N", username="n", email="n@example.com", active=True, access_type="regular", password="password123"
         )
 
@@ -532,7 +532,7 @@ class TestAccountCreationIsOneUnit:
         order.attach_mock(mock_gear.create_default_gear, "gear")
         order.attach_mock(identity.initialize_user_mfa, "mfa")
         order.attach_mock(mock_db.commit, "commit")
-        user = users_schema.UsersCreate(
+        user = users_schema.UserCreate(
             name="N", username="n", email="n@example.com", active=True, access_type="regular", password="password123"
         )
 
@@ -1014,7 +1014,7 @@ class TestEdits:
     def test_admin_edit_without_weight_units_keeps_the_override(self, mock_crud, mock_weight, mock_db):
         mock_crud.get_user_by_id.return_value = _user(1, weight_units="imperial")
         mock_crud.update_user.return_value = _user(1, units="imperial", weight_units="imperial")
-        edit = users_schema.UsersEdit(**_edit(1, units="imperial").model_dump(exclude={"weight_units"}))
+        edit = users_schema.UserEdit(**_edit(1, units="imperial").model_dump(exclude={"weight_units"}))
 
         users_service.stage_user_edit(1, edit, mock_db, if_match="*")
 

@@ -43,7 +43,7 @@ def _stage_key_audit(
     )
 
 
-def list_user_api_keys(user_id: int, page: core_pagination.PageParams, db: Session) -> api_keys_schema.UsersApiKeyPage:
+def list_user_api_keys(user_id: int, page: core_pagination.PageParams, db: Session) -> api_keys_schema.UserApiKeyPage:
     """Return one page of the user's API keys."""
     return api_keys_integration.list_user_api_keys(user_id, page, db)
 
@@ -51,11 +51,11 @@ def list_user_api_keys(user_id: int, page: core_pagination.PageParams, db: Sessi
 def create_user_api_key(
     user_id: int,
     session_id: str,
-    data: api_keys_schema.UsersApiKeyCreate,
+    data: api_keys_schema.UserApiKeyCreate,
     expires_at: datetime,
     step_up_store: step_up_store_module.StepUpStore,
     db: Session,
-) -> api_keys_schema.UsersApiKeyCreatedRead:
+) -> api_keys_schema.UserApiKeyCreatedRead:
     """Verify step-up, stage a key expiring at ``expires_at``, and commit it before returning its secret once.
 
     The request schema has already refused unsupported scopes, so such a request never spends an
@@ -86,7 +86,7 @@ def create_user_api_key(
     )
     db.commit()
     logger.info("API key created", extra=core_logger.context(user_id=user_id, api_key_id=api_key.id, name=data.name))
-    return api_keys_schema.UsersApiKeyCreatedRead(**api_key.model_dump(), key=raw_key)
+    return api_keys_schema.UserApiKeyCreatedRead(**api_key.model_dump(), key=raw_key)
 
 
 def revoke_user_api_key(api_key_id: str, user_id: int, db: Session) -> None:

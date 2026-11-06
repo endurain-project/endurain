@@ -9,7 +9,7 @@ import modules.users.users_integrations.schema as user_integrations_schema
 
 def to_read_schema(
     integrations: user_integrations_models.UsersIntegrations,
-) -> user_integrations_schema.UsersIntegrationsRead:
+) -> user_integrations_schema.UserIntegrationsRead:
     """Transform a user integrations ORM row into its read schema.
 
     Args:
@@ -18,4 +18,4 @@ def to_read_schema(
     Returns:
         The user integrations as a schema.
     """
-    return user_integrations_schema.UsersIntegrationsRead.model_validate(integrations)
+    return user_integrations_schema.UserIntegrationsRead.model_validate(integrations)

@@ -48,7 +48,7 @@ class StravaTokenRejectedError(core_exceptions.DependencyFailedError):
     """Raised when Strava rejected the user's token and the account was unlinked, so a sync must stop."""
 
 
-def get_client_id(user_integrations: user_integrations_schema.UsersIntegrationsRead) -> str:
+def get_client_id(user_integrations: user_integrations_schema.UserIntegrationsRead) -> str:
     """Get the Strava application (client ID) a user's integration belongs to.
 
     It is the scope of Strava's rate limits, so every call that checks or records
@@ -70,7 +70,7 @@ def get_client_id(user_integrations: user_integrations_schema.UsersIntegrationsR
     return core_cryptography.decrypt_token_fernet(user_integrations.strava_client_id)
 
 
-def get_client_secret(user_integrations: user_integrations_schema.UsersIntegrationsRead) -> str:
+def get_client_secret(user_integrations: user_integrations_schema.UserIntegrationsRead) -> str:
     """Get the secret of the Strava application a user's integration belongs to.
 
     Args:
@@ -225,7 +225,7 @@ def call_strava[T](
     call: Callable[[StravaClient], T],
     strava_client: StravaClient,
     user_id: int,
-    user_integrations: user_integrations_schema.UsersIntegrationsRead,
+    user_integrations: user_integrations_schema.UserIntegrationsRead,
     rate_limits: strava_rate_limit_store.StravaRateLimitStore,
 ) -> T:
     """Make one Strava call, confirming a 401 with the token endpoint instead of trusting it.
@@ -431,12 +431,12 @@ class _LinkedToken(NamedTuple):
         expires_at: When the access token expires.
     """
 
-    integrations: user_integrations_schema.UsersIntegrationsRead
+    integrations: user_integrations_schema.UserIntegrationsRead
     refresh_token: str
     expires_at: datetime
 
 
-def _linked_token(user_integrations: user_integrations_schema.UsersIntegrationsRead | None) -> _LinkedToken | None:
+def _linked_token(user_integrations: user_integrations_schema.UserIntegrationsRead | None) -> _LinkedToken | None:
     """Return a user's Strava token when it is linked.
 
     Args:
@@ -653,7 +653,7 @@ def _refresh_under_claim(
 
 def fetch_user_integrations_and_validate_token(
     user_id: int, db: Session
-) -> user_integrations_schema.UsersIntegrationsRead | None:
+) -> user_integrations_schema.UserIntegrationsRead | None:
     """Return a user's integrations when Strava is linked.
 
     Args:
@@ -673,7 +673,7 @@ def fetch_user_integrations_and_validate_token(
 
 
 def create_strava_client(
-    user_integrations: user_integrations_schema.UsersIntegrationsRead,
+    user_integrations: user_integrations_schema.UserIntegrationsRead,
 ) -> StravaClient:
     """Build a Strava client from a user's stored tokens.
 

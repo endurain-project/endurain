@@ -20,10 +20,10 @@ _GOOD_NAMES = ["Ana María", "می‌خواهم", "क्‍ष", "👨‍👩�
 
 def _validators():
     return {
-        "signup": lambda name: users_schema.UsersSignup(name=name, **_SIGNUP),
-        "admin_create": lambda name: users_schema.UsersCreate(name=name, **_ADMIN),
+        "signup": lambda name: users_schema.UserSignup(name=name, **_SIGNUP),
+        "admin_create": lambda name: users_schema.UserCreate(name=name, **_ADMIN),
         "first_admin": lambda name: users_schema.FirstAdminCreate(name=name, **_FIRST_ADMIN),
-        "admin_edit": lambda name: users_schema.UsersEdit(
+        "admin_edit": lambda name: users_schema.UserEdit(
             name=name, username="newuser", email="new@example.com", access_type="regular", active=True
         ),
         "profile_update": lambda name: users_schema.ProfileUpdate(name=name),
@@ -52,6 +52,6 @@ def test_a_stored_name_still_reads():
         "active": True,
     }
     for name in (" ", "Eve‮evil"):
-        read = users_schema.UsersRead(name=name, **stored)
+        read = users_schema.UserRead(name=name, **stored)
         assert read.name == name
-        assert users_schema.UsersEdit.from_read(read).name == name
+        assert users_schema.UserEdit.from_read(read).name == name

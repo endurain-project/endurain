@@ -332,7 +332,7 @@ class TestCreateCallbackSession:
         order.attach_mock(service._tokens.store_session_tokens, "store")
         with (
             patch.object(callback_service.users_integration, "require_active_user"),
-            patch.object(callback_service.users_schema.UsersRead, "model_validate", return_value=SimpleNamespace(id=7)),
+            patch.object(callback_service.users_schema.UserRead, "model_validate", return_value=SimpleNamespace(id=7)),
             patch.object(callback_service.sessions_integration, "create_session") as create_session,
         ):
             order.attach_mock(create_session, "create_session")
@@ -352,7 +352,7 @@ class TestCreateCallbackSession:
         user = SimpleNamespace(id=7)
         with (
             patch.object(callback_service.users_integration, "require_active_user"),
-            patch.object(callback_service.users_schema.UsersRead, "model_validate", return_value=SimpleNamespace(id=7)),
+            patch.object(callback_service.users_schema.UserRead, "model_validate", return_value=SimpleNamespace(id=7)),
             patch.object(callback_service.sessions_integration, "create_session") as create_session,
         ):
             service.create_callback_session(user, "10.0.0.1", "agent", MagicMock(), naive, 3, {}, MagicMock())

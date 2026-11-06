@@ -1,13 +1,13 @@
 import type { Schemas } from '@/types'
 
 /** Raw authenticated `/profile` payload (snake_case wire shape). */
-export type ProfileDto = Schemas['UsersMe']
+export type ProfileDto = Schemas['UserMe']
 
 /** Edit body for the user's own profile (all fields optional). */
 export type ProfileUpdateDto = Schemas['ProfileUpdate']
 
 /** Update body for the user's privacy settings. */
-export type PrivacyUpdateDto = Schemas['UsersPrivacySettingsUpdate']
+export type PrivacyUpdateDto = Schemas['UserPrivacySettingsUpdate']
 
 /** Where the user's profile import is, as the backend reports it. */
 export type ProfileImportStatus = Schemas['ProfileImportStatus']
@@ -182,10 +182,10 @@ export interface ProfileEditInput {
 }
 
 /** Raw default-gear payload (snake_case wire shape). */
-export type DefaultGearDto = Schemas['UsersDefaultGearRead']
+export type DefaultGearDto = Schemas['UserDefaultGearRead']
 
 /** Update body for the user's default gear (the assignments only). */
-export type DefaultGearUpdateDto = Schemas['UsersDefaultGearUpdate']
+export type DefaultGearUpdateDto = Schemas['UserDefaultGearUpdate']
 
 /**
  * The user's default gear per activity type. Each field is the gear id assigned

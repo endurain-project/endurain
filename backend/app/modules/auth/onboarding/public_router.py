@@ -27,7 +27,7 @@ def read_onboarding_status(
 @router.post(
     "",
     status_code=status.HTTP_201_CREATED,
-    response_model=users_schema.UsersRead,
+    response_model=users_schema.UserRead,
     responses={201: {"headers": core_openapi_contract.ETAG_HEADERS}},
 )
 @core_rate_limit.limiter.limit(core_rate_limit.SENSITIVE)
@@ -37,7 +37,7 @@ def complete_onboarding(
     store: onboarding_dependencies.OnboardingTokens,
     db: core_dependencies.DbSession,
     response: Response,
-) -> users_schema.UsersRead:
+) -> users_schema.UserRead:
     """Create the first administrator with the setup token printed in the server log."""
     created = onboarding_service.complete_onboarding(onboarding, store, db)
     core_etag.set_etag(response, created.version)

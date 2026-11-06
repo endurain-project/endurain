@@ -146,7 +146,7 @@ def find_or_create_user(
     subject: str,
     userinfo: dict[str, Any],
     db: Session,
-) -> users_schema.UsersRead:
+) -> users_schema.UserRead:
     """Finds an existing user linked to the given identity provider and subject, or creates a new user if allowed.
 
     This method attempts to:
@@ -164,7 +164,7 @@ def find_or_create_user(
         db (Session): Database session.
 
     Returns:
-        users_schema.UsersRead: The found or newly created user instance. A newly created account is inactive while
+        users_schema.UserRead: The found or newly created user instance. A newly created account is inactive while
             the server's sign-up policy requires email verification or admin approval.
 
     Raises:
@@ -178,7 +178,7 @@ def find_or_create_user(
 
     if link:
         # Fetch the linked user through the CRUD layer so we work with
-        # the UsersRead schema rather than reaching into the ORM
+        # the UserRead schema rather than reaching into the ORM
         # relationship (link.users) and crossing the module boundary.
         user = users_integration.get_user(link.user_id, db)
         if user is None:
@@ -282,7 +282,7 @@ def create_user_from_idp(
     db: Session,
     *,
     email_verified: bool,
-) -> users_schema.UsersRead:
+) -> users_schema.UserRead:
     """Creates a new user in the database based on identity provider (IdP) information.
 
     This method generates a unique username, creates a user with mapped data from the IdP
@@ -299,7 +299,7 @@ def create_user_from_idp(
         email_verified (bool): Whether the IdP asserted the email as verified.
 
     Returns:
-        users_schema.UsersRead: The newly created user instance.
+        users_schema.UserRead: The newly created user instance.
 
     Raises:
         SsoSignInRefusedError: If the IdP did not share an email address; every account needs a real one.
@@ -319,7 +319,7 @@ def create_user_from_idp(
         # secrets.randbelow is a CSPRNG; generate a 6-digit suffix
         username = f"{base_username}_{secrets_module.randbelow(900000) + 100000}"
 
-    profile = users_schema.UsersBase(
+    profile = users_schema.UserBase(
         username=username,
         email=email,
         city=mapped_data.get("city"),
@@ -348,11 +348,11 @@ def create_user_from_idp(
 
 
 def update_user_from_idp(
-    user: users_schema.UsersRead,
+    user: users_schema.UserRead,
     idp: identity_provider_contracts.IdentityProviderState,
     userinfo: dict[str, Any],
     db: Session,
-) -> users_schema.UsersRead:
+) -> users_schema.UserRead:
     """Updates the user's information based on claims received from an identity provider (IdP).
 
     This method syncs user profile information from the IdP to the local user account when
@@ -364,14 +364,14 @@ def update_user_from_idp(
     5. Delegates persistence to the CRUD layer (edit_user)
 
     Args:
-        user (users_schema.UsersRead): The user schema instance to update.
+        user (users_schema.UserRead): The user schema instance to update.
         idp (identity_provider_contracts.IdentityProviderState): The identity provider instance with user_mapping
             config.
         userinfo (Dict[str, Any]): The user information claims received from the IdP.
         db (Session): The SQLAlchemy database session.
 
     Returns:
-        users_schema.UsersRead: The updated user schema instance from database.
+        users_schema.UserRead: The updated user schema instance from database.
     """
     mapped_data = claim_mapping.map_user_claims(idp, userinfo)
 
@@ -419,7 +419,7 @@ def update_user_from_idp(
             ),
         )
         updated_user = user.model_copy(update=updates)
-        user = users_integration.edit_user(user.id, users_schema.UsersEdit.from_read(updated_user), db, if_match="*")
+        user = users_integration.edit_user(user.id, users_schema.UserEdit.from_read(updated_user), db, if_match="*")
         db.commit()
 
     return user

@@ -45,7 +45,7 @@ def calculate_user_goals(
     first_day_of_week: core_calendar.WeekdayValue,
     page: core_pagination.PageParams,
     db: Session,
-) -> user_goals_schema.UsersGoalProgressPage:
+) -> user_goals_schema.UserGoalProgressPage:
     """Calculate progress for one page of a user's goals on a specified date.
 
     Args:
@@ -57,7 +57,7 @@ def calculate_user_goals(
         db: SQLAlchemy database session.
 
     Returns:
-        The page of UsersGoalProgress objects, empty if no goals found.
+        The page of UserGoalProgress objects, empty if no goals found.
 
     Raises:
         InvalidInputError: If the date or interval is malformed.
@@ -85,7 +85,7 @@ def calculate_user_goals(
             )
             for goal in goals
         ]
-        return user_goals_schema.UsersGoalProgressPage.build(progress, total, page.page_number, page.num_records)
+        return user_goals_schema.UserGoalProgressPage.build(progress, total, page.page_number, page.num_records)
     except (ValueError, TypeError) as err:
         logger.error(
             "Invalid data while calculating user goals", exc_info=err, extra=core_logger.context(user_id=user_id)
@@ -94,11 +94,11 @@ def calculate_user_goals(
 
 
 def calculate_goal_progress_by_activity_type(
-    goal: user_goals_schema.UsersGoalRead,
+    goal: user_goals_schema.UserGoalRead,
     date: str,
     first_day_of_week: core_calendar.WeekdayValue,
     db: Session,
-) -> user_goals_schema.UsersGoalProgress:
+) -> user_goals_schema.UserGoalProgress:
     """Calculate goal progress for a specific activity type.
 
     Args:
@@ -108,7 +108,7 @@ def calculate_goal_progress_by_activity_type(
         first_day_of_week: User's configured first weekday.
 
     Returns:
-        UsersGoalProgress object with progress details.
+        UserGoalProgress object with progress details.
 
     Raises:
         InvalidInputError: If the date or interval is malformed.
@@ -168,7 +168,7 @@ def calculate_goal_progress_by_activity_type(
             percentage_completed = 100
 
         # Create and return the progress object
-        return user_goals_schema.UsersGoalProgress(
+        return user_goals_schema.UserGoalProgress(
             goal_id=goal.id,
             interval=goal.interval,
             activity_type=goal.activity_type,
@@ -196,7 +196,7 @@ def calculate_goal_progress_by_activity_type(
 
 def get_goals_progress(
     user_id: int, page: core_pagination.PageParams, db: Session
-) -> user_goals_schema.UsersGoalProgressPage:
+) -> user_goals_schema.UserGoalProgressPage:
     """Calculate goal progress for one page of a user's goals as of their own calendar day.
 
     Args:

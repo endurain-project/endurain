@@ -34,7 +34,7 @@ def _select_by_user_id(user_id: int, db: Session) -> users_default_gear_models.U
 def get_user_default_gear_by_user_id(
     user_id: int,
     db: Session,
-) -> users_default_gear_schema.UsersDefaultGearRead | None:
+) -> users_default_gear_schema.UserDefaultGearRead | None:
     """Retrieve default gear settings for a specific user.
 
     Args:
@@ -51,7 +51,7 @@ def get_user_default_gear_by_user_id(
 def create_user_default_gear(
     user_id: int,
     db: Session,
-) -> users_default_gear_schema.UsersDefaultGearRead:
+) -> users_default_gear_schema.UserDefaultGearRead:
     """Stage empty default gear settings for a user (flushed, not committed).
 
     Args:
@@ -76,12 +76,12 @@ def create_user_default_gear(
 
 
 def edit_user_default_gear(
-    user_default_gear: users_default_gear_schema.UsersDefaultGearUpdate,
+    user_default_gear: users_default_gear_schema.UserDefaultGearUpdate,
     user_id: int,
     db: Session,
     *,
     if_match: str,
-) -> users_default_gear_schema.UsersDefaultGearRead:
+) -> users_default_gear_schema.UserDefaultGearRead:
     """Stage an update of a user's default gear settings (flushed, not committed).
 
     Performs no ownership check on the gears: that is decided by

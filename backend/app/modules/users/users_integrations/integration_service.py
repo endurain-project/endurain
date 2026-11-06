@@ -15,7 +15,7 @@ import modules.users.users_integrations.crud as user_integrations_crud
 import modules.users.users_integrations.schema as user_integrations_schema
 
 
-def get_user_integrations(user_id: int, db: Session) -> user_integrations_schema.UsersIntegrationsRead | None:
+def get_user_integrations(user_id: int, db: Session) -> user_integrations_schema.UserIntegrationsRead | None:
     """Return a user's integrations, or ``None`` when the user has none.
 
     Args:
@@ -28,7 +28,7 @@ def get_user_integrations(user_id: int, db: Session) -> user_integrations_schema
     return user_integrations_crud.get_user_integrations_by_user_id(user_id, db)
 
 
-def require_user_integrations(user_id: int, db: Session) -> user_integrations_schema.UsersIntegrationsRead:
+def require_user_integrations(user_id: int, db: Session) -> user_integrations_schema.UserIntegrationsRead:
     """Return a user's integrations.
 
     Args:
@@ -161,7 +161,7 @@ def list_user_ids_with_garminconnect_linked(after_id: int, limit: int, db: Sessi
     return user_integrations_crud.list_user_ids_with_garminconnect_linked(after_id, limit, db)
 
 
-def create_integrations(user_id: int, db: Session) -> user_integrations_schema.UsersIntegrationsRead:
+def create_integrations(user_id: int, db: Session) -> user_integrations_schema.UserIntegrationsRead:
     """Stage the default integrations row for a new user.
 
     Args:
@@ -178,10 +178,10 @@ def create_integrations(user_id: int, db: Session) -> user_integrations_schema.U
 
 
 def edit_integrations(
-    user_integrations: user_integrations_schema.UsersIntegrationsUpdate,
+    user_integrations: user_integrations_schema.UserIntegrationsUpdate,
     user_id: int,
     db: Session,
-) -> user_integrations_schema.UsersIntegrationsRead:
+) -> user_integrations_schema.UserIntegrationsRead:
     """Stage an update of a user's integrations.
 
     Args:

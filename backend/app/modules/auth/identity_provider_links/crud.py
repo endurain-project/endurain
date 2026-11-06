@@ -2,7 +2,7 @@
 
 from datetime import UTC, datetime
 
-from sqlalchemy import delete, exists, func, select
+from sqlalchemy import Select, delete, exists, func, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
@@ -129,6 +129,15 @@ def delete_user_identity_provider(user_id: int, idp_id: int, db: Session) -> boo
     )
     db.flush()
     return bool(matched)
+
+
+def select_linked_user_ids() -> Select[tuple[int]]:
+    """Return a query for the ids of the users who have at least one identity-provider link.
+
+    Returns:
+        A select of user ids, for a caller to use in an ``IN`` or ``NOT IN``.
+    """
+    return select(identity_link_models.IdentityLink.user_id).distinct()
 
 
 def get_identity_link_counts_for_users(user_ids: list[int], db: Session) -> dict[int, int]:

@@ -54,7 +54,8 @@ export function mapEmbeddedUsers<T>(
  * Fetches a user's public-facing profile for the `/user/:id` page. The route is
  * authenticated, so this uses the authenticated user endpoint (the same one
  * activity feeds use to resolve other users), which any signed-in viewer may
- * call and which returns only the public projection.
+ * call and which returns only the public projection (an administrator, who holds
+ * `users:read_all`, gets the full record, a superset).
  *
  * @param userId - The profile owner's id.
  * @param signal - Optional abort signal (e.g. TanStack Query cancellation).
@@ -66,7 +67,7 @@ export async function fetchPublicUser(
   signal?: AbortSignal,
 ): Promise<PublicUser | null> {
   try {
-    const dto = await apiFetch<PublicUserDto>(`/users/id/${userId}`, { signal })
+    const dto = await apiFetch<PublicUserDto>(`/users/${userId}`, { signal })
     return mapPublicUser(dto)
   } catch (error) {
     if (error instanceof HttpError && error.status === 404) {
@@ -90,9 +91,9 @@ export async function searchPublicUsers(
   username: string,
   signal?: AbortSignal,
 ): Promise<PublicUser[]> {
-  const page = await apiFetch<{ items: PublicUserDto[] }>(
-    `/users/username/contains/${encodeURIComponent(username)}`,
-    { signal },
-  )
+  const params = new URLSearchParams({ username_contains: username })
+  const page = await apiFetch<{ items: PublicUserDto[] }>(`/users?${params.toString()}`, {
+    signal,
+  })
   return page.items.map(mapPublicUser)
 }

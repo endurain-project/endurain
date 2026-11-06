@@ -338,7 +338,7 @@ class ActivityFeedPage(core_pagination.CursorPage[ActivityRead]):
     Attributes:
         users: The public profile of each owner on this slice, keyed by user ID, one entry per
             owner however many of their activities the slice holds. It is the projection
-            ``GET /users/id/{user_id}`` returns, so the client needs no lookup per owner. An owner
+            ``GET /users/{user_id}`` returns, so the client needs no lookup per owner. An owner
             who is inactive or awaiting approval has no entry.
     """
 

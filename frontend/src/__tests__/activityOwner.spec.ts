@@ -25,7 +25,7 @@ describe('fetchActivityOwner', () => {
 
     const owner = await fetchActivityOwner(42, 7, true)
 
-    expect(apiFetch).toHaveBeenCalledWith('/users/id/7', { auth: true, signal: undefined })
+    expect(apiFetch).toHaveBeenCalledWith('/users/7', { auth: true, signal: undefined })
     expect(owner).toMatchObject({ name: 'Jane Runner', username: 'jane' })
     expect(owner?.avatarUrl).toContain('/users/7/photo?t=sig')
   })

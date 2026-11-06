@@ -9,10 +9,10 @@ _BODY = {"name": "New", "username": "newuser", "email": "new@example.com", "pass
 
 
 def test_signup_rejects_unknown_key():
-    users_schema.UsersSignup(**_BODY)
+    users_schema.UserSignup(**_BODY)
 
     with pytest.raises(ValidationError) as exc:
-        users_schema.UsersSignup(**_BODY, access_type=2)
+        users_schema.UserSignup(**_BODY, access_type=2)
 
     assert exc.value.errors()[0]["type"] == "extra_forbidden"
 
@@ -20,12 +20,12 @@ def test_signup_rejects_unknown_key():
 def test_signup_password_is_optional():
     body = {key: value for key, value in _BODY.items() if key != "password"}
 
-    assert users_schema.UsersSignup(**body).password is None
+    assert users_schema.UserSignup(**body).password is None
 
 
 def test_signup_password_still_has_a_minimum_length():
     with pytest.raises(ValidationError):
-        users_schema.UsersSignup(**{**_BODY, "password": "short"})
+        users_schema.UserSignup(**{**_BODY, "password": "short"})
 
 
 @pytest.mark.parametrize(
@@ -45,10 +45,10 @@ def test_signup_password_still_has_a_minimum_length():
 def test_signup_takes_no_profile_fields(field, value):
     """Sign-up asks only for what an account needs; the profile is filled in afterwards."""
     with pytest.raises(ValidationError) as exc:
-        users_schema.UsersSignup(**_BODY, **{field: value})
+        users_schema.UserSignup(**_BODY, **{field: value})
 
     assert exc.value.errors()[0]["type"] == "extra_forbidden"
 
 
 def test_signup_language_defaults_to_english():
-    assert users_schema.UsersSignup(**_BODY).preferred_language == "en"
+    assert users_schema.UserSignup(**_BODY).preferred_language == "en"

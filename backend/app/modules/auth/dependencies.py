@@ -86,6 +86,21 @@ def validate_access_token(
     _resolve_and_cache_principal(access_token, request, db)
 
 
+def require_scopes(granted: Iterable[str], *scopes: str) -> None:
+    """Refuse a caller that lacks any of the given scopes, with the same 403 a route's scope check sends.
+
+    For a handler that needs a scope only on some inputs, after its route-level check passed.
+
+    Args:
+        granted: Scopes the caller holds.
+        *scopes: Scopes the input requires.
+
+    Raises:
+        PermissionDeniedError: When a required scope is missing.
+    """
+    _require_scopes(granted, SecurityScopes(scopes=list(scopes)))
+
+
 def check_scopes(
     request: Request,
     access_token: Annotated[str, Depends(get_access_token)],
@@ -234,6 +249,7 @@ __all__ = [
     "get_step_up_attempts",
     "get_sub_from_access_token",
     "get_user_id_from_auth",
+    "require_scopes",
     "validate_access_token",
     "validate_access_token_or_api_key",
 ]

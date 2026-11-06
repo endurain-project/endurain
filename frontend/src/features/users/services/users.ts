@@ -15,7 +15,7 @@ import { apiFetch } from '@/services/http'
 import { ifMatchHeaders, rowVersion } from '@/services/ifMatch'
 
 /**
- * Maps a raw `UsersRead` payload to the clean {@link ManagedUser} model — the
+ * Maps a raw `UserRead` payload to the clean {@link ManagedUser} model — the
  * single boundary where the backend wire format (snake_case, optional-with-
  * defaults fields) is normalized so components never see the raw DTO.
  *
@@ -53,7 +53,7 @@ export function mapManagedUser(dto: UserDto): ManagedUser {
 }
 
 /**
- * Rebuilds the `UsersEdit` wire payload from a {@link ManagedUser}.
+ * Rebuilds the `UserEdit` wire payload from a {@link ManagedUser}.
  * Every stored column is sent so fields the admin form doesn't expose round-trip
  * untouched, but the derived, read-only fields are omitted: `id` is the path,
  * `mfa_enabled` is a model property with no setter and `external_auth_count` is
@@ -107,19 +107,30 @@ export async function fetchUsers(
   }: UsersListParams,
   signal?: AbortSignal,
 ): Promise<UsersPage> {
-  // Each `show_*` flag is sent explicitly; the backend only excludes a category
-  // when its flag is `false`, so `true` acts as a harmless "include all" no-op.
+  // A `show*` flag that is `true` adds no filter; one that is `false` asks the server for the
+  // users outside that category (`active=true`, `external_auth=false`, ...).
+  if (!showExternalAuth && !showLocalAuth) {
+    return { records: [], total: 0 }
+  }
   const params = new URLSearchParams({
     page_number: String(page),
     num_records: String(numRecords),
-    show_inactive: String(showInactive),
-    show_email_unverified: String(showEmailUnverified),
-    show_pending_approval: String(showPendingApproval),
-    show_external_auth: String(showExternalAuth),
-    show_local_auth: String(showLocalAuth),
   })
+  if (!showInactive) {
+    params.set('active', 'true')
+  }
+  if (!showEmailUnverified) {
+    params.set('email_verified', 'true')
+  }
+  if (!showPendingApproval) {
+    params.set('pending_approval', 'false')
+  }
+  // The two switches are one tri-state filter: both on adds none, one off keeps the other kind.
+  if (showExternalAuth !== showLocalAuth) {
+    params.set('external_auth', String(showExternalAuth))
+  }
   if (username) {
-    params.set('username', username)
+    params.set('username_contains', username)
   }
   const response = await apiFetch<UsersListResponseDto>(`/users?${params.toString()}`, { signal })
   return {
@@ -138,7 +149,7 @@ export async function fetchUsers(
  * @throws {HttpError} When the request fails (e.g. duplicate username/email).
  */
 export async function createUser(input: CreateUserInput): Promise<ManagedUser> {
-  const payload: Schemas['UsersCreate'] = {
+  const payload: Schemas['UserCreate'] = {
     name: input.name,
     username: input.username,
     email: input.email,
@@ -211,7 +222,7 @@ export async function fetchUserById(id: number, signal?: AbortSignal): Promise<M
 export async function changeUserPassword(userId: number, password: string): Promise<void> {
   await apiFetch<void>(`/users/${userId}/password/change`, {
     method: 'POST',
-    body: JSON.stringify({ password } satisfies Schemas['UsersAdminEditPassword']),
+    body: JSON.stringify({ password } satisfies Schemas['UserAdminEditPassword']),
     responseType: 'void',
   })
 }

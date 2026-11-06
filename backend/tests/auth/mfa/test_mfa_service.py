@@ -312,7 +312,7 @@ class TestVerifyUserMFA:
 
         Production reads the ``users_mfa`` row via
         ``auth_mfa_crud.get_user_mfa_row`` rather than a
-        ``UsersRead.auth_mfa`` relationship (which the API schema does not
+        ``UserRead.auth_mfa`` relationship (which the API schema does not
         expose), so resolve the row from the patched user mock.
         """
 
@@ -502,7 +502,7 @@ class TestIsMFAEnabledForUser:
 
         Production reads the ``users_mfa`` row via
         ``auth_mfa_crud.get_user_mfa_row`` rather than a
-        ``UsersRead.auth_mfa`` relationship (which the API schema does not
+        ``UserRead.auth_mfa`` relationship (which the API schema does not
         expose), so resolve the row from the patched user mock.
         """
 

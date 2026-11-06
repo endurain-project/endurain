@@ -41,14 +41,14 @@ async def process_migration_6(db: Session) -> None:
             try:
                 username = user.username.lower()
                 birthdate = user.birthdate.isoformat() if user.birthdate else None
-                user_converted = users_schema.UsersRead.model_validate(user).model_copy(
+                user_converted = users_schema.UserRead.model_validate(user).model_copy(
                     update={
                         "username": username,
                         "birthdate": birthdate,
                     }
                 )
 
-                users_migration.edit_user(user.id, users_schema.UsersEdit.from_read(user_converted), db)
+                users_migration.edit_user(user.id, users_schema.UserEdit.from_read(user_converted), db)
             except Exception as err:
                 logger.error(
                     f"Migration 6 - Error processing user {user.id}: {err}",

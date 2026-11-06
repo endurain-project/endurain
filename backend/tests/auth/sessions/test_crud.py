@@ -79,7 +79,7 @@ def test_session_lookup_lets_database_errors_reach_the_global_handler(mock_db):
 
 
 def test_create_session_stages_row_and_returns_dto(mock_db):
-    session = sessions_schema.UsersSessionsInternal(**vars(_row()))
+    session = sessions_schema.UserSessionsInternal(**vars(_row()))
     row = _row()
     with patch.object(sessions_models, "UsersSessions", return_value=row):
         result = sessions_crud.create_session(session, mock_db)
@@ -92,7 +92,7 @@ def test_create_session_stages_row_and_returns_dto(mock_db):
 def test_edit_session_stages_changes_and_returns_dto(mock_db):
     row = _row()
     mock_db.execute.return_value = _result(row)
-    update = sessions_schema.UsersSessionsInternal(**vars(_row(rotation_count=2)))
+    update = sessions_schema.UserSessionsInternal(**vars(_row(rotation_count=2)))
     result = sessions_crud.edit_session(update, mock_db)
     assert result.rotation_count == 2
     mock_db.flush.assert_called_once()
@@ -102,7 +102,7 @@ def test_edit_session_stages_changes_and_returns_dto(mock_db):
 def test_edit_missing_session_raises_not_found(mock_db):
     mock_db.execute.return_value = _result()
     with pytest.raises(core_exceptions.NotFoundError):
-        sessions_crud.edit_session(sessions_schema.UsersSessionsInternal(**vars(_row())), mock_db)
+        sessions_crud.edit_session(sessions_schema.UserSessionsInternal(**vars(_row())), mock_db)
 
 
 def test_token_exchange_claim_is_conditional_and_staged(mock_db):

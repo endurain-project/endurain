@@ -36,7 +36,7 @@ def _db_key(**overrides):
         "created_at": datetime.now(UTC),
         "scopes": "[]",
     }
-    return api_keys_schema.UsersApiKeyRead(**{**values, **overrides})
+    return api_keys_schema.UserApiKeyRead(**{**values, **overrides})
 
 
 def _resolve(db_key, *, user=_USER):

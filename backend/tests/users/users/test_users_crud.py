@@ -73,31 +73,6 @@ class TestReads:
 
         assert "some%20body+else" in _sql(mock_db)
 
-    def test_search_escapes_like_wildcards(self, mock_db):
-        _many(mock_db, [])
-
-        users_crud.search_active_users_by_username("50%_off", 10, 0, mock_db)
-
-        assert "ESCAPE" in _sql(mock_db)
-        assert "50\\%\\_off" in _sql(mock_db)
-
-    def test_search_only_returns_active_users_up_to_the_limit(self, mock_db):
-        _many(mock_db, [])
-
-        users_crud.search_active_users_by_username("ann", 7, 14, mock_db)
-
-        sql = _sql(mock_db)
-        assert "active IS true" in sql
-        assert "LIMIT 7" in sql
-        assert "OFFSET 14" in sql
-
-    def test_search_leaves_out_the_excluded_users(self, mock_db):
-        _many(mock_db, [])
-
-        users_crud.search_active_users_by_username("ann", 7, 0, mock_db, exclude_user_ids=[4, 9])
-
-        assert "NOT IN (4, 9)" in _sql(mock_db)
-
     def test_get_users_admin_filters_on_access_type(self, mock_db):
         _many(mock_db, [])
 
@@ -148,37 +123,64 @@ class TestListFilters:
         assert users_crud.get_users_number(mock_db) == 3
         assert "WHERE" not in _sql(mock_db)
 
-    def test_count_applies_every_false_filter(self, mock_db):
+    @pytest.mark.parametrize(
+        ("keyword", "column"),
+        [("active", "active"), ("email_verified", "email_verified"), ("pending_approval", "pending_admin_approval")],
+    )
+    @pytest.mark.parametrize("value", [True, False])
+    def test_a_state_filter_keeps_only_users_in_that_state(self, mock_db, keyword, column, value):
         mock_db.execute.return_value.scalar_one.return_value = 0
 
-        users_crud.get_users_number(mock_db, False, False, False)
+        users_crud.get_users_number(mock_db, **{keyword: value})
 
-        sql = _sql(mock_db)
-        assert "active" in sql and "email_verified" in sql and "pending_admin_approval" in sql
+        assert f"users.{column} IS {str(value).lower()}" in _sql(mock_db)
 
-    def test_hiding_inactive_users_keeps_those_pending_approval(self, mock_db):
+    def test_an_inactive_user_awaiting_approval_is_not_active(self, mock_db):
         mock_db.execute.return_value.scalar_one.return_value = 0
 
-        users_crud.get_users_number(mock_db, show_inactive=False)
+        users_crud.get_users_number(mock_db, active=True)
+
+        assert "pending_admin_approval" not in _sql(mock_db)
+
+    def test_exact_username_is_lowercased_without_decoding_again(self, mock_db):
+        _many(mock_db, [])
+
+        users_crud.get_users_with_pagination(mock_db, username="Some%20Body+Else")
 
         sql = _sql(mock_db)
-        assert "users.active IS true OR users.pending_admin_approval IS true" in sql
+        assert "users.username = 'some%20body+else'" in sql
+        assert "LIKE" not in sql
+
+    def test_username_contains_escapes_like_wildcards(self, mock_db):
+        _many(mock_db, [])
+
+        users_crud.get_users_with_pagination(mock_db, username_contains="50%_off")
+
+        assert "ESCAPE" in _sql(mock_db)
+        assert "50\\%\\_off" in _sql(mock_db)
 
     def test_list_filters_by_username_contains(self, mock_db):
         _many(mock_db, [])
 
-        users_crud.get_users_with_pagination(mock_db, username="Ann%")
+        users_crud.get_users_with_pagination(mock_db, username_contains="Ann%")
 
         sql = _sql(mock_db)
         assert "lower(users.username) LIKE" in sql
         assert "ann\\%" in sql
 
-    def test_username_filter_keeps_the_term_as_decoded(self, mock_db):
+    def test_username_contains_keeps_the_term_as_decoded(self, mock_db):
         _many(mock_db, [])
 
-        users_crud.get_users_with_pagination(mock_db, username="a+b%41")
+        users_crud.get_users_with_pagination(mock_db, username_contains="a+b%41")
 
         assert "a+b\\%41" in _sql(mock_db)
+
+    def test_listing_leaves_out_the_excluded_users(self, mock_db):
+        _many(mock_db, [])
+
+        users_crud.get_users_with_pagination(mock_db, exclude_user_ids=[4, 9])
+
+        assert "NOT IN (4, 9)" in _sql(mock_db)
 
     def test_page_is_ordered_and_offset(self, mock_db):
         _many(mock_db, [])

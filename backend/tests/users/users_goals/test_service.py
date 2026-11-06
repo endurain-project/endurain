@@ -14,7 +14,7 @@ import modules.users.users_goals.service as user_goals_service
 @patch("modules.users.users_goals.service.user_goals_crud")
 class TestUserGoalsService:
     def test_create_commits(self, mock_crud, mock_db):
-        goal = user_goals_schema.UsersGoalCreate(
+        goal = user_goals_schema.UserGoalCreate(
             interval="weekly", activity_type="run", goal_type="calories", goal_calories=5000
         )
 
@@ -24,7 +24,7 @@ class TestUserGoalsService:
         mock_db.commit.assert_called_once()
 
     def test_list_returns_a_page_with_the_total(self, mock_crud, mock_db):
-        goal = user_goals_schema.UsersGoalRead(
+        goal = user_goals_schema.UserGoalRead(
             id=1, user_id=1, interval="weekly", activity_type="run", goal_type="calories", goal_calories=5000
         )
         mock_crud.get_user_goals_page.return_value = [goal]
@@ -36,7 +36,7 @@ class TestUserGoalsService:
         assert mock_crud.get_user_goals_page.call_args.kwargs == {"limit": 25, "offset": 25}
 
     def test_update_commits(self, mock_crud, mock_db):
-        goal = user_goals_schema.UsersGoalUpdate(
+        goal = user_goals_schema.UserGoalUpdate(
             interval="weekly", activity_type="run", goal_type="calories", goal_calories=5000
         )
 
@@ -77,6 +77,6 @@ class TestUserGoalsService:
 
 
 def _goal_create():
-    return user_goals_schema.UsersGoalCreate(
+    return user_goals_schema.UserGoalCreate(
         interval="weekly", activity_type="run", goal_type="calories", goal_calories=5000
     )

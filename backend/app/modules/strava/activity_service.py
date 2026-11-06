@@ -126,7 +126,7 @@ def fetch_and_process_activities_by_dates(
     start_date: datetime,
     end_date: datetime,
     user_id: int,
-    user_integrations: user_integrations_schema.UsersIntegrationsRead,
+    user_integrations: user_integrations_schema.UserIntegrationsRead,
     rate_limits: strava_rate_limit_store.StravaRateLimitStore,
 ) -> list[activity_schema.ActivityRead] | None:
     """Fetch a user's Strava activities in a window and store the new ones.
@@ -224,10 +224,10 @@ def _strava_activity_id(activity: SummaryActivity, user_id: int) -> int:
 def parse_activity(
     activity: SummaryActivity,
     user_id: int,
-    user_privacy_settings: users_privacy_settings_schema.UsersPrivacySettingsRead,
+    user_privacy_settings: users_privacy_settings_schema.UserPrivacySettingsRead,
     timezone: str,
     strava_client: Client,
-    user_integrations: user_integrations_schema.UsersIntegrationsRead,
+    user_integrations: user_integrations_schema.UserIntegrationsRead,
     rate_limits: strava_rate_limit_store.StravaRateLimitStore,
 ) -> ParsedStravaActivity:
     """Fetch one Strava activity in detail and convert it for storage.
@@ -562,10 +562,10 @@ def save_activity_streams_laps(
 def process_activity(
     activity: SummaryActivity,
     user_id: int,
-    user_privacy_settings: users_privacy_settings_schema.UsersPrivacySettingsRead,
+    user_privacy_settings: users_privacy_settings_schema.UserPrivacySettingsRead,
     timezone: str,
     strava_client: Client,
-    user_integrations: user_integrations_schema.UsersIntegrationsRead,
+    user_integrations: user_integrations_schema.UserIntegrationsRead,
     rate_limits: strava_rate_limit_store.StravaRateLimitStore,
 ) -> activity_schema.ActivityRead | None:
     """Parse one Strava activity and store it, unless it is already stored.
@@ -623,7 +623,7 @@ def fetch_and_process_activity_streams(
     strava_client: Client,
     strava_activity_id: int,
     user_id: int,
-    user_integrations: user_integrations_schema.UsersIntegrationsRead,
+    user_integrations: user_integrations_schema.UserIntegrationsRead,
     rate_limits: strava_rate_limit_store.StravaRateLimitStore,
 ) -> StravaStreams:
     """Fetch an activity's streams from Strava and convert them to waypoint lists.
@@ -752,7 +752,7 @@ def fetch_and_process_activity_laps(
     strava_activity_id: int,
     user_id: int,
     stream_data: list[StravaStreamEntry],
-    user_integrations: user_integrations_schema.UsersIntegrationsRead,
+    user_integrations: user_integrations_schema.UserIntegrationsRead,
     rate_limits: strava_rate_limit_store.StravaRateLimitStore,
 ) -> list[StravaLap] | None:
     """Fetch an activity's laps from Strava and derive each lap's metrics.

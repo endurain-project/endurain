@@ -14,7 +14,7 @@ from pydantic import (
 import core.pagination as core_pagination
 
 
-class UsersIdentityProviderBase(BaseModel):
+class UserIdentityProviderBase(BaseModel):
     """Base schema for users identity provider association.
 
     Attributes:
@@ -39,15 +39,15 @@ class UsersIdentityProviderBase(BaseModel):
     )
 
 
-class UsersIdentityProviderCreate(UsersIdentityProviderBase):
+class UserIdentityProviderCreate(UserIdentityProviderBase):
     """Schema for creating user identity provider links.
 
-    Inherits all attributes from UsersIdentityProviderBase.
+    Inherits all attributes from UserIdentityProviderBase.
     Links are created during SSO authentication flow.
     """
 
 
-class UsersIdentityProviderRead(UsersIdentityProviderBase):
+class UserIdentityProviderRead(UserIdentityProviderBase):
     """Schema for reading user identity provider links.
 
     Extends base with identifier and timestamp fields.
@@ -66,7 +66,7 @@ class UsersIdentityProviderRead(UsersIdentityProviderBase):
     )
 
 
-class IdentityProviderLinkRead(UsersIdentityProviderRead):
+class IdentityProviderLinkRead(UserIdentityProviderRead):
     """Response schema with enriched identity provider details.
 
     Extends Read schema with display fields added by API layer

@@ -9,7 +9,7 @@ import modules.users.users_goals.crud as user_goals_crud
 import modules.users.users_goals.schema as user_goals_schema
 
 
-def list_goals(user_id: int, db: Session) -> list[user_goals_schema.UsersGoalRead]:
+def list_goals(user_id: int, db: Session) -> list[user_goals_schema.UserGoalRead]:
     """List all of a user's goals.
 
     Args:
@@ -24,9 +24,9 @@ def list_goals(user_id: int, db: Session) -> list[user_goals_schema.UsersGoalRea
 
 def create_goal(
     user_id: int,
-    user_goal: user_goals_schema.UsersGoalCreate,
+    user_goal: user_goals_schema.UserGoalCreate,
     db: Session,
-) -> user_goals_schema.UsersGoalRead:
+) -> user_goals_schema.UserGoalRead:
     """Stage a new goal for a user.
 
     Args:

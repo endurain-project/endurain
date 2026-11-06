@@ -20,7 +20,7 @@ router = APIRouter()
 
 @router.get(
     "",
-    response_model=user_goals_schema.UsersGoalPage,
+    response_model=user_goals_schema.UserGoalPage,
     dependencies=[Security(auth_dependencies.check_scopes, scopes=["profile"])],
 )
 def get_user_goals(
@@ -39,7 +39,7 @@ def get_user_goals(
         user_goals_schema.GoalType | None,
         Query(description="Filter by goal type"),
     ] = None,
-) -> user_goals_schema.UsersGoalPage:
+) -> user_goals_schema.UserGoalPage:
     """Retrieve one page of goals for the authenticated user with optional filters.
 
     Args:
@@ -65,7 +65,7 @@ def get_user_goals(
 
 @router.get(
     "/results",
-    response_model=user_goals_schema.UsersGoalProgressPage,
+    response_model=user_goals_schema.UserGoalProgressPage,
     dependencies=[Security(auth_dependencies.check_scopes, scopes=["profile"])],
 )
 @core_rate_limit.limiter.limit(core_rate_limit.EXPENSIVE_READ)
@@ -74,7 +74,7 @@ def get_user_goals_results(
     token_user_id: auth_dependencies.CurrentUserId,
     page: core_pagination.ListPage,
     db: core_dependencies.DbSession,
-) -> user_goals_schema.UsersGoalProgressPage:
+) -> user_goals_schema.UserGoalProgressPage:
     """Calculate and retrieve one page of goal progress for the authenticated user.
 
     Args:
@@ -91,7 +91,7 @@ def get_user_goals_results(
 
 @router.get(
     "/{goal_id}",
-    response_model=user_goals_schema.UsersGoalRead,
+    response_model=user_goals_schema.UserGoalRead,
     dependencies=[Security(auth_dependencies.check_scopes, scopes=["profile"])],
 )
 def get_user_goal(
@@ -99,7 +99,7 @@ def get_user_goal(
     token_user_id: auth_dependencies.CurrentUserId,
     db: core_dependencies.DbSession,
     response: Response,
-) -> user_goals_schema.UsersGoalRead:
+) -> user_goals_schema.UserGoalRead:
     """Retrieve one of the authenticated user's goals; its ``ETag`` is the version for ``If-Match``."""
     goal = user_goals_service.get_goal(token_user_id, goal_id, db)
     core_etag.set_etag(response, goal.version)
@@ -108,18 +108,18 @@ def get_user_goal(
 
 @router.post(
     "",
-    response_model=user_goals_schema.UsersGoalRead,
+    response_model=user_goals_schema.UserGoalRead,
     status_code=status.HTTP_201_CREATED,
     dependencies=[Security(auth_dependencies.check_scopes, scopes=["profile"])],
 )
 @core_rate_limit.limiter.limit(core_rate_limit.WRITE)
 def create_user_goal(
     request: Request,
-    user_goal: user_goals_schema.UsersGoalCreate,
+    user_goal: user_goals_schema.UserGoalCreate,
     token_user_id: auth_dependencies.CurrentUserId,
     db: core_dependencies.DbSession,
     response: Response,
-) -> user_goals_schema.UsersGoalRead:
+) -> user_goals_schema.UserGoalRead:
     """Create a new goal for the authenticated user.
 
     Args:
@@ -140,19 +140,19 @@ def create_user_goal(
 
 @router.put(
     "/{goal_id}",
-    response_model=user_goals_schema.UsersGoalRead,
+    response_model=user_goals_schema.UserGoalRead,
     dependencies=[Security(auth_dependencies.check_scopes, scopes=["profile"])],
 )
 @core_rate_limit.limiter.limit(core_rate_limit.WRITE)
 def update_user_goal(
     request: Request,
     goal_id: core_dependencies.PositiveId,
-    user_goal: user_goals_schema.UsersGoalUpdate,
+    user_goal: user_goals_schema.UserGoalUpdate,
     token_user_id: auth_dependencies.CurrentUserId,
     db: core_dependencies.DbSession,
     response: Response,
     if_match: core_dependencies.IfMatch,
-) -> user_goals_schema.UsersGoalRead:
+) -> user_goals_schema.UserGoalRead:
     """Replace an existing goal for the authenticated user.
 
     Args:

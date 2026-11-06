@@ -100,11 +100,11 @@ _USER_CRUD = "modules.users.users.service.users_crud.get_user_by_id"
 
 
 def _owner(**kw):
-    from modules.users.users.schema import UsersRead
+    from modules.users.users.schema import UserRead
 
     data = dict(id=1, name="Owner", username="owner", email="o@example.com", active=True, pending_admin_approval=False)
     data.update(kw)
-    return UsersRead.model_construct(**data)
+    return UserRead.model_construct(**data)
 
 
 def _settings(user_info=True):

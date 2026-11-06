@@ -19,7 +19,7 @@ def get_api_keys_page(
     *,
     limit: int,
     offset: int,
-) -> list[api_keys_schema.UsersApiKeyRead]:
+) -> list[api_keys_schema.UserApiKeyRead]:
     """Return one window of an owner's API keys, newest first with the id as tiebreak."""
     stmt = (
         select(api_keys_models.UsersApiKeys)
@@ -39,7 +39,7 @@ def count_api_keys(user_id: int, db: Session) -> int:
     ).scalar_one()
 
 
-def get_api_key_by_id(api_key_id: str, user_id: int, db: Session) -> api_keys_schema.UsersApiKeyRead | None:
+def get_api_key_by_id(api_key_id: str, user_id: int, db: Session) -> api_keys_schema.UserApiKeyRead | None:
     """Return an API key by ID and owner."""
     stmt = select(api_keys_models.UsersApiKeys).where(
         api_keys_models.UsersApiKeys.id == api_key_id,
@@ -49,7 +49,7 @@ def get_api_key_by_id(api_key_id: str, user_id: int, db: Session) -> api_keys_sc
     return api_keys_serializers.to_read_schema(row) if row is not None else None
 
 
-def get_api_key_by_hash(key_hash: str, db: Session) -> api_keys_schema.UsersApiKeyRead | None:
+def get_api_key_by_hash(key_hash: str, db: Session) -> api_keys_schema.UserApiKeyRead | None:
     """Return an API key by its SHA-256 hash."""
     stmt = select(api_keys_models.UsersApiKeys).where(api_keys_models.UsersApiKeys.key_hash == key_hash)
     row = db.execute(stmt).scalar_one_or_none()
@@ -58,13 +58,13 @@ def get_api_key_by_hash(key_hash: str, db: Session) -> api_keys_schema.UsersApiK
 
 def create_api_key(
     user_id: int,
-    data: api_keys_schema.UsersApiKeyCreate,
+    data: api_keys_schema.UserApiKeyCreate,
     raw_key: str,
     key_hash: str,
     scopes_json: str,
     expires_at: datetime,
     db: Session,
-) -> api_keys_schema.UsersApiKeyRead:
+) -> api_keys_schema.UserApiKeyRead:
     """Stage a new API key and return its raw value and safe representation."""
     db_api_key = api_keys_models.UsersApiKeys(
         id=str(uuid.uuid4()),

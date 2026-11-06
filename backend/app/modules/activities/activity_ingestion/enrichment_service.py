@@ -28,7 +28,7 @@ logger = core_logger.get_logger(__name__)
 
 
 def build_activity_privacy_kwargs(
-    user_privacy_settings: users_privacy_settings_schema.UsersPrivacySettingsRead,
+    user_privacy_settings: users_privacy_settings_schema.UserPrivacySettingsRead,
 ) -> dict[str, bool | activity_constants.ActivityVisibility]:
     """Build privacy field kwargs for an Activity from the owner's privacy settings.
 
@@ -98,7 +98,7 @@ def enrich_parsed_activity(
     activity: activity_contracts.ActivityCore,
     *,
     user_id: int,
-    user_privacy_settings: users_privacy_settings_schema.UsersPrivacySettingsRead,
+    user_privacy_settings: users_privacy_settings_schema.UserPrivacySettingsRead,
     db: Session,
     from_garmin: bool = False,
     provider_gear_id: int | None = None,

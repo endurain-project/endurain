@@ -4,7 +4,7 @@ import { apiFetch } from '@/services/http'
 import { fetchAllPages } from '@/services/pagination'
 
 /**
- * Maps a raw `UsersSessionsRead` payload to the clean {@link UserSession} model
+ * Maps a raw `UserSessionsRead` payload to the clean {@link UserSession} model
  * — the single boundary where the snake_case wire shape is normalized.
  *
  * @param dto - Raw session payload from the backend.

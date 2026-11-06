@@ -3,6 +3,7 @@
 from collections.abc import Sequence
 from datetime import datetime
 
+from sqlalchemy import Select
 from sqlalchemy.orm import Session
 
 import modules.auth.identity_provider_links.contracts as identity_link_contracts
@@ -118,6 +119,11 @@ def end_idp_sessions(user_id: int, idp_id: int, db: Session) -> int:
 def delete_user_identity_provider(user_id: int, idp_id: int, db: Session) -> bool:
     """Stage deletion of a user's identity-provider link."""
     return identity_link_crud.delete_user_identity_provider(user_id, idp_id, db)
+
+
+def select_linked_user_ids() -> Select[tuple[int]]:
+    """Return a query for the ids of the users who have an identity-provider link, to filter users by it."""
+    return identity_link_crud.select_linked_user_ids()
 
 
 def get_identity_link_counts_for_users(user_ids: list[int], db: Session) -> dict[int, int]:

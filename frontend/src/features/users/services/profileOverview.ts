@@ -12,7 +12,7 @@ export async function fetchUserProfileOverview(
 ): Promise<UserProfileOverview> {
   const params = new URLSearchParams({ date: anchorDate })
   const dto = await apiFetch<Schemas['UserProfileOverviewRead']>(
-    `/users/id/${userId}/overview?${params.toString()}`,
+    `/users/${userId}/overview?${params.toString()}`,
     { signal },
   )
   return {

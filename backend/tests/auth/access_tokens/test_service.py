@@ -11,7 +11,7 @@ from joserfc.errors import (
 
 import core.exceptions as core_exceptions
 import modules.auth.access_tokens.service as auth_token_manager
-from modules.users.users.schema import UserAccessType, UsersRead
+from modules.users.users.schema import UserAccessType, UserRead
 
 
 class TestTokenManagerSecurity:
@@ -567,7 +567,7 @@ class TestTokenManagerSecurity:
         Test that regular users get appropriate scope in their tokens.
         Note: Backend now grants all users full scope regardless of access_type.
         """
-        regular_user = UsersRead(
+        regular_user = UserRead(
             id=2,
             name="Regular User",
             username="regular",

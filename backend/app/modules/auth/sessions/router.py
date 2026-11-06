@@ -17,7 +17,7 @@ router = APIRouter()
 
 @router.get(
     "/{user_id}/sessions",
-    response_model=sessions_schema.UsersSessionsPage,
+    response_model=sessions_schema.UserSessionsPage,
     dependencies=[Security(auth_dependencies.check_scopes, scopes=["sessions:read"])],
 )
 @core_rate_limit.limiter.limit(core_rate_limit.EXPENSIVE_READ)
@@ -26,7 +26,7 @@ def read_sessions_user(
     user_id: core_dependencies.PositiveId,
     page: core_pagination.ListPage,
     db: core_dependencies.DbSession,
-) -> sessions_schema.UsersSessionsPage:
+) -> sessions_schema.UserSessionsPage:
     """Retrieve one page of the sessions associated with a specific user.
 
     Args:

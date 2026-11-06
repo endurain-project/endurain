@@ -22,7 +22,7 @@ import modules.users.users.schema as users_schema
 import modules.users.users.service as users_service
 
 
-def get_user(user_id: int, db: Session) -> users_schema.UsersRead | None:
+def get_user(user_id: int, db: Session) -> users_schema.UserRead | None:
     """Return a user by id, or ``None`` when there is no such user.
 
     Args:
@@ -35,7 +35,7 @@ def get_user(user_id: int, db: Session) -> users_schema.UsersRead | None:
     return users_crud.get_user_by_id(user_id, db)
 
 
-def require_user(user_id: int, db: Session) -> users_schema.UsersRead:
+def require_user(user_id: int, db: Session) -> users_schema.UserRead:
     """Return a user by id, which must exist.
 
     Args:
@@ -100,7 +100,7 @@ def get_public_user(user_id: int, db: Session) -> users_schema.UserPublicRead:
     return users_service.get_public_user(user_id, db)
 
 
-def require_active_user(user: users_schema.UsersRead) -> None:
+def require_active_user(user: users_schema.UserRead) -> None:
     """Require a user to be active.
 
     Args:
@@ -112,7 +112,7 @@ def require_active_user(user: users_schema.UsersRead) -> None:
     users_service.require_active_user(user)
 
 
-def get_user_by_email(email: str, db: Session) -> users_schema.UsersRead | None:
+def get_user_by_email(email: str, db: Session) -> users_schema.UserRead | None:
     """Return a user by email address, or ``None`` when no user has it.
 
     Args:
@@ -125,7 +125,7 @@ def get_user_by_email(email: str, db: Session) -> users_schema.UsersRead | None:
     return users_crud.get_user_by_email(email, db)
 
 
-def get_user_by_username(username: str, db: Session) -> users_schema.UsersRead | None:
+def get_user_by_username(username: str, db: Session) -> users_schema.UserRead | None:
     """Return a user by exact username, or ``None`` when no user has it.
 
     Args:
@@ -138,7 +138,7 @@ def get_user_by_username(username: str, db: Session) -> users_schema.UsersRead |
     return users_crud.get_user_by_username(username, db)
 
 
-def require_admin_users(db: Session) -> list[users_schema.UsersRead]:
+def require_admin_users(db: Session) -> list[users_schema.UserRead]:
     """Return every admin user, of which there must be at least one.
 
     Args:
@@ -165,7 +165,7 @@ def any_user_exists(db: Session) -> bool:
     return users_crud.any_user_exists(db)
 
 
-def stage_first_admin(admin: users_schema.FirstAdminCreate, db: Session) -> users_schema.UsersRead:
+def stage_first_admin(admin: users_schema.FirstAdminCreate, db: Session) -> users_schema.UserRead:
     """Stage the first administrator, with their password and default data; the caller commits.
 
     Takes the first-administrator advisory lock for the caller's transaction and refuses when a user exists.
@@ -185,10 +185,10 @@ def stage_first_admin(admin: users_schema.FirstAdminCreate, db: Session) -> user
 
 
 def stage_signup_user(
-    user: users_schema.UsersSignup,
+    user: users_schema.UserSignup,
     server_settings: server_settings_schema.ServerSettingsRead,
     db: Session,
-) -> users_schema.UsersRead:
+) -> users_schema.UserRead:
     """Stage a user through sign-up, with their default data; the caller commits.
 
     Args:
@@ -206,12 +206,12 @@ def stage_signup_user(
 
 
 def create_sso_user(
-    profile: users_schema.UsersBase,
+    profile: users_schema.UserBase,
     server_settings: server_settings_schema.ServerSettingsRead,
     db: Session,
     *,
     email_verified: bool,
-) -> users_schema.UsersRead:
+) -> users_schema.UserRead:
     """Create an SSO-only user through the users module, its email verified only as the provider asserted."""
     return users_service.create_sso_user(profile, server_settings, db, email_verified=email_verified)
 
@@ -251,7 +251,7 @@ def stage_email_verification(
     users_service.stage_email_verification(user_id, server_settings, db)
 
 
-def edit_user(user_id: int, user: users_schema.UsersEdit, db: Session, *, if_match: str) -> users_schema.UsersRead:
+def edit_user(user_id: int, user: users_schema.UserEdit, db: Session, *, if_match: str) -> users_schema.UserRead:
     """Stage an administrative edit of a user.
 
     Args:
@@ -273,7 +273,7 @@ def edit_user(user_id: int, user: users_schema.UsersEdit, db: Session, *, if_mat
 
 def edit_profile(
     user_id: int, profile: users_schema.ProfileUpdate, db: Session, *, if_match: str
-) -> users_schema.UsersRead:
+) -> users_schema.UserRead:
     """Stage a self-service profile update, keeping only the allow-listed fields.
 
     Args:

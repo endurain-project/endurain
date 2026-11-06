@@ -215,7 +215,7 @@ class TestMfaAudit:
 
 class TestApiKeyAudit:
     def test_create(self, mock_db, published):
-        data = api_keys_schema.UsersApiKeyCreate(name="k", scopes=["activities:upload"], current_password="pw")
+        data = api_keys_schema.UserApiKeyCreate(name="k", scopes=["activities:upload"], current_password="pw")
         created = MagicMock(id="key-1")
         created.model_dump.return_value = {
             "id": "key-1",
@@ -232,7 +232,7 @@ class TestApiKeyAudit:
             patch.object(api_key_service.users_integration, "require_user"),
             patch.object(api_key_service.api_keys_integration, "generate_api_key", return_value="raw"),
             patch.object(api_key_service.api_keys_integration, "create_api_key", return_value=created),
-            patch.object(api_keys_schema, "UsersApiKeyCreatedRead"),
+            patch.object(api_keys_schema, "UserApiKeyCreatedRead"),
             jasil_testing.capture_audit() as audit,
         ):
             api_key_service.create_user_api_key(7, "sid", data, datetime.now(UTC), MagicMock(), mock_db)

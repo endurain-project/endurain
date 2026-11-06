@@ -48,7 +48,7 @@ def _call_strava[ResultT](
     description: str,
     client_id: str,
     user_id: int,
-    user_integrations: user_integrations_schema.UsersIntegrationsRead,
+    user_integrations: user_integrations_schema.UserIntegrationsRead,
     rate_limits: strava_rate_limit_store.StravaRateLimitStore,
 ) -> ResultT:
     """Make one Strava call, turning its failures into domain errors.

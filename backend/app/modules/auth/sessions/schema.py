@@ -14,7 +14,7 @@ from pydantic import (
 import core.pagination as core_pagination
 
 
-class UsersSessionsBase(BaseModel):
+class UserSessionsBase(BaseModel):
     """Base user session schema with safe fields.
 
     Attributes:
@@ -44,7 +44,7 @@ class UsersSessionsBase(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
 
-class UsersSessionsRead(UsersSessionsBase):
+class UserSessionsRead(UserSessionsBase):
     """User session read schema for API responses.
 
     Extends base with user_id. Excludes sensitive fields
@@ -55,10 +55,10 @@ class UsersSessionsRead(UsersSessionsBase):
 
 
 #: One page of a user's sessions.
-UsersSessionsPage = core_pagination.Page[UsersSessionsRead]
+UserSessionsPage = core_pagination.Page[UserSessionsRead]
 
 
-class UsersSessionsInternal(UsersSessionsBase):
+class UserSessionsInternal(UserSessionsBase):
     """Internal user session schema with all fields.
 
     Used for CRUD operations. Includes sensitive fields like

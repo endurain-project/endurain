@@ -56,7 +56,7 @@ _NON_EXPORTED_USER_FIELDS = (
 def get_profile(
     user_id: int,
     db: Session,
-) -> users_schema.UsersMe:
+) -> users_schema.UserMe:
     """Assemble the authenticated user's profile.
 
     Args:
@@ -81,7 +81,7 @@ def get_profile(
 
     pending_email = sign_up_tokens_integration.get_pending_email_changes([user_id], db).get(user_id)
 
-    return users_schema.UsersMe.model_validate(
+    return users_schema.UserMe.model_validate(
         {
             **user.model_dump(),
             "pending_email": pending_email.email if pending_email else None,
@@ -158,7 +158,7 @@ def get_user_profile_overview(
 
 def edit_profile(
     user_id: int, profile: users_schema.ProfileUpdate, db: Session, *, if_match: str
-) -> users_schema.UsersMe:
+) -> users_schema.UserMe:
     """Apply the user's own profile edits and commit.
 
     Args:
@@ -201,7 +201,7 @@ def change_email(
     session_id: str,
     step_up_store: "auth_dependencies.StepUpStore",
     db: Session,
-) -> users_schema.UsersMe:
+) -> users_schema.UserMe:
     """Request an email change after step-up verification, to take effect once the new address is confirmed.
 
     The address is where password resets go, so a stolen access token alone must not be able to
@@ -301,7 +301,7 @@ def cancel_email_change(user_id: int, db: Session) -> None:
     logger.info("Pending email change cancelled", extra=core_logger.context(user_id=user_id))
 
 
-def get_privacy_settings(user_id: int, db: Session) -> users_privacy_settings_schema.UsersPrivacySettingsRead:
+def get_privacy_settings(user_id: int, db: Session) -> users_privacy_settings_schema.UserPrivacySettingsRead:
     """Return the user's own privacy settings.
 
     Args:
@@ -322,11 +322,11 @@ def get_privacy_settings(user_id: int, db: Session) -> users_privacy_settings_sc
 
 def edit_privacy_settings(
     user_id: int,
-    privacy_settings: users_privacy_settings_schema.UsersPrivacySettingsUpdate,
+    privacy_settings: users_privacy_settings_schema.UserPrivacySettingsUpdate,
     db: Session,
     *,
     if_match: str,
-) -> users_privacy_settings_schema.UsersPrivacySettingsRead:
+) -> users_privacy_settings_schema.UserPrivacySettingsRead:
     """Apply the user's own privacy settings and commit.
 
     Args:
@@ -455,7 +455,7 @@ def stage_export(user_id: int, storage: platform_providers.StorageProvider, db: 
 
 def change_password(
     user_id: int,
-    change: users_schema.UsersEditPassword,
+    change: users_schema.UserEditPassword,
     session_id: str,
     step_up_store: account_security_integration.StepUpStore,
     db: Session,

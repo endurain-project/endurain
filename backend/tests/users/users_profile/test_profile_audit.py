@@ -33,7 +33,7 @@ def _request_export(states, db):
     )
 
 
-def _user(**overrides) -> users_schema.UsersRead:
+def _user(**overrides) -> users_schema.UserRead:
     fields = {
         "id": 7,
         "name": "Old Name",
@@ -44,7 +44,7 @@ def _user(**overrides) -> users_schema.UsersRead:
         "city": "Porto",
     }
     fields.update(overrides)
-    return users_schema.UsersRead(**fields)
+    return users_schema.UserRead(**fields)
 
 
 class TestProfileUpdate:
@@ -88,7 +88,7 @@ class TestProfileUpdate:
 
 class TestPrivacyUpdate:
     def _edit(self, mock_db, update, after):
-        before = privacy_schema.UsersPrivacySettingsRead(id=1, user_id=7)
+        before = privacy_schema.UserPrivacySettingsRead(id=1, user_id=7)
         with (
             patch(f"{_SERVICE}.users_privacy_settings_integration.get_privacy_settings", return_value=before),
             patch(f"{_SERVICE}.users_privacy_settings_integration.edit_privacy_settings", return_value=after),
@@ -96,8 +96,8 @@ class TestPrivacyUpdate:
             profile_service.edit_privacy_settings(7, update, mock_db, if_match='"1"')
 
     def test_names_the_settings_whose_value_changed(self, mock_db):
-        update = privacy_schema.UsersPrivacySettingsUpdate(hide_activity_map=True, hide_activity_hr=False)
-        after = privacy_schema.UsersPrivacySettingsRead(id=1, user_id=7, hide_activity_map=True)
+        update = privacy_schema.UserPrivacySettingsUpdate(hide_activity_map=True, hide_activity_hr=False)
+        after = privacy_schema.UserPrivacySettingsRead(id=1, user_id=7, hide_activity_map=True)
 
         with jasil_testing.capture_audit() as audit:
             self._edit(mock_db, update, after)
@@ -106,8 +106,8 @@ class TestPrivacyUpdate:
         assert entry.details == {"changed_fields": ["hide_activity_map"]}
 
     def test_an_edit_that_changes_nothing_writes_no_row(self, mock_db):
-        update = privacy_schema.UsersPrivacySettingsUpdate(hide_activity_hr=False)
-        after = privacy_schema.UsersPrivacySettingsRead(id=1, user_id=7)
+        update = privacy_schema.UserPrivacySettingsUpdate(hide_activity_hr=False)
+        after = privacy_schema.UserPrivacySettingsRead(id=1, user_id=7)
 
         with jasil_testing.capture_audit() as audit:
             self._edit(mock_db, update, after)

@@ -643,10 +643,10 @@ class TestParseActivity:
         return activity_utils.parse_activity(
             summary if summary is not None else Mock(id=42),
             1,
-            privacy_schema.UsersPrivacySettingsRead(id=1, user_id=1),
+            privacy_schema.UserPrivacySettingsRead(id=1, user_id=1),
             "UTC",
             _StravaClient(DetailedActivity.model_validate(detailed), streams or {"time": [0, 1]}),
-            integrations_schema.UsersIntegrationsRead(id=1, user_id=1, strava_client_id="app-a"),
+            integrations_schema.UserIntegrationsRead(id=1, user_id=1, strava_client_id="app-a"),
             rate_limits,
         )
 

@@ -72,11 +72,6 @@ _PUT_OPTIONAL_FIELDS: dict[str, str] = {
 #: ``"GET <route>: <parameter>"``. Remove an entry when the parameter is renamed.
 _FILTER_VOCABULARY: dict[str, str] = {
     "GET /server-settings/logs: search": "DOM-6, changes with the log pagination",
-    "GET /users: show_email_unverified": "DOM-6, changes with the /users filters",
-    "GET /users: show_external_auth": "DOM-6, changes with the /users filters",
-    "GET /users: show_inactive": "DOM-6, changes with the /users filters",
-    "GET /users: show_local_auth": "DOM-6, changes with the /users filters",
-    "GET /users: show_pending_approval": "DOM-6, changes with the /users filters",
 }
 
 #: Route handlers whose docstring carries a Google section, as ``{path relative to app/: handlers}``. Move the
@@ -108,7 +103,7 @@ _DOCSTRING_SECTIONS: dict[str, int] = {
     "modules/server_settings/router.py": 8,
     "modules/strava/router.py": 1,
     "modules/users/users/photo_router.py": 1,
-    "modules/users/users/router.py": 16,
+    "modules/users/users/router.py": 11,
     "modules/users/users_default_gear/router.py": 2,
     "modules/users/users_goals/router.py": 5,
     "modules/users/users_profile/router.py": 15,

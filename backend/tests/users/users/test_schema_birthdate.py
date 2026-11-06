@@ -9,7 +9,7 @@ import modules.users.users.schema as users_schema
 
 
 def _user(birthdate):
-    return users_schema.UsersBase(name="Test User", username="testuser", email="test@example.com", birthdate=birthdate)
+    return users_schema.UserBase(name="Test User", username="testuser", email="test@example.com", birthdate=birthdate)
 
 
 def _profile(birthdate):

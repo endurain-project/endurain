@@ -85,7 +85,7 @@ def get_session_by_id_not_expired(session_id: str, db: Session) -> sessions_cont
 
 
 def create_session(
-    session: sessions_schema.UsersSessionsInternal,
+    session: sessions_schema.UserSessionsInternal,
     db: Session,
 ) -> sessions_contracts.SessionRead:
     """Stage a new session row."""
@@ -137,7 +137,7 @@ def clear_oauth_state_reference(session_id: str, db: Session) -> None:
 
 
 def edit_session(
-    session: sessions_schema.UsersSessionsInternal,
+    session: sessions_schema.UserSessionsInternal,
     db: Session,
 ) -> sessions_contracts.SessionRead:
     """Stage updates to an existing session."""

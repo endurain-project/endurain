@@ -16,14 +16,14 @@ router = APIRouter()
 
 @router.get(
     "",
-    response_model=auth_sessions_schema.UsersSessionsPage,
+    response_model=auth_sessions_schema.UserSessionsPage,
     dependencies=[Security(auth_dependencies.check_scopes, scopes=["profile:security"])],
 )
 def read_sessions_me(
     token_user_id: auth_dependencies.CurrentUserId,
     page: core_pagination.ListPage,
     db: core_dependencies.DbSession,
-) -> auth_sessions_schema.UsersSessionsPage:
+) -> auth_sessions_schema.UserSessionsPage:
     """Retrieve one page of the authenticated user's sessions.
 
     Args:

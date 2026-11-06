@@ -22,8 +22,8 @@ def _settings(*, verification=False, approval=False):
     )
 
 
-def _signup_user(*, with_password: bool = True) -> users_schema.UsersSignup:
-    return users_schema.UsersSignup(
+def _signup_user(*, with_password: bool = True) -> users_schema.UserSignup:
+    return users_schema.UserSignup(
         name="Test User",
         username="testuser",
         email="test@example.com",

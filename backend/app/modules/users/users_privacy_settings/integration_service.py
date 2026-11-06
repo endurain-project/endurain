@@ -10,7 +10,7 @@ import modules.users.users_privacy_settings.crud as users_privacy_settings_crud
 import modules.users.users_privacy_settings.schema as users_privacy_settings_schema
 
 
-def get_privacy_settings(user_id: int, db: Session) -> users_privacy_settings_schema.UsersPrivacySettingsRead | None:
+def get_privacy_settings(user_id: int, db: Session) -> users_privacy_settings_schema.UserPrivacySettingsRead | None:
     """Return a user's privacy settings.
 
     Args:
@@ -35,7 +35,7 @@ def list_undiscoverable_user_ids(db: Session) -> list[int]:
     return users_privacy_settings_crud.list_undiscoverable_user_ids(db)
 
 
-def create_privacy_settings(user_id: int, db: Session) -> users_privacy_settings_schema.UsersPrivacySettingsRead:
+def create_privacy_settings(user_id: int, db: Session) -> users_privacy_settings_schema.UserPrivacySettingsRead:
     """Stage default privacy settings for a new user.
 
     Args:
@@ -53,11 +53,11 @@ def create_privacy_settings(user_id: int, db: Session) -> users_privacy_settings
 
 def edit_privacy_settings(
     user_id: int,
-    privacy_settings: users_privacy_settings_schema.UsersPrivacySettingsUpdate,
+    privacy_settings: users_privacy_settings_schema.UserPrivacySettingsUpdate,
     db: Session,
     *,
     if_match: str,
-) -> users_privacy_settings_schema.UsersPrivacySettingsRead:
+) -> users_privacy_settings_schema.UserPrivacySettingsRead:
     """Stage an update of a user's privacy settings.
 
     Args:

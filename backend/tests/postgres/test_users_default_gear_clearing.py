@@ -34,7 +34,7 @@ def _setup(factory, *, strava: bool = False):
         default_gear_integration.create_default_gear(1, db)
         db.commit()
         default_gear_service.stage_default_gear_edit(
-            default_gear_schema.UsersDefaultGearUpdate(run_gear_id=run.id, ride_gear_id=ride.id),
+            default_gear_schema.UserDefaultGearUpdate(run_gear_id=run.id, ride_gear_id=ride.id),
             1,
             db,
             if_match="*",
@@ -56,7 +56,7 @@ def test_deleting_the_default_gear_bumps_the_version_and_refuses_the_old_tag(fac
     assert after.ride_gear_id == ride_id
     with factory() as db, pytest.raises(core_exceptions.PreconditionFailedError):
         default_gear_service.edit_default_gear(
-            default_gear_schema.UsersDefaultGearUpdate(walk_gear_id=None), 1, db, if_match=f'"{before.version}"'
+            default_gear_schema.UserDefaultGearUpdate(walk_gear_id=None), 1, db, if_match=f'"{before.version}"'
         )
 
 

@@ -15,14 +15,14 @@ router = APIRouter()
 
 @router.get(
     "",
-    response_model=user_default_gear_schema.UsersDefaultGearRead,
+    response_model=user_default_gear_schema.UserDefaultGearRead,
     dependencies=[Security(auth_dependencies.check_scopes, scopes=["profile"])],
 )
 def read_user_default_gear(
     token_user_id: auth_dependencies.CurrentUserId,
     db: core_dependencies.DbSession,
     response: Response,
-) -> user_default_gear_schema.UsersDefaultGearRead | None:
+) -> user_default_gear_schema.UserDefaultGearRead | None:
     """Retrieve default gear settings for authenticated user.
 
     Args:
@@ -41,18 +41,18 @@ def read_user_default_gear(
 
 @router.patch(
     "",
-    response_model=user_default_gear_schema.UsersDefaultGearRead,
+    response_model=user_default_gear_schema.UserDefaultGearRead,
     dependencies=[Security(auth_dependencies.check_scopes, scopes=["profile"])],
 )
 @core_rate_limit.limiter.limit(core_rate_limit.WRITE)
 def edit_user_default_gear(
     request: Request,
-    user_default_gear: user_default_gear_schema.UsersDefaultGearUpdate,
+    user_default_gear: user_default_gear_schema.UserDefaultGearUpdate,
     token_user_id: auth_dependencies.CurrentUserId,
     db: core_dependencies.DbSession,
     response: Response,
     if_match: core_dependencies.IfMatch,
-) -> user_default_gear_schema.UsersDefaultGearRead:
+) -> user_default_gear_schema.UserDefaultGearRead:
     """Update default gear settings for authenticated user.
 
     Args:

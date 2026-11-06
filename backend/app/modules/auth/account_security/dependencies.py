@@ -12,7 +12,7 @@ import modules.server_settings.integration_service as server_settings_integratio
 
 
 def api_key_expiry(
-    data: Annotated[api_keys_schema.UsersApiKeyCreate, Body()],
+    data: Annotated[api_keys_schema.UserApiKeyCreate, Body()],
     db: core_dependencies.DbSession,
 ) -> datetime:
     """Resolve the expiry of a new API key against the server's maximum API key lifetime.

@@ -32,11 +32,11 @@ def list_user_sessions(
     user_id: int,
     page: core_pagination.PageParams,
     db: Session,
-) -> sessions_schema.UsersSessionsPage:
+) -> sessions_schema.UserSessionsPage:
     """Return one page of a user's exchanged sessions, hiding them in the demo environment."""
     if core_config.settings.ENVIRONMENT == "demo":
         logger.info("Session retrieval in demo environment", extra=core_logger.context(user_id=user_id))
-        return sessions_schema.UsersSessionsPage.build([], 0, page.page_number, page.num_records)
+        return sessions_schema.UserSessionsPage.build([], 0, page.page_number, page.num_records)
     sessions = sessions_crud.get_user_sessions_page(
         user_id,
         db,
@@ -44,8 +44,8 @@ def list_user_sessions(
         offset=(page.page_number - 1) * page.num_records,
     )
     total = sessions_crud.count_user_sessions(user_id, db)
-    return sessions_schema.UsersSessionsPage.build(
-        [sessions_schema.UsersSessionsRead.model_validate(session) for session in sessions],
+    return sessions_schema.UserSessionsPage.build(
+        [sessions_schema.UserSessionsRead.model_validate(session) for session in sessions],
         total,
         page.page_number,
         page.num_records,
@@ -76,7 +76,7 @@ def _cap_expiry(expires_at: datetime, created_at: datetime, db: Session) -> date
 
 def create_session(
     session_id: str,
-    user: users_schema.UsersRead,
+    user: users_schema.UserRead,
     ip_address: str,
     user_agent: str,
     refresh_token: str | None,
@@ -90,7 +90,7 @@ def create_session(
     device = sessions_utils.parse_user_agent(user_agent)
     csrf_hash = _hash_csrf_token(csrf_token) if csrf_token else None
     now = datetime.now(UTC)
-    session_data = sessions_schema.UsersSessionsInternal(
+    session_data = sessions_schema.UserSessionsInternal(
         id=session_id,
         user_id=user.id,
         refresh_token=password_hasher.hash_password(refresh_token) if refresh_token else None,
@@ -131,7 +131,7 @@ def edit_session(
     """Stage a refresh-token rotation and client metadata update; the caller commits."""
     device = sessions_utils.parse_user_agent(user_agent)
     csrf_hash = _hash_csrf_token(new_csrf_token) if new_csrf_token else None
-    session_data = sessions_schema.UsersSessionsInternal.model_validate(session)
+    session_data = sessions_schema.UserSessionsInternal.model_validate(session)
     session_data = session_data.model_copy(
         update={
             "refresh_token": password_hasher.hash_password(new_refresh_token),

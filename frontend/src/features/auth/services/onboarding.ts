@@ -27,7 +27,7 @@ export async function fetchOnboardingStatus(): Promise<OnboardingStatus> {
  *   429 when rate limited, 503 when token storage is unavailable.
  */
 export async function completeOnboarding(request: OnboardingRequest): Promise<void> {
-  await apiFetch<Schemas['UsersRead']>('/public/onboarding', {
+  await apiFetch<Schemas['UserRead']>('/public/onboarding', {
     method: 'POST',
     body: JSON.stringify(request),
     auth: false,

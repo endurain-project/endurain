@@ -10,7 +10,7 @@ import modules.users.users.service as users_service
 USER_IMAGE_STORAGE_AREA = users_constants.USER_IMAGE_STORAGE_AREA
 
 
-def list_users(db: Session) -> list[users_schema.UsersRead]:
+def list_users(db: Session) -> list[users_schema.UserRead]:
     """Return every user.
 
     Args:
@@ -52,7 +52,7 @@ def set_photo_key(user_id: int, photo_key: str | None, db: Session) -> None:
     db.commit()
 
 
-def edit_user(user_id: int, user: users_schema.UsersEdit, db: Session) -> None:
+def edit_user(user_id: int, user: users_schema.UserEdit, db: Session) -> None:
     """Apply an administrative edit to a user and commit.
 
     Args:

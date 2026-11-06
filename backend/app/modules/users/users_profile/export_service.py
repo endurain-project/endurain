@@ -226,7 +226,7 @@ class ExportService:
         try:
             # Collect and write user default gear
             try:
-                user_default_gear: user_default_gear_schema.UsersDefaultGearRead | None = (
+                user_default_gear: user_default_gear_schema.UserDefaultGearRead | None = (
                     users_default_gear_integration.get_default_gear(self.user_id, self.db)
                 )
                 if user_default_gear:

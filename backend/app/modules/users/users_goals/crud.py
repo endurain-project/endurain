@@ -91,7 +91,7 @@ def get_user_goals_by_user_id(
     interval: user_goals_schema.Interval | None = None,
     activity_type: user_goals_schema.GoalActivityType | None = None,
     goal_type: user_goals_schema.GoalType | None = None,
-) -> list[user_goals_schema.UsersGoalRead]:
+) -> list[user_goals_schema.UserGoalRead]:
     """Retrieve every goal of a user with optional filters.
 
     A user has at most one goal per interval, activity type and goal type, so the set is small; use
@@ -120,7 +120,7 @@ def get_user_goals_page(
     *,
     limit: int,
     offset: int,
-) -> list[user_goals_schema.UsersGoalRead]:
+) -> list[user_goals_schema.UserGoalRead]:
     """Retrieve one window of a user's goals, in id order.
 
     Args:
@@ -169,7 +169,7 @@ def count_user_goals(
     return db.execute(stmt).scalar_one()
 
 
-def get_user_goal(user_id: int, goal_id: int, db: Session) -> user_goals_schema.UsersGoalRead:
+def get_user_goal(user_id: int, goal_id: int, db: Session) -> user_goals_schema.UserGoalRead:
     """Retrieve one of a user's goals.
 
     Args:
@@ -188,9 +188,9 @@ def get_user_goal(user_id: int, goal_id: int, db: Session) -> user_goals_schema.
 
 def create_user_goal(
     user_id: int,
-    user_goal: user_goals_schema.UsersGoalCreate,
+    user_goal: user_goals_schema.UserGoalCreate,
     db: Session,
-) -> user_goals_schema.UsersGoalRead:
+) -> user_goals_schema.UserGoalRead:
     """Stage a new user goal (flushed, not committed).
 
     Args:
@@ -225,11 +225,11 @@ def create_user_goal(
 def update_user_goal(
     user_id: int,
     goal_id: int,
-    user_goal: user_goals_schema.UsersGoalUpdate,
+    user_goal: user_goals_schema.UserGoalUpdate,
     db: Session,
     *,
     if_match: str,
-) -> user_goals_schema.UsersGoalRead:
+) -> user_goals_schema.UserGoalRead:
     """Stage an update of a user's goal (flushed, not committed).
 
     Args:

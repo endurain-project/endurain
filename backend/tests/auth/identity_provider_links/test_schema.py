@@ -7,17 +7,17 @@ from pydantic import ValidationError
 
 from modules.auth.identity_provider_links.schema import (
     IdentityProviderLinkRead,
-    UsersIdentityProviderBase,
-    UsersIdentityProviderCreate,
-    UsersIdentityProviderRead,
+    UserIdentityProviderBase,
+    UserIdentityProviderCreate,
+    UserIdentityProviderRead,
 )
 
 
 class TestUserIdentityProviderBase:
-    """Test suite for UsersIdentityProviderBase schema."""
+    """Test suite for UserIdentityProviderBase schema."""
 
     def test_user_identity_provider_base_valid(self):
-        """Test creating valid UsersIdentityProviderBase instance.
+        """Test creating valid UserIdentityProviderBase instance.
 
         Asserts:
             - Valid data passes validation
@@ -31,7 +31,7 @@ class TestUserIdentityProviderBase:
         }
 
         # Act
-        obj = UsersIdentityProviderBase(**data)
+        obj = UserIdentityProviderBase(**data)
 
         # Assert
         assert obj.user_id == 1
@@ -52,7 +52,7 @@ class TestUserIdentityProviderBase:
 
         # Act & Assert
         with pytest.raises(ValidationError) as exc_info:
-            UsersIdentityProviderBase(**data)
+            UserIdentityProviderBase(**data)
 
         assert "user_id" in str(exc_info.value)
 
@@ -72,7 +72,7 @@ class TestUserIdentityProviderBase:
 
         # Act & Assert
         with pytest.raises(ValidationError) as exc_info:
-            UsersIdentityProviderBase(**data)
+            UserIdentityProviderBase(**data)
 
         assert "extra_field" in str(exc_info.value)
 
@@ -91,7 +91,7 @@ class TestUserIdentityProviderBase:
 
         # Act & Assert
         with pytest.raises(ValidationError) as exc_info:
-            UsersIdentityProviderBase(**data)
+            UserIdentityProviderBase(**data)
 
         assert "idp_subject" in str(exc_info.value)
 
@@ -110,7 +110,7 @@ class TestUserIdentityProviderBase:
 
         # Act & Assert
         with pytest.raises(ValidationError) as exc_info:
-            UsersIdentityProviderBase(**data)
+            UserIdentityProviderBase(**data)
 
         assert "idp_subject" in str(exc_info.value)
 
@@ -129,7 +129,7 @@ class TestUserIdentityProviderBase:
 
         # Act & Assert
         with pytest.raises(ValidationError) as exc_info:
-            UsersIdentityProviderBase(**data)
+            UserIdentityProviderBase(**data)
 
         assert "user_id" in str(exc_info.value)
 
@@ -148,16 +148,16 @@ class TestUserIdentityProviderBase:
 
         # Act & Assert
         with pytest.raises(ValidationError) as exc_info:
-            UsersIdentityProviderBase(**data)
+            UserIdentityProviderBase(**data)
 
         assert "idp_id" in str(exc_info.value)
 
 
 class TestUserIdentityProviderCreate:
-    """Test suite for UsersIdentityProviderCreate schema."""
+    """Test suite for UserIdentityProviderCreate schema."""
 
     def test_user_identity_provider_create_valid(self):
-        """Test creating valid UsersIdentityProviderCreate instance.
+        """Test creating valid UserIdentityProviderCreate instance.
 
         Asserts:
             - Valid data passes validation
@@ -171,7 +171,7 @@ class TestUserIdentityProviderCreate:
         }
 
         # Act
-        obj = UsersIdentityProviderCreate(**data)
+        obj = UserIdentityProviderCreate(**data)
 
         # Assert
         assert obj.user_id == 1
@@ -180,10 +180,10 @@ class TestUserIdentityProviderCreate:
 
 
 class TestUserIdentityProviderRead:
-    """Test suite for UsersIdentityProviderRead schema."""
+    """Test suite for UserIdentityProviderRead schema."""
 
     def test_user_identity_provider_read_valid_minimal(self):
-        """Test creating UsersIdentityProviderRead with required fields.
+        """Test creating UserIdentityProviderRead with required fields.
 
         Asserts:
             - Required fields are present
@@ -199,7 +199,7 @@ class TestUserIdentityProviderRead:
         }
 
         # Act
-        obj = UsersIdentityProviderRead(**data)
+        obj = UserIdentityProviderRead(**data)
 
         # Assert
         assert obj.id == 1
@@ -207,7 +207,7 @@ class TestUserIdentityProviderRead:
         assert obj.last_login is None
 
     def test_user_identity_provider_read_valid_all_fields(self):
-        """Test creating UsersIdentityProviderRead with all fields.
+        """Test creating UserIdentityProviderRead with all fields.
 
         Asserts:
             - All fields are properly stored
@@ -225,7 +225,7 @@ class TestUserIdentityProviderRead:
         }
 
         # Act
-        obj = UsersIdentityProviderRead(**data)
+        obj = UserIdentityProviderRead(**data)
 
         # Assert
         assert obj.id == 1
@@ -247,7 +247,7 @@ class TestUserIdentityProviderRead:
 
         # Act & Assert
         with pytest.raises(ValidationError) as exc_info:
-            UsersIdentityProviderRead(**data)
+            UserIdentityProviderRead(**data)
 
         assert "linked_at" in str(exc_info.value)
 
@@ -338,5 +338,5 @@ class TestLinkReadHoldsNoTokenMetadata:
     """The link carries no token data: tokens belong to sessions."""
 
     def test_a_link_has_no_token_fields(self):
-        assert not {name for name in UsersIdentityProviderRead.model_fields if "token" in name}
+        assert not {name for name in UserIdentityProviderRead.model_fields if "token" in name}
         assert not {name for name in IdentityProviderLinkRead.model_fields if "token" in name}

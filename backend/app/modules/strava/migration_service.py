@@ -17,7 +17,7 @@ def fetch_activity_laps(
     strava_activity_id: int,
     user_id: int,
     stream_data: list[strava_activity_service.StravaStreamEntry],
-    user_integrations: user_integrations_schema.UsersIntegrationsRead,
+    user_integrations: user_integrations_schema.UserIntegrationsRead,
     state: platform_providers.StateProvider,
 ) -> list[strava_activity_service.StravaLap] | None:
     """Fetch and convert the laps Strava holds for an activity.

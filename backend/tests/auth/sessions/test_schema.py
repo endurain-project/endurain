@@ -8,18 +8,18 @@ import modules.auth.sessions.schema as users_session_schema
 
 class TestUsersSessionsBaseSchema:
     """
-    Test suite for UsersSessionsBase Pydantic schema.
+    Test suite for UserSessionsBase Pydantic schema.
     """
 
     def test_base_schema_valid_instance(self):
         """
-        Test UsersSessionsBase schema with valid data.
+        Test UserSessionsBase schema with valid data.
         """
         # Arrange
         now = datetime.now(UTC)
 
         # Act
-        session = users_session_schema.UsersSessionsBase(
+        session = users_session_schema.UserSessionsBase(
             id="test-session-id",
             ip_address="192.168.1.1",
             device_type="PC",
@@ -46,14 +46,14 @@ class TestUsersSessionsBaseSchema:
 
     def test_base_schema_requires_id(self):
         """
-        Test UsersSessionsBase schema requires id field.
+        Test UserSessionsBase schema requires id field.
         """
         # Arrange
         now = datetime.now(UTC)
 
         # Act & Assert
         with pytest.raises(ValidationError) as exc_info:
-            users_session_schema.UsersSessionsBase(
+            users_session_schema.UserSessionsBase(
                 ip_address="192.168.1.1",
                 device_type="PC",
                 operating_system="Windows",
@@ -69,7 +69,7 @@ class TestUsersSessionsBaseSchema:
 
     def test_base_schema_max_length_ip_address(self):
         """
-        Test UsersSessionsBase schema ip_address max length validation.
+        Test UserSessionsBase schema ip_address max length validation.
         """
         # Arrange
         now = datetime.now(UTC)
@@ -77,7 +77,7 @@ class TestUsersSessionsBaseSchema:
 
         # Act & Assert
         with pytest.raises(ValidationError) as exc_info:
-            users_session_schema.UsersSessionsBase(
+            users_session_schema.UserSessionsBase(
                 id="test-session-id",
                 ip_address=long_ip,
                 device_type="PC",
@@ -94,7 +94,7 @@ class TestUsersSessionsBaseSchema:
 
     def test_base_schema_max_length_device_type(self):
         """
-        Test UsersSessionsBase schema device_type max length validation.
+        Test UserSessionsBase schema device_type max length validation.
         """
         # Arrange
         now = datetime.now(UTC)
@@ -102,7 +102,7 @@ class TestUsersSessionsBaseSchema:
 
         # Act & Assert
         with pytest.raises(ValidationError) as exc_info:
-            users_session_schema.UsersSessionsBase(
+            users_session_schema.UserSessionsBase(
                 id="test-session-id",
                 ip_address="192.168.1.1",
                 device_type=long_device,
@@ -119,14 +119,14 @@ class TestUsersSessionsBaseSchema:
 
     def test_base_schema_strict_string_validation(self):
         """
-        Test UsersSessionsBase schema enforces strict string types.
+        Test UserSessionsBase schema enforces strict string types.
         """
         # Arrange
         now = datetime.now(UTC)
 
         # Act & Assert
         with pytest.raises(ValidationError) as exc_info:
-            users_session_schema.UsersSessionsBase(
+            users_session_schema.UserSessionsBase(
                 id=12345,  # Should be string
                 ip_address="192.168.1.1",
                 device_type="PC",
@@ -143,26 +143,26 @@ class TestUsersSessionsBaseSchema:
 
     def test_base_schema_from_attributes(self):
         """
-        Test UsersSessionsBase schema has from_attributes config.
+        Test UserSessionsBase schema has from_attributes config.
         """
         # Assert
-        assert users_session_schema.UsersSessionsBase.model_config.get("from_attributes") is True
+        assert users_session_schema.UserSessionsBase.model_config.get("from_attributes") is True
 
 
 class TestUsersSessionsReadSchema:
     """
-    Test suite for UsersSessionsRead Pydantic schema.
+    Test suite for UserSessionsRead Pydantic schema.
     """
 
     def test_read_schema_includes_user_id(self):
         """
-        Test UsersSessionsRead schema includes user_id field.
+        Test UserSessionsRead schema includes user_id field.
         """
         # Arrange
         now = datetime.now(UTC)
 
         # Act
-        session = users_session_schema.UsersSessionsRead(
+        session = users_session_schema.UserSessionsRead(
             id="test-session-id",
             ip_address="192.168.1.1",
             device_type="PC",
@@ -181,14 +181,14 @@ class TestUsersSessionsReadSchema:
 
     def test_read_schema_requires_user_id(self):
         """
-        Test UsersSessionsRead schema requires user_id field.
+        Test UserSessionsRead schema requires user_id field.
         """
         # Arrange
         now = datetime.now(UTC)
 
         # Act & Assert
         with pytest.raises(ValidationError) as exc_info:
-            users_session_schema.UsersSessionsRead(
+            users_session_schema.UserSessionsRead(
                 id="test-session-id",
                 ip_address="192.168.1.1",
                 device_type="PC",
@@ -205,14 +205,14 @@ class TestUsersSessionsReadSchema:
 
     def test_read_schema_user_id_positive(self):
         """
-        Test UsersSessionsRead schema user_id must be >= 1.
+        Test UserSessionsRead schema user_id must be >= 1.
         """
         # Arrange
         now = datetime.now(UTC)
 
         # Act & Assert
         with pytest.raises(ValidationError) as exc_info:
-            users_session_schema.UsersSessionsRead(
+            users_session_schema.UserSessionsRead(
                 id="test-session-id",
                 ip_address="192.168.1.1",
                 device_type="PC",
@@ -230,29 +230,29 @@ class TestUsersSessionsReadSchema:
 
     def test_read_schema_inherits_from_base(self):
         """
-        Test UsersSessionsRead inherits from UsersSessionsBase.
+        Test UserSessionsRead inherits from UserSessionsBase.
         """
         # Assert
         assert issubclass(
-            users_session_schema.UsersSessionsRead,
-            users_session_schema.UsersSessionsBase,
+            users_session_schema.UserSessionsRead,
+            users_session_schema.UserSessionsBase,
         )
 
 
 class TestUsersSessionsInternalSchema:
     """
-    Test suite for UsersSessionsInternal Pydantic schema.
+    Test suite for UserSessionsInternal Pydantic schema.
     """
 
     def test_internal_schema_includes_all_fields(self):
         """
-        Test UsersSessionsInternal schema includes all fields.
+        Test UserSessionsInternal schema includes all fields.
         """
         # Arrange
         now = datetime.now(UTC)
 
         # Act
-        session = users_session_schema.UsersSessionsInternal(
+        session = users_session_schema.UserSessionsInternal(
             id="test-session-id",
             ip_address="192.168.1.1",
             device_type="PC",
@@ -284,13 +284,13 @@ class TestUsersSessionsInternalSchema:
 
     def test_internal_schema_allows_optional_refresh_token(self):
         """
-        Test UsersSessionsInternal schema allows refresh_token to be optional.
+        Test UserSessionsInternal schema allows refresh_token to be optional.
         """
         # Arrange
         now = datetime.now(UTC)
 
         # Act
-        session = users_session_schema.UsersSessionsInternal(
+        session = users_session_schema.UserSessionsInternal(
             id="test-session-id",
             ip_address="192.168.1.1",
             device_type="PC",
@@ -312,13 +312,13 @@ class TestUsersSessionsInternalSchema:
 
     def test_internal_schema_tokens_exchanged_default(self):
         """
-        Test UsersSessionsInternal schema tokens_exchanged default.
+        Test UserSessionsInternal schema tokens_exchanged default.
         """
         # Arrange
         now = datetime.now(UTC)
 
         # Act
-        session = users_session_schema.UsersSessionsInternal(
+        session = users_session_schema.UserSessionsInternal(
             id="test-session-id",
             ip_address="192.168.1.1",
             device_type="PC",
@@ -340,14 +340,14 @@ class TestUsersSessionsInternalSchema:
 
     def test_internal_schema_rotation_count_non_negative(self):
         """
-        Test UsersSessionsInternal schema rotation_count must be >= 0.
+        Test UserSessionsInternal schema rotation_count must be >= 0.
         """
         # Arrange
         now = datetime.now(UTC)
 
         # Act & Assert
         with pytest.raises(ValidationError) as exc_info:
-            users_session_schema.UsersSessionsInternal(
+            users_session_schema.UserSessionsInternal(
                 id="test-session-id",
                 ip_address="192.168.1.1",
                 device_type="PC",
@@ -368,7 +368,7 @@ class TestUsersSessionsInternalSchema:
 
     def test_internal_schema_oauth_state_id_max_length(self):
         """
-        Test UsersSessionsInternal schema oauth_state_id max length.
+        Test UserSessionsInternal schema oauth_state_id max length.
         """
         # Arrange
         now = datetime.now(UTC)
@@ -376,7 +376,7 @@ class TestUsersSessionsInternalSchema:
 
         # Act & Assert
         with pytest.raises(ValidationError) as exc_info:
-            users_session_schema.UsersSessionsInternal(
+            users_session_schema.UserSessionsInternal(
                 id="test-session-id",
                 ip_address="192.168.1.1",
                 device_type="PC",
@@ -398,23 +398,23 @@ class TestUsersSessionsInternalSchema:
 
     def test_internal_schema_inherits_from_base(self):
         """
-        Test UsersSessionsInternal inherits from UsersSessionsBase.
+        Test UserSessionsInternal inherits from UserSessionsBase.
         """
         # Assert
         assert issubclass(
-            users_session_schema.UsersSessionsInternal,
-            users_session_schema.UsersSessionsBase,
+            users_session_schema.UserSessionsInternal,
+            users_session_schema.UserSessionsBase,
         )
 
     def test_internal_schema_with_all_optional_fields(self):
         """
-        Test UsersSessionsInternal schema with all optional fields set.
+        Test UserSessionsInternal schema with all optional fields set.
         """
         # Arrange
         now = datetime.now(UTC)
 
         # Act
-        session = users_session_schema.UsersSessionsInternal(
+        session = users_session_schema.UserSessionsInternal(
             id="test-session-id",
             ip_address="192.168.1.1",
             device_type="PC",

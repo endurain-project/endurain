@@ -12,7 +12,7 @@ import core.partial_update as core_partial_update
 import modules.activities.activity.constants as activity_constants
 
 
-class UsersPrivacySettingsBase(BaseModel):
+class UserPrivacySettingsBase(BaseModel):
     """Base schema for user privacy settings.
 
     Attributes:
@@ -68,17 +68,17 @@ class UsersPrivacySettingsBase(BaseModel):
     )
 
 
-class UsersPrivacySettingsCreate(UsersPrivacySettingsBase):
+class UserPrivacySettingsCreate(UserPrivacySettingsBase):
     """Pydantic model for creating user privacy settings.
 
-    Inherits all attributes from UsersPrivacySettingsBase.
+    Inherits all attributes from UserPrivacySettingsBase.
     """
 
 
-class UsersPrivacySettingsUpdate(core_partial_update.NotClearable, UsersPrivacySettingsBase):
+class UserPrivacySettingsUpdate(core_partial_update.NotClearable, UserPrivacySettingsBase):
     """Schema for updating user privacy settings.
 
-    Inherits all validation from UsersPrivacySettingsBase.
+    Inherits all validation from UserPrivacySettingsBase.
     All fields are optional for partial updates.
     """
 
@@ -100,7 +100,7 @@ class UsersPrivacySettingsUpdate(core_partial_update.NotClearable, UsersPrivacyS
     )
 
 
-class UsersPrivacySettingsRead(UsersPrivacySettingsBase):
+class UserPrivacySettingsRead(UserPrivacySettingsBase):
     """Schema for reading user privacy settings.
 
     Attributes:

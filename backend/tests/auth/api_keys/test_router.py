@@ -40,8 +40,8 @@ class TestGetUserApiKeys:
         mock_key.last_used_at = None
         mock_key.created_at = now
         mock_key.is_active = True
-        mock_get_keys.return_value = api_keys_schema.UsersApiKeyPage.build(
-            [api_keys_schema.UsersApiKeyRead.model_validate(mock_key)], 1, 1, 25
+        mock_get_keys.return_value = api_keys_schema.UserApiKeyPage.build(
+            [api_keys_schema.UserApiKeyRead.model_validate(mock_key)], 1, 1, 25
         )
 
         # Act
@@ -61,7 +61,7 @@ class TestGetUserApiKeys:
     def test_list_user_api_keys_empty(self, mock_get_keys, fast_api_client, fast_api_app):
         """Test that an empty list is returned when the user has no API keys."""
         # Arrange
-        mock_get_keys.return_value = api_keys_schema.UsersApiKeyPage.build([], 0, 1, 25)
+        mock_get_keys.return_value = api_keys_schema.UserApiKeyPage.build([], 0, 1, 25)
 
         # Act
         response = fast_api_client.get(
@@ -100,7 +100,7 @@ class TestCreateUserApiKey:
         mock_orm_key.last_used_at = None
         mock_orm_key.created_at = now
         mock_orm_key.is_active = True
-        mock_create.return_value = api_keys_schema.UsersApiKeyCreatedRead(
+        mock_create.return_value = api_keys_schema.UserApiKeyCreatedRead(
             id=mock_orm_key.id,
             user_id=1,
             name=mock_orm_key.name,
@@ -504,7 +504,7 @@ class TestApiKeyResponseSafety:
         List response must not leak raw key or key_hash.
 
         Even if the ORM model carries key_hash, the
-        UsersApiKeyRead schema must exclude it.
+        UserApiKeyRead schema must exclude it.
         """
         now = datetime.now(UTC)
         mock_key = MagicMock(spec=users_api_keys_models.UsersApiKeys)
@@ -518,8 +518,8 @@ class TestApiKeyResponseSafety:
         mock_key.last_used_at = None
         mock_key.created_at = now
         mock_key.is_active = True
-        mock_get_keys.return_value = api_keys_schema.UsersApiKeyPage.build(
-            [api_keys_schema.UsersApiKeyRead.model_validate(mock_key)], 1, 1, 25
+        mock_get_keys.return_value = api_keys_schema.UserApiKeyPage.build(
+            [api_keys_schema.UserApiKeyRead.model_validate(mock_key)], 1, 1, 25
         )
 
         response = fast_api_client.get(
@@ -559,7 +559,7 @@ class TestApiKeyResponseSafety:
         mock_orm_key.last_used_at = None
         mock_orm_key.created_at = now
         mock_orm_key.is_active = True
-        mock_create.return_value = api_keys_schema.UsersApiKeyCreatedRead(
+        mock_create.return_value = api_keys_schema.UserApiKeyCreatedRead(
             id=mock_orm_key.id,
             user_id=1,
             name=mock_orm_key.name,
@@ -615,7 +615,7 @@ class TestApiKeyResponseSafety:
         mock_orm_key.last_used_at = None
         mock_orm_key.created_at = now
         mock_orm_key.is_active = True
-        mock_create.return_value = api_keys_schema.UsersApiKeyCreatedRead(
+        mock_create.return_value = api_keys_schema.UserApiKeyCreatedRead(
             id=mock_orm_key.id,
             user_id=1,
             name=mock_orm_key.name,

@@ -84,7 +84,7 @@ class TestReadSessionsUser:
         from datetime import datetime, timedelta
 
         now = datetime.now(UTC)
-        session = users_session_schema.UsersSessionsRead(
+        session = users_session_schema.UserSessionsRead(
             id="sess-1",
             user_id=5,
             ip_address="127.0.0.1",
@@ -97,7 +97,7 @@ class TestReadSessionsUser:
             last_activity_at=now,
             expires_at=now + timedelta(days=7),
         )
-        mock_list.return_value = users_session_schema.UsersSessionsPage.build([session], 3, 2, 1)
+        mock_list.return_value = users_session_schema.UserSessionsPage.build([session], 3, 2, 1)
 
         response = sessions_client.get("/users/5/sessions?page_number=2&num_records=1")
 
@@ -110,7 +110,7 @@ class TestReadSessionsUser:
     @patch("modules.auth.sessions.router.sessions_service.list_user_sessions")
     def test_defaults_the_window_and_returns_an_empty_page(self, mock_list, sessions_client) -> None:
         """Omitted paging parameters resolve to the default window."""
-        mock_list.return_value = users_session_schema.UsersSessionsPage.build([], 0, 1, 25)
+        mock_list.return_value = users_session_schema.UserSessionsPage.build([], 0, 1, 25)
 
         response = sessions_client.get("/users/42/sessions")
 

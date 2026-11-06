@@ -64,7 +64,7 @@ class TestEditUserPrivacySettings:
     def test_applies_only_the_set_fields_and_stages(self, mock_db):
         row = MagicMock(spec=users_privacy_settings_models.UsersPrivacySettings)
         _found(mock_db, row)
-        update = users_privacy_settings_schema.UsersPrivacySettingsUpdate(
+        update = users_privacy_settings_schema.UserPrivacySettingsUpdate(
             default_activity_visibility=activity_constants.ActivityVisibility.PRIVATE,
             hide_activity_map=True,
         )
@@ -79,7 +79,7 @@ class TestEditUserPrivacySettings:
 
     def test_missing_settings_are_not_found(self, mock_db):
         _found(mock_db, None)
-        update = users_privacy_settings_schema.UsersPrivacySettingsUpdate(hide_activity_map=True)
+        update = users_privacy_settings_schema.UserPrivacySettingsUpdate(hide_activity_map=True)
 
         with pytest.raises(core_exceptions.NotFoundError):
             users_privacy_settings_crud.edit_user_privacy_settings(1, update, mock_db, if_match="*")

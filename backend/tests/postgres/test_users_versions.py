@@ -27,14 +27,12 @@ def factory(pg_factory):
 
 
 def test_a_goal_edit_names_the_version_it_read(factory):
-    goal = goals_schema.UsersGoalCreate(
-        interval="weekly", activity_type="run", goal_type="calories", goal_calories=5000
-    )
+    goal = goals_schema.UserGoalCreate(interval="weekly", activity_type="run", goal_type="calories", goal_calories=5000)
     with factory() as db:
         created = goals_service.create_goal(1, goal, db)
     assert created.version == 1
 
-    replacement = goals_schema.UsersGoalUpdate(
+    replacement = goals_schema.UserGoalUpdate(
         interval="weekly", activity_type="run", goal_type="calories", goal_calories=6000
     )
     with factory() as db:
@@ -49,7 +47,7 @@ def test_a_privacy_edit_is_refused_when_the_settings_moved(factory):
     with factory() as db:
         created = privacy_integration.create_privacy_settings(1, db)
         db.commit()
-    edit = privacy_schema.UsersPrivacySettingsUpdate(hide_activity_map=True)
+    edit = privacy_schema.UserPrivacySettingsUpdate(hide_activity_map=True)
 
     with factory() as db:
         profile_service.edit_privacy_settings(1, edit, db, if_match=f'"{created.version}"')

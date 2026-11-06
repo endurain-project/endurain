@@ -437,9 +437,7 @@ router.include_router(
     tags=["users"],
     dependencies=[Depends(auth_dependencies.validate_access_token)],
 )
-# Resources owned by a user, served as ``/users/{user_id}/<resource>``. Mounted AFTER the users routers on
-# purpose: their literal ``/users/id/...`` and ``/users/username/...`` paths must be matched before the
-# ``{user_id}`` segment here would swallow "id" or "username".
+# Resources owned by a user, served as ``/users/{user_id}/<resource>``.
 router.include_router(
     auth_sessions_router.router,
     prefix=core_config.ROOT_PATH + "/users",

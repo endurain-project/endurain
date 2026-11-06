@@ -11,8 +11,8 @@ _STORED = {"id": 1, "username": "olduser", "email": "old@example.com", "access_t
 
 def _shapes():
     return {
-        "admin_create": lambda height: users_schema.UsersCreate(height=height, password="SecurePass1!", **_ADMIN),
-        "admin_edit": lambda height: users_schema.UsersEdit(height=height, **_ADMIN),
+        "admin_create": lambda height: users_schema.UserCreate(height=height, password="SecurePass1!", **_ADMIN),
+        "admin_edit": lambda height: users_schema.UserEdit(height=height, **_ADMIN),
         "profile_update": lambda height: users_schema.ProfileUpdate(height=height),
     }
 
@@ -31,7 +31,7 @@ def test_a_realistic_height_is_accepted(shape, height):
 
 
 def test_a_stored_height_still_reads_and_re_applies():
-    read = users_schema.UsersRead(name="Ana", height=5, **_STORED)
+    read = users_schema.UserRead(name="Ana", height=5, **_STORED)
 
     assert read.height == 5
-    assert users_schema.UsersEdit.from_read(read).height == 5
+    assert users_schema.UserEdit.from_read(read).height == 5

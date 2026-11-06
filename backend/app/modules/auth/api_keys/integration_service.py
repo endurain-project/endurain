@@ -11,7 +11,7 @@ import modules.auth.api_keys.service as api_keys_service
 import modules.auth.api_keys.utils as api_keys_utils
 
 
-def get_api_key_by_hash(key_hash: str, db: Session) -> api_keys_schema.UsersApiKeyRead | None:
+def get_api_key_by_hash(key_hash: str, db: Session) -> api_keys_schema.UserApiKeyRead | None:
     """Look up an API key by its hash."""
     return api_keys_service.get_api_key_by_hash(key_hash, db)
 
@@ -31,18 +31,18 @@ def generate_api_key() -> str:
     return api_keys_utils.generate_api_key()
 
 
-def list_user_api_keys(user_id: int, page: core_pagination.PageParams, db: Session) -> api_keys_schema.UsersApiKeyPage:
+def list_user_api_keys(user_id: int, page: core_pagination.PageParams, db: Session) -> api_keys_schema.UserApiKeyPage:
     """Return one page of the API keys owned by a user."""
     return api_keys_service.list_user_api_keys(user_id, page, db)
 
 
 def create_api_key(
     user_id: int,
-    data: api_keys_schema.UsersApiKeyCreate,
+    data: api_keys_schema.UserApiKeyCreate,
     raw_key: str,
     expires_at: datetime,
     db: Session,
-) -> api_keys_schema.UsersApiKeyRead:
+) -> api_keys_schema.UserApiKeyRead:
     """Stage a new API key expiring at ``expires_at`` for the account-security owner to commit."""
     return api_keys_crud.create_api_key(
         user_id,

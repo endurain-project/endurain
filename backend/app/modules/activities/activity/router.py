@@ -99,7 +99,7 @@ def list_following_feed(
     """List a keyset slice of the authenticated user's following feed.
 
     The slice also carries the public profile of each owner on it in ``users`` (the projection
-    ``GET /users/id/{user_id}`` returns), so a token with ``activities:read`` alone receives it too.
+    ``GET /users/{user_id}`` returns), so a token with ``activities:read`` alone receives it too.
     """
     return activity_service.scroll_following_feed(
         token_user_id,

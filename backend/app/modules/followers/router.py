@@ -27,7 +27,7 @@ def list_follow_requests(
 
     Always scoped to the caller, so there is no user id to supply and no way to
     read anyone else's pending requests. The page also carries each requester's public profile in
-    ``users`` (the projection ``GET /users/id/{user_id}`` returns), so a token with
+    ``users`` (the projection ``GET /users/{user_id}`` returns), so a token with
     ``followers:read`` alone receives it too.
     """
     return followers_service.list_pending_requests(

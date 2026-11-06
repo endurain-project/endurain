@@ -49,7 +49,7 @@ def unlink_account(user_id: int, db: Session) -> None:
     )
 
 
-def get_linked_user_integrations(user_id: int, db: Session) -> user_integrations_schema.UsersIntegrationsRead | None:
+def get_linked_user_integrations(user_id: int, db: Session) -> user_integrations_schema.UserIntegrationsRead | None:
     """Return a user's integrations when Garmin Connect is linked.
 
     Args:

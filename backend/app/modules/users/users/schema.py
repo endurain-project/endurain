@@ -209,7 +209,7 @@ UserRequestHeight = Annotated[
 ]
 
 
-class UsersBase(BaseModel):
+class UserBase(BaseModel):
     """Base users schema with common fields.
 
     Attributes:
@@ -335,7 +335,7 @@ class UsersBase(BaseModel):
         return value
 
 
-class Users(UsersBase):
+class User(UserBase):
     """Complete users schema with administrative fields.
 
     Note:
@@ -383,7 +383,7 @@ class Users(UsersBase):
     )
 
 
-class UsersRead(Users):
+class UserRead(User):
     """Users schema for read operations.
 
     Attributes:
@@ -421,7 +421,7 @@ class UsersRead(Users):
 class UserPublicRead(BaseModel):
     """What any signed-in viewer, or an anonymous one on a shared link, may learn about a user.
 
-    A deliberate subset of :class:`UsersRead`: no email, birthdate, access level or account
+    A deliberate subset of :class:`UserRead`: no email, birthdate, access level or account
     state, so a lookup cannot be used to harvest personal data or to probe who is an admin.
 
     Attributes:
@@ -445,7 +445,7 @@ class UserPublicRead(BaseModel):
 UserPublicPage = core_pagination.Page[UserPublicRead]
 
 
-class UsersEdit(Users):
+class UserEdit(User):
     """Users schema for an administrative edit.
 
     The stored columns of a user and nothing a read adds: ``id`` is the path, and
@@ -458,7 +458,7 @@ class UsersEdit(Users):
     height: UserRequestHeight | None = None
 
     @classmethod
-    def from_read(cls, user: "UsersRead") -> "UsersEdit":
+    def from_read(cls, user: "UserRead") -> "UserEdit":
         """Build the edit that re-applies a user as stored, for a caller that changes a few fields.
 
         Args:
@@ -482,7 +482,7 @@ class UsersEdit(Users):
         )
 
 
-class UsersMe(UsersRead):
+class UserMe(UserRead):
     """Extended users schema for current user profile.
 
     Includes privacy settings and integration status.
@@ -560,10 +560,10 @@ class UsersMe(UsersRead):
     )
 
 
-class UsersSignup(BaseModel):
+class UserSignup(BaseModel):
     """Users schema for a public sign-up request: only what an account needs.
 
-    The rest of the profile starts from the ``UsersBase`` defaults and is edited after signing in.
+    The rest of the profile starts from the ``UserBase`` defaults and is edited after signing in.
 
     Attributes:
         name: User's full name (1-250 chars).
@@ -585,7 +585,7 @@ class UsersSignup(BaseModel):
     model_config = ConfigDict(use_enum_values=True, validate_default=True, extra="forbid")
 
 
-class UsersCreate(Users):
+class UserCreate(User):
     """Users schema for admin user creation.
 
     Attributes:
@@ -617,7 +617,7 @@ class FirstAdminCreate(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
 
-class UsersEditPassword(BaseModel):
+class UserEditPassword(BaseModel):
     """Schema for password update operations (self-service).
 
     Requires the caller to prove possession of the current
@@ -664,7 +664,7 @@ class UsersEditPassword(BaseModel):
     )
 
 
-class UsersEmailLookup(BaseModel):
+class UserEmailLookup(BaseModel):
     """Schema for looking a user up by email address.
 
     Attributes:
@@ -676,13 +676,13 @@ class UsersEmailLookup(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
 
-class UsersAdminEditPassword(BaseModel):
+class UserAdminEditPassword(BaseModel):
     """Schema for admin password reset operations.
 
     Admin password resets are authorised by the caller's
     ``users:write`` scope on the admin route, not by knowing the
     target user's current password. Self-service password changes
-    must use :class:`UsersEditPassword` instead.
+    must use :class:`UserEditPassword` instead.
 
     Attributes:
         password: New password (min 8 chars).
@@ -879,7 +879,7 @@ class ProfileUpdate(core_partial_update.NotClearable, BaseModel):
     def validate_timezone(cls, value: str | None) -> str | None:
         """Reject anything that is not a known IANA timezone name.
 
-        Mirrors the check on :class:`UsersBase`: the value is later handed to
+        Mirrors the check on :class:`UserBase`: the value is later handed to
         ``ZoneInfo`` when stamping GPS-less activities, so an unknown name would
         surface as a runtime error far from the setting that caused it.
 

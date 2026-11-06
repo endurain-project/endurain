@@ -297,7 +297,7 @@ def get_email_status(db: Session) -> server_settings_schema.EmailStatus:
     return _email_status_for(get_mail_config(db))
 
 
-def send_test_email(admin: users_schema.UsersRead, mail: platform_providers.MailProvider, db: Session) -> None:
+def send_test_email(admin: users_schema.UserRead, mail: platform_providers.MailProvider, db: Session) -> None:
     """Send a test email to the admin who asked for it, synchronously.
 
     The send is not queued: the admin wants to know now whether the mail settings

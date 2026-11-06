@@ -1,7 +1,7 @@
 import type { Schemas } from '@/types'
 
 /** Change-password request body (snake_case wire shape). */
-export type PasswordChangeDto = Schemas['UsersEditPassword']
+export type PasswordChangeDto = Schemas['UserEditPassword']
 
 /** Raw MFA status payload. */
 export type MfaStatusDto = Schemas['MFAStatusRead']
@@ -28,10 +28,10 @@ export type StepUpDto = Schemas['StepUpVerification']
 export type EmailChangeDto = Schemas['EmailChange']
 
 /** Profile payload the email-change request answers with. */
-export type EmailChangeResultDto = Schemas['UsersMe']
+export type EmailChangeResultDto = Schemas['UserMe']
 
 /** Raw session payload (snake_case wire shape). */
-export type SecuritySessionDto = Schemas['UsersSessionsRead']
+export type SecuritySessionDto = Schemas['UserSessionsRead']
 
 /**
  * The clean inputs the change-password form collects. The MFA code is only
@@ -180,13 +180,13 @@ export interface LinkedProvider {
 }
 
 /** Raw API-key payload (snake_case wire shape). */
-export type ApiKeyDto = Schemas['UsersApiKeyRead']
+export type ApiKeyDto = Schemas['UserApiKeyRead']
 
 /** Raw create-API-key response, including the one-time raw `key`. */
-export type ApiKeyCreatedDto = Schemas['UsersApiKeyCreatedRead']
+export type ApiKeyCreatedDto = Schemas['UserApiKeyCreatedRead']
 
 /** Create-API-key request body. */
-export type ApiKeyCreateDto = Schemas['UsersApiKeyCreate']
+export type ApiKeyCreateDto = Schemas['UserApiKeyCreate']
 
 /**
  * A clean, camel-cased API-key model for the security zone. Mapped from

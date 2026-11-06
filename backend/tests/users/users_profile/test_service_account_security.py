@@ -9,7 +9,7 @@ _ACCOUNT_SECURITY = "modules.users.users_profile.service.account_security_integr
 
 
 def test_changing_the_password_stages_through_account_security_then_commits(mock_db):
-    change = users_schema.UsersEditPassword(
+    change = users_schema.UserEditPassword(
         current_password="old-password", password="new-password-1", mfa_code=None, revoke_other_sessions=True
     )
     store = MagicMock()
@@ -22,7 +22,7 @@ def test_changing_the_password_stages_through_account_security_then_commits(mock
 
 
 def test_changing_the_password_revokes_other_sessions_unless_the_client_opts_out(mock_db):
-    change = users_schema.UsersEditPassword(current_password="old-password", password="new-password-1", mfa_code=None)
+    change = users_schema.UserEditPassword(current_password="old-password", password="new-password-1", mfa_code=None)
     with patch(_ACCOUNT_SECURITY) as account_security:
         profile_service.change_password(5, change, "sid", MagicMock(), mock_db)
 

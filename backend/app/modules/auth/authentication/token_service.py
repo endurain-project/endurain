@@ -16,7 +16,7 @@ logger = core_logger.get_logger(__name__)
 
 
 def create_tokens(
-    user: users_schema.UsersRead,
+    user: users_schema.UserRead,
     token_manager: access_tokens_integration.TokenManager,
     policy: server_settings_contracts.SessionPolicy,
     session_id: str | None = None,
@@ -24,7 +24,7 @@ def create_tokens(
     """Generates session tokens for a user, including access token, refresh token, and CSRF token.
 
     Args:
-        user (users_schema.UsersRead): The user object for whom the tokens are being created.
+        user (users_schema.UserRead): The user object for whom the tokens are being created.
         token_manager (access_tokens_integration.TokenManager): The token manager responsible for token creation.
         policy (server_settings_contracts.SessionPolicy): The token lifetimes to apply.
         session_id (str | None, optional): An optional session ID. If not provided, a new unique session ID is generated.
@@ -65,7 +65,7 @@ def create_tokens(
 
 
 def mint_access_token(
-    user: users_schema.UsersRead,
+    user: users_schema.UserRead,
     token_manager: access_tokens_integration.TokenManager,
     session_id: str,
     policy: server_settings_contracts.SessionPolicy,

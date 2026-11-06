@@ -25,7 +25,7 @@ vi.mock('@/services/http', () => ({
   apiFetch: vi.fn<typeof apiFetch>(),
 }))
 
-/** Builds a full `UsersRead` wire payload, overridable per case. */
+/** Builds a full `UserRead` wire payload, overridable per case. */
 function makeUserDto(overrides: Partial<UserDto> = {}): UserDto {
   return {
     id: 7,
@@ -108,10 +108,9 @@ describe('users service requests', () => {
       showLocalAuth: true,
     })
 
-    expect(apiFetch).toHaveBeenCalledWith(
-      '/users?page_number=1&num_records=25&show_inactive=false&show_email_unverified=true&show_pending_approval=true&show_external_auth=true&show_local_auth=true',
-      { signal: undefined },
-    )
+    expect(apiFetch).toHaveBeenCalledWith('/users?page_number=1&num_records=25&active=true', {
+      signal: undefined,
+    })
     expect(page.total).toBe(1)
     expect(page.records[0]?.username).toBe('ada')
   })
@@ -130,7 +129,58 @@ describe('users service requests', () => {
       username: 'a da',
     })
 
-    expect(vi.mocked(apiFetch).mock.calls[0]?.[0]).toContain('&username=a+da')
+    expect(vi.mocked(apiFetch).mock.calls[0]?.[0]).toContain('&username_contains=a+da')
+  })
+
+  it('fetchUsers turns each excluded category into a state filter and omits the included ones', async () => {
+    vi.mocked(apiFetch).mockResolvedValue({ items: [], total: 0, page: 1, num_records: 25 })
+
+    await fetchUsers({
+      page: 2,
+      numRecords: 10,
+      showInactive: false,
+      showEmailUnverified: false,
+      showPendingApproval: false,
+      showExternalAuth: false,
+      showLocalAuth: true,
+    })
+
+    expect(vi.mocked(apiFetch).mock.calls[0]?.[0]).toBe(
+      '/users?page_number=2&num_records=10&active=true&email_verified=true&pending_approval=false&external_auth=false',
+    )
+  })
+
+  it('fetchUsers keeps only external accounts when the local switch is off', async () => {
+    vi.mocked(apiFetch).mockResolvedValue({ items: [], total: 0, page: 1, num_records: 25 })
+
+    await fetchUsers({
+      page: 1,
+      numRecords: 25,
+      showInactive: true,
+      showEmailUnverified: true,
+      showPendingApproval: true,
+      showExternalAuth: true,
+      showLocalAuth: false,
+    })
+
+    expect(vi.mocked(apiFetch).mock.calls[0]?.[0]).toBe(
+      '/users?page_number=1&num_records=25&external_auth=true',
+    )
+  })
+
+  it('fetchUsers asks for nothing when both authentication switches are off', async () => {
+    const page = await fetchUsers({
+      page: 1,
+      numRecords: 25,
+      showInactive: true,
+      showEmailUnverified: true,
+      showPendingApproval: true,
+      showExternalAuth: false,
+      showLocalAuth: false,
+    })
+
+    expect(page).toEqual({ records: [], total: 0 })
+    expect(apiFetch).not.toHaveBeenCalled()
   })
 
   it('createUser posts the full field payload', async () => {

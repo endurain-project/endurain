@@ -14,7 +14,7 @@ vi.mock('@/services/http', () => ({
   apiFetch: vi.fn<typeof apiFetch>(),
 }))
 
-/** Builds a full `UsersSessionsRead` wire payload, overridable per case. */
+/** Builds a full `UserSessionsRead` wire payload, overridable per case. */
 function makeSessionDto(overrides: Partial<UserSessionDto> = {}): UserSessionDto {
   return {
     id: 'sess-1',

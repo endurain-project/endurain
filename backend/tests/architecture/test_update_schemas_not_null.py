@@ -83,4 +83,4 @@ def test_an_edit_schema_refuses_null_for_a_not_null_column():
 def test_the_scan_finds_the_edit_schemas():
     names = {schema.__name__ for schema in _edit_schemas()}
 
-    assert {"ActivityEdit", "UsersEdit", "ProfileUpdate", "GearUpdate", "HealthWaterUpdate"} <= names
+    assert {"ActivityEdit", "UserEdit", "ProfileUpdate", "GearUpdate", "HealthWaterUpdate"} <= names

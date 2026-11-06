@@ -11,7 +11,7 @@ import modules.users.users.schema as users_schema
 _PROVIDER = {"name": "Provider", "slug": "provider"}
 
 _CASES = [
-    (api_keys_schema.UsersApiKeyCreate, {"name": "CLI", "scopes": ["activities:upload"]}),
+    (api_keys_schema.UserApiKeyCreate, {"name": "CLI", "scopes": ["activities:upload"]}),
     (auth_schema.TokenExchangeRequest, {"code_verifier": "a" * 43}),
     (users_schema.IdentityProviderLinkStart, {"current_password": "secret"}),
     (idp_schema.IdentityProviderCreate, {**_PROVIDER, "client_secret": "secret"}),

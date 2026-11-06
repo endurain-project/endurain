@@ -39,7 +39,7 @@ import modules.users.users_privacy_settings.integration_service as users_privacy
 logger = core_logger.get_logger(__name__)
 
 
-def require_user(user_id: int, db: Session) -> users_schema.UsersRead:
+def require_user(user_id: int, db: Session) -> users_schema.UserRead:
     """Return a user by id, which must exist.
 
     Args:
@@ -59,7 +59,7 @@ def require_user(user_id: int, db: Session) -> users_schema.UsersRead:
     return user
 
 
-def require_active_user(user: users_schema.UsersRead) -> None:
+def require_active_user(user: users_schema.UserRead) -> None:
     """Require a user to be active.
 
     Args:
@@ -73,7 +73,7 @@ def require_active_user(user: users_schema.UsersRead) -> None:
         raise core_exceptions.PermissionDeniedError("Inactive user")
 
 
-def require_admin_users(db: Session) -> list[users_schema.UsersRead]:
+def require_admin_users(db: Session) -> list[users_schema.UserRead]:
     """Return every admin user, of which there must be at least one.
 
     Args:
@@ -92,7 +92,7 @@ def require_admin_users(db: Session) -> list[users_schema.UsersRead]:
     return admins
 
 
-def _is_publicly_visible(user: users_schema.UsersRead) -> bool:
+def _is_publicly_visible(user: users_schema.UserRead) -> bool:
     """Return whether a signed-in viewer may look this user up at all.
 
     Args:
@@ -165,41 +165,45 @@ def get_public_user(user_id: int, db: Session) -> users_schema.UserPublicRead:
     return get_public_profile(user_id, db)
 
 
-def require_user_by_username(username: str, db: Session) -> users_schema.UsersRead:
-    """Return a user by exact username, who must exist.
+def list_public_users(
+    page: core_pagination.PageParams,
+    db: Session,
+    *,
+    username: str | None = None,
+    username_contains: str | None = None,
+) -> users_schema.UserPublicPage:
+    """Return one page of the active, discoverable users, optionally narrowed by username.
+
+    Users who are inactive, await approval or switched off "Let others find me in search" are not listed.
 
     Args:
-        username: Username to search for.
-        db: Database session.
-
-    Returns:
-        The user.
-
-    Raises:
-        NotFoundError: If there is no such user.
-    """
-    user = users_crud.get_user_by_username(username, db)
-    if user is None:
-        raise core_exceptions.NotFoundError("User not found")
-    return user
-
-
-def search_public_users(username: str, page: core_pagination.PageParams, db: Session) -> users_schema.UserPublicPage:
-    """Return one page of the active, discoverable users whose username contains the search term.
-
-    Args:
-        username: The partial username to search for.
         page: The window of matches to return.
         db: Database session.
+        username: If set, keeps only the user with this exact username.
+        username_contains: If set, keeps only users whose username contains it.
 
     Returns:
-        The page of matching users.
+        The page of matching users' public projections.
     """
     hidden = users_privacy_settings_integration.list_undiscoverable_user_ids(db)
-    matches = users_crud.search_active_users_by_username(
-        username, page.num_records, (page.page_number - 1) * page.num_records, db, exclude_user_ids=hidden
+    matches = users_crud.get_users_with_pagination(
+        db,
+        page.page_number,
+        page.num_records,
+        active=True,
+        pending_approval=False,
+        username=username,
+        username_contains=username_contains,
+        exclude_user_ids=hidden,
     )
-    total = users_crud.get_users_number(db, show_inactive=False, username=username, exclude_user_ids=hidden)
+    total = users_crud.get_users_number(
+        db,
+        active=True,
+        pending_approval=False,
+        username=username,
+        username_contains=username_contains,
+        exclude_user_ids=hidden,
+    )
     return users_schema.UserPublicPage.build(
         [users_schema.UserPublicRead.model_validate(user) for user in matches],
         total,
@@ -208,7 +212,7 @@ def search_public_users(username: str, page: core_pagination.PageParams, db: Ses
     )
 
 
-def require_user_by_email(email: str, db: Session) -> users_schema.UsersRead:
+def require_user_by_email(email: str, db: Session) -> users_schema.UserRead:
     """Return a user by email address, who must exist.
 
     Args:
@@ -227,7 +231,7 @@ def require_user_by_email(email: str, db: Session) -> users_schema.UsersRead:
     return user
 
 
-def _set_pending_email_changes(users: Collection[users_schema.UsersRead], db: Session) -> None:
+def _set_pending_email_changes(users: Collection[users_schema.UserRead], db: Session) -> None:
     """Set each user's unconfirmed email change, in one query for all of them.
 
     Args:
@@ -241,7 +245,7 @@ def _set_pending_email_changes(users: Collection[users_schema.UsersRead], db: Se
         user.pending_email_expires_at = change.expires_at if change else None
 
 
-def require_user_with_pending_email(user_id: int, db: Session) -> users_schema.UsersRead:
+def require_user_with_pending_email(user_id: int, db: Session) -> users_schema.UserRead:
     """Return a user by id with their unconfirmed email change, who must exist.
 
     Args:
@@ -264,35 +268,51 @@ def list_users(
     *,
     page_number: int = 1,
     num_records: int = core_pagination.DEFAULT_NUM_RECORDS,
-    show_inactive: bool | None = None,
-    show_email_unverified: bool | None = None,
-    show_pending_approval: bool | None = None,
-    show_external_auth: bool | None = None,
-    show_local_auth: bool | None = None,
+    active: bool | None = None,
+    email_verified: bool | None = None,
+    pending_approval: bool | None = None,
+    external_auth: bool | None = None,
     username: str | None = None,
-) -> core_pagination.Page[users_schema.UsersRead]:
+    username_contains: str | None = None,
+) -> core_pagination.Page[users_schema.UserRead]:
     """List a page of users with their authentication status.
-
-    The external/local filters are applied after the page is read, so a page may hold fewer
-    records than ``num_records``.
 
     Args:
         db: Database session.
         page_number: 1-based page number.
         num_records: Records per page.
-        show_inactive: If False, excludes inactive users.
-        show_email_unverified: If False, excludes users with unverified emails.
-        show_pending_approval: If False, excludes users pending admin approval.
-        show_external_auth: If False, excludes users with a linked identity provider.
-        show_local_auth: If False, excludes users with no linked identity provider.
-        username: If set, keeps only users whose username contains it.
+        active: If set, keeps only users whose active flag equals it.
+        email_verified: If set, keeps only users whose email verification flag equals it.
+        pending_approval: If set, keeps only users whose pending-approval flag equals it.
+        external_auth: If set, keeps only users who do (True) or do not (False) have a linked identity provider.
+        username: If set, keeps only the user with this exact username.
+        username_contains: If set, keeps only users whose username contains it.
 
     Returns:
-        The page of users and the total matching the first three filters and the username.
+        The page of users and the total matching the filters.
     """
-    total = users_crud.get_users_number(db, show_inactive, show_email_unverified, show_pending_approval, username)
+    linked_user_ids = identity_provider_links_integration.select_linked_user_ids()
+    total = users_crud.get_users_number(
+        db,
+        active=active,
+        email_verified=email_verified,
+        pending_approval=pending_approval,
+        username=username,
+        username_contains=username_contains,
+        external_auth=external_auth,
+        linked_user_ids=linked_user_ids,
+    )
     users = users_crud.get_users_with_pagination(
-        db, page_number, num_records, show_inactive, show_email_unverified, show_pending_approval, username
+        db,
+        page_number,
+        num_records,
+        active=active,
+        email_verified=email_verified,
+        pending_approval=pending_approval,
+        username=username,
+        username_contains=username_contains,
+        external_auth=external_auth,
+        linked_user_ids=linked_user_ids,
     )
 
     user_ids = [user.id for user in users]
@@ -300,16 +320,11 @@ def list_users(
     mfa_enabled_map = mfa_integration.get_mfa_enabled_for_users(user_ids, db)
     _set_pending_email_changes(users, db)
 
-    records: list[users_schema.UsersRead] = []
+    records: list[users_schema.UserRead] = []
     for user in users:
         idp_count = idp_counts.get(user.id, 0)
         user.external_auth_count = idp_count
         user.mfa_enabled = mfa_enabled_map.get(user.id, False)
-
-        if idp_count > 0 and show_external_auth is False:
-            continue
-        if idp_count == 0 and show_local_auth is False:
-            continue
 
         records.append(user)
 
@@ -331,7 +346,7 @@ def _stage_default_data(user_id: int, db: Session) -> None:
 
 
 def _stage_user_create_audit(
-    created: users_schema.UsersRead, access_type: str, method: users_audit_actions.UserCreateMethod, db: Session
+    created: users_schema.UserRead, access_type: str, method: users_audit_actions.UserCreateMethod, db: Session
 ) -> None:
     """Stage the audit row of a new account in the transaction that commits it.
 
@@ -352,8 +367,8 @@ def _stage_user_create_audit(
 
 
 def _stage_user(
-    user: users_schema.UsersCreate, method: users_audit_actions.UserCreateMethod, db: Session
-) -> users_schema.UsersRead:
+    user: users_schema.UserCreate, method: users_audit_actions.UserCreateMethod, db: Session
+) -> users_schema.UserRead:
     """Stage a user with their password and default data (flushed, not committed).
 
     Args:
@@ -387,9 +402,9 @@ def _stage_user(
 
 
 def create_user(
-    user: users_schema.UsersCreate,
+    user: users_schema.UserCreate,
     db: Session,
-) -> users_schema.UsersRead:
+) -> users_schema.UserRead:
     """Create a user as an administrator, with their password and default data.
 
     Args:
@@ -414,7 +429,7 @@ def create_user(
     return created
 
 
-def stage_first_admin(admin: users_schema.FirstAdminCreate, db: Session) -> users_schema.UsersRead:
+def stage_first_admin(admin: users_schema.FirstAdminCreate, db: Session) -> users_schema.UserRead:
     """Stage the first administrator of a fresh installation (flushed, not committed).
 
     The account is an active administrator with a verified address, whatever the caller sent. The advisory lock
@@ -437,7 +452,7 @@ def stage_first_admin(admin: users_schema.FirstAdminCreate, db: Session) -> user
         raise core_exceptions.ConflictError("An account already exists")
 
     return _stage_user(
-        users_schema.UsersCreate(
+        users_schema.UserCreate(
             name=admin.name,
             username=admin.username,
             email=admin.email,
@@ -453,14 +468,14 @@ def stage_first_admin(admin: users_schema.FirstAdminCreate, db: Session) -> user
 
 
 def _stage_signup_user(
-    profile: users_schema.UsersBase,
+    profile: users_schema.UserBase,
     password: str | None,
     server_settings: server_settings_schema.ServerSettingsRead,
     db: Session,
     *,
     email_verified: bool,
     method: users_audit_actions.UserCreateMethod,
-) -> users_schema.UsersRead:
+) -> users_schema.UserRead:
     """Stage a user through sign-up or SSO, with their default data.
 
     The account's units and currency are the server's defaults. Its state follows the server's sign-up
@@ -519,16 +534,16 @@ def _stage_signup_user(
 
 
 def stage_signup_user(
-    user: users_schema.UsersSignup,
+    user: users_schema.UserSignup,
     server_settings: server_settings_schema.ServerSettingsRead,
     db: Session,
-) -> users_schema.UsersRead:
+) -> users_schema.UserRead:
     """Stage a user through sign-up with their default data (flushed, not committed).
 
     The profile starts from the defaults with the chosen language. The address is not proven yet: the
     verification link proves it. A local credential is stored only when the sign-up carries a password.
     """
-    profile = users_schema.UsersBase(
+    profile = users_schema.UserBase(
         name=user.name,
         username=user.username,
         email=user.email,
@@ -550,12 +565,12 @@ def stage_signup_user(
 
 
 def create_sso_user(
-    profile: users_schema.UsersBase,
+    profile: users_schema.UserBase,
     server_settings: server_settings_schema.ServerSettingsRead,
     db: Session,
     *,
     email_verified: bool,
-) -> users_schema.UsersRead:
+) -> users_schema.UserRead:
     """Stage an SSO-only user with the defaults used by regular sign-up.
 
     Args:
@@ -586,7 +601,7 @@ def create_sso_user(
 
 
 def _recalculate_bmi_if_height_changed(
-    before: users_schema.UsersRead, after: users_schema.UsersRead, db: Session
+    before: users_schema.UserRead, after: users_schema.UserRead, db: Session
 ) -> None:
     """Stage a BMI recalculation of the user's manual weight records when their height changed.
 
@@ -601,7 +616,7 @@ def _recalculate_bmi_if_height_changed(
         )
 
 
-def _refuse_to_remove_last_admin(user: users_schema.UsersRead, action: str, db: Session) -> None:
+def _refuse_to_remove_last_admin(user: users_schema.UserRead, action: str, db: Session) -> None:
     """Refuse a change that would leave the server without an active administrator.
 
     Args:
@@ -625,9 +640,7 @@ def _refuse_to_remove_last_admin(user: users_schema.UsersRead, action: str, db: 
         raise core_exceptions.ConflictError(f"The only administrator cannot be {action}")
 
 
-def stage_user_edit(
-    user_id: int, user: users_schema.UsersEdit, db: Session, *, if_match: str
-) -> users_schema.UsersRead:
+def stage_user_edit(user_id: int, user: users_schema.UserEdit, db: Session, *, if_match: str) -> users_schema.UserRead:
     """Stage an administrative edit of a user.
 
     Intended for admin endpoints that legitimately set fields like ``access_type``, ``active``
@@ -687,7 +700,7 @@ def changed_field_names(before: BaseModel, after: BaseModel, names: Collection[s
 
 
 def _stage_user_update_audit(
-    before: users_schema.UsersRead, after: users_schema.UsersRead, requested: users_schema.UsersEdit, db: Session
+    before: users_schema.UserRead, after: users_schema.UserRead, requested: users_schema.UserEdit, db: Session
 ) -> None:
     """Stage the audit row of an administrative edit, naming the fields whose stored value changed.
 
@@ -713,7 +726,7 @@ def _stage_user_update_audit(
         )
 
 
-def _edit_ends_sessions(before: users_schema.UsersRead, requested: users_schema.UsersEdit) -> bool:
+def _edit_ends_sessions(before: users_schema.UserRead, requested: users_schema.UserEdit) -> bool:
     """Whether an administrative edit changes who the user is or what they may do.
 
     Args:
@@ -733,8 +746,8 @@ def _edit_ends_sessions(before: users_schema.UsersRead, requested: users_schema.
 
 
 def _stage_edit_with_email_change(
-    existing: users_schema.UsersRead, user: users_schema.UsersEdit, db: Session, *, if_match: str
-) -> tuple[users_schema.UsersRead, bool]:
+    existing: users_schema.UserRead, user: users_schema.UserEdit, db: Session, *, if_match: str
+) -> tuple[users_schema.UserRead, bool]:
     """Stage an edit that changes the user's email, applying the address now or only requesting it.
 
     An address the administrator marks verified is applied now. Any other address is requested: the
@@ -773,12 +786,12 @@ def _stage_edit_with_email_change(
 
 def edit_user(
     user_id: int,
-    user: users_schema.UsersEdit,
+    user: users_schema.UserEdit,
     actor_id: int,
     db: Session,
     *,
     if_match: str,
-) -> users_schema.UsersRead:
+) -> users_schema.UserRead:
     """Edit a user as an administrator, commit, and add their authentication status.
 
     A change of email, access type or active flag signs the edited user out everywhere, so a
@@ -843,7 +856,7 @@ def edit_user(
 
 def stage_profile_edit(
     user_id: int, profile: users_schema.ProfileUpdate, db: Session, *, if_match: str
-) -> users_schema.UsersRead:
+) -> users_schema.UserRead:
     """Stage a self-service profile update, keeping only the allow-listed fields.
 
     Administrative attributes such as ``access_type``, ``active``, ``email_verified`` and

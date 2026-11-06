@@ -88,13 +88,13 @@ class TestGoalTypeEnum:
 
 class TestUserGoalBaseSchema:
     """
-    Test suite for UsersGoalBase Pydantic schema.
+    Test suite for UserGoalBase Pydantic schema.
     """
 
     def test_base_schema_with_calories_goal(self):
-        """Test UsersGoalBase with calories goal."""
+        """Test UserGoalBase with calories goal."""
         # Act
-        goal = user_goals_schema.UsersGoalBase(
+        goal = user_goals_schema.UserGoalBase(
             interval=user_goals_schema.Interval.WEEKLY,
             activity_type=user_goals_schema.GoalActivityType.RUN,
             goal_type=user_goals_schema.GoalType.CALORIES,
@@ -113,9 +113,9 @@ class TestUserGoalBaseSchema:
         assert goal.goal_activities_number is None
 
     def test_base_schema_with_distance_goal(self):
-        """Test UsersGoalBase with distance goal."""
+        """Test UserGoalBase with distance goal."""
         # Act
-        goal = user_goals_schema.UsersGoalBase(
+        goal = user_goals_schema.UserGoalBase(
             interval=user_goals_schema.Interval.MONTHLY,
             activity_type=user_goals_schema.GoalActivityType.BIKE,
             goal_type=user_goals_schema.GoalType.DISTANCE,
@@ -131,9 +131,9 @@ class TestUserGoalBaseSchema:
         assert goal.goal_calories is None
 
     def test_base_schema_with_activities_goal(self):
-        """Test UsersGoalBase with activities count goal."""
+        """Test UserGoalBase with activities count goal."""
         # Act
-        goal = user_goals_schema.UsersGoalBase(
+        goal = user_goals_schema.UserGoalBase(
             interval=user_goals_schema.Interval.DAILY,
             activity_type=user_goals_schema.GoalActivityType.CARDIO,
             goal_type=user_goals_schema.GoalType.ACTIVITIES,
@@ -151,7 +151,7 @@ class TestUserGoalBaseSchema:
         """Test validation fails when required goal field missing."""
         # Act & Assert
         with pytest.raises(ValidationError) as exc_info:
-            user_goals_schema.UsersGoalBase(
+            user_goals_schema.UserGoalBase(
                 interval=user_goals_schema.Interval.WEEKLY,
                 activity_type=user_goals_schema.GoalActivityType.RUN,
                 goal_type=user_goals_schema.GoalType.CALORIES,
@@ -168,7 +168,7 @@ class TestUserGoalBaseSchema:
         """Test validation fails with multiple goal fields."""
         # Act & Assert
         with pytest.raises(ValidationError) as exc_info:
-            user_goals_schema.UsersGoalBase(
+            user_goals_schema.UserGoalBase(
                 interval=user_goals_schema.Interval.WEEKLY,
                 activity_type=user_goals_schema.GoalActivityType.RUN,
                 goal_type=user_goals_schema.GoalType.CALORIES,
@@ -185,7 +185,7 @@ class TestUserGoalBaseSchema:
         """Test negative values are rejected."""
         # Act & Assert
         with pytest.raises(ValidationError):
-            user_goals_schema.UsersGoalBase(
+            user_goals_schema.UserGoalBase(
                 interval=user_goals_schema.Interval.WEEKLY,
                 activity_type=user_goals_schema.GoalActivityType.RUN,
                 goal_type=user_goals_schema.GoalType.CALORIES,
@@ -200,7 +200,7 @@ class TestUserGoalBaseSchema:
         """Test extra fields are forbidden."""
         # Act & Assert
         with pytest.raises(ValidationError):
-            user_goals_schema.UsersGoalBase(
+            user_goals_schema.UserGoalBase(
                 interval=user_goals_schema.Interval.WEEKLY,
                 activity_type=user_goals_schema.GoalActivityType.RUN,
                 goal_type=user_goals_schema.GoalType.CALORIES,
@@ -215,14 +215,14 @@ class TestUserGoalBaseSchema:
 
 class TestUserGoalCreateSchema:
     """
-    Test suite for UsersGoalCreate schema.
+    Test suite for UserGoalCreate schema.
     """
 
     def test_create_schema_inherits_validation(self):
-        """Test UsersGoalCreate inherits validation from base."""
+        """Test UserGoalCreate inherits validation from base."""
         # Act & Assert
         with pytest.raises(ValidationError) as exc_info:
-            user_goals_schema.UsersGoalCreate(
+            user_goals_schema.UserGoalCreate(
                 interval=user_goals_schema.Interval.WEEKLY,
                 activity_type=user_goals_schema.GoalActivityType.RUN,
                 goal_type=user_goals_schema.GoalType.CALORIES,
@@ -238,13 +238,13 @@ class TestUserGoalCreateSchema:
 
 class TestUserGoalUpdateSchema:
     """
-    Test suite for UsersGoalUpdate schema.
+    Test suite for UserGoalUpdate schema.
     """
 
     def test_update_schema_allows_partial_updates(self):
-        """Test UsersGoalUpdate supports partial updates."""
+        """Test UserGoalUpdate supports partial updates."""
         # Act
-        goal = user_goals_schema.UsersGoalUpdate(
+        goal = user_goals_schema.UserGoalUpdate(
             interval=user_goals_schema.Interval.DAILY,
             activity_type=user_goals_schema.GoalActivityType.RUN,
             goal_type=user_goals_schema.GoalType.DISTANCE,
@@ -261,13 +261,13 @@ class TestUserGoalUpdateSchema:
 
 class TestUserGoalReadSchema:
     """
-    Test suite for UsersGoalRead schema.
+    Test suite for UserGoalRead schema.
     """
 
     def test_read_schema_includes_id_and_user_id(self):
-        """Test UsersGoalRead includes id and user_id."""
+        """Test UserGoalRead includes id and user_id."""
         # Act
-        goal = user_goals_schema.UsersGoalRead(
+        goal = user_goals_schema.UserGoalRead(
             id=1,
             user_id=1,
             interval=user_goals_schema.Interval.WEEKLY,
@@ -287,13 +287,13 @@ class TestUserGoalReadSchema:
 
 class TestUserGoalProgressSchema:
     """
-    Test suite for UsersGoalProgress schema.
+    Test suite for UserGoalProgress schema.
     """
 
     def test_progress_schema_creation(self):
-        """Test UsersGoalProgress schema creation."""
+        """Test UserGoalProgress schema creation."""
         # Act
-        progress = user_goals_schema.UsersGoalProgress(
+        progress = user_goals_schema.UserGoalProgress(
             goal_id=1,
             interval=user_goals_schema.Interval.WEEKLY,
             activity_type=user_goals_schema.GoalActivityType.RUN,
@@ -323,7 +323,7 @@ class TestUserGoalProgressSchema:
         """Test percentage_completed max is 100."""
         # Act & Assert
         with pytest.raises(ValidationError):
-            user_goals_schema.UsersGoalProgress(
+            user_goals_schema.UserGoalProgress(
                 goal_id=1,
                 interval=user_goals_schema.Interval.WEEKLY,
                 activity_type=user_goals_schema.GoalActivityType.RUN,
@@ -344,10 +344,10 @@ class TestUserGoalProgressSchema:
             )
 
     def test_progress_schema_has_model_config(self):
-        """Test UsersGoalProgress has model_config."""
+        """Test UserGoalProgress has model_config."""
         # Assert
-        assert hasattr(user_goals_schema.UsersGoalProgress, "model_config")
-        assert user_goals_schema.UsersGoalProgress.model_config["from_attributes"] is True
+        assert hasattr(user_goals_schema.UserGoalProgress, "model_config")
+        assert user_goals_schema.UserGoalProgress.model_config["from_attributes"] is True
 
 
 class TestGoalTargetBounds:
@@ -357,12 +357,12 @@ class TestGoalTargetBounds:
     def test_a_target_beyond_the_column_is_refused(self, goal_type, field):
         base = {"interval": "weekly", "activity_type": "run", "goal_type": goal_type}
         with pytest.raises(ValidationError):
-            user_goals_schema.UsersGoalCreate(**base, **{field: 2**31})
-        assert getattr(user_goals_schema.UsersGoalCreate(**base, **{field: 2**31 - 1}), field) == 2**31 - 1
+            user_goals_schema.UserGoalCreate(**base, **{field: 2**31})
+        assert getattr(user_goals_schema.UserGoalCreate(**base, **{field: 2**31 - 1}), field) == 2**31 - 1
 
 
 class TestTargetsAndProgressDates:
-    @pytest.mark.parametrize("schema", [user_goals_schema.UsersGoalCreate, user_goals_schema.UsersGoalUpdate])
+    @pytest.mark.parametrize("schema", [user_goals_schema.UserGoalCreate, user_goals_schema.UserGoalUpdate])
     @pytest.mark.parametrize(
         ("goal_type", "field"),
         [
@@ -382,14 +382,14 @@ class TestTargetsAndProgressDates:
         assert getattr(schema(**{**body, field: 1}), field) == 1
 
     def test_a_stored_goal_with_a_zero_target_can_still_be_read(self):
-        read = user_goals_schema.UsersGoalRead(
+        read = user_goals_schema.UserGoalRead(
             id=1, user_id=1, interval="weekly", activity_type="run", goal_type="distance", goal_distance=0
         )
 
         assert read.goal_distance == 0
 
     def test_progress_dates_are_dates(self):
-        progress = user_goals_schema.UsersGoalProgress(
+        progress = user_goals_schema.UserGoalProgress(
             goal_id=1,
             interval="weekly",
             activity_type="run",
@@ -403,7 +403,7 @@ class TestTargetsAndProgressDates:
 
     def test_a_progress_date_that_is_not_a_date_is_refused(self):
         with pytest.raises(ValidationError):
-            user_goals_schema.UsersGoalProgress(
+            user_goals_schema.UserGoalProgress(
                 goal_id=1,
                 interval="weekly",
                 activity_type="run",

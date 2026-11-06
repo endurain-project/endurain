@@ -136,7 +136,7 @@ def authenticate_user(
     password: str,
     password_hasher: credentials_integration.PasswordHasher,
     db: Session,
-) -> users_schema.UsersRead:
+) -> users_schema.UserRead:
     """Authenticates a user by verifying the provided username and password.
 
     Args:
@@ -146,7 +146,7 @@ def authenticate_user(
         db (Session): The database session used for querying and updating user data.
 
     Returns:
-        users_schema.UsersRead: The authenticated user object if authentication is successful.
+        users_schema.UserRead: The authenticated user object if authentication is successful.
 
     Raises:
         UnauthenticatedError: If the username does not exist or the password is invalid.
@@ -198,7 +198,7 @@ def authenticate_user(
 def complete_login(
     ip_address: str,
     user_agent: str,
-    user: users_schema.UsersRead,
+    user: users_schema.UserRead,
     client_type: auth_constants.ClientType,
     password_hasher: credentials_integration.PasswordHasher,
     token_manager: access_tokens_integration.TokenManager,
@@ -217,7 +217,7 @@ def complete_login(
     Args:
         ip_address (str): Client address, recorded on the session.
         user_agent (str): Client user agent, recorded on the session.
-        user (users_schema.UsersRead): The authenticated user object.
+        user (users_schema.UserRead): The authenticated user object.
         client_type (auth_constants.ClientType): The type of client.
         password_hasher (credentials_integration.PasswordHasher): Utility for password hashing.
         token_manager (access_tokens_integration.TokenManager): Utility for token generation and management.
@@ -278,7 +278,7 @@ def complete_login(
 def create_mobile_pkce_session_response(
     ip_address: str,
     user_agent: str,
-    user: users_schema.UsersRead,
+    user: users_schema.UserRead,
     code_challenge: str,
     code_challenge_method: str,
     password_hasher: credentials_integration.PasswordHasher,
@@ -514,7 +514,7 @@ def require_valid_mfa_code(
 def _finish_login(
     ip_address: str,
     user_agent: str,
-    user: users_schema.UsersRead,
+    user: users_schema.UserRead,
     client_type: auth_constants.ClientType,
     code_challenge: str | None,
     code_challenge_method: str | None,

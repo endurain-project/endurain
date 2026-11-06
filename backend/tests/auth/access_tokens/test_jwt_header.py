@@ -9,7 +9,7 @@ from joserfc.jwk import OctKey
 import core.exceptions as core_exceptions
 import core.jwt_keys as core_jwt_keys
 import modules.auth.access_tokens.service as auth_token_manager
-from modules.users.users.schema import UserAccessType, UsersRead
+from modules.users.users.schema import UserAccessType, UserRead
 
 _NEW = "new-secret-key-for-testing-only-min-32-chars"
 _OLD = "old-secret-key-for-testing-only-min-32-chars"
@@ -19,8 +19,8 @@ _REFRESH = auth_token_manager.TokenType.REFRESH
 
 
 @pytest.fixture
-def user() -> UsersRead:
-    return UsersRead(
+def user() -> UserRead:
+    return UserRead(
         id=1,
         name="User",
         username="user",
@@ -30,7 +30,7 @@ def user() -> UsersRead:
     )
 
 
-def _token(manager: auth_token_manager.TokenManager, user: UsersRead, token_type=_ACCESS) -> str:
+def _token(manager: auth_token_manager.TokenManager, user: UserRead, token_type=_ACCESS) -> str:
     return manager.create_token("sid", user, token_type, timedelta(minutes=5))[1]
 
 

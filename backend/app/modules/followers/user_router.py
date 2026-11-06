@@ -29,7 +29,7 @@ def list_user_followers(
     """List a user's followers, with the matching total.
 
     Privacy-aware: only the user themselves or an accepted follower may list them. The page also
-    carries each follower's public profile in ``users`` (the projection ``GET /users/id/{user_id}``
+    carries each follower's public profile in ``users`` (the projection ``GET /users/{user_id}``
     returns), so a token with ``followers:read`` alone receives it too.
     """
     return followers_service.list_followers(
@@ -57,7 +57,7 @@ def list_user_following(
     """List who a user follows, with the matching total.
 
     Privacy-aware: only the user themselves or an accepted follower may list them. The page also
-    carries each followee's public profile in ``users`` (the projection ``GET /users/id/{user_id}``
+    carries each followee's public profile in ``users`` (the projection ``GET /users/{user_id}``
     returns), so a token with ``followers:read`` alone receives it too.
     """
     return followers_service.list_following(

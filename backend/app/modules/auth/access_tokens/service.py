@@ -62,7 +62,7 @@ class TokenManager:
         get_token_claim(token: str, claim: str) -> str | list[str] | int:
         decode_token(token: str) -> dict:
         validate_token_expiration(token: str, expected_type: TokenType) -> None:
-        create_token(session_id: str, user: users_schema.UsersRead, token_type: TokenType, ttl: timedelta) -> tuple[datetime, str]:
+        create_token(session_id: str, user: users_schema.UserRead, token_type: TokenType, ttl: timedelta) -> tuple[datetime, str]:
         create_csrf_token() -> str:
             Generates a secure random CSRF (Cross-Site Request Forgery) token.
         InvalidTokenError: Raised for invalid, expired, or missing claims in JWT tokens.
@@ -287,7 +287,7 @@ class TokenManager:
     def create_token(
         self,
         session_id: str,
-        user: users_schema.UsersRead,
+        user: users_schema.UserRead,
         token_type: TokenType,
         ttl: timedelta,
     ) -> tuple[datetime, str]:
@@ -297,7 +297,7 @@ class TokenManager:
 
         Args:
             session_id (str): The unique identifier for the session.
-            user (users_schema.UsersRead): The user object containing user
+            user (users_schema.UserRead): The user object containing user
                 details.
             token_type (TokenType): The type of token to create (access or
                 refresh).

@@ -29,8 +29,8 @@ def policy(session_policy):
         yield
 
 
-def _create(expires_at: datetime | None) -> api_keys_schema.UsersApiKeyCreate:
-    return api_keys_schema.UsersApiKeyCreate(name="CLI", scopes=["activities:upload"], expires_at=expires_at)
+def _create(expires_at: datetime | None) -> api_keys_schema.UserApiKeyCreate:
+    return api_keys_schema.UserApiKeyCreate(name="CLI", scopes=["activities:upload"], expires_at=expires_at)
 
 
 @pytest.mark.usefixtures("policy")

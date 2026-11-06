@@ -18,7 +18,7 @@ router = APIRouter()
 @core_rate_limit.limiter.limit(core_rate_limit.SENSITIVE)
 def signup(
     request: Request,
-    user: users_schema.UsersSignup,
+    user: users_schema.UserSignup,
     state: core_dependencies.PlatformState,
     db: core_dependencies.DbSession,
 ) -> sign_up_schema.SignUpRead:
