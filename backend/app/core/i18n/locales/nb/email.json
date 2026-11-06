@@ -59,5 +59,11 @@
   "test_email.greeting": "Hei {name},",
   "test_email.intro": "Dette er en test-e-post sendt fra Endurains serverinnstillinger. Hvis du leser den, kan Endurain sende e-post via SMTP-serveren din.",
   "test_email.detail_label": "SMTP-server:",
-  "test_email.ignore": "Ingen handling er nødvendig."
+  "test_email.ignore": "Ingen handling er nødvendig.",
+
+  "email_change_taken.subject": "Endurain - Noen prøvde å bruke e-postadressen din",
+  "email_change_taken.heading": "Noen prøvde å bruke e-postadressen din",
+  "email_change_taken.greeting": "Hei {name},",
+  "email_change_taken.intro": "Noen ba om å endre e-postadressen til en annen Endurain-konto til din. Ingenting er endret, og kontoen din er ikke påvirket.",
+  "email_change_taken.ignore": "Hvis det ikke var deg, kan du ignorere denne e-posten. Du trenger ikke gjøre noe."
 }

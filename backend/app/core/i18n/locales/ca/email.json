@@ -59,5 +59,11 @@
   "test_email.greeting": "Hola {name},",
   "test_email.intro": "Aquest és un correu de prova enviat des de la configuració del servidor d'Endurain. Si el llegeixes, Endurain pot enviar correus mitjançant el teu servidor SMTP.",
   "test_email.detail_label": "Servidor SMTP:",
-  "test_email.ignore": "No cal fer res."
+  "test_email.ignore": "No cal fer res.",
+
+  "email_change_taken.subject": "Endurain - Algú ha intentat utilitzar la teva adreça electrònica",
+  "email_change_taken.heading": "Algú ha intentat utilitzar la teva adreça electrònica",
+  "email_change_taken.greeting": "Hola {name},",
+  "email_change_taken.intro": "Algú ha demanat canviar l'adreça electrònica d'un altre compte d'Endurain per la teva. No s'ha canviat res i el teu compte no s'ha vist afectat.",
+  "email_change_taken.ignore": "Si no has estat tu, pots ignorar aquest correu. No cal fer res."
 }

@@ -59,5 +59,11 @@
   "test_email.greeting": "Привіт, {name},",
   "test_email.intro": "Це тестовий лист, надісланий із налаштувань сервера Endurain. Якщо ви його читаєте, Endurain може надсилати листи через ваш SMTP-сервер.",
   "test_email.detail_label": "SMTP-сервер:",
-  "test_email.ignore": "Жодних дій не потрібно."
+  "test_email.ignore": "Жодних дій не потрібно.",
+
+  "email_change_taken.subject": "Endurain - Хтось спробував використати вашу адресу електронної пошти",
+  "email_change_taken.heading": "Хтось спробував використати вашу адресу електронної пошти",
+  "email_change_taken.greeting": "Привіт, {name},",
+  "email_change_taken.intro": "Хтось попросив змінити адресу електронної пошти іншого облікового запису Endurain на вашу. Нічого не змінено, ваш обліковий запис не постраждав.",
+  "email_change_taken.ignore": "Якщо це були не ви, просто проігноруйте цей лист. Жодних дій не потрібно."
 }

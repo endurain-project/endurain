@@ -59,5 +59,11 @@
   "test_email.greeting": "Ola {name},",
   "test_email.intro": "Este é un correo de proba enviado desde os axustes do servidor de Endurain. Se o estás a ler, Endurain pode enviar correos a través do teu servidor SMTP.",
   "test_email.detail_label": "Servidor SMTP:",
-  "test_email.ignore": "Non fai falta ningunha acción."
+  "test_email.ignore": "Non fai falta ningunha acción.",
+
+  "email_change_taken.subject": "Endurain - Alguén intentou usar o teu enderezo de correo",
+  "email_change_taken.heading": "Alguén intentou usar o teu enderezo de correo",
+  "email_change_taken.greeting": "Ola {name},",
+  "email_change_taken.intro": "Alguén solicitou cambiar o enderezo de correo doutra conta de Endurain polo teu. Non se cambiou nada e a túa conta non se viu afectada.",
+  "email_change_taken.ignore": "Se non fuches ti, podes ignorar este correo. Non hai que facer nada."
 }

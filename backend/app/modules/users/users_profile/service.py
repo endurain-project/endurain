@@ -200,6 +200,7 @@ def change_email(
     change: users_schema.EmailChange,
     session_id: str,
     step_up_store: "auth_dependencies.StepUpStore",
+    state: platform_providers.StateProvider,
     db: Session,
 ) -> users_schema.UserMe:
     """Request an email change after step-up verification, to take effect once the new address is confirmed.
@@ -211,11 +212,17 @@ def change_email(
     changed at once and left unverified. When the request asks for it, the user's other sessions are
     revoked, so a session an attacker holds does not outlive the change.
 
+    An address another account holds is answered exactly like a free one, so the request does not reveal
+    which addresses are registered: the change is staged and read back the same way, but no confirmation link is
+    mailed for it and its holder is emailed a notice instead. Without outgoing mail there is nothing to hide
+    behind, since a free address would change at once, so a held address is refused with a conflict.
+
     Args:
         user_id: The authenticated user.
         change: The new address with the step-up credentials.
         session_id: The caller's current session, which stays signed in when other sessions are revoked.
         step_up_store: Step-up lockout store.
+        state: The platform state provider, for the holder's notice cooldown.
         db: Database session.
 
     Returns:
@@ -225,7 +232,7 @@ def change_email(
     Raises:
         StepUpFailedError: If step-up verification fails.
         NotFoundError: If the user does not exist.
-        ConflictError: If another account uses the email.
+        ConflictError: If the server cannot send mail and another account uses the address.
     """
     account_security_integration.verify_step_up(
         users_schema.StepUpVerification(**change.model_dump(exclude={"email", "revoke_other_sessions"})),
@@ -242,10 +249,10 @@ def change_email(
         db.commit()
         return get_profile(user_id, db)
 
-    verification_queued = True
     try:
-        users_integration.require_email_available(user_id, new_email, db)
-        verification_queued = sign_up_tokens_integration.request_email_change(user_id, new_email, current_email, db)
+        verification_queued = sign_up_tokens_integration.request_self_service_email_change(
+            user_id, new_email, current_email, state, db
+        )
         if not verification_queued:
             users_integration.stage_email_change(user_id, new_email, db)
     except core_exceptions.ConflictError:

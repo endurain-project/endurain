@@ -59,5 +59,11 @@
   "test_email.greeting": "Zdravo {name},",
   "test_email.intro": "Ovo je probna e-poruka poslata iz podešavanja servera Endurain. Ako je čitate, Endurain može da šalje e-poruke preko vašeg SMTP servera.",
   "test_email.detail_label": "SMTP server:",
-  "test_email.ignore": "Nije potrebna nikakva radnja."
+  "test_email.ignore": "Nije potrebna nikakva radnja.",
+
+  "email_change_taken.subject": "Endurain - Neko je pokušao da koristi vašu email adresu",
+  "email_change_taken.heading": "Neko je pokušao da koristi vašu email adresu",
+  "email_change_taken.greeting": "Zdravo {name},",
+  "email_change_taken.intro": "Neko je zatražio da se email adresa drugog Endurain naloga promeni u vašu. Ništa nije promenjeno i vaš nalog nije pogođen.",
+  "email_change_taken.ignore": "Ako to niste bili vi, možete zanemariti ovu poruku. Nije potrebna nikakva radnja."
 }

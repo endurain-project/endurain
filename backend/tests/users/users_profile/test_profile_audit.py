@@ -127,8 +127,8 @@ class TestEmailChangeRequest:
             patch(f"{_SERVICE}.get_profile"),
         ):
             users.require_user.return_value = _user(email=current)
-            tokens.request_email_change.return_value = queued
-            profile_service.change_email(7, change, "sid", MagicMock(), mock_db)
+            tokens.request_self_service_email_change.return_value = queued
+            profile_service.change_email(7, change, "sid", MagicMock(), MagicMock(), mock_db)
 
     def test_a_queued_change_records_that_a_confirmation_is_required(self, mock_db):
         with jasil_testing.capture_audit() as audit:
@@ -147,20 +147,6 @@ class TestEmailChangeRequest:
     def test_resubmitting_the_current_address_writes_no_row(self, mock_db):
         with jasil_testing.capture_audit() as audit:
             self._change(mock_db, "USER7@example.com")
-
-        audit.assert_not_audited(profile_audit_actions.EMAIL_CHANGE_REQUEST.id)
-
-    def test_a_taken_address_writes_no_row(self, mock_db):
-        with jasil_testing.capture_audit() as audit, pytest.raises(core_exceptions.ConflictError):
-            change = users_schema.EmailChange(email="t@example.com", current_password="pw", mfa_code=None)
-            with (
-                patch(f"{_SERVICE}.account_security_integration"),
-                patch(f"{_SERVICE}.users_integration") as users,
-                patch(f"{_SERVICE}.sign_up_tokens_integration"),
-            ):
-                users.require_user.return_value = _user()
-                users.require_email_available.side_effect = core_exceptions.ConflictError("taken")
-                profile_service.change_email(7, change, "sid", MagicMock(), mock_db)
 
         audit.assert_not_audited(profile_audit_actions.EMAIL_CHANGE_REQUEST.id)
 

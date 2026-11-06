@@ -35,6 +35,10 @@ logger = core_logger.get_logger(__name__)
 EXISTING_ACCOUNT_NOTICE_COOLDOWN_SECONDS = 3600
 EMAIL_CHANGE_RESEND_COOLDOWN_SECONDS = 3600
 SIGN_UP_RESEND_COOLDOWN_SECONDS = 3600
+EMAIL_CHANGE_TAKEN_NOTICE_COOLDOWN_SECONDS = 3600
+
+#: How long a verification token, and so a pending email change, stays valid.
+SIGN_UP_TOKEN_TTL = timedelta(hours=24)
 
 
 def _stage_sign_up_token(
@@ -62,7 +66,7 @@ def _stage_sign_up_token(
         user_id=user_id,
         token_hash=token_hash,
         created_at=now,
-        expires_at=now + timedelta(hours=24),
+        expires_at=now + SIGN_UP_TOKEN_TTL,
         used=False,
         email=email,
         previous_email=previous_email,
@@ -133,6 +137,75 @@ def request_email_change(user_id: int, email: str, previous_email: str, db: Sess
     return True
 
 
+def _holder_of(email: str, user_id: int, db: Session) -> users_schema.UserRead | None:
+    """Return the other account that holds an address, or None when it is free or the user's own.
+
+    Args:
+        email: The address.
+        user_id: The user who asks about it.
+        db: Database session.
+
+    Returns:
+        The holder, when it is not ``user_id``.
+    """
+    holder = users_integration.get_user_by_email(email, db)
+    return holder if holder is not None and holder.id != user_id else None
+
+
+def _notify_address_holder(holder_id: int, state: StateProvider, db: Session) -> None:
+    """Stage a notice event for the holder of an address another account asked to move to, once per cooldown.
+
+    The requester's answer must not depend on the outcome, so a notice inside the cooldown, or with the cooldown
+    store unreachable, is skipped without a trace. The caller commits.
+
+    Args:
+        holder_id: The user who holds the address.
+        state: The platform state provider, for the notice cooldown.
+        db: Database session.
+    """
+    try:
+        claimed = core_email_cooldown.claim_email(
+            state, "email_change_address_taken", holder_id, EMAIL_CHANGE_TAKEN_NOTICE_COOLDOWN_SECONDS
+        )
+    except StateBackendUnavailableError as err:
+        logger.error(
+            "Email-change notice cooldown unavailable", exc_info=err, extra=core_logger.context(user_id=holder_id)
+        )
+        return
+    if claimed:
+        sign_up_event_publishers.publish_email_change_address_taken(holder_id, db)
+
+
+def request_self_service_email_change(
+    user_id: int, email: str, previous_email: str, state: StateProvider, db: Session
+) -> bool:
+    """Stage a user's own pending email change, when mail is configured.
+
+    The change is staged the same way whoever holds the address, so every read of it and the resend answer alike.
+    A free address is mailed a confirmation link; an address another account holds is not, and its holder is
+    mailed a notice instead, once per cooldown. The caller owns the transaction.
+
+    Args:
+        user_id: The user whose address changes.
+        email: The pending address.
+        previous_email: The user's current address, which the confirmation replaces.
+        state: The platform state provider, for the holder's notice cooldown.
+        db: Database session.
+
+    Returns:
+        True when the change was staged, False when mail is not configured and nothing was staged.
+    """
+    if not server_settings_integration.is_mail_configured(db):
+        return False
+    _stage_sign_up_token(user_id, email, previous_email, db)
+    holder = _holder_of(email, user_id, db)
+    if holder is None:
+        sign_up_event_publishers.publish_email_change_verification_requested(user_id, db)
+    else:
+        _notify_address_holder(holder.id, state, db)
+    return True
+
+
 def _find_pending_email_change(user_id: int, db: Session) -> sign_up_contracts.SignUpTokenState | None:
     """Return a user's unused, unexpired email-change token, or None when no change is pending."""
     pending = sign_up_crud.get_pending_email_change_tokens([user_id], datetime.now(UTC), db)
@@ -173,7 +246,14 @@ def request_email_change_resend(user_id: int, state: StateProvider, db: Session)
         state: The platform state provider, for the resend cooldown.
         db: Database session.
     """
-    if not server_settings_integration.is_mail_configured(db) or _find_pending_email_change(user_id, db) is None:
+    if not server_settings_integration.is_mail_configured(db):
+        return
+    pending = _find_pending_email_change(user_id, db)
+    if pending is None:
+        return
+    holder = None if pending.email is None else _holder_of(pending.email, user_id, db)
+    if holder is not None:
+        _notify_address_holder(holder.id, state, db)
         return
     try:
         if not core_email_cooldown.claim_email(
@@ -301,16 +381,17 @@ def prepare_email_change_verification_email(
     """Re-issue the user's pending email-change token and return its email for delivery after the session closes.
 
     Only a token's hash is stored, so the link is made from the pending change and the event id and mailed to the
-    pending address; a retry of the event gets the same link.
+    pending address; a retry of the event gets the same link. An address another account holds gets none.
 
     Returns:
-        The recipient, subject, HTML and text, or None when the user or a pending change is missing.
+        The recipient, subject, HTML and text, or None when the user or a pending change is missing, or another
+        account holds the pending address.
     """
     user = users_integration.get_user(user_id, db)
     if user is None:
         return None
     pending = _find_pending_email_change(user_id, db)
-    if pending is None or pending.email is None:
+    if pending is None or pending.email is None or _holder_of(pending.email, user_id, db) is not None:
         return None
     return _issue_verification_email(
         user,
@@ -403,6 +484,22 @@ def prepare_sign_up_existing_account_email(
     return (
         user.email,
         *sign_up_email_messages.get_existing_account_email(user.name, frontend_host, locale),
+    )
+
+
+def prepare_email_change_address_taken_email(
+    user_id: int,
+    frontend_host: str,
+    db: Session,
+) -> tuple[str, str, str, str] | None:
+    """Return the address-taken notice for delivery after the database session closes."""
+    user = users_integration.get_user(user_id, db)
+    if user is None:
+        return None
+    locale = core_i18n.normalize_locale(user.preferred_language)
+    return (
+        user.email,
+        *sign_up_email_messages.get_email_change_address_taken_email(user.name, frontend_host, locale),
     )
 
 

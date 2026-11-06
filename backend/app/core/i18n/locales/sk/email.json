@@ -59,5 +59,11 @@
   "test_email.greeting": "Ahoj {name},",
   "test_email.intro": "Toto je testovací e-mail odoslaný z nastavení servera Endurain. Ak ho čítate, Endurain vie odosielať e-maily cez váš SMTP server.",
   "test_email.detail_label": "SMTP server:",
-  "test_email.ignore": "Nie je potrebná žiadna akcia."
+  "test_email.ignore": "Nie je potrebná žiadna akcia.",
+
+  "email_change_taken.subject": "Endurain - Niekto sa pokúsil použiť vašu e-mailovú adresu",
+  "email_change_taken.heading": "Niekto sa pokúsil použiť vašu e-mailovú adresu",
+  "email_change_taken.greeting": "Ahoj {name},",
+  "email_change_taken.intro": "Niekto požiadal o zmenu e-mailovej adresy iného účtu Endurain na vašu. Nič sa nezmenilo a váš účet nie je dotknutý.",
+  "email_change_taken.ignore": "Ak ste to neboli vy, tento e-mail môžete ignorovať. Nie je potrebná žiadna akcia."
 }

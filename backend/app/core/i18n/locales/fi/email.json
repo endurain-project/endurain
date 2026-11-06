@@ -59,5 +59,11 @@
   "test_email.greeting": "Hei {name},",
   "test_email.intro": "Tämä on Endurainin palvelinasetuksista lähetetty testisähköposti. Jos luet tämän, Endurain voi lähettää sähköpostia SMTP-palvelimesi kautta.",
   "test_email.detail_label": "SMTP-palvelin:",
-  "test_email.ignore": "Toimenpiteitä ei tarvita."
+  "test_email.ignore": "Toimenpiteitä ei tarvita.",
+
+  "email_change_taken.subject": "Endurain - Joku yritti käyttää sähköpostiosoitettasi",
+  "email_change_taken.heading": "Joku yritti käyttää sähköpostiosoitettasi",
+  "email_change_taken.greeting": "Hei {name},",
+  "email_change_taken.intro": "Joku pyysi vaihtamaan toisen Endurain-tilin sähköpostiosoitteeksi sinun osoitteesi. Mitään ei muutettu, eikä tiliisi vaikutettu.",
+  "email_change_taken.ignore": "Jos et tehnyt tätä itse, voit jättää tämän viestin huomiotta. Toimenpiteitä ei tarvita."
 }

@@ -59,5 +59,11 @@
   "test_email.greeting": "Szia {name}!",
   "test_email.intro": "Ez egy teszt e-mail, amelyet az Endurain szerverbeállításaiból küldtünk. Ha ezt olvasod, az Endurain tud e-mailt küldeni az SMTP-szervereden keresztül.",
   "test_email.detail_label": "SMTP-szerver:",
-  "test_email.ignore": "Nincs szükség teendőre."
+  "test_email.ignore": "Nincs szükség teendőre.",
+
+  "email_change_taken.subject": "Endurain - Valaki megpróbálta használni az e-mail-címedet",
+  "email_change_taken.heading": "Valaki megpróbálta használni az e-mail-címedet",
+  "email_change_taken.greeting": "Szia {name}!",
+  "email_change_taken.intro": "Valaki azt kérte, hogy egy másik Endurain-fiók e-mail-címe a tiéd legyen. Semmi sem változott, és a fiókodat ez nem érinti.",
+  "email_change_taken.ignore": "Ha nem te voltál, nyugodtan figyelmen kívül hagyhatod ezt az e-mailt. Nincs teendőd."
 }

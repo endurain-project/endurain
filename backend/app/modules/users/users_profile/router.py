@@ -182,6 +182,7 @@ def edit_profile_email(
         auth_dependencies.StepUpStore,
         Depends(auth_dependencies.get_step_up_attempts),
     ],
+    state: core_dependencies.PlatformState,
     db: core_dependencies.DbSession,
 ) -> users_schema.UserMe:
     """Request a change of the authenticated user's email after step-up verification.
@@ -193,6 +194,8 @@ def edit_profile_email(
     cancels a pending change. When the server cannot send mail the address changes at once, unverified.
     The user's other sessions are revoked when the request asks for it. The answer is the profile as it
     stands afterwards, so the client can tell a pending change (``pending_email``) from an applied one.
+    An address another account holds is answered exactly like a free one, so the request does not reveal
+    which addresses are registered; that account's holder is emailed a notice instead of a confirmation link.
 
     Args:
         request: The incoming request, read by the rate limiter.
@@ -201,15 +204,17 @@ def edit_profile_email(
         token_user_id: User ID from access token.
         token_session_id: Session ID of the caller, preserved when other sessions are revoked.
         step_up_store: Step-up lockout store.
+        state: The platform state provider, for the notice cooldown.
         db: Database session.
 
     Returns:
         The profile after the request; its ``version`` is also sent as the ETag.
 
     Raises:
-        HTTPException: 401 if step-up verification fails, 409 if another account uses the address.
+        HTTPException: 401 if step-up verification fails; 409 if another account uses the address and the server
+            cannot send mail.
     """
-    profile = profile_service.change_email(token_user_id, email_change, token_session_id, step_up_store, db)
+    profile = profile_service.change_email(token_user_id, email_change, token_session_id, step_up_store, state, db)
     core_etag.set_etag(response, profile.version)
     return profile
 

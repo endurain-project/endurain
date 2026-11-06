@@ -59,5 +59,11 @@
   "test_email.greeting": "Bonjour {name},",
   "test_email.intro": "Ceci est un e-mail de test envoyé depuis les paramètres du serveur Endurain. Si vous le lisez, Endurain peut envoyer des e-mails via votre serveur SMTP.",
   "test_email.detail_label": "Serveur SMTP :",
-  "test_email.ignore": "Aucune action n'est nécessaire."
+  "test_email.ignore": "Aucune action n'est nécessaire.",
+
+  "email_change_taken.subject": "Endurain - Quelqu'un a essayé d'utiliser votre adresse e-mail",
+  "email_change_taken.heading": "Quelqu'un a essayé d'utiliser votre adresse e-mail",
+  "email_change_taken.greeting": "Bonjour {name},",
+  "email_change_taken.intro": "Quelqu'un a demandé à remplacer l'adresse e-mail d'un autre compte Endurain par la vôtre. Rien n'a été modifié et votre compte n'est pas affecté.",
+  "email_change_taken.ignore": "Si ce n'était pas vous, vous pouvez ignorer cet e-mail. Aucune action n'est nécessaire."
 }

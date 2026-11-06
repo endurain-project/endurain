@@ -383,13 +383,14 @@ class TestEditProfileEmail:
 
     @patch("modules.users.users_profile.service.users_privacy_settings_integration.get_privacy_settings")
     @patch("modules.users.users_profile.service.user_integrations_integration.get_user_integrations")
-    @patch("modules.users.users_profile.service.sign_up_tokens_integration.request_email_change", return_value=True)
-    @patch("modules.users.users_profile.service.users_integration.require_email_available")
+    @patch(
+        "modules.users.users_profile.service.sign_up_tokens_integration.request_self_service_email_change",
+        return_value=True,
+    )
     @patch("modules.users.users_profile.service.users_integration.require_user")
     def test_success_runs_the_step_up_and_answers_with_the_profile_and_its_etag(
         self,
         mock_require,
-        _available,
         mock_request,
         mock_integrations,
         mock_privacy,
@@ -413,7 +414,7 @@ class TestEditProfileEmail:
         mock_auth_services.verify_step_up.assert_called_once()
         assert mock_request.call_args.args[:3] == (1, "new@example.com", "test@example.com")
 
-    @patch("modules.users.users_profile.service.sign_up_tokens_integration.request_email_change")
+    @patch("modules.users.users_profile.service.sign_up_tokens_integration.request_self_service_email_change")
     def test_step_up_fails(self, mock_request, profile_client, mock_auth_services):
         mock_auth_services.verify_step_up.side_effect = HTTPException(status_code=401, detail="Invalid credentials")
 
@@ -423,22 +424,6 @@ class TestEditProfileEmail:
         )
 
         assert response.status_code == 401
-        mock_request.assert_not_called()
-
-    @patch("modules.users.users_profile.service.sign_up_tokens_integration.request_email_change")
-    @patch(
-        "modules.users.users_profile.service.users_integration.require_email_available",
-        side_effect=core_exceptions.ConflictError("taken"),
-    )
-    @patch("modules.users.users_profile.service.users_integration.require_user")
-    def test_an_address_of_another_account_is_a_conflict(self, mock_require, _available, mock_request, profile_client):
-        mock_require.return_value = _make_user_mock()
-
-        response = profile_client.post(
-            PREFIX + "/email/change", json={"email": "taken@example.com", "current_password": "pw"}
-        )
-
-        assert response.status_code == 409
         mock_request.assert_not_called()
 
     def test_the_address_must_be_valid(self, profile_client):

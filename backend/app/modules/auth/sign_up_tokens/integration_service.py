@@ -29,6 +29,27 @@ def request_email_change(user_id: int, email: str, previous_email: str, db: Sess
     return sign_up_service.request_email_change(user_id, email, previous_email, db)
 
 
+def request_self_service_email_change(
+    user_id: int, email: str, previous_email: str, state: StateProvider, db: Session
+) -> bool:
+    """Stage a user's own pending email change with the caller's transaction.
+
+    A free address is mailed a confirmation link; an address another account holds is not, and its holder is told
+    instead. Both are staged alike.
+
+    Args:
+        user_id: The user whose address changes.
+        email: The pending address.
+        previous_email: The user's current address, which the confirmation replaces.
+        state: The platform state provider, for the holder's notice cooldown.
+        db: Database session.
+
+    Returns:
+        True when the change was staged, False when mail is not configured and nothing was staged.
+    """
+    return sign_up_service.request_self_service_email_change(user_id, email, previous_email, state, db)
+
+
 def get_pending_email_changes(
     user_ids: Collection[int], db: Session
 ) -> dict[int, sign_up_contracts.PendingEmailChange]:

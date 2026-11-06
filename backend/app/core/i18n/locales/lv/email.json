@@ -59,5 +59,11 @@
   "test_email.greeting": "Sveiki, {name}!",
   "test_email.intro": "Šis ir testa e-pasts, kas nosūtīts no Endurain servera iestatījumiem. Ja jūs to lasāt, Endurain var sūtīt e-pastus, izmantojot jūsu SMTP serveri.",
   "test_email.detail_label": "SMTP serveris:",
-  "test_email.ignore": "Nekādas darbības nav nepieciešamas."
+  "test_email.ignore": "Nekādas darbības nav nepieciešamas.",
+
+  "email_change_taken.subject": "Endurain - Kāds mēģināja izmantot jūsu e-pasta adresi",
+  "email_change_taken.heading": "Kāds mēģināja izmantot jūsu e-pasta adresi",
+  "email_change_taken.greeting": "Sveiki, {name}!",
+  "email_change_taken.intro": "Kāds lūdza citam Endurain kontam nomainīt e-pasta adresi uz jūsējo. Nekas netika mainīts, un jūsu konts nav ietekmēts.",
+  "email_change_taken.ignore": "Ja tas nebijāt jūs, varat ignorēt šo e-pasta ziņojumu. Nekādas darbības nav nepieciešamas."
 }

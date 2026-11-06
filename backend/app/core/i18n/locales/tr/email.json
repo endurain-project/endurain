@@ -59,5 +59,11 @@
   "test_email.greeting": "Merhaba {name},",
   "test_email.intro": "Bu, Endurain sunucu ayarlarından gönderilen bir test e-postasıdır. Bunu okuyorsanız Endurain, SMTP sunucunuz üzerinden e-posta gönderebilir.",
   "test_email.detail_label": "SMTP sunucusu:",
-  "test_email.ignore": "Herhangi bir işlem gerekmez."
+  "test_email.ignore": "Herhangi bir işlem gerekmez.",
+
+  "email_change_taken.subject": "Endurain - Birisi e-posta adresinizi kullanmaya çalıştı",
+  "email_change_taken.heading": "Birisi e-posta adresinizi kullanmaya çalıştı",
+  "email_change_taken.greeting": "Merhaba {name},",
+  "email_change_taken.intro": "Birisi başka bir Endurain hesabının e-posta adresinin sizinkiyle değiştirilmesini istedi. Hiçbir şey değişmedi ve hesabınız etkilenmedi.",
+  "email_change_taken.ignore": "Bu işlemi siz yapmadıysanız bu e-postayı yok sayabilirsiniz. Herhangi bir işlem yapmanız gerekmez."
 }

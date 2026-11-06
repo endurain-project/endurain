@@ -115,3 +115,21 @@ def publish_sign_up_existing_account(user_id: int, db: Session) -> None:
         db=db,
         schema_version=payload.SCHEMA_VERSION,
     )
+
+
+def publish_email_change_address_taken(user_id: int, db: Session) -> None:
+    """Stage ``auth.email_change_address_taken`` for the holder of an address another account asked to move to.
+
+    Args:
+        user_id: The user who holds the address.
+        db: The producer's DB session (see :func:`publish_sign_up_verification_requested`).
+    """
+    payload = sign_up_tokens_events.SignUpUserPayload(user_id=user_id)
+    platform_publisher.publish_on_commit(
+        sign_up_tokens_events.EMAIL_CHANGE_ADDRESS_TAKEN,
+        payload.model_dump(),
+        source="api:change_email",
+        metadata={core_event_metadata.META_USER_ID: user_id},
+        db=db,
+        schema_version=payload.SCHEMA_VERSION,
+    )

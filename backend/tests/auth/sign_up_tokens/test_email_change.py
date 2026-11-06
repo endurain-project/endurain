@@ -609,3 +609,106 @@ class TestSignUpPrehijack:
         assert db.get(users_models.Users, 7).active is True
         sessions.delete_sessions_by_user.assert_called_once_with(7, db)
         mfa.clear_pending_mfa_for_user.assert_called_once_with(7)
+
+
+_VERIFY_EVENT = "auth.email_change_verification_requested"
+_TAKEN_EVENT = "auth.email_change_address_taken"
+
+
+class TestSelfServiceEmailChange:
+    """A held address is staged and read back like a free one; only the holder is mailed, and never a link."""
+
+    @staticmethod
+    def _request(db, email, state=None):
+        with patch(_PUBLISH) as publish:
+            result = sign_up_service.request_self_service_email_change(
+                7, email, "user7@example.com", state or MemoryState(), db
+            )
+        db.commit()
+        return result, publish
+
+    @staticmethod
+    def _events(publish):
+        return [(call.args[0], call.args[1]) for call in publish.call_args_list]
+
+    def test_a_free_address_is_staged_and_mailed_a_link(self, db, mail_configured):
+        result, publish = self._request(db, "free@example.com")
+
+        assert result is True
+        assert sign_up_service.get_pending_email_changes([7], db)[7].email == "free@example.com"
+        assert self._events(publish) == [(_VERIFY_EVENT, {"user_id": 7})]
+
+    def test_a_held_address_is_staged_the_same_way_and_only_its_holder_is_told(self, db, mail_configured):
+        result, publish = self._request(db, "user8@example.com")
+
+        assert result is True
+        pending = sign_up_service.get_pending_email_changes([7], db)[7]
+        assert pending.email == "user8@example.com"
+        assert self._events(publish) == [(_TAKEN_EVENT, {"user_id": 8})]
+
+    def test_a_second_attempt_inside_the_cooldown_answers_the_same_and_tells_nobody(self, db, mail_configured):
+        state = MemoryState()
+        first, first_publish = self._request(db, "user8@example.com", state)
+        second, second_publish = self._request(db, "user8@example.com", state)
+
+        assert first is second is True
+        assert sign_up_service.get_pending_email_changes([7], db)[7].email == "user8@example.com"
+        assert len(first_publish.call_args_list) == 1
+        second_publish.assert_not_called()
+
+    def test_an_unreachable_state_store_answers_the_same_and_tells_nobody(self, db, mail_configured):
+        broken = MagicMock()
+        broken.set_if_absent.side_effect = StateBackendUnavailableError("down")
+
+        result, publish = self._request(db, "user8@example.com", broken)
+
+        assert result is True
+        assert sign_up_service.get_pending_email_changes([7], db)[7].email == "user8@example.com"
+        publish.assert_not_called()
+
+    def test_without_mail_nothing_is_staged(self, db):
+        with patch(f"{_SERVICE}.server_settings_integration.is_mail_configured", return_value=False):
+            result, publish = self._request(db, "user8@example.com")
+
+        assert result is False
+        assert sign_up_service.get_pending_email_changes([7], db) == {}
+        publish.assert_not_called()
+
+    def test_resending_a_held_address_tells_the_holder_and_never_mails_a_link(self, db, mail_configured):
+        _add_token(db, token_id="a", token="a", email="user8@example.com", previous_email="user7@example.com")
+        state = MemoryState()
+        with patch(_PUBLISH) as publish:
+            sign_up_service.request_email_change_resend(7, state, db)
+            sign_up_service.request_email_change_resend(7, state, db)
+
+        assert self._events(publish) == [(_TAKEN_EVENT, {"user_id": 8})]
+
+    def test_a_request_and_a_resend_share_the_holders_cooldown(self, db, mail_configured):
+        state = MemoryState()
+        self._request(db, "user8@example.com", state)
+        with patch(_PUBLISH) as publish:
+            sign_up_service.request_email_change_resend(7, state, db)
+
+        publish.assert_not_called()
+
+    def test_no_confirmation_link_is_made_for_an_address_another_account_holds(self, db):
+        _add_token(db, token_id="a", token="a", email="user8@example.com", previous_email="user7@example.com")
+
+        assert sign_up_service.prepare_email_change_verification_email(7, "event-1", _HOST, db) is None
+
+    def test_a_link_is_still_made_for_a_free_address(self, db):
+        _add_token(db, token_id="a", token="a", email="free@example.com", previous_email="user7@example.com")
+
+        message = sign_up_service.prepare_email_change_verification_email(7, "event-1", _HOST, db)
+
+        assert message is not None and message[0] == "free@example.com"
+
+    def test_the_account_never_moves_to_a_held_address(self, db, mail_configured):
+        import modules.users.users.service as users_service
+
+        self._request(db, "user8@example.com")
+
+        with pytest.raises(core_exceptions.ConflictError):
+            users_service.stage_confirmed_email_change(7, "user8@example.com", db)
+        db.rollback()
+        assert db.get(users_models.Users, 7).email == "user7@example.com"

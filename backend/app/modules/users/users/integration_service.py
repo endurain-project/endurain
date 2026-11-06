@@ -325,20 +325,6 @@ def stage_email_change(user_id: int, email: str, db: Session) -> bool:
     return users_service.stage_email_change(user_id, email, db)
 
 
-def require_email_available(user_id: int, email: str, db: Session) -> None:
-    """Refuse an email address that another account uses.
-
-    Args:
-        user_id: The user who wants the address.
-        email: The address, in any case.
-        db: Database session.
-
-    Raises:
-        ConflictError: If another account uses the address.
-    """
-    users_service.require_email_available(user_id, email, db)
-
-
 def stage_confirmed_email_change(user_id: int, email: str, db: Session) -> None:
     """Stage a confirmed email address for a user and mark it verified.
 

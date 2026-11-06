@@ -59,5 +59,11 @@
   "test_email.greeting": "Γεια σου {name},",
   "test_email.intro": "Αυτό είναι ένα δοκιμαστικό email που στάλθηκε από τις ρυθμίσεις διακομιστή του Endurain. Αν το διαβάζετε, το Endurain μπορεί να στείλει email μέσω του διακομιστή SMTP σας.",
   "test_email.detail_label": "Διακομιστής SMTP:",
-  "test_email.ignore": "Δεν απαιτείται καμία ενέργεια."
+  "test_email.ignore": "Δεν απαιτείται καμία ενέργεια.",
+
+  "email_change_taken.subject": "Endurain - Κάποιος προσπάθησε να χρησιμοποιήσει τη διεύθυνση email σας",
+  "email_change_taken.heading": "Κάποιος προσπάθησε να χρησιμοποιήσει τη διεύθυνση email σας",
+  "email_change_taken.greeting": "Γεια σου {name},",
+  "email_change_taken.intro": "Κάποιος ζήτησε να αλλάξει η διεύθυνση email ενός άλλου λογαριασμού Endurain σε τη δική σας. Δεν άλλαξε τίποτα και ο λογαριασμός σας δεν επηρεάζεται.",
+  "email_change_taken.ignore": "Αν δεν ήσασταν εσείς, μπορείτε να αγνοήσετε αυτό το email. Δεν απαιτείται καμία ενέργεια."
 }

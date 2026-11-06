@@ -2184,6 +2184,8 @@ export interface paths {
          *     cancels a pending change. When the server cannot send mail the address changes at once, unverified.
          *     The user's other sessions are revoked when the request asks for it. The answer is the profile as it
          *     stands afterwards, so the client can tell a pending change (``pending_email``) from an applied one.
+         *     An address another account holds is answered exactly like a free one, so the request does not reveal
+         *     which addresses are registered; that account's holder is emailed a notice instead of a confirmation link.
          */
         post: operations["edit_profile_email"];
         /**

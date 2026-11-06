@@ -188,3 +188,35 @@ class TestPublishers:
         assert mock_publish.call_args.args[1] == {"user_id": 4}
         assert mock_publish.call_args.kwargs["db"] is db
         assert "commit" not in mock_publish.call_args.kwargs
+
+
+class TestAddressTakenHandler:
+    @patch("modules.auth.sign_up_tokens.subscribers.core_mail.send_email", return_value=True)
+    @patch("modules.auth.sign_up_tokens.subscribers.sign_up_service.prepare_email_change_address_taken_email")
+    @patch("modules.auth.sign_up_tokens.subscribers.platform_runtime.get_active_platform")
+    @patch("modules.auth.sign_up_tokens.subscribers.core_database.SessionLocal")
+    def test_the_notice_goes_to_the_holder(self, _session_local, get_platform, prepare, send_email):
+        prepare.return_value = ("holder@example.com", "subject", "<p>html</p>", "text")
+
+        sign_up_subscribers.send_email_change_address_taken_email_for_event(
+            _event(sign_up_events.EMAIL_CHANGE_ADDRESS_TAKEN, {"user_id": 8})
+        )
+
+        assert prepare.call_args.args[0] == 8
+        send_email.assert_called_once_with(
+            get_platform.return_value.mail, "holder@example.com", "subject", "<p>html</p>", "text"
+        )
+
+
+class TestAddressTakenPublisher:
+    @patch("modules.auth.sign_up_tokens.event_publishers.platform_publisher.publish_on_commit")
+    def test_the_payload_carries_the_holder_id_only(self, mock_publish):
+        db = MagicMock()
+
+        sign_up_publishers.publish_email_change_address_taken(8, db)
+
+        assert (mock_publish.call_args.args[0], mock_publish.call_args.args[1]) == (
+            sign_up_events.EMAIL_CHANGE_ADDRESS_TAKEN,
+            {"user_id": 8},
+        )
+        assert mock_publish.call_args.kwargs["db"] is db

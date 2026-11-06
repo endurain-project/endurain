@@ -15,6 +15,9 @@ SIGN_UP_VERIFICATION_REQUESTED = "auth.sign_up_verification_requested"
 # Published after an email change was requested and the pending address must confirm it.
 EMAIL_CHANGE_VERIFICATION_REQUESTED = "auth.email_change_verification_requested"
 
+# Published when someone asked to move an account to this user's email address, so its holder can be told.
+EMAIL_CHANGE_ADDRESS_TAKEN = "auth.email_change_address_taken"
+
 # Published after a pending email change was confirmed, so the previous address can be told.
 EMAIL_CHANGED = "auth.email_changed"
 
@@ -29,7 +32,7 @@ SIGN_UP_EXISTING_ACCOUNT = "auth.sign_up_existing_account"
 
 
 class SignUpUserPayload(VersionedPayload):
-    """Validated payload for the verification, email-change verification, approved and existing-account events.
+    """Validated payload for the events that email one user: verification, approval and notices.
 
     Attributes:
         user_id: The user who receives the email.

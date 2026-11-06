@@ -21,6 +21,7 @@ _STEP_UP = "modules.auth.account_security.integration_service.verify_step_up"
 _OTHER_SESSIONS = "modules.auth.account_security.integration_service.delete_other_user_sessions"
 _ALL_SESSIONS = "modules.auth.account_security.integration_service.delete_all_user_sessions"
 _EVENT = "auth.email_change_verification_requested"
+_TAKEN_EVENT = "auth.email_change_address_taken"
 _PROFILE = "modules.users.users_profile.service.get_profile"
 
 
@@ -64,12 +65,12 @@ def _unused_tokens(db, user_id=7):
     return db.query(sign_up_models.SignUpToken).filter_by(user_id=user_id, used=False).all()
 
 
-def _change_email(db, email, *, user_id=7, revoke_other_sessions=False):
+def _change_email(db, email, *, user_id=7, revoke_other_sessions=False, state=None):
     change = users_schema.EmailChange(
         email=email, current_password="pw", mfa_code=None, revoke_other_sessions=revoke_other_sessions
     )
     with patch(_STEP_UP), patch(_OTHER_SESSIONS) as other_sessions, patch(_PROFILE):
-        profile_service.change_email(user_id, change, "sid", MagicMock(), db)
+        profile_service.change_email(user_id, change, "sid", MagicMock(), state or MemoryState(), db)
     return other_sessions
 
 
@@ -142,11 +143,29 @@ class TestSelfServiceEmailChange:
         assert _user(db).email_verified is True
         other_sessions.assert_not_called()
 
-    def test_an_address_of_another_account_is_a_conflict_and_stages_nothing(self, db, mail, publish):
+    def test_an_address_of_another_account_is_pending_like_a_free_one_and_its_holder_is_told(self, db, mail, publish):
+        _change_email(db, "User8@example.com")
+
+        assert [(t.email, t.previous_email) for t in _unused_tokens(db)] == [("user8@example.com", "user7@example.com")]
+        assert _user(db).email == "user7@example.com"
+        assert _user(db, 8).email == "user8@example.com"
+        publish.assert_called_once()
+        assert (publish.call_args.args[0], publish.call_args.args[1]) == (_TAKEN_EVENT, {"user_id": 8})
+
+    def test_a_second_attempt_inside_the_hour_answers_the_same(self, db, mail, publish):
+        state = MemoryState()
+
+        _change_email(db, "user8@example.com", state=state)
+        _change_email(db, "user8@example.com", state=state)
+
+        assert [t.email for t in _unused_tokens(db)] == ["user8@example.com"]
+        publish.assert_called_once()
+
+    def test_a_taken_address_without_mail_is_a_conflict(self, db, no_mail, publish):
         with pytest.raises(core_exceptions.ConflictError):
             _change_email(db, "user8@example.com")
 
-        assert _unused_tokens(db) == []
+        assert _user(db).email == "user7@example.com"
         publish.assert_not_called()
 
     def test_without_mail_the_address_changes_at_once_unverified_and_tokens_are_revoked(self, db, publish):
@@ -178,7 +197,7 @@ class TestChangeEmailAnswersWithTheProfile:
             patch(_OTHER_SESSIONS),
             patch(_PROFILE) as get_profile,
         ):
-            result = profile_service.change_email(7, change, "sid", MagicMock(), db)
+            result = profile_service.change_email(7, change, "sid", MagicMock(), MemoryState(), db)
         return result, get_profile
 
     def test_a_pending_change_returns_the_profile_read_after_the_commit(self, db, mail, publish):

@@ -329,3 +329,34 @@ class TestGetEmailChangedEmail:
 
     def test_mask_keeps_the_first_character_and_the_domain(self):
         assert email_messages.mask_email("bob@mail.example.org") == "b***@mail.example.org"
+
+
+class TestGetEmailChangeAddressTakenEmail:
+    """Tests for get_email_change_address_taken_email."""
+
+    def test_names_no_address_and_has_no_link_to_follow(self):
+        subject, html_body, text_body = email_messages.get_email_change_address_taken_email(
+            "Alice", _make_service(), locale="en"
+        )
+
+        assert subject == "Endurain - Someone tried to use your email address"
+        assert "Hi Alice," in text_body
+        assert "/login" not in html_body + text_body
+        assert "token=" not in html_body + text_body
+
+    def test_html_escapes_the_name(self):
+        _, html_body, _ = email_messages.get_email_change_address_taken_email(
+            "<script>x</script>", _make_service(), locale="en"
+        )
+
+        assert "<script>x</script>" not in html_body
+
+    def test_every_locale_has_a_translated_subject(self):
+        import core.i18n as core_i18n
+
+        english = core_i18n.t("email_change_taken.subject", "en")
+        for locale in core_i18n.SUPPORTED_LOCALES:
+            subject, _, _ = email_messages.get_email_change_address_taken_email("Alice", _make_service(), locale=locale)
+            assert subject.startswith("Endurain")
+            if locale != "en":
+                assert subject != english

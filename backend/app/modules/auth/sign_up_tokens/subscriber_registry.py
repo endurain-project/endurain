@@ -58,4 +58,9 @@ DURABLE_SUBSCRIBER_NETS: tuple[DurableSubscriberNet, ...] = (
         None,
         exempt_reason="The notice is a courtesy to the address owner; the account is unchanged.",
     ),
+    DurableSubscriberNet(
+        sign_up_tokens_subscribers.EMAIL_CHANGE_ADDRESS_TAKEN_EMAIL_SUBSCRIBER_ID,
+        None,
+        exempt_reason="The notice is a courtesy to the address holder; nothing changed on either account.",
+    ),
 )

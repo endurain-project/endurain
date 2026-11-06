@@ -59,5 +59,11 @@
   "test_email.greeting": "您好 {name}，",
   "test_email.intro": "这是一封从 Endurain 服务器设置发送的测试邮件。如果您看到了这封邮件，说明 Endurain 可以通过您的 SMTP 服务器发送邮件。",
   "test_email.detail_label": "SMTP 服务器：",
-  "test_email.ignore": "无需任何操作。"
+  "test_email.ignore": "无需任何操作。",
+
+  "email_change_taken.subject": "Endurain - 有人尝试使用您的电子邮件地址",
+  "email_change_taken.heading": "有人尝试使用您的电子邮件地址",
+  "email_change_taken.greeting": "您好 {name}，",
+  "email_change_taken.intro": "有人请求将另一个 Endurain 账户的电子邮件地址更改为您的地址。未做任何更改，您的账户不受影响。",
+  "email_change_taken.ignore": "如果这不是您本人的操作，请忽略此邮件，无需采取任何操作。"
 }

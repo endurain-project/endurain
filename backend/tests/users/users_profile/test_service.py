@@ -52,7 +52,7 @@ class TestEdits:
 
 class TestChangeEmail:
     @staticmethod
-    def _change(identity, store, mock_db, *, revoke_other_sessions=True):
+    def _change(identity, store, mock_db, *, revoke_other_sessions=True, state=None):
         import modules.users.users.schema as users_schema
 
         change = users_schema.EmailChange(
@@ -74,7 +74,7 @@ class TestChangeEmail:
             ),
             patch(f"{_MODULE}.get_profile"),
         ):
-            profile_service.change_email(1, change, "sid-1", store, mock_db)
+            profile_service.change_email(1, change, "sid-1", store, state or MagicMock(), mock_db)
 
     @staticmethod
     def _users(mock_users, *, current="user1@example.com"):
@@ -87,24 +87,28 @@ class TestChangeEmail:
         identity = MagicMock()
         store = MagicMock()
         sign_up = MagicMock()
-        sign_up.request_email_change.return_value = True
+        sign_up.request_self_service_email_change.return_value = True
         order = MagicMock()
         order.attach_mock(identity.verify_step_up, "step_up")
-        order.attach_mock(mock_users.require_email_available, "available")
-        order.attach_mock(sign_up.request_email_change, "request")
+        order.attach_mock(sign_up.request_self_service_email_change, "request")
         order.attach_mock(identity.delete_other_user_sessions, "revoke")
         order.attach_mock(mock_db.commit, "commit")
 
         with patch(f"{_MODULE}.sign_up_tokens_integration", sign_up):
             self._change(identity, store, mock_db)
 
-        assert [call[0] for call in order.mock_calls] == ["step_up", "available", "request", "revoke", "commit"]
+        assert [call[0] for call in order.mock_calls] == ["step_up", "request", "revoke", "commit"]
         identity.delete_other_user_sessions.assert_called_once_with(1, "sid-1")
         verification = identity.verify_step_up.call_args.args
         assert (verification[0].current_password, verification[0].mfa_code) == ("pw", "123456")
         assert verification[1:] == (1, "sid-1", identity_providers_constants.StepUpAction.EMAIL_CHANGE, store)
-        mock_users.require_email_available.assert_called_once_with(1, "new@example.com", mock_db)
-        sign_up.request_email_change.assert_called_once_with(1, "new@example.com", "user1@example.com", mock_db)
+        sign_up.request_self_service_email_change.assert_called_once()
+        assert sign_up.request_self_service_email_change.call_args.args[:3] == (
+            1,
+            "new@example.com",
+            "user1@example.com",
+        )
+        assert sign_up.request_self_service_email_change.call_args.args[4] is mock_db
         mock_users.stage_email_change.assert_not_called()
 
     @patch(f"{_MODULE}.users_integration")
@@ -115,20 +119,6 @@ class TestChangeEmail:
         with pytest.raises(core_exceptions.PermissionDeniedError):
             self._change(identity, MagicMock(), mock_db)
 
-        mock_users.require_email_available.assert_not_called()
-        mock_db.commit.assert_not_called()
-
-    @patch(f"{_MODULE}.users_integration")
-    def test_a_taken_address_rolls_back_and_stages_nothing(self, mock_users, mock_db):
-        self._users(mock_users)
-        mock_users.require_email_available.side_effect = core_exceptions.ConflictError("taken")
-        sign_up = MagicMock()
-
-        with patch(f"{_MODULE}.sign_up_tokens_integration", sign_up), pytest.raises(core_exceptions.ConflictError):
-            self._change(MagicMock(), MagicMock(), mock_db)
-
-        sign_up.request_email_change.assert_not_called()
-        mock_db.rollback.assert_called_once()
         mock_db.commit.assert_not_called()
 
     @patch(f"{_MODULE}.users_integration")
@@ -154,7 +144,7 @@ class TestChangeEmail:
             self._change(identity, MagicMock(), mock_db)
 
         sign_up.revoke_pending_tokens.assert_called_once_with(1, mock_db)
-        sign_up.request_email_change.assert_not_called()
+        sign_up.request_self_service_email_change.assert_not_called()
         mock_db.commit.assert_called_once()
         identity.delete_other_user_sessions.assert_not_called()
 
@@ -162,7 +152,7 @@ class TestChangeEmail:
     def test_an_instance_that_cannot_send_mail_still_changes_the_address(self, mock_users, mock_db):
         self._users(mock_users)
         sign_up = MagicMock()
-        sign_up.request_email_change.return_value = False
+        sign_up.request_self_service_email_change.return_value = False
 
         with patch(f"{_MODULE}.sign_up_tokens_integration", sign_up):
             self._change(MagicMock(), MagicMock(), mock_db)

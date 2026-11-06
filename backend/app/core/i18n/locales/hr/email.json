@@ -59,5 +59,11 @@
   "test_email.greeting": "Bok {name},",
   "test_email.intro": "Ovo je probna e-poruka poslana iz postavki poslužitelja Endurain. Ako je čitate, Endurain može slati e-poruke putem vašeg SMTP poslužitelja.",
   "test_email.detail_label": "SMTP poslužitelj:",
-  "test_email.ignore": "Nije potrebna nikakva radnja."
+  "test_email.ignore": "Nije potrebna nikakva radnja.",
+
+  "email_change_taken.subject": "Endurain - Netko je pokušao upotrijebiti vašu adresu e-pošte",
+  "email_change_taken.heading": "Netko je pokušao upotrijebiti vašu adresu e-pošte",
+  "email_change_taken.greeting": "Bok {name},",
+  "email_change_taken.intro": "Netko je zatražio promjenu adrese e-pošte drugog Endurain računa u vašu. Ništa nije promijenjeno i vaš račun nije pogođen.",
+  "email_change_taken.ignore": "Ako to niste bili vi, možete zanemariti ovu poruku. Nije potrebna nikakva radnja."
 }

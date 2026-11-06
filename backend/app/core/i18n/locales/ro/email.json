@@ -59,5 +59,11 @@
   "test_email.greeting": "Bună, {name},",
   "test_email.intro": "Acesta este un e-mail de test trimis din setările serverului Endurain. Dacă îl citești, Endurain poate trimite e-mailuri prin serverul tău SMTP.",
   "test_email.detail_label": "Server SMTP:",
-  "test_email.ignore": "Nu este necesară nicio acțiune."
+  "test_email.ignore": "Nu este necesară nicio acțiune.",
+
+  "email_change_taken.subject": "Endurain - Cineva a încercat să folosească adresa ta de e-mail",
+  "email_change_taken.heading": "Cineva a încercat să folosească adresa ta de e-mail",
+  "email_change_taken.greeting": "Bună, {name},",
+  "email_change_taken.intro": "Cineva a cerut schimbarea adresei de e-mail a altui cont Endurain cu a ta. Nu s-a schimbat nimic, iar contul tău nu este afectat.",
+  "email_change_taken.ignore": "Dacă nu ai fost tu, poți ignora acest e-mail. Nu este necesară nicio acțiune."
 }

@@ -449,3 +449,54 @@ def get_existing_account_email(
     )
 
     return subject, html_content, text_content
+
+
+def get_email_change_address_taken_email(
+    user_name: str,
+    frontend_host: str,
+    locale: str | None = None,
+) -> tuple[str, str, str]:
+    """Build a localized notice that someone asked to move an account to the holder's email address.
+
+    Args:
+        user_name: Display name of the address holder.
+        frontend_host: Base URL of the frontend, used in the footer.
+        locale: Preferred locale code for the holder.
+
+    Returns:
+        A 3-tuple of (subject, html_content, text_content).
+    """
+    safe_name = html.escape(user_name)
+
+    def tr(key: str, **kwargs: str) -> str:
+        return core_i18n.t(key, locale, **kwargs)
+
+    subject = tr("email_change_taken.subject")
+    heading = tr("email_change_taken.heading")
+    intro = tr("email_change_taken.intro")
+    ignore = tr("email_change_taken.ignore")
+
+    body_inner = f"""
+            <p>{tr("email_change_taken.greeting", name=safe_name)}</p>
+            <p>{intro}</p>
+            <p>{ignore}</p>"""
+
+    html_content = core_email_templates.wrap_email(
+        locale=locale,
+        subject=subject,
+        heading=heading,
+        body_inner=body_inner,
+        frontend_host=frontend_host,
+        link_color=core_email_templates.LINK_COLOR_SUCCESS,
+    )
+
+    labels = core_i18n.common_labels(locale)
+    text_content = (
+        f"{tr('email_change_taken.greeting', name=user_name)}\n\n"
+        f"{intro}\n\n"
+        f"{ignore}\n\n"
+        f"{labels['best_regards']}\n"
+        f"{labels['team']}"
+    )
+
+    return subject, html_content, text_content
