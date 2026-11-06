@@ -300,6 +300,15 @@ class TestSignatureConventions:
 
 #: Writes to a versioned package that carry no ``If-Match``, with why (``optimistic-concurrency.md``, "What is not versioned").
 _UNVERSIONED_WRITES = {
+    (
+        "auth/identity_providers/router.py",
+        "put_identity_provider_icon",
+    ): "the icon is replaced whole; the response reports the parent's version",
+    (
+        "server_settings/router.py",
+        "put_login_photo",
+    ): "the photo is replaced whole; the response reports the settings version",
+    ("users/users/router.py", "put_user_image"): "the photo is replaced whole and is not a versioned record",
     ("activities/activity/router.py", "edit_activities"): "the bulk edit has no single record to name",
 }
 

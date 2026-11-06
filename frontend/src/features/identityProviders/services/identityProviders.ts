@@ -221,7 +221,7 @@ export async function uploadIdentityProviderIcon(id: number, file: File): Promis
   const formData = new FormData()
   formData.append('file', file)
   await apiFetch(`/identity-providers/${id}/icon`, {
-    method: 'POST',
+    method: 'PUT',
     body: formData,
     responseType: 'void',
   })

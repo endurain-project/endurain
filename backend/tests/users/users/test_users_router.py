@@ -263,15 +263,16 @@ class TestCreateUser:
 
 
 class TestUploadUserImage:
+    @pytest.mark.parametrize(("replaced", "status_code"), [(False, 201), (True, 200)])
     @patch(f"{_SERVICE}.require_user")
     @patch(f"{_PHOTO}.upload_photo")
-    def test_returns_the_resolved_photo_url(self, mock_upload, mock_get, client):
-        mock_upload.return_value = "1.jpg"
+    def test_returns_the_resolved_photo_url(self, mock_upload, mock_get, replaced, status_code, client):
+        mock_upload.return_value = replaced
         mock_get.return_value = _user(1, photo_path="/users/1/photo?t=x")
 
-        response = client.post("/users/1/photo", files={"file": ("avatar.jpg", b"fake-image-data", "image/jpeg")})
+        response = client.put("/users/1/photo", files={"file": ("avatar.jpg", b"fake-image-data", "image/jpeg")})
 
-        assert response.status_code == 201
+        assert response.status_code == status_code
         assert response.json() == {"photo_path": "/users/1/photo?t=x"}
         mock_upload.assert_called_once()
         assert mock_upload.call_args.kwargs == {"audit": True}

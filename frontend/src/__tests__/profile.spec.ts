@@ -231,7 +231,7 @@ describe('profile service requests', () => {
 
     expect(apiFetch).toHaveBeenCalledWith(
       '/profile/photo',
-      expect.objectContaining({ method: 'POST', timeoutMs: 0 }),
+      expect.objectContaining({ method: 'PUT', timeoutMs: 0 }),
     )
     expect(body).toBeInstanceOf(FormData)
     const uploaded = (body as FormData).get('file')

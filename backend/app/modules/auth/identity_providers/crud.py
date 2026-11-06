@@ -198,7 +198,7 @@ def get_ids_with_icon(idp_ids: list[int], db: Session) -> set[int]:
     return set(db.execute(stmt).scalars().all())
 
 
-def set_icon_uploaded(idp_id: int, is_set: bool, db: Session) -> int | None:
+def set_icon_uploaded(idp_id: int, is_set: bool, db: Session) -> tuple[int, bool] | None:
     """Stage whether a provider has an uploaded icon.
 
     Args:
@@ -207,7 +207,8 @@ def set_icon_uploaded(idp_id: int, is_set: bool, db: Session) -> int | None:
         db: Database session.
 
     Returns:
-        The provider version the change was staged as, which identifies the icon, or ``None`` when the row is missing.
+        The provider version the change was staged as, which identifies the icon, and whether the provider had an
+        icon before; ``None`` when the row is missing.
     """
     row = db.execute(
         select(identity_provider_models.IdentityProvider)
@@ -216,12 +217,13 @@ def set_icon_uploaded(idp_id: int, is_set: bool, db: Session) -> int | None:
     ).scalar_one_or_none()
     if row is None:
         return None
+    had_icon = row.icon_uploaded
     row.icon_uploaded = is_set
     # A replaced icon leaves the flag as it was; flagging it forces the UPDATE that bumps the version,
     # which is the icon's entity tag.
     flag_modified(row, "icon_uploaded")
     db.flush()
-    return row.version
+    return row.version, had_icon
 
 
 def stage_reencrypt_batch_providers(after_id: int, limit: int, db: Session) -> core_key_rotation.BatchResult:

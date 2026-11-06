@@ -85,24 +85,28 @@ def read_users_me(
     return profile
 
 
-@router.post(
+@router.put(
     "/photo",
     status_code=status.HTTP_201_CREATED,
     response_model=users_schema.UserPhotoRead,
+    responses=core_openapi_contract.replaced_response(users_schema.UserPhotoRead),
     dependencies=[Security(auth_dependencies.check_scopes, scopes=["profile"])],
     openapi_extra=core_middleware_body_limit.upload_limit(
         core_file_uploads.max_bytes_for(core_file_uploads.UploadKind.IMAGE)
     ),
 )
 @core_rate_limit.limiter.limit(core_rate_limit.UPLOAD)
-def upload_profile_image(
+def put_profile_image(
     request: Request,
     file: UploadFile,
     token_user_id: auth_dependencies.CurrentUserId,
     storage: core_dependencies.Storage,
     db: core_dependencies.DbSession,
+    response: Response,
 ) -> users_schema.UserPhotoRead:
-    """Upload user profile image with security validation.
+    """Set the authenticated user's profile image, with security validation.
+
+    Answers 201 when the user had no photo and 200 when it replaced one.
 
     Args:
         request: The incoming request, read by the rate limiter.
@@ -110,11 +114,14 @@ def upload_profile_image(
         token_user_id: User ID from access token.
         storage: The platform storage provider.
         db: Database session.
+        response: The response, whose status is 200 when a photo was replaced.
 
     Returns:
         The servable URL of the new photo.
     """
-    users_integration.upload_user_photo(token_user_id, file, storage, db)
+    replaced = users_integration.upload_user_photo(token_user_id, file, storage, db)
+    if replaced:
+        response.status_code = status.HTTP_200_OK
     return users_schema.UserPhotoRead(photo_path=users_integration.require_user(token_user_id, db).photo_path)
 
 

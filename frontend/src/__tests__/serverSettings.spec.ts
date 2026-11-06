@@ -300,7 +300,7 @@ describe('server settings service requests', () => {
 
     expect(apiFetch).toHaveBeenCalledWith(
       '/server-settings/login-photo',
-      expect.objectContaining({ method: 'POST' }),
+      expect.objectContaining({ method: 'PUT' }),
     )
     expect(vi.mocked(apiFetch).mock.calls[0]?.[1]).not.toHaveProperty('responseType')
     expect(capturedBody).toBeInstanceOf(FormData)

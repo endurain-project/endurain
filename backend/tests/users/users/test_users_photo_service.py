@@ -151,19 +151,33 @@ class TestUploadPhoto:
     @patch(_CRUD)
     def test_stores_the_blob_and_records_the_key(self, mock_crud, mock_db):
         mock_crud.get_user_by_id.return_value = MagicMock()
+        mock_crud.replace_photo_key.return_value = None
         storage = MagicMock()
 
         with patch(
             "modules.users.users.photo_service.core_file_uploads.read_validated_upload_sync",
             return_value=_PNG,
         ):
-            key = users_photo_service.upload_photo(7, _upload("Avatar.JPG"), storage, mock_db)
+            replaced = users_photo_service.upload_photo(7, _upload("Avatar.JPG"), storage, mock_db)
 
-        assert key == "7.jpg"
+        assert replaced is False
         area, key, data, content_type = storage.save.call_args.args
         assert (area, key, content_type) == ("user_images", "7.jpg", "image/jpeg")
         assert not images.has_metadata(data)
         assert mock_crud.replace_photo_key.call_args.args[:2] == (7, "7.jpg")
+
+    @patch(_CRUD)
+    def test_a_photo_that_replaces_one_says_so(self, mock_crud, mock_db):
+        mock_crud.get_user_by_id.return_value = MagicMock()
+        mock_crud.replace_photo_key.return_value = "7.png"
+
+        with patch(
+            "modules.users.users.photo_service.core_file_uploads.read_validated_upload_sync",
+            return_value=_PNG,
+        ):
+            replaced = users_photo_service.upload_photo(7, _upload("Avatar.JPG"), MagicMock(), mock_db)
+
+        assert replaced is True
 
     @patch(_CRUD)
     def test_unknown_user_is_not_found(self, mock_crud, mock_db):
@@ -280,9 +294,8 @@ class TestUploadPhotoImageFormats:
         storage = MagicMock()
         upload = UploadFile(io.BytesIO(images.webp_with_exif()), filename="me.webp")
 
-        key = users_photo_service.upload_photo(7, upload, storage, mock_db)
+        users_photo_service.upload_photo(7, upload, storage, mock_db)
 
-        assert key == "7.webp"
         _area, _key, data, content_type = storage.save.call_args.args
         assert content_type == "image/webp"
         assert not images.has_metadata(data)

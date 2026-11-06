@@ -359,7 +359,7 @@ def upload_user_photo(
     file: UploadFile,
     storage: platform_providers.StorageProvider,
     db: Session,
-) -> str:
+) -> bool:
     """Validate and store a user's photo, record its key and commit.
 
     Args:

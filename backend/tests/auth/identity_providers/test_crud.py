@@ -139,9 +139,9 @@ def test_set_icon_uploaded_flags_the_row_and_returns_its_version(mock_db):
     mock_db.execute.return_value.scalar_one_or_none.return_value = row
 
     with patch.object(idp_crud, "flag_modified") as flag_modified:
-        version = idp_crud.set_icon_uploaded(1, True, mock_db)
+        staged = idp_crud.set_icon_uploaded(1, True, mock_db)
 
-    assert version == 3
+    assert staged == (3, False)
     assert row.icon_uploaded is True
     # Re-flagging forces the UPDATE that bumps the version, which is the icon's entity tag.
     flag_modified.assert_called_once_with(row, "icon_uploaded")

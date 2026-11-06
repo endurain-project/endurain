@@ -167,7 +167,7 @@ export async function updatePrivacySettings(privacy: PrivacySettings): Promise<v
 export async function uploadProfilePhoto(file: File): Promise<void> {
   const formData = new FormData()
   formData.append('file', file, file.name)
-  await apiFetch('/profile/photo', { method: 'POST', body: formData, timeoutMs: 0 })
+  await apiFetch('/profile/photo', { method: 'PUT', body: formData, timeoutMs: 0 })
 }
 
 /**

@@ -823,11 +823,11 @@ class TestLoginPhoto:
 
         with (
             patch.object(core_file_uploads, "read_validated_upload_sync", return_value=_PNG),
-            patch.object(server_settings_service.server_settings_crud, "set_login_photo", return_value=4),
+            patch.object(server_settings_service.server_settings_crud, "set_login_photo", return_value=(4, False)),
         ):
             photo = server_settings_login_photo_service.upload_login_photo(file, storage, db)
 
-        assert photo == server_settings_schema.LoginPhotoRead(version=4)
+        assert photo == (server_settings_schema.LoginPhotoRead(version=4), False)
         assert calls == ["save", "commit"]
         # The type is detected from the bytes, not taken from the client's claim.
         area, key, data, content_type = storage.save.call_args.args
@@ -864,7 +864,7 @@ class TestLoginPhoto:
         db = MagicMock()
         db.commit.side_effect = lambda: calls.append("commit")
 
-        with patch.object(server_settings_service.server_settings_crud, "set_login_photo"):
+        with patch.object(server_settings_service.server_settings_crud, "set_login_photo", return_value=(4, False)):
             server_settings_login_photo_service.delete_login_photo(storage, db)
 
         assert calls == ["commit", "delete"]
@@ -875,7 +875,7 @@ class TestLoginPhoto:
         storage.delete.side_effect = platform_providers.StorageBackendUnavailableError("storage down")
         db = MagicMock()
 
-        with patch.object(server_settings_service.server_settings_crud, "set_login_photo"):
+        with patch.object(server_settings_service.server_settings_crud, "set_login_photo", return_value=(4, False)):
             server_settings_login_photo_service.delete_login_photo(storage, db)
 
         db.commit.assert_called_once()
@@ -885,7 +885,7 @@ class TestLoginPhoto:
         storage.delete.side_effect = TypeError("bug")
 
         with (
-            patch.object(server_settings_service.server_settings_crud, "set_login_photo"),
+            patch.object(server_settings_service.server_settings_crud, "set_login_photo", return_value=(4, False)),
             pytest.raises(TypeError),
         ):
             server_settings_login_photo_service.delete_login_photo(storage, MagicMock())
@@ -1492,7 +1492,7 @@ class TestLoginPhotoAudit:
     def test_an_upload_is_audited_without_a_file_name(self):
         with (
             patch.object(core_file_uploads, "read_validated_upload_sync", return_value=_PNG),
-            patch.object(server_settings_service.server_settings_crud, "set_login_photo", return_value=4),
+            patch.object(server_settings_service.server_settings_crud, "set_login_photo", return_value=(4, False)),
             jasil_testing.capture_audit() as audit,
         ):
             server_settings_login_photo_service.upload_login_photo(MagicMock(), MagicMock(), MagicMock())
@@ -1514,7 +1514,7 @@ class TestLoginPhotoAudit:
         storage = MagicMock()
         storage.delete.side_effect = platform_providers.StorageBackendUnavailableError("storage down")
         with (
-            patch.object(server_settings_service.server_settings_crud, "set_login_photo"),
+            patch.object(server_settings_service.server_settings_crud, "set_login_photo", return_value=(4, False)),
             jasil_testing.capture_audit() as audit,
         ):
             server_settings_login_photo_service.delete_login_photo(storage, MagicMock())
@@ -1584,7 +1584,7 @@ class TestLoginPhotoImageFormats:
     def test_a_webp_is_stored_without_its_metadata(self):
         storage = MagicMock()
 
-        with patch.object(server_settings_service.server_settings_crud, "set_login_photo", return_value=4):
+        with patch.object(server_settings_service.server_settings_crud, "set_login_photo", return_value=(4, False)):
             server_settings_login_photo_service.upload_login_photo(
                 self._upload("login.webp", images.webp_with_exif()), storage, MagicMock()
             )

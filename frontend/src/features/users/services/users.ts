@@ -243,7 +243,7 @@ export async function uploadUserPhoto(userId: number, file: File): Promise<strin
   // and generates its own storage filename, so it never reaches a path/URL.
   formData.append('file', file, file.name)
   const photo = await apiFetch<Schemas['UserPhotoRead']>(`/users/${userId}/photo`, {
-    method: 'POST',
+    method: 'PUT',
     body: formData,
     timeoutMs: 0,
   })

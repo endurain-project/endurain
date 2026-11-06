@@ -182,6 +182,31 @@ def store_photo(
 ) -> str:
     """Store a user's already validated photo, record its key and commit.
 
+    Args:
+        user_id: ID of the user whose photo is being saved.
+        extension: The image extension including the dot, one of the allowed photo extensions.
+        data: The validated image bytes.
+        storage: The platform storage provider.
+        db: Database session.
+        audit: Record ``users.user.update``; set by the administrator's route.
+
+    Returns:
+        The storage key of the saved photo.
+    """
+    return _store_photo(user_id, extension, data, storage, db, audit=audit)[0]
+
+
+def _store_photo(
+    user_id: int,
+    extension: str,
+    data: bytes,
+    storage: platform_providers.StorageProvider,
+    db: Session,
+    *,
+    audit: bool = False,
+) -> tuple[str, bool]:
+    """Store a user's already validated photo, record its key and commit.
+
     The read that checks the user ends before the blob is written, so no transaction stays open
     across the storage call. The image is re-encoded without its metadata and reduced to the photo size
     cap before it is written. The blob the row named before is removed after the commit.
@@ -196,7 +221,7 @@ def store_photo(
             personal record.
 
     Returns:
-        The storage key of the saved photo.
+        The storage key of the saved photo, and whether it replaced a photo the user had.
 
     Raises:
         NotFoundError: If the user does not exist.
@@ -222,7 +247,7 @@ def store_photo(
     logger.debug("User photo saved", extra=core_logger.context(user_id=user_id))
 
     _delete_replaced_blob(user_id, replaced, key, storage)
-    return key
+    return key, replaced is not None
 
 
 def upload_photo(
@@ -232,7 +257,7 @@ def upload_photo(
     db: Session,
     *,
     audit: bool = False,
-) -> str:
+) -> bool:
     """Validate and store a user's uploaded photo, then record its key and commit.
 
     Args:
@@ -244,7 +269,7 @@ def upload_photo(
             personal record.
 
     Returns:
-        The storage key of the saved photo.
+        Whether the photo replaced one the user had.
 
     Raises:
         NotFoundError: If the user does not exist.
@@ -264,7 +289,7 @@ def upload_photo(
         raise core_exceptions.UnsupportedMediaTypeError("Unsupported user image file type")
 
     data = core_file_uploads.read_validated_upload_sync(file, kind=core_file_uploads.UploadKind.IMAGE)
-    return store_photo(user_id, file_extension, data, storage, db, audit=audit)
+    return _store_photo(user_id, file_extension, data, storage, db, audit=audit)[1]
 
 
 def read_photo(user_id: int, token: str, storage: platform_providers.StorageProvider, db: Session) -> tuple[bytes, str]:

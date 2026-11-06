@@ -40,7 +40,7 @@ def _stage_icon_audit(idp_id: int, db: Session) -> None:
 
 def upload_icon(
     idp_id: int, read_data: Callable[[], bytes], storage: platform_providers.StorageProvider, db: Session
-) -> int:
+) -> tuple[int, bool]:
     """Save a provider's icon and mark it as set.
 
     The provider is checked before ``read_data`` is called, so an unknown provider reads no upload.
@@ -57,7 +57,7 @@ def upload_icon(
         db: Database session.
 
     Returns:
-        The provider version that identifies the icon.
+        The provider version that identifies the icon, and whether it replaced an icon the provider had.
 
     Raises:
         NotFoundError: If the provider does not exist.
@@ -78,8 +78,8 @@ def upload_icon(
     storage.save(
         idp_constants.ICON_STORAGE_AREA, _storage_key(idp_id), core_file_uploads.strip_image_metadata(data), media_type
     )
-    version = idp_crud.set_icon_uploaded(idp_id, True, db)
-    if version is None:
+    staged = idp_crud.set_icon_uploaded(idp_id, True, db)
+    if staged is None:
         # The provider was deleted while the blob was being written. End the transaction before storage is called.
         db.rollback()
         delete_blob(idp_id, storage)
@@ -87,7 +87,7 @@ def upload_icon(
     _stage_icon_audit(idp_id, db)
     db.commit()
     logger.info("Identity provider icon uploaded", extra=core_logger.context(idp_id=idp_id))
-    return version
+    return staged
 
 
 def delete_icon(idp_id: int, storage: platform_providers.StorageProvider, db: Session) -> None:

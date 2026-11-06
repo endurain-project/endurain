@@ -21,6 +21,8 @@ A route lists in ``responses=`` only what the document cannot derive: ``core.loc
 import re
 from typing import Any
 
+from pydantic import BaseModel
+
 import core.etag as core_etag
 
 _METHODS = ("get", "post", "put", "patch", "delete")
@@ -34,6 +36,20 @@ _ETAG_HEADER: dict[str, Any] = {
     "description": "The version of the resource, to send back as `If-Match` on the next write.",
     "schema": {"type": "string"},
 }
+
+
+def replaced_response(model: type[BaseModel]) -> dict[int | str, dict[str, Any]]:
+    """Declare the ``200`` of a ``PUT`` that answers ``201`` for what it created.
+
+    Args:
+        model: The body both statuses carry.
+
+    Returns:
+        The ``responses`` entry.
+    """
+    return {200: {"model": model, "description": "The attachment replaced one that was there."}}
+
+
 #: The ``headers`` of a success response whose ``ETag`` the document cannot derive, for a route's ``responses``.
 ETAG_HEADERS: dict[str, Any] = {"ETag": _ETAG_HEADER}
 _LOCATION_HEADER: dict[str, Any] = {

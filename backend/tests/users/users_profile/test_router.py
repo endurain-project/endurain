@@ -305,21 +305,22 @@ class TestReadSessionsMe:
 
 
 class TestUploadProfileImage:
-    """Tests for POST /profile/photo — upload_profile_image."""
+    """Tests for PUT /profile/photo — put_profile_image."""
 
+    @pytest.mark.parametrize(("replaced", "status_code"), [(False, 201), (True, 200)])
     @patch("modules.users.users_profile.router.users_integration.require_user")
     @patch("modules.users.users_profile.router.users_integration.upload_user_photo")
-    def test_success(self, mock_save, mock_require, profile_client):
-        """Happy path: the upload answers with the servable photo URL."""
-        mock_save.return_value = "photo.jpg"
+    def test_success(self, mock_save, mock_require, replaced, status_code, profile_client):
+        """Happy path: 201 for a first photo, 200 for a replacement, with the servable photo URL."""
+        mock_save.return_value = replaced
         mock_require.return_value = MagicMock(photo_path="/users/1/photo?t=x")
 
-        response = profile_client.post(
+        response = profile_client.put(
             PREFIX + "/photo",
             files={"file": ("photo.jpg", b"image-data", "image/jpeg")},
         )
 
-        assert response.status_code == 201
+        assert response.status_code == status_code
         assert response.json() == {"photo_path": "/users/1/photo?t=x"}
 
 

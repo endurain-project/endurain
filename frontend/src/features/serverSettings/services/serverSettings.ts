@@ -203,7 +203,7 @@ export async function uploadLoginPhoto(file: File): Promise<LoginPhotoDto> {
   const formData = new FormData()
   formData.append('file', file)
   return apiFetch<LoginPhotoDto>('/server-settings/login-photo', {
-    method: 'POST',
+    method: 'PUT',
     body: formData,
   })
 }

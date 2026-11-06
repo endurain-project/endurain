@@ -314,18 +314,21 @@ class TestEditValidatesAuditRetention:
 class TestUploadLoginPhoto:
     """Test suite for upload_login_photo endpoint."""
 
+    @pytest.mark.parametrize(("replaced", "status_code"), [(False, 201), (True, 200)])
     @patch("modules.server_settings.router.server_settings_login_photo_service.upload_login_photo")
-    def test_upload_login_photo_answers_201_with_the_photo_version(self, mock_upload, fast_api_client, fast_api_app):
-        """An upload stores the photo and names the version that now identifies it."""
-        mock_upload.return_value = server_settings_schema.LoginPhotoRead(version=4)
+    def test_put_login_photo_answers_201_for_a_new_photo_and_200_for_a_replacement(
+        self, mock_upload, replaced, status_code, fast_api_client, fast_api_app
+    ):
+        """A put stores the photo and names the version that now identifies it."""
+        mock_upload.return_value = (server_settings_schema.LoginPhotoRead(version=4), replaced)
 
-        response = fast_api_client.post(
+        response = fast_api_client.put(
             "/server_settings/login-photo",
             headers={"Authorization": "Bearer mock_token"},
             files={"file": ("login.png", b"png", "image/png")},
         )
 
-        assert response.status_code == 201
+        assert response.status_code == status_code
         assert response.json() == {"version": 4}
 
 

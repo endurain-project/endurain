@@ -161,6 +161,8 @@ Do not retry a `409` straight away. Poll the running operation until it reaches 
 
 ## Upload limits and formats
 
+An attachment a record has one of (a profile photo, a user's photo, an identity provider's icon, the login page photo) is replaced with `PUT` on its path (`/profile/photo`, `/users/{user_id}/photo`, `/identity-providers/{idp_id}/icon`, `/server-settings/login-photo`), a multipart form with the image in `file`. The route answers `201` when there was nothing there before and `200` when it replaced an image; `DELETE` on the same path removes it.
+
 Every upload route declares its body limit in the OpenAPI document as `x-max-body-bytes`: the largest file plus 1 MiB for the multipart framing. A body over the limit is `413` with `urn:endurain:error:payload-too-large`, refused before the route runs. A file of a type the route does not accept is `415` (`urn:endurain:error:unsupported-format` for an activity file, `urn:endurain:error:unsupported-media-type` for an image or media file); any other file the server cannot accept is `400`. See [Errors, concurrency and rate limits](errors-and-limits.md#upload-size-limits).
 
 | Route | Accepts | Largest file |

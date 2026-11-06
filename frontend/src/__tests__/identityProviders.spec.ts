@@ -249,7 +249,7 @@ describe('identity providers service requests', () => {
 
     const [path, init] = vi.mocked(apiFetch).mock.calls[0] ?? ['', {}]
     expect(path).toBe('/identity-providers/3/icon')
-    expect(init).toMatchObject({ method: 'POST', responseType: 'void' })
+    expect(init).toMatchObject({ method: 'PUT', responseType: 'void' })
     expect((init as { body: FormData }).body.get('file')).toBe(file)
   })
 

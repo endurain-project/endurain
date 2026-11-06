@@ -57,11 +57,11 @@ class TestUploadIcon:
         storage, db = MagicMock(), MagicMock()
         with (
             patch.object(icon_service.idp_crud, "identity_provider_exists", return_value=True),
-            patch.object(icon_service.idp_crud, "set_icon_uploaded", return_value=5) as set_flag,
+            patch.object(icon_service.idp_crud, "set_icon_uploaded", return_value=(5, False)) as set_flag,
         ):
-            version = icon_service.upload_icon(7, _upload(PNG), storage, db)
+            staged = icon_service.upload_icon(7, _upload(PNG), storage, db)
 
-        assert version == 5
+        assert staged == (5, False)
         area, key, data, content_type = storage.save.call_args.args
         assert (area, key, content_type) == (idp_constants.ICON_STORAGE_AREA, "7", "image/png")
         assert not images.has_metadata(data)
@@ -121,7 +121,7 @@ class TestUploadIconTransaction:
         order.attach_mock(storage.save, "save")
         with (
             patch.object(icon_service.idp_crud, "identity_provider_exists", return_value=True),
-            patch.object(icon_service.idp_crud, "set_icon_uploaded", return_value=5),
+            patch.object(icon_service.idp_crud, "set_icon_uploaded", return_value=(5, False)),
         ):
             icon_service.upload_icon(7, _upload(PNG), storage, db)
 
@@ -168,7 +168,7 @@ class TestDeleteIcon:
         order: list[str] = []
         db.commit.side_effect = lambda: order.append("commit")
         storage.delete.side_effect = lambda *_: order.append("delete")
-        with patch.object(icon_service.idp_crud, "set_icon_uploaded", return_value=5) as set_flag:
+        with patch.object(icon_service.idp_crud, "set_icon_uploaded", return_value=(5, False)) as set_flag:
             icon_service.delete_icon(7, storage, db)
 
         set_flag.assert_called_once_with(7, False, db)
@@ -177,14 +177,14 @@ class TestDeleteIcon:
     def test_a_blob_that_cannot_be_deleted_is_not_an_error(self):
         storage = MagicMock()
         storage.delete.side_effect = jasil_providers.StorageBackendUnavailableError("storage down")
-        with patch.object(icon_service.idp_crud, "set_icon_uploaded", return_value=5):
+        with patch.object(icon_service.idp_crud, "set_icon_uploaded", return_value=(5, False)):
             icon_service.delete_icon(7, storage, MagicMock())
 
     def test_an_unexpected_storage_failure_propagates(self):
         storage = MagicMock()
         storage.delete.side_effect = ValueError("not a valid storage address")
         with (
-            patch.object(icon_service.idp_crud, "set_icon_uploaded", return_value=5),
+            patch.object(icon_service.idp_crud, "set_icon_uploaded", return_value=(5, False)),
             pytest.raises(ValueError, match="not a valid storage address"),
         ):
             icon_service.delete_icon(7, storage, MagicMock())
@@ -239,7 +239,7 @@ class TestIconAudit:
     def test_an_upload_is_audited_as_a_provider_update(self):
         with (
             patch.object(icon_service.idp_crud, "identity_provider_exists", return_value=True),
-            patch.object(icon_service.idp_crud, "set_icon_uploaded", return_value=5),
+            patch.object(icon_service.idp_crud, "set_icon_uploaded", return_value=(5, False)),
             jasil_testing.capture_audit() as audit,
         ):
             icon_service.upload_icon(7, _upload(PNG), MagicMock(), MagicMock())
@@ -261,7 +261,7 @@ class TestIconAudit:
 
     def test_a_removal_is_audited_as_a_provider_update(self):
         with (
-            patch.object(icon_service.idp_crud, "set_icon_uploaded", return_value=5),
+            patch.object(icon_service.idp_crud, "set_icon_uploaded", return_value=(5, False)),
             jasil_testing.capture_audit() as audit,
         ):
             icon_service.delete_icon(7, MagicMock(), MagicMock())
@@ -293,7 +293,7 @@ class TestUploadIconImageFormats:
         storage = MagicMock()
         with (
             patch.object(icon_service.idp_crud, "identity_provider_exists", return_value=True),
-            patch.object(icon_service.idp_crud, "set_icon_uploaded", return_value=5),
+            patch.object(icon_service.idp_crud, "set_icon_uploaded", return_value=(5, False)),
         ):
             icon_service.upload_icon(7, self._reader("icon.webp", images.webp_with_exif()), storage, MagicMock())
 

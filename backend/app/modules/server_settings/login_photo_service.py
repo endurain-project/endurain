@@ -19,7 +19,7 @@ logger = core_logger.get_logger(__name__)
 
 def upload_login_photo(
     file: UploadFile, storage: platform_providers.StorageProvider, db: Session
-) -> server_settings_schema.LoginPhotoRead:
+) -> tuple[server_settings_schema.LoginPhotoRead, bool]:
     """Save the custom login page photo and mark it as set.
 
     The blob is written before the settings row is locked, so storage latency never
@@ -34,7 +34,7 @@ def upload_login_photo(
         db: Database session.
 
     Returns:
-        The stored photo's version.
+        The stored photo's version, and whether it replaced a login photo.
 
     Raises:
         DomainError: If the upload fails validation or exceeds the login-photo size cap.
@@ -53,11 +53,11 @@ def upload_login_photo(
         core_file_uploads.strip_image_metadata(data),
         media_type,
     )
-    version = server_settings_crud.set_login_photo(True, db)
+    version, replaced = server_settings_crud.set_login_photo(True, db)
     jasil_audit.stage(db, server_settings_audit_actions.LOGIN_PHOTO_UPDATE)
     db.commit()
     logger.info("Login photo uploaded")
-    return server_settings_schema.LoginPhotoRead(version=version)
+    return server_settings_schema.LoginPhotoRead(version=version), replaced
 
 
 def delete_login_photo(storage: platform_providers.StorageProvider, db: Session) -> None:

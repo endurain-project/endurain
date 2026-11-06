@@ -111,7 +111,7 @@ def edit_server_settings(
     return server_settings_serializers.to_server_settings_read(row)
 
 
-def set_login_photo(is_set: bool, db: Session) -> int:
+def set_login_photo(is_set: bool, db: Session) -> tuple[int, bool]:
     """Stage whether a custom login photo is configured.
 
     Args:
@@ -119,18 +119,20 @@ def set_login_photo(is_set: bool, db: Session) -> int:
         db: Database session.
 
     Returns:
-        The settings version the change was staged as, which identifies the photo.
+        The settings version the change was staged as, which identifies the photo, and whether a login photo was
+        configured before.
 
     Raises:
         ServiceUnavailableError: If the settings row does not exist.
     """
     row = _lock_singleton(server_settings_models.ServerSettings, "Server", db)
+    had_photo = row.login_photo_set
     row.login_photo_set = is_set
     # A new photo leaves the flag as it was; flagging it forces the UPDATE that bumps the version,
     # which is the photo's entity tag.
     flag_modified(row, "login_photo_set")
     db.flush()
-    return row.version
+    return row.version, had_photo
 
 
 def get_mail_settings(db: Session, *, for_update: bool = False) -> server_settings_schema.MailSettingsRead | None:

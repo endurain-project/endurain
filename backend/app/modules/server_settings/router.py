@@ -17,6 +17,7 @@ import core.dependencies as core_dependencies
 import core.etag as core_etag
 import core.exceptions as core_exceptions
 import core.middleware_body_limit as core_middleware_body_limit
+import core.openapi_contract as core_openapi_contract
 import core.rate_limit as core_rate_limit
 import modules.auth.dependencies as auth_dependencies
 import modules.server_settings.constants as server_settings_constants
@@ -97,34 +98,41 @@ def edit_server_settings(
     return updated
 
 
-@router.post(
+@router.put(
     "/login-photo",
     response_model=server_settings_schema.LoginPhotoRead,
     status_code=status.HTTP_201_CREATED,
+    responses=core_openapi_contract.replaced_response(server_settings_schema.LoginPhotoRead),
     dependencies=[Security(auth_dependencies.check_scopes, scopes=["server_settings:write"])],
     openapi_extra=core_middleware_body_limit.upload_limit(server_settings_constants.LOGIN_PHOTO_MAX_BYTES),
 )
 @core_rate_limit.limiter.limit(core_rate_limit.UPLOAD)
-def upload_login_photo(
+def put_login_photo(
     request: Request,
     file: UploadFile,
     storage: core_dependencies.Storage,
     db: core_dependencies.DbSession,
+    response: Response,
 ) -> server_settings_schema.LoginPhotoRead:
-    """Upload custom login page photo.
+    """Set the custom login page photo.
 
-    Requires admin authentication with server_settings:write scope.
+    Requires admin authentication with server_settings:write scope. Answers 201 when there was no
+    custom photo and 200 when it replaced one.
 
     Args:
         request: The HTTP request object.
         file: Image file to upload.
         storage: The platform storage provider.
         db: Database session.
+        response: The response, whose status is 200 when a photo was replaced.
 
     Returns:
         The stored photo's version.
     """
-    return server_settings_login_photo_service.upload_login_photo(file, storage, db)
+    photo, replaced = server_settings_login_photo_service.upload_login_photo(file, storage, db)
+    if replaced:
+        response.status_code = status.HTTP_200_OK
+    return photo
 
 
 @router.delete(

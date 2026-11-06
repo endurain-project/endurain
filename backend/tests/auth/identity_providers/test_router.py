@@ -209,12 +209,28 @@ def test_delete_returns_precondition_failed_for_a_stale_etag(service):
     assert response.status_code == 412
 
 
-def test_upload_icon_hands_the_service_a_reader_for_the_upload(monkeypatch):
+@pytest.mark.parametrize(("replaced", "status_code"), [(False, 201), (True, 200)])
+def test_putting_an_icon_answers_201_for_a_new_one_and_200_for_a_replacement(monkeypatch, replaced, status_code):
     icon_service = MagicMock()
-    icon_service.upload_icon.return_value = 5
+    icon_service.upload_icon.return_value = (5, replaced)
     monkeypatch.setattr(idp_router, "idp_icon_service", icon_service)
 
-    response = _client().post(
+    response = _client().put(
+        "/auth/identity_providers/1/icon",
+        files={"file": ("icon.png", b"ignored", "image/png")},
+        headers={"Authorization": "Bearer x"},
+    )
+
+    assert response.status_code == status_code
+    assert response.json() == {"version": 5}
+
+
+def test_upload_icon_hands_the_service_a_reader_for_the_upload(monkeypatch):
+    icon_service = MagicMock()
+    icon_service.upload_icon.return_value = (5, False)
+    monkeypatch.setattr(idp_router, "idp_icon_service", icon_service)
+
+    response = _client().put(
         "/auth/identity_providers/1/icon",
         files={"file": ("icon.png", b"ignored", "image/png")},
         headers={"Authorization": "Bearer x"},
@@ -231,7 +247,7 @@ def test_upload_icon_rejects_nonpositive_id(monkeypatch):
     icon_service = MagicMock()
     monkeypatch.setattr(idp_router, "idp_icon_service", icon_service)
 
-    response = _client().post(
+    response = _client().put(
         "/auth/identity_providers/0/icon",
         files={"file": ("icon.png", b"x", "image/png")},
         headers={"Authorization": "Bearer x"},

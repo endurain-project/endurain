@@ -330,7 +330,7 @@ describe('users service requests', () => {
     expect(path).toBe('data/user_images/7.png')
     const call = vi.mocked(apiFetch).mock.calls[0]
     expect(call?.[0]).toBe('/users/7/photo')
-    expect(call?.[1]).toMatchObject({ method: 'POST', timeoutMs: 0 })
+    expect(call?.[1]).toMatchObject({ method: 'PUT', timeoutMs: 0 })
     expect(call?.[1]?.body).toBeInstanceOf(FormData)
   })
 

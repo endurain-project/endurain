@@ -137,7 +137,7 @@ class TestEachUploadRouteHasItsOwnLimit:
 
     @pytest.mark.parametrize("path", [_IDP_ICON, "/api/v1/server-settings/login-photo"])
     def test_a_declared_length_over_a_small_image_cap_is_refused(self, real_client, path):
-        response = real_client.post(path, content=b"x" * _REAL_BODY, headers=_MULTIPART)
+        response = real_client.put(path, content=b"x" * _REAL_BODY, headers=_MULTIPART)
 
         assert response.status_code == 413
         assert response.headers["content-type"].startswith("application/problem+json")
@@ -147,7 +147,7 @@ class TestEachUploadRouteHasItsOwnLimit:
             for _ in range(_REAL_BODY // (256 * 1024)):
                 yield b"x" * 256 * 1024
 
-        assert real_client.post(_IDP_ICON, content=chunks(), headers=_MULTIPART).status_code == 413
+        assert real_client.put(_IDP_ICON, content=chunks(), headers=_MULTIPART).status_code == 413
 
     def test_an_upload_route_with_no_cap_gets_the_small_limit(self, client):
         @client.app.post("/uncapped")

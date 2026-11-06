@@ -1842,15 +1842,15 @@ export interface paths {
             cookie?: never;
         };
         get?: never;
-        put?: never;
         /**
-         * Upload Identity Provider Icon
-         * @description Upload the icon an identity provider shows on the login page.
+         * Put Identity Provider Icon
+         * @description Set the icon an identity provider shows on the login page.
          *
          *     Requires admin authentication with identity_providers:write scope. The icon replaces any custom icon URL
-         *     until it is removed.
+         *     until it is removed. Answers 201 when the provider had no uploaded icon and 200 when it replaced one.
          */
-        post: operations["upload_identity_provider_icon"];
+        put: operations["put_identity_provider_icon"];
+        post?: never;
         /**
          * Delete Identity Provider Icon
          * @description Remove the uploaded icon of an identity provider.
@@ -2685,12 +2685,14 @@ export interface paths {
             cookie?: never;
         };
         get?: never;
-        put?: never;
         /**
-         * Upload Profile Image
-         * @description Upload user profile image with security validation.
+         * Put Profile Image
+         * @description Set the authenticated user's profile image, with security validation.
+         *
+         *     Answers 201 when the user had no photo and 200 when it replaced one.
          */
-        post: operations["upload_profile_image"];
+        put: operations["put_profile_image"];
+        post?: never;
         /**
          * Delete Profile Photo
          * @description Delete authenticated user's profile photo.
@@ -3307,14 +3309,15 @@ export interface paths {
             cookie?: never;
         };
         get?: never;
-        put?: never;
         /**
-         * Upload Login Photo
-         * @description Upload custom login page photo.
+         * Put Login Photo
+         * @description Set the custom login page photo.
          *
-         *     Requires admin authentication with server_settings:write scope.
+         *     Requires admin authentication with server_settings:write scope. Answers 201 when there was no
+         *     custom photo and 200 when it replaced one.
          */
-        post: operations["upload_login_photo"];
+        put: operations["put_login_photo"];
+        post?: never;
         /**
          * Delete Login Photo
          * @description Delete custom login page photo.
@@ -3998,12 +4001,14 @@ export interface paths {
          * @description Serve a user's profile photo when the signed token is valid.
          */
         get: operations["read_user_photo"];
-        put?: never;
         /**
-         * Upload User Image
-         * @description Upload user profile image.
+         * Put User Image
+         * @description Set a user's profile image.
+         *
+         *     Answers 201 when the user had no photo and 200 when it replaced one.
          */
-        post: operations["upload_user_image"];
+        put: operations["put_user_image"];
+        post?: never;
         /**
          * Delete User Photo
          * @description Delete user profile photo.
@@ -5080,23 +5085,23 @@ export interface components {
             /** Username */
             username: string;
         };
-        /** Body_upload_identity_provider_icon */
-        Body_upload_identity_provider_icon: {
+        /** Body_put_identity_provider_icon */
+        Body_put_identity_provider_icon: {
             /** File */
             file: string;
         };
-        /** Body_upload_login_photo */
-        Body_upload_login_photo: {
+        /** Body_put_login_photo */
+        Body_put_login_photo: {
             /** File */
             file: string;
         };
-        /** Body_upload_profile_image */
-        Body_upload_profile_image: {
+        /** Body_put_profile_image */
+        Body_put_profile_image: {
             /** File */
             file: string;
         };
-        /** Body_upload_user_image */
-        Body_upload_user_image: {
+        /** Body_put_user_image */
+        Body_put_user_image: {
             /** File */
             file: string;
         };
@@ -23406,7 +23411,7 @@ export interface operations {
             };
         };
     };
-    upload_identity_provider_icon: {
+    put_identity_provider_icon: {
         parameters: {
             query?: never;
             header?: never;
@@ -23417,10 +23422,19 @@ export interface operations {
         };
         requestBody: {
             content: {
-                "multipart/form-data": components["schemas"]["Body_upload_identity_provider_icon"];
+                "multipart/form-data": components["schemas"]["Body_put_identity_provider_icon"];
             };
         };
         responses: {
+            /** @description The attachment replaced one that was there. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["IdentityProviderIconRead"];
+                };
+            };
             /** @description Successful Response */
             201: {
                 headers: {
@@ -27669,7 +27683,7 @@ export interface operations {
             };
         };
     };
-    upload_profile_image: {
+    put_profile_image: {
         parameters: {
             query?: never;
             header?: never;
@@ -27678,10 +27692,19 @@ export interface operations {
         };
         requestBody: {
             content: {
-                "multipart/form-data": components["schemas"]["Body_upload_profile_image"];
+                "multipart/form-data": components["schemas"]["Body_put_profile_image"];
             };
         };
         responses: {
+            /** @description The attachment replaced one that was there. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["UserPhotoRead"];
+                };
+            };
             /** @description Successful Response */
             201: {
                 headers: {
@@ -30209,7 +30232,7 @@ export interface operations {
             };
         };
     };
-    upload_login_photo: {
+    put_login_photo: {
         parameters: {
             query?: never;
             header?: never;
@@ -30218,10 +30241,19 @@ export interface operations {
         };
         requestBody: {
             content: {
-                "multipart/form-data": components["schemas"]["Body_upload_login_photo"];
+                "multipart/form-data": components["schemas"]["Body_put_login_photo"];
             };
         };
         responses: {
+            /** @description The attachment replaced one that was there. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["LoginPhotoRead"];
+                };
+            };
             /** @description Successful Response */
             201: {
                 headers: {
@@ -33853,7 +33885,7 @@ export interface operations {
             };
         };
     };
-    upload_user_image: {
+    put_user_image: {
         parameters: {
             query?: never;
             header?: never;
@@ -33864,10 +33896,19 @@ export interface operations {
         };
         requestBody: {
             content: {
-                "multipart/form-data": components["schemas"]["Body_upload_user_image"];
+                "multipart/form-data": components["schemas"]["Body_put_user_image"];
             };
         };
         responses: {
+            /** @description The attachment replaced one that was there. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["UserPhotoRead"];
+                };
+            };
             /** @description Successful Response */
             201: {
                 headers: {

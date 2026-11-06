@@ -9,6 +9,7 @@ import core.etag as core_etag
 import core.file_uploads as core_file_uploads
 import core.location as core_location
 import core.middleware_body_limit as core_middleware_body_limit
+import core.openapi_contract as core_openapi_contract
 import core.pagination as core_pagination
 import core.rate_limit as core_rate_limit
 import modules.auth.account_security.integration_service as account_security_integration
@@ -176,24 +177,28 @@ def create_user(
     return created
 
 
-@router.post(
+@router.put(
     "/{user_id}/photo",
     status_code=status.HTTP_201_CREATED,
     response_model=users_schema.UserPhotoRead,
+    responses=core_openapi_contract.replaced_response(users_schema.UserPhotoRead),
     dependencies=[Security(auth_dependencies.check_scopes, scopes=["users:write"])],
     openapi_extra=core_middleware_body_limit.upload_limit(
         core_file_uploads.max_bytes_for(core_file_uploads.UploadKind.IMAGE)
     ),
 )
 @core_rate_limit.limiter.limit(core_rate_limit.UPLOAD)
-def upload_user_image(
+def put_user_image(
     request: Request,
     user_id: core_dependencies.PositiveId,
     file: UploadFile,
     storage: core_dependencies.Storage,
     db: core_dependencies.DbSession,
+    response: Response,
 ) -> users_schema.UserPhotoRead:
-    """Upload user profile image.
+    """Set a user's profile image.
+
+    Answers 201 when the user had no photo and 200 when it replaced one.
 
     Args:
         request: The incoming request, read by the rate limiter.
@@ -201,11 +206,14 @@ def upload_user_image(
         file: Uploaded image file.
         storage: The platform storage provider.
         db: Database session dependency.
+        response: The response, whose status is 200 when a photo was replaced.
 
     Returns:
         The servable URL of the new photo.
     """
-    users_photo_service.upload_photo(user_id, file, storage, db, audit=True)
+    replaced = users_photo_service.upload_photo(user_id, file, storage, db, audit=True)
+    if replaced:
+        response.status_code = status.HTTP_200_OK
     return users_schema.UserPhotoRead(photo_path=users_service.require_user(user_id, db).photo_path)
 
 

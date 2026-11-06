@@ -7,6 +7,7 @@ import core.etag as core_etag
 import core.file_uploads as core_file_uploads
 import core.location as core_location
 import core.middleware_body_limit as core_middleware_body_limit
+import core.openapi_contract as core_openapi_contract
 import core.pagination as core_pagination
 import core.rate_limit as core_rate_limit
 import modules.auth.dependencies as auth_dependencies
@@ -239,25 +240,27 @@ def delete_identity_provider(
     idp_provider_service.delete_identity_provider(idp_id, storage, oidc, db, if_match=if_match)
 
 
-@router.post(
+@router.put(
     "/{idp_id}/icon",
     response_model=idp_schema.IdentityProviderIconRead,
     status_code=status.HTTP_201_CREATED,
+    responses=core_openapi_contract.replaced_response(idp_schema.IdentityProviderIconRead),
     dependencies=[Security(auth_dependencies.check_scopes, scopes=["identity_providers:write"])],
     openapi_extra=core_middleware_body_limit.upload_limit(idp_constants.ICON_MAX_BYTES),
 )
 @core_rate_limit.limiter.limit(core_rate_limit.UPLOAD)
-def upload_identity_provider_icon(
+def put_identity_provider_icon(
     idp_id: core_dependencies.PositiveId,
     request: Request,
     file: UploadFile,
     storage: core_dependencies.Storage,
     db: core_dependencies.DbSession,
+    response: Response,
 ) -> idp_schema.IdentityProviderIconRead:
-    """Upload the icon an identity provider shows on the login page.
+    """Set the icon an identity provider shows on the login page.
 
     Requires admin authentication with identity_providers:write scope. The icon replaces any custom icon URL
-    until it is removed.
+    until it is removed. Answers 201 when the provider had no uploaded icon and 200 when it replaced one.
 
     Args:
         idp_id: The identity provider the icon belongs to.
@@ -265,6 +268,7 @@ def upload_identity_provider_icon(
         file: The image to upload (JPEG, PNG or WebP).
         storage: The platform storage provider.
         db: SQLAlchemy database session dependency.
+        response: The response, whose status is 200 when an icon was replaced.
 
     Returns:
         The provider version that identifies the stored icon.
@@ -273,14 +277,15 @@ def upload_identity_provider_icon(
         NotFoundError: 404 if the provider is not found.
         PayloadTooLargeError: 413 if the image is larger than the icon cap.
     """
-    return idp_schema.IdentityProviderIconRead(
-        version=idp_icon_service.upload_icon(
-            idp_id,
-            lambda: core_file_uploads.read_validated_upload_sync(file, kind=core_file_uploads.UploadKind.IMAGE),
-            storage,
-            db,
-        )
+    version, replaced = idp_icon_service.upload_icon(
+        idp_id,
+        lambda: core_file_uploads.read_validated_upload_sync(file, kind=core_file_uploads.UploadKind.IMAGE),
+        storage,
+        db,
     )
+    if replaced:
+        response.status_code = status.HTTP_200_OK
+    return idp_schema.IdentityProviderIconRead(version=version)
 
 
 @router.delete(
