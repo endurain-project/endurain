@@ -1,3 +1,4 @@
+import type { GearType } from '@/features/gears/types'
 import type { DefaultGearValues } from '@/features/profile/types'
 
 import { GEAR_TYPE } from '@/features/gears/utils/gearType'
@@ -8,12 +9,12 @@ import { GEAR_TYPE } from '@/features/gears/utils/gearType'
  *
  * @property key - The {@link DefaultGearValues} field this selector edits.
  * @property labelKey - i18n key for the activity label.
- * @property gearType - The numeric gear type whose gears are offered.
+ * @property gearType - The gear type whose gears are offered.
  */
 export interface DefaultGearField {
   key: keyof DefaultGearValues
   labelKey: string
-  gearType: number
+  gearType: GearType
 }
 
 /** A labelled group of default-gear selectors (mirrors v1's activity sections). */
@@ -130,6 +131,6 @@ export const DEFAULT_GEAR_GROUPS: readonly DefaultGearGroup[] = [
  * The distinct gear types referenced by the default-gear selectors, used to
  * prefetch exactly the gear lists the form needs (and no more).
  */
-export const DEFAULT_GEAR_TYPES: readonly number[] = Array.from(
+export const DEFAULT_GEAR_TYPES: readonly GearType[] = Array.from(
   new Set(DEFAULT_GEAR_GROUPS.flatMap((group) => group.fields.map((field) => field.gearType))),
 )

@@ -135,7 +135,7 @@ class TestCalculateGoalProgressByActivityType:
         mock_goal.id = 1
         mock_goal.user_id = 1
         mock_goal.interval = "weekly"
-        mock_goal.activity_type = user_goals_schema.ActivityType.RUN
+        mock_goal.activity_type = user_goals_schema.GoalActivityType.RUN
         mock_goal.goal_type = user_goals_schema.GoalType.CALORIES
         mock_goal.goal_calories = 5000
         mock_goal.goal_activities_number = None
@@ -174,7 +174,7 @@ class TestCalculateGoalProgressByActivityType:
         mock_goal.id = 1
         mock_goal.user_id = 1
         mock_goal.interval = "weekly"
-        mock_goal.activity_type = user_goals_schema.ActivityType.RUN
+        mock_goal.activity_type = user_goals_schema.GoalActivityType.RUN
         mock_goal.goal_type = user_goals_schema.GoalType.DISTANCE
         mock_goal.goal_calories = None
         mock_goal.goal_activities_number = None
@@ -212,7 +212,7 @@ class TestCalculateGoalProgressByActivityType:
         mock_goal.id = 1
         mock_goal.user_id = 1
         mock_goal.interval = "weekly"
-        mock_goal.activity_type = user_goals_schema.ActivityType.RUN
+        mock_goal.activity_type = user_goals_schema.GoalActivityType.RUN
         mock_goal.goal_type = user_goals_schema.GoalType.ACTIVITIES
         mock_goal.goal_calories = None
         mock_goal.goal_activities_number = 5
@@ -250,7 +250,7 @@ class TestCalculateGoalProgressByActivityType:
         mock_goal.id = 1
         mock_goal.user_id = 1
         mock_goal.interval = "weekly"
-        mock_goal.activity_type = user_goals_schema.ActivityType.RUN
+        mock_goal.activity_type = user_goals_schema.GoalActivityType.RUN
         mock_goal.goal_type = user_goals_schema.GoalType.CALORIES
         mock_goal.goal_calories = 1000
         mock_goal.goal_activities_number = None
@@ -287,7 +287,7 @@ class TestCalculateGoalProgressByActivityType:
         mock_goal.id = 1
         mock_goal.user_id = 1
         mock_goal.interval = "weekly"
-        mock_goal.activity_type = user_goals_schema.ActivityType.RUN
+        mock_goal.activity_type = user_goals_schema.GoalActivityType.RUN
         mock_goal.goal_type = user_goals_schema.GoalType.ACTIVITIES
         mock_goal.goal_calories = None
         mock_goal.goal_activities_number = 5
@@ -346,7 +346,7 @@ class TestCalculateGoalProgressByActivityType:
         mock_goal.id = 1
         mock_goal.user_id = 1
         mock_goal.interval = "weekly"
-        mock_goal.activity_type = user_goals_schema.ActivityType.RUN
+        mock_goal.activity_type = user_goals_schema.GoalActivityType.RUN
         mock_goal.goal_type = goal_type
         for name in ("goal_calories", "goal_activities_number", "goal_distance", "goal_elevation", "goal_duration"):
             setattr(mock_goal, name, None)
@@ -370,7 +370,7 @@ class TestCalculateGoalProgressByActivityType:
         mock_goal.id = 1
         mock_goal.user_id = 1
         mock_goal.interval = "weekly"
-        mock_goal.activity_type = user_goals_schema.ActivityType.RUN
+        mock_goal.activity_type = user_goals_schema.GoalActivityType.RUN
         mock_goal.goal_type = user_goals_schema.GoalType.CALORIES
         mock_goal.goal_calories = 5000
         for name in ("goal_activities_number", "goal_distance", "goal_elevation", "goal_duration"):
@@ -405,24 +405,24 @@ class TestActivityTypeMap:
         """Test mapping contains expected activity types."""
         type_map = user_goals_progress_service._ACTIVITY_TYPE_MAP
 
-        assert user_goals_schema.ActivityType.RUN in type_map
-        assert user_goals_schema.ActivityType.BIKE in type_map
-        assert user_goals_schema.ActivityType.SWIM in type_map
-        assert user_goals_schema.ActivityType.WALK in type_map
-        assert user_goals_schema.ActivityType.CARDIO in type_map
+        assert user_goals_schema.GoalActivityType.RUN in type_map
+        assert user_goals_schema.GoalActivityType.BIKE in type_map
+        assert user_goals_schema.GoalActivityType.SWIM in type_map
+        assert user_goals_schema.GoalActivityType.WALK in type_map
+        assert user_goals_schema.GoalActivityType.CARDIO in type_map
 
     def test_cardio_includes_jump_rope_id(self):
         """Test CARDIO mapping includes the jump rope activity ID (47)."""
         type_map = user_goals_progress_service._ACTIVITY_TYPE_MAP
 
-        assert 47 in type_map[user_goals_schema.ActivityType.CARDIO]
+        assert 47 in type_map[user_goals_schema.GoalActivityType.CARDIO]
 
     def test_strength_uses_default_types(self):
         """Test STRENGTH not in map, uses default."""
         type_map = user_goals_progress_service._ACTIVITY_TYPE_MAP
 
         # STRENGTH should NOT be in map (uses defaults)
-        assert user_goals_schema.ActivityType.STRENGTH not in type_map
+        assert user_goals_schema.GoalActivityType.STRENGTH not in type_map
 
 
 class TestGetGoalsProgress:

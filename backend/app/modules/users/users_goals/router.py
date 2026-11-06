@@ -32,7 +32,7 @@ def get_user_goals(
         Query(description="Filter by goal interval"),
     ] = None,
     activity_type: Annotated[
-        user_goals_schema.ActivityType | None,
+        user_goals_schema.GoalActivityType | None,
         Query(description="Filter by activity type"),
     ] = None,
     goal_type: Annotated[

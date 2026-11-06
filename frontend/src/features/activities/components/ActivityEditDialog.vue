@@ -2,7 +2,7 @@
 import { computed, reactive, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 
-import type { Activity, ActivityEditInput } from '@/features/activities/types'
+import type { Activity, ActivityEditInput, ActivityVisibility } from '@/features/activities/types'
 
 import { FormDialog } from '@/components/ui/form-dialog'
 import { FormField } from '@/components/ui/form-field'
@@ -16,6 +16,7 @@ import { required } from '@/utils/validators'
 import { useEditActivityMutation } from '@/features/activities/composables/useActivityDetail'
 import {
   ACTIVITY_TYPE_LABEL_KEYS,
+  isActivityType,
   presentActivityType,
   sortActivityTypesByLabel,
 } from '@/features/activities/utils/activityType'
@@ -70,15 +71,17 @@ watch(open, (isOpen) => {
 
 /** Activity-type options, sorted by label, for the type selector. */
 const activityTypeOptions = computed(() =>
-  sortActivityTypesByLabel(Object.keys(ACTIVITY_TYPE_LABEL_KEYS).map(Number), t, locale.value).map(
-    (value) => ({ value, labelKey: presentActivityType(value).labelKey }),
-  ),
+  sortActivityTypesByLabel(
+    Object.keys(ACTIVITY_TYPE_LABEL_KEYS).filter(isActivityType),
+    t,
+    locale.value,
+  ).map((value) => ({ value, labelKey: presentActivityType(value).labelKey })),
 )
 
-const visibilityOptions = [
-  { value: 0, labelKey: 'activities.visibility.public' },
-  { value: 1, labelKey: 'activities.visibility.followers' },
-  { value: 2, labelKey: 'activities.visibility.private' },
+const visibilityOptions: { value: ActivityVisibility; labelKey: string }[] = [
+  { value: 'public', labelKey: 'activities.visibility.public' },
+  { value: 'followers', labelKey: 'activities.visibility.followers' },
+  { value: 'private', labelKey: 'activities.visibility.private' },
 ]
 
 /** The per-metric "hide from others" toggles, mirroring v1's edit modal. */

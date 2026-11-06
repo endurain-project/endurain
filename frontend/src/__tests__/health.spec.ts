@@ -537,7 +537,7 @@ function makePoopDto(
     user_id: 9,
     version: 1,
     date_time: '2026-06-25T08:30:00',
-    bristol_type: 4,
+    bristol_type: 'type_4',
     color: 'brown',
     notes: 'Normal',
     source: 'manual',
@@ -548,7 +548,7 @@ function makePoopDto(
 /** A clean poop input mirroring {@link makePoopDto}. */
 const poopInput: PoopEntryInput = {
   dateTime: '2026-06-25T08:30:00',
-  bristolType: 4,
+  bristolType: 'type_4',
   color: 'brown',
   notes: 'Normal',
 }
@@ -578,7 +578,7 @@ describe('poop service requests', () => {
       userId: 9,
       version: 1,
       dateTime: '2026-06-25T08:30:00',
-      bristolType: 4,
+      bristolType: 'type_4',
       color: 'brown',
       notes: 'Normal',
     })
@@ -594,7 +594,7 @@ describe('poop service requests', () => {
       method: 'POST',
       body: JSON.stringify({
         date_time: '2026-06-25T08:30:00',
-        bristol_type: 4,
+        bristol_type: 'type_4',
         color: 'brown',
         notes: 'Normal',
       }),
@@ -611,7 +611,7 @@ describe('poop service requests', () => {
       headers: { 'If-Match': '"3"' },
       body: JSON.stringify({
         date_time: '2026-06-25T08:30:00',
-        bristol_type: 4,
+        bristol_type: 'type_4',
         color: 'brown',
         notes: 'Normal',
       }),
@@ -1000,13 +1000,13 @@ function makeFullSleepDto(
     awake_count: 3,
     sleep_stages: [
       {
-        stage_type: 0,
+        stage_type: 'deep',
         start_time_gmt: '2026-06-24T23:00:00',
         end_time_gmt: '2026-06-25T00:30:00',
         duration_seconds: 5400,
       },
       {
-        stage_type: 2,
+        stage_type: 'rem',
         start_time_gmt: '2026-06-25T00:30:00',
         end_time_gmt: '2026-06-25T01:15:00',
         duration_seconds: 2700,
@@ -1040,7 +1040,7 @@ const sleepInput: SleepEntryInput = {
   awakeCount: 3,
   sleepStages: [
     {
-      stageType: 0,
+      stageType: 'deep',
       startTimeGmt: '2026-06-24T23:00',
       endTimeGmt: '2026-06-25T00:30',
       durationSeconds: 5400,
@@ -1103,13 +1103,13 @@ describe('sleep service requests', () => {
       awakeCount: 3,
       sleepStages: [
         {
-          stageType: 0,
+          stageType: 'deep',
           startTimeGmt: '2026-06-24T23:00:00',
           endTimeGmt: '2026-06-25T00:30:00',
           durationSeconds: 5400,
         },
         {
-          stageType: 2,
+          stageType: 'rem',
           startTimeGmt: '2026-06-25T00:30:00',
           endTimeGmt: '2026-06-25T01:15:00',
           durationSeconds: 2700,
@@ -1149,7 +1149,7 @@ describe('sleep service requests', () => {
         avg_sleep_stress: 25,
         sleep_stages: [
           {
-            stage_type: 0,
+            stage_type: 'deep',
             start_time_gmt: '2026-06-24T23:00',
             end_time_gmt: '2026-06-25T00:30',
             duration_seconds: 5400,
@@ -1189,7 +1189,7 @@ describe('sleep service requests', () => {
         avg_sleep_stress: 25,
         sleep_stages: [
           {
-            stage_type: 0,
+            stage_type: 'deep',
             start_time_gmt: '2026-06-24T23:00',
             end_time_gmt: '2026-06-25T00:30',
             duration_seconds: 5400,

@@ -22,13 +22,13 @@ function makeLap(overrides: Partial<ActivityLap> = {}): ActivityLap {
 
 describe('normalizeLaps', () => {
   it('returns an empty array for no laps', () => {
-    expect(normalizeLaps([], 1)).toEqual([])
+    expect(normalizeLaps([], 'run')).toEqual([])
   })
 
   it('scores each lap relative to the fastest pace (non-swimming)', () => {
     const result = normalizeLaps(
       [makeLap({ id: 1, enhancedAvgPace: 0.3 }), makeLap({ id: 2, enhancedAvgPace: 0.4 })],
-      1,
+      'run',
     )
     expect(result.map((entry) => entry.swimIsRest)).toEqual([false, false])
     const scores = result.map((entry) => entry.normalizedScore)
@@ -37,7 +37,7 @@ describe('normalizeLaps', () => {
   })
 
   it('returns a null score when a lap has no pace', () => {
-    const result = normalizeLaps([makeLap({ id: 1, enhancedAvgPace: null })], 1)
+    const result = normalizeLaps([makeLap({ id: 1, enhancedAvgPace: null })], 'run')
     expect(result.map((entry) => entry.normalizedScore)).toEqual([null])
   })
 
@@ -48,7 +48,7 @@ describe('normalizeLaps', () => {
         makeLap({ id: 2, totalDistance: 0, enhancedAvgPace: null }),
         makeLap({ id: 3, totalDistance: 50, enhancedAvgPace: 0.6 }),
       ],
-      8,
+      'lap_swimming',
     )
     expect(result.map((entry) => entry.swimIsRest)).toEqual([false, true, false])
   })
@@ -59,13 +59,16 @@ describe('normalizeLaps', () => {
         makeLap({ id: 1, totalDistance: 0, enhancedAvgPace: null }),
         makeLap({ id: 2, totalDistance: 0, enhancedAvgPace: null }),
       ],
-      8,
+      'lap_swimming',
     )
     expect(result.map((entry) => entry.swimIsRest)).toEqual([true, false])
   })
 
   it('never flags swim rests for non-swimming activities', () => {
-    const result = normalizeLaps([makeLap({ id: 1, totalDistance: 0, enhancedAvgPace: null })], 1)
+    const result = normalizeLaps(
+      [makeLap({ id: 1, totalDistance: 0, enhancedAvgPace: null })],
+      'run',
+    )
     expect(result.map((entry) => entry.swimIsRest)).toEqual([false])
   })
 
@@ -75,7 +78,7 @@ describe('normalizeLaps', () => {
         makeLap({ id: 1, enhancedAvgPace: 0.3, intensity: 'active' }),
         makeLap({ id: 2, enhancedAvgPace: 5, intensity: 'rest' }),
       ],
-      1,
+      'run',
     )
     expect(result.map((entry) => entry.isRest)).toEqual([false, true])
     expect(result.map((entry) => entry.swimIsRest)).toEqual([false, false])
@@ -91,7 +94,7 @@ describe('normalizeLaps', () => {
         makeLap({ id: 2, enhancedAvgPace: 0.1, intensity: 'rest' }),
         makeLap({ id: 3, enhancedAvgPace: 0.4, intensity: 'active' }),
       ],
-      1,
+      'run',
     )
     const scores = result.map((entry) => entry.normalizedScore)
     expect(scores[0]).toBe(100)
@@ -102,7 +105,7 @@ describe('normalizeLaps', () => {
 
 describe('summarizeActiveLaps', () => {
   it('returns null when there are no laps', () => {
-    expect(summarizeActiveLaps([], 1)).toBeNull()
+    expect(summarizeActiveLaps([], 'run')).toBeNull()
   })
 
   it('sums only active laps and derives average speed and pace', () => {
@@ -112,7 +115,7 @@ describe('summarizeActiveLaps', () => {
         makeLap({ id: 2, totalDistance: 20, totalElapsedTime: 120, intensity: 'rest' }),
         makeLap({ id: 3, totalDistance: 2000, totalElapsedTime: 400, intensity: 'active' }),
       ],
-      1,
+      'run',
     )
     expect(summary).not.toBeNull()
     expect(summary?.totalDistance).toBe(4000)
@@ -130,7 +133,7 @@ describe('summarizeActiveLaps', () => {
         makeLap({ id: 2, totalDistance: 0, totalElapsedTime: 30, intensity: null }),
         makeLap({ id: 3, totalDistance: 50, totalElapsedTime: 60, intensity: null }),
       ],
-      8,
+      'lap_swimming',
     )
     expect(summary).not.toBeNull()
     expect(summary?.totalDistance).toBe(100)
@@ -140,7 +143,7 @@ describe('summarizeActiveLaps', () => {
   it('returns null when active laps have no usable distance or time', () => {
     const summary = summarizeActiveLaps(
       [makeLap({ id: 1, totalDistance: null, totalElapsedTime: null, intensity: 'active' })],
-      1,
+      'run',
     )
     expect(summary).toBeNull()
   })

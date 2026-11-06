@@ -19,6 +19,7 @@ import modules.activities.activity_streams.public_router as public_router
 import modules.activities.activity_streams.router as router
 import modules.activities.activity_streams.schema as activity_streams_schema
 import modules.auth.dependencies as auth_deps
+from modules.activities.activity_streams.constants import ActivityStreamType
 
 _HEADERS = {"Authorization": "Bearer x"}
 _TIME = "2026-06-20T08:20:00"
@@ -49,6 +50,10 @@ _WITHOUT_TIME: dict[int, list[dict[str, Any]]] = {
 }
 
 
+def _key(stream_type: int) -> str:
+    return ActivityStreamType.from_stored(stream_type).value
+
+
 def _stream(stream_type: int, waypoints: list[dict[str, Any]]) -> activity_streams_schema.ActivityStreamsRead:
     return activity_streams_schema.ActivityStreamsRead(
         id=stream_type, activity_id=9, stream_type=stream_type, stream_waypoints=waypoints
@@ -59,7 +64,7 @@ def _expected(stream_type: int, waypoints: list[dict[str, Any]]) -> dict[str, An
     """The stream as it has always been served, in the key order it has always had."""
     return {
         "activity_id": 9,
-        "stream_type": stream_type,
+        "stream_type": _key(stream_type),
         "stream_waypoints": waypoints,
         "strava_activity_stream_id": None,
         "id": stream_type,
@@ -101,7 +106,7 @@ class TestAuthenticatedRouter:
         mock_get.return_value = _stream(stream_type, stored)
 
         response = TestClient(_app(mock_db, router, "/activities/{activity_id}", authenticated=True)).get(
-            f"/activities/1/streams/{stream_type}", headers=_HEADERS
+            f"/activities/1/streams/{_key(stream_type)}", headers=_HEADERS
         )
 
         assert response.status_code == 200
@@ -131,7 +136,7 @@ class TestPublicRouter:
 
         response = TestClient(
             _app(mock_db, public_router, "/public/activities/{activity_id}", authenticated=False)
-        ).get(f"/public/activities/1/streams/{stream_type}")
+        ).get(f"/public/activities/1/streams/{_key(stream_type)}")
 
         assert response.status_code == 200
         assert response.content == _compact(_expected(stream_type, stored))
@@ -173,8 +178,10 @@ class TestOpenApi:
         for key in keys:
             assert {"type": "number"} in waypoint["properties"][key]["anyOf"]
 
-    def test_the_stream_type_is_one_of_the_eight_codes(self, document):
-        assert document["components"]["schemas"]["ActivityStreamType"]["enum"] == sorted(_DESCRIBED)
+    def test_the_stream_type_is_one_of_the_eight_keys(self, document):
+        assert document["components"]["schemas"]["ActivityStreamType"]["enum"] == [
+            _key(stream_type) for stream_type in sorted(_DESCRIBED)
+        ]
 
     def test_a_stream_is_one_of_the_typed_streams_without_a_string_keyed_mapping(self, document):
         union = document["components"]["schemas"]["ActivityStreamResponse"]

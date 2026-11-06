@@ -19,6 +19,7 @@ import pydantic
 from sqlalchemy import func
 
 import core.sanitization as core_sanitization
+import core.stored_enum as core_stored_enum
 import core.timezone as core_timezone
 import modules.activities.activity.models as activity_models
 import modules.activities.activity.schema as activity_schema
@@ -162,7 +163,7 @@ def to_update_values(activity_attributes: pydantic.BaseModel) -> dict[str, objec
     Returns:
         Column name -> value for the fields to update.
     """
-    values = activity_attributes.model_dump(exclude_unset=True)
+    values = core_stored_enum.to_stored(activity_attributes.model_dump(exclude_unset=True))
     for markdown_field in ("description", "private_notes"):
         if markdown_field in values:
             values[markdown_field] = core_sanitization.sanitize_markdown(values[markdown_field])
@@ -196,7 +197,7 @@ def to_orm(
         private_notes=sanitized_private_notes,
         distance=activity.distance,
         name=activity.name,
-        activity_type=activity.activity_type,
+        activity_type=activity.activity_type.stored,
         start_time=core_timezone.to_utc_aware(activity.start_time),
         end_time=core_timezone.to_utc_aware(activity.end_time),
         timezone=activity.timezone,
@@ -223,7 +224,7 @@ def to_orm(
         workout_feeling=activity.workout_feeling,
         workout_rpe=activity.workout_rpe,
         calories=activity.calories,
-        visibility=activity.visibility,
+        visibility=activity.visibility.stored if activity.visibility is not None else None,
         gear_id=activity.gear_id,
         strava_gear_id=activity.strava_gear_id,
         strava_activity_id=activity.strava_activity_id,

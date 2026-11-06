@@ -1,72 +1,72 @@
 # Supported types within Endurain
 
 ## Supported activity types
-The table below details the activity types supported by Endurain.
+The table below details the activity types supported by Endurain. `activity_type` in a response, an activity edit and the `type` filter of the activity lists is the key, a string; the API refuses the number.
 
-| Name | Value |
+| Name | Key |
 | ---- | --- |
-| Run | 1 |
-| Trail run | 2 |
-| Track run | 34 |
-| Treadmill run | 40 |
-| Virtual run | 3 |
-| Road cycling | 4 |
-| Gravel cycling | 5 |
-| MTB cycling | 6 |
-| Commuting cycling | 27 |
-| Mixed surface cycling | 29 |
-| Virtual cycling | 7 |
-| Indoor cycling | 28 |
-| E-Bike cycling | 35 |
-| E-Bike mountain cycling | 36 |
-| Indoor swimming | 8 |
-| Open water swimming | 9 |
-| General workout | 10 |
-| Walk | 11 |
-| Indoor walk | 31 |
-| Hike | 12 |
-| Rowing | 13 |
-| Yoga | 14 |
-| Alpine ski | 15 |
-| Nordic Ski | 16 |
-| Snowboard | 17 |
-| Ice Skate | 37 |
-| Transition | 18 |
-| Strength Training | 19 |
-| Crossfit | 20 |
-| Tennis | 21 |
-| Table Tennis | 22 |
-| Badminton | 23 |
-| Squash | 24 |
-| Racquetball | 25 |
-| Pickleball | 26 |
-| Padel | 39 |
-| Windsurf | 30 |
-| Stand up paddling | 32 |
-| Surf | 33 |
-| Soccer | 38 |
-| Cardio training | 41 |
-| Kayaking | 42 |
-| Sailing | 43 |
-| Snow shoeing | 44 |
-| Inline skating | 45 |
-| HIIT | 46 |
-| Jump rope | 47 |
+| Run | `run` |
+| Trail run | `trail_run` |
+| Track run | `track_run` |
+| Treadmill run | `treadmill_run` |
+| Virtual run | `virtual_run` |
+| Road cycling | `ride` |
+| Gravel cycling | `gravel_ride` |
+| MTB cycling | `mtb_ride` |
+| Commuting cycling | `commuting_ride` |
+| Mixed surface cycling | `mixed_surface_ride` |
+| Virtual cycling | `virtual_ride` |
+| Indoor cycling | `indoor_ride` |
+| E-Bike cycling | `ebike_ride` |
+| E-Bike mountain cycling | `ebike_mountain_ride` |
+| Indoor swimming | `lap_swimming` |
+| Open water swimming | `open_water_swimming` |
+| General workout | `workout` |
+| Walk | `walk` |
+| Indoor walk | `indoor_walk` |
+| Hike | `hike` |
+| Rowing | `rowing` |
+| Yoga | `yoga` |
+| Alpine ski | `alpine_ski` |
+| Nordic Ski | `nordic_ski` |
+| Snowboard | `snowboard` |
+| Ice Skate | `ice_skate` |
+| Transition | `transition` |
+| Strength Training | `strength_training` |
+| Crossfit | `crossfit` |
+| Tennis | `tennis` |
+| Table Tennis | `table_tennis` |
+| Badminton | `badminton` |
+| Squash | `squash` |
+| Racquetball | `racquetball` |
+| Pickleball | `pickleball` |
+| Padel | `padel` |
+| Windsurf | `windsurf` |
+| Stand up paddling | `stand_up_paddling` |
+| Surf | `surf` |
+| Soccer | `soccer` |
+| Cardio training | `cardio_training` |
+| Kayaking | `kayaking` |
+| Sailing | `sailing` |
+| Snow shoeing | `snow_shoeing` |
+| Inline skating | `inline_skating` |
+| HIIT | `hiit` |
+| Jump rope | `jump_rope` |
 
 
 ## Supported gear types
-The table below details the gear types supported by Endurain.
+The table below details the gear types supported by Endurain. `gear_type` in a gear and the `gear_type` filter of the gear list is the name, a string; the API refuses the number.
 
-| Name               | Value | Notes                                   |
-|--------------------|-------|-----------------------------------------|
-| bike               | 1     | N/A                                     |
-| shoes              | 2     | N/A                                     |
-| wetsuit            | 3     | N/A                                     |
-| racquet            | 4     | N/A                                     |
-| ski                | 5     | N/A                                     |
-| snowboard          | 6     | N/A                                     |
-| windsurf           | 7     | N/A                                     |
-| water_sports_board | 8     | Example: stand up paddle and surf board |
+| Name               | Notes                                   |
+|--------------------|-----------------------------------------|
+| bike               | N/A                                     |
+| shoes              | N/A                                     |
+| wetsuit            | N/A                                     |
+| racquet            | N/A                                     |
+| ski                | N/A                                     |
+| snowboard          | N/A                                     |
+| windsurf           | N/A                                     |
+| water_sports_board | Example: stand up paddle and surf board |
 
 
 ## Supported bike component gear types
@@ -168,3 +168,19 @@ The table below details the windsurf component gear types supported by Endurain:
 | fuselage                    |
 
 
+
+
+## Other enumerated values
+
+Every enumerated value is a string. The API refuses the number the database stores.
+
+| Field | Values |
+| ----- | ------ |
+| `visibility` of an activity, the `visibility` of the bulk edit and `default_activity_visibility` of the profile | `public`, `followers`, `private` |
+| `media_type` of an activity photo | `photo` |
+| `type` of a notification | `new_activity`, `duplicate_activity`, `new_follower_request`, `new_follower_request_accepted`, `garmin_token_expired`, `strava_token_expired`, `strava_data_deleted`, `idp_linked`, `account_security_changed`, `new_device_sign_in`, `admin_new_sign_up_approval_request` |
+| `bristol_type` of a bowel movement | `type_1` to `type_7` |
+| `stage_type` of a sleep stage | `deep`, `light`, `rem`, `awake` |
+| `stream_type` of an activity stream | `heart_rate`, `power`, `cadence`, `elevation`, `speed`, `pace`, `map`, `temperature` |
+
+`is_strava_linked` and `is_garminconnect_linked` of the signed-in user are booleans.

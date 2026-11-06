@@ -43,7 +43,7 @@ def _create(mock_db, created=True):
 
 class TestCreateNewDeviceSignInNotification:
     def test_the_type_is_33(self):
-        assert notifications_constants.NotificationType.NEW_DEVICE_SIGN_IN == 33
+        assert notifications_constants.NotificationType.NEW_DEVICE_SIGN_IN.stored == 33
 
     def test_records_the_browser_the_system_and_the_address(self, mock_db):
         (_, ws_message, created), create_once = _create(mock_db)

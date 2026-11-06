@@ -13,6 +13,7 @@ import core.config as core_config
 import core.dependencies as core_dependencies
 import core.exceptions as core_exceptions
 import core.pagination as core_pagination
+import modules.activities.activity.constants as activity_constants
 import modules.auth.identity_providers.constants as identity_providers_constants
 import modules.auth.mfa.schema as mfa_schema
 import modules.auth.sessions.schema as auth_sessions_schema
@@ -197,7 +198,7 @@ class TestReadUsersMe:
         data = response.json()
         assert data["id"] == 1
         assert data["name"] == "Test User"
-        assert data["is_strava_linked"] == 0
+        assert data["is_strava_linked"] is False
         assert data["has_local_password"] is True
         assert data["mfa_enabled"] is True
 
@@ -540,7 +541,7 @@ class TestEditProfilePrivacySettings:
             id=1,
             user_id=1,
             version=5,
-            default_activity_visibility=users_privacy_settings_schema.ActivityVisibility.FOLLOWERS,
+            default_activity_visibility=activity_constants.ActivityVisibility.FOLLOWERS,
         )
         response = profile_client.patch(
             PREFIX + "/privacy",

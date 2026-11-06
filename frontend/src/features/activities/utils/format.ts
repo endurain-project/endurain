@@ -1,6 +1,8 @@
 import type { UnitKey } from '@/i18n'
 import type { Schemas } from '@/types'
 
+import type { ActivityType } from '../types'
+
 import { formatFixed, formatNumber } from '@/utils/formatNumber'
 import { kmToMiles } from '@/utils/units'
 
@@ -84,7 +86,7 @@ export function formatPaceClock(secondsPerUnit: number): string {
  * @param units - The user's unit system.
  * @returns The pace unit key (e.g. `minPerKm`).
  */
-export function paceUnitLabel(activityType: number, units: Units): UnitKey {
+export function paceUnitLabel(activityType: ActivityType, units: Units): UnitKey {
   if (activityTypeIsSwimming(activityType)) {
     return units === 'imperial' ? 'minPer100yd' : 'minPer100m'
   }
@@ -106,7 +108,7 @@ export function paceUnitLabel(activityType: number, units: Units): UnitKey {
  */
 export function paceToDisplaySeconds(
   secondsPerMeter: number,
-  activityType: number,
+  activityType: ActivityType,
   units: Units,
 ): number {
   if (activityTypeIsSwimming(activityType)) {
@@ -130,7 +132,7 @@ export function paceToDisplaySeconds(
  */
 export function formatPace(
   secondsPerMeter: number | null | undefined,
-  activityType: number,
+  activityType: ActivityType,
   units: Units,
 ): FormattedMetric {
   const unit = paceUnitLabel(activityType, units)
@@ -150,7 +152,7 @@ export function formatPace(
  * @param units - The user's unit system.
  * @returns The speed unit key.
  */
-export function speedUnitLabel(activityType: number, units: Units): UnitKey {
+export function speedUnitLabel(activityType: ActivityType, units: Units): UnitKey {
   if (activityTypeUsesKnots(activityType)) {
     return 'kn'
   }
@@ -168,7 +170,7 @@ export function speedUnitLabel(activityType: number, units: Units): UnitKey {
  */
 export function speedToDisplay(
   metersPerSecond: number,
-  activityType: number,
+  activityType: ActivityType,
   units: Units,
 ): number {
   if (activityTypeUsesKnots(activityType)) {
@@ -188,7 +190,7 @@ export function speedToDisplay(
  */
 export function formatSpeed(
   metersPerSecond: number | null | undefined,
-  activityType: number,
+  activityType: ActivityType,
   units: Units,
 ): FormattedMetric {
   const unit = speedUnitLabel(activityType, units)
@@ -205,7 +207,7 @@ export function formatSpeed(
  * @param units - The user's unit system.
  * @returns The distance unit key.
  */
-export function distanceUnitLabel(activityType: number, units: Units): UnitKey {
+export function distanceUnitLabel(activityType: ActivityType, units: Units): UnitKey {
   if (activityTypeIsSwimming(activityType)) {
     return units === 'imperial' ? 'yd' : 'm'
   }
@@ -223,7 +225,7 @@ export function distanceUnitLabel(activityType: number, units: Units): UnitKey {
  */
 export function formatDistance(
   meters: number | null | undefined,
-  activityType: number,
+  activityType: ActivityType,
   units: Units,
 ): FormattedMetric {
   const unit = distanceUnitLabel(activityType, units)
@@ -305,7 +307,7 @@ export function temperatureToDisplay(celsius: number, units: Units): number {
  * @param activityType - Numeric activity type.
  * @returns The presentation-ready cadence.
  */
-export function presentCadence(raw: number, activityType: number): number {
+export function presentCadence(raw: number, activityType: ActivityType): number {
   return activityTypeIsRunning(activityType) ? raw * 2 : raw
 }
 
@@ -315,6 +317,6 @@ export function presentCadence(raw: number, activityType: number): number {
  * @param activityType - Numeric activity type.
  * @returns The cadence unit key.
  */
-export function cadenceUnitLabel(activityType: number): UnitKey {
+export function cadenceUnitLabel(activityType: ActivityType): UnitKey {
   return activityTypeIsRunning(activityType) ? 'spm' : 'rpm'
 }

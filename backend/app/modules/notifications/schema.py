@@ -1,10 +1,11 @@
 """Pydantic schemas for notification entities."""
 
 from datetime import datetime
-from typing import Any
+from typing import Annotated, Any
 
 from pydantic import (
     BaseModel,
+    BeforeValidator,
     ConfigDict,
     Field,
     StrictBool,
@@ -14,6 +15,12 @@ from pydantic import (
 
 import core.timezone as core_timezone
 import modules.notifications.constants as notifications_constants
+
+#: The notification type of a stored row, which hands over the stored integer.
+StoredNotificationType = Annotated[
+    notifications_constants.NotificationType,
+    BeforeValidator(notifications_constants.NotificationType.accept_stored),
+]
 
 
 class NotificationBase(BaseModel):
@@ -72,7 +79,7 @@ class NotificationRead(NotificationBase):
     """
 
     id: StrictInt = Field(..., description="Unique notification ID")
-    type: StrictInt = Field(..., description="Type of the notification")
+    type: StoredNotificationType = Field(..., description="Type of the notification")
     user_id: StrictInt = Field(
         ...,
         ge=1,

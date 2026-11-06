@@ -23,18 +23,18 @@ Weight, steps, sleep, water, poop and fasting each have a list (`GET /health/{me
 
 ## Activity streams
 
-`GET /activities/{activity_id}/streams` returns a page of the activity's streams and `GET /activities/{activity_id}/streams/{stream_type}` returns one; the public activity has the same two routes under `/public`. Each stream has a `stream_type` and a list of `stream_waypoints`, whose shape follows the type.
+`GET /activities/{activity_id}/streams` returns a page of the activity's streams and `GET /activities/{activity_id}/streams/{stream_type}` returns one; the public activity has the same two routes under `/public`. Each stream has a `stream_type`, a string, and a list of `stream_waypoints`, whose shape follows the type. `{stream_type}` in the path takes the same string.
 
 | `stream_type` | Stream | Waypoint value keys |
 | ------------- | ------ | ------------------- |
-| 1 | Heart rate | `hr` (bpm) |
-| 2 | Power | `power` (watts) |
-| 3 | Cadence | `cad` (rpm, spm for running) |
-| 4 | Elevation | `ele` (meters) |
-| 5 | Speed | `vel` (m/s) |
-| 6 | Pace | `pace` (s/m, 0 at a standstill) |
-| 7 | Map | `lat`, `lon` (decimal degrees) |
-| 8 | Temperature | `temp` (degrees Celsius) |
+| `heart_rate` | Heart rate | `hr` (bpm) |
+| `power` | Power | `power` (watts) |
+| `cadence` | Cadence | `cad` (rpm, spm for running) |
+| `elevation` | Elevation | `ele` (meters) |
+| `speed` | Speed | `vel` (m/s) |
+| `pace` | Pace | `pace` (s/m, 0 at a standstill) |
+| `map` | Map | `lat`, `lon` (decimal degrees) |
+| `temperature` | Temperature | `temp` (degrees Celsius) |
 
 - **Every waypoint has a `time`**: a UTC `YYYY-MM-DDTHH:MM:SS` string, or the seconds from the start as a number for a stream imported from Strava. When the owner hides the start time of the activity, `time` is missing from the waypoints other viewers get.
 - **Values are numbers as stored**, so an integer such as `120` stays `120` and is not turned into `120.0`. A value can be `null` where the source recorded none.

@@ -12,9 +12,9 @@ from typing import Annotated, Any
 
 from pydantic import (
     BaseModel,
+    BeforeValidator,
     ConfigDict,
     Field,
-    Strict,
     StrictBool,
     StrictInt,
     StrictStr,
@@ -29,7 +29,17 @@ import modules.activities.activity.bulk_edit_constants as bulk_edit_constants
 import modules.activities.activity.constants as activity_constants
 import modules.users.users.schema as users_schema
 
-VisibilityValue = Annotated[StrictInt, Field(ge=0, le=2)]
+#: The activity type of a stored row or an ingestion producer, which hand over the stored integer. A request
+#: field is the plain enum instead, which refuses the integer.
+StoredActivityType = Annotated[
+    activity_constants.ActivityType, BeforeValidator(activity_constants.ActivityType.accept_stored)
+]
+#: The media type of a stored row, which hands over the stored integer.
+StoredMediaType = Annotated[activity_constants.MediaType, BeforeValidator(activity_constants.MediaType.accept_stored)]
+#: The visibility of a stored row or an ingestion producer, which hand over the stored integer.
+StoredActivityVisibility = Annotated[
+    activity_constants.ActivityVisibility, BeforeValidator(activity_constants.ActivityVisibility.accept_stored)
+]
 LongText = Annotated[StrictStr, Field(max_length=2500)]
 ActivityName = core_types.DisplayName
 
@@ -51,7 +61,7 @@ class ActivityBase(BaseModel):
         private_notes: Private notes visible only to owner.
         distance: Total distance in meters.
         name: Activity name.
-        activity_type: Numeric code for the sport type.
+        activity_type: The sport type.
         start_time: Activity start as a timezone-aware UTC instant.
         end_time: Activity end as a timezone-aware UTC instant.
         timezone: IANA timezone the activity was recorded in. Clients render
@@ -114,7 +124,7 @@ class ActivityBase(BaseModel):
     private_notes: str | None = Field(default=None, max_length=2500)
     distance: int = Field(ge=0)
     name: str = Field(max_length=250)
-    activity_type: core_types.RecordId
+    activity_type: StoredActivityType
     start_time: datetime | None = None
     end_time: datetime | None = None
     timezone: str | None = Field(default=None, max_length=250)
@@ -139,7 +149,7 @@ class ActivityBase(BaseModel):
     workout_feeling: int | None = Field(default=None, ge=0, le=100)
     workout_rpe: int | None = Field(default=None, ge=10, le=100)
     calories: int | None = Field(default=None, ge=0)
-    visibility: int | None = Field(default=None, ge=0, le=2)
+    visibility: StoredActivityVisibility | None = None
     gear_id: core_types.RecordId | None = None
     strava_gear_id: str | None = Field(default=None, max_length=45)
     strava_activity_id: int | None = None
@@ -205,7 +215,7 @@ class ActivityMediaEmbedded(BaseModel):
     Attributes:
         id: Media record identifier.
         activity_id: The activity the photo belongs to.
-        media_type: Media kind (1 = photo).
+        media_type: Media kind.
         url: Signed, servable address of the photo.
     """
 
@@ -213,7 +223,7 @@ class ActivityMediaEmbedded(BaseModel):
 
     id: StrictInt = Field(ge=1)
     activity_id: StrictInt = Field(ge=1)
-    media_type: StrictInt = Field(ge=1, le=1)
+    media_type: StoredMediaType
     url: str = Field(min_length=1)
 
 
@@ -349,14 +359,13 @@ class ActivitiesBulkEdit(core_partial_update.NotClearable):
 
     Attributes:
         visibility: Visibility to apply to every activity the caller owns.
-            0 public, 1 followers, 2 private.
     """
 
     model_config = ConfigDict(extra="forbid")
 
     not_clearable = ("visibility",)
 
-    visibility: int | None = Field(default=None, ge=0, le=2)
+    visibility: activity_constants.ActivityVisibility | None = None
 
 
 class ActivityEdit(core_partial_update.NotClearable, BaseModel):
@@ -370,8 +379,8 @@ class ActivityEdit(core_partial_update.NotClearable, BaseModel):
         description: Public activity description.
         private_notes: Private notes (owner only).
         name: Activity name.
-        activity_type: Numeric sport type code.
-        visibility: 0 - public, 1 - followers, 2 - private.
+        activity_type: The sport type.
+        visibility: Who may see the activity.
         is_hidden: Whether the activity is hidden.
         gear_id: Associated gear identifier.
         hide_start_time: Hide start time from others.
@@ -412,8 +421,8 @@ class ActivityEdit(core_partial_update.NotClearable, BaseModel):
     description: LongText | None = None
     private_notes: LongText | None = None
     name: ActivityName | None = None
-    activity_type: Annotated[activity_constants.ActivityTypeId, Strict()] | None = None
-    visibility: VisibilityValue | None = None
+    activity_type: activity_constants.ActivityType | None = None
+    visibility: activity_constants.ActivityVisibility | None = None
     is_hidden: StrictBool | None = None
     gear_id: core_types.RecordId | None = None
     hide_start_time: StrictBool | None = None

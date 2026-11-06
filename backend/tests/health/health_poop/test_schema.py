@@ -43,8 +43,9 @@ class TestEnums:
     def test_bristol_type(self):
         from modules.health.health_poop.schema import BristolType
 
-        assert BristolType.TYPE_1.value == 1
-        assert BristolType.TYPE_7.value == 7
+        assert BristolType.TYPE_1.value == "type_1"
+        assert BristolType.TYPE_1.stored == 1
+        assert BristolType.TYPE_7.stored == 7
 
     def test_color_values(self):
         from modules.health.health_poop.schema import Color

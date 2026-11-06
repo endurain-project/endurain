@@ -8,6 +8,7 @@ from fastapi.testclient import TestClient
 
 import core.exceptions as core_exceptions
 import modules.activities.activity.schema as activity_schema
+from modules.activities.activity.constants import ActivityType
 
 
 def _build_app(mock_db):
@@ -156,9 +157,10 @@ class TestListOwnActivities:
 class TestTypes:
     def test_success(self, mock_db):
         with patch("modules.activities.activity.service.activity_crud.get_distinct_activity_types_for_user") as m:
-            m.return_value = {1: "Run"}
+            m.return_value = [ActivityType.RUN, ActivityType.TRAIL_RUN]
             resp = TestClient(_build_app(mock_db)).get("/activities/types", headers={"Authorization": "Bearer x"})
             assert resp.status_code == 200
+            assert resp.json() == {"run": "Run", "trail_run": "Trail run"}
 
 
 class TestFeed:
@@ -395,7 +397,7 @@ class TestEdit:
             resp = TestClient(_build_app(mock_db)).patch(
                 "/activities/1",
                 headers={**{"Authorization": "Bearer x"}, "If-Match": '"1"'},
-                json={"name": "Run", "activity_type": 1, "visibility": 2},
+                json={"name": "Run", "activity_type": "run", "visibility": "private"},
             )
             assert resp.status_code == 200
 
@@ -412,7 +414,7 @@ class TestEdit:
             resp = TestClient(_build_app(mock_db)).patch(
                 "/activities/1",
                 headers={**{"Authorization": "Bearer x"}, "If-Match": '"1"'},
-                json={"visibility": 2},
+                json={"visibility": "private"},
             )
             assert resp.status_code == 200
 
@@ -429,7 +431,7 @@ class TestEdit:
             resp = TestClient(_build_app(mock_db)).patch(
                 "/activities/7",
                 headers={**{"Authorization": "Bearer x"}, "If-Match": '"1"'},
-                json={"name": "Run", "visibility": 2},
+                json={"name": "Run", "visibility": "private"},
             )
             assert resp.status_code == 200
             # edit_activity(token_user_id, activity_id, activity_attributes, db)
@@ -444,13 +446,20 @@ class TestEdit:
         )
         assert resp.status_code == 422
 
+    @pytest.mark.parametrize("body", [{"activity_type": 1}, {"visibility": 2}])
+    def test_edit_refuses_the_stored_integers(self, mock_db, body):
+        resp = TestClient(_build_app(mock_db)).patch(
+            "/activities/1", headers={"Authorization": "Bearer x", "If-Match": '"1"'}, json=body
+        )
+        assert resp.status_code == 422
+
 
 class TestEditVisibility:
     def test_success_queues_the_edit_and_answers_202(self, mock_db):
         with patch("modules.activities.activity.router.activity_bulk_edit_job_service.request_visibility_edit") as m:
             m.return_value = activity_schema.ActivitiesBulkEditStatus(status="queued")
             resp = TestClient(_build_app(mock_db)).patch(
-                "/activities", json={"visibility": 1}, headers={"Authorization": "Bearer x"}
+                "/activities", json={"visibility": "followers"}, headers={"Authorization": "Bearer x"}
             )
             assert resp.status_code == 202 and resp.json() == {"status": "queued"}
             assert m.call_args.args[1] == 1
@@ -465,10 +474,10 @@ class TestEditVisibility:
             resp = TestClient(_build_app(mock_db)).get("/activities/bulk-edit", headers={"Authorization": "Bearer x"})
             assert resp.status_code == 200 and resp.json() == {"status": "running"}
 
-    def test_rejects_an_out_of_range_visibility(self, mock_db):
-        """Validation moved from a path dependency into the body schema."""
+    @pytest.mark.parametrize("visibility", [9, 1, "everyone"])
+    def test_rejects_an_unknown_visibility_and_the_stored_integer(self, mock_db, visibility):
         resp = TestClient(_build_app(mock_db)).patch(
-            "/activities", json={"visibility": 9}, headers={"Authorization": "Bearer x"}
+            "/activities", json={"visibility": visibility}, headers={"Authorization": "Bearer x"}
         )
         assert resp.status_code == 422
 

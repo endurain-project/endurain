@@ -4,6 +4,7 @@ import pytest
 from sqlalchemy.exc import IntegrityError
 
 import core.exceptions as core_exceptions
+import modules.activities.activity.constants as activity_constants
 import modules.users.users_privacy_settings.crud as users_privacy_settings_crud
 import modules.users.users_privacy_settings.models as users_privacy_settings_models
 import modules.users.users_privacy_settings.schema as users_privacy_settings_schema
@@ -64,7 +65,7 @@ class TestEditUserPrivacySettings:
         row = MagicMock(spec=users_privacy_settings_models.UsersPrivacySettings)
         _found(mock_db, row)
         update = users_privacy_settings_schema.UsersPrivacySettingsUpdate(
-            default_activity_visibility=users_privacy_settings_schema.ActivityVisibility.PRIVATE,
+            default_activity_visibility=activity_constants.ActivityVisibility.PRIVATE,
             hide_activity_map=True,
         )
 

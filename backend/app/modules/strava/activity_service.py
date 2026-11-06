@@ -440,7 +440,7 @@ def parse_activity(
         name=detailed_activity.name or activity_constants.DEFAULT_ACTIVITY_NAME,
         distance=round(detailed_activity.distance) if detailed_activity.distance else 0,
         description=detailed_activity.description,
-        activity_type=activity_type,
+        activity_type=activity_constants.ActivityType.from_stored(activity_type),
         start_time=start_date_parsed,
         end_time=end_date_parsed,
         timezone=timezone,
@@ -465,7 +465,7 @@ def parse_activity(
         gear_id=gear_id,
         strava_gear_id=detailed_activity.gear_id,
         strava_activity_id=strava_activity_id,
-        visibility=users_privacy_settings_integration.visibility_to_int(
+        visibility=users_privacy_settings_integration.resolve_visibility(
             user_privacy_settings.default_activity_visibility
         ),
         hide_start_time=user_privacy_settings.hide_activity_start_time or False,

@@ -23,7 +23,7 @@ ActivityId = core_dependencies.PositiveId
 WindowDate = Annotated[date, Field(ge=date(1900, 1, 1), le=date(9998, 12, 31))]
 
 #: The optional ``type`` filter of an activity list.
-ActivityTypeFilter = Annotated[activity_constants.ActivityTypeId | None, Query(alias="type")]
+ActivityTypeFilter = Annotated[activity_constants.ActivityType | None, Query(alias="type")]
 
 #: The optional ``sort_by`` key of an activity list.
 SortBy = Annotated[activity_constants.ActivitySortField | None, Query()]

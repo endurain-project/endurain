@@ -14,6 +14,7 @@ from sqlalchemy.orm import Session
 
 import core.exceptions as core_exceptions
 import core.pagination as core_pagination
+import modules.activities.activity.constants as activity_constants
 import modules.activities.activity_media.contracts as activity_media_contracts
 import modules.activities.activity_media.models as activity_media_models
 import modules.activities.activity_media.serializers as activity_media_serializers
@@ -262,7 +263,7 @@ def create_activity_media(
         db_activity_media = activity_media_models.ActivityMedia(
             activity_id=activity_id,
             media_path=media_key,
-            media_type=1,
+            media_type=activity_constants.MediaType.PHOTO.stored,
             content_hash=content_hash,
         )
         db.add(db_activity_media)
@@ -293,7 +294,7 @@ def create_activity_medias(
             activity_media_models.ActivityMedia(
                 activity_id=activity_id,
                 media_path=media_item.media_path,
-                media_type=media_item.media_type,
+                media_type=media_item.media_type.stored,
                 content_hash=media_item.content_hash,
             )
         )

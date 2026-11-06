@@ -179,7 +179,7 @@ const profile = {
 const gear: Gear = {
   id: 2,
   userId: 1,
-  gearType: 1,
+  gearType: 'bike',
   nickname: 'Road',
   brand: null,
   model: null,
@@ -296,7 +296,7 @@ describe('ActivityGearCard', () => {
   })
 
   function mountCard() {
-    const activity: Activity = makeActivity({ id: 5, gearId: 2, activityType: 1 })
+    const activity: Activity = makeActivity({ id: 5, gearId: 2, activityType: 'run' })
     return mount(ActivityGearCard, {
       props: { activity },
       global: {

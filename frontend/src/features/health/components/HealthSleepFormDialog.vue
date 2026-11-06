@@ -3,7 +3,12 @@ import { computed, reactive, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { Plus, Trash2 } from '@lucide/vue'
 
-import type { SleepEntry, SleepEntryInput, SleepStage } from '@/features/health/types'
+import type {
+  SleepEntry,
+  SleepEntryInput,
+  SleepStage,
+  SleepStageType,
+} from '@/features/health/types'
 
 import { Button } from '@/components/ui/button'
 import { FormDialog } from '@/components/ui/form-dialog'
@@ -108,7 +113,7 @@ const stages = ref<StageRow[]>([])
 /** Appends a blank stage row defaulted to deep sleep. */
 function addStage(): void {
   stages.value.push({
-    stageType: '0',
+    stageType: 'deep',
     startTimeGmt: '',
     endTimeGmt: '',
     durationHours: '',
@@ -130,7 +135,7 @@ function buildStage(row: StageRow): SleepStage | null {
     return null
   }
   return {
-    stageType: toNumberOrNull(row.stageType),
+    stageType: row.stageType as SleepStageType,
     startTimeGmt,
     endTimeGmt,
     durationSeconds,
@@ -503,7 +508,7 @@ function populate(): void {
   stages.value = entry.sleepStages.map((stage) => {
     const duration = secondsToHm(stage.durationSeconds)
     return {
-      stageType: stage.stageType !== null ? String(stage.stageType) : '0',
+      stageType: stage.stageType ?? 'deep',
       startTimeGmt: toDateTimeLocal(stage.startTimeGmt),
       endTimeGmt: toDateTimeLocal(stage.endTimeGmt),
       durationHours: duration.hours,
@@ -879,10 +884,10 @@ watch(open, (isOpen) => {
                   :class="fieldClass"
                   :disabled="isSubmitting"
                 >
-                  <option value="0">{{ t('health.sleep.form.stageDeep') }}</option>
-                  <option value="1">{{ t('health.sleep.form.stageLight') }}</option>
-                  <option value="2">{{ t('health.sleep.form.stageRem') }}</option>
-                  <option value="3">{{ t('health.sleep.form.stageAwake') }}</option>
+                  <option value="deep">{{ t('health.sleep.form.stageDeep') }}</option>
+                  <option value="light">{{ t('health.sleep.form.stageLight') }}</option>
+                  <option value="rem">{{ t('health.sleep.form.stageRem') }}</option>
+                  <option value="awake">{{ t('health.sleep.form.stageAwake') }}</option>
                 </select>
               </template>
             </FormField>

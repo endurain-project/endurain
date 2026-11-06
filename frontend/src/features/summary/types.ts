@@ -1,3 +1,5 @@
+import type { ActivityType } from '@/features/activities/types'
+
 /**
  * Domain models for the activity summary feature (the `/summary` view). These
  * are the clean, camel-cased shapes the views and components consume; the
@@ -40,10 +42,8 @@ export interface SummaryBreakdownRow extends SummaryTotals {
 
 /** One row of the per-activity-type breakdown. */
 export interface SummaryTypeBreakdownRow extends SummaryTotals {
-  /** Numeric activity-type code. */
-  activityType: number
-  /** Backend activity-type name (used only as a fallback label). */
-  activityTypeName: string
+  /** The activity type the row is for. */
+  activityType: ActivityType
 }
 
 /** A complete activity summary for one view type, period, and optional type filter. */

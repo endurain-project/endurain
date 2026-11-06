@@ -1,7 +1,7 @@
 import type { MetricPillVariants } from '@/components/ui/metric-pill'
 import type { UnitKey } from '@/i18n'
 
-import type { Activity } from '../types'
+import type { Activity, ActivityType } from '../types'
 import {
   activityTypeIsCycling,
   activityTypeIsDistanceBased,
@@ -292,7 +292,7 @@ export function buildActivityMetrics(
 export function formatLapTempo(
   enhancedAvgPace: number | null,
   enhancedAvgSpeed: number | null,
-  activityType: number,
+  activityType: ActivityType,
   units: Units,
 ): FormattedMetric | null {
   if (activityTypeUsesPace(activityType)) {

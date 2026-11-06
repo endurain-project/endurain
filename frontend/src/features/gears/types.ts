@@ -1,3 +1,4 @@
+import type { ActivityType } from '@/features/activities/types'
 import type { Schemas } from '@/types'
 
 /** Raw `GearRead` payload as returned by the backend (snake_case wire shape). */
@@ -7,7 +8,7 @@ export type GearDto = Schemas['GearRead']
 export type GearDetailDto = Schemas['GearDetailRead']
 
 /**
- * Supported gear-type code (1–8), derived from the backend's generated
+ * Supported gear type, derived from the backend's generated
  * `GearType` schema so a change to the supported set surfaces here as a type
  * error instead of a silent mismatch.
  */
@@ -20,7 +21,7 @@ export type GearType = Schemas['GearType']
  *
  * @property id - Stable unique identifier.
  * @property userId - Owning user id.
- * @property gearType - Numeric gear-type identifier (1–8).
+ * @property gearType - The gear type.
  * @property nickname - Display nickname.
  * @property brand - Manufacturer brand, or `null`.
  * @property model - Model name, or `null`.
@@ -165,7 +166,7 @@ export type GearActivityDto = Schemas['ActivityRead']
 export interface GearActivity {
   id: number
   name: string
-  activityType: number
+  activityType: ActivityType
   startTime: string | null
   timezone: string | null
   distance: number

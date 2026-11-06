@@ -13,7 +13,7 @@ import {
   Watch,
 } from '@lucide/vue'
 
-import type { Notification } from '@/features/notifications/types'
+import type { Notification, NotificationType } from '@/features/notifications/types'
 
 import { presentNotification } from '@/features/notifications/utils/notificationPresenter'
 
@@ -21,17 +21,20 @@ import { presentNotification } from '@/features/notifications/utils/notification
  * Builds a notification with sensible defaults so each test only states the
  * fields it cares about.
  *
- * @param type - Numeric notification type, or `null`.
+ * @param type - The notification type.
  * @param options - The per-type metadata bag.
  * @returns A notification model for the presenter.
  */
-function make(type: number | null, options: Record<string, unknown> | null = null): Notification {
+function make(
+  type: NotificationType,
+  options: Record<string, unknown> | null = null,
+): Notification {
   return { id: 1, type, read: false, options, createdAt: null, userId: 5 }
 }
 
 describe('presentNotification', () => {
   it('presents a new-activity notification with a deep link', () => {
-    const result = presentNotification(make(1, { activity_id: 42 }))
+    const result = presentNotification(make('new_activity', { activity_id: 42 }))
 
     expect(result.icon).toBe(Activity)
     expect(result.titleKey).toBe('notifications.types.newActivity.title')
@@ -40,11 +43,11 @@ describe('presentNotification', () => {
   })
 
   it('drops the activity link when the id is missing', () => {
-    expect(presentNotification(make(1, {})).to).toBeNull()
+    expect(presentNotification(make('new_activity', {})).to).toBeNull()
   })
 
   it('presents a duplicate-activity notification', () => {
-    const result = presentNotification(make(2, { activity_id: 7 }))
+    const result = presentNotification(make('duplicate_activity', { activity_id: 7 }))
 
     expect(result.icon).toBe(CopyCheck)
     expect(result.titleKey).toBe('notifications.types.duplicateActivity.title')
@@ -52,9 +55,12 @@ describe('presentNotification', () => {
   })
 
   it('links a follower request to the viewer followers list', () => {
-    const result = presentNotification(make(11, { user_name: 'Ada', user_username: 'ada' }), {
-      currentUserId: 9,
-    })
+    const result = presentNotification(
+      make('new_follower_request', { user_name: 'Ada', user_username: 'ada' }),
+      {
+        currentUserId: 9,
+      },
+    )
 
     expect(result.icon).toBe(UserPlus)
     expect(result.bodyParams).toEqual({ name: 'Ada', username: 'ada' })
@@ -62,18 +68,18 @@ describe('presentNotification', () => {
   })
 
   it('omits the follower-request link without a current user id', () => {
-    expect(presentNotification(make(11, {})).to).toBeNull()
+    expect(presentNotification(make('new_follower_request', {})).to).toBeNull()
   })
 
   it('coerces missing follower fields to empty strings', () => {
-    const result = presentNotification(make(11, {}), { currentUserId: 1 })
+    const result = presentNotification(make('new_follower_request', {}), { currentUserId: 1 })
 
     expect(result.bodyParams).toEqual({ name: '', username: '' })
   })
 
   it('links an accepted follower request to that user', () => {
     const result = presentNotification(
-      make(12, { user_id: 3, user_name: 'Ada', user_username: 'ada' }),
+      make('new_follower_request_accepted', { user_id: 3, user_name: 'Ada', user_username: 'ada' }),
     )
 
     expect(result.icon).toBe(UserCheck)
@@ -81,14 +87,14 @@ describe('presentNotification', () => {
   })
 
   it('routes a Garmin token expiry to settings integrations', () => {
-    const result = presentNotification(make(21))
+    const result = presentNotification(make('garmin_token_expired'))
 
     expect(result.icon).toBe(Watch)
     expect(result.to).toEqual({ name: 'settings', query: { tab: 'integrations' } })
   })
 
   it('routes a Strava token expiry to settings integrations', () => {
-    const result = presentNotification(make(22))
+    const result = presentNotification(make('strava_token_expired'))
 
     expect(result.icon).toBe(Unplug)
     expect(result.titleKey).toBe('notifications.types.stravaTokenExpired.title')
@@ -96,7 +102,9 @@ describe('presentNotification', () => {
   })
 
   it('names the day the Strava data is deleted when access was revoked on Strava', () => {
-    const result = presentNotification(make(22, { delete_on: '2026-11-12' }), { locale: 'en' })
+    const result = presentNotification(make('strava_token_expired', { delete_on: '2026-11-12' }), {
+      locale: 'en',
+    })
 
     expect(result.titleKey).toBe('notifications.types.stravaTokenExpired.title')
     expect(result.bodyKey).toBe('notifications.types.stravaTokenExpired.bodyRevoked')
@@ -105,14 +113,14 @@ describe('presentNotification', () => {
   })
 
   it('keeps the plain Strava message when no deletion day is named', () => {
-    const result = presentNotification(make(22))
+    const result = presentNotification(make('strava_token_expired'))
 
     expect(result.bodyKey).toBe('notifications.types.stravaTokenExpired.body')
     expect(result.bodyParams).toBeUndefined()
   })
 
   it('tells the user their Strava data was deleted', () => {
-    const result = presentNotification(make(23))
+    const result = presentNotification(make('strava_data_deleted'))
 
     expect(result.titleKey).toBe('notifications.types.stravaDataDeleted.title')
     expect(result.bodyKey).toBe('notifications.types.stravaDataDeleted.body')
@@ -120,7 +128,7 @@ describe('presentNotification', () => {
   })
 
   it('names the linked provider and routes to security settings', () => {
-    const result = presentNotification(make(31, { idp_id: 4, idp_name: 'Authentik' }))
+    const result = presentNotification(make('idp_linked', { idp_id: 4, idp_name: 'Authentik' }))
 
     expect(result.icon).toBe(KeyRound)
     expect(result.titleKey).toBe('notifications.types.idpLinked.title')
@@ -130,7 +138,7 @@ describe('presentNotification', () => {
   })
 
   it('falls back to the generic body when the linked provider has no name', () => {
-    const result = presentNotification(make(31, { idp_id: 4, idp_name: null }))
+    const result = presentNotification(make('idp_linked', { idp_id: 4, idp_name: null }))
 
     expect(result.bodyKey).toBe('notifications.types.idpLinked.bodyGeneric')
   })
@@ -145,7 +153,7 @@ describe('presentNotification', () => {
     ['api_key_created', 'apiKeyCreated'],
     ['account_locked', 'accountLocked'],
   ])('presents the %s account-security change', (change, key) => {
-    const result = presentNotification(make(32, { change }))
+    const result = presentNotification(make('account_security_changed', { change }))
 
     expect(result.icon).toBe(LockKeyhole)
     expect(result.titleKey).toBe(`notifications.types.accountSecurityChanged.${key}.title`)
@@ -155,7 +163,11 @@ describe('presentNotification', () => {
 
   it('names the provider of an unlink', () => {
     const result = presentNotification(
-      make(32, { change: 'identity_provider_unlinked', idp_id: 4, idp_name: 'Authentik' }),
+      make('account_security_changed', {
+        change: 'identity_provider_unlinked',
+        idp_id: 4,
+        idp_name: 'Authentik',
+      }),
     )
 
     expect(result.titleKey).toBe(
@@ -169,7 +181,11 @@ describe('presentNotification', () => {
 
   it('falls back to the generic unlink body when the provider has no name', () => {
     const result = presentNotification(
-      make(32, { change: 'identity_provider_unlinked', idp_id: 4, idp_name: null }),
+      make('account_security_changed', {
+        change: 'identity_provider_unlinked',
+        idp_id: 4,
+        idp_name: null,
+      }),
     )
 
     expect(result.bodyKey).toBe(
@@ -178,7 +194,9 @@ describe('presentNotification', () => {
   })
 
   it('degrades to a generic security message for an unknown change', () => {
-    const result = presentNotification(make(32, { change: 'something_new' }))
+    const result = presentNotification(
+      make('account_security_changed', { change: 'something_new' }),
+    )
 
     expect(result.icon).toBe(LockKeyhole)
     expect(result.titleKey).toBe('notifications.types.accountSecurityChanged.unknown.title')
@@ -188,7 +206,11 @@ describe('presentNotification', () => {
 
   it('presents a sign-in from a new device with its browser and system', () => {
     const result = presentNotification(
-      make(33, { browser: 'Firefox', operating_system: 'Linux', ip_address: '203.0.113.7' }),
+      make('new_device_sign_in', {
+        browser: 'Firefox',
+        operating_system: 'Linux',
+        ip_address: '203.0.113.7',
+      }),
     )
 
     expect(result.icon).toBe(LogIn)
@@ -200,7 +222,11 @@ describe('presentNotification', () => {
 
   it('routes an admin sign-up approval to the pending user', () => {
     const result = presentNotification(
-      make(101, { user_id: 7, user_name: 'Ada', user_username: 'ada' }),
+      make('admin_new_sign_up_approval_request', {
+        user_id: 7,
+        user_name: 'Ada',
+        user_username: 'ada',
+      }),
     )
 
     expect(result.icon).toBe(ShieldAlert)
@@ -209,20 +235,18 @@ describe('presentNotification', () => {
   })
 
   it('routes an admin sign-up approval without a user id to the users list', () => {
-    const result = presentNotification(make(101, { user_name: 'Ada', user_username: 'ada' }))
+    const result = presentNotification(
+      make('admin_new_sign_up_approval_request', { user_name: 'Ada', user_username: 'ada' }),
+    )
 
     expect(result.to).toEqual({ name: 'settings-users' })
   })
 
   it('falls back to a neutral bell for unknown types', () => {
-    const result = presentNotification(make(999))
+    const result = presentNotification(make('bogus' as NotificationType))
 
     expect(result.icon).toBe(Bell)
     expect(result.titleKey).toBe('notifications.types.unknown.title')
     expect(result.to).toBeNull()
-  })
-
-  it('handles a null type', () => {
-    expect(presentNotification(make(null)).icon).toBe(Bell)
   })
 })

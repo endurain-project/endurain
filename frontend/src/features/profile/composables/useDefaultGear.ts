@@ -2,7 +2,7 @@ import { storeToRefs } from 'pinia'
 import { useQuery } from '@tanstack/vue-query'
 
 import type { DefaultGear } from '@/features/profile/types'
-import type { Gear } from '@/features/gears/types'
+import type { Gear, GearType } from '@/features/gears/types'
 
 import { useInvalidatingMutation } from '@/composables/useInvalidatingMutation'
 import { queryKeys } from '@/services/queryKeys'
@@ -11,8 +11,8 @@ import { fetchGearsByType } from '@/features/gears/services/gears'
 import { fetchDefaultGear, updateDefaultGear } from '@/features/profile/services/defaultGear'
 import { DEFAULT_GEAR_TYPES } from '@/features/profile/utils/defaultGearFields'
 
-/** Gears keyed by their numeric gear type, for the per-activity selectors. */
-export type GearOptionsByType = Record<number, Gear[]>
+/** Gears keyed by their gear type, for the per-activity selectors. */
+export type GearOptionsByType = Partial<Record<GearType, Gear[]>>
 
 /**
  * The user's default-gear assignments. Gated on authentication.
@@ -47,7 +47,7 @@ export function useGearTypeOptionsQuery() {
           async (gearType) => [gearType, await fetchGearsByType(gearType, signal)] as const,
         ),
       )
-      return Object.fromEntries(entries) as GearOptionsByType
+      return Object.fromEntries(entries)
     },
     enabled: isAuthenticated,
   })

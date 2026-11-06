@@ -4,6 +4,7 @@ from types import SimpleNamespace
 from unittest.mock import ANY, MagicMock, patch
 
 import modules.activities.activity_ingestion.enrichment_service as enrichment
+from modules.activities.activity.constants import ActivityType, ActivityVisibility
 
 
 def _privacy_settings() -> SimpleNamespace:
@@ -29,11 +30,11 @@ class TestBuildActivityPrivacyKwargs:
     @patch("modules.activities.activity_ingestion.enrichment_service.users_privacy_settings_integration")
     @patch("modules.activities.activity_ingestion.enrichment_service.users_default_gear_integration")
     def test_maps_privacy_fields(self, mock_users, mock_privacy):
-        mock_privacy.visibility_to_int.return_value = 0
+        mock_privacy.resolve_visibility.return_value = ActivityVisibility.PUBLIC
 
         kwargs = enrichment.build_activity_privacy_kwargs(_privacy_settings())
 
-        assert kwargs["visibility"] == 0
+        assert kwargs["visibility"] is ActivityVisibility.PUBLIC
         assert kwargs["hide_location"] is True
         assert kwargs["hide_start_time"] is False
         # visibility + 12 hide_* flags.
@@ -71,15 +72,15 @@ class TestEnrichParsedActivity:
     @patch("modules.activities.activity_ingestion.enrichment_service.users_privacy_settings_integration")
     @patch("modules.activities.activity_ingestion.enrichment_service.users_default_gear_integration")
     def test_sets_privacy_and_gear_non_garmin(self, mock_users, mock_privacy):
-        mock_privacy.visibility_to_int.return_value = 1
+        mock_privacy.resolve_visibility.return_value = ActivityVisibility.FOLLOWERS
         mock_users.get_default_gear_for_activity_type.return_value = 12
-        activity = SimpleNamespace(activity_type=4)
+        activity = SimpleNamespace(activity_type=ActivityType.RIDE)
 
         enrichment.enrich_parsed_activity(
             activity, user_id=7, user_privacy_settings=_privacy_settings(), db=MagicMock()
         )
 
-        assert activity.visibility == 1
+        assert activity.visibility is ActivityVisibility.FOLLOWERS
         assert activity.hide_location is True
         assert activity.gear_id == 12
         # Non-Garmin import leaves the provider ids untouched.
@@ -88,9 +89,9 @@ class TestEnrichParsedActivity:
     @patch("modules.activities.activity_ingestion.enrichment_service.users_privacy_settings_integration")
     @patch("modules.activities.activity_ingestion.enrichment_service.users_default_gear_integration")
     def test_sets_garmin_ids_when_from_garmin(self, mock_users, mock_privacy):
-        mock_privacy.visibility_to_int.return_value = 0
+        mock_privacy.resolve_visibility.return_value = ActivityVisibility.PUBLIC
         mock_users.get_default_gear_for_activity_type.return_value = None
-        activity = SimpleNamespace(activity_type=1)
+        activity = SimpleNamespace(activity_type=ActivityType.RUN)
 
         enrichment.enrich_parsed_activity(
             activity,

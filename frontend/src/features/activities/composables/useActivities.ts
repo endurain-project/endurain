@@ -9,7 +9,7 @@ import {
   type ActivitySortBy,
   type ActivitySortOrder,
   fetchUserActivitiesPage,
-  fetchUserActivityTypeMap,
+  fetchUserActivityTypes,
 } from '@/features/activities/services/activities'
 
 /** Resolves a reactive user id to a positive number, or `0` when unavailable. */
@@ -74,39 +74,17 @@ export function useUserActivitiesQuery(
 }
 
 /**
- * The distinct activity-type codes the authenticated user owns, ascending,
- * powering the activity-type filter so it only offers types the user has. Reads
- * the same cached request as {@link useUserActivityTypeMapQuery} and selects the
- * codes from it; gated on authentication.
+ * The distinct activity types the authenticated user owns, powering the activity-type
+ * filters so they only offer types the user has; gated on authentication.
  *
- * @returns The TanStack query result for the user's activity-type codes.
+ * @returns The TanStack query result for the user's activity types.
  */
 export function useUserActivityTypesQuery() {
   const { isAuthenticated } = storeToRefs(useAuthStore())
 
   return useQuery({
-    queryKey: queryKeys.activities.typeNames(),
-    queryFn: ({ signal }) => fetchUserActivityTypeMap(signal),
-    select: (types) => [...types.keys()].sort((a, b) => a - b),
-    enabled: isAuthenticated,
-  })
-}
-
-/**
- * The authenticated user's owned activity types as a reactive `code → name`
- * map, backing the summary view's type filter: the dropdown options come from
- * the keys and the name-based summary endpoint is given the resolved value.
- * Cached under the shared `activities.typeNames` key, which
- * {@link useUserActivityTypesQuery} reads too; gated on authentication.
- *
- * @returns The TanStack query result for the user's activity-type map.
- */
-export function useUserActivityTypeMapQuery() {
-  const { isAuthenticated } = storeToRefs(useAuthStore())
-
-  return useQuery({
-    queryKey: queryKeys.activities.typeNames(),
-    queryFn: ({ signal }) => fetchUserActivityTypeMap(signal),
+    queryKey: queryKeys.activities.types(),
+    queryFn: ({ signal }) => fetchUserActivityTypes(signal),
     enabled: isAuthenticated,
   })
 }

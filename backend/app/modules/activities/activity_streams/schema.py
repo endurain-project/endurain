@@ -1,10 +1,10 @@
 """Pydantic schemas for activity stream data."""
 
-from enum import IntEnum
 from typing import Annotated, Any
 
 from pydantic import (
     BaseModel,
+    BeforeValidator,
     ConfigDict,
     Discriminator,
     Field,
@@ -24,7 +24,7 @@ class ActivityStreamsBase(BaseModel):
     Attributes:
         id: Unique stream identifier.
         activity_id: Parent activity identifier.
-        stream_type: Stream type code (1-8).
+        stream_type: Stream type code, as stored (1-8); a client reads it as ``ActivityStreamType``.
         stream_waypoints: Waypoint data points, as stored: JSON objects with a ``time`` and the stream's value key(s).
         strava_activity_stream_id: Strava stream ID.
     """
@@ -167,28 +167,11 @@ class TemperatureWaypoint(StreamWaypoint):
     temp: _Number | None = None
 
 
-class ActivityStreamType(IntEnum):
-    """The kind of data a stream holds; it fixes the shape of the stream's waypoints.
-
-    Attributes:
-        HEART_RATE: Heart rate; waypoints carry ``hr``.
-        POWER: Power; waypoints carry ``power``.
-        CADENCE: Cadence; waypoints carry ``cad``.
-        ELEVATION: Elevation; waypoints carry ``ele``.
-        SPEED: Speed; waypoints carry ``vel``.
-        PACE: Pace; waypoints carry ``pace``.
-        MAP: GPS position; waypoints carry ``lat`` and ``lon``.
-        TEMPERATURE: Temperature; waypoints carry ``temp``.
-    """
-
-    HEART_RATE = activity_streams_constants.STREAM_TYPE_HR
-    POWER = activity_streams_constants.STREAM_TYPE_POWER
-    CADENCE = activity_streams_constants.STREAM_TYPE_CADENCE
-    ELEVATION = activity_streams_constants.STREAM_TYPE_ELEVATION
-    SPEED = activity_streams_constants.STREAM_TYPE_SPEED
-    PACE = activity_streams_constants.STREAM_TYPE_PACE
-    MAP = activity_streams_constants.STREAM_TYPE_MAP
-    TEMPERATURE = activity_streams_constants.STREAM_TYPE_TEMPERATURE
+#: The stream type a response carries, built from the stored integer the services handle.
+StoredStreamType = Annotated[
+    activity_streams_constants.ActivityStreamType,
+    BeforeValidator(activity_streams_constants.ActivityStreamType.accept_stored),
+]
 
 
 class _ActivityStreamResponse[WaypointT: StreamWaypoint](BaseModel):
@@ -207,7 +190,7 @@ class _ActivityStreamResponse[WaypointT: StreamWaypoint](BaseModel):
     model_config = ConfigDict(extra="forbid")
 
     activity_id: StrictInt
-    stream_type: ActivityStreamType
+    stream_type: StoredStreamType
     stream_waypoints: list[WaypointT]
     strava_activity_stream_id: StrictInt | None = None
     id: StrictInt
@@ -215,35 +198,35 @@ class _ActivityStreamResponse[WaypointT: StreamWaypoint](BaseModel):
 
 
 class HeartRateStreamRead(_ActivityStreamResponse[HeartRateWaypoint]):
-    """The heart-rate stream (type 1)."""
+    """The heart-rate stream (`heart_rate`)."""
 
 
 class PowerStreamRead(_ActivityStreamResponse[PowerWaypoint]):
-    """The power stream (type 2)."""
+    """The power stream (`power`)."""
 
 
 class CadenceStreamRead(_ActivityStreamResponse[CadenceWaypoint]):
-    """The cadence stream (type 3)."""
+    """The cadence stream (`cadence`)."""
 
 
 class ElevationStreamRead(_ActivityStreamResponse[ElevationWaypoint]):
-    """The elevation stream (type 4)."""
+    """The elevation stream (`elevation`)."""
 
 
 class SpeedStreamRead(_ActivityStreamResponse[SpeedWaypoint]):
-    """The speed stream (type 5)."""
+    """The speed stream (`speed`)."""
 
 
 class PaceStreamRead(_ActivityStreamResponse[PaceWaypoint]):
-    """The pace stream (type 6)."""
+    """The pace stream (`pace`)."""
 
 
 class MapStreamRead(_ActivityStreamResponse[MapWaypoint]):
-    """The GPS map stream (type 7)."""
+    """The GPS map stream (`map`)."""
 
 
 class TemperatureStreamRead(_ActivityStreamResponse[TemperatureWaypoint]):
-    """The temperature stream (type 8)."""
+    """The temperature stream (`temperature`)."""
 
 
 def _stream_tag(stream: object) -> str | None:
@@ -256,21 +239,23 @@ def _stream_tag(stream: object) -> str | None:
         The stream type as the tag of its class, or ``None`` when it has none.
     """
     stream_type = stream.get("stream_type") if isinstance(stream, dict) else getattr(stream, "stream_type", None)
-    return None if stream_type is None else str(stream_type)
+    return (
+        None if stream_type is None else str(activity_streams_constants.ActivityStreamType.accept_stored(stream_type))
+    )
 
 
 #: A stream as a client reads it: the shape of its waypoints follows its ``stream_type``. Tagged on the type, so
 #: only the matching class validates it, and without an OpenAPI discriminator mapping, which clients read as
-#: string keys although the type is an integer.
+#: numeric keys although the type is stored as an integer.
 type ActivityStreamResponse = Annotated[
-    Annotated[HeartRateStreamRead, Tag("1")]
-    | Annotated[PowerStreamRead, Tag("2")]
-    | Annotated[CadenceStreamRead, Tag("3")]
-    | Annotated[ElevationStreamRead, Tag("4")]
-    | Annotated[SpeedStreamRead, Tag("5")]
-    | Annotated[PaceStreamRead, Tag("6")]
-    | Annotated[MapStreamRead, Tag("7")]
-    | Annotated[TemperatureStreamRead, Tag("8")],
+    Annotated[HeartRateStreamRead, Tag(activity_streams_constants.ActivityStreamType.HEART_RATE.value)]
+    | Annotated[PowerStreamRead, Tag(activity_streams_constants.ActivityStreamType.POWER.value)]
+    | Annotated[CadenceStreamRead, Tag(activity_streams_constants.ActivityStreamType.CADENCE.value)]
+    | Annotated[ElevationStreamRead, Tag(activity_streams_constants.ActivityStreamType.ELEVATION.value)]
+    | Annotated[SpeedStreamRead, Tag(activity_streams_constants.ActivityStreamType.SPEED.value)]
+    | Annotated[PaceStreamRead, Tag(activity_streams_constants.ActivityStreamType.PACE.value)]
+    | Annotated[MapStreamRead, Tag(activity_streams_constants.ActivityStreamType.MAP.value)]
+    | Annotated[TemperatureStreamRead, Tag(activity_streams_constants.ActivityStreamType.TEMPERATURE.value)],
     Discriminator(_stream_tag),
 ]
 

@@ -29,6 +29,7 @@ import core.logger as core_logger
 import core.pagination as core_pagination
 import core.timezone as core_timezone
 import modules.activities.activity.audit_actions as activity_audit_actions
+import modules.activities.activity.constants as activity_constants
 import modules.activities.activity.contracts as activity_contracts
 import modules.activities.activity.crud as activity_crud
 import modules.activities.activity.event_publishers as activity_event_publishers
@@ -330,7 +331,7 @@ def count_user_activities(
     user_id: int,
     db: Session,
     *,
-    activity_type: int | None = None,
+    activity_type: activity_constants.ActivityType | None = None,
     start_date: date | None = None,
     end_date: date | None = None,
     name_search: str | None = None,
@@ -340,7 +341,7 @@ def count_user_activities(
     Args:
         user_id: ID of the user.
         db: Database session.
-        activity_type: Activity type code to filter by, or None.
+        activity_type: Activity type to filter by, or None.
         start_date: Earliest activity date to include, or None.
         end_date: Latest activity date to include, or None.
         name_search: Case-insensitive name fragment to filter by, or None.
@@ -456,7 +457,7 @@ def list_user_activities_paginated(
     *,
     page_number: int,
     num_records: int,
-    activity_type: int | None = None,
+    activity_type: activity_constants.ActivityType | None = None,
     start_date: date | None = None,
     end_date: date | None = None,
     name_search: str | None = None,
@@ -475,7 +476,7 @@ def list_user_activities_paginated(
         page_number: 1-based page number.
         num_records: Page size.
         db: Database session.
-        activity_type: Activity type code to filter by, or None.
+        activity_type: Activity type to filter by, or None.
         start_date: Earliest activity date to include, or None.
         end_date: Latest activity date to include, or None.
         name_search: Case-insensitive name fragment to filter by, or None.
@@ -527,7 +528,7 @@ def page_user_activities(
     *,
     page_number: int,
     num_records: int,
-    activity_type: int | None = None,
+    activity_type: activity_constants.ActivityType | None = None,
     start_date: date | None = None,
     end_date: date | None = None,
     name_search: str | None = None,
@@ -660,17 +661,20 @@ def page_gear_activities(
 # ---------------------------------------------------------------------------
 
 
-def list_activity_types(user_id: int, db: Session) -> dict[int, str]:
-    """Return the distinct activity types a user has recorded, keyed by type code.
+def list_activity_types(user_id: int, db: Session) -> dict[activity_constants.ActivityType, str]:
+    """Return the distinct activity types a user has recorded.
 
     Args:
         user_id: ID of the user.
         db: Database session.
 
     Returns:
-        The distinct activity types a user has recorded, keyed by type code.
+        The distinct activity types a user has recorded, ordered by stored id.
     """
-    return activity_crud.get_distinct_activity_types_for_user(user_id, db)
+    return {
+        activity_type: activity_type.label
+        for activity_type in activity_crud.get_distinct_activity_types_for_user(user_id, db)
+    }
 
 
 def get_activity(activity_id: int, requester_user_id: int, db: Session) -> activity_schema.ActivityRead:

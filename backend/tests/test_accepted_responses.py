@@ -200,7 +200,7 @@ _ACCEPTING_ROUTES = [
         id="profile-import",
     ),
     pytest.param(
-        ("PATCH", "/activities", {"json": {"visibility": 2}}),
+        ("PATCH", "/activities", {"json": {"visibility": "private"}}),
         (activity_router.activity_bulk_edit_job_service, "request_visibility_edit"),
         activity_schema.ActivitiesBulkEditStatus(status=bulk_edit_constants.BulkEditStatus.QUEUED),
         "/activities/bulk-edit",

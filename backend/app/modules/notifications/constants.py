@@ -1,10 +1,10 @@
 """Constants for notification-related modules."""
 
-from enum import IntEnum
+from core.stored_enum import StoredStrEnum
 
 
-class NotificationType(IntEnum):
-    """Enumeration of notification types.
+class NotificationType(StoredStrEnum):
+    """Enumeration of notification types; ``stored`` is the integer in ``notifications.type``.
 
     Attributes:
         NEW_ACTIVITY: New activity notification.
@@ -22,17 +22,17 @@ class NotificationType(IntEnum):
             notification.
     """
 
-    NEW_ACTIVITY = 1
-    DUPLICATE_ACTIVITY = 2
-    NEW_FOLLOWER_REQUEST = 11
-    NEW_FOLLOWER_REQUEST_ACCEPTED = 12
-    GARMIN_TOKEN_EXPIRED = 21
-    STRAVA_TOKEN_EXPIRED = 22
-    STRAVA_DATA_DELETED = 23
-    IDP_LINKED = 31
-    ACCOUNT_SECURITY_CHANGED = 32
-    NEW_DEVICE_SIGN_IN = 33
-    ADMIN_NEW_SIGN_UP_APPROVAL_REQUEST = 101
+    NEW_ACTIVITY = ("new_activity", 1)
+    DUPLICATE_ACTIVITY = ("duplicate_activity", 2)
+    NEW_FOLLOWER_REQUEST = ("new_follower_request", 11)
+    NEW_FOLLOWER_REQUEST_ACCEPTED = ("new_follower_request_accepted", 12)
+    GARMIN_TOKEN_EXPIRED = ("garmin_token_expired", 21)
+    STRAVA_TOKEN_EXPIRED = ("strava_token_expired", 22)
+    STRAVA_DATA_DELETED = ("strava_data_deleted", 23)
+    IDP_LINKED = ("idp_linked", 31)
+    ACCOUNT_SECURITY_CHANGED = ("account_security_changed", 32)
+    NEW_DEVICE_SIGN_IN = ("new_device_sign_in", 33)
+    ADMIN_NEW_SIGN_UP_APPROVAL_REQUEST = ("admin_new_sign_up_approval_request", 101)
 
 
 # Websocket message types pushed to the browser alongside a stored notification.

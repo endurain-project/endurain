@@ -4,6 +4,7 @@ import type {
   ActivitySportKey,
   ActivitySportStats,
   ActivityStats,
+  ActivityType,
 } from '@/features/activities/types'
 import { activityTypeIcon } from '@/features/activities/utils/activityType'
 
@@ -11,27 +12,27 @@ import { activityTypeIcon } from '@/features/activities/utils/activityType'
 export type StatMetric = 'distance' | 'time' | 'calories'
 
 /**
- * Maps each stats sport key to a representative numeric activity type. The
+ * Maps each stats sport key to a representative activity type. The
  * representative type drives both the icon ({@link activityTypeIcon}) and the
  * unit-aware distance formatting (`formatDistance` special-cases swimming), so
  * the home stats reuse the exact presentation logic the rest of the app uses.
  */
-const SPORT_ACTIVITY_TYPE: Record<ActivitySportKey, number> = {
-  run: 1,
-  bike: 4,
-  swim: 8,
-  walk: 11,
-  hike: 12,
-  rowing: 13,
-  snow_ski: 15,
-  snowboard: 17,
-  windsurf: 30,
-  stand_up_paddleboarding: 32,
-  surfing: 33,
-  kayaking: 42,
-  sailing: 43,
-  snowshoeing: 44,
-  inline_skating: 45,
+const SPORT_ACTIVITY_TYPE: Record<ActivitySportKey, ActivityType> = {
+  run: 'run',
+  bike: 'ride',
+  swim: 'lap_swimming',
+  walk: 'walk',
+  hike: 'hike',
+  rowing: 'rowing',
+  snow_ski: 'alpine_ski',
+  snowboard: 'snowboard',
+  windsurf: 'windsurf',
+  stand_up_paddleboarding: 'stand_up_paddling',
+  surfing: 'surf',
+  kayaking: 'kayaking',
+  sailing: 'sailing',
+  snowshoeing: 'snow_shoeing',
+  inline_skating: 'inline_skating',
 }
 
 /** The sport keys in their canonical display order. */
@@ -42,7 +43,7 @@ export interface SportStatRow {
   /** The sport key (also the i18n suffix under `home.sports.*`). */
   key: ActivitySportKey
   /** The representative activity type, for unit-aware formatting. */
-  activityType: number
+  activityType: ActivityType
   /** The Lucide icon representing the sport. */
   icon: LucideIcon
   /** i18n key for the sport's label. */

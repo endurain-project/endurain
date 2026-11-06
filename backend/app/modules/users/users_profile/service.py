@@ -87,7 +87,7 @@ def get_profile(
             "pending_email": pending_email.email if pending_email else None,
             "pending_email_expires_at": pending_email.expires_at if pending_email else None,
             "integrations_version": user_integrations.version,
-            "is_strava_linked": 1 if user_integrations.strava_token else 0,
+            "is_strava_linked": bool(user_integrations.strava_token),
             "strava_revoked_at": user_integrations.strava_revoked_at,
             "strava_data_deletion_at": (
                 user_integrations.strava_revoked_at
@@ -95,7 +95,7 @@ def get_profile(
                 if user_integrations.strava_revoked_at
                 else None
             ),
-            "is_garminconnect_linked": 1 if user_integrations.garminconnect_token else 0,
+            "is_garminconnect_linked": bool(user_integrations.garminconnect_token),
             "privacy_settings_version": privacy_settings.version,
             "default_activity_visibility": privacy_settings.default_activity_visibility,
             "hide_activity_start_time": privacy_settings.hide_activity_start_time,

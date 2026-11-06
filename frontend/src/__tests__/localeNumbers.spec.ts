@@ -24,7 +24,7 @@ import {
 import { buildChartConfiguration } from '@/providers/chartJsChartProvider'
 import { formatFixed, formatNumber } from '@/utils/formatNumber'
 
-const RUN = 1
+const RUN = 'run'
 const label = (unit: string) => unit
 
 /** Runs `fn` with the app language switched to `locale`, restoring English afterwards. */

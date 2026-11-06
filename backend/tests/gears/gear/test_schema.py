@@ -39,14 +39,14 @@ def test_expected_kms_beyond_the_integer_column_is_rejected():
 
 @pytest.mark.parametrize("schema", [gear_schema.GearCreateRequest, gear_schema.GearUpdate])
 def test_the_acquisition_date_is_read_as_a_date(schema):
-    fields = {"nickname": "Bike", "gear_type": 1} if schema is gear_schema.GearCreateRequest else {}
+    fields = {"nickname": "Bike", "gear_type": "bike"} if schema is gear_schema.GearCreateRequest else {}
 
     assert schema(**fields, acquired_on="2024-03-05").acquired_on == date(2024, 3, 5)
 
 
 @pytest.mark.parametrize("schema", [gear_schema.GearCreateRequest, gear_schema.GearUpdate])
 def test_the_old_creation_timestamp_is_no_longer_accepted(schema):
-    fields = {"nickname": "Bike", "gear_type": 1} if schema is gear_schema.GearCreateRequest else {}
+    fields = {"nickname": "Bike", "gear_type": "bike"} if schema is gear_schema.GearCreateRequest else {}
 
     with pytest.raises(ValidationError):
         schema(**fields, created_at="2024-03-05T00:00:00Z")

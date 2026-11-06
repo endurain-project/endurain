@@ -7,6 +7,9 @@ import {
   type Router,
 } from 'vue-router'
 
+import type { ActivityType } from '@/features/activities/types'
+import { isActivityType } from '@/features/activities/utils/activityType'
+
 /**
  * Resolves a route query value to its first string value.
  *
@@ -117,15 +120,14 @@ function removeSession(key: string): void {
 }
 
 /**
- * Parses an activity type filter query param, where `0` represents all types.
+ * Parses an activity type filter query param, where the empty string represents all types.
  *
  * @param value - Raw route query value.
- * @returns A non-negative integer activity type code, or `0` when invalid.
+ * @returns The activity type, or the empty string when absent or unknown.
  */
-export function parseActivityTypeFilterQuery(value: unknown): number {
+export function parseActivityTypeFilterQuery(value: unknown): ActivityType | '' {
   const raw = getScalarQueryString(value)
-  const parsed = raw ? Number(raw) : Number.NaN
-  return Number.isInteger(parsed) && parsed >= 0 ? parsed : 0
+  return isActivityType(raw) ? raw : ''
 }
 
 /**

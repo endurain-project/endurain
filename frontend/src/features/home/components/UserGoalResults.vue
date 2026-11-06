@@ -3,6 +3,7 @@ import { computed } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { Target, type LucideIcon } from '@lucide/vue'
 
+import type { ActivityType } from '@/features/activities/types'
 import type { GoalActivityType, GoalMetric, GoalProgress } from '@/features/goals/types'
 import type { Units } from '@/features/activities/utils/format'
 import type { UnitKey } from '@/i18n'
@@ -31,14 +32,14 @@ const props = defineProps<{
 const { t } = useI18n()
 const { unitLabel, percent } = useUnitFormat()
 
-/** Maps a goal's sport-level activity type to a representative numeric type. */
-const GOAL_ACTIVITY_TYPE: Record<GoalActivityType, number> = {
-  run: 1,
-  bike: 4,
-  swim: 8,
-  walk: 11,
-  strength: 19,
-  cardio: 41,
+/** Maps a goal's sport-level activity type to a representative activity type. */
+const GOAL_ACTIVITY_TYPE: Record<GoalActivityType, ActivityType> = {
+  run: 'run',
+  bike: 'ride',
+  swim: 'lap_swimming',
+  walk: 'walk',
+  strength: 'strength_training',
+  cardio: 'cardio_training',
 }
 
 /** A goal prepared for display: localized labels, formatted values, and an icon. */
@@ -55,7 +56,7 @@ interface GoalRow {
 }
 
 /** Formats one numeric value for the goal's metric (value only, no unit). */
-function formatByMetric(value: number, goalType: GoalMetric, activityType: number): string {
+function formatByMetric(value: number, goalType: GoalMetric, activityType: ActivityType): string {
   if (goalType === 'distance') {
     return formatDistance(value, activityType, props.units).value
   }
@@ -69,7 +70,7 @@ function formatByMetric(value: number, goalType: GoalMetric, activityType: numbe
 }
 
 /** Resolves the unit shown after the total/target values, or `null` when unitless. */
-function unitFor(goalType: GoalMetric, activityType: number): UnitKey | null {
+function unitFor(goalType: GoalMetric, activityType: ActivityType): UnitKey | null {
   if (goalType === 'distance') {
     return formatDistance(0, activityType, props.units).unit
   }

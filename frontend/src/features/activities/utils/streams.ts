@@ -9,6 +9,8 @@ import type {
   Activity,
   ActivityPrivacy,
   ActivityStream,
+  ActivityStreamType,
+  ActivityType,
   StreamMetric,
   StreamWaypoint,
 } from '../types'
@@ -36,8 +38,8 @@ import {
 } from './format'
 import { activityDuration, distinctElapsedTime } from './metrics'
 
-/** Maps a numeric stream type to its metric kind. */
-const METRIC_BY_TYPE: Record<number, StreamMetric> = {
+/** Maps a stream type to its metric kind; the map stream is no chart metric. */
+const METRIC_BY_TYPE: Partial<Record<ActivityStreamType, StreamMetric>> = {
   [STREAM_TYPE.hr]: 'hr',
   [STREAM_TYPE.power]: 'power',
   [STREAM_TYPE.cadence]: 'cadence',
@@ -106,7 +108,7 @@ export const METRIC_PRIVACY_FIELD: Record<StreamMetric, keyof ActivityPrivacy | 
  * @param activityType - Numeric activity type.
  * @returns Whether the metric should be shown for this activity type.
  */
-export function isMetricRelevantForType(metric: StreamMetric, activityType: number): boolean {
+export function isMetricRelevantForType(metric: StreamMetric, activityType: ActivityType): boolean {
   switch (metric) {
     case 'pace':
       return activityTypeUsesPace(activityType)
@@ -127,7 +129,7 @@ export function isMetricRelevantForType(metric: StreamMetric, activityType: numb
  * @param units - The user's unit system.
  * @returns The threshold in seconds, beyond which a pace sample is discarded.
  */
-function paceThresholdSeconds(activityType: number, units: Units): number {
+function paceThresholdSeconds(activityType: ActivityType, units: Units): number {
   if (activityTypeIsSwimming(activityType)) {
     // 10 min per 100m (metric) / per 100yd (imperial, ×1.0936).
     return units === 'imperial' ? 10 * 1.0936 * 60 : 10 * 60
@@ -151,7 +153,7 @@ function num(value: number | null | undefined): number {
 function extractValue(
   waypoint: StreamWaypoint,
   metric: StreamMetric,
-  activityType: number,
+  activityType: ActivityType,
   units: Units,
 ): number {
   switch (metric) {
@@ -195,7 +197,7 @@ function extractValue(
 /** Builds the per-metric value formatter used for chart ticks and tooltips. */
 function valueFormatter(
   metric: StreamMetric,
-  activityType: number,
+  activityType: ActivityType,
   units: Units,
   unitLabel: (unit: UnitKey) => string,
 ): (value: number) => string {

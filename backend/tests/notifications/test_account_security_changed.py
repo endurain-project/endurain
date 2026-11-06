@@ -38,7 +38,7 @@ def _create(mock_db, change, idp_id=None, idp=None, created=True):
 
 class TestCreateAccountSecurityChangedNotification:
     def test_the_type_is_32(self):
-        assert notifications_constants.NotificationType.ACCOUNT_SECURITY_CHANGED == 32
+        assert notifications_constants.NotificationType.ACCOUNT_SECURITY_CHANGED.stored == 32
 
     def test_records_the_change(self, mock_db):
         (_, ws_message, created), create_once = _create(mock_db, "password_changed")

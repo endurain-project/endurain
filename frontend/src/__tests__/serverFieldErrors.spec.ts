@@ -183,7 +183,7 @@ const profile: ProfileDetails = {
 const gear: Gear = {
   id: 2,
   userId: 1,
-  gearType: 1,
+  gearType: 'bike',
   nickname: 'Road',
   brand: null,
   model: null,

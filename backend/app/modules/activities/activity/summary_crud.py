@@ -25,28 +25,20 @@ import modules.activities.activity.summary_schema as activity_summary_schema
 
 def _apply_activity_type_filter(
     stmt: Select[Any],
-    activity_type: str | None,
-) -> tuple[Select[Any], int | None]:
-    """Apply activity type name filter to a statement.
+    activity_type: activity_constants.ActivityType | None,
+) -> Select[Any]:
+    """Apply the activity type filter to a statement.
 
     Args:
         stmt: SQLAlchemy select statement.
-        activity_type: Optional activity type name.
+        activity_type: Optional activity type.
 
     Returns:
-        Tuple of filtered statement and resolved
-        type ID (or None).
+        The filtered statement.
     """
-    if not activity_type:
-        return stmt, None
-    type_id = activity_constants.ACTIVITY_NAME_TO_ID.get(activity_type.lower())
-    if type_id is not None:
-        return (
-            stmt.where(activity_models.Activity.activity_type == type_id),
-            type_id,
-        )
-    # Unknown type - force empty result set
-    return stmt.where(activity_models.Activity.id == -1), None
+    if activity_type is None:
+        return stmt
+    return stmt.where(activity_models.Activity.activity_type == activity_type.stored)
 
 
 def _get_type_breakdown(
@@ -55,7 +47,7 @@ def _get_type_breakdown(
     end_date: date,
     db: Session,
     *,
-    activity_type: str | None = None,
+    activity_type: activity_constants.ActivityType | None = None,
 ) -> list[activity_summary_schema.TypeBreakdownItem]:
     """Get summary breakdown by activity type.
 
@@ -64,7 +56,7 @@ def _get_type_breakdown(
         user_id: Target user ID.
         start_date: Period start (inclusive).
         end_date: Period end (exclusive).
-        activity_type: Optional type name filter.
+        activity_type: Optional activity type filter.
 
     Returns:
         List of per-type breakdown items.
@@ -85,12 +77,7 @@ def _get_type_breakdown(
     if not is_unbounded:
         stmt = stmt.where(*activity_query.local_date_range_conditions(start_date, end_date, end_exclusive=True))
 
-    if activity_type:
-        type_id = activity_constants.ACTIVITY_NAME_TO_ID.get(activity_type.lower())
-        if type_id is not None:
-            stmt = stmt.where(activity_models.Activity.activity_type == type_id)
-        else:
-            return []
+    stmt = _apply_activity_type_filter(stmt, activity_type)
 
     stmt = stmt.group_by(activity_models.Activity.activity_type).order_by(
         func.count(activity_models.Activity.id).desc(),
@@ -100,11 +87,9 @@ def _get_type_breakdown(
     rows = db.execute(stmt).all()
     breakdown: list[activity_summary_schema.TypeBreakdownItem] = []
     for row in rows:
-        name = activity_constants.set_activity_name_based_on_activity_type(row.activity_type)
         breakdown.append(
             activity_summary_schema.TypeBreakdownItem(
-                activity_type_id=int(row.activity_type),
-                activity_type=name,
+                activity_type=activity_constants.ActivityType.from_stored(row.activity_type),
                 total_distance=float(row.total_distance),
                 total_duration=float(row.total_duration),
                 total_elevation_gain=float(row.total_elevation_gain),
@@ -121,7 +106,7 @@ def get_weekly_summary(
     first_day_of_week: core_calendar.WeekdayValue,
     db: Session,
     *,
-    activity_type: str | None = None,
+    activity_type: activity_constants.ActivityType | None = None,
 ) -> activity_summary_schema.WeeklySummaryRead:
     """Get weekly activity summary for a user.
 
@@ -131,7 +116,7 @@ def get_weekly_summary(
         target_date: Any date within the target
             week.
         first_day_of_week: User's configured first weekday.
-        activity_type: Optional activity type
+        activity_type: Optional activity type filter.
             filter name.
 
     Returns:
@@ -162,7 +147,7 @@ def get_weekly_summary(
         *activity_query.local_date_range_conditions(start_of_week, end_of_week, end_exclusive=True),
     )
 
-    stmt, _ = _apply_activity_type_filter(stmt, activity_type)
+    stmt = _apply_activity_type_filter(stmt, activity_type)
 
     stmt = stmt.group_by(iso_dow).order_by(iso_dow)
 
@@ -217,7 +202,7 @@ def get_monthly_summary(
     first_day_of_week: core_calendar.WeekdayValue,
     db: Session,
     *,
-    activity_type: str | None = None,
+    activity_type: activity_constants.ActivityType | None = None,
 ) -> activity_summary_schema.MonthlySummaryRead:
     """Get monthly activity summary for a user.
 
@@ -227,7 +212,7 @@ def get_monthly_summary(
         target_date: Any date within the target
             month.
         first_day_of_week: User's configured first weekday.
-        activity_type: Optional activity type
+        activity_type: Optional activity type filter.
             filter name.
 
     Returns:
@@ -255,7 +240,7 @@ def get_monthly_summary(
         *activity_query.local_date_range_conditions(start_of_month, end_of_month, end_exclusive=True),
     )
 
-    stmt, _ = _apply_activity_type_filter(stmt, activity_type)
+    stmt = _apply_activity_type_filter(stmt, activity_type)
 
     stmt = stmt.group_by(week_expr).order_by(week_expr)
 
@@ -301,7 +286,7 @@ def get_yearly_summary(
     year: int,
     db: Session,
     *,
-    activity_type: str | None = None,
+    activity_type: activity_constants.ActivityType | None = None,
 ) -> activity_summary_schema.YearlySummaryRead:
     """Get yearly activity summary for a user.
 
@@ -309,7 +294,7 @@ def get_yearly_summary(
         db: Database session.
         user_id: Target user ID.
         year: Target calendar year.
-        activity_type: Optional activity type
+        activity_type: Optional activity type filter.
             filter name.
 
     Returns:
@@ -335,7 +320,7 @@ def get_yearly_summary(
         *activity_query.local_date_range_conditions(start_of_year, end_of_year, end_exclusive=True),
     )
 
-    stmt, _ = _apply_activity_type_filter(stmt, activity_type)
+    stmt = _apply_activity_type_filter(stmt, activity_type)
 
     stmt = stmt.group_by(month_expr).order_by(month_expr)
 
@@ -386,14 +371,14 @@ def get_lifetime_summary(
     user_id: int,
     db: Session,
     *,
-    activity_type: str | None = None,
+    activity_type: activity_constants.ActivityType | None = None,
 ) -> activity_summary_schema.LifetimeSummaryRead:
     """Get lifetime activity summary for a user.
 
     Args:
         db: Database session.
         user_id: Target user ID.
-        activity_type: Optional activity type
+        activity_type: Optional activity type filter.
             filter name.
 
     Returns:
@@ -414,7 +399,7 @@ def get_lifetime_summary(
         func.count(activity_models.Activity.id).label("activity_count"),
     ).where(activity_models.Activity.user_id == user_id)
 
-    metrics_stmt, _ = _apply_activity_type_filter(metrics_stmt, activity_type)
+    metrics_stmt = _apply_activity_type_filter(metrics_stmt, activity_type)
 
     totals = db.execute(metrics_stmt).one_or_none()
 
@@ -435,7 +420,7 @@ def get_lifetime_summary(
         func.count(activity_models.Activity.id).label("activity_count"),
     ).where(activity_models.Activity.user_id == user_id)
 
-    yearly_stmt, _ = _apply_activity_type_filter(yearly_stmt, activity_type)
+    yearly_stmt = _apply_activity_type_filter(yearly_stmt, activity_type)
 
     yearly_stmt = yearly_stmt.group_by(year_expr).order_by(year_expr.desc())
 

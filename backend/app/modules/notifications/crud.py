@@ -9,6 +9,7 @@ from sqlalchemy.orm import Session
 import core.database as core_database
 import core.exceptions as core_exceptions
 import core.logger as core_logger
+import modules.notifications.constants as notifications_constants
 import modules.notifications.models as notifications_models
 import modules.notifications.schema as notifications_schema
 import modules.notifications.serializers as notifications_serializers
@@ -101,7 +102,7 @@ def get_user_notifications_with_pagination(
 def get_notification_by_source_event(
     source_event_id: str,
     user_id: int,
-    notification_type: int | None,
+    notification_type: notifications_constants.NotificationType,
     db: Session,
 ) -> notifications_schema.NotificationRead | None:
     """Retrieve a notification created for a durable event.
@@ -118,7 +119,7 @@ def get_notification_by_source_event(
     stmt = select(notifications_models.Notification).where(
         notifications_models.Notification.source_event_id == source_event_id,
         notifications_models.Notification.user_id == user_id,
-        notifications_models.Notification.type == notification_type,
+        notifications_models.Notification.type == notification_type.stored,
     )
     db_notification = db.execute(stmt).scalars().first()
     return notifications_serializers.to_read_schema(db_notification) if db_notification else None
@@ -141,7 +142,7 @@ def create_notification(
     """
     new_notification = notifications_models.Notification(
         user_id=notification.user_id,
-        type=notification.type,
+        type=notification.type.stored,
         source_event_id=notification.source_event_id,
         options=notification.options,
     )
@@ -262,7 +263,7 @@ def mark_all_notifications_as_read(
 
 def delete_user_reference_notifications(
     user_id: int,
-    notification_type: int,
+    notification_type: notifications_constants.NotificationType,
     referenced_user_id: int,
     db: Session,
 ) -> int:
@@ -281,7 +282,7 @@ def delete_user_reference_notifications(
         db,
         delete(notifications_models.Notification).where(
             notifications_models.Notification.user_id == user_id,
-            notifications_models.Notification.type == notification_type,
+            notifications_models.Notification.type == notification_type.stored,
             notifications_models.Notification.options["user_id"].as_integer() == referenced_user_id,
         ),
     )

@@ -14,7 +14,7 @@ import {
   fetchActivityStreams,
   fetchFollowersActivities,
   fetchUserActivitiesPage,
-  fetchUserActivityTypeMap,
+  fetchUserActivityTypes,
   fetchUserThisMonthActivityCount,
   fetchUserWeekActivities,
   mapActivity,
@@ -45,10 +45,10 @@ const activityDto: ActivityDto = {
   user_id: 7,
   name: 'Morning run',
   description: 'Felt great',
-  activity_type: 1,
+  activity_type: 'run',
   distance: 10000,
   is_hidden: false,
-  visibility: 1,
+  visibility: 'followers',
   total_elapsed_time: 3600,
   total_timer_time: 3500,
   average_hr: 150,
@@ -68,8 +68,8 @@ describe('mapActivity', () => {
       userId: 7,
       name: 'Morning run',
       description: 'Felt great',
-      activityType: 1,
-      visibility: 1,
+      activityType: 'run',
+      visibility: 'followers',
       distance: 10000,
       averageHr: 150,
       stravaActivityId: 999,
@@ -79,7 +79,7 @@ describe('mapActivity', () => {
   })
 
   it('maps the embedded media, and defaults it to none', () => {
-    const media = [{ id: 9, activity_id: 5, media_type: 1, url: '/media/5/9?t=abc' }]
+    const media = [{ id: 9, activity_id: 5, media_type: 'photo' as const, url: '/media/5/9?t=abc' }]
     expect(mapActivity({ ...activityDto, media }).media).toEqual([
       expect.objectContaining({ id: 9, activityId: 5 }),
     ])
@@ -88,7 +88,7 @@ describe('mapActivity', () => {
 
   it('defaults a missing visibility', () => {
     const activity = mapActivity({ ...activityDto, visibility: null })
-    expect(activity.visibility).toBe(0)
+    expect(activity.visibility).toBe('public')
   })
 })
 
@@ -97,12 +97,12 @@ describe('mapActivityStream', () => {
     const dto: ActivityStreamDto = {
       id: 3,
       activity_id: 5,
-      stream_type: 1,
+      stream_type: 'heart_rate',
       stream_waypoints: [{ hr: 120 }],
     }
     expect(mapActivityStream(dto)).toEqual({
       id: 3,
-      streamType: 1,
+      streamType: 'heart_rate',
       waypoints: [{ hr: 120 }],
       hrZones: null,
     })
@@ -112,7 +112,7 @@ describe('mapActivityStream', () => {
     const dto: ActivityStreamDto = {
       id: 4,
       activity_id: 5,
-      stream_type: 7,
+      stream_type: 'map',
       stream_waypoints: [
         { time: '2026-06-20T08:20:00', lat: 38.7223, lon: -9.1393 },
         { time: 0.5, lat: 38.72, lon: -9.14 },
@@ -121,7 +121,7 @@ describe('mapActivityStream', () => {
     }
     expect(mapActivityStream(dto)).toEqual({
       id: 4,
-      streamType: 7,
+      streamType: 'map',
       waypoints: dto.stream_waypoints,
       hrZones: null,
     })
@@ -131,7 +131,7 @@ describe('mapActivityStream', () => {
     const dto: ActivityStreamDto = {
       id: 3,
       activity_id: 5,
-      stream_type: 1,
+      stream_type: 'heart_rate',
       stream_waypoints: [{ hr: 120 }],
       zone_percentages: {
         hr: {
@@ -484,31 +484,15 @@ describe('deleteActivity', () => {
 })
 
 describe('updateUserActivitiesVisibility', () => {
-  it('patches the collection with the wire value for the requested visibility', async () => {
+  it('patches the collection with the requested visibility', async () => {
     vi.mocked(apiFetch).mockResolvedValueOnce({ status: 'completed' })
 
     await updateUserActivitiesVisibility('followers')
 
-    // The profile UI works in names, the activities API in integers; sending
-    // the name produced a 422 before this mapping existed.
     expect(apiFetch).toHaveBeenCalledWith('/activities', {
       method: 'PATCH',
-      body: JSON.stringify({ visibility: 1 }),
+      body: JSON.stringify({ visibility: 'followers' }),
     })
-  })
-
-  it('maps every visibility level to its wire value', async () => {
-    for (const [name, wire] of [
-      ['public', 0],
-      ['followers', 1],
-      ['private', 2],
-    ] as const) {
-      vi.mocked(apiFetch).mockResolvedValueOnce({ status: 'completed' })
-      await updateUserActivitiesVisibility(name)
-      expect(vi.mocked(apiFetch).mock.lastCall?.[1]).toMatchObject({
-        body: JSON.stringify({ visibility: wire }),
-      })
-    }
   })
 
   it('follows the queued edit until it completes', async () => {
@@ -543,17 +527,17 @@ describe('editActivity', () => {
     vi.mocked(apiFetch).mockResolvedValueOnce({
       ...activityDto,
       name: 'Evening run',
-      visibility: 2,
+      visibility: 'private',
     })
 
     const updated = await editActivity(
       5,
       {
         name: 'Evening run',
-        activityType: 1,
+        activityType: 'run',
         description: '',
         privateNotes: 'note',
-        visibility: 2,
+        visibility: 'private',
         isHidden: true,
         hideStartTime: false,
         hideLocation: false,
@@ -576,10 +560,10 @@ describe('editActivity', () => {
       headers: { 'If-Match': '"3"' },
       body: JSON.stringify({
         name: 'Evening run',
-        activity_type: 1,
+        activity_type: 'run',
         description: null,
         private_notes: 'note',
-        visibility: 2,
+        visibility: 'private',
         is_hidden: true,
         hide_start_time: false,
         hide_location: false,
@@ -613,7 +597,7 @@ describe('fetchUserActivitiesPage', () => {
       userId: 7,
       page: 2,
       numRecords: 25,
-      filters: { type: 1, startDate: '2024-01-01', endDate: '2024-12-31', nameSearch: ' run ' },
+      filters: { type: 'run', startDate: '2024-01-01', endDate: '2024-12-31', nameSearch: ' run ' },
       sortBy: 'distance',
       sortOrder: 'asc',
     })
@@ -622,7 +606,7 @@ describe('fetchUserActivitiesPage', () => {
     // cannot drift between a list call and a separate count call.
     expect(apiFetch).toHaveBeenCalledTimes(1)
     expect(apiFetch).toHaveBeenCalledWith(
-      '/activities?type=1&start_date=2024-01-01&end_date=2024-12-31&name=run&sort_by=distance&sort_order=asc&page_number=2&num_records=25',
+      '/activities?type=run&start_date=2024-01-01&end_date=2024-12-31&name=run&sort_by=distance&sort_order=asc&page_number=2&num_records=25',
       expect.objectContaining({ signal: undefined }),
     )
     expect(result.total).toBe(42)
@@ -669,7 +653,7 @@ describe('fetchUserActivitiesPage', () => {
       userId: 1,
       page: 1,
       numRecords: 25,
-      filters: { type: 0, startDate: null, endDate: null, nameSearch: null },
+      filters: { type: null, startDate: null, endDate: null, nameSearch: null },
       sortBy: 'name',
       sortOrder: 'asc',
     })
@@ -740,29 +724,21 @@ describe('fetchUserThisMonthActivityCount', () => {
   })
 })
 
-describe('fetchUserActivityTypeMap', () => {
-  it('parses the response into a code→name map with numeric keys', async () => {
-    vi.mocked(apiFetch).mockResolvedValueOnce({ '9': 'Ride', '1': 'Run', '11': 'Walk' })
+describe('fetchUserActivityTypes', () => {
+  it('returns the keys of the response, dropping any the client does not know', async () => {
+    vi.mocked(apiFetch).mockResolvedValueOnce({ ride: 'Ride', run: 'Run', curling: 'Curling' })
 
-    const map = await fetchUserActivityTypeMap()
+    await expect(fetchUserActivityTypes()).resolves.toEqual(['ride', 'run'])
 
-    expect(map).toBeInstanceOf(Map)
-    // Integer-like object keys iterate in ascending numeric order, so the map
-    // entries come out ordered by code regardless of the response's literal order.
-    expect([...map.entries()]).toEqual([
-      [1, 'Run'],
-      [9, 'Ride'],
-      [11, 'Walk'],
-    ])
     expect(apiFetch).toHaveBeenCalledWith(
       '/activities/types',
       expect.objectContaining({ signal: undefined }),
     )
   })
 
-  it('returns an empty map when the body is null', async () => {
+  it('returns no types when the body is null', async () => {
     vi.mocked(apiFetch).mockResolvedValueOnce(null)
-    await expect(fetchUserActivityTypeMap()).resolves.toEqual(new Map())
+    await expect(fetchUserActivityTypes()).resolves.toEqual([])
   })
 })
 
@@ -832,10 +808,10 @@ describe('conditional activity writes', () => {
       5,
       {
         name: 'Evening run',
-        activityType: 1,
+        activityType: 'run',
         description: '',
         privateNotes: '',
-        visibility: 0,
+        visibility: 'public',
         isHidden: false,
         hideStartTime: false,
         hideLocation: false,

@@ -32,10 +32,10 @@ const GEAR_ID = 3
 
 const editInput: ActivityEditInput = {
   name: 'Evening run',
-  activityType: 1,
+  activityType: 'run',
   description: '',
   privateNotes: '',
-  visibility: 0,
+  visibility: 'public',
   isHidden: false,
   hideStartTime: false,
   hideLocation: false,
@@ -58,7 +58,7 @@ const AGGREGATE_KEYS = {
   summary: queryKeys.activities.summary({ viewType: 'week' }),
   stats: queryKeys.activities.stats(7, 'week'),
   search: queryKeys.activities.search('run'),
-  typeNames: queryKeys.activities.typeNames(),
+  types: queryKeys.activities.types(),
   monthCount: queryKeys.activities.monthCount(7),
 }
 
@@ -85,7 +85,7 @@ const UNAFFECTED_GEAR_KEYS = {
   list: queryKeys.gears.list({ page: 1 }),
   components: queryKeys.gears.components(GEAR_ID),
   componentTypes: queryKeys.gears.componentTypes(),
-  byType: queryKeys.gears.byType(1),
+  byType: queryKeys.gears.byType('bike'),
 }
 
 let wrapper: ReturnType<typeof mount> | undefined

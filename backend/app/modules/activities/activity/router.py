@@ -27,6 +27,7 @@ import core.pagination as core_pagination
 import core.rate_limit as core_rate_limit
 import modules.activities.activity.bulk_edit_constants as bulk_edit_constants
 import modules.activities.activity.bulk_edit_job_service as activity_bulk_edit_job_service
+import modules.activities.activity.constants as activity_constants
 import modules.activities.activity.dependencies as activity_dependencies
 import modules.activities.activity.schema as activity_schema
 import modules.activities.activity.service as activity_service
@@ -70,14 +71,14 @@ def list_own_activities(
 
 @router.get(
     "/types",
-    response_model=dict[int, str],
+    response_model=dict[activity_constants.ActivityType, str],
     dependencies=[Security(auth_dependencies.check_scopes, scopes=["activities:read"])],
 )
 def list_activity_types(
     token_user_id: auth_dependencies.CurrentUserId,
     db: core_dependencies.DbSession,
-) -> dict[int, str]:
-    """Return the distinct activity types the user has recorded, keyed by type code."""
+) -> dict[activity_constants.ActivityType, str]:
+    """Return the distinct activity types the user has recorded, keyed by type with the English name as value."""
     return activity_service.list_activity_types(token_user_id, db)
 
 
@@ -150,7 +151,7 @@ def edit_activities(
     """
     if body.visibility is None:
         raise core_exceptions.InvalidInputError("No supported field to update was provided")
-    edit = activity_bulk_edit_job_service.request_visibility_edit(token_user_id, body.visibility, states, db)
+    edit = activity_bulk_edit_job_service.request_visibility_edit(token_user_id, body.visibility.stored, states, db)
     core_location.set_status_location(
         response, request, "read_bulk_edit_status", bulk_edit_constants.BULK_EDIT_POLL_SECONDS
     )

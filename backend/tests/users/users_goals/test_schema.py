@@ -30,32 +30,32 @@ class TestIntervalEnum:
 
 class TestActivityTypeEnum:
     """
-    Test suite for ActivityType enum.
+    Test suite for GoalActivityType enum.
     """
 
     def test_activity_type_run_value(self):
-        """Test ActivityType.RUN has correct value."""
-        assert user_goals_schema.ActivityType.RUN == "run"
+        """Test GoalActivityType.RUN has correct value."""
+        assert user_goals_schema.GoalActivityType.RUN == "run"
 
     def test_activity_type_bike_value(self):
-        """Test ActivityType.BIKE has correct value."""
-        assert user_goals_schema.ActivityType.BIKE == "bike"
+        """Test GoalActivityType.BIKE has correct value."""
+        assert user_goals_schema.GoalActivityType.BIKE == "bike"
 
     def test_activity_type_swim_value(self):
-        """Test ActivityType.SWIM has correct value."""
-        assert user_goals_schema.ActivityType.SWIM == "swim"
+        """Test GoalActivityType.SWIM has correct value."""
+        assert user_goals_schema.GoalActivityType.SWIM == "swim"
 
     def test_activity_type_walk_value(self):
-        """Test ActivityType.WALK has correct value."""
-        assert user_goals_schema.ActivityType.WALK == "walk"
+        """Test GoalActivityType.WALK has correct value."""
+        assert user_goals_schema.GoalActivityType.WALK == "walk"
 
     def test_activity_type_strength_value(self):
-        """Test ActivityType.STRENGTH has correct value."""
-        assert user_goals_schema.ActivityType.STRENGTH == "strength"
+        """Test GoalActivityType.STRENGTH has correct value."""
+        assert user_goals_schema.GoalActivityType.STRENGTH == "strength"
 
     def test_activity_type_cardio_value(self):
-        """Test ActivityType.CARDIO has correct value."""
-        assert user_goals_schema.ActivityType.CARDIO == "cardio"
+        """Test GoalActivityType.CARDIO has correct value."""
+        assert user_goals_schema.GoalActivityType.CARDIO == "cardio"
 
 
 class TestGoalTypeEnum:
@@ -94,7 +94,7 @@ class TestUserGoalBaseSchema:
         # Act
         goal = user_goals_schema.UsersGoalBase(
             interval=user_goals_schema.Interval.WEEKLY,
-            activity_type=user_goals_schema.ActivityType.RUN,
+            activity_type=user_goals_schema.GoalActivityType.RUN,
             goal_type=user_goals_schema.GoalType.CALORIES,
             goal_calories=5000,
             goal_activities_number=None,
@@ -115,7 +115,7 @@ class TestUserGoalBaseSchema:
         # Act
         goal = user_goals_schema.UsersGoalBase(
             interval=user_goals_schema.Interval.MONTHLY,
-            activity_type=user_goals_schema.ActivityType.BIKE,
+            activity_type=user_goals_schema.GoalActivityType.BIKE,
             goal_type=user_goals_schema.GoalType.DISTANCE,
             goal_calories=None,
             goal_activities_number=None,
@@ -133,7 +133,7 @@ class TestUserGoalBaseSchema:
         # Act
         goal = user_goals_schema.UsersGoalBase(
             interval=user_goals_schema.Interval.DAILY,
-            activity_type=user_goals_schema.ActivityType.CARDIO,
+            activity_type=user_goals_schema.GoalActivityType.CARDIO,
             goal_type=user_goals_schema.GoalType.ACTIVITIES,
             goal_calories=None,
             goal_activities_number=3,
@@ -151,7 +151,7 @@ class TestUserGoalBaseSchema:
         with pytest.raises(ValidationError) as exc_info:
             user_goals_schema.UsersGoalBase(
                 interval=user_goals_schema.Interval.WEEKLY,
-                activity_type=user_goals_schema.ActivityType.RUN,
+                activity_type=user_goals_schema.GoalActivityType.RUN,
                 goal_type=user_goals_schema.GoalType.CALORIES,
                 goal_calories=None,  # Missing required field
                 goal_activities_number=None,
@@ -168,7 +168,7 @@ class TestUserGoalBaseSchema:
         with pytest.raises(ValidationError) as exc_info:
             user_goals_schema.UsersGoalBase(
                 interval=user_goals_schema.Interval.WEEKLY,
-                activity_type=user_goals_schema.ActivityType.RUN,
+                activity_type=user_goals_schema.GoalActivityType.RUN,
                 goal_type=user_goals_schema.GoalType.CALORIES,
                 goal_calories=5000,
                 goal_distance=10000,  # Extra field
@@ -185,7 +185,7 @@ class TestUserGoalBaseSchema:
         with pytest.raises(ValidationError):
             user_goals_schema.UsersGoalBase(
                 interval=user_goals_schema.Interval.WEEKLY,
-                activity_type=user_goals_schema.ActivityType.RUN,
+                activity_type=user_goals_schema.GoalActivityType.RUN,
                 goal_type=user_goals_schema.GoalType.CALORIES,
                 goal_calories=-100,
                 goal_activities_number=None,
@@ -200,7 +200,7 @@ class TestUserGoalBaseSchema:
         with pytest.raises(ValidationError):
             user_goals_schema.UsersGoalBase(
                 interval=user_goals_schema.Interval.WEEKLY,
-                activity_type=user_goals_schema.ActivityType.RUN,
+                activity_type=user_goals_schema.GoalActivityType.RUN,
                 goal_type=user_goals_schema.GoalType.CALORIES,
                 goal_calories=5000,
                 goal_activities_number=None,
@@ -222,7 +222,7 @@ class TestUserGoalCreateSchema:
         with pytest.raises(ValidationError) as exc_info:
             user_goals_schema.UsersGoalCreate(
                 interval=user_goals_schema.Interval.WEEKLY,
-                activity_type=user_goals_schema.ActivityType.RUN,
+                activity_type=user_goals_schema.GoalActivityType.RUN,
                 goal_type=user_goals_schema.GoalType.CALORIES,
                 goal_calories=None,  # Missing required
                 goal_activities_number=None,
@@ -244,7 +244,7 @@ class TestUserGoalUpdateSchema:
         # Act
         goal = user_goals_schema.UsersGoalUpdate(
             interval=user_goals_schema.Interval.DAILY,
-            activity_type=user_goals_schema.ActivityType.RUN,
+            activity_type=user_goals_schema.GoalActivityType.RUN,
             goal_type=user_goals_schema.GoalType.DISTANCE,
             goal_calories=None,
             goal_activities_number=None,
@@ -269,7 +269,7 @@ class TestUserGoalReadSchema:
             id=1,
             user_id=1,
             interval=user_goals_schema.Interval.WEEKLY,
-            activity_type=user_goals_schema.ActivityType.RUN,
+            activity_type=user_goals_schema.GoalActivityType.RUN,
             goal_type=user_goals_schema.GoalType.CALORIES,
             goal_calories=5000,
             goal_activities_number=None,
@@ -294,7 +294,7 @@ class TestUserGoalProgressSchema:
         progress = user_goals_schema.UsersGoalProgress(
             goal_id=1,
             interval=user_goals_schema.Interval.WEEKLY,
-            activity_type=user_goals_schema.ActivityType.RUN,
+            activity_type=user_goals_schema.GoalActivityType.RUN,
             goal_type=user_goals_schema.GoalType.CALORIES,
             start_date="2024-01-01",
             end_date="2024-01-07",
@@ -324,7 +324,7 @@ class TestUserGoalProgressSchema:
             user_goals_schema.UsersGoalProgress(
                 goal_id=1,
                 interval=user_goals_schema.Interval.WEEKLY,
-                activity_type=user_goals_schema.ActivityType.RUN,
+                activity_type=user_goals_schema.GoalActivityType.RUN,
                 goal_type=user_goals_schema.GoalType.CALORIES,
                 start_date="2024-01-01",
                 end_date="2024-01-07",

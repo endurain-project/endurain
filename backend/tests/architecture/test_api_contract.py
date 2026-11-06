@@ -106,27 +106,6 @@ _NAIVE_REQUEST_DATETIMES: dict[str, str] = {
     "UsersApiKeyCreate.expires_at": "DOM-3",
 }
 
-#: Schema properties typed as an integer or boolean where the contract wants a string or boolean, as
-#: ``"<schema>.<property>"`` (``"<enum>"`` for an integer enum). Remove an entry when DOM-11 gives the value a
-#: string enum; permanent entries carry their reason.
-_NON_STRING_ENUMS: dict[str, str] = {
-    "ActivitiesBulkEdit.visibility": "DOM-11",
-    "ActivityEdit.activity_type": "DOM-11",
-    "ActivityEdit.visibility": "DOM-11",
-    "ActivityMediaEmbedded.media_type": "DOM-11",
-    "ActivityMediaRead.media_type": "DOM-11",
-    "ActivityRead.activity_type": "DOM-11",
-    "ActivityRead.visibility": "DOM-11",
-    "ActivityStreamType.<enum>": "DOM-11",
-    "BristolType.<enum>": "DOM-11",
-    "GearType.<enum>": "DOM-11",
-    "NotificationRead.type": "DOM-11",
-    "ProblemDetail.status": "RFC 9457 status is the HTTP status code, an integer by definition",
-    "SleepStageType.<enum>": "DOM-11",
-    "UsersMe.is_garminconnect_linked": "DOM-11",
-    "UsersMe.is_strava_linked": "DOM-11",
-}
-
 #: Route handlers whose docstring carries a Google section, as ``{path relative to app/: handlers}``. Move the
 #: section's content into ``Field``/``Query`` descriptions or ``responses`` and lower the count (HTTP-10).
 _DOCSTRING_SECTIONS: dict[str, int] = {
@@ -445,6 +424,9 @@ class TestApiContract:
         integer_names = {"type", "visibility", "status", "kind"}
         found: set[str] = set()
         for name, schema in _schemas().items():
+            if name == "ProblemDetail":
+                # RFC 9457 defines ``status`` as the HTTP status code, an integer.
+                continue
             if "enum" in schema and schema.get("type") == "integer":
                 found.add(f"{name}.<enum>")
             for field, prop in schema.get("properties", {}).items():
@@ -454,7 +436,7 @@ class TestApiContract:
                 if re.match(r"(is|has)_", field) and "boolean" not in types:
                     found.add(f"{name}.{field}")
 
-        _compare("A schema types a value as an integer", found, _NON_STRING_ENUMS, "Use a string enum or a boolean")
+        _compare("A schema types a value as an integer", found, {}, "Use a string enum or a boolean")
 
     def test_endpoint_docstrings_carry_no_sections(self):
         """A route handler's docstring has no ``Args:``, ``Returns:``, ``Raises:`` or similar section.

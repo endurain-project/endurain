@@ -21,7 +21,7 @@ def list_goals(
     page: core_pagination.PageParams,
     db: Session,
     interval: user_goals_schema.Interval | None = None,
-    activity_type: user_goals_schema.ActivityType | None = None,
+    activity_type: user_goals_schema.GoalActivityType | None = None,
     goal_type: user_goals_schema.GoalType | None = None,
 ) -> user_goals_schema.UsersGoalPage:
     """List one page of a user's goals with optional filters.

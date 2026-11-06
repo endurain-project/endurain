@@ -8,6 +8,7 @@ import jasil.runtime as platform_runtime
 from sqlalchemy.orm import Session
 
 import core.logger as core_logger
+import modules.activities.activity.constants as activity_constants
 import modules.activities.activity.schema as activity_schema
 import modules.activities.activity_media.contracts as activity_media_contracts
 import modules.activities.activity_media.crud as activity_media_crud
@@ -102,7 +103,7 @@ def _restore_profile_records(
         media.append(
             activity_media_contracts.ActivityMediaCreate(
                 media_path=media_path,
-                media_type=data.get("media_type", 1),
+                media_type=data.get("media_type", activity_constants.MediaType.PHOTO),
                 content_hash=content_hash,
             )
         )

@@ -3,11 +3,10 @@ import { flushPromises, mount } from '@vue/test-utils'
 import { QueryClient, VueQueryPlugin } from '@tanstack/vue-query'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 
-import {
-  useUserActivityTypeMapQuery,
-  useUserActivityTypesQuery,
-} from '@/features/activities/composables/useActivities'
-import { fetchUserActivityTypeMap } from '@/features/activities/services/activities'
+import type { ActivityType } from '@/features/activities/types'
+
+import { useUserActivityTypesQuery } from '@/features/activities/composables/useActivities'
+import { fetchUserActivityTypes } from '@/features/activities/services/activities'
 
 vi.mock('pinia', async (importOriginal) => ({
   ...(await importOriginal<typeof import('pinia')>()),
@@ -18,14 +17,8 @@ vi.mock('@/features/auth/stores/auth', () => ({ useAuthStore: () => ({}) }))
 
 vi.mock('@/features/activities/services/activities', async (importOriginal) => ({
   ...(await importOriginal<typeof import('@/features/activities/services/activities')>()),
-  fetchUserActivityTypeMap: vi.fn<() => Promise<Map<number, string>>>(() =>
-    Promise.resolve(
-      new Map([
-        [9, 'Ride'],
-        [1, 'Run'],
-        [11, 'Walk'],
-      ]),
-    ),
+  fetchUserActivityTypes: vi.fn<() => Promise<ActivityType[]>>(() =>
+    Promise.resolve(['run', 'ride', 'walk']),
   ),
 }))
 
@@ -37,15 +30,15 @@ afterEach(() => {
   vi.clearAllMocks()
 })
 
-describe('activity type queries', () => {
-  it('share one request, so the filter codes and the summary names never fetch the types twice', async () => {
-    let codes: ReturnType<typeof useUserActivityTypesQuery> | undefined
-    let names: ReturnType<typeof useUserActivityTypeMapQuery> | undefined
+describe('activity type query', () => {
+  it('shares one request between the activity and summary filters', async () => {
+    let first: ReturnType<typeof useUserActivityTypesQuery> | undefined
+    let second: ReturnType<typeof useUserActivityTypesQuery> | undefined
     wrapper = mount(
       defineComponent({
         setup() {
-          codes = useUserActivityTypesQuery()
-          names = useUserActivityTypeMapQuery()
+          first = useUserActivityTypesQuery()
+          second = useUserActivityTypesQuery()
           return () => h('div')
         },
       }),
@@ -53,8 +46,8 @@ describe('activity type queries', () => {
     )
     await flushPromises()
 
-    expect(fetchUserActivityTypeMap).toHaveBeenCalledTimes(1)
-    expect(codes?.data.value).toEqual([1, 9, 11])
-    expect(names?.data.value?.get(9)).toBe('Ride')
+    expect(fetchUserActivityTypes).toHaveBeenCalledTimes(1)
+    expect(first?.data.value).toEqual(['run', 'ride', 'walk'])
+    expect(second?.data.value).toEqual(['run', 'ride', 'walk'])
   })
 })

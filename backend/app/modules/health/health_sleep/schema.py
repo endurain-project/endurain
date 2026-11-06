@@ -4,9 +4,11 @@ from collections.abc import Sequence
 from datetime import date as datetime_date
 from datetime import datetime
 from enum import Enum
+from typing import Annotated
 
 from pydantic import (
     BaseModel,
+    BeforeValidator,
     ConfigDict,
     Field,
     StrictFloat,
@@ -20,6 +22,7 @@ from pydantic import (
 import core.partial_update as core_partial_update
 import core.timezone as core_timezone
 import core.types as core_types
+from core.stored_enum import StoredStrEnum
 
 _DATETIME = TypeAdapter(datetime)
 
@@ -34,20 +37,25 @@ class Source(Enum):
     GARMIN = "garmin"
 
 
-class SleepStageType(Enum):
-    """Enum representing different stages of sleep.
+class SleepStageType(StoredStrEnum):
+    """The stages of a sleep session; ``stored`` is the Garmin activity level kept in the sleep stages.
 
     Attributes:
-        DEEP (int): Deep sleep stage, value 0. Characterized by slow brain waves and muscle relaxation.
-        LIGHT (int): Light sleep stage, value 1. Transitional sleep between wakefulness and deep sleep.
-        REM (int): Rapid Eye Movement sleep stage, value 2. Associated with vivid dreams and mental activity.
-        AWAKE (int): Awake state, value 3. The stage when the person is conscious and not sleeping.
+        DEEP: Deep sleep, characterized by slow brain waves and muscle relaxation.
+        LIGHT: Light sleep, the transition between wakefulness and deep sleep.
+        REM: Rapid Eye Movement sleep, associated with vivid dreams and mental activity.
+        AWAKE: Awake, the stage when the person is conscious and not sleeping.
     """
 
-    DEEP = 0
-    LIGHT = 1
-    REM = 2
-    AWAKE = 3
+    DEEP = ("deep", 0)
+    LIGHT = ("light", 1)
+    REM = ("rem", 2)
+    AWAKE = ("awake", 3)
+
+
+#: The stage type of a stored row, a provider sync or an archive written before the types were strings, which
+#: hand over the stored number. A client writes the plain enum, which refuses the number.
+StoredSleepStageType = Annotated[SleepStageType, BeforeValidator(SleepStageType.accept_stored)]
 
 
 class HRVStatus(Enum):
@@ -95,7 +103,7 @@ class HealthSleepStage(BaseModel):
         duration_seconds: The length of the sleep stage in seconds. Must be non-negative.
     """
 
-    stage_type: SleepStageType | None = Field(default=None, description="Type of sleep stage")
+    stage_type: StoredSleepStageType | None = Field(default=None, description="Type of sleep stage")
     start_time_gmt: datetime | None = Field(default=None, description="Start time of the stage in GMT")
     end_time_gmt: datetime | None = Field(default=None, description="End time of the stage in GMT")
     duration_seconds: StrictInt | None = Field(default=None, ge=0, description="Duration of the stage in seconds")
@@ -104,7 +112,6 @@ class HealthSleepStage(BaseModel):
         from_attributes=True,
         extra="forbid",
         validate_assignment=True,
-        use_enum_values=True,
     )
 
     @field_serializer("start_time_gmt", "end_time_gmt")
@@ -256,8 +263,15 @@ class HealthSleepBase(BaseModel):
 class HealthSleepStageWrite(HealthSleepStage):
     """A sleep stage a client writes: its times are bounded, which a stored stage read back need not be."""
 
+    stage_type: SleepStageType | None = Field(default=None, description="Type of sleep stage")
     start_time_gmt: core_types.RecordDateTime | None = Field(default=None, description="Start time of the stage in GMT")
     end_time_gmt: core_types.RecordDateTime | None = Field(default=None, description="End time of the stage in GMT")
+
+
+class HealthSleepStageImport(HealthSleepStageWrite):
+    """A sleep stage the server writes: a provider sync or a profile import, which may hand over the stored number."""
+
+    stage_type: StoredSleepStageType | None = Field(default=None, description="Type of sleep stage")
 
 
 class HealthSleepWrite(HealthSleepBase):
@@ -274,7 +288,7 @@ class HealthSleepWrite(HealthSleepBase):
     sleep_end_time_local: core_types.RecordDateTime | None = Field(
         default=None, description="End time of sleep in local time"
     )
-    sleep_stages: list[HealthSleepStageWrite] | None = Field(default=None, description="List of sleep stages")
+    sleep_stages: Sequence[HealthSleepStageWrite] | None = Field(default=None, description="List of sleep stages")
 
 
 class HealthSleepCreate(HealthSleepWrite):
@@ -331,6 +345,7 @@ class HealthSleepImport(HealthSleepCreate):
         default=None, min_length=1, description="Garmin Connect sleep record ID"
     )
     source: Source | None = Field(default=None, description="Source of the sleep data")
+    sleep_stages: Sequence[HealthSleepStageImport] | None = Field(default=None, description="List of sleep stages")
 
 
 class HealthSleepImportUpdate(HealthSleepUpdate):
@@ -345,3 +360,4 @@ class HealthSleepImportUpdate(HealthSleepUpdate):
         default=None, min_length=1, description="Garmin Connect sleep record ID"
     )
     source: Source | None = Field(default=None, description="Source of the sleep data")
+    sleep_stages: Sequence[HealthSleepStageImport] | None = Field(default=None, description="List of sleep stages")

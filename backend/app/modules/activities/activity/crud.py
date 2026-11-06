@@ -147,11 +147,11 @@ def _visible_to_requester_condition(followee_ids: Sequence[int] | None) -> Colum
         SQLAlchemy condition limiting rows to public or accepted
         follower-visible activities.
     """
-    visibility_conditions = [activity_models.Activity.visibility == activity_constants.ActivityVisibilityLevel.PUBLIC]
+    visibility_conditions = [activity_models.Activity.visibility == activity_constants.ActivityVisibility.PUBLIC.stored]
     if followee_ids:
         visibility_conditions.append(
             and_(
-                activity_models.Activity.visibility == activity_constants.ActivityVisibilityLevel.FOLLOWERS,
+                activity_models.Activity.visibility == activity_constants.ActivityVisibility.FOLLOWERS.stored,
                 activity_models.Activity.user_id.in_(followee_ids),
             )
         )
@@ -190,7 +190,7 @@ def _apply_activity_visibility_filter[RowT: tuple[object, ...]](
 def _apply_user_activity_filters[RowT: tuple[object, ...]](
     stmt: Select[RowT],
     *,
-    activity_type: int | None,
+    activity_type: activity_constants.ActivityType | None,
     start_date: date | None,
     end_date: date | None,
     name_search: str | None,
@@ -216,7 +216,7 @@ def _apply_user_activity_filters[RowT: tuple[object, ...]](
     """
     stmt = _apply_activity_visibility_filter(stmt, user_is_owner=user_is_owner, followee_ids=followee_ids)
     if activity_type:
-        stmt = stmt.where(activity_models.Activity.activity_type == activity_type)
+        stmt = stmt.where(activity_models.Activity.activity_type == activity_type.stored)
     # Date filters are evaluated in each activity's own timezone, so a
     # user filtering "1 May" gets their 1 May, not UTC's.
     stmt = stmt.where(*activity_query.local_date_range_conditions(start_date, end_date, end_exclusive=False))
@@ -282,7 +282,7 @@ def get_user_activities(
     user_id: int,
     db: Session,
     *,
-    activity_type: int | None = None,
+    activity_type: activity_constants.ActivityType | None = None,
     start_date: date | None = None,
     end_date: date | None = None,
     name_search: str | None = None,
@@ -298,7 +298,7 @@ def get_user_activities(
         start_date: Optional inclusive start date filter.
         end_date: Optional inclusive end date filter.
         name_search: Optional case-insensitive name search.
-        user_is_owner: When False, private (visibility=2) and
+        user_is_owner: When False, private (visibility=private) and
             hidden activities are excluded from the result.
         followee_ids: The requester's accepted-followee user ids, resolved
             by the caller; ``None`` for an owner-only or anonymous read.
@@ -332,7 +332,7 @@ def count_user_activities(
     user_id: int,
     db: Session,
     *,
-    activity_type: int | None = None,
+    activity_type: activity_constants.ActivityType | None = None,
     start_date: date | None = None,
     end_date: date | None = None,
     name_search: str | None = None,
@@ -351,7 +351,7 @@ def count_user_activities(
         start_date: Optional inclusive start date filter.
         end_date: Optional inclusive end date filter.
         name_search: Optional case-insensitive name search.
-        user_is_owner: When False, private (visibility=2) and
+        user_is_owner: When False, private (visibility=private) and
             hidden activities are excluded from the count.
         followee_ids: The requester's accepted-followee user ids, resolved
             by the caller; ``None`` for an owner-only or anonymous read.
@@ -416,7 +416,7 @@ def get_user_activities_with_pagination(
     *,
     page_number: int = 1,
     num_records: int = core_pagination.DEFAULT_NUM_RECORDS,
-    activity_type: int | None = None,
+    activity_type: activity_constants.ActivityType | None = None,
     start_date: date | None = None,
     end_date: date | None = None,
     name_search: str | None = None,
@@ -473,15 +473,15 @@ def get_user_activities_with_pagination(
     )
 
 
-def get_distinct_activity_types_for_user(user_id: int, db: Session) -> dict[int, str]:
-    """Map distinct activity types owned by a user to names.
+def get_distinct_activity_types_for_user(user_id: int, db: Session) -> list[activity_constants.ActivityType]:
+    """List the distinct activity types owned by a user.
 
     Args:
         user_id: Owner user ID.
         db: Database session.
 
     Returns:
-        Dict of activity_type -> human readable name.
+        The activity types, ordered by their stored id.
     """
     stmt = (
         select(activity_models.Activity.activity_type)
@@ -489,12 +489,7 @@ def get_distinct_activity_types_for_user(user_id: int, db: Session) -> dict[int,
         .distinct()
         .order_by(activity_models.Activity.activity_type)
     )
-    type_ids = db.execute(stmt).scalars().all()
-    return {
-        type_id: activity_constants.ACTIVITY_ID_TO_NAME.get(type_id, "Unknown")
-        for type_id in type_ids
-        if type_id is not None
-    }
+    return [activity_constants.ActivityType.from_stored(type_id) for type_id in db.execute(stmt).scalars().all()]
 
 
 def sum_user_activities_per_timeframe_by_type(
@@ -687,7 +682,12 @@ def get_following_feed_after(
     sort_value = case((activity.hide_start_time.is_(True), activity.created_at), else_=activity.start_time)
     stmt = select(activity, sort_value).where(
         activity.user_id.in_(followee_ids),
-        activity.visibility.in_([0, 1]),
+        activity.visibility.in_(
+            [
+                activity_constants.ActivityVisibility.PUBLIC.stored,
+                activity_constants.ActivityVisibility.FOLLOWERS.stored,
+            ]
+        ),
         activity.is_hidden.is_(False),
         _is_not_live_strava_api_activity(),
     )
@@ -970,7 +970,7 @@ def get_activity_by_id_if_is_public(activity_id: int, db: Session) -> activity_s
         Activity schema or None when not public / not found.
     """
     stmt = select(activity_models.Activity).where(
-        activity_models.Activity.visibility == activity_constants.ActivityVisibilityLevel.PUBLIC,
+        activity_models.Activity.visibility == activity_constants.ActivityVisibility.PUBLIC.stored,
         activity_models.Activity.is_hidden.is_(False),
         _is_not_live_strava_api_activity(),
         activity_models.Activity.id == activity_id,

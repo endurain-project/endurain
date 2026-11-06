@@ -20,26 +20,6 @@ import type { Notification } from '@/features/notifications/types'
 import { formatMediumDate } from '@/utils/datetime'
 
 /**
- * Numeric notification types, mirroring the backend `NotificationType`
- * enum (`backend/app/notifications/constants.py`). Kept as a local constant so
- * the presenter reads by name instead of magic numbers; the wire contract is
- * the integer, so these must stay in sync with the backend.
- */
-const NOTIFICATION_TYPE = {
-  NEW_ACTIVITY: 1,
-  DUPLICATE_ACTIVITY: 2,
-  NEW_FOLLOWER_REQUEST: 11,
-  NEW_FOLLOWER_REQUEST_ACCEPTED: 12,
-  GARMIN_TOKEN_EXPIRED: 21,
-  STRAVA_TOKEN_EXPIRED: 22,
-  STRAVA_DATA_DELETED: 23,
-  IDP_LINKED: 31,
-  ACCOUNT_SECURITY_CHANGED: 32,
-  NEW_DEVICE_SIGN_IN: 33,
-  ADMIN_NEW_SIGN_UP_APPROVAL_REQUEST: 101,
-} as const
-
-/**
  * i18n key segment of each account-security change the backend reports in the
  * notification's `change` option. A change missing here renders the generic
  * message.
@@ -129,7 +109,7 @@ export function presentNotification(
   const base = 'notifications.types'
 
   switch (notification.type) {
-    case NOTIFICATION_TYPE.NEW_ACTIVITY: {
+    case 'new_activity': {
       const activityId = readNumber(options, 'activity_id')
       return {
         icon: Activity,
@@ -138,7 +118,7 @@ export function presentNotification(
         to: activityId === null ? null : { name: 'activity', params: { id: String(activityId) } },
       }
     }
-    case NOTIFICATION_TYPE.DUPLICATE_ACTIVITY: {
+    case 'duplicate_activity': {
       const activityId = readNumber(options, 'activity_id')
       return {
         icon: CopyCheck,
@@ -147,7 +127,7 @@ export function presentNotification(
         to: activityId === null ? null : { name: 'activity', params: { id: String(activityId) } },
       }
     }
-    case NOTIFICATION_TYPE.NEW_FOLLOWER_REQUEST: {
+    case 'new_follower_request': {
       const currentUserId = context.currentUserId
       return {
         icon: UserPlus,
@@ -165,7 +145,7 @@ export function presentNotification(
             : { name: 'user', params: { id: String(currentUserId) }, query: { tab: 'followers' } },
       }
     }
-    case NOTIFICATION_TYPE.NEW_FOLLOWER_REQUEST_ACCEPTED: {
+    case 'new_follower_request_accepted': {
       const userId = readNumber(options, 'user_id')
       return {
         icon: UserCheck,
@@ -178,7 +158,7 @@ export function presentNotification(
         to: userId === null ? null : { name: 'user', params: { id: String(userId) } },
       }
     }
-    case NOTIFICATION_TYPE.GARMIN_TOKEN_EXPIRED: {
+    case 'garmin_token_expired': {
       return {
         icon: Watch,
         titleKey: `${base}.garminTokenExpired.title`,
@@ -186,7 +166,7 @@ export function presentNotification(
         to: { name: 'settings', query: { tab: 'integrations' } },
       }
     }
-    case NOTIFICATION_TYPE.STRAVA_TOKEN_EXPIRED: {
+    case 'strava_token_expired': {
       // Only a revocation on Strava names the day the Strava data is deleted.
       const deleteOn = readString(options, 'delete_on')
       return {
@@ -201,7 +181,7 @@ export function presentNotification(
         to: { name: 'settings', query: { tab: 'integrations' } },
       }
     }
-    case NOTIFICATION_TYPE.STRAVA_DATA_DELETED: {
+    case 'strava_data_deleted': {
       return {
         icon: Trash2,
         titleKey: `${base}.stravaDataDeleted.title`,
@@ -209,7 +189,7 @@ export function presentNotification(
         to: { name: 'settings', query: { tab: 'integrations' } },
       }
     }
-    case NOTIFICATION_TYPE.IDP_LINKED: {
+    case 'idp_linked': {
       const name = readString(options, 'idp_name')
       return {
         icon: KeyRound,
@@ -220,7 +200,7 @@ export function presentNotification(
         to: { name: 'settings-security' },
       }
     }
-    case NOTIFICATION_TYPE.ACCOUNT_SECURITY_CHANGED: {
+    case 'account_security_changed': {
       const changeKey = ACCOUNT_SECURITY_CHANGE_KEY[readString(options, 'change')]
       const prefix = `${base}.accountSecurityChanged.${changeKey ?? 'unknown'}`
       const name = readString(options, 'idp_name')
@@ -236,7 +216,7 @@ export function presentNotification(
         to: { name: 'settings-security' },
       }
     }
-    case NOTIFICATION_TYPE.NEW_DEVICE_SIGN_IN: {
+    case 'new_device_sign_in': {
       return {
         icon: LogIn,
         titleKey: `${base}.newDeviceSignIn.title`,
@@ -249,7 +229,7 @@ export function presentNotification(
         to: { name: 'settings-security' },
       }
     }
-    case NOTIFICATION_TYPE.ADMIN_NEW_SIGN_UP_APPROVAL_REQUEST: {
+    case 'admin_new_sign_up_approval_request': {
       const userId = readNumber(options, 'user_id')
       return {
         icon: ShieldAlert,

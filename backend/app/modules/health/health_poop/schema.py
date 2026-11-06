@@ -7,9 +7,12 @@ Scale types, and color enumerations.
 
 from datetime import datetime
 from enum import Enum
+from typing import Annotated
 
 from pydantic import (
+    AfterValidator,
     BaseModel,
+    BeforeValidator,
     ConfigDict,
     Field,
     StrictInt,
@@ -19,6 +22,7 @@ from pydantic import (
 
 import core.partial_update as core_partial_update
 import core.types as core_types
+from core.stored_enum import StoredStrEnum
 
 
 class Source(Enum):
@@ -31,8 +35,8 @@ class Source(Enum):
     MANUAL = "manual"
 
 
-class BristolType(Enum):
-    """Bristol Stool Scale classification types.
+class BristolType(StoredStrEnum):
+    """Bristol Stool Scale classification types; ``stored`` is the scale number kept in the database.
 
     Attributes:
         TYPE_1: Separate hard lumps (severe constipation).
@@ -44,13 +48,22 @@ class BristolType(Enum):
         TYPE_7: Liquid, no solid pieces (severe diarrhea).
     """
 
-    TYPE_1 = 1
-    TYPE_2 = 2
-    TYPE_3 = 3
-    TYPE_4 = 4
-    TYPE_5 = 5
-    TYPE_6 = 6
-    TYPE_7 = 7
+    TYPE_1 = ("type_1", 1)
+    TYPE_2 = ("type_2", 2)
+    TYPE_3 = ("type_3", 3)
+    TYPE_4 = ("type_4", 4)
+    TYPE_5 = ("type_5", 5)
+    TYPE_6 = ("type_6", 6)
+    TYPE_7 = ("type_7", 7)
+
+
+#: The Bristol type as a model that validates with ``use_enum_values`` holds it: the member, which knows the scale
+#: number the database stores.
+_BristolTypeMember = Annotated[BristolType, AfterValidator(BristolType.from_value)]
+
+#: The Bristol type of a stored row or an archive written before the types were strings, which hand over the
+#: scale number. A client writes the plain enum, which refuses the number.
+StoredBristolType = Annotated[_BristolTypeMember, BeforeValidator(BristolType.accept_stored)]
 
 
 class Color(Enum):
@@ -82,7 +95,7 @@ class HealthPoopBase(BaseModel):
 
     Attributes:
         date_time: Date and time of the bowel movement.
-        bristol_type: Bristol Stool Scale type (1-7).
+        bristol_type: Bristol Stool Scale type.
         color: Stool color description.
         notes: Optional notes about the bowel movement.
     """
@@ -91,9 +104,9 @@ class HealthPoopBase(BaseModel):
         default=None,
         description="Date and time of the bowel movement",
     )
-    bristol_type: BristolType | None = Field(
+    bristol_type: StoredBristolType | None = Field(
         default=None,
-        description="Bristol Stool Scale type (1-7)",
+        description="Bristol Stool Scale type",
     )
     color: Color | None = Field(
         default=None,
@@ -115,6 +128,11 @@ class HealthPoopBase(BaseModel):
 
 class HealthPoopWrite(HealthPoopBase):
     """Poop fields a client writes: the time is bounded, which a stored row read back need not be."""
+
+    bristol_type: _BristolTypeMember | None = Field(
+        default=None,
+        description="Bristol Stool Scale type",
+    )
 
     date_time: core_types.RecordDateTime | None = Field(
         default=None,
@@ -183,6 +201,10 @@ class HealthPoopImport(HealthPoopCreate):
         source: The source the record came from; ``manual`` when none is given.
     """
 
+    bristol_type: StoredBristolType | None = Field(
+        default=None,
+        description="Bristol Stool Scale type",
+    )
     source: Source | None = Field(default=None, description="Source of the data")
 
     @model_validator(mode="after")

@@ -5,6 +5,7 @@ import type {
   GearDto,
   GearInput,
   GearsPage,
+  GearType,
 } from '@/features/gears/types'
 import type { Schemas } from '@/types'
 
@@ -169,13 +170,13 @@ export async function fetchGearById(id: number, signal?: AbortSignal): Promise<G
  * Fetches all of the user's gears of a single gear type (e.g. all shoes), used
  * to populate the per-activity default-gear selectors.
  *
- * @param gearType - The numeric gear type (see `GEAR_TYPE`).
+ * @param gearType - The gear type (see `GEAR_TYPE`).
  * @param signal - Optional abort signal for cancellation.
  * @returns The matching gears, mapped to the clean model.
  * @throws {HttpError} When the request fails.
  */
-export async function fetchGearsByType(gearType: number, signal?: AbortSignal): Promise<Gear[]> {
-  return fetchGearsMatching({ gear_type: String(gearType) }, signal)
+export async function fetchGearsByType(gearType: GearType, signal?: AbortSignal): Promise<Gear[]> {
+  return fetchGearsMatching({ gear_type: gearType }, signal)
 }
 
 /**

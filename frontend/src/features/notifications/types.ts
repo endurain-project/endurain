@@ -7,13 +7,16 @@ import type { Schemas } from '@/types'
  */
 export type NotificationDto = Schemas['NotificationRead']
 
+/** What a notification is about, as the backend names it. */
+export type NotificationType = Schemas['NotificationType']
+
 /**
  * A notification as consumed by the app: a clean, camel-cased model decoupled
  * from the backend wire format so an API change is absorbed by the mapper
  * instead of rippling across the UI.
  *
  * @property id - Stable unique identifier.
- * @property type - Numeric notification type, or `null` when untyped.
+ * @property type - The notification type.
  * @property read - Whether the notification has been read.
  * @property options - Arbitrary per-type metadata bag, or `null`.
  * @property createdAt - ISO creation timestamp, or `null` when absent.
@@ -21,7 +24,7 @@ export type NotificationDto = Schemas['NotificationRead']
  */
 export interface Notification {
   id: number
-  type: number | null
+  type: NotificationType
   read: boolean
   options: Record<string, unknown> | null
   createdAt: string | null

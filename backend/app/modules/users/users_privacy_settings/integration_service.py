@@ -5,7 +5,7 @@ Writes stage; the caller owns the commit.
 
 from sqlalchemy.orm import Session
 
-import modules.users.users_privacy_settings.constants as users_privacy_settings_constants
+import modules.activities.activity.constants as activity_constants
 import modules.users.users_privacy_settings.crud as users_privacy_settings_crud
 import modules.users.users_privacy_settings.schema as users_privacy_settings_schema
 
@@ -78,21 +78,18 @@ def edit_privacy_settings(
     return users_privacy_settings_crud.edit_user_privacy_settings(user_id, privacy_settings, db, if_match=if_match)
 
 
-def visibility_to_int(
-    visibility: str | users_privacy_settings_schema.ActivityVisibility | None,
-) -> int:
-    """Convert a visibility string or enum to the integer activities store.
+def resolve_visibility(
+    visibility: str | activity_constants.ActivityVisibility | None,
+) -> activity_constants.ActivityVisibility:
+    """Resolve a default-visibility setting to the visibility activities carry.
 
     Args:
         visibility: Visibility as string, enum, or None.
 
     Returns:
-        Integer representation (0=public, 1=followers, 2=private). An unset or unrecognized
-        value resolves to private, never to public.
+        The visibility. An unset or unrecognized value resolves to private, never to public.
     """
-    if visibility is None:
-        return users_privacy_settings_constants.FALLBACK_VISIBILITY_LEVEL
-    value = visibility.value if isinstance(visibility, users_privacy_settings_schema.ActivityVisibility) else visibility
-    return users_privacy_settings_constants.VISIBILITY_LEVELS.get(
-        value, users_privacy_settings_constants.FALLBACK_VISIBILITY_LEVEL
+    return next(
+        (level for level in activity_constants.ActivityVisibility if level == visibility),
+        activity_constants.ActivityVisibility.PRIVATE,
     )

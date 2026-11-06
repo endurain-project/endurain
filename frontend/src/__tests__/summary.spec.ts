@@ -47,13 +47,13 @@ describe('fetchActivitySummary', () => {
         { ...metrics, day_of_week: 0 },
         { ...metrics, day_of_week: 5 },
       ],
-      type_breakdown: [{ ...metrics, activity_type_id: 1, activity_type: 'Run' }],
+      type_breakdown: [{ ...metrics, activity_type: 'run' }],
     })
 
-    const result = await fetchActivitySummary('week', { date: '2024-06-10', typeName: 'Run' })
+    const result = await fetchActivitySummary('week', { date: '2024-06-10', type: 'run' })
 
     expect(apiFetch).toHaveBeenCalledWith(
-      '/activities/summaries?period=week&date=2024-06-10&type=Run',
+      '/activities/summaries?period=week&date=2024-06-10&type=run',
       expect.objectContaining({ signal: undefined }),
     )
     expect(result.totals).toEqual({
@@ -64,7 +64,7 @@ describe('fetchActivitySummary', () => {
       activityCount: 2,
     })
     expect(result.breakdown.map((row) => row.bucket)).toEqual([0, 5])
-    expect(result.typeBreakdown[0]).toMatchObject({ activityType: 1, activityTypeName: 'Run' })
+    expect(result.typeBreakdown[0]).toMatchObject({ activityType: 'run' })
   })
 
   it('requests the month endpoint and maps week-number buckets', async () => {
@@ -116,10 +116,10 @@ describe('fetchActivitySummary', () => {
     expect(result.breakdown[0]?.bucket).toBe(2023)
   })
 
-  it('omits the date query for the week view when no date and a blank type are given', async () => {
+  it('omits the date query for the week view when no date and no type are given', async () => {
     vi.mocked(apiFetch).mockResolvedValueOnce({ ...metrics, breakdown: [], type_breakdown: [] })
 
-    await fetchActivitySummary('week', { typeName: '  ' })
+    await fetchActivitySummary('week', { type: null })
 
     expect(apiFetch).toHaveBeenCalledWith(
       '/activities/summaries?period=week',

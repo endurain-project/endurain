@@ -27,13 +27,13 @@ const { duration } = useUnitFormat()
 /**
  * Lanes top → bottom (Awake, REM, Light, Deep), mirroring the v1 hypnogram and
  * the convention of placing wakefulness at the top and deep sleep at the
- * bottom. `stageType` follows the backend enum (`0` deep … `3` awake).
+ * bottom.
  */
 const LANES = [
-  { stageType: 3, labelKey: 'awake', fillClass: 'fill-sleep-awake' },
-  { stageType: 2, labelKey: 'rem', fillClass: 'fill-sleep-rem' },
-  { stageType: 1, labelKey: 'light', fillClass: 'fill-sleep-light' },
-  { stageType: 0, labelKey: 'deep', fillClass: 'fill-sleep-deep' },
+  { stageType: 'awake', labelKey: 'awake', fillClass: 'fill-sleep-awake' },
+  { stageType: 'rem', labelKey: 'rem', fillClass: 'fill-sleep-rem' },
+  { stageType: 'light', labelKey: 'light', fillClass: 'fill-sleep-light' },
+  { stageType: 'deep', labelKey: 'deep', fillClass: 'fill-sleep-deep' },
 ] as const
 
 // SVG layout, in a fixed coordinate space scaled responsively by the viewBox.

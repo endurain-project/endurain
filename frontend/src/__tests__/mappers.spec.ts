@@ -18,8 +18,8 @@ const baseDto: UserProfileDto = {
   active: true,
   mfa_enabled: true,
   photo_path: '/api/v1/users/7/photo?t=sig',
-  is_strava_linked: 1,
-  is_garminconnect_linked: 0,
+  is_strava_linked: true,
+  is_garminconnect_linked: false,
   has_local_password: true,
   units: 'metric',
   weight_units: null,
@@ -58,8 +58,12 @@ describe('mapUserProfile', () => {
     )
   })
 
-  it('coerces number-encoded link flags to booleans', () => {
-    const user = mapUserProfile({ ...baseDto, is_strava_linked: 0, is_garminconnect_linked: 1 })
+  it('reads the link flags', () => {
+    const user = mapUserProfile({
+      ...baseDto,
+      is_strava_linked: false,
+      is_garminconnect_linked: true,
+    })
 
     expect(user.isStravaLinked).toBe(false)
     expect(user.isGarminConnectLinked).toBe(true)

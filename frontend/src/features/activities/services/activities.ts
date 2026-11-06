@@ -5,6 +5,7 @@ import { ifMatchHeaders, rowVersion } from '@/services/ifMatch'
 import { mapEmbeddedUsers } from '@/features/users/services/publicUsers'
 import { pastWeekRange, todayIsoDate } from '@/utils/datetime'
 
+import { isActivityType } from '../utils/activityType'
 import { mapActivityOwner } from './activityOwner'
 import { mapActivityMedia } from './activityMedia'
 
@@ -27,6 +28,7 @@ import type {
   ActivityStats,
   ActivityStream,
   ActivityStreamDto,
+  ActivityType,
   ActivityWorkoutSet,
   ActivityWorkoutStep,
   ActivityWorkoutStepDto,
@@ -102,7 +104,7 @@ export function mapActivity(dto: ActivityDto): Activity {
     description: dto.description ?? null,
     privateNotes: dto.private_notes ?? null,
     activityType: dto.activity_type,
-    visibility: dto.visibility ?? 0,
+    visibility: dto.visibility ?? 'public',
     isHidden: dto.is_hidden,
     gearId: dto.gear_id ?? null,
     version: rowVersion(dto.version),
@@ -456,8 +458,8 @@ export type ActivitySortOrder = 'asc' | 'desc'
 
 /** Server-side filters for the user activities list. */
 export interface ActivityListFilters {
-  /** Activity-type code, or `0`/`null` for all types. */
-  type: number | null
+  /** Activity type, or `null` for all types. */
+  type: ActivityType | null
   /** Inclusive start date (`YYYY-MM-DD`), or `null`. */
   startDate: string | null
   /** Inclusive end date (`YYYY-MM-DD`), or `null`. */
@@ -490,8 +492,8 @@ export interface ActivityListParams {
  * @param filters - The active filters.
  */
 function appendActivityFilters(params: URLSearchParams, filters: ActivityListFilters): void {
-  if (filters.type !== null && filters.type > 0) {
-    params.set('type', String(filters.type))
+  if (filters.type !== null) {
+    params.set('type', filters.type)
   }
   if (filters.startDate) {
     params.set('start_date', filters.startDate)
@@ -538,29 +540,19 @@ export async function fetchUserActivitiesPage(
 }
 
 /**
- * Fetches the authenticated user's owned activity types as a `code → name` map.
- * The backend returns a `{ code: name }` object keyed by stringified codes; this
- * normalizes the keys to numbers and drops any non-numeric entries. Backs both
- * the activity-type filter options and the summary view's name-based type filter
- * (the summary endpoint filters by type name, not code).
+ * Fetches the activity types the authenticated user owns, ordered as the backend
+ * returns them. Backs the activity and summary type filters, so they only offer
+ * types the user has.
  *
  * @param signal - Optional abort signal for cancellation.
- * @returns A map of activity-type code to backend type name.
+ * @returns The activity types the user has recorded.
  * @throws {HttpError} When the request fails.
  */
-export async function fetchUserActivityTypeMap(signal?: AbortSignal): Promise<Map<number, string>> {
-  const types = await apiFetch<Record<string, string> | null>('/activities/types', { signal })
-  const map = new Map<number, string>()
-  if (!types) {
-    return map
-  }
-  for (const [code, name] of Object.entries(types)) {
-    const numericCode = Number(code)
-    if (Number.isFinite(numericCode)) {
-      map.set(numericCode, name)
-    }
-  }
-  return map
+export async function fetchUserActivityTypes(signal?: AbortSignal): Promise<ActivityType[]> {
+  const types = await apiFetch<Partial<Record<ActivityType, string>> | null>('/activities/types', {
+    signal,
+  })
+  return Object.keys(types ?? {}).filter(isActivityType)
 }
 
 /**
@@ -818,19 +810,6 @@ export async function deleteActivity(id: number, version: number): Promise<void>
   await apiFetch(`/activities/${id}`, { method: 'DELETE', headers: ifMatchHeaders(version) })
 }
 
-/**
- * Wire values the backend stores for each visibility level.
- *
- * The activities API works in these integers while the profile UI works in the
- * `ActivityVisibility` names, so the translation has to happen somewhere. It
- * belongs here, at the one call site that talks to the activities endpoint.
- */
-const VISIBILITY_TO_WIRE: Record<Schemas['ActivityVisibility'], number> = {
-  public: 0,
-  followers: 1,
-  private: 2,
-}
-
 /** How often the bulk visibility edit is checked while it runs. */
 const BULK_EDIT_POLL_MS = 2_000
 
@@ -853,7 +832,7 @@ export async function updateUserActivitiesVisibility(
   const deadline = Date.now() + BULK_EDIT_TIMEOUT_MS
   let job = await apiFetch<Schemas['ActivitiesBulkEditStatus']>('/activities', {
     method: 'PATCH',
-    body: JSON.stringify({ visibility: VISIBILITY_TO_WIRE[visibility] }),
+    body: JSON.stringify({ visibility }),
   })
   for (;;) {
     if (job.status === 'completed') {

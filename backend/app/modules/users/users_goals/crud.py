@@ -60,7 +60,7 @@ def _filtered_goals[RowT: tuple[object, ...]](
     stmt: Select[RowT],
     user_id: int,
     interval: user_goals_schema.Interval | None,
-    activity_type: user_goals_schema.ActivityType | None,
+    activity_type: user_goals_schema.GoalActivityType | None,
     goal_type: user_goals_schema.GoalType | None,
 ) -> Select[RowT]:
     """Restrict a goals statement to one user's goals and the optional filters.
@@ -89,7 +89,7 @@ def get_user_goals_by_user_id(
     user_id: int,
     db: Session,
     interval: user_goals_schema.Interval | None = None,
-    activity_type: user_goals_schema.ActivityType | None = None,
+    activity_type: user_goals_schema.GoalActivityType | None = None,
     goal_type: user_goals_schema.GoalType | None = None,
 ) -> list[user_goals_schema.UsersGoalRead]:
     """Retrieve every goal of a user with optional filters.
@@ -115,7 +115,7 @@ def get_user_goals_page(
     user_id: int,
     db: Session,
     interval: user_goals_schema.Interval | None = None,
-    activity_type: user_goals_schema.ActivityType | None = None,
+    activity_type: user_goals_schema.GoalActivityType | None = None,
     goal_type: user_goals_schema.GoalType | None = None,
     *,
     limit: int,
@@ -148,7 +148,7 @@ def count_user_goals(
     user_id: int,
     db: Session,
     interval: user_goals_schema.Interval | None = None,
-    activity_type: user_goals_schema.ActivityType | None = None,
+    activity_type: user_goals_schema.GoalActivityType | None = None,
     goal_type: user_goals_schema.GoalType | None = None,
 ) -> int:
     """Count a user's goals matching the optional filters.

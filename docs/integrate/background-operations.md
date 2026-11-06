@@ -118,7 +118,7 @@ A provider that answers with a rate limit makes the job `failed` (gear and healt
 
 ## Bulk visibility edit
 
-`PATCH /activities` with `{"visibility": 0|1|2}` changes the visibility of every activity you own and answers `202` with `{"status": ...}`. Poll `GET /activities/bulk-edit`. The status is `queued`, `running`, `completed` or `failed`. `409` while an edit is pending, and `400` when the body names no field to change. This route has no `If-Match`, because it addresses no single record.
+`PATCH /activities` with `{"visibility": "public"|"followers"|"private"}` changes the visibility of every activity you own and answers `202` with `{"status": ...}`. Poll `GET /activities/bulk-edit`. The status is `queued`, `running`, `completed` or `failed`. `409` while an edit is pending, and `400` when the body names no field to change. This route has no `If-Match`, because it addresses no single record.
 
 ## Delete a user (administrators)
 

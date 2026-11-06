@@ -1,12 +1,12 @@
 """Gear schema definitions."""
 
 from datetime import date
-from enum import IntEnum
 from typing import Annotated
 
 from pydantic import (
     AfterValidator,
     BaseModel,
+    BeforeValidator,
     ConfigDict,
     Field,
     StrictBool,
@@ -17,30 +17,36 @@ from pydantic import (
 
 import core.partial_update as core_partial_update
 import core.types as core_types
+from core.stored_enum import StoredStrEnum
 
 
-class GearType(IntEnum):
-    """Supported gear type codes.
+class GearType(StoredStrEnum):
+    """Supported gear types; ``stored`` is the integer in ``gears.gear_type``.
 
     Attributes:
-        BIKE: Bicycle (1).
-        SHOES: Running or walking shoes (2).
-        WETSUIT: Wetsuit (3).
-        RACQUET: Racquet (4).
-        SKI: Skis (5).
-        SNOWBOARD: Snowboard (6).
-        WINDSURF: Windsurf board (7).
-        WATER_SPORTS_BOARD: Water sports board (8).
+        BIKE: Bicycle.
+        SHOES: Running or walking shoes.
+        WETSUIT: Wetsuit.
+        RACQUET: Racquet.
+        SKI: Skis.
+        SNOWBOARD: Snowboard.
+        WINDSURF: Windsurf board.
+        WATER_SPORTS_BOARD: Water sports board.
     """
 
-    BIKE = 1
-    SHOES = 2
-    WETSUIT = 3
-    RACQUET = 4
-    SKI = 5
-    SNOWBOARD = 6
-    WINDSURF = 7
-    WATER_SPORTS_BOARD = 8
+    BIKE = ("bike", 1)
+    SHOES = ("shoes", 2)
+    WETSUIT = ("wetsuit", 3)
+    RACQUET = ("racquet", 4)
+    SKI = ("ski", 5)
+    SNOWBOARD = ("snowboard", 6)
+    WINDSURF = ("windsurf", 7)
+    WATER_SPORTS_BOARD = ("water_sports_board", 8)
+
+
+#: The gear type of a stored row or an internal producer, which hand over the stored integer. A request
+#: field is the plain enum instead, which refuses the integer.
+StoredGearType = Annotated[GearType, BeforeValidator(GearType.accept_stored)]
 
 
 #: The largest value of a ``Numeric(11, 2)`` column (``initial_kms``, ``purchase_value``).
@@ -180,7 +186,7 @@ class GearCreate(GearBase):
         max_length=250,
         description="Gear display nickname",
     )
-    gear_type: GearType = Field(
+    gear_type: StoredGearType = Field(
         ...,
         description="Gear type identifier",
     )

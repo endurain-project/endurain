@@ -11,6 +11,7 @@
 import { apiFetch } from '@/services/http'
 import type { Schemas } from '@/types'
 
+import type { ActivityType } from '@/features/activities/types'
 import type {
   ActivitySummary,
   SummaryBreakdownRow,
@@ -50,8 +51,8 @@ export interface ActivitySummaryParams {
   date?: string | null
   /** Target calendar year (year view). */
   year?: number | null
-  /** Activity-type name filter (the summary endpoint filters by name), or null. */
-  typeName?: string | null
+  /** Activity-type filter, or null for all types. */
+  type?: ActivityType | null
 }
 
 /** Extracts the view-type-specific sub-period index from a breakdown row. */
@@ -97,8 +98,7 @@ export function mapActivitySummary(
   }))
   const typeBreakdown: SummaryTypeBreakdownRow[] = (dto.type_breakdown ?? []).map((row) => ({
     ...mapTotals(row),
-    activityType: row.activity_type_id,
-    activityTypeName: row.activity_type,
+    activityType: row.activity_type,
   }))
   return { totals: mapTotals(dto), breakdown, typeBreakdown }
 }
@@ -117,7 +117,7 @@ const EMPTY_RESPONSE: SummaryResponseDto = {
 /**
  * Fetches an aggregated activity summary for the authenticated user. The query
  * parameters carried depend on the view type: `date` for week/month, `year` for
- * year, and an optional `type` name filter for all views.
+ * year, and an optional `type` filter for all views.
  *
  * @param viewType - The period granularity (`week`/`month`/`year`/`lifetime`).
  * @param params - The date/year anchor and optional type-name filter.
@@ -138,9 +138,8 @@ export async function fetchActivitySummary(
   if (viewType === 'year' && params.year !== null && params.year !== undefined) {
     search.set('year', String(params.year))
   }
-  const typeName = params.typeName?.trim()
-  if (typeName) {
-    search.set('type', typeName)
+  if (params.type) {
+    search.set('type', params.type)
   }
 
   const path = `/activities/summaries?${search.toString()}`

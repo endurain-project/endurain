@@ -3,6 +3,7 @@ import { storeToRefs } from 'pinia'
 import { useQuery } from '@tanstack/vue-query'
 
 import type { Activity } from '@/features/activities/types'
+import type { GearType } from '@/features/gears/types'
 import type { SearchScope } from '@/features/search/types'
 
 import { queryKeys } from '@/services/queryKeys'
@@ -85,7 +86,7 @@ export function useSearch() {
   // Sub-type filters applied client-side to the active scope's results, mirroring
   // the v1 search page. Cleared whenever the scope changes (see watch below).
   const activityCategory = ref<string>(ALL_ACTIVITY_CATEGORIES)
-  const gearTypeFilter = ref<number>(ALL_GEAR_TYPES)
+  const gearTypeFilter = ref<GearType | typeof ALL_GEAR_TYPES>(ALL_GEAR_TYPES)
   watch(scope, () => {
     activityCategory.value = ALL_ACTIVITY_CATEGORIES
     gearTypeFilter.value = ALL_GEAR_TYPES

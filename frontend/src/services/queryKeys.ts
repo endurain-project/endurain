@@ -1,3 +1,5 @@
+import type { GearType } from '@/features/gears/types'
+
 /**
  * Centralised TanStack Query key factories — the single source of truth for
  * every server-state cache key in the app.
@@ -191,7 +193,7 @@ export const queryKeys = {
     /** The activity's owner user (public or authenticated), keyed by user id. */
     owner: (userId: number) => ['activities', 'owner', userId] as const,
     /** The user's activity-type code→name map (type filter options and summary type filter). */
-    typeNames: () => ['activities', 'type-names'] as const,
+    types: () => ['activities', 'types'] as const,
     /**
      * An aggregated activity summary for a view type + period + optional type
      * filter (the `/summary` view). Under the `activities` prefix so an `all()`
@@ -289,7 +291,7 @@ export const queryKeys = {
     /** Gears grouped by type for the default-gear selectors (under the gears prefix so gear writes refresh it). */
     typeOptions: () => ['gears', 'type-options'] as const,
     /** Gears of a single type, for the per-activity gear picker. */
-    byType: (gearType: number) => ['gears', 'by-type', gearType] as const,
+    byType: (gearType: GearType) => ['gears', 'by-type', gearType] as const,
     /** Broad prefix for every gear-activities query (all gears). */
     activitiesLists: () => ['gears', 'activities'] as const,
     /**

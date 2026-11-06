@@ -246,7 +246,7 @@ def fetch_and_process_ds_by_dates(
     return count_processed
 
 
-def _parse_sleep_stages(sleep_levels: list[dict[str, Any]] | None) -> list[health_sleep_schema.HealthSleepStageWrite]:
+def _parse_sleep_stages(sleep_levels: list[dict[str, Any]] | None) -> list[health_sleep_schema.HealthSleepStageImport]:
     """Build the sleep stages a Garmin Connect ``sleepLevels`` payload names.
 
     Args:
@@ -258,9 +258,12 @@ def _parse_sleep_stages(sleep_levels: list[dict[str, Any]] | None) -> list[healt
     sleep_stages = []
     for level in sleep_levels or []:
         # Garmin activity levels map to stage types: 0=deep, 1=light, 2=REM, 3=awake
+        activity_level = level.get("activityLevel")
+        if not isinstance(activity_level, int):
+            continue
         try:
-            stage_type = health_sleep_schema.SleepStageType(level.get("activityLevel"))
-        except (TypeError, ValueError):
+            stage_type = health_sleep_schema.SleepStageType.from_stored(activity_level)
+        except ValueError:
             continue
 
         start_gmt_str = level.get("startGMT")
@@ -271,7 +274,7 @@ def _parse_sleep_stages(sleep_levels: list[dict[str, Any]] | None) -> list[healt
         end_gmt = datetime.strptime(end_gmt_str, "%Y-%m-%dT%H:%M:%S.%f").replace(tzinfo=UTC) if end_gmt_str else None
 
         sleep_stages.append(
-            health_sleep_schema.HealthSleepStageWrite(
+            health_sleep_schema.HealthSleepStageImport(
                 stage_type=stage_type,
                 start_time_gmt=start_gmt,
                 end_time_gmt=end_gmt,

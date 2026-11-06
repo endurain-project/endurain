@@ -24,7 +24,7 @@ vi.mock('@/services/http', () => ({
 
 const dto: NotificationDto = {
   id: 7,
-  type: 3,
+  type: 'new_activity',
   read: false,
   options: { activity_id: 42 },
   created_at: '2026-06-19T10:00:00Z',
@@ -34,7 +34,7 @@ const dto: NotificationDto = {
 function notification(overrides: Partial<Notification> = {}): Notification {
   return {
     id: 7,
-    type: 3,
+    type: 'new_activity',
     read: false,
     options: { activity_id: 42 },
     createdAt: '2026-06-19T10:00:00Z',
@@ -49,9 +49,9 @@ describe('mapNotification', () => {
   })
 
   it('coerces absent optional fields to null', () => {
-    expect(mapNotification({ id: 1, type: 1, read: true, user_id: 9 })).toEqual({
+    expect(mapNotification({ id: 1, type: 'new_activity', read: true, user_id: 9 })).toEqual({
       id: 1,
-      type: 1,
+      type: 'new_activity',
       read: true,
       options: null,
       createdAt: null,

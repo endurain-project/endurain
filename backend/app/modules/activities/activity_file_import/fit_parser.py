@@ -439,7 +439,7 @@ def create_activity_objects(
                 user_id=user_id,
                 name=activity_name,
                 distance=(round(resolved_distance) if resolved_distance else 0),
-                activity_type=activity_type,
+                activity_type=activity_constants.ActivityType.from_stored(activity_type),
                 start_time=core_timezone.to_utc_second(session_record["session"]["first_waypoint_time"]),
                 end_time=core_timezone.to_utc_second(session_record["session"]["last_waypoint_time"]),
                 timezone=session_timezone,

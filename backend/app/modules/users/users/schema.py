@@ -22,6 +22,7 @@ from pydantic import (
 import core.pagination as core_pagination
 import core.partial_update as core_partial_update
 import core.types as core_types
+import modules.activities.activity.constants as activity_constants
 import modules.auth.identity_providers.schema as idp_schema
 import modules.server_settings.schema as server_settings_schema
 import modules.users.users.constants as users_constants
@@ -521,15 +522,17 @@ class UsersMe(UsersRead):
         default=None,
         description="Version of the integrations, sent back in If-Match when the Strava client is set",
     )
-    is_strava_linked: StrictInt | None = Field(default=None, description="Whether Strava is linked")
+    is_strava_linked: StrictBool | None = Field(default=None, description="Whether Strava is linked")
     strava_revoked_at: datetime | None = Field(
         default=None, description="When Strava access ended because the user revoked it on Strava"
     )
     strava_data_deletion_at: datetime | None = Field(
         default=None, description="When Strava-synced activities and gear are deleted unless Strava is relinked"
     )
-    is_garminconnect_linked: StrictInt | None = Field(default=None, description="Whether Garmin Connect is linked")
-    default_activity_visibility: StrictStr | None = Field(default=None, description="Default activity visibility")
+    is_garminconnect_linked: StrictBool | None = Field(default=None, description="Whether Garmin Connect is linked")
+    default_activity_visibility: activity_constants.ActivityVisibility | None = Field(
+        default=None, description="Default activity visibility"
+    )
     hide_activity_start_time: StrictBool | None = Field(default=None, description="Hide activity start time")
     hide_activity_location: StrictBool | None = Field(default=None, description="Hide activity location")
     hide_activity_map: StrictBool | None = Field(default=None, description="Hide activity map")

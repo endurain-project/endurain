@@ -3,6 +3,7 @@
 ``crud`` calls these at its edges so ORM rows never leave the persistence layer.
 """
 
+import core.stored_enum as core_stored_enum
 import modules.gears.gear.models as gears_models
 import modules.gears.gear.schema as gears_schema
 
@@ -51,7 +52,7 @@ def to_orm(gear: gears_schema.GearCreateRequest | gears_schema.GearCreate, user_
     Returns:
         An unsaved Gear instance.
     """
-    data = _normalize_payload(gear.model_dump(exclude_unset=True))
+    data = _normalize_payload(core_stored_enum.to_stored(gear.model_dump(exclude_unset=True)))
     return gears_models.Gear(**{**data, "user_id": user_id})
 
 
@@ -64,4 +65,4 @@ def to_update_values(gear: gears_schema.GearUpdate) -> dict[str, object]:
     Returns:
         The normalized fields the client sent; a nullable one sent as null clears it.
     """
-    return _normalize_payload(gear.model_dump(exclude_unset=True))
+    return _normalize_payload(core_stored_enum.to_stored(gear.model_dump(exclude_unset=True)))

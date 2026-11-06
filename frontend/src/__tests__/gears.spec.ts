@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { Bike, Dumbbell, Footprints, Sailboat } from '@lucide/vue'
 
-import type { GearDetailDto, GearDto, GearInput } from '@/features/gears/types'
+import type { GearDetailDto, GearDto, GearInput, GearType } from '@/features/gears/types'
 
 import { apiFetch, HttpError } from '@/services/http'
 import {
@@ -31,7 +31,7 @@ vi.mock('@/services/http', async (importOriginal) => ({
 const gearDto: GearDto = {
   id: 5,
   user_id: 1,
-  gear_type: 1,
+  gear_type: 'bike',
   nickname: 'Road Bike',
   active: true,
   brand: 'Canyon',
@@ -47,7 +47,7 @@ const gearDto: GearDto = {
 const mappedGear = {
   id: 5,
   userId: 1,
-  gearType: 1,
+  gearType: 'bike',
   nickname: 'Road Bike',
   brand: 'Canyon',
   model: 'Endurace',
@@ -62,7 +62,7 @@ const mappedGear = {
 
 const gearInput: GearInput = {
   nickname: 'New Bike',
-  gearType: 1,
+  gearType: 'bike',
   brand: 'Trek',
   model: 'Domane',
   active: true,
@@ -73,7 +73,7 @@ const gearInput: GearInput = {
 
 const expectedWirePayload = {
   nickname: 'New Bike',
-  gear_type: 1,
+  gear_type: 'bike',
   brand: 'Trek',
   model: 'Domane',
   active: true,
@@ -88,10 +88,12 @@ describe('mapGear', () => {
   })
 
   it('defaults active to true and absent optionals to null', () => {
-    expect(mapGear({ id: 9, user_id: 2, gear_type: 2, nickname: 'Shoes', version: 1 })).toEqual({
+    expect(
+      mapGear({ id: 9, user_id: 2, gear_type: 'shoes', nickname: 'Shoes', version: 1 }),
+    ).toEqual({
       id: 9,
       userId: 2,
-      gearType: 2,
+      gearType: 'shoes',
       nickname: 'Shoes',
       brand: null,
       model: null,
@@ -169,10 +171,10 @@ describe('gear service requests', () => {
   it('filters the list by gear type', async () => {
     vi.mocked(apiFetch).mockResolvedValue({ items: [gearDto], total: 1 })
 
-    await expect(fetchGearsByType(2)).resolves.toEqual([mappedGear])
+    await expect(fetchGearsByType('shoes')).resolves.toEqual([mappedGear])
 
     expect(apiFetch).toHaveBeenCalledWith(
-      '/gears?num_records=200&gear_type=2',
+      '/gears?num_records=200&gear_type=shoes',
       expect.objectContaining({ signal: undefined }),
     )
   })
@@ -250,7 +252,10 @@ describe('presentGearType', () => {
   })
 
   it('falls back to a neutral presentation for an unknown type', () => {
-    expect(presentGearType(99)).toEqual({ icon: Dumbbell, labelKey: 'gears.types.unknown' })
+    expect(presentGearType('bogus' as GearType)).toEqual({
+      icon: Dumbbell,
+      labelKey: 'gears.types.unknown',
+    })
   })
 })
 

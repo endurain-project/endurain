@@ -303,7 +303,7 @@ export interface paths {
         };
         /**
          * List Activity Types
-         * @description Return the distinct activity types the user has recorded, keyed by type code.
+         * @description Return the distinct activity types the user has recorded, keyed by type with the English name as value.
          */
         get: operations["list_activity_types_api_v1_activities_types_get"];
         put?: never;
@@ -5735,11 +5735,9 @@ export interface components {
          *
          *     Attributes:
          *         visibility: Visibility to apply to every activity the caller owns.
-         *             0 public, 1 followers, 2 private.
          */
         ActivitiesBulkEdit: {
-            /** Visibility */
-            visibility?: number | null;
+            visibility?: components["schemas"]["ActivityVisibility"] | null;
         };
         /**
          * ActivitiesBulkEditStatus
@@ -5784,8 +5782,8 @@ export interface components {
          *         description: Public activity description.
          *         private_notes: Private notes (owner only).
          *         name: Activity name.
-         *         activity_type: Numeric sport type code.
-         *         visibility: 0 - public, 1 - followers, 2 - private.
+         *         activity_type: The sport type.
+         *         visibility: Who may see the activity.
          *         is_hidden: Whether the activity is hidden.
          *         gear_id: Associated gear identifier.
          *         hide_start_time: Hide start time from others.
@@ -5802,8 +5800,7 @@ export interface components {
          *         hide_gear: Hide gear from others.
          */
         ActivityEdit: {
-            /** Activity Type */
-            activity_type?: number | null;
+            activity_type?: components["schemas"]["ActivityType"] | null;
             /** Description */
             description?: string | null;
             /** Gear Id */
@@ -5838,8 +5835,7 @@ export interface components {
             name?: string | null;
             /** Private Notes */
             private_notes?: string | null;
-            /** Visibility */
-            visibility?: number | null;
+            visibility?: components["schemas"]["ActivityVisibility"] | null;
         };
         /**
          * ActivityExerciseTitlesRead
@@ -6056,7 +6052,7 @@ export interface components {
          *     Attributes:
          *         id: Media record identifier.
          *         activity_id: The activity the photo belongs to.
-         *         media_type: Media kind (1 = photo).
+         *         media_type: Media kind.
          *         url: Signed, servable address of the photo.
          */
         ActivityMediaEmbedded: {
@@ -6064,8 +6060,7 @@ export interface components {
             activity_id: number;
             /** Id */
             readonly id: number;
-            /** Media Type */
-            media_type: number;
+            media_type: components["schemas"]["MediaType"];
             /** Url */
             url: string;
         };
@@ -6083,8 +6078,7 @@ export interface components {
             activity_id: number;
             /** Id */
             readonly id: number;
-            /** Media Type */
-            media_type: number;
+            media_type: components["schemas"]["MediaType"];
             /** Url */
             url: string;
         };
@@ -6107,8 +6101,7 @@ export interface components {
          *             responses for the viewer's own activities and empty otherwise.
          */
         ActivityRead: {
-            /** Activity Type */
-            activity_type: number;
+            activity_type: components["schemas"]["ActivityType"];
             /** Average Cad */
             average_cad?: number | null;
             /** Average Hr */
@@ -6223,8 +6216,7 @@ export interface components {
             user_id?: number | null;
             /** Version */
             readonly version?: number | null;
-            /** Visibility */
-            visibility?: number | null;
+            visibility?: components["schemas"]["ActivityVisibility"] | null;
             /** Workout Feeling */
             workout_feeling?: number | null;
             /** Workout Rpe */
@@ -6350,7 +6342,9 @@ export interface components {
         ActivityStreamResponse: components["schemas"]["HeartRateStreamRead"] | components["schemas"]["PowerStreamRead"] | components["schemas"]["CadenceStreamRead"] | components["schemas"]["ElevationStreamRead"] | components["schemas"]["SpeedStreamRead"] | components["schemas"]["PaceStreamRead"] | components["schemas"]["MapStreamRead"] | components["schemas"]["TemperatureStreamRead"];
         /**
          * ActivityStreamType
-         * @description The kind of data a stream holds; it fixes the shape of the stream's waypoints.
+         * @description The kind of data a stream holds, which fixes the shape of the stream's waypoints.
+         *
+         *     ``stored`` is the integer in ``activity_streams.stream_type``.
          *
          *     Attributes:
          *         HEART_RATE: Heart rate; waypoints carry ``hr``.
@@ -6361,9 +6355,9 @@ export interface components {
          *         PACE: Pace; waypoints carry ``pace``.
          *         MAP: GPS position; waypoints carry ``lat`` and ``lon``.
          *         TEMPERATURE: Temperature; waypoints carry ``temp``.
-         * @enum {integer}
+         * @enum {string}
          */
-        ActivityStreamType: 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8;
+        ActivityStreamType: "heart_rate" | "power" | "cadence" | "elevation" | "speed" | "pace" | "map" | "temperature";
         /**
          * ActivityStreamZones
          * @description A stream's zone breakdowns, by metric.
@@ -6376,26 +6370,20 @@ export interface components {
         };
         /**
          * ActivityType
-         * @description Supported activity types for user goals.
+         * @description The sport an activity records; ``stored`` is the integer in ``activities.activity_type``.
          *
-         *     Attributes:
-         *         RUN: Running activities.
-         *         BIKE: Cycling activities.
-         *         SWIM: Swimming activities.
-         *         WALK: Walking or hiking activities.
-         *         STRENGTH: Strength or resistance training.
-         *         CARDIO: Cardiovascular training.
+         *     ``label`` is the English name used for generated activity names and the type catalogue.
          * @enum {string}
          */
-        ActivityType: "run" | "bike" | "swim" | "walk" | "strength" | "cardio";
+        ActivityType: "run" | "trail_run" | "virtual_run" | "ride" | "gravel_ride" | "mtb_ride" | "virtual_ride" | "lap_swimming" | "open_water_swimming" | "workout" | "walk" | "hike" | "rowing" | "yoga" | "alpine_ski" | "nordic_ski" | "snowboard" | "transition" | "strength_training" | "crossfit" | "tennis" | "table_tennis" | "badminton" | "squash" | "racquetball" | "pickleball" | "commuting_ride" | "indoor_ride" | "mixed_surface_ride" | "windsurf" | "indoor_walk" | "stand_up_paddling" | "surf" | "track_run" | "ebike_ride" | "ebike_mountain_ride" | "ice_skate" | "soccer" | "padel" | "treadmill_run" | "cardio_training" | "kayaking" | "sailing" | "snow_shoeing" | "inline_skating" | "hiit" | "jump_rope";
         /**
          * ActivityVisibility
-         * @description Activity visibility levels.
+         * @description Who may see an activity; ``stored`` is the integer in ``activities.visibility``.
          *
          *     Attributes:
-         *         PUBLIC: Visible to everyone.
-         *         FOLLOWERS: Visible only to followers.
-         *         PRIVATE: Visible only to the user.
+         *         PUBLIC: Anyone, including unauthenticated viewers of public links.
+         *         FOLLOWERS: Accepted followers of the owner.
+         *         PRIVATE: The owner only.
          * @enum {string}
          */
         ActivityVisibility: "public" | "followers" | "private";
@@ -6513,7 +6501,7 @@ export interface components {
         };
         /**
          * BristolType
-         * @description Bristol Stool Scale classification types.
+         * @description Bristol Stool Scale classification types; ``stored`` is the scale number kept in the database.
          *
          *     Attributes:
          *         TYPE_1: Separate hard lumps (severe constipation).
@@ -6523,9 +6511,9 @@ export interface components {
          *         TYPE_5: Soft blobs with clear edges (lacking fiber).
          *         TYPE_6: Mushy with ragged edges (mild diarrhea).
          *         TYPE_7: Liquid, no solid pieces (severe diarrhea).
-         * @enum {integer}
+         * @enum {string}
          */
-        BristolType: 1 | 2 | 3 | 4 | 5 | 6 | 7;
+        BristolType: "type_1" | "type_2" | "type_3" | "type_4" | "type_5" | "type_6" | "type_7";
         /**
          * BrowserFlowStartRead
          * @description Where to send the browser to start a link or step-up sign-in with an identity provider.
@@ -6542,7 +6530,7 @@ export interface components {
         };
         /**
          * CadenceStreamRead
-         * @description The cadence stream (type 3).
+         * @description The cadence stream (`cadence`).
          */
         CadenceStreamRead: {
             /** Activity Id */
@@ -6655,7 +6643,7 @@ export interface components {
         };
         /**
          * ElevationStreamRead
-         * @description The elevation stream (type 4).
+         * @description The elevation stream (`elevation`).
          */
         ElevationStreamRead: {
             /** Activity Id */
@@ -7343,20 +7331,20 @@ export interface components {
         };
         /**
          * GearType
-         * @description Supported gear type codes.
+         * @description Supported gear types; ``stored`` is the integer in ``gears.gear_type``.
          *
          *     Attributes:
-         *         BIKE: Bicycle (1).
-         *         SHOES: Running or walking shoes (2).
-         *         WETSUIT: Wetsuit (3).
-         *         RACQUET: Racquet (4).
-         *         SKI: Skis (5).
-         *         SNOWBOARD: Snowboard (6).
-         *         WINDSURF: Windsurf board (7).
-         *         WATER_SPORTS_BOARD: Water sports board (8).
-         * @enum {integer}
+         *         BIKE: Bicycle.
+         *         SHOES: Running or walking shoes.
+         *         WETSUIT: Wetsuit.
+         *         RACQUET: Racquet.
+         *         SKI: Skis.
+         *         SNOWBOARD: Snowboard.
+         *         WINDSURF: Windsurf board.
+         *         WATER_SPORTS_BOARD: Water sports board.
+         * @enum {string}
          */
-        GearType: 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8;
+        GearType: "bike" | "shoes" | "wetsuit" | "racquet" | "ski" | "snowboard" | "windsurf" | "water_sports_board";
         /**
          * GearUpdate
          * @description Partial update of a gear: omit a field to keep it, send null to clear a nullable one.
@@ -7424,6 +7412,20 @@ export interface components {
          * @enum {string}
          */
         GeocodingService: "nominatim" | "photon" | "geocode";
+        /**
+         * GoalActivityType
+         * @description Supported activity types for user goals.
+         *
+         *     Attributes:
+         *         RUN: Running activities.
+         *         BIKE: Cycling activities.
+         *         SWIM: Swimming activities.
+         *         WALK: Walking or hiking activities.
+         *         STRENGTH: Strength or resistance training.
+         *         CARDIO: Cardiovascular training.
+         * @enum {string}
+         */
+        GoalActivityType: "run" | "bike" | "swim" | "walk" | "strength" | "cardio";
         /**
          * GoalType
          * @description Types of measurable user goals.
@@ -7752,7 +7754,7 @@ export interface components {
          *     Requires date_time.
          */
         HealthPoopCreate: {
-            /** @description Bristol Stool Scale type (1-7) */
+            /** @description Bristol Stool Scale type */
             bristol_type?: components["schemas"]["BristolType"] | null;
             /** @description Stool color description */
             color?: components["schemas"]["Color"] | null;
@@ -7792,7 +7794,7 @@ export interface components {
          *         user_id: Foreign key reference to the user.
          */
         HealthPoopRead: {
-            /** @description Bristol Stool Scale type (1-7) */
+            /** @description Bristol Stool Scale type */
             bristol_type?: components["schemas"]["BristolType"] | null;
             /** @description Stool color description */
             color?: components["schemas"]["Color"] | null;
@@ -7834,7 +7836,7 @@ export interface components {
          *     fields present are changed.
          */
         HealthPoopUpdate: {
-            /** @description Bristol Stool Scale type (1-7) */
+            /** @description Bristol Stool Scale type */
             bristol_type?: components["schemas"]["BristolType"] | null;
             /** @description Stool color description */
             color?: components["schemas"]["Color"] | null;
@@ -9002,7 +9004,7 @@ export interface components {
         };
         /**
          * HeartRateStreamRead
-         * @description The heart-rate stream (type 1).
+         * @description The heart-rate stream (`heart_rate`).
          */
         HeartRateStreamRead: {
             /** Activity Id */
@@ -10189,7 +10191,7 @@ export interface components {
         };
         /**
          * MapStreamRead
-         * @description The GPS map stream (type 7).
+         * @description The GPS map stream (`map`).
          */
         MapStreamRead: {
             /** Activity Id */
@@ -10221,6 +10223,15 @@ export interface components {
         } & {
             [key: string]: unknown;
         };
+        /**
+         * MediaType
+         * @description The kind of an activity media item; ``stored`` is the integer in ``activity_media.media_type``.
+         *
+         *     Attributes:
+         *         PHOTO: A photo.
+         * @enum {string}
+         */
+        MediaType: "photo";
         /**
          * MobileSessionRead
          * @description Response for mobile password login with PKCE exchange flow.
@@ -10376,17 +10387,35 @@ export interface components {
              * @default false
              */
             read: boolean;
-            /**
-             * Type
-             * @description Type of the notification
-             */
-            type: number;
+            /** @description Type of the notification */
+            type: components["schemas"]["NotificationType"];
             /**
              * User Id
              * @description FK to user
              */
             user_id: number;
         };
+        /**
+         * NotificationType
+         * @description Enumeration of notification types; ``stored`` is the integer in ``notifications.type``.
+         *
+         *     Attributes:
+         *         NEW_ACTIVITY: New activity notification.
+         *         DUPLICATE_ACTIVITY: Duplicate activity notification.
+         *         NEW_FOLLOWER_REQUEST: New follower request notification.
+         *         NEW_FOLLOWER_REQUEST_ACCEPTED: Follower request accepted notification.
+         *         GARMIN_TOKEN_EXPIRED: Garmin Connect account unlinked after its token expired.
+         *         STRAVA_TOKEN_EXPIRED: Strava account unlinked after Strava rejected its token; carries ``delete_on``
+         *             when Strava access was revoked and the Strava data is to be deleted that day.
+         *         STRAVA_DATA_DELETED: Strava-synced activities and gear deleted after Strava access was revoked.
+         *         IDP_LINKED: A sign-in provider was linked to the account.
+         *         ACCOUNT_SECURITY_CHANGED: A security setting of the account changed.
+         *         NEW_DEVICE_SIGN_IN: The account was signed in to from a new device.
+         *         ADMIN_NEW_SIGN_UP_APPROVAL_REQUEST: Admin sign-up approval request
+         *             notification.
+         * @enum {string}
+         */
+        NotificationType: "new_activity" | "duplicate_activity" | "new_follower_request" | "new_follower_request_accepted" | "garmin_token_expired" | "strava_token_expired" | "strava_data_deleted" | "idp_linked" | "account_security_changed" | "new_device_sign_in" | "admin_new_sign_up_approval_request";
         /**
          * OnboardingCreate
          * @description Request to create the first administrator.
@@ -10440,7 +10469,7 @@ export interface components {
         };
         /**
          * PaceStreamRead
-         * @description The pace stream (type 6).
+         * @description The pace stream (`pace`).
          */
         PaceStreamRead: {
             /** Activity Id */
@@ -10859,7 +10888,7 @@ export interface components {
         };
         /**
          * PowerStreamRead
-         * @description The power stream (type 2).
+         * @description The power stream (`power`).
          */
         PowerStreamRead: {
             /** Activity Id */
@@ -11599,19 +11628,19 @@ export interface components {
         SleepScore: "EXCELLENT" | "GOOD" | "FAIR" | "POOR";
         /**
          * SleepStageType
-         * @description Enum representing different stages of sleep.
+         * @description The stages of a sleep session; ``stored`` is the Garmin activity level kept in the sleep stages.
          *
          *     Attributes:
-         *         DEEP (int): Deep sleep stage, value 0. Characterized by slow brain waves and muscle relaxation.
-         *         LIGHT (int): Light sleep stage, value 1. Transitional sleep between wakefulness and deep sleep.
-         *         REM (int): Rapid Eye Movement sleep stage, value 2. Associated with vivid dreams and mental activity.
-         *         AWAKE (int): Awake state, value 3. The stage when the person is conscious and not sleeping.
-         * @enum {integer}
+         *         DEEP: Deep sleep, characterized by slow brain waves and muscle relaxation.
+         *         LIGHT: Light sleep, the transition between wakefulness and deep sleep.
+         *         REM: Rapid Eye Movement sleep, associated with vivid dreams and mental activity.
+         *         AWAKE: Awake, the stage when the person is conscious and not sleeping.
+         * @enum {string}
          */
-        SleepStageType: 0 | 1 | 2 | 3;
+        SleepStageType: "deep" | "light" | "rem" | "awake";
         /**
          * SpeedStreamRead
-         * @description The speed stream (type 5).
+         * @description The speed stream (`speed`).
          */
         SpeedStreamRead: {
             /** Activity Id */
@@ -11799,7 +11828,7 @@ export interface components {
         SyncStatus: "queued" | "running" | "completed" | "failed";
         /**
          * TemperatureStreamRead
-         * @description The temperature stream (type 8).
+         * @description The temperature stream (`temperature`).
          */
         TemperatureStreamRead: {
             /** Activity Id */
@@ -12038,8 +12067,7 @@ export interface components {
          * @description Summary metrics broken down by activity type.
          *
          *     Attributes:
-         *         activity_type_id: Numeric activity type ID.
-         *         activity_type: Human-readable type name.
+         *         activity_type: The activity type the metrics are for.
          */
         TypeBreakdownItem: {
             /**
@@ -12048,16 +12076,8 @@ export interface components {
              * @default 0
              */
             activity_count: number;
-            /**
-             * Activity Type
-             * @description Human-readable activity type name
-             */
-            activity_type: string;
-            /**
-             * Activity Type Id
-             * @description Numeric activity type ID
-             */
-            activity_type_id: number;
+            /** @description The activity type the metrics are for */
+            activity_type: components["schemas"]["ActivityType"];
             /**
              * Total Calories
              * @description Total calories burned
@@ -12853,7 +12873,7 @@ export interface components {
          */
         UsersGoalCreate: {
             /** @description Type of activity for the goal */
-            activity_type: components["schemas"]["ActivityType"];
+            activity_type: components["schemas"]["GoalActivityType"];
             /**
              * Goal Activities Number
              * @description Target number of activities
@@ -12909,7 +12929,7 @@ export interface components {
          */
         UsersGoalProgress: {
             /** @description Activity type for this goal */
-            activity_type: components["schemas"]["ActivityType"];
+            activity_type: components["schemas"]["GoalActivityType"];
             /**
              * End Date
              * @description Period end date
@@ -12994,7 +13014,7 @@ export interface components {
          */
         UsersGoalRead: {
             /** @description Type of activity for the goal */
-            activity_type: components["schemas"]["ActivityType"];
+            activity_type: components["schemas"]["GoalActivityType"];
             /**
              * Goal Activities Number
              * @description Target number of activities
@@ -13050,7 +13070,7 @@ export interface components {
          */
         UsersGoalUpdate: {
             /** @description Type of activity for the goal */
-            activity_type: components["schemas"]["ActivityType"];
+            activity_type: components["schemas"]["GoalActivityType"];
             /**
              * Goal Activities Number
              * @description Target number of activities
@@ -13137,11 +13157,8 @@ export interface components {
              * @default euro
              */
             currency: components["schemas"]["Currency"];
-            /**
-             * Default Activity Visibility
-             * @description Default activity visibility
-             */
-            default_activity_visibility?: string | null;
+            /** @description Default activity visibility */
+            default_activity_visibility?: components["schemas"]["ActivityVisibility"] | null;
             /**
              * Discoverable
              * @description Appear in other users' username search
@@ -13259,12 +13276,12 @@ export interface components {
              * Is Garminconnect Linked
              * @description Whether Garmin Connect is linked
              */
-            is_garminconnect_linked?: number | null;
+            is_garminconnect_linked?: boolean | null;
             /**
              * Is Strava Linked
              * @description Whether Strava is linked
              */
-            is_strava_linked?: number | null;
+            is_strava_linked?: boolean | null;
             /**
              * Max Heart Rate
              * @description Maximum heart rate in bpm
@@ -14183,7 +14200,7 @@ export interface operations {
     list_own_activities_api_v1_activities_get: {
         parameters: {
             query?: {
-                type?: number | null;
+                type?: components["schemas"]["ActivityType"] | null;
                 start_date?: string | null;
                 end_date?: string | null;
                 name?: string | null;
@@ -15018,8 +15035,7 @@ export interface operations {
                 date?: string | null;
                 /** @description Target year for the yearly summary. Defaults to the anchor date's year. */
                 year?: number | null;
-                /** @description Filter the summary by activity type name. */
-                type?: string | null;
+                type?: components["schemas"]["ActivityType"] | null;
             };
             header?: never;
             path?: never;
@@ -16426,7 +16442,7 @@ export interface operations {
             header?: never;
             path: {
                 activity_id: number;
-                stream_type: number;
+                stream_type: components["schemas"]["ActivityStreamType"];
             };
             cookie?: never;
         };
@@ -26855,7 +26871,7 @@ export interface operations {
                 /** @description Filter by goal interval */
                 interval?: components["schemas"]["modules__users__users_goals__schema__Interval"] | null;
                 /** @description Filter by activity type */
-                activity_type?: components["schemas"]["ActivityType"] | null;
+                activity_type?: components["schemas"]["GoalActivityType"] | null;
                 /** @description Filter by goal type */
                 goal_type?: components["schemas"]["GoalType"] | null;
                 page_number?: number | null;
@@ -29987,7 +30003,7 @@ export interface operations {
             header?: never;
             path: {
                 activity_id: number;
-                stream_type: number;
+                stream_type: components["schemas"]["ActivityStreamType"];
             };
             cookie?: never;
         };
@@ -34140,7 +34156,7 @@ export interface operations {
     list_user_activities_api_v1_users__user_id__activities_get: {
         parameters: {
             query?: {
-                type?: number | null;
+                type?: components["schemas"]["ActivityType"] | null;
                 start_date?: string | null;
                 end_date?: string | null;
                 name?: string | null;

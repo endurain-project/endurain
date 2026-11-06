@@ -37,7 +37,7 @@ const GEAR_KEYS = {
   search: queryKeys.gears.search('road'),
   detail: queryKeys.gears.detail(GEAR_ID),
   typeOptions: queryKeys.gears.typeOptions(),
-  byType: queryKeys.gears.byType(1),
+  byType: queryKeys.gears.byType('bike'),
 }
 
 /** Data a gear write never changes: its components, the static catalogue and its activity rows. */

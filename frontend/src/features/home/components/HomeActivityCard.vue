@@ -2,9 +2,9 @@
 import { computed } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { RouterLink } from 'vue-router'
-import { Globe, Lock, Users } from '@lucide/vue'
+import { Globe, Lock, Users, type LucideIcon } from '@lucide/vue'
 
-import type { Activity, ActivityOwner } from '@/features/activities/types'
+import type { Activity, ActivityOwner, ActivityVisibility } from '@/features/activities/types'
 import type { Units } from '@/features/activities/utils/format'
 
 import { Card } from '@/components/ui/card'
@@ -63,16 +63,18 @@ const owner = computed<ActivityOwner | null>(() => {
 const presentation = computed(() => presentActivityType(props.activity.activityType))
 const isVirtual = computed(() => activityTypeIsVirtual(props.activity.activityType))
 
-const VISIBILITY_LABEL_KEYS = [
-  'activities.visibility.public',
-  'activities.visibility.followers',
-  'activities.visibility.private',
-]
-const VISIBILITY_ICONS = [Globe, Users, Lock]
-const visibilityLabel = computed(
-  () => VISIBILITY_LABEL_KEYS[props.activity.visibility] ?? 'activities.visibility.public',
-)
-const visibilityIcon = computed(() => VISIBILITY_ICONS[props.activity.visibility] ?? Globe)
+const VISIBILITY_LABEL_KEYS: Record<ActivityVisibility, string> = {
+  public: 'activities.visibility.public',
+  followers: 'activities.visibility.followers',
+  private: 'activities.visibility.private',
+}
+const VISIBILITY_ICONS: Record<ActivityVisibility, LucideIcon> = {
+  public: Globe,
+  followers: Users,
+  private: Lock,
+}
+const visibilityLabel = computed(() => VISIBILITY_LABEL_KEYS[props.activity.visibility])
+const visibilityIcon = computed(() => VISIBILITY_ICONS[props.activity.visibility])
 
 const canSeeStartTime = computed(() =>
   canViewField(props.activity, 'hideStartTime', props.currentUserId),

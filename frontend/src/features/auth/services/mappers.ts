@@ -4,16 +4,6 @@ import { getAvatarCacheToken } from '@/lib/avatarCache'
 import { getBackendAssetUrl } from '@/services/runtime'
 
 /**
- * Coerces the backend's number/boolean-encoded flags into a real boolean.
- *
- * @param value - Raw flag from the API (`1`/`0`, `true`/`false`, or null).
- * @returns The value as a boolean.
- */
-function toBoolean(value: number | boolean | null | undefined): boolean {
-  return Boolean(value)
-}
-
-/**
  * Resolves the backend `photo_path` into a servable avatar URL.
  *
  * The backend returns a ready-to-use URL: a same-origin signed path
@@ -39,7 +29,7 @@ export function resolveAvatarUrl(photoPath: string | null | undefined): string |
  * Maps the raw `/profile` payload to the app's clean {@link User} model.
  *
  * This is the single boundary where the backend wire format is translated, so
- * components never see snake_case or number-encoded booleans, and a schema
+ * components never see snake_case or nullable flags, and a schema
  * change is absorbed here instead of rippling across the UI.
  *
  * @param dto - Raw user profile payload from the backend.
@@ -56,8 +46,8 @@ export function mapUserProfile(dto: UserProfileDto): User {
     active: dto.active,
     mfaEnabled: dto.mfa_enabled,
     avatarUrl: resolveAvatarUrl(dto.photo_path),
-    isStravaLinked: toBoolean(dto.is_strava_linked),
-    isGarminConnectLinked: toBoolean(dto.is_garminconnect_linked),
+    isStravaLinked: dto.is_strava_linked ?? false,
+    isGarminConnectLinked: dto.is_garminconnect_linked ?? false,
     hasLocalPassword: dto.has_local_password,
     units: dto.units,
     weightUnits: dto.weight_units ?? dto.units,

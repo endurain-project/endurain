@@ -15,6 +15,12 @@ export type ActivityWorkoutStepDto = Schemas['ActivityWorkoutStepsRead']
 export type ActivitySetDto = Schemas['ActivitySetsRead']
 export type ActivityExerciseTitleDto = Schemas['ActivityExerciseTitlesRead']
 
+/** The sport an activity records, as the backend names it. */
+export type ActivityType = Schemas['ActivityType']
+
+/** Who may see an activity. */
+export type ActivityVisibility = Schemas['ActivityVisibility']
+
 /**
  * Per-sport aggregated stats for a timeframe (this week / this month). Keys are
  * sport names (`run`, `bike`, `swim`, …); each value is a {@link ActivitySportStats}.
@@ -29,23 +35,27 @@ export type ActivitySportStats = Schemas['ActivitySportStats']
 /** A sport key present in {@link ActivityStats}. */
 export type ActivitySportKey = keyof ActivityStats
 
+/** The kind of data a stream holds, as the backend names it. */
+export type ActivityStreamType = Schemas['ActivityStreamType']
+
 /**
- * Numeric stream-type codes used by the backend. A single activity exposes one
+ * The backend stream type of each chart metric. A single activity exposes one
  * stream per available metric; the detail view fans these out into charts.
  */
 export const STREAM_TYPE = {
-  hr: 1,
-  power: 2,
-  cadence: 3,
-  elevation: 4,
-  velocity: 5,
-  pace: 6,
+  hr: 'heart_rate',
+  power: 'power',
+  cadence: 'cadence',
+  elevation: 'elevation',
+  velocity: 'speed',
+  pace: 'pace',
   /**
-   * 7 is the lat/lon (GPS) stream — not a chart metric. It is consumed by the
-   * map (see `extractTrackPoints`), so it is intentionally absent here.
+   * The `map` stream is the lat/lon (GPS) stream — not a chart metric. It is
+   * consumed by the map (see `extractTrackPoints`), so it is intentionally
+   * absent here.
    */
-  temperature: 8,
-} as const
+  temperature: 'temperature',
+} as const satisfies Record<string, ActivityStreamType>
 
 /** A metric kind that can be rendered as a stream chart. */
 export type StreamMetric = keyof typeof STREAM_TYPE
@@ -70,9 +80,9 @@ export interface StreamWaypoint {
   pace?: number | null
   /** Temperature in degrees Celsius. */
   temp?: number | null
-  /** Latitude in decimal degrees (present on the GPS/map stream, type 7). */
+  /** Latitude in decimal degrees (present on the GPS/map stream). */
   lat?: number | null
-  /** Longitude in decimal degrees (present on the GPS/map stream, type 7). */
+  /** Longitude in decimal degrees (present on the GPS/map stream). */
   lon?: number | null
 }
 
@@ -91,7 +101,7 @@ export interface HrZoneBucket {
 /** One metric stream for an activity (e.g. the full heart-rate series). */
 export interface ActivityStream {
   id: number
-  streamType: number
+  streamType: ActivityStreamType
   waypoints: StreamWaypoint[]
   /** Decoded heart-rate zone buckets, present only on the HR stream. */
   hrZones: HrZoneBucket[] | null
@@ -206,9 +216,8 @@ export interface Activity {
   name: string
   description: string | null
   privateNotes: string | null
-  activityType: number
-  /** 0 - public, 1 - followers, 2 - private. */
-  visibility: number
+  activityType: ActivityType
+  visibility: ActivityVisibility
   isHidden: boolean
   gearId: number | null
 
@@ -310,11 +319,10 @@ export interface ActivityOwner {
 /** The editable fields of an activity, as bound by the edit form. */
 export interface ActivityEditInput {
   name: string
-  activityType: number
+  activityType: ActivityType
   description: string
   privateNotes: string
-  /** 0 - public, 1 - followers, 2 - private. */
-  visibility: number
+  visibility: ActivityVisibility
   isHidden: boolean
   hideStartTime: boolean
   hideLocation: boolean

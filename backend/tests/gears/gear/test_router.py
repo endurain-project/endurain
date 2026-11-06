@@ -35,7 +35,7 @@ class TestList:
         mock_list.return_value = core_pagination.Page.build([_read()], 1, 2, 5)
 
         response = client.get(
-            "/gears?page_number=2&num_records=5&show_inactive=false&gear_type=1&nickname_contains=bike",
+            "/gears?page_number=2&num_records=5&show_inactive=false&gear_type=bike&nickname_contains=bike",
             headers=_HEADERS,
         )
 
@@ -72,8 +72,9 @@ class TestList:
 
         assert response.status_code == 422
 
-    def test_an_unknown_type_is_rejected(self, client):
-        assert client.get("/gears?gear_type=99", headers=_HEADERS).status_code == 422
+    @pytest.mark.parametrize("gear_type", ["99", "1", "bicycle"])
+    def test_an_unknown_type_and_the_stored_integer_are_rejected(self, client, gear_type):
+        assert client.get(f"/gears?gear_type={gear_type}", headers=_HEADERS).status_code == 422
 
 
 class TestReadById:
@@ -98,7 +99,7 @@ class TestWrites:
     def test_create(self, mock_create, client):
         mock_create.return_value = _read(nickname="New Bike")
 
-        response = client.post("/gears", json={"nickname": "New Bike", "gear_type": 1}, headers=_HEADERS)
+        response = client.post("/gears", json={"nickname": "New Bike", "gear_type": "bike"}, headers=_HEADERS)
 
         assert response.status_code == 201
         assert response.headers["Location"] == f"/gears/{response.json()['id']}"
@@ -108,7 +109,7 @@ class TestWrites:
     def test_create_conflict_is_409(self, mock_create, client):
         mock_create.side_effect = core_exceptions.ConflictError("exists")
 
-        response = client.post("/gears", json={"nickname": "New Bike", "gear_type": 1}, headers=_HEADERS)
+        response = client.post("/gears", json={"nickname": "New Bike", "gear_type": "bike"}, headers=_HEADERS)
 
         assert response.status_code == 409
 

@@ -416,7 +416,7 @@ def _build_activity(
         user_id=user_id,
         name=activity_name,
         distance=distance,
-        activity_type=activity_type,
+        activity_type=activity_constants.ActivityType.from_stored(activity_type),
         timezone=timezone,
         start_time=start_time,
         end_time=end_time,

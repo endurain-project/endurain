@@ -21,19 +21,19 @@ logger = core_logger.get_logger(__name__)
 # cycling type starts counting towards goals the day it is added rather than
 # whenever someone remembers this list exists.
 _ACTIVITY_TYPE_MAP: dict[str, list[int]] = {
-    user_goals_schema.ActivityType.RUN.value: [*ACTIVITY_TYPES_BY_SPORT["run"]],
-    user_goals_schema.ActivityType.BIKE.value: [*ACTIVITY_TYPES_BY_SPORT["bike"]],
-    user_goals_schema.ActivityType.SWIM.value: [*ACTIVITY_TYPES_BY_SPORT["swim"]],
+    user_goals_schema.GoalActivityType.RUN.value: [*ACTIVITY_TYPES_BY_SPORT["run"]],
+    user_goals_schema.GoalActivityType.BIKE.value: [*ACTIVITY_TYPES_BY_SPORT["bike"]],
+    user_goals_schema.GoalActivityType.SWIM.value: [*ACTIVITY_TYPES_BY_SPORT["swim"]],
     # Deliberately wider than the walk sport: a walking goal also counts hiking
     # and snowshoeing, which the stats view reports as their own sports.
-    user_goals_schema.ActivityType.WALK.value: [
+    user_goals_schema.GoalActivityType.WALK.value: [
         *ACTIVITY_TYPES_BY_SPORT["walk"],
         *ACTIVITY_TYPES_BY_SPORT["hike"],
         *ACTIVITY_TYPES_BY_SPORT["snowshoeing"],
     ],
     # Crossfit, cardio training, HIIT and jump rope have no sport grouping of
     # their own: they are goal-only, so the ids are stated here.
-    user_goals_schema.ActivityType.CARDIO.value: [20, 41, 46, 47],
+    user_goals_schema.GoalActivityType.CARDIO.value: [20, 41, 46, 47],
 }
 
 _DEFAULT_ACTIVITY_TYPES: list[int] = [10, 19]

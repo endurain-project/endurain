@@ -147,7 +147,7 @@ def _filter_gears[RowT: tuple[object, ...]](
     if show_inactive is False:
         stmt = stmt.where(gears_models.Gear.active.is_(True))
     if gear_type is not None:
-        stmt = stmt.where(gears_models.Gear.gear_type == gear_type)
+        stmt = stmt.where(gears_models.Gear.gear_type == gear_type.stored)
     if nickname_contains:
         pattern = f"%{core_sanitization.escape_like(gears_schema.normalize_nickname(nickname_contains))}%"
         stmt = stmt.where(func.lower(gears_models.Gear.nickname).like(pattern, escape="\\"))

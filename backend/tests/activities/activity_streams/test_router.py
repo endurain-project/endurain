@@ -49,7 +49,7 @@ class TestReadActivityStreams:
         client = TestClient(_build_app(mock_db))
         mock_get.return_value = ActivityStreamsRead(id=1, activity_id=1, stream_type=1, stream_waypoints=[{"x": 1}])
 
-        response = client.get("/activities/1/streams/1", headers={"Authorization": "Bearer x"})
+        response = client.get("/activities/1/streams/heart_rate", headers={"Authorization": "Bearer x"})
         assert response.status_code == 200
 
     @patch("modules.activities.activity_streams.router.activity_streams_service.get_activity_stream")
@@ -58,7 +58,7 @@ class TestReadActivityStreams:
         client = TestClient(_build_app(mock_db))
         mock_get.side_effect = core_exceptions.NotFoundError("Activity stream not found")
 
-        response = client.get("/activities/1/streams/1", headers={"Authorization": "Bearer x"})
+        response = client.get("/activities/1/streams/heart_rate", headers={"Authorization": "Bearer x"})
         assert response.status_code == 404
         assert response.json()["detail"] == "Activity stream not found"
 
@@ -72,18 +72,18 @@ class TestStreamTypePath:
         from modules.activities.activity_streams.schema import ActivityStreamsRead
 
         client = TestClient(_build_app(mock_db))
-        stored = [value for name, value in vars(constants).items() if name.startswith("STREAM_TYPE_")]
+        stored = list(constants.ActivityStreamType)
         for stream_type in stored:
             mock_get.return_value = ActivityStreamsRead(
-                id=1, activity_id=1, stream_type=stream_type, stream_waypoints=[]
+                id=1, activity_id=1, stream_type=stream_type.stored, stream_waypoints=[]
             )
 
-            response = client.get(f"/activities/1/streams/{stream_type}", headers={"Authorization": "Bearer x"})
+            response = client.get(f"/activities/1/streams/{stream_type.value}", headers={"Authorization": "Bearer x"})
 
             assert response.status_code == 200, stream_type
 
-    def test_a_type_outside_the_enum_is_rejected(self, mock_db):
+    def test_an_unknown_type_and_the_stored_integer_are_rejected(self, mock_db):
         client = TestClient(_build_app(mock_db))
 
         assert client.get("/activities/1/streams/0", headers={"Authorization": "Bearer x"}).status_code == 422
-        assert client.get("/activities/1/streams/9", headers={"Authorization": "Bearer x"}).status_code == 422
+        assert client.get("/activities/1/streams/1", headers={"Authorization": "Bearer x"}).status_code == 422

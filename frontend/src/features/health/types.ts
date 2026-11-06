@@ -10,6 +10,9 @@ import type { Schemas } from '@/types'
 /** Bristol Stool Scale type (1–7), the backend's stool-consistency classification. */
 export type BristolType = Schemas['BristolType']
 
+/** The stage of a sleep segment, as the backend names it. */
+export type SleepStageType = Schemas['SleepStageType']
+
 /** A stool colour from the backend's fixed palette. */
 export type PoopColor = Schemas['Color']
 
@@ -369,12 +372,11 @@ export interface FastingStats {
 
 /**
  * One stage segment of a night's sleep (a contiguous span in a single stage).
- * Drives the hypnogram timeline. `stageType` follows the backend enum:
- * `0` deep, `1` light, `2` REM, `3` awake.
+ * Drives the hypnogram timeline.
  */
 export interface SleepStage {
-  /** Stage classification (`0` deep, `1` light, `2` REM, `3` awake), or `null`. */
-  stageType: number | null
+  /** Stage classification, or `null`. */
+  stageType: SleepStageType | null
   /** ISO start timestamp of the segment (GMT), or `null`. */
   startTimeGmt: string | null
   /** ISO end timestamp of the segment (GMT), or `null`. */

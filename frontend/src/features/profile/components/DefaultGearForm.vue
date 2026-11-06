@@ -4,7 +4,7 @@ import { LoaderCircle } from '@lucide/vue'
 
 import type { DefaultGear, DefaultGearValues } from '@/features/profile/types'
 import type { GearOptionsByType } from '@/features/profile/composables/useDefaultGear'
-import type { Gear } from '@/features/gears/types'
+import type { Gear, GearType } from '@/features/gears/types'
 
 import { Button } from '@/components/ui/button'
 import { FormField } from '@/components/ui/form-field'
@@ -48,7 +48,7 @@ function toFormValues(gear: DefaultGear): DefaultGearValues {
 }
 
 /** The gears offered for a given gear type (empty when none exist). */
-function gearsForType(gearType: number): Gear[] {
+function gearsForType(gearType: GearType): Gear[] {
   return props.options[gearType] ?? []
 }
 

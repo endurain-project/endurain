@@ -18,6 +18,7 @@ from sqlalchemy.orm import Mapped, QueryableAttribute, Session, declared_attr
 
 import core.etag as core_etag
 import core.exceptions as core_exceptions
+import core.stored_enum as core_stored_enum
 import modules.health.computation as health_computation
 
 #: Answer to an edit that moves a dated record onto a day that already has one.
@@ -257,7 +258,12 @@ def create[ModelT: Row, ReadT: BaseModel](
     Raises:
         ConflictError: If the insert violates a constraint.
     """
-    return add(spec, spec.model(**record.model_dump(exclude_none=False), user_id=user_id), db, conflict=conflict)
+    return add(
+        spec,
+        spec.model(**core_stored_enum.to_stored(record.model_dump(exclude_none=False)), user_id=user_id),
+        db,
+        conflict=conflict,
+    )
 
 
 def add[ModelT: Row, ReadT: BaseModel](
@@ -329,7 +335,7 @@ def edit_row[ModelT: Row, ReadT: BaseModel](
         ConflictError: If ``conflict`` is given and the change violates a constraint.
     """
     core_etag.require_if_match(if_match, row.version, spec.etag_label)
-    for key, value in changes.model_dump(exclude_unset=True).items():
+    for key, value in core_stored_enum.to_stored(changes.model_dump(exclude_unset=True)).items():
         if not _is_stored_value(getattr(row, key), value):
             setattr(row, key, value)
     return save(spec, row, db, conflict=conflict)

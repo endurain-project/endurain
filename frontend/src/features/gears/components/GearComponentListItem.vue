@@ -3,7 +3,7 @@ import { computed } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { Pencil, Trash2 } from '@lucide/vue'
 
-import type { GearComponent } from '@/features/gears/types'
+import type { GearComponent, GearType } from '@/features/gears/types'
 import type { UnitKey } from '@/i18n'
 import type { Schemas } from '@/types'
 
@@ -25,7 +25,7 @@ const props = defineProps<{
   /** The component to render. */
   component: GearComponent
   /** The parent gear's numeric type, selecting distance- vs time-based wear. */
-  gearType: number
+  gearType: GearType
   /** The viewer's measurement system. */
   units: Schemas['Units']
   /** The viewer's currency. */

@@ -4,6 +4,9 @@ import pytest
 from pydantic import ValidationError
 
 import modules.activities.activity.schema as activity_schema
+from modules.activities.activity.constants import ActivityType
+
+_ROW = {"distance": 0, "name": "Run", "activity_type": 1}
 
 
 class TestTimezoneCanonicalization:
@@ -56,16 +59,15 @@ class TestActivityEditNotNullColumns:
         assert edit.model_fields_set == {"description", "private_notes", "gear_id"}
 
     def test_omitted_fields_are_not_set(self):
-        assert activity_schema.ActivityEdit(visibility=1).model_fields_set == {"visibility"}
+        assert activity_schema.ActivityEdit(visibility="followers").model_fields_set == {"visibility"}
 
 
 class TestBodyIdsFitIntegerColumns:
     """A client-supplied id above the int4 range would reach PostgreSQL and answer 500."""
 
-    @pytest.mark.parametrize("field", ["gear_id", "activity_type"])
-    def test_edit_rejects_an_id_above_int32(self, field):
+    def test_edit_rejects_an_id_above_int32(self):
         with pytest.raises(ValidationError):
-            activity_schema.ActivityEdit(**{field: 2**31})
+            activity_schema.ActivityEdit(gear_id=2**31)
 
     def test_edit_accepts_the_largest_gear_id(self):
         assert activity_schema.ActivityEdit(gear_id=2**31 - 1).gear_id == 2**31 - 1
@@ -76,19 +78,26 @@ class TestBodyIdsFitIntegerColumns:
 
 
 class TestActivityTypeVocabulary:
-    """An activity type must be one of the ids the application knows."""
+    """An activity type is one of the keys the application knows, never the stored integer."""
 
     def test_edit_rejects_an_unknown_type(self):
-        with pytest.raises(ValidationError, match="Unknown activity type"):
-            activity_schema.ActivityEdit(activity_type=9999)
-
-    @pytest.mark.parametrize("activity_type", [1, 47])
-    def test_edit_accepts_a_known_type(self, activity_type):
-        assert activity_schema.ActivityEdit(activity_type=activity_type).activity_type == activity_type
-
-    def test_edit_rejects_a_numeric_string(self):
         with pytest.raises(ValidationError):
-            activity_schema.ActivityEdit(activity_type="1")
+            activity_schema.ActivityEdit(activity_type="curling")
+
+    @pytest.mark.parametrize("activity_type", [ActivityType.RUN, ActivityType.JUMP_ROPE])
+    def test_edit_accepts_a_known_type(self, activity_type):
+        assert activity_schema.ActivityEdit(activity_type=activity_type.value).activity_type is activity_type
+
+    @pytest.mark.parametrize("stored", [1, "1"])
+    def test_edit_rejects_the_stored_integer(self, stored):
+        with pytest.raises(ValidationError):
+            activity_schema.ActivityEdit(activity_type=stored)
+
+    def test_a_stored_row_reads_as_the_key(self):
+        assert activity_schema.ActivityBase.model_validate({**_ROW, "activity_type": 2}).activity_type == "trail_run"
+
+    def test_every_type_has_a_unique_key_and_stored_id(self):
+        assert len({t.value for t in ActivityType}) == len({t.stored for t in ActivityType}) == len(ActivityType)
 
 
 class TestActivityEditName:

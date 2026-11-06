@@ -3,6 +3,7 @@ import { computed, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 
 import type { BristolType, PoopColor, PoopEntry, PoopEntryInput } from '@/features/health/types'
+import { bristolNumber } from '@/features/health/utils/bristol'
 
 import { FormDialog } from '@/components/ui/form-dialog'
 import { FormField } from '@/components/ui/form-field'
@@ -42,7 +43,15 @@ const createMutation = useCreatePoopEntryMutation()
 const updateMutation = useUpdatePoopEntryMutation()
 
 /** The Bristol Stool Scale types offered in the select, in order. */
-const BRISTOL_TYPES: BristolType[] = [1, 2, 3, 4, 5, 6, 7]
+const BRISTOL_TYPES: BristolType[] = [
+  'type_1',
+  'type_2',
+  'type_3',
+  'type_4',
+  'type_5',
+  'type_6',
+  'type_7',
+]
 
 /** The stool colours offered in the select, in display order. */
 const COLORS: PoopColor[] = [
@@ -85,7 +94,7 @@ function buildInput(values: PoopFormValues): PoopEntryInput {
     // UTC instant so the backend stores the moment the user meant rather than
     // reading their wall clock as if it were UTC.
     dateTime: requiredDateTimeLocalToIso(values.dateTime),
-    bristolType: values.bristolType ? (Number(values.bristolType) as BristolType) : null,
+    bristolType: values.bristolType ? (values.bristolType as BristolType) : null,
     color: values.color ? (values.color as PoopColor) : null,
     notes: notes ? notes : null,
   }
@@ -160,7 +169,7 @@ function populate(): void {
   // Render the stored instant as the viewer's wall clock; string-slicing the
   // ISO showed the UTC time, which disagreed with the list row.
   values.dateTime = toDateTimeLocalInput(entry.dateTime) || nowDateTimeLocalInput()
-  values.bristolType = entry.bristolType !== null ? String(entry.bristolType) : ''
+  values.bristolType = entry.bristolType ?? ''
   values.color = entry.color ?? ''
   values.notes = entry.notes ?? ''
   markPristine()
@@ -214,7 +223,7 @@ watch(open, (isOpen) => {
             >
               <option value="">{{ t('health.poop.form.none') }}</option>
               <option v-for="type in BRISTOL_TYPES" :key="type" :value="String(type)">
-                {{ t('health.poop.list.bristolBadge', { type }) }}
+                {{ t('health.poop.list.bristolBadge', { type: bristolNumber(type) }) }}
               </option>
             </select>
           </template>

@@ -85,11 +85,11 @@ class TestSleepStages:
     def test_a_stage_time_outside_the_range_is_rejected(self, field):
         for bad in (datetime(1899, 1, 1, tzinfo=UTC), _NOW + timedelta(days=2)):
             with pytest.raises(ValidationError):
-                sleep_schema.HealthSleepCreate(sleep_stages=[{"stage_type": 1, field: bad}])
+                sleep_schema.HealthSleepCreate(sleep_stages=[{"stage_type": "light", field: bad}])
 
     def test_stages_inside_the_range_are_accepted(self):
         record = sleep_schema.HealthSleepCreate(
-            sleep_stages=[{"stage_type": 1, "start_time_gmt": _NOW - timedelta(hours=1), "end_time_gmt": _NOW}]
+            sleep_stages=[{"stage_type": "light", "start_time_gmt": _NOW - timedelta(hours=1), "end_time_gmt": _NOW}]
         )
 
         assert record.sleep_stages is not None
@@ -114,7 +114,7 @@ class TestStoredRowsStayReadable:
             id=1,
             user_id=1,
             date=date(9999, 1, 1),
-            sleep_stages=[{"stage_type": 1, "start_time_gmt": datetime(9999, 1, 1, tzinfo=UTC)}],
+            sleep_stages=[{"stage_type": "light", "start_time_gmt": datetime(9999, 1, 1, tzinfo=UTC)}],
         )
 
         assert read.date == date(9999, 1, 1)

@@ -14,121 +14,137 @@ import {
   presentActivityType,
   sortActivityTypesByLabel,
 } from '@/features/activities/utils/activityType'
+import type { ActivityType } from '@/features/activities/types'
 import { GEAR_TYPE } from '@/features/gears/utils/gearType'
+
+/** A type a newer backend may send that this client does not know yet. */
+const UNKNOWN = 'curling' as ActivityType
 
 describe('activityTypeToGearType', () => {
   it('maps each activity family to its gear type (v1 parity)', () => {
-    expect(activityTypeToGearType(4)).toBe(GEAR_TYPE.BICYCLE)
-    expect(activityTypeToGearType(1)).toBe(GEAR_TYPE.SHOES)
-    expect(activityTypeToGearType(11)).toBe(GEAR_TYPE.SHOES)
-    expect(activityTypeToGearType(8)).toBe(GEAR_TYPE.WETSUIT)
-    expect(activityTypeToGearType(21)).toBe(GEAR_TYPE.RACQUET)
-    expect(activityTypeToGearType(15)).toBe(GEAR_TYPE.SKIS)
-    expect(activityTypeToGearType(17)).toBe(GEAR_TYPE.SNOWBOARD)
-    expect(activityTypeToGearType(30)).toBe(GEAR_TYPE.WINDSURF)
-    expect(activityTypeToGearType(32)).toBe(GEAR_TYPE.WATER_SPORTS_BOARD)
-    expect(activityTypeToGearType(33)).toBe(GEAR_TYPE.WATER_SPORTS_BOARD)
+    expect(activityTypeToGearType('ride')).toBe(GEAR_TYPE.BICYCLE)
+    expect(activityTypeToGearType('run')).toBe(GEAR_TYPE.SHOES)
+    expect(activityTypeToGearType('walk')).toBe(GEAR_TYPE.SHOES)
+    expect(activityTypeToGearType('lap_swimming')).toBe(GEAR_TYPE.WETSUIT)
+    expect(activityTypeToGearType('tennis')).toBe(GEAR_TYPE.RACQUET)
+    expect(activityTypeToGearType('alpine_ski')).toBe(GEAR_TYPE.SKIS)
+    expect(activityTypeToGearType('snowboard')).toBe(GEAR_TYPE.SNOWBOARD)
+    expect(activityTypeToGearType('windsurf')).toBe(GEAR_TYPE.WINDSURF)
+    expect(activityTypeToGearType('stand_up_paddling')).toBe(GEAR_TYPE.WATER_SPORTS_BOARD)
+    expect(activityTypeToGearType('surf')).toBe(GEAR_TYPE.WATER_SPORTS_BOARD)
   })
 
-  it('prefers shoes over snow gear for snowshoeing (type 44, in both groups)', () => {
-    expect(activityTypeToGearType(44)).toBe(GEAR_TYPE.SHOES)
+  it('prefers shoes over snow gear for snowshoeing (snow_shoeing, in both groups)', () => {
+    expect(activityTypeToGearType('snow_shoeing')).toBe(GEAR_TYPE.SHOES)
   })
 
   it('returns null for activity families with no associated gear', () => {
-    expect(activityTypeToGearType(19)).toBeNull()
-    expect(activityTypeToGearType(46)).toBeNull()
+    expect(activityTypeToGearType('strength_training')).toBeNull()
+    expect(activityTypeToGearType('hiit')).toBeNull()
   })
 })
 
 describe('activity type predicates', () => {
   it('classifies running, cycling and swimming types', () => {
-    expect(activityTypeIsRunning(1)).toBe(true)
-    expect(activityTypeIsRunning(4)).toBe(false)
-    expect(activityTypeIsCycling(4)).toBe(true)
-    expect(activityTypeIsSwimming(8)).toBe(true)
-    expect(activityTypeIsSwimming(9)).toBe(true)
+    expect(activityTypeIsRunning('run')).toBe(true)
+    expect(activityTypeIsRunning('ride')).toBe(false)
+    expect(activityTypeIsCycling('ride')).toBe(true)
+    expect(activityTypeIsSwimming('lap_swimming')).toBe(true)
+    expect(activityTypeIsSwimming('open_water_swimming')).toBe(true)
   })
 
   it('flags virtual run/ride types', () => {
-    expect(activityTypeIsVirtual(3)).toBe(true)
-    expect(activityTypeIsVirtual(7)).toBe(true)
-    expect(activityTypeIsVirtual(1)).toBe(false)
+    expect(activityTypeIsVirtual('virtual_run')).toBe(true)
+    expect(activityTypeIsVirtual('virtual_ride')).toBe(true)
+    expect(activityTypeIsVirtual('run')).toBe(false)
   })
 
   it('uses pace for foot/water sports and speed for cycling', () => {
-    expect(activityTypeUsesPace(1)).toBe(true)
-    expect(activityTypeUsesPace(8)).toBe(true)
-    expect(activityTypeUsesPace(13)).toBe(true)
-    expect(activityTypeUsesPace(4)).toBe(false)
+    expect(activityTypeUsesPace('run')).toBe(true)
+    expect(activityTypeUsesPace('lap_swimming')).toBe(true)
+    expect(activityTypeUsesPace('rowing')).toBe(true)
+    expect(activityTypeUsesPace('ride')).toBe(false)
   })
 
   it('uses knots for marine sports', () => {
-    expect(activityTypeUsesKnots(43)).toBe(true)
-    expect(activityTypeUsesKnots(30)).toBe(true)
-    expect(activityTypeUsesKnots(4)).toBe(false)
+    expect(activityTypeUsesKnots('sailing')).toBe(true)
+    expect(activityTypeUsesKnots('windsurf')).toBe(true)
+    expect(activityTypeUsesKnots('ride')).toBe(false)
   })
 })
 
 describe('lapCyclesLabelKey', () => {
   it('labels the cycle column per sport', () => {
-    expect(lapCyclesLabelKey(13)).toBe('activities.laps.strokes') // rowing
-    expect(lapCyclesLabelKey(42)).toBe('activities.laps.strokes') // kayaking
-    expect(lapCyclesLabelKey(32)).toBe('activities.laps.strokes') // SUP
-    expect(lapCyclesLabelKey(8)).toBe('activities.laps.strokes') // swimming
-    expect(lapCyclesLabelKey(4)).toBe('activities.laps.revolutions') // cycling
-    expect(lapCyclesLabelKey(1)).toBe('activities.laps.strides') // running
-    expect(lapCyclesLabelKey(11)).toBe('activities.laps.strides') // walking
-    expect(lapCyclesLabelKey(47)).toBe('activities.laps.jumps') // jump rope
+    expect(lapCyclesLabelKey('rowing')).toBe('activities.laps.strokes') // rowing
+    expect(lapCyclesLabelKey('kayaking')).toBe('activities.laps.strokes') // kayaking
+    expect(lapCyclesLabelKey('stand_up_paddling')).toBe('activities.laps.strokes') // SUP
+    expect(lapCyclesLabelKey('lap_swimming')).toBe('activities.laps.strokes') // swimming
+    expect(lapCyclesLabelKey('ride')).toBe('activities.laps.revolutions') // cycling
+    expect(lapCyclesLabelKey('run')).toBe('activities.laps.strides') // running
+    expect(lapCyclesLabelKey('walk')).toBe('activities.laps.strides') // walking
+    expect(lapCyclesLabelKey('jump_rope')).toBe('activities.laps.jumps') // jump rope
   })
 
   it('falls back to the generic cycles label', () => {
-    expect(lapCyclesLabelKey(10)).toBe('activities.laps.cycles') // workout
-    expect(lapCyclesLabelKey(999)).toBe('activities.laps.cycles')
+    expect(lapCyclesLabelKey('workout')).toBe('activities.laps.cycles') // workout
+    expect(lapCyclesLabelKey(UNKNOWN)).toBe('activities.laps.cycles')
   })
 })
 
 describe('activityBadgeCategory', () => {
   it('maps each discipline to a badge colour category', () => {
-    expect(activityBadgeCategory(1)).toBe('running')
-    expect(activityBadgeCategory(4)).toBe('cycling')
-    expect(activityBadgeCategory(8)).toBe('swimming')
-    expect(activityBadgeCategory(11)).toBe('hiking')
-    expect(activityBadgeCategory(21)).toBe('other')
+    expect(activityBadgeCategory('run')).toBe('running')
+    expect(activityBadgeCategory('ride')).toBe('cycling')
+    expect(activityBadgeCategory('lap_swimming')).toBe('swimming')
+    expect(activityBadgeCategory('walk')).toBe('hiking')
+    expect(activityBadgeCategory('tennis')).toBe('other')
   })
 })
 
 describe('presentActivityType', () => {
   it('bundles label key, badge and icon for known types', () => {
-    expect(presentActivityType(1)).toEqual({
+    expect(presentActivityType('run')).toEqual({
       labelKey: 'activities.types.run',
       badge: 'running',
       icon: Footprints,
     })
-    expect(presentActivityType(4).icon).toBe(Bike)
-    expect(presentActivityType(8).icon).toBe(Waves)
-    expect(presentActivityType(43).icon).toBe(Sailboat)
+    expect(presentActivityType('ride').icon).toBe(Bike)
+    expect(presentActivityType('lap_swimming').icon).toBe(Waves)
+    expect(presentActivityType('sailing').icon).toBe(Sailboat)
   })
 
   it('falls back to a generic workout label for unknown types', () => {
-    expect(presentActivityType(999).labelKey).toBe('activities.types.workout')
+    expect(presentActivityType(UNKNOWN).labelKey).toBe('activities.types.workout')
   })
 })
 
 describe('sortActivityTypesByLabel', () => {
   const labels: Record<string, string> = {
-    [presentActivityType(1).labelKey]: 'Zebra',
-    [presentActivityType(4).labelKey]: 'Ärger',
-    [presentActivityType(8).labelKey]: 'Apfel',
+    [presentActivityType('run').labelKey]: 'Zebra',
+    [presentActivityType('ride').labelKey]: 'Ärger',
+    [presentActivityType('lap_swimming').labelKey]: 'Apfel',
   }
   const t = (key: string) => labels[key]!
 
-  it('orders by translated label, not by code', () => {
-    expect(sortActivityTypesByLabel([1, 4, 8], t, 'en')).toEqual([8, 4, 1])
+  it('orders by translated label, not by key', () => {
+    expect(sortActivityTypesByLabel(['run', 'ride', 'lap_swimming'], t, 'en')).toEqual([
+      'lap_swimming',
+      'ride',
+      'run',
+    ])
   })
 
   it('follows the locale collation rules', () => {
     // German sorts Ä with A; Swedish sorts Ä after Z.
-    expect(sortActivityTypesByLabel([1, 4, 8], t, 'de')).toEqual([8, 4, 1])
-    expect(sortActivityTypesByLabel([1, 4, 8], t, 'sv')).toEqual([8, 1, 4])
+    expect(sortActivityTypesByLabel(['run', 'ride', 'lap_swimming'], t, 'de')).toEqual([
+      'lap_swimming',
+      'ride',
+      'run',
+    ])
+    expect(sortActivityTypesByLabel(['run', 'ride', 'lap_swimming'], t, 'sv')).toEqual([
+      'lap_swimming',
+      'run',
+      'ride',
+    ])
   })
 })

@@ -11,7 +11,7 @@ function makeGear(overrides: Partial<Gear> = {}): Gear {
   return {
     id: 1,
     userId: 1,
-    gearType: 1,
+    gearType: 'bike',
     nickname: 'Road bike',
     brand: null,
     model: null,

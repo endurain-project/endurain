@@ -13,11 +13,11 @@ import {
   speedToDisplay,
 } from '@/features/activities/utils/format'
 
-const RUN = 1
-const CYCLE = 4
-const SWIM = 8
-const ROW = 13
-const SAIL = 43
+const RUN = 'run' as const
+const CYCLE = 'ride' as const
+const SWIM = 'lap_swimming' as const
+const ROW = 'rowing' as const
+const SAIL = 'sailing' as const
 
 describe('formatHmsDuration', () => {
   it('formats durations over an hour as H:MM:SS', () => {

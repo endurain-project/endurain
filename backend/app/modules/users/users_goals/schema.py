@@ -32,7 +32,7 @@ class Interval(StrEnum):
     YEARLY = "yearly"
 
 
-class ActivityType(StrEnum):
+class GoalActivityType(StrEnum):
     """Supported activity types for user goals.
 
     Attributes:
@@ -96,7 +96,7 @@ class UsersGoalBase(BaseModel):
     """
 
     interval: Interval = Field(..., description="Goal time interval")
-    activity_type: ActivityType = Field(..., description="Type of activity for the goal")
+    activity_type: GoalActivityType = Field(..., description="Type of activity for the goal")
     goal_type: GoalType = Field(..., description="Type of goal metric being tracked")
     goal_calories: StrictInt | None = Field(
         default=None, ge=0, le=core_types.INT32_MAX, description="Target calories in kcal"
@@ -218,7 +218,7 @@ class UsersGoalProgress(BaseModel):
 
     goal_id: StrictInt = Field(..., ge=1, description="Goal identifier")
     interval: Interval = Field(..., description="Goal time interval")
-    activity_type: ActivityType = Field(..., description="Activity type for this goal")
+    activity_type: GoalActivityType = Field(..., description="Activity type for this goal")
     goal_type: GoalType
     start_date: StrictStr = Field(..., description="Period start date")
     end_date: StrictStr = Field(..., description="Period end date")

@@ -50,7 +50,7 @@ class TestGetUserGoalsByUserId:
             1,
             mock_db,
             interval=user_goals_schema.Interval.WEEKLY,
-            activity_type=user_goals_schema.ActivityType.RUN,
+            activity_type=user_goals_schema.GoalActivityType.RUN,
             goal_type=user_goals_schema.GoalType.CALORIES,
         )
 

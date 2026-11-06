@@ -54,6 +54,7 @@ _ALLOWED_CORE: dict[str, str] = {
     "core.partial_update": "The edit-schema base that refuses an explicit null for a NOT NULL column.",
     "core.types": "Request-body id and date types bounded to what the database columns can store.",
     "core.sanitization": "Cleaning user-supplied text before storage.",
+    "core.stored_enum": "String enums on the wire whose members map to the integer a column stores.",
     "core.signing": "The token-signing primitive behind thumbnail URLs.",
     "core.text_imports": "Size- and row-bounded reading of an imported Strava gear or activities CSV.",
     "core.timezone": "Timezone resolution and conversion.",

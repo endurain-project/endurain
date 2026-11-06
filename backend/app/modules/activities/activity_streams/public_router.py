@@ -50,4 +50,4 @@ def read_public_activity_stream(
     are disabled. The cases are indistinguishable on purpose, since this endpoint
     is unauthenticated.
     """
-    return activity_streams_service.get_public_activity_stream(activity_id, stream_type, db)
+    return activity_streams_service.get_public_activity_stream(activity_id, stream_type.stored, db)

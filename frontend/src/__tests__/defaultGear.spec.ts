@@ -104,11 +104,11 @@ describe('default gear service requests', () => {
 
   it('fetchGearsByType reads the gear-type endpoint', async () => {
     vi.mocked(apiFetch).mockResolvedValueOnce({
-      items: [{ id: 10, user_id: 5, gear_type: 2, nickname: 'Trail shoes', version: 1 }],
+      items: [{ id: 10, user_id: 5, gear_type: 'shoes', nickname: 'Trail shoes', version: 1 }],
       total: 1,
     })
-    const gears = await fetchGearsByType(2)
-    expect(apiFetch).toHaveBeenCalledWith('/gears?num_records=200&gear_type=2', {
+    const gears = await fetchGearsByType('shoes')
+    expect(apiFetch).toHaveBeenCalledWith('/gears?num_records=200&gear_type=shoes', {
       signal: undefined,
     })
     expect(gears).toHaveLength(1)
@@ -124,6 +124,14 @@ describe('default gear field config', () => {
   })
 
   it('prefetches exactly the seven distinct gear types it uses', () => {
-    expect(Array.from(DEFAULT_GEAR_TYPES).sort((a, b) => a - b)).toEqual([1, 2, 3, 4, 5, 6, 7])
+    expect(Array.from(DEFAULT_GEAR_TYPES).sort()).toEqual([
+      'bike',
+      'racquet',
+      'shoes',
+      'ski',
+      'snowboard',
+      'wetsuit',
+      'windsurf',
+    ])
   })
 })

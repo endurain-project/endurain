@@ -738,7 +738,7 @@ function toSleepStageWire(
   stage: SleepStage,
 ): NonNullable<Schemas['HealthSleepCreate']['sleep_stages']>[number] {
   return {
-    stage_type: stage.stageType as Schemas['SleepStageType'] | null | undefined,
+    stage_type: stage.stageType,
     start_time_gmt: stage.startTimeGmt,
     end_time_gmt: stage.endTimeGmt,
     duration_seconds: stage.durationSeconds,

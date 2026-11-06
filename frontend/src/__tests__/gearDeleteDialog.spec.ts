@@ -21,7 +21,7 @@ vi.mock('@/features/auth/stores/auth', () => ({ useAuthStore: () => ({}) }))
 const gear: Gear = {
   id: 2,
   userId: 1,
-  gearType: 1,
+  gearType: 'bike',
   nickname: 'Road',
   brand: null,
   model: null,

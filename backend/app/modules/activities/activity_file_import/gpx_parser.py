@@ -464,7 +464,7 @@ def _build_activity_schema(
         name=state.activity_name,
         description=state.activity_description,
         distance=round(state.distance) if state.distance else 0,
-        activity_type=int(state.activity_type),
+        activity_type=activity_constants.ActivityType.from_stored(int(state.activity_type)),
         start_time=core_timezone.to_utc_second(state.first_waypoint_time),
         end_time=core_timezone.to_utc_second(state.last_waypoint_time),
         timezone=state.timezone,

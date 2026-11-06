@@ -5,16 +5,13 @@ dependencies, summaries, the file-import parsers) can import without pulling in
 the ingestion/parsing machinery.
 """
 
-from enum import IntEnum, StrEnum
-from typing import Annotated
+from enum import StrEnum
 
-from pydantic import AfterValidator, Field
-
-import core.types as core_types
+from core.stored_enum import StoredStrEnum
 
 
-class ActivityVisibilityLevel(IntEnum):
-    """Who may see an activity, as stored in ``activities.visibility``.
+class ActivityVisibility(StoredStrEnum):
+    """Who may see an activity; ``stored`` is the integer in ``activities.visibility``.
 
     Attributes:
         PUBLIC: Anyone, including unauthenticated viewers of public links.
@@ -22,137 +19,82 @@ class ActivityVisibilityLevel(IntEnum):
         PRIVATE: The owner only.
     """
 
-    PUBLIC = 0
-    FOLLOWERS = 1
-    PRIVATE = 2
+    PUBLIC = ("public", 0)
+    FOLLOWERS = ("followers", 1)
+    PRIVATE = ("private", 2)
+
+
+class MediaType(StoredStrEnum):
+    """The kind of an activity media item; ``stored`` is the integer in ``activity_media.media_type``.
+
+    Attributes:
+        PHOTO: A photo.
+    """
+
+    PHOTO = ("photo", 1)
+
+
+class ActivityType(StoredStrEnum):
+    """The sport an activity records; ``stored`` is the integer in ``activities.activity_type``.
+
+    ``label`` is the English name used for generated activity names and the type catalogue.
+    """
+
+    RUN = ("run", 1, "Run")
+    TRAIL_RUN = ("trail_run", 2, "Trail run")
+    VIRTUAL_RUN = ("virtual_run", 3, "Virtual run")
+    RIDE = ("ride", 4, "Ride")
+    GRAVEL_RIDE = ("gravel_ride", 5, "Gravel ride")
+    MTB_RIDE = ("mtb_ride", 6, "MTB ride")
+    VIRTUAL_RIDE = ("virtual_ride", 7, "Virtual ride")
+    LAP_SWIMMING = ("lap_swimming", 8, "Lap swimming")
+    OPEN_WATER_SWIMMING = ("open_water_swimming", 9, "Open water swimming")
+    WORKOUT = ("workout", 10, "Workout")
+    WALK = ("walk", 11, "Walk")
+    HIKE = ("hike", 12, "Hike")
+    ROWING = ("rowing", 13, "Rowing")
+    YOGA = ("yoga", 14, "Yoga")
+    ALPINE_SKI = ("alpine_ski", 15, "Alpine ski")
+    NORDIC_SKI = ("nordic_ski", 16, "Nordic ski")
+    SNOWBOARD = ("snowboard", 17, "Snowboard")
+    TRANSITION = ("transition", 18, "Transition")
+    STRENGTH_TRAINING = ("strength_training", 19, "Strength training")
+    CROSSFIT = ("crossfit", 20, "Crossfit")
+    TENNIS = ("tennis", 21, "Tennis")
+    TABLE_TENNIS = ("table_tennis", 22, "TableTennis")
+    BADMINTON = ("badminton", 23, "Badminton")
+    SQUASH = ("squash", 24, "Squash")
+    RACQUETBALL = ("racquetball", 25, "Racquetball")
+    PICKLEBALL = ("pickleball", 26, "Pickleball")
+    COMMUTING_RIDE = ("commuting_ride", 27, "Commuting ride")
+    INDOOR_RIDE = ("indoor_ride", 28, "Indoor ride")
+    MIXED_SURFACE_RIDE = ("mixed_surface_ride", 29, "Mixed surface ride")
+    WINDSURF = ("windsurf", 30, "Windsurf")
+    INDOOR_WALK = ("indoor_walk", 31, "Indoor walking")
+    STAND_UP_PADDLING = ("stand_up_paddling", 32, "Stand up paddling")
+    SURF = ("surf", 33, "Surf")
+    TRACK_RUN = ("track_run", 34, "Track run")
+    EBIKE_RIDE = ("ebike_ride", 35, "E-Bike ride")
+    EBIKE_MOUNTAIN_RIDE = ("ebike_mountain_ride", 36, "E-Mountain Bike ride")
+    ICE_SKATE = ("ice_skate", 37, "Ice Skate")
+    SOCCER = ("soccer", 38, "Soccer")
+    PADEL = ("padel", 39, "Padel")
+    TREADMILL_RUN = ("treadmill_run", 40, "Treadmill")
+    CARDIO_TRAINING = ("cardio_training", 41, "Cardio training")
+    KAYAKING = ("kayaking", 42, "Kayaking")
+    SAILING = ("sailing", 43, "Sailing")
+    SNOW_SHOEING = ("snow_shoeing", 44, "Snow shoeing")
+    INLINE_SKATING = ("inline_skating", 45, "Inline skating")
+    HIIT = ("hiit", 46, "HIIT")
+    JUMP_ROPE = ("jump_rope", 47, "Jump rope")
 
 
 #: The name an activity is stored under when its file or provider gives it none.
 DEFAULT_ACTIVITY_NAME = "Workout"
 
+#: The English display name of each activity type by stored id.
+ACTIVITY_ID_TO_NAME = {activity_type.stored: activity_type.label for activity_type in ActivityType}
 
-# Global Activity Type Mappings (ID to Name)
-ACTIVITY_ID_TO_NAME = {
-    1: "Run",
-    2: "Trail run",
-    3: "Virtual run",
-    4: "Ride",
-    5: "Gravel ride",
-    6: "MTB ride",
-    7: "Virtual ride",
-    8: "Lap swimming",
-    9: "Open water swimming",
-    10: "Workout",
-    11: "Walk",
-    12: "Hike",
-    13: "Rowing",
-    14: "Yoga",
-    15: "Alpine ski",
-    16: "Nordic ski",
-    17: "Snowboard",
-    18: "Transition",
-    19: "Strength training",
-    20: "Crossfit",
-    21: "Tennis",
-    22: "TableTennis",
-    23: "Badminton",
-    24: "Squash",
-    25: "Racquetball",
-    26: "Pickleball",
-    27: "Commuting ride",
-    28: "Indoor ride",
-    29: "Mixed surface ride",
-    30: "Windsurf",
-    31: "Indoor walking",
-    32: "Stand up paddling",
-    33: "Surf",
-    34: "Track run",
-    35: "E-Bike ride",
-    36: "E-Mountain Bike ride",
-    37: "Ice Skate",
-    38: "Soccer",
-    39: "Padel",
-    40: "Treadmill",
-    41: "Cardio training",
-    42: "Kayaking",
-    43: "Sailing",
-    44: "Snow shoeing",
-    45: "Inline skating",
-    46: "HIIT",
-    47: "Jump rope",
-    # Add other mappings as needed based on the full list in define_activity_type comments if required
-    # "AlpineSki",
-    # "BackcountrySki",
-    # "Badminton",
-    # "Canoeing",
-    # "Crossfit",
-    # "EBikeRide",
-    # "Elliptical",
-    # "EMountainBikeRide",
-    # "Golf",
-    # "GravelRide",
-    # "Handcycle",
-    # "HighIntensityIntervalTraining",
-    # "Hike",
-    # "IceSkate",
-    # "InlineSkate",
-    # "Kayaking",
-    # "Kitesurf",
-    # "MountainBikeRide",
-    # "NordicSki",
-    # "Pickleball",
-    # "Pilates",
-    # "Racquetball",
-    # "Ride",
-    # "RockClimbing",
-    # "RollerSki",
-    # "Rowing",
-    # "Run",
-    # "Sail",
-    # "Skateboard",
-    # "Snowboard",
-    # "Snowshoe",
-    # "Soccer",
-    # "Squash",
-    # "StairStepper",
-    # "StandUpPaddling",
-    # "Surfing",
-    # "Swim",
-    # "TableTennis",
-    # "Tennis",
-    # "TrailRun",
-    # "Velomobile",
-    # "VirtualRide",
-    # "VirtualRow",
-    # "VirtualRun",
-    # "Walk",
-    # "WeightTraining",
-    # "Wheelchair",
-    # "Windsurf",
-    # "Workout",
-    # "Yoga"
-}
-
-
-def _known_activity_type(activity_type: int) -> int:
-    """Reject an activity type that is not in the vocabulary.
-
-    Args:
-        activity_type: The requested type.
-
-    Returns:
-        The type, unchanged.
-
-    Raises:
-        ValueError: When the type is not a known activity type.
-    """
-    if activity_type not in ACTIVITY_ID_TO_NAME:
-        raise ValueError("Unknown activity type")
-    return activity_type
-
-
-#: An activity type id of the vocabulary, for a request field or query parameter.
-ActivityTypeId = Annotated[int, Field(ge=1, le=core_types.INT32_MAX), AfterValidator(_known_activity_type)]
 
 # Global Activity Type Mappings (Name to ID) - Case Insensitive Keys
 ACTIVITY_NAME_TO_ID = {name.lower(): activity_type_id for activity_type_id, name in ACTIVITY_ID_TO_NAME.items()}

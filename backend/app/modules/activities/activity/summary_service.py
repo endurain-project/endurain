@@ -15,6 +15,7 @@ from sqlalchemy.orm import Session
 import core.exceptions as core_exceptions
 import core.logger as core_logger
 import core.timezone as core_timezone
+import modules.activities.activity.constants as activity_constants
 import modules.activities.activity.summary_crud as activity_summary_crud
 import modules.activities.activity.summary_schema as activity_summary_schema
 import modules.users.users.integration_service as users_integration
@@ -71,7 +72,7 @@ def build_summary(
     *,
     anchor: date | None = None,
     target_year: int | None = None,
-    activity_type: str | None = None,
+    activity_type: activity_constants.ActivityType | None = None,
 ) -> activity_summary_schema.SummaryResponse:
     """Build the activity summary for one period.
 
@@ -83,7 +84,7 @@ def build_summary(
             "current". Falls back to today in the user's configured timezone.
         target_year: The year a ``year`` summary covers. Defaults to the anchor's
             year.
-        activity_type: Optional activity-type name filter.
+        activity_type: Optional activity type filter.
 
     Returns:
         The summary response matching ``period``.

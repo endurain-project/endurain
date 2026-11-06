@@ -152,7 +152,7 @@ class TestCreateNotification:
         import modules.notifications.crud as crud
         import modules.notifications.schema as schema
 
-        notification_data = schema.NotificationCreate(user_id=1, type=1, options={})
+        notification_data = schema.NotificationCreate(user_id=1, type="new_activity", options={})
 
         mock_notification = MagicMock()
         mock_notification.id = 1
@@ -177,7 +177,7 @@ class TestCreateNotificationOnce:
 
         notification_data = schema.NotificationCreate(
             user_id=2,
-            type=11,
+            type="new_follower_request",
             source_event_id="event-1",
             options={"user_id": 1},
         )
@@ -199,7 +199,7 @@ class TestCreateNotificationOnce:
 
         notification_data = schema.NotificationCreate(
             user_id=2,
-            type=11,
+            type="new_follower_request",
             source_event_id="event-1",
             options={"user_id": 1},
         )
@@ -228,7 +228,7 @@ class TestCreateNotificationOnce:
 
         notification_data = schema.NotificationCreate(
             user_id=2,
-            type=11,
+            type="new_follower_request",
             source_event_id="event-1",
             options={"user_id": 1},
         )

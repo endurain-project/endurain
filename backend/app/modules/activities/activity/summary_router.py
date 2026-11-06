@@ -46,10 +46,7 @@ def read_activity_summary(
         int | None,
         Query(alias="year", description="Target year for the yearly summary. Defaults to the anchor date's year."),
     ] = None,
-    activity_type: Annotated[
-        str | None,
-        Query(alias="type", description="Filter the summary by activity type name."),
-    ] = None,
+    activity_type: activity_dependencies.ActivityTypeFilter = None,
 ) -> activity_summary_schema.SummaryResponse:
     """Return the authenticated user's activity summary for one period."""
     return activity_summary_service.build_summary(

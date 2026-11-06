@@ -81,7 +81,7 @@ class TestSingleActivityEdit:
     def test_a_changed_visibility_and_hide_flag_are_audited_by_name(self, mock_db):
         with jasil_testing.capture_audit() as audit:
             self._edit(
-                activity_schema.ActivityEdit(name="Run", visibility=2, hide_map=True, hide_hr=False),
+                activity_schema.ActivityEdit(name="Run", visibility="private", hide_map=True, hide_hr=False),
                 before={"visibility": 0, "hide_map": False, "hide_hr": False},
                 after={"visibility": 2, "hide_map": True, "hide_hr": False},
                 mock_db=mock_db,
@@ -106,7 +106,7 @@ class TestSingleActivityEdit:
     def test_a_visibility_resent_unchanged_is_not_audited(self, mock_db):
         with jasil_testing.capture_audit() as audit:
             self._edit(
-                activity_schema.ActivityEdit(visibility=1, hide_map=False),
+                activity_schema.ActivityEdit(visibility="followers", hide_map=False),
                 before={"visibility": 1, "hide_map": False},
                 after={"visibility": 1, "hide_map": False},
                 mock_db=mock_db,

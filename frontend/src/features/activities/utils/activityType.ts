@@ -11,158 +11,194 @@ import {
   type LucideIcon,
 } from '@lucide/vue'
 
+import type { GearType } from '@/features/gears/types'
 import { GEAR_TYPE } from '@/features/gears/utils/gearType'
 
 import type { ActivityBadgeType } from '@/components/ui/activity-type-badge'
 
+import type { ActivityType } from '../types'
+
 /**
- * Maps each backend activity-type code to its i18n label key under the
+ * Maps each backend activity type to its i18n label key under the
  * `activities.types` namespace. Mirrors v1's `activityLabelMap` so labels stay
  * consistent across the two frontends.
  */
-export const ACTIVITY_TYPE_LABEL_KEYS: Record<number, string> = {
-  1: 'activities.types.run',
-  2: 'activities.types.trailRun',
-  3: 'activities.types.virtualRun',
-  4: 'activities.types.ride',
-  5: 'activities.types.gravelRide',
-  6: 'activities.types.mtbRide',
-  7: 'activities.types.virtualRide',
-  8: 'activities.types.lapSwimming',
-  9: 'activities.types.openWaterSwimming',
-  10: 'activities.types.workout',
-  11: 'activities.types.walk',
-  12: 'activities.types.hike',
-  13: 'activities.types.rowing',
-  14: 'activities.types.yoga',
-  15: 'activities.types.alpineSki',
-  16: 'activities.types.nordicSki',
-  17: 'activities.types.snowboard',
-  18: 'activities.types.transition',
-  19: 'activities.types.strengthTraining',
-  20: 'activities.types.crossfit',
-  21: 'activities.types.tennis',
-  22: 'activities.types.tableTennis',
-  23: 'activities.types.badminton',
-  24: 'activities.types.squash',
-  25: 'activities.types.racquetball',
-  26: 'activities.types.pickleball',
-  27: 'activities.types.commutingRide',
-  28: 'activities.types.indoorRide',
-  29: 'activities.types.mixedSurfaceRide',
-  30: 'activities.types.windsurf',
-  31: 'activities.types.indoorWalk',
-  32: 'activities.types.standUpPaddling',
-  33: 'activities.types.surf',
-  34: 'activities.types.trackRun',
-  35: 'activities.types.ebikeRide',
-  36: 'activities.types.ebikeMountainRide',
-  37: 'activities.types.iceSkate',
-  38: 'activities.types.soccer',
-  39: 'activities.types.padel',
-  40: 'activities.types.treadmillRun',
-  41: 'activities.types.cardioTraining',
-  42: 'activities.types.kayaking',
-  43: 'activities.types.sailing',
-  44: 'activities.types.snowShoeing',
-  45: 'activities.types.inlineSkating',
-  46: 'activities.types.hiit',
-  47: 'activities.types.jumpRope',
+export const ACTIVITY_TYPE_LABEL_KEYS: Record<ActivityType, string> = {
+  run: 'activities.types.run',
+  trail_run: 'activities.types.trailRun',
+  virtual_run: 'activities.types.virtualRun',
+  ride: 'activities.types.ride',
+  gravel_ride: 'activities.types.gravelRide',
+  mtb_ride: 'activities.types.mtbRide',
+  virtual_ride: 'activities.types.virtualRide',
+  lap_swimming: 'activities.types.lapSwimming',
+  open_water_swimming: 'activities.types.openWaterSwimming',
+  workout: 'activities.types.workout',
+  walk: 'activities.types.walk',
+  hike: 'activities.types.hike',
+  rowing: 'activities.types.rowing',
+  yoga: 'activities.types.yoga',
+  alpine_ski: 'activities.types.alpineSki',
+  nordic_ski: 'activities.types.nordicSki',
+  snowboard: 'activities.types.snowboard',
+  transition: 'activities.types.transition',
+  strength_training: 'activities.types.strengthTraining',
+  crossfit: 'activities.types.crossfit',
+  tennis: 'activities.types.tennis',
+  table_tennis: 'activities.types.tableTennis',
+  badminton: 'activities.types.badminton',
+  squash: 'activities.types.squash',
+  racquetball: 'activities.types.racquetball',
+  pickleball: 'activities.types.pickleball',
+  commuting_ride: 'activities.types.commutingRide',
+  indoor_ride: 'activities.types.indoorRide',
+  mixed_surface_ride: 'activities.types.mixedSurfaceRide',
+  windsurf: 'activities.types.windsurf',
+  indoor_walk: 'activities.types.indoorWalk',
+  stand_up_paddling: 'activities.types.standUpPaddling',
+  surf: 'activities.types.surf',
+  track_run: 'activities.types.trackRun',
+  ebike_ride: 'activities.types.ebikeRide',
+  ebike_mountain_ride: 'activities.types.ebikeMountainRide',
+  ice_skate: 'activities.types.iceSkate',
+  soccer: 'activities.types.soccer',
+  padel: 'activities.types.padel',
+  treadmill_run: 'activities.types.treadmillRun',
+  cardio_training: 'activities.types.cardioTraining',
+  kayaking: 'activities.types.kayaking',
+  sailing: 'activities.types.sailing',
+  snow_shoeing: 'activities.types.snowShoeing',
+  inline_skating: 'activities.types.inlineSkating',
+  hiit: 'activities.types.hiit',
+  jump_rope: 'activities.types.jumpRope',
 }
 
-const RUNNING_TYPES = new Set([1, 2, 3, 34, 40])
-const CYCLING_TYPES = new Set([4, 5, 6, 7, 27, 28, 29, 35, 36])
-const SWIMMING_TYPES = new Set([8, 9])
+/**
+ * Narrows a string to a backend activity type.
+ *
+ * @param value - Any string, such as a route query value.
+ * @returns Whether the value is an activity type the backend knows.
+ */
+export function isActivityType(value: string): value is ActivityType {
+  return Object.prototype.hasOwnProperty.call(ACTIVITY_TYPE_LABEL_KEYS, value)
+}
+
+const RUNNING_TYPES = new Set<ActivityType>([
+  'run',
+  'trail_run',
+  'virtual_run',
+  'track_run',
+  'treadmill_run',
+])
+const CYCLING_TYPES = new Set<ActivityType>([
+  'ride',
+  'gravel_ride',
+  'mtb_ride',
+  'virtual_ride',
+  'commuting_ride',
+  'indoor_ride',
+  'mixed_surface_ride',
+  'ebike_ride',
+  'ebike_mountain_ride',
+])
+const SWIMMING_TYPES = new Set<ActivityType>(['lap_swimming', 'open_water_swimming'])
 // 44 (snowshoeing) is intentionally in both walking and snow groups, mirroring
 // v1: it is paced like walking but uses snow gear.
-const WALKING_TYPES = new Set([11, 12, 31, 44])
-const RACQUET_TYPES = new Set([21, 22, 23, 24, 25, 26, 39])
-const ROWING_TYPES = new Set([13, 42])
-const SNOW_SKIING_TYPES = new Set([15, 16, 44])
+const WALKING_TYPES = new Set<ActivityType>(['walk', 'hike', 'indoor_walk', 'snow_shoeing'])
+const RACQUET_TYPES = new Set<ActivityType>([
+  'tennis',
+  'table_tennis',
+  'badminton',
+  'squash',
+  'racquetball',
+  'pickleball',
+  'padel',
+])
+const ROWING_TYPES = new Set<ActivityType>(['rowing', 'kayaking'])
+const SNOW_SKIING_TYPES = new Set<ActivityType>(['alpine_ski', 'nordic_ski', 'snow_shoeing'])
 
-const SWIMMING_TYPE = SWIMMING_TYPES
-const SNOWBOARD_TYPE = 17
-const WINDSURF_TYPE = 30
-const SAILING_TYPE = 43
-const STAND_UP_PADDLING_TYPE = 32
-const SURF_TYPE = 33
-const SKATING_TYPE = 45
-const ICE_SKATING_TYPE = 37
-const JUMP_ROPE_TYPE = 47
-const VIRTUAL_TYPES = new Set([3, 7])
+const SNOWBOARD_TYPE: ActivityType = 'snowboard'
+const WINDSURF_TYPE: ActivityType = 'windsurf'
+const SAILING_TYPE: ActivityType = 'sailing'
+const STAND_UP_PADDLING_TYPE: ActivityType = 'stand_up_paddling'
+const SURF_TYPE: ActivityType = 'surf'
+const SKATING_TYPE: ActivityType = 'inline_skating'
+const ICE_SKATING_TYPE: ActivityType = 'ice_skate'
+const JUMP_ROPE_TYPE: ActivityType = 'jump_rope'
+const VIRTUAL_TYPES = new Set<ActivityType>(['virtual_run', 'virtual_ride'])
 
 /** @returns Whether the type is a running discipline. */
-export function activityTypeIsRunning(type: number): boolean {
+export function activityTypeIsRunning(type: ActivityType): boolean {
   return RUNNING_TYPES.has(type)
 }
 
 /** @returns Whether the type is a cycling discipline. */
-export function activityTypeIsCycling(type: number): boolean {
+export function activityTypeIsCycling(type: ActivityType): boolean {
   return CYCLING_TYPES.has(type)
 }
 
 /** @returns Whether the type is a swimming discipline. */
-export function activityTypeIsSwimming(type: number): boolean {
-  return SWIMMING_TYPE.has(type)
+export function activityTypeIsSwimming(type: ActivityType): boolean {
+  return SWIMMING_TYPES.has(type)
 }
 
 /** @returns Whether the type is a walking/hiking discipline. */
-export function activityTypeIsWalking(type: number): boolean {
+export function activityTypeIsWalking(type: ActivityType): boolean {
   return WALKING_TYPES.has(type)
 }
 
 /** @returns Whether the type is a racquet sport. */
-export function activityTypeIsRacquet(type: number): boolean {
+export function activityTypeIsRacquet(type: ActivityType): boolean {
   return RACQUET_TYPES.has(type)
 }
 
 /** @returns Whether the type is a rowing/kayaking discipline. */
-export function activityTypeIsRowing(type: number): boolean {
+export function activityTypeIsRowing(type: ActivityType): boolean {
   return ROWING_TYPES.has(type)
 }
 
 /** @returns Whether the type is stand-up paddleboarding. */
-export function activityTypeIsStandUpPaddling(type: number): boolean {
+export function activityTypeIsStandUpPaddling(type: ActivityType): boolean {
   return type === STAND_UP_PADDLING_TYPE
 }
 
 /** @returns Whether the type is sailing. */
-export function activityTypeIsSailing(type: number): boolean {
+export function activityTypeIsSailing(type: ActivityType): boolean {
   return type === SAILING_TYPE
 }
 
 /** @returns Whether the type is windsurfing. */
-export function activityTypeIsWindsurf(type: number): boolean {
+export function activityTypeIsWindsurf(type: ActivityType): boolean {
   return type === WINDSURF_TYPE
 }
 
 /** @returns Whether the type is surfing. */
-export function activityTypeIsSurf(type: number): boolean {
+export function activityTypeIsSurf(type: ActivityType): boolean {
   return type === SURF_TYPE
 }
 
 /** @returns Whether the type is snow skiing or snowshoeing. */
-export function activityTypeIsSnowSkiing(type: number): boolean {
+export function activityTypeIsSnowSkiing(type: ActivityType): boolean {
   return SNOW_SKIING_TYPES.has(type)
 }
 
 /** @returns Whether the type is snowboarding. */
-export function activityTypeIsSnowboarding(type: number): boolean {
+export function activityTypeIsSnowboarding(type: ActivityType): boolean {
   return type === SNOWBOARD_TYPE
 }
 
 /** @returns Whether the type is inline skating. */
-export function activityTypeIsSkating(type: number): boolean {
+export function activityTypeIsSkating(type: ActivityType): boolean {
   return type === SKATING_TYPE
 }
 
 /** @returns Whether the type is ice skating. */
-export function activityTypeIsIceSkating(type: number): boolean {
+export function activityTypeIsIceSkating(type: ActivityType): boolean {
   return type === ICE_SKATING_TYPE
 }
 
 /** @returns Whether the type is jump rope (total cycles = total jumps). */
-export function activityTypeIsJumpRope(type: number): boolean {
+export function activityTypeIsJumpRope(type: ActivityType): boolean {
   return type === JUMP_ROPE_TYPE
 }
 
@@ -173,10 +209,10 @@ export function activityTypeIsJumpRope(type: number): boolean {
  * (running/walking — one cycle is a stride, i.e. two steps, not one step), or
  * jumps (jump rope). Falls back to the generic "cycles" label.
  *
- * @param type - Numeric activity-type code.
+ * @param type - The activity type.
  * @returns The i18n key under `activities.laps`.
  */
-export function lapCyclesLabelKey(type: number): string {
+export function lapCyclesLabelKey(type: ActivityType): string {
   if (
     activityTypeIsRowing(type) ||
     activityTypeIsStandUpPaddling(type) ||
@@ -203,10 +239,10 @@ export function lapCyclesLabelKey(type: number): string {
  * Running/walking is checked before snow sports so snowshoeing (type 44, which
  * is in both groups) resolves to shoes, matching v1's branch order.
  *
- * @param type - Numeric activity-type code.
- * @returns The numeric gear type, or `null` when no gear applies.
+ * @param type - The activity type.
+ * @returns The gear type, or `null` when no gear applies.
  */
-export function activityTypeToGearType(type: number): number | null {
+export function activityTypeToGearType(type: ActivityType): GearType | null {
   if (activityTypeIsCycling(type)) {
     return GEAR_TYPE.BICYCLE
   }
@@ -235,7 +271,7 @@ export function activityTypeToGearType(type: number): number | null {
 }
 
 /** @returns Whether the type is a virtual run/ride (shows a "virtual" badge). */
-export function activityTypeIsVirtual(type: number): boolean {
+export function activityTypeIsVirtual(type: ActivityType): boolean {
   return VIRTUAL_TYPES.has(type)
 }
 
@@ -243,10 +279,10 @@ export function activityTypeIsVirtual(type: number): boolean {
  * Whether speed should be expressed in knots (marine sports), overriding the
  * user's metric/imperial preference, mirroring v1.
  *
- * @param type - Numeric activity type.
+ * @param type - The activity type.
  * @returns Whether knots apply.
  */
-export function activityTypeUsesKnots(type: number): boolean {
+export function activityTypeUsesKnots(type: ActivityType): boolean {
   return activityTypeIsSailing(type) || activityTypeIsWindsurf(type)
 }
 
@@ -254,10 +290,10 @@ export function activityTypeUsesKnots(type: number): boolean {
  * Whether the activity is primarily distance-paced (pace metric) rather than
  * speed-based, mirroring v1's pace-vs-speed split.
  *
- * @param type - Numeric activity type.
+ * @param type - The activity type.
  * @returns Whether pace (not speed) is the headline tempo metric.
  */
-export function activityTypeUsesPace(type: number): boolean {
+export function activityTypeUsesPace(type: ActivityType): boolean {
   return (
     activityTypeIsRunning(type) ||
     activityTypeIsWalking(type) ||
@@ -272,16 +308,25 @@ export function activityTypeUsesPace(type: number): boolean {
  * workout, yoga, transition, strength, crossfit, cardio, HIIT, jump rope.
  * Racquet sports are also non-distance (handled via {@link activityTypeIsRacquet}).
  */
-const NON_DISTANCE_TYPES = new Set([10, 14, 18, 19, 20, 41, 46, 47])
+const NON_DISTANCE_TYPES = new Set<ActivityType>([
+  'workout',
+  'yoga',
+  'transition',
+  'strength_training',
+  'crossfit',
+  'cardio_training',
+  'hiit',
+  'jump_rope',
+])
 
 /**
  * Whether an activity is distance-based (shows distance/pace/elevation) versus
  * a non-distance session (gym/strength/racquet), mirroring v1's summary split.
  *
- * @param type - Numeric activity type.
+ * @param type - The activity type.
  * @returns Whether the activity is distance-based.
  */
-export function activityTypeIsDistanceBased(type: number): boolean {
+export function activityTypeIsDistanceBased(type: ActivityType): boolean {
   return !NON_DISTANCE_TYPES.has(type) && !activityTypeIsRacquet(type)
 }
 
@@ -289,10 +334,10 @@ export function activityTypeIsDistanceBased(type: number): boolean {
  * Maps an activity type to one of the five badge colour categories the
  * {@link ActivityTypeBadge} primitive supports.
  *
- * @param type - Numeric activity type.
+ * @param type - The activity type.
  * @returns The badge colour category.
  */
-export function activityBadgeCategory(type: number): ActivityBadgeType {
+export function activityBadgeCategory(type: ActivityType): ActivityBadgeType {
   if (activityTypeIsRunning(type)) {
     return 'running'
   }
@@ -312,10 +357,10 @@ export function activityBadgeCategory(type: number): ActivityBadgeType {
  * Resolves the Lucide icon representing an activity type. Falls back to a
  * generic activity glyph for unmapped types.
  *
- * @param type - Numeric activity type.
+ * @param type - The activity type.
  * @returns The icon component.
  */
-export function activityTypeIcon(type: number): LucideIcon {
+export function activityTypeIcon(type: ActivityType): LucideIcon {
   if (activityTypeIsRunning(type) || activityTypeIsWalking(type)) {
     return Footprints
   }
@@ -362,10 +407,10 @@ export interface ActivityTypePresentation {
  * Bundles the label key, badge category, and icon for an activity type so views
  * resolve all three from one call.
  *
- * @param type - Numeric activity type.
+ * @param type - The activity type.
  * @returns The presentation bundle.
  */
-export function presentActivityType(type: number): ActivityTypePresentation {
+export function presentActivityType(type: ActivityType): ActivityTypePresentation {
   return {
     labelKey: ACTIVITY_TYPE_LABEL_KEYS[type] ?? 'activities.types.workout',
     badge: activityBadgeCategory(type),
@@ -374,19 +419,19 @@ export function presentActivityType(type: number): ActivityTypePresentation {
 }
 
 /**
- * Sorts activity-type codes alphabetically by their translated label.
+ * Sorts activity types alphabetically by their translated label.
  *
- * @param codes - Numeric activity-type codes.
+ * @param codes - Activity types.
  * @param t - The vue-i18n translate function.
  * @param locale - The active locale, whose collation rules order the labels.
  * @returns A new array of the codes ordered by localized label.
  */
 export function sortActivityTypesByLabel(
-  codes: readonly number[],
+  types: readonly ActivityType[],
   t: (key: string) => string,
   locale: string,
-): number[] {
+): ActivityType[] {
   const collator = new Intl.Collator(locale)
-  const labels = new Map(codes.map((code) => [code, t(presentActivityType(code).labelKey)]))
-  return [...codes].sort((a, b) => collator.compare(labels.get(a)!, labels.get(b)!))
+  const labels = new Map(types.map((type) => [type, t(presentActivityType(type).labelKey)]))
+  return [...types].sort((a, b) => collator.compare(labels.get(a)!, labels.get(b)!))
 }

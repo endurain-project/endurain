@@ -8,7 +8,7 @@ import type {
   ActivityMedia,
   ActivityOwner,
 } from '@/features/activities/types'
-import type { Gear } from '@/features/gears/types'
+import type { Gear, GearType } from '@/features/gears/types'
 import type { Units } from '@/features/activities/utils/format'
 
 import { ACTIVITY_ROW_INDEPENDENT_KEYS, queryKeys } from '@/services/queryKeys'
@@ -240,18 +240,18 @@ export function useActivityExerciseTitlesQuery(enabled: MaybeRefOrGetter<boolean
  * the activity gear picker. Gated on authentication and a valid (non-`null`)
  * gear type so non-gear activities never fetch.
  *
- * @param gearType - Reactive numeric gear type, or `null` when the activity
+ * @param gearType - Reactive gear type, or `null` when the activity
  *   family has no associated gear.
  * @returns The TanStack query result for the matching gears.
  */
-export function useActivityGearOptionsQuery(gearType: MaybeRefOrGetter<number | null>) {
+export function useActivityGearOptionsQuery(gearType: MaybeRefOrGetter<GearType | null>) {
   const auth = useAuthStore()
   const type = computed(() => toValue(gearType))
 
   return useQuery<Gear[]>({
-    queryKey: computed(() => queryKeys.gears.byType(type.value ?? 0)),
-    queryFn: ({ signal }) => fetchGearsByType(type.value as number, signal),
-    enabled: computed(() => auth.isAuthenticated && (type.value ?? 0) > 0),
+    queryKey: computed(() => queryKeys.gears.byType(type.value ?? 'bike')),
+    queryFn: ({ signal }) => fetchGearsByType(type.value as GearType, signal),
+    enabled: computed(() => auth.isAuthenticated && type.value !== null),
     staleTime: 5 * 60_000,
   })
 }

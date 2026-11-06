@@ -10,6 +10,7 @@ from tests._helpers.models import mock_model
 
 import core.exceptions as core_exceptions
 import modules.activities.activity.query as activity_query
+from modules.activities.activity.constants import ActivityType
 
 
 class TestGetUserActivities:
@@ -43,7 +44,7 @@ class TestGetUserActivities:
         r = crud.get_user_activities(
             user_id=1,
             db=mock_db,
-            activity_type=1,
+            activity_type=ActivityType.RUN,
             start_date=date(2024, 1, 1),
             end_date=date(2024, 1, 31),
             name_search="Test",
@@ -326,7 +327,7 @@ class TestEditActivity:
         db_act.id = 1
         setup_mock_execute(mock_db, return_one_or_none=db_act)
 
-        attrs = s.ActivityEdit(name="test", activity_type=1, description="desc", private_notes="notes")
+        attrs = s.ActivityEdit(name="test", activity_type="run", description="desc", private_notes="notes")
         crud.edit_activity(user_id=1, activity_id=1, activity_attributes=attrs, db=mock_db, if_match="*")
         assert mock_sanitize.call_count == 2
 
@@ -412,14 +413,7 @@ class TestDistinctTypes:
 
         mock_db.execute.return_value.scalars.return_value.all.return_value = [1, 2]
         r = crud.get_distinct_activity_types_for_user(user_id=1, db=mock_db)
-        assert r == {1: "Run", 2: "Trail run"}
-
-    def test_skips_none(self, mock_db):
-        import modules.activities.activity.crud as crud
-
-        mock_db.execute.return_value.scalars.return_value.all.return_value = [1, None]
-        r = crud.get_distinct_activity_types_for_user(user_id=1, db=mock_db)
-        assert None not in r
+        assert r == [ActivityType.RUN, ActivityType.TRAIL_RUN]
 
 
 class TestGearActivities:

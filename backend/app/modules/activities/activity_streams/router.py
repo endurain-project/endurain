@@ -69,7 +69,7 @@ def read_activity_stream(
     """
     return activity_streams_service.get_activity_stream(
         activity_id,
-        stream_type,
+        stream_type.stored,
         token_user_id,
         db,
     )

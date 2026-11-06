@@ -2,7 +2,7 @@
 import { computed, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 
-import type { GearComponent, GearComponentInput } from '@/features/gears/types'
+import type { GearComponent, GearComponentInput, GearType } from '@/features/gears/types'
 import type { Schemas } from '@/types'
 
 import { FormDialog } from '@/components/ui/form-dialog'
@@ -35,7 +35,7 @@ const props = withDefaults(
     /** The parent gear id (used when creating a component). */
     gearId: number
     /** The parent gear's numeric type, selecting distance- vs time-based wear. */
-    gearType: number
+    gearType: GearType
     /** The component-type ids valid for the parent gear family. */
     availableTypes: string[]
     /** The viewer's measurement system, used for the expected-distance unit. */

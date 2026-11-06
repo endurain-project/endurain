@@ -204,7 +204,7 @@ class TestUpdateUserGoal:
             id=1,
             user_id=1,
             interval=user_goals_schema.Interval.MONTHLY,
-            activity_type=user_goals_schema.ActivityType.RUN,
+            activity_type=user_goals_schema.GoalActivityType.RUN,
             goal_type=user_goals_schema.GoalType.CALORIES,
             goal_calories=10000,
             goal_activities_number=None,
