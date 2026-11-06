@@ -546,6 +546,34 @@ class TestApiContract:
 
         _compare("An operation lists the wrong credentials", wrong, {}, "Fix the dependency that declares it")
 
+    def test_the_profile_scopes_split_by_what_a_route_changes(self):
+        """Export and import need ``profile:export``; credentials, sessions and account closure ``profile:security``."""
+        security = (
+            "/profile/password/change",
+            "/profile/email/change",
+            "/profile/delete-account",
+            "/profile/sessions",
+            "/profile/mfa",
+            "/profile/identity-providers",
+            "/profile/api-keys",
+        )
+        wrong: set[str] = set()
+        for method, path, operation in _operations():
+            requirement = next(
+                (r["OAuth2PasswordBearer"] for r in operation.get("security", []) if "OAuth2PasswordBearer" in r), []
+            )
+            if path.startswith(("/profile/export", "/profile/import")):
+                wanted = {"profile:export"}
+            elif path.startswith(security):
+                wanted = {"profile:security"}
+            else:
+                continue
+            other = {"profile:export", "profile:security"} - wanted
+            if not wanted <= set(requirement) or other & set(requirement):
+                wrong.add(f"{method.upper()} {path}: requires {sorted(requirement)}, wanted {sorted(wanted)}")
+
+        _compare("A profile route requires the wrong scope", wrong, {}, "Use profile:export or profile:security")
+
     def test_error_headers_are_declared(self):
         """401 declares ``WWW-Authenticate`` and 429 and 503 declare ``Retry-After``."""
         wanted = {"401": "WWW-Authenticate", "429": "Retry-After", "503": "Retry-After"}

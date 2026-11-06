@@ -21,6 +21,10 @@ Certain sensitive account operations require the user to re-prove possession of 
 
 Removing an identity provider link, yourself or as an administrator, also ends every session of that user that signed in through the provider, the caller's own session included when it did. A client holding such a session gets `401` on its next request and refreshes no further. The link responses carry no `idp_access_token_expires_at` or `idp_refresh_token_updated_at`: Endurain keeps provider tokens per session, not per link.
 
+### Scopes
+
+The routes of this page that change the account's credentials or close it need the `profile:security` scope: password and email change, account deletion, MFA, API keys, sessions and identity provider links. Profile export and import need `profile:export`. Both are held by every user's tokens, as `profile` is, and a token can be issued with fewer scopes: a route checks the scopes the token carries, never more than the user's role holds. See [Security scopes](auth-reference.md#security-scopes).
+
 ### Step-up Request Body
 
 All step-up operations accept the following fields in their JSON request body (alongside any operation-specific fields):
@@ -107,8 +111,8 @@ The counter resets automatically on a successful step-up verification.
 
 | What | URL | Method | Description |
 | ---- | --- | ------ | ----------- |
-| **Resend Confirmation** | `/profile/email/change/resend` | POST | Sends the confirmation for the pending address, at most once an hour. Requires scope `profile`, no step-up. Answers `204` whether or not an email was sent |
-| **Cancel Pending Change** | `/profile/email/change` | DELETE | Cancels the pending change, so its confirmation link stops working. Requires scope `profile`, no step-up. Answers `204` |
+| **Resend Confirmation** | `/profile/email/change/resend` | POST | Sends the confirmation for the pending address, at most once an hour. Requires scope `profile:security`, no step-up. Answers `204` whether or not an email was sent |
+| **Cancel Pending Change** | `/profile/email/change` | DELETE | Cancels the pending change, so its confirmation link stops working. Requires scope `profile:security`, no step-up. Answers `204` |
 
 The profile (`GET /profile`) and the admin user reads (`GET /users/{user_id}`) include `pending_email`, the address awaiting confirmation, and `pending_email_expires_at`, when its link expires. Both are `null` when no change is pending.
 

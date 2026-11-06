@@ -28,6 +28,8 @@ class TestScopeConstants:
         assert auth_constants.USERS_REGULAR_SCOPE is not None
         assert isinstance(auth_constants.USERS_REGULAR_SCOPE, tuple)
         assert "profile" in auth_constants.USERS_REGULAR_SCOPE
+        assert "profile:export" in auth_constants.USERS_REGULAR_SCOPE
+        assert "profile:security" in auth_constants.USERS_REGULAR_SCOPE
         assert "users:read" in auth_constants.USERS_REGULAR_SCOPE
 
     def test_users_admin_scope_defined(self):
@@ -95,6 +97,8 @@ class TestScopeConstants:
         # Check key scopes are documented
         expected_scopes = [
             "profile",
+            "profile:export",
+            "profile:security",
             "users:read",
             "users:write",
             "gears:read",

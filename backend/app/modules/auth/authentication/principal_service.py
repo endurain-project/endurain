@@ -106,13 +106,36 @@ def resolve_from_access_token(
         )
         raise core_exceptions.InvalidTokenError("Session is no longer valid")
 
-    # Scopes follow the user's current access type, not the claim minted into the token, so a demotion
-    # takes effect on the next request.
+    # A token holds the scopes it was issued with, and no more than the user's role holds now: a demotion takes
+    # effect on the next request, and a token cannot name a scope its role lacks.
     return _build_principal(
         user,
-        list(access_tokens_integration.scopes_for_access_type(user.access_type)),
+        sorted(
+            _token_scopes(token_manager, access_token)
+            & set(access_tokens_integration.scopes_for_access_type(user.access_type))
+        ),
         AccessTokenCred(session_id=sid),
     )
+
+
+def _token_scopes(token_manager: access_tokens_integration.TokenManager, access_token: str) -> set[str]:
+    """Return the scopes an access token carries.
+
+    Args:
+        access_token: The raw access token, already validated.
+        token_manager: Token manager that reads the claims.
+
+    Returns:
+        The scopes of the space-separated ``scope`` claim.
+
+    Raises:
+        InvalidTokenError: If the claim is not a string.
+    """
+    scope = token_manager.get_token_claim(access_token, "scope")
+    if not isinstance(scope, str):
+        logger.warning("Access token refused: malformed 'scope' claim")
+        raise core_exceptions.InvalidTokenError("Invalid token: 'scope' claim must be a string")
+    return set(scope.split())
 
 
 def _refuse_api_key(

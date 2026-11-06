@@ -19,7 +19,7 @@ router = APIRouter()
 @router.get(
     "",
     response_model=api_keys_schema.UsersApiKeyPage,
-    dependencies=[Security(auth_dependencies.check_scopes, scopes=["profile"])],
+    dependencies=[Security(auth_dependencies.check_scopes, scopes=["profile:security"])],
 )
 def list_user_api_keys(
     token_user_id: auth_dependencies.CurrentUserId,
@@ -43,7 +43,7 @@ def list_user_api_keys(
     "",
     response_model=api_keys_schema.UsersApiKeyCreatedRead,
     status_code=status.HTTP_201_CREATED,
-    dependencies=[Security(auth_dependencies.check_scopes, scopes=["profile"])],
+    dependencies=[Security(auth_dependencies.check_scopes, scopes=["profile:security"])],
 )
 @core_rate_limit.limiter.limit(core_rate_limit.SENSITIVE)
 def create_user_api_key(
@@ -68,7 +68,7 @@ def create_user_api_key(
     "/{api_key_id}/revoke",
     status_code=status.HTTP_204_NO_CONTENT,
     response_model=None,
-    dependencies=[Security(auth_dependencies.check_scopes, scopes=["profile"])],
+    dependencies=[Security(auth_dependencies.check_scopes, scopes=["profile:security"])],
 )
 @core_rate_limit.limiter.limit(core_rate_limit.SENSITIVE)
 def revoke_user_api_key(
@@ -85,7 +85,7 @@ def revoke_user_api_key(
     "/{api_key_id}",
     status_code=status.HTTP_204_NO_CONTENT,
     response_model=None,
-    dependencies=[Security(auth_dependencies.check_scopes, scopes=["profile"])],
+    dependencies=[Security(auth_dependencies.check_scopes, scopes=["profile:security"])],
 )
 @core_rate_limit.limiter.limit(core_rate_limit.SENSITIVE)
 def delete_user_api_key(

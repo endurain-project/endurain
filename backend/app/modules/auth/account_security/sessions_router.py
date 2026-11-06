@@ -17,7 +17,7 @@ router = APIRouter()
 @router.get(
     "",
     response_model=auth_sessions_schema.UsersSessionsPage,
-    dependencies=[Security(auth_dependencies.check_scopes, scopes=["profile"])],
+    dependencies=[Security(auth_dependencies.check_scopes, scopes=["profile:security"])],
 )
 def read_sessions_me(
     token_user_id: auth_dependencies.CurrentUserId,
@@ -41,7 +41,7 @@ def read_sessions_me(
     "",
     status_code=status.HTTP_204_NO_CONTENT,
     response_model=None,
-    dependencies=[Security(auth_dependencies.check_scopes, scopes=["profile"])],
+    dependencies=[Security(auth_dependencies.check_scopes, scopes=["profile:security"])],
 )
 @core_rate_limit.limiter.limit(core_rate_limit.WRITE)
 def delete_profile_other_sessions(
@@ -77,7 +77,7 @@ def delete_profile_other_sessions(
     "/{session_id}",
     status_code=status.HTTP_204_NO_CONTENT,
     response_model=None,
-    dependencies=[Security(auth_dependencies.check_scopes, scopes=["profile"])],
+    dependencies=[Security(auth_dependencies.check_scopes, scopes=["profile:security"])],
 )
 @core_rate_limit.limiter.limit(core_rate_limit.WRITE)
 def delete_profile_session(

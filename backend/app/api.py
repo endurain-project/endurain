@@ -354,9 +354,9 @@ router.include_router(
     prefix=core_config.ROOT_PATH,
     tags=["password_reset_tokens"],
 )
-_PROFILE_DEPENDENCIES = [
+_PROFILE_SECURITY_DEPENDENCIES = [
     Depends(auth_dependencies.validate_access_token),
-    Security(auth_dependencies.check_scopes, scopes=["profile"]),
+    Security(auth_dependencies.check_scopes, scopes=["profile:security"]),
 ]
 router.include_router(
     profile_router.router,
@@ -370,19 +370,19 @@ router.include_router(
     auth_sessions_profile_router.router,
     prefix=core_config.ROOT_PATH + "/profile/sessions",
     tags=["profile"],
-    dependencies=_PROFILE_DEPENDENCIES,
+    dependencies=_PROFILE_SECURITY_DEPENDENCIES,
 )
 router.include_router(
     auth_mfa_profile_router.router,
     prefix=core_config.ROOT_PATH + "/profile/mfa",
     tags=["profile"],
-    dependencies=_PROFILE_DEPENDENCIES,
+    dependencies=_PROFILE_SECURITY_DEPENDENCIES,
 )
 router.include_router(
     auth_idp_profile_router.router,
     prefix=core_config.ROOT_PATH + "/profile/identity-providers",
     tags=["profile"],
-    dependencies=_PROFILE_DEPENDENCIES,
+    dependencies=_PROFILE_SECURITY_DEPENDENCIES,
 )
 router.include_router(
     server_settings_router.router,
@@ -423,10 +423,7 @@ router.include_router(
     auth_api_keys_router.router,
     prefix=core_config.ROOT_PATH + "/profile/api-keys",
     tags=["api-keys"],
-    dependencies=[
-        Depends(auth_dependencies.validate_access_token),
-        Security(auth_dependencies.check_scopes, scopes=["profile"]),
-    ],
+    dependencies=_PROFILE_SECURITY_DEPENDENCIES,
 )
 router.include_router(
     users_router.router,

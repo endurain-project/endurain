@@ -21,7 +21,7 @@ The raw key is shown **once** at creation time and is never stored by the server
 
 ## Scopes
 
-API keys are granted one or more API-key scopes at creation time. Currently only `activities:upload` is accepted; JWT-only scopes such as `profile`, `activities:read`, or `users:write` cannot be granted to API keys.
+API keys are granted one or more API-key scopes at creation time. Currently only `activities:upload` is accepted; JWT-only scopes such as `profile`, `profile:export`, `profile:security`, `activities:read`, or `users:write` cannot be granted to API keys, so a key never reaches the credential, session, API-key or export routes.
 
 The key-management API rejects any requested scope outside the API-key allow-list. This keeps long-lived API keys limited to the endpoint that currently supports API-key authentication.
 

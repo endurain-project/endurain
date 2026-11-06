@@ -12,7 +12,10 @@ class ClientType(StrEnum):
 
 
 # scope (immutable)
-USERS_REGULAR_SCOPE: Final[tuple[str, ...]] = ("profile", "users:read")
+# ``profile`` covers the account's own data (profile, photo, goals, privacy, provider links). Two narrower scopes
+# split off what an integration token should not hold by default: taking the account's data out or in
+# (``profile:export``), and changing how the account is protected or closing it (``profile:security``).
+USERS_REGULAR_SCOPE: Final[tuple[str, ...]] = ("profile", "profile:export", "profile:security", "users:read")
 USERS_ADMIN_SCOPE: Final[tuple[str, ...]] = (
     "users:read_all",
     "users:write",
@@ -56,6 +59,10 @@ SERVER_SETTINGS_ADMIN_SCOPE: Final[tuple[str, ...]] = (
 
 SCOPE_DICT: Final[dict[str, str]] = {
     "profile": "Privileges over user's own profile",
+    "profile:export": "Export and import the user's own profile data",
+    "profile:security": (
+        "Change the user's own password, email, MFA, API keys, sessions and identity links, and delete the account"
+    ),
     "users:read": "Read privileges over users",
     "users:read_all": "Read privileges over the full records of every user",
     "users:write": "Write privileges over users",

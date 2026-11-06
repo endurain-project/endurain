@@ -67,7 +67,7 @@ Endurain uses OAuth-style scopes to control API access. Each scope controls acce
 <!-- generated:scopes -->
 
 ### Scope Usage
-Scopes are automatically assigned based on user permissions and are embedded in JWT tokens. API endpoints validate required scopes before processing requests.
+Scopes are assigned from the user's role and embedded in the `scope` claim of the JWT access token, a space-separated string. An endpoint checks its required scopes against the scopes the token carries, limited to the scopes the user's role holds when the request arrives: a token cannot name a scope its role lacks, and a demotion takes effect on the next request. A missing scope is `403` with `WWW-Authenticate: Bearer error="insufficient_scope"`. Tokens issued by a login carry every scope of the role. `profile` covers the account's own data; `profile:export` covers profile export and import, and `profile:security` covers the password, email, MFA, API keys, sessions, identity provider links and account deletion. Every user holds all three.
 
 ## Error responses
 

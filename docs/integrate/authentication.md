@@ -199,7 +199,7 @@ The API is reachable under `/api/v1`. Below are the authentication-related endpo
 
 | What | Url | Expected Information |
 | ---- | --- | -------------------- |
-| **Get Own Sessions** | `/profile/sessions` | Headers: `Authorization: Bearer <Access Token>`, `X-Client-Type`; requires `profile` scope. Paged like the admin list |
+| **Get Own Sessions** | `/profile/sessions` | Headers: `Authorization: Bearer <Access Token>`, `X-Client-Type`; requires `profile:security` scope. Paged like the admin list |
 | **Delete Own Session** | `/profile/sessions/{session_id}` | Same headers and scope; web clients must also include `X-CSRF-Token` |
 | **Delete Own Other Sessions** | `/profile/sessions` (`DELETE`) | Same headers and scope; ends every session except the current one |
 | **Get User Sessions (admin)** | `/users/{user_id}/sessions` | Headers: `Authorization: Bearer <Access Token>`, `X-Client-Type`; requires `sessions:read` scope. Paged: optional `page_number` (default 1) and `num_records` (default 25, maximum 200); the response is `{items, total, page, num_records, next}` |

@@ -1,4 +1,4 @@
-"""An access token is honoured only while its session exists, with the rights the user has now."""
+"""An access token is honoured only while its session exists, with the rights its scope and the user's role share."""
 
 from types import SimpleNamespace
 from unittest.mock import MagicMock, patch
@@ -13,7 +13,7 @@ _MODULE = "modules.auth.authentication.principal_service"
 
 
 def _token_manager(scope=None):
-    claims = {"sub": "1", "sid": "session-1", "scope": scope or list(auth_constants.ADMIN_ACCESS_SCOPE)}
+    claims = {"sub": "1", "sid": "session-1", "scope": scope or " ".join(auth_constants.ADMIN_ACCESS_SCOPE)}
     manager = MagicMock()
     manager.get_token_claim.side_effect = lambda _token, name: claims[name]
     return manager
@@ -71,6 +71,39 @@ def test_a_demoted_admin_loses_the_admin_scopes_of_a_token_issued_before():
 
 
 def test_an_admin_has_the_admin_scopes():
-    principal, _ = _resolve(session=SimpleNamespace(user_id=1), user=_user("admin"), scope=[])
+    principal, _ = _resolve(session=SimpleNamespace(user_id=1), user=_user("admin"))
 
     assert principal.scopes == frozenset(auth_constants.ADMIN_ACCESS_SCOPE)
+
+
+def test_a_token_narrower_than_the_role_holds_only_its_own_scopes():
+    principal, _ = _resolve(
+        session=SimpleNamespace(user_id=1), user=_user("admin"), scope="activities:read profile:export"
+    )
+
+    assert principal.scopes == frozenset({"activities:read", "profile:export"})
+
+
+def test_a_token_cannot_claim_a_scope_its_users_role_lacks():
+    principal, _ = _resolve(
+        session=SimpleNamespace(user_id=1), user=_user("regular"), scope="activities:read users:write"
+    )
+
+    assert principal.scopes == frozenset({"activities:read"})
+
+
+def test_a_token_scope_the_server_never_mints_grants_nothing():
+    principal, _ = _resolve(session=SimpleNamespace(user_id=1), user=_user("admin"), scope="activities:read root")
+
+    assert principal.scopes == frozenset({"activities:read"})
+
+
+def test_a_token_without_scopes_holds_none():
+    principal, _ = _resolve(session=SimpleNamespace(user_id=1), user=_user("admin"), scope=" ")
+
+    assert principal.scopes == frozenset()
+
+
+def test_a_scope_claim_that_is_not_a_string_is_refused():
+    with pytest.raises(core_exceptions.InvalidTokenError):
+        _resolve(session=SimpleNamespace(user_id=1), user=_user("admin"), scope=["activities:read"])
