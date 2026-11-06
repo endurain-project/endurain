@@ -46,7 +46,7 @@ On local storage every area is browsable under the `data` directory the image cr
 2. **The blob store.** `backend/data` on the host for local storage, or the bucket for S3 (enable bucket versioning, or your provider's backup).
 3. **Your secrets**, kept apart from the data:
    - `FERNET_KEY` encrypts the Strava and Garmin Connect tokens and credentials, two-step verification (TOTP) secrets, identity provider client secrets, the mail password and the map and geocoding API keys. Lose it and these become unreadable: users must reconnect their accounts and set up two-step verification again, and an admin must re-enter the secrets. To change the key, see [Rotating the encryption key](#rotating-the-encryption-key).
-   - `SECRET_KEY` signs login tokens and the links to photos and thumbnails. Lose it and everyone is signed out and old links stop working. Nothing is lost.
+   - `SECRET_KEY` signs login tokens and the links to photos and thumbnails. Lose it and everyone is signed out and old links stop working. Nothing is lost. To change the key, see [Rotating the signing key](#rotating-the-signing-key).
    - `AUDIT_SIGNING_KEY`, if you set one, signs the audit trail's checkpoints. Lose it and new checkpoints are signed with a new key; keep the old public key to verify the older ones.
    - `DB_PASSWORD`.
 
@@ -70,6 +70,21 @@ Take the database dump and the blob copy close together. They can disagree sligh
 3. The start-up log reports how many values were rewritten and how many no key could decrypt (those are left untouched). With several replicas, one of them does the work.
 4. Wait a few minutes. Values held only briefly (a two-step verification setup in progress, a Garmin Connect verification code) and pagination cursors issued before the restart are not re-encrypted, and need the old key until they expire.
 5. Set `FERNET_KEY=<new key>` and restart again.
+
+## Rotating the signing key
+
+`SECRET_KEY` takes one key. Change it when it may have leaked: every token signed with the old key stops working the moment Endurain restarts with the new one.
+
+Changing it:
+
+- signs everyone out, in the browser and in mobile apps, so every user signs in again.
+- breaks the photo, thumbnail and media links already handed out; the app gets new ones on the next page load.
+- leaves API keys working, and the password reset, sign-up and email change links already mailed.
+- loses no data.
+
+1. Generate a new key (see [Secret Generators](../tools.md#secret-generators)).
+2. Set `SECRET_KEY=<new key>` (or the content of the file `SECRET_KEY_FILE` points to).
+3. Restart every Endurain process at the same time: the web workers, any dedicated worker and every replica. While some run with the old key and some with the new one, a token signed by one is refused by the others, and users keep being signed out until they all match.
 
 ## What Endurain cleans up by itself
 
