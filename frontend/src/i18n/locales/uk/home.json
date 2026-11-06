@@ -67,7 +67,8 @@
     "kayaking": "Каякінг",
     "sailing": "Вітрильний спорт",
     "snowshoeing": "Ходьба на снігоступах",
-    "inline_skating": "Катання на роликах"
+    "inline_skating": "Катання на роликах",
+    "other": "Інше"
   },
   "goals": {
     "title": "Цілі",

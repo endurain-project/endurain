@@ -67,7 +67,8 @@
     "kayaking": "Kajakarenje",
     "sailing": "Jedrenje",
     "snowshoeing": "Hodanje s krpljama",
-    "inline_skating": "Rolanje"
+    "inline_skating": "Rolanje",
+    "other": "Ostalo"
   },
   "goals": {
     "title": "Ciljevi",

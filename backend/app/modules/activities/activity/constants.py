@@ -134,6 +134,41 @@ ACTIVITY_TYPES_BY_SPORT: dict[str, tuple[int, ...]] = {
 }
 
 
+class StatsPeriod(StrEnum):
+    """The periods the per-sport stats cover.
+
+    Attributes:
+        WEEK: The current week.
+        MONTH: The current month.
+    """
+
+    WEEK = "week"
+    MONTH = "month"
+
+
+class SummaryPeriod(StrEnum):
+    """The periods an activity summary covers.
+
+    Attributes:
+        WEEK: One week, by day.
+        MONTH: One month, by week.
+        YEAR: One year, by month.
+        LIFETIME: Every activity, by year.
+    """
+
+    WEEK = "week"
+    MONTH = "month"
+    YEAR = "year"
+    LIFETIME = "lifetime"
+
+
+#: The earliest year a yearly summary may be requested for.
+MIN_SUMMARY_YEAR = 1900
+
+#: The sport bucket of an activity type that belongs to no sport in :data:`ACTIVITY_TYPES_BY_SPORT`.
+OTHER_SPORT = "other"
+
+
 class ActivitySortField(StrEnum):
     """Sort keys the activity list endpoints accept, in the order they appear in the UI.
 

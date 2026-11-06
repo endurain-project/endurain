@@ -67,7 +67,8 @@
     "kayaking": "Kajakpaddling",
     "sailing": "Segling",
     "snowshoeing": "Snöskovandring",
-    "inline_skating": "Rullskridskoåkning"
+    "inline_skating": "Rullskridskoåkning",
+    "other": "Övrigt"
   },
   "goals": {
     "title": "Mål",

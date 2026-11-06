@@ -67,7 +67,8 @@
     "kayaking": "Kajakárstvo",
     "sailing": "Plachtenie",
     "snowshoeing": "Chôdza na snežniciach",
-    "inline_skating": "Inline korčuľovanie"
+    "inline_skating": "Inline korčuľovanie",
+    "other": "Ostatné"
   },
   "goals": {
     "title": "Ciele",

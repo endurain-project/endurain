@@ -67,7 +67,8 @@
     "kayaking": "Caiac",
     "sailing": "Vela",
     "snowshoeing": "Raquetes de neu",
-    "inline_skating": "Patinatge en línia"
+    "inline_skating": "Patinatge en línia",
+    "other": "Altres"
   },
   "goals": {
     "title": "Objectius",

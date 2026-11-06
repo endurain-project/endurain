@@ -22,9 +22,6 @@ import modules.users.users.integration_service as users_integration
 
 logger = core_logger.get_logger(__name__)
 
-# Earliest year a summary may be requested for.
-_MIN_YEAR = 1900
-
 
 def _latest_plausible_year() -> int:
     """Return the highest year any caller could currently be in.
@@ -56,18 +53,20 @@ def _resolve_year(target_year: int | None, today: date) -> int:
     """
     max_year = _latest_plausible_year()
     year = target_year if target_year else today.year
-    if not (_MIN_YEAR <= year <= max_year):
+    if not (activity_constants.MIN_SUMMARY_YEAR <= year <= max_year):
         logger.debug(
             "Rejected a yearly summary request with an implausible year",
             extra=core_logger.context(target_year=year, max_year=max_year),
         )
-        raise core_exceptions.InvalidInputError(f"Invalid year. Must be between {_MIN_YEAR} and {max_year}.")
+        raise core_exceptions.InvalidInputError(
+            f"Invalid year. Must be between {activity_constants.MIN_SUMMARY_YEAR} and {max_year}."
+        )
     return year
 
 
 def build_summary(
     user_id: int,
-    period: str,
+    period: activity_constants.SummaryPeriod,
     db: Session,
     *,
     anchor: date | None = None,
@@ -78,7 +77,7 @@ def build_summary(
 
     Args:
         user_id: The authenticated user whose activities to summarise.
-        period: ``week``, ``month``, ``year`` or ``lifetime``.
+        period: The period to summarise.
         db: Database session.
         anchor: The caller's local calendar date, deciding which week/month is
             "current". Falls back to today in the user's configured timezone.
@@ -115,7 +114,7 @@ def build_summary(
         ),
     )
 
-    if period == "week":
+    if period == activity_constants.SummaryPeriod.WEEK:
         return activity_summary_crud.get_weekly_summary(
             db=db,
             user_id=user_id,
@@ -124,7 +123,7 @@ def build_summary(
             activity_type=activity_type,
         )
 
-    if period == "month":
+    if period == activity_constants.SummaryPeriod.MONTH:
         return activity_summary_crud.get_monthly_summary(
             db=db,
             user_id=user_id,
@@ -133,7 +132,7 @@ def build_summary(
             activity_type=activity_type,
         )
 
-    if period == "year":
+    if period == activity_constants.SummaryPeriod.YEAR:
         return activity_summary_crud.get_yearly_summary(
             db=db,
             user_id=user_id,

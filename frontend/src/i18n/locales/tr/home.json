@@ -67,7 +67,8 @@
     "kayaking": "Kano",
     "sailing": "Yelken",
     "snowshoeing": "Kar ayakkabısı yürüyüşü",
-    "inline_skating": "Tekerlekli paten"
+    "inline_skating": "Tekerlekli paten",
+    "other": "Diğer"
   },
   "goals": {
     "title": "Hedefler",

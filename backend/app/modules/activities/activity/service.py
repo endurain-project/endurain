@@ -258,7 +258,7 @@ def _require_visible_owner(user_id: int, requester_user_id: int, db: Session) ->
 
 def period_stats(
     user_id: int,
-    period: str,
+    period: activity_constants.StatsPeriod,
     requester_user_id: int,
     db: Session,
     *,
@@ -268,7 +268,7 @@ def period_stats(
 
     Args:
         user_id: The user whose stats to aggregate.
-        period: ``week`` or ``month``.
+        period: The period to aggregate.
         requester_user_id: The authenticated user making the request.
         db: Database session.
         anchor: The caller's local calendar date, used to decide which week or
@@ -285,7 +285,7 @@ def period_stats(
         "Aggregating period stats",
         extra=core_logger.context(user_id=user_id, period=period, requester_user_id=requester_user_id, anchor=anchor),
     )
-    if period == "month":
+    if period == activity_constants.StatsPeriod.MONTH:
         return month_stats(user_id, requester_user_id, db, anchor=anchor)
     return week_stats(user_id, requester_user_id, db, anchor=anchor)
 

@@ -67,7 +67,8 @@
     "kayaking": "皮划艇",
     "sailing": "帆船",
     "snowshoeing": "雪鞋行走",
-    "inline_skating": "直排轮滑"
+    "inline_skating": "直排轮滑",
+    "other": "其他"
   },
   "goals": {
     "title": "目标",

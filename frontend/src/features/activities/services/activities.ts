@@ -318,7 +318,7 @@ export async function searchActivitiesByName(
 }
 
 /** A timeframe accepted by the activity stats endpoints. */
-export type ActivityStatsTimeframe = 'week' | 'month'
+export type ActivityStatsTimeframe = Schemas['StatsPeriod']
 
 /**
  * Fetches one page of the authenticated viewer's own activities for the home

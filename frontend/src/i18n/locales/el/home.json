@@ -67,7 +67,8 @@
     "kayaking": "Καγιάκ",
     "sailing": "Ιστιοπλοΐα",
     "snowshoeing": "Πεζοπορία με χιονοπέδιλα",
-    "inline_skating": "Πατινάζ με ρόλερ"
+    "inline_skating": "Πατινάζ με ρόλερ",
+    "other": "Άλλα"
   },
   "goals": {
     "title": "Στόχοι",

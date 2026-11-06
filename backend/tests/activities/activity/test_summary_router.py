@@ -94,6 +94,13 @@ class TestReadWeeklySummary:
         )
         assert response.status_code == 422
 
+    @pytest.mark.parametrize("query", ["type=curling", "type=1", "year=1899", "year=10000", "year=abc"])
+    def test_an_unknown_type_and_an_out_of_range_year_are_rejected(self, mock_db, query):
+        response = TestClient(_build_app(mock_db)).get(
+            f"/activities/summaries?period=year&{query}", headers={"Authorization": "Bearer x"}
+        )
+        assert response.status_code == 422
+
     def test_unparseable_date_is_rejected(self, mock_db):
         """FastAPI's ``date`` coercion replaced the hand-rolled parser."""
         response = TestClient(_build_app(mock_db)).get(

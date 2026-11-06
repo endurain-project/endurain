@@ -67,7 +67,8 @@
     "kayaking": "Caiac",
     "sailing": "Navigație cu vele",
     "snowshoeing": "Mers cu rachete de zăpadă",
-    "inline_skating": "Role"
+    "inline_skating": "Role",
+    "other": "Altele"
   },
   "goals": {
     "title": "Obiective",

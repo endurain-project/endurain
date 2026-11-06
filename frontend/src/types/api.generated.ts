@@ -6321,12 +6321,14 @@ export interface components {
          *         sailing: Stats for sailing activities.
          *         snowshoeing: Stats for snowshoeing activities.
          *         inline_skating: Stats for inline skating activities.
+         *         other: Stats for activity types that belong to none of the sports above.
          */
         ActivityStatsRead: {
             bike?: components["schemas"]["ActivitySportStats"];
             hike?: components["schemas"]["ActivitySportStats"];
             inline_skating?: components["schemas"]["ActivitySportStats"];
             kayaking?: components["schemas"]["ActivitySportStats"];
+            other?: components["schemas"]["ActivitySportStats"];
             rowing?: components["schemas"]["ActivitySportStats"];
             run?: components["schemas"]["ActivitySportStats"];
             sailing?: components["schemas"]["ActivitySportStats"];
@@ -11670,6 +11672,16 @@ export interface components {
             [key: string]: unknown;
         };
         /**
+         * StatsPeriod
+         * @description The periods the per-sport stats cover.
+         *
+         *     Attributes:
+         *         WEEK: The current week.
+         *         MONTH: The current month.
+         * @enum {string}
+         */
+        StatsPeriod: "week" | "month";
+        /**
          * StepUpAction
          * @description A sensitive operation a step-up re-authentication can authorise, so a ticket for one cannot pay for another.
          *
@@ -11820,6 +11832,18 @@ export interface components {
             kind: components["schemas"]["modules__strava__constants__SyncKind"];
             status: components["schemas"]["SyncStatus"];
         };
+        /**
+         * SummaryPeriod
+         * @description The periods an activity summary covers.
+         *
+         *     Attributes:
+         *         WEEK: One week, by day.
+         *         MONTH: One month, by week.
+         *         YEAR: One year, by month.
+         *         LIFETIME: Every activity, by year.
+         * @enum {string}
+         */
+        SummaryPeriod: "week" | "month" | "year" | "lifetime";
         /**
          * SyncStatus
          * @description Where a queued provider sync is.
@@ -15030,10 +15054,10 @@ export interface operations {
     read_activity_summary_api_v1_activities_summaries_get: {
         parameters: {
             query?: {
-                period?: string;
+                period?: components["schemas"]["SummaryPeriod"];
                 /** @description The caller's local calendar date, used to decide which week or month is current. Defaults to today in the caller's configured timezone. */
                 date?: string | null;
-                /** @description Target year for the yearly summary. Defaults to the anchor date's year. */
+                /** @description Target year for the yearly summary. Defaults to the anchor date's year. A year later than the caller's current year is refused. */
                 year?: number | null;
                 type?: components["schemas"]["ActivityType"] | null;
             };
@@ -34256,7 +34280,7 @@ export interface operations {
     read_user_activity_stats_api_v1_users__user_id__activities_stats_get: {
         parameters: {
             query?: {
-                period?: string;
+                period?: components["schemas"]["StatsPeriod"];
                 /** @description The caller's local calendar date, used to decide which week or month is current. Defaults to today in the caller's configured timezone. */
                 date?: string | null;
             };

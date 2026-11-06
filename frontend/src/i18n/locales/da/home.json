@@ -67,7 +67,8 @@
     "kayaking": "Kajakroning",
     "sailing": "Sejlads",
     "snowshoeing": "Snesko-vandring",
-    "inline_skating": "Rulleskøjteløb"
+    "inline_skating": "Rulleskøjteløb",
+    "other": "Andre"
   },
   "goals": {
     "title": "Mål",

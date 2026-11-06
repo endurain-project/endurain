@@ -37,10 +37,11 @@ class TestCalculateActivityStats:
         assert result.run.time == 1800.0
         assert result.run.calories == 150.0
 
-    def test_a_type_that_belongs_to_no_sport_is_left_out(self):
-        result = calculate_activity_stats([ActivityTypeTotals(999, distance=1.0, time=1.0, calories=1.0)])
+    def test_a_type_that_belongs_to_no_sport_counts_under_other(self):
+        result = calculate_activity_stats([ActivityTypeTotals(14, distance=1.0, time=2.0, calories=3.0)])
 
-        assert result == calculate_activity_stats([])
+        assert (result.other.distance, result.other.time, result.other.calories) == (1.0, 2.0, 3.0)
+        assert result.run.distance == 0.0
 
     def test_no_totals_give_empty_stats(self):
         result = calculate_activity_stats([])

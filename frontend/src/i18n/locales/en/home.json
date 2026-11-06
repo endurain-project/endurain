@@ -67,7 +67,8 @@
     "kayaking": "Kayaking",
     "sailing": "Sailing",
     "snowshoeing": "Snowshoeing",
-    "inline_skating": "Inline skating"
+    "inline_skating": "Inline skating",
+    "other": "Other"
   },
   "goals": {
     "title": "Goals",

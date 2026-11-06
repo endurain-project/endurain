@@ -67,7 +67,8 @@
     "kayaking": "Melonta",
     "sailing": "Purjehdus",
     "snowshoeing": "Lumikenkäily",
-    "inline_skating": "Rullaluistelu"
+    "inline_skating": "Rullaluistelu",
+    "other": "Muut"
   },
   "goals": {
     "title": "Tavoitteet",

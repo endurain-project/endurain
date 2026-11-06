@@ -67,7 +67,8 @@
     "kayaking": "Kajakaštvo",
     "sailing": "Jadranje",
     "snowshoeing": "Pohod s krpljami",
-    "inline_skating": "Rolkanje"
+    "inline_skating": "Rolkanje",
+    "other": "Drugo"
   },
   "goals": {
     "title": "Cilji",

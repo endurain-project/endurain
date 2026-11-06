@@ -6,6 +6,7 @@ from fastapi import APIRouter, Query, Security
 
 import core.dependencies as core_dependencies
 import core.pagination as core_pagination
+import modules.activities.activity.constants as activity_constants
 import modules.activities.activity.dependencies as activity_dependencies
 import modules.activities.activity.schema as activity_schema
 import modules.activities.activity.service as activity_service
@@ -23,7 +24,7 @@ def read_user_activity_stats(
     user_id: core_dependencies.PositiveId,
     token_user_id: auth_dependencies.CurrentUserId,
     db: core_dependencies.DbSession,
-    period: Annotated[str, Query(pattern="^(week|month)$")] = "week",
+    period: Annotated[activity_constants.StatsPeriod, Query()] = activity_constants.StatsPeriod.WEEK,
     anchor_date: Annotated[
         activity_dependencies.WindowDate | None,
         Query(

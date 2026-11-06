@@ -67,7 +67,8 @@
     "kayaking": "Каяк",
     "sailing": "Ветроходство",
     "snowshoeing": "Ходене със снегоходки",
-    "inline_skating": "Ролкови кънки"
+    "inline_skating": "Ролкови кънки",
+    "other": "Други"
   },
   "goals": {
     "title": "Цели",

@@ -67,7 +67,8 @@
     "kayaking": "Kajakarstwo",
     "sailing": "Żeglarstwo",
     "snowshoeing": "Chodzenie w rakietach śnieżnych",
-    "inline_skating": "Jazda na rolkach"
+    "inline_skating": "Jazda na rolkach",
+    "other": "Inne"
   },
   "goals": {
     "title": "Cele",

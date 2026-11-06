@@ -181,6 +181,10 @@ Every enumerated value is a string. The API refuses the number the database stor
 | `type` of a notification | `new_activity`, `duplicate_activity`, `new_follower_request`, `new_follower_request_accepted`, `garmin_token_expired`, `strava_token_expired`, `strava_data_deleted`, `idp_linked`, `account_security_changed`, `new_device_sign_in`, `admin_new_sign_up_approval_request` |
 | `bristol_type` of a bowel movement | `type_1` to `type_7` |
 | `stage_type` of a sleep stage | `deep`, `light`, `rem`, `awake` |
+| `period` of `GET /users/{user_id}/activities/stats` | `week`, `month` |
+| `period` of `GET /activities/summaries` | `week`, `month`, `year`, `lifetime` |
 | `stream_type` of an activity stream | `heart_rate`, `power`, `cadence`, `elevation`, `speed`, `pace`, `map`, `temperature` |
 
 `is_strava_linked` and `is_garminconnect_linked` of the signed-in user are booleans.
+
+The summary's `type` filter takes an activity type key and its `year` runs from 1900 to the current year; an unknown value is `422`. The stats answer one entry per sport plus `other`, which adds up the activity types that belong to no sport (yoga, strength training, racquet sports and so on).

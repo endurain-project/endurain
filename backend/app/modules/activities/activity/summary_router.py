@@ -13,6 +13,7 @@ from fastapi import APIRouter, Query, Request, Security
 
 import core.dependencies as core_dependencies
 import core.rate_limit as core_rate_limit
+import modules.activities.activity.constants as activity_constants
 import modules.activities.activity.dependencies as activity_dependencies
 import modules.activities.activity.summary_schema as activity_summary_schema
 import modules.activities.activity.summary_service as activity_summary_service
@@ -31,7 +32,7 @@ def read_activity_summary(
     request: Request,
     token_user_id: auth_dependencies.CurrentUserId,
     db: core_dependencies.DbSession,
-    period: Annotated[str, Query(pattern="^(week|month|year|lifetime)$")] = "week",
+    period: Annotated[activity_constants.SummaryPeriod, Query()] = activity_constants.SummaryPeriod.WEEK,
     anchor_date: Annotated[
         activity_dependencies.WindowDate | None,
         Query(
@@ -44,7 +45,15 @@ def read_activity_summary(
     ] = None,
     target_year: Annotated[
         int | None,
-        Query(alias="year", description="Target year for the yearly summary. Defaults to the anchor date's year."),
+        Query(
+            alias="year",
+            ge=activity_constants.MIN_SUMMARY_YEAR,
+            le=9999,
+            description=(
+                "Target year for the yearly summary. Defaults to the anchor date's year. "
+                "A year later than the caller's current year is refused."
+            ),
+        ),
     ] = None,
     activity_type: activity_dependencies.ActivityTypeFilter = None,
 ) -> activity_summary_schema.SummaryResponse:

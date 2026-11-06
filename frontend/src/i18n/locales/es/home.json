@@ -67,7 +67,8 @@
     "kayaking": "Kayak",
     "sailing": "Vela",
     "snowshoeing": "Raquetas de nieve",
-    "inline_skating": "Patinaje en línea"
+    "inline_skating": "Patinaje en línea",
+    "other": "Otros"
   },
   "goals": {
     "title": "Objetivos",

@@ -290,6 +290,7 @@ class ActivityStatsRead(BaseModel):
         sailing: Stats for sailing activities.
         snowshoeing: Stats for snowshoeing activities.
         inline_skating: Stats for inline skating activities.
+        other: Stats for activity types that belong to none of the sports above.
     """
 
     model_config = ConfigDict(from_attributes=True, extra="forbid")
@@ -309,6 +310,7 @@ class ActivityStatsRead(BaseModel):
     sailing: ActivitySportStats = Field(default_factory=ActivitySportStats)
     snowshoeing: ActivitySportStats = Field(default_factory=ActivitySportStats)
     inline_skating: ActivitySportStats = Field(default_factory=ActivitySportStats)
+    other: ActivitySportStats = Field(default_factory=ActivitySportStats)
 
 
 #: One page of activities. Aliases the shared :class:`core.pagination.Page` so

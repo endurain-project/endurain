@@ -67,7 +67,8 @@
     "kayaking": "Kajakozás",
     "sailing": "Vitorlázás",
     "snowshoeing": "Hótalpazás",
-    "inline_skating": "Görkorcsolyázás"
+    "inline_skating": "Görkorcsolyázás",
+    "other": "Egyéb"
   },
   "goals": {
     "title": "Célok",

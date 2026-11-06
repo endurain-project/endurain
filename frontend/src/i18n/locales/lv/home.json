@@ -67,7 +67,8 @@
     "kayaking": "Kajakošana",
     "sailing": "Burāšana",
     "snowshoeing": "Pastaiga ar sniega kurpēm",
-    "inline_skating": "Skrituļslīdošana"
+    "inline_skating": "Skrituļslīdošana",
+    "other": "Citi"
   },
   "goals": {
     "title": "Mērķi",

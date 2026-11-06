@@ -33,6 +33,7 @@ const SPORT_ACTIVITY_TYPE: Record<ActivitySportKey, ActivityType> = {
   sailing: 'sailing',
   snowshoeing: 'snow_shoeing',
   inline_skating: 'inline_skating',
+  other: 'workout',
 }
 
 /** The sport keys in their canonical display order. */

@@ -1,3 +1,4 @@
+import type { Schemas } from '@/types'
 import type { ActivityType } from '@/features/activities/types'
 
 /**
@@ -7,7 +8,7 @@ import type { ActivityType } from '@/features/activities/types'
  */
 
 /** The summary period granularity, matching the backend `view_type` path param. */
-export type SummaryViewType = 'week' | 'month' | 'year' | 'lifetime'
+export type SummaryViewType = Schemas['SummaryPeriod']
 
 /**
  * Aggregated totals for a summary period. All quantities are stored in SI base

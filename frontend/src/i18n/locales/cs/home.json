@@ -67,7 +67,8 @@
     "kayaking": "Kajakování",
     "sailing": "Jachting",
     "snowshoeing": "Sněžnice",
-    "inline_skating": "In-line bruslení"
+    "inline_skating": "In-line bruslení",
+    "other": "Ostatní"
   },
   "goals": {
     "title": "Cíle",

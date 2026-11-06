@@ -29,13 +29,11 @@ def calculate_activity_stats(
 
     Returns:
         ActivityStatsRead with per-sport distance, time, and calories totals. An activity type that
-        belongs to no sport is left out.
+        belongs to no sport counts under ``other``.
     """
     stats = activity_schema.ActivityStatsRead()
     for total in totals:
-        sport = _SPORT_BY_ACTIVITY_TYPE.get(total.activity_type)
-        if sport is None:
-            continue
+        sport = _SPORT_BY_ACTIVITY_TYPE.get(total.activity_type, activity_constants.OTHER_SPORT)
         bucket = getattr(stats, sport)
         bucket.distance += total.distance
         bucket.time += total.time

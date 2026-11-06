@@ -67,7 +67,8 @@
     "kayaking": "Süstasõit",
     "sailing": "Purjetamine",
     "snowshoeing": "Lumeräätsadega kõndimine",
-    "inline_skating": "Rulluisutamine"
+    "inline_skating": "Rulluisutamine",
+    "other": "Muu"
   },
   "goals": {
     "title": "Eesmärgid",
