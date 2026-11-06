@@ -114,9 +114,11 @@ def delete_sessions_by_user(user_id: int, db: Session, exclude_session_id: str |
     return sessions_service.delete_sessions_by_user(user_id, db, exclude_session_id)
 
 
-def claim_session_for_token_exchange(session_id: str, hashed_refresh_token: str, db: Session) -> bool:
-    """Atomically claim a session for its token exchange."""
-    return sessions_service.claim_session_for_token_exchange(session_id, hashed_refresh_token, db)
+def claim_session_for_token_exchange(
+    session_id: str, hashed_refresh_token: str, expires_at: datetime, db: Session
+) -> datetime | None:
+    """Atomically claim a session for its token exchange; returns its new expiry, or ``None`` if not claimed."""
+    return sessions_service.claim_session_for_token_exchange(session_id, hashed_refresh_token, expires_at, db)
 
 
 def validate_session_timeout(

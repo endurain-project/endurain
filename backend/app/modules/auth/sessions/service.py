@@ -33,7 +33,7 @@ def list_user_sessions(
     page: core_pagination.PageParams,
     db: Session,
 ) -> sessions_schema.UsersSessionsPage:
-    """Return one page of a user's sessions, hiding them in the demo environment."""
+    """Return one page of a user's exchanged sessions, hiding them in the demo environment."""
     if core_config.settings.ENVIRONMENT == "demo":
         logger.info("Session retrieval in demo environment", extra=core_logger.context(user_id=user_id))
         return sessions_schema.UsersSessionsPage.build([], 0, page.page_number, page.num_records)
@@ -104,7 +104,7 @@ def create_session(
         last_activity_at=now,
         expires_at=_cap_expiry(expires_at, now, db),
         oauth_state_id=oauth_state_id,
-        tokens_exchanged=False,
+        tokens_exchanged=refresh_token is not None,
         token_family_id=session_id,
         rotation_count=0,
         last_rotation_at=None,
@@ -194,20 +194,35 @@ def delete_session(session_id: str, user_id: int, db: Session) -> None:
     )
 
 
-def claim_session_for_token_exchange(session_id: str, hashed_refresh_token: str, db: Session) -> bool:
-    """Atomically claim a session for its one-shot token exchange; the caller commits."""
+def claim_session_for_token_exchange(
+    session_id: str, hashed_refresh_token: str, expires_at: datetime, db: Session
+) -> datetime | None:
+    """Atomically claim a session for its one-shot token exchange and extend it; the caller commits.
+
+    Args:
+        session_id: The session the exchange completes.
+        hashed_refresh_token: Hash of the refresh token the exchange issued.
+        expires_at: Expiry of that refresh token, which the session's absolute timeout may shorten.
+        db: Database session.
+
+    Returns:
+        The session's new expiry, or ``None`` if the session is gone or another exchange claimed it first.
+    """
     session = sessions_crud.get_session_by_id(session_id, db)
-    if not sessions_crud.claim_session_for_token_exchange(session_id, hashed_refresh_token, db):
+    if session is None:
+        return None
+    session_expires_at = _cap_expiry(expires_at, session.created_at, db)
+    if not sessions_crud.claim_session_for_token_exchange(session_id, hashed_refresh_token, session_expires_at, db):
         logger.warning(
             "Session token exchange claim lost",
             extra=core_logger.context(session_id=core_hashing.log_fingerprint(session_id)),
         )
-        return False
+        return None
     _clear_oauth_state(session, db)
     logger.info(
         "Session token exchange claimed", extra=core_logger.context(session_id=core_hashing.log_fingerprint(session_id))
     )
-    return True
+    return session_expires_at
 
 
 def _clear_oauth_state(session: sessions_contracts.SessionRead | None, db: Session) -> None:

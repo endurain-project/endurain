@@ -81,6 +81,8 @@ Endurain splits web tokens between memory and an httpOnly cookie:
   - **Web clients:** Access token + CSRF token in response body, refresh token as httpOnly cookie
   - **Mobile clients:** Access token + refresh token in response body
 
+The session from step 6 lasts only as long as the sign-in's OAuth state (10 minutes), is not listed in the session lists and cannot be used until the exchange; the exchange gives it its normal lifetime. A session that is never exchanged is removed after those 10 minutes.
+
 ### Token Refresh Flow
 
 The token refresh flow rotates the refresh token on every call:

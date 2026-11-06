@@ -27,6 +27,7 @@ import modules.auth.mfa.dependencies as mfa_dependencies
 import modules.auth.oauth_state.constants as oauth_state_constants
 
 _SERVICE = "modules.auth.authentication.service"
+_CLAIMED_EXPIRY = datetime(2999, 1, 1, tzinfo=UTC)
 _RECORD = f"{_SERVICE}.known_devices_integration.record_sign_in"
 _USER = SimpleNamespace(id=5, username="alice", active=True, access_type="regular")
 _TOKENS = ("sid", datetime(2999, 1, 1, tzinfo=UTC), "at", datetime(2999, 1, 1, tzinfo=UTC), "rt", "csrf")
@@ -220,7 +221,7 @@ class TestSsoSignIn:
             patch(f"{_SERVICE}.mfa_integration.is_mfa_enabled_for_user", return_value=False),
             patch(f"{_SERVICE}.server_settings_integration.get_session_policy"),
             patch("modules.auth.authentication.token_service.create_tokens", return_value=_TOKENS),
-            patch(f"{_SERVICE}.sessions_integration.claim_session_for_token_exchange", return_value=True),
+            patch(f"{_SERVICE}.sessions_integration.claim_session_for_token_exchange", return_value=_CLAIMED_EXPIRY),
             patch(_RECORD) as record,
         ):
             if callable(record_returns):

@@ -15,6 +15,7 @@ import modules.auth.oauth_state.constants as oauth_state_constants
 
 _VERIFIER = "E9Melhoa2OwvFrEMTJguCHaoeK1t8URWbuGJSstw-cM"
 _SERVICE = "modules.auth.authentication.service"
+_CLAIMED_EXPIRY = datetime(2999, 1, 1, tzinfo=UTC)
 
 
 @pytest.fixture(autouse=True)
@@ -87,7 +88,7 @@ class TestTokenExchange:
     @patch(f"{_SERVICE}.users_integration.require_user")
     @patch(f"{_SERVICE}.users_integration.require_active_user")
     @patch("modules.auth.authentication.token_service.create_tokens")
-    @patch(f"{_SERVICE}.sessions_integration.claim_session_for_token_exchange", return_value=True)
+    @patch(f"{_SERVICE}.sessions_integration.claim_session_for_token_exchange", return_value=_CLAIMED_EXPIRY)
     @patch(f"{_SERVICE}.auth_computation.validate_pkce_verifier")
     @patch(f"{_SERVICE}.sessions_integration.get_session_with_oauth_state")
     def test_success_retrieves_user_from_session(
@@ -150,24 +151,27 @@ class TestTokenExchange:
     @patch(f"{_SERVICE}.users_integration.require_user")
     @patch(f"{_SERVICE}.users_integration.require_active_user")
     @patch("modules.auth.authentication.token_service.create_tokens")
-    @patch(f"{_SERVICE}.sessions_integration.claim_session_for_token_exchange", return_value=True)
+    @patch(f"{_SERVICE}.sessions_integration.claim_session_for_token_exchange")
     @patch(f"{_SERVICE}.auth_computation.validate_pkce_verifier")
     @patch(f"{_SERVICE}.sessions_integration.get_session_with_oauth_state")
-    def test_the_refresh_lifetime_told_to_the_client_is_capped_by_the_session(
-        self, mock_get_session, _validate, _claim, mock_create_tokens, _active, _require_user, mock_db
+    def test_the_exchange_extends_the_session_and_tells_the_client_its_new_expiry(
+        self, mock_get_session, _validate, mock_claim, mock_create_tokens, _active, _require_user, mock_db
     ):
         _require_user.return_value.username = "testuser"
         session, state = _session_and_state()
-        session.expires_at = datetime.now(UTC) + timedelta(hours=2)
+        session.expires_at = datetime.now(UTC) + timedelta(minutes=10)
         mock_get_session.return_value = (session, state)
+        refresh_exp = datetime.now(UTC) + timedelta(days=7)
         mock_create_tokens.return_value = (
             None,
             datetime.now(UTC) + timedelta(minutes=15),
             "access-token",
-            datetime.now(UTC) + timedelta(days=7),
+            refresh_exp,
             "refresh-token",
             "csrf-token",
         )
+        # The absolute timeout puts the session's new expiry before the refresh token's.
+        mock_claim.return_value = datetime.now(UTC) + timedelta(hours=2)
 
         response = _client(mock_db).post(
             "/api/v1/public/idp/session/session-id/tokens",
@@ -176,9 +180,10 @@ class TestTokenExchange:
         )
 
         assert response.status_code == 200
+        assert mock_claim.call_args.args[2] == refresh_exp
         assert response.json()["refresh_token_expires_in"] == pytest.approx(2 * 3600, abs=2)
 
-    @patch(f"{_SERVICE}.sessions_integration.claim_session_for_token_exchange", return_value=False)
+    @patch(f"{_SERVICE}.sessions_integration.claim_session_for_token_exchange", return_value=None)
     @patch("modules.auth.authentication.token_service.create_tokens")
     @patch(f"{_SERVICE}.users_integration.require_active_user")
     @patch(f"{_SERVICE}.users_integration.require_user")
@@ -234,7 +239,9 @@ class TestTokenExchangeMfa:
             patch(f"{_SERVICE}.mfa_integration.is_mfa_enabled_for_user", return_value=True),
             patch(f"{_SERVICE}.mfa_integration.verify_user_mfa", return_value=True) as verify,
             patch("modules.auth.authentication.token_service.create_tokens", return_value=tokens),
-            patch(f"{_SERVICE}.sessions_integration.claim_session_for_token_exchange", return_value=True) as claim,
+            patch(
+                f"{_SERVICE}.sessions_integration.claim_session_for_token_exchange", return_value=_CLAIMED_EXPIRY
+            ) as claim,
         ):
             get_session.return_value = _session_and_state()
             yield MagicMock(get_session=get_session, validate_pkce=validate_pkce, verify=verify, claim=claim)

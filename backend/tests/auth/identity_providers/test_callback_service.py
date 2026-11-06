@@ -1,7 +1,7 @@
 """The end of an SSO flow: accepting the provider callback, matching the user and creating the session."""
 
 import logging
-from datetime import timedelta
+from datetime import UTC, datetime
 from types import SimpleNamespace
 from unittest.mock import MagicMock, patch
 
@@ -140,10 +140,11 @@ class TestCompleteCallback:
             user=SimpleNamespace(username="a"), userinfo={}, mode="login", token_response={"refresh_token": "rt"}
         )
 
-        _, create_session = self._complete(service, result, self._state())
+        state = self._state()
+        _, create_session = self._complete(service, result, state)
 
         assert create_session.call_args.args[5:7] == (1, {"refresh_token": "rt"})
-        assert create_session.call_args.args[4] == "state-id"
+        assert create_session.call_args.args[4] is state
 
     def test_a_login_carries_a_relative_return_path(self, service):
         url, _ = self._complete(service, _login(redirect_path="/activities?x=1"), self._state())
@@ -317,6 +318,9 @@ class TestHandleCallback:
         service._tokens.store_session_tokens.assert_not_called()
 
 
+_STATE = SimpleNamespace(id="state-id", expires_at=datetime(2026, 11, 6, 12, 10, tzinfo=UTC))
+
+
 class TestCreateCallbackSession:
     """The provider's sign-in is stored with the session it creates, in the same transaction."""
 
@@ -329,18 +333,31 @@ class TestCreateCallbackSession:
         with (
             patch.object(callback_service.users_integration, "require_active_user"),
             patch.object(callback_service.users_schema.UsersRead, "model_validate", return_value=SimpleNamespace(id=7)),
-            patch.object(
-                callback_service.server_settings_integration,
-                "get_session_policy",
-                return_value=SimpleNamespace(refresh_token_ttl=timedelta(days=1)),
-            ),
             patch.object(callback_service.sessions_integration, "create_session") as create_session,
         ):
             order.attach_mock(create_session, "create_session")
             session_id = service.create_callback_session(
-                user, "10.0.0.1", "agent", MagicMock(), "state-id", 3, token_response or {"refresh_token": "rt"}, db
+                user, "10.0.0.1", "agent", MagicMock(), _STATE, 3, token_response or {"refresh_token": "rt"}, db
             )
         return session_id, create_session, order
+
+    def test_the_session_expires_when_the_exchange_window_does(self, service):
+        _, create_session, _ = self._create(service)
+
+        assert create_session.call_args.args[6] == _STATE.expires_at
+        assert create_session.call_args.kwargs["oauth_state_id"] == "state-id"
+
+    def test_an_exchange_window_without_a_timezone_is_read_as_utc(self, service):
+        naive = SimpleNamespace(id="state-id", expires_at=datetime(2026, 11, 6, 12, 0))
+        user = SimpleNamespace(id=7)
+        with (
+            patch.object(callback_service.users_integration, "require_active_user"),
+            patch.object(callback_service.users_schema.UsersRead, "model_validate", return_value=SimpleNamespace(id=7)),
+            patch.object(callback_service.sessions_integration, "create_session") as create_session,
+        ):
+            service.create_callback_session(user, "10.0.0.1", "agent", MagicMock(), naive, 3, {}, MagicMock())
+
+        assert create_session.call_args.args[6] == datetime(2026, 11, 6, 12, 0, tzinfo=UTC)
 
     def test_the_sign_in_is_stored_for_the_new_session_before_the_commit(self, service):
         session_id, create_session, order = self._create(service)
@@ -367,7 +384,7 @@ class TestCreateCallbackSession:
             patch.object(callback_service.sessions_integration, "create_session") as create_session,
             pytest.raises(core_exceptions.PermissionDeniedError),
         ):
-            service.create_callback_session(user, "10.0.0.1", "agent", MagicMock(), "state-id", 3, {}, MagicMock())
+            service.create_callback_session(user, "10.0.0.1", "agent", MagicMock(), _STATE, 3, {}, MagicMock())
 
         create_session.assert_not_called()
         service._tokens.store_session_tokens.assert_not_called()

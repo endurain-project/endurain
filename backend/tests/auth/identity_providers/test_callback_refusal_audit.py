@@ -122,7 +122,6 @@ class TestCompleteLoginRefusals:
             ),
             patch.object(callback_service.users_integration, "require_active_user", side_effect=session_error),
             patch.object(callback_service.sessions_integration, "create_session"),
-            patch.object(callback_service.server_settings_integration, "get_session_policy"),
             jasil_testing.capture_audit() as audit,
         ):
             url = service.complete_callback(

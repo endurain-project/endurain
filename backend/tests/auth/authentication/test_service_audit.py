@@ -17,6 +17,7 @@ import modules.auth.known_devices.contracts as known_devices_contracts
 import modules.auth.login_audit.audit_actions as login_audit_actions
 
 _SERVICE = "modules.auth.authentication.service"
+_CLAIMED_EXPIRY = datetime(2999, 1, 1, tzinfo=UTC)
 _USER = SimpleNamespace(id=5, username="alice", active=True, access_type="regular")
 _LOGIN = login_audit_actions.LOGIN.id
 _NO_LOCK = failed_login_store.FailedLoginRecord(client_count=1, account_locked_now=False)
@@ -382,7 +383,7 @@ class TestSsoSignIn:
             patch(f"{_SERVICE}.mfa_integration.verify_user_mfa", return_value=True),
             patch(f"{_SERVICE}.server_settings_integration.get_session_policy"),
             patch("modules.auth.authentication.token_service.create_tokens", return_value=tokens),
-            patch(f"{_SERVICE}.sessions_integration.claim_session_for_token_exchange", return_value=True),
+            patch(f"{_SERVICE}.sessions_integration.claim_session_for_token_exchange", return_value=_CLAIMED_EXPIRY),
         ):
             return authentication_service_sso_exchange_service.exchange_tokens_for_session(
                 "sid",

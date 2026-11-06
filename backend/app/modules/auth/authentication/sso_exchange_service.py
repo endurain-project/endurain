@@ -200,19 +200,21 @@ def exchange_tokens_for_session(
             user, token_manager, server_settings_integration.get_session_policy(db), session_id
         )
     )
-    now = datetime.now(UTC)
-    refresh_token_exp = authentication_token_service.cap_refresh_expiry(refresh_token_exp, session_obj.expires_at)
-    expires_in = int((access_token_exp - now).total_seconds())
-    refresh_token_expires_in = int((refresh_token_exp - now).total_seconds())
 
-    # Store the refresh-token hash and mark the tokens exchanged in one conditional update. The CSRF hash is not
-    # stored: the first /refresh after a page reload establishes the binding.
-    if not sessions_integration.claim_session_for_token_exchange(
-        session_id, password_hasher.hash_password(refresh_token), db
-    ):
+    # Store the refresh-token hash, mark the tokens exchanged and extend the session from the end of the exchange
+    # window to the refresh lifetime in one conditional update. The CSRF hash is not stored: the first /refresh
+    # after a page reload establishes the binding.
+    session_expires_at = sessions_integration.claim_session_for_token_exchange(
+        session_id, password_hasher.hash_password(refresh_token), refresh_token_exp, db
+    )
+    if session_expires_at is None:
         logger.warning("Token exchange lost race for session <value_1>", extra=core_logger.context(value_1=fingerprint))
         _record_refusal(jasil_audit.Outcome.FAILURE, login_audit_actions.LoginFailureReason.EXCHANGE_REPLAYED, user.id)
         raise core_exceptions.ConflictError("Tokens already exchanged for this session")
+    now = datetime.now(UTC)
+    refresh_token_exp = authentication_token_service.cap_refresh_expiry(refresh_token_exp, session_expires_at)
+    expires_in = int((access_token_exp - now).total_seconds())
+    refresh_token_expires_in = int((refresh_token_exp - now).total_seconds())
     issued_device_id = None
     if oauth_state.idp_id is not None:
         # An SSO sign-in is complete once its tokens are issued; a password sign-in was audited, and its device

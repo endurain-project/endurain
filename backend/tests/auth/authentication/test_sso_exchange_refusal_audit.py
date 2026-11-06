@@ -29,7 +29,10 @@ def _exchange(db, *, tokens_exchanged=False, pkce_error=None, inactive=False, cl
         patch(f"{_SERVICE}.mfa_integration.is_mfa_enabled_for_user", return_value=False),
         patch(f"{_SERVICE}.server_settings_integration.get_session_policy"),
         patch(f"{_SERVICE}.authentication_token_service.create_tokens", return_value=tokens),
-        patch(f"{_SERVICE}.sessions_integration.claim_session_for_token_exchange", return_value=claimed),
+        patch(
+            f"{_SERVICE}.sessions_integration.claim_session_for_token_exchange",
+            return_value=datetime(2027, 1, 1, tzinfo=UTC) if claimed else None,
+        ),
         patch(f"{_SERVICE}.known_devices_integration.record_sign_in", return_value=MagicMock(new_device=False)),
         jasil_testing.capture_audit() as audit,
     ):

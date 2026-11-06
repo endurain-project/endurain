@@ -106,7 +106,9 @@ def test_edit_missing_session_raises_not_found(mock_db):
 
 
 def test_token_exchange_claim_is_conditional_and_staged(mock_db):
-    operation = lambda sid, db: sessions_crud.claim_session_for_token_exchange(sid, "hashed", db)  # noqa: E731
+    def operation(sid, db):
+        return sessions_crud.claim_session_for_token_exchange(sid, "hashed", datetime.now(UTC), db)
+
     mock_db.execute.return_value = _result(rowcount=1)
     assert operation("session-id", mock_db) is True
     mock_db.execute.return_value = _result(rowcount=0)
@@ -184,3 +186,59 @@ def test_existing_session_ids_names_only_the_sessions_that_still_exist():
     assert sessions_crud.get_existing_session_ids(["s1", "gone"], db) == {"s1"}
     assert sessions_crud.get_existing_session_ids([], db) == set()
     db.close()
+
+
+class TestUnexchangedSessions:
+    """A session whose SSO token exchange has not happened is invisible, claimable once and purged at its expiry."""
+
+    @staticmethod
+    def _add(db, session_id, *, tokens_exchanged, expires_in=timedelta(days=1), created_offset=0):
+        now = datetime.now(UTC)
+        values = vars(_row(id=session_id, tokens_exchanged=tokens_exchanged))
+        values.update(
+            token_family_id=session_id,
+            expires_at=now + expires_in,
+            created_at=now + timedelta(seconds=created_offset),
+            refresh_token="hashed" if tokens_exchanged else None,
+        )
+        db.add(sessions_models.UsersSessions(**values))
+        db.flush()
+
+    @pytest.fixture
+    def db(self):
+        from tests._helpers.db import create_sqlite_session
+
+        session = create_sqlite_session()
+        yield session
+        session.close()
+
+    def test_lists_and_counts_hide_unexchanged_sessions(self, db):
+        self._add(db, "exchanged", tokens_exchanged=True)
+        self._add(db, "pending", tokens_exchanged=False, created_offset=5)
+
+        page = sessions_crud.get_user_sessions_page(7, db, limit=10, offset=0)
+
+        assert [session.id for session in page] == ["exchanged"]
+        assert sessions_crud.count_user_sessions(7, db) == 1
+
+    def test_the_purge_removes_an_expired_unexchanged_session_and_keeps_a_live_one(self, db):
+        self._add(db, "expired-pending", tokens_exchanged=False, expires_in=timedelta(minutes=-1))
+        self._add(db, "live-pending", tokens_exchanged=False, expires_in=timedelta(minutes=5))
+
+        removed = sessions_crud.delete_expired_sessions(datetime.now(UTC), 100, db)
+
+        assert removed == 1
+        assert sessions_crud.get_session_by_id("expired-pending", db) is None
+        assert sessions_crud.get_session_by_id("live-pending", db) is not None
+
+    def test_the_claim_sets_the_real_expiry(self, db):
+        self._add(db, "pending", tokens_exchanged=False, expires_in=timedelta(minutes=5))
+        real_expiry = datetime.now(UTC) + timedelta(days=30)
+
+        assert sessions_crud.claim_session_for_token_exchange("pending", "hashed", real_expiry, db) is True
+
+        db.expire_all()
+        claimed = sessions_crud.get_session_by_id("pending", db)
+        assert claimed is not None
+        assert claimed.tokens_exchanged is True
+        assert claimed.expires_at.replace(tzinfo=UTC) == real_expiry

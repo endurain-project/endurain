@@ -21,10 +21,12 @@ def get_user_sessions_page(
     limit: int,
     offset: int,
 ) -> list[sessions_contracts.SessionRead]:
-    """Return one window of a user's sessions, newest first with the id as tiebreak."""
+    """Return one window of a user's exchanged sessions, newest first with the id as tiebreak."""
     rows = db.execute(
         select(sessions_models.UsersSessions)
-        .where(sessions_models.UsersSessions.user_id == user_id)
+        .where(
+            sessions_models.UsersSessions.user_id == user_id, sessions_models.UsersSessions.tokens_exchanged.is_(True)
+        )
         .order_by(sessions_models.UsersSessions.created_at.desc(), sessions_models.UsersSessions.id)
         .limit(limit)
         .offset(offset)
@@ -33,9 +35,11 @@ def get_user_sessions_page(
 
 
 def count_user_sessions(user_id: int, db: Session) -> int:
-    """Return how many sessions a user has."""
+    """Return how many exchanged sessions a user has."""
     return db.execute(
-        select(func.count(sessions_models.UsersSessions.id)).where(sessions_models.UsersSessions.user_id == user_id)
+        select(func.count(sessions_models.UsersSessions.id)).where(
+            sessions_models.UsersSessions.user_id == user_id, sessions_models.UsersSessions.tokens_exchanged.is_(True)
+        )
     ).scalar_one()
 
 
@@ -107,8 +111,10 @@ def set_session_refresh_token_hash(
     return sessions_serializers.to_read_schema(row)
 
 
-def claim_session_for_token_exchange(session_id: str, hashed_refresh_token: str, db: Session) -> bool:
-    """Atomically claim a session for one-shot token exchange."""
+def claim_session_for_token_exchange(
+    session_id: str, hashed_refresh_token: str, expires_at: datetime, db: Session
+) -> bool:
+    """Atomically claim a session for one-shot token exchange and give it its real expiry."""
     matched = core_database.rowcount(
         db,
         update(sessions_models.UsersSessions)
@@ -116,7 +122,7 @@ def claim_session_for_token_exchange(session_id: str, hashed_refresh_token: str,
             sessions_models.UsersSessions.id == session_id,
             sessions_models.UsersSessions.tokens_exchanged.is_(False),
         )
-        .values(tokens_exchanged=True, refresh_token=hashed_refresh_token),
+        .values(tokens_exchanged=True, refresh_token=hashed_refresh_token, expires_at=expires_at),
     )
     return matched == 1
 

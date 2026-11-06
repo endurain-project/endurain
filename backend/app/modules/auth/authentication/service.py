@@ -11,6 +11,7 @@ from sqlalchemy.orm import Session
 
 import core.exceptions as core_exceptions
 import core.logger as core_logger
+import core.timezone as core_timezone
 import modules.auth.access_tokens.integration_service as access_tokens_integration
 import modules.auth.authentication.audit_actions as authentication_audit_actions
 import modules.auth.authentication.event_publishers as authentication_event_publishers
@@ -326,7 +327,7 @@ def create_mobile_pkce_session_response(
     # Create OAuth state record for PKCE (reuse SSO infrastructure)
     state_id, nonce = oauth_state_integration.create_state_id_and_nonce()
 
-    oauth_state_integration.create_oauth_state(
+    oauth_state = oauth_state_integration.create_oauth_state(
         db=db,
         state_id=state_id,
         nonce=nonce,
@@ -346,7 +347,7 @@ def create_mobile_pkce_session_response(
         user_agent,
         None,  # No refresh token yet
         password_hasher,
-        datetime.now(UTC) + server_settings_integration.get_session_policy(db).refresh_token_ttl,
+        core_timezone.to_utc_aware(oauth_state.expires_at),
         db,
         oauth_state_id=state_id,
     )
