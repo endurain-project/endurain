@@ -67,7 +67,7 @@ def _unused_tokens(db, user_id=7):
 
 def _change_email(db, email, *, user_id=7, revoke_other_sessions=False, state=None):
     change = users_schema.EmailChange(
-        email=email, current_password="pw", mfa_code=None, revoke_other_sessions=revoke_other_sessions
+        email=email, step_up={"current_password": "pw"}, revoke_other_sessions=revoke_other_sessions
     )
     with patch(_STEP_UP), patch(_OTHER_SESSIONS) as other_sessions, patch(_PROFILE):
         profile_service.change_email(user_id, change, "sid", MagicMock(), state or MemoryState(), db)
@@ -191,7 +191,7 @@ class TestSelfServiceEmailChange:
 class TestChangeEmailAnswersWithTheProfile:
     @staticmethod
     def _request(db, email):
-        change = users_schema.EmailChange(email=email, current_password="pw", mfa_code=None)
+        change = users_schema.EmailChange(email=email, step_up={"current_password": "pw"})
         with (
             patch(_STEP_UP),
             patch(_OTHER_SESSIONS),

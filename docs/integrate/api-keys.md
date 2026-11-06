@@ -74,9 +74,11 @@ Every API key expires. The maximum lifetime is set by an administrator (**Settin
 
 Creating an API key also requires step-up verification because the key is a long-lived credential:
 
-- Local-password accounts must provide `current_password`
-- Accounts with MFA enabled must also provide `mfa_code`
-- Accounts without a local password must provide `idp_reauth`, proof of a fresh identity provider sign-in; see [step-up for accounts without a password](account-security.md#step-up-for-accounts-without-a-password)
+The credentials travel in the `step_up` object of the request body:
+
+- Local-password accounts must provide `step_up.current_password`
+- Accounts with MFA enabled must also provide `step_up.mfa_code`
+- Accounts without a local password must provide `step_up.idp_reauth`, proof of a fresh identity provider sign-in; see [step-up for accounts without a password](account-security.md#step-up-for-accounts-without-a-password)
 
 **Create API Key Request:**
 
@@ -91,8 +93,10 @@ Content-Type: application/json
   "name": "Home Server Integration",
   "scopes": ["activities:upload"],
   "expires_at": "2027-01-01T00:00:00Z",
-  "current_password": "current-password",
-  "mfa_code": "123456"
+  "step_up": {
+    "current_password": "current-password",
+    "mfa_code": "123456"
+  }
 }
 ```
 
@@ -101,9 +105,10 @@ Content-Type: application/json
 | `name` | Yes | Human-readable label (max 100 characters) |
 | `scopes` | Yes | Array of API-key scopes to grant. Currently only `activities:upload` is accepted |
 | `expires_at` | No | ISO 8601 expiry datetime. Omit or `null` for the longest lifetime the server allows (365 days unless an administrator changed it). A later date is refused with `422` and a field error on `expires_at` |
-| `current_password` | Conditionally | Required for accounts with a local password |
-| `idp_reauth` | Conditionally | Required for accounts without a local password. Without it the API answers `401` with `urn:endurain:error:idp-reauth-required` |
-| `mfa_code` | Conditionally | Required when MFA is enabled on the account |
+| `step_up` | Yes | The step-up verification object |
+| `step_up.current_password` | Conditionally | Required for accounts with a local password |
+| `step_up.idp_reauth` | Conditionally | Required for accounts without a local password. Without it the API answers `401` with `urn:endurain:error:idp-reauth-required` |
+| `step_up.mfa_code` | Conditionally | Required when MFA is enabled on the account |
 
 **Create API Key Response (HTTP 201):**
 

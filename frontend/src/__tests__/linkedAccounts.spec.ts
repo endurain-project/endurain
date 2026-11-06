@@ -96,9 +96,8 @@ describe('linked-accounts service requests', () => {
     expect(apiFetch).toHaveBeenCalledWith('/profile/identity-providers/2/link', {
       method: 'POST',
       body: JSON.stringify({
-        current_password: 'pw',
-        mfa_code: '123456',
         redirect: '/settings/security',
+        step_up: { current_password: 'pw', mfa_code: '123456' },
       }),
     })
     expect(url).toBe('https://idp.example.com/auth')
@@ -112,9 +111,8 @@ describe('linked-accounts service requests', () => {
     expect(apiFetch).toHaveBeenCalledWith('/profile/identity-providers/3/link', {
       method: 'POST',
       body: JSON.stringify({
-        current_password: 'pw',
-        mfa_code: '123456',
         redirect: '/settings/security?foo=bar',
+        step_up: { current_password: 'pw', mfa_code: '123456' },
       }),
     })
   })
@@ -126,7 +124,7 @@ describe('linked-accounts service requests', () => {
 
     expect(apiFetch).toHaveBeenCalledWith('/profile/identity-providers/2/unlink', {
       method: 'POST',
-      body: JSON.stringify({ current_password: 'pw', mfa_code: '123456' }),
+      body: JSON.stringify({ step_up: { current_password: 'pw', mfa_code: '123456' } }),
       responseType: 'void',
     })
   })

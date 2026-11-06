@@ -381,8 +381,7 @@ describe('users service requests', () => {
       method: 'POST',
       body: JSON.stringify({
         password: 'secret123',
-        current_password: 'admin-pw',
-        mfa_code: '654321',
+        step_up: { current_password: 'admin-pw', mfa_code: '654321' },
       }),
       responseType: 'void',
     })
@@ -396,7 +395,7 @@ describe('users service requests', () => {
     expect(apiFetch).toHaveBeenCalledWith('/users/7/delete', {
       method: 'POST',
       headers: { 'If-Match': '"2"' },
-      body: JSON.stringify({ current_password: 'admin-pw', mfa_code: null }),
+      body: JSON.stringify({ step_up: { current_password: 'admin-pw', mfa_code: null } }),
       responseType: 'void',
     })
   })

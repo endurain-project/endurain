@@ -64,3 +64,15 @@ class StepUpVerification(BaseModel):
         extra="forbid",
         validate_assignment=True,
     )
+
+
+class StepUpRequest(BaseModel):
+    """Request body of an operation that needs nothing but a step-up verification.
+
+    Attributes:
+        step_up: The caller's step-up verification.
+    """
+
+    step_up: StepUpVerification = Field(..., description="Step-up verification authorising the operation")
+
+    model_config = ConfigDict(extra="forbid")

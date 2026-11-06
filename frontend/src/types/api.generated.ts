@@ -2465,7 +2465,7 @@ export interface paths {
          * Start Idp Link
          * @description Start linking an identity provider to the authenticated user's account.
          *
-         *     Linking enables persistent sign-in, so it needs step-up verification: ``current_password`` (or, for an
+         *     Linking enables persistent sign-in, so it needs step-up verification in ``step_up``: ``current_password`` (or, for an
          *     account without one, ``idp_reauth``), and an MFA code when MFA is enabled. The browser then follows
          *     ``authorization_url``, signs in at the provider, and the callback returns to ``redirect``. The response
          *     sets a cookie that binds the link to this browser.
@@ -2622,7 +2622,7 @@ export interface paths {
          *     Disabling MFA materially weakens the account's security
          *     posture, so a valid access token alone is not sufficient: the
          *     caller must re-prove identity with both their current
-         *     password and a fresh MFA code. The MFA code may be either a
+         *     password and a fresh MFA code, both in ``step_up``. The MFA code may be either a
          *     6-digit TOTP or an unused ``XXXX-XXXX`` backup code — the
          *     same set of factors accepted at login. Step-up verification
          *     is the single source of truth for the MFA check;
@@ -2652,13 +2652,13 @@ export interface paths {
          *     new TOTP secret on a victim's account (which would lock the
          *     legitimate user out and hand the attacker the backup codes).
          *     The caller therefore has to re-prove identity with their
-         *     current password before the binding is committed. The TOTP
-         *     code in the request body is the fresh enrolment code from the
+         *     current password before the binding is committed. The step-up
+         *     verification is the ``step_up`` object (see
+         *     :func:`modules.auth.account_security.step_up_service.verify_step_up_credentials`).
+         *     The ``mfa_code`` in the request body is the fresh enrolment code from the
          *     user's authenticator app and is verified separately by
          *     :func:`modules.auth.mfa.service.enable_user_mfa` against the secret
-         *     issued by ``POST /profile/mfa/setup``. An account without a local
-         *     password sends ``idp_reauth`` instead of ``current_password`` (see
-         *     :func:`modules.auth.account_security.step_up_service.verify_step_up_credentials`).
+         *     issued by ``POST /profile/mfa/setup``.
          */
         post: operations["enable_mfa"];
         delete?: never;
@@ -2740,7 +2740,7 @@ export interface paths {
          * Edit Profile Password
          * @description Update user password after step-up verification.
          *
-         *     Requires the caller to re-prove identity with the current
+         *     Requires the caller to re-prove identity in ``step_up`` with the current
          *     password — and an MFA code when MFA is enabled — before the
          *     new password is accepted. This prevents a stolen access
          *     token alone from being parlayed into permanent account
@@ -5563,32 +5563,23 @@ export interface components {
          *     Attributes:
          *         email: The new email address.
          *         revoke_other_sessions: Whether to sign out the user's other sessions after the change.
+         *         step_up: The caller's step-up verification.
          */
         EmailChange: {
-            /**
-             * Current Password
-             * @description Current password (step-up verification). Required when the account has a local password.
-             */
-            current_password?: string | null;
             /**
              * Email
              * Format: email
              * @description The new email address
              */
             email: string;
-            /** @description Fresh identity-provider sign-in, required when the account has no local password */
-            idp_reauth?: components["schemas"]["IdpReauthProof"] | null;
-            /**
-             * Mfa Code
-             * @description TOTP or backup code, required when MFA is enabled
-             */
-            mfa_code?: string | null;
             /**
              * Revoke Other Sessions
              * @description When true, revoke all of the user's other sessions (keeping the current one) after the change
              * @default false
              */
             revoke_other_sessions: boolean;
+            /** @description Step-up verification, required to change the email address */
+            step_up: components["schemas"]["StepUpVerification"];
         };
         /**
          * EmailStatus
@@ -8254,25 +8245,16 @@ export interface components {
          *
          *     Attributes:
          *         redirect: Frontend return path after linking (a relative path or a configured custom scheme).
+         *         step_up: The caller's step-up verification.
          */
         IdentityProviderLinkStart: {
-            /**
-             * Current Password
-             * @description Current password (step-up verification). Required when the account has a local password.
-             */
-            current_password?: string | null;
-            /** @description Fresh identity-provider sign-in, required when the account has no local password */
-            idp_reauth?: components["schemas"]["IdpReauthProof"] | null;
-            /**
-             * Mfa Code
-             * @description TOTP or backup code, required when MFA is enabled
-             */
-            mfa_code?: string | null;
             /**
              * Redirect
              * @description Frontend return path after linking (relative path or a configured custom scheme)
              */
             redirect?: string | null;
+            /** @description Step-up verification, required to link an identity provider */
+            step_up: components["schemas"]["StepUpVerification"];
         };
         /**
          * IdentityProviderPublicRead
@@ -8914,44 +8896,6 @@ export interface components {
             readonly created_at: string;
         };
         /**
-         * MFADisableRequest
-         * @description Request model for MFA disable verification.
-         *
-         *     Disabling MFA is a sensitive, security-reducing operation
-         *     and must be gated by step-up verification: the caller has to
-         *     re-prove possession of the current password in addition to a
-         *     valid MFA code. The password length bounds match the other
-         *     step-up schemas (see ``UserEditPassword``) — they validate
-         *     the supplied input only and do not impose a policy on the
-         *     stored password.
-         *
-         *     An account without a local password (it signs in through an
-         *     identity provider) proves a fresh sign-in with a linked provider
-         *     instead: ``idp_reauth`` carries the ticket from
-         *     ``POST /profile/identity-providers/{idp_id}/step-up``.
-         *
-         *     Attributes:
-         *         current_password: Caller's existing password (step-up
-         *             verification). Required when the account has a local
-         *             password.
-         *         idp_reauth: Proof of a fresh identity-provider sign-in. Required
-         *             when the account has no local password.
-         */
-        MFADisableRequest: {
-            /**
-             * Current Password
-             * @description Current password (step-up verification). Required when the account has a local password.
-             */
-            current_password?: string | null;
-            /** @description Fresh identity-provider sign-in, required when the account has no local password */
-            idp_reauth?: components["schemas"]["IdpReauthProof"] | null;
-            /**
-             * Mfa Code
-             * @description MFA code (6-digit TOTP or XXXX-XXXX)
-             */
-            mfa_code: string;
-        };
-        /**
          * MFAEnableRead
          * @description Response returned after MFA is enabled.
          *
@@ -9041,38 +8985,23 @@ export interface components {
          *     backup codes. A stolen access token alone must not be enough
          *     to complete this binding (otherwise the attacker enrols their
          *     own authenticator and locks the legitimate user out), so the
-         *     request is gated by step-up verification: the caller must
-         *     re-prove their current password in addition to the freshly
-         *     enrolled TOTP code.
-         *
-         *     An account without a local password (it signs in through an
-         *     identity provider) proves a fresh sign-in with a linked provider
-         *     instead: ``idp_reauth`` carries the ticket from
-         *     ``POST /profile/identity-providers/{idp_id}/step-up``.
+         *     request is gated by step-up verification, carried in ``step_up``,
+         *     in addition to the freshly enrolled TOTP code.
          *
          *     Attributes:
          *         mfa_code: The 6-digit TOTP code generated from the secret
          *             returned by the setup endpoint, used to confirm the
          *             authenticator app is correctly enrolled.
-         *         current_password: Caller's existing password (step-up
-         *             verification). Required when the account has a local
-         *             password.
-         *         idp_reauth: Proof of a fresh identity-provider sign-in. Required
-         *             when the account has no local password.
+         *         step_up: The caller's step-up verification.
          */
         MFASetupRequest: {
-            /**
-             * Current Password
-             * @description Current password (step-up verification). Required when the account has a local password.
-             */
-            current_password?: string | null;
-            /** @description Fresh identity-provider sign-in, required when the account has no local password */
-            idp_reauth?: components["schemas"]["IdpReauthProof"] | null;
             /**
              * Mfa Code
              * @description 6-digit TOTP code
              */
             mfa_code: string;
+            /** @description Step-up verification, required to enable MFA */
+            step_up: components["schemas"]["StepUpVerification"];
         };
         /**
          * MFAStatusRead
@@ -10795,6 +10724,17 @@ export interface components {
          */
         StepUpAction: "api_key_create" | "idp_link" | "idp_unlink" | "email_change" | "account_delete" | "profile_export" | "mfa_enable" | "mfa_disable" | "mfa_backup_codes" | "admin_credential_reset" | "admin_user_edit" | "admin_user_delete" | "admin_idp_unlink" | "admin_user_create" | "admin_idp_create" | "admin_idp_edit";
         /**
+         * StepUpRequest
+         * @description Request body of an operation that needs nothing but a step-up verification.
+         *
+         *     Attributes:
+         *         step_up: The caller's step-up verification.
+         */
+        StepUpRequest: {
+            /** @description Step-up verification authorising the operation */
+            step_up: components["schemas"]["StepUpVerification"];
+        };
+        /**
          * StepUpStartRequest
          * @description Start a step-up re-authentication with a linked identity provider.
          *
@@ -11522,25 +11462,16 @@ export interface components {
          *
          *     Attributes:
          *         password: New password (min 8 chars).
+         *         step_up: The administrator's own step-up verification.
          */
         UserAdminEditPassword: {
-            /**
-             * Current Password
-             * @description Current password (step-up verification). Required when the account has a local password.
-             */
-            current_password?: string | null;
-            /** @description Fresh identity-provider sign-in, required when the account has no local password */
-            idp_reauth?: components["schemas"]["IdpReauthProof"] | null;
-            /**
-             * Mfa Code
-             * @description TOTP or backup code, required when MFA is enabled
-             */
-            mfa_code?: string | null;
             /**
              * Password
              * @description New password
              */
             password: string;
+            /** @description The administrator's step-up verification, required to set another user's password */
+            step_up: components["schemas"]["StepUpVerification"];
         };
         /**
          * UserApiKeyCreate
@@ -11548,45 +11479,21 @@ export interface components {
          *
          *     API-key creation is a sensitive, persistent grant of
          *     account access — it must be gated by step-up
-         *     verification. The caller MUST supply ``current_password``,
-         *     and an MFA code when MFA is enabled on the account.
-         *
-         *     An account without a local password (it signs in through an
-         *     identity provider) proves a fresh sign-in with a linked provider
-         *     instead: ``idp_reauth`` carries the ticket from
-         *     ``POST /profile/identity-providers/{idp_id}/step-up``.
+         *     verification, carried in ``step_up``.
          *
          *     Attributes:
          *         name: User-friendly label for the key.
          *         scopes: List containing the supported API key scope.
          *         expires_at: Optional expiration datetime, at most the server's maximum API key lifetime from now. When
          *             omitted the key expires at that maximum.
-         *         current_password: Caller's existing password
-         *             (step-up verification). Required when the account
-         *             has a local password.
-         *         mfa_code: TOTP or backup code, required when MFA
-         *             is enabled on the account.
-         *         idp_reauth: Proof of a fresh identity-provider sign-in. Required
-         *             when the account has no local password.
+         *         step_up: The caller's step-up verification.
          */
         UserApiKeyCreate: {
-            /**
-             * Current Password
-             * @description Current password (step-up verification). Required when the account has a local password.
-             */
-            current_password?: string | null;
             /**
              * Expires At
              * @description Optional expiration instant with a UTC offset, at most the server's maximum API key lifetime from now. When omitted the key expires at that maximum.
              */
             expires_at?: string | null;
-            /** @description Fresh identity-provider sign-in, required when the account has no local password */
-            idp_reauth?: components["schemas"]["IdpReauthProof"] | null;
-            /**
-             * Mfa Code
-             * @description TOTP or backup code, required when MFA is enabled
-             */
-            mfa_code?: string | null;
             /**
              * Name
              * @description User-friendly label for the key
@@ -11597,6 +11504,8 @@ export interface components {
              * @description List of scope strings to grant
              */
             scopes: string[];
+            /** @description Step-up verification, required to create an API key */
+            step_up: components["schemas"]["StepUpVerification"];
         };
         /**
          * UserApiKeyCreatedRead
@@ -11950,29 +11859,15 @@ export interface components {
          * UserEditPassword
          * @description Schema for password update operations (self-service).
          *
-         *     Requires the caller to prove possession of the current
-         *     password — and an MFA code when MFA is enabled — before
-         *     the new password is accepted. This prevents a stolen
-         *     in-memory access token from being parlayed into permanent
-         *     account takeover.
+         *     Requires the caller's step-up verification, in ``step_up``, before the new password is accepted. This
+         *     prevents a stolen in-memory access token from being parlayed into permanent account takeover.
          *
          *     Attributes:
-         *         current_password: Caller's existing password.
          *         password: New password (min 8 chars).
-         *         mfa_code: TOTP or backup code, required when MFA is
-         *             enabled on the account.
+         *         revoke_other_sessions: Whether to sign out the user's other sessions after the change.
+         *         step_up: The caller's step-up verification: the current password and, when MFA is enabled, an MFA code.
          */
         UserEditPassword: {
-            /**
-             * Current Password
-             * @description Current password (step-up verification)
-             */
-            current_password: string;
-            /**
-             * Mfa Code
-             * @description TOTP or backup code, required when MFA is enabled
-             */
-            mfa_code?: string | null;
             /**
              * Password
              * @description New password
@@ -11984,6 +11879,8 @@ export interface components {
              * @default true
              */
             revoke_other_sessions: boolean;
+            /** @description Step-up verification, required to change the password */
+            step_up: components["schemas"]["StepUpVerification"];
         };
         /**
          * UserEmailLookup
@@ -25659,7 +25556,7 @@ export interface operations {
         };
         requestBody: {
             content: {
-                "application/json": components["schemas"]["StepUpVerification"];
+                "application/json": components["schemas"]["StepUpRequest"];
             };
         };
         responses: {
@@ -26094,7 +25991,7 @@ export interface operations {
         };
         requestBody: {
             content: {
-                "application/json": components["schemas"]["StepUpVerification"];
+                "application/json": components["schemas"]["StepUpRequest"];
             };
         };
         responses: {
@@ -27505,7 +27402,7 @@ export interface operations {
         };
         requestBody: {
             content: {
-                "application/json": components["schemas"]["StepUpVerification"];
+                "application/json": components["schemas"]["StepUpRequest"];
             };
         };
         responses: {
@@ -27802,7 +27699,7 @@ export interface operations {
         };
         requestBody: {
             content: {
-                "application/json": components["schemas"]["StepUpVerification"];
+                "application/json": components["schemas"]["StepUpRequest"];
             };
         };
         responses: {
@@ -27975,7 +27872,7 @@ export interface operations {
         };
         requestBody: {
             content: {
-                "application/json": components["schemas"]["MFADisableRequest"];
+                "application/json": components["schemas"]["StepUpRequest"];
             };
         };
         responses: {
@@ -33647,7 +33544,7 @@ export interface operations {
         };
         requestBody: {
             content: {
-                "application/json": components["schemas"]["StepUpVerification"];
+                "application/json": components["schemas"]["StepUpRequest"];
             };
         };
         responses: {
@@ -34368,7 +34265,7 @@ export interface operations {
         };
         requestBody: {
             content: {
-                "application/json": components["schemas"]["StepUpVerification"];
+                "application/json": components["schemas"]["StepUpRequest"];
             };
         };
         responses: {

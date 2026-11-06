@@ -114,6 +114,7 @@ class TestCreateUserApiKey:
         )
 
         payload = {
+            "step_up": {"current_password": "pw"},
             "name": "FitoTrack",
             "scopes": ["activities:upload"],
         }
@@ -144,6 +145,7 @@ class TestCreateUserApiKey:
         mock_db.execute.return_value.scalar_one_or_none.return_value = None
 
         payload = {
+            "step_up": {"current_password": "pw"},
             "name": "FitoTrack",
             "scopes": ["activities:upload"],
         }
@@ -161,6 +163,7 @@ class TestCreateUserApiKey:
     def test_create_user_api_key_past_expiry_returns_422(self, fast_api_client, fast_api_app):
         """Test that 422 is returned for an expiry that has already passed."""
         payload = {
+            "step_up": {"current_password": "pw"},
             "name": "FitoTrack",
             "scopes": ["activities:upload"],
             "expires_at": "2020-01-01",
@@ -179,6 +182,7 @@ class TestCreateUserApiKey:
     ):
         """An expiry later than the maximum API key lifetime is a field error on expires_at."""
         payload = {
+            "step_up": {"current_password": "pw"},
             "name": "FitoTrack",
             "scopes": ["activities:upload"],
             "expires_at": (datetime.now(UTC) + timedelta(days=366)).isoformat(),
@@ -191,7 +195,7 @@ class TestCreateUserApiKey:
 
     def test_create_user_api_key_invalid_scope_message_has_no_set_repr(self, fast_api_client, fast_api_app):
         """Test that the 422 body names the scopes without a Python set repr."""
-        payload = {"name": "FitoTrack", "scopes": ["bogus:scope"]}
+        payload = {"step_up": {"current_password": "pw"}, "name": "FitoTrack", "scopes": ["bogus:scope"]}
 
         response = fast_api_client.post(
             "/api-keys",
@@ -207,6 +211,7 @@ class TestCreateUserApiKey:
         """Test that 422 is returned for an unknown scope (Pydantic validation failure)."""
         # Arrange: schema validator rejects unsupported scopes first
         payload = {
+            "step_up": {"current_password": "pw"},
             "name": "FitoTrack",
             "scopes": ["fake:scope_that_does_not_exist"],
         }
@@ -224,6 +229,7 @@ class TestCreateUserApiKey:
     def test_create_user_api_key_empty_name_returns_422(self, fast_api_client, fast_api_app):
         """Test that 422 is returned when the name is empty (min_length violation)."""
         payload = {
+            "step_up": {"current_password": "pw"},
             "name": "",
             "scopes": ["activities:upload"],
         }
@@ -239,6 +245,7 @@ class TestCreateUserApiKey:
     def test_create_user_api_key_empty_scopes_returns_422(self, fast_api_client, fast_api_app):
         """Test that 422 is returned when the scopes list is empty."""
         payload = {
+            "step_up": {"current_password": "pw"},
             "name": "FitoTrack",
             "scopes": [],
         }
@@ -275,6 +282,7 @@ class TestCreateUserApiKey:
         mock_verify_step_up.side_effect = core_exceptions.StepUpFailedError()
 
         payload = {
+            "step_up": {"current_password": "pw"},
             "name": "FitoTrack",
             "scopes": ["activities:upload"],
         }
@@ -314,7 +322,7 @@ class TestCreateUserApiKey:
         payload = {
             "name": "FitoTrack",
             "scopes": ["activities:upload"],
-            "current_password": "definitely_wrong",
+            "step_up": {"current_password": "definitely_wrong"},
         }
 
         response = fast_api_client.post(
@@ -352,7 +360,7 @@ class TestCreateUserApiKey:
         payload = {
             "name": "FitoTrack",
             "scopes": ["activities:upload"],
-            "current_password": "correct_password",
+            "step_up": {"current_password": "correct_password"},
         }
 
         response = fast_api_client.post(
@@ -390,8 +398,7 @@ class TestCreateUserApiKey:
         payload = {
             "name": "FitoTrack",
             "scopes": ["activities:upload"],
-            "current_password": "correct_password",
-            "mfa_code": "000000",
+            "step_up": {"current_password": "correct_password", "mfa_code": "000000"},
         }
 
         response = fast_api_client.post(
@@ -428,7 +435,7 @@ class TestCreateUserApiKey:
         payload = {
             "name": "Unwanted Key",
             "scopes": ["activities:upload"],
-            "current_password": "bad",
+            "step_up": {"current_password": "bad"},
         }
 
         fast_api_client.post(
@@ -464,8 +471,7 @@ class TestCreateUserApiKey:
         payload = {
             "name": "MyKey",
             "scopes": ["activities:upload"],
-            "current_password": "s3cr3t!",
-            "mfa_code": "123456",
+            "step_up": {"current_password": "s3cr3t!", "mfa_code": "123456"},
         }
 
         fast_api_client.post(
@@ -573,6 +579,7 @@ class TestApiKeyResponseSafety:
         )
 
         payload = {
+            "step_up": {"current_password": "pw"},
             "name": "FitoTrack",
             "scopes": ["activities:upload"],
         }
@@ -629,6 +636,7 @@ class TestApiKeyResponseSafety:
         )
 
         payload = {
+            "step_up": {"current_password": "pw"},
             "name": "FitoTrack",
             "scopes": ["activities:upload"],
         }

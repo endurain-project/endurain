@@ -54,7 +54,9 @@ def test_get_api_key_by_id_and_hash_return_read_dtos(mock_db):
 
 def test_create_api_key_stages_hashed_key(mock_db):
     row = _row()
-    data = api_keys_schema.UserApiKeyCreate(name="CLI", scopes=["activities:upload"])
+    data = api_keys_schema.UserApiKeyCreate(
+        step_up={"current_password": "pw"}, name="CLI", scopes=["activities:upload"]
+    )
     raw_key = "endurain_12345678secret"
     expires_at = datetime.now(UTC) + timedelta(days=30)
     with (

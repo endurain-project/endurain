@@ -13,7 +13,7 @@ export type MfaSetupDto = Schemas['MFASetupRead']
 export type MfaEnableDto = Schemas['MFASetupRequest']
 
 /** Disable-MFA request body. */
-export type MfaDisableDto = Schemas['MFADisableRequest']
+export type MfaDisableDto = StepUpRequestDto
 
 /** Raw backup-code status payload. */
 export type BackupCodeStatusDto = Schemas['MFABackupCodeStatusRead']
@@ -23,6 +23,9 @@ export type BackupCodesDto = Schemas['MFABackupCodesRead']
 
 /** Step-up verification body shared by sensitive self-service actions. */
 export type StepUpDto = Schemas['StepUpVerification']
+
+/** Request body of an action that needs only a step-up verification. */
+export type StepUpRequestDto = Schemas['StepUpRequest']
 
 /** Email-change request body: the new address plus the step-up credentials. */
 export type EmailChangeDto = Schemas['EmailChange']

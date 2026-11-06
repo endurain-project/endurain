@@ -68,7 +68,7 @@ class TestStartIdpLink:
         return idp
 
     def _link(self, redirect="/settings/security"):
-        return users_schema.IdentityProviderLinkStart(current_password="pass", redirect=redirect)
+        return users_schema.IdentityProviderLinkStart(step_up={"current_password": "pass"}, redirect=redirect)
 
     def test_commits_the_state_before_building_the_provider_url(self, mock_db):
         order = MagicMock()

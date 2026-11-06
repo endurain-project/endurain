@@ -405,7 +405,7 @@ class TestEditProfileEmail:
 
         response = profile_client.post(
             PREFIX + "/email/change",
-            json={"email": "new@example.com", "current_password": "pw", "mfa_code": None},
+            json={"email": "new@example.com", "step_up": {"current_password": "pw", "mfa_code": None}},
         )
 
         assert response.status_code == 200
@@ -420,7 +420,7 @@ class TestEditProfileEmail:
 
         response = profile_client.post(
             PREFIX + "/email/change",
-            json={"email": "new@example.com", "current_password": "wrong"},
+            json={"email": "new@example.com", "step_up": {"current_password": "wrong"}},
         )
 
         assert response.status_code == 401
@@ -428,7 +428,7 @@ class TestEditProfileEmail:
 
     def test_the_address_must_be_valid(self, profile_client):
         response = profile_client.post(
-            PREFIX + "/email/change", json={"email": "not-an-email", "current_password": "pw"}
+            PREFIX + "/email/change", json={"email": "not-an-email", "step_up": {"current_password": "pw"}}
         )
 
         assert response.status_code == 422
@@ -557,9 +557,8 @@ class TestEditProfilePassword:
         response = profile_client.post(
             PREFIX + "/password/change",
             json={
-                "current_password": "oldpass",
                 "password": "NewPass123!",
-                "mfa_code": None,
+                "step_up": {"current_password": "oldpass", "mfa_code": None},
             },
         )
 
@@ -580,9 +579,8 @@ class TestEditProfilePassword:
         response = profile_client.post(
             PREFIX + "/password/change",
             json={
-                "current_password": "wrong",
                 "password": "NewPass123!",
-                "mfa_code": None,
+                "step_up": {"current_password": "wrong", "mfa_code": None},
             },
         )
 
@@ -647,7 +645,9 @@ class TestExportProfileData:
 
     _PUBLISH = "modules.users.users_profile.export_job_service.profile_event_publishers.publish_export_requested"
 
-    _BODY: ClassVar[dict[str, str]] = {"current_password": "secret-password", "mfa_code": "123456"}
+    _BODY: ClassVar[dict[str, dict[str, str]]] = {
+        "step_up": {"current_password": "secret-password", "mfa_code": "123456"}
+    }
 
     def test_queues_the_export_and_answers_at_once(self, profile_client, export_states, mock_auth_services):
         with patch(self._PUBLISH) as publish:
@@ -678,7 +678,7 @@ class TestExportProfileData:
         mock_auth_services.verify_step_up.side_effect = HTTPException(status_code=401, detail="Invalid credentials")
 
         with patch(self._PUBLISH) as publish:
-            response = profile_client.post(PREFIX + "/export", json={"current_password": "wrong"})
+            response = profile_client.post(PREFIX + "/export", json={"step_up": {"current_password": "wrong"}})
 
         assert response.status_code == 401
         publish.assert_not_called()
@@ -974,7 +974,7 @@ class TestEnableMFA:
 
         response = profile_client.post(
             PREFIX + "/mfa/enable",
-            json={"mfa_code": "123456", "current_password": "pass123"},
+            json={"mfa_code": "123456", "step_up": {"current_password": "pass123"}},
         )
 
         assert response.status_code == 200
@@ -988,7 +988,7 @@ class TestEnableMFA:
 
         response = profile_client.post(
             PREFIX + "/mfa/enable",
-            json={"mfa_code": "123456", "current_password": "wrong"},
+            json={"mfa_code": "123456", "step_up": {"current_password": "wrong"}},
         )
 
         assert response.status_code == 401
@@ -1002,7 +1002,7 @@ class TestEnableMFA:
 
         response = profile_client.post(
             PREFIX + "/mfa/enable",
-            json={"mfa_code": "123456", "current_password": "pass123"},
+            json={"mfa_code": "123456", "step_up": {"current_password": "pass123"}},
         )
 
         assert response.status_code == 400
@@ -1016,7 +1016,7 @@ class TestEnableMFA:
 
         response = profile_client.post(
             PREFIX + "/mfa/enable",
-            json={"mfa_code": "123456", "current_password": "pass123"},
+            json={"mfa_code": "123456", "step_up": {"current_password": "pass123"}},
         )
 
         assert response.status_code == 503
@@ -1030,7 +1030,7 @@ class TestEnableMFA:
 
         response = profile_client.post(
             PREFIX + "/mfa/enable",
-            json={"mfa_code": "000000", "current_password": "pass123"},
+            json={"mfa_code": "000000", "step_up": {"current_password": "pass123"}},
         )
 
         assert response.status_code == 400
@@ -1044,7 +1044,7 @@ class TestEnableMFA:
 
         response = profile_client.post(
             PREFIX + "/mfa/enable",
-            json={"mfa_code": "123456", "current_password": "pass123"},
+            json={"mfa_code": "123456", "step_up": {"current_password": "pass123"}},
         )
 
         assert response.status_code == 409
@@ -1064,7 +1064,7 @@ class TestDisableMFA:
 
         response = profile_client.post(
             PREFIX + "/mfa/disable",
-            json={"mfa_code": "123456", "current_password": "pass123"},
+            json={"step_up": {"mfa_code": "123456", "current_password": "pass123"}},
         )
 
         assert response.status_code == 204
@@ -1076,7 +1076,7 @@ class TestDisableMFA:
 
         response = profile_client.post(
             PREFIX + "/mfa/disable",
-            json={"mfa_code": "000000", "current_password": "wrong"},
+            json={"step_up": {"mfa_code": "000000", "current_password": "wrong"}},
         )
 
         assert response.status_code == 401
@@ -1132,7 +1132,7 @@ class TestGenerateMFABackupCodes:
 
         response = profile_client.post(
             PREFIX + "/mfa/backup-codes",
-            json={"current_password": "pass123"},
+            json={"step_up": {"current_password": "pass123"}},
         )
 
         assert response.status_code == 201
@@ -1146,7 +1146,7 @@ class TestGenerateMFABackupCodes:
 
         response = profile_client.post(
             PREFIX + "/mfa/backup-codes",
-            json={"current_password": "pass123"},
+            json={"step_up": {"current_password": "pass123"}},
         )
 
         assert response.status_code == 404
@@ -1160,7 +1160,7 @@ class TestGenerateMFABackupCodes:
 
         response = profile_client.post(
             PREFIX + "/mfa/backup-codes",
-            json={"current_password": "pass123"},
+            json={"step_up": {"current_password": "pass123"}},
         )
 
         assert response.status_code == 400
@@ -1172,7 +1172,7 @@ class TestGenerateMFABackupCodes:
 
         response = profile_client.post(
             PREFIX + "/mfa/backup-codes",
-            json={"current_password": "wrong"},
+            json={"step_up": {"current_password": "wrong"}},
         )
 
         assert response.status_code == 401
@@ -1251,7 +1251,7 @@ class TestDeleteMyIdentityProvider:
         """Happy path: unlink IdP."""
         response = profile_client.post(
             PREFIX + "/identity-providers/1/unlink",
-            json={"current_password": "pass123"},
+            json={"step_up": {"current_password": "pass123"}},
         )
 
         assert response.status_code == 204
@@ -1263,7 +1263,7 @@ class TestDeleteMyIdentityProvider:
 
         response = profile_client.post(
             PREFIX + "/identity-providers/1/unlink",
-            json={"current_password": "wrong"},
+            json={"step_up": {"current_password": "wrong"}},
         )
 
         assert response.status_code == 401
@@ -1276,7 +1276,7 @@ class TestDeleteMyIdentityProvider:
 
         response = profile_client.post(
             PREFIX + "/identity-providers/1/unlink",
-            json={"current_password": "pass123"},
+            json={"step_up": {"current_password": "pass123"}},
         )
 
         assert response.status_code == 404
@@ -1289,7 +1289,7 @@ class TestDeleteMyIdentityProvider:
 
         response = profile_client.post(
             PREFIX + "/identity-providers/1/unlink",
-            json={"current_password": "pass123"},
+            json={"step_up": {"current_password": "pass123"}},
         )
 
         assert response.status_code == 404
@@ -1303,7 +1303,7 @@ class TestDeleteMyIdentityProvider:
 
         response = profile_client.post(
             PREFIX + "/identity-providers/1/unlink",
-            json={"current_password": "pass123"},
+            json={"step_up": {"current_password": "pass123"}},
         )
 
         assert response.status_code == 400
@@ -1317,7 +1317,7 @@ class TestDeleteMyIdentityProvider:
 
         response = profile_client.post(
             PREFIX + "/identity-providers/1/unlink",
-            json={"current_password": "pass123"},
+            json={"step_up": {"current_password": "pass123"}},
         )
 
         assert response.status_code == 500
@@ -1338,7 +1338,7 @@ class TestDeleteMyAccount:
         mock_delete.return_value = users_schema.UserDeletionStatus(status="queued")
         response = profile_client.post(
             PREFIX + "/delete-account",
-            json={"current_password": "secret-password", "mfa_code": "123456"},
+            json={"step_up": {"current_password": "secret-password", "mfa_code": "123456"}},
         )
 
         assert response.status_code == 202
@@ -1358,7 +1358,9 @@ class TestDeleteMyAccount:
     def test_the_only_administrator_is_refused(self, mock_delete, profile_client, mock_auth_services):
         mock_delete.side_effect = core_exceptions.ConflictError("The only administrator cannot be deleted")
 
-        response = profile_client.post(PREFIX + "/delete-account", json={"current_password": "secret-password"})
+        response = profile_client.post(
+            PREFIX + "/delete-account", json={"step_up": {"current_password": "secret-password"}}
+        )
 
         assert response.status_code == 409
 
@@ -1366,7 +1368,7 @@ class TestDeleteMyAccount:
     def test_step_up_failure_is_returned(self, mock_delete, profile_client):
         mock_delete.side_effect = HTTPException(status_code=401, detail="Invalid credentials")
 
-        response = profile_client.post(PREFIX + "/delete-account", json={"current_password": "wrong"})
+        response = profile_client.post(PREFIX + "/delete-account", json={"step_up": {"current_password": "wrong"}})
 
         assert response.status_code == 401
 

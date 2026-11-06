@@ -45,7 +45,7 @@ def verify_step_up(
 
 def change_own_password(
     user_id: int,
-    current_password: str,
+    current_password: str | None,
     new_password: str,
     mfa_code: str | None,
     step_up_store: step_up_store_module.StepUpStore,

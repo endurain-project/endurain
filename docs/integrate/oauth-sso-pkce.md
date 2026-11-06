@@ -36,7 +36,7 @@ The callback always ends in a redirect, never a JSON error, once its state is ac
 Users can link their Endurain account to an OAuth provider:
 
 1. User must be authenticated with a valid session
-2. Start the link with `POST /profile/identity-providers/{idp_id}/link`. Local-password accounts must include `current_password`; accounts without one must include `idp_reauth` ([step-up](account-security.md#step-up-for-accounts-without-a-password)); accounts with MFA enabled must also include `mfa_code`. An optional `redirect` is the relative frontend path to return to. The response carries `authorization_url` and sets the `endurain_idp_binding` cookie that binds the link to this browser, so send the request with credentials.
+2. Start the link with `POST /profile/identity-providers/{idp_id}/link`. The body carries a `step_up` object: local-password accounts must include `step_up.current_password`; accounts without one must include `step_up.idp_reauth` ([step-up](account-security.md#step-up-for-accounts-without-a-password)); accounts with MFA enabled must also include `step_up.mfa_code`. An optional `redirect` is the relative frontend path to return to. The response carries `authorization_url` and sets the `endurain_idp_binding` cookie that binds the link to this browser, so send the request with credentials.
 3. Navigate the browser to `authorization_url`
 4. Authenticate with the identity provider
 5. Provider is linked to the existing account

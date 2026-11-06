@@ -44,7 +44,7 @@ def start_idp_link(
 
     Args:
         idp_id: The identity provider to link.
-        link: Step-up credentials and the frontend return path.
+        link: The frontend return path and the step-up verification.
         client_ip: Address of the client.
         token_user_id: The authenticated user's ID.
         session_id: The caller's session.
@@ -74,11 +74,11 @@ def start_idp_link(
 
     step_up_service.verify_step_up_credentials(
         token_user_id,
-        link.current_password,
-        link.mfa_code,
+        link.step_up.current_password,
+        link.step_up.mfa_code,
         step_up_store,
         db,
-        idp_reauth=link.idp_reauth,
+        idp_reauth=link.step_up.idp_reauth,
         session_id=session_id,
         action=identity_providers_constants.StepUpAction.IDP_LINK,
     )

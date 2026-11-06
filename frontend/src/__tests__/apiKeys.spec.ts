@@ -96,8 +96,7 @@ describe('api key service', () => {
         // The start of the chosen day in the viewer's timezone, so the earliest date the picker offers
         // (tomorrow, locally) is always in the future.
         expires_at: new Date(2026, 11, 31).toISOString(),
-        current_password: 'pw',
-        mfa_code: '123456',
+        step_up: { current_password: 'pw', mfa_code: '123456' },
       }),
     })
   })

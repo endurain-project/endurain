@@ -23,26 +23,14 @@ class UserApiKeyCreate(BaseModel):
 
     API-key creation is a sensitive, persistent grant of
     account access — it must be gated by step-up
-    verification. The caller MUST supply ``current_password``,
-    and an MFA code when MFA is enabled on the account.
-
-    An account without a local password (it signs in through an
-    identity provider) proves a fresh sign-in with a linked provider
-    instead: ``idp_reauth`` carries the ticket from
-    ``POST /profile/identity-providers/{idp_id}/step-up``.
+    verification, carried in ``step_up``.
 
     Attributes:
         name: User-friendly label for the key.
         scopes: List containing the supported API key scope.
         expires_at: Optional expiration datetime, at most the server's maximum API key lifetime from now. When
             omitted the key expires at that maximum.
-        current_password: Caller's existing password
-            (step-up verification). Required when the account
-            has a local password.
-        mfa_code: TOTP or backup code, required when MFA
-            is enabled on the account.
-        idp_reauth: Proof of a fresh identity-provider sign-in. Required
-            when the account has no local password.
+        step_up: The caller's step-up verification.
     """
 
     name: StrictStr = Field(
@@ -63,16 +51,8 @@ class UserApiKeyCreate(BaseModel):
             "When omitted the key expires at that maximum."
         ),
     )
-    current_password: StrictStr | None = Field(
-        default=None,
-        min_length=1,
-        max_length=250,
-        description=("Current password (step-up verification). Required when the account has a local password."),
-    )
-    mfa_code: StrictStr | None = Field(
-        default=None,
-        max_length=32,
-        description="TOTP or backup code, required when MFA is enabled",
+    step_up: auth_schema.StepUpVerification = Field(
+        ..., description="Step-up verification, required to create an API key"
     )
 
     @field_validator("scopes")
@@ -117,11 +97,6 @@ class UserApiKeyCreate(BaseModel):
         if expires_at <= datetime.now(UTC):
             raise ValueError("expires_at must be in the future")
         return expires_at
-
-    idp_reauth: auth_schema.IdpReauthProof | None = Field(
-        default=None,
-        description="Fresh identity-provider sign-in, required when the account has no local password",
-    )
 
     model_config = ConfigDict(from_attributes=True, extra="forbid")
 

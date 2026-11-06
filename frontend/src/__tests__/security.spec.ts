@@ -103,10 +103,9 @@ describe('security service requests', () => {
     expect(apiFetch).toHaveBeenCalledWith('/profile/password/change', {
       method: 'POST',
       body: JSON.stringify({
-        current_password: 'old',
         password: 'new',
-        mfa_code: '123456',
         revoke_other_sessions: true,
+        step_up: { current_password: 'old', mfa_code: '123456' },
       }),
       responseType: 'void',
     })
@@ -140,7 +139,10 @@ describe('security service requests', () => {
 
     expect(apiFetch).toHaveBeenCalledWith('/profile/mfa/enable', {
       method: 'POST',
-      body: JSON.stringify({ mfa_code: '123456', current_password: 'pw' }),
+      body: JSON.stringify({
+        mfa_code: '123456',
+        step_up: { current_password: 'pw', mfa_code: null },
+      }),
     })
     expect(codes).toEqual(['a', 'b'])
   })
@@ -152,7 +154,7 @@ describe('security service requests', () => {
 
     expect(apiFetch).toHaveBeenCalledWith('/profile/mfa/disable', {
       method: 'POST',
-      body: JSON.stringify({ mfa_code: '123456', current_password: 'pw' }),
+      body: JSON.stringify({ step_up: { current_password: 'pw', mfa_code: '123456' } }),
       responseType: 'void',
     })
   })
@@ -181,7 +183,7 @@ describe('security service requests', () => {
 
     expect(apiFetch).toHaveBeenCalledWith('/profile/mfa/backup-codes', {
       method: 'POST',
-      body: JSON.stringify({ current_password: 'pw', mfa_code: '123456' }),
+      body: JSON.stringify({ step_up: { current_password: 'pw', mfa_code: '123456' } }),
     })
     expect(result).toEqual({ codes: ['x'], createdAt: '2026-01-01' })
   })
@@ -244,7 +246,7 @@ describe('deleteAccount', () => {
 
     expect(apiFetch).toHaveBeenCalledWith('/profile/delete-account', {
       method: 'POST',
-      body: JSON.stringify({ current_password: 'pw', mfa_code: '123456' }),
+      body: JSON.stringify({ step_up: { current_password: 'pw', mfa_code: '123456' } }),
       responseType: 'void',
     })
   })
@@ -256,7 +258,9 @@ describe('deleteAccount', () => {
 
     expect(apiFetch).toHaveBeenCalledWith(
       '/profile/delete-account',
-      expect.objectContaining({ body: JSON.stringify({ current_password: null, mfa_code: null }) }),
+      expect.objectContaining({
+        body: JSON.stringify({ step_up: { current_password: null, mfa_code: null } }),
+      }),
     )
   })
 })
@@ -279,9 +283,11 @@ describe('identity-provider re-authentication', () => {
       '/profile/delete-account',
       expect.objectContaining({
         body: JSON.stringify({
-          current_password: null,
-          mfa_code: null,
-          idp_reauth: { ticket: 't', code_verifier: 'v' },
+          step_up: {
+            current_password: null,
+            mfa_code: null,
+            idp_reauth: { ticket: 't', code_verifier: 'v' },
+          },
         }),
       }),
     )
@@ -306,9 +312,8 @@ describe('changeEmail', () => {
       method: 'POST',
       body: JSON.stringify({
         email: 'new@example.com',
-        current_password: 'pw',
-        mfa_code: '123456',
         revoke_other_sessions: true,
+        step_up: { current_password: 'pw', mfa_code: '123456' },
       }),
     })
     expect(pending).toBe(true)

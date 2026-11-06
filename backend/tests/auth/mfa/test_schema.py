@@ -57,48 +57,29 @@ class TestMFARequest:
         assert mfa_schema.MFARequest.model_config.get("validate_assignment") is True
 
 
-class TestMFADisableRequest:
-    """Test suite for MFADisableRequest schema."""
-
-    def test_valid_with_code_only(self):
-        data = mfa_schema.MFADisableRequest(mfa_code="123456")
-        assert data.mfa_code == "123456"
-        assert data.current_password is None
-
-    def test_valid_with_code_and_password(self):
-        data = mfa_schema.MFADisableRequest(mfa_code="123456", current_password="mypassword")
-        assert data.current_password == "mypassword"
-
-    def test_inherits_mfa_code_validation(self):
-        with pytest.raises(ValidationError):
-            mfa_schema.MFADisableRequest(mfa_code="123")
-
-    def test_empty_password_rejected(self):
-        with pytest.raises(ValidationError):
-            mfa_schema.MFADisableRequest(mfa_code="123456", current_password="")
-
-    def test_has_extra_forbid_config(self):
-        assert mfa_schema.MFADisableRequest.model_config.get("extra") == "forbid"
-
-    def test_has_validate_assignment_config(self):
-        assert mfa_schema.MFADisableRequest.model_config.get("validate_assignment") is True
-
-
 class TestMFASetupRequest:
     """Test suite for MFASetupRequest schema."""
 
-    def test_valid_with_code_only(self):
-        data = mfa_schema.MFASetupRequest(mfa_code="123456")
+    def test_valid_with_code_and_empty_step_up(self):
+        data = mfa_schema.MFASetupRequest(mfa_code="123456", step_up={})
         assert data.mfa_code == "123456"
-        assert data.current_password is None
+        assert data.step_up.current_password is None
 
     def test_valid_with_code_and_password(self):
-        data = mfa_schema.MFASetupRequest(mfa_code="654321", current_password="mypassword")
-        assert data.current_password == "mypassword"
+        data = mfa_schema.MFASetupRequest(mfa_code="654321", step_up={"current_password": "mypassword"})
+        assert data.step_up.current_password == "mypassword"
+
+    def test_step_up_is_required(self):
+        with pytest.raises(ValidationError):
+            mfa_schema.MFASetupRequest(mfa_code="123456")
+
+    def test_flat_current_password_rejected(self):
+        with pytest.raises(ValidationError):
+            mfa_schema.MFASetupRequest(mfa_code="123456", step_up={}, current_password="mypassword")
 
     def test_rejects_non_digit_code(self):
         with pytest.raises(ValidationError):
-            mfa_schema.MFASetupRequest(mfa_code="ABCDEF")
+            mfa_schema.MFASetupRequest(mfa_code="ABCDEF", step_up={})
 
     def test_rejects_non_ascii_digits(self):
         with pytest.raises(ValidationError):
@@ -106,11 +87,11 @@ class TestMFASetupRequest:
 
     def test_rejects_code_shorter_than_6(self):
         with pytest.raises(ValidationError):
-            mfa_schema.MFASetupRequest(mfa_code="12345")
+            mfa_schema.MFASetupRequest(mfa_code="12345", step_up={})
 
     def test_rejects_code_longer_than_6(self):
         with pytest.raises(ValidationError):
-            mfa_schema.MFASetupRequest(mfa_code="1234567")
+            mfa_schema.MFASetupRequest(mfa_code="1234567", step_up={})
 
     def test_code_field_has_min_length_6(self):
         json_schema = mfa_schema.MFASetupRequest.model_json_schema()
@@ -126,7 +107,7 @@ class TestMFASetupRequest:
 
     def test_empty_password_rejected(self):
         with pytest.raises(ValidationError):
-            mfa_schema.MFASetupRequest(mfa_code="123456", current_password="")
+            mfa_schema.MFASetupRequest(mfa_code="123456", step_up={"current_password": ""})
 
     def test_has_extra_forbid_config(self):
         assert mfa_schema.MFASetupRequest.model_config.get("extra") == "forbid"

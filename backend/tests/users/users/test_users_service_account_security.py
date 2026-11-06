@@ -15,7 +15,7 @@ _ACTION = identity_providers_constants.StepUpAction
 
 
 def _password() -> users_schema.UserAdminEditPassword:
-    return users_schema.UserAdminEditPassword(password="new-password-1", current_password="admin-password")
+    return users_schema.UserAdminEditPassword(password="new-password-1", step_up={"current_password": "admin-password"})
 
 
 def _failing_step_up(account_security):
@@ -36,7 +36,7 @@ class TestAdministratorPasswordChange:
 
         assert [call[0] for call in order.mock_calls] == ["step_up", "change", "commit"]
         account_security.verify_step_up.assert_called_once_with(
-            attributes, 9, "sid-9", _ACTION.ADMIN_CREDENTIAL_RESET, store, mock_db
+            attributes.step_up, 9, "sid-9", _ACTION.ADMIN_CREDENTIAL_RESET, store, mock_db
         )
         account_security.change_managed_user_password.assert_called_once_with(4, "new-password-1", mock_db)
 

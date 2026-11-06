@@ -118,9 +118,7 @@ class TestPrivacyUpdate:
 
 class TestEmailChangeRequest:
     def _change(self, mock_db, email, *, queued=True, revoke=False, current="user7@example.com"):
-        change = users_schema.EmailChange(
-            email=email, current_password="pw", mfa_code=None, revoke_other_sessions=revoke
-        )
+        change = users_schema.EmailChange(email=email, step_up={"current_password": "pw"}, revoke_other_sessions=revoke)
         with (
             patch(f"{_SERVICE}.account_security_integration"),
             patch(f"{_SERVICE}.users_integration") as users,

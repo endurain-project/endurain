@@ -3,6 +3,7 @@ import type {
   LinkedProvider,
   LinkedProviderDto,
   StepUpInput,
+  StepUpRequestDto,
   StepUpStartResultDto,
 } from '@/features/security/types'
 
@@ -67,7 +68,10 @@ export async function startProviderLink(
   input: StepUpInput,
   returnPath = '/settings/security',
 ): Promise<string> {
-  const payload: IdentityProviderLinkStartDto = { ...toStepUpWire(input), redirect: returnPath }
+  const payload: IdentityProviderLinkStartDto = {
+    redirect: returnPath,
+    step_up: toStepUpWire(input),
+  }
   const dto = await apiFetch<StepUpStartResultDto>(`/profile/identity-providers/${idpId}/link`, {
     method: 'POST',
     body: JSON.stringify(payload),
@@ -87,7 +91,7 @@ export async function startProviderLink(
 export async function unlinkProvider(idpId: number, input: StepUpInput): Promise<void> {
   await apiFetch(`/profile/identity-providers/${idpId}/unlink`, {
     method: 'POST',
-    body: JSON.stringify(toStepUpWire(input)),
+    body: JSON.stringify({ step_up: toStepUpWire(input) } satisfies StepUpRequestDto),
     responseType: 'void',
   })
 }

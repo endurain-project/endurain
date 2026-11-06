@@ -43,7 +43,9 @@ def test_mfa_setup_is_no_store(mfa_client):
 def test_mfa_enable_is_no_store(mfa_client):
     read = mfa_schema.MFAEnableRead(message="ok", backup_codes=["a"])
     with patch(f"{_WORKFLOW}.enable_mfa", return_value=read):
-        response = mfa_client.post("/profile/mfa/enable", json={"mfa_code": "123456", "current_password": "x"})
+        response = mfa_client.post(
+            "/profile/mfa/enable", json={"mfa_code": "123456", "step_up": {"current_password": "x"}}
+        )
 
     assert response.status_code == 200, response.text
     _assert_no_store(response)
@@ -54,7 +56,7 @@ def test_mfa_backup_codes_is_no_store(mfa_client):
 
     read = mfa_backup_codes_schema.MFABackupCodesRead(codes=["a"], created_at=datetime.now(UTC))
     with patch(f"{_WORKFLOW}.generate_backup_codes", return_value=read):
-        response = mfa_client.post("/profile/mfa/backup-codes", json={"current_password": "x"})
+        response = mfa_client.post("/profile/mfa/backup-codes", json={"step_up": {"current_password": "x"}})
 
     assert response.status_code == 201, response.text
     _assert_no_store(response)

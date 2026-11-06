@@ -18,7 +18,9 @@ class TestEditUserPassword:
         """
         user_id = 42
         new_password = "new-secure-password"
-        user_attributes = users_schema.UserAdminEditPassword(password=new_password, current_password="admin-password")
+        user_attributes = users_schema.UserAdminEditPassword(
+            password=new_password, step_up={"current_password": "admin-password"}
+        )
         db = MagicMock()
 
         with (

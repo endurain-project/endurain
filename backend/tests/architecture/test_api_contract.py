@@ -377,6 +377,25 @@ class TestApiContract:
 
         _compare("A request body accepts a server-owned field", found, {}, "Drop the field")
 
+    def test_step_up_credentials_travel_in_one_object(self):
+        """No schema but ``StepUpVerification`` has a ``current_password`` or ``idp_reauth`` property.
+
+        A request that needs a step-up nests it in a ``step_up`` object, so a client builds it one way.
+        """
+        found = {
+            f"{name}: {field}"
+            for name, schema in _schemas().items()
+            if name != "StepUpVerification"
+            for field in ("current_password", "idp_reauth")
+            if field in schema.get("properties", {})
+        }
+        _compare(
+            "A schema carries step-up credentials outside StepUpVerification",
+            found,
+            {},
+            "Nest them in a step_up object",
+        )
+
     def test_request_datetimes_require_an_offset(self):
         """A datetime field of a request body model is ``pydantic.AwareDatetime`` or otherwise rejects a naive value.
 

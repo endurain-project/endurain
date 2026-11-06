@@ -139,7 +139,9 @@ class TestEnableMfa:
     """enable_mfa enforces step-up, consumes pending secret, owns cleanup."""
 
     def _request(self) -> mfa_schema.MFASetupRequest:
-        return mfa_schema.MFASetupRequest(mfa_code="123456", current_password="old-pass")
+        return mfa_schema.MFASetupRequest(
+            mfa_code="123456", step_up=auth_schema.StepUpVerification(current_password="old-pass")
+        )
 
     def test_happy_path_enables_and_clears_pending_secret(self, mock_db, step_up_store, mfa_secret_store):
         mfa_secret_store.get_secret.return_value = "pending-secret"
@@ -308,8 +310,8 @@ class TestEnableMfa:
 class TestDisableMfa:
     """disable_mfa requires step-up (password + MFA code)."""
 
-    def _request(self) -> mfa_schema.MFADisableRequest:
-        return mfa_schema.MFADisableRequest(mfa_code="123456", current_password="old-pass")
+    def _request(self) -> auth_schema.StepUpVerification:
+        return auth_schema.StepUpVerification(mfa_code="123456", current_password="old-pass")
 
     def test_happy_path_disables_after_step_up(self, mock_db, step_up_store):
         with (

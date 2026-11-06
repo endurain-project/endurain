@@ -16,6 +16,7 @@ class TestUsersApiKeyCreate:
     def test_create_valid_minimal(self):
         """Test valid key creation with required fields only."""
         data = users_api_keys_schema.UserApiKeyCreate(
+            step_up={"current_password": "pw"},
             name="FitoTrack",
             scopes=["activities:upload"],
         )
@@ -27,6 +28,7 @@ class TestUsersApiKeyCreate:
         """Test valid key creation with an expiration date."""
         expires = datetime.now(UTC) + timedelta(days=30)
         data = users_api_keys_schema.UserApiKeyCreate(
+            step_up={"current_password": "pw"},
             name="Expiring Key",
             scopes=["activities:upload"],
             expires_at=expires,
@@ -37,6 +39,7 @@ class TestUsersApiKeyCreate:
         """Test that an empty name fails validation (min_length=1)."""
         with pytest.raises(ValidationError):
             users_api_keys_schema.UserApiKeyCreate(
+                step_up={"current_password": "pw"},
                 name="",
                 scopes=["activities:upload"],
             )
@@ -45,6 +48,7 @@ class TestUsersApiKeyCreate:
         """Test that a name exceeding 100 characters fails validation."""
         with pytest.raises(ValidationError):
             users_api_keys_schema.UserApiKeyCreate(
+                step_up={"current_password": "pw"},
                 name="x" * 101,
                 scopes=["activities:upload"],
             )
@@ -52,6 +56,7 @@ class TestUsersApiKeyCreate:
     def test_create_name_exactly_100_chars(self):
         """Test that a name of exactly 100 characters is valid."""
         data = users_api_keys_schema.UserApiKeyCreate(
+            step_up={"current_password": "pw"},
             name="x" * 100,
             scopes=["activities:upload"],
         )
@@ -61,6 +66,7 @@ class TestUsersApiKeyCreate:
         """Test that an empty scopes list fails validation (min_length=1)."""
         with pytest.raises(ValidationError):
             users_api_keys_schema.UserApiKeyCreate(
+                step_up={"current_password": "pw"},
                 name="Test Key",
                 scopes=[],
             )
@@ -69,6 +75,7 @@ class TestUsersApiKeyCreate:
         """Test that an unsupported scope string raises a ValueError."""
         with pytest.raises(ValidationError) as exc_info:
             users_api_keys_schema.UserApiKeyCreate(
+                step_up={"current_password": "pw"},
                 name="Test Key",
                 scopes=["totally:invalid_scope"],
             )
@@ -78,6 +85,7 @@ class TestUsersApiKeyCreate:
         """Test that JWT-only scopes are rejected for API keys."""
         with pytest.raises(ValidationError) as exc_info:
             users_api_keys_schema.UserApiKeyCreate(
+                step_up={"current_password": "pw"},
                 name="Profile Key",
                 scopes=["profile"],
             )
@@ -87,6 +95,7 @@ class TestUsersApiKeyCreate:
         """Test that only activities:upload is accepted for API keys."""
         with pytest.raises(ValidationError) as exc_info:
             users_api_keys_schema.UserApiKeyCreate(
+                step_up={"current_password": "pw"},
                 name="Multi-scope Key",
                 scopes=["activities:read", "activities:upload", "gears:read"],
             )
@@ -96,6 +105,7 @@ class TestUsersApiKeyCreate:
         """Test that a mix of valid and invalid scopes fails validation."""
         with pytest.raises(ValidationError):
             users_api_keys_schema.UserApiKeyCreate(
+                step_up={"current_password": "pw"},
                 name="Mixed Key",
                 scopes=["activities:upload", "fake:scope"],
             )
@@ -103,7 +113,9 @@ class TestUsersApiKeyCreate:
     def test_create_unsupported_scope_message_names_scopes_without_set_repr(self):
         """The error lists the scope names, not the Python repr of a set."""
         with pytest.raises(ValidationError) as exc_info:
-            users_api_keys_schema.UserApiKeyCreate(name="Test Key", scopes=["bogus:scope"])
+            users_api_keys_schema.UserApiKeyCreate(
+                step_up={"current_password": "pw"}, name="Test Key", scopes=["bogus:scope"]
+            )
         message = str(exc_info.value)
         assert "bogus:scope" in message
         assert "activities:upload" in message
@@ -113,6 +125,7 @@ class TestUsersApiKeyCreate:
         """An expiry that has already passed is refused."""
         with pytest.raises(ValidationError, match="expires_at"):
             users_api_keys_schema.UserApiKeyCreate(
+                step_up={"current_password": "pw"},
                 name="Test Key",
                 scopes=["activities:upload"],
                 expires_at=datetime.now(UTC) - timedelta(days=1),
@@ -122,7 +135,9 @@ class TestUsersApiKeyCreate:
         """An expiry without a UTC offset is refused."""
         expires = datetime.now(UTC).replace(tzinfo=None) + timedelta(days=1)
         with pytest.raises(ValidationError, match="expires_at"):
-            users_api_keys_schema.UserApiKeyCreate(name="Test Key", scopes=["activities:upload"], expires_at=expires)
+            users_api_keys_schema.UserApiKeyCreate(
+                step_up={"current_password": "pw"}, name="Test Key", scopes=["activities:upload"], expires_at=expires
+            )
 
     def test_create_date_only_expiry_is_refused(self):
         """A bare date has no offset, so it is refused."""
@@ -135,7 +150,9 @@ class TestUsersApiKeyCreate:
     def test_create_future_offset_expiry_is_stored_in_utc(self):
         """An expiry with an offset is accepted and kept in UTC."""
         expires = (datetime.now(UTC) + timedelta(days=1)).astimezone(timezone(timedelta(hours=2)))
-        data = users_api_keys_schema.UserApiKeyCreate(name="Test Key", scopes=["activities:upload"], expires_at=expires)
+        data = users_api_keys_schema.UserApiKeyCreate(
+            step_up={"current_password": "pw"}, name="Test Key", scopes=["activities:upload"], expires_at=expires
+        )
         assert data.expires_at == expires
         assert data.expires_at is not None
         assert data.expires_at.utcoffset() == timedelta(0)

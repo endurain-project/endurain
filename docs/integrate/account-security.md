@@ -35,7 +35,7 @@ The routes of this page that change the account's credentials or close it need t
 
 ### Step-up Request Body
 
-All step-up operations accept the following fields in their JSON request body (alongside any operation-specific fields):
+Every step-up operation takes the credentials in a `step_up` object of its JSON request body, next to any operation-specific fields. A request that needs nothing else is `{ "step_up": { ... } }`. No other field of a request carries `current_password` or `idp_reauth`. The `step_up` object has these fields:
 
 | Field | Required | Description |
 | ----- | -------- | ----------- |
@@ -47,12 +47,14 @@ All step-up operations accept the following fields in their JSON request body (a
 
 ```json
 {
-  "current_password": "current-password",
-  "mfa_code": "123456"
+  "step_up": {
+    "current_password": "current-password",
+    "mfa_code": "123456"
+  }
 }
 ```
 
-Account deletion and email change use the same fields. Password change (`POST /profile/password/change`) needs a local password and is answered `403` for an account without one; an administrator sets the first password through `POST /users/{user_id}/password/change`, which refuses the administrator's own account and takes the administrator's step-up fields next to `password`.
+Account deletion, profile export, identity provider unlink and backup-code regeneration send exactly this body. The other operations add their own fields next to `step_up`: `password` and `revoke_other_sessions` for the password change, `email` and `revoke_other_sessions` for the email change, `mfa_code` (the code of the authenticator being enrolled) for MFA enable, `redirect` for an identity provider link, and `name`, `scopes` and `expires_at` for an API key. MFA disable sends the code in `step_up.mfa_code`. Password change (`POST /profile/password/change`) needs a local password and is answered `403` for an account without one; an administrator sets the first password through `POST /users/{user_id}/password/change`, which refuses the administrator's own account and takes the administrator's `step_up` next to `password`.
 
 ### Step-up Refusal
 
@@ -80,12 +82,14 @@ An account without a local password cannot prove a password, and MFA alone does 
 
     ```json
     {
-      "idp_reauth": { "ticket": "<ticket>", "code_verifier": "<PKCE verifier>" },
-      "mfa_code": "123456"
+      "step_up": {
+        "idp_reauth": { "ticket": "<ticket>", "code_verifier": "<PKCE verifier>" },
+        "mfa_code": "123456"
+      }
     }
     ```
 
-    `mfa_code` is also required when MFA is enabled. The ticket is single use, valid for 300 seconds, and bound to the user, the session, the action and the PKCE verifier. A wrong MFA code does not consume it.
+    `step_up.mfa_code` is also required when MFA is enabled. The ticket is single use, valid for 300 seconds, and bound to the user, the session, the action and the PKCE verifier. A wrong MFA code does not consume it.
 
 Native and mobile clients cannot use this flow because the redirect must be a relative path, so they cannot step up an account without a password; the user does it in the web UI. Providers without an issuer URL (OAuth2 only) cannot do step-up. See [Single Sign-On](../features/single-sign-on.md#confirming-sensitive-changes-without-a-password).
 
@@ -282,7 +286,7 @@ Backup codes provide a recovery mechanism when users lose access to their authen
 | What | URL | Method | Description |
 | ---- | --- | ------ | ----------- |
 | **Get Backup Code Status** | `/profile/mfa/backup-codes/status` | GET | Returns count of unused/used codes |
-| **Regenerate Backup Codes** | `/profile/mfa/backup-codes` | POST | Generates new codes (invalidates old). Requires step-up JSON body: `current_password` for local-password accounts, `idp_reauth` for accounts without one, and `mfa_code` when MFA is enabled |
+| **Regenerate Backup Codes** | `/profile/mfa/backup-codes` | POST | Generates new codes (invalidates old). Requires a step-up JSON body, `{"step_up": {...}}`: `current_password` for local-password accounts, `idp_reauth` for accounts without one, and `mfa_code` when MFA is enabled |
 
 ### Regenerate Backup Codes Request
 
@@ -294,12 +298,14 @@ X-CSRF-Token: {csrf_token}
 Content-Type: application/json
 
 {
-  "current_password": "current-password",
-  "mfa_code": "123456"
+  "step_up": {
+    "current_password": "current-password",
+    "mfa_code": "123456"
+  }
 }
 ```
 
-Accounts without a local password send `idp_reauth` instead of `current_password`. If MFA is enabled, `mfa_code` is required.
+Accounts without a local password send `step_up.idp_reauth` instead of `step_up.current_password`. If MFA is enabled, `step_up.mfa_code` is required.
 
 ### Backup Code Status Response
 

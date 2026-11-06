@@ -1,4 +1,4 @@
-import type { StepUpInput } from '@/features/security/types'
+import type { StepUpInput, StepUpRequestDto } from '@/features/security/types'
 import type { UserIdentityProvider, UserIdentityProviderDto } from '@/features/users/types'
 
 import { apiFetch } from '@/services/http'
@@ -63,7 +63,7 @@ export async function unlinkUserIdentityProvider(
 ): Promise<void> {
   await apiFetch<void>(`/users/${userId}/identity-providers/${idpId}/unlink`, {
     method: 'POST',
-    body: JSON.stringify(toStepUpWire(stepUp)),
+    body: JSON.stringify({ step_up: toStepUpWire(stepUp) } satisfies StepUpRequestDto),
     responseType: 'void',
   })
 }

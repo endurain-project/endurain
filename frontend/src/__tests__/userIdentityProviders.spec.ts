@@ -83,9 +83,11 @@ describe('user identity providers service', () => {
     expect(apiFetch).toHaveBeenCalledWith('/users/7/identity-providers/11/unlink', {
       method: 'POST',
       body: JSON.stringify({
-        current_password: null,
-        mfa_code: null,
-        idp_reauth: { ticket: 't1', code_verifier: 'v1' },
+        step_up: {
+          current_password: null,
+          mfa_code: null,
+          idp_reauth: { ticket: 't1', code_verifier: 'v1' },
+        },
       }),
       responseType: 'void',
     })

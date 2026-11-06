@@ -56,42 +56,6 @@ class MFARequest(BaseModel):
         raise ValueError("MFA code must be 6-digit TOTP or XXXX-XXXX")
 
 
-class MFADisableRequest(MFARequest):
-    """Request model for MFA disable verification.
-
-    Disabling MFA is a sensitive, security-reducing operation
-    and must be gated by step-up verification: the caller has to
-    re-prove possession of the current password in addition to a
-    valid MFA code. The password length bounds match the other
-    step-up schemas (see ``UserEditPassword``) — they validate
-    the supplied input only and do not impose a policy on the
-    stored password.
-
-    An account without a local password (it signs in through an
-    identity provider) proves a fresh sign-in with a linked provider
-    instead: ``idp_reauth`` carries the ticket from
-    ``POST /profile/identity-providers/{idp_id}/step-up``.
-
-    Attributes:
-        current_password: Caller's existing password (step-up
-            verification). Required when the account has a local
-            password.
-        idp_reauth: Proof of a fresh identity-provider sign-in. Required
-            when the account has no local password.
-    """
-
-    current_password: StrictStr | None = Field(
-        default=None,
-        min_length=1,
-        max_length=250,
-        description=("Current password (step-up verification). Required when the account has a local password."),
-    )
-    idp_reauth: auth_schema.IdpReauthProof | None = Field(
-        default=None,
-        description="Fresh identity-provider sign-in, required when the account has no local password",
-    )
-
-
 class MFASetupRequest(BaseModel):
     """Request model for MFA setup verification.
 
@@ -100,24 +64,14 @@ class MFASetupRequest(BaseModel):
     backup codes. A stolen access token alone must not be enough
     to complete this binding (otherwise the attacker enrols their
     own authenticator and locks the legitimate user out), so the
-    request is gated by step-up verification: the caller must
-    re-prove their current password in addition to the freshly
-    enrolled TOTP code.
-
-    An account without a local password (it signs in through an
-    identity provider) proves a fresh sign-in with a linked provider
-    instead: ``idp_reauth`` carries the ticket from
-    ``POST /profile/identity-providers/{idp_id}/step-up``.
+    request is gated by step-up verification, carried in ``step_up``,
+    in addition to the freshly enrolled TOTP code.
 
     Attributes:
         mfa_code: The 6-digit TOTP code generated from the secret
             returned by the setup endpoint, used to confirm the
             authenticator app is correctly enrolled.
-        current_password: Caller's existing password (step-up
-            verification). Required when the account has a local
-            password.
-        idp_reauth: Proof of a fresh identity-provider sign-in. Required
-            when the account has no local password.
+        step_up: The caller's step-up verification.
     """
 
     mfa_code: StrictStr = Field(
@@ -127,17 +81,7 @@ class MFASetupRequest(BaseModel):
         pattern=r"^[0-9]{6}$",
         description="6-digit TOTP code",
     )
-    current_password: StrictStr | None = Field(
-        default=None,
-        min_length=1,
-        max_length=250,
-        description=("Current password (step-up verification). Required when the account has a local password."),
-    )
-
-    idp_reauth: auth_schema.IdpReauthProof | None = Field(
-        default=None,
-        description="Fresh identity-provider sign-in, required when the account has no local password",
-    )
+    step_up: auth_schema.StepUpVerification = Field(..., description="Step-up verification, required to enable MFA")
 
     model_config = ConfigDict(
         extra="forbid",

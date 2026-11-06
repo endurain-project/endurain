@@ -1203,7 +1203,7 @@ def change_user_password(
     """
     require_other_user(user_id, actor_id, "change your password")
     account_security_integration.verify_step_up(
-        attributes,
+        attributes.step_up,
         actor_id,
         session_id,
         identity_providers_constants.StepUpAction.ADMIN_CREDENTIAL_RESET,

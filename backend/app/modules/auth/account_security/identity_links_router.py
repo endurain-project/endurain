@@ -39,14 +39,14 @@ def start_idp_link(
 ) -> identity_providers_schema.BrowserFlowStartRead:
     """Start linking an identity provider to the authenticated user's account.
 
-    Linking enables persistent sign-in, so it needs step-up verification: ``current_password`` (or, for an
+    Linking enables persistent sign-in, so it needs step-up verification in ``step_up``: ``current_password`` (or, for an
     account without one, ``idp_reauth``), and an MFA code when MFA is enabled. The browser then follows
     ``authorization_url``, signs in at the provider, and the callback returns to ``redirect``. The response
     sets a cookie that binds the link to this browser.
 
     Args:
         idp_id: The identity provider to link.
-        link: Step-up credentials and the frontend return path.
+        link: The frontend return path and the step-up verification.
         request: The incoming request, read by the rate limiter and for the client address.
         response: The response, which receives the browser-binding cookie.
         token_user_id: User ID from access token.
@@ -158,7 +158,7 @@ def get_my_identity_providers(
 @core_rate_limit.limiter.limit(core_rate_limit.SENSITIVE)
 def delete_my_identity_provider(
     idp_id: core_dependencies.PositiveId,
-    step_up: auth_schema.StepUpVerification,
+    body: auth_schema.StepUpRequest,
     request: Request,
     token_user_id: auth_dependencies.CurrentUserId,
     token_session_id: auth_dependencies.CurrentSessionId,
@@ -180,7 +180,7 @@ def delete_my_identity_provider(
 
     Args:
         idp_id (int): The ID of the identity provider to unlink.
-        step_up (StepUpVerification): Step-up verification payload.
+        body (StepUpRequest): The step-up verification.
         request (Request): The FastAPI request object.
         token_user_id (int): User ID extracted from the access token.
         token_session_id: Session ID from access token.
@@ -207,6 +207,6 @@ def delete_my_identity_provider(
           unlink their own IdPs.
     """
     identity_link_service.delete_identity_provider_link(
-        idp_id, step_up, token_user_id, token_session_id, step_up_store, db
+        idp_id, body.step_up, token_user_id, token_session_id, step_up_store, db
     )
     return None

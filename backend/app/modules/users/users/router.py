@@ -390,7 +390,7 @@ def delete_user(
     request: Request,
     response: Response,
     user_id: core_dependencies.PositiveId,
-    step_up: auth_schema.StepUpVerification,
+    body: auth_schema.StepUpRequest,
     token_user_id: auth_dependencies.CurrentUserId,
     token_session_id: auth_dependencies.CurrentSessionId,
     step_up_store: Annotated[
@@ -413,7 +413,7 @@ def delete_user(
         request: The incoming request, read by the rate limiter.
         response: The response, which names the status route and when to poll it.
         user_id: ID of user to delete.
-        step_up: The administrator's step-up verification.
+        body: The administrator's step-up verification.
         token_user_id: ID of the administrator making the request.
         token_session_id: Session ID of the administrator.
         step_up_store: Step-up lockout store.
@@ -432,7 +432,7 @@ def delete_user(
         ConflictError: If the user is the only administrator, or a deletion is already pending.
     """
     deletion = users_deletion_job_service.request_deletion_by_administrator(
-        user_id, token_user_id, token_session_id, step_up, step_up_store, states, storage, db, if_match=if_match
+        user_id, token_user_id, token_session_id, body.step_up, step_up_store, states, storage, db, if_match=if_match
     )
     core_location.set_status_location(
         response,
@@ -508,7 +508,7 @@ def delete_user_identity_provider(
     request: Request,
     user_id: core_dependencies.PositiveId,
     idp_id: core_dependencies.PositiveId,
-    step_up: auth_schema.StepUpVerification,
+    body: auth_schema.StepUpRequest,
     token_user_id: auth_dependencies.CurrentUserId,
     token_session_id: auth_dependencies.CurrentSessionId,
     step_up_store: Annotated[
@@ -526,7 +526,7 @@ def delete_user_identity_provider(
         request: The incoming request, read by the rate limiter.
         user_id: ID of the user to unlink the identity provider from.
         idp_id: ID of the identity provider to unlink.
-        step_up: The administrator's step-up verification.
+        body: The administrator's step-up verification.
         token_user_id: ID of the administrator making the change.
         token_session_id: Session ID of the administrator.
         step_up_store: Step-up lockout store.
@@ -535,4 +535,6 @@ def delete_user_identity_provider(
     Returns:
         None
     """
-    users_service.unlink_identity_provider(user_id, idp_id, token_user_id, token_session_id, step_up, step_up_store, db)
+    users_service.unlink_identity_provider(
+        user_id, idp_id, token_user_id, token_session_id, body.step_up, step_up_store, db
+    )

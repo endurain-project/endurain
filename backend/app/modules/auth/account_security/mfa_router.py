@@ -120,19 +120,18 @@ def enable_mfa(
     new TOTP secret on a victim's account (which would lock the
     legitimate user out and hand the attacker the backup codes).
     The caller therefore has to re-prove identity with their
-    current password before the binding is committed. The TOTP
-    code in the request body is the fresh enrolment code from the
+    current password before the binding is committed. The step-up
+    verification is the ``step_up`` object (see
+    :func:`modules.auth.account_security.step_up_service.verify_step_up_credentials`).
+    The ``mfa_code`` in the request body is the fresh enrolment code from the
     user's authenticator app and is verified separately by
     :func:`modules.auth.mfa.service.enable_user_mfa` against the secret
-    issued by ``POST /profile/mfa/setup``. An account without a local
-    password sends ``idp_reauth`` instead of ``current_password`` (see
-    :func:`modules.auth.account_security.step_up_service.verify_step_up_credentials`).
+    issued by ``POST /profile/mfa/setup``.
 
     Args:
         request: The incoming request, read by the rate limiter.
         response: The response, marked as not cacheable because it carries the backup codes.
-        mfa_request: MFA setup request with TOTP code and (when the
-            account has a local password) current password.
+        mfa_request: MFA setup request with the TOTP code and the step-up verification.
         token_user_id: User ID from access token.
         token_session_id: Session ID from access token.
         mfa_secret_store: Temporary secret storage.
@@ -161,7 +160,7 @@ def enable_mfa(
 @core_rate_limit.limiter.limit(core_rate_limit.SENSITIVE)
 def disable_mfa(
     request: Request,
-    mfa_request: mfa_schema.MFADisableRequest,
+    body: auth_schema.StepUpRequest,
     token_user_id: auth_dependencies.CurrentUserId,
     token_session_id: auth_dependencies.CurrentSessionId,
     step_up_store: Annotated[
@@ -175,7 +174,7 @@ def disable_mfa(
     Disabling MFA materially weakens the account's security
     posture, so a valid access token alone is not sufficient: the
     caller must re-prove identity with both their current
-    password and a fresh MFA code. The MFA code may be either a
+    password and a fresh MFA code, both in ``step_up``. The MFA code may be either a
     6-digit TOTP or an unused ``XXXX-XXXX`` backup code — the
     same set of factors accepted at login. Step-up verification
     is the single source of truth for the MFA check;
@@ -183,8 +182,7 @@ def disable_mfa(
 
     Args:
         request: The incoming request, read by the rate limiter.
-        mfa_request: MFA disable request with current password and
-            MFA code.
+        body: The step-up verification, with the MFA code.
         token_user_id: User ID from access token.
         token_session_id: Session ID from access token.
         step_up_store: Step-up lockout store.
@@ -195,7 +193,7 @@ def disable_mfa(
             the MFA code is invalid; 400 if MFA is not currently
             enabled.
     """
-    mfa_workflow_service.disable_mfa(mfa_request, token_user_id, token_session_id, step_up_store, db)
+    mfa_workflow_service.disable_mfa(body.step_up, token_user_id, token_session_id, step_up_store, db)
 
 
 @router.post(
@@ -240,7 +238,7 @@ def verify_mfa(
 def generate_mfa_backup_codes(
     response: Response,
     request: Request,
-    step_up: auth_schema.StepUpVerification,
+    body: auth_schema.StepUpRequest,
     token_user_id: auth_dependencies.CurrentUserId,
     token_session_id: auth_dependencies.CurrentSessionId,
     step_up_store: Annotated[
@@ -260,7 +258,7 @@ def generate_mfa_backup_codes(
     Args:
         response: The response, marked as not cacheable because it carries the codes.
         request: FastAPI request object for rate limiting.
-        step_up: Step-up verification payload.
+        body: The step-up verification.
         token_user_id: User ID from access token.
         token_session_id: Session ID from access token.
         step_up_store: Step-up lockout store.
@@ -274,4 +272,4 @@ def generate_mfa_backup_codes(
             user not found, 400 if MFA is not enabled.
     """
     core_cache_control.set_no_store(response)
-    return mfa_workflow_service.generate_backup_codes(step_up, token_user_id, token_session_id, step_up_store, db)
+    return mfa_workflow_service.generate_backup_codes(body.step_up, token_user_id, token_session_id, step_up_store, db)

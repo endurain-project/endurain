@@ -37,7 +37,7 @@ def test_the_route_returns_the_url_and_binds_the_browser(client):
         authorization_url="https://idp.example.com/authorize", browser_binding="binding-secret"
     )
     with patch.object(identity_link_service, "start_idp_link", return_value=flow) as start:
-        response = client.post(URL, json={"current_password": "pw", "redirect": "/settings/security"})
+        response = client.post(URL, json={"step_up": {"current_password": "pw"}, "redirect": "/settings/security"})
 
     assert response.status_code == 200
     assert response.json() == {"authorization_url": "https://idp.example.com/authorize"}
@@ -57,7 +57,10 @@ def test_the_old_token_route_and_unauthenticated_get_are_gone(client):
 
 @pytest.mark.parametrize(
     "body",
-    [{"current_password": "pw", "redirect": ""}, {"current_password": "pw", "link_token": "x"}],
+    [
+        {"step_up": {"current_password": "pw"}, "redirect": ""},
+        {"step_up": {"current_password": "pw"}, "link_token": "x"},
+    ],
     ids=["empty-redirect", "unknown-field"],
 )
 def test_a_malformed_request_is_refused(client, body):
@@ -72,6 +75,6 @@ def test_a_refused_start_is_answered_as_a_problem(client):
     with patch.object(
         identity_link_service, "start_idp_link", side_effect=core_exceptions.ConflictError("already linked")
     ):
-        response = client.post(URL, json={"current_password": "pw"})
+        response = client.post(URL, json={"step_up": {"current_password": "pw"}})
 
     assert response.status_code == 409

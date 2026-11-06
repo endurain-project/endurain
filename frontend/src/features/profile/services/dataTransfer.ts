@@ -1,5 +1,5 @@
 import type { ProfileExportStatus, ProfileImportStatus } from '@/features/profile/types'
-import type { StepUpInput } from '@/features/security/types'
+import type { StepUpInput, StepUpRequestDto } from '@/features/security/types'
 
 import { apiFetch } from '@/services/http'
 import { toStepUpWire } from '@/features/security/services/security'
@@ -17,7 +17,7 @@ import { toStepUpWire } from '@/features/security/services/security'
 export function requestProfileExport(input: StepUpInput): Promise<ProfileExportStatus> {
   return apiFetch<ProfileExportStatus>('/profile/export', {
     method: 'POST',
-    body: JSON.stringify(toStepUpWire(input)),
+    body: JSON.stringify({ step_up: toStepUpWire(input) } satisfies StepUpRequestDto),
   })
 }
 

@@ -152,7 +152,9 @@ class TestMfaAudit:
     def test_enable(self, mock_db, published):
         store = MagicMock()
         store.get_secret.return_value = "secret"
-        request = mfa_schema.MFASetupRequest(mfa_code="123456", current_password="pw")
+        request = mfa_schema.MFASetupRequest(
+            mfa_code="123456", step_up=auth_schema.StepUpVerification(current_password="pw")
+        )
         with (
             patch.object(mfa_workflow.step_up_service, "verify_step_up_credentials"),
             patch.object(mfa_workflow.mfa_integration, "enable_user_mfa", return_value=["a"]),
@@ -166,7 +168,7 @@ class TestMfaAudit:
         assert_event(published, Change.MFA_ENABLED)
 
     def test_disable(self, mock_db, published):
-        request = mfa_schema.MFADisableRequest(mfa_code="123456", current_password="pw")
+        request = auth_schema.StepUpVerification(current_password="pw", mfa_code="123456")
         with (
             patch.object(mfa_workflow.step_up_service, "verify_step_up_credentials"),
             patch.object(mfa_workflow.mfa_integration, "disable_user_mfa"),
@@ -197,7 +199,7 @@ class TestMfaAudit:
         assert_event(published, Change.BACKUP_CODES_GENERATED)
 
     def test_a_refused_step_up_writes_nothing(self, mock_db, published):
-        request = mfa_schema.MFADisableRequest(mfa_code="123456", current_password="pw")
+        request = auth_schema.StepUpVerification(current_password="pw", mfa_code="123456")
         with (
             patch.object(
                 mfa_workflow.step_up_service,
@@ -215,7 +217,9 @@ class TestMfaAudit:
 
 class TestApiKeyAudit:
     def test_create(self, mock_db, published):
-        data = api_keys_schema.UserApiKeyCreate(name="k", scopes=["activities:upload"], current_password="pw")
+        data = api_keys_schema.UserApiKeyCreate(
+            name="k", scopes=["activities:upload"], step_up={"current_password": "pw"}
+        )
         created = MagicMock(id="key-1")
         created.model_dump.return_value = {
             "id": "key-1",

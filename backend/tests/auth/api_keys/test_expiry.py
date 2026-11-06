@@ -30,7 +30,9 @@ def policy(session_policy):
 
 
 def _create(expires_at: datetime | None) -> api_keys_schema.UserApiKeyCreate:
-    return api_keys_schema.UserApiKeyCreate(name="CLI", scopes=["activities:upload"], expires_at=expires_at)
+    return api_keys_schema.UserApiKeyCreate(
+        step_up={"current_password": "pw"}, name="CLI", scopes=["activities:upload"], expires_at=expires_at
+    )
 
 
 @pytest.mark.usefixtures("policy")

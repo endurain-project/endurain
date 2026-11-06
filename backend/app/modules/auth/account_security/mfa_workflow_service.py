@@ -141,11 +141,11 @@ def enable_mfa(
 
     step_up_service.verify_step_up_credentials(
         token_user_id,
-        request.current_password,
-        None,
+        request.step_up.current_password,
+        request.step_up.mfa_code,
         step_up_store,
         db,
-        idp_reauth=request.idp_reauth,
+        idp_reauth=request.step_up.idp_reauth,
         session_id=session_id,
         action=identity_providers_constants.StepUpAction.MFA_ENABLE,
     )
@@ -180,7 +180,7 @@ def enable_mfa(
 
 
 def disable_mfa(
-    request: mfa_schema.MFADisableRequest,
+    step_up: auth_schema.StepUpVerification,
     token_user_id: int,
     session_id: str,
     step_up_store: account_security_step_up_store.StepUpStore,
@@ -189,11 +189,11 @@ def disable_mfa(
     """Disable MFA after step-up verification."""
     step_up_service.verify_step_up_credentials(
         token_user_id,
-        request.current_password,
-        request.mfa_code,
+        step_up.current_password,
+        step_up.mfa_code,
         step_up_store,
         db,
-        idp_reauth=request.idp_reauth,
+        idp_reauth=step_up.idp_reauth,
         session_id=session_id,
         action=identity_providers_constants.StepUpAction.MFA_DISABLE,
     )

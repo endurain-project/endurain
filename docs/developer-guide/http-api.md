@@ -111,6 +111,8 @@ These rules are for new fields and parameters; existing names are not renamed to
 - A request schema never accepts a field the server owns: `id`, `user_id`, `version`, `created_at`, `updated_at`,
   `source` or a provider id (`strava_*_id`, `garminconnect_*_id`) **(test)**. The resource comes from the path, the
   owner from the token, provenance from the code path that writes.
+- Step-up credentials travel in a `step_up` object (`StepUpVerification`); no other request field carries
+  `current_password` or `idp_reauth` **(test)**.
 - A datetime is an instant and requires a UTC offset (`pydantic.AwareDatetime`) **(test)**. A wall-clock time is a
   `*_local` field documented as such.
 

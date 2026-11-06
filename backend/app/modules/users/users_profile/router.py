@@ -201,7 +201,7 @@ def edit_profile_email(
     Args:
         request: The incoming request, read by the rate limiter.
         response: The response, which carries the user's current ETag.
-        email_change: The new address with the step-up credentials.
+        email_change: The new address with the step-up verification.
         token_user_id: User ID from access token.
         token_session_id: Session ID of the caller, preserved when other sessions are revoked.
         step_up_store: Step-up lockout store.
@@ -343,7 +343,7 @@ def edit_profile_password(
 ) -> None:
     """Update user password after step-up verification.
 
-    Requires the caller to re-prove identity with the current
+    Requires the caller to re-prove identity in ``step_up`` with the current
     password — and an MFA code when MFA is enabled — before the
     new password is accepted. This prevents a stolen access
     token alone from being parlayed into permanent account
@@ -356,9 +356,8 @@ def edit_profile_password(
 
     Args:
         request: The incoming request, read by the rate limiter.
-        user_attributtes: Schema with current password, new
-            password, optional MFA code, and the optional
-            ``revoke_other_sessions`` flag.
+        user_attributtes: Schema with the new password, the step-up
+            verification, and the optional ``revoke_other_sessions`` flag.
         token_user_id: ID of the user extracted from the access
             token.
         token_session_id: Session ID of the caller, preserved when
@@ -410,7 +409,7 @@ def delete_profile_photo(
 def delete_my_account(
     request: Request,
     response: Response,
-    step_up: auth_schema.StepUpVerification,
+    body: auth_schema.StepUpRequest,
     token_user_id: auth_dependencies.CurrentUserId,
     token_session_id: auth_dependencies.CurrentSessionId,
     step_up_store: Annotated[
@@ -432,7 +431,7 @@ def delete_my_account(
     Args:
         request: The incoming request, read by the rate limiter.
         response: The response, which receives the cookie-deletion headers.
-        step_up: Step-up verification payload.
+        body: The step-up verification.
         token_user_id: User ID from access token.
         token_session_id: Session ID from access token.
         step_up_store: Step-up lockout store.
@@ -444,7 +443,7 @@ def delete_my_account(
         The deletion's initial status.
     """
     deletion = profile_service.delete_account(
-        token_user_id, token_session_id, step_up, step_up_store, state, storage, db
+        token_user_id, token_session_id, body.step_up, step_up_store, state, storage, db
     )
     authentication_dependencies.clear_refresh_token_cookies(response, environment=core_config.settings.ENVIRONMENT)
     return deletion
@@ -461,7 +460,7 @@ def delete_my_account(
 def export_profile_data(
     request: Request,
     response: Response,
-    step_up: auth_schema.StepUpVerification,
+    body: auth_schema.StepUpRequest,
     token_user_id: auth_dependencies.CurrentUserId,
     token_session_id: auth_dependencies.CurrentSessionId,
     step_up_store: Annotated[
@@ -480,7 +479,7 @@ def export_profile_data(
     Args:
         request: The incoming request, read by the rate limiter.
         response: The response, which names the status route and when to poll it.
-        step_up: Step-up verification payload.
+        body: The step-up verification.
         token_user_id: User ID from access token.
         token_session_id: Session ID from access token.
         step_up_store: Step-up lockout store.
@@ -491,7 +490,7 @@ def export_profile_data(
         The queued export's state.
     """
     state = profile_export_job_service.request_export(
-        token_user_id, token_session_id, step_up, step_up_store, export_states, db
+        token_user_id, token_session_id, body.step_up, step_up_store, export_states, db
     )
     core_location.set_status_location(
         response, request, "read_profile_export_status", profile_constants.EXPORT_POLL_SECONDS

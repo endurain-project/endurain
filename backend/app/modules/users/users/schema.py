@@ -666,35 +666,20 @@ class FirstAdminCreate(BaseModel):
 class UserEditPassword(BaseModel):
     """Schema for password update operations (self-service).
 
-    Requires the caller to prove possession of the current
-    password — and an MFA code when MFA is enabled — before
-    the new password is accepted. This prevents a stolen
-    in-memory access token from being parlayed into permanent
-    account takeover.
+    Requires the caller's step-up verification, in ``step_up``, before the new password is accepted. This
+    prevents a stolen in-memory access token from being parlayed into permanent account takeover.
 
     Attributes:
-        current_password: Caller's existing password.
         password: New password (min 8 chars).
-        mfa_code: TOTP or backup code, required when MFA is
-            enabled on the account.
+        revoke_other_sessions: Whether to sign out the user's other sessions after the change.
+        step_up: The caller's step-up verification: the current password and, when MFA is enabled, an MFA code.
     """
 
-    current_password: StrictStr = Field(
-        ...,
-        min_length=1,
-        max_length=250,
-        description="Current password (step-up verification)",
-    )
     password: StrictStr = Field(
         ...,
         min_length=8,
         max_length=250,
         description="New password",
-    )
-    mfa_code: StrictStr | None = Field(
-        default=None,
-        max_length=32,
-        description="TOTP or backup code, required when MFA is enabled",
     )
     revoke_other_sessions: StrictBool = Field(
         default=True,
@@ -702,6 +687,9 @@ class UserEditPassword(BaseModel):
             "After the password change, all of the user's other sessions "
             "(keeping the current one) are revoked unless the client sends false."
         ),
+    )
+    step_up: auth_schema.StepUpVerification = Field(
+        ..., description="Step-up verification, required to change the password"
     )
 
     model_config = ConfigDict(
@@ -722,7 +710,7 @@ class UserEmailLookup(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
 
-class UserAdminEditPassword(auth_schema.StepUpVerification):
+class UserAdminEditPassword(BaseModel):
     """Schema for admin password reset operations.
 
     Setting another user's password needs the ``users:write`` scope and the administrator's own step-up
@@ -731,6 +719,7 @@ class UserAdminEditPassword(auth_schema.StepUpVerification):
 
     Attributes:
         password: New password (min 8 chars).
+        step_up: The administrator's own step-up verification.
     """
 
     password: StrictStr = Field(
@@ -739,6 +728,11 @@ class UserAdminEditPassword(auth_schema.StepUpVerification):
         max_length=250,
         description="New password",
     )
+    step_up: auth_schema.StepUpVerification = Field(
+        ..., description="The administrator's step-up verification, required to set another user's password"
+    )
+
+    model_config = ConfigDict(extra="forbid")
 
 
 class UserPhotoRead(BaseModel):
@@ -751,11 +745,12 @@ class UserPhotoRead(BaseModel):
     photo_path: StrictStr | None = Field(default=None, description="Servable URL of the user's photo")
 
 
-class IdentityProviderLinkStart(auth_schema.StepUpVerification):
+class IdentityProviderLinkStart(BaseModel):
     """Start linking an identity provider to the signed-in user's account, authorised by step-up verification.
 
     Attributes:
         redirect: Frontend return path after linking (a relative path or a configured custom scheme).
+        step_up: The caller's step-up verification.
     """
 
     redirect: StrictStr | None = Field(
@@ -764,14 +759,20 @@ class IdentityProviderLinkStart(auth_schema.StepUpVerification):
         max_length=500,
         description="Frontend return path after linking (relative path or a configured custom scheme)",
     )
+    step_up: auth_schema.StepUpVerification = Field(
+        ..., description="Step-up verification, required to link an identity provider"
+    )
+
+    model_config = ConfigDict(extra="forbid")
 
 
-class EmailChange(auth_schema.StepUpVerification):
+class EmailChange(BaseModel):
     """Self-service email change, authorised by step-up verification.
 
     Attributes:
         email: The new email address.
         revoke_other_sessions: Whether to sign out the user's other sessions after the change.
+        step_up: The caller's step-up verification.
     """
 
     email: EmailStr = Field(..., max_length=250, description="The new email address")
@@ -779,6 +780,11 @@ class EmailChange(auth_schema.StepUpVerification):
         default=False,
         description="When true, revoke all of the user's other sessions (keeping the current one) after the change",
     )
+    step_up: auth_schema.StepUpVerification = Field(
+        ..., description="Step-up verification, required to change the email address"
+    )
+
+    model_config = ConfigDict(extra="forbid")
 
 
 class ProfileUpdate(core_partial_update.NotClearable, BaseModel):

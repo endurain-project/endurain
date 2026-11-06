@@ -220,7 +220,7 @@ def change_email(
 
     Args:
         user_id: The authenticated user.
-        change: The new address with the step-up credentials.
+        change: The new address with the step-up verification.
         session_id: The caller's current session, which stays signed in when other sessions are revoked.
         step_up_store: Step-up lockout store.
         state: The platform state provider, for the holder's notice cooldown.
@@ -236,7 +236,7 @@ def change_email(
         ConflictError: If the server cannot send mail and another account uses the address.
     """
     account_security_integration.verify_step_up(
-        auth_schema.StepUpVerification(**change.model_dump(exclude={"email", "revoke_other_sessions"})),
+        change.step_up,
         user_id,
         session_id,
         identity_providers_constants.StepUpAction.EMAIL_CHANGE,
@@ -472,7 +472,7 @@ def change_password(
 
     Args:
         user_id: ID of the authenticated user.
-        change: Current and new password, optional MFA code and whether to end the other sessions.
+        change: The new password, the step-up verification and whether to end the other sessions.
         session_id: Session of the caller, kept when the other sessions end.
         step_up_store: Step-up lockout store.
         db: Database session.
@@ -483,9 +483,9 @@ def change_password(
     """
     account_security_integration.change_own_password(
         user_id,
-        change.current_password,
+        change.step_up.current_password,
         change.password,
-        change.mfa_code,
+        change.step_up.mfa_code,
         step_up_store,
         db,
         revoke_other_sessions=change.revoke_other_sessions,

@@ -63,11 +63,11 @@ def create_user_api_key(
     """
     step_up_service.verify_step_up_credentials(
         user_id,
-        data.current_password,
-        data.mfa_code,
+        data.step_up.current_password,
+        data.step_up.mfa_code,
         step_up_store,
         db,
-        idp_reauth=data.idp_reauth,
+        idp_reauth=data.step_up.idp_reauth,
         session_id=session_id,
         action=identity_providers_constants.StepUpAction.API_KEY_CREATE,
     )

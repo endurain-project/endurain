@@ -178,7 +178,7 @@ _ACCEPTING_ROUTES = [
         id="strava-unlink",
     ),
     pytest.param(
-        ("POST", "/users/12/delete", {"json": {"current_password": "secret"}}),
+        ("POST", "/users/12/delete", {"json": {"step_up": {"current_password": "secret"}}}),
         (users_router.users_deletion_job_service, "request_deletion_by_administrator"),
         users_schema.UserDeletionStatus(status=core_job_status.JobState.QUEUED),
         "/users/12/deletion",
@@ -186,7 +186,7 @@ _ACCEPTING_ROUTES = [
         id="user-deletion",
     ),
     pytest.param(
-        ("POST", "/profile/export", {"json": {"current_password": "secret"}}),
+        ("POST", "/profile/export", {"json": {"step_up": {"current_password": "secret"}}}),
         (profile_router.profile_export_job_service, "request_export"),
         profile_schema.ProfileExportStatus(status=core_job_status.JobState.QUEUED),
         "/profile/export",
@@ -232,7 +232,7 @@ def test_an_account_deletion_by_its_owner_has_no_status_resource_to_name(client)
         ),
         patch.object(profile_router.authentication_dependencies, "clear_refresh_token_cookies"),
     ):
-        response = client.post("/profile/delete-account", json={"current_password": "secret"})
+        response = client.post("/profile/delete-account", json={"step_up": {"current_password": "secret"}})
 
     assert response.status_code == 202, response.text
     assert "Content-Location" not in response.headers

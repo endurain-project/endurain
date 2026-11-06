@@ -178,7 +178,7 @@ def _stage_password_written(
 
 def stage_change_own_password(
     user_id: int,
-    current_password: str,
+    current_password: str | None,
     new_password: str,
     mfa_code: str | None,
     step_up_store: account_security_step_up_store.StepUpStore,
@@ -193,7 +193,7 @@ def stage_change_own_password(
 
     Args:
         user_id: ID of the authenticated user.
-        current_password: Current password supplied for step-up.
+        current_password: Current password supplied for step-up, or None when the request carried none.
         new_password: New plaintext password to store.
         mfa_code: Optional MFA code supplied for step-up.
         step_up_store: Step-up lockout store.

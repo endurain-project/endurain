@@ -57,8 +57,7 @@ class TestChangeEmail:
 
         change = users_schema.EmailChange(
             email="New@Example.com",
-            current_password="pw",
-            mfa_code="123456",
+            step_up={"current_password": "pw", "mfa_code": "123456"},
             revoke_other_sessions=revoke_other_sessions,
         )
         with (

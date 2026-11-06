@@ -8,7 +8,7 @@ import type {
   UsersListResponseDto,
   UsersPage,
 } from '@/features/users/types'
-import type { StepUpInput } from '@/features/security/types'
+import type { StepUpInput, StepUpRequestDto } from '@/features/security/types'
 import type { Schemas } from '@/types'
 
 import { resolveAvatarUrl } from '@/features/auth/services/mappers'
@@ -246,7 +246,7 @@ export async function changeUserPassword(
     method: 'POST',
     body: JSON.stringify({
       password,
-      ...toStepUpWire(stepUp),
+      step_up: toStepUpWire(stepUp),
     } satisfies Schemas['UserAdminEditPassword']),
     responseType: 'void',
   })
@@ -297,7 +297,7 @@ export async function deleteUser(id: number, version: number, stepUp: StepUpInpu
   await apiFetch<void>(`/users/${id}/delete`, {
     method: 'POST',
     headers: ifMatchHeaders(version),
-    body: JSON.stringify(toStepUpWire(stepUp)),
+    body: JSON.stringify({ step_up: toStepUpWire(stepUp) } satisfies StepUpRequestDto),
     responseType: 'void',
   })
 }

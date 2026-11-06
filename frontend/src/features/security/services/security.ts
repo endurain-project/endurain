@@ -24,6 +24,7 @@ import type {
   IdpReauth,
   IdpReauthDto,
   StepUpDto,
+  StepUpRequestDto,
   StepUpInput,
 } from '@/features/security/types'
 
@@ -128,10 +129,9 @@ export function mapApiKey(dto: ApiKeyDto): ApiKey {
  */
 export async function changePassword(input: PasswordChangeInput): Promise<void> {
   const payload: PasswordChangeDto = {
-    current_password: input.currentPassword,
     password: input.newPassword,
-    mfa_code: input.mfaCode,
     revoke_other_sessions: input.revokeOtherSessions,
+    step_up: toStepUpWire({ currentPassword: input.currentPassword, mfaCode: input.mfaCode }),
   }
   await apiFetch('/profile/password/change', {
     method: 'POST',
@@ -173,8 +173,11 @@ export async function setupMfa(): Promise<MfaSetup> {
 export async function enableMfa(input: MfaEnableInput): Promise<string[]> {
   const payload: MfaEnableDto = {
     mfa_code: input.mfaCode,
-    current_password: input.currentPassword,
-    ...toIdpReauthWire(input.idpReauth),
+    step_up: toStepUpWire({
+      currentPassword: input.currentPassword,
+      mfaCode: null,
+      idpReauth: input.idpReauth,
+    }),
   }
   const response = await apiFetch<{ backup_codes: string[] }>('/profile/mfa/enable', {
     method: 'POST',
@@ -191,11 +194,7 @@ export async function enableMfa(input: MfaEnableInput): Promise<string[]> {
  * @throws {HttpError} When the request fails (e.g. 403 verification failed).
  */
 export async function disableMfa(input: StepUpInput): Promise<void> {
-  const payload: MfaDisableDto = {
-    mfa_code: input.mfaCode ?? '',
-    current_password: input.currentPassword,
-    ...toIdpReauthWire(input.idpReauth),
-  }
+  const payload: MfaDisableDto = { step_up: toStepUpWire(input) }
   await apiFetch('/profile/mfa/disable', {
     method: 'POST',
     body: JSON.stringify(payload),
@@ -227,7 +226,7 @@ export async function fetchBackupCodeStatus(signal?: AbortSignal): Promise<Backu
 export async function regenerateBackupCodes(input: StepUpInput): Promise<BackupCodesResult> {
   const dto = await apiFetch<BackupCodesDto>('/profile/mfa/backup-codes', {
     method: 'POST',
-    body: JSON.stringify(toStepUpWire(input)),
+    body: JSON.stringify({ step_up: toStepUpWire(input) } satisfies StepUpRequestDto),
   })
   return mapBackupCodes(dto)
 }
@@ -300,9 +299,7 @@ export async function createApiKey(input: ApiKeyCreateInput): Promise<string> {
     // The chosen day starts the expiry in the viewer's timezone; a bare date would be read as UTC midnight,
     // which west of UTC can already be past for the earliest date the picker offers.
     expires_at: input.expiresAt ? new Date(`${input.expiresAt}T00:00`).toISOString() : null,
-    current_password: input.currentPassword,
-    mfa_code: input.mfaCode,
-    ...toIdpReauthWire(input.idpReauth),
+    step_up: toStepUpWire(input),
   }
   const dto = await apiFetch<ApiKeyCreatedDto>('/profile/api-keys', {
     method: 'POST',
@@ -352,7 +349,7 @@ export async function deleteApiKey(id: string): Promise<void> {
 export async function deleteAccount(input: StepUpInput): Promise<void> {
   await apiFetch('/profile/delete-account', {
     method: 'POST',
-    body: JSON.stringify(toStepUpWire(input)),
+    body: JSON.stringify({ step_up: toStepUpWire(input) } satisfies StepUpRequestDto),
     responseType: 'void',
   })
 }
@@ -375,8 +372,8 @@ export async function changeEmail(
 ): Promise<boolean> {
   const payload: EmailChangeDto = {
     email,
-    ...toStepUpWire(input),
     revoke_other_sessions: revokeOtherSessions,
+    step_up: toStepUpWire(input),
   }
   const profile = await apiFetch<EmailChangeResultDto>('/profile/email/change', {
     method: 'POST',

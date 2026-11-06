@@ -122,7 +122,7 @@ A provider that answers with a rate limit makes the job `failed` (gear and healt
 
 ## Profile export and import
 
-**Export.** `POST /profile/export` takes the [step-up](account-security.md#step-up-authentication) body (`current_password`, `idp_reauth` for an account without a password, and `mfa_code` when MFA is on) and answers `202` with the envelope. Poll `GET /profile/export`. A succeeded export carries `size_bytes` and `expires_at`: fetch the ZIP with `GET /profile/export/download` before it expires (2 hours). A failed one carries `error_code`: `timed_out` or `processing_failed`. `409` while an export is running, `404` from the download when there is nothing finished to fetch.
+**Export.** `POST /profile/export` takes the [step-up](account-security.md#step-up-authentication) body, `{"step_up": {...}}` (`current_password`, `idp_reauth` for an account without a password, and `mfa_code` when MFA is on) and answers `202` with the envelope. Poll `GET /profile/export`. A succeeded export carries `size_bytes` and `expires_at`: fetch the ZIP with `GET /profile/export/download` before it expires (2 hours). A failed one carries `error_code`: `timed_out` or `processing_failed`. `409` while an export is running, `404` from the download when there is nothing finished to fetch.
 
 **Import.** `POST /profile/import` takes a `.zip` archive in `file`, validates and stages it, and answers `202`. Poll `GET /profile/import`. The status is `running` for the database part (one transaction: a failed import leaves nothing behind) and for the writing of the files that follows. A succeeded import carries `imported`, the number of items of each kind. A failed one carries `error_code`: `invalid_file`, `too_large`, `too_many_activities`, `timed_out`, `wrong_account`, `files_incomplete` or `processing_failed`. `409` while an import is running.
 
@@ -132,7 +132,7 @@ A provider that answers with a rate limit makes the job `failed` (gear and healt
 
 ## Delete a user (administrators)
 
-`POST /users/{user_id}/delete` needs `users:write`, the user's `ETag` in `If-Match` (see [Errors, concurrency and rate limits](errors-and-limits.md#concurrent-edits-with-etag-and-if-match)) and the administrator's own [step-up](account-security.md#step-up-authentication) in the body (`current_password`, or `idp_reauth` for an administrator without a password, and `mfa_code` when MFA is on). It signs the user out everywhere, deactivates the account and answers `202` with the envelope. A background job then erases the data. An administrator polls `GET /users/{user_id}/deletion` (needs `users:read_all`); the record is kept for 2 hours.
+`POST /users/{user_id}/delete` needs `users:write`, the user's `ETag` in `If-Match` (see [Errors, concurrency and rate limits](errors-and-limits.md#concurrent-edits-with-etag-and-if-match)) and the administrator's own [step-up](account-security.md#step-up-authentication) in the body's `step_up` object (`current_password`, or `idp_reauth` for an administrator without a password, and `mfa_code` when MFA is on). It signs the user out everywhere, deactivates the account and answers `202` with the envelope. A background job then erases the data. An administrator polls `GET /users/{user_id}/deletion` (needs `users:read_all`); the record is kept for 2 hours.
 
 - `409` when the user is the only administrator, or when a deletion is already pending.
 - `403` when an administrator targets their own account. Use `POST /profile/delete-account` for that.
@@ -142,7 +142,7 @@ A provider that answers with a rate limit makes the job `failed` (gear and healt
 
 ## Delete your account
 
-`POST /profile/delete-account` is confirmed with step-up (the current password, or a fresh identity-provider sign-in, and an MFA code when MFA is on; see [Account security](account-security.md)). It answers `202` with the envelope (`"status": "queued"`), and it is fire and forget.
+`POST /profile/delete-account` is confirmed with step-up in the body's `step_up` object (the current password, or a fresh identity-provider sign-in, and an MFA code when MFA is on; see [Account security](account-security.md)). It answers `202` with the envelope (`"status": "queued"`), and it is fire and forget.
 
 - **The account is closed before the answer.** Every session of the user ends, the account is deactivated, and the web client's refresh cookie is cleared on the response. The access token that made the request stops working too.
 - **There is nothing for the user to poll.** `GET /users/{user_id}/deletion` needs an administrator scope, and the user can no longer sign in to call anything. A client should treat the `202` as final: sign the user out locally and show that the account is being deleted.

@@ -29,10 +29,7 @@ describe('data transfer service requests', () => {
     ).toEqual(status)
     expect(apiFetch).toHaveBeenCalledWith('/profile/export', {
       method: 'POST',
-      body: JSON.stringify({
-        current_password: 'secret',
-        mfa_code: '123456',
-      }),
+      body: JSON.stringify({ step_up: { current_password: 'secret', mfa_code: '123456' } }),
     })
   })
 
