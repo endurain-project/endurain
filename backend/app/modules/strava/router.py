@@ -4,6 +4,7 @@ from datetime import date
 
 from fastapi import APIRouter, Request, Response, Security, UploadFile, status
 
+import core.date_range as core_date_range
 import core.dependencies as core_dependencies
 import core.etag as core_etag
 import core.location as core_location
@@ -95,6 +96,7 @@ def strava_retrieve_activities_days(
     for the outcome. The range is fetched by a background job, never on this
     request or an API worker thread.
     """
+    core_date_range.refuse_reversed_range(start_date, end_date)
     job = strava_sync_service.request_activities_sync(token_user_id, start_date, end_date, storage, db)
     activity_ingestion_integration.set_job_location(response, request, job)
     return job

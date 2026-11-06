@@ -10,6 +10,7 @@ from fastapi.testclient import TestClient
 from sqlalchemy.dialects import postgresql
 
 import core.database as core_database
+import core.date_range as core_date_range
 import core.exceptions as core_exceptions
 import modules.auth.dependencies as auth_dependencies
 import modules.health.computation as health_computation
@@ -29,7 +30,7 @@ import modules.health.schema as health_schema
 _HEADERS = {"Authorization": "Bearer mock_token"}
 _BUCKET = health_constants.ChartBucket
 _INTERVAL = health_constants.Interval
-_NO_RANGE = health_computation.DateRange()
+_NO_RANGE = core_date_range.DateRange()
 _LOCAL_TODAY = "modules.users.users.integration_service.local_today"
 _RESOLVE_TIMEZONE = "modules.users.users.integration_service.resolve_timezone"
 

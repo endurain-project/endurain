@@ -3,15 +3,15 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
+import core.date_range as core_date_range
 import core.exceptions as core_exceptions
-import modules.health.computation as health_computation
 import modules.health.constants as health_constants
 import modules.health.health_water.schema as health_water_schema
 import modules.health.health_water.service as health_water_service
 
 _PREFIX = "modules.health.health_water.service"
 
-_NO_RANGE = health_computation.DateRange()
+_NO_RANGE = core_date_range.DateRange()
 
 
 def _update() -> health_water_schema.HealthWaterUpdate:

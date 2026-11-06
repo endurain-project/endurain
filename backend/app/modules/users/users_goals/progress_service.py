@@ -29,7 +29,7 @@ _ACTIVITY_TYPE_MAP: dict[str, list[int]] = {
     user_goals_schema.GoalActivityType.WALK.value: [
         *ACTIVITY_TYPES_BY_SPORT["walk"],
         *ACTIVITY_TYPES_BY_SPORT["hike"],
-        *ACTIVITY_TYPES_BY_SPORT["snowshoeing"],
+        *ACTIVITY_TYPES_BY_SPORT["snow_shoeing"],
     ],
     # Crossfit, cardio training, HIIT and jump rope have no sport grouping of
     # their own: they are goal-only, so the ids are stated here.

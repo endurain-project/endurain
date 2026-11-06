@@ -35,7 +35,7 @@ class TestList:
         mock_list.return_value = core_pagination.Page.build([_read()], 1, 2, 5)
 
         response = client.get(
-            "/gears?page_number=2&num_records=5&show_inactive=false&gear_type=bike&nickname_contains=bike",
+            "/gears?page_number=2&num_records=5&active=true&gear_type=bike&nickname_contains=bike",
             headers=_HEADERS,
         )
 
@@ -46,7 +46,7 @@ class TestList:
             mock_db,
             page_number=2,
             num_records=5,
-            show_inactive=False,
+            active=True,
             gear_type=schema.GearType.BIKE,
             nickname_contains="bike",
         )
@@ -62,7 +62,7 @@ class TestList:
             mock_db,
             page_number=1,
             num_records=core_pagination.DEFAULT_NUM_RECORDS,
-            show_inactive=None,
+            active=None,
             gear_type=None,
             nickname_contains=None,
         )

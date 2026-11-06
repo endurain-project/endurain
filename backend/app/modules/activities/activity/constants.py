@@ -125,11 +125,11 @@ ACTIVITY_TYPES_BY_SPORT: dict[str, tuple[int, ...]] = {
     "snow_ski": (15, 16),
     "snowboard": (17,),
     "windsurf": (30,),
-    "stand_up_paddleboarding": (32,),
-    "surfing": (33,),
+    "stand_up_paddling": (32,),
+    "surf": (33,),
     "kayaking": (42,),
     "sailing": (43,),
-    "snowshoeing": (44,),
+    "snow_shoeing": (44,),
     "inline_skating": (45,),
 }
 

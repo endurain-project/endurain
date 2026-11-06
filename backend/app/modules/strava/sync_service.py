@@ -269,7 +269,7 @@ def request_activities_sync(
         The accepted refresh job, whose outcome is polled on the ingestion-jobs route.
 
     Raises:
-        InvalidInputError: When ``start_date`` is after ``end_date``, ``end_date`` is in the future or
+        InvalidInputError: When ``end_date`` is in the future or
             the range is longer than ``MAX_ACTIVITIES_RANGE_DAYS``.
     """
     return activity_ingestion_integration.request_range_sync(

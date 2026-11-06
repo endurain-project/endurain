@@ -10,6 +10,7 @@ from fastapi.testclient import TestClient
 from sqlalchemy.dialects import postgresql
 
 import core.database as core_database
+import core.date_range as core_date_range
 import core.exceptions as core_exceptions
 import core.pagination as core_pagination
 import modules.auth.dependencies as auth_dependencies
@@ -28,7 +29,7 @@ _LOCAL_TODAY = "modules.users.users.integration_service.local_today"
 _RESOLVE_TIMEZONE = "modules.users.users.integration_service.resolve_timezone"
 _INTERVAL = health_constants.Interval
 _BUCKET = health_constants.ChartBucket
-_RANGE = health_computation.DateRange
+_RANGE = core_date_range.DateRange
 _NO_RANGE = _RANGE()
 
 _PACKAGES = ["steps", "weight", "water", "sleep", "poop", "fasting"]
@@ -73,7 +74,7 @@ def _called_with_range(route: str, function: str, query: str, mock_db) -> tuple[
     return response.status_code, mock_service
 
 
-def _range_argument(route: str, mock_service: MagicMock) -> health_computation.DateRange:
+def _range_argument(route: str, mock_service: MagicMock) -> core_date_range.DateRange:
     return mock_service.call_args.kwargs["date_range"]
 
 

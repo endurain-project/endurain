@@ -4,6 +4,7 @@ from datetime import date
 
 from fastapi import APIRouter, Request, Response, Security, status
 
+import core.date_range as core_date_range
 import core.dependencies as core_dependencies
 import core.location as core_location
 import core.rate_limit as core_rate_limit
@@ -124,6 +125,7 @@ def garminconnect_retrieve_activities_days(
     for the outcome. The range is fetched by a background job, never on this
     request or an API worker thread.
     """
+    core_date_range.refuse_reversed_range(start_date, end_date)
     job = garmin_sync_service.request_activities_sync(token_user_id, start_date, end_date, storage, db)
     activity_ingestion_integration.set_job_location(response, request, job)
     return job
@@ -179,6 +181,7 @@ def garminconnect_retrieve_health_days(
     ``GET /garmin/sync/health`` for the outcome. A second request while one is pending is
     answered 409.
     """
+    core_date_range.refuse_reversed_range(start_date, end_date)
     sync = garmin_sync_service.request_health_sync(token_user_id, start_date, end_date, sync_states, rate_limits, db)
     _set_sync_location(response, request, sync)
     return sync

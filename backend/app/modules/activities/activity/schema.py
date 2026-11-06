@@ -284,11 +284,11 @@ class ActivityStatsRead(BaseModel):
         snow_ski: Stats for snow skiing activities.
         snowboard: Stats for snowboarding activities.
         windsurf: Stats for windsurfing activities.
-        stand_up_paddleboarding: Stats for SUP activities.
-        surfing: Stats for surfing activities.
+        stand_up_paddling: Stats for SUP activities.
+        surf: Stats for surfing activities.
         kayaking: Stats for kayaking activities.
         sailing: Stats for sailing activities.
-        snowshoeing: Stats for snowshoeing activities.
+        snow_shoeing: Stats for snowshoeing activities.
         inline_skating: Stats for inline skating activities.
         other: Stats for activity types that belong to none of the sports above.
     """
@@ -304,11 +304,11 @@ class ActivityStatsRead(BaseModel):
     snow_ski: ActivitySportStats = Field(default_factory=ActivitySportStats)
     snowboard: ActivitySportStats = Field(default_factory=ActivitySportStats)
     windsurf: ActivitySportStats = Field(default_factory=ActivitySportStats)
-    stand_up_paddleboarding: ActivitySportStats = Field(default_factory=ActivitySportStats)
-    surfing: ActivitySportStats = Field(default_factory=ActivitySportStats)
+    stand_up_paddling: ActivitySportStats = Field(default_factory=ActivitySportStats)
+    surf: ActivitySportStats = Field(default_factory=ActivitySportStats)
     kayaking: ActivitySportStats = Field(default_factory=ActivitySportStats)
     sailing: ActivitySportStats = Field(default_factory=ActivitySportStats)
-    snowshoeing: ActivitySportStats = Field(default_factory=ActivitySportStats)
+    snow_shoeing: ActivitySportStats = Field(default_factory=ActivitySportStats)
     inline_skating: ActivitySportStats = Field(default_factory=ActivitySportStats)
     other: ActivitySportStats = Field(default_factory=ActivitySportStats)
 

@@ -25,7 +25,7 @@ def list_gears(
     token_user_id: auth_dependencies.CurrentUserId,
     db: core_dependencies.DbSession,
     page: core_pagination.ListPage,
-    show_inactive: Annotated[bool | None, Query(description="Filter by inactive status")] = None,
+    active: Annotated[bool | None, Query(description="Keep only active (true) or inactive (false) gears")] = None,
     gear_type: Annotated[gears_schema.GearType | None, Query(description="Keep only gears of this type")] = None,
     nickname_contains: Annotated[
         str | None,
@@ -38,7 +38,7 @@ def list_gears(
         db,
         page_number=page.page_number,
         num_records=page.num_records,
-        show_inactive=show_inactive,
+        active=active,
         gear_type=gear_type,
         nickname_contains=nickname_contains,
     )

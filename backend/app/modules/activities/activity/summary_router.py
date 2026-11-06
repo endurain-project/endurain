@@ -11,6 +11,7 @@ from typing import Annotated
 
 from fastapi import APIRouter, Query, Request, Security
 
+import core.date_range as core_date_range
 import core.dependencies as core_dependencies
 import core.rate_limit as core_rate_limit
 import modules.activities.activity.constants as activity_constants
@@ -34,7 +35,7 @@ def read_activity_summary(
     db: core_dependencies.DbSession,
     period: Annotated[activity_constants.SummaryPeriod, Query()] = activity_constants.SummaryPeriod.WEEK,
     anchor_date: Annotated[
-        activity_dependencies.WindowDate | None,
+        core_date_range.WindowDate | None,
         Query(
             alias="date",
             description=(

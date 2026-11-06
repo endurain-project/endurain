@@ -5,8 +5,8 @@ from unittest.mock import MagicMock, patch
 import pytest
 from sqlalchemy.orm.exc import StaleDataError
 
+import core.date_range as core_date_range
 import core.exceptions as core_exceptions
-import modules.health.computation as health_computation
 import modules.health.constants as health_constants
 import modules.health.health_fasting.schema as health_fasting_schema
 import modules.health.health_steps.crud as health_steps_crud
@@ -15,7 +15,7 @@ import modules.health.record_service as health_record_service
 import modules.health.schema as health_schema
 
 _EXISTS = "modules.health.record_crud.exists"
-_NO_RANGE = health_computation.DateRange()
+_NO_RANGE = core_date_range.DateRange()
 
 
 class TestCommitWrite:

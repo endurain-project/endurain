@@ -30,7 +30,7 @@ def list_gears(
     *,
     page_number: int = 1,
     num_records: int = core_pagination.DEFAULT_NUM_RECORDS,
-    show_inactive: bool | None = None,
+    active: bool | None = None,
     gear_type: gears_schema.GearType | None = None,
     nickname_contains: str | None = None,
 ) -> core_pagination.Page[gears_schema.GearRead]:
@@ -41,7 +41,7 @@ def list_gears(
         db: Database session.
         page_number: Page number (1-indexed).
         num_records: Records per page.
-        show_inactive: Include inactive gears; ``None`` keeps the default of including them.
+        active: Keep only active (``True``) or inactive (``False``) gears; ``None`` keeps both.
         gear_type: Keep only gears of this type.
         nickname_contains: Keep only gears whose nickname contains this text.
 
@@ -49,14 +49,14 @@ def list_gears(
         The gears on the page. ``total`` counts every gear matching the filters.
     """
     total = gears_crud.get_gears_number(
-        user_id, db, show_inactive=show_inactive, gear_type=gear_type, nickname_contains=nickname_contains
+        user_id, db, active=active, gear_type=gear_type, nickname_contains=nickname_contains
     )
     records = gears_crud.get_gear_users_with_pagination(
         user_id,
         db,
         page_number=page_number,
         num_records=num_records,
-        show_inactive=show_inactive,
+        active=active,
         gear_type=gear_type,
         nickname_contains=nickname_contains,
     )

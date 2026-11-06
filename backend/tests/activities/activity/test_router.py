@@ -109,6 +109,28 @@ class TestListOwnActivities:
             assert body["page"] == 1
             assert body["next"] is None
 
+    @pytest.mark.parametrize("path", ["/activities", "/users/2/activities"])
+    def test_a_start_after_the_end_is_a_validation_error(self, mock_db, path):
+        resp = TestClient(_build_app(mock_db)).get(
+            f"{path}?start_date=2026-02-01&end_date=2026-01-01", headers={"Authorization": "Bearer x"}
+        )
+
+        assert resp.status_code == 422
+        assert resp.json()["errors"][0]["field"].endswith("end_date")
+
+    def test_the_name_filter_is_name_contains(self, mock_db):
+        with (
+            patch("modules.activities.activity.service.activity_crud.get_user_activities_with_pagination") as rows,
+            patch("modules.activities.activity.service.activity_crud.count_user_activities", return_value=0),
+        ):
+            rows.return_value = []
+            resp = TestClient(_build_app(mock_db)).get(
+                "/activities?name_contains=Morning", headers={"Authorization": "Bearer x"}
+            )
+
+            assert resp.status_code == 200
+            assert rows.call_args.kwargs["name_search"] == "Morning"
+
     def test_next_points_to_the_following_page(self, mock_db):
         with (
             patch("modules.activities.activity.service.activity_crud.get_user_activities_with_pagination") as m,

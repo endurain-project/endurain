@@ -85,6 +85,17 @@ _MESSAGE_ONLY_RESPONSES: dict[str, str] = {
 }
 
 
+#: List filters that break the vocabulary (``<field>_contains`` for text, ``active=<bool>`` for a state), as
+#: ``"GET <route>: <parameter>"``. Remove an entry when the parameter is renamed.
+_FILTER_VOCABULARY: dict[str, str] = {
+    "GET /server-settings/logs: search": "DOM-6, changes with the log pagination",
+    "GET /users: show_email_unverified": "DOM-6, changes with the /users filters",
+    "GET /users: show_external_auth": "DOM-6, changes with the /users filters",
+    "GET /users: show_inactive": "DOM-6, changes with the /users filters",
+    "GET /users: show_local_auth": "DOM-6, changes with the /users filters",
+    "GET /users: show_pending_approval": "DOM-6, changes with the /users filters",
+}
+
 #: Route handlers whose docstring carries a Google section, as ``{path relative to app/: handlers}``. Move the
 #: section's content into ``Field``/``Query`` descriptions or ``responses`` and lower the count (HTTP-10).
 _DOCSTRING_SECTIONS: dict[str, int] = {
@@ -400,6 +411,23 @@ class TestApiContract:
             f"A request datetime accepts a naive value (use AwareDatetime, or name a wall clock *_local): {sorted(naive)}"
         )
         assert not undocumented, f"A *_local datetime does not say it is a wall-clock time: {sorted(undocumented)}"
+
+    def test_list_filters_follow_one_vocabulary(self):
+        """A text filter is ``<field>_contains`` and a state filter is ``active=<bool>``.
+
+        ``name``, ``search`` and ``term`` do not say what they match, and a ``show_*`` flag reads the opposite
+        way from ``active``.
+        """
+        found: set[str] = set()
+        for method, path, operation in _operations():
+            if method != "get":
+                continue
+            for parameter in operation.get("parameters", []):
+                name = parameter["name"]
+                if parameter["in"] == "query" and (name.startswith("show_") or name in {"name", "search", "term", "q"}):
+                    found.add(f"GET {path}: {name}")
+
+        _compare("A list filter breaks the vocabulary", found, _FILTER_VOCABULARY, "Use <field>_contains or active")
 
     def test_enums_are_strings(self):
         """Enumerated values are strings and ``is_*``/``has_*`` properties are booleans.

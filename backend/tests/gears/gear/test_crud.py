@@ -57,16 +57,19 @@ class TestReads:
         assert crud.get_gear_by_garminconnect_id_from_user_id("g1", 1, db).nickname == "Road Bike"
         assert crud.get_gear_by_garminconnect_id_from_user_id("missing", 1, db) is None
 
-    def test_pagination_and_the_inactive_filter_apply_to_page_and_count(self, db):
+    def test_pagination_and_the_active_filter_apply_to_page_and_count(self, db):
         for name, active in (("A", True), ("B", False), ("C", True)):
             crud.create_gear(gear_create(name, active=active), 1, db)
 
         assert crud.get_gears_number(1, db) == 3
-        assert crud.get_gears_number(1, db, show_inactive=False) == 2
+        assert crud.get_gears_number(1, db, active=True) == 2
+        assert crud.get_gears_number(1, db, active=False) == 1
         page = crud.get_gear_users_with_pagination(1, db, page_number=2, num_records=2)
         assert [g.nickname for g in page] == ["C"]
-        active_only = crud.get_gear_users_with_pagination(1, db, show_inactive=False)
+        active_only = crud.get_gear_users_with_pagination(1, db, active=True)
         assert [g.nickname for g in active_only] == ["A", "C"]
+        inactive_only = crud.get_gear_users_with_pagination(1, db, active=False)
+        assert [g.nickname for g in inactive_only] == ["B"]
 
     def test_existing_nicknames_are_reported_normalized(self, db):
         crud.create_gear(gear_create("Road Bike"), 1, db)

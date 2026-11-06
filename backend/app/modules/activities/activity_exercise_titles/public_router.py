@@ -18,14 +18,14 @@ router = APIRouter()
 @core_rate_limit.limiter.limit(core_rate_limit.PUBLIC_READ)
 def list_public_activity_exercise_titles(
     request: Request,
-    page: core_pagination.ChildPage,
+    page: core_pagination.ListPage,
     db: core_dependencies.DbSession,
 ) -> activity_exercise_titles_schema.ActivityExerciseTitlesPage:
     """Return one page of the activity exercise titles via the public endpoint.
 
     Args:
         request: The incoming request, read by the rate limiter.
-        page: The requested window; a page holds up to the maximum when no size is given.
+        page: The requested window; a page holds the default size when none is given.
         db: Database session dependency.
 
     Returns:

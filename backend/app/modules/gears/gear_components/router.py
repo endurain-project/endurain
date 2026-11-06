@@ -32,7 +32,7 @@ def read_gear_component_types() -> gear_components_schema.GearComponentTypesRead
 def read_gear_components(
     token_user_id: auth_dependencies.CurrentUserId,
     db: core_dependencies.DbSession,
-    page: core_pagination.ChildPage,
+    page: core_pagination.ListPage,
 ) -> core_pagination.Page[gear_components_schema.GearComponentRead]:
     """Retrieve one page of the authenticated user's gear components, with the total."""
     return gear_components_service.list_gear_components(

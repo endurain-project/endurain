@@ -4,8 +4,8 @@ from unittest.mock import MagicMock, patch
 import pytest
 from sqlalchemy.orm.exc import StaleDataError
 
+import core.date_range as core_date_range
 import core.exceptions as core_exceptions
-import modules.health.computation as health_computation
 import modules.health.constants as health_constants
 import modules.health.health_sleep.schema as health_sleep_schema
 import modules.health.health_sleep.service as health_sleep_service
@@ -14,7 +14,7 @@ import modules.health.health_sleep.sleep_scoring as health_sleep_sleep_scoring
 _PREFIX = "modules.health.health_sleep.service"
 _SCORING = f"{_PREFIX}.health_sleep_sleep_scoring.calculate_and_set_sleep_scores"
 
-_NO_RANGE = health_computation.DateRange()
+_NO_RANGE = core_date_range.DateRange()
 
 
 def _update() -> health_sleep_schema.HealthSleepUpdate:

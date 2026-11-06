@@ -12,6 +12,7 @@ from typing import Any, Protocol
 from pydantic import BaseModel, ValidationError
 from sqlalchemy.orm import Session
 
+import core.date_range as core_date_range
 import core.etag as core_etag
 import core.logger as core_logger
 import core.pagination as core_pagination
@@ -99,7 +100,7 @@ def get_record[ModelT: health_record_crud.Row, ReadT: BaseModel](
 
 
 def chart_window(
-    user_id: int, interval: health_constants.Interval, date_range: health_computation.DateRange, db: Session
+    user_id: int, interval: health_constants.Interval, date_range: core_date_range.DateRange, db: Session
 ) -> tuple[date, date | None]:
     """Resolve the first and last day a chart covers.
 
@@ -122,7 +123,7 @@ def chart_window(
 def chart(
     user_id: int,
     interval: health_constants.Interval,
-    date_range: health_computation.DateRange,
+    date_range: core_date_range.DateRange,
     fetch: Callable[[date, date | None, health_constants.ChartBucket], list[health_schema.HealthChartPoint]],
     db: Session,
 ) -> health_schema.HealthChartSeries:
@@ -148,7 +149,7 @@ def chart(
 def list_page[RecordT](
     user_id: int,
     interval: health_constants.Interval | None,
-    date_range: health_computation.DateRange,
+    date_range: core_date_range.DateRange,
     page_number: int,
     num_records: int,
     count: Callable[[date | None, date | None], int],

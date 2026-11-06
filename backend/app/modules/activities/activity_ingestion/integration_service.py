@@ -157,7 +157,7 @@ def request_range_sync(
         The accepted refresh job.
 
     Raises:
-        InvalidInputError: When ``start_date`` is after ``end_date``, ``end_date`` is in the future or the
+        InvalidInputError: When ``end_date`` is in the future or the
             range is longer than ``MAX_ACTIVITIES_RANGE_DAYS``.
     """
     core_sync_runner.validate_range(

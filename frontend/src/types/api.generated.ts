@@ -4780,11 +4780,11 @@ export interface components {
          *         snow_ski: Stats for snow skiing activities.
          *         snowboard: Stats for snowboarding activities.
          *         windsurf: Stats for windsurfing activities.
-         *         stand_up_paddleboarding: Stats for SUP activities.
-         *         surfing: Stats for surfing activities.
+         *         stand_up_paddling: Stats for SUP activities.
+         *         surf: Stats for surfing activities.
          *         kayaking: Stats for kayaking activities.
          *         sailing: Stats for sailing activities.
-         *         snowshoeing: Stats for snowshoeing activities.
+         *         snow_shoeing: Stats for snowshoeing activities.
          *         inline_skating: Stats for inline skating activities.
          *         other: Stats for activity types that belong to none of the sports above.
          */
@@ -4797,11 +4797,11 @@ export interface components {
             rowing?: components["schemas"]["ActivitySportStats"];
             run?: components["schemas"]["ActivitySportStats"];
             sailing?: components["schemas"]["ActivitySportStats"];
+            snow_shoeing?: components["schemas"]["ActivitySportStats"];
             snow_ski?: components["schemas"]["ActivitySportStats"];
             snowboard?: components["schemas"]["ActivitySportStats"];
-            snowshoeing?: components["schemas"]["ActivitySportStats"];
-            stand_up_paddleboarding?: components["schemas"]["ActivitySportStats"];
-            surfing?: components["schemas"]["ActivitySportStats"];
+            stand_up_paddling?: components["schemas"]["ActivitySportStats"];
+            surf?: components["schemas"]["ActivitySportStats"];
             swim?: components["schemas"]["ActivitySportStats"];
             walk?: components["schemas"]["ActivitySportStats"];
             windsurf?: components["schemas"]["ActivitySportStats"];
@@ -12778,13 +12778,16 @@ export interface operations {
         parameters: {
             query?: {
                 type?: components["schemas"]["ActivityType"] | null;
-                start_date?: string | null;
-                end_date?: string | null;
-                name?: string | null;
+                /** @description Keep only activities whose name contains this text */
+                name_contains?: string | null;
                 sort_by?: components["schemas"]["ActivitySortField"] | null;
                 sort_order?: components["schemas"]["ActivitySortOrder"] | null;
                 page_number?: number | null;
                 num_records?: number | null;
+                /** @description First day to include (inclusive, `YYYY-MM-DD`). */
+                start_date?: string | null;
+                /** @description Last day to include (inclusive, `YYYY-MM-DD`). Defaults to no upper bound. */
+                end_date?: string | null;
             };
             header?: never;
             path?: never;
@@ -17300,8 +17303,8 @@ export interface operations {
     list_gears: {
         parameters: {
             query?: {
-                /** @description Filter by inactive status */
-                show_inactive?: boolean | null;
+                /** @description Keep only active (true) or inactive (false) gears */
+                active?: boolean | null;
                 /** @description Keep only gears of this type */
                 gear_type?: components["schemas"]["GearType"] | null;
                 /** @description Keep only gears whose nickname contains this text */
@@ -18103,7 +18106,7 @@ export interface operations {
                 interval?: components["schemas"]["modules__health__constants__Interval"] | null;
                 page_number?: number | null;
                 num_records?: number | null;
-                /** @description First day to include (inclusive, `YYYY-MM-DD`). When `start_date` or `end_date` is given, `interval` is ignored. */
+                /** @description First day to include (inclusive, `YYYY-MM-DD`). */
                 start_date?: string | null;
                 /** @description Last day to include (inclusive, `YYYY-MM-DD`). Defaults to no upper bound. */
                 end_date?: string | null;
@@ -18950,7 +18953,7 @@ export interface operations {
                 interval?: components["schemas"]["modules__health__constants__Interval"] | null;
                 page_number?: number | null;
                 num_records?: number | null;
-                /** @description First day to include (inclusive, `YYYY-MM-DD`). When `start_date` or `end_date` is given, `interval` is ignored. */
+                /** @description First day to include (inclusive, `YYYY-MM-DD`). */
                 start_date?: string | null;
                 /** @description Last day to include (inclusive, `YYYY-MM-DD`). Defaults to no upper bound. */
                 end_date?: string | null;
@@ -19143,7 +19146,7 @@ export interface operations {
             query?: {
                 /** @description Interval to chart, looking back from today; ignored when `start_date` or `end_date` is given */
                 interval?: components["schemas"]["modules__health__constants__Interval"];
-                /** @description First day to include (inclusive, `YYYY-MM-DD`). When `start_date` or `end_date` is given, `interval` is ignored. */
+                /** @description First day to include (inclusive, `YYYY-MM-DD`). */
                 start_date?: string | null;
                 /** @description Last day to include (inclusive, `YYYY-MM-DD`). Defaults to no upper bound. */
                 end_date?: string | null;
@@ -19596,7 +19599,7 @@ export interface operations {
                 interval?: components["schemas"]["modules__health__constants__Interval"] | null;
                 page_number?: number | null;
                 num_records?: number | null;
-                /** @description First day to include (inclusive, `YYYY-MM-DD`). When `start_date` or `end_date` is given, `interval` is ignored. */
+                /** @description First day to include (inclusive, `YYYY-MM-DD`). */
                 start_date?: string | null;
                 /** @description Last day to include (inclusive, `YYYY-MM-DD`). Defaults to no upper bound. */
                 end_date?: string | null;
@@ -19789,7 +19792,7 @@ export interface operations {
             query?: {
                 /** @description Interval to chart, looking back from today; ignored when `start_date` or `end_date` is given */
                 interval?: components["schemas"]["modules__health__constants__Interval"];
-                /** @description First day to include (inclusive, `YYYY-MM-DD`). When `start_date` or `end_date` is given, `interval` is ignored. */
+                /** @description First day to include (inclusive, `YYYY-MM-DD`). */
                 start_date?: string | null;
                 /** @description Last day to include (inclusive, `YYYY-MM-DD`). Defaults to no upper bound. */
                 end_date?: string | null;
@@ -19876,7 +19879,7 @@ export interface operations {
             query?: {
                 /** @description Interval to chart, looking back from today; ignored when `start_date` or `end_date` is given */
                 interval?: components["schemas"]["modules__health__constants__Interval"];
-                /** @description First day to include (inclusive, `YYYY-MM-DD`). When `start_date` or `end_date` is given, `interval` is ignored. */
+                /** @description First day to include (inclusive, `YYYY-MM-DD`). */
                 start_date?: string | null;
                 /** @description Last day to include (inclusive, `YYYY-MM-DD`). Defaults to no upper bound. */
                 end_date?: string | null;
@@ -20400,7 +20403,7 @@ export interface operations {
                 interval?: components["schemas"]["modules__health__constants__Interval"] | null;
                 page_number?: number | null;
                 num_records?: number | null;
-                /** @description First day to include (inclusive, `YYYY-MM-DD`). When `start_date` or `end_date` is given, `interval` is ignored. */
+                /** @description First day to include (inclusive, `YYYY-MM-DD`). */
                 start_date?: string | null;
                 /** @description Last day to include (inclusive, `YYYY-MM-DD`). Defaults to no upper bound. */
                 end_date?: string | null;
@@ -20593,7 +20596,7 @@ export interface operations {
             query?: {
                 /** @description Interval to chart, looking back from today; ignored when `start_date` or `end_date` is given */
                 interval?: components["schemas"]["modules__health__constants__Interval"];
-                /** @description First day to include (inclusive, `YYYY-MM-DD`). When `start_date` or `end_date` is given, `interval` is ignored. */
+                /** @description First day to include (inclusive, `YYYY-MM-DD`). */
                 start_date?: string | null;
                 /** @description Last day to include (inclusive, `YYYY-MM-DD`). Defaults to no upper bound. */
                 end_date?: string | null;
@@ -21252,7 +21255,7 @@ export interface operations {
                 interval?: components["schemas"]["modules__health__constants__Interval"] | null;
                 page_number?: number | null;
                 num_records?: number | null;
-                /** @description First day to include (inclusive, `YYYY-MM-DD`). When `start_date` or `end_date` is given, `interval` is ignored. */
+                /** @description First day to include (inclusive, `YYYY-MM-DD`). */
                 start_date?: string | null;
                 /** @description Last day to include (inclusive, `YYYY-MM-DD`). Defaults to no upper bound. */
                 end_date?: string | null;
@@ -21445,7 +21448,7 @@ export interface operations {
             query?: {
                 /** @description Interval to chart, looking back from today; ignored when `start_date` or `end_date` is given */
                 interval?: components["schemas"]["modules__health__constants__Interval"];
-                /** @description First day to include (inclusive, `YYYY-MM-DD`). When `start_date` or `end_date` is given, `interval` is ignored. */
+                /** @description First day to include (inclusive, `YYYY-MM-DD`). */
                 start_date?: string | null;
                 /** @description Last day to include (inclusive, `YYYY-MM-DD`). Defaults to no upper bound. */
                 end_date?: string | null;
@@ -21898,7 +21901,7 @@ export interface operations {
                 interval?: components["schemas"]["modules__health__constants__Interval"] | null;
                 page_number?: number | null;
                 num_records?: number | null;
-                /** @description First day to include (inclusive, `YYYY-MM-DD`). When `start_date` or `end_date` is given, `interval` is ignored. */
+                /** @description First day to include (inclusive, `YYYY-MM-DD`). */
                 start_date?: string | null;
                 /** @description Last day to include (inclusive, `YYYY-MM-DD`). Defaults to no upper bound. */
                 end_date?: string | null;
@@ -22091,7 +22094,7 @@ export interface operations {
             query?: {
                 /** @description Interval to chart, looking back from today; ignored when `start_date` or `end_date` is given */
                 interval?: components["schemas"]["modules__health__constants__Interval"];
-                /** @description First day to include (inclusive, `YYYY-MM-DD`). When `start_date` or `end_date` is given, `interval` is ignored. */
+                /** @description First day to include (inclusive, `YYYY-MM-DD`). */
                 start_date?: string | null;
                 /** @description Last day to include (inclusive, `YYYY-MM-DD`). Defaults to no upper bound. */
                 end_date?: string | null;
@@ -32744,13 +32747,16 @@ export interface operations {
         parameters: {
             query?: {
                 type?: components["schemas"]["ActivityType"] | null;
-                start_date?: string | null;
-                end_date?: string | null;
-                name?: string | null;
+                /** @description Keep only activities whose name contains this text */
+                name_contains?: string | null;
                 sort_by?: components["schemas"]["ActivitySortField"] | null;
                 sort_order?: components["schemas"]["ActivitySortOrder"] | null;
                 page_number?: number | null;
                 num_records?: number | null;
+                /** @description First day to include (inclusive, `YYYY-MM-DD`). */
+                start_date?: string | null;
+                /** @description Last day to include (inclusive, `YYYY-MM-DD`). Defaults to no upper bound. */
+                end_date?: string | null;
             };
             header?: never;
             path: {

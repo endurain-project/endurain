@@ -247,10 +247,6 @@ class TestRequestActivitiesSync:
 
         request.assert_not_called()
 
-    def test_a_range_ending_before_it_starts_is_refused(self):
-        with pytest.raises(core_exceptions.InvalidInputError):
-            strava_sync_service.request_activities_sync(1, date(2026, 2, 1), date(2026, 1, 1), MagicMock(), MagicMock())
-
     def test_a_range_longer_than_the_cap_is_refused(self):
         start = date(2025, 1, 1)
         too_long = start + timedelta(days=core_sync_runner.MAX_ACTIVITIES_RANGE_DAYS)

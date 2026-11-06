@@ -126,7 +126,7 @@ def _filter_gears[RowT: tuple[object, ...]](
     stmt: Select[RowT],
     user_id: int,
     *,
-    show_inactive: bool | None,
+    active: bool | None,
     gear_type: gears_schema.GearType | None,
     nickname_contains: str | None,
 ) -> Select[RowT]:
@@ -135,7 +135,7 @@ def _filter_gears[RowT: tuple[object, ...]](
     Args:
         stmt: The statement to filter.
         user_id: Owner user ID.
-        show_inactive: ``False`` drops inactive gears; ``None`` and ``True`` keep them.
+        active: Keep only active (``True``) or inactive (``False``) gears; ``None`` keeps both.
         gear_type: Keep only gears of this type.
         nickname_contains: Keep only gears whose nickname contains this text, case-insensitively;
             ``%`` and ``_`` match literally.
@@ -144,8 +144,8 @@ def _filter_gears[RowT: tuple[object, ...]](
         The filtered statement.
     """
     stmt = stmt.where(gears_models.Gear.user_id == user_id)
-    if show_inactive is False:
-        stmt = stmt.where(gears_models.Gear.active.is_(True))
+    if active is not None:
+        stmt = stmt.where(gears_models.Gear.active.is_(active))
     if gear_type is not None:
         stmt = stmt.where(gears_models.Gear.gear_type == gear_type.stored)
     if nickname_contains:
@@ -158,7 +158,7 @@ def get_gears_number(
     user_id: int,
     db: Session,
     *,
-    show_inactive: bool | None = True,
+    active: bool | None = None,
     gear_type: gears_schema.GearType | None = None,
     nickname_contains: str | None = None,
 ) -> int:
@@ -167,7 +167,7 @@ def get_gears_number(
     Args:
         user_id: Owner user ID.
         db: Database session.
-        show_inactive: Include inactive gears.
+        active: Keep only active (``True``) or inactive (``False``) gears; ``None`` keeps both.
         gear_type: Keep only gears of this type.
         nickname_contains: Keep only gears whose nickname contains this text.
 
@@ -177,7 +177,7 @@ def get_gears_number(
     stmt = _filter_gears(
         select(func.count(gears_models.Gear.id)),
         user_id,
-        show_inactive=show_inactive,
+        active=active,
         gear_type=gear_type,
         nickname_contains=nickname_contains,
     )
@@ -190,7 +190,7 @@ def get_gear_users_with_pagination(
     *,
     page_number: int = 1,
     num_records: int = core_pagination.DEFAULT_NUM_RECORDS,
-    show_inactive: bool | None = True,
+    active: bool | None = None,
     gear_type: gears_schema.GearType | None = None,
     nickname_contains: str | None = None,
 ) -> list[gears_schema.GearRead]:
@@ -201,7 +201,7 @@ def get_gear_users_with_pagination(
         db: Database session.
         page_number: Page number (1-indexed).
         num_records: Records per page.
-        show_inactive: Include inactive gears.
+        active: Keep only active (``True``) or inactive (``False``) gears; ``None`` keeps both.
         gear_type: Keep only gears of this type.
         nickname_contains: Keep only gears whose nickname contains this text.
 
@@ -211,7 +211,7 @@ def get_gear_users_with_pagination(
     stmt = _filter_gears(
         select(gears_models.Gear),
         user_id,
-        show_inactive=show_inactive,
+        active=active,
         gear_type=gear_type,
         nickname_contains=nickname_contains,
     )

@@ -4,8 +4,8 @@ from datetime import UTC, date, datetime
 from unittest.mock import MagicMock, patch
 
 import pytest
+from fastapi.exceptions import RequestValidationError
 
-import core.exceptions as core_exceptions
 import modules.activities.activity_ingestion.constants as activity_ingestion_constants
 import modules.activities.activity_ingestion.schema as activity_ingestion_schema
 import modules.garmin.constants as garmin_constants
@@ -84,7 +84,7 @@ class TestRetrieveActivitiesRoutes:
     def test_a_reversed_range_is_rejected_before_anything_is_queued(self, route, module, provider):
         with (
             patch.object(module.activity_ingestion_integration.activity_ingestion_service, "accept_refresh") as request,
-            pytest.raises(core_exceptions.InvalidInputError),
+            pytest.raises(RequestValidationError),
         ):
             _call(route, start_date=date(2026, 2, 1), end_date=date(2026, 1, 1))
 

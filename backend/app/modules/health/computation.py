@@ -7,7 +7,6 @@ package's ``crud`` executes it. The serializers turn an ORM row into the read sc
 
 import calendar
 from collections.abc import Callable, Sequence
-from dataclasses import dataclass
 from datetime import date, datetime, timedelta
 from typing import Protocol
 
@@ -16,6 +15,7 @@ from sqlalchemy import ColumnElement, Date, Select, SQLColumnExpression, cast, d
 from sqlalchemy.orm import Mapped, QueryableAttribute, Session, declared_attr
 from sqlalchemy.orm.exc import StaleDataError
 
+import core.date_range as core_date_range
 import core.exceptions as core_exceptions
 import modules.health.constants as health_constants
 
@@ -120,26 +120,8 @@ def interval_start(interval: health_constants.Interval | None, today: Callable[[
     return get_start_date_for_interval(interval.value, today())
 
 
-@dataclass(frozen=True)
-class DateRange:
-    """The inclusive calendar dates a client asked a health list or chart to cover.
-
-    Attributes:
-        start_date: First day to include, or ``None`` for no lower bound.
-        end_date: Last day to include, or ``None`` for no upper bound.
-    """
-
-    start_date: date | None = None
-    end_date: date | None = None
-
-    @property
-    def is_set(self) -> bool:
-        """Whether the client gave either date."""
-        return self.start_date is not None or self.end_date is not None
-
-
 def window_bounds(
-    interval: health_constants.Interval | None, date_range: DateRange, today: Callable[[], date]
+    interval: health_constants.Interval | None, date_range: core_date_range.DateRange, today: Callable[[], date]
 ) -> tuple[date | None, date | None]:
     """Resolve the first and last day a list or chart covers.
 

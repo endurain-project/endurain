@@ -8,6 +8,7 @@ from typing import Annotated
 
 from fastapi import APIRouter, Query, Request, Response, Security, status
 
+import core.date_range as core_date_range
 import core.dependencies as core_dependencies
 import core.etag as core_etag
 import core.location as core_location
@@ -15,7 +16,6 @@ import core.pagination as core_pagination
 import core.rate_limit as core_rate_limit
 import modules.auth.dependencies as auth_dependencies
 import modules.health.constants as health_constants
-import modules.health.dependencies as health_dependencies
 import modules.health.health_fasting.schema as health_fasting_schema
 import modules.health.health_fasting.service as health_fasting_service
 
@@ -32,7 +32,7 @@ def read_health_fasting_all_pagination(
     token_user_id: auth_dependencies.CurrentUserId,
     db: core_dependencies.DbSession,
     page: core_pagination.ListPage,
-    date_range: health_dependencies.DateRangeQuery,
+    date_range: core_date_range.DateRangeQuery,
     interval: Annotated[
         health_constants.Interval | None,
         Query(description="Look back from today over this interval; ignored when `start_date` or `end_date` is given"),

@@ -289,7 +289,7 @@ describe('searchActivitiesByName', () => {
     })
     const result = await searchActivitiesByName('morning run')
     expect(apiFetch).toHaveBeenCalledWith(
-      '/activities?name=morning+run',
+      '/activities?name_contains=morning+run',
       expect.objectContaining({ signal: undefined }),
     )
     expect(result).toHaveLength(1)
@@ -606,7 +606,7 @@ describe('fetchUserActivitiesPage', () => {
     // cannot drift between a list call and a separate count call.
     expect(apiFetch).toHaveBeenCalledTimes(1)
     expect(apiFetch).toHaveBeenCalledWith(
-      '/activities?type=run&start_date=2024-01-01&end_date=2024-12-31&name=run&sort_by=distance&sort_order=asc&page_number=2&num_records=25',
+      '/activities?type=run&start_date=2024-01-01&end_date=2024-12-31&name_contains=run&sort_by=distance&sort_order=asc&page_number=2&num_records=25',
       expect.objectContaining({ signal: undefined }),
     )
     expect(result.total).toBe(42)

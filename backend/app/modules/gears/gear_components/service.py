@@ -94,7 +94,7 @@ def list_gear_components(
     db: Session,
     *,
     page_number: int = 1,
-    num_records: int = core_pagination.DEFAULT_CHILD_NUM_RECORDS,
+    num_records: int = core_pagination.DEFAULT_NUM_RECORDS,
 ) -> core_pagination.Page[gear_components_schema.GearComponentRead]:
     """Return one page of a user's gear components with the total.
 

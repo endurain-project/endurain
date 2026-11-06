@@ -50,6 +50,7 @@ _ALLOWED_CORE: dict[str, str] = {
     "core.mail": "The mail configuration shape the settings store, and its validation wording.",
     "core.middleware_body_limit": "The body cap an upload route declares for the body-size middleware.",
     "core.network": "The SSRF check on a tile server URL before it is saved.",
+    "core.date_range": "The inclusive start_date/end_date window of a list, chart or sync route.",
     "core.pagination": "Page and cursor primitives.",
     "core.partial_update": "The edit-schema base that refuses an explicit null for a NOT NULL column.",
     "core.types": "Request-body id and date types bounded to what the database columns can store.",

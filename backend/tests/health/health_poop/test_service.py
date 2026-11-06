@@ -4,15 +4,15 @@ from unittest.mock import patch
 
 import pytest
 
+import core.date_range as core_date_range
 import core.exceptions as core_exceptions
-import modules.health.computation as health_computation
 import modules.health.constants as health_constants
 import modules.health.health_poop.schema as health_poop_schema
 import modules.health.health_poop.service as health_poop_service
 
 _PREFIX = "modules.health.health_poop.service"
 
-_NO_RANGE = health_computation.DateRange()
+_NO_RANGE = core_date_range.DateRange()
 
 
 class TestGetHealthPoop:

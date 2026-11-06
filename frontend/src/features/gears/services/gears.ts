@@ -103,8 +103,10 @@ export async function fetchGears(
   const params = new URLSearchParams({
     page_number: String(page),
     num_records: String(numRecords),
-    show_inactive: String(showInactive),
   })
+  if (!showInactive) {
+    params.set('active', 'true')
+  }
   const response = await apiFetch<Schemas['Page_GearRead_']>(`/gears?${params.toString()}`, {
     signal,
   })

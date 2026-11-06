@@ -67,7 +67,9 @@ def link_pool(name: str) -> core_local_pool.BoundedPool:
 
 
 def validate_range(start_date: date, end_date: date, max_days: int, today: date) -> None:
-    """Refuse a reversed date range, a future one, or one longer than ``max_days``.
+    """Refuse a range that ends in the future or is longer than ``max_days``.
+
+    The caller has already refused a range whose start is after its end.
 
     Args:
         start_date: First day of the range.
@@ -76,11 +78,8 @@ def validate_range(start_date: date, end_date: date, max_days: int, today: date)
         today: The user's current calendar date.
 
     Raises:
-        InvalidInputError: When ``start_date`` is after ``end_date``, ``end_date`` is in the future or
-            the range is too long.
+        InvalidInputError: When ``end_date`` is in the future or the range is too long.
     """
-    if start_date > end_date:
-        raise core_exceptions.InvalidInputError("start_date must not be after end_date")
     if end_date > today:
         raise core_exceptions.InvalidInputError("end_date must not be in the future")
     if end_date - start_date >= timedelta(days=max_days):

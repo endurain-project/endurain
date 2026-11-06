@@ -10,10 +10,10 @@ from typing import Any
 
 from sqlalchemy.orm import Session
 
+import core.date_range as core_date_range
 import core.exceptions as core_exceptions
 import core.logger as core_logger
 import core.pagination as core_pagination
-import modules.health.computation as health_computation
 import modules.health.constants as health_constants
 import modules.health.health_water.crud as health_water_crud
 import modules.health.health_water.schema as health_water_schema
@@ -32,7 +32,7 @@ def list_health_water(
     page_number: int = 1,
     num_records: int = core_pagination.DEFAULT_NUM_RECORDS,
     interval: health_constants.Interval | None = None,
-    date_range: health_computation.DateRange = health_computation.DateRange(),
+    date_range: core_date_range.DateRange = core_date_range.DateRange(),
 ) -> core_pagination.Page[health_water_schema.HealthWaterRead]:
     """List one page of a user's water records with their total.
 
@@ -261,7 +261,7 @@ def get_health_water_chart(
     interval: health_constants.Interval,
     db: Session,
     *,
-    date_range: health_computation.DateRange = health_computation.DateRange(),
+    date_range: core_date_range.DateRange = core_date_range.DateRange(),
 ) -> health_schema.HealthChartSeries:
     """Chart a user's water intake over an interval.
 

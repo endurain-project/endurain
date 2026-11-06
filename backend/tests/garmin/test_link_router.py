@@ -180,12 +180,12 @@ def test_unlinking_is_a_delete_on_the_link():
     unlink.assert_called_once()
 
 
-def test_a_reversed_health_range_is_a_client_error():
+def test_a_reversed_health_range_is_a_validation_error():
     client, _ = _client()
 
     response = client.post("/garmin/health", params={"start_date": "2026-01-02", "end_date": "2026-01-01"})
 
-    assert response.status_code == 400
+    assert response.status_code == 422
 
 
 def _route_scopes(path: str, method: str) -> set[str]:

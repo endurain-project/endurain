@@ -125,13 +125,6 @@ def test_the_pool_refuses_syncs_beyond_its_limit(rate_limits, states, full_pool)
     assert states.get(2, Kind.GEAR).status == Status.FAILED
 
 
-def test_a_reversed_range_is_refused_and_nothing_is_queued(rate_limits, local, states):
-    with pytest.raises(core_exceptions.InvalidInputError):
-        garmin_sync_service.request_health_sync(1, date(2026, 1, 2), DAY, states, rate_limits, MagicMock())
-
-    local.submit_waiting.assert_not_called()
-
-
 def test_a_range_beyond_the_cap_is_refused_and_nothing_is_queued(rate_limits, local, states):
     with pytest.raises(core_exceptions.InvalidInputError):
         garmin_sync_service.request_health_sync(1, DAY, date(2026, 3, 1), states, rate_limits, MagicMock())
@@ -184,11 +177,6 @@ def test_a_range_ending_after_the_users_today_is_refused(rate_limits, local, sta
 
     request.assert_not_called()
     local.submit_waiting.assert_not_called()
-
-
-def test_a_reversed_activities_range_is_refused():
-    with pytest.raises(core_exceptions.InvalidInputError):
-        garmin_sync_service.request_activities_sync(1, date(2026, 1, 2), DAY, MagicMock(), MagicMock())
 
 
 def test_an_unrecorded_sync_is_not_found(states):

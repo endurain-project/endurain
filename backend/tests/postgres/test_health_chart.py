@@ -10,7 +10,7 @@ from unittest.mock import patch
 
 import pytest
 
-import modules.health.computation as health_computation
+import core.date_range as core_date_range
 import modules.health.constants as health_constants
 import modules.health.health_poop.crud as poop_crud
 import modules.health.health_poop.models as poop_models
@@ -237,7 +237,7 @@ def test_steps_past_window_with_both_dates(db):
     import modules.health.health_steps.service as steps_service
 
     _steps(db, [date(2026, 1, 5), date(2026, 2, 10), date(2026, 2, 11), date(2026, 3, 20)])
-    window = health_computation.DateRange(date(2026, 2, 10), date(2026, 2, 11))
+    window = core_date_range.DateRange(date(2026, 2, 10), date(2026, 2, 11))
 
     with patch("modules.users.users.integration_service.local_today", return_value=date(2026, 10, 28)):
         series = steps_service.get_health_steps_chart(1, health_constants.Interval.LAST_7_DAYS, db, date_range=window)
@@ -253,15 +253,15 @@ def test_steps_open_ended_ranges(db):
     _steps(db, [date(2026, 1, 5), date(2026, 2, 10), date(2026, 3, 20)])
 
     with patch("modules.users.users.integration_service.local_today", return_value=date(2026, 10, 28)):
-        from_start = steps_service.list_health_steps(1, db, date_range=health_computation.DateRange(date(2026, 2, 10)))
+        from_start = steps_service.list_health_steps(1, db, date_range=core_date_range.DateRange(date(2026, 2, 10)))
         until_end = steps_service.list_health_steps(
-            1, db, date_range=health_computation.DateRange(None, date(2026, 2, 10))
+            1, db, date_range=core_date_range.DateRange(None, date(2026, 2, 10))
         )
         chart_until = steps_service.get_health_steps_chart(
             1,
             health_constants.Interval.LAST_7_DAYS,
             db,
-            date_range=health_computation.DateRange(None, date(2026, 2, 10)),
+            date_range=core_date_range.DateRange(None, date(2026, 2, 10)),
         )
         unchanged = steps_service.list_health_steps(1, db)
 
@@ -285,9 +285,9 @@ def test_poop_window_is_the_users_local_days(db):
         )
     )
     db.commit()
-    both = health_computation.DateRange(date(2026, 3, 3), date(2026, 3, 3))
-    only_end = health_computation.DateRange(None, date(2026, 3, 3))
-    only_start = health_computation.DateRange(date(2026, 3, 4))
+    both = core_date_range.DateRange(date(2026, 3, 3), date(2026, 3, 3))
+    only_end = core_date_range.DateRange(None, date(2026, 3, 3))
+    only_start = core_date_range.DateRange(date(2026, 3, 4))
 
     with (
         patch("modules.users.users.integration_service.local_today", return_value=date(2026, 10, 28)),

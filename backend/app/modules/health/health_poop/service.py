@@ -10,6 +10,7 @@ from typing import Any
 
 from sqlalchemy.orm import Session
 
+import core.date_range as core_date_range
 import core.exceptions as core_exceptions
 import core.logger as core_logger
 import core.pagination as core_pagination
@@ -32,7 +33,7 @@ def list_health_poop(
     page_number: int = 1,
     num_records: int = core_pagination.DEFAULT_NUM_RECORDS,
     interval: health_constants.Interval | None = None,
-    date_range: health_computation.DateRange = health_computation.DateRange(),
+    date_range: core_date_range.DateRange = core_date_range.DateRange(),
 ) -> core_pagination.Page[health_poop_schema.HealthPoopRead]:
     """List one page of a user's poop records with their total.
 
@@ -191,7 +192,7 @@ def get_health_poop_chart(
     interval: health_constants.Interval,
     db: Session,
     *,
-    date_range: health_computation.DateRange = health_computation.DateRange(),
+    date_range: core_date_range.DateRange = core_date_range.DateRange(),
 ) -> health_schema.HealthChartSeries:
     """Chart a user's daily bowel-movement frequency over a window.
 

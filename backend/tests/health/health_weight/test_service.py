@@ -4,15 +4,15 @@ from unittest.mock import MagicMock, patch
 import pytest
 from sqlalchemy.orm.exc import StaleDataError
 
+import core.date_range as core_date_range
 import core.exceptions as core_exceptions
-import modules.health.computation as health_computation
 import modules.health.constants as health_constants
 import modules.health.health_weight.schema as health_weight_schema
 import modules.health.health_weight.service as health_weight_service
 
 _PREFIX = "modules.health.health_weight.service"
 
-_NO_RANGE = health_computation.DateRange()
+_NO_RANGE = core_date_range.DateRange()
 
 
 def _user(height):

@@ -137,7 +137,7 @@ describe('gear service requests', () => {
     const result = await fetchGears({ page: 1, numRecords: 25, showInactive: false })
 
     expect(apiFetch).toHaveBeenCalledWith(
-      '/gears?page_number=1&num_records=25&show_inactive=false',
+      '/gears?page_number=1&num_records=25&active=true',
       expect.objectContaining({ signal: undefined }),
     )
     expect(result).toEqual({ records: [mappedGear], total: 1 })

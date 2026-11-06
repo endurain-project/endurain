@@ -310,7 +310,7 @@ export async function searchActivitiesByName(
   name: string,
   signal?: AbortSignal,
 ): Promise<Activity[]> {
-  const params = new URLSearchParams({ name })
+  const params = new URLSearchParams({ name_contains: name })
   const page_ = await apiFetch<Schemas['Page_ActivityRead_']>(`/activities?${params.toString()}`, {
     signal,
   })
@@ -503,7 +503,7 @@ function appendActivityFilters(params: URLSearchParams, filters: ActivityListFil
   }
   const name = filters.nameSearch?.trim()
   if (name) {
-    params.set('name', name)
+    params.set('name_contains', name)
   }
 }
 

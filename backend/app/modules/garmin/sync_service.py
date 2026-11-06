@@ -236,7 +236,7 @@ def request_health_sync(
         The sync's initial status.
 
     Raises:
-        InvalidInputError: When ``start_date`` is after ``end_date``, ``end_date`` is in the future or the
+        InvalidInputError: When ``end_date`` is in the future or the
             range is longer than ``MAX_HEALTH_RANGE_DAYS``.
     """
     core_sync_runner.validate_range(
@@ -291,7 +291,7 @@ def request_activities_sync(
         The queued job's handle.
 
     Raises:
-        InvalidInputError: When ``start_date`` is after ``end_date``, ``end_date`` is in the future or the
+        InvalidInputError: When ``end_date`` is in the future or the
             range is longer than ``MAX_ACTIVITIES_RANGE_DAYS``.
     """
     return activity_ingestion_integration.request_range_sync(

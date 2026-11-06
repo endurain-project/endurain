@@ -17,13 +17,13 @@ router = APIRouter()
     dependencies=[Security(auth_dependencies.check_scopes, scopes=["activities:read"])],
 )
 def list_activity_exercise_titles(
-    page: core_pagination.ChildPage,
+    page: core_pagination.ListPage,
     db: core_dependencies.DbSession,
 ) -> activity_exercise_titles_schema.ActivityExerciseTitlesPage:
     """Return one page of the activity exercise titles.
 
     Args:
-        page: The requested window; a page holds up to the maximum when no size is given.
+        page: The requested window; a page holds the default size when none is given.
         db: Database session dependency.
 
     Returns:

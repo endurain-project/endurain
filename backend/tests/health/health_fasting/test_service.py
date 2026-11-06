@@ -4,8 +4,8 @@ from unittest.mock import MagicMock, patch
 import pytest
 from sqlalchemy.orm.exc import StaleDataError
 
+import core.date_range as core_date_range
 import core.exceptions as core_exceptions
-import modules.health.computation as health_computation
 import modules.health.constants as health_constants
 import modules.health.health_fasting.schema as health_fasting_schema
 import modules.health.health_fasting.service as health_fasting_service
@@ -13,7 +13,7 @@ import modules.health.health_fasting.service as health_fasting_service
 _PREFIX = "modules.health.health_fasting.service"
 _CRUD = f"{_PREFIX}.health_fasting_crud"
 
-_NO_RANGE = health_computation.DateRange()
+_NO_RANGE = core_date_range.DateRange()
 
 
 def _complete(status: str = "completed", notes: str | None = None) -> health_fasting_schema.HealthFastingComplete:
