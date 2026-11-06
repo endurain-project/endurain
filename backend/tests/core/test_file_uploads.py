@@ -1387,8 +1387,9 @@ class TestImageAllowList:
     def test_the_validator_accepts_exactly_the_shared_allow_list(self):
         config = core_file_uploads.file_validator.config
 
-        assert frozenset(core_file_uploads.IMAGE_CONTENT_TYPES) == config.ALLOWED_IMAGE_EXTENSIONS
-        assert frozenset(core_file_uploads.IMAGE_CONTENT_TYPES.values()) == config.ALLOWED_IMAGE_MIMES
+        assert {ext: media_type for media_type, exts in config.ALLOWED_IMAGE_TYPES.items() for ext in exts} == dict(
+            core_file_uploads.IMAGE_CONTENT_TYPES
+        )
         assert set(core_file_uploads.IMAGE_CONTENT_TYPES) == {".jpg", ".jpeg", ".png", ".webp"}
 
     @pytest.mark.parametrize(
@@ -1425,4 +1426,4 @@ class TestImageAllowList:
     def test_a_webp_passes_the_pixel_cap_check(self):
         data = images.webp_with_exif()
 
-        core_file_uploads._check_image_pixels(io.BytesIO(data))
+        core_file_uploads.validate_bytes_sync(data, kind=UploadKind.IMAGE, filename="a.webp")

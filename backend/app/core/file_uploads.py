@@ -36,17 +36,17 @@ from dataclasses import dataclass
 from enum import StrEnum
 from pathlib import Path, PurePosixPath, PureWindowsPath
 from types import MappingProxyType
-from typing import BinaryIO, ClassVar
+from typing import BinaryIO
 
 from fastapi import UploadFile
 from PIL import Image, ImageOps, UnidentifiedImageError
 from safeuploads import (
     ErrorCode,
     FileSecurityConfig,
-    FileSignatureValidator,
     FileValidator,
     SecurityLimits,
     SeekableFile,
+    ValidationResult,
 )
 from safeuploads.exceptions import (
     CompressionSecurityError,
@@ -56,6 +56,7 @@ from safeuploads.exceptions import (
     FileSignatureError,
     FileSizeError,
     FileValidationError,
+    ImageDimensionError,
     MimeTypeError,
     UnicodeSecurityError,
     WindowsReservedNameError,
@@ -104,13 +105,6 @@ IMAGE_CONTENT_TYPES: Mapping[str, str] = MappingProxyType(
 )
 
 
-class _ImageSecurityConfig(FileSecurityConfig):
-    """:class:`FileSecurityConfig` whose image allow-list is :data:`IMAGE_CONTENT_TYPES`."""
-
-    ALLOWED_IMAGE_EXTENSIONS: ClassVar[frozenset[str]] = frozenset(IMAGE_CONTENT_TYPES)
-    ALLOWED_IMAGE_MIMES: ClassVar[frozenset[str]] = frozenset(IMAGE_CONTENT_TYPES.values())
-
-
 def _is_webp(data: bytes) -> bool:
     """Return whether the bytes start with a WebP RIFF container header.
 
@@ -123,25 +117,6 @@ def _is_webp(data: bytes) -> bool:
     return data[:4] == b"RIFF" and data[8:12] == b"WEBP"
 
 
-class _ImageSignatureValidator(FileSignatureValidator):
-    """Signature validator that also recognises WebP, which safeuploads does not."""
-
-    def validate(self, content: bytes, expected_type: str, *, filename: str | None = None) -> None:
-        """Verify the leading bytes match the expected type, accepting a WebP header for images.
-
-        Args:
-            content: Leading bytes of the uploaded file.
-            expected_type: Logical file category.
-            filename: Optional sanitized filename for error context.
-
-        Raises:
-            FileSignatureError: When the header does not match the expected type.
-        """
-        if expected_type == "image" and _is_webp(content):
-            return
-        super().validate(content, expected_type, filename=filename)
-
-
 def _build_security_config() -> FileSecurityConfig:
     """Build the application-wide :class:`FileSecurityConfig`.
 
@@ -150,6 +125,7 @@ def _build_security_config() -> FileSecurityConfig:
     """
     limits = SecurityLimits(
         max_image_size=_MAX_IMAGE_BYTES,
+        max_image_pixels=_MAX_IMAGE_PIXELS,
         max_zip_size=_MAX_ZIP_BYTES,
         max_activity_file_size=_MAX_ACTIVITY_BYTES,
         max_gzip_size=_MAX_GZIP_BYTES,
@@ -159,7 +135,7 @@ def _build_security_config() -> FileSecurityConfig:
         allow_nested_archives=True,
         enable_audit_logging=True,
     )
-    config = _ImageSecurityConfig()
+    config = FileSecurityConfig()
     config.limits = limits
     return config
 
@@ -167,7 +143,6 @@ def _build_security_config() -> FileSecurityConfig:
 #: Application-wide :class:`FileValidator`. Stateless w.r.t. uploads;
 #: safe to share. Do **not** instantiate ``FileValidator`` elsewhere.
 file_validator: FileValidator = FileValidator(config=_build_security_config())
-file_validator.signature_validator = _ImageSignatureValidator(file_validator.config)
 
 #: Structured audit logger backing the ``safeuploads.audit`` Python
 #: logger. Records validation start/success/failure events with a
@@ -188,7 +163,7 @@ class UploadKind(StrEnum):
 
 def _validator_for(
     kind: UploadKind,
-) -> Callable[[SeekableFile, str], str]:
+) -> Callable[[SeekableFile, str], ValidationResult]:
     """Return the safeuploads synchronous validator for a kind."""
     if kind is UploadKind.IMAGE:
         return file_validator.validate_image_file_sync
@@ -237,7 +212,7 @@ def _to_domain_error(err: FileSecurityError) -> core_exceptions.DomainError:
     """
     if isinstance(err, FileSizeError) and err.error_code == ErrorCode.FILE_EMPTY:
         return core_exceptions.InvalidInputError(str(err))
-    if isinstance(err, FileSizeError):
+    if isinstance(err, (FileSizeError, ImageDimensionError)):
         return core_exceptions.PayloadTooLargeError(str(err))
     if isinstance(
         err,
@@ -262,31 +237,6 @@ def _to_domain_error(err: FileSecurityError) -> core_exceptions.DomainError:
 # ---------------------------------------------------------------------------
 
 
-def _check_image_pixels(file: BinaryIO) -> None:
-    """Refuse an image that would decode to more than :data:`_MAX_IMAGE_PIXELS`.
-
-    Only the header is read, so the check costs no decode. The file is rewound afterwards.
-
-    Args:
-        file: The image, already accepted by the byte-level validator.
-
-    Raises:
-        PayloadTooLargeError: When the image has too many pixels.
-        InvalidInputError: When the image header cannot be read.
-    """
-    try:
-        with Image.open(file) as image:
-            width, height = image.size
-    except Image.DecompressionBombError as err:
-        raise core_exceptions.PayloadTooLargeError("Image dimensions are too large") from err
-    except (UnidentifiedImageError, OSError, ValueError) as err:
-        raise core_exceptions.InvalidInputError("The image could not be read") from err
-    finally:
-        file.seek(0)
-    if width * height > _MAX_IMAGE_PIXELS:
-        raise core_exceptions.PayloadTooLargeError("Image dimensions are too large")
-
-
 def _validate_file(file: BinaryIO, filename: str, *, kind: UploadKind) -> str:
     """Validate a seekable binary file's content on the calling thread.
 
@@ -305,13 +255,10 @@ def _validate_file(file: BinaryIO, filename: str, *, kind: UploadKind) -> str:
             safeuploads exception (see :func:`_to_domain_error`).
     """
     try:
-        sanitized = _validator_for(kind)(file, filename)
+        return _validator_for(kind)(file, filename).filename
     except FileSecurityError as err:
         logger.warning("Upload validation failed", exc_info=err, extra=core_logger.context(kind=kind.value))
         raise _to_domain_error(err) from err
-    if kind is UploadKind.IMAGE:
-        _check_image_pixels(file)
-    return sanitized
 
 
 def _validate_upload(file: UploadFile, *, kind: UploadKind) -> None:

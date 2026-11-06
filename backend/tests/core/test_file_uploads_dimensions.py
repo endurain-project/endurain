@@ -59,7 +59,5 @@ def test_the_upload_can_be_read_after_the_check():
 
 
 def test_a_png_signature_without_a_readable_header_is_invalid():
-    file = io.BytesIO(b"\x89PNG\r\n\x1a\n" + b"\x00" * 64)
-
     with pytest.raises(core_exceptions.InvalidInputError):
-        core_file_uploads._check_image_pixels(file)
+        _validate(b"\x89PNG\r\n\x1a\n" + b"\x00" * 64)
