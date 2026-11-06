@@ -3,6 +3,9 @@
 import time
 from unittest.mock import MagicMock, patch
 
+import pytest
+
+import core.http_cache as core_http_cache
 import core.signing as core_signing
 
 
@@ -91,7 +94,7 @@ class TestCapabilitySigner:
 
         import core.signing as core_signing
 
-        signer = core_signing.CapabilitySigner(salt="test-area", max_age_seconds=1)
+        signer = core_signing.CapabilitySigner(salt="test-area", max_age_seconds=1, bucket_seconds=1)
         token = signer.sign(42)
         time.sleep(2.1)
 
@@ -170,3 +173,74 @@ class TestBlobOrigin:
         mock_runtime.get_active_platform.side_effect = RuntimeError("no platform")
 
         assert core_signing.blob_origin() is None
+
+
+class TestTokenBuckets:
+    """A capability token is the same URL for a while, so the browser cache can hit it."""
+
+    BUCKET = core_signing.DEFAULT_TOKEN_BUCKET_SECONDS
+    START = 1_700_000_000 - 1_700_000_000 % BUCKET  # the first second of a bucket
+
+    def _sign_at(self, monkeypatch, now: float, signer: core_signing.CapabilitySigner) -> str:
+        monkeypatch.setattr(time, "time", lambda: now)
+        return signer.sign(42)
+
+    def test_two_mints_in_one_bucket_are_the_same_token(self, monkeypatch):
+        signer = core_signing.CapabilitySigner(salt="bucket-salt")
+
+        first = self._sign_at(monkeypatch, self.START, signer)
+        last = self._sign_at(monkeypatch, self.START + self.BUCKET - 1, signer)
+
+        assert first == last
+
+    def test_the_next_bucket_is_a_new_token(self, monkeypatch):
+        signer = core_signing.CapabilitySigner(salt="bucket-salt")
+
+        first = self._sign_at(monkeypatch, self.START + self.BUCKET - 1, signer)
+        second = self._sign_at(monkeypatch, self.START + self.BUCKET, signer)
+
+        assert first != second
+
+    def test_a_token_is_valid_at_least_the_browser_cache_window_after_any_mint(self, monkeypatch):
+        """The worst mint is the last second of a bucket: the stamp is a whole bucket old."""
+        signer = core_signing.CapabilitySigner(salt="bucket-salt")
+        mint = self.START + self.BUCKET - 1
+        token = self._sign_at(monkeypatch, mint, signer)
+
+        monkeypatch.setattr(time, "time", lambda: mint + core_http_cache.SIGNED_URL_CACHE_MAX_AGE)
+
+        assert signer.verify(42, token) is True
+
+    def test_the_cache_window_fits_inside_the_guaranteed_validity(self):
+        signer = core_signing.CapabilitySigner(salt="bucket-salt")
+
+        assert signer.max_age_seconds - signer.bucket_seconds >= core_http_cache.SIGNED_URL_CACHE_MAX_AGE
+
+    def test_a_token_never_outlives_the_lifetime_measured_from_its_mint(self, monkeypatch):
+        signer = core_signing.CapabilitySigner(salt="bucket-salt")
+        mint = self.START + self.BUCKET - 1
+        token = self._sign_at(monkeypatch, mint, signer)
+
+        monkeypatch.setattr(time, "time", lambda: mint + signer.max_age_seconds + 1)
+
+        assert signer.verify(42, token) is False
+
+    def test_the_stamp_is_the_start_of_the_bucket(self, monkeypatch):
+        signer = core_signing.CapabilitySigner(salt="bucket-salt")
+        token = self._sign_at(monkeypatch, self.START + 5, signer)
+
+        monkeypatch.setattr(time, "time", lambda: self.START + signer.max_age_seconds)
+        assert signer.verify(42, token) is True
+        monkeypatch.setattr(time, "time", lambda: self.START + signer.max_age_seconds + 1)
+        assert signer.verify(42, token) is False
+
+    def test_a_bucket_longer_than_the_lifetime_is_refused(self):
+        with pytest.raises(ValueError, match="bucket_seconds"):
+            core_signing.CapabilitySigner(salt="x", max_age_seconds=60, bucket_seconds=61)
+
+    def test_plain_sign_token_keeps_the_exact_second(self, monkeypatch):
+        monkeypatch.setattr(time, "time", lambda: self.START + 5)
+        first = core_signing.sign_token("exact-salt", 1)
+        monkeypatch.setattr(time, "time", lambda: self.START + 6)
+
+        assert core_signing.sign_token("exact-salt", 1) != first

@@ -7,7 +7,7 @@ import type { Schemas } from '@/types'
  * them into the camelCase domain models below.
  */
 export type ActivityDto = Schemas['ActivityRead']
-export type ActivityStreamDto = Schemas['ActivityStreamsRead']
+export type ActivityStreamDto = Schemas['ActivityStreamResponse']
 export type ActivityLapDto = Schemas['ActivityLapsRead']
 export type ActivityEditDto = Schemas['ActivityEdit']
 export type ActivityMediaDto = Schemas['ActivityMediaRead']
@@ -51,9 +51,9 @@ export const STREAM_TYPE = {
 export type StreamMetric = keyof typeof STREAM_TYPE
 
 /**
- * A single sampled point along a stream. The backend serializes waypoints as an
- * untyped object array; this is the subset of keys the detail view consumes.
- * Every field is optional because the present keys depend on the stream type.
+ * A single sampled point along a stream. The backend types waypoints per stream
+ * type; this is the union of the value keys the detail view consumes. Every field
+ * is optional because the present keys depend on the stream type.
  */
 export interface StreamWaypoint {
   /** Heart rate in bpm. */

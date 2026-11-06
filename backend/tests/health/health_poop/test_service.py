@@ -5,11 +5,14 @@ from unittest.mock import patch
 import pytest
 
 import core.exceptions as core_exceptions
+import modules.health.computation as health_computation
 import modules.health.constants as health_constants
 import modules.health.health_poop.schema as health_poop_schema
 import modules.health.health_poop.service as health_poop_service
 
 _PREFIX = "modules.health.health_poop.service"
+
+_NO_RANGE = health_computation.DateRange()
 
 
 class TestGetHealthPoop:
@@ -62,21 +65,26 @@ class TestListHealthPoop:
     @patch(f"{_PREFIX}.users_integration.local_today", return_value=datetime_date(2024, 1, 15))
     def test_resolves_the_interval_in_the_users_calendar(self, _today, _tz, mock_number, mock_list, mock_db):
         result = health_poop_service.list_health_poop(
-            1, mock_db, page_number=2, num_records=10, interval=health_constants.Interval.LAST_30_DAYS
+            1,
+            mock_db,
+            page_number=2,
+            num_records=10,
+            interval=health_constants.Interval.LAST_30_DAYS,
+            date_range=_NO_RANGE,
         )
 
         since = datetime_date(2023, 12, 16)
-        mock_number.assert_called_once_with(1, mock_db, since, "Asia/Tokyo")
-        mock_list.assert_called_once_with(1, mock_db, 2, 10, since, "Asia/Tokyo")
+        mock_number.assert_called_once_with(1, mock_db, since, None, "Asia/Tokyo")
+        mock_list.assert_called_once_with(1, mock_db, 2, 10, since, None, "Asia/Tokyo")
         assert (result.total, result.page, result.num_records) == (0, 2, 10)
 
     @patch(f"{_PREFIX}.health_poop_crud.get_health_poop_by_user_id", return_value=[])
     @patch(f"{_PREFIX}.health_poop_crud.get_health_poop_number_by_user_id", return_value=0)
     @patch(f"{_PREFIX}.users_integration.resolve_timezone", return_value="UTC")
     def test_no_interval_means_no_lower_bound(self, _tz, mock_number, mock_list, mock_db):
-        health_poop_service.list_health_poop(1, mock_db)
+        health_poop_service.list_health_poop(1, mock_db, date_range=_NO_RANGE)
 
-        mock_number.assert_called_once_with(1, mock_db, None, "UTC")
+        mock_number.assert_called_once_with(1, mock_db, None, None, "UTC")
 
 
 class TestStageImportHealthPoop:

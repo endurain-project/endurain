@@ -31,7 +31,6 @@ import type {
   ActivityWorkoutStep,
   ActivityWorkoutStepDto,
   HrZoneBucket,
-  StreamWaypoint,
 } from '../types'
 
 /** Context controlling whether to hit the authenticated or public endpoints. */
@@ -179,10 +178,10 @@ function mapHrZones(zonePercentages: ActivityStreamDto['zone_percentages']): HrZ
 }
 
 /**
- * Maps a stream DTO to the domain model. The wire `stream_waypoints` are an
- * untyped object array; they are narrowed to {@link StreamWaypoint} here and
- * read defensively downstream. The HR stream's zone percentages are decoded
- * into {@link HrZoneBucket}s.
+ * Maps a stream DTO to the domain model. The wire `stream_waypoints` are typed
+ * per stream type; every shape fits the domain `StreamWaypoint`, whose keys are read
+ * defensively downstream. The HR stream's zone percentages are decoded into
+ * {@link HrZoneBucket}s.
  *
  * @param dto - The stream wire payload.
  * @returns The stream domain model.
@@ -191,7 +190,7 @@ export function mapActivityStream(dto: ActivityStreamDto): ActivityStream {
   return {
     id: dto.id,
     streamType: dto.stream_type,
-    waypoints: (dto.stream_waypoints ?? []) as StreamWaypoint[],
+    waypoints: dto.stream_waypoints,
     hrZones: mapHrZones(dto.zone_percentages),
   }
 }

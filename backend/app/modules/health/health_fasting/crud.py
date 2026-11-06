@@ -3,7 +3,7 @@
 from datetime import date, datetime
 from decimal import Decimal
 
-from sqlalchemy import and_, desc, func, or_, select
+from sqlalchemy import Date, and_, cast, desc, func, or_, select
 from sqlalchemy.orm import Session
 
 import core.etag as core_etag
@@ -24,18 +24,22 @@ _IN_PROGRESS = health_fasting_schema.FastingStatus.IN_PROGRESS.value
 _COMPLETED = health_fasting_schema.FastingStatus.COMPLETED.value
 
 
-def get_health_fasting_number_by_user_id(user_id: int, db: Session, since: date | None = None) -> int:
+def get_health_fasting_number_by_user_id(
+    user_id: int, db: Session, since: date | None = None, until: date | None = None
+) -> int:
     """Count a user's fasting records.
 
     Args:
         user_id: The records' owner.
         db: Database session.
         since: Count only records started on or after this date.
+        until: Count only records started on or before this date.
 
     Returns:
         The number of records.
     """
-    return health_record_crud.count(SPEC, user_id, health_fasting_models.HealthFasting.fast_start_time, since, db)
+    start_day = cast(health_fasting_models.HealthFasting.fast_start_time, Date)
+    return health_record_crud.count(SPEC, user_id, start_day, since, until, db)
 
 
 def get_health_fasting_by_id_and_user_id(
@@ -60,6 +64,7 @@ def get_health_fasting_by_user_id(
     page_number: int | None = None,
     num_records: int | None = None,
     since: date | None = None,
+    until: date | None = None,
 ) -> list[health_fasting_schema.HealthFastingRead]:
     """Retrieve a user's fasting records, optionally paginated and bounded.
 
@@ -69,13 +74,14 @@ def get_health_fasting_by_user_id(
         page_number: 1-based page; paginates only together with ``num_records``.
         num_records: Records per page.
         since: Return only records started on or after this date.
+        until: Return only records started on or before this date.
 
     Returns:
         The records ordered by start time descending.
     """
     fast_start_time = health_fasting_models.HealthFasting.fast_start_time
     return health_record_crud.list_page(
-        SPEC, user_id, fast_start_time, fast_start_time, since, page_number, num_records, db
+        SPEC, user_id, fast_start_time, cast(fast_start_time, Date), since, until, page_number, num_records, db
     )
 
 

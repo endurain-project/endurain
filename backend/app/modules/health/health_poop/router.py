@@ -22,6 +22,7 @@ import core.pagination as core_pagination
 import core.rate_limit as core_rate_limit
 import modules.auth.dependencies as auth_dependencies
 import modules.health.constants as health_constants
+import modules.health.dependencies as health_dependencies
 import modules.health.health_poop.schema as health_poop_schema
 import modules.health.health_poop.service as health_poop_service
 import modules.health.schema as health_schema
@@ -44,9 +45,10 @@ def read_health_poop_all_pagination(
     token_user_id: auth_dependencies.CurrentUserId,
     db: core_dependencies.DbSession,
     page: core_pagination.ListPage,
+    date_range: health_dependencies.DateRangeQuery,
     interval: Annotated[
         health_constants.Interval | None,
-        Query(description="Filter by goal interval"),
+        Query(description="Look back from today over this interval; ignored when `start_date` or `end_date` is given"),
     ] = None,
 ) -> core_pagination.Page[health_poop_schema.HealthPoopRead]:
     """Retrieve paginated poop records for the user.
@@ -58,13 +60,19 @@ def read_health_poop_all_pagination(
         token_user_id: The ID of the authenticated user extracted from the access token.
         db: Database session for executing queries.
         page: The requested page and page size.
-        interval: Optional filter to retrieve records within a specific goal interval.
+        interval: Optional interval looking back from today; ignored when a date range is given.
+        date_range: Optional inclusive start and end dates, which replace the interval.
 
     Returns:
         The page of records with the total matching the interval.
     """
     return health_poop_service.list_health_poop(
-        token_user_id, db, page_number=page.page_number, num_records=page.num_records, interval=interval
+        token_user_id,
+        db,
+        page_number=page.page_number,
+        num_records=page.num_records,
+        interval=interval,
+        date_range=date_range,
     )
 
 
@@ -76,9 +84,12 @@ def read_health_poop_all_pagination(
 def read_health_poop_chart(
     token_user_id: auth_dependencies.CurrentUserId,
     db: core_dependencies.DbSession,
+    date_range: health_dependencies.DateRangeQuery,
     interval: Annotated[
         health_constants.Interval,
-        Query(description="Interval to chart"),
+        Query(
+            description="Interval to chart, looking back from today; ignored when `start_date` or `end_date` is given"
+        ),
     ] = health_constants.Interval.LAST_7_DAYS,
 ) -> health_schema.HealthChartSeries:
     """Chart the authenticated user's daily bowel-movement frequency over an interval.
@@ -90,12 +101,13 @@ def read_health_poop_chart(
     Args:
         token_user_id: The ID of the authenticated user extracted from the access token.
         db: Database session for executing queries.
-        interval: The window to chart.
+        interval: The window to chart, looking back from today; ignored when a date range is given.
+        date_range: Optional inclusive start and end dates to chart instead of the interval.
 
     Returns:
         The interval's bucket size and its points, oldest first.
     """
-    return health_poop_service.get_health_poop_chart(token_user_id, interval, db)
+    return health_poop_service.get_health_poop_chart(token_user_id, interval, db, date_range=date_range)
 
 
 @router.get(

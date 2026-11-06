@@ -22,7 +22,7 @@ SPEC = health_record_crud.RecordSpec(
 
 
 def get_health_poop_number_by_user_id(
-    user_id: int, db: Session, since: date_type | None = None, tz_name: str = "UTC"
+    user_id: int, db: Session, since: date_type | None = None, until: date_type | None = None, tz_name: str = "UTC"
 ) -> int:
     """Count a user's poop records.
 
@@ -30,13 +30,14 @@ def get_health_poop_number_by_user_id(
         user_id: The records' owner.
         db: Database session.
         since: Count only records on or after this day in ``tz_name``.
+        until: Count only records on or before this day in ``tz_name``.
         tz_name: IANA timezone ``since`` is resolved in.
 
     Returns:
         The number of records.
     """
     since_column = health_computation.local_date_expression(health_poop_models.HealthPoop.date_time, tz_name)
-    return health_record_crud.count(SPEC, user_id, since_column, since, db)
+    return health_record_crud.count(SPEC, user_id, since_column, since, until, db)
 
 
 def get_health_poop_by_id_and_user_id(
@@ -61,6 +62,7 @@ def get_health_poop_by_user_id(
     page_number: int | None = None,
     num_records: int | None = None,
     since: date_type | None = None,
+    until: date_type | None = None,
     tz_name: str = "UTC",
 ) -> list[health_poop_schema.HealthPoopRead]:
     """Retrieve a user's poop records, optionally paginated and bounded.
@@ -71,6 +73,7 @@ def get_health_poop_by_user_id(
         page_number: 1-based page; paginates only together with ``num_records``.
         num_records: Records per page.
         since: Return only records on or after this day in ``tz_name``.
+        until: Return only records on or before this day in ``tz_name``.
         tz_name: IANA timezone ``since`` is resolved in.
 
     Returns:
@@ -78,7 +81,7 @@ def get_health_poop_by_user_id(
     """
     since_column = health_computation.local_date_expression(health_poop_models.HealthPoop.date_time, tz_name)
     return health_record_crud.list_page(
-        SPEC, user_id, health_poop_models.HealthPoop.date_time, since_column, since, page_number, num_records, db
+        SPEC, user_id, health_poop_models.HealthPoop.date_time, since_column, since, until, page_number, num_records, db
     )
 
 
@@ -193,13 +196,19 @@ def delete_health_poop(user_id: int, health_poop_id: int, db: Session, *, if_mat
 
 
 def get_health_poop_chart(
-    user_id: int, since: date_type, bucket: health_constants.ChartBucket, tz_name: str, db: Session
+    user_id: int,
+    since: date_type,
+    until: date_type | None,
+    bucket: health_constants.ChartBucket,
+    tz_name: str,
+    db: Session,
 ) -> list[health_schema.HealthChartPoint]:
     """Count a user's bowel movements per chart bucket, each filed under the day it happened in the user's zone.
 
     Args:
         user_id: The records' owner.
         since: First day of the charted window.
+        until: Last day of the charted window, or ``None`` for no upper bound.
         bucket: The span each point aggregates.
         tz_name: IANA timezone the days are resolved in.
         db: Database session.
@@ -210,7 +219,12 @@ def get_health_poop_chart(
     model = health_poop_models.HealthPoop
     local_day = health_computation.local_date_expression(model.date_time, tz_name)
     day = health_computation.chart_bucket_expression(local_day, bucket, since)
-    stmt = select(day, func.count()).where(model.user_id == user_id, local_day >= since).group_by(day).order_by(day)
+    stmt = (
+        select(day, func.count())
+        .where(model.user_id == user_id, *health_computation.date_bounds(local_day, since, until))
+        .group_by(day)
+        .order_by(day)
+    )
     return [health_schema.HealthChartPoint(date=d, value=float(count)) for d, count in db.execute(stmt).all()]
 
 

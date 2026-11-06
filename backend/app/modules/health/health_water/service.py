@@ -13,6 +13,7 @@ from sqlalchemy.orm import Session
 import core.exceptions as core_exceptions
 import core.logger as core_logger
 import core.pagination as core_pagination
+import modules.health.computation as health_computation
 import modules.health.constants as health_constants
 import modules.health.health_water.crud as health_water_crud
 import modules.health.health_water.schema as health_water_schema
@@ -31,6 +32,7 @@ def list_health_water(
     page_number: int = 1,
     num_records: int = core_pagination.DEFAULT_NUM_RECORDS,
     interval: health_constants.Interval | None = None,
+    date_range: health_computation.DateRange = health_computation.DateRange(),
 ) -> core_pagination.Page[health_water_schema.HealthWaterRead]:
     """List one page of a user's water records with their total.
 
@@ -39,18 +41,23 @@ def list_health_water(
         db: Database session.
         page_number: 1-based page.
         num_records: Records per page.
-        interval: Return only records within this interval.
+        interval: Return only records within this interval, looking back from today; ignored when
+            ``date_range`` is set.
+        date_range: Return only records within these inclusive dates instead of the interval.
 
     Returns:
-        The page of records; ``total`` counts every record within the interval.
+        The page of records; ``total`` counts every record within the window.
     """
     return health_record_service.list_page(
         user_id,
         interval,
+        date_range,
         page_number,
         num_records,
-        lambda since: health_water_crud.get_health_water_number_by_user_id(user_id, db, since),
-        lambda since: health_water_crud.get_health_water_by_user_id(user_id, db, page_number, num_records, since),
+        lambda since, until: health_water_crud.get_health_water_number_by_user_id(user_id, db, since, until),
+        lambda since, until: health_water_crud.get_health_water_by_user_id(
+            user_id, db, page_number, num_records, since, until
+        ),
         db,
     )
 
@@ -250,13 +257,18 @@ def delete_health_water(user_id: int, health_water_id: int, db: Session, *, if_m
 
 
 def get_health_water_chart(
-    user_id: int, interval: health_constants.Interval, db: Session
+    user_id: int,
+    interval: health_constants.Interval,
+    db: Session,
+    *,
+    date_range: health_computation.DateRange = health_computation.DateRange(),
 ) -> health_schema.HealthChartSeries:
     """Chart a user's water intake over an interval.
 
     Args:
         user_id: The records' owner.
-        interval: The window to chart.
+        interval: The window to chart, looking back from today; ignored when ``date_range`` is set.
+        date_range: The inclusive dates to chart instead of the interval.
         db: Database session.
 
     Returns:
@@ -265,7 +277,8 @@ def get_health_water_chart(
     return health_record_service.chart(
         user_id,
         interval,
-        lambda since, bucket: health_water_crud.get_health_water_chart(user_id, since, bucket, db),
+        date_range,
+        lambda since, until, bucket: health_water_crud.get_health_water_chart(user_id, since, until, bucket, db),
         db,
     )
 

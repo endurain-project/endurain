@@ -5,6 +5,7 @@ transaction boundary. What other modules may consume lives in
 :mod:`modules.health.health_poop.integration_service`.
 """
 
+from datetime import date as date_type
 from typing import Any
 
 from sqlalchemy.orm import Session
@@ -31,6 +32,7 @@ def list_health_poop(
     page_number: int = 1,
     num_records: int = core_pagination.DEFAULT_NUM_RECORDS,
     interval: health_constants.Interval | None = None,
+    date_range: health_computation.DateRange = health_computation.DateRange(),
 ) -> core_pagination.Page[health_poop_schema.HealthPoopRead]:
     """List one page of a user's poop records with their total.
 
@@ -39,15 +41,19 @@ def list_health_poop(
         db: Database session.
         page_number: 1-based page.
         num_records: Records per page.
-        interval: Return only records within this interval.
+        interval: Return only records within this interval, looking back from today; ignored when
+            ``date_range`` is set.
+        date_range: Return only records within these inclusive dates instead of the interval.
 
     Returns:
-        The page of records; ``total`` counts every record within the interval.
+        The page of records; ``total`` counts every record within the window.
     """
-    since = health_computation.interval_start(interval, lambda: users_integration.local_today(user_id, db))
+    since, until = health_computation.window_bounds(
+        interval, date_range, lambda: users_integration.local_today(user_id, db)
+    )
     tz_name = users_integration.resolve_timezone(user_id, db)
-    total = health_poop_crud.get_health_poop_number_by_user_id(user_id, db, since, tz_name)
-    records = health_poop_crud.get_health_poop_by_user_id(user_id, db, page_number, num_records, since, tz_name)
+    total = health_poop_crud.get_health_poop_number_by_user_id(user_id, db, since, until, tz_name)
+    records = health_poop_crud.get_health_poop_by_user_id(user_id, db, page_number, num_records, since, until, tz_name)
     return core_pagination.Page.build(records, total, page_number, num_records)
 
 
@@ -181,33 +187,39 @@ def delete_health_poop(user_id: int, health_poop_id: int, db: Session, *, if_mat
 
 
 def get_health_poop_chart(
-    user_id: int, interval: health_constants.Interval, db: Session
+    user_id: int,
+    interval: health_constants.Interval,
+    db: Session,
+    *,
+    date_range: health_computation.DateRange = health_computation.DateRange(),
 ) -> health_schema.HealthChartSeries:
-    """Chart a user's daily bowel-movement frequency over an interval.
+    """Chart a user's daily bowel-movement frequency over a window.
 
     Each value is the bucket's movements per day, so a week or month stays comparable with the daily target.
-    The all-time window opens at the first movement, so its first month is not diluted by days before it.
+    A window with no first day opens at the first movement, so its first month is not diluted by days before it.
 
     Args:
         user_id: The records' owner.
-        interval: The window to chart.
+        interval: The window to chart, looking back from today; ignored when ``date_range`` is set.
+        date_range: The inclusive dates to chart instead of the interval.
         db: Database session.
 
     Returns:
         The interval's buckets, one point per bucket that holds a movement.
     """
     today = users_integration.local_today(user_id, db)
-    since = health_computation.get_start_date_for_interval(interval.value, today)
+    since, until = health_record_service.chart_window(user_id, interval, date_range, db)
     tz_name = users_integration.resolve_timezone(user_id, db)
-    if interval is health_constants.Interval.ALL_TIME:
+    if since == date_type.min:
         since = health_poop_crud.get_health_poop_first_day(user_id, tz_name, db) or since
+    window_end = min(until, today) if until is not None else today
     bucket, counts = health_computation.chart_points(
-        lambda bucket: health_poop_crud.get_health_poop_chart(user_id, since, bucket, tz_name, db)
+        lambda bucket: health_poop_crud.get_health_poop_chart(user_id, since, until, bucket, tz_name, db)
     )
     points = [
         health_schema.HealthChartPoint(
             date=count.date,
-            value=round(count.value / health_computation.bucket_day_count(count.date, bucket, since, today), 2),
+            value=round(count.value / health_computation.bucket_day_count(count.date, bucket, since, window_end), 2),
         )
         for count in counts
     ]

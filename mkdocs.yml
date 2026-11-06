@@ -124,6 +124,7 @@ nav:
     - Configuration, scopes and best practices: integrate/auth-reference.md
     - Errors, concurrency and rate limits: integrate/errors-and-limits.md
     - Public endpoints: integrate/public-endpoints.md
+    - Health data and activity streams: integrate/health-and-streams.md
     - Background operations: integrate/background-operations.md
     - Realtime updates: integrate/realtime.md
     - Supported types: integrate/supported-types.md

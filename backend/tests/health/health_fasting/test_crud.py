@@ -40,7 +40,7 @@ class TestReads:
 
         health_fasting_crud.get_health_fasting_number_by_user_id(1, mock_db, date(2024, 1, 1))
 
-        assert "health_fasting.fast_start_time >=" in str(mock_db.execute.call_args.args[0])
+        assert "CAST(health_fasting.fast_start_time AS DATE) >=" in str(mock_db.execute.call_args.args[0])
 
     def test_list_paginates_and_bounds(self, mock_db):
         _returns_scalars(mock_db, [_row()])
@@ -50,7 +50,7 @@ class TestReads:
         assert len(result) == 1
         compiled = str(mock_db.execute.call_args.args[0].compile(compile_kwargs={"literal_binds": True}))
         assert "LIMIT 10 OFFSET 10" in compiled
-        assert "health_fasting.fast_start_time >=" in compiled
+        assert "CAST(health_fasting.fast_start_time AS DATE) >=" in compiled
 
     def test_by_id_found(self, mock_db):
         _returns_one(mock_db, _row())

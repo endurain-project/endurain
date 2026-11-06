@@ -50,15 +50,16 @@ How the link looks depends on where the server keeps its files (the `STORAGE_URI
 
 | Storage | The link | Lifetime |
 | ------- | -------- | -------- |
-| Local disk | The paths above, with `?t=<token>`, a token signed with the server's `SECRET_KEY` | 24 hours from the moment the token was signed |
+| Local disk | The paths above, with `?t=<token>`, a token signed with the server's `SECRET_KEY` | 18 to 24 hours from the read that returned it (see below) |
 | S3 or an S3-compatible service | A presigned URL on the storage service's own origin. It has no `?t=` token and does not pass through the API | 1 hour |
 
 You do not build these URLs. The API puts a ready-to-use URL in the field of the response (`map_thumbnail_url`, a media item's URL, a user's `photo_path`), and it only does so for something the caller may see. Treat them as opaque:
 
 - Reading the activity or user again returns a fresh link, so a client should use the URL from the response it just received, not store it. A presigned S3 link lasts only 1 hour, so do not keep it longer than that.
+- A local token is stamped with the start of a 6-hour window, not the second it was signed, so reading the same thing again within that window returns the same URL and the browser can reuse its cached copy. A token is valid for 24 hours from the start of its window, so a link is good for at least 18 hours from the read that returned it, and never for more than 24. The next window returns a new URL.
 - A `?t=` token is derived from the server's `SECRET_KEY`, so changing the key makes every previously issued local link stop working until it is fetched again. It does not affect presigned S3 links.
 - A local link that is wrong, forged or expired answers `404`. An S3 link is checked by the storage service, which answers with its own error.
-- Local responses are cacheable by the browser for an hour (`Cache-Control: private`).
+- Local responses are cacheable by the browser for an hour (`Cache-Control: private, max-age=3600`), well inside the 18 hours a link is always good for, so a cached copy never outlives its link.
 - A browser fetches S3 links from the storage origin, so a client that sets its own content security policy must allow it.
 - Anyone who holds a link can open that one file until it expires. Do not post links from a private activity.
 

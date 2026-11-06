@@ -5,12 +5,15 @@ import pytest
 from sqlalchemy.orm.exc import StaleDataError
 
 import core.exceptions as core_exceptions
+import modules.health.computation as health_computation
 import modules.health.constants as health_constants
 import modules.health.health_fasting.schema as health_fasting_schema
 import modules.health.health_fasting.service as health_fasting_service
 
 _PREFIX = "modules.health.health_fasting.service"
 _CRUD = f"{_PREFIX}.health_fasting_crud"
+
+_NO_RANGE = health_computation.DateRange()
 
 
 def _complete(status: str = "completed", notes: str | None = None) -> health_fasting_schema.HealthFastingComplete:
@@ -181,20 +184,25 @@ class TestListHealthFasting:
     @patch(f"{_PREFIX}.users_integration.local_today", return_value=date(2024, 1, 15))
     def test_resolves_the_interval_in_the_users_calendar(self, _today, mock_number, mock_list, mock_db):
         result = health_fasting_service.list_health_fasting(
-            1, mock_db, page_number=2, num_records=10, interval=health_constants.Interval.LAST_30_DAYS
+            1,
+            mock_db,
+            page_number=2,
+            num_records=10,
+            interval=health_constants.Interval.LAST_30_DAYS,
+            date_range=_NO_RANGE,
         )
 
         since = date(2023, 12, 16)
-        mock_number.assert_called_once_with(1, mock_db, since)
-        mock_list.assert_called_once_with(1, mock_db, 2, 10, since)
+        mock_number.assert_called_once_with(1, mock_db, since, None)
+        mock_list.assert_called_once_with(1, mock_db, 2, 10, since, None)
         assert (result.total, result.page, result.num_records) == (0, 2, 10)
 
     @patch(f"{_CRUD}.get_health_fasting_by_user_id", return_value=[])
     @patch(f"{_CRUD}.get_health_fasting_number_by_user_id", return_value=0)
     def test_no_interval_means_no_lower_bound(self, mock_number, mock_list, mock_db):
-        health_fasting_service.list_health_fasting(1, mock_db)
+        health_fasting_service.list_health_fasting(1, mock_db, date_range=_NO_RANGE)
 
-        mock_number.assert_called_once_with(1, mock_db, None)
+        mock_number.assert_called_once_with(1, mock_db, None, None)
 
 
 class TestStageImportHealthFasting:

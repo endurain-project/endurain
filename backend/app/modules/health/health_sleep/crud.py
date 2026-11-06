@@ -20,18 +20,21 @@ SPEC = health_record_crud.RecordSpec(
 )
 
 
-def get_health_sleep_number_by_user_id(user_id: int, db: Session, since: date_type | None = None) -> int:
+def get_health_sleep_number_by_user_id(
+    user_id: int, db: Session, since: date_type | None = None, until: date_type | None = None
+) -> int:
     """Count a user's sleep records.
 
     Args:
         user_id: The records' owner.
         db: Database session.
         since: Count only records on or after this date.
+        until: Count only records on or before this date.
 
     Returns:
         The number of records.
     """
-    return health_record_crud.count(SPEC, user_id, health_sleep_models.HealthSleep.date, since, db)
+    return health_record_crud.count(SPEC, user_id, health_sleep_models.HealthSleep.date, since, until, db)
 
 
 def get_health_sleep_by_user_id(
@@ -40,6 +43,7 @@ def get_health_sleep_by_user_id(
     page_number: int | None = None,
     num_records: int | None = None,
     since: date_type | None = None,
+    until: date_type | None = None,
 ) -> list[health_sleep_schema.HealthSleepRead]:
     """Retrieve a user's sleep records, optionally paginated and bounded.
 
@@ -49,6 +53,7 @@ def get_health_sleep_by_user_id(
         page_number: 1-based page; paginates only together with ``num_records``.
         num_records: Records per page.
         since: Return only records on or after this date.
+        until: Return only records on or before this date.
 
     Returns:
         The records ordered by date descending.
@@ -59,6 +64,7 @@ def get_health_sleep_by_user_id(
         health_sleep_models.HealthSleep.date,
         health_sleep_models.HealthSleep.date,
         since,
+        until,
         page_number,
         num_records,
         db,
@@ -176,6 +182,7 @@ def _average_by_bucket(
     column: SQLColumnExpression[int | None],
     user_id: int,
     since: date_type,
+    until: date_type | None,
     bucket: health_constants.ChartBucket,
     db: Session,
 ) -> list[health_schema.HealthChartPoint]:
@@ -185,6 +192,7 @@ def _average_by_bucket(
         column: The sleep column to average.
         user_id: The records' owner.
         since: First day of the charted window.
+        until: Last day of the charted window, or ``None`` for no upper bound.
         bucket: The span each point aggregates.
         db: Database session.
 
@@ -195,7 +203,7 @@ def _average_by_bucket(
     day = health_computation.chart_bucket_expression(model.date, bucket, since)
     stmt = (
         select(day, func.avg(column))
-        .where(model.user_id == user_id, column.is_not(None), model.date >= since)
+        .where(model.user_id == user_id, column.is_not(None), *health_computation.date_bounds(model.date, since, until))
         .group_by(day)
         .order_by(day)
     )
@@ -203,34 +211,36 @@ def _average_by_bucket(
 
 
 def get_health_sleep_chart(
-    user_id: int, since: date_type, bucket: health_constants.ChartBucket, db: Session
+    user_id: int, since: date_type, until: date_type | None, bucket: health_constants.ChartBucket, db: Session
 ) -> list[health_schema.HealthChartPoint]:
     """Average a user's total sleep seconds per chart bucket.
 
     Args:
         user_id: The records' owner.
         since: First day of the charted window.
+        until: Last day of the charted window, or ``None`` for no upper bound.
         bucket: The span each point aggregates.
         db: Database session.
 
     Returns:
         The buckets that hold a value, oldest first.
     """
-    return _average_by_bucket(health_sleep_models.HealthSleep.total_sleep_seconds, user_id, since, bucket, db)
+    return _average_by_bucket(health_sleep_models.HealthSleep.total_sleep_seconds, user_id, since, until, bucket, db)
 
 
 def get_health_sleep_resting_heart_rate_chart(
-    user_id: int, since: date_type, bucket: health_constants.ChartBucket, db: Session
+    user_id: int, since: date_type, until: date_type | None, bucket: health_constants.ChartBucket, db: Session
 ) -> list[health_schema.HealthChartPoint]:
     """Average a user's resting heart rate per chart bucket.
 
     Args:
         user_id: The records' owner.
         since: First day of the charted window.
+        until: Last day of the charted window, or ``None`` for no upper bound.
         bucket: The span each point aggregates.
         db: Database session.
 
     Returns:
         The buckets that hold a value, oldest first.
     """
-    return _average_by_bucket(health_sleep_models.HealthSleep.resting_heart_rate, user_id, since, bucket, db)
+    return _average_by_bucket(health_sleep_models.HealthSleep.resting_heart_rate, user_id, since, until, bucket, db)

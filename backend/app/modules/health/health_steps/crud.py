@@ -20,18 +20,21 @@ SPEC = health_record_crud.RecordSpec(
 )
 
 
-def get_health_steps_number_by_user_id(user_id: int, db: Session, since: date_type | None = None) -> int:
+def get_health_steps_number_by_user_id(
+    user_id: int, db: Session, since: date_type | None = None, until: date_type | None = None
+) -> int:
     """Count a user's steps records.
 
     Args:
         user_id: The records' owner.
         db: Database session.
         since: Count only records on or after this date.
+        until: Count only records on or before this date.
 
     Returns:
         The number of records.
     """
-    return health_record_crud.count(SPEC, user_id, health_steps_models.HealthSteps.date, since, db)
+    return health_record_crud.count(SPEC, user_id, health_steps_models.HealthSteps.date, since, until, db)
 
 
 def get_health_steps_by_user_id(
@@ -40,6 +43,7 @@ def get_health_steps_by_user_id(
     page_number: int | None = None,
     num_records: int | None = None,
     since: date_type | None = None,
+    until: date_type | None = None,
 ) -> list[health_steps_schema.HealthStepsRead]:
     """Retrieve a user's steps records, optionally paginated and bounded.
 
@@ -49,6 +53,7 @@ def get_health_steps_by_user_id(
         page_number: 1-based page; paginates only together with ``num_records``.
         num_records: Records per page.
         since: Return only records on or after this date.
+        until: Return only records on or before this date.
 
     Returns:
         The records ordered by date descending.
@@ -59,6 +64,7 @@ def get_health_steps_by_user_id(
         health_steps_models.HealthSteps.date,
         health_steps_models.HealthSteps.date,
         since,
+        until,
         page_number,
         num_records,
         db,
@@ -155,13 +161,14 @@ def delete_health_steps(user_id: int, health_steps_id: int, db: Session, *, if_m
 
 
 def get_health_steps_chart(
-    user_id: int, since: date_type, bucket: health_constants.ChartBucket, db: Session
+    user_id: int, since: date_type, until: date_type | None, bucket: health_constants.ChartBucket, db: Session
 ) -> list[health_schema.HealthChartPoint]:
     """Average a user's steps per chart bucket.
 
     Args:
         user_id: The records' owner.
         since: First day of the charted window.
+        until: Last day of the charted window, or ``None`` for no upper bound.
         bucket: The span each point aggregates.
         db: Database session.
 
@@ -172,7 +179,11 @@ def get_health_steps_chart(
     day = health_computation.chart_bucket_expression(model.date, bucket, since)
     stmt = (
         select(day, func.avg(model.steps))
-        .where(model.user_id == user_id, model.steps.is_not(None), model.date >= since)
+        .where(
+            model.user_id == user_id,
+            model.steps.is_not(None),
+            *health_computation.date_bounds(model.date, since, until),
+        )
         .group_by(day)
         .order_by(day)
     )

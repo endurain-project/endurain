@@ -29,6 +29,7 @@ import modules.health.schema as health_schema
 _HEADERS = {"Authorization": "Bearer mock_token"}
 _BUCKET = health_constants.ChartBucket
 _INTERVAL = health_constants.Interval
+_NO_RANGE = health_computation.DateRange()
 _LOCAL_TODAY = "modules.users.users.integration_service.local_today"
 _RESOLVE_TIMEZONE = "modules.users.users.integration_service.resolve_timezone"
 
@@ -151,7 +152,7 @@ class TestAveragedCrud:
     def test_averages_the_column_per_bucket(self, crud, service, route, function, column, mock_db):
         mock_db.execute.return_value.all.return_value = [(date(2024, 1, 1), 10.5), (date(2024, 1, 8), 20)]
 
-        points = getattr(crud, function)(1, date(2023, 1, 1), _BUCKET.WEEK, mock_db)
+        points = getattr(crud, function)(1, date(2023, 1, 1), None, _BUCKET.WEEK, mock_db)
 
         assert points == [
             health_schema.HealthChartPoint(date=date(2024, 1, 1), value=10.5),
@@ -168,7 +169,7 @@ class TestAveragedCrud:
     def test_no_records_is_an_empty_series(self, crud, service, route, function, column, mock_db):
         mock_db.execute.return_value.all.return_value = []
 
-        assert getattr(crud, function)(1, date(2023, 1, 1), _BUCKET.DAY, mock_db) == []
+        assert getattr(crud, function)(1, date(2023, 1, 1), None, _BUCKET.DAY, mock_db) == []
 
 
 @pytest.mark.parametrize(("crud", "service", "route", "function", "column"), _AVERAGED)
@@ -179,7 +180,7 @@ class TestAveragedService:
         with patch.object(crud, function, return_value=points) as mock_crud:
             series = getattr(service, function)(1, _INTERVAL.LAST_YEAR, mock_db)
 
-        mock_crud.assert_called_once_with(1, date(2023, 6, 2), _BUCKET.DAY, mock_db)
+        mock_crud.assert_called_once_with(1, date(2023, 6, 2), None, _BUCKET.DAY, mock_db)
         assert series == health_schema.HealthChartSeries(bucket=_BUCKET.DAY, points=points)
 
 
@@ -214,7 +215,7 @@ class TestPoopCrud:
     def test_counts_movements_per_local_bucket(self, mock_db):
         mock_db.execute.return_value.all.return_value = [(date(2024, 1, 1), 9)]
 
-        points = health_poop_crud.get_health_poop_chart(1, date(2023, 1, 1), _BUCKET.MONTH, "Asia/Tokyo", mock_db)
+        points = health_poop_crud.get_health_poop_chart(1, date(2023, 1, 1), None, _BUCKET.MONTH, "Asia/Tokyo", mock_db)
 
         assert points == [health_schema.HealthChartPoint(date=date(2024, 1, 1), value=9.0)]
         sql = _sql(mock_db)
@@ -235,7 +236,7 @@ class TestPoopService:
             health_schema.HealthChartPoint(date=date(2024, 6, 10), value=3.0),
         ]
         too_many_days = [health_schema.HealthChartPoint(date=date(2024, 6, 1), value=1.0)] * 400
-        mock_crud.side_effect = lambda _user, _since, bucket, _tz, _db: (
+        mock_crud.side_effect = lambda _user, _since, _until, bucket, _tz, _db: (
             too_many_days if bucket is _BUCKET.DAY else weekly
         )
 
@@ -267,11 +268,13 @@ class TestPoopService:
             health_schema.HealthChartPoint(date=date(2024, 3, 1), value=31.0),
         ]
         too_many = [health_schema.HealthChartPoint(date=date(2024, 2, 1), value=1.0)] * 400
-        mock_crud.side_effect = lambda _user, _since, bucket, _tz, _db: monthly if bucket is _BUCKET.MONTH else too_many
+        mock_crud.side_effect = lambda _user, _since, _until, bucket, _tz, _db: (
+            monthly if bucket is _BUCKET.MONTH else too_many
+        )
 
         series = health_poop_service.get_health_poop_chart(1, _INTERVAL.ALL_TIME, mock_db)
 
-        mock_crud.assert_any_call(1, date(2024, 2, 20), _BUCKET.MONTH, "UTC", mock_db)
+        mock_crud.assert_any_call(1, date(2024, 2, 20), None, _BUCKET.MONTH, "UTC", mock_db)
         # February counts only its 10 days from the 20th; March is a full month.
         assert [point.value for point in series.points] == [1.0, 1.0]
 

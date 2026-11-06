@@ -7,11 +7,12 @@ package's ``crud`` executes it. The serializers turn an ORM row into the read sc
 
 import calendar
 from collections.abc import Callable, Sequence
+from dataclasses import dataclass
 from datetime import date, datetime, timedelta
 from typing import Protocol
 
 from pydantic import BaseModel
-from sqlalchemy import Date, Select, SQLColumnExpression, cast, desc, func, select
+from sqlalchemy import ColumnElement, Date, Select, SQLColumnExpression, cast, desc, func, select
 from sqlalchemy.orm import Mapped, QueryableAttribute, Session, declared_attr
 from sqlalchemy.orm.exc import StaleDataError
 
@@ -119,6 +120,65 @@ def interval_start(interval: health_constants.Interval | None, today: Callable[[
     return get_start_date_for_interval(interval.value, today())
 
 
+@dataclass(frozen=True)
+class DateRange:
+    """The inclusive calendar dates a client asked a health list or chart to cover.
+
+    Attributes:
+        start_date: First day to include, or ``None`` for no lower bound.
+        end_date: Last day to include, or ``None`` for no upper bound.
+    """
+
+    start_date: date | None = None
+    end_date: date | None = None
+
+    @property
+    def is_set(self) -> bool:
+        """Whether the client gave either date."""
+        return self.start_date is not None or self.end_date is not None
+
+
+def window_bounds(
+    interval: health_constants.Interval | None, date_range: DateRange, today: Callable[[], date]
+) -> tuple[date | None, date | None]:
+    """Resolve the first and last day a list or chart covers.
+
+    An explicit ``date_range`` replaces ``interval`` altogether: the interval always looks back from today, so
+    keeping it would cut a past range down to nothing. Without a range the interval gives the first day and
+    the window is open-ended.
+
+    Args:
+        interval: The interval looking back from today, if any.
+        date_range: The inclusive dates the client gave, if any.
+        today: Reads the athlete's current calendar date; called only when it is needed.
+
+    Returns:
+        The first and the last day to include; ``None`` for a side with no bound.
+    """
+    if date_range.is_set:
+        return date_range.start_date, date_range.end_date
+    return interval_start(interval, today), None
+
+
+def date_bounds(column: SQLColumnExpression[date], since: date | None, until: date | None) -> list[ColumnElement[bool]]:
+    """Build the conditions that keep a date column within a window.
+
+    Args:
+        column: The date column or expression to bound.
+        since: First day to include, or ``None`` for no lower bound.
+        until: Last day to include, or ``None`` for no upper bound.
+
+    Returns:
+        The conditions to add to a ``where``; empty for an open window.
+    """
+    bounds: list[ColumnElement[bool]] = []
+    if since is not None:
+        bounds.append(column >= since)
+    if until is not None:
+        bounds.append(column <= until)
+    return bounds
+
+
 def owned_record_statement[ModelT: OwnedRecord](
     model: type[ModelT], record_id: int, user_id: int
 ) -> Select[tuple[ModelT]]:
@@ -152,23 +212,29 @@ def owned_record_exists_statement[ModelT: OwnedRecord](
 
 
 def user_record_count_statement[ModelT: OwnedRecord](
-    model: type[ModelT], user_id: int, since_column: SQLColumnExpression[date], since: date | None
+    model: type[ModelT],
+    user_id: int,
+    since_column: SQLColumnExpression[date],
+    since: date | None,
+    until: date | None,
 ) -> Select[tuple[int]]:
     """Build the query that counts a user's records.
 
     Args:
         model: The record's ORM class.
         user_id: The records' owner.
-        since_column: The column ``since`` is compared against.
+        since_column: The column ``since`` and ``until`` are compared against.
         since: Count only records whose ``since_column`` is on or after this date.
+        until: Count only records whose ``since_column`` is on or before this date.
 
     Returns:
         The unexecuted ``select`` of the count.
     """
-    stmt = select(func.count()).select_from(model).where(model.user_id == user_id)
-    if since is not None:
-        stmt = stmt.where(since_column >= since)
-    return stmt
+    return (
+        select(func.count())
+        .select_from(model)
+        .where(model.user_id == user_id, *date_bounds(since_column, since, until))
+    )
 
 
 def user_records_statement[ModelT: OwnedRecord](
@@ -177,6 +243,7 @@ def user_records_statement[ModelT: OwnedRecord](
     order_column: QueryableAttribute[date],
     since_column: SQLColumnExpression[date],
     since: date | None,
+    until: date | None,
     page_number: int | None,
     num_records: int | None,
 ) -> Select[tuple[ModelT]]:
@@ -186,17 +253,16 @@ def user_records_statement[ModelT: OwnedRecord](
         model: The record's ORM class.
         user_id: The records' owner.
         order_column: The column the records are ordered by, descending.
-        since_column: The column ``since`` is compared against.
+        since_column: The column ``since`` and ``until`` are compared against.
         since: Select only records whose ``since_column`` is on or after this date.
+        until: Select only records whose ``since_column`` is on or before this date.
         page_number: 1-based page; paginates only together with ``num_records``.
         num_records: Records per page.
 
     Returns:
         The unexecuted ``select``.
     """
-    stmt = select(model).where(model.user_id == user_id)
-    if since is not None:
-        stmt = stmt.where(since_column >= since)
+    stmt = select(model).where(model.user_id == user_id, *date_bounds(since_column, since, until))
     stmt = stmt.order_by(desc(order_column))
     if page_number is not None and num_records is not None:
         stmt = stmt.offset((page_number - 1) * num_records).limit(num_records)

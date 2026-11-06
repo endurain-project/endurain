@@ -6,6 +6,7 @@ import pytest
 from sqlalchemy.orm.exc import StaleDataError
 
 import core.exceptions as core_exceptions
+import modules.health.computation as health_computation
 import modules.health.constants as health_constants
 import modules.health.health_fasting.schema as health_fasting_schema
 import modules.health.health_steps.crud as health_steps_crud
@@ -14,6 +15,7 @@ import modules.health.record_service as health_record_service
 import modules.health.schema as health_schema
 
 _EXISTS = "modules.health.record_crud.exists"
+_NO_RANGE = health_computation.DateRange()
 
 
 class TestCommitWrite:
@@ -49,9 +51,9 @@ class TestChart:
         point = health_schema.HealthChartPoint(date=date(2026, 3, 30), value=1)
         fetch = MagicMock(return_value=[point])
 
-        series = health_record_service.chart(1, health_constants.Interval.LAST_30_DAYS, fetch, mock_db)
+        series = health_record_service.chart(1, health_constants.Interval.LAST_30_DAYS, _NO_RANGE, fetch, mock_db)
 
-        fetch.assert_called_once_with(date(2026, 3, 1), health_constants.ChartBucket.DAY)
+        fetch.assert_called_once_with(date(2026, 3, 1), None, health_constants.ChartBucket.DAY)
         assert series == health_schema.HealthChartSeries(bucket=health_constants.ChartBucket.DAY, points=[point])
 
 
@@ -61,10 +63,12 @@ class TestListPage:
         count = MagicMock(return_value=5)
         fetch = MagicMock(return_value=["a", "b"])
 
-        page = health_record_service.list_page(1, health_constants.Interval.LAST_30_DAYS, 1, 2, count, fetch, mock_db)
+        page = health_record_service.list_page(
+            1, health_constants.Interval.LAST_30_DAYS, _NO_RANGE, 1, 2, count, fetch, mock_db
+        )
 
-        count.assert_called_once_with(date(2026, 3, 1))
-        fetch.assert_called_once_with(date(2026, 3, 1))
+        count.assert_called_once_with(date(2026, 3, 1), None)
+        fetch.assert_called_once_with(date(2026, 3, 1), None)
         assert page.total == 5
         assert page.items == ["a", "b"]
 
@@ -72,10 +76,10 @@ class TestListPage:
         count = MagicMock(return_value=0)
         fetch = MagicMock(return_value=[])
 
-        health_record_service.list_page(1, None, 1, 2, count, fetch, mock_db)
+        health_record_service.list_page(1, None, _NO_RANGE, 1, 2, count, fetch, mock_db)
 
-        count.assert_called_once_with(None)
-        fetch.assert_called_once_with(None)
+        count.assert_called_once_with(None, None)
+        fetch.assert_called_once_with(None, None)
 
 
 class TestUpsertDated:

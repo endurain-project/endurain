@@ -98,53 +98,83 @@ def get_record[ModelT: health_record_crud.Row, ReadT: BaseModel](
     return health_computation.to_read_schema(spec.read_schema, row)
 
 
-def chart(
-    user_id: int,
-    interval: health_constants.Interval,
-    fetch: Callable[[date, health_constants.ChartBucket], list[health_schema.HealthChartPoint]],
-    db: Session,
-) -> health_schema.HealthChartSeries:
-    """Chart a user's metric over an interval in the finest bucket that keeps it readable.
+def chart_window(
+    user_id: int, interval: health_constants.Interval, date_range: health_computation.DateRange, db: Session
+) -> tuple[date, date | None]:
+    """Resolve the first and last day a chart covers.
 
     Args:
         user_id: The records' owner.
-        interval: The window to chart.
-        fetch: Reads the metric's points from the given first day, aggregated in the given bucket.
+        interval: The window to chart, looking back from today; ignored when ``date_range`` is set.
+        date_range: The inclusive dates to chart instead of the interval.
         db: Database session.
 
     Returns:
-        The interval's buckets, one point per bucket that holds a value.
+        The first day, which is the earliest possible date when only an end was given, and the last day or
+        ``None`` for no upper bound.
     """
-    since = health_computation.get_start_date_for_interval(interval.value, users_integration.local_today(user_id, db))
-    bucket, points = health_computation.chart_points(lambda bucket: fetch(since, bucket))
+    since, until = health_computation.window_bounds(
+        interval, date_range, lambda: users_integration.local_today(user_id, db)
+    )
+    return (date.min if since is None else since), until
+
+
+def chart(
+    user_id: int,
+    interval: health_constants.Interval,
+    date_range: health_computation.DateRange,
+    fetch: Callable[[date, date | None, health_constants.ChartBucket], list[health_schema.HealthChartPoint]],
+    db: Session,
+) -> health_schema.HealthChartSeries:
+    """Chart a user's metric over a window in the finest bucket that keeps it readable.
+
+    Args:
+        user_id: The records' owner.
+        interval: The window to chart, looking back from today; ignored when ``date_range`` is set.
+        date_range: The inclusive dates to chart instead of the interval; a missing start opens at the first
+            record.
+        fetch: Reads the metric's points from the given first and last day (``None`` for no upper bound),
+            aggregated in the given bucket.
+        db: Database session.
+
+    Returns:
+        The window's buckets, one point per bucket that holds a value.
+    """
+    since, until = chart_window(user_id, interval, date_range, db)
+    bucket, points = health_computation.chart_points(lambda bucket: fetch(since, until, bucket))
     return health_schema.HealthChartSeries(bucket=bucket, points=points)
 
 
 def list_page[RecordT](
     user_id: int,
     interval: health_constants.Interval | None,
+    date_range: health_computation.DateRange,
     page_number: int,
     num_records: int,
-    count: Callable[[date | None], int],
-    fetch: Callable[[date | None], list[RecordT]],
+    count: Callable[[date | None, date | None], int],
+    fetch: Callable[[date | None, date | None], list[RecordT]],
     db: Session,
 ) -> core_pagination.Page[RecordT]:
-    """List one page of a user's records within an interval, with their total.
+    """List one page of a user's records within a window, with their total.
 
     Args:
         user_id: The records' owner.
-        interval: Return only records within this interval; ``None`` returns them all.
+        interval: Return only records within this interval, looking back from today; ``None`` returns them
+            all. Ignored when ``date_range`` is set.
+        date_range: Return only records within these inclusive dates instead of the interval.
         page_number: 1-based page.
         num_records: Records per page.
-        count: Counts the records on or after the given first day (``None`` for no bound).
-        fetch: Reads the page's records on or after the given first day (``None`` for no bound).
+        count: Counts the records between the given first and last day (``None`` for no bound).
+        fetch: Reads the page's records between the given first and last day (``None`` for no bound).
         db: Database session.
 
     Returns:
-        The page of records; ``total`` counts every record within the interval.
+        The page of records; ``total`` counts every record within the window.
     """
-    since = health_computation.interval_start(interval, lambda: users_integration.local_today(user_id, db))
-    return core_pagination.Page.build(fetch(since), count(since), page_number, num_records)
+    since, until = health_computation.window_bounds(
+        interval, date_range, lambda: users_integration.local_today(user_id, db)
+    )
+    return core_pagination.Page.build(fetch(since, until), count(since, until), page_number, num_records)
 
 
 def upsert_dated[RecordT: _DatedRecord, CreateT: _DatedInput, UpdateT: BaseModel](

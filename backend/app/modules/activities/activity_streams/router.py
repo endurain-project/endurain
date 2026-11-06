@@ -16,7 +16,7 @@ router = APIRouter()
 
 @router.get(
     "/streams",
-    response_model=activity_streams_schema.ActivityStreamsPage,
+    response_model=activity_streams_schema.ActivityStreamResponsePage,
     dependencies=[
         Security(
             auth_dependencies.check_scopes,
@@ -44,7 +44,7 @@ def list_activity_streams(
 
 @router.get(
     "/streams/{stream_type}",
-    response_model=activity_streams_schema.ActivityStreamsRead,
+    response_model=activity_streams_schema.ActivityStreamResponse,
     dependencies=[
         Security(
             auth_dependencies.check_scopes,

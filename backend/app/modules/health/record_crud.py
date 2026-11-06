@@ -158,6 +158,7 @@ def count[ModelT: Row, ReadT: BaseModel](
     user_id: int,
     since_column: SQLColumnExpression[date],
     since: date | None,
+    until: date | None,
     db: Session,
 ) -> int:
     """Count a user's records.
@@ -165,14 +166,15 @@ def count[ModelT: Row, ReadT: BaseModel](
     Args:
         spec: The record type.
         user_id: The records' owner.
-        since_column: The column ``since`` is compared against.
+        since_column: The column ``since`` and ``until`` are compared against.
         since: Count only records whose ``since_column`` is on or after this date.
+        until: Count only records whose ``since_column`` is on or before this date.
         db: Database session.
 
     Returns:
         The number of records.
     """
-    stmt = health_computation.user_record_count_statement(spec.model, user_id, since_column, since)
+    stmt = health_computation.user_record_count_statement(spec.model, user_id, since_column, since, until)
     return db.execute(stmt).scalar_one()
 
 
@@ -182,6 +184,7 @@ def list_page[ModelT: Row, ReadT: BaseModel](
     order_column: QueryableAttribute[date],
     since_column: SQLColumnExpression[date],
     since: date | None,
+    until: date | None,
     page_number: int | None,
     num_records: int | None,
     db: Session,
@@ -192,8 +195,9 @@ def list_page[ModelT: Row, ReadT: BaseModel](
         spec: The record type.
         user_id: The records' owner.
         order_column: The column the records are ordered by, descending.
-        since_column: The column ``since`` is compared against.
+        since_column: The column ``since`` and ``until`` are compared against.
         since: Return only records whose ``since_column`` is on or after this date.
+        until: Return only records whose ``since_column`` is on or before this date.
         page_number: 1-based page; paginates only together with ``num_records``.
         num_records: Records per page.
         db: Database session.
@@ -202,7 +206,7 @@ def list_page[ModelT: Row, ReadT: BaseModel](
         The records as ``spec.read_schema``.
     """
     stmt = health_computation.user_records_statement(
-        spec.model, user_id, order_column, since_column, since, page_number, num_records
+        spec.model, user_id, order_column, since_column, since, until, page_number, num_records
     )
     return health_computation.to_read_schemas(spec.read_schema, list(db.execute(stmt).scalars().all()))
 

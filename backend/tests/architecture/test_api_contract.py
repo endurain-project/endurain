@@ -117,7 +117,7 @@ _NON_STRING_ENUMS: dict[str, str] = {
     "ActivityMediaRead.media_type": "DOM-11",
     "ActivityRead.activity_type": "DOM-11",
     "ActivityRead.visibility": "DOM-11",
-    "ActivityStreamsRead.stream_type": "DOM-11",
+    "ActivityStreamType.<enum>": "DOM-11",
     "BristolType.<enum>": "DOM-11",
     "GearType.<enum>": "DOM-11",
     "NotificationRead.type": "DOM-11",

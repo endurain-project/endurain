@@ -15,7 +15,7 @@ router = APIRouter()
 
 @router.get(
     "/streams",
-    response_model=activity_streams_schema.ActivityStreamsPage,
+    response_model=activity_streams_schema.ActivityStreamResponsePage,
 )
 @core_rate_limit.limiter.limit(core_rate_limit.EXPENSIVE_PUBLIC_READ)
 def list_public_activity_streams(
@@ -35,7 +35,7 @@ def list_public_activity_streams(
 
 @router.get(
     "/streams/{stream_type}",
-    response_model=activity_streams_schema.ActivityStreamsRead,
+    response_model=activity_streams_schema.ActivityStreamResponse,
 )
 @core_rate_limit.limiter.limit(core_rate_limit.EXPENSIVE_PUBLIC_READ)
 def read_public_activity_stream(

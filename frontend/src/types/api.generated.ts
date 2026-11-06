@@ -1299,7 +1299,8 @@ export interface paths {
          *         token_user_id: The ID of the authenticated user extracted from the access token.
          *         db: Database session for executing queries.
          *         page: The requested page and page size.
-         *         interval: Optional filter to retrieve records within a specific goal interval.
+         *         interval: Optional interval looking back from today; ignored when a date range is given.
+         *         date_range: Optional inclusive start and end dates, which replace the interval.
          *
          *     Returns:
          *         The page of records with the total matching the interval.
@@ -1498,7 +1499,8 @@ export interface paths {
          *         token_user_id: The ID of the authenticated user extracted from the access token.
          *         db: Database session for executing queries.
          *         page: The requested page and page size.
-         *         interval: Optional filter to retrieve records within a specific goal interval.
+         *         interval: Optional interval looking back from today; ignored when a date range is given.
+         *         date_range: Optional inclusive start and end dates, which replace the interval.
          *
          *     Returns:
          *         The page of records with the total matching the interval.
@@ -1547,7 +1549,8 @@ export interface paths {
          *     Args:
          *         token_user_id: The ID of the authenticated user extracted from the access token.
          *         db: Database session for executing queries.
-         *         interval: The window to chart.
+         *         interval: The window to chart, looking back from today; ignored when a date range is given.
+         *         date_range: Optional inclusive start and end dates to chart instead of the interval.
          *
          *     Returns:
          *         The interval's bucket size and its points, oldest first.
@@ -1646,7 +1649,8 @@ export interface paths {
          *         token_user_id: The ID of the authenticated user extracted from the access token.
          *         db: Database session for executing queries.
          *         page: The requested page and page size.
-         *         interval: Optional filter to retrieve records within a specific goal interval.
+         *         interval: Optional interval looking back from today; ignored when a date range is given.
+         *         date_range: Optional inclusive start and end dates, which replace the interval.
          *
          *     Returns:
          *         The page of records with the total matching the interval.
@@ -1695,7 +1699,8 @@ export interface paths {
          *     Args:
          *         token_user_id: The ID of the authenticated user extracted from the access token.
          *         db: Database session for executing queries.
-         *         interval: The window to chart.
+         *         interval: The window to chart, looking back from today; ignored when a date range is given.
+         *         date_range: Optional inclusive start and end dates to chart instead of the interval.
          *
          *     Returns:
          *         The interval's bucket size and its points, oldest first.
@@ -1726,7 +1731,8 @@ export interface paths {
          *     Args:
          *         token_user_id: The ID of the authenticated user extracted from the access token.
          *         db: Database session for executing queries.
-         *         interval: The window to chart.
+         *         interval: The window to chart, looking back from today; ignored when a date range is given.
+         *         date_range: Optional inclusive start and end dates to chart instead of the interval.
          *
          *     Returns:
          *         The interval's bucket size and its points, oldest first.
@@ -1858,7 +1864,8 @@ export interface paths {
          *         token_user_id: The ID of the authenticated user extracted from the access token.
          *         db: Database session for executing queries.
          *         page: The requested page and page size.
-         *         interval: Optional filter to retrieve records within a specific goal interval.
+         *         interval: Optional interval looking back from today; ignored when a date range is given.
+         *         date_range: Optional inclusive start and end dates, which replace the interval.
          *
          *     Returns:
          *         The page of records with the total matching the interval.
@@ -1907,7 +1914,8 @@ export interface paths {
          *     Args:
          *         token_user_id: The ID of the authenticated user extracted from the access token.
          *         db: Database session for executing queries.
-         *         interval: The window to chart.
+         *         interval: The window to chart, looking back from today; ignored when a date range is given.
+         *         date_range: Optional inclusive start and end dates to chart instead of the interval.
          *
          *     Returns:
          *         The interval's bucket size and its points, oldest first.
@@ -2067,7 +2075,8 @@ export interface paths {
          *         token_user_id: The ID of the authenticated user extracted from the access token.
          *         db: Database session for executing queries.
          *         page: The requested page and page size.
-         *         interval: Optional filter to retrieve records within a specific goal interval.
+         *         interval: Optional interval looking back from today; ignored when a date range is given.
+         *         date_range: Optional inclusive start and end dates, which replace the interval.
          *
          *     Returns:
          *         The page of records with the total matching the interval.
@@ -2114,7 +2123,8 @@ export interface paths {
          *     Args:
          *         token_user_id: The ID of the authenticated user extracted from the access token.
          *         db: Database session for executing queries.
-         *         interval: The window to chart.
+         *         interval: The window to chart, looking back from today; ignored when a date range is given.
+         *         date_range: Optional inclusive start and end dates to chart instead of the interval.
          *
          *     Returns:
          *         The interval's bucket size and its points, oldest first.
@@ -2201,7 +2211,8 @@ export interface paths {
          *         token_user_id: The ID of the authenticated user extracted from the access token.
          *         db: Database session for executing queries.
          *         page: The requested page and page size.
-         *         interval: Optional filter to retrieve records within a specific goal interval.
+         *         interval: Optional interval looking back from today; ignored when a date range is given.
+         *         date_range: Optional inclusive start and end dates, which replace the interval.
          *
          *     Returns:
          *         The page of records with the total matching the interval.
@@ -2249,7 +2260,8 @@ export interface paths {
          *     Args:
          *         token_user_id: The ID of the authenticated user extracted from the access token.
          *         db: Database session for executing queries.
-         *         interval: The window to chart.
+         *         interval: The window to chart, looking back from today; ignored when a date range is given.
+         *         date_range: Optional inclusive start and end dates to chart instead of the interval.
          *
          *     Returns:
          *         The interval's bucket size and its points, oldest first.
@@ -6335,6 +6347,23 @@ export interface components {
             walk?: components["schemas"]["ActivitySportStats"];
             windsurf?: components["schemas"]["ActivitySportStats"];
         };
+        ActivityStreamResponse: components["schemas"]["HeartRateStreamRead"] | components["schemas"]["PowerStreamRead"] | components["schemas"]["CadenceStreamRead"] | components["schemas"]["ElevationStreamRead"] | components["schemas"]["SpeedStreamRead"] | components["schemas"]["PaceStreamRead"] | components["schemas"]["MapStreamRead"] | components["schemas"]["TemperatureStreamRead"];
+        /**
+         * ActivityStreamType
+         * @description The kind of data a stream holds; it fixes the shape of the stream's waypoints.
+         *
+         *     Attributes:
+         *         HEART_RATE: Heart rate; waypoints carry ``hr``.
+         *         POWER: Power; waypoints carry ``power``.
+         *         CADENCE: Cadence; waypoints carry ``cad``.
+         *         ELEVATION: Elevation; waypoints carry ``ele``.
+         *         SPEED: Speed; waypoints carry ``vel``.
+         *         PACE: Pace; waypoints carry ``pace``.
+         *         MAP: GPS position; waypoints carry ``lat`` and ``lon``.
+         *         TEMPERATURE: Temperature; waypoints carry ``temp``.
+         * @enum {integer}
+         */
+        ActivityStreamType: 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8;
         /**
          * ActivityStreamZones
          * @description A stream's zone breakdowns, by metric.
@@ -6344,31 +6373,6 @@ export interface components {
          */
         ActivityStreamZones: {
             hr: components["schemas"]["HrZoneBreakdown"];
-        };
-        /**
-         * ActivityStreamsRead
-         * @description Schema for activity stream reading.
-         *
-         *     Attributes:
-         *         id: Unique stream identifier.
-         *         zone_percentages: The stream's zone breakdowns. Computed when the stream
-         *             is served, from the owner's current thresholds; never stored, so it
-         *             cannot go stale.
-         */
-        ActivityStreamsRead: {
-            /** Activity Id */
-            activity_id: number;
-            /** Id */
-            id: number;
-            /** Strava Activity Stream Id */
-            strava_activity_stream_id?: number | null;
-            /** Stream Type */
-            stream_type: number;
-            /** Stream Waypoints */
-            stream_waypoints: {
-                [key: string]: unknown;
-            }[];
-            zone_percentages?: components["schemas"]["ActivityStreamZones"] | null;
         };
         /**
          * ActivityType
@@ -6537,6 +6541,37 @@ export interface components {
             authorization_url: string;
         };
         /**
+         * CadenceStreamRead
+         * @description The cadence stream (type 3).
+         */
+        CadenceStreamRead: {
+            /** Activity Id */
+            activity_id: number;
+            /** Id */
+            id: number;
+            /** Strava Activity Stream Id */
+            strava_activity_stream_id?: number | null;
+            stream_type: components["schemas"]["ActivityStreamType"];
+            /** Stream Waypoints */
+            stream_waypoints: components["schemas"]["CadenceWaypoint"][];
+            zone_percentages?: components["schemas"]["ActivityStreamZones"] | null;
+        };
+        /**
+         * CadenceWaypoint
+         * @description A sample of the cadence stream.
+         *
+         *     Attributes:
+         *         cad: Cadence in rpm (spm for running).
+         */
+        CadenceWaypoint: {
+            /** Cad */
+            cad?: number | null;
+            /** Time */
+            time?: string | number | null;
+        } & {
+            [key: string]: unknown;
+        };
+        /**
          * ChartBucket
          * @description Calendar span one chart point aggregates.
          *
@@ -6617,6 +6652,37 @@ export interface components {
              * @default 0
              */
             total_elevation_gain: number;
+        };
+        /**
+         * ElevationStreamRead
+         * @description The elevation stream (type 4).
+         */
+        ElevationStreamRead: {
+            /** Activity Id */
+            activity_id: number;
+            /** Id */
+            id: number;
+            /** Strava Activity Stream Id */
+            strava_activity_stream_id?: number | null;
+            stream_type: components["schemas"]["ActivityStreamType"];
+            /** Stream Waypoints */
+            stream_waypoints: components["schemas"]["ElevationWaypoint"][];
+            zone_percentages?: components["schemas"]["ActivityStreamZones"] | null;
+        };
+        /**
+         * ElevationWaypoint
+         * @description A sample of the elevation stream.
+         *
+         *     Attributes:
+         *         ele: Elevation in meters.
+         */
+        ElevationWaypoint: {
+            /** Ele */
+            ele?: number | null;
+            /** Time */
+            time?: string | number | null;
+        } & {
+            [key: string]: unknown;
         };
         /**
          * EmailChange
@@ -8935,6 +9001,37 @@ export interface components {
             weight?: number | null;
         };
         /**
+         * HeartRateStreamRead
+         * @description The heart-rate stream (type 1).
+         */
+        HeartRateStreamRead: {
+            /** Activity Id */
+            activity_id: number;
+            /** Id */
+            id: number;
+            /** Strava Activity Stream Id */
+            strava_activity_stream_id?: number | null;
+            stream_type: components["schemas"]["ActivityStreamType"];
+            /** Stream Waypoints */
+            stream_waypoints: components["schemas"]["HeartRateWaypoint"][];
+            zone_percentages?: components["schemas"]["ActivityStreamZones"] | null;
+        };
+        /**
+         * HeartRateWaypoint
+         * @description A sample of the heart-rate stream.
+         *
+         *     Attributes:
+         *         hr: Heart rate in bpm.
+         */
+        HeartRateWaypoint: {
+            /** Hr */
+            hr?: number | null;
+            /** Time */
+            time?: string | number | null;
+        } & {
+            [key: string]: unknown;
+        };
+        /**
          * HrZone
          * @description One heart-rate zone of a breakdown.
          *
@@ -10091,6 +10188,40 @@ export interface components {
             username: string | null;
         };
         /**
+         * MapStreamRead
+         * @description The GPS map stream (type 7).
+         */
+        MapStreamRead: {
+            /** Activity Id */
+            activity_id: number;
+            /** Id */
+            id: number;
+            /** Strava Activity Stream Id */
+            strava_activity_stream_id?: number | null;
+            stream_type: components["schemas"]["ActivityStreamType"];
+            /** Stream Waypoints */
+            stream_waypoints: components["schemas"]["MapWaypoint"][];
+            zone_percentages?: components["schemas"]["ActivityStreamZones"] | null;
+        };
+        /**
+         * MapWaypoint
+         * @description A GPS sample of the map stream.
+         *
+         *     Attributes:
+         *         lat: Latitude in decimal degrees.
+         *         lon: Longitude in decimal degrees.
+         */
+        MapWaypoint: {
+            /** Lat */
+            lat?: number | null;
+            /** Lon */
+            lon?: number | null;
+            /** Time */
+            time?: string | number | null;
+        } & {
+            [key: string]: unknown;
+        };
+        /**
          * MobileSessionRead
          * @description Response for mobile password login with PKCE exchange flow.
          *
@@ -10307,6 +10438,37 @@ export interface components {
              */
             onboarding_required: boolean;
         };
+        /**
+         * PaceStreamRead
+         * @description The pace stream (type 6).
+         */
+        PaceStreamRead: {
+            /** Activity Id */
+            activity_id: number;
+            /** Id */
+            id: number;
+            /** Strava Activity Stream Id */
+            strava_activity_stream_id?: number | null;
+            stream_type: components["schemas"]["ActivityStreamType"];
+            /** Stream Waypoints */
+            stream_waypoints: components["schemas"]["PaceWaypoint"][];
+            zone_percentages?: components["schemas"]["ActivityStreamZones"] | null;
+        };
+        /**
+         * PaceWaypoint
+         * @description A sample of the pace stream.
+         *
+         *     Attributes:
+         *         pace: Pace in s/m; 0 where the speed is 0.
+         */
+        PaceWaypoint: {
+            /** Pace */
+            pace?: number | null;
+            /** Time */
+            time?: string | number | null;
+        } & {
+            [key: string]: unknown;
+        };
         /** Page[ActivityExerciseTitlesRead] */
         Page_ActivityExerciseTitlesRead_: {
             /** Items */
@@ -10372,10 +10534,10 @@ export interface components {
             /** Total */
             total: number;
         };
-        /** Page[ActivityStreamsRead] */
-        Page_ActivityStreamsRead_: {
+        /** Page[ActivityStreamResponse] */
+        Page_ActivityStreamResponse_: {
             /** Items */
-            items: components["schemas"]["ActivityStreamsRead"][];
+            items: components["schemas"]["ActivityStreamResponse"][];
             /** Next */
             next?: number | null;
             /** Num Records */
@@ -10694,6 +10856,37 @@ export interface components {
              * @description The reset token received by the user
              */
             token: string;
+        };
+        /**
+         * PowerStreamRead
+         * @description The power stream (type 2).
+         */
+        PowerStreamRead: {
+            /** Activity Id */
+            activity_id: number;
+            /** Id */
+            id: number;
+            /** Strava Activity Stream Id */
+            strava_activity_stream_id?: number | null;
+            stream_type: components["schemas"]["ActivityStreamType"];
+            /** Stream Waypoints */
+            stream_waypoints: components["schemas"]["PowerWaypoint"][];
+            zone_percentages?: components["schemas"]["ActivityStreamZones"] | null;
+        };
+        /**
+         * PowerWaypoint
+         * @description A sample of the power stream.
+         *
+         *     Attributes:
+         *         power: Power in watts.
+         */
+        PowerWaypoint: {
+            /** Power */
+            power?: number | null;
+            /** Time */
+            time?: string | number | null;
+        } & {
+            [key: string]: unknown;
         };
         /**
          * ProblemDetail
@@ -11417,6 +11610,37 @@ export interface components {
          */
         SleepStageType: 0 | 1 | 2 | 3;
         /**
+         * SpeedStreamRead
+         * @description The speed stream (type 5).
+         */
+        SpeedStreamRead: {
+            /** Activity Id */
+            activity_id: number;
+            /** Id */
+            id: number;
+            /** Strava Activity Stream Id */
+            strava_activity_stream_id?: number | null;
+            stream_type: components["schemas"]["ActivityStreamType"];
+            /** Stream Waypoints */
+            stream_waypoints: components["schemas"]["SpeedWaypoint"][];
+            zone_percentages?: components["schemas"]["ActivityStreamZones"] | null;
+        };
+        /**
+         * SpeedWaypoint
+         * @description A sample of the speed stream.
+         *
+         *     Attributes:
+         *         vel: Speed in m/s.
+         */
+        SpeedWaypoint: {
+            /** Time */
+            time?: string | number | null;
+            /** Vel */
+            vel?: number | null;
+        } & {
+            [key: string]: unknown;
+        };
+        /**
          * StepUpAction
          * @description A sensitive operation a step-up re-authentication can authorise, so a ticket for one cannot pay for another.
          *
@@ -11573,6 +11797,37 @@ export interface components {
          * @enum {string}
          */
         SyncStatus: "queued" | "running" | "completed" | "failed";
+        /**
+         * TemperatureStreamRead
+         * @description The temperature stream (type 8).
+         */
+        TemperatureStreamRead: {
+            /** Activity Id */
+            activity_id: number;
+            /** Id */
+            id: number;
+            /** Strava Activity Stream Id */
+            strava_activity_stream_id?: number | null;
+            stream_type: components["schemas"]["ActivityStreamType"];
+            /** Stream Waypoints */
+            stream_waypoints: components["schemas"]["TemperatureWaypoint"][];
+            zone_percentages?: components["schemas"]["ActivityStreamZones"] | null;
+        };
+        /**
+         * TemperatureWaypoint
+         * @description A sample of the temperature stream.
+         *
+         *     Attributes:
+         *         temp: Temperature in degrees Celsius.
+         */
+        TemperatureWaypoint: {
+            /** Temp */
+            temp?: number | null;
+            /** Time */
+            time?: string | number | null;
+        } & {
+            [key: string]: unknown;
+        };
         /**
          * TileMapsTemplate
          * @description Schema representing available tile map templates.
@@ -14854,7 +15109,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["Page_ActivityStreamsRead_"];
+                    "application/json": components["schemas"]["Page_ActivityStreamResponse_"];
                 };
             };
             /** @description Validation Error */
@@ -14895,7 +15150,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["ActivityStreamsRead"];
+                    "application/json": components["schemas"]["ActivityStreamResponse"];
                 };
             };
             /** @description Validation Error */
@@ -16157,10 +16412,14 @@ export interface operations {
     read_health_fasting_all_pagination_api_v1_health_fasting_get: {
         parameters: {
             query?: {
-                /** @description Filter by goal interval */
+                /** @description Look back from today over this interval; ignored when `start_date` or `end_date` is given */
                 interval?: components["schemas"]["modules__health__constants__Interval"] | null;
                 page_number?: number | null;
                 num_records?: number | null;
+                /** @description First day to include (inclusive, `YYYY-MM-DD`). When `start_date` or `end_date` is given, `interval` is ignored. */
+                start_date?: string | null;
+                /** @description Last day to include (inclusive, `YYYY-MM-DD`). Defaults to no upper bound. */
+                end_date?: string | null;
             };
             header?: never;
             path?: never;
@@ -16472,10 +16731,14 @@ export interface operations {
     read_health_poop_all_pagination_api_v1_health_poop_get: {
         parameters: {
             query?: {
-                /** @description Filter by goal interval */
+                /** @description Look back from today over this interval; ignored when `start_date` or `end_date` is given */
                 interval?: components["schemas"]["modules__health__constants__Interval"] | null;
                 page_number?: number | null;
                 num_records?: number | null;
+                /** @description First day to include (inclusive, `YYYY-MM-DD`). When `start_date` or `end_date` is given, `interval` is ignored. */
+                start_date?: string | null;
+                /** @description Last day to include (inclusive, `YYYY-MM-DD`). Defaults to no upper bound. */
+                end_date?: string | null;
             };
             header?: never;
             path?: never;
@@ -16557,8 +16820,12 @@ export interface operations {
     read_health_poop_chart_api_v1_health_poop_chart_get: {
         parameters: {
             query?: {
-                /** @description Interval to chart */
+                /** @description Interval to chart, looking back from today; ignored when `start_date` or `end_date` is given */
                 interval?: components["schemas"]["modules__health__constants__Interval"];
+                /** @description First day to include (inclusive, `YYYY-MM-DD`). When `start_date` or `end_date` is given, `interval` is ignored. */
+                start_date?: string | null;
+                /** @description Last day to include (inclusive, `YYYY-MM-DD`). Defaults to no upper bound. */
+                end_date?: string | null;
             };
             header?: never;
             path?: never;
@@ -16724,10 +16991,14 @@ export interface operations {
     read_health_sleep_all_pagination_api_v1_health_sleep_get: {
         parameters: {
             query?: {
-                /** @description Filter by goal interval */
+                /** @description Look back from today over this interval; ignored when `start_date` or `end_date` is given */
                 interval?: components["schemas"]["modules__health__constants__Interval"] | null;
                 page_number?: number | null;
                 num_records?: number | null;
+                /** @description First day to include (inclusive, `YYYY-MM-DD`). When `start_date` or `end_date` is given, `interval` is ignored. */
+                start_date?: string | null;
+                /** @description Last day to include (inclusive, `YYYY-MM-DD`). Defaults to no upper bound. */
+                end_date?: string | null;
             };
             header?: never;
             path?: never;
@@ -16809,8 +17080,12 @@ export interface operations {
     read_health_sleep_chart_api_v1_health_sleep_chart_get: {
         parameters: {
             query?: {
-                /** @description Interval to chart */
+                /** @description Interval to chart, looking back from today; ignored when `start_date` or `end_date` is given */
                 interval?: components["schemas"]["modules__health__constants__Interval"];
+                /** @description First day to include (inclusive, `YYYY-MM-DD`). When `start_date` or `end_date` is given, `interval` is ignored. */
+                start_date?: string | null;
+                /** @description Last day to include (inclusive, `YYYY-MM-DD`). Defaults to no upper bound. */
+                end_date?: string | null;
             };
             header?: never;
             path?: never;
@@ -16850,8 +17125,12 @@ export interface operations {
     read_health_sleep_resting_heart_rate_chart_api_v1_health_sleep_chart_resting_heart_rate_get: {
         parameters: {
             query?: {
-                /** @description Interval to chart */
+                /** @description Interval to chart, looking back from today; ignored when `start_date` or `end_date` is given */
                 interval?: components["schemas"]["modules__health__constants__Interval"];
+                /** @description First day to include (inclusive, `YYYY-MM-DD`). When `start_date` or `end_date` is given, `interval` is ignored. */
+                start_date?: string | null;
+                /** @description Last day to include (inclusive, `YYYY-MM-DD`). Defaults to no upper bound. */
+                end_date?: string | null;
             };
             header?: never;
             path?: never;
@@ -17046,10 +17325,14 @@ export interface operations {
     read_health_steps_all_pagination_api_v1_health_steps_get: {
         parameters: {
             query?: {
-                /** @description Filter by goal interval */
+                /** @description Look back from today over this interval; ignored when `start_date` or `end_date` is given */
                 interval?: components["schemas"]["modules__health__constants__Interval"] | null;
                 page_number?: number | null;
                 num_records?: number | null;
+                /** @description First day to include (inclusive, `YYYY-MM-DD`). When `start_date` or `end_date` is given, `interval` is ignored. */
+                start_date?: string | null;
+                /** @description Last day to include (inclusive, `YYYY-MM-DD`). Defaults to no upper bound. */
+                end_date?: string | null;
             };
             header?: never;
             path?: never;
@@ -17131,8 +17414,12 @@ export interface operations {
     read_health_steps_chart_api_v1_health_steps_chart_get: {
         parameters: {
             query?: {
-                /** @description Interval to chart */
+                /** @description Interval to chart, looking back from today; ignored when `start_date` or `end_date` is given */
                 interval?: components["schemas"]["modules__health__constants__Interval"];
+                /** @description First day to include (inclusive, `YYYY-MM-DD`). When `start_date` or `end_date` is given, `interval` is ignored. */
+                start_date?: string | null;
+                /** @description Last day to include (inclusive, `YYYY-MM-DD`). Defaults to no upper bound. */
+                end_date?: string | null;
             };
             header?: never;
             path?: never;
@@ -17371,10 +17658,14 @@ export interface operations {
     read_health_water_all_pagination_api_v1_health_water_get: {
         parameters: {
             query?: {
-                /** @description Filter by goal interval */
+                /** @description Look back from today over this interval; ignored when `start_date` or `end_date` is given */
                 interval?: components["schemas"]["modules__health__constants__Interval"] | null;
                 page_number?: number | null;
                 num_records?: number | null;
+                /** @description First day to include (inclusive, `YYYY-MM-DD`). When `start_date` or `end_date` is given, `interval` is ignored. */
+                start_date?: string | null;
+                /** @description Last day to include (inclusive, `YYYY-MM-DD`). Defaults to no upper bound. */
+                end_date?: string | null;
             };
             header?: never;
             path?: never;
@@ -17456,8 +17747,12 @@ export interface operations {
     read_health_water_chart_api_v1_health_water_chart_get: {
         parameters: {
             query?: {
-                /** @description Interval to chart */
+                /** @description Interval to chart, looking back from today; ignored when `start_date` or `end_date` is given */
                 interval?: components["schemas"]["modules__health__constants__Interval"];
+                /** @description First day to include (inclusive, `YYYY-MM-DD`). When `start_date` or `end_date` is given, `interval` is ignored. */
+                start_date?: string | null;
+                /** @description Last day to include (inclusive, `YYYY-MM-DD`). Defaults to no upper bound. */
+                end_date?: string | null;
             };
             header?: never;
             path?: never;
@@ -17623,10 +17918,14 @@ export interface operations {
     read_health_weight_all_pagination_api_v1_health_weight_get: {
         parameters: {
             query?: {
-                /** @description Filter by goal interval */
+                /** @description Look back from today over this interval; ignored when `start_date` or `end_date` is given */
                 interval?: components["schemas"]["modules__health__constants__Interval"] | null;
                 page_number?: number | null;
                 num_records?: number | null;
+                /** @description First day to include (inclusive, `YYYY-MM-DD`). When `start_date` or `end_date` is given, `interval` is ignored. */
+                start_date?: string | null;
+                /** @description Last day to include (inclusive, `YYYY-MM-DD`). Defaults to no upper bound. */
+                end_date?: string | null;
             };
             header?: never;
             path?: never;
@@ -17708,8 +18007,12 @@ export interface operations {
     read_health_weight_chart_api_v1_health_weight_chart_get: {
         parameters: {
             query?: {
-                /** @description Interval to chart */
+                /** @description Interval to chart, looking back from today; ignored when `start_date` or `end_date` is given */
                 interval?: components["schemas"]["modules__health__constants__Interval"];
+                /** @description First day to include (inclusive, `YYYY-MM-DD`). When `start_date` or `end_date` is given, `interval` is ignored. */
+                start_date?: string | null;
+                /** @description Last day to include (inclusive, `YYYY-MM-DD`). Defaults to no upper bound. */
+                end_date?: string | null;
             };
             header?: never;
             path?: never;
@@ -20377,7 +20680,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["Page_ActivityStreamsRead_"];
+                    "application/json": components["schemas"]["Page_ActivityStreamResponse_"];
                 };
             };
             /** @description Validation Error */
@@ -20418,7 +20721,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["ActivityStreamsRead"];
+                    "application/json": components["schemas"]["ActivityStreamResponse"];
                 };
             };
             /** @description Validation Error */

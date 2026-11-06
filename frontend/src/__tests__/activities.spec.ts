@@ -108,6 +108,25 @@ describe('mapActivityStream', () => {
     })
   })
 
+  it('keeps the typed waypoints of a map stream, whatever its sample times', () => {
+    const dto: ActivityStreamDto = {
+      id: 4,
+      activity_id: 5,
+      stream_type: 7,
+      stream_waypoints: [
+        { time: '2026-06-20T08:20:00', lat: 38.7223, lon: -9.1393 },
+        { time: 0.5, lat: 38.72, lon: -9.14 },
+        { lat: 38.7, lon: -9.1 },
+      ],
+    }
+    expect(mapActivityStream(dto)).toEqual({
+      id: 4,
+      streamType: 7,
+      waypoints: dto.stream_waypoints,
+      hrZones: null,
+    })
+  })
+
   it('decodes the HR zone_percentages block into ordered buckets', () => {
     const dto: ActivityStreamDto = {
       id: 3,
