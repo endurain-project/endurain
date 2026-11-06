@@ -21,11 +21,11 @@ from pydantic import (
     field_validator,
 )
 
+import core.job_status as core_job_status
 import core.pagination as core_pagination
 import core.partial_update as core_partial_update
 import core.timezone as core_timezone
 import core.types as core_types
-import modules.activities.activity.bulk_edit_constants as bulk_edit_constants
 import modules.activities.activity.constants as activity_constants
 import modules.users.users.schema as users_schema
 
@@ -348,16 +348,8 @@ class ActivityFeedPage(core_pagination.CursorPage[ActivityRead]):
     )
 
 
-class ActivitiesBulkEditStatus(BaseModel):
-    """Where a queued bulk edit across a user's activities is.
-
-    Attributes:
-        status: Lifecycle state of the edit.
-    """
-
-    status: bulk_edit_constants.BulkEditStatus = Field(..., description="Lifecycle state of the bulk edit")
-
-    model_config = ConfigDict(extra="forbid")
+class ActivitiesBulkEditStatus(core_job_status.JobStatus):
+    """Where a queued bulk edit across a user's activities is."""
 
 
 class ActivitiesBulkEdit(core_partial_update.NotClearable):

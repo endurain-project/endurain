@@ -19,13 +19,13 @@ from pydantic import (
     field_validator,
 )
 
+import core.job_status as core_job_status
 import core.pagination as core_pagination
 import core.partial_update as core_partial_update
 import core.types as core_types
 import modules.activities.activity.constants as activity_constants
 import modules.auth.identity_providers.schema as idp_schema
 import modules.server_settings.schema as server_settings_schema
-import modules.users.users.constants as users_constants
 
 
 class Gender(Enum):
@@ -899,13 +899,5 @@ class ProfileUpdate(core_partial_update.NotClearable, BaseModel):
         return value
 
 
-class UserDeletionStatus(BaseModel):
-    """Where a queued account deletion is.
-
-    Attributes:
-        status: Lifecycle state of the deletion.
-    """
-
-    status: users_constants.DeletionStatus = Field(..., description="Lifecycle state of the account deletion")
-
-    model_config = ConfigDict(extra="forbid")
+class UserDeletionStatus(core_job_status.JobStatus):
+    """Where a queued account deletion is."""

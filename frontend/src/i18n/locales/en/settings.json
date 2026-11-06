@@ -1097,7 +1097,7 @@
       "exportStatus": {
         "queued": "Waiting for the export to start…",
         "running": "Preparing your export…",
-        "completed": "Your export is ready to download. It stays available for two hours.",
+        "succeeded": "Your export is ready to download. It stays available for two hours.",
         "failed": "The export didn't complete: {reason}"
       },
       "exportFailure": {
@@ -1110,8 +1110,7 @@
       "status": {
         "queued": "Waiting for the import to start…",
         "running": "Importing your data…",
-        "writing_files": "Saving your files…",
-        "completed": "Import finished: {activities} activity and {gears} gear imported. | Import finished: {activities} activities and {gears} gear imported.",
+        "succeeded": "Import finished: {activities} activity and {gears} gear imported. | Import finished: {activities} activities and {gears} gear imported.",
         "failed": "The import didn't complete: {reason}"
       },
       "failure": {

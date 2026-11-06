@@ -4,6 +4,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/vue-query'
 import type { DateRange, GarminLinkStatus, GarminLoginInput } from '@/features/integrations/types'
 
 import { jobPollInterval, useRealtime } from '@/composables/useRealtime'
+import { isTerminalJobState } from '@/services/jobStatus'
 import { queryKeys } from '@/services/queryKeys'
 import {
   fetchGarminLinkStatus,
@@ -77,7 +78,7 @@ export function useLinkGarminMutation() {
  * Follows a Garmin Connect link attempt until it completes or fails. While the realtime channel is
  * open the server announces each change of the attempt, which re-reads the status at once, and the
  * poll only backs that up; without the channel it polls quickly. It keeps polling in a background
- * tab, because the user may be reading an MFA code in another app. A completed link refreshes the
+ * tab, because the user may be reading an MFA code in another app. A succeeded link refreshes the
  * profile's link status.
  *
  * @param enabled - Whether an attempt is being followed.
@@ -85,11 +86,11 @@ export function useLinkGarminMutation() {
  */
 export function useGarminLinkStatusQuery(enabled: Ref<boolean>) {
   const invalidateProfile = useProfileInvalidation()
-  const query = useQuery<GarminLinkStatus, Error>({
+  const query = useQuery<GarminLinkStatus | null, Error>({
     queryKey: queryKeys.integrations.garminLinkStatus(),
     queryFn: async ({ signal }) => {
       const status = await fetchGarminLinkStatus(signal)
-      if (status.status === 'completed') {
+      if (status?.status === 'succeeded') {
         invalidateProfile()
       }
       return status
@@ -97,8 +98,8 @@ export function useGarminLinkStatusQuery(enabled: Ref<boolean>) {
     enabled,
     retry: false,
     refetchInterval: (query) => {
-      const status = query.state.data?.status
-      return status === 'completed' || status === 'failed'
+      const state = query.state.data
+      return state === null || (state !== undefined && isTerminalJobState(state.status))
         ? false
         : jobPollInterval(GARMIN_LINK_POLL_MS)
     },

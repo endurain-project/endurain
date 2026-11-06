@@ -4,6 +4,7 @@ from datetime import datetime
 
 from pydantic import BaseModel, ConfigDict, Field
 
+import core.job_status as core_job_status
 import modules.activities.activity.schema as activity_schema
 import modules.users.users.schema as users_schema
 import modules.users.users_profile.constants as profile_constants
@@ -31,37 +32,31 @@ class UserProfileOverviewRead(BaseModel):
     model_config = ConfigDict(from_attributes=True, extra="forbid")
 
 
-class ProfileImportStatus(BaseModel):
+class ProfileImportStatus(core_job_status.JobStatus):
     """Where the authenticated user's profile import is.
 
     Attributes:
-        status: Lifecycle state of the import.
-        failure: Why the import failed; set only when it failed.
-        imported: How many items of each kind were imported; set only when it completed.
+        error_code: Why the import failed; set only when it failed.
+        imported: How many items of each kind were imported; set only when it succeeded.
     """
 
-    status: profile_constants.ImportStatus = Field(..., description="Lifecycle state of the import")
-    failure: profile_constants.ImportFailure | None = Field(default=None, description="Reason the import failed")
-    imported: dict[str, int] | None = Field(default=None, description="Items imported per kind, once completed")
-
-    model_config = ConfigDict(from_attributes=True, extra="forbid")
+    error_code: profile_constants.ImportFailure | None = Field(default=None, description="Reason the import failed")
+    imported: dict[str, int] | None = Field(default=None, description="Items imported per kind, once it succeeded")
 
 
-class ProfileExportStatus(BaseModel):
+class ProfileExportStatus(core_job_status.JobStatus):
     """Where the authenticated user's profile export is.
 
     Attributes:
-        status: Lifecycle state of the export.
-        failure: Why the export failed; set only when it failed.
-        size_bytes: Size of the archive; set only when it completed and can be downloaded.
-        expires_at: When the download stops working; set only when it completed and can be downloaded.
+        error_code: Why the export failed; set only when it failed.
+        size_bytes: Size of the archive; set only when it succeeded and can be downloaded.
+        expires_at: When the download stops working; set only when it succeeded and can be downloaded.
     """
 
-    status: profile_constants.ExportStatus = Field(..., description="Lifecycle state of the export")
-    failure: profile_constants.ExportFailure | None = Field(default=None, description="Reason the export failed")
-    size_bytes: int | None = Field(default=None, description="Archive size in bytes, once completed")
-    expires_at: datetime | None = Field(
-        default=None, description="Instant after which the download stops working, once completed"
-    )
-
     model_config = ConfigDict(from_attributes=True, extra="forbid")
+
+    error_code: profile_constants.ExportFailure | None = Field(default=None, description="Reason the export failed")
+    size_bytes: int | None = Field(default=None, description="Archive size in bytes, once it succeeded")
+    expires_at: datetime | None = Field(
+        default=None, description="Instant after which the download stops working, once it succeeded"
+    )

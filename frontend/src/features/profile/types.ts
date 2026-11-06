@@ -1,5 +1,7 @@
 import type { Schemas } from '@/types'
 
+import { isTerminalJobState } from '@/services/jobStatus'
+
 /** Raw authenticated `/profile` payload (snake_case wire shape). */
 export type ProfileDto = Schemas['UserMe']
 
@@ -13,10 +15,7 @@ export type PrivacyUpdateDto = Schemas['UserPrivacySettingsUpdate']
 export type ProfileImportStatus = Schemas['ProfileImportStatus']
 
 /** Why a profile import failed. */
-export type ProfileImportFailure = NonNullable<ProfileImportStatus['failure']>
-
-/** Import states that will not change again, so polling can stop. */
-export const TERMINAL_IMPORT_STATUSES = ['completed', 'failed'] as const
+export type ProfileImportFailure = NonNullable<ProfileImportStatus['error_code']>
 
 /**
  * Whether a profile import has reached a state it will not leave.
@@ -25,7 +24,7 @@ export const TERMINAL_IMPORT_STATUSES = ['completed', 'failed'] as const
  * @returns `true` when the import is finished, successfully or not.
  */
 export function isTerminalProfileImport(status: ProfileImportStatus): boolean {
-  return (TERMINAL_IMPORT_STATUSES as readonly string[]).includes(status.status)
+  return isTerminalJobState(status.status)
 }
 
 /** Where the user's profile export is, as the backend reports it. */
@@ -38,7 +37,7 @@ export type ProfileExportStatus = Schemas['ProfileExportStatus']
  * @returns `true` when the export is finished, successfully or not.
  */
 export function isTerminalProfileExport(status: ProfileExportStatus): boolean {
-  return (TERMINAL_IMPORT_STATUSES as readonly string[]).includes(status.status)
+  return isTerminalJobState(status.status)
 }
 
 /** Activity visibility level, mirrored from the backend enum. */

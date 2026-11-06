@@ -5,6 +5,7 @@ from unittest.mock import patch
 
 from tests._helpers.models import mock_model
 
+import core.job_status as core_job_status
 import modules.activities.activity_ingestion.constants as activity_ingestion_constants
 import modules.activities.activity_ingestion.crud as ingestion_crud
 import modules.activities.activity_ingestion.models as activity_ingestion_models
@@ -57,7 +58,7 @@ class TestCreateUploadJob:
         mock_db.flush.assert_called_once()
         mock_db.commit.assert_not_called()
         assert result.id == "job-1"
-        assert result.status == activity_ingestion_constants.IngestionJobStatus.PENDING
+        assert result.status == core_job_status.JobState.QUEUED
 
 
 class TestGetUploadJob:
@@ -86,7 +87,7 @@ class TestGetUploadJob:
         _stub_first(mock_db, _row(status="completed", activity_ids=[11, 12], completed_at=_NOW))
         result = ingestion_crud.get_ingestion_job("job-1", 7, mock_db)
         assert result is not None
-        assert result.status == activity_ingestion_constants.IngestionJobStatus.COMPLETED
+        assert result.status == core_job_status.JobState.SUCCEEDED
         assert result.activity_ids == [11, 12]
 
     def test_maps_a_failed_job(self, mock_db):

@@ -179,9 +179,8 @@ def test_a_range_ending_after_the_users_today_is_refused(rate_limits, local, sta
     local.submit_waiting.assert_not_called()
 
 
-def test_an_unrecorded_sync_is_not_found(states):
-    with pytest.raises(core_exceptions.NotFoundError):
-        garmin_sync_service.get_sync_status(1, Kind.GEAR, states)
+def test_an_unrecorded_sync_reads_as_none(states):
+    assert garmin_sync_service.get_sync_status(1, Kind.GEAR, states) is None
 
 
 class TestRunSync:
@@ -201,8 +200,8 @@ class TestRunSync:
 
         gear.assert_called_once_with(1, rate_limits)
         health.assert_called_once_with(DAY, DAY, 2, rate_limits)
-        assert states.get(1, Kind.GEAR).status == Status.COMPLETED
-        assert states.get(2, Kind.HEALTH).status == Status.COMPLETED
+        assert states.get(1, Kind.GEAR).status == Status.SUCCEEDED
+        assert states.get(2, Kind.HEALTH).status == Status.SUCCEEDED
 
     def test_a_completed_sync_tells_the_browser_what_to_refetch(self, rate_limits, states):
         with (
@@ -504,11 +503,11 @@ class TestDeadLetter:
 
     def test_a_sync_that_already_finished_is_left_alone(self, stores):
         stores.begin(1, Kind.GEAR)
-        stores.set_status(1, Kind.GEAR, Status.COMPLETED)
+        stores.set_status(1, Kind.GEAR, Status.SUCCEEDED)
 
         _dead_letter(_sync_event(3), None)
 
-        assert stores.get(1, Kind.GEAR).status == Status.COMPLETED
+        assert stores.get(1, Kind.GEAR).status == Status.SUCCEEDED
 
     def test_an_expired_state_is_not_resurrected(self, stores):
         _dead_letter(_sync_event(3), None)

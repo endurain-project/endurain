@@ -1097,7 +1097,7 @@
       "exportStatus": {
         "queued": "Venter på, at eksporten starter…",
         "running": "Forbereder din eksport…",
-        "completed": "Din eksport er klar til download. Den er tilgængelig i to timer.",
+        "succeeded": "Din eksport er klar til download. Den er tilgængelig i to timer.",
         "failed": "Eksporten blev ikke fuldført: {reason}"
       },
       "exportFailure": {
@@ -1110,8 +1110,7 @@
       "status": {
         "queued": "Venter på, at importen starter…",
         "running": "Importerer dine data…",
-        "writing_files": "Gemmer dine filer…",
-        "completed": "Importen er færdig: {activities} aktivitet importeret, udstyr: {gears}. | Importen er færdig: {activities} aktiviteter importeret, udstyr: {gears}.",
+        "succeeded": "Importen er færdig: {activities} aktivitet importeret, udstyr: {gears}. | Importen er færdig: {activities} aktiviteter importeret, udstyr: {gears}.",
         "failed": "Importen blev ikke fuldført: {reason}"
       },
       "failure": {

@@ -12,9 +12,10 @@ from jasil.jobs.registry import JobHandlerRegistry
 
 import core.attempt_state as core_attempt_state
 import core.exceptions as core_exceptions
+import core.job_status as core_job_status
 import core.sync_runner as core_sync_runner
 
-Status = core_attempt_state.SyncStatus
+Status = core_job_status.JobState
 
 
 class _Kinds(StrEnum):
@@ -37,7 +38,7 @@ class TestRunRecorded:
         result = core_sync_runner.run_recorded(states, 1, _Kinds.GEAR, lambda: True, will_retry=False)
 
         assert result is True
-        assert states.get(1, _Kinds.GEAR).status == Status.COMPLETED
+        assert states.get(1, _Kinds.GEAR).status == Status.SUCCEEDED
 
     def test_a_sync_with_nothing_to_do_is_recorded_as_failed(self, states):
         _begin(states)
@@ -193,15 +194,6 @@ class TestQueueSync:
 
 
 class TestStatusAndDeadLetter:
-    def test_status_is_not_found_when_none_is_recorded(self, states):
-        with pytest.raises(core_exceptions.NotFoundError, match="No Provider gear sync recorded"):
-            core_sync_runner.read_state(states, 1, _Kinds.GEAR, "Provider")
-
-    def test_status_reports_the_recorded_state(self, states):
-        _begin(states)
-
-        assert core_sync_runner.read_state(states, 1, _Kinds.GEAR, "Provider").status == Status.QUEUED
-
     def test_a_dead_lettered_sync_is_failed_and_its_claim_freed(self, states):
         _begin(states)
 

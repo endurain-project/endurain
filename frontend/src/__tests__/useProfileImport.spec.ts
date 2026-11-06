@@ -20,10 +20,10 @@ vi.mock('@/features/profile/services/dataTransfer', async (importOriginal) => ({
   importProfileData: vi.fn<(file: File) => Promise<ProfileImportStatus>>(),
 }))
 
-const running: ProfileImportStatus = { status: 'running', failure: null, imported: null }
+const running: ProfileImportStatus = { status: 'running', error_code: null, imported: null }
 const completed: ProfileImportStatus = {
-  status: 'completed',
-  failure: null,
+  status: 'succeeded',
+  error_code: null,
   imported: { activities: 2 },
 }
 
@@ -69,7 +69,7 @@ describe('profile import composables', () => {
     vi.mocked(fetchProfileImport).mockResolvedValue(null)
     vi.mocked(importProfileData).mockResolvedValue({
       status: 'queued',
-      failure: null,
+      error_code: null,
       imported: null,
     })
     const queryClient = new QueryClient()

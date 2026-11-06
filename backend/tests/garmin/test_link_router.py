@@ -9,6 +9,7 @@ from fastapi.testclient import TestClient
 from jasil.backends.state_memory import MemoryState
 
 import core.exceptions as core_exceptions
+import core.job_status as core_job_status
 import modules.garmin.constants as garmin_constants
 import modules.garmin.dependencies as garmin_dependencies
 import modules.garmin.link_state_store as link_state_store
@@ -47,14 +48,21 @@ def users_today():
 
 
 @patch("modules.garmin.link_service._link_pool")
-def test_link_returns_pending_at_once_and_starts_the_login(mock_start):
+def test_link_returns_running_at_once_and_starts_the_login(mock_start):
     client, link_states = _client()
 
     response = client.post("/garmin/link", json=_BODY)
 
     assert response.status_code == 202
-    assert response.json() == {"status": "pending", "reason": None}
-    assert link_states.get(1).status == garmin_constants.LinkStatus.PENDING
+    assert response.json() == {
+        "id": None,
+        "status": "running",
+        "error_code": None,
+        "created_at": None,
+        "finished_at": None,
+        "mfa_required": False,
+    }
+    assert link_states.get(1).status == core_job_status.JobState.RUNNING
     assert mock_start.submit.call_args.args[1:3] == (1, "me@example.com")
 
 
@@ -73,33 +81,38 @@ def test_a_second_link_while_one_runs_is_a_conflict(mock_start):
 def test_a_failed_link_can_be_retried(mock_start):
     client, link_states = _client()
     client.post("/garmin/link", json=_BODY)
-    link_states.set_status(1, garmin_constants.LinkStatus.FAILED, garmin_constants.LinkFailure.INCORRECT_MFA)
+    link_states.set_status(1, core_job_status.JobState.FAILED, garmin_constants.LinkFailure.INCORRECT_MFA)
 
     assert client.post("/garmin/link", json=_BODY).status_code == 202
 
 
-def test_status_without_an_attempt_is_not_found():
+def test_status_without_an_attempt_is_null():
     client, _ = _client()
 
-    assert client.get("/garmin/link/status").status_code == 404
+    response = client.get("/garmin/link/status")
+
+    assert response.status_code == 200
+    assert response.json() is None
 
 
 def test_status_reports_the_prompt_and_the_outcome():
     client, link_states = _client()
     link_states.begin(1)
 
-    link_states.set_status(1, garmin_constants.LinkStatus.MFA_REQUIRED)
-    assert client.get("/garmin/link/status").json()["status"] == "mfa_required"
+    link_states.set_status(1, core_job_status.JobState.RUNNING, mfa_required=True)
+    prompted = client.get("/garmin/link/status").json()
+    assert (prompted["status"], prompted["mfa_required"]) == ("running", True)
 
-    link_states.set_status(1, garmin_constants.LinkStatus.FAILED, garmin_constants.LinkFailure.INVALID_CREDENTIALS)
-    assert client.get("/garmin/link/status").json() == {"status": "failed", "reason": "invalid_credentials"}
+    link_states.set_status(1, core_job_status.JobState.FAILED, garmin_constants.LinkFailure.INVALID_CREDENTIALS)
+    failed = client.get("/garmin/link/status").json()
+    assert (failed["status"], failed["error_code"], failed["mfa_required"]) == ("failed", "invalid_credentials", False)
 
 
 def test_status_is_scoped_to_the_caller():
     client, link_states = _client(user_id=2)
     link_states.begin(1)
 
-    assert client.get("/garmin/link/status").status_code == 404
+    assert client.get("/garmin/link/status").json() is None
 
 
 def test_an_mfa_code_with_no_login_waiting_is_a_conflict():
@@ -112,7 +125,7 @@ def test_an_mfa_code_with_no_login_waiting_is_a_conflict():
 def test_an_mfa_code_is_accepted_while_the_login_waits():
     client, link_states = _client()
     link_states.begin(1)
-    link_states.set_status(1, garmin_constants.LinkStatus.MFA_REQUIRED)
+    link_states.set_status(1, core_job_status.JobState.RUNNING, mfa_required=True)
 
     assert client.post("/garmin/mfa", json={"mfa_code": "123456"}).status_code == 204
 
@@ -133,7 +146,14 @@ def test_a_gear_sync_is_queued_not_run_on_the_request():
         response = client.post("/garmin/gear")
 
     assert response.status_code == 202
-    assert response.json() == {"kind": "gear", "status": "queued"}
+    assert response.json() == {
+        "id": None,
+        "created_at": None,
+        "finished_at": None,
+        "error_code": None,
+        "kind": "gear",
+        "status": "queued",
+    }
     queue.assert_called_once()
 
 
@@ -150,9 +170,9 @@ def test_a_second_gear_sync_while_one_is_pending_is_a_conflict():
     assert second.status_code == 409
 
 
-def test_a_sync_status_is_reported_once_queued_and_not_found_before():
+def test_a_sync_status_is_reported_once_queued_and_null_before():
     client, _ = _client()
-    assert client.get("/garmin/sync/health").status_code == 404
+    assert client.get("/garmin/sync/health").json() is None
 
     with (
         patch("modules.garmin.sync_service.core_config.settings", MagicMock(JOBS_ENABLED=False)),
@@ -160,8 +180,9 @@ def test_a_sync_status_is_reported_once_queued_and_not_found_before():
     ):
         client.post("/garmin/health", params={"start_date": "2026-01-01", "end_date": "2026-01-01"})
 
-    assert client.get("/garmin/sync/health").json() == {"kind": "health", "status": "queued"}
-    assert client.get("/garmin/sync/gear").status_code == 404
+    queued = client.get("/garmin/sync/health").json()
+    assert (queued["kind"], queued["status"]) == ("health", "queued")
+    assert client.get("/garmin/sync/gear").json() is None
 
 
 def test_a_non_numeric_mfa_code_is_rejected():

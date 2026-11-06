@@ -14,9 +14,10 @@ Interface::
 """
 
 from jasil.providers import StateProvider
-from pydantic import BaseModel
+from pydantic import BaseModel, model_validator
 
 import core.attempt_state as core_attempt_state
+import core.job_status as core_job_status
 import modules.garmin.constants as garmin_constants
 
 
@@ -24,15 +25,34 @@ class LinkState(BaseModel):
     """The recorded state of one link attempt.
 
     Attributes:
-        status: Where the attempt is.
-        reason: Why it failed; set only when ``status`` is ``FAILED``.
+        status: Where the attempt is; ``RUNNING`` for the whole login, including while it waits for an MFA code.
+        mfa_required: Whether the login waits for the user's MFA code.
+        error_code: Why it failed; set only when ``status`` is ``FAILED``.
     """
 
-    status: garmin_constants.LinkStatus
-    reason: garmin_constants.LinkFailure | None = None
+    status: core_job_status.JobState
+    mfa_required: bool = False
+    error_code: garmin_constants.LinkFailure | None = None
+
+    @model_validator(mode="before")
+    @classmethod
+    def _read_stored_state(cls, data: object) -> object:
+        """Read a state stored before the shared job vocabulary as the current one.
+
+        ``pending`` was the login in progress and ``mfa_required`` the login waiting for a code; both are
+        ``running`` now, the second with ``mfa_required`` set.
+        """
+        data = core_job_status.upgrade_stored_state(data, "reason")
+        if isinstance(data, dict) and data.get("status") in ("pending", "mfa_required"):
+            data = {
+                **data,
+                "mfa_required": data["status"] == "mfa_required",
+                "status": core_job_status.JobState.RUNNING.value,
+            }
+        return data
 
 
-_FINISHED = (garmin_constants.LinkStatus.COMPLETED, garmin_constants.LinkStatus.FAILED)
+_FINISHED = tuple(core_job_status.TERMINAL_STATES)
 
 
 class GarminLinkStateStore:
@@ -65,7 +85,7 @@ class GarminLinkStateStore:
         Raises:
             StateUnavailableError: When storage is unavailable.
         """
-        return self._attempts.begin(str(user_id), LinkState(status=garmin_constants.LinkStatus.PENDING))
+        return self._attempts.begin(str(user_id), LinkState(status=core_job_status.JobState.RUNNING))
 
     def release(self, user_id: int) -> None:
         """Abandon an attempt that never got to run, so the user can retry at once.
@@ -76,16 +96,26 @@ class GarminLinkStateStore:
         self._attempts.release(str(user_id))
 
     def set_status(
-        self, user_id: int, status: garmin_constants.LinkStatus, reason: garmin_constants.LinkFailure | None = None
+        self,
+        user_id: int,
+        status: core_job_status.JobState,
+        error_code: garmin_constants.LinkFailure | None = None,
+        *,
+        mfa_required: bool = False,
     ) -> None:
         """Record a link attempt's progress or outcome.
 
         Args:
             user_id: Authenticated user ID.
             status: The new status.
-            reason: Why the attempt failed, when ``status`` is ``FAILED``.
+            error_code: Why the attempt failed, when ``status`` is ``FAILED``.
+            mfa_required: Whether the login now waits for the user's MFA code.
         """
-        self._attempts.record(str(user_id), LinkState(status=status, reason=reason), finished=status in _FINISHED)
+        self._attempts.record(
+            str(user_id),
+            LinkState(status=status, mfa_required=mfa_required, error_code=error_code),
+            finished=status in _FINISHED,
+        )
 
     def get(self, user_id: int) -> LinkState | None:
         """Read a user's link attempt state.

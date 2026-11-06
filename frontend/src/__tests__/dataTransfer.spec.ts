@@ -21,7 +21,7 @@ describe('data transfer service requests', () => {
   })
 
   it('requestProfileExport queues the export with a POST carrying the step-up credentials', async () => {
-    const status = { status: 'queued', failure: null, size_bytes: null } as const
+    const status = { status: 'queued', error_code: null, size_bytes: null } as const
     vi.mocked(apiFetch).mockResolvedValue(status)
 
     expect(
@@ -54,7 +54,7 @@ describe('data transfer service requests', () => {
     let body: unknown
     vi.mocked(apiFetch).mockImplementation((_path, init) => {
       body = init?.body
-      return Promise.resolve({ status: 'queued', failure: null, imported: null })
+      return Promise.resolve({ status: 'queued', error_code: null, imported: null })
     })
     const file = new File(['x'], 'export.zip', { type: 'application/zip' })
 
@@ -77,7 +77,7 @@ describe('fetchProfileImport', () => {
   })
 
   it('reads the import state', async () => {
-    const status = { status: 'running', failure: null, imported: null } as const
+    const status = { status: 'running', error_code: null, imported: null } as const
     vi.mocked(apiFetch).mockResolvedValue(status)
 
     expect(await fetchProfileImport()).toEqual(status)
@@ -103,7 +103,7 @@ describe('fetchProfileExport', () => {
   })
 
   it('reads the export state', async () => {
-    const status = { status: 'completed', failure: null, size_bytes: 9 } as const
+    const status = { status: 'succeeded', error_code: null, size_bytes: 9 } as const
     vi.mocked(apiFetch).mockResolvedValue(status)
 
     expect(await fetchProfileExport()).toEqual(status)

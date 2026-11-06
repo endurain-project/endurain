@@ -1097,7 +1097,7 @@
       "exportStatus": {
         "queued": "Wachten tot de export start…",
         "running": "Je export wordt voorbereid…",
-        "completed": "Je export staat klaar om te downloaden. Hij blijft twee uur beschikbaar.",
+        "succeeded": "Je export staat klaar om te downloaden. Hij blijft twee uur beschikbaar.",
         "failed": "De export is niet voltooid: {reason}"
       },
       "exportFailure": {
@@ -1110,8 +1110,7 @@
       "status": {
         "queued": "Wachten tot de import start…",
         "running": "Je gegevens worden geïmporteerd…",
-        "writing_files": "Je bestanden worden opgeslagen…",
-        "completed": "Import voltooid: {activities} activiteit geïmporteerd, uitrusting: {gears}. | Import voltooid: {activities} activiteiten geïmporteerd, uitrusting: {gears}.",
+        "succeeded": "Import voltooid: {activities} activiteit geïmporteerd, uitrusting: {gears}. | Import voltooid: {activities} activiteiten geïmporteerd, uitrusting: {gears}.",
         "failed": "De import is niet voltooid: {reason}"
       },
       "failure": {

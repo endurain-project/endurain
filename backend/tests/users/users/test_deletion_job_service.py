@@ -201,7 +201,7 @@ class TestRunDeletion:
         erasers.delete_staged_files.assert_called_once_with(1, storage)
         erasers.delete_bulk_import_errors.assert_called_once_with(1, storage)
         erasers.delete_notifications.assert_called_once_with(1, session_local.return_value.__enter__.return_value)
-        assert states.get(1, _Kind).status == _Status.COMPLETED
+        assert states.get(1, _Kind).status == _Status.SUCCEEDED
         # Every batch, the cleared photo reference and the row commit in a transaction of their own.
         assert session_local.return_value.__enter__.return_value.commit.call_count == 5
 
@@ -230,7 +230,7 @@ class TestRunDeletion:
         users_crud.delete_user.assert_not_called()
         users_crud.replace_photo_key.assert_not_called()
         photos.delete_photo_files.assert_called_once_with(1, storage)
-        assert states.get(1, _Kind).status == _Status.COMPLETED
+        assert states.get(1, _Kind).status == _Status.SUCCEEDED
 
     def test_a_photo_storage_failure_nothing_retries_fails_the_deletion_and_keeps_the_row(self, states):
         """A deletion is only complete once the photo is gone; the kept row lets the sweep queue it again."""
@@ -352,7 +352,7 @@ class TestRunDeletionInPasses:
         assert erasers.delete_activities.call_count == 3
         photos.delete_photo_files.assert_called_once()
         users_crud.delete_user.assert_called_once()
-        assert states.get(1, _Kind).status == _Status.COMPLETED
+        assert states.get(1, _Kind).status == _Status.SUCCEEDED
 
     def test_a_pass_that_finishes_inside_its_budget_does_not_continue(self, states):
         states.begin(1, _Kind)
@@ -363,7 +363,7 @@ class TestRunDeletionInPasses:
 
         assert more is False
         users_crud.delete_user.assert_called_once()
-        assert states.get(1, _Kind).status == _Status.COMPLETED
+        assert states.get(1, _Kind).status == _Status.SUCCEEDED
 
     def test_a_reactivation_between_passes_cancels_the_deletion(self, states):
         states.begin(1, _Kind)
@@ -399,9 +399,8 @@ class TestRunDeletionInPasses:
 
 
 class TestStatusAndDeadLetter:
-    def test_status_is_not_found_when_none_is_recorded(self, states):
-        with pytest.raises(core_exceptions.NotFoundError):
-            job_service.get_deletion_status(1, states)
+    def test_status_is_none_when_none_is_recorded(self, states):
+        assert job_service.get_deletion_status(1, states) is None
 
     def test_status_reports_the_recorded_state(self, states):
         states.begin(1, _Kind)
@@ -418,11 +417,11 @@ class TestStatusAndDeadLetter:
 
     def test_a_finished_deletion_is_left_as_it_is(self, states):
         states.begin(1, _Kind)
-        states.set_status(1, _Kind, _Status.COMPLETED)
+        states.set_status(1, _Kind, _Status.SUCCEEDED)
 
         job_service.close_dead_lettered_deletion(_payload(), states)
 
-        assert states.get(1, _Kind).status == _Status.COMPLETED
+        assert states.get(1, _Kind).status == _Status.SUCCEEDED
 
 
 class TestRequeueStalledDeletions:

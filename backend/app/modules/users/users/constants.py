@@ -2,7 +2,7 @@
 
 from enum import StrEnum
 
-import core.attempt_state as core_attempt_state
+import core.job_status as core_job_status
 
 #: Domain-owned storage namespace for profile photos. For the ``local`` backend this maps to
 #: ``{DATA_DIR}/user_images`` — the directory the photos already live in — so an existing
@@ -82,7 +82,7 @@ DELETION_SOURCE_SWEEP = "scheduler:users_deletion_sweep"
 
 
 #: Where a queued deletion is; shared by every queued job's state.
-DeletionStatus = core_attempt_state.SyncStatus
+DeletionStatus = core_job_status.JobState
 
 
 class DeletionKind(StrEnum):

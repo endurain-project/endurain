@@ -250,7 +250,7 @@ def request_health_sync(
 
 def get_sync_status(
     user_id: int, kind: garmin_constants.SyncKind, states: garmin_sync_state_store.GarminSyncStateStore
-) -> garmin_schema.GarminSyncStatus:
+) -> garmin_schema.GarminSyncStatus | None:
     """Report where a user's gear or health sync is.
 
     Args:
@@ -259,13 +259,10 @@ def get_sync_status(
         states: Shared store of the sync's state.
 
     Returns:
-        The sync's status.
-
-    Raises:
-        NotFoundError: When no sync is recorded or it has expired.
+        The sync's status, or None when no sync is recorded or it has expired.
     """
-    state = core_sync_runner.read_state(states, user_id, kind, "Garmin Connect")
-    return garmin_schema.GarminSyncStatus(kind=kind, status=state.status)
+    state = states.get(user_id, kind)
+    return garmin_schema.GarminSyncStatus(kind=kind, status=state.status) if state is not None else None
 
 
 def request_activities_sync(

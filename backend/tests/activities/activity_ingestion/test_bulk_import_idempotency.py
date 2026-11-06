@@ -15,6 +15,7 @@ from jasil.backends.storage_local import LocalStorage
 from tests._helpers.db import create_sqlite_session_factory, ensure_user
 
 import core.exceptions as core_exceptions
+import core.job_status as core_job_status
 import modules.activities.activity_ingestion.bulk_import_service as bulk
 import modules.activities.activity_ingestion.constants as ingestion_constants
 import modules.activities.activity_ingestion.models as ingestion_models
@@ -125,7 +126,7 @@ class TestIdempotencyKey:
 
         replay = _accept(factory, storage, archive, key="key-1")
 
-        assert (replay.id, replay.status) == (first.id, ingestion_constants.IngestionJobStatus.COMPLETED)
+        assert (replay.id, replay.status) == (first.id, core_job_status.JobState.SUCCEEDED)
         assert len(_jobs(factory)) == 1
 
     def test_the_same_key_with_a_different_archive_is_refused(self, tmp_path, factory, storage):

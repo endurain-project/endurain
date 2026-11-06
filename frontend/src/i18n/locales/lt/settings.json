@@ -1097,7 +1097,7 @@
       "exportStatus": {
         "queued": "Laukiama, kol prasidės eksportas…",
         "running": "Ruošiamas jūsų eksportas…",
-        "completed": "Jūsų eksportas paruoštas atsisiuntimui. Jis bus pasiekiamas dvi valandas.",
+        "succeeded": "Jūsų eksportas paruoštas atsisiuntimui. Jis bus pasiekiamas dvi valandas.",
         "failed": "Eksporto užbaigti nepavyko: {reason}"
       },
       "exportFailure": {
@@ -1110,8 +1110,7 @@
       "status": {
         "queued": "Laukiama, kol prasidės importas…",
         "running": "Importuojami jūsų duomenys…",
-        "writing_files": "Išsaugomi jūsų failai…",
-        "completed": "Importas baigtas: importuota {activities} veikla, įranga: {gears}. | Importas baigtas: importuotos {activities} veiklos, įranga: {gears}. | Importas baigtas: importuota {activities} veiklų, įranga: {gears}.",
+        "succeeded": "Importas baigtas: importuota {activities} veikla, įranga: {gears}. | Importas baigtas: importuotos {activities} veiklos, įranga: {gears}. | Importas baigtas: importuota {activities} veiklų, įranga: {gears}.",
         "failed": "Importo užbaigti nepavyko: {reason}"
       },
       "failure": {

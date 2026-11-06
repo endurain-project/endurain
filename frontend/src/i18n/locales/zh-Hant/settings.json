@@ -1097,7 +1097,7 @@
       "exportStatus": {
         "queued": "正在等待匯出開始…",
         "running": "正在準備您的匯出…",
-        "completed": "您的匯出檔案已可下載，將保留兩小時。",
+        "succeeded": "您的匯出檔案已可下載，將保留兩小時。",
         "failed": "匯出未完成：{reason}"
       },
       "exportFailure": {
@@ -1110,8 +1110,7 @@
       "status": {
         "queued": "正在等待匯入開始…",
         "running": "正在匯入您的資料…",
-        "writing_files": "正在儲存您的檔案…",
-        "completed": "匯入完成：已匯入 {activities} 筆活動和 {gears} 件裝備。",
+        "succeeded": "匯入完成：已匯入 {activities} 筆活動和 {gears} 件裝備。",
         "failed": "匯入未完成：{reason}"
       },
       "failure": {

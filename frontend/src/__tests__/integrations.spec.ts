@@ -98,7 +98,7 @@ describe('strava service', () => {
       vi.mocked(apiFetch)
         .mockResolvedValueOnce({ kind: 'link', status: 'queued' })
         .mockResolvedValueOnce({ kind: 'link', status: 'running' })
-        .mockResolvedValueOnce({ kind: 'link', status: 'completed' })
+        .mockResolvedValueOnce({ kind: 'link', status: 'succeeded' })
 
       const done = completeStravaLink('st ate', 'co/de', 'read,profile:read_all,activity:read_all')
       await vi.advanceTimersByTimeAsync(2_000)
@@ -121,7 +121,7 @@ describe('strava service', () => {
       const watch = vi.spyOn(realtime, 'watchJob')
       vi.mocked(apiFetch)
         .mockResolvedValueOnce({ kind: 'link', status: 'queued' })
-        .mockResolvedValueOnce({ kind: 'link', status: 'completed' })
+        .mockResolvedValueOnce({ kind: 'link', status: 'succeeded' })
 
       const done = completeStravaLink('s', 'c', 'read')
       await vi.advanceTimersByTimeAsync(1_000)
@@ -164,7 +164,7 @@ describe('strava service', () => {
       vi.mocked(apiFetch)
         .mockResolvedValueOnce({ kind: 'unlink', status: 'queued' })
         .mockResolvedValueOnce({ kind: 'unlink', status: 'running' })
-        .mockResolvedValueOnce({ kind: 'unlink', status: 'completed' })
+        .mockResolvedValueOnce({ kind: 'unlink', status: 'succeeded' })
 
       const done = unlinkStrava()
       await vi.advanceTimersByTimeAsync(2_000)
@@ -180,7 +180,7 @@ describe('strava service', () => {
       const watch = vi.spyOn(realtime, 'watchJob')
       vi.mocked(apiFetch)
         .mockResolvedValueOnce({ kind: 'unlink', status: 'queued' })
-        .mockResolvedValueOnce({ kind: 'unlink', status: 'completed' })
+        .mockResolvedValueOnce({ kind: 'unlink', status: 'succeeded' })
 
       const done = unlinkStrava()
       await vi.advanceTimersByTimeAsync(1_000)
@@ -218,7 +218,11 @@ describe('garmin service', () => {
   })
 
   it('linkGarmin POSTs the credentials and returns the initial status', async () => {
-    vi.mocked(apiFetch).mockResolvedValue({ status: 'pending', reason: null })
+    vi.mocked(apiFetch).mockResolvedValue({
+      status: 'running',
+      mfa_required: false,
+      error_code: null,
+    })
 
     const status = await linkGarmin({ username: 'rider', password: 'pw', isCn: false })
 
@@ -226,11 +230,15 @@ describe('garmin service', () => {
       method: 'POST',
       body: JSON.stringify({ username: 'rider', password: 'pw', is_cn: false }),
     })
-    expect(status).toEqual({ status: 'pending', reason: null })
+    expect(status).toEqual({ status: 'running', mfa_required: false, error_code: null })
   })
 
   it('fetchGarminLinkStatus GETs the link status path', async () => {
-    vi.mocked(apiFetch).mockResolvedValue({ status: 'mfa_required', reason: null })
+    vi.mocked(apiFetch).mockResolvedValue({
+      status: 'running',
+      mfa_required: true,
+      error_code: null,
+    })
     const controller = new AbortController()
 
     const status = await fetchGarminLinkStatus(controller.signal)
@@ -238,7 +246,7 @@ describe('garmin service', () => {
     expect(apiFetch).toHaveBeenCalledWith('/garmin/link/status', {
       signal: controller.signal,
     })
-    expect(status.status).toBe('mfa_required')
+    expect(status?.mfa_required).toBe(true)
   })
 
   it('linkGarmin forwards the China-region flag', async () => {

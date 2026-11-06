@@ -123,7 +123,7 @@ def request_visibility_edit(
 
 def get_visibility_edit_status(
     user_id: int, states: bulk_edit_state_store.ActivityBulkEditStateStore
-) -> activity_schema.ActivitiesBulkEditStatus:
+) -> activity_schema.ActivitiesBulkEditStatus | None:
     """Report where a user's bulk visibility edit is.
 
     Args:
@@ -131,15 +131,10 @@ def get_visibility_edit_status(
         states: Shared store of the edit's state.
 
     Returns:
-        The edit's status.
-
-    Raises:
-        NotFoundError: When no edit is recorded or it has expired.
+        The edit's status, or None when no edit is recorded or it has expired.
     """
     state = states.get(user_id, _Kind)
-    if state is None:
-        raise core_exceptions.NotFoundError("No bulk edit recorded")
-    return activity_schema.ActivitiesBulkEditStatus(status=state.status)
+    return activity_schema.ActivitiesBulkEditStatus(status=state.status) if state is not None else None
 
 
 def run_visibility_edit(
@@ -184,7 +179,7 @@ def run_visibility_edit(
         states.set_status(user_id, _Kind, _Status.FAILED)
         return
 
-    states.set_status(user_id, _Kind, _Status.COMPLETED)
+    states.set_status(user_id, _Kind, _Status.SUCCEEDED)
     logger.info(
         "Bulk visibility edit finished",
         extra=core_logger.context(user_id=user_id, visibility=payload.visibility, updated=updated),

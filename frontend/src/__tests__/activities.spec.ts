@@ -485,7 +485,7 @@ describe('deleteActivity', () => {
 
 describe('updateUserActivitiesVisibility', () => {
   it('patches the collection with the requested visibility', async () => {
-    vi.mocked(apiFetch).mockResolvedValueOnce({ status: 'completed' })
+    vi.mocked(apiFetch).mockResolvedValueOnce({ status: 'succeeded' })
 
     await updateUserActivitiesVisibility('followers')
 
@@ -501,7 +501,7 @@ describe('updateUserActivitiesVisibility', () => {
       vi.mocked(apiFetch)
         .mockResolvedValueOnce({ status: 'queued' })
         .mockResolvedValueOnce({ status: 'running' })
-        .mockResolvedValueOnce({ status: 'completed' })
+        .mockResolvedValueOnce({ status: 'succeeded' })
 
       const done = updateUserActivitiesVisibility('private')
       await vi.advanceTimersByTimeAsync(2_000)

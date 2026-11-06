@@ -830,12 +830,17 @@ export async function updateUserActivitiesVisibility(
   visibility: Schemas['ActivityVisibility'],
 ): Promise<void> {
   const deadline = Date.now() + BULK_EDIT_TIMEOUT_MS
-  let job = await apiFetch<Schemas['ActivitiesBulkEditStatus']>('/activities', {
+  let job: Schemas['ActivitiesBulkEditStatus'] | null = await apiFetch<
+    Schemas['ActivitiesBulkEditStatus']
+  >('/activities', {
     method: 'PATCH',
     body: JSON.stringify({ visibility }),
   })
   for (;;) {
-    if (job.status === 'completed') {
+    if (job === null) {
+      throw new Error('The activities visibility edit status expired')
+    }
+    if (job.status === 'succeeded') {
       return
     }
     if (job.status === 'failed') {
@@ -845,7 +850,7 @@ export async function updateUserActivitiesVisibility(
       throw new Error('Updating the activities visibility did not finish in time')
     }
     await new Promise((resolve) => setTimeout(resolve, BULK_EDIT_POLL_MS))
-    job = await apiFetch<Schemas['ActivitiesBulkEditStatus']>('/activities/bulk-edit')
+    job = await apiFetch<Schemas['ActivitiesBulkEditStatus'] | null>('/activities/bulk-edit')
   }
 }
 

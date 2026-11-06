@@ -1097,7 +1097,7 @@
       "exportStatus": {
         "queued": "Čeka se početak izvoza…",
         "running": "Priprema izvoza…",
-        "completed": "Vaš izvoz je spreman za preuzimanje. Dostupan je dva sata.",
+        "succeeded": "Vaš izvoz je spreman za preuzimanje. Dostupan je dva sata.",
         "failed": "Izvoz nije završen: {reason}"
       },
       "exportFailure": {
@@ -1110,8 +1110,7 @@
       "status": {
         "queued": "Čeka se početak uvoza…",
         "running": "Uvoz podataka…",
-        "writing_files": "Čuvanje datoteka…",
-        "completed": "Uvoz završen: uvezena {activities} aktivnost, oprema: {gears}. | Uvoz završen: uvezene {activities} aktivnosti, oprema: {gears}. | Uvoz završen: uvezeno {activities} aktivnosti, oprema: {gears}.",
+        "succeeded": "Uvoz završen: uvezena {activities} aktivnost, oprema: {gears}. | Uvoz završen: uvezene {activities} aktivnosti, oprema: {gears}. | Uvoz završen: uvezeno {activities} aktivnosti, oprema: {gears}.",
         "failed": "Uvoz nije završen: {reason}"
       },
       "failure": {

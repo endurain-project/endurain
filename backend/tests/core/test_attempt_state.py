@@ -9,6 +9,7 @@ from jasil.providers import StateBackendUnavailableError
 from pydantic import BaseModel
 
 import core.attempt_state as core_attempt_state
+import core.job_status as core_job_status
 
 
 class _State(BaseModel):
@@ -135,7 +136,7 @@ class _Kind(StrEnum):
     HEALTH = "health"
 
 
-Status = core_attempt_state.SyncStatus
+Status = core_job_status.JobState
 
 
 def _syncs(state=None) -> core_attempt_state.SyncStateStore:
@@ -156,9 +157,9 @@ class TestSyncStateStore:
         syncs.set_status(1, _Kind.HEALTH, Status.RUNNING)
         assert syncs.begin(1, _Kind.HEALTH) is False
 
-        syncs.set_status(1, _Kind.HEALTH, Status.COMPLETED)
+        syncs.set_status(1, _Kind.HEALTH, Status.SUCCEEDED)
 
-        assert syncs.get(1, _Kind.HEALTH).status == Status.COMPLETED
+        assert syncs.get(1, _Kind.HEALTH).status == Status.SUCCEEDED
         assert syncs.begin(1, _Kind.HEALTH) is True
 
     def test_a_failed_sync_can_be_retried(self):
@@ -206,7 +207,7 @@ class TestSyncStateStore:
         assert syncs.get(1, _Kind.GEAR).status == Status.FAILED
         assert syncs.begin(1, _Kind.GEAR) is True
 
-    @pytest.mark.parametrize("finished", [Status.COMPLETED, Status.FAILED])
+    @pytest.mark.parametrize("finished", [Status.SUCCEEDED, Status.FAILED])
     def test_a_finished_sync_is_left_as_it_is(self, finished):
         syncs = _syncs()
         syncs.begin(1, _Kind.GEAR)
@@ -228,4 +229,10 @@ class TestSyncStateStore:
             syncs.begin(1, _Kind.GEAR)
         with pytest.raises(core_attempt_state.StateUnavailableError):
             syncs.get(1, _Kind.GEAR)
-        syncs.set_status(1, _Kind.GEAR, Status.COMPLETED)
+        syncs.set_status(1, _Kind.GEAR, Status.SUCCEEDED)
+
+
+def test_a_sync_state_stored_before_the_job_vocabulary_reads_as_the_new_one():
+    old = core_attempt_state.SyncState.model_validate_json(b'{"status":"completed"}')
+
+    assert old.status == core_job_status.JobState.SUCCEEDED

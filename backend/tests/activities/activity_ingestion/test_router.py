@@ -6,6 +6,7 @@ from unittest.mock import ANY, MagicMock, patch
 import pytest
 
 import core.exceptions as core_exceptions
+import core.job_status as core_job_status
 import modules.activities.activity_ingestion.constants as activity_ingestion_constants
 import modules.activities.activity_ingestion.router as router
 import modules.activities.activity_ingestion.schema as activity_ingestion_schema
@@ -18,7 +19,7 @@ def _upload_job(**overrides):
         "id": "job-1",
         "kind": activity_ingestion_constants.IngestionJobKind.UPLOAD,
         "filename": "ride.gpx",
-        "status": activity_ingestion_constants.IngestionJobStatus.PENDING,
+        "status": core_job_status.JobState.QUEUED,
         "created_at": now,
         "updated_at": now,
     }
@@ -99,7 +100,7 @@ class TestUploadRoute:
         assert response.status_code == 202
         body = response.json()
         assert body["id"] == "job-1"
-        assert body["status"] == "pending"
+        assert body["status"] == "queued"
         # The activity is attributed to the authenticated user, not any body field.
         assert accept.call_args.args[0] == 7
 

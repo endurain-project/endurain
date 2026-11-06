@@ -1097,7 +1097,7 @@
       "exportStatus": {
         "queued": "Čekání na zahájení exportu…",
         "running": "Připravuje se váš export…",
-        "completed": "Váš export je připraven ke stažení. Zůstane dostupný dvě hodiny.",
+        "succeeded": "Váš export je připraven ke stažení. Zůstane dostupný dvě hodiny.",
         "failed": "Export nebyl dokončen: {reason}"
       },
       "exportFailure": {
@@ -1110,8 +1110,7 @@
       "status": {
         "queued": "Čekání na zahájení importu…",
         "running": "Importují se vaše data…",
-        "writing_files": "Ukládají se vaše soubory…",
-        "completed": "Import dokončen: importována {activities} aktivita, vybavení: {gears}. | Import dokončen: importovány {activities} aktivity, vybavení: {gears}. | Import dokončen: importováno {activities} aktivit, vybavení: {gears}.",
+        "succeeded": "Import dokončen: importována {activities} aktivita, vybavení: {gears}. | Import dokončen: importovány {activities} aktivity, vybavení: {gears}. | Import dokončen: importováno {activities} aktivit, vybavení: {gears}.",
         "failed": "Import nebyl dokončen: {reason}"
       },
       "failure": {

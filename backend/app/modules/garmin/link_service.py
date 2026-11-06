@@ -11,6 +11,7 @@ import jasil.audit as jasil_audit
 
 import core.database as core_database
 import core.exceptions as core_exceptions
+import core.job_status as core_job_status
 import core.logger as core_logger
 import core.sync_runner as core_sync_runner
 import modules.garmin.audit_actions as garmin_audit_actions
@@ -64,12 +65,12 @@ def wait_for_mfa_code(
     Raises:
         _MfaCodeTimeoutError: When no code arrived within ``MFA_WAIT_SECONDS``.
     """
-    link_states.set_status(user_id, garmin_constants.LinkStatus.MFA_REQUIRED)
+    link_states.set_status(user_id, core_job_status.JobState.RUNNING, mfa_required=True)
     websocket_integration.push_job_changed(user_id, garmin_constants.LINK_JOB)
     for _ in range(garmin_constants.MFA_WAIT_SECONDS):
         code = mfa_codes.get_code(user_id)
         if code is not None:
-            link_states.set_status(user_id, garmin_constants.LinkStatus.PENDING)
+            link_states.set_status(user_id, core_job_status.JobState.RUNNING)
             return code
         time.sleep(1)
     raise _MfaCodeTimeoutError
@@ -116,7 +117,7 @@ def start_link(
         lambda: link_states.release(user_id),
         status_route="garminconnect_link_status",
     )
-    return garmin_schema.GarminLinkStatus(status=garmin_constants.LinkStatus.PENDING)
+    return garmin_schema.GarminLinkStatus(status=core_job_status.JobState.RUNNING)
 
 
 def link_garminconnect(
@@ -195,16 +196,14 @@ def link_garminconnect(
             "Garmin Connect refused the link attempt",
             extra=core_logger.context(user_id=user_id, reason=reason),
         )
-        link_states.set_status(user_id, garmin_constants.LinkStatus.FAILED, reason)
+        link_states.set_status(user_id, core_job_status.JobState.FAILED, reason)
         _record_refused_link(user_id, garmin_audit_actions.LinkFailureReason(reason))
     except garminconnect.GarminConnectTooManyRequestsError:
         logger.warning(
             "Garmin Connect refused the link attempt: too many requests",
             extra=core_logger.context(user_id=user_id),
         )
-        link_states.set_status(
-            user_id, garmin_constants.LinkStatus.FAILED, garmin_constants.LinkFailure.TOO_MANY_REQUESTS
-        )
+        link_states.set_status(user_id, core_job_status.JobState.FAILED, garmin_constants.LinkFailure.TOO_MANY_REQUESTS)
         _record_refused_link(user_id, garmin_audit_actions.LinkFailureReason.TOO_MANY_REQUESTS)
     except Exception as err:
         if mfa_timed_out:
@@ -215,9 +214,7 @@ def link_garminconnect(
                 exc_info=err,
                 extra=core_logger.context(user_id=user_id),
             )
-            link_states.set_status(
-                user_id, garmin_constants.LinkStatus.FAILED, garmin_constants.LinkFailure.INCORRECT_MFA
-            )
+            link_states.set_status(user_id, core_job_status.JobState.FAILED, garmin_constants.LinkFailure.INCORRECT_MFA)
             _record_refused_link(user_id, garmin_audit_actions.LinkFailureReason.INCORRECT_MFA)
         else:
             logger.error(
@@ -225,9 +222,9 @@ def link_garminconnect(
                 exc_info=err,
                 extra=core_logger.context(user_id=user_id),
             )
-            link_states.set_status(user_id, garmin_constants.LinkStatus.FAILED, garmin_constants.LinkFailure.INTERNAL)
+            link_states.set_status(user_id, core_job_status.JobState.FAILED, garmin_constants.LinkFailure.INTERNAL)
     else:
-        link_states.set_status(user_id, garmin_constants.LinkStatus.COMPLETED)
+        link_states.set_status(user_id, core_job_status.JobState.SUCCEEDED)
     finally:
         mfa_codes.delete_code(user_id)
         # Whatever the outcome was, it is recorded by now.
@@ -254,7 +251,7 @@ def _record_refused_link(user_id: int, reason: garmin_audit_actions.LinkFailureR
 def get_link_status(
     user_id: int,
     link_states: garmin_link_state_store.GarminLinkStateStore,
-) -> garmin_schema.GarminLinkStatus:
+) -> garmin_schema.GarminLinkStatus | None:
     """Report where a user's Garmin Connect link attempt is.
 
     Args:
@@ -262,15 +259,14 @@ def get_link_status(
         link_states: Shared store of the link attempt's state.
 
     Returns:
-        The attempt's status and, when it failed, why.
-
-    Raises:
-        NotFoundError: When no attempt is recorded or it has expired.
+        The attempt's status and, when it failed, why; None when no attempt is recorded or it has expired.
     """
     state = link_states.get(user_id)
     if state is None:
-        raise core_exceptions.NotFoundError("No Garmin Connect link in progress")
-    return garmin_schema.GarminLinkStatus(status=state.status, reason=state.reason)
+        return None
+    return garmin_schema.GarminLinkStatus(
+        status=state.status, mfa_required=state.mfa_required, error_code=state.error_code
+    )
 
 
 def submit_mfa_code(
@@ -291,6 +287,6 @@ def submit_mfa_code(
         ConflictError: When no login is waiting for a code.
     """
     state = link_states.get(user_id)
-    if state is None or state.status != garmin_constants.LinkStatus.MFA_REQUIRED:
+    if state is None or not state.mfa_required:
         raise core_exceptions.ConflictError("No Garmin Connect login is waiting for an MFA code")
     mfa_codes.add_code(user_id, mfa_code)

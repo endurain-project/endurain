@@ -36,11 +36,14 @@ export async function linkGarmin(input: GarminLoginInput): Promise<GarminLinkSta
  * backend replica answers it and nothing depends on a realtime push arriving.
  *
  * @param signal - Optional abort signal for cancellation.
- * @returns The attempt's status, with the failure reason once it has failed.
- * @throws {HttpError} When the request fails, including 404 once no attempt is recorded.
+ * @returns The attempt's status, with the failure reason once it has failed, or `null` when no
+ *   attempt is recorded or it has expired.
+ * @throws {HttpError} When the request fails.
  */
-export async function fetchGarminLinkStatus(signal?: AbortSignal): Promise<GarminLinkStatus> {
-  return apiFetch<GarminLinkStatus>('/garmin/link/status', { signal })
+export async function fetchGarminLinkStatus(
+  signal?: AbortSignal,
+): Promise<GarminLinkStatus | null> {
+  return apiFetch<GarminLinkStatus | null>('/garmin/link/status', { signal })
 }
 
 /**

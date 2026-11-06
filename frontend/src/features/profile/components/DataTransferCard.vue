@@ -59,7 +59,7 @@ const isExportActive = computed(
   () => exportStatus.value !== null && !isTerminalProfileExport(exportStatus.value),
 )
 /** Whether a finished export is waiting to be downloaded. */
-const isExportReady = computed(() => exportStatus.value?.status === 'completed')
+const isExportReady = computed(() => exportStatus.value?.status === 'succeeded')
 
 /** The one-line progress or outcome of the latest export. */
 const exportMessage = computed<string | null>(() => {
@@ -69,7 +69,7 @@ const exportMessage = computed<string | null>(() => {
   }
   if (status.status === 'failed') {
     const reason = t(
-      `settings.profile.dataTransfer.exportFailure.${status.failure ?? 'processing_failed'}`,
+      `settings.profile.dataTransfer.exportFailure.${status.error_code ?? 'processing_failed'}`,
     )
     return t('settings.profile.dataTransfer.exportStatus.failed', { reason })
   }
@@ -90,7 +90,7 @@ const importMessage = computed<string | null>(() => {
   }
   if (status.status === 'failed') {
     const reason = t(
-      `settings.profile.dataTransfer.failure.${status.failure ?? 'processing_failed'}`,
+      `settings.profile.dataTransfer.failure.${status.error_code ?? 'processing_failed'}`,
     )
     return t('settings.profile.dataTransfer.status.failed', { reason })
   }

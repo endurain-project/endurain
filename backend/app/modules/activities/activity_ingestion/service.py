@@ -29,6 +29,7 @@ import core.blob_sweep as core_blob_sweep
 import core.config as core_config
 import core.database as core_database
 import core.exceptions as core_exceptions
+import core.job_status as core_job_status
 import core.local_pool as core_local_pool
 import core.logger as core_logger
 import modules.activities.activity.integration_service as activity_integration
@@ -82,7 +83,7 @@ def _created_activities_are_gone(job: activity_ingestion_schema.ActivityIngestio
     Returns:
         True when the job completed having created activities and none remain.
     """
-    if job.status != activity_ingestion_constants.IngestionJobStatus.COMPLETED or not job.activity_ids:
+    if job.status != core_job_status.JobState.SUCCEEDED or not job.activity_ids:
         return False
     return not activity_integration.filter_existing_activity_ids(job.activity_ids, db)
 
@@ -279,7 +280,7 @@ def _pending_view(
         id=job_id,
         kind=kind,
         filename=filename,
-        status=activity_ingestion_constants.IngestionJobStatus.PENDING,
+        status=core_job_status.JobState.QUEUED,
         created_at=now,
         updated_at=now,
     )

@@ -857,7 +857,7 @@ export interface paths {
          *
          *     The login runs in the background. Poll ``GET /garmin/link/status``: when it reports
          *     ``mfa_required``, submit the code to ``POST /garmin/mfa`` and keep polling until it
-         *     reports ``completed`` or ``failed``. A second request while one is running is answered 409 with a
+         *     reports ``succeeded`` or ``failed``. A second request while one is running is answered 409 with a
          *     ``Content-Location`` naming the status.
          */
         post: operations["garminconnect_link"];
@@ -4151,13 +4151,30 @@ export interface components {
         /**
          * ActivitiesBulkEditStatus
          * @description Where a queued bulk edit across a user's activities is.
-         *
-         *     Attributes:
-         *         status: Lifecycle state of the edit.
          */
         ActivitiesBulkEditStatus: {
-            /** @description Lifecycle state of the bulk edit */
-            status: components["schemas"]["SyncStatus"];
+            /**
+             * Created At
+             * @description When the job was accepted
+             */
+            readonly created_at?: string | null;
+            /**
+             * Error Code
+             * @description Why the job failed; null unless it failed
+             */
+            error_code?: string | null;
+            /**
+             * Finished At
+             * @description When the job succeeded or failed
+             */
+            finished_at?: string | null;
+            /**
+             * Id
+             * @description The job's identifier, when it has one of its own
+             */
+            readonly id?: string | null;
+            /** @description Where the job is */
+            status: components["schemas"]["JobState"];
         };
         /**
          * ActivityDetailRead
@@ -4309,16 +4326,17 @@ export interface components {
          *         files_total: For a bulk import, importable files in its archive.
          *         files_done: For a bulk import, files imported so far.
          *         files_failed: For a bulk import, files that could not be imported. A
-         *             finished import with failures still ends ``completed``.
+         *             finished import with failures still ends ``succeeded``.
          *         provider: The one provider a refresh syncs; ``None`` when it syncs every
          *             linked provider.
-         *         status: Current lifecycle state. A refresh waiting for a provider's rate limit to clear is ``deferred``.
+         *         status: Current lifecycle state. A refresh waiting for a provider's rate limit to clear is ``queued``
+         *             with ``retry_after`` set.
          *         retry_after: When a deferred refresh runs again.
-         *         error_code: Sanitized failure reason when ``status`` is failed.
+         *         error_code: Sanitized failure reason when ``status`` is ``failed``.
          *         activity_ids: Ids created by the import once it completes.
          *         created_at: When the request was accepted.
          *         updated_at: When the job last changed state.
-         *         completed_at: When the job reached a terminal state.
+         *         finished_at: When the job reached a terminal state.
          */
         ActivityIngestionJobRead: {
             /**
@@ -4326,8 +4344,6 @@ export interface components {
              * @default []
              */
             activity_ids: number[];
-            /** Completed At */
-            completed_at?: string | null;
             /**
              * Created At
              * Format: date-time
@@ -4342,6 +4358,11 @@ export interface components {
             files_failed?: number | null;
             /** Files Total */
             files_total?: number | null;
+            /**
+             * Finished At
+             * @description When the job succeeded or failed
+             */
+            finished_at?: string | null;
             /** Id */
             readonly id: string;
             /** Import Source */
@@ -4351,7 +4372,8 @@ export interface components {
             provider?: string | null;
             /** Retry After */
             retry_after?: string | null;
-            status: components["schemas"]["IngestionJobStatus"];
+            /** @description Where the job is */
+            status: components["schemas"]["JobState"];
             /**
              * Updated At
              * Format: date-time
@@ -5327,12 +5349,6 @@ export interface components {
          */
         ExportFailure: "timed_out" | "processing_failed";
         /**
-         * ExportStatus
-         * @description Where a profile export is.
-         * @enum {string}
-         */
-        ExportStatus: "queued" | "running" | "completed" | "failed";
-        /**
          * FastingStatus
          * @description Enumeration of fasting session statuses.
          *
@@ -5456,13 +5472,36 @@ export interface components {
          * @description Where a Garmin Connect link attempt is.
          *
          *     Attributes:
-         *         status: ``pending`` while logging in, ``mfa_required`` when the user must submit a code
-         *             through ``POST /garmin/mfa``, then ``completed`` or ``failed``.
-         *         reason: Why the attempt failed; set only when ``status`` is ``failed``.
+         *         mfa_required: ``true`` while the login waits for a code the user submits through ``POST /garmin/mfa``;
+         *             ``status`` is ``running`` then.
+         *         error_code: Why the attempt failed; set only when ``status`` is ``failed``.
          */
         GarminLinkStatus: {
-            reason?: components["schemas"]["LinkFailure"] | null;
-            status: components["schemas"]["LinkStatus"];
+            /**
+             * Created At
+             * @description When the job was accepted
+             */
+            readonly created_at?: string | null;
+            /** @description Why the attempt failed */
+            error_code?: components["schemas"]["LinkFailure"] | null;
+            /**
+             * Finished At
+             * @description When the job succeeded or failed
+             */
+            finished_at?: string | null;
+            /**
+             * Id
+             * @description The job's identifier, when it has one of its own
+             */
+            readonly id?: string | null;
+            /**
+             * Mfa Required
+             * @description The login waits for an MFA code
+             * @default false
+             */
+            mfa_required: boolean;
+            /** @description Where the job is */
+            status: components["schemas"]["JobState"];
         };
         /**
          * GarminLogin
@@ -5488,11 +5527,31 @@ export interface components {
          *
          *     Attributes:
          *         kind: What the sync pulls.
-         *         status: ``queued`` until a worker picks it up, ``running``, then ``completed`` or ``failed``.
          */
         GarminSyncStatus: {
+            /**
+             * Created At
+             * @description When the job was accepted
+             */
+            readonly created_at?: string | null;
+            /**
+             * Error Code
+             * @description Why the job failed; null unless it failed
+             */
+            error_code?: string | null;
+            /**
+             * Finished At
+             * @description When the job succeeded or failed
+             */
+            finished_at?: string | null;
+            /**
+             * Id
+             * @description The job's identifier, when it has one of its own
+             */
+            readonly id?: string | null;
             kind: components["schemas"]["modules__garmin__constants__SyncKind"];
-            status: components["schemas"]["SyncStatus"];
+            /** @description Where the job is */
+            status: components["schemas"]["JobState"];
         };
         /**
          * GearComponentCreate
@@ -8299,15 +8358,6 @@ export interface components {
          */
         ImportFailure: "invalid_file" | "too_large" | "too_many_activities" | "timed_out" | "wrong_account" | "files_incomplete" | "processing_failed";
         /**
-         * ImportStatus
-         * @description Where a profile import is.
-         *
-         *     ``RUNNING`` is the database part, which is one transaction, so a worker that dies there has
-         *     imported nothing. ``WRITING_FILES`` starts once those rows are committed.
-         * @enum {string}
-         */
-        ImportStatus: "queued" | "running" | "writing_files" | "completed" | "failed";
-        /**
          * IngestionJobErrorCode
          * @description Stable, sanitized reasons an ingestion job can fail.
          *
@@ -8325,12 +8375,6 @@ export interface components {
          */
         IngestionJobKind: "upload" | "refresh" | "bulk_import";
         /**
-         * IngestionJobStatus
-         * @description Lifecycle states of an ingestion job.
-         * @enum {string}
-         */
-        IngestionJobStatus: "pending" | "processing" | "deferred" | "completed" | "failed";
-        /**
          * Interval
          * @description Recurrence intervals for user goals.
          *
@@ -8342,6 +8386,18 @@ export interface components {
          * @enum {string}
          */
         "Interval-Output": "daily" | "weekly" | "monthly" | "yearly";
+        /**
+         * JobState
+         * @description Where a background job is.
+         *
+         *     Attributes:
+         *         QUEUED: Accepted, not started, or waiting to run again.
+         *         RUNNING: A worker is doing it.
+         *         SUCCEEDED: Finished and did what was asked.
+         *         FAILED: Finished without doing it; ``error_code`` says why when the kind records a reason.
+         * @enum {string}
+         */
+        JobState: "queued" | "running" | "succeeded" | "failed";
         /**
          * Language
          * @description Supported application languages.
@@ -8453,12 +8509,6 @@ export interface components {
          * @enum {string}
          */
         LinkFailure: "invalid_credentials" | "incorrect_mfa" | "too_many_requests" | "internal";
-        /**
-         * LinkStatus
-         * @description Where a Garmin Connect link attempt is.
-         * @enum {string}
-         */
-        LinkStatus: "pending" | "mfa_required" | "completed" | "failed";
         /**
          * LogEntry
          * @description One record of the application log.
@@ -9663,48 +9713,76 @@ export interface components {
          * @description Where the authenticated user's profile export is.
          *
          *     Attributes:
-         *         status: Lifecycle state of the export.
-         *         failure: Why the export failed; set only when it failed.
-         *         size_bytes: Size of the archive; set only when it completed and can be downloaded.
-         *         expires_at: When the download stops working; set only when it completed and can be downloaded.
+         *         error_code: Why the export failed; set only when it failed.
+         *         size_bytes: Size of the archive; set only when it succeeded and can be downloaded.
+         *         expires_at: When the download stops working; set only when it succeeded and can be downloaded.
          */
         ProfileExportStatus: {
             /**
+             * Created At
+             * @description When the job was accepted
+             */
+            readonly created_at?: string | null;
+            /** @description Reason the export failed */
+            error_code?: components["schemas"]["ExportFailure"] | null;
+            /**
              * Expires At
-             * @description Instant after which the download stops working, once completed
+             * @description Instant after which the download stops working, once it succeeded
              */
             expires_at?: string | null;
-            /** @description Reason the export failed */
-            failure?: components["schemas"]["ExportFailure"] | null;
+            /**
+             * Finished At
+             * @description When the job succeeded or failed
+             */
+            finished_at?: string | null;
+            /**
+             * Id
+             * @description The job's identifier, when it has one of its own
+             */
+            readonly id?: string | null;
             /**
              * Size Bytes
-             * @description Archive size in bytes, once completed
+             * @description Archive size in bytes, once it succeeded
              */
             size_bytes?: number | null;
-            /** @description Lifecycle state of the export */
-            status: components["schemas"]["ExportStatus"];
+            /** @description Where the job is */
+            status: components["schemas"]["JobState"];
         };
         /**
          * ProfileImportStatus
          * @description Where the authenticated user's profile import is.
          *
          *     Attributes:
-         *         status: Lifecycle state of the import.
-         *         failure: Why the import failed; set only when it failed.
-         *         imported: How many items of each kind were imported; set only when it completed.
+         *         error_code: Why the import failed; set only when it failed.
+         *         imported: How many items of each kind were imported; set only when it succeeded.
          */
         ProfileImportStatus: {
+            /**
+             * Created At
+             * @description When the job was accepted
+             */
+            readonly created_at?: string | null;
             /** @description Reason the import failed */
-            failure?: components["schemas"]["ImportFailure"] | null;
+            error_code?: components["schemas"]["ImportFailure"] | null;
+            /**
+             * Finished At
+             * @description When the job succeeded or failed
+             */
+            finished_at?: string | null;
+            /**
+             * Id
+             * @description The job's identifier, when it has one of its own
+             */
+            readonly id?: string | null;
             /**
              * Imported
-             * @description Items imported per kind, once completed
+             * @description Items imported per kind, once it succeeded
              */
             imported?: {
                 [key: string]: number;
             } | null;
-            /** @description Lifecycle state of the import */
-            status: components["schemas"]["ImportStatus"];
+            /** @description Where the job is */
+            status: components["schemas"]["JobState"];
         };
         /**
          * ProfileUpdate
@@ -10511,11 +10589,31 @@ export interface components {
          *
          *     Attributes:
          *         kind: What the sync does.
-         *         status: Where it is.
          */
         StravaSyncStatus: {
+            /**
+             * Created At
+             * @description When the job was accepted
+             */
+            readonly created_at?: string | null;
+            /**
+             * Error Code
+             * @description Why the job failed; null unless it failed
+             */
+            error_code?: string | null;
+            /**
+             * Finished At
+             * @description When the job succeeded or failed
+             */
+            finished_at?: string | null;
+            /**
+             * Id
+             * @description The job's identifier, when it has one of its own
+             */
+            readonly id?: string | null;
             kind: components["schemas"]["modules__strava__constants__SyncKind"];
-            status: components["schemas"]["SyncStatus"];
+            /** @description Where the job is */
+            status: components["schemas"]["JobState"];
         };
         /**
          * SummaryPeriod
@@ -10529,12 +10627,6 @@ export interface components {
          * @enum {string}
          */
         SummaryPeriod: "week" | "month" | "year" | "lifetime";
-        /**
-         * SyncStatus
-         * @description Where a queued provider sync is.
-         * @enum {string}
-         */
-        SyncStatus: "queued" | "running" | "completed" | "failed";
         /**
          * TemperatureStreamRead
          * @description The temperature stream (`temperature`).
@@ -11340,13 +11432,30 @@ export interface components {
         /**
          * UserDeletionStatus
          * @description Where a queued account deletion is.
-         *
-         *     Attributes:
-         *         status: Lifecycle state of the deletion.
          */
         UserDeletionStatus: {
-            /** @description Lifecycle state of the account deletion */
-            status: components["schemas"]["SyncStatus"];
+            /**
+             * Created At
+             * @description When the job was accepted
+             */
+            readonly created_at?: string | null;
+            /**
+             * Error Code
+             * @description Why the job failed; null unless it failed
+             */
+            error_code?: string | null;
+            /**
+             * Finished At
+             * @description When the job succeeded or failed
+             */
+            finished_at?: string | null;
+            /**
+             * Id
+             * @description The job's identifier, when it has one of its own
+             */
+            readonly id?: string | null;
+            /** @description Where the job is */
+            status: components["schemas"]["JobState"];
         };
         /**
          * UserEdit
@@ -13132,7 +13241,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["ActivitiesBulkEditStatus"];
+                    "application/json": components["schemas"]["ActivitiesBulkEditStatus"] | null;
                 };
             };
             /** @description The credential is missing, invalid or no longer valid. */
@@ -16568,7 +16677,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["GarminLinkStatus"];
+                    "application/json": components["schemas"]["GarminLinkStatus"] | null;
                 };
             };
             /** @description The credential is missing, invalid or no longer valid. */
@@ -16743,7 +16852,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["GarminSyncStatus"];
+                    "application/json": components["schemas"]["GarminSyncStatus"] | null;
                 };
             };
             /** @description The credential is missing, invalid or no longer valid. */
@@ -31752,7 +31861,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["StravaSyncStatus"];
+                    "application/json": components["schemas"]["StravaSyncStatus"] | null;
                 };
             };
             /** @description The credential is missing, invalid or no longer valid. */
@@ -32817,7 +32926,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["UserDeletionStatus"];
+                    "application/json": components["schemas"]["UserDeletionStatus"] | null;
                 };
             };
             /** @description The credential is missing, invalid or no longer valid. */

@@ -382,7 +382,7 @@ def delete_user(
 
 @router.get(
     "/{user_id}/deletion",
-    response_model=users_schema.UserDeletionStatus,
+    response_model=users_schema.UserDeletionStatus | None,
     responses={200: {"headers": core_location.POLLED_STATUS_HEADERS}},
     dependencies=[Security(auth_dependencies.check_scopes, scopes=["users:read_all"])],
 )
@@ -390,7 +390,7 @@ def read_user_deletion_status(
     user_id: core_dependencies.PositiveId,
     states: users_dependencies.UserDeletionStateStoreDep,
     response: Response,
-) -> users_schema.UserDeletionStatus:
+) -> users_schema.UserDeletionStatus | None:
     """Report where a user's account deletion is.
 
     ``Retry-After`` says when to poll again while the deletion is not finished.
@@ -401,12 +401,11 @@ def read_user_deletion_status(
         response: The response, which carries ``Retry-After`` while the deletion runs.
 
     Returns:
-        The deletion's status.
-
-    Raises:
-        NotFoundError: If no deletion is recorded or it has expired.
+        The deletion's status, or None when no deletion is recorded.
     """
     deletion = users_deletion_job_service.get_deletion_status(user_id, states)
+    if deletion is None:
+        return None
     core_location.set_retry_after_while_running(response, deletion.status, users_constants.DELETION_POLL_SECONDS)
     return deletion
 

@@ -45,6 +45,7 @@ _ALLOWED_CORE: dict[str, str] = {
     "core.location": "The Location header a create sends, naming the route that reads the new resource.",
     "core.openapi_contract": "The OpenAPI declarations of a binary response and of an ETag the document cannot derive.",
     "core.key_derivation": "The per-purpose key behind the token digests.",
+    "core.job_status": "The one status envelope every background job reports.",
     "core.jwt_keys": "The JWT algorithm allow-list, secret and signature check that access-token issuing shares with the rate limiter.",
     "core.logger": "Structured logging.",
     "core.mail": "The mail configuration shape the settings store, and its validation wording.",

@@ -39,7 +39,7 @@ def test_progress_keeps_the_claim_and_a_finished_import_releases_it():
     store.set_status(1, Status.RUNNING)
     assert store.begin(1) is False
 
-    store.set_status(1, Status.COMPLETED, imported={"gears": 2})
+    store.set_status(1, Status.SUCCEEDED, imported={"gears": 2})
     assert store.get(1).imported == {"gears": 2}
     assert store.begin(1) is True
 
@@ -48,9 +48,9 @@ def test_a_failure_carries_its_code():
     store = _store()
     store.begin(1)
 
-    store.set_status(1, Status.FAILED, failure=profile_constants.ImportFailure.TOO_LARGE)
+    store.set_status(1, Status.FAILED, error_code=profile_constants.ImportFailure.TOO_LARGE)
 
-    assert store.get(1).failure == profile_constants.ImportFailure.TOO_LARGE
+    assert store.get(1).error_code == profile_constants.ImportFailure.TOO_LARGE
 
 
 def test_state_lives_under_the_users_namespace():
@@ -68,3 +68,13 @@ def test_a_strict_status_raises_when_storage_is_down_and_a_plain_one_does_not():
     store.set_status(1, Status.RUNNING)
     with pytest.raises(core_attempt_state.StateUnavailableError):
         store.set_status(1, Status.WRITING_FILES, strict=True)
+
+
+def test_an_import_state_stored_with_the_old_names_reads_as_the_new_ones():
+    done = import_state_store.ProfileImportState.model_validate_json(b'{"status":"completed","imported":{"gears":2}}')
+    failed = import_state_store.ProfileImportState.model_validate_json(
+        b'{"status":"failed","failure":"files_incomplete"}'
+    )
+
+    assert (done.status, done.imported) == (Status.SUCCEEDED, {"gears": 2})
+    assert (failed.status, failed.error_code) == (Status.FAILED, "files_incomplete")

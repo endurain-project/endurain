@@ -14,9 +14,10 @@ Interface::
 from datetime import UTC, datetime, timedelta
 
 from jasil.providers import StateProvider
-from pydantic import BaseModel
+from pydantic import BaseModel, model_validator
 
 import core.attempt_state as core_attempt_state
+import core.job_status as core_job_status
 import modules.users.users_profile.constants as profile_constants
 import modules.websocket.integration_service as websocket_integration
 
@@ -26,19 +27,25 @@ class ProfileExportState(BaseModel):
 
     Attributes:
         status: Where the export is.
-        failure: Why it failed; set only when ``status`` is ``FAILED``.
+        error_code: Why it failed; set only when ``status`` is ``FAILED``.
         size_bytes: Size of the staged archive; set only when ``status`` is ``COMPLETED``.
         expires_at: When the state, and with it the download, expires; set only when ``status`` is
-            ``COMPLETED``. A state recorded before this field existed reads as None.
+            ``SUCCEEDED``. A state recorded before this field existed reads as None.
     """
 
     status: profile_constants.ExportStatus
-    failure: profile_constants.ExportFailure | None = None
+    error_code: profile_constants.ExportFailure | None = None
     size_bytes: int | None = None
     expires_at: datetime | None = None
 
+    @model_validator(mode="before")
+    @classmethod
+    def _read_stored_state(cls, data: object) -> object:
+        """Read a state stored before the shared job vocabulary as the current one."""
+        return core_job_status.upgrade_stored_state(data, "failure")
 
-_FINISHED = (profile_constants.ExportStatus.COMPLETED, profile_constants.ExportStatus.FAILED)
+
+_FINISHED = tuple(core_job_status.TERMINAL_STATES)
 
 
 class ProfileExportStateStore:
@@ -78,7 +85,7 @@ class ProfileExportStateStore:
         user_id: int,
         status: profile_constants.ExportStatus,
         *,
-        failure: profile_constants.ExportFailure | None = None,
+        error_code: profile_constants.ExportFailure | None = None,
         size_bytes: int | None = None,
     ) -> None:
         """Record an export's progress or outcome.
@@ -86,19 +93,19 @@ class ProfileExportStateStore:
         Args:
             user_id: The exporting user.
             status: The new status.
-            failure: Why the export failed, when ``status`` is ``FAILED``.
-            size_bytes: The archive size, when ``status`` is ``COMPLETED``.
+            error_code: Why the export failed, when ``status`` is ``FAILED``.
+            size_bytes: The archive size, when ``status`` is ``SUCCEEDED``.
 
         A completed state is written with a fresh lifetime, so its ``expires_at`` is that lifetime from now.
         """
         expires_at = (
             datetime.now(UTC) + timedelta(seconds=self._ttl_seconds)
-            if status == profile_constants.ExportStatus.COMPLETED
+            if status == profile_constants.ExportStatus.SUCCEEDED
             else None
         )
         self._attempts.record(
             str(user_id),
-            ProfileExportState(status=status, failure=failure, size_bytes=size_bytes, expires_at=expires_at),
+            ProfileExportState(status=status, error_code=error_code, size_bytes=size_bytes, expires_at=expires_at),
             finished=status in _FINISHED,
         )
         if status in _FINISHED:

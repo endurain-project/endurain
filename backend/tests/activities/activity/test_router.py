@@ -483,18 +483,37 @@ class TestEditVisibility:
             resp = TestClient(_build_app(mock_db)).patch(
                 "/activities", json={"visibility": "followers"}, headers={"Authorization": "Bearer x"}
             )
-            assert resp.status_code == 202 and resp.json() == {"status": "queued"}
+            assert resp.status_code == 202 and resp.json() == {
+                "id": None,
+                "created_at": None,
+                "finished_at": None,
+                "error_code": None,
+                "status": "queued",
+            }
             assert m.call_args.args[1] == 1
 
     def test_an_empty_patch_is_invalid_input(self, mock_db):
         resp = TestClient(_build_app(mock_db)).patch("/activities", json={}, headers={"Authorization": "Bearer x"})
         assert resp.status_code == 400
 
+    def test_no_recorded_edit_reads_as_null_not_404(self, mock_db):
+        with patch("modules.activities.activity.router.activity_bulk_edit_job_service.get_visibility_edit_status") as m:
+            m.return_value = None
+            resp = TestClient(_build_app(mock_db)).get("/activities/bulk-edit", headers={"Authorization": "Bearer x"})
+            assert resp.status_code == 200 and resp.json() is None
+            assert "Retry-After" not in resp.headers
+
     def test_status_is_read_from_the_job_service(self, mock_db):
         with patch("modules.activities.activity.router.activity_bulk_edit_job_service.get_visibility_edit_status") as m:
             m.return_value = activity_schema.ActivitiesBulkEditStatus(status="running")
             resp = TestClient(_build_app(mock_db)).get("/activities/bulk-edit", headers={"Authorization": "Bearer x"})
-            assert resp.status_code == 200 and resp.json() == {"status": "running"}
+            assert resp.status_code == 200 and resp.json() == {
+                "id": None,
+                "created_at": None,
+                "finished_at": None,
+                "error_code": None,
+                "status": "running",
+            }
 
     @pytest.mark.parametrize("visibility", [9, 1, "everyone"])
     def test_rejects_an_unknown_visibility_and_the_stored_integer(self, mock_db, visibility):

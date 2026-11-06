@@ -49,7 +49,7 @@ def _sync_cases():
 
 class TestQueuedSyncs:
     @pytest.mark.parametrize(("states", "kind", "job"), _sync_cases())
-    @pytest.mark.parametrize("final", ["completed", "failed"])
+    @pytest.mark.parametrize("final", ["succeeded", "failed"])
     def test_a_final_status_is_announced(self, pushes, states, kind, job, final):
         states.begin(_USER, kind)
         states.set_status(_USER, kind, "running")
@@ -70,7 +70,7 @@ class TestQueuedSyncs:
     @pytest.mark.parametrize(("states", "kind", "job"), _sync_cases())
     def test_closing_a_sync_that_already_ended_announces_nothing_more(self, pushes, states, kind, job):
         states.begin(_USER, kind)
-        states.set_status(_USER, kind, "completed")
+        states.set_status(_USER, kind, "succeeded")
         pushes.reset_mock()
 
         assert states.close_pending(_USER, kind) is False
@@ -85,7 +85,7 @@ class TestProfileExport:
         states.set_status(_USER, profile_constants.ExportStatus.RUNNING)
         pushes.assert_not_called()
 
-        states.set_status(_USER, profile_constants.ExportStatus.COMPLETED, size_bytes=10)
+        states.set_status(_USER, profile_constants.ExportStatus.SUCCEEDED, size_bytes=10)
 
         pushes.assert_called_once_with(*_hint("profile:export"))
 
@@ -94,7 +94,7 @@ class TestProfileExport:
         states.begin(_USER)
 
         states.set_status(
-            _USER, profile_constants.ExportStatus.FAILED, failure=profile_constants.ExportFailure.PROCESSING_FAILED
+            _USER, profile_constants.ExportStatus.FAILED, error_code=profile_constants.ExportFailure.PROCESSING_FAILED
         )
 
         pushes.assert_called_once_with(*_hint("profile:export"))
@@ -116,7 +116,7 @@ class TestProfileImport:
         states = import_state_store.ProfileImportStateStore(MemoryState())
         states.begin(_USER)
 
-        states.set_status(_USER, profile_constants.ImportStatus.COMPLETED, imported={"activities": 1})
+        states.set_status(_USER, profile_constants.ImportStatus.SUCCEEDED, imported={"activities": 1})
 
         pushes.assert_called_once_with(*_hint("profile:import"))
 
@@ -125,7 +125,7 @@ class TestProfileImport:
         states.begin(_USER)
 
         states.set_status(
-            _USER, profile_constants.ImportStatus.FAILED, failure=profile_constants.ImportFailure.PROCESSING_FAILED
+            _USER, profile_constants.ImportStatus.FAILED, error_code=profile_constants.ImportFailure.PROCESSING_FAILED
         )
 
         pushes.assert_called_once_with(*_hint("profile:import"))

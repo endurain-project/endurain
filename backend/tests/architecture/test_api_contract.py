@@ -289,6 +289,36 @@ class TestApiContract:
         stale = sorted(_NO_STATUS_RESOURCE.keys() - accepted)
         assert not stale, "Remove from _NO_STATUS_RESOURCE, the route no longer answers 202:\n  " + "\n  ".join(stale)
 
+    def test_a_job_status_is_the_job_envelope(self):
+        """Every ``202`` body and every polled status read has the shared job fields, and a poll can answer ``null``.
+
+        A client reads one ``status`` vocabulary, one ``error_code`` and the same ids and timestamps whatever the
+        job is (``core.job_status.JobStatus``). A status read that finds nothing recorded answers ``200`` with
+        ``null``, so its schema is nullable; a job that has an id of its own is read by it and is ``404`` when unknown.
+        """
+        envelope = {"id", "status", "error_code", "created_at", "finished_at"}
+        states = {"queued", "running", "succeeded", "failed"}
+        broken: set[str] = set()
+        for method, path, operation in _operations():
+            for code in ("200", "202"):
+                response = operation["responses"].get(code, {})
+                polled = code == "200" and "Retry-After" in response.get("headers", {})
+                if code == "202" and "Content-Location" not in response.get("headers", {}):
+                    continue
+                if code == "200" and not polled:
+                    continue
+                schema = response["content"]["application/json"]["schema"]
+                options = [option for option in schema.get("anyOf", [schema]) if option.get("type") != "null"]
+                if polled and "{job_id}" not in path and len(options) == len(schema.get("anyOf", [schema])):
+                    broken.add(f"{method.upper()} {path}: a polled status read must be nullable")
+                for option in options:
+                    properties = _resolve(option).get("properties", {})
+                    status = _resolve(properties["status"]) if "status" in properties else {}
+                    if not envelope <= properties.keys() or set(status.get("enum", [])) != states:
+                        broken.add(f"{method.upper()} {path}: {code} is not a JobStatus")
+
+        assert not broken, "Extend core.job_status.JobStatus:\n  " + "\n  ".join(sorted(broken))
+
     def test_a_put_replaces_the_whole_resource(self):
         """Every optional property of a ``PUT`` body is listed with what omitting it means.
 

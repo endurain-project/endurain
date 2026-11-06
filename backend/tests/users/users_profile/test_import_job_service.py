@@ -101,7 +101,7 @@ class TestRequestImport:
         job_service.fail_unstarted_import(_payload(7), states, storage)
 
         assert states.get(7).status == _Status.FAILED
-        assert states.get(7).failure == _Failure.PROCESSING_FAILED
+        assert states.get(7).error_code == _Failure.PROCESSING_FAILED
         storage.delete.assert_called_once_with(_AREA, "7/abc.zip")
 
     def test_stages_the_archive_under_the_users_prefix_and_queues_it(self, states, storage, mock_db):
@@ -174,7 +174,7 @@ class TestRunImport:
         _run(states, storage, {"activities": 3})
 
         state = states.get(1)
-        assert (state.status, state.imported) == (_Status.COMPLETED, {"activities": 3})
+        assert (state.status, state.imported) == (_Status.SUCCEEDED, {"activities": 3})
         storage.delete.assert_called_once_with(_AREA, "1/abc.zip")
         assert states.begin(1) is True
 
@@ -217,9 +217,9 @@ class TestRunImport:
         _run(states, storage, error, will_retry=False)
 
         state = states.get(1)
-        assert (state.status, state.failure) == (_Status.FAILED, failure)
+        assert (state.status, state.error_code) == (_Status.FAILED, failure)
         storage.delete.assert_called_once()
-        assert "x" not in state.model_dump_json().replace("failure", "")
+        assert "x" not in state.model_dump_json().replace("error_code", "")
 
     def test_a_transient_failure_before_the_commit_is_retried(self, states, storage):
         _queued(states)
@@ -243,7 +243,7 @@ class TestRunImport:
 
         _run(states, storage, profile_exceptions.FileFormatError("x"), will_retry=True)
 
-        assert states.get(1).failure == _Failure.INVALID_FILE
+        assert states.get(1).error_code == _Failure.INVALID_FILE
 
     def test_a_failure_after_the_commit_is_final_and_says_files_are_incomplete(self, states, storage):
         _queued(states)
@@ -255,7 +255,7 @@ class TestRunImport:
         with patch(f"{_MODULE}._run_importer", side_effect=commit_then_fail):
             job_service.run_import(_payload(), states, storage, will_retry=True)
 
-        assert (states.get(1).status, states.get(1).failure) == (_Status.FAILED, _Failure.FILES_INCOMPLETE)
+        assert (states.get(1).status, states.get(1).error_code) == (_Status.FAILED, _Failure.FILES_INCOMPLETE)
 
     def test_losing_the_committed_marker_fails_the_import_instead_of_retrying_it(self, states, storage):
         _queued(states)
@@ -267,7 +267,7 @@ class TestRunImport:
         with patch(f"{_MODULE}._run_importer", side_effect=commit_with_state_down):
             job_service.run_import(_payload(), states, storage, will_retry=True)
 
-        assert (states.get(1).status, states.get(1).failure) == (_Status.FAILED, _Failure.FILES_INCOMPLETE)
+        assert (states.get(1).status, states.get(1).error_code) == (_Status.FAILED, _Failure.FILES_INCOMPLETE)
 
     def test_a_redelivery_after_a_worker_died_in_the_database_part_runs_again(self, states, storage):
         _queued(states)
@@ -276,7 +276,7 @@ class TestRunImport:
         run = _run(states, storage, {"gears": 1})
 
         run.assert_called_once()
-        assert states.get(1).status == _Status.COMPLETED
+        assert states.get(1).status == _Status.SUCCEEDED
 
     def test_a_redelivery_after_a_worker_died_writing_files_does_not_import_twice(self, states, storage):
         _queued(states)
@@ -285,10 +285,10 @@ class TestRunImport:
         run = _run(states, storage, {})
 
         run.assert_not_called()
-        assert (states.get(1).status, states.get(1).failure) == (_Status.FAILED, _Failure.FILES_INCOMPLETE)
+        assert (states.get(1).status, states.get(1).error_code) == (_Status.FAILED, _Failure.FILES_INCOMPLETE)
         storage.delete.assert_called_once()
 
-    @pytest.mark.parametrize("finished", [_Status.COMPLETED, _Status.FAILED])
+    @pytest.mark.parametrize("finished", [_Status.SUCCEEDED, _Status.FAILED])
     def test_a_redelivery_of_a_finished_import_does_nothing(self, states, storage, finished):
         _queued(states)
         states.set_status(1, finished)
@@ -415,7 +415,7 @@ class TestCloseDeadLetteredImport:
         job_service.close_dead_lettered_import(_payload(1), states, storage)
 
         assert states.get(1).status == _Status.FAILED
-        assert states.get(1).failure == failure
+        assert states.get(1).error_code == failure
         assert states.begin(1) is True
 
     def test_the_staged_archive_is_always_removed(self, states, storage):
@@ -425,8 +425,8 @@ class TestCloseDeadLetteredImport:
 
     def test_an_import_that_already_finished_keeps_its_outcome(self, states, storage):
         states.begin(1)
-        states.set_status(1, _Status.COMPLETED)
+        states.set_status(1, _Status.SUCCEEDED)
 
         job_service.close_dead_lettered_import(_payload(1), states, storage)
 
-        assert states.get(1).status == _Status.COMPLETED
+        assert states.get(1).status == _Status.SUCCEEDED

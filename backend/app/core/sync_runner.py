@@ -18,12 +18,13 @@ from jasil.jobs.registry import JobHandlerRegistry
 
 import core.attempt_state as core_attempt_state
 import core.exceptions as core_exceptions
+import core.job_status as core_job_status
 import core.local_pool as core_local_pool
 import core.logger as core_logger
 
 logger = core_logger.get_logger(__name__)
 
-_Status = core_attempt_state.SyncStatus
+_Status = core_job_status.JobState
 
 #: Link logins or account links one process runs at once, running or queued.
 MAX_CONCURRENT_LINKS = 4
@@ -131,7 +132,7 @@ def run_recorded(
     except Exception:
         states.set_status(user_id, kind, _Status.QUEUED if will_retry else _Status.FAILED)
         raise
-    states.set_status(user_id, kind, _Status.COMPLETED if synced else _Status.FAILED)
+    states.set_status(user_id, kind, _Status.SUCCEEDED if synced else _Status.FAILED)
     return synced
 
 
@@ -201,29 +202,6 @@ def queue_sync(
         status_route=status_route,
         status_params={"kind": kind.value},
     )
-
-
-def read_state(
-    states: core_attempt_state.SyncStateStore, user_id: int, kind: StrEnum, label: str
-) -> core_attempt_state.SyncState:
-    """Read where a user's sync is.
-
-    Args:
-        states: Shared store of the sync's state.
-        user_id: The user being synced.
-        kind: What the sync does.
-        label: The provider's name, for the message.
-
-    Returns:
-        The recorded state.
-
-    Raises:
-        NotFoundError: When no sync is recorded or it has expired.
-    """
-    state = states.get(user_id, kind)
-    if state is None:
-        raise core_exceptions.NotFoundError(f"No {label} {kind.value} sync recorded")
-    return state
 
 
 def close_dead_lettered(states: core_attempt_state.SyncStateStore, user_id: int, kind: StrEnum, label: str) -> None:

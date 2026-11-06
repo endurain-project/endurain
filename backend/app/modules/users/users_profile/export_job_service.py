@@ -91,7 +91,7 @@ def request_export(
         profile_event_publishers.publish_export_requested(user_id, db, commit=db.commit)
     except BaseException:
         # The export never started, so nothing else would finish its claim.
-        states.set_status(user_id, _Status.FAILED, failure=_Failure.PROCESSING_FAILED)
+        states.set_status(user_id, _Status.FAILED, error_code=_Failure.PROCESSING_FAILED)
         raise
 
     logger.info("Profile export queued", extra=core_logger.context(user_id=user_id))
@@ -111,7 +111,7 @@ def fail_unstarted_export(
     logger.warning(
         "Closed a profile export the in-process pool could not take", extra=core_logger.context(user_id=payload.user_id)
     )
-    states.set_status(payload.user_id, _Status.FAILED, failure=_Failure.PROCESSING_FAILED)
+    states.set_status(payload.user_id, _Status.FAILED, error_code=_Failure.PROCESSING_FAILED)
 
 
 def close_dead_lettered_export(
@@ -131,7 +131,7 @@ def close_dead_lettered_export(
     state = states.get(payload.user_id)
     if state is None or state.status not in (_Status.QUEUED, _Status.RUNNING):
         return
-    states.set_status(payload.user_id, _Status.FAILED, failure=_Failure.PROCESSING_FAILED)
+    states.set_status(payload.user_id, _Status.FAILED, error_code=_Failure.PROCESSING_FAILED)
     logger.error("A profile export was dead-lettered", extra=core_logger.context(user_id=payload.user_id))
 
 
@@ -171,7 +171,7 @@ def open_export(
         NotFoundError: When no finished export is available, or its archive is gone.
     """
     state = states.get(user_id)
-    if state is None or state.status != _Status.COMPLETED or state.size_bytes is None:
+    if state is None or state.status != _Status.SUCCEEDED or state.size_bytes is None:
         raise core_exceptions.NotFoundError("No finished profile export to download")
 
     try:
@@ -237,10 +237,10 @@ def run_export(
         timed_out = isinstance(err, profile_exceptions.TransferTimeoutError)
         failure = _Failure.TIMED_OUT if timed_out else _Failure.PROCESSING_FAILED
         logger.error("Profile export failed", exc_info=err, extra=core_logger.context(user_id=user_id, failure=failure))
-        states.set_status(user_id, _Status.FAILED, failure=failure)
+        states.set_status(user_id, _Status.FAILED, error_code=failure)
         return
 
-    states.set_status(user_id, _Status.COMPLETED, size_bytes=size)
+    states.set_status(user_id, _Status.SUCCEEDED, size_bytes=size)
     logger.info("Profile data export ready", extra=core_logger.context(user_id=user_id, size_bytes=size))
 
 

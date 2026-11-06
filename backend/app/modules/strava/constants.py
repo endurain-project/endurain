@@ -2,7 +2,7 @@
 
 from enum import StrEnum
 
-import core.attempt_state as core_attempt_state
+import core.job_status as core_job_status
 
 PROVIDER_NAME = "strava"
 
@@ -72,4 +72,4 @@ def job_name(kind: SyncKind) -> str:
 
 
 #: Where a queued sync is; shared by every provider's sync state.
-SyncStatus = core_attempt_state.SyncStatus
+SyncStatus = core_job_status.JobState

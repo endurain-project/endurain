@@ -32,9 +32,9 @@ def test_progress_keeps_blocking_until_the_sync_finishes():
     store.set_status(1, Kind.HEALTH, Status.RUNNING)
     assert store.begin(1, Kind.HEALTH) is False
 
-    store.set_status(1, Kind.HEALTH, Status.COMPLETED)
+    store.set_status(1, Kind.HEALTH, Status.SUCCEEDED)
 
-    assert store.get(1, Kind.HEALTH).status == Status.COMPLETED
+    assert store.get(1, Kind.HEALTH).status == Status.SUCCEEDED
     assert store.begin(1, Kind.HEALTH) is True
 
 
@@ -68,4 +68,4 @@ def test_an_unavailable_backend_fails_a_read_and_a_begin_but_not_a_recorded_outc
         store.begin(1, Kind.GEAR)
     with pytest.raises(core_attempt_state.StateUnavailableError):
         store.get(1, Kind.GEAR)
-    store.set_status(1, Kind.GEAR, Status.COMPLETED)
+    store.set_status(1, Kind.GEAR, Status.SUCCEEDED)

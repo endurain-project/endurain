@@ -6,6 +6,7 @@ import pytest
 from sqlalchemy.exc import IntegrityError
 
 import core.exceptions as core_exceptions
+import core.job_status as core_job_status
 import modules.activities.activity_ingestion.constants as activity_ingestion_constants
 import modules.activities.activity_ingestion.service as ingestion_jobs
 import modules.activities.activity_ingestion.upload_entry_service as upload_entry_service
@@ -160,21 +161,21 @@ class TestDeletedActivities:
         return MagicMock(id="job-1", status=status, activity_ids=activity_ids)
 
     def test_the_key_is_released_and_the_file_imported_again(self):
-        original = self._job(activity_ingestion_constants.IngestionJobStatus.COMPLETED, [1, 2])
+        original = self._job(core_job_status.JobState.SUCCEEDED, [1, 2])
         _, release, create = self._accept(original, set())
 
         release.assert_called_once_with("job-1", ANY)
         create.assert_called_once()
 
     def test_a_surviving_activity_keeps_the_replay(self):
-        original = self._job(activity_ingestion_constants.IngestionJobStatus.COMPLETED, [1, 2])
+        original = self._job(core_job_status.JobState.SUCCEEDED, [1, 2])
         _, release, create = self._accept(original, {2})
 
         release.assert_not_called()
         create.assert_not_called()
 
     def test_different_content_conflicts_instead_of_releasing_the_key(self):
-        original = self._job(activity_ingestion_constants.IngestionJobStatus.COMPLETED, [1, 2])
+        original = self._job(core_job_status.JobState.SUCCEEDED, [1, 2])
         release = MagicMock()
         with pytest.raises(core_exceptions.ConflictError):
             self._accept(original, set(), fingerprint="hash-of-another-file", release=release)
@@ -184,9 +185,9 @@ class TestDeletedActivities:
     @pytest.mark.parametrize(
         ("status", "activity_ids"),
         [
-            (activity_ingestion_constants.IngestionJobStatus.PENDING, None),
-            (activity_ingestion_constants.IngestionJobStatus.FAILED, None),
-            (activity_ingestion_constants.IngestionJobStatus.COMPLETED, []),
+            (core_job_status.JobState.QUEUED, None),
+            (core_job_status.JobState.FAILED, None),
+            (core_job_status.JobState.SUCCEEDED, []),
         ],
     )
     def test_a_job_that_created_nothing_is_not_checked(self, status, activity_ids):

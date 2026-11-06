@@ -90,7 +90,7 @@ class TestRunSync:
             strava_sync_service.run_sync(_payload(GEAR), states, rate_limits)
 
         run.assert_called_once_with(7, rate_limits)
-        assert states.get(7, GEAR).status == Status.COMPLETED
+        assert states.get(7, GEAR).status == Status.SUCCEEDED
 
     def test_a_completed_gear_sync_tells_the_browser_to_refetch_gears(self, states, rate_limits):
         states.begin(7, GEAR)
@@ -131,7 +131,7 @@ class TestRunSync:
             strava_sync_service.run_sync(_payload(UNLINK), states, rate_limits)
 
         run.assert_called_once_with(7)
-        assert states.get(7, UNLINK).status == Status.COMPLETED
+        assert states.get(7, UNLINK).status == Status.SUCCEEDED
 
     def test_a_link_is_never_run_as_a_sync_job_and_leaves_the_link_state_alone(self, states, rate_limits):
         link = strava_constants.SyncKind.LINK
@@ -199,11 +199,11 @@ class TestDeadLetter:
 
     def test_a_finished_sync_is_left_as_it_is(self, states):
         states.begin(7, GEAR)
-        states.set_status(7, GEAR, Status.COMPLETED)
+        states.set_status(7, GEAR, Status.SUCCEEDED)
 
         strava_sync_service.close_dead_lettered_sync(_payload(GEAR), states)
 
-        assert states.get(7, GEAR).status == Status.COMPLETED
+        assert states.get(7, GEAR).status == Status.SUCCEEDED
 
 
 class TestStatus:
@@ -212,15 +212,13 @@ class TestStatus:
 
         assert strava_sync_service.get_sync_status(7, GEAR, states).status == Status.QUEUED
 
-    def test_an_unknown_sync_is_not_found(self, states):
-        with pytest.raises(core_exceptions.NotFoundError):
-            strava_sync_service.get_sync_status(7, UNLINK, states)
+    def test_an_unknown_sync_reads_as_none(self, states):
+        assert strava_sync_service.get_sync_status(7, UNLINK, states) is None
 
     def test_users_cannot_see_each_others_syncs(self, states):
         states.begin(7, GEAR)
 
-        with pytest.raises(core_exceptions.NotFoundError):
-            strava_sync_service.get_sync_status(8, GEAR, states)
+        assert strava_sync_service.get_sync_status(8, GEAR, states) is None
 
 
 @pytest.fixture(autouse=False)

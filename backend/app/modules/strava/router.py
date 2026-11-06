@@ -130,7 +130,7 @@ def strava_retrieve_gear(
 
 @router.get(
     "/sync/{kind}",
-    response_model=strava_schema.StravaSyncStatus,
+    response_model=strava_schema.StravaSyncStatus | None,
     responses={200: {"headers": core_location.POLLED_STATUS_HEADERS}},
     dependencies=[Security(auth_dependencies.check_scopes, scopes=["profile"])],
 )
@@ -139,12 +139,14 @@ def strava_sync_status(
     token_user_id: auth_dependencies.CurrentUserId,
     sync_states: strava_dependencies.StravaSyncStateStoreDep,
     response: Response,
-) -> strava_schema.StravaSyncStatus:
+) -> strava_schema.StravaSyncStatus | None:
     """Report where the authenticated user's queued link, gear sync or unlink is.
 
     ``Retry-After`` says when to poll again while the sync is not finished.
     """
     sync = strava_sync_service.get_sync_status(token_user_id, kind, sync_states)
+    if sync is None:
+        return None
     core_location.set_retry_after_while_running(response, sync.status, strava_constants.SYNC_POLL_SECONDS[kind])
     return sync
 

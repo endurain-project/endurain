@@ -1097,7 +1097,7 @@
       "exportStatus": {
         "queued": "Oczekiwanie na rozpoczęcie eksportu…",
         "running": "Przygotowywanie eksportu…",
-        "completed": "Eksport jest gotowy do pobrania. Pozostanie dostępny przez dwie godziny.",
+        "succeeded": "Eksport jest gotowy do pobrania. Pozostanie dostępny przez dwie godziny.",
         "failed": "Eksport nie został ukończony: {reason}"
       },
       "exportFailure": {
@@ -1110,8 +1110,7 @@
       "status": {
         "queued": "Oczekiwanie na rozpoczęcie importu…",
         "running": "Importowanie danych…",
-        "writing_files": "Zapisywanie plików…",
-        "completed": "Import zakończony: zaimportowano {activities} aktywność, sprzęt: {gears}. | Import zakończony: zaimportowano {activities} aktywności, sprzęt: {gears}. | Import zakończony: zaimportowano {activities} aktywności, sprzęt: {gears}.",
+        "succeeded": "Import zakończony: zaimportowano {activities} aktywność, sprzęt: {gears}. | Import zakończony: zaimportowano {activities} aktywności, sprzęt: {gears}. | Import zakończony: zaimportowano {activities} aktywności, sprzęt: {gears}.",
         "failed": "Import nie został ukończony: {reason}"
       },
       "failure": {

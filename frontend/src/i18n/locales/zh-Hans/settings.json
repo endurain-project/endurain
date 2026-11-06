@@ -1097,7 +1097,7 @@
       "exportStatus": {
         "queued": "正在等待导出开始…",
         "running": "正在准备您的导出…",
-        "completed": "您的导出文件已可下载，将保留两小时。",
+        "succeeded": "您的导出文件已可下载，将保留两小时。",
         "failed": "导出未完成：{reason}"
       },
       "exportFailure": {
@@ -1110,8 +1110,7 @@
       "status": {
         "queued": "正在等待导入开始…",
         "running": "正在导入您的数据…",
-        "writing_files": "正在保存您的文件…",
-        "completed": "导入完成：已导入 {activities} 个活动和 {gears} 件装备。",
+        "succeeded": "导入完成：已导入 {activities} 个活动和 {gears} 件装备。",
         "failed": "导入未完成：{reason}"
       },
       "failure": {

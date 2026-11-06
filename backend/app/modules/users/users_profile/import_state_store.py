@@ -12,9 +12,10 @@ Interface::
 """
 
 from jasil.providers import StateProvider
-from pydantic import BaseModel
+from pydantic import BaseModel, model_validator
 
 import core.attempt_state as core_attempt_state
+import core.job_status as core_job_status
 import modules.users.users_profile.constants as profile_constants
 import modules.websocket.integration_service as websocket_integration
 
@@ -24,16 +25,22 @@ class ProfileImportState(BaseModel):
 
     Attributes:
         status: Where the import is.
-        failure: Why it failed; set only when ``status`` is ``FAILED``.
-        imported: How many items of each kind were imported; set only when ``status`` is ``COMPLETED``.
+        error_code: Why it failed; set only when ``status`` is ``FAILED``.
+        imported: How many items of each kind were imported; set only when ``status`` is ``SUCCEEDED``.
     """
 
     status: profile_constants.ImportStatus
-    failure: profile_constants.ImportFailure | None = None
+    error_code: profile_constants.ImportFailure | None = None
     imported: dict[str, int] | None = None
 
+    @model_validator(mode="before")
+    @classmethod
+    def _read_stored_state(cls, data: object) -> object:
+        """Read a state stored before the shared job vocabulary as the current one."""
+        return core_job_status.upgrade_stored_state(data, "failure")
 
-_FINISHED = (profile_constants.ImportStatus.COMPLETED, profile_constants.ImportStatus.FAILED)
+
+_FINISHED = (profile_constants.ImportStatus.SUCCEEDED, profile_constants.ImportStatus.FAILED)
 
 
 class ProfileImportStateStore:
@@ -79,7 +86,7 @@ class ProfileImportStateStore:
         user_id: int,
         status: profile_constants.ImportStatus,
         *,
-        failure: profile_constants.ImportFailure | None = None,
+        error_code: profile_constants.ImportFailure | None = None,
         imported: dict[str, int] | None = None,
         strict: bool = False,
     ) -> None:
@@ -88,8 +95,8 @@ class ProfileImportStateStore:
         Args:
             user_id: The importing user.
             status: The new status.
-            failure: Why the import failed, when ``status`` is ``FAILED``.
-            imported: The counts of what was imported, when ``status`` is ``COMPLETED``.
+            error_code: Why the import failed, when ``status`` is ``FAILED``.
+            imported: The counts of what was imported, when ``status`` is ``SUCCEEDED``.
             strict: Raise when the state cannot be recorded, instead of logging it.
 
         Raises:
@@ -97,7 +104,7 @@ class ProfileImportStateStore:
         """
         self._attempts.record(
             str(user_id),
-            ProfileImportState(status=status, failure=failure, imported=imported),
+            ProfileImportState(status=status, error_code=error_code, imported=imported),
             finished=status in _FINISHED,
             strict=strict,
         )

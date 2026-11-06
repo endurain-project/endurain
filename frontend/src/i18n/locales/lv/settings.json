@@ -1097,7 +1097,7 @@
       "exportStatus": {
         "queued": "Tiek gaidīts eksporta sākums…",
         "running": "Tiek sagatavots jūsu eksports…",
-        "completed": "Jūsu eksports ir gatavs lejupielādei. Tas būs pieejams divas stundas.",
+        "succeeded": "Jūsu eksports ir gatavs lejupielādei. Tas būs pieejams divas stundas.",
         "failed": "Eksports netika pabeigts: {reason}"
       },
       "exportFailure": {
@@ -1110,8 +1110,7 @@
       "status": {
         "queued": "Tiek gaidīts importa sākums…",
         "running": "Tiek importēti jūsu dati…",
-        "writing_files": "Tiek saglabāti jūsu faili…",
-        "completed": "Imports pabeigts: importētas {activities} aktivitātes, inventārs: {gears}. | Imports pabeigts: importēta {activities} aktivitāte, inventārs: {gears}. | Imports pabeigts: importētas {activities} aktivitātes, inventārs: {gears}.",
+        "succeeded": "Imports pabeigts: importētas {activities} aktivitātes, inventārs: {gears}. | Imports pabeigts: importēta {activities} aktivitāte, inventārs: {gears}. | Imports pabeigts: importētas {activities} aktivitātes, inventārs: {gears}.",
         "failed": "Imports netika pabeigts: {reason}"
       },
       "failure": {

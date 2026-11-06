@@ -1097,7 +1097,7 @@
       "exportStatus": {
         "queued": "Dışa aktarımın başlaması bekleniyor…",
         "running": "Dışa aktarımınız hazırlanıyor…",
-        "completed": "Dışa aktarımınız indirilmeye hazır. İki saat boyunca erişilebilir kalır.",
+        "succeeded": "Dışa aktarımınız indirilmeye hazır. İki saat boyunca erişilebilir kalır.",
         "failed": "Dışa aktarım tamamlanmadı: {reason}"
       },
       "exportFailure": {
@@ -1110,8 +1110,7 @@
       "status": {
         "queued": "İçe aktarımın başlaması bekleniyor…",
         "running": "Verileriniz içe aktarılıyor…",
-        "writing_files": "Dosyalarınız kaydediliyor…",
-        "completed": "İçe aktarım tamamlandı: {activities} etkinlik içe aktarıldı, ekipman: {gears}. | İçe aktarım tamamlandı: {activities} etkinlik içe aktarıldı, ekipman: {gears}.",
+        "succeeded": "İçe aktarım tamamlandı: {activities} etkinlik içe aktarıldı, ekipman: {gears}. | İçe aktarım tamamlandı: {activities} etkinlik içe aktarıldı, ekipman: {gears}.",
         "failed": "İçe aktarım tamamlanmadı: {reason}"
       },
       "failure": {

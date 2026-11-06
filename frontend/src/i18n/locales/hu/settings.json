@@ -1097,7 +1097,7 @@
       "exportStatus": {
         "queued": "Várakozás az exportálás indulására…",
         "running": "Az exportálás előkészítése…",
-        "completed": "Az exportálás letölthető. Két órán át elérhető marad.",
+        "succeeded": "Az exportálás letölthető. Két órán át elérhető marad.",
         "failed": "Az exportálás nem fejeződött be: {reason}"
       },
       "exportFailure": {
@@ -1110,8 +1110,7 @@
       "status": {
         "queued": "Várakozás az importálás indulására…",
         "running": "Az adataid importálása…",
-        "writing_files": "A fájljaid mentése…",
-        "completed": "Az importálás befejeződött: {activities} tevékenység importálva, felszerelés: {gears}. | Az importálás befejeződött: {activities} tevékenység importálva, felszerelés: {gears}.",
+        "succeeded": "Az importálás befejeződött: {activities} tevékenység importálva, felszerelés: {gears}. | Az importálás befejeződött: {activities} tevékenység importálva, felszerelés: {gears}.",
         "failed": "Az importálás nem fejeződött be: {reason}"
       },
       "failure": {

@@ -668,7 +668,15 @@ class TestExportProfileData:
             response = profile_client.post(PREFIX + "/export", json=self._BODY)
 
         assert response.status_code == 202
-        assert response.json() == {"status": "queued", "failure": None, "size_bytes": None, "expires_at": None}
+        assert response.json() == {
+            "id": None,
+            "status": "queued",
+            "error_code": None,
+            "created_at": None,
+            "finished_at": None,
+            "size_bytes": None,
+            "expires_at": None,
+        }
         assert publish.call_args.args[0] == 1
         assert export_states.get(1).status == "queued"
         step_up, user_id, session_id, action, _store = mock_auth_services.verify_step_up.call_args.args
@@ -710,13 +718,13 @@ class TestReadProfileExportStatus:
 
     def test_reports_the_recorded_state(self, profile_client, export_states):
         export_states.begin(1)
-        export_states.set_status(1, "completed", size_bytes=9)
+        export_states.set_status(1, "succeeded", size_bytes=9)
 
         response = profile_client.get(PREFIX + "/export")
 
         assert response.status_code == 200
         body = response.json()
-        assert (body["status"], body["failure"], body["size_bytes"]) == ("completed", None, 9)
+        assert (body["status"], body["error_code"], body["size_bytes"]) == ("succeeded", None, 9)
         assert datetime.fromisoformat(body["expires_at"]) > datetime.now(UTC)
 
     def test_is_null_when_nothing_was_exported(self, profile_client):
@@ -739,7 +747,7 @@ class TestDownloadProfileExport:
 
     def test_streams_the_finished_archive(self, profile_app, profile_client, export_states):
         export_states.begin(1)
-        export_states.set_status(1, "completed", size_bytes=8)
+        export_states.set_status(1, "succeeded", size_bytes=8)
         storage = MagicMock()
         storage.open_stream.return_value = io.BytesIO(b"zip-data")
         profile_app.dependency_overrides[core_dependencies.get_storage] = lambda: storage
@@ -786,7 +794,14 @@ class TestImportProfileData:
             )
 
         assert response.status_code == 202
-        assert response.json() == {"status": "queued", "failure": None, "imported": None}
+        assert response.json() == {
+            "id": None,
+            "status": "queued",
+            "error_code": None,
+            "created_at": None,
+            "finished_at": None,
+            "imported": None,
+        }
         publish.assert_called_once()
         assert publish.call_args.args[0] == 1
         assert publish.call_args.args[1].startswith("1/")
@@ -820,12 +835,19 @@ class TestReadProfileImportStatus:
 
     def test_reports_the_recorded_state(self, profile_client, import_states):
         import_states.begin(1)
-        import_states.set_status(1, "completed", imported={"activities": 5})
+        import_states.set_status(1, "succeeded", imported={"activities": 5})
 
         response = profile_client.get(PREFIX + "/import")
 
         assert response.status_code == 200
-        assert response.json() == {"status": "completed", "failure": None, "imported": {"activities": 5}}
+        assert response.json() == {
+            "id": None,
+            "status": "succeeded",
+            "error_code": None,
+            "created_at": None,
+            "finished_at": None,
+            "imported": {"activities": 5},
+        }
 
     def test_is_null_when_nothing_was_imported(self, profile_client):
         response = profile_client.get(PREFIX + "/import")
@@ -1334,7 +1356,13 @@ class TestDeleteMyAccount:
         )
 
         assert response.status_code == 202
-        assert response.json() == {"status": "queued"}
+        assert response.json() == {
+            "id": None,
+            "created_at": None,
+            "finished_at": None,
+            "error_code": None,
+            "status": "queued",
+        }
         assert mock_delete.call_args.args[0] == 1
         assert mock_delete.call_args.args[1] == "session-1"
         assert mock_delete.call_args.args[2].current_password == "secret-password"

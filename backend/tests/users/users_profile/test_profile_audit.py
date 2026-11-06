@@ -202,7 +202,7 @@ class TestProfileExport:
 
     def test_a_download_is_recorded_once_the_archive_is_found(self, states):
         states.begin(7)
-        states.set_status(7, profile_constants.ExportStatus.COMPLETED, size_bytes=8)
+        states.set_status(7, profile_constants.ExportStatus.SUCCEEDED, size_bytes=8)
         storage = MagicMock()
         storage.open_stream.return_value = io.BytesIO(b"zip-data")
 
@@ -223,7 +223,7 @@ class TestProfileExport:
 
     def test_a_missing_archive_writes_no_row(self, states):
         states.begin(7)
-        states.set_status(7, profile_constants.ExportStatus.COMPLETED, size_bytes=8)
+        states.set_status(7, profile_constants.ExportStatus.SUCCEEDED, size_bytes=8)
         storage = MagicMock()
         storage.open_stream.side_effect = FileNotFoundError
 
@@ -322,7 +322,7 @@ class TestProfileImport:
 
     def test_a_redelivery_that_finds_the_import_already_finished_writes_nothing(self, states, storage):
         states.begin(7)
-        states.set_status(7, profile_constants.ImportStatus.COMPLETED)
+        states.set_status(7, profile_constants.ImportStatus.SUCCEEDED)
 
         with jasil_testing.capture_audit() as audit:
             self._run(states, storage, {})
@@ -346,7 +346,7 @@ class TestProfileImport:
 
         states.discard(7)
         states.begin(7)
-        states.set_status(7, profile_constants.ImportStatus.COMPLETED)
+        states.set_status(7, profile_constants.ImportStatus.SUCCEEDED)
         with jasil_testing.capture_audit() as audit:
             import_job_service.close_dead_lettered_import(_payload(), states, storage)
         audit.assert_not_audited(profile_audit_actions.PROFILE_IMPORT_COMPLETE.id)

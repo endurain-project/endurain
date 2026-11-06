@@ -74,7 +74,7 @@ describe('DataTransferCard', () => {
   it('explains that an archive from a different account was refused', () => {
     importStatus.value = {
       status: 'failed',
-      failure: 'wrong_account',
+      error_code: 'wrong_account',
       imported: null,
     } as ProfileImportStatus
     const wrapper = mountCard()

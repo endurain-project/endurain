@@ -93,7 +93,7 @@ describe('GarminLoginDialog', () => {
     await startLink(wrapper)
     expect(wrapper.find('#garmin-mfa').exists()).toBe(false)
 
-    statusData.value = { status: 'mfa_required', reason: null }
+    statusData.value = { status: 'running', mfa_required: true, error_code: null }
     await nextTick()
 
     expect(wrapper.find('#garmin-mfa').exists()).toBe(true)
@@ -106,7 +106,7 @@ describe('GarminLoginDialog', () => {
     const wrapper = await mountDialog()
     await startLink(wrapper)
 
-    statusData.value = { status: 'completed', reason: null }
+    statusData.value = { status: 'succeeded', mfa_required: false, error_code: null }
     await nextTick()
 
     expect(toastSuccess).toHaveBeenCalledTimes(1)
@@ -120,7 +120,7 @@ describe('GarminLoginDialog', () => {
       const wrapper = await mountDialog()
       await startLink(wrapper)
 
-      statusData.value = { status: 'failed', reason }
+      statusData.value = { status: 'failed', mfa_required: false, error_code: reason }
       await nextTick()
 
       expect(toastError).toHaveBeenCalledTimes(1)

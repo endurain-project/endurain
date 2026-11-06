@@ -107,7 +107,7 @@ class TestStartLink:
 
     def test_a_state_is_good_for_one_link_only(self, oauth_states, states, pool):
         _start(oauth_states, states)
-        states.set_status(1, LINK, Status.COMPLETED)
+        states.set_status(1, LINK, Status.SUCCEEDED)
         pool.reset_mock()
 
         _result, error = _start(oauth_states, states, stored_state=None)
@@ -203,7 +203,7 @@ class TestRunLink:
 
         link.assert_called_once_with(1, {"access_token": "t"}, db)
         db.commit.assert_called_once()
-        assert states.get(1, LINK).status == Status.COMPLETED
+        assert states.get(1, LINK).status == Status.SUCCEEDED
 
     def test_a_failed_exchange_is_recorded_without_storing_anything_and_frees_the_claim(self, states):
         link, db = _run(states, exchange_error=RuntimeError("secret-token-123 rejected"))

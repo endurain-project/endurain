@@ -2,6 +2,8 @@
 
 from enum import StrEnum
 
+import core.job_status as core_job_status
+
 #: Domain-owned storage area holding an uploaded archive until the import job has read it.
 IMPORT_STAGING_AREA = "profile_import_staging"
 
@@ -58,14 +60,21 @@ class ImportStatus(StrEnum):
     """Where a profile import is.
 
     ``RUNNING`` is the database part, which is one transaction, so a worker that dies there has
-    imported nothing. ``WRITING_FILES`` starts once those rows are committed.
+    imported nothing. ``WRITING_FILES`` starts once those rows are committed; a client sees both as ``running``.
     """
 
     QUEUED = "queued"
     RUNNING = "running"
     WRITING_FILES = "writing_files"
-    COMPLETED = "completed"
+    SUCCEEDED = "succeeded"
     FAILED = "failed"
+
+    @property
+    def job_state(self) -> core_job_status.JobState:
+        """The state a client is told, which does not tell the two running phases apart."""
+        if self is ImportStatus.WRITING_FILES:
+            return core_job_status.JobState.RUNNING
+        return core_job_status.JobState(self.value)
 
 
 class ImportFailure(StrEnum):
@@ -84,13 +93,8 @@ class ImportFailure(StrEnum):
     PROCESSING_FAILED = "processing_failed"
 
 
-class ExportStatus(StrEnum):
-    """Where a profile export is."""
-
-    QUEUED = "queued"
-    RUNNING = "running"
-    COMPLETED = "completed"
-    FAILED = "failed"
+#: Where a profile export is.
+ExportStatus = core_job_status.JobState
 
 
 class ExportFailure(StrEnum):

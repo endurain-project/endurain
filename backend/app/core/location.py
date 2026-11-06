@@ -12,8 +12,7 @@ from typing import Any
 
 from fastapi import Request, Response
 
-#: A status that ends the work; a status read sends no ``Retry-After`` once it reports one.
-_TERMINAL_STATUSES = frozenset({"completed", "failed"})
+import core.job_status as core_job_status
 
 #: The OpenAPI declaration of a ``202`` that names its status resource, for a route's ``responses``.
 ACCEPTED_RESPONSE: dict[int | str, dict[str, Any]] = {
@@ -84,7 +83,7 @@ def set_status_location(
     set_retry_after(response, retry_after)
 
 
-def set_retry_after_while_running(response: Response, status: str, seconds: int) -> None:
+def set_retry_after_while_running(response: Response, status: core_job_status.JobState, seconds: int) -> None:
     """Ask for another poll unless the status read reports the work is over.
 
     Args:
@@ -92,5 +91,5 @@ def set_retry_after_while_running(response: Response, status: str, seconds: int)
         status: The status the read reports.
         seconds: The wait before the next poll.
     """
-    if status not in _TERMINAL_STATUSES:
+    if status not in core_job_status.TERMINAL_STATES:
         set_retry_after(response, seconds)

@@ -2,7 +2,16 @@
 
 Work that can take longer than a request is accepted with `202 Accepted` and runs in the background. The `202` answers only "queued". The outcome comes from a status route that you poll. All paths are under `/api/v1`.
 
-The operations have different shapes, so there is no single job id. Read the table first, then the section of the operation you call.
+Every status read answers the same envelope, so a client reads one vocabulary whatever the job is. Read the table first, then the section of the operation you call.
+
+| Member | Meaning |
+| ------ | ------- |
+| `status` | `queued`, `running`, `succeeded` or `failed`, for every kind of job |
+| `error_code` | Why the job failed, from a closed set per kind. `null` unless `status` is `failed`, and for a kind that records no reason |
+| `id` | The job's identifier, for a job that has one of its own (an ingestion job). `null` for work that is one per user and kind |
+| `created_at`, `finished_at` | When the job was accepted and when it ended, for a kind that records them (an ingestion job). `null` otherwise |
+
+Each kind adds its own members to the envelope: `kind` on a provider sync, `mfa_required` on the Garmin Connect link, `size_bytes` and `expires_at` on an export, `imported` on a profile import and the members listed under [Activity ingestion jobs](#activity-ingestion-jobs).
 
 Every `202` carries two headers, so a client does not build the status URL itself:
 
@@ -33,11 +42,10 @@ The activity upload and the archive bulk import take an `Idempotency-Key`. Every
 
 ## Polling
 
-A status route reads a record that the job updates. Poll the route that `Content-Location` names, and wait the seconds in `Retry-After` between polls (slower while a [realtime hint](realtime.md) connection is open). A status read that is not finished sends `Retry-After` again; a final state, `completed` or `failed`, sends none, so stop there.
+A status route reads a record that the job updates. Poll the route that `Content-Location` names, and wait the seconds in `Retry-After` between polls (slower while a [realtime hint](realtime.md) connection is open). A status read that is not finished sends `Retry-After` again; a final state, `succeeded` or `failed`, sends none, so stop there.
 
-- A record that does not exist or has expired answers `404`. The records of these operations are kept for a limited time after they start: 7 minutes for a Garmin Connect link, 30 minutes for a Garmin Connect or Strava sync or a Strava link or unlink, 1 hour for a bulk edit, 2 hours for a profile export or an account deletion and 4 hours for a profile import. Poll until a final state and do not rely on reading the result later.
+- A status read with nothing recorded answers `200` with `null`: `GET /activities/bulk-edit`, `GET /garmin/link/status`, `GET /garmin/sync/{kind}`, `GET /strava/sync/{kind}`, `GET /users/{user_id}/deletion`, `GET /profile/export` and `GET /profile/import`. That is the answer before the first start and once a record has expired. An ingestion job is read by its id, so an unknown id is `404`. The records of these operations are kept for a limited time after they start: 7 minutes for a Garmin Connect link, 30 minutes for a Garmin Connect or Strava sync or a Strava link or unlink, 1 hour for a bulk edit, 2 hours for a profile export or an account deletion and 4 hours for a profile import. Poll until a final state and do not rely on reading the result later.
 - An ingestion job of another user is `404`, never `403`, so an id cannot be probed.
-- `GET /profile/export` and `GET /profile/import` answer `200` with `null` when no export or import is recorded.
 - A `202` can also be refused with `503` when the server runs without a durable job worker and its in-process pool is full. Retry later.
 
 ## Activity ingestion jobs
@@ -49,26 +57,28 @@ These routes return one job shape, `ActivityIngestionJobRead`, so a client has o
   "id": "0c0f8e0e-3f0b-4a50-9a58-6a1d0a2d5d11",
   "kind": "upload",
   "filename": "morning-run.fit",
-  "status": "completed",
+  "status": "succeeded",
+  "error_code": null,
   "activity_ids": [412],
   "created_at": "2026-11-05T07:30:00Z",
   "updated_at": "2026-11-05T07:30:04Z",
-  "completed_at": "2026-11-05T07:30:04Z"
+  "finished_at": "2026-11-05T07:30:04Z"
 }
 ```
 
 | Member | Meaning |
 | ------ | ------- |
 | `kind` | `upload`, `bulk_import` or `refresh` |
-| `status` | `pending`, `processing`, `deferred`, `completed` or `failed` |
+| `status` | `queued`, `running`, `succeeded` or `failed` |
 | `error_code` | Set when `status` is `failed`: `unsupported_format`, `invalid_file`, `no_activities_found`, `processing_failed` or `provider_unavailable` |
-| `activity_ids` | The activities the job created, once it completes |
-| `files_total`, `files_done`, `files_failed` | Bulk import progress. A finished import with failed files still ends `completed` |
+| `activity_ids` | The activities the job created, once it succeeds |
+| `files_total`, `files_done`, `files_failed` | Bulk import progress. A finished import with failed files still ends `succeeded` |
 | `import_source` | The archive layout of a bulk import |
 | `provider` | The provider a refresh syncs. Empty when it syncs every linked provider |
-| `retry_after` | When a `deferred` refresh runs again |
+| `retry_after` | When a refresh that is waiting for a provider's rate limit runs again |
+| `finished_at` | When the job reached `succeeded` or `failed` |
 
-`deferred` is a refresh that is waiting for a provider's rate limit to clear. It is not a failure: the job runs again by itself at `retry_after`.
+A refresh that is waiting for a provider's rate limit to clear is `queued` with `retry_after` set. It is not a failure: the job runs again by itself at `retry_after`.
 
 Reading the job needs the `activities:upload` scope and accepts an API key. Starting a bulk import, a folder import, a refresh or a provider range sync needs `activities:write` and a signed-in session (an API key is not accepted).
 
@@ -81,7 +91,7 @@ Send an `Idempotency-Key` header (up to 255 characters) to make a retry safe. A 
 - **A replay with the same key and the same file** answers `202` with the original job, in whatever state it has now, and does not import again.
 - **The same key with a different file** is `409`.
 - **A key is scoped to the user** and to uploads. The same key may also be used on a bulk import.
-- **A key is released** only when the job completed, recorded activities and every one of them has since been deleted. The same file can then be uploaded again under that key. A job that failed, is still running or created no activities keeps its key.
+- **A key is released** only when the job succeeded, recorded activities and every one of them has since been deleted. The same file can then be uploaded again under that key. A job that failed, is still running or created no activities keeps its key.
 
 ### Bulk import
 
@@ -102,27 +112,27 @@ Poll `GET /activities/ingestion-jobs/{job_id}` and read `files_done` and `files_
 
 These keep a small status record instead of an ingestion job.
 
-**Garmin Connect link.** `POST /garmin/link` with the login starts the sign-in and answers `202`. Poll `GET /garmin/link/status`. The status is `pending` while it signs in, `mfa_required` when Garmin Connect wants a code, then `completed` or `failed`. A failed link carries `reason`: `invalid_credentials`, `incorrect_mfa`, `too_many_requests` or `internal`. When the status is `mfa_required`, send the code to `POST /garmin/mfa` (`204`) within 3 minutes and keep polling. `POST /garmin/mfa` is `409` when no login is waiting for a code. `POST /garmin/link` is `409` while an attempt is running. The status is `404` when no attempt is recorded.
+**Garmin Connect link.** `POST /garmin/link` with the login starts the sign-in and answers `202`. Poll `GET /garmin/link/status`. The status is `running` while it signs in, then `succeeded` or `failed`. While Garmin Connect wants a code the status stays `running` and `mfa_required` is `true`. A failed link carries `error_code`: `invalid_credentials`, `incorrect_mfa`, `too_many_requests` or `internal`. When `mfa_required` is `true`, send the code to `POST /garmin/mfa` (`204`) within 3 minutes and keep polling. `POST /garmin/mfa` is `409` when no login is waiting for a code. `POST /garmin/link` is `409` while an attempt is running. The status is `null` when no attempt is recorded.
 
-**Garmin Connect gear and health sync.** `POST /garmin/gear` and `POST /garmin/health` (with `start_date` and `end_date`, at most 31 days) answer `202` with `{"kind", "status"}`. Poll `GET /garmin/sync/{kind}`, where `kind` is `gear` or `health`. The status is `queued`, `running`, `completed` or `failed`. A second request of the same kind while one is queued or running is `409`.
+**Garmin Connect gear and health sync.** `POST /garmin/gear` and `POST /garmin/health` (with `start_date` and `end_date`, at most 31 days) answer `202` with the envelope and `kind`. Poll `GET /garmin/sync/{kind}`, where `kind` is `gear` or `health`. The status is `null` when no sync is recorded. A second request of the same kind while one is queued or running is `409`.
 
-**Strava link, gear sync and unlink.** `POST /strava/link` (the `state`, `code` and `scope` from the Strava callback), `POST /strava/gear` and `DELETE /strava/link` answer `202` with `{"kind", "status"}`. Poll `GET /strava/sync/{kind}`, where `kind` is `link`, `gear` or `unlink`. The status is `queued`, `running`, `completed` or `failed`. A second request of the same kind while one is queued or running is `409`. A link whose granted scopes are too few is refused at once with `400` and `urn:endurain:error:provider-scope-insufficient`. Unlinking revokes the authorization with Strava and deletes the activities and gear imported from it. When the user withdraws Endurain's access on Strava instead, Endurain clears the tokens at the next sync and `GET /profile` carries two read-only fields until the user connects again or the data is deleted: `strava_revoked_at`, when Strava access ended, and `strava_data_deletion_at`, 7 days later, when the Strava-synced activities and gear are deleted. Both are `null` otherwise, and neither can be set by a client.
+**Strava link, gear sync and unlink.** `POST /strava/link` (the `state`, `code` and `scope` from the Strava callback), `POST /strava/gear` and `DELETE /strava/link` answer `202` with the envelope and `kind`. Poll `GET /strava/sync/{kind}`, where `kind` is `link`, `gear` or `unlink`. The status is `null` when no sync is recorded. A second request of the same kind while one is queued or running is `409`. A link whose granted scopes are too few is refused at once with `400` and `urn:endurain:error:provider-scope-insufficient`. Unlinking revokes the authorization with Strava and deletes the activities and gear imported from it. When the user withdraws Endurain's access on Strava instead, Endurain clears the tokens at the next sync and `GET /profile` carries two read-only fields until the user connects again or the data is deleted: `strava_revoked_at`, when Strava access ended, and `strava_data_deletion_at`, 7 days later, when the Strava-synced activities and gear are deleted. Both are `null` otherwise, and neither can be set by a client.
 
-A provider that answers with a rate limit makes the job `failed` (gear and health syncs) or `deferred` (activity refreshes). The routes that start a provider sync (`/activities/refresh`, `/garmin/activities`, `/garmin/gear`, `/garmin/health`, `/strava/activities` and `/strava/gear`) are limited to 6 requests per minute.
+A provider that answers with a rate limit makes the job `failed` (gear and health syncs) or `queued` with `retry_after` set (activity refreshes). The routes that start a provider sync (`/activities/refresh`, `/garmin/activities`, `/garmin/gear`, `/garmin/health`, `/strava/activities` and `/strava/gear`) are limited to 6 requests per minute.
 
 ## Profile export and import
 
-**Export.** `POST /profile/export` takes the [step-up](account-security.md#step-up-authentication) body (`current_password`, `idp_reauth` for an account without a password, and `mfa_code` when MFA is on) and answers `202` with `{"status": ...}`. Poll `GET /profile/export`. The status is `queued`, `running`, `completed` or `failed`. A completed export carries `size_bytes` and `expires_at`: fetch the ZIP with `GET /profile/export/download` before it expires (2 hours). A failed one carries `failure`: `timed_out` or `processing_failed`. `409` while an export is running, `404` from the download when there is nothing finished to fetch.
+**Export.** `POST /profile/export` takes the [step-up](account-security.md#step-up-authentication) body (`current_password`, `idp_reauth` for an account without a password, and `mfa_code` when MFA is on) and answers `202` with the envelope. Poll `GET /profile/export`. A succeeded export carries `size_bytes` and `expires_at`: fetch the ZIP with `GET /profile/export/download` before it expires (2 hours). A failed one carries `error_code`: `timed_out` or `processing_failed`. `409` while an export is running, `404` from the download when there is nothing finished to fetch.
 
-**Import.** `POST /profile/import` takes a `.zip` archive in `file`, validates and stages it, and answers `202`. Poll `GET /profile/import`. The status is `queued`, `running` (the database part, which is one transaction: a failed import leaves nothing behind), `writing_files`, `completed` or `failed`. A completed import carries `imported`, the number of items of each kind. A failed one carries `failure`: `invalid_file`, `too_large`, `too_many_activities`, `timed_out`, `wrong_account`, `files_incomplete` or `processing_failed`. `409` while an import is running.
+**Import.** `POST /profile/import` takes a `.zip` archive in `file`, validates and stages it, and answers `202`. Poll `GET /profile/import`. The status is `running` for the database part (one transaction: a failed import leaves nothing behind) and for the writing of the files that follows. A succeeded import carries `imported`, the number of items of each kind. A failed one carries `error_code`: `invalid_file`, `too_large`, `too_many_activities`, `timed_out`, `wrong_account`, `files_incomplete` or `processing_failed`. `409` while an import is running.
 
 ## Bulk visibility edit
 
-`PATCH /activities` with `{"visibility": "public"|"followers"|"private"}` changes the visibility of every activity you own and answers `202` with `{"status": ...}`. Poll `GET /activities/bulk-edit`. The status is `queued`, `running`, `completed` or `failed`. `409` while an edit is pending, and `400` when the body names no field to change. This route has no `If-Match`, because it addresses no single record.
+`PATCH /activities` with `{"visibility": "public"|"followers"|"private"}` changes the visibility of every activity you own and answers `202` with the envelope. Poll `GET /activities/bulk-edit`. `409` while an edit is pending, and `400` when the body names no field to change. This route has no `If-Match`, because it addresses no single record.
 
 ## Delete a user (administrators)
 
-`DELETE /users/{user_id}` needs `users:write` and the user's `ETag` in `If-Match` (see [Errors, concurrency and rate limits](errors-and-limits.md#concurrent-edits-with-etag-and-if-match)). It signs the user out everywhere, deactivates the account and answers `202` with `{"status": ...}`. A background job then erases the data. An administrator polls `GET /users/{user_id}/deletion` (needs `users:read_all`). The status is `queued`, `running`, `completed` or `failed`, and the record is kept for 2 hours.
+`DELETE /users/{user_id}` needs `users:write` and the user's `ETag` in `If-Match` (see [Errors, concurrency and rate limits](errors-and-limits.md#concurrent-edits-with-etag-and-if-match)). It signs the user out everywhere, deactivates the account and answers `202` with the envelope. A background job then erases the data. An administrator polls `GET /users/{user_id}/deletion` (needs `users:read_all`); the record is kept for 2 hours.
 
 - `409` when the user is the only administrator, or when a deletion is already pending.
 - `403` when an administrator targets their own account. Use `POST /profile/delete-account` for that.
@@ -131,7 +141,7 @@ A provider that answers with a rate limit makes the job `failed` (gear and healt
 
 ## Delete your account
 
-`POST /profile/delete-account` is confirmed with step-up (the current password, or a fresh identity-provider sign-in, and an MFA code when MFA is on; see [Account security](account-security.md)). It answers `202` with `{"status": "queued"}`, and it is fire and forget.
+`POST /profile/delete-account` is confirmed with step-up (the current password, or a fresh identity-provider sign-in, and an MFA code when MFA is on; see [Account security](account-security.md)). It answers `202` with the envelope (`"status": "queued"`), and it is fire and forget.
 
 - **The account is closed before the answer.** Every session of the user ends, the account is deactivated, and the web client's refresh cookie is cleared on the response. The access token that made the request stops working too.
 - **There is nothing for the user to poll.** `GET /users/{user_id}/deletion` needs an administrator scope, and the user can no longer sign in to call anything. A client should treat the `202` as final: sign the user out locally and show that the account is being deleted.
@@ -163,12 +173,12 @@ An archive may also hold at most 2000 files of the same type and 2 GiB once unpa
 
 ## Realtime hint
 
-A client that holds a [WebSocket](realtime.md) can learn that a job changed without waiting for its next poll. The server sends `{"message": "JOB_STATUS_CHANGED", "job": "<name>"}`. The hint is best effort and carries no status: read the status from the poll route. It is sent each time a job reaches a final state, `completed` or `failed`:
+A client that holds a [WebSocket](realtime.md) can learn that a job changed without waiting for its next poll. The server sends `{"message": "JOB_STATUS_CHANGED", "job": "<name>"}`. The hint is best effort and carries no status: read the status from the poll route. It is sent each time a job reaches a final state, `succeeded` or `failed`:
 
 | `job` | Sent when |
 | ----- | --------- |
-| `ingestion:<job id>` | An **upload**, a **bulk import** or a **provider refresh or range sync** reaches `completed` or `failed`. It is not sent when a refresh is `deferred` |
-| `garmin-link` | The Garmin Connect link needs an MFA code, and when it ends `completed` or `failed` |
+| `ingestion:<job id>` | An **upload**, a **bulk import** or a **provider refresh or range sync** reaches `succeeded` or `failed`. It is not sent while a refresh waits for a rate limit |
+| `garmin-link` | The Garmin Connect link needs an MFA code, and when it ends `succeeded` or `failed` |
 | `garmin:gear`, `garmin:health` | A Garmin Connect gear or health sync ends |
 | `strava:link`, `strava:gear`, `strava:unlink` | A Strava link, gear sync or unlink ends |
 | `profile:export`, `profile:import` | A profile export or import ends |

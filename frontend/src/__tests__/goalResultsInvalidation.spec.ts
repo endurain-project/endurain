@@ -42,7 +42,7 @@ vi.mock('@/features/auth/stores/auth', () => ({ useAuthStore: () => ({}) }))
 
 const completedJob = {
   id: 'job-1',
-  status: 'completed',
+  status: 'succeeded',
   activity_ids: [],
 } as unknown as ActivityIngestionJob
 
@@ -136,12 +136,12 @@ describe('goal results follow activity changes', () => {
 
   it('a finished profile import refreshes goal results', async () => {
     const client = seededClient()
-    const running = { status: 'running', failure: null, imported: null }
+    const running = { status: 'running', error_code: null, imported: null }
     vi.mocked(fetchProfileImport).mockResolvedValue(running as never)
     mountHook(client, useProfileImportQuery)
     await flushPromises()
 
-    client.setQueryData(queryKeys.profile.import(), { ...running, status: 'completed' })
+    client.setQueryData(queryKeys.profile.import(), { ...running, status: 'succeeded' })
     await flushPromises()
 
     expect(goalResultsStale(client)).toBe(true)

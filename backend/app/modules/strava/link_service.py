@@ -174,5 +174,5 @@ def run_link(user_id: int, code: str, states: strava_sync_state_store.StravaSync
         _record_refused_link(user_id, err)
         states.set_status(user_id, kind, strava_constants.SyncStatus.FAILED)
         return
-    states.set_status(user_id, kind, strava_constants.SyncStatus.COMPLETED)
+    states.set_status(user_id, kind, strava_constants.SyncStatus.SUCCEEDED)
     logger.info("Strava linked", extra=core_logger.context(user_id=user_id))

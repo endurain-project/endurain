@@ -41,9 +41,12 @@ async function followStravaSync(
   const deadline = Date.now() + STRAVA_SYNC_TIMEOUT_MS
   const watch = watchJob(`strava:${kind}`)
   try {
-    let status = await queue()
+    let status: StravaSyncStatus | null = await queue()
     for (;;) {
-      if (status.status === 'completed') {
+      if (status === null) {
+        throw new Error(`${label} Strava status expired`)
+      }
+      if (status.status === 'succeeded') {
         return
       }
       if (status.status === 'failed') {
@@ -53,7 +56,7 @@ async function followStravaSync(
         throw new Error(`${label} Strava did not finish in time`)
       }
       await watch.wait(STRAVA_SYNC_POLL_MS)
-      status = await apiFetch<StravaSyncStatus>(`/strava/sync/${kind}`)
+      status = await apiFetch<StravaSyncStatus | null>(`/strava/sync/${kind}`)
     }
   } finally {
     watch.stop()

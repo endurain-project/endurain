@@ -2,6 +2,7 @@
 
 from pydantic import BaseModel, ConfigDict, Field, SecretStr, field_validator
 
+import core.job_status as core_job_status
 import modules.garmin.constants as garmin_constants
 
 
@@ -31,26 +32,24 @@ class MFARequest(BaseModel):
         return value
 
 
-class GarminLinkStatus(BaseModel):
+class GarminLinkStatus(core_job_status.JobStatus):
     """Where a Garmin Connect link attempt is.
 
     Attributes:
-        status: ``pending`` while logging in, ``mfa_required`` when the user must submit a code
-            through ``POST /garmin/mfa``, then ``completed`` or ``failed``.
-        reason: Why the attempt failed; set only when ``status`` is ``failed``.
+        mfa_required: ``true`` while the login waits for a code the user submits through ``POST /garmin/mfa``;
+            ``status`` is ``running`` then.
+        error_code: Why the attempt failed; set only when ``status`` is ``failed``.
     """
 
-    status: garmin_constants.LinkStatus
-    reason: garmin_constants.LinkFailure | None = None
+    mfa_required: bool = Field(default=False, description="The login waits for an MFA code")
+    error_code: garmin_constants.LinkFailure | None = Field(default=None, description="Why the attempt failed")
 
 
-class GarminSyncStatus(BaseModel):
+class GarminSyncStatus(core_job_status.JobStatus):
     """Where a queued Garmin Connect gear or health sync is.
 
     Attributes:
         kind: What the sync pulls.
-        status: ``queued`` until a worker picks it up, ``running``, then ``completed`` or ``failed``.
     """
 
     kind: garmin_constants.SyncKind
-    status: garmin_constants.SyncStatus

@@ -35,11 +35,26 @@ import modules.users.users_profile.constants as profile_constants
 import modules.users.users_profile.dependencies as profile_dependencies
 import modules.users.users_profile.export_job_service as profile_export_job_service
 import modules.users.users_profile.import_job_service as profile_import_job_service
+import modules.users.users_profile.import_state_store as profile_import_state_store
 import modules.users.users_profile.schema as profile_schema
 import modules.users.users_profile.service as profile_service
 
 # Define the API router
 router = APIRouter()
+
+
+def _import_status(state: profile_import_state_store.ProfileImportState) -> profile_schema.ProfileImportStatus:
+    """Build the status a client reads from the recorded state of an import.
+
+    Args:
+        state: The recorded state.
+
+    Returns:
+        The status, whose two running phases both read ``running``.
+    """
+    return profile_schema.ProfileImportStatus(
+        status=state.status.job_state, error_code=state.error_code, imported=state.imported
+    )
 
 
 @router.get(
@@ -584,7 +599,7 @@ def import_profile_data(
     core_location.set_status_location(
         response, request, "read_profile_import_status", profile_constants.IMPORT_POLL_SECONDS
     )
-    return profile_schema.ProfileImportStatus.model_validate(state)
+    return _import_status(state)
 
 
 @router.get(
@@ -613,5 +628,6 @@ def read_profile_import_status(
     state = profile_import_job_service.get_import_status(token_user_id, import_states)
     if state is None:
         return None
-    core_location.set_retry_after_while_running(response, state.status, profile_constants.IMPORT_POLL_SECONDS)
-    return profile_schema.ProfileImportStatus.model_validate(state)
+    status = _import_status(state)
+    core_location.set_retry_after_while_running(response, status.status, profile_constants.IMPORT_POLL_SECONDS)
+    return status

@@ -28,7 +28,7 @@ vi.mock('@/features/integrations/services/garmin', async (importOriginal) => ({
   fetchGarminLinkStatus: vi.fn<() => Promise<GarminLinkStatus>>(),
 }))
 
-const pending: GarminLinkStatus = { status: 'pending', reason: null }
+const pending: GarminLinkStatus = { status: 'running', mfa_required: false, error_code: null }
 
 let wrapper: ReturnType<typeof mount> | undefined
 
@@ -113,7 +113,7 @@ describe('useGarminLinkStatusQuery', () => {
       vi.useFakeTimers()
       vi.mocked(fetchGarminLinkStatus)
         .mockResolvedValueOnce(pending)
-        .mockResolvedValue({ status: 'completed', reason: null })
+        .mockResolvedValue({ status: 'succeeded', mfa_required: false, error_code: null })
       jobPollInterval.mockReturnValue(5_000)
       mountQuery()
       await vi.advanceTimersByTimeAsync(0)

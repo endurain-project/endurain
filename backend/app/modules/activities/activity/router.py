@@ -163,7 +163,7 @@ def edit_activities(
 
 @router.get(
     "/bulk-edit",
-    response_model=activity_schema.ActivitiesBulkEditStatus,
+    response_model=activity_schema.ActivitiesBulkEditStatus | None,
     responses={200: {"headers": core_location.POLLED_STATUS_HEADERS}},
     dependencies=[Security(auth_dependencies.check_scopes, scopes=["activities:read"])],
 )
@@ -171,7 +171,7 @@ def read_bulk_edit_status(
     token_user_id: auth_dependencies.CurrentUserId,
     states: activity_dependencies.ActivityBulkEditStateStoreDep,
     response: Response,
-) -> activity_schema.ActivitiesBulkEditStatus:
+) -> activity_schema.ActivitiesBulkEditStatus | None:
     """Report where the authenticated user's bulk edit is.
 
     ``Retry-After`` says when to poll again while the edit is not finished.
@@ -188,6 +188,8 @@ def read_bulk_edit_status(
         NotFoundError: If no bulk edit is recorded or it has expired.
     """
     edit = activity_bulk_edit_job_service.get_visibility_edit_status(token_user_id, states)
+    if edit is None:
+        return None
     core_location.set_retry_after_while_running(response, edit.status, bulk_edit_constants.BULK_EDIT_POLL_SECONDS)
     return edit
 

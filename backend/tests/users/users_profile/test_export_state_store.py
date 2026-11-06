@@ -24,7 +24,7 @@ def test_a_finished_export_releases_the_claim_and_keeps_its_size():
     store = export_state_store.ProfileExportStateStore(MemoryState())
     store.begin(1)
 
-    store.set_status(1, Status.COMPLETED, size_bytes=12)
+    store.set_status(1, Status.SUCCEEDED, size_bytes=12)
 
     assert store.get(1).size_bytes == 12
     assert store.begin(1) is True
@@ -42,7 +42,7 @@ def test_a_completed_export_records_when_its_download_stops_working():
     store.begin(1)
     before = datetime.now(UTC)
 
-    store.set_status(1, Status.COMPLETED, size_bytes=12)
+    store.set_status(1, Status.SUCCEEDED, size_bytes=12)
 
     expires_at = store.get(1).expires_at
     assert expires_at.tzinfo is not None
@@ -53,7 +53,7 @@ def test_an_export_that_is_not_downloadable_has_no_expiry():
     store = export_state_store.ProfileExportStateStore(MemoryState())
     store.begin(1)
     assert store.get(1).expires_at is None
-    store.set_status(1, Status.FAILED, failure=profile_constants.ExportFailure.TIMED_OUT)
+    store.set_status(1, Status.FAILED, error_code=profile_constants.ExportFailure.TIMED_OUT)
     assert store.get(1).expires_at is None
     assert store.get(2) is None
 
@@ -62,10 +62,20 @@ def test_a_state_written_before_expires_at_existed_still_reads():
     state = MemoryState()
     state.set(
         core_attempt_state.key("users", "profile_export:state", "1"),
-        b'{"status":"completed","failure":null,"size_bytes":5}',
+        b'{"status":"succeeded","error_code":null,"size_bytes":5}',
         ttl_seconds=60,
     )
 
     read = export_state_store.ProfileExportStateStore(state).get(1)
 
-    assert (read.status, read.size_bytes, read.expires_at) == (Status.COMPLETED, 5, None)
+    assert (read.status, read.size_bytes, read.expires_at) == (Status.SUCCEEDED, 5, None)
+
+
+def test_an_export_state_stored_with_the_old_names_reads_as_the_new_ones():
+    state = export_state_store.ProfileExportState.model_validate_json(
+        b'{"status":"completed","failure":null,"size_bytes":5}'
+    )
+    failed = export_state_store.ProfileExportState.model_validate_json(b'{"status":"failed","failure":"timed_out"}')
+
+    assert (state.status, state.size_bytes) == (Status.SUCCEEDED, 5)
+    assert (failed.status, failed.error_code) == (Status.FAILED, "timed_out")

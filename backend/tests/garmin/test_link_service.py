@@ -8,6 +8,7 @@ import pytest
 from jasil.backends.state_memory import MemoryState
 
 import core.exceptions as core_exceptions
+import core.job_status as core_job_status
 import core.sync_runner as core_sync_runner
 import modules.garmin.audit_actions as garmin_audit_actions
 import modules.garmin.constants as garmin_constants
@@ -16,7 +17,7 @@ import modules.garmin.link_state_store as link_state_store
 import modules.garmin.mfa_code_store as mfa_code_store
 import modules.garmin.schema as garmin_schema
 
-Status = garmin_constants.LinkStatus
+Status = core_job_status.JobState
 Failure = garmin_constants.LinkFailure
 
 
@@ -78,14 +79,14 @@ class TestLinkGarminconnect:
     def test_a_successful_login_stores_the_token_and_completes(self, stores):
         factory, save = _link(stores, _garmin())
 
-        assert stores[1].get(1) == link_state_store.LinkState(status=Status.COMPLETED)
+        assert stores[1].get(1) == link_state_store.LinkState(status=Status.SUCCEEDED)
         save.assert_called_once()
         assert factory.call_args.kwargs["is_cn"] is True
 
     def test_a_missing_token_is_a_credentials_failure(self, stores):
         _, save = _link(stores, _garmin(has_token=False))
 
-        assert stores[1].get(1).reason == Failure.INVALID_CREDENTIALS
+        assert stores[1].get(1).error_code == Failure.INVALID_CREDENTIALS
         save.assert_not_called()
 
     @pytest.mark.parametrize(
@@ -101,7 +102,7 @@ class TestLinkGarminconnect:
     def test_each_failure_is_recorded_with_its_reason(self, stores, error, reason):
         _link(stores, _garmin(login=error))
 
-        assert stores[1].get(1) == link_state_store.LinkState(status=Status.FAILED, reason=reason)
+        assert stores[1].get(1) == link_state_store.LinkState(status=Status.FAILED, error_code=reason)
 
     def test_a_rejection_after_the_mfa_prompt_is_an_incorrect_code(self, stores):
         link_states = stores[1]
@@ -117,7 +118,7 @@ class TestLinkGarminconnect:
             _link(stores, garmin)
 
         assert prompts == ["123456"]
-        assert link_states.get(1).reason == Failure.INCORRECT_MFA
+        assert link_states.get(1).error_code == Failure.INCORRECT_MFA
 
     def test_an_mfa_code_that_never_arrives_fails_without_reaching_garmin(self, stores):
         link_states = stores[1]
@@ -136,7 +137,7 @@ class TestLinkGarminconnect:
             _, save = _link(stores, garmin)
 
         assert sent == []
-        assert link_states.get(1) == link_state_store.LinkState(status=Status.FAILED, reason=Failure.INCORRECT_MFA)
+        assert link_states.get(1) == link_state_store.LinkState(status=Status.FAILED, error_code=Failure.INCORRECT_MFA)
         save.assert_not_called()
         entry = audit.assert_audited(garmin_audit_actions.ACCOUNT_LINK.id, outcome="failure")
         assert entry.details == {"reason": "incorrect_mfa"}
@@ -158,14 +159,14 @@ class TestLinkGarminconnect:
         ):
             garmin_link_service.link_garminconnect(1, "me@example.com", "pw", mfa_codes, link_states, False)
 
-        assert link_states.get(1) == link_state_store.LinkState(status=Status.FAILED, reason=Failure.INCORRECT_MFA)
+        assert link_states.get(1) == link_state_store.LinkState(status=Status.FAILED, error_code=Failure.INCORRECT_MFA)
         entry = audit.assert_audited(garmin_audit_actions.ACCOUNT_LINK.id, outcome="failure")
         assert entry.details == {"reason": "incorrect_mfa"}
 
     def test_a_rejection_without_an_mfa_prompt_is_invalid_credentials(self, stores):
         _link(stores, _garmin(login=garminconnect.GarminConnectAuthenticationError("bad password")))
 
-        assert stores[1].get(1).reason == Failure.INVALID_CREDENTIALS
+        assert stores[1].get(1).error_code == Failure.INVALID_CREDENTIALS
 
     def test_the_mfa_code_is_always_cleared(self, stores):
         stores[0].add_code(1, "stale")
@@ -192,11 +193,14 @@ class TestWaitForMfaCode:
         link_states.begin(1)
         states = []
         real_set = link_states.set_status
-        link_states.set_status = lambda user_id, status, reason=None: (states.append(status), real_set(user_id, status))
+        link_states.set_status = lambda user_id, status, reason=None, *, mfa_required=False: (
+            states.append(mfa_required),
+            real_set(user_id, status, mfa_required=mfa_required),
+        )
         mfa_codes.add_code(1, "123456")
 
         assert garmin_link_service.wait_for_mfa_code(1, mfa_codes, link_states) == "123456"
-        assert states == [Status.MFA_REQUIRED, Status.PENDING]
+        assert states == [True, False]
 
     def test_no_code_in_time_raises_and_stays_waiting(self, stores):
         mfa_codes, link_states = stores
@@ -209,7 +213,7 @@ class TestWaitForMfaCode:
         ):
             garmin_link_service.wait_for_mfa_code(1, mfa_codes, link_states)
 
-        assert link_states.get(1).status == Status.MFA_REQUIRED
+        assert link_states.get(1).mfa_required is True
 
 
 def test_starting_a_link_hands_it_to_the_link_pool(stores):
@@ -241,13 +245,13 @@ def test_a_refused_duplicate_link_takes_no_capacity(stores, blocked_pool, monkey
         with pytest.raises(core_exceptions.ConflictError):
             garmin_link_service.start_link(1, login, *stores)
 
-    assert garmin_link_service.start_link(2, login, *stores).status == Status.PENDING
+    assert garmin_link_service.start_link(2, login, *stores).status == Status.RUNNING
 
 
 class TestSubmitMfaCode:
     def test_a_code_is_taken_while_the_login_waits_for_it(self, stores):
         stores[1].begin(1)
-        stores[1].set_status(1, Status.MFA_REQUIRED)
+        stores[1].set_status(1, Status.RUNNING, mfa_required=True)
 
         garmin_link_service.submit_mfa_code(1, "123456", *stores)
 
@@ -263,14 +267,13 @@ class TestSubmitMfaCode:
 
 
 class TestLinkStatus:
-    def test_an_expired_attempt_is_not_found(self, stores):
-        with pytest.raises(core_exceptions.NotFoundError):
-            garmin_link_service.get_link_status(1, stores[1])
+    def test_an_expired_attempt_reads_as_none(self, stores):
+        assert garmin_link_service.get_link_status(1, stores[1]) is None
 
     def test_a_recorded_attempt_is_reported(self, stores):
         stores[1].begin(1)
 
-        assert garmin_link_service.get_link_status(1, stores[1]).status == Status.PENDING
+        assert garmin_link_service.get_link_status(1, stores[1]).status == Status.RUNNING
 
 
 def test_a_link_that_cannot_start_releases_its_claim(stores):

@@ -1097,7 +1097,7 @@
       "exportStatus": {
         "queued": "Esperant que comenci l'exportació…",
         "running": "Preparant la teva exportació…",
-        "completed": "La teva exportació està a punt per baixar. Continua disponible durant dues hores.",
+        "succeeded": "La teva exportació està a punt per baixar. Continua disponible durant dues hores.",
         "failed": "L'exportació no s'ha completat: {reason}"
       },
       "exportFailure": {
@@ -1110,8 +1110,7 @@
       "status": {
         "queued": "Esperant que comenci la importació…",
         "running": "Important les teves dades…",
-        "writing_files": "Desant els teus fitxers…",
-        "completed": "Importació acabada: s'ha importat {activities} activitat; equipament: {gears}. | Importació acabada: s'han importat {activities} activitats; equipament: {gears}.",
+        "succeeded": "Importació acabada: s'ha importat {activities} activitat; equipament: {gears}. | Importació acabada: s'han importat {activities} activitats; equipament: {gears}.",
         "failed": "La importació no s'ha completat: {reason}"
       },
       "failure": {

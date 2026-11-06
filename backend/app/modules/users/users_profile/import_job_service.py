@@ -136,7 +136,7 @@ def request_import(
         except BaseException:
             # The import never started, so nothing else would finish its claim or remove its archive.
             _discard_staged(staged_key, storage)
-            states.set_status(user_id, _Status.FAILED, failure=_Failure.PROCESSING_FAILED)
+            states.set_status(user_id, _Status.FAILED, error_code=_Failure.PROCESSING_FAILED)
             raise
 
     logger.info("Profile import queued", extra=core_logger.context(user_id=user_id))
@@ -169,7 +169,7 @@ def _fail_import(
         states: Shared store of the import's state.
         failure: Why the import failed.
     """
-    states.set_status(user_id, _Status.FAILED, failure=failure)
+    states.set_status(user_id, _Status.FAILED, error_code=failure)
     _record_import_ended(user_id, jasil_audit.Outcome.FAILURE)
 
 
@@ -366,7 +366,7 @@ def run_import(
         _discard_staged(staged_key, storage)
         return
 
-    states.set_status(user_id, _Status.COMPLETED, imported=imported)
+    states.set_status(user_id, _Status.SUCCEEDED, imported=imported)
     _record_import_ended(user_id, jasil_audit.Outcome.SUCCESS)
     _discard_staged(staged_key, storage)
     logger.info("Profile data imported", extra=core_logger.context(user_id=user_id, imported=imported))

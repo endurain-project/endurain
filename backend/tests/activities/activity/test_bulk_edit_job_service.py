@@ -100,7 +100,7 @@ class TestRunVisibilityEdit:
         assert [call.args[0] for call in publishers.publish_activities_updated.call_args_list] == [[1, 2], [3]]
         # Every batch commits in a transaction of its own.
         assert session_local.return_value.__enter__.return_value.commit.call_count == 3
-        assert states.get(1, _Kind).status == _Status.COMPLETED
+        assert states.get(1, _Kind).status == _Status.SUCCEEDED
 
     def test_an_edit_that_is_not_pending_is_skipped(self, states):
         crud, _, _ = self._run(states, batches=[])
@@ -126,9 +126,8 @@ class TestRunVisibilityEdit:
 
 
 class TestStatusAndDeadLetter:
-    def test_status_is_not_found_when_none_is_recorded(self, states):
-        with pytest.raises(core_exceptions.NotFoundError):
-            job_service.get_visibility_edit_status(1, states)
+    def test_status_is_none_when_none_is_recorded(self, states):
+        assert job_service.get_visibility_edit_status(1, states) is None
 
     def test_status_reports_the_recorded_state(self, states):
         states.begin(1, _Kind)

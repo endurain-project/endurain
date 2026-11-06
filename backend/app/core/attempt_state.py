@@ -11,9 +11,10 @@ from enum import StrEnum
 from typing import NoReturn
 
 from jasil.providers import StateBackendUnavailableError, StateProvider
-from pydantic import BaseModel
+from pydantic import BaseModel, model_validator
 
 import core.exceptions as core_exceptions
+import core.job_status as core_job_status
 import core.logger as core_logger
 
 logger = core_logger.get_logger(__name__)
@@ -198,15 +199,6 @@ class AttemptStateStore:
             raise_unavailable(f"read {self._namespace}:{self._name}", err)
 
 
-class SyncStatus(StrEnum):
-    """Where a queued provider sync is."""
-
-    QUEUED = "queued"
-    RUNNING = "running"
-    COMPLETED = "completed"
-    FAILED = "failed"
-
-
 class SyncState(BaseModel):
     """The recorded state of one queued sync.
 
@@ -214,15 +206,21 @@ class SyncState(BaseModel):
         status: Where the sync is.
     """
 
-    status: SyncStatus
+    status: core_job_status.JobState
+
+    @model_validator(mode="before")
+    @classmethod
+    def _read_stored_state(cls, data: object) -> object:
+        """Read a state stored before the shared job vocabulary as the current one."""
+        return core_job_status.upgrade_stored_state(data)
 
 
 #: Lifetime of a queued sync's claim and state: longer than any sync takes, shorter than a stuck claim should
 #: block the user.
 SYNC_TTL_SECONDS = 30 * 60
 
-_PENDING = (SyncStatus.QUEUED, SyncStatus.RUNNING)
-_FINISHED = (SyncStatus.COMPLETED, SyncStatus.FAILED)
+_PENDING = (core_job_status.JobState.QUEUED, core_job_status.JobState.RUNNING)
+_FINISHED = tuple(core_job_status.TERMINAL_STATES)
 
 
 class SyncStateStore:
@@ -274,9 +272,9 @@ class SyncStateStore:
         Raises:
             StateUnavailableError: When storage is unavailable.
         """
-        return self._attempts.begin(self._subject(user_id, kind), SyncState(status=SyncStatus.QUEUED))
+        return self._attempts.begin(self._subject(user_id, kind), SyncState(status=core_job_status.JobState.QUEUED))
 
-    def set_status(self, user_id: int, kind: StrEnum, status: SyncStatus) -> None:
+    def set_status(self, user_id: int, kind: StrEnum, status: core_job_status.JobState) -> None:
         """Record a sync's progress or outcome; a finished sync frees the claim.
 
         Args:
@@ -334,5 +332,5 @@ class SyncStateStore:
         state = self.get(user_id, kind)
         if state is None or state.status not in _PENDING:
             return False
-        self.set_status(user_id, kind, SyncStatus.FAILED)
+        self.set_status(user_id, kind, core_job_status.JobState.FAILED)
         return True

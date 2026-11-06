@@ -1097,7 +1097,7 @@
       "exportStatus": {
         "queued": "Esperando a que comience la exportación…",
         "running": "Preparando tu exportación…",
-        "completed": "Tu exportación está lista para descargar. Seguirá disponible durante dos horas.",
+        "succeeded": "Tu exportación está lista para descargar. Seguirá disponible durante dos horas.",
         "failed": "La exportación no se completó: {reason}"
       },
       "exportFailure": {
@@ -1110,8 +1110,7 @@
       "status": {
         "queued": "Esperando a que comience la importación…",
         "running": "Importando tus datos…",
-        "writing_files": "Guardando tus archivos…",
-        "completed": "Importación finalizada: {activities} actividad importada, equipos: {gears}. | Importación finalizada: {activities} actividades importadas, equipos: {gears}.",
+        "succeeded": "Importación finalizada: {activities} actividad importada, equipos: {gears}. | Importación finalizada: {activities} actividades importadas, equipos: {gears}.",
         "failed": "La importación no se completó: {reason}"
       },
       "failure": {

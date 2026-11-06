@@ -54,7 +54,7 @@ A resource has a collection and an item:
 | --- | --- | --- |
 | `200` | A read, an edit that returns the resource, an action answered at once | `ETag` for a versioned resource |
 | `201` | A resource was created | The resource, `Location` and `ETag` when it can be read by id **(test)** |
-| `202` | Work was accepted for a background job | The status, `Content-Location` of the status resource, `Retry-After` |
+| `202` | Work was accepted for a background job | The status (a `core.job_status.JobStatus`: `queued`, `running`, `succeeded` or `failed`, `error_code`, `id` and the timestamps the kind records), `Content-Location` of the status resource, `Retry-After` **(test)**. A status read with nothing recorded is `200` with `null`, not `404` |
 | `204` | A write with nothing to return | No body. A body that only carries a message is a `204` **(test)** |
 | `400` | Input the schema accepted but the domain refuses | Problem document |
 | `401` | The credential is missing, invalid or no longer valid (expired session, deleted or deactivated user) | `WWW-Authenticate` |
@@ -151,7 +151,7 @@ These rules are not met everywhere yet. Each is tracked in the test registers ab
 
 - Several resources that can be edited have no `GET /{id}`, and their creates send no `Location`; no create sends an
   `ETag` yet.
-- The background jobs report their status in several shapes. The one `202` with no status resource is the account owner's `POST /profile/delete-account`.
+- The one `202` with no status resource is the account owner's `POST /profile/delete-account`.
 - Some secret-bearing responses lack `no-store`.
 - Uploaded images are stored as received, with their metadata.
 - Some enums are integers and some request schemas accept server-owned fields.

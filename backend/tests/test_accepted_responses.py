@@ -15,6 +15,7 @@ from fastapi.testclient import TestClient
 import core.database as core_database
 import core.dependencies as core_dependencies
 import core.exceptions as core_exceptions
+import core.job_status as core_job_status
 import modules.activities.activity.bulk_edit_constants as bulk_edit_constants
 import modules.activities.activity.router as activity_router
 import modules.activities.activity.schema as activity_schema
@@ -32,6 +33,7 @@ import modules.users.users.constants as users_constants
 import modules.users.users.router as users_router
 import modules.users.users.schema as users_schema
 import modules.users.users_profile.constants as profile_constants
+import modules.users.users_profile.import_state_store as profile_import_state_store
 import modules.users.users_profile.router as profile_router
 import modules.users.users_profile.schema as profile_schema
 
@@ -64,7 +66,7 @@ def client() -> TestClient:
 
 def _job(
     kind: ingestion_constants.IngestionJobKind = ingestion_constants.IngestionJobKind.UPLOAD,
-    status: ingestion_constants.IngestionJobStatus = ingestion_constants.IngestionJobStatus.PENDING,
+    status: core_job_status.JobState = core_job_status.JobState.QUEUED,
 ) -> ingestion_schema.ActivityIngestionJobRead:
     return ingestion_schema.ActivityIngestionJobRead(
         id=_JOB_ID, kind=kind, status=status, created_at=_NOW, updated_at=_NOW
@@ -75,7 +77,7 @@ _JOB_STATUS = f"/activities/ingestion-jobs/{_JOB_ID}"
 _UPLOAD = ingestion_constants.IngestionJobKind.UPLOAD
 _BULK = ingestion_constants.IngestionJobKind.BULK_IMPORT
 _REFRESH = ingestion_constants.IngestionJobKind.REFRESH
-_QUEUED = garmin_constants.SyncStatus.QUEUED
+_QUEUED = core_job_status.JobState.QUEUED
 
 #: ``(id, request, service to patch, what it returns, Content-Location, Retry-After)`` of every 202 that names a status.
 _ACCEPTING_ROUTES = [
@@ -130,7 +132,7 @@ _ACCEPTING_ROUTES = [
     pytest.param(
         ("POST", "/garmin/link", {"json": {"username": "me", "password": "secret"}}),
         (garmin_router.garmin_link_service, "start_link"),
-        garmin_schema.GarminLinkStatus(status=garmin_constants.LinkStatus.PENDING),
+        garmin_schema.GarminLinkStatus(status=core_job_status.JobState.RUNNING),
         "/garmin/link/status",
         garmin_constants.LINK_POLL_SECONDS,
         id="garmin-link",
@@ -178,7 +180,7 @@ _ACCEPTING_ROUTES = [
     pytest.param(
         ("DELETE", "/users/12", {}),
         (users_router.users_deletion_job_service, "request_deletion_by_administrator"),
-        users_schema.UserDeletionStatus(status=users_constants.DeletionStatus.QUEUED),
+        users_schema.UserDeletionStatus(status=core_job_status.JobState.QUEUED),
         "/users/12/deletion",
         users_constants.DELETION_POLL_SECONDS,
         id="user-deletion",
@@ -186,7 +188,7 @@ _ACCEPTING_ROUTES = [
     pytest.param(
         ("POST", "/profile/export", {"json": {"current_password": "secret"}}),
         (profile_router.profile_export_job_service, "request_export"),
-        profile_schema.ProfileExportStatus(status=profile_constants.ExportStatus.QUEUED),
+        profile_schema.ProfileExportStatus(status=core_job_status.JobState.QUEUED),
         "/profile/export",
         profile_constants.EXPORT_POLL_SECONDS,
         id="profile-export",
@@ -194,7 +196,7 @@ _ACCEPTING_ROUTES = [
     pytest.param(
         ("POST", "/profile/import", {"files": {"file": ("export.zip", b"PK")}}),
         (profile_router.profile_import_job_service, "request_import"),
-        profile_schema.ProfileImportStatus(status=profile_constants.ImportStatus.QUEUED),
+        profile_import_state_store.ProfileImportState(status=profile_constants.ImportStatus.QUEUED),
         "/profile/import",
         profile_constants.IMPORT_POLL_SECONDS,
         id="profile-import",
@@ -202,7 +204,7 @@ _ACCEPTING_ROUTES = [
     pytest.param(
         ("PATCH", "/activities", {"json": {"visibility": "private"}}),
         (activity_router.activity_bulk_edit_job_service, "request_visibility_edit"),
-        activity_schema.ActivitiesBulkEditStatus(status=bulk_edit_constants.BulkEditStatus.QUEUED),
+        activity_schema.ActivitiesBulkEditStatus(status=core_job_status.JobState.QUEUED),
         "/activities/bulk-edit",
         bulk_edit_constants.BULK_EDIT_POLL_SECONDS,
         id="bulk-edit",
@@ -226,7 +228,7 @@ def test_an_account_deletion_by_its_owner_has_no_status_resource_to_name(client)
         patch.object(
             profile_router.profile_service,
             "delete_account",
-            return_value=users_schema.UserDeletionStatus(status=users_constants.DeletionStatus.QUEUED),
+            return_value=users_schema.UserDeletionStatus(status=core_job_status.JobState.QUEUED),
         ),
         patch.object(profile_router.authentication_dependencies, "clear_refresh_token_cookies"),
     ):
@@ -236,13 +238,13 @@ def test_an_account_deletion_by_its_owner_has_no_status_resource_to_name(client)
     assert "Content-Location" not in response.headers
 
 
-_RUNNING = ingestion_constants.IngestionJobStatus.PROCESSING
-_DONE = ingestion_constants.IngestionJobStatus.COMPLETED
-_FAILED = ingestion_constants.IngestionJobStatus.FAILED
-_DEFERRED = ingestion_constants.IngestionJobStatus.DEFERRED
-_SYNC_RUNNING = garmin_constants.SyncStatus.RUNNING
-_SYNC_DONE = garmin_constants.SyncStatus.COMPLETED
-_SYNC_FAILED = garmin_constants.SyncStatus.FAILED
+_RUNNING = core_job_status.JobState.RUNNING
+_DONE = core_job_status.JobState.SUCCEEDED
+_FAILED = core_job_status.JobState.FAILED
+_DEFERRED = core_job_status.JobState.QUEUED
+_SYNC_RUNNING = core_job_status.JobState.RUNNING
+_SYNC_DONE = core_job_status.JobState.SUCCEEDED
+_SYNC_FAILED = core_job_status.JobState.FAILED
 
 #: ``(request, service to patch, what it returns for a running and for a finished status, Retry-After)``.
 _STATUS_ROUTES = [
@@ -258,13 +260,13 @@ _STATUS_ROUTES = [
         ("GET", "/garmin/link/status"),
         (garmin_router.garmin_link_service, "get_link_status"),
         [
-            garmin_schema.GarminLinkStatus(status=garmin_constants.LinkStatus.PENDING),
-            garmin_schema.GarminLinkStatus(status=garmin_constants.LinkStatus.MFA_REQUIRED),
+            garmin_schema.GarminLinkStatus(status=core_job_status.JobState.RUNNING),
+            garmin_schema.GarminLinkStatus(status=core_job_status.JobState.RUNNING, mfa_required=True),
         ],
         [
-            garmin_schema.GarminLinkStatus(status=garmin_constants.LinkStatus.COMPLETED),
+            garmin_schema.GarminLinkStatus(status=core_job_status.JobState.SUCCEEDED),
             garmin_schema.GarminLinkStatus(
-                status=garmin_constants.LinkStatus.FAILED, reason=garmin_constants.LinkFailure.INTERNAL
+                status=core_job_status.JobState.FAILED, error_code=garmin_constants.LinkFailure.INTERNAL
             ),
         ],
         garmin_constants.LINK_POLL_SECONDS,
@@ -302,12 +304,12 @@ _STATUS_ROUTES = [
         ("GET", "/profile/export"),
         (profile_router.profile_export_job_service, "get_export_status"),
         [
-            profile_schema.ProfileExportStatus(status=profile_constants.ExportStatus.QUEUED),
-            profile_schema.ProfileExportStatus(status=profile_constants.ExportStatus.RUNNING),
+            profile_schema.ProfileExportStatus(status=core_job_status.JobState.QUEUED),
+            profile_schema.ProfileExportStatus(status=core_job_status.JobState.RUNNING),
         ],
         [
-            profile_schema.ProfileExportStatus(status=profile_constants.ExportStatus.COMPLETED),
-            profile_schema.ProfileExportStatus(status=profile_constants.ExportStatus.FAILED),
+            profile_schema.ProfileExportStatus(status=core_job_status.JobState.SUCCEEDED),
+            profile_schema.ProfileExportStatus(status=core_job_status.JobState.FAILED),
         ],
         profile_constants.EXPORT_POLL_SECONDS,
         id="profile-export",
@@ -316,12 +318,12 @@ _STATUS_ROUTES = [
         ("GET", "/profile/import"),
         (profile_router.profile_import_job_service, "get_import_status"),
         [
-            profile_schema.ProfileImportStatus(status=profile_constants.ImportStatus.QUEUED),
-            profile_schema.ProfileImportStatus(status=profile_constants.ImportStatus.WRITING_FILES),
+            profile_import_state_store.ProfileImportState(status=profile_constants.ImportStatus.QUEUED),
+            profile_import_state_store.ProfileImportState(status=profile_constants.ImportStatus.RUNNING),
         ],
         [
-            profile_schema.ProfileImportStatus(status=profile_constants.ImportStatus.COMPLETED),
-            profile_schema.ProfileImportStatus(status=profile_constants.ImportStatus.FAILED),
+            profile_import_state_store.ProfileImportState(status=profile_constants.ImportStatus.SUCCEEDED),
+            profile_import_state_store.ProfileImportState(status=profile_constants.ImportStatus.FAILED),
         ],
         profile_constants.IMPORT_POLL_SECONDS,
         id="profile-import",
@@ -330,12 +332,12 @@ _STATUS_ROUTES = [
         ("GET", "/activities/bulk-edit"),
         (activity_router.activity_bulk_edit_job_service, "get_visibility_edit_status"),
         [
-            activity_schema.ActivitiesBulkEditStatus(status=bulk_edit_constants.BulkEditStatus.QUEUED),
-            activity_schema.ActivitiesBulkEditStatus(status=bulk_edit_constants.BulkEditStatus.RUNNING),
+            activity_schema.ActivitiesBulkEditStatus(status=core_job_status.JobState.QUEUED),
+            activity_schema.ActivitiesBulkEditStatus(status=core_job_status.JobState.RUNNING),
         ],
         [
-            activity_schema.ActivitiesBulkEditStatus(status=bulk_edit_constants.BulkEditStatus.COMPLETED),
-            activity_schema.ActivitiesBulkEditStatus(status=bulk_edit_constants.BulkEditStatus.FAILED),
+            activity_schema.ActivitiesBulkEditStatus(status=core_job_status.JobState.SUCCEEDED),
+            activity_schema.ActivitiesBulkEditStatus(status=core_job_status.JobState.FAILED),
         ],
         bulk_edit_constants.BULK_EDIT_POLL_SECONDS,
         id="bulk-edit",
@@ -344,12 +346,12 @@ _STATUS_ROUTES = [
         ("GET", "/users/12/deletion"),
         (users_router.users_deletion_job_service, "get_deletion_status"),
         [
-            users_schema.UserDeletionStatus(status=users_constants.DeletionStatus.QUEUED),
-            users_schema.UserDeletionStatus(status=users_constants.DeletionStatus.RUNNING),
+            users_schema.UserDeletionStatus(status=core_job_status.JobState.QUEUED),
+            users_schema.UserDeletionStatus(status=core_job_status.JobState.RUNNING),
         ],
         [
-            users_schema.UserDeletionStatus(status=users_constants.DeletionStatus.COMPLETED),
-            users_schema.UserDeletionStatus(status=users_constants.DeletionStatus.FAILED),
+            users_schema.UserDeletionStatus(status=core_job_status.JobState.SUCCEEDED),
+            users_schema.UserDeletionStatus(status=core_job_status.JobState.FAILED),
         ],
         users_constants.DELETION_POLL_SECONDS,
         id="user-deletion",
@@ -379,6 +381,26 @@ def test_an_export_status_that_records_nothing_sends_no_retry_after(client):
     with patch.object(profile_router.profile_export_job_service, "get_export_status", return_value=None):
         response = client.get("/profile/export")
 
+    assert response.json() is None
+    assert "Retry-After" not in response.headers
+
+
+@pytest.mark.parametrize(
+    ("path", "service"),
+    [
+        ("/activities/bulk-edit", (activity_router.activity_bulk_edit_job_service, "get_visibility_edit_status")),
+        ("/strava/sync/gear", (strava_router.strava_sync_service, "get_sync_status")),
+        ("/garmin/sync/gear", (garmin_router.garmin_sync_service, "get_sync_status")),
+        ("/garmin/link/status", (garmin_router.garmin_link_service, "get_link_status")),
+        ("/users/7/deletion", (users_router.users_deletion_job_service, "get_deletion_status")),
+        ("/profile/import", (profile_router.profile_import_job_service, "get_import_status")),
+    ],
+)
+def test_a_status_read_that_records_nothing_is_200_null_with_no_retry_after(client, path, service):
+    with patch.object(*service, return_value=None):
+        response = client.get(path)
+
+    assert response.status_code == 200, response.text
     assert response.json() is None
     assert "Retry-After" not in response.headers
 

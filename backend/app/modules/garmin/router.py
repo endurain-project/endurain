@@ -54,7 +54,7 @@ def garminconnect_link(
 
     The login runs in the background. Poll ``GET /garmin/link/status``: when it reports
     ``mfa_required``, submit the code to ``POST /garmin/mfa`` and keep polling until it
-    reports ``completed`` or ``failed``. A second request while one is running is answered 409 with a
+    reports ``succeeded`` or ``failed``. A second request while one is running is answered 409 with a
     ``Content-Location`` naming the status.
     """
     link_status = garmin_link_service.start_link(token_user_id, garmin_user, mfa_codes, link_states)
@@ -66,7 +66,7 @@ def garminconnect_link(
 
 @router.get(
     "/link/status",
-    response_model=garmin_schema.GarminLinkStatus,
+    response_model=garmin_schema.GarminLinkStatus | None,
     responses={200: {"headers": core_location.POLLED_STATUS_HEADERS}},
     dependencies=[Security(auth_dependencies.check_scopes, scopes=["profile"])],
 )
@@ -74,12 +74,14 @@ def garminconnect_link_status(
     token_user_id: auth_dependencies.CurrentUserId,
     link_states: garmin_dependencies.GarminLinkStateStoreDep,
     response: Response,
-) -> garmin_schema.GarminLinkStatus:
+) -> garmin_schema.GarminLinkStatus | None:
     """Report where the authenticated user's Garmin Connect link attempt is.
 
     ``Retry-After`` says when to poll again while the attempt is not finished.
     """
     link_status = garmin_link_service.get_link_status(token_user_id, link_states)
+    if link_status is None:
+        return None
     core_location.set_retry_after_while_running(response, link_status.status, garmin_constants.LINK_POLL_SECONDS)
     return link_status
 
@@ -189,7 +191,7 @@ def garminconnect_retrieve_health_days(
 
 @router.get(
     "/sync/{kind}",
-    response_model=garmin_schema.GarminSyncStatus,
+    response_model=garmin_schema.GarminSyncStatus | None,
     responses={200: {"headers": core_location.POLLED_STATUS_HEADERS}},
     dependencies=[Security(auth_dependencies.check_scopes, scopes=["profile"])],
 )
@@ -198,12 +200,14 @@ def garminconnect_sync_status(
     token_user_id: auth_dependencies.CurrentUserId,
     sync_states: garmin_dependencies.GarminSyncStateStoreDep,
     response: Response,
-) -> garmin_schema.GarminSyncStatus:
+) -> garmin_schema.GarminSyncStatus | None:
     """Report where the authenticated user's queued gear or health sync is.
 
     ``Retry-After`` says when to poll again while the sync is not finished.
     """
     sync = garmin_sync_service.get_sync_status(token_user_id, kind, sync_states)
+    if sync is None:
+        return None
     core_location.set_retry_after_while_running(response, sync.status, garmin_constants.SYNC_POLL_SECONDS)
     return sync
 

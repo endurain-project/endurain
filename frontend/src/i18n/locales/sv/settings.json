@@ -1097,7 +1097,7 @@
       "exportStatus": {
         "queued": "Väntar på att exporten ska starta…",
         "running": "Förbereder din export…",
-        "completed": "Din export är redo att laddas ned. Den finns kvar i två timmar.",
+        "succeeded": "Din export är redo att laddas ned. Den finns kvar i två timmar.",
         "failed": "Exporten slutfördes inte: {reason}"
       },
       "exportFailure": {
@@ -1110,8 +1110,7 @@
       "status": {
         "queued": "Väntar på att importen ska starta…",
         "running": "Importerar dina data…",
-        "writing_files": "Sparar dina filer…",
-        "completed": "Importen är klar: {activities} aktivitet importerades, utrustning: {gears}. | Importen är klar: {activities} aktiviteter importerades, utrustning: {gears}.",
+        "succeeded": "Importen är klar: {activities} aktivitet importerades, utrustning: {gears}. | Importen är klar: {activities} aktiviteter importerades, utrustning: {gears}.",
         "failed": "Importen slutfördes inte: {reason}"
       },
       "failure": {

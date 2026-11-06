@@ -72,21 +72,25 @@ watch(open, (isOpen) => {
 watch(
   () => statusQuery.data.value,
   (state) => {
-    if (!state) {
+    if (state === undefined) {
       return
     }
-    if (state.status === 'mfa_required') {
+    if (state === null) {
+      // The attempt expired before it finished: stop waiting instead of polling forever.
+      stopFollowing()
+      toasts.error(t('settings.integrations.garmin.linkError'))
+    } else if (state.status === 'running' && state.mfa_required) {
       mfaRequired.value = true
-    } else if (state.status === 'completed') {
+    } else if (state.status === 'succeeded') {
       stopFollowing()
       open.value = false
       toasts.success(t('settings.integrations.garmin.linkSuccess'))
     } else if (state.status === 'failed') {
       stopFollowing()
       toasts.error(
-        state.reason === 'invalid_credentials'
+        state.error_code === 'invalid_credentials'
           ? t('settings.integrations.garmin.invalidCredentials')
-          : state.reason === 'incorrect_mfa'
+          : state.error_code === 'incorrect_mfa'
             ? t('settings.integrations.garmin.mfaError')
             : t('settings.integrations.garmin.linkError'),
       )

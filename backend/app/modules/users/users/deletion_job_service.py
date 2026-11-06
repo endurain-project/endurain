@@ -195,7 +195,7 @@ def _dispatch(
 
 def get_deletion_status(
     user_id: int, states: users_deletion_state_store.UserDeletionStateStore
-) -> users_schema.UserDeletionStatus:
+) -> users_schema.UserDeletionStatus | None:
     """Report where a user's account deletion is.
 
     Args:
@@ -203,15 +203,10 @@ def get_deletion_status(
         states: Shared store of the deletion's state.
 
     Returns:
-        The deletion's status.
-
-    Raises:
-        NotFoundError: When no deletion is recorded or it has expired.
+        The deletion's status, or None when no deletion is recorded or it has expired.
     """
     state = states.get(user_id, _Kind.ACCOUNT)
-    if state is None:
-        raise core_exceptions.NotFoundError("No account deletion recorded")
-    return users_schema.UserDeletionStatus(status=state.status)
+    return users_schema.UserDeletionStatus(status=state.status) if state is not None else None
 
 
 def durable_pass_seconds() -> float:
@@ -288,7 +283,7 @@ def run_deletion(
 
     users_contributor_registry.erasers().delete_staged_files(user_id, storage)
     users_contributor_registry.erasers().delete_bulk_import_errors(user_id, storage)
-    states.set_status(user_id, _Kind.ACCOUNT, _Status.COMPLETED)
+    states.set_status(user_id, _Kind.ACCOUNT, _Status.SUCCEEDED)
     logger.info("User deleted", extra=core_logger.context(user_id=user_id, activities=activities))
     return False
 
@@ -484,7 +479,7 @@ def _requeue(
             attempts = users_crud.record_deletion_attempt(user_id, db)
             if attempts is None:
                 # Gone, or an administrator reactivated the account: nothing is left to queue.
-                states.set_status(user_id, _Kind.ACCOUNT, _Status.COMPLETED)
+                states.set_status(user_id, _Kind.ACCOUNT, _Status.SUCCEEDED)
                 return 0
             if attempts == users_constants.DELETION_SWEEP_MAX_ATTEMPTS:
                 logger.error(

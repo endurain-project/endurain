@@ -21,7 +21,7 @@ vi.mock('@/features/profile/services/dataTransfer', async (importOriginal) => ({
   requestProfileExport: vi.fn<() => Promise<ProfileExportStatus>>(),
 }))
 
-const queued: ProfileExportStatus = { status: 'queued', failure: null, size_bytes: null }
+const queued: ProfileExportStatus = { status: 'queued', error_code: null, size_bytes: null }
 
 let wrapper: ReturnType<typeof mount> | undefined
 
@@ -73,10 +73,10 @@ describe('profile export composables', () => {
     expect(queryClient.getQueryData(queryKeys.profile.export())).toEqual(queued)
   })
 
-  it('treats completed and failed as terminal', () => {
+  it('treats succeeded and failed as terminal', () => {
     expect(isTerminalProfileExport(queued)).toBe(false)
     expect(isTerminalProfileExport({ ...queued, status: 'running' })).toBe(false)
-    expect(isTerminalProfileExport({ ...queued, status: 'completed' })).toBe(true)
+    expect(isTerminalProfileExport({ ...queued, status: 'succeeded' })).toBe(true)
     expect(isTerminalProfileExport({ ...queued, status: 'failed' })).toBe(true)
   })
 })

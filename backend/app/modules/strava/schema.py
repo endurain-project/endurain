@@ -2,6 +2,7 @@
 
 from pydantic import BaseModel, ConfigDict, Field, SecretStr
 
+import core.job_status as core_job_status
 import modules.strava.constants as strava_constants
 
 
@@ -55,13 +56,11 @@ class StravaGearImportResult(BaseModel):
     imported: int
 
 
-class StravaSyncStatus(BaseModel):
+class StravaSyncStatus(core_job_status.JobStatus):
     """Where a queued Strava gear sync or unlink is.
 
     Attributes:
         kind: What the sync does.
-        status: Where it is.
     """
 
     kind: strava_constants.SyncKind
-    status: strava_constants.SyncStatus

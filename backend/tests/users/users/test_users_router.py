@@ -372,7 +372,13 @@ class TestDeleteUser:
         response = client.delete("/users/1", headers={"If-Match": '"3"'})
 
         assert response.status_code == 202
-        assert response.json() == {"status": "queued"}
+        assert response.json() == {
+            "id": None,
+            "created_at": None,
+            "finished_at": None,
+            "error_code": None,
+            "status": "queued",
+        }
         assert mock_request.call_args.args[:2] == (1, 9)
         assert mock_request.call_args.args[2] is not None
         assert mock_request.call_args.args[4] == mock_db
@@ -410,13 +416,22 @@ class TestReadUserDeletionStatus:
         response = client.get("/users/1/deletion")
 
         assert response.status_code == 200
-        assert response.json() == {"status": "running"}
+        assert response.json() == {
+            "id": None,
+            "created_at": None,
+            "finished_at": None,
+            "error_code": None,
+            "status": "running",
+        }
 
     @patch("modules.users.users.router.users_deletion_job_service.get_deletion_status")
-    def test_none_recorded_is_not_found(self, mock_status, client):
-        mock_status.side_effect = core_exceptions.NotFoundError("No account deletion recorded")
+    def test_none_recorded_is_null(self, mock_status, client):
+        mock_status.return_value = None
 
-        assert client.get("/users/1/deletion").status_code == 404
+        response = client.get("/users/1/deletion")
+
+        assert response.status_code == 200
+        assert response.json() is None
 
 
 class TestReadUserIdentityProviders:

@@ -2,7 +2,7 @@
 
 from enum import StrEnum
 
-import core.attempt_state as core_attempt_state
+import core.job_status as core_job_status
 
 PROVIDER_NAME = "garminconnect"
 
@@ -45,7 +45,7 @@ class SyncKind(StrEnum):
 
 
 #: Where a queued sync is; shared by every provider's sync state.
-SyncStatus = core_attempt_state.SyncStatus
+SyncStatus = core_job_status.JobState
 
 
 def job_name(kind: SyncKind) -> str:
@@ -58,15 +58,6 @@ def job_name(kind: SyncKind) -> str:
         The job name, such as ``garmin:gear``.
     """
     return f"garmin:{kind.value}"
-
-
-class LinkStatus(StrEnum):
-    """Where a Garmin Connect link attempt is."""
-
-    PENDING = "pending"
-    MFA_REQUIRED = "mfa_required"
-    COMPLETED = "completed"
-    FAILED = "failed"
 
 
 class LinkFailure(StrEnum):

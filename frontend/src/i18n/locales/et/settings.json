@@ -1097,7 +1097,7 @@
       "exportStatus": {
         "queued": "Ootame ekspordi algust…",
         "running": "Sinu ekspordi ettevalmistamine…",
-        "completed": "Sinu eksport on allalaadimiseks valmis. See jääb kättesaadavaks kaheks tunniks.",
+        "succeeded": "Sinu eksport on allalaadimiseks valmis. See jääb kättesaadavaks kaheks tunniks.",
         "failed": "Eksport ei lõppenud: {reason}"
       },
       "exportFailure": {
@@ -1110,8 +1110,7 @@
       "status": {
         "queued": "Ootame impordi algust…",
         "running": "Sinu andmete importimine…",
-        "writing_files": "Sinu failide salvestamine…",
-        "completed": "Import lõppes: imporditi {activities} tegevus, varustus: {gears}. | Import lõppes: imporditi {activities} tegevust, varustus: {gears}.",
+        "succeeded": "Import lõppes: imporditi {activities} tegevus, varustus: {gears}. | Import lõppes: imporditi {activities} tegevust, varustus: {gears}.",
         "failed": "Import ei lõppenud: {reason}"
       },
       "failure": {

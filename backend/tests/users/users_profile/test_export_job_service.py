@@ -83,7 +83,7 @@ class TestRequestExport:
         job_service.fail_unstarted_export(_payload(7), states)
 
         assert states.get(7).status == _Status.FAILED
-        assert states.get(7).failure == _Failure.PROCESSING_FAILED
+        assert states.get(7).error_code == _Failure.PROCESSING_FAILED
 
     def test_queues_the_export(self, states, mock_db, verify_step_up):
         with patch(f"{_MODULE}.profile_event_publishers.publish_export_requested") as publish:
@@ -133,10 +133,10 @@ class TestRunExport:
         _run(states, 42)
 
         state = states.get(1)
-        assert (state.status, state.size_bytes) == (_Status.COMPLETED, 42)
+        assert (state.status, state.size_bytes) == (_Status.SUCCEEDED, 42)
         assert states.begin(1) is True
 
-    @pytest.mark.parametrize("finished", [_Status.COMPLETED, _Status.FAILED])
+    @pytest.mark.parametrize("finished", [_Status.SUCCEEDED, _Status.FAILED])
     def test_a_redelivery_of_a_finished_export_does_nothing(self, states, finished):
         states.begin(1)
         states.set_status(1, finished)
@@ -152,7 +152,7 @@ class TestRunExport:
         stage = _run(states, 5)
 
         stage.assert_called_once()
-        assert states.get(1).status == _Status.COMPLETED
+        assert states.get(1).status == _Status.SUCCEEDED
 
     def test_a_transient_failure_is_retried(self, states):
         states.begin(1)
@@ -180,14 +180,14 @@ class TestRunExport:
 
         _run(states, OperationalError("s", {}, Exception("db down")), will_retry=False)
 
-        assert (states.get(1).status, states.get(1).failure) == (_Status.FAILED, _Failure.PROCESSING_FAILED)
+        assert (states.get(1).status, states.get(1).error_code) == (_Status.FAILED, _Failure.PROCESSING_FAILED)
 
     def test_a_timeout_is_reported_as_one_and_never_retried(self, states):
         states.begin(1)
 
         _run(states, profile_exceptions.TransferTimeoutError("slow"), will_retry=True)
 
-        assert (states.get(1).status, states.get(1).failure) == (_Status.FAILED, _Failure.TIMED_OUT)
+        assert (states.get(1).status, states.get(1).error_code) == (_Status.FAILED, _Failure.TIMED_OUT)
 
     def test_any_other_failure_is_final_with_a_sanitized_code(self, states):
         states.begin(1)
@@ -195,7 +195,7 @@ class TestRunExport:
         _run(states, RuntimeError("secret detail"), will_retry=True)
 
         state = states.get(1)
-        assert (state.status, state.failure) == (_Status.FAILED, _Failure.PROCESSING_FAILED)
+        assert (state.status, state.error_code) == (_Status.FAILED, _Failure.PROCESSING_FAILED)
         assert "secret" not in state.model_dump_json()
 
 
@@ -212,7 +212,7 @@ class TestGetExportStatus:
 class TestOpenExport:
     def test_streams_the_staged_archive(self, states):
         states.begin(1)
-        states.set_status(1, _Status.COMPLETED, size_bytes=8)
+        states.set_status(1, _Status.SUCCEEDED, size_bytes=8)
         storage = MagicMock()
         storage.open_stream.return_value = io.BytesIO(b"zip-data")
 
@@ -231,7 +231,7 @@ class TestOpenExport:
 
     def test_a_missing_archive_is_not_found(self, states):
         states.begin(1)
-        states.set_status(1, _Status.COMPLETED, size_bytes=8)
+        states.set_status(1, _Status.SUCCEEDED, size_bytes=8)
         storage = MagicMock()
         storage.open_stream.side_effect = FileNotFoundError
 
@@ -297,16 +297,16 @@ class TestCloseDeadLetteredExport:
         job_service.close_dead_lettered_export(_payload(1), states)
 
         assert states.get(1).status == _Status.FAILED
-        assert states.get(1).failure == _Failure.PROCESSING_FAILED
+        assert states.get(1).error_code == _Failure.PROCESSING_FAILED
         assert states.begin(1) is True
 
     def test_an_export_that_already_finished_keeps_its_outcome(self, states):
         states.begin(1)
-        states.set_status(1, _Status.COMPLETED)
+        states.set_status(1, _Status.SUCCEEDED)
 
         job_service.close_dead_lettered_export(_payload(1), states)
 
-        assert states.get(1).status == _Status.COMPLETED
+        assert states.get(1).status == _Status.SUCCEEDED
 
     def test_an_expired_state_is_not_resurrected(self, states):
         job_service.close_dead_lettered_export(_payload(1), states)

@@ -45,7 +45,7 @@ describe('import messages', () => {
 
   it('pluralizes the imported activities', () => {
     const completed = (activities: number) =>
-      t('settings.profile.dataTransfer.status.completed', {
+      t('settings.profile.dataTransfer.status.succeeded', {
         activities,
         gears: 3,
         count: activities,

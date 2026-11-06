@@ -1097,7 +1097,7 @@
       "exportStatus": {
         "queued": "Se așteaptă începerea exportului…",
         "running": "Se pregătește exportul…",
-        "completed": "Exportul este gata de descărcat. Rămâne disponibil timp de două ore.",
+        "succeeded": "Exportul este gata de descărcat. Rămâne disponibil timp de două ore.",
         "failed": "Exportul nu s-a finalizat: {reason}"
       },
       "exportFailure": {
@@ -1110,8 +1110,7 @@
       "status": {
         "queued": "Se așteaptă începerea importului…",
         "running": "Se importă datele tale…",
-        "writing_files": "Se salvează fișierele tale…",
-        "completed": "Import finalizat: a fost importată {activities} activitate, echipamente: {gears}. | Import finalizat: au fost importate {activities} activități, echipamente: {gears}. | Import finalizat: au fost importate {activities} de activități, echipamente: {gears}.",
+        "succeeded": "Import finalizat: a fost importată {activities} activitate, echipamente: {gears}. | Import finalizat: au fost importate {activities} activități, echipamente: {gears}. | Import finalizat: au fost importate {activities} de activități, echipamente: {gears}.",
         "failed": "Importul nu s-a finalizat: {reason}"
       },
       "failure": {

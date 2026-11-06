@@ -228,7 +228,7 @@ def request_unlink(
 
 def get_sync_status(
     user_id: int, kind: strava_constants.SyncKind, states: strava_sync_state_store.StravaSyncStateStore
-) -> strava_schema.StravaSyncStatus:
+) -> strava_schema.StravaSyncStatus | None:
     """Report where a user's gear sync or unlink is.
 
     Args:
@@ -237,13 +237,10 @@ def get_sync_status(
         states: Shared store of the sync's state.
 
     Returns:
-        The sync's status.
-
-    Raises:
-        NotFoundError: When no sync is recorded or it has expired.
+        The sync's status, or None when no sync is recorded or it has expired.
     """
-    state = core_sync_runner.read_state(states, user_id, kind, "Strava")
-    return strava_schema.StravaSyncStatus(kind=kind, status=state.status)
+    state = states.get(user_id, kind)
+    return strava_schema.StravaSyncStatus(kind=kind, status=state.status) if state is not None else None
 
 
 def request_activities_sync(

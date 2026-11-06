@@ -2,10 +2,10 @@
 
 from enum import StrEnum
 
-import core.attempt_state as core_attempt_state
+import core.job_status as core_job_status
 
 #: Where a queued bulk edit is; shared by every queued job's state.
-BulkEditStatus = core_attempt_state.SyncStatus
+BulkEditStatus = core_job_status.JobState
 
 
 class BulkEditKind(StrEnum):
