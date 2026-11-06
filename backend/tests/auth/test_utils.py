@@ -426,7 +426,8 @@ class TestCompleteLogin:
 
         # Assert
         set_cookie_header = response.headers.get("set-cookie", "")
-        assert "secure" in set_cookie_header.lower()
+        assert "secure" in set_cookie_header.lower().removeprefix("__secure-")
+        assert "__Secure-endurain_refresh_token=" in set_cookie_header
 
     def test_complete_login_omits_secure_cookie_for_development(
         self, password_hasher, token_manager, mock_db, sample_user_read, mock_request
@@ -458,6 +459,7 @@ class TestCompleteLogin:
         # Assert
         set_cookie_header = response.headers.get("set-cookie", "")
         assert "secure" not in set_cookie_header.lower()
+        assert "endurain_refresh_token=" in set_cookie_header
 
     def test_complete_login_cookie_attributes(
         self, password_hasher, token_manager, mock_db, sample_user_read, mock_request

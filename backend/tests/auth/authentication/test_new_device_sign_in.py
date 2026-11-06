@@ -336,7 +336,7 @@ class TestLoginRoute:
         assert response.status_code == 200, response.text
         cookie = _device_cookie(response)
         assert cookie is not None
-        assert cookie.startswith(f"endurain_device={_ISSUED};")
+        assert cookie.startswith(f"{known_devices_dependencies.DEVICE_COOKIE_NAME}={_ISSUED};")
         assert "HttpOnly" in cookie
         assert "SameSite=strict" in cookie
         assert "Max-Age=34560000" in cookie
@@ -344,7 +344,7 @@ class TestLoginRoute:
 
     def test_the_cookie_the_browser_sent_reaches_the_service(self, mock_db, password_sign_in, web_login_body):
         client = _login_app(mock_db, "web")
-        client.cookies.set("endurain_device", _DEVICE_ID)
+        client.cookies.set(known_devices_dependencies.DEVICE_COOKIE_NAME, _DEVICE_ID)
         with patch(_RECORD, return_value=_signed(_DEVICE_ID)) as record:
             self._post(client)
 
@@ -352,7 +352,7 @@ class TestLoginRoute:
 
     def test_a_malformed_cookie_is_ignored(self, mock_db, password_sign_in, web_login_body):
         client = _login_app(mock_db, "web")
-        client.cookies.set("endurain_device", "not-a-device-id")
+        client.cookies.set(known_devices_dependencies.DEVICE_COOKIE_NAME, "not-a-device-id")
         with patch(_RECORD, return_value=_signed(_ISSUED)) as record:
             self._post(client)
 
@@ -384,7 +384,7 @@ class TestLoginRoute:
 class TestMfaVerifyRoute:
     def test_a_web_mfa_sign_in_sets_the_device_cookie_from_the_cookie_sent(self, mock_db, web_login_body):
         client = _login_app(mock_db, "web")
-        client.cookies.set("endurain_device", _DEVICE_ID)
+        client.cookies.set(known_devices_dependencies.DEVICE_COOKIE_NAME, _DEVICE_ID)
         with patch(f"{_SERVICE}.verify_mfa_and_login") as verify:
             verify.return_value = auth_schema.AuthOutcome(
                 {
@@ -401,7 +401,7 @@ class TestMfaVerifyRoute:
 
         assert response.status_code == 200, response.text
         assert verify.call_args.kwargs["device_id"] == _DEVICE_ID
-        assert _device_cookie(response).startswith(f"endurain_device={_DEVICE_ID};")
+        assert _device_cookie(response).startswith(f"{known_devices_dependencies.DEVICE_COOKIE_NAME}={_DEVICE_ID};")
 
 
 class TestTokenExchangeRoute:
@@ -421,7 +421,7 @@ class TestTokenExchangeRoute:
 
     def test_a_web_exchange_passes_the_request_and_sets_the_device_cookie(self, mock_db):
         client = self._client(mock_db)
-        client.cookies.set("endurain_device", _DEVICE_ID)
+        client.cookies.set(known_devices_dependencies.DEVICE_COOKIE_NAME, _DEVICE_ID)
         with patch(
             "modules.auth.authentication.sso_exchange_service.exchange_tokens_for_session",
             return_value=self._outcome(_DEVICE_ID),
@@ -435,7 +435,7 @@ class TestTokenExchangeRoute:
         assert response.status_code == 200, response.text
         assert exchange.call_args.kwargs["device_id"] == _DEVICE_ID
         assert exchange.call_args.args[5] == "agent"
-        assert _device_cookie(response).startswith(f"endurain_device={_DEVICE_ID};")
+        assert _device_cookie(response).startswith(f"{known_devices_dependencies.DEVICE_COOKIE_NAME}={_DEVICE_ID};")
 
     def test_a_mobile_exchange_reads_the_header_returns_the_id_in_the_body_and_sets_no_cookie(self, mock_db):
         body = auth_schema.TokenExchangeRead(

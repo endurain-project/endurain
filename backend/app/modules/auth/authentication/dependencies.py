@@ -19,7 +19,11 @@ import modules.auth.computation as auth_computation
 import modules.auth.constants as auth_constants
 import modules.auth.known_devices.dependencies as known_devices_dependencies
 
-REFRESH_TOKEN_COOKIE_NAME = "endurain" + "_refresh_token"
+_REFRESH_TOKEN_COOKIE_BASE_NAME = "endurain_refresh_token"
+#: The name the browser sends the refresh cookie back under, fixed when the server starts.
+REFRESH_TOKEN_COOKIE_NAME = auth_computation.auth_cookie_name(
+    _REFRESH_TOKEN_COOKIE_BASE_NAME, core_config.settings.ENVIRONMENT
+)
 REFRESH_TOKEN_COOKIE_PATH = "/api/v1/" + "auth"
 LEGACY_REFRESH_TOKEN_COOKIE_PATHS = ("/",)
 REFRESH_TOKEN_COOKIE_CLEAR_PATHS = (*LEGACY_REFRESH_TOKEN_COOKIE_PATHS, REFRESH_TOKEN_COOKIE_PATH)
@@ -80,14 +84,13 @@ def set_refresh_token_cookie(
     refresh_token: str,
     expires_at: datetime,
     *,
-    cookie_name: str = REFRESH_TOKEN_COOKIE_NAME,
     cookie_path: str = REFRESH_TOKEN_COOKIE_PATH,
     environment: str,
 ) -> None:
     """Set the refresh-token cookie with the configured attributes."""
-    clear_refresh_token_cookies(response, cookie_name=cookie_name, environment=environment)
+    clear_refresh_token_cookies(response, environment=environment)
     response.set_cookie(
-        key=cookie_name,
+        key=auth_computation.auth_cookie_name(_REFRESH_TOKEN_COOKIE_BASE_NAME, environment),
         value=refresh_token,
         expires=expires_at,
         httponly=True,
@@ -126,14 +129,13 @@ def deliver_auth_outcome[BodyT: BaseModel](response: Response, outcome: auth_sch
 def clear_refresh_token_cookies(
     response: Response,
     *,
-    cookie_name: str = REFRESH_TOKEN_COOKIE_NAME,
     cookie_paths: tuple[str, ...] = REFRESH_TOKEN_COOKIE_CLEAR_PATHS,
     environment: str,
 ) -> None:
     """Clear the refresh-token cookie on all supported paths."""
     for path in cookie_paths:
         response.delete_cookie(
-            key=cookie_name,
+            key=auth_computation.auth_cookie_name(_REFRESH_TOKEN_COOKIE_BASE_NAME, environment),
             path=path,
             secure=auth_computation.secure_cookie(environment),
             httponly=True,

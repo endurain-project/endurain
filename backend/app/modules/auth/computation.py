@@ -145,3 +145,20 @@ def secure_cookie(environment: str) -> bool:
         True when auth cookies must only travel over HTTPS.
     """
     return core_environment.is_deployed_environment(environment)
+
+
+def auth_cookie_name(name: str, environment: str) -> str:
+    """Return the name an auth cookie is set and read under.
+
+    A deployed environment sets ``Secure`` on its auth cookies, so their names carry the ``__Secure-`` prefix: a
+    browser then refuses to store one that was not set over HTTPS with ``Secure``, and a script or plain-HTTP
+    response cannot plant or overwrite it. Development serves plain HTTP and keeps the plain name.
+
+    Args:
+        name: The cookie's base name.
+        environment: The deployment environment name.
+
+    Returns:
+        The name with the ``__Secure-`` prefix when the environment sets ``Secure``, else ``name``.
+    """
+    return f"__Secure-{name}" if secure_cookie(environment) else name

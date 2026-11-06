@@ -12,7 +12,9 @@ import modules.auth.known_devices.constants as known_devices_constants
 
 #: The cookie that names the browser a user signs in from. It is sent only to the API, and Strict because every
 #: sign-in that reads it is a same-site request from the web app.
-DEVICE_COOKIE_NAME = "endurain_device"
+_DEVICE_COOKIE_BASE_NAME = "endurain_device"
+#: The name the browser sends the cookie back under, fixed when the server starts.
+DEVICE_COOKIE_NAME = auth_computation.auth_cookie_name(_DEVICE_COOKIE_BASE_NAME, core_config.settings.ENVIRONMENT)
 #: The header the mobile app, which keeps no cookies, sends its device id in.
 DEVICE_HEADER_NAME = "X-Device-Id"
 #: The API root: the narrowest path that reaches both ``/auth`` (password and MFA sign-in) and ``/public/idp``
@@ -54,7 +56,7 @@ def set_device_cookie(response: Response, device_id: str) -> None:
         device_id: The device id the sign-in recorded.
     """
     response.set_cookie(
-        key=DEVICE_COOKIE_NAME,
+        key=auth_computation.auth_cookie_name(_DEVICE_COOKIE_BASE_NAME, core_config.settings.ENVIRONMENT),
         value=device_id,
         max_age=_DEVICE_COOKIE_MAX_AGE_SECONDS,
         path=DEVICE_COOKIE_PATH,

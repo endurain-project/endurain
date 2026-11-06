@@ -31,7 +31,9 @@ Endurain splits web tokens between memory and an httpOnly cookie:
 | **Access Token** | In-memory (JavaScript) | 15 minutes | Short-lived, never written to storage |
 | **Refresh Token** | httpOnly cookie | 7 days | `SameSite=Strict`, sent only to `/api/v1/auth` |
 | **CSRF Token** | In-memory (JavaScript) | Session | Sent as `X-CSRF-Token` on state-changing requests; its value is checked only by `/auth/refresh` |
-| **Device id** | Web: httpOnly cookie (`endurain_device`, path `/api/v1`, `SameSite=Strict`). Mobile: the app's own storage, sent as the `X-Device-Id` header | 400 days from the last sign-in | Recognises the browser or app, so a sign-in from a new one sends a [security notice](../features/accounts-and-sign-in.md#security-notifications), and a known one is not held by the [account lock](account-security.md#progressive-account-lockout). Not a credential; the server stores only its SHA-256 hash |
+| **Device id** | Web: httpOnly cookie (`endurain_device`, or `__Secure-endurain_device` in production and demo, path `/api/v1`, `SameSite=Strict`). Mobile: the app's own storage, sent as the `X-Device-Id` header | 400 days from the last sign-in | Recognises the browser or app, so a sign-in from a new one sends a [security notice](../features/accounts-and-sign-in.md#security-notifications), and a known one is not held by the [account lock](account-security.md#progressive-account-lockout). Not a credential; the server stores only its SHA-256 hash |
+
+**Cookie names:** In `production` and `demo`, where the cookies carry `Secure`, their names carry the `__Secure-` prefix (`__Secure-endurain_refresh_token`, `__Secure-endurain_device`, `__Secure-endurain_idp_binding`), so a browser stores one only when it was set over HTTPS with `Secure`. Development serves plain HTTP and keeps the plain names. A web session that signed in under the old name has no refresh cookie under the new one, so after an upgrade every web user signs in again once. The device cookie is not carried over either, so the first sign-in after the upgrade counts as a new device and sends a new-device notice.
 
 **Security Properties:**
 
@@ -46,8 +48,8 @@ Endurain splits web tokens between memory and an httpOnly cookie:
 
 - **For web apps:** 
     - Access token and CSRF token returned in JSON response body (stored in-memory)
-    - Refresh token set as httpOnly cookie (`endurain_refresh_token`)
-    - Password login, MFA verification and the SSO token exchange also set the `endurain_device` cookie, which names the browser for new-device sign-in notices
+    - Refresh token set as httpOnly cookie (`endurain_refresh_token`; `__Secure-endurain_refresh_token` in production and demo)
+    - Password login, MFA verification and the SSO token exchange also set the `endurain_device` cookie (prefixed like the refresh cookie), which names the browser for new-device sign-in notices
     - On page reload, call `/auth/refresh` to restore in-memory tokens
 
 - **For mobile apps:** 
@@ -103,7 +105,7 @@ The token refresh flow rotates the refresh token on every call:
 POST /api/v1/auth/refresh
 X-Client-Type: web
 X-CSRF-Token: {current_csrf_token}
-Cookie: endurain_refresh_token={refresh_token}
+Cookie: __Secure-endurain_refresh_token={refresh_token}
 ```
 
 **Token Refresh Response (Web):**
@@ -168,9 +170,9 @@ The API is reachable under `/api/v1`. Below are the authentication-related endpo
 | What | Url | Expected Information | Rate Limit |
 | ---- | --- | -------------------- | ---------- |
 | **Authorize** | `/auth/login` | Header: `X-Client-Type: web`; `FORM` with fields: `username`, `password`. HTTPS highly recommended | 10 requests/min |
-| **Refresh Token** | `/auth/refresh` | Header: `X-Client-Type: web`; Cookie: `endurain_refresh_token`; optional Header: `X-CSRF-Token` (bootstrap logic) | 30 requests/min |
+| **Refresh Token** | `/auth/refresh` | Header: `X-Client-Type: web`; Cookie: `__Secure-endurain_refresh_token` (`endurain_refresh_token` in development); optional Header: `X-CSRF-Token` (bootstrap logic) | 30 requests/min |
 | **Verify MFA** | `/auth/mfa/verify` | Header: `X-Client-Type: web`; JSON `{'mfa_challenge': <mfa_challenge from /auth/login>, 'mfa_code': '123456'}` | 10 requests/min |
-| **Logout** | `/auth/logout` | Header: `X-Client-Type: web`; Cookie: `endurain_refresh_token` | 30 requests/min |
+| **Logout** | `/auth/logout` | Header: `X-Client-Type: web`; Cookie: `__Secure-endurain_refresh_token` (`endurain_refresh_token` in development) | 30 requests/min |
 
 ### Core Authentication Endpoints (Mobile)
 

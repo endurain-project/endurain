@@ -17,7 +17,9 @@ import modules.auth.oauth_state.constants as oauth_state_constants
 #: The cookie that binds a link or step-up to the browser that started it. Scoped to the callback, the one place
 #: that reads it, and Lax rather than Strict because the callback is a top-level navigation back from the provider.
 #: A browser holds one at a time, so of two flows started together only the later can finish.
-BINDING_COOKIE_NAME = "endurain_idp_binding"
+_BINDING_COOKIE_BASE_NAME = "endurain_idp_binding"
+#: The name the browser sends the cookie back under, fixed when the server starts.
+BINDING_COOKIE_NAME = auth_computation.auth_cookie_name(_BINDING_COOKIE_BASE_NAME, core_config.settings.ENVIRONMENT)
 BINDING_COOKIE_PATH = core_config.ROOT_PATH + "/public/idp/callback"
 
 
@@ -60,7 +62,7 @@ def set_browser_binding_cookie(response: Response, browser_binding: str) -> None
         browser_binding: The secret the callback requires.
     """
     response.set_cookie(
-        key=BINDING_COOKIE_NAME,
+        key=auth_computation.auth_cookie_name(_BINDING_COOKIE_BASE_NAME, core_config.settings.ENVIRONMENT),
         value=browser_binding,
         max_age=oauth_state_constants.STATE_TTL_SECONDS,
         path=BINDING_COOKIE_PATH,
@@ -77,7 +79,7 @@ def clear_browser_binding_cookie(response: Response) -> None:
         response: The callback's response.
     """
     response.delete_cookie(
-        key=BINDING_COOKIE_NAME,
+        key=auth_computation.auth_cookie_name(_BINDING_COOKIE_BASE_NAME, core_config.settings.ENVIRONMENT),
         path=BINDING_COOKIE_PATH,
         httponly=True,
         secure=auth_computation.secure_cookie(core_config.settings.ENVIRONMENT),

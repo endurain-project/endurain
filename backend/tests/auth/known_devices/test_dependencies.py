@@ -40,6 +40,15 @@ def test_a_malformed_cookie_reads_as_none():
         assert _read(malformed) is None, malformed
 
 
+def test_a_cookie_under_the_plain_name_is_not_read_when_the_name_is_prefixed():
+    """The prefix is what stops a cookie planted from an insecure origin, so the plain name is ignored."""
+    client = _client()
+    client.cookies.set("endurain_device", _DEVICE_ID)
+
+    expected = _DEVICE_ID if known_devices_dependencies.DEVICE_COOKIE_NAME == "endurain_device" else None
+    assert client.get("/api/v1/auth/probe").json()["device_id"] == expected
+
+
 def _read_header(header: str | None, cookie: str | None = None) -> str | None:
     client = _client()
     if cookie is not None:
@@ -67,7 +76,7 @@ def test_the_cookie_is_strict_http_only_and_lasts_400_days():
     known_devices_dependencies.set_device_cookie(response, _DEVICE_ID)
 
     header = response.headers["set-cookie"]
-    assert header.startswith(f"endurain_device={_DEVICE_ID};")
+    assert header.startswith(f"{known_devices_dependencies.DEVICE_COOKIE_NAME}={_DEVICE_ID};")
     assert "HttpOnly" in header
     assert "SameSite=strict" in header
     assert "Max-Age=34560000" in header
@@ -79,7 +88,8 @@ def test_the_cookie_is_secure_when_deployed():
         response = Response()
         known_devices_dependencies.set_device_cookie(response, _DEVICE_ID)
 
-    assert "Secure" in response.headers["set-cookie"]
+    assert response.headers["set-cookie"].startswith("__Secure-endurain_device=")
+    assert "Secure" in response.headers["set-cookie"].removeprefix("__Secure-")
 
 
 def test_the_cookie_is_not_secure_in_development():
@@ -87,4 +97,5 @@ def test_the_cookie_is_not_secure_in_development():
         response = Response()
         known_devices_dependencies.set_device_cookie(response, _DEVICE_ID)
 
+    assert response.headers["set-cookie"].startswith("endurain_device=")
     assert "Secure" not in response.headers["set-cookie"]
