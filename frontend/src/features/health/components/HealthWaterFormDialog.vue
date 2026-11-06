@@ -130,7 +130,7 @@ async function submitForm(values: WaterFormValues): Promise<void> {
       open.value = false
       emit('error', t('app.staleError'))
     } else if (!props.entry && error instanceof HttpError && error.status === 409) {
-      emit('error', t('health.water.form.dailyLimitError'))
+      emit('error', t('health.water.form.dayTakenError'))
     } else {
       emit('error', t('health.water.form.saveError'))
     }

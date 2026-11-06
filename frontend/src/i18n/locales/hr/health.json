@@ -431,8 +431,7 @@
       "close": "Zatvori",
       "createSuccess": "Voda je zabilježena.",
       "updateSuccess": "Unos vode je ažuriran.",
-      "saveError": "Nije moguće spremiti vaš unos vode. Pokušajte ponovno.",
-      "dailyLimitError": "Time bi dnevni unos vode premašio ograničenje od 20 000 ml."
+      "saveError": "Nije moguće spremiti vaš unos vode. Pokušajte ponovno."
     },
     "target": {
       "title": "Postavi cilj vode",

@@ -432,7 +432,7 @@
       "createSuccess": "Water logged.",
       "updateSuccess": "Water entry updated.",
       "saveError": "Couldn't save your water entry. Please try again.",
-      "dailyLimitError": "That would take the day's water intake past the 20,000 ml limit."
+      "dayTakenError": "A water entry for that day already exists. Edit it instead of adding another."
     },
     "target": {
       "title": "Set water target",

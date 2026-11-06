@@ -431,8 +431,7 @@
       "close": "Sulje",
       "createSuccess": "Vesi kirjattu.",
       "updateSuccess": "Vesimerkintä päivitetty.",
-      "saveError": "Vesimerkintääsi ei voitu tallentaa. Yritä uudelleen.",
-      "dailyLimitError": "Tämä ylittäisi päivän 20 000 ml:n vedenottorajan."
+      "saveError": "Vesimerkintääsi ei voitu tallentaa. Yritä uudelleen."
     },
     "target": {
       "title": "Aseta vesitavoite",

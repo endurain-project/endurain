@@ -44,7 +44,7 @@ _AVERAGED = [
         health_weight_service,
         "/health_weight/chart",
         "get_health_weight_chart",
-        "health_weight.weight",
+        "health_weight.weight_kg",
     ),
     pytest.param(
         health_water_crud,

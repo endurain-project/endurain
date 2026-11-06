@@ -19,10 +19,10 @@ class TestReadHealthTargetsAll:
         mock_targets.id = 1
         mock_targets.user_id = 1
         mock_targets.version = 1
-        mock_targets.weight = 75.5
+        mock_targets.weight_kg = 75.5
         mock_targets.steps = 10000
-        mock_targets.sleep = 28800
-        mock_targets.fasting = None
+        mock_targets.sleep_seconds = 28800
+        mock_targets.fasting_seconds = None
         mock_targets.water_ml = None
         mock_targets.poop_count = None
 
@@ -37,9 +37,9 @@ class TestReadHealthTargetsAll:
         # Assert
         assert response.status_code == 200
         data = response.json()
-        assert data["weight"] == 75.5
+        assert data["weight_kg"] == 75.5
         assert data["steps"] == 10000
-        assert data["sleep"] == 28800
+        assert data["sleep_seconds"] == 28800
 
     @patch("modules.health.health_targets.router.health_targets_service.get_health_targets")
     def test_read_health_targets_all_not_found(self, mock_get_targets, fast_api_client, fast_api_app):
@@ -69,10 +69,10 @@ class TestReadHealthTargetsAll:
         mock_targets.id = 1
         mock_targets.user_id = 1
         mock_targets.version = 1
-        mock_targets.weight = 75.5
+        mock_targets.weight_kg = 75.5
         mock_targets.steps = None
-        mock_targets.sleep = None
-        mock_targets.fasting = None
+        mock_targets.sleep_seconds = None
+        mock_targets.fasting_seconds = None
         mock_targets.water_ml = None
         mock_targets.poop_count = None
 
@@ -87,16 +87,16 @@ class TestReadHealthTargetsAll:
         # Assert
         assert response.status_code == 200
         data = response.json()
-        assert data["weight"] == 75.5
+        assert data["weight_kg"] == 75.5
         assert data["steps"] is None
-        assert data["sleep"] is None
+        assert data["sleep_seconds"] is None
 
 
 class TestUpdateNeedsIfMatch:
     @patch("modules.health.health_targets.router.health_targets_service.update_health_targets")
     def test_an_update_without_if_match_is_428(self, mock_update, fast_api_client):
         response = fast_api_client.patch(
-            "/health/targets/", json={"weight": 80.0}, headers={"Authorization": "Bearer mock_token"}
+            "/health/targets/", json={"weight_kg": 80.0}, headers={"Authorization": "Bearer mock_token"}
         )
 
         assert response.status_code == 428
@@ -118,10 +118,10 @@ class TestUpdateHealthTargets:
         mock_updated_targets.id = 1
         mock_updated_targets.user_id = 1
         mock_updated_targets.version = 1
-        mock_updated_targets.weight = 80.0
+        mock_updated_targets.weight_kg = 80.0
         mock_updated_targets.steps = 12000
-        mock_updated_targets.sleep = 32400
-        mock_updated_targets.fasting = None
+        mock_updated_targets.sleep_seconds = 32400
+        mock_updated_targets.fasting_seconds = None
         mock_updated_targets.water_ml = None
         mock_updated_targets.poop_count = None
 
@@ -131,9 +131,9 @@ class TestUpdateHealthTargets:
         response = fast_api_client.patch(
             "/health/targets/",
             json={
-                "weight": 80.0,
+                "weight_kg": 80.0,
                 "steps": 12000,
-                "sleep": 32400,
+                "sleep_seconds": 32400,
             },
             headers={"Authorization": "Bearer mock_token", "If-Match": '"1"'},
         )
@@ -141,9 +141,9 @@ class TestUpdateHealthTargets:
         # Assert
         assert response.status_code == 200
         data = response.json()
-        assert data["weight"] == 80.0
+        assert data["weight_kg"] == 80.0
         assert data["steps"] == 12000
-        assert data["sleep"] == 32400
+        assert data["sleep_seconds"] == 32400
 
     @patch("modules.health.health_targets.router.health_targets_service.update_health_targets")
     def test_update_health_targets_partial_update(self, mock_edit, fast_api_client, fast_api_app):
@@ -155,10 +155,10 @@ class TestUpdateHealthTargets:
         mock_updated_targets.id = 1
         mock_updated_targets.user_id = 1
         mock_updated_targets.version = 1
-        mock_updated_targets.weight = 75.0
+        mock_updated_targets.weight_kg = 75.0
         mock_updated_targets.steps = 10000
-        mock_updated_targets.sleep = 28800
-        mock_updated_targets.fasting = None
+        mock_updated_targets.sleep_seconds = 28800
+        mock_updated_targets.fasting_seconds = None
         mock_updated_targets.water_ml = None
         mock_updated_targets.poop_count = None
 
@@ -168,7 +168,7 @@ class TestUpdateHealthTargets:
         response = fast_api_client.patch(
             "/health/targets/",
             json={
-                "weight": 75.0,
+                "weight_kg": 75.0,
             },
             headers={"Authorization": "Bearer mock_token", "If-Match": '"1"'},
         )
@@ -176,7 +176,7 @@ class TestUpdateHealthTargets:
         # Assert
         assert response.status_code == 200
         data = response.json()
-        assert data["weight"] == 75.0
+        assert data["weight_kg"] == 75.0
 
     @patch("modules.health.health_targets.router.health_targets_service.update_health_targets")
     def test_update_health_targets_clear_values(self, mock_edit, fast_api_client, fast_api_app):
@@ -188,10 +188,10 @@ class TestUpdateHealthTargets:
         mock_updated_targets.id = 1
         mock_updated_targets.user_id = 1
         mock_updated_targets.version = 1
-        mock_updated_targets.weight = None
+        mock_updated_targets.weight_kg = None
         mock_updated_targets.steps = None
-        mock_updated_targets.sleep = None
-        mock_updated_targets.fasting = None
+        mock_updated_targets.sleep_seconds = None
+        mock_updated_targets.fasting_seconds = None
         mock_updated_targets.water_ml = None
         mock_updated_targets.poop_count = None
 
@@ -201,9 +201,9 @@ class TestUpdateHealthTargets:
         response = fast_api_client.patch(
             "/health/targets/",
             json={
-                "weight": None,
+                "weight_kg": None,
                 "steps": None,
-                "sleep": None,
+                "sleep_seconds": None,
             },
             headers={"Authorization": "Bearer mock_token", "If-Match": '"1"'},
         )
@@ -211,9 +211,9 @@ class TestUpdateHealthTargets:
         # Assert
         assert response.status_code == 200
         data = response.json()
-        assert data["weight"] is None
+        assert data["weight_kg"] is None
         assert data["steps"] is None
-        assert data["sleep"] is None
+        assert data["sleep_seconds"] is None
 
     @patch("modules.health.health_targets.router.health_targets_service.update_health_targets")
     def test_update_health_targets_not_found(self, mock_edit, fast_api_client, fast_api_app):
@@ -227,7 +227,7 @@ class TestUpdateHealthTargets:
         response = fast_api_client.patch(
             "/health/targets/",
             json={
-                "weight": 80.0,
+                "weight_kg": 80.0,
             },
             headers={"Authorization": "Bearer mock_token", "If-Match": '"1"'},
         )
@@ -245,10 +245,10 @@ class TestUpdateHealthTargets:
         mock_updated_targets.id = 1
         mock_updated_targets.user_id = 1
         mock_updated_targets.version = 1
-        mock_updated_targets.weight = 85.5
+        mock_updated_targets.weight_kg = 85.5
         mock_updated_targets.steps = 15000
-        mock_updated_targets.sleep = 36000
-        mock_updated_targets.fasting = None
+        mock_updated_targets.sleep_seconds = 36000
+        mock_updated_targets.fasting_seconds = None
         mock_updated_targets.water_ml = None
         mock_updated_targets.poop_count = None
 
@@ -258,9 +258,9 @@ class TestUpdateHealthTargets:
         response = fast_api_client.patch(
             "/health/targets/",
             json={
-                "weight": 85.5,
+                "weight_kg": 85.5,
                 "steps": 15000,
-                "sleep": 36000,
+                "sleep_seconds": 36000,
             },
             headers={"Authorization": "Bearer mock_token", "If-Match": '"1"'},
         )
@@ -268,9 +268,9 @@ class TestUpdateHealthTargets:
         # Assert
         assert response.status_code == 200
         data = response.json()
-        assert data["weight"] == 85.5
+        assert data["weight_kg"] == 85.5
         assert data["steps"] == 15000
-        assert data["sleep"] == 36000
+        assert data["sleep_seconds"] == 36000
 
 
 class TestReadSendsTheETag:
@@ -280,7 +280,7 @@ class TestReadSendsTheETag:
         mock_targets.id = 1
         mock_targets.user_id = 1
         mock_targets.version = 4
-        for field in ("weight", "steps", "sleep", "fasting", "water_ml", "poop_count"):
+        for field in ("weight_kg", "steps", "sleep_seconds", "fasting_seconds", "water_ml", "poop_count"):
             setattr(mock_targets, field, None)
         mock_get_targets.return_value = mock_targets
 

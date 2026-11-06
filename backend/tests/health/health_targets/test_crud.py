@@ -24,10 +24,10 @@ class TestGetHealthTargetsByUserId:
         mock_targets.id = 1
         mock_targets.user_id = user_id
         mock_targets.version = 1
-        mock_targets.weight = None
+        mock_targets.weight_kg = None
         mock_targets.steps = None
-        mock_targets.sleep = None
-        mock_targets.fasting = None
+        mock_targets.sleep_seconds = None
+        mock_targets.fasting_seconds = None
         mock_targets.water_ml = None
         mock_targets.poop_count = None
         mock_result = MagicMock()
@@ -75,10 +75,10 @@ class TestCreateHealthTargets:
         mock_db_targets.id = 1
         mock_db_targets.user_id = user_id
         mock_db_targets.version = 1
-        mock_db_targets.weight = None
+        mock_db_targets.weight_kg = None
         mock_db_targets.steps = None
-        mock_db_targets.sleep = None
-        mock_db_targets.fasting = None
+        mock_db_targets.sleep_seconds = None
+        mock_db_targets.fasting_seconds = None
         mock_db_targets.water_ml = None
         mock_db_targets.poop_count = None
         mock_db.add.return_value = None
@@ -129,13 +129,13 @@ class TestEditHealthTarget:
         """
         # Arrange
         user_id = 1
-        health_target = health_targets_schema.HealthTargetsUpdate(weight=75.0, steps=10000, sleep=28800)
+        health_target = health_targets_schema.HealthTargetsUpdate(weight_kg=75.0, steps=10000, sleep_seconds=28800)
 
         mock_db_target = MagicMock(spec=health_targets_models.HealthTargets)
         mock_db_target.version = 1
         mock_db_target.id = 1
         mock_db_target.user_id = 1
-        mock_db_target.fasting = None
+        mock_db_target.fasting_seconds = None
         mock_db_target.water_ml = None
         mock_db_target.poop_count = None
         mock_result = MagicMock()
@@ -155,7 +155,7 @@ class TestEditHealthTarget:
         """
         # Arrange
         user_id = 1
-        health_target = health_targets_schema.HealthTargetsUpdate(weight=75.0, steps=10000)
+        health_target = health_targets_schema.HealthTargetsUpdate(weight_kg=75.0, steps=10000)
 
         mock_result = MagicMock()
         mock_result.scalar_one_or_none.return_value = None
@@ -172,16 +172,16 @@ class TestEditHealthTarget:
         # Arrange
         user_id = 1
         health_target = health_targets_schema.HealthTargetsUpdate(
-            weight=80.0,
+            weight_kg=80.0,
             steps=12000,
-            sleep=32400,
+            sleep_seconds=32400,
         )
 
         mock_db_target = MagicMock(spec=health_targets_models.HealthTargets)
         mock_db_target.version = 1
         mock_db_target.id = 1
         mock_db_target.user_id = 1
-        mock_db_target.fasting = None
+        mock_db_target.fasting_seconds = None
         mock_db_target.water_ml = None
         mock_db_target.poop_count = None
         mock_result = MagicMock()
@@ -200,15 +200,15 @@ class TestEditHealthTarget:
         """
         # Arrange
         user_id = 1
-        health_target = health_targets_schema.HealthTargetsUpdate(weight=75.0)
+        health_target = health_targets_schema.HealthTargetsUpdate(weight_kg=75.0)
 
         mock_db_target = MagicMock(spec=health_targets_models.HealthTargets)
         mock_db_target.version = 1
         mock_db_target.id = 1
         mock_db_target.user_id = 1
         mock_db_target.steps = None
-        mock_db_target.sleep = None
-        mock_db_target.fasting = None
+        mock_db_target.sleep_seconds = None
+        mock_db_target.fasting_seconds = None
         mock_db_target.water_ml = None
         mock_db_target.poop_count = None
         mock_result = MagicMock()
@@ -227,14 +227,14 @@ class TestEditHealthTarget:
         """
         # Arrange
         user_id = 1
-        health_target = health_targets_schema.HealthTargetsUpdate(weight=None, steps=None)
+        health_target = health_targets_schema.HealthTargetsUpdate(weight_kg=None, steps=None)
 
         mock_db_target = MagicMock(spec=health_targets_models.HealthTargets)
         mock_db_target.version = 1
         mock_db_target.id = 1
         mock_db_target.user_id = 1
-        mock_db_target.sleep = None
-        mock_db_target.fasting = None
+        mock_db_target.sleep_seconds = None
+        mock_db_target.fasting_seconds = None
         mock_db_target.water_ml = None
         mock_db_target.poop_count = None
         mock_result = MagicMock()

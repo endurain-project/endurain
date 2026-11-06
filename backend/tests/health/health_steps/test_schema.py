@@ -52,13 +52,13 @@ class TestHealthStepsSchema:
             user_id=1,
             date=datetime_date(2024, 1, 15),
             steps=10000,
-            source=None,
+            source="manual",
         )
 
         # Assert
         assert health_steps.id == 1
         assert health_steps.steps == 10000
-        assert health_steps.source is None
+        assert health_steps.source == "manual"
 
     def test_health_steps_with_integer_steps(self):
         """

@@ -31,7 +31,7 @@ def db():
 
 def _create(db, bmi=None, weight=75.0, day=_DAY):
     return weight_service.create_health_weight(
-        1, weight_schema.HealthWeightCreate(date=day, weight=weight, bmi=bmi), db
+        1, weight_schema.HealthWeightCreate(date=day, weight_kg=weight, bmi=bmi), db
     )
 
 
@@ -59,7 +59,7 @@ class TestManualEdit:
     def test_a_client_bmi_sent_with_a_weight_is_replaced_by_the_derived_one(self, db):
         record = _create(db)
 
-        edited = self._edit(db, record, weight=80.0, bmi=5.0)
+        edited = self._edit(db, record, weight_kg=80.0, bmi=5.0)
 
         assert edited.bmi == pytest.approx(80.0 / 1.75**2, abs=0.01)
 
@@ -74,7 +74,7 @@ class TestManualEdit:
     def test_an_edit_that_changes_nothing_keeps_the_version(self, db, weight):
         record = _create(db, weight=weight)
 
-        edited = self._edit(db, record, weight=weight)
+        edited = self._edit(db, record, weight_kg=weight)
 
         assert edited.version == record.version
 
@@ -88,7 +88,7 @@ class TestManualEdit:
 
 class TestProviderUpsert:
     def _upsert(self, db, bmi):
-        record = weight_schema.HealthWeightImport(date=_DAY, weight=75.0, bmi=bmi, source="garmin")
+        record = weight_schema.HealthWeightImport(date=_DAY, weight_kg=75.0, bmi=bmi, source="garmin")
         return weight_integration.upsert_health_weight(1, record, db)
 
     def test_a_new_record_keeps_the_provider_bmi(self, db):

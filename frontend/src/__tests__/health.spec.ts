@@ -65,10 +65,10 @@ describe('health dashboard service', () => {
       id: 2,
       user_id: 9,
       version: 3,
-      sleep: 28800,
+      sleep_seconds: 28800,
       steps: 8000,
-      weight: 70,
-      fasting: 57600,
+      weight_kg: 70,
+      fasting_seconds: 57600,
       water_ml: 2000,
       poop_count: 1,
     }
@@ -104,12 +104,12 @@ function makeWeightDto(
     user_id: 9,
     version: 1,
     date: '2026-06-25',
-    weight: 72.5,
+    weight_kg: 72.5,
     bmi: 22.1,
-    body_fat: 18.4,
-    body_water: 55.2,
-    bone_mass: 3.2,
-    muscle_mass: 34.1,
+    body_fat_percent: 18.4,
+    body_water_percent: 55.2,
+    bone_mass_kg: 3.2,
+    muscle_mass_kg: 34.1,
     metabolic_age: 30,
     physique_rating: 5,
     visceral_fat: 7,
@@ -177,7 +177,10 @@ describe('weight service requests', () => {
       total: 2,
       page: 2,
       num_records: 25,
-      items: [makeWeightDto(), makeWeightDto({ id: 6, source: null, weight: null, bmi: null })],
+      items: [
+        makeWeightDto(),
+        makeWeightDto({ id: 6, source: 'manual', weight_kg: null, bmi: null }),
+      ],
     } satisfies Schemas['Page_HealthWeightRead_'])
 
     const page = await fetchWeightEntries({ page: 2, numRecords: 25, interval: 'last_30_days' })
@@ -200,7 +203,7 @@ describe('weight service requests', () => {
       muscleMassKg: 34.1,
       source: 'garmin',
     })
-    expect(page.records[1]).toMatchObject({ id: 6, weightKg: null, bmi: null, source: null })
+    expect(page.records[1]).toMatchObject({ id: 6, weightKg: null, bmi: null, source: 'manual' })
   })
 
   it('createWeightEntry POSTs the snake-cased payload as a JSON string', async () => {
@@ -212,11 +215,11 @@ describe('weight service requests', () => {
       method: 'POST',
       body: JSON.stringify({
         date: '2026-06-25',
-        weight: 72.5,
-        body_fat: 18.4,
-        body_water: 55.2,
-        bone_mass: 3.2,
-        muscle_mass: 34.1,
+        weight_kg: 72.5,
+        body_fat_percent: 18.4,
+        body_water_percent: 55.2,
+        bone_mass_kg: 3.2,
+        muscle_mass_kg: 34.1,
       }),
     })
   })
@@ -231,11 +234,11 @@ describe('weight service requests', () => {
       headers: { 'If-Match': '"3"' },
       body: JSON.stringify({
         date: '2026-06-25',
-        weight: 72.5,
-        body_fat: 18.4,
-        body_water: 55.2,
-        bone_mass: 3.2,
-        muscle_mass: 34.1,
+        weight_kg: 72.5,
+        body_fat_percent: 18.4,
+        body_water_percent: 55.2,
+        bone_mass_kg: 3.2,
+        muscle_mass_kg: 34.1,
       }),
     })
   })
@@ -257,7 +260,7 @@ describe('weight service requests', () => {
       id: 3,
       user_id: 9,
       version: 1,
-      weight: 70,
+      weight_kg: 70,
     } satisfies Schemas['HealthTargetsRead'])
 
     await updateWeightTarget(3, 70)
@@ -265,7 +268,7 @@ describe('weight service requests', () => {
     expect(apiFetch).toHaveBeenCalledWith('/health/targets', {
       method: 'PATCH',
       headers: { 'If-Match': '"3"' },
-      body: JSON.stringify({ weight: 70 }),
+      body: JSON.stringify({ weight_kg: 70 }),
     })
   })
 
@@ -281,7 +284,7 @@ describe('weight service requests', () => {
     expect(apiFetch).toHaveBeenCalledWith('/health/targets', {
       method: 'PATCH',
       headers: { 'If-Match': '"3"' },
-      body: JSON.stringify({ weight: null }),
+      body: JSON.stringify({ weight_kg: null }),
     })
   })
 })
@@ -317,7 +320,7 @@ describe('steps service requests', () => {
       total: 2,
       page: 2,
       num_records: 25,
-      items: [makeStepsDto(), makeStepsDto({ id: 6, source: null, steps: null })],
+      items: [makeStepsDto(), makeStepsDto({ id: 6, source: 'manual', steps: null })],
     } satisfies Schemas['Page_HealthStepsRead_'])
 
     const page = await fetchStepsEntries({ page: 2, numRecords: 25, interval: 'last_30_days' })
@@ -335,7 +338,7 @@ describe('steps service requests', () => {
       steps: 8500,
       source: 'garmin',
     })
-    expect(page.records[1]).toMatchObject({ id: 6, steps: null, source: null })
+    expect(page.records[1]).toMatchObject({ id: 6, steps: null, source: 'manual' })
   })
 
   it('createStepsEntry POSTs the snake-cased payload as a JSON string', async () => {
@@ -438,7 +441,7 @@ describe('water service requests', () => {
       total: 2,
       page: 2,
       num_records: 25,
-      items: [makeWaterDto(), makeWaterDto({ id: 6, source: null, amount_ml: null })],
+      items: [makeWaterDto(), makeWaterDto({ id: 6, source: 'manual', amount_ml: null })],
     } satisfies Schemas['Page_HealthWaterRead_'])
 
     const page = await fetchWaterEntries({ page: 2, numRecords: 25, interval: 'last_30_days' })
@@ -456,7 +459,7 @@ describe('water service requests', () => {
       amountMl: 1500,
       source: 'garmin',
     })
-    expect(page.records[1]).toMatchObject({ id: 6, amountMl: null, source: null })
+    expect(page.records[1]).toMatchObject({ id: 6, amountMl: null, source: 'manual' })
   })
 
   it('createWaterEntry POSTs the snake-cased payload as a JSON string', async () => {
@@ -689,7 +692,7 @@ describe('resting heart rate service requests', () => {
       total: 2,
       page: 2,
       num_records: 25,
-      items: [makeSleepDto(), makeSleepDto({ id: 6, source: null })],
+      items: [makeSleepDto(), makeSleepDto({ id: 6, source: 'manual' })],
     } satisfies Schemas['Page_HealthSleepRead_'])
 
     const page = await fetchRhrEntries({ page: 2, numRecords: 25, interval: 'last_30_days' })
@@ -705,7 +708,7 @@ describe('resting heart rate service requests', () => {
       restingHeartRate: 52,
       source: 'garmin',
     })
-    expect(page.records[1]).toMatchObject({ id: 6, restingHeartRate: 52, source: null })
+    expect(page.records[1]).toMatchObject({ id: 6, restingHeartRate: 52, source: 'manual' })
   })
 
   it('fetchRhrEntries drops sleep records without a resting heart rate but keeps the total', async () => {
@@ -932,7 +935,7 @@ describe('fasting service requests', () => {
       id: 3,
       user_id: 9,
       version: 1,
-      fasting: 57600,
+      fasting_seconds: 57600,
     } satisfies Schemas['HealthTargetsRead'])
 
     await updateFastingTarget(3, 57600)
@@ -940,7 +943,7 @@ describe('fasting service requests', () => {
     expect(apiFetch).toHaveBeenCalledWith('/health/targets', {
       method: 'PATCH',
       headers: { 'If-Match': '"3"' },
-      body: JSON.stringify({ fasting: 57600 }),
+      body: JSON.stringify({ fasting_seconds: 57600 }),
     })
   })
 
@@ -956,7 +959,7 @@ describe('fasting service requests', () => {
     expect(apiFetch).toHaveBeenCalledWith('/health/targets', {
       method: 'PATCH',
       headers: { 'If-Match': '"3"' },
-      body: JSON.stringify({ fasting: null }),
+      body: JSON.stringify({ fasting_seconds: null }),
     })
   })
 })
@@ -990,9 +993,9 @@ function makeFullSleepDto(
     max_heart_rate: 72,
     avg_skin_temp_deviation: 0.3,
     hrv_status: 'BALANCED',
-    avg_spo2: 96,
-    lowest_spo2: 92,
-    highest_spo2: 99,
+    avg_spo2_percent: 96,
+    lowest_spo2_percent: 92,
+    highest_spo2_percent: 99,
     avg_respiration: 14,
     lowest_respiration: 11,
     highest_respiration: 18,
@@ -1058,7 +1061,7 @@ describe('sleep service requests', () => {
       total: 2,
       page: 2,
       num_records: 25,
-      items: [makeFullSleepDto(), makeFullSleepDto({ id: 6, source: null, hrv_status: null })],
+      items: [makeFullSleepDto(), makeFullSleepDto({ id: 6, source: 'manual', hrv_status: null })],
     } satisfies Schemas['Page_HealthSleepRead_'])
 
     const page = await fetchSleepEntries({ page: 2, numRecords: 25, interval: 'last_30_days' })
@@ -1117,7 +1120,7 @@ describe('sleep service requests', () => {
       ],
       source: 'garmin',
     })
-    expect(page.records[1]).toMatchObject({ id: 6, source: null, hrvStatus: null })
+    expect(page.records[1]).toMatchObject({ id: 6, source: 'manual', hrvStatus: null })
   })
 
   it('createSleepEntry POSTs the snake-cased payload (no source)', async () => {
@@ -1142,9 +1145,9 @@ describe('sleep service requests', () => {
         min_heart_rate: 48,
         max_heart_rate: 72,
         avg_skin_temp_deviation: 0.3,
-        avg_spo2: 96,
-        lowest_spo2: 92,
-        highest_spo2: 99,
+        avg_spo2_percent: 96,
+        lowest_spo2_percent: 92,
+        highest_spo2_percent: 99,
         awake_count: 3,
         avg_sleep_stress: 25,
         sleep_stages: [
@@ -1182,9 +1185,9 @@ describe('sleep service requests', () => {
         min_heart_rate: 48,
         max_heart_rate: 72,
         avg_skin_temp_deviation: 0.3,
-        avg_spo2: 96,
-        lowest_spo2: 92,
-        highest_spo2: 99,
+        avg_spo2_percent: 96,
+        lowest_spo2_percent: 92,
+        highest_spo2_percent: 99,
         awake_count: 3,
         avg_sleep_stress: 25,
         sleep_stages: [
@@ -1216,7 +1219,7 @@ describe('sleep service requests', () => {
       id: 3,
       user_id: 9,
       version: 1,
-      sleep: 28800,
+      sleep_seconds: 28800,
     } satisfies Schemas['HealthTargetsRead'])
 
     await updateSleepTarget(3, 28800)
@@ -1224,7 +1227,7 @@ describe('sleep service requests', () => {
     expect(apiFetch).toHaveBeenCalledWith('/health/targets', {
       method: 'PATCH',
       headers: { 'If-Match': '"3"' },
-      body: JSON.stringify({ sleep: 28800 }),
+      body: JSON.stringify({ sleep_seconds: 28800 }),
     })
   })
 
@@ -1240,7 +1243,7 @@ describe('sleep service requests', () => {
     expect(apiFetch).toHaveBeenCalledWith('/health/targets', {
       method: 'PATCH',
       headers: { 'If-Match': '"3"' },
-      body: JSON.stringify({ sleep: null }),
+      body: JSON.stringify({ sleep_seconds: null }),
     })
   })
 })

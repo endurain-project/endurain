@@ -431,8 +431,7 @@
       "close": "Zamknij",
       "createSuccess": "Zapisano wodę.",
       "updateSuccess": "Zaktualizowano wpis wody.",
-      "saveError": "Nie udało się zapisać wpisu wody. Spróbuj ponownie.",
-      "dailyLimitError": "To przekroczyłoby dzienny limit spożycia wody wynoszący 20 000 ml."
+      "saveError": "Nie udało się zapisać wpisu wody. Spróbuj ponownie."
     },
     "target": {
       "title": "Ustaw cel wody",

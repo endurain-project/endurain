@@ -17,7 +17,6 @@ from pydantic import (
     Field,
     StrictInt,
     StrictStr,
-    model_validator,
 )
 
 import core.partial_update as core_partial_update
@@ -161,8 +160,9 @@ class HealthPoopRead(HealthPoopBase):
         user_id: Foreign key reference to the user.
     """
 
-    source: Source | None = Field(
-        default=None,
+    source: Source = Field(
+        default=Source.MANUAL,
+        validate_default=True,
         description="Source of the data",
     )
     id: StrictInt = Field(
@@ -205,16 +205,5 @@ class HealthPoopImport(HealthPoopCreate):
         default=None,
         description="Bristol Stool Scale type",
     )
-    source: Source | None = Field(default=None, description="Source of the data")
+    source: Source = Field(default=Source.MANUAL, validate_default=True, description="Source of the data")
     date_time: core_types.ImportedInstant = Field(..., description="Date and time of the bowel movement")
-
-    @model_validator(mode="after")
-    def set_default_source(self) -> "HealthPoopImport":
-        """Make a record without a source a manual one.
-
-        Returns:
-            The validated model instance with the source set.
-        """
-        if self.source is None:
-            self.source = Source.MANUAL
-        return self

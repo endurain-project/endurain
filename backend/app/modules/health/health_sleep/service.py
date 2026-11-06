@@ -25,6 +25,13 @@ import modules.users.users_profile.contracts as users_profile_contracts
 
 logger = core_logger.get_logger(__name__)
 
+#: The field names a profile archive written before the units were in the names uses, by current name.
+_ARCHIVE_RENAMES = {
+    "avg_spo2": "avg_spo2_percent",
+    "lowest_spo2": "lowest_spo2_percent",
+    "highest_spo2": "highest_spo2_percent",
+}
+
 #: Minute rounding a provider applies to the stage durations and to the total.
 _TOLERANCE_SECONDS = 60
 
@@ -47,7 +54,7 @@ def _require_consistent(sleep: health_sleep_schema.HealthSleepBase) -> None:
     """
     for low, high, name in (
         (sleep.min_heart_rate, sleep.max_heart_rate, "heart rate"),
-        (sleep.lowest_spo2, sleep.highest_spo2, "SpO2"),
+        (sleep.lowest_spo2_percent, sleep.highest_spo2_percent, "SpO2"),
     ):
         if low is not None and high is not None and low > high:
             raise core_exceptions.InvalidInputError(f"The lowest {name} cannot be above the highest")
@@ -190,6 +197,8 @@ def create_health_sleep(
     """
     if health_sleep.date is None:
         health_sleep.date = users_integration.local_today(user_id, db)
+    else:
+        health_record_service.require_not_future(user_id, health_sleep.date, db, what="A sleep record")
     _require_consistent(health_sleep)
     health_sleep_sleep_scoring.calculate_and_set_sleep_scores(health_sleep)
     created = health_sleep_crud.create_health_sleep(user_id, health_sleep, db)
@@ -250,9 +259,11 @@ def edit_health_sleep(
 
     Raises:
         NotFoundError: If the user has no such record.
-        InvalidInputError: If the stages, the total or the readings contradict each other.
+        InvalidInputError: If the new date is after the user's local today, or the stages, the total or the
+            readings contradict each other.
         PreconditionFailedError: If the record changed since the client read it.
     """
+    health_record_service.require_not_future(user_id, health_sleep.date, db, what="A sleep record")
 
     def stage() -> health_sleep_schema.HealthSleepRead:
         _check_and_score_edit(user_id, health_sleep_id, health_sleep, db)
@@ -386,4 +397,5 @@ def restore_profile_records(
         user_id,
         db,
         kind="health_sleep",
+        renamed=_ARCHIVE_RENAMES,
     )

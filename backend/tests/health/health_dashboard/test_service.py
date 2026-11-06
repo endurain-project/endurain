@@ -36,7 +36,7 @@ class TestGetDailyStats:
         peers["sleep"].return_value = MagicMock(
             total_sleep_seconds=28800, resting_heart_rate=50, hrv_status="balanced", avg_skin_temp_deviation=0.1
         )
-        peers["weight"].return_value = MagicMock(weight=75.5, bmi=24.5)
+        peers["weight"].return_value = MagicMock(weight_kg=75.5, bmi=24.5)
         peers["steps"].return_value = MagicMock(steps=8000)
         peers["fasting"].return_value = MagicMock(
             id=1,
@@ -51,10 +51,10 @@ class TestGetDailyStats:
             id=2,
             user_id=1,
             version=3,
-            sleep=28800,
+            sleep_seconds=28800,
             steps=8000,
-            weight=70.0,
-            fasting=57600,
+            weight_kg=70.0,
+            fasting_seconds=57600,
             water_ml=2000,
             poop_count=1,
         )
@@ -63,7 +63,7 @@ class TestGetDailyStats:
         result = health_dashboard_service.get_daily_stats(1, mock_db, include_targets=True)
 
         assert result.sleep.total_sleep_seconds == 28800
-        assert result.weight.weight == 75.5
+        assert result.weight.weight_kg == 75.5
         assert result.steps.steps == 8000
         assert result.fasting.status == "in_progress"
         assert result.water.amount_ml == 1500.0

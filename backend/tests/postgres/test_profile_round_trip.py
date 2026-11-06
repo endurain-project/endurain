@@ -20,6 +20,7 @@ from typing import Any
 
 import jasil.providers as platform_providers
 import pytest
+from sqlalchemy import text
 from sqlalchemy.orm import Session, sessionmaker
 
 import core.hashing as core_hashing
@@ -319,7 +320,7 @@ def _seed_health(db: Session, user_id: int) -> None:
         weight_integration.upsert_health_weight(
             user_id,
             weight_schema.HealthWeightImport(
-                date=date(2026, 7, day), weight=70.0 + day, body_fat=15.5, source="garmin"
+                date=date(2026, 7, day), weight_kg=70.0 + day, body_fat_percent=15.5, source="garmin"
             ),
             db,
         )
@@ -342,7 +343,9 @@ def _seed_health(db: Session, user_id: int) -> None:
             user_id, water_schema.HealthWaterImport(date=date(2026, 7, day), amount_ml=1_500.0 + day), db
         )
     targets_crud.edit_health_targets(
-        targets_schema.HealthTargetsUpdate(weight=68.0, steps=10_000, sleep=28_800, water_ml=2_000, poop_count=1),
+        targets_schema.HealthTargetsUpdate(
+            weight_kg=68.0, steps=10_000, sleep_seconds=28_800, water_ml=2_000, poop_count=1
+        ),
         user_id,
         db,
         if_match="*",
@@ -602,4 +605,18 @@ def test_an_archive_written_by_an_earlier_release_still_imports(pg_factory, stor
         default_gear = default_gear_integration.get_default_gear(user_id, db)
         assert default_gear is not None
         assert (default_gear.ride_gear_id, default_gear.run_gear_id) == (gears["Road Bike"], gears["Trail Shoes"])
+        # The old names of the units are read at the import boundary.
+        weights = db.execute(
+            text("SELECT weight_kg, body_fat_percent, source FROM health_weight WHERE user_id = :u ORDER BY date"),
+            {"u": user_id},
+        ).all()
+        assert [(float(w), float(f), src) for w, f, src in weights] == [
+            (71.0, 15.5, "garmin"),
+            (72.0, 15.5, "garmin"),
+            (73.0, 15.5, "garmin"),
+        ]
+        targets = db.execute(
+            text("SELECT weight_kg, sleep_seconds FROM health_targets WHERE user_id = :u"), {"u": user_id}
+        ).one()
+        assert (float(targets.weight_kg), targets.sleep_seconds) == (68.0, 28800)
         assert users_integration.require_user(user_id, db).city == "Lisbon"

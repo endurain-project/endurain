@@ -431,8 +431,7 @@
       "close": "Tanca",
       "createSuccess": "Aigua registrada.",
       "updateSuccess": "Entrada d'aigua actualitzada.",
-      "saveError": "No s'ha pogut desar l'entrada d'aigua. Torna-ho a intentar.",
-      "dailyLimitError": "Això faria que la ingesta d'aigua del dia superés el límit de 20.000 ml."
+      "saveError": "No s'ha pogut desar l'entrada d'aigua. Torna-ho a intentar."
     },
     "target": {
       "title": "Estableix l'objectiu d'aigua",

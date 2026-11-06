@@ -169,8 +169,9 @@ class HealthFastingRead(HealthFastingBase):
         actual_duration_seconds: Seconds between the start and end time, derived by the server.
     """
 
-    source: Source | None = Field(
-        default=None,
+    source: Source = Field(
+        default=Source.MANUAL,
+        validate_default=True,
         description="Data source for the record",
     )
     id: StrictInt = Field(
@@ -214,20 +215,9 @@ class HealthFastingImport(HealthFastingCreate):
         source: The source the session came from; ``manual`` when none is given.
     """
 
-    source: Source | None = Field(default=None, description="Data source for the record")
+    source: Source = Field(default=Source.MANUAL, validate_default=True, description="Data source for the record")
     fast_start_time: core_types.ImportedInstant = Field(..., description="Start time of fast")
     fast_end_time: core_types.ImportedInstant | None = Field(default=None, description="End time of fast")
-
-    @model_validator(mode="after")
-    def set_default_source(self) -> "HealthFastingImport":
-        """Make a session without a source a manual one.
-
-        Returns:
-            The validated model instance with the source set.
-        """
-        if self.source is None:
-            self.source = Source.MANUAL
-        return self
 
 
 class HealthFastingComplete(BaseModel):

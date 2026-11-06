@@ -13,9 +13,13 @@ import core.etag as core_etag
 import core.logger as core_logger
 import modules.health.health_targets.crud as health_targets_crud
 import modules.health.health_targets.schema as health_targets_schema
+import modules.health.record_service as health_record_service
 import modules.users.users_profile.contracts as users_profile_contracts
 
 logger = core_logger.get_logger(__name__)
+
+#: The field names a profile archive written before the units were in the names uses, by current name.
+_ARCHIVE_RENAMES = {"weight": "weight_kg", "sleep": "sleep_seconds", "fasting": "fasting_seconds"}
 
 
 def get_health_targets(user_id: int, db: Session) -> health_targets_schema.HealthTargetsRead | None:
@@ -85,15 +89,16 @@ def restore_profile_records(
         NotFoundError: If the user has no targets.
     """
     staged = 0
-    for target_data in records:
+    for archived in records:
+        target_data = health_record_service.in_current_names(archived, _ARCHIVE_RENAMES)
         # Convert string numeric values to floats/ints
-        if isinstance(target_data.get("weight"), str):
+        if isinstance(target_data.get("weight_kg"), str):
             try:
-                target_data["weight"] = float(target_data["weight"])
+                target_data["weight_kg"] = float(target_data["weight_kg"])
             except (ValueError, TypeError):
-                target_data["weight"] = None
+                target_data["weight_kg"] = None
 
-        int_fields = ["steps", "sleep"]
+        int_fields = ["steps", "sleep_seconds"]
         for field in int_fields:
             if isinstance(target_data.get(field), str):
                 try:

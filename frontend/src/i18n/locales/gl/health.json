@@ -431,8 +431,7 @@
       "close": "Pechar",
       "createSuccess": "Auga rexistrada.",
       "updateSuccess": "Entrada de auga actualizada.",
-      "saveError": "Non se puido gardar a entrada de auga. Por favor, téntao de novo.",
-      "dailyLimitError": "Isto faría que a inxestión de auga do día superase o límite de 20.000 ml."
+      "saveError": "Non se puido gardar a entrada de auga. Por favor, téntao de novo."
     },
     "target": {
       "title": "Establecer obxectivo de auga",

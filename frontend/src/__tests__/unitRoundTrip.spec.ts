@@ -87,7 +87,7 @@ describe('an untouched imperial field keeps the stored metric value', () => {
       editOtherField('input[type="date"]', '2026-10-29'),
     )
 
-    expect(body).toMatchObject({ weight: 70.5, bone_mass: 3.1, muscle_mass: 33.3 })
+    expect(body).toMatchObject({ weight_kg: 70.5, bone_mass_kg: 3.1, muscle_mass_kg: 33.3 })
   })
 
   it('water', async () => {
@@ -240,6 +240,6 @@ describe('an edited imperial value is still converted', () => {
       },
     )
 
-    expect(body.weight).toBeCloseTo(77.111, 3)
+    expect(body.weight_kg).toBeCloseTo(77.111, 3)
   })
 })

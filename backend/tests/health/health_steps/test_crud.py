@@ -17,7 +17,7 @@ def _row(record_id: int = 1, steps: int = 10000) -> MagicMock:
     row.user_id = 1
     row.date = datetime_date(2024, 1, 15)
     row.steps = steps
-    row.source = None
+    row.source = "manual"
     return row
 
 

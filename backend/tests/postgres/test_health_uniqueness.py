@@ -96,7 +96,7 @@ def test_concurrent_steps_upserts_for_one_day_leave_one_record(factory):
         assert db.scalar(select(func.count()).select_from(steps_models.HealthSteps)) == 1
 
 
-def test_concurrent_water_intakes_for_one_day_are_all_counted(factory):
+def test_concurrent_water_creates_for_one_day_leave_one_record_and_conflict_the_rest(factory):
     outcomes = _run_concurrently(
         factory,
         lambda _index, db: water_service.create_health_water(
@@ -104,17 +104,19 @@ def test_concurrent_water_intakes_for_one_day_are_all_counted(factory):
         ),
     )
 
-    assert not [outcome for outcome in outcomes if isinstance(outcome, Exception)]
+    errors = [outcome for outcome in outcomes if isinstance(outcome, Exception)]
+    assert len(outcomes) - len(errors) == 1
+    assert all(isinstance(error, core_exceptions.ConflictError) for error in errors)
     with factory() as db:
         assert db.scalar(select(func.count()).select_from(water_models.HealthWater)) == 1
-        assert db.scalar(select(water_models.HealthWater.amount_ml)) == Decimal(100 * _THREADS)
+        assert db.scalar(select(water_models.HealthWater.amount_ml)) == Decimal(100)
 
 
 @pytest.mark.parametrize(
     ("model", "values"),
     [
         (steps_models.HealthSteps, {"steps": 1}),
-        (weight_models.HealthWeight, {"weight": Decimal(70)}),
+        (weight_models.HealthWeight, {"weight_kg": Decimal(70)}),
         (sleep_models.HealthSleep, {}),
         (water_models.HealthWater, {"amount_ml": Decimal(100)}),
     ],

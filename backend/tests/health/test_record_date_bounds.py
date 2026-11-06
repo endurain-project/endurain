@@ -21,7 +21,7 @@ _DATES = {
     "water update": (water_schema.HealthWaterUpdate, {}, "date"),
     "steps": (steps_schema.HealthStepsCreate, {"steps": 1000}, "date"),
     "steps update": (steps_schema.HealthStepsUpdate, {}, "date"),
-    "weight": (weight_schema.HealthWeightCreate, {"weight": 70.0}, "date"),
+    "weight": (weight_schema.HealthWeightCreate, {"weight_kg": 70.0}, "date"),
     "weight update": (weight_schema.HealthWeightUpdate, {}, "date"),
     "sleep": (sleep_schema.HealthSleepCreate, {}, "date"),
     "sleep update": (sleep_schema.HealthSleepUpdate, {}, "date"),

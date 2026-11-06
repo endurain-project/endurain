@@ -110,6 +110,7 @@ def create_health_poop(
     Raises:
         ConflictError: If the insert violates a database constraint.
     """
+    health_record_service.require_not_future(user_id, health_poop.date_time, db, what="A bowel movement")
     stored = health_poop_schema.HealthPoopImport(**health_poop.model_dump(), source=health_poop_schema.Source.MANUAL)
     created = health_poop_crud.create_health_poop(user_id, stored, db)
     db.commit()
@@ -153,6 +154,7 @@ def edit_health_poop(
         NotFoundError: If the user has no such record.
         PreconditionFailedError: If the record changed since the client read it.
     """
+    health_record_service.require_not_future(user_id, health_poop.date_time, db, what="A bowel movement")
     updated = health_record_service.commit_write(
         health_poop_crud.SPEC,
         health_poop_id,

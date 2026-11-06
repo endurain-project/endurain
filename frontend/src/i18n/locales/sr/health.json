@@ -431,8 +431,7 @@
       "close": "Zatvori",
       "createSuccess": "Voda je zabeležena.",
       "updateSuccess": "Unos vode je ažuriran.",
-      "saveError": "Nije moguće sačuvati unos vode. Pokušajte ponovo.",
-      "dailyLimitError": "Time bi dnevni unos vode premašio ograničenje od 20.000 ml."
+      "saveError": "Nije moguće sačuvati unos vode. Pokušajte ponovo."
     },
     "target": {
       "title": "Postavi cilj vode",

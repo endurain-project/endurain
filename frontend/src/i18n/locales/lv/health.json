@@ -431,8 +431,7 @@
       "close": "Aizvērt",
       "createSuccess": "Ūdens reģistrēts.",
       "updateSuccess": "Ūdens ieraksts atjaunināts.",
-      "saveError": "Neizdevās saglabāt jūsu ūdens ierakstu. Lūdzu, mēģiniet vēlreiz.",
-      "dailyLimitError": "Šādi dienas ūdens patēriņš pārsniegtu 20 000 ml ierobežojumu."
+      "saveError": "Neizdevās saglabāt jūsu ūdens ierakstu. Lūdzu, mēģiniet vēlreiz."
     },
     "target": {
       "title": "Iestatīt ūdens mērķi",

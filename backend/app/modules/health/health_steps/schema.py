@@ -2,6 +2,7 @@
 
 from datetime import date as datetime_date
 from enum import Enum
+from typing import ClassVar
 
 from pydantic import BaseModel, ConfigDict, Field, StrictInt
 
@@ -16,9 +17,11 @@ class Source(Enum):
     """An enumeration representing supported sources for the application.
 
     Members:
+        MANUAL: Manually entered data
         GARMIN: Garmin health data source
     """
 
+    MANUAL = "manual"
     GARMIN = "garmin"
 
 
@@ -77,7 +80,7 @@ class HealthStepsRead(HealthStepsBase):
         user_id (StrictInt): Foreign key reference to the user. Required field.
     """
 
-    source: Source | None = Field(default=None, description="Source of the steps data")
+    source: Source = Field(default=Source.MANUAL, validate_default=True, description="Source of the steps data")
     id: StrictInt = Field(..., description="Unique identifier for the steps record to update")
     user_id: StrictInt = Field(..., description="Foreign key reference to the user")
     version: StrictInt = Field(default=1, ge=1, description="Optimistic-concurrency counter, also sent as the ETag")
@@ -90,7 +93,7 @@ class HealthStepsUpdate(core_partial_update.NotClearable, HealthStepsWrite):
     fields present are changed.
     """
 
-    not_clearable = ("date", "steps")
+    not_clearable: ClassVar[tuple[str, ...]] = ("date", "steps")
 
 
 class HealthStepsImport(HealthStepsCreate):
@@ -100,10 +103,10 @@ class HealthStepsImport(HealthStepsCreate):
     server-side writer of ``source`` takes ``Health<Kind>Import`` (create) or ``Health<Kind>ImportUpdate``.
 
     Attributes:
-        source (Source | None): The source the record came from.
+        source (Source): The source the record came from; ``manual`` when none is given.
     """
 
-    source: Source | None = Field(default=None, description="Source of the steps data")
+    source: Source = Field(default=Source.MANUAL, validate_default=True, description="Source of the steps data")
 
 
 class HealthStepsImportUpdate(HealthStepsUpdate):
@@ -112,5 +115,7 @@ class HealthStepsImportUpdate(HealthStepsUpdate):
     Attributes:
         source (Source | None): The source the record came from.
     """
+
+    not_clearable: ClassVar[tuple[str, ...]] = (*HealthStepsUpdate.not_clearable, "source")
 
     source: Source | None = Field(default=None, description="Source of the steps data")

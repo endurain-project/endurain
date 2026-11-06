@@ -431,8 +431,7 @@
       "close": "Uždaryti",
       "createSuccess": "Vanduo įrašytas.",
       "updateSuccess": "Vandens įrašas atnaujintas.",
-      "saveError": "Nepavyko išsaugoti vandens įrašo. Bandykite dar kartą.",
-      "dailyLimitError": "Taip dienos vandens suvartojimas viršytų 20 000 ml ribą."
+      "saveError": "Nepavyko išsaugoti vandens įrašo. Bandykite dar kartą."
     },
     "target": {
       "title": "Nustatyti vandens tikslą",

@@ -217,7 +217,7 @@ def recalculate_bmi_for_user(user_id: int, height_cm: float | None, db: Session)
     """Stage a BMI recalculation for a user's manually entered weight records in one statement.
 
     A single bulk UPDATE keeps the work to a constant number of round trips
-    regardless of how many records exist. Records from a provider (``source`` set)
+    regardless of how many records exist. Records from a provider (``source`` not ``manual``)
     keep the BMI the provider reported. A result outside ``0`` to ``MAX_BMI`` is
     stored as ``NULL``, as :func:`modules.health.health_weight.bmi.calculate_bmi` does.
 
@@ -230,7 +230,7 @@ def recalculate_bmi_for_user(user_id: int, height_cm: float | None, db: Session)
     if height_cm and height_cm > 0:
         # bmi = weight (kg) * 10000 / height (cm) ** 2; the squared height is bound unrounded
         # (a metre value would be rounded to the weight column's scale and could be zero).
-        calculated = model.weight * 10000 / (Decimal(str(height_cm)) ** 2)
+        calculated = model.weight_kg * 10000 / (Decimal(str(height_cm)) ** 2)
         new_bmi = case((calculated.between(0, health_weight_schema.MAX_BMI), calculated), else_=None)
     else:
         # Without a usable height, BMI cannot be derived, so clear it.
@@ -238,7 +238,7 @@ def recalculate_bmi_for_user(user_id: int, height_cm: float | None, db: Session)
 
     stmt = (
         update(model)
-        .where(model.user_id == user_id, model.source.is_(None))
+        .where(model.user_id == user_id, model.source == health_weight_schema.Source.MANUAL.value)
         .values(bmi=new_bmi, version=model.version + 1)
     )
     db.execute(stmt)
@@ -279,10 +279,10 @@ def get_health_weight_chart(
     model = health_weight_models.HealthWeight
     day = health_computation.chart_bucket_expression(model.date, bucket, since)
     stmt = (
-        select(day, func.avg(model.weight))
+        select(day, func.avg(model.weight_kg))
         .where(
             model.user_id == user_id,
-            model.weight.is_not(None),
+            model.weight_kg.is_not(None),
             *health_computation.date_bounds(model.date, since, until),
         )
         .group_by(day)

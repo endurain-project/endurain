@@ -20,9 +20,9 @@ class TestHealthTargetsModel:
         # Assert
         assert hasattr(health_targets_models.HealthTargets, "id")
         assert hasattr(health_targets_models.HealthTargets, "user_id")
-        assert hasattr(health_targets_models.HealthTargets, "weight")
+        assert hasattr(health_targets_models.HealthTargets, "weight_kg")
         assert hasattr(health_targets_models.HealthTargets, "steps")
-        assert hasattr(health_targets_models.HealthTargets, "sleep")
+        assert hasattr(health_targets_models.HealthTargets, "sleep_seconds")
 
     def test_health_targets_model_primary_key(self):
         """
@@ -52,9 +52,9 @@ class TestHealthTargetsModel:
         Test HealthTargets model nullable fields.
         """
         # Assert
-        assert health_targets_models.HealthTargets.weight.nullable is True
+        assert health_targets_models.HealthTargets.weight_kg.nullable is True
         assert health_targets_models.HealthTargets.steps.nullable is True
-        assert health_targets_models.HealthTargets.sleep.nullable is True
+        assert health_targets_models.HealthTargets.sleep_seconds.nullable is True
 
     def test_health_targets_model_required_fields(self):
         """
@@ -71,14 +71,14 @@ class TestHealthTargetsModel:
         assert health_targets_models.HealthTargets.id.type.python_type is int
         assert health_targets_models.HealthTargets.user_id.type.python_type is int
         assert health_targets_models.HealthTargets.steps.type.python_type is int
-        assert health_targets_models.HealthTargets.sleep.type.python_type is int
+        assert health_targets_models.HealthTargets.sleep_seconds.type.python_type is int
 
     def test_health_targets_model_weight_precision(self):
         """
         Test HealthTargets model weight field has correct precision.
         """
         # Arrange
-        weight_column = health_targets_models.HealthTargets.weight
+        weight_column = health_targets_models.HealthTargets.weight_kg
 
         # Assert
         assert weight_column.type.precision == 10

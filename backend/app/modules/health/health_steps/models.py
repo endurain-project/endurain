@@ -48,9 +48,11 @@ class HealthSteps(Base):
         nullable=False,
         comment="Number of steps taken",
     )
-    source: Mapped[str | None] = mapped_column(
+    source: Mapped[str] = mapped_column(
         String(250),
-        nullable=True,
+        nullable=False,
+        server_default="manual",
+        default="manual",
         comment="Source of the health steps data",
     )
 

@@ -1,6 +1,5 @@
 from datetime import date as datetime_date
-from decimal import Decimal
-from unittest.mock import MagicMock, patch
+from unittest.mock import MagicMock
 
 import pytest
 from sqlalchemy.exc import IntegrityError
@@ -9,7 +8,6 @@ import core.exceptions as core_exceptions
 import modules.health.health_water.crud as health_water_crud
 import modules.health.health_water.models as health_water_models
 import modules.health.health_water.schema as health_water_schema
-import modules.health.record_crud as health_record_crud
 
 pytestmark = pytest.mark.usefixtures("passthrough_serializers")
 
@@ -125,16 +123,3 @@ class TestDeleteHealthWater:
         with pytest.raises(core_exceptions.NotFoundError):
             health_water_crud.delete_health_water(1, 9, mock_db, if_match="*")
         mock_db.delete.assert_not_called()
-
-
-class TestAddHealthWaterAmount:
-    @patch.object(health_record_crud, "get_owned")
-    def test_adds_in_one_update_and_returns_the_refreshed_record(self, mock_get_model, mock_db):
-        mock_get_model.return_value = _row(7)
-        mock_db.execute.return_value.scalar_one_or_none.return_value = 7
-
-        result = health_water_crud.add_health_water_amount(1, 7, Decimal(250), mock_db)
-
-        mock_db.execute.assert_called_once()
-        mock_db.refresh.assert_called_once_with(mock_get_model.return_value)
-        assert result is mock_get_model.return_value

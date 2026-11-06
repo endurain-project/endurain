@@ -6,6 +6,7 @@ tracking, including validation rules and source enumeration.
 
 from datetime import date as datetime_date
 from enum import StrEnum
+from typing import ClassVar
 
 from pydantic import (
     BaseModel,
@@ -85,8 +86,9 @@ class HealthWaterRead(HealthWaterBase):
         user_id: Foreign key reference to the user.
     """
 
-    source: Source | None = Field(
-        default=None,
+    source: Source = Field(
+        default=Source.MANUAL,
+        validate_default=True,
         description="Source of the water intake data",
     )
     id: StrictInt = Field(
@@ -107,7 +109,7 @@ class HealthWaterUpdate(core_partial_update.NotClearable, HealthWaterWrite):
     fields present are changed.
     """
 
-    not_clearable = ("date", "amount_ml")
+    not_clearable: ClassVar[tuple[str, ...]] = ("date", "amount_ml")
 
 
 class HealthWaterImport(HealthWaterCreate):
@@ -117,10 +119,10 @@ class HealthWaterImport(HealthWaterCreate):
     server-side writer of ``source`` takes ``Health<Kind>Import`` (create) or ``Health<Kind>ImportUpdate``.
 
     Attributes:
-        source: The source the record came from.
+        source: The source the record came from; ``manual`` when none is given.
     """
 
-    source: Source | None = Field(default=None, description="Source of the water intake data")
+    source: Source = Field(default=Source.MANUAL, validate_default=True, description="Source of the water intake data")
 
 
 class HealthWaterImportUpdate(HealthWaterUpdate):
@@ -129,5 +131,7 @@ class HealthWaterImportUpdate(HealthWaterUpdate):
     Attributes:
         source: The source the record came from.
     """
+
+    not_clearable: ClassVar[tuple[str, ...]] = (*HealthWaterUpdate.not_clearable, "source")
 
     source: Source | None = Field(default=None, description="Source of the water intake data")

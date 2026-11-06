@@ -431,8 +431,7 @@
       "close": "关闭",
       "createSuccess": "饮水已记录。",
       "updateSuccess": "饮水记录已更新。",
-      "saveError": "无法保存饮水记录，请重试。",
-      "dailyLimitError": "这样会使当天饮水量超过 20,000 毫升的上限。"
+      "saveError": "无法保存饮水记录，请重试。"
     },
     "target": {
       "title": "设置饮水目标",

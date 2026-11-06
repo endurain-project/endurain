@@ -431,8 +431,7 @@
       "close": "Sluiten",
       "createSuccess": "Water geregistreerd.",
       "updateSuccess": "Watervermelding bijgewerkt.",
-      "saveError": "Watervermelding kon niet worden opgeslagen. Probeer het opnieuw.",
-      "dailyLimitError": "Daarmee komt de waterinname van de dag boven de limiet van 20.000 ml."
+      "saveError": "Watervermelding kon niet worden opgeslagen. Probeer het opnieuw."
     },
     "target": {
       "title": "Waterinname-target instellen",

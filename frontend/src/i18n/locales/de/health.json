@@ -431,8 +431,7 @@
       "close": "Schließen",
       "createSuccess": "Wasser eingetragen.",
       "updateSuccess": "Wassereintrag aktualisiert.",
-      "saveError": "Dein Wassereintrag konnte nicht gespeichert werden. Bitte versuche es erneut.",
-      "dailyLimitError": "Damit würde die Wasseraufnahme des Tages das Limit von 20.000 ml überschreiten."
+      "saveError": "Dein Wassereintrag konnte nicht gespeichert werden. Bitte versuche es erneut."
     },
     "target": {
       "title": "Wasserziel setzen",

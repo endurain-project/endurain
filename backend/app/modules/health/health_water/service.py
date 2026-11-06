@@ -5,13 +5,11 @@ resolution and the transaction boundary. What other modules may consume lives in
 :mod:`modules.health.health_water.integration_service`.
 """
 
-from decimal import Decimal
 from typing import Any
 
 from sqlalchemy.orm import Session
 
 import core.date_range as core_date_range
-import core.exceptions as core_exceptions
 import core.logger as core_logger
 import core.pagination as core_pagination
 import modules.health.constants as health_constants
@@ -89,50 +87,12 @@ def stage_edit_health_water(
     return health_water_crud.edit_health_water(user_id, health_water_id, health_water, db, if_match=if_match)
 
 
-def stage_add_health_water(
-    user_id: int, health_water: health_water_schema.HealthWaterCreate, db: Session
-) -> health_water_schema.HealthWaterRead:
-    """Stage an intake added to the user's total for its date, creating the day's record if needed.
-
-    A writer that creates the date first, on this replica or another, is not an error: the
-    intake is added to the record it created.
-
-    Args:
-        user_id: The record's owner.
-        health_water: The intake to add.
-        db: Database session.
-
-    Returns:
-        The staged record of the day.
-
-    Raises:
-        ConflictError: If the date's record cannot be created or found.
-    """
-    if health_water.date is None:
-        # The request carries no timezone, so the day is the athlete's own.
-        health_water.date = users_integration.local_today(user_id, db)
-
-    existing = health_water_crud.get_health_water_by_date_and_user_id(user_id, health_water.date.isoformat(), db)
-    if existing is None:
-        try:
-            with db.begin_nested():
-                return health_water_crud.create_health_water(user_id, health_water, db)
-        except core_exceptions.ConflictError:
-            existing = health_water_crud.get_health_water_by_date_and_user_id(
-                user_id, health_water.date.isoformat(), db
-            )
-            if existing is None:
-                raise
-    return health_water_crud.add_health_water_amount(user_id, existing.id, Decimal(str(health_water.amount_ml)), db)
-
-
 def stage_upsert_health_water(
     user_id: int, health_water: health_water_schema.HealthWaterImport, db: Session
 ) -> health_water_schema.HealthWaterRead:
     """Stage a water record, or replace the amount of the user's record for the same date.
 
-    Unlike :func:`stage_add_health_water` the amount is stored as given, so writing the same
-    record twice leaves the day unchanged.
+    The amount is stored as given, so writing the same record twice leaves the day unchanged.
 
     A writer that creates the date first, on this replica or another, is not an error: the
     record it created is updated instead.
@@ -162,23 +122,28 @@ def stage_upsert_health_water(
 def create_health_water(
     user_id: int, health_water: health_water_schema.HealthWaterCreate, db: Session
 ) -> health_water_schema.HealthWaterRead:
-    """Add an intake to the user's total for its date, creating the day's record if needed, and commit.
+    """Create a water intake record for the user's day, and commit.
 
     Args:
         user_id: The record's owner.
-        health_water: The intake to add.
+        health_water: The record to create; a missing date is the user's local today.
         db: Database session.
 
     Returns:
-        The day's record after the addition.
+        The created record.
 
     Raises:
-        ConflictError: If the date's record cannot be created or found.
+        ConflictError: If the user already has a record for that date.
+        InvalidInputError: If the date is after the user's local today.
     """
-    stored = stage_add_health_water(user_id, health_water, db)
+    if health_water.date is None:
+        health_water.date = users_integration.local_today(user_id, db)
+    else:
+        health_record_service.require_not_future(user_id, health_water.date, db, what="A water intake")
+    created = health_water_crud.create_health_water(user_id, health_water, db)
     db.commit()
     logger.info("Stored a water intake record", extra=core_logger.context(user_id=user_id))
-    return stored
+    return created
 
 
 def edit_health_water(
@@ -203,8 +168,10 @@ def edit_health_water(
 
     Raises:
         NotFoundError: If the user has no such record.
+        InvalidInputError: If the new date is after the user's local today.
         PreconditionFailedError: If the record changed since the client read it.
     """
+    health_record_service.require_not_future(user_id, health_water.date, db, what="A water intake")
     updated = health_record_service.commit_write(
         health_water_crud.SPEC,
         health_water_id,

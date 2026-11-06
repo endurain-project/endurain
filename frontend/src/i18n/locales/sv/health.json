@@ -431,8 +431,7 @@
       "close": "Stäng",
       "createSuccess": "Vatten loggat.",
       "updateSuccess": "Vattenpost uppdaterad.",
-      "saveError": "Kunde inte spara din vattenpost. Försök igen.",
-      "dailyLimitError": "Det skulle ta dagens vattenintag över gränsen på 20 000 ml."
+      "saveError": "Kunde inte spara din vattenpost. Försök igen."
     },
     "target": {
       "title": "Ange vattenmål",

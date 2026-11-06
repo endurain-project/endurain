@@ -45,11 +45,11 @@ class HealthWeightDashboard(BaseModel):
     """Latest weight metrics for dashboard display.
 
     Attributes:
-        weight: Weight in kilograms.
+        weight_kg: Weight in kilograms.
         bmi: Body Mass Index.
     """
 
-    weight: StrictFloat | None = Field(
+    weight_kg: StrictFloat | None = Field(
         default=None,
         description="Weight in kilograms",
     )

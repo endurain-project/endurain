@@ -431,8 +431,7 @@
       "close": "Închide",
       "createSuccess": "Apă înregistrată.",
       "updateSuccess": "Înregistrarea de apă a fost actualizată.",
-      "saveError": "Nu am putut salva înregistrarea ta de apă. Te rugăm să încerci din nou.",
-      "dailyLimitError": "Astfel, aportul de apă al zilei ar depăși limita de 20.000 ml."
+      "saveError": "Nu am putut salva înregistrarea ta de apă. Te rugăm să încerci din nou."
     },
     "target": {
       "title": "Setează obiectivul de apă",

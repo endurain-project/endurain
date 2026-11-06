@@ -15,7 +15,7 @@ Health records belong to your account. Unlike activities, they have no visibilit
 | Weight | Weight in kilograms or pounds, and optionally body fat, body water, bone mass, muscle mass, visceral fat, physique rating and metabolic age | One |
 | Steps | Step count | One |
 | Sleep | Start and end, total, deep, light, REM and awake time, awakenings, stress, heart rate, SpO2, respiration, HRV status and the [sleep scores](sleep-scoring.md) | One |
-| Water | A total in millilitres | One total, built up by intakes |
+| Water | A total in millilitres | One per day |
 | Bowel movements | Date and time, [Bristol stool type](#bowel-movements) 1–7, colour and notes | Any number |
 | Fasting | Start, end, protocol, target duration, status and notes | One running fast at a time |
 
@@ -48,7 +48,7 @@ BMI is worked out from the weight and the height in your profile when you do not
 
 ## Water
 
-Water is a running total for the day. Logging 250 ml adds 250 to the day's total, and creates the day's record if it is the first one.
+Water is one total per day, like weight, steps and sleep. Logging water for a day that already has an entry is refused: edit that day's entry to change the total.
 
 ## Bowel movements
 

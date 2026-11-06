@@ -431,8 +431,7 @@
       "close": "Fechar",
       "createSuccess": "Água registada.",
       "updateSuccess": "Entrada de água atualizada.",
-      "saveError": "Não foi possível guardar a entrada de água. Tenta novamente.",
-      "dailyLimitError": "Isto faria a ingestão de água do dia ultrapassar o limite de 20 000 ml."
+      "saveError": "Não foi possível guardar a entrada de água. Tenta novamente."
     },
     "target": {
       "title": "Definir objetivo de água",

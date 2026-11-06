@@ -92,7 +92,7 @@ def test_the_bucket_the_window_opens_in_is_dated_the_window_start(db):
 
 def test_weight_and_water_average_their_decimals(db):
     db.add_all(
-        weight_models.HealthWeight(user_id=1, date=date(2026, 3, day), weight=Decimal(kg))
+        weight_models.HealthWeight(user_id=1, date=date(2026, 3, day), weight_kg=Decimal(kg))
         for day, kg in ((2, "70.0"), (3, "71.0"))
     )
     db.add_all(

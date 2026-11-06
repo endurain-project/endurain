@@ -6191,8 +6191,11 @@ export interface components {
              * @description Optional notes about the fasting session
              */
             notes?: string | null;
-            /** @description Data source for the record */
-            source?: components["schemas"]["modules__health__health_fasting__schema__Source"] | null;
+            /**
+             * @description Data source for the record
+             * @default manual
+             */
+            source: components["schemas"]["modules__health__health_fasting__schema__Source"];
             /** @description Current status of the fasting session */
             status?: components["schemas"]["FastingStatus"] | null;
             /**
@@ -6356,8 +6359,11 @@ export interface components {
              * @description Optional notes about the bowel movement
              */
             notes?: string | null;
-            /** @description Source of the data */
-            source?: components["schemas"]["modules__health__health_poop__schema__Source"] | null;
+            /**
+             * @description Source of the data
+             * @default manual
+             */
+            source: components["schemas"]["modules__health__health_poop__schema__Source"];
             /**
              * User Id
              * @description Foreign key reference to the user
@@ -6449,10 +6455,10 @@ export interface components {
              */
             avg_sleep_stress?: number | null;
             /**
-             * Avg Spo2
+             * Avg Spo2 Percent
              * @description Average SpO2 oxygen saturation percentage
              */
-            avg_spo2?: number | null;
+            avg_spo2_percent?: number | null;
             /**
              * Avg Stress Level
              * @description Average stress level
@@ -6488,10 +6494,10 @@ export interface components {
              */
             highest_respiration?: number | null;
             /**
-             * Highest Spo2
+             * Highest Spo2 Percent
              * @description Highest SpO2 reading during sleep
              */
-            highest_spo2?: number | null;
+            highest_spo2_percent?: number | null;
             /** @description Heart rate variability status */
             hrv_status?: components["schemas"]["HRVStatus"] | null;
             /** @description Light sleep percentage score */
@@ -6507,10 +6513,10 @@ export interface components {
              */
             lowest_respiration?: number | null;
             /**
-             * Lowest Spo2
+             * Lowest Spo2 Percent
              * @description Lowest SpO2 reading during sleep
              */
-            lowest_spo2?: number | null;
+            lowest_spo2_percent?: number | null;
             /**
              * Max Heart Rate
              * @description Maximum heart rate during sleep
@@ -6657,10 +6663,10 @@ export interface components {
              */
             avg_sleep_stress?: number | null;
             /**
-             * Avg Spo2
+             * Avg Spo2 Percent
              * @description Average SpO2 oxygen saturation percentage
              */
-            avg_spo2?: number | null;
+            avg_spo2_percent?: number | null;
             /**
              * Avg Stress Level
              * @description Average stress level
@@ -6701,10 +6707,10 @@ export interface components {
              */
             highest_respiration?: number | null;
             /**
-             * Highest Spo2
+             * Highest Spo2 Percent
              * @description Highest SpO2 reading during sleep
              */
-            highest_spo2?: number | null;
+            highest_spo2_percent?: number | null;
             /** @description Heart rate variability status */
             hrv_status?: components["schemas"]["HRVStatus"] | null;
             /**
@@ -6725,10 +6731,10 @@ export interface components {
              */
             lowest_respiration?: number | null;
             /**
-             * Lowest Spo2
+             * Lowest Spo2 Percent
              * @description Lowest SpO2 reading during sleep
              */
-            lowest_spo2?: number | null;
+            lowest_spo2_percent?: number | null;
             /**
              * Max Heart Rate
              * @description Maximum heart rate during sleep
@@ -6797,8 +6803,11 @@ export interface components {
             sleep_start_time_local?: string | null;
             /** @description Sleep stress score */
             sleep_stress_score?: components["schemas"]["SleepScore"] | null;
-            /** @description Source of the sleep data */
-            source?: components["schemas"]["modules__health__health_sleep__schema__Source"] | null;
+            /**
+             * @description Source of the sleep data
+             * @default manual
+             */
+            source: components["schemas"]["modules__health__health_sleep__schema__Source"];
             /**
              * Total Sleep Seconds
              * @description Total duration of sleep in seconds
@@ -6905,10 +6914,10 @@ export interface components {
              */
             avg_sleep_stress?: number | null;
             /**
-             * Avg Spo2
+             * Avg Spo2 Percent
              * @description Average SpO2 oxygen saturation percentage
              */
-            avg_spo2?: number | null;
+            avg_spo2_percent?: number | null;
             /**
              * Avg Stress Level
              * @description Average stress level
@@ -6944,10 +6953,10 @@ export interface components {
              */
             highest_respiration?: number | null;
             /**
-             * Highest Spo2
+             * Highest Spo2 Percent
              * @description Highest SpO2 reading during sleep
              */
-            highest_spo2?: number | null;
+            highest_spo2_percent?: number | null;
             /** @description Heart rate variability status */
             hrv_status?: components["schemas"]["HRVStatus"] | null;
             /** @description Light sleep percentage score */
@@ -6963,10 +6972,10 @@ export interface components {
              */
             lowest_respiration?: number | null;
             /**
-             * Lowest Spo2
+             * Lowest Spo2 Percent
              * @description Lowest SpO2 reading during sleep
              */
-            lowest_spo2?: number | null;
+            lowest_spo2_percent?: number | null;
             /**
              * Max Heart Rate
              * @description Maximum heart rate during sleep
@@ -7101,8 +7110,11 @@ export interface components {
              * @description Unique identifier for the steps record to update
              */
             readonly id: number;
-            /** @description Source of the steps data */
-            source?: components["schemas"]["modules__health__health_steps__schema__Source"] | null;
+            /**
+             * @description Source of the steps data
+             * @default manual
+             */
+            source: components["schemas"]["modules__health__health_steps__schema__Source"];
             /**
              * Steps
              * @description Number of steps taken
@@ -7150,10 +7162,10 @@ export interface components {
          */
         HealthTargetsRead: {
             /**
-             * Fasting
+             * Fasting Seconds
              * @description Target fasting duration in seconds (max 72h)
              */
-            fasting?: number | null;
+            fasting_seconds?: number | null;
             /**
              * Id
              * @description Unique identifier for the health target
@@ -7165,10 +7177,10 @@ export interface components {
              */
             poop_count?: number | null;
             /**
-             * Sleep
+             * Sleep Seconds
              * @description Target sleep duration in seconds
              */
-            sleep?: number | null;
+            sleep_seconds?: number | null;
             /**
              * Steps
              * @description Target daily steps count
@@ -7191,10 +7203,10 @@ export interface components {
              */
             water_ml?: number | null;
             /**
-             * Weight
+             * Weight Kg
              * @description Target weight in kg
              */
-            weight?: number | null;
+            weight_kg?: number | null;
         };
         /**
          * HealthTargetsUpdate
@@ -7205,20 +7217,20 @@ export interface components {
          */
         HealthTargetsUpdate: {
             /**
-             * Fasting
+             * Fasting Seconds
              * @description Target fasting duration in seconds (max 72h)
              */
-            fasting?: number | null;
+            fasting_seconds?: number | null;
             /**
              * Poop Count
              * @description Target daily bowel movement count
              */
             poop_count?: number | null;
             /**
-             * Sleep
+             * Sleep Seconds
              * @description Target sleep duration in seconds
              */
-            sleep?: number | null;
+            sleep_seconds?: number | null;
             /**
              * Steps
              * @description Target daily steps count
@@ -7230,10 +7242,10 @@ export interface components {
              */
             water_ml?: number | null;
             /**
-             * Weight
+             * Weight Kg
              * @description Target weight in kg
              */
-            weight?: number | null;
+            weight_kg?: number | null;
         };
         /**
          * HealthWaterCreate
@@ -7292,8 +7304,11 @@ export interface components {
              * @description Unique identifier for the water intake record
              */
             readonly id: number;
-            /** @description Source of the water intake data */
-            source?: components["schemas"]["modules__health__health_water__schema__Source"] | null;
+            /**
+             * @description Source of the water intake data
+             * @default manual
+             */
+            source: components["schemas"]["modules__health__health_water__schema__Source"];
             /**
              * User Id
              * @description Foreign key reference to the user
@@ -7338,20 +7353,20 @@ export interface components {
              */
             bmi?: number | null;
             /**
-             * Body Fat
-             * @description Body fat percentage
+             * Body Fat Percent
+             * @description Body fat as a percentage of body weight (0-100)
              */
-            body_fat?: number | null;
+            body_fat_percent?: number | null;
             /**
-             * Body Water
-             * @description Body water percentage
+             * Body Water Percent
+             * @description Body water as a percentage of body weight (0-100)
              */
-            body_water?: number | null;
+            body_water_percent?: number | null;
             /**
-             * Bone Mass
+             * Bone Mass Kg
              * @description Bone mass in kilograms
              */
-            bone_mass?: number | null;
+            bone_mass_kg?: number | null;
             /**
              * Date
              * @description Health weight date (date)
@@ -7359,14 +7374,14 @@ export interface components {
             date?: string | null;
             /**
              * Metabolic Age
-             * @description Metabolic age
+             * @description Metabolic age in years
              */
             metabolic_age?: number | null;
             /**
-             * Muscle Mass
+             * Muscle Mass Kg
              * @description Muscle mass in kilograms
              */
-            muscle_mass?: number | null;
+            muscle_mass_kg?: number | null;
             /**
              * Physique Rating
              * @description Physique rating
@@ -7374,21 +7389,21 @@ export interface components {
             physique_rating?: number | null;
             /**
              * Visceral Fat
-             * @description Visceral fat
+             * @description Visceral fat rating (a score, not a unit)
              */
             visceral_fat?: number | null;
             /**
-             * Weight
+             * Weight Kg
              * @description Weight in kilograms
              */
-            weight: number;
+            weight_kg: number;
         };
         /**
          * HealthWeightDashboard
          * @description Latest weight metrics for dashboard display.
          *
          *     Attributes:
-         *         weight: Weight in kilograms.
+         *         weight_kg: Weight in kilograms.
          *         bmi: Body Mass Index.
          */
         HealthWeightDashboard: {
@@ -7398,10 +7413,10 @@ export interface components {
              */
             bmi?: number | null;
             /**
-             * Weight
+             * Weight Kg
              * @description Weight in kilograms
              */
-            weight?: number | null;
+            weight_kg?: number | null;
         };
         /**
          * HealthWeightRead
@@ -7422,20 +7437,20 @@ export interface components {
              */
             bmi?: number | null;
             /**
-             * Body Fat
-             * @description Body fat percentage
+             * Body Fat Percent
+             * @description Body fat as a percentage of body weight (0-100)
              */
-            body_fat?: number | null;
+            body_fat_percent?: number | null;
             /**
-             * Body Water
-             * @description Body water percentage
+             * Body Water Percent
+             * @description Body water as a percentage of body weight (0-100)
              */
-            body_water?: number | null;
+            body_water_percent?: number | null;
             /**
-             * Bone Mass
+             * Bone Mass Kg
              * @description Bone mass in kilograms
              */
-            bone_mass?: number | null;
+            bone_mass_kg?: number | null;
             /**
              * Date
              * @description Health weight date (date)
@@ -7448,21 +7463,24 @@ export interface components {
             readonly id: number;
             /**
              * Metabolic Age
-             * @description Metabolic age
+             * @description Metabolic age in years
              */
             metabolic_age?: number | null;
             /**
-             * Muscle Mass
+             * Muscle Mass Kg
              * @description Muscle mass in kilograms
              */
-            muscle_mass?: number | null;
+            muscle_mass_kg?: number | null;
             /**
              * Physique Rating
              * @description Physique rating
              */
             physique_rating?: number | null;
-            /** @description Source of the weight data */
-            source?: components["schemas"]["modules__health__health_weight__schema__Source"] | null;
+            /**
+             * @description Source of the weight data
+             * @default manual
+             */
+            source: components["schemas"]["modules__health__health_weight__schema__Source"];
             /**
              * User Id
              * @description Foreign key reference to the user
@@ -7476,14 +7494,14 @@ export interface components {
             readonly version: number;
             /**
              * Visceral Fat
-             * @description Visceral fat
+             * @description Visceral fat rating (a score, not a unit)
              */
             visceral_fat?: number | null;
             /**
-             * Weight
+             * Weight Kg
              * @description Weight in kilograms
              */
-            weight?: number | null;
+            weight_kg?: number | null;
         };
         /**
          * HealthWeightUpdate
@@ -7499,20 +7517,20 @@ export interface components {
              */
             bmi?: number | null;
             /**
-             * Body Fat
-             * @description Body fat percentage
+             * Body Fat Percent
+             * @description Body fat as a percentage of body weight (0-100)
              */
-            body_fat?: number | null;
+            body_fat_percent?: number | null;
             /**
-             * Body Water
-             * @description Body water percentage
+             * Body Water Percent
+             * @description Body water as a percentage of body weight (0-100)
              */
-            body_water?: number | null;
+            body_water_percent?: number | null;
             /**
-             * Bone Mass
+             * Bone Mass Kg
              * @description Bone mass in kilograms
              */
-            bone_mass?: number | null;
+            bone_mass_kg?: number | null;
             /**
              * Date
              * @description Health weight date (date)
@@ -7520,14 +7538,14 @@ export interface components {
             date?: string | null;
             /**
              * Metabolic Age
-             * @description Metabolic age
+             * @description Metabolic age in years
              */
             metabolic_age?: number | null;
             /**
-             * Muscle Mass
+             * Muscle Mass Kg
              * @description Muscle mass in kilograms
              */
-            muscle_mass?: number | null;
+            muscle_mass_kg?: number | null;
             /**
              * Physique Rating
              * @description Physique rating
@@ -7535,14 +7553,14 @@ export interface components {
             physique_rating?: number | null;
             /**
              * Visceral Fat
-             * @description Visceral fat
+             * @description Visceral fat rating (a score, not a unit)
              */
             visceral_fat?: number | null;
             /**
-             * Weight
+             * Weight Kg
              * @description Weight in kilograms
              */
-            weight?: number | null;
+            weight_kg?: number | null;
         };
         /**
          * HeartRateStreamRead
@@ -12664,19 +12682,21 @@ export interface components {
          * @description Enum representing the source of sleep health data.
          *
          *     Attributes:
+         *         MANUAL: Sleep data entered manually.
          *         GARMIN: Sleep data sourced from Garmin devices or services.
          * @enum {string}
          */
-        modules__health__health_sleep__schema__Source: "garmin";
+        modules__health__health_sleep__schema__Source: "manual" | "garmin";
         /**
          * Source
          * @description An enumeration representing supported sources for the application.
          *
          *     Members:
+         *         MANUAL: Manually entered data
          *         GARMIN: Garmin health data source
          * @enum {string}
          */
-        modules__health__health_steps__schema__Source: "garmin";
+        modules__health__health_steps__schema__Source: "manual" | "garmin";
         /**
          * Source
          * @description Enumeration of data sources for water intake records.
@@ -12692,10 +12712,11 @@ export interface components {
          * @description Enumeration of data sources for health weight records.
          *
          *     Attributes:
+         *         MANUAL: Manually entered data.
          *         GARMIN: Garmin fitness tracking platform as a data source.
          * @enum {string}
          */
-        modules__health__health_weight__schema__Source: "garmin";
+        modules__health__health_weight__schema__Source: "manual" | "garmin";
         /**
          * SyncKind
          * @description What a queued Strava sync does.

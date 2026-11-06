@@ -431,8 +431,7 @@
       "close": "Kapat",
       "createSuccess": "Su kaydedildi.",
       "updateSuccess": "Su kaydı güncellendi.",
-      "saveError": "Su kaydınız kaydedilemedi. Lütfen tekrar deneyin.",
-      "dailyLimitError": "Bu işlem günlük su tüketimini 20.000 ml sınırının üzerine çıkarır."
+      "saveError": "Su kaydınız kaydedilemedi. Lütfen tekrar deneyin."
     },
     "target": {
       "title": "Su hedefi belirle",

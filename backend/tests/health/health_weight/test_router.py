@@ -10,7 +10,7 @@ _LIST = "modules.health.health_weight.router.health_weight_service.list_health_w
 
 def _record(record_id: int, day: int, weight: float) -> health_weight_schema.HealthWeightRead:
     return health_weight_schema.HealthWeightRead(
-        id=record_id, user_id=1, date=datetime_date(2024, 1, day), weight=weight, bmi=24.5
+        id=record_id, user_id=1, date=datetime_date(2024, 1, day), weight_kg=weight, bmi=24.5
     )
 
 
@@ -26,7 +26,7 @@ class TestReadHealthWeightAll:
         assert response.status_code == 200
         data = response.json()
         assert data["total"] == 2
-        assert [r["weight"] for r in data["items"]] == [75.5, 75.0]
+        assert [r["weight_kg"] for r in data["items"]] == [75.5, 75.0]
 
     @patch(_LIST)
     def test_empty(self, mock_list, fast_api_client, fast_api_app):
@@ -73,7 +73,7 @@ class TestCreateHealthWeight:
             id=1,
             user_id=1,
             date=datetime_date(2024, 1, 15),
-            weight=75.5,
+            weight_kg=75.5,
             bmi=24.5,
         )
         mock_create.return_value = created_weight
@@ -83,7 +83,7 @@ class TestCreateHealthWeight:
             "/health_weight",
             json={
                 "date": "2024-01-15",
-                "weight": 75.5,
+                "weight_kg": 75.5,
             },
             headers={"Authorization": "Bearer mock_token"},
         )
@@ -91,7 +91,7 @@ class TestCreateHealthWeight:
         # Assert
         assert response.status_code == 201
         data = response.json()
-        assert data["weight"] == 75.5
+        assert data["weight_kg"] == 75.5
 
 
 class TestEditHealthWeight:
@@ -109,7 +109,7 @@ class TestEditHealthWeight:
             id=1,
             user_id=1,
             date=datetime_date(2024, 1, 15),
-            weight=76.0,
+            weight_kg=76.0,
             bmi=24.7,
         )
         mock_edit.return_value = updated_weight
@@ -119,7 +119,7 @@ class TestEditHealthWeight:
             "/health_weight/1",
             json={
                 "date": "2024-01-15",
-                "weight": 76.0,
+                "weight_kg": 76.0,
             },
             headers={**{"Authorization": "Bearer mock_token"}, "If-Match": '"1"'},
         )
@@ -127,7 +127,7 @@ class TestEditHealthWeight:
         # Assert
         assert response.status_code == 200
         data = response.json()
-        assert data["weight"] == 76.0
+        assert data["weight_kg"] == 76.0
 
     @patch("modules.health.health_weight.router.health_weight_service.edit_health_weight")
     def test_edit_health_weight_not_found(self, mock_edit, fast_api_client, fast_api_app):
@@ -142,7 +142,7 @@ class TestEditHealthWeight:
             "/health_weight/999",
             json={
                 "date": "2024-01-15",
-                "weight": 76.0,
+                "weight_kg": 76.0,
             },
             headers={**{"Authorization": "Bearer mock_token"}, "If-Match": '"1"'},
         )
@@ -222,7 +222,7 @@ class TestCreateHealthWeightHeaders:
 
         response = fast_api_client.post(
             "/health_weight",
-            json={"date": "2024-01-15", "weight": 75.5},
+            json={"date": "2024-01-15", "weight_kg": 75.5},
             headers={"Authorization": "Bearer mock_token"},
         )
 

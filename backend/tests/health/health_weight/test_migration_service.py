@@ -26,7 +26,7 @@ def session_factory():
 
 def test_a_record_without_bmi_is_stored_with_it(session_factory):
     with session_factory() as db:
-        row = health_weight_models.HealthWeight(user_id=_USER_ID, date=date(2024, 1, 15), weight=81)
+        row = health_weight_models.HealthWeight(user_id=_USER_ID, date=date(2024, 1, 15), weight_kg=81)
         db.add(row)
         db.commit()
         record_id = row.id

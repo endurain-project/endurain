@@ -17,17 +17,17 @@ class TestHealthTargetsSchema:
         health_targets = health_targets_schema.HealthTargetsRead(
             id=1,
             user_id=1,
-            weight=75.5,
+            weight_kg=75.5,
             steps=10000,
-            sleep=28800,
+            sleep_seconds=28800,
         )
 
         # Assert
         assert health_targets.id == 1
         assert health_targets.user_id == 1
-        assert health_targets.weight == 75.5
+        assert health_targets.weight_kg == 75.5
         assert health_targets.steps == 10000
-        assert health_targets.sleep == 28800
+        assert health_targets.sleep_seconds == 28800
 
     def test_health_targets_minimal_data(self):
         """
@@ -37,9 +37,9 @@ class TestHealthTargetsSchema:
         health_targets = health_targets_schema.HealthTargetsBase()
 
         # Assert
-        assert health_targets.weight is None
+        assert health_targets.weight_kg is None
         assert health_targets.steps is None
-        assert health_targets.sleep is None
+        assert health_targets.sleep_seconds is None
 
     def test_health_targets_with_none_values(self):
         """
@@ -49,37 +49,37 @@ class TestHealthTargetsSchema:
         health_targets = health_targets_schema.HealthTargetsRead(
             id=1,
             user_id=1,
-            weight=None,
+            weight_kg=None,
             steps=None,
-            sleep=None,
+            sleep_seconds=None,
         )
 
         # Assert
         assert health_targets.id == 1
         assert health_targets.user_id == 1
-        assert health_targets.weight is None
+        assert health_targets.weight_kg is None
         assert health_targets.steps is None
-        assert health_targets.sleep is None
+        assert health_targets.sleep_seconds is None
 
     def test_health_targets_with_float_weight(self):
         """
         Test HealthTargetsBase schema with float weight values.
         """
         # Arrange & Act
-        health_targets = health_targets_schema.HealthTargetsBase(weight=75.567)
+        health_targets = health_targets_schema.HealthTargetsBase(weight_kg=75.567)
 
         # Assert
-        assert health_targets.weight == 75.567
+        assert health_targets.weight_kg == 75.567
 
     def test_health_targets_with_integer_weight(self):
         """
         Test HealthTargetsBase schema with integer weight values.
         """
         # Arrange & Act
-        health_targets = health_targets_schema.HealthTargetsBase(weight=75.0)
+        health_targets = health_targets_schema.HealthTargetsBase(weight_kg=75.0)
 
         # Assert
-        assert health_targets.weight == 75.0
+        assert health_targets.weight_kg == 75.0
 
     def test_health_targets_with_integer_steps(self):
         """
@@ -97,11 +97,11 @@ class TestHealthTargetsSchema:
         Test HealthTargetsBase schema with integer sleep values.
         """
         # Arrange & Act
-        health_targets = health_targets_schema.HealthTargetsBase(sleep=28800)
+        health_targets = health_targets_schema.HealthTargetsBase(sleep_seconds=28800)
 
         # Assert
-        assert health_targets.sleep == 28800
-        assert isinstance(health_targets.sleep, int)
+        assert health_targets.sleep_seconds == 28800
+        assert isinstance(health_targets.sleep_seconds, int)
 
     def test_health_targets_forbid_extra_fields(self):
         """
@@ -109,7 +109,7 @@ class TestHealthTargetsSchema:
         """
         # Arrange & Act & Assert
         with pytest.raises(ValidationError) as exc_info:
-            health_targets_schema.HealthTargetsBase(weight=75.5, extra_field="not allowed")
+            health_targets_schema.HealthTargetsBase(weight_kg=75.5, extra_field="not allowed")
 
         assert "extra_field" in str(exc_info.value)
 
@@ -124,16 +124,16 @@ class TestHealthTargetsSchema:
 
             id = 1
             user_id = 1
-            weight = 75.5
+            weight_kg = 75.5
             steps = 10000
-            sleep = 28800
+            sleep_seconds = 28800
 
         # Act
         health_targets = health_targets_schema.HealthTargetsRead.model_validate(MockORMModel())
 
         # Assert
         assert health_targets.id == 1
-        assert health_targets.weight == 75.5
+        assert health_targets.weight_kg == 75.5
         assert health_targets.steps == 10000
 
     def test_health_targets_validate_assignment(self):
@@ -141,14 +141,14 @@ class TestHealthTargetsSchema:
         Test that validate_assignment works correctly.
         """
         # Arrange
-        health_targets = health_targets_schema.HealthTargetsBase(weight=75.5)
+        health_targets = health_targets_schema.HealthTargetsBase(weight_kg=75.5)
 
         # Act
-        health_targets.weight = 80.0
+        health_targets.weight_kg = 80.0
         health_targets.steps = 12000
 
         # Assert
-        assert health_targets.weight == 80.0
+        assert health_targets.weight_kg == 80.0
         assert health_targets.steps == 12000
 
     def test_health_targets_zero_steps(self):
@@ -166,22 +166,22 @@ class TestHealthTargetsSchema:
         Test HealthTargetsBase schema accepts zero sleep.
         """
         # Arrange & Act
-        health_targets = health_targets_schema.HealthTargetsBase(sleep=0)
+        health_targets = health_targets_schema.HealthTargetsBase(sleep_seconds=0)
 
         # Assert
-        assert health_targets.sleep == 0
+        assert health_targets.sleep_seconds == 0
 
     def test_health_targets_large_values(self):
         """
         Test HealthTargetsBase schema with large values.
         """
         # Arrange & Act
-        health_targets = health_targets_schema.HealthTargetsBase(weight=200.5, steps=50000, sleep=86400)
+        health_targets = health_targets_schema.HealthTargetsBase(weight_kg=200.5, steps=50000, sleep_seconds=86400)
 
         # Assert
-        assert health_targets.weight == 200.5
+        assert health_targets.weight_kg == 200.5
         assert health_targets.steps == 50000
-        assert health_targets.sleep == 86400
+        assert health_targets.sleep_seconds == 86400
 
     def test_health_targets_partial_data(self):
         """
@@ -198,5 +198,5 @@ class TestHealthTargetsSchema:
         assert health_targets.id == 1
         assert health_targets.user_id == 1
         assert health_targets.steps == 10000
-        assert health_targets.weight is None
-        assert health_targets.sleep is None
+        assert health_targets.weight_kg is None
+        assert health_targets.sleep_seconds is None

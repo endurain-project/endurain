@@ -42,7 +42,7 @@ describe('HealthWaterFormDialog', () => {
     vi.clearAllMocks()
   })
 
-  it('shows a specific message when the day would pass the daily cap', async () => {
+  it('tells the user to edit the entry when the day already has one', async () => {
     vi.mocked(apiFetch).mockRejectedValue(
       new HttpError(409, 'Conflict', null, 'urn:endurain:error:conflict'),
     )
@@ -52,7 +52,7 @@ describe('HealthWaterFormDialog', () => {
     await flushPromises()
 
     expect(wrapper.emitted('error')?.[0]).toEqual([
-      "That would take the day's water intake past the 20,000 ml limit.",
+      'A water entry for that day already exists. Edit it instead of adding another.',
     ])
   })
 

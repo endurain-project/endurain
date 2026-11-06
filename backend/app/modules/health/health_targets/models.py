@@ -14,10 +14,10 @@ class HealthTargets(Base):
     Attributes:
         id: Primary key.
         user_id: Foreign key to users table (unique).
-        weight: Target weight in kg.
+        weight_kg: Target weight in kg.
         steps: Target daily steps count.
-        sleep: Target sleep duration in seconds.
-        fasting: Target fasting duration in seconds.
+        sleep_seconds: Target sleep duration in seconds.
+        fasting_seconds: Target fasting duration in seconds.
         water_ml: Target daily water intake in milliliters.
         poop_count: Target daily bowel movement count.
     """
@@ -35,7 +35,7 @@ class HealthTargets(Base):
         index=True,
         comment="User ID that the health_target belongs",
     )
-    weight: Mapped[Decimal | None] = mapped_column(
+    weight_kg: Mapped[Decimal | None] = mapped_column(
         Numeric(precision=10, scale=2),
         nullable=True,
         comment="Weight in kg",
@@ -44,11 +44,11 @@ class HealthTargets(Base):
         nullable=True,
         comment="Number of steps taken",
     )
-    sleep: Mapped[int | None] = mapped_column(
+    sleep_seconds: Mapped[int | None] = mapped_column(
         nullable=True,
-        comment="Number of hours slept in seconds",
+        comment="Target sleep duration in seconds",
     )
-    fasting: Mapped[int | None] = mapped_column(
+    fasting_seconds: Mapped[int | None] = mapped_column(
         nullable=True,
         comment="Target fasting duration in seconds",
     )

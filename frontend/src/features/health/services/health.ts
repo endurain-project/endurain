@@ -53,10 +53,10 @@ function mapTargets(dto: HealthTargetsDto): HealthTargets {
     id: dto.id,
     userId: dto.user_id,
     version: rowVersion(dto.version),
-    sleepSeconds: dto.sleep ?? null,
+    sleepSeconds: dto.sleep_seconds ?? null,
     steps: dto.steps ?? null,
-    weightKg: dto.weight ?? null,
-    fastingSeconds: dto.fasting ?? null,
+    weightKg: dto.weight_kg ?? null,
+    fastingSeconds: dto.fasting_seconds ?? null,
     waterMl: dto.water_ml ?? null,
     poopCount: dto.poop_count ?? null,
   }
@@ -79,7 +79,7 @@ function mapDashboard(dto: HealthDashboardDto): HealthDashboard {
     restingHeartRate: dto.sleep?.resting_heart_rate ?? null,
     hrvStatus: dto.sleep?.hrv_status ?? null,
     skinTempDeviation: dto.sleep?.avg_skin_temp_deviation ?? null,
-    weightKg: dto.weight?.weight ?? null,
+    weightKg: dto.weight?.weight_kg ?? null,
     bmi: dto.weight?.bmi ?? null,
     steps: dto.steps?.steps ?? null,
     fasting: mapFasting(dto.fasting),
@@ -322,12 +322,12 @@ function mapWeightEntry(dto: HealthWeightDto): WeightEntry {
     userId: dto.user_id,
     version: rowVersion(dto.version),
     date: dto.date ?? null,
-    weightKg: dto.weight ?? null,
+    weightKg: dto.weight_kg ?? null,
     bmi: dto.bmi ?? null,
-    bodyFatPct: dto.body_fat ?? null,
-    bodyWaterPct: dto.body_water ?? null,
-    boneMassKg: dto.bone_mass ?? null,
-    muscleMassKg: dto.muscle_mass ?? null,
+    bodyFatPct: dto.body_fat_percent ?? null,
+    bodyWaterPct: dto.body_water_percent ?? null,
+    boneMassKg: dto.bone_mass_kg ?? null,
+    muscleMassKg: dto.muscle_mass_kg ?? null,
     source: dto.source ?? null,
   }
 }
@@ -342,11 +342,11 @@ function mapWeightEntry(dto: HealthWeightDto): WeightEntry {
 function toWeightWireFields(input: WeightEntryInput): Schemas['HealthWeightCreate'] {
   return {
     date: input.date,
-    weight: input.weightKg,
-    body_fat: input.bodyFatPct,
-    body_water: input.bodyWaterPct,
-    bone_mass: input.boneMassKg,
-    muscle_mass: input.muscleMassKg,
+    weight_kg: input.weightKg,
+    body_fat_percent: input.bodyFatPct,
+    body_water_percent: input.bodyWaterPct,
+    bone_mass_kg: input.boneMassKg,
+    muscle_mass_kg: input.muscleMassKg,
   }
 }
 
@@ -354,14 +354,14 @@ const weightService = createHealthCrudService('weight', mapWeightEntry, toWeight
 
 /** Fetches one filtered page of the user's weight history. */
 export const fetchWeightEntries = weightService.fetch
-/** Creates (or updates the existing same-date) weight entry. */
+/** Creates a weight entry; a day that already has one is refused with `409`. */
 export const createWeightEntry = weightService.create
 /** Updates an existing weight entry (echoing id + user_id). */
 export const updateWeightEntry = weightService.update
 /** Deletes a weight entry. */
 export const deleteWeightEntry = weightService.remove
 /** Updates only the user's weight target, preserving the other targets. */
-export const updateWeightTarget = createHealthTargetUpdater('weight')
+export const updateWeightTarget = createHealthTargetUpdater('weight_kg')
 
 /** Maps a raw steps DTO to the clean {@link StepsEntry} model. */
 function mapStepsEntry(dto: HealthStepsDto): StepsEntry {
@@ -432,7 +432,7 @@ const waterService = createHealthCrudService('water', mapWaterEntry, toWaterWire
 
 /** Fetches one filtered page of the user's water history. */
 export const fetchWaterEntries = waterService.fetch
-/** Creates (or updates the existing same-date) water entry. */
+/** Creates a water entry; a day that already has one is refused with `409`, so edit that entry. */
 export const createWaterEntry = waterService.create
 /** Updates an existing water entry (echoing id + user_id). */
 export const updateWaterEntry = waterService.update
@@ -677,7 +677,7 @@ export async function deleteFastingEntry(id: number, version: number): Promise<v
 }
 
 /** Updates only the user's fasting-duration target, preserving the other targets. */
-export const updateFastingTarget = createHealthTargetUpdater('fasting')
+export const updateFastingTarget = createHealthTargetUpdater('fasting_seconds')
 
 /** Maps a raw sleep-stage DTO to the clean {@link SleepStage} model. */
 function mapSleepStage(dto: NonNullable<HealthSleepDto['sleep_stages']>[number]): SleepStage {
@@ -716,9 +716,9 @@ function mapSleepEntry(dto: HealthSleepDto): SleepEntry {
     maxHeartRate: dto.max_heart_rate ?? null,
     avgSkinTempDeviation: dto.avg_skin_temp_deviation ?? null,
     hrvStatus: dto.hrv_status ?? null,
-    avgSpo2: dto.avg_spo2 ?? null,
-    lowestSpo2: dto.lowest_spo2 ?? null,
-    highestSpo2: dto.highest_spo2 ?? null,
+    avgSpo2: dto.avg_spo2_percent ?? null,
+    lowestSpo2: dto.lowest_spo2_percent ?? null,
+    highestSpo2: dto.highest_spo2_percent ?? null,
     avgRespiration: dto.avg_respiration ?? null,
     lowestRespiration: dto.lowest_respiration ?? null,
     highestRespiration: dto.highest_respiration ?? null,
@@ -769,9 +769,9 @@ function toSleepWireFields(input: SleepEntryInput): Schemas['HealthSleepCreate']
     min_heart_rate: input.minHeartRate,
     max_heart_rate: input.maxHeartRate,
     avg_skin_temp_deviation: input.avgSkinTempDeviation,
-    avg_spo2: input.avgSpo2,
-    lowest_spo2: input.lowestSpo2,
-    highest_spo2: input.highestSpo2,
+    avg_spo2_percent: input.avgSpo2,
+    lowest_spo2_percent: input.lowestSpo2,
+    highest_spo2_percent: input.highestSpo2,
     awake_count: input.awakeCount,
     avg_sleep_stress: input.avgSleepStress,
     sleep_stages: input.sleepStages.map(toSleepStageWire),
@@ -789,4 +789,4 @@ export const updateSleepEntry = sleepService.update
 /** Deletes a sleep entry. */
 export const deleteSleepEntry = sleepService.remove
 /** Updates only the user's sleep-duration target, preserving the other targets. */
-export const updateSleepTarget = createHealthTargetUpdater('sleep')
+export const updateSleepTarget = createHealthTargetUpdater('sleep_seconds')

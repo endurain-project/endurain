@@ -5,14 +5,12 @@ interval-to-date resolution and the transaction boundary. What other modules may
 consume lives in :mod:`modules.health.health_weight.integration_service`.
 """
 
-from datetime import date as datetime_date
 from typing import Any
 
 from pydantic import ValidationError
 from sqlalchemy.orm import Session
 
 import core.date_range as core_date_range
-import core.exceptions as core_exceptions
 import core.logger as core_logger
 import core.pagination as core_pagination
 import modules.health.constants as health_constants
@@ -25,6 +23,15 @@ import modules.users.users.integration_service as users_integration
 import modules.users.users_profile.contracts as users_profile_contracts
 
 logger = core_logger.get_logger(__name__)
+
+#: The field names a profile archive written before the units were in the names uses, by current name.
+_ARCHIVE_RENAMES = {
+    "weight": "weight_kg",
+    "body_fat": "body_fat_percent",
+    "body_water": "body_water_percent",
+    "bone_mass": "bone_mass_kg",
+    "muscle_mass": "muscle_mass_kg",
+}
 
 
 def _user_height_cm(user_id: int, db: Session) -> float | None:
@@ -41,21 +48,6 @@ def _user_height_cm(user_id: int, db: Session) -> float | None:
     return float(user.height) if user is not None and user.height is not None else None
 
 
-def _require_not_future(user_id: int, day: datetime_date | None, db: Session) -> None:
-    """Refuse a manual weight dated after the user's local today.
-
-    Args:
-        user_id: The record's owner.
-        day: The date the client sent, or ``None`` when it sent none.
-        db: Database session.
-
-    Raises:
-        InvalidInputError: If the date is after the user's local today.
-    """
-    if day is not None and day > users_integration.local_today(user_id, db):
-        raise core_exceptions.InvalidInputError("A weight cannot be dated in the future")
-
-
 def _with_bmi[RecordT: (health_weight_schema.HealthWeightCreate, health_weight_schema.HealthWeightUpdate)](
     health_weight: RecordT, user_id: int, db: Session
 ) -> RecordT:
@@ -69,7 +61,7 @@ def _with_bmi[RecordT: (health_weight_schema.HealthWeightCreate, health_weight_s
     Returns:
         A copy carrying the calculated BMI.
     """
-    bmi = health_weight_bmi.calculate_bmi(health_weight.weight, _user_height_cm(user_id, db))
+    bmi = health_weight_bmi.calculate_bmi(health_weight.weight_kg, _user_height_cm(user_id, db))
     return health_weight.model_copy(update={"bmi": bmi})
 
 
@@ -182,7 +174,7 @@ def stage_edit_health_weight(
         NotFoundError: If the user has no such record.
         PreconditionFailedError: If the record changed since the client read it.
     """
-    if health_weight.weight is not None:
+    if health_weight.weight_kg is not None:
         health_weight = _with_bmi(health_weight, user_id, db)
     else:
         health_weight.model_fields_set.discard("bmi")
@@ -212,7 +204,7 @@ def _stage_upsert_edit(
         NotFoundError: If the user has no such record.
     """
     changes: health_weight_schema.HealthWeightUpdate = health_weight
-    if health_weight.bmi is None and health_weight.weight is not None:
+    if health_weight.bmi is None and health_weight.weight_kg is not None:
         changes = _with_bmi(health_weight, user_id, db)
     return health_weight_crud.edit_health_weight(user_id, health_weight_id, changes, db, if_match="*")
 
@@ -269,7 +261,7 @@ def create_health_weight(
     if health_weight.date is None:
         health_weight.date = users_integration.local_today(user_id, db)
     else:
-        _require_not_future(user_id, health_weight.date, db)
+        health_record_service.require_not_future(user_id, health_weight.date, db, what="A weight")
     created = stage_create_health_weight(user_id, health_weight, db)
     db.commit()
     logger.info("Stored a weight record", extra=core_logger.context(user_id=user_id))
@@ -301,7 +293,7 @@ def edit_health_weight(
         InvalidInputError: If the new date is after the user's local today.
         PreconditionFailedError: If the record changed since the client read it.
     """
-    _require_not_future(user_id, health_weight.date, db)
+    health_record_service.require_not_future(user_id, health_weight.date, db, what="A weight")
     updated = health_record_service.commit_write(
         health_weight_crud.SPEC,
         health_weight_id,
@@ -396,10 +388,20 @@ def restore_profile_records(
     """
     staged = 0
     for health_weight in records:
-        health_weight = users_profile_contracts.without_row_identity(health_weight)
+        health_weight = health_record_service.in_current_names(
+            users_profile_contracts.without_row_identity(health_weight), _ARCHIVE_RENAMES
+        )
 
         # Convert string numeric values to floats
-        numeric_fields = ["weight", "bmi", "body_fat", "body_water", "bone_mass", "muscle_mass", "visceral_fat"]
+        numeric_fields = [
+            "weight_kg",
+            "bmi",
+            "body_fat_percent",
+            "body_water_percent",
+            "bone_mass_kg",
+            "muscle_mass_kg",
+            "visceral_fat",
+        ]
         for field in numeric_fields:
             if field in health_weight and isinstance(health_weight[field], str):
                 try:

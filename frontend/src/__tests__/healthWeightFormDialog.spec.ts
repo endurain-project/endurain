@@ -81,7 +81,7 @@ async function save(wrapper: Wrapper): Promise<Record<string, unknown>> {
 describe('HealthWeightFormDialog submit', () => {
   beforeEach(() => {
     vi.clearAllMocks()
-    vi.mocked(apiFetch).mockResolvedValue({ ...entry, weight: 77.2, version: 5 })
+    vi.mocked(apiFetch).mockResolvedValue({ ...entry, weight_kg: 77.2, version: 5 })
   })
 
   it('saves a typed weight', async () => {
@@ -91,7 +91,7 @@ describe('HealthWeightFormDialog submit', () => {
 
     await inputs(wrapper)[1]!.setValue('77.2')
 
-    expect((await save(wrapper)).weight).toBe(77.2)
+    expect((await save(wrapper)).weight_kg).toBe(77.2)
     expect(wrapper.emitted('success')).toBeTruthy()
   })
 
@@ -102,7 +102,7 @@ describe('HealthWeightFormDialog submit', () => {
 
     expect(inputs(wrapper)).toHaveLength(6)
     const body = await save(wrapper)
-    expect(body.weight).toBe(77.2)
+    expect(body.weight_kg).toBe(77.2)
     expect(body).not.toHaveProperty('bmi')
   })
 
@@ -112,8 +112,8 @@ describe('HealthWeightFormDialog submit', () => {
     await inputs(wrapper)[1]!.setValue('77.2')
 
     const body = await save(wrapper)
-    expect(body.bone_mass).toBeNull()
-    expect(body.muscle_mass).toBeNull()
+    expect(body.bone_mass_kg).toBeNull()
+    expect(body.muscle_mass_kg).toBeNull()
   })
 
   it('sends bone and muscle mass in kilograms', async () => {
@@ -124,8 +124,8 @@ describe('HealthWeightFormDialog submit', () => {
     await inputs(wrapper)[5]!.setValue('66')
 
     const body = await save(wrapper)
-    expect(body.weight).toBeCloseTo(77.111, 3)
-    expect(body.bone_mass).toBeCloseTo(2.994, 3)
-    expect(body.muscle_mass).toBeCloseTo(29.937, 3)
+    expect(body.weight_kg).toBeCloseTo(77.111, 3)
+    expect(body.bone_mass_kg).toBeCloseTo(2.994, 3)
+    expect(body.muscle_mass_kg).toBeCloseTo(29.937, 3)
   })
 })

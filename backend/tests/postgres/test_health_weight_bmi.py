@@ -23,7 +23,7 @@ def factory(pg_factory):
 @pytest.mark.parametrize(("height", "expected"), [(5.0, None), (178.0, Decimal("22.25")), (70.0, None)])
 def test_a_recalculation_neither_divides_by_zero_nor_stores_an_out_of_range_bmi(factory, height, expected):
     with factory() as db:
-        db.add(weight_models.HealthWeight(user_id=1, date=_DAY, weight=Decimal("70.5"), bmi=Decimal(20)))
+        db.add(weight_models.HealthWeight(user_id=1, date=_DAY, weight_kg=Decimal("70.5"), bmi=Decimal(20)))
         db.commit()
 
     with factory() as db:

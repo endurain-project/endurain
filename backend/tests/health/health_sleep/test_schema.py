@@ -109,9 +109,9 @@ class TestHealthSleepSchema:
             avg_heart_rate = 55
             min_heart_rate = 45
             max_heart_rate = 75
-            avg_spo2 = 97
-            lowest_spo2 = 95
-            highest_spo2 = 99
+            avg_spo2_percent = 97
+            lowest_spo2_percent = 95
+            highest_spo2_percent = 99
             avg_respiration = None
             lowest_respiration = None
             highest_respiration = None
@@ -199,15 +199,15 @@ class TestHealthSleepSchema:
         """
         # Arrange & Act
         health_sleep = health_sleep_schema.HealthSleepBase(
-            avg_spo2=97,
-            lowest_spo2=95,
-            highest_spo2=99,
+            avg_spo2_percent=97,
+            lowest_spo2_percent=95,
+            highest_spo2_percent=99,
         )
 
         # Assert
-        assert health_sleep.avg_spo2 == 97
-        assert health_sleep.lowest_spo2 == 95
-        assert health_sleep.highest_spo2 == 99
+        assert health_sleep.avg_spo2_percent == 97
+        assert health_sleep.lowest_spo2_percent == 95
+        assert health_sleep.highest_spo2_percent == 99
 
     def test_health_sleep_spo2_validation_invalid_low(self):
         """
@@ -215,7 +215,7 @@ class TestHealthSleepSchema:
         """
         # Arrange & Act & Assert
         with pytest.raises(ValidationError) as exc_info:
-            health_sleep_schema.HealthSleepBase(lowest_spo2=65)
+            health_sleep_schema.HealthSleepBase(lowest_spo2_percent=65)
 
         assert "greater than or equal to 70" in str(exc_info.value)
 
@@ -225,7 +225,7 @@ class TestHealthSleepSchema:
         """
         # Arrange & Act & Assert
         with pytest.raises(ValidationError) as exc_info:
-            health_sleep_schema.HealthSleepBase(highest_spo2=105)
+            health_sleep_schema.HealthSleepBase(highest_spo2_percent=105)
 
         assert "less than or equal to 100" in str(exc_info.value)
 

@@ -56,7 +56,7 @@ def get_daily_stats(
     weight_data = None
     if latest_weight:
         weight_data = health_dashboard_schema.HealthWeightDashboard(
-            weight=latest_weight.weight,
+            weight_kg=latest_weight.weight_kg,
             bmi=latest_weight.bmi,
         )
 

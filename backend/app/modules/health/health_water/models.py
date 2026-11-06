@@ -50,9 +50,11 @@ class HealthWater(Base):
         nullable=False,
         comment="Water consumed in milliliters",
     )
-    source: Mapped[str | None] = mapped_column(
+    source: Mapped[str] = mapped_column(
         String(250),
-        nullable=True,
+        nullable=False,
+        server_default="manual",
+        default="manual",
         comment="Source of the health water data",
     )
 

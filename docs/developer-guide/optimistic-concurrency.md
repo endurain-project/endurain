@@ -110,7 +110,7 @@ Choose the verb by what the body is: a partial update is a `PATCH` (an omitted f
 
 Any ORM flush that changes the row, whoever makes it: another client, an administrator, a Garmin Connect sync, the profile importer. A form opened before that change gets a `412`, which is the point. A write that changes nothing, such as saving a form with the values it already holds, emits no `UPDATE` and keeps the version. Two cases need care:
 
-- **A bulk `UPDATE` skips the ORM's bump.** A statement such as `UPDATE ... SET amount_ml = amount_ml + :n` changes the row without raising or incrementing anything, so it must set `version = version + 1` itself (water intake, the weight BMI recalculation and the default-gear clearing when a gear is deleted do).
+- **A bulk `UPDATE` skips the ORM's bump.** A statement such as `UPDATE ... SET amount_ml = amount_ml + :n` changes the row without raising or incrementing anything, so it must set `version = version + 1` itself (the weight BMI recalculation and the default-gear clearing when a gear is deleted do).
 - **Derived values do not.** Things the system computes after the fact, such as an activity's thumbnail key, are written without touching the version, so a background job never invalidates the edit form someone has open.
 
 ## Writers that are not a client

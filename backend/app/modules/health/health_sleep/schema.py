@@ -4,7 +4,7 @@ from collections.abc import Sequence
 from datetime import date as datetime_date
 from datetime import datetime
 from enum import Enum
-from typing import Annotated
+from typing import Annotated, ClassVar
 
 from pydantic import (
     BaseModel,
@@ -40,9 +40,11 @@ class Source(Enum):
     """Enum representing the source of sleep health data.
 
     Attributes:
+        MANUAL: Sleep data entered manually.
         GARMIN: Sleep data sourced from Garmin devices or services.
     """
 
+    MANUAL = "manual"
     GARMIN = "garmin"
 
 
@@ -159,9 +161,9 @@ class HealthSleepBase(BaseModel):
         avg_heart_rate (StrictInt | None): Average heart rate during sleep (20-220 bpm).
         min_heart_rate (StrictInt | None): Minimum heart rate during sleep (20-220 bpm).
         max_heart_rate (StrictInt | None): Maximum heart rate during sleep (20-220 bpm).
-        avg_spo2 (StrictInt | None): Average SpO2 oxygen saturation percentage (70-100%).
-        lowest_spo2 (StrictInt | None): Lowest SpO2 reading during sleep (70-100%).
-        highest_spo2 (StrictInt | None): Highest SpO2 reading during sleep (70-100%).
+        avg_spo2_percent (StrictInt | None): Average SpO2 oxygen saturation percentage (70-100%).
+        lowest_spo2_percent (StrictInt | None): Lowest SpO2 reading during sleep (70-100%).
+        highest_spo2_percent (StrictInt | None): Highest SpO2 reading during sleep (70-100%).
         avg_respiration (StrictInt | None): Average respiration rate (>= 0).
         lowest_respiration (StrictInt | None): Lowest respiration rate (>= 0).
         highest_respiration (StrictInt | None): Highest respiration rate (>= 0).
@@ -210,14 +212,18 @@ class HealthSleepBase(BaseModel):
     avg_heart_rate: StrictInt | None = Field(default=None, ge=20, le=220, description="Average heart rate during sleep")
     min_heart_rate: StrictInt | None = Field(default=None, ge=20, le=220, description="Minimum heart rate during sleep")
     max_heart_rate: StrictInt | None = Field(default=None, ge=20, le=220, description="Maximum heart rate during sleep")
-    avg_spo2: StrictInt | None = Field(
+    avg_spo2_percent: StrictInt | None = Field(
         default=None,
         ge=70,
         le=100,
         description="Average SpO2 oxygen saturation percentage",
     )
-    lowest_spo2: StrictInt | None = Field(default=None, ge=70, le=100, description="Lowest SpO2 reading during sleep")
-    highest_spo2: StrictInt | None = Field(default=None, ge=70, le=100, description="Highest SpO2 reading during sleep")
+    lowest_spo2_percent: StrictInt | None = Field(
+        default=None, ge=70, le=100, description="Lowest SpO2 reading during sleep"
+    )
+    highest_spo2_percent: StrictInt | None = Field(
+        default=None, ge=70, le=100, description="Highest SpO2 reading during sleep"
+    )
     avg_respiration: StrictInt | None = Field(default=None, ge=0, description="Average respiration rate")
     lowest_respiration: StrictInt | None = Field(default=None, ge=0, description="Lowest respiration rate")
     highest_respiration: StrictInt | None = Field(default=None, ge=0, description="Highest respiration rate")
@@ -331,7 +337,7 @@ class HealthSleepRead(HealthSleepBase):
     garminconnect_sleep_id: StrictStr | None = Field(
         default=None, min_length=1, description="Garmin Connect sleep record ID"
     )
-    source: Source | None = Field(default=None, description="Source of the sleep data")
+    source: Source = Field(default=Source.MANUAL, validate_default=True, description="Source of the sleep data")
     id: StrictInt = Field(..., description="Unique identifier for the sleep record to update")
     user_id: StrictInt = Field(..., description="Foreign key reference to the user")
     version: StrictInt = Field(default=1, ge=1, description="Optimistic-concurrency counter, also sent as the ETag")
@@ -344,7 +350,7 @@ class HealthSleepUpdate(core_partial_update.NotClearable, HealthSleepWrite):
     fields present are changed.
     """
 
-    not_clearable = ("date",)
+    not_clearable: ClassVar[tuple[str, ...]] = ("date",)
 
 
 class HealthSleepImport(HealthSleepCreate):
@@ -355,13 +361,13 @@ class HealthSleepImport(HealthSleepCreate):
 
     Attributes:
         garminconnect_sleep_id (StrictStr | None): Garmin Connect sleep record ID.
-        source (Source | None): The source the record came from.
+        source (Source): The source the record came from; ``manual`` when none is given.
     """
 
     garminconnect_sleep_id: StrictStr | None = Field(
         default=None, min_length=1, description="Garmin Connect sleep record ID"
     )
-    source: Source | None = Field(default=None, description="Source of the sleep data")
+    source: Source = Field(default=Source.MANUAL, validate_default=True, description="Source of the sleep data")
     sleep_start_time_gmt: core_types.ImportedInstant | None = Field(default=None, description="Start time of sleep")
     sleep_end_time_gmt: core_types.ImportedInstant | None = Field(default=None, description="End time of sleep")
     sleep_stages: Sequence[HealthSleepStageImport] | None = Field(default=None, description="List of sleep stages")
@@ -374,6 +380,8 @@ class HealthSleepImportUpdate(HealthSleepUpdate):
         garminconnect_sleep_id (StrictStr | None): Garmin Connect sleep record ID.
         source (Source | None): The source the record came from.
     """
+
+    not_clearable: ClassVar[tuple[str, ...]] = (*HealthSleepUpdate.not_clearable, "source")
 
     garminconnect_sleep_id: StrictStr | None = Field(
         default=None, min_length=1, description="Garmin Connect sleep record ID"

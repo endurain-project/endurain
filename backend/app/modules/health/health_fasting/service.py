@@ -241,6 +241,8 @@ def create_health_fasting(
         InvalidInputError: If the session ends before it started, is completed or broken without an end, or is
             in progress with an end.
     """
+    health_record_service.require_not_future(user_id, health_fasting.fast_start_time, db, what="A fasting session")
+    health_record_service.require_not_future(user_id, health_fasting.fast_end_time, db, what="A fasting session")
     if health_fasting_crud.get_active_fasting_by_user_id(user_id, db) is not None:
         raise core_exceptions.ConflictError(
             "User already has an active fasting session. Complete or cancel it before starting a new one."
@@ -325,6 +327,8 @@ def edit_health_fasting(
         ConflictError: If the changed record overlaps another session or would leave two running.
         PreconditionFailedError: If the record changed since the client read it.
     """
+    health_record_service.require_not_future(user_id, health_fasting.fast_start_time, db, what="A fasting session")
+    health_record_service.require_not_future(user_id, health_fasting.fast_end_time, db, what="A fasting session")
 
     def stage() -> health_fasting_schema.HealthFastingRead:
         merged = get_health_fasting(user_id, health_fasting_id, db).model_copy(
@@ -380,6 +384,7 @@ def complete_health_fasting(
         InvalidInputError: If the end time is before the start time.
         PreconditionFailedError: If the session changed since the client read it.
     """
+    health_record_service.require_not_future(user_id, complete_data.fast_end_time, db, what="A fasting session")
     session = get_health_fasting(user_id, health_fasting_id, db)
     if session.status != health_fasting_schema.FastingStatus.IN_PROGRESS.value:
         raise core_exceptions.ConflictError("Fasting session is not in progress")

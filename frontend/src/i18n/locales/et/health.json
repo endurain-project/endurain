@@ -431,8 +431,7 @@
       "close": "Sulge",
       "createSuccess": "Vesi logitud.",
       "updateSuccess": "Veekirje uuendatud.",
-      "saveError": "Sinu veekirjet ei õnnestunud salvestada. Palun proovi uuesti.",
-      "dailyLimitError": "See ületaks päeva veetarbimise piiri 20 000 ml."
+      "saveError": "Sinu veekirjet ei õnnestunud salvestada. Palun proovi uuesti."
     },
     "target": {
       "title": "Sea vee eesmärk",

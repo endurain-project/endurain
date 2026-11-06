@@ -53,7 +53,7 @@ class TestHealthStepsModel:
         Test HealthSteps model nullable fields.
         """
         # Assert
-        assert health_steps_models.HealthSteps.source.nullable is True
+        assert health_steps_models.HealthSteps.source.nullable is False
 
     def test_health_steps_model_required_fields(self):
         """

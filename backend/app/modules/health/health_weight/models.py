@@ -16,12 +16,12 @@ class HealthWeight(Base):
         id: Primary key.
         user_id: Foreign key to users table.
         date: Calendar date of the measurement.
-        weight: Weight in kilograms.
+        weight_kg: Weight in kilograms.
         bmi: Body Mass Index.
-        body_fat: Body fat percentage.
-        body_water: Body hydration percentage.
-        bone_mass: Bone mass percentage.
-        muscle_mass: Muscle mass percentage.
+        body_fat_percent: Body fat percentage.
+        body_water_percent: Body hydration percentage.
+        bone_mass_kg: Bone mass in kilograms.
+        muscle_mass_kg: Muscle mass in kilograms.
         physique_rating: Physique rating score.
         visceral_fat: Visceral fat rating.
         metabolic_age: Calculated metabolic age.
@@ -46,7 +46,7 @@ class HealthWeight(Base):
         index=True,
         comment="Health weight date (date)",
     )
-    weight: Mapped[Decimal] = mapped_column(
+    weight_kg: Mapped[Decimal] = mapped_column(
         Numeric(precision=10, scale=2),
         nullable=False,
         comment="Weight in kg",
@@ -56,25 +56,25 @@ class HealthWeight(Base):
         nullable=True,
         comment="Body mass index (BMI)",
     )
-    body_fat: Mapped[Decimal | None] = mapped_column(
+    body_fat_percent: Mapped[Decimal | None] = mapped_column(
         Numeric(precision=10, scale=2),
         nullable=True,
         comment="Body fat percentage",
     )
-    body_water: Mapped[Decimal | None] = mapped_column(
+    body_water_percent: Mapped[Decimal | None] = mapped_column(
         Numeric(precision=10, scale=2),
         nullable=True,
         comment="Body hydration percentage",
     )
-    bone_mass: Mapped[Decimal | None] = mapped_column(
+    bone_mass_kg: Mapped[Decimal | None] = mapped_column(
         Numeric(precision=10, scale=2),
         nullable=True,
-        comment="Bone mass percentage",
+        comment="Bone mass in kg",
     )
-    muscle_mass: Mapped[Decimal | None] = mapped_column(
+    muscle_mass_kg: Mapped[Decimal | None] = mapped_column(
         Numeric(precision=10, scale=2),
         nullable=True,
-        comment="Muscle mass percentage",
+        comment="Muscle mass in kg",
     )
     physique_rating: Mapped[int | None] = mapped_column(
         nullable=True,
@@ -89,9 +89,11 @@ class HealthWeight(Base):
         nullable=True,
         comment="Metabolic age",
     )
-    source: Mapped[str | None] = mapped_column(
+    source: Mapped[str] = mapped_column(
         String(250),
-        nullable=True,
+        nullable=False,
+        server_default="manual",
+        default="manual",
         comment="Source of the health weight data",
     )
 

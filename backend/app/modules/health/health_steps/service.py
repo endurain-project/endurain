@@ -132,9 +132,12 @@ def create_health_steps(
 
     Raises:
         ConflictError: If the user already has a record for that date.
+        InvalidInputError: If the date is after the user's local today.
     """
     if health_steps.date is None:
         health_steps.date = users_integration.local_today(user_id, db)
+    else:
+        health_record_service.require_not_future(user_id, health_steps.date, db, what="A steps record")
     created = health_steps_crud.create_health_steps(user_id, health_steps, db)
     db.commit()
     logger.info("Stored a steps record", extra=core_logger.context(user_id=user_id))
@@ -163,8 +166,10 @@ def edit_health_steps(
 
     Raises:
         NotFoundError: If the user has no such record.
+        InvalidInputError: If the new date is after the user's local today.
         PreconditionFailedError: If the record changed since the client read it.
     """
+    health_record_service.require_not_future(user_id, health_steps.date, db, what="A steps record")
     updated = health_record_service.commit_write(
         health_steps_crud.SPEC,
         health_steps_id,

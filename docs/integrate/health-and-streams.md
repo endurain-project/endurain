@@ -1,6 +1,26 @@
 # Health data and activity streams
 
-How to read the health lists and charts for a date range, and what an activity stream carries. All paths are under `/api/v1`. The exact schemas are in the [API reference](api-reference.md).
+How to write health records, how to read the health lists and charts for a date range, and what an activity stream carries. All paths are under `/api/v1`. The exact schemas are in the [API reference](api-reference.md).
+
+## Writing health records
+
+Weight, steps, sleep, water, poop and fasting are written the same way. All paths are under `/health/{metric}`.
+
+- **One record per day** for weight, steps, sleep and water. A `POST` for a day that already has one is `409`, and the day's record is changed with `PATCH /health/{metric}/{id}`. Water does not add to the day: send the new total.
+- **A date is not in the future.** A record dated after the athlete's own today is `400`, on create and on a `PATCH` that moves it. A poop or fasting time counts as the day it falls on in the athlete's time zone.
+- **`date` may be left out** on weight, steps, sleep and water: the record is for the athlete's today.
+- **`source` is read-only.** Every record answers it: `manual` for what a person entered, `garmin` for what the Garmin sync wrote. A request cannot set it.
+- **The unit is in the name** of a measurement: mass `_kg`, duration `_seconds`, volume `_ml` and a percentage `_percent`. Counts, scores and rates keep a plain name.
+
+| Metric | Fields with a unit |
+| ------ | ------------------ |
+| Weight | `weight_kg`, `bone_mass_kg`, `muscle_mass_kg`, `body_fat_percent`, `body_water_percent` |
+| Sleep | `total_sleep_seconds` and the other `*_seconds` durations, `avg_spo2_percent`, `lowest_spo2_percent`, `highest_spo2_percent` |
+| Water | `amount_ml` |
+| Fasting | `target_duration_seconds`, `actual_duration_seconds` |
+| Targets (`/health/targets`) | `weight_kg`, `sleep_seconds`, `fasting_seconds`, `water_ml`; `steps` and `poop_count` are counts |
+
+A profile export writes these names. Importing an archive from an earlier release still works: its old field names (`weight`, `body_fat`, `sleep`, `fasting`, `avg_spo2` and the like) are read as the new ones.
 
 ## Health lists and charts
 

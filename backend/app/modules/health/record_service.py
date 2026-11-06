@@ -5,15 +5,17 @@ version-race guard, and charting a metric over an interval. A package passes the
 ``crud`` describes the record with, and the callables that stage or read what is specific to it.
 """
 
-from collections.abc import Callable
-from datetime import date
+from collections.abc import Callable, Mapping
+from datetime import date, datetime
 from typing import Any, Protocol
+from zoneinfo import ZoneInfo
 
 from pydantic import BaseModel, ValidationError
 from sqlalchemy.orm import Session
 
 import core.date_range as core_date_range
 import core.etag as core_etag
+import core.exceptions as core_exceptions
 import core.logger as core_logger
 import core.pagination as core_pagination
 import modules.health.computation as health_computation
@@ -41,6 +43,31 @@ class _DatedInput(Protocol):
     def model_dump(self) -> dict[str, object]:
         """Return the record's fields."""
         ...
+
+
+def require_not_future(user_id: int, when: date | datetime | None, db: Session, *, what: str) -> None:
+    """Refuse a manual record dated after the user's local today.
+
+    An instant counts as the day it falls on in the user's own time zone.
+
+    Args:
+        user_id: The record's owner.
+        when: The date or instant the client sent, or ``None`` when it sent none.
+        db: Database session.
+        what: The record as the error names it, such as ``"A weight"``.
+
+    Raises:
+        InvalidInputError: If the date is after the user's local today.
+    """
+    if when is None:
+        return
+    day = (
+        when.astimezone(ZoneInfo(users_integration.resolve_timezone(user_id, db))).date()
+        if isinstance(when, datetime)
+        else when
+    )
+    if day > users_integration.local_today(user_id, db):
+        raise core_exceptions.InvalidInputError(f"{what} cannot be dated in the future")
 
 
 def commit_write[ModelT: health_record_crud.Row, ReadT: BaseModel, ResultT](
@@ -221,6 +248,23 @@ def upsert_dated[RecordT: _DatedRecord, CreateT: _DatedInput, UpdateT: BaseModel
     )
 
 
+def in_current_names(row: dict[str, Any], renamed: Mapping[str, str]) -> dict[str, Any]:
+    """Return an archived row under today's field names and with the defaults a missing value gets.
+
+    An archive written before the units were put in the field names carries the old names, and one written
+    before a record always had a source carries ``source: null``; both are read here, at the import boundary,
+    so the schemas know only the current names.
+
+    Args:
+        row: The archived row.
+        renamed: The old field name to the current one.
+
+    Returns:
+        The row with renamed keys and no null ``source``.
+    """
+    return {renamed.get(key, key): value for key, value in row.items() if key != "source" or value is not None}
+
+
 def restore_archived_records[CreateT: BaseModel](
     records: list[dict[str, Any]],
     schema: type[CreateT],
@@ -230,6 +274,7 @@ def restore_archived_records[CreateT: BaseModel](
     *,
     kind: str,
     server_derived: frozenset[str] = frozenset(),
+    renamed: Mapping[str, str] | None = None,
 ) -> int:
     """Stage the records of one kind from a profile archive for a user.
 
@@ -244,6 +289,7 @@ def restore_archived_records[CreateT: BaseModel](
         db: Database session.
         kind: The record kind, for the log.
         server_derived: Archived fields the server derives on write, which are dropped.
+        renamed: Field names an older archive used, mapped to the current ones.
 
     Returns:
         The number of records staged.
@@ -252,7 +298,7 @@ def restore_archived_records[CreateT: BaseModel](
     for row in records:
         fields = {
             key: value
-            for key, value in users_profile_contracts.without_row_identity(row).items()
+            for key, value in in_current_names(users_profile_contracts.without_row_identity(row), renamed or {}).items()
             if key not in server_derived
         }
         try:

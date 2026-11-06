@@ -431,8 +431,7 @@
       "close": "Lukk",
       "createSuccess": "Vann registrert.",
       "updateSuccess": "Vannoppføring oppdatert.",
-      "saveError": "Kunne ikke lagre vannoppføringen din. Vennligst prøv igjen.",
-      "dailyLimitError": "Dette ville ført dagens vanninntak over grensen på 20 000 ml."
+      "saveError": "Kunne ikke lagre vannoppføringen din. Vennligst prøv igjen."
     },
     "target": {
       "title": "Sett vannmål",

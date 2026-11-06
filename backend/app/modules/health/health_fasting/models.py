@@ -82,9 +82,11 @@ class HealthFasting(Base):
         nullable=True,
         comment="Optional notes about the fasting session",
     )
-    source: Mapped[str | None] = mapped_column(
+    source: Mapped[str] = mapped_column(
         String(20),
-        nullable=True,
+        nullable=False,
+        server_default="manual",
+        default="manual",
         comment="Data source (manual, garmin, etc.)",
     )
 

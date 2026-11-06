@@ -431,8 +431,7 @@
       "close": "Zavrieť",
       "createSuccess": "Voda zaznamenaná.",
       "updateSuccess": "Záznam vody aktualizovaný.",
-      "saveError": "Váš záznam vody sa nepodarilo uložiť. Skúste to znova.",
-      "dailyLimitError": "Tým by denný príjem vody prekročil limit 20 000 ml."
+      "saveError": "Váš záznam vody sa nepodarilo uložiť. Skúste to znova."
     },
     "target": {
       "title": "Nastaviť cieľ vody",

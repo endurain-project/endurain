@@ -11,7 +11,7 @@ import core.exceptions as core_exceptions
 
 # kind -> (router prefix, valid create body, provenance fields a client must not send)
 _KINDS = {
-    "weight": ("health_weight", {"weight": 70.0}, {"source": "garmin"}),
+    "weight": ("health_weight", {"weight_kg": 70.0}, {"source": "garmin"}),
     "steps": ("health_steps", {"steps": 100}, {"source": "garmin"}),
     "sleep": ("health_sleep", {}, {"source": "garmin"}),
     "water": ("health_water", {"amount_ml": 250}, {"source": "garmin"}),
@@ -95,7 +95,7 @@ class TestServerAssignedSource:
 
     @pytest.mark.parametrize(
         ("kind", "body"),
-        [("weight", {"weight": 70.0}), ("steps", {"steps": 100}), ("sleep", {}), ("water", {"amount_ml": 250})],
+        [("weight", {"weight_kg": 70.0}), ("steps", {"steps": 100}), ("sleep", {}), ("water", {"amount_ml": 250})],
     )
     def test_a_client_record_is_stored_without_a_source(self, kind, body, mock_db):
         crud = importlib.import_module(f"modules.health.health_{kind}.crud")

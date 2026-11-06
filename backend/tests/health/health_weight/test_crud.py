@@ -20,19 +20,19 @@ def _row(record_id: int = 1, user_id: int = 1, weight: float = 75.0) -> MagicMoc
     row.version = 1
     row.user_id = user_id
     row.date = datetime_date(2024, 1, 15)
-    row.weight = weight
+    row.weight_kg = weight
     for column in (
         "bmi",
-        "body_fat",
-        "body_water",
-        "bone_mass",
-        "muscle_mass",
+        "body_fat_percent",
+        "body_water_percent",
+        "bone_mass_kg",
+        "muscle_mass_kg",
         "physique_rating",
         "visceral_fat",
         "metabolic_age",
-        "source",
     ):
         setattr(row, column, None)
+    row.source = "manual"
     return row
 
 
@@ -105,7 +105,7 @@ class TestSingleReads:
 
 class TestCreateHealthWeight:
     def test_stages_without_committing(self, mock_db, stub_model):
-        record = health_weight_schema.HealthWeightCreate(date=datetime_date(2024, 1, 15), weight=75.0, bmi=22.0)
+        record = health_weight_schema.HealthWeightCreate(date=datetime_date(2024, 1, 15), weight_kg=75.0, bmi=22.0)
 
         with stub_model(health_weight_crud, _row()) as model:
             health_weight_crud.create_health_weight(1, record, mock_db)
@@ -118,7 +118,7 @@ class TestCreateHealthWeight:
 
     def test_duplicate_date_is_a_conflict(self, mock_db, stub_model):
         mock_db.flush.side_effect = IntegrityError("duplicate", None, None)
-        record = health_weight_schema.HealthWeightCreate(date=datetime_date(2024, 1, 15), weight=75.0)
+        record = health_weight_schema.HealthWeightCreate(date=datetime_date(2024, 1, 15), weight_kg=75.0)
 
         with (
             stub_model(health_weight_crud, _row()),
@@ -131,17 +131,17 @@ class TestEditHealthWeight:
     def test_updates_the_given_fields_and_stages(self, mock_db):
         row = _row()
         _returns_one(mock_db, row)
-        update = health_weight_schema.HealthWeightUpdate(date=datetime_date(2024, 1, 15), weight=80.0)
+        update = health_weight_schema.HealthWeightUpdate(date=datetime_date(2024, 1, 15), weight_kg=80.0)
 
         health_weight_crud.edit_health_weight(1, 1, update, mock_db, if_match="*")
 
-        assert row.weight == 80.0
+        assert row.weight_kg == 80.0
         mock_db.flush.assert_called_once()
         mock_db.commit.assert_not_called()
 
     def test_unknown_record_is_not_found(self, mock_db):
         _returns_one(mock_db, None)
-        update = health_weight_schema.HealthWeightUpdate(date=datetime_date(2024, 1, 15), weight=80.0)
+        update = health_weight_schema.HealthWeightUpdate(date=datetime_date(2024, 1, 15), weight_kg=80.0)
 
         with pytest.raises(core_exceptions.NotFoundError, match="Health weight not found"):
             health_weight_crud.edit_health_weight(1, 9, update, mock_db, if_match="*")
@@ -180,7 +180,7 @@ def _seed(db, rows):
     for weight_date, weight, bmi, source in rows:
         db.add(
             health_weight_models.HealthWeight(
-                user_id=1, date=weight_date, weight=Decimal(weight), bmi=bmi, source=source
+                user_id=1, date=weight_date, weight_kg=Decimal(weight), bmi=bmi, source=source
             )
         )
     db.commit()

@@ -189,7 +189,7 @@ class TestGetRecord:
     @patch("modules.health.record_crud.get_owned")
     def test_returns_the_owned_row_as_its_read_schema(self, mock_get_owned, mock_db):
         mock_get_owned.return_value = MagicMock(
-            id=3, user_id=2, date=date(2024, 1, 15), steps=900, version=4, source=None
+            id=3, user_id=2, date=date(2024, 1, 15), steps=900, version=4, source="manual"
         )
 
         record = health_record_service.get_record(health_steps_crud.SPEC, 3, 2, mock_db)

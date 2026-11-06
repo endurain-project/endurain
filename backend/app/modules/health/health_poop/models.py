@@ -61,9 +61,11 @@ class HealthPoop(Base):
         nullable=True,
         comment="Optional notes about the bowel movement",
     )
-    source: Mapped[str | None] = mapped_column(
+    source: Mapped[str] = mapped_column(
         String(250),
-        nullable=True,
+        nullable=False,
+        server_default="manual",
+        default="manual",
         comment="Source of the health poop data",
     )
 

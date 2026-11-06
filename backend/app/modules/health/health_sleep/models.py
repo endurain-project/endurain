@@ -32,9 +32,9 @@ class HealthSleep(Base):
         avg_heart_rate: Average heart rate.
         min_heart_rate: Minimum heart rate.
         max_heart_rate: Maximum heart rate.
-        avg_spo2: Average SpO2 percentage.
-        lowest_spo2: Lowest SpO2 reading.
-        highest_spo2: Highest SpO2 reading.
+        avg_spo2_percent: Average SpO2 percentage.
+        lowest_spo2_percent: Lowest SpO2 reading.
+        highest_spo2_percent: Highest SpO2 reading.
         avg_respiration: Average respiration rate.
         lowest_respiration: Lowest respiration.
         highest_respiration: Highest respiration.
@@ -136,15 +136,15 @@ class HealthSleep(Base):
         nullable=True,
         comment="Maximum heart rate during sleep",
     )
-    avg_spo2: Mapped[int | None] = mapped_column(
+    avg_spo2_percent: Mapped[int | None] = mapped_column(
         nullable=True,
         comment="Average SpO2 oxygen saturation percentage",
     )
-    lowest_spo2: Mapped[int | None] = mapped_column(
+    lowest_spo2_percent: Mapped[int | None] = mapped_column(
         nullable=True,
         comment="Lowest SpO2 reading during sleep",
     )
-    highest_spo2: Mapped[int | None] = mapped_column(
+    highest_spo2_percent: Mapped[int | None] = mapped_column(
         nullable=True,
         comment="Highest SpO2 reading during sleep",
     )
@@ -196,9 +196,11 @@ class HealthSleep(Base):
         nullable=True,
         comment="List of sleep stage intervals as JSON",
     )
-    source: Mapped[str | None] = mapped_column(
+    source: Mapped[str] = mapped_column(
         String(250),
-        nullable=True,
+        nullable=False,
+        server_default="manual",
+        default="manual",
         comment="Source of the health sleep data",
     )
     hrv_status: Mapped[str | None] = mapped_column(

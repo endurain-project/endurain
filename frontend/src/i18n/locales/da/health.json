@@ -431,8 +431,7 @@
       "close": "Luk",
       "createSuccess": "Vand registreret.",
       "updateSuccess": "Vandpost opdateret.",
-      "saveError": "Kunne ikke gemme din vandpost. Prøv venligst igen.",
-      "dailyLimitError": "Det ville tage dagens vandindtag over grænsen på 20.000 ml."
+      "saveError": "Kunne ikke gemme din vandpost. Prøv venligst igen."
     },
     "target": {
       "title": "Sæt vandmål",

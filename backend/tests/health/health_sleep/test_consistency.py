@@ -93,18 +93,18 @@ class TestReadingRanges:
 
     def test_a_lowest_spo2_above_the_highest_is_refused(self, db):
         with pytest.raises(core_exceptions.InvalidInputError):
-            _create(db, lowest_spo2=98, highest_spo2=90)
+            _create(db, lowest_spo2_percent=98, highest_spo2_percent=90)
 
     def test_equal_or_one_sided_readings_are_accepted(self, db):
         assert _create(db, min_heart_rate=50, max_heart_rate=50).min_heart_rate == 50
 
     def test_an_edit_is_checked_against_the_stored_other_side(self, db):
-        record = _create(db, min_heart_rate=50, max_heart_rate=80, lowest_spo2=90, highest_spo2=97)
+        record = _create(db, min_heart_rate=50, max_heart_rate=80, lowest_spo2_percent=90, highest_spo2_percent=97)
 
         with pytest.raises(core_exceptions.InvalidInputError):
             _edit(db, record, min_heart_rate=90)
         with pytest.raises(core_exceptions.InvalidInputError):
-            _edit(db, record, highest_spo2=85)
+            _edit(db, record, highest_spo2_percent=85)
 
 
 class TestEdit:

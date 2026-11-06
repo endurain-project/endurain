@@ -32,7 +32,7 @@ _KINDS = {
         weight_crud.edit_health_weight,
         weight_schema.HealthWeightCreate,
         weight_schema.HealthWeightUpdate,
-        {"weight": 70.0},
+        {"weight_kg": 70.0},
     ),
     "steps": (
         steps_crud.create_health_steps,
@@ -56,7 +56,7 @@ _KINDS = {
         {"amount_ml": 250.0},
     ),
 }
-_REQUIRED_VALUE = {"weight": "weight", "steps": "steps", "water": "amount_ml"}
+_REQUIRED_VALUE = {"weight": "weight_kg", "steps": "steps", "water": "amount_ml"}
 
 
 @pytest.fixture

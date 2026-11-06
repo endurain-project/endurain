@@ -431,8 +431,7 @@
       "close": "Bezárás",
       "createSuccess": "Folyadék rögzítve.",
       "updateSuccess": "Folyadékbejegyzés frissítve.",
-      "saveError": "Nem sikerült menteni a folyadékbejegyzést. Kérjük, próbáld újra.",
-      "dailyLimitError": "Ezzel a napi vízbevitel meghaladná a 20 000 ml-es határt."
+      "saveError": "Nem sikerült menteni a folyadékbejegyzést. Kérjük, próbáld újra."
     },
     "target": {
       "title": "Folyadékcél beállítása",
