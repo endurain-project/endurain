@@ -29,24 +29,24 @@ def _build_app(mock_db):
     return app
 
 
-class TestReadNotificationsNumber:
-    @patch("modules.notifications.router.notifications_service.count_notifications")
-    def test_number_success(self, mock_get, mock_db):
+class TestReadUnreadCount:
+    @patch("modules.notifications.router.notifications_service.count_unread_notifications")
+    def test_unread_count(self, mock_get, mock_db):
         client = TestClient(_build_app(mock_db))
         mock_get.return_value = 5
 
-        response = client.get("/notifications/number", headers={"Authorization": "Bearer x"})
-        assert response.status_code == 200
-        assert response.json() == 5
+        response = client.get("/notifications/unread-count", headers={"Authorization": "Bearer x"})
 
-    @patch("modules.notifications.router.notifications_service.count_notifications")
-    def test_number_zero(self, mock_get, mock_db):
+        assert response.status_code == 200
+        assert response.json() == {"count": 5}
+        mock_get.assert_called_once_with(1, mock_db)
+
+    def test_the_old_number_route_is_gone(self, mock_db):
         client = TestClient(_build_app(mock_db))
-        mock_get.return_value = 0
 
         response = client.get("/notifications/number", headers={"Authorization": "Bearer x"})
-        assert response.status_code == 200
-        assert response.json() == 0
+
+        assert response.status_code == 422
 
 
 class TestReadNotificationById:

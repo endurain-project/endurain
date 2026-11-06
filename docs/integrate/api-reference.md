@@ -8,6 +8,8 @@ Users have one item URL, `GET /users/{user_id}`, and one list, `GET /users`. A t
 
 Following a user is `POST /users/{user_id}/followers`; it always creates a `pending` request. The follow requests addressed to you are under `/profile/follow-requests`: `GET /profile/follow-requests` lists them, `POST /profile/follow-requests/{follower_id}/accept` accepts one (answers the accepted relationship) and `DELETE /profile/follow-requests/{follower_id}` declines it. Reading needs `followers:read` and the writes `followers:write`.
 
+`GET /notifications` lists your notifications, newest first, and takes `unread_only=true`. `GET /notifications/unread-count` answers `{"count": <int>}` with the number of unread ones; it needs `notifications:read`.
+
 For authentication, scopes, errors and rate limits see the other pages in this section. Requests cannot be sent from this page; use your own Endurain instance's `/docs` for that.
 
 <swagger-ui src="./openapi.json"/>

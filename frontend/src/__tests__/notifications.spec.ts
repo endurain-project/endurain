@@ -83,21 +83,13 @@ describe('notification service requests', () => {
     expect(result).toEqual([notification()])
   })
 
-  it('reads the unread count from the page total, without downloading any notification', async () => {
-    vi.mocked(apiFetch).mockResolvedValue({
-      items: [dto],
-      total: 42,
-      page: 1,
-      num_records: 1,
-      next: 2,
-    })
+  it('reads the unread count from the unread-count route', async () => {
+    vi.mocked(apiFetch).mockResolvedValue({ count: 42 })
     const signal = new AbortController().signal
 
     await expect(fetchUnreadNotificationsCount(signal)).resolves.toBe(42)
 
-    expect(apiFetch).toHaveBeenCalledWith('/notifications?unread_only=true&num_records=1', {
-      signal,
-    })
+    expect(apiFetch).toHaveBeenCalledWith('/notifications/unread-count', { signal })
   })
 
   it('maps an empty page to no notifications', async () => {

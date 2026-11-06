@@ -51,9 +51,7 @@ export async function fetchNotifications(
 }
 
 /**
- * Fetches how many of the authenticated user's notifications are unread. The
- * server applies the filter to the page's `total`, so a one-row page carries the
- * exact count without downloading the notifications themselves.
+ * Fetches how many of the authenticated user's notifications are unread.
  *
  * @param signal - Optional abort signal so TanStack Query can cancel the
  *   request on unmount or invalidation.
@@ -61,11 +59,10 @@ export async function fetchNotifications(
  * @throws {HttpError} When the request fails.
  */
 export async function fetchUnreadNotificationsCount(signal?: AbortSignal): Promise<number> {
-  const result = await apiFetch<Schemas['Page_NotificationRead_']>(
-    '/notifications?unread_only=true&num_records=1',
-    { signal },
-  )
-  return result.total
+  const result = await apiFetch<Schemas['NotificationUnreadCount']>('/notifications/unread-count', {
+    signal,
+  })
+  return result.count
 }
 
 /**

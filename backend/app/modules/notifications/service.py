@@ -39,17 +39,17 @@ def user_reference_options(user: users_schema.UserRead) -> dict[str, object]:
     return {"user_id": user.id, "user_name": user.name, "user_username": user.username}
 
 
-def count_notifications(user_id: int, db: Session) -> int:
-    """Count the user's notifications.
+def count_unread_notifications(user_id: int, db: Session) -> int:
+    """Count the user's unread notifications.
 
     Args:
         user_id: The owning user.
         db: Database session.
 
     Returns:
-        Number of notifications for the user.
+        Number of unread notifications for the user.
     """
-    return notifications_crud.get_user_notifications_count(user_id, db)
+    return notifications_crud.get_user_notifications_count(user_id, db, unread_only=True)
 
 
 def get_notification(notification_id: int, user_id: int, db: Session) -> notifications_schema.NotificationRead:

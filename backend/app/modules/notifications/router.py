@@ -15,24 +15,18 @@ router = APIRouter()
 
 
 @router.get(
-    "/number",
-    response_model=int,
+    "/unread-count",
+    response_model=notifications_schema.NotificationUnreadCount,
     dependencies=[Security(auth_dependencies.check_scopes, scopes=["notifications:read"])],
 )
-def read_notifications_number(
+def read_unread_notifications_count(
     token_user_id: auth_dependencies.CurrentUserId,
     db: core_dependencies.DbSession,
-) -> int:
-    """Retrieve notification count for the user.
-
-    Args:
-        token_user_id: ID of the user from the access token.
-        db: Database session dependency.
-
-    Returns:
-        Number of notifications for the user.
-    """
-    return notifications_service.count_notifications(token_user_id, db)
+) -> notifications_schema.NotificationUnreadCount:
+    """Return how many of the caller's notifications have not been read."""
+    return notifications_schema.NotificationUnreadCount(
+        count=notifications_service.count_unread_notifications(token_user_id, db)
+    )
 
 
 @router.get(
@@ -75,8 +69,7 @@ def read_notifications_user_pagination(
         token_user_id: ID of the user from the access token.
         db: Database session dependency.
         page: Resolved page number and size.
-        unread_only: Keep only the notifications that have not been read. ``total`` follows the
-            same filter, so ``unread_only=true&num_records=1`` is the unread count.
+        unread_only: Keep only the notifications that have not been read; ``total`` follows the same filter.
 
     Returns:
         The page of notifications with the user's total.

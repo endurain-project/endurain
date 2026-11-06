@@ -12,9 +12,12 @@ import modules.notifications.service as notifications_service
 
 
 class TestReadsAndMarks:
-    def test_count_delegates_to_crud(self, mock_db):
-        with patch("modules.notifications.service.notifications_crud.get_user_notifications_count", return_value=3):
-            assert notifications_service.count_notifications(1, mock_db) == 3
+    def test_unread_count_counts_only_unread(self, mock_db):
+        with patch(
+            "modules.notifications.service.notifications_crud.get_user_notifications_count", return_value=3
+        ) as crud_count:
+            assert notifications_service.count_unread_notifications(1, mock_db) == 3
+        crud_count.assert_called_once_with(1, mock_db, unread_only=True)
 
     def test_list_returns_the_page_with_the_total(self, mock_db):
         with (

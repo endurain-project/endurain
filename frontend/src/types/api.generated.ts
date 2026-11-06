@@ -1821,26 +1821,6 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/v1/notifications/number": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /**
-         * Read Notifications Number
-         * @description Retrieve notification count for the user.
-         */
-        get: operations["read_notifications_number"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
     "/api/v1/notifications/read": {
         parameters: {
             query?: never;
@@ -1855,6 +1835,26 @@ export interface paths {
          * @description Mark all of the user's notifications as read.
          */
         post: operations["mark_all_notifications_as_read"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/notifications/unread-count": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Read Unread Notifications Count
+         * @description Return how many of the caller's notifications have not been read.
+         */
+        get: operations["read_unread_notifications_count"];
+        put?: never;
+        post?: never;
         delete?: never;
         options?: never;
         head?: never;
@@ -9137,6 +9137,20 @@ export interface components {
          * @enum {string}
          */
         NotificationType: "new_activity" | "duplicate_activity" | "new_follower_request" | "new_follower_request_accepted" | "garmin_token_expired" | "strava_token_expired" | "strava_data_deleted" | "idp_linked" | "account_security_changed" | "new_device_sign_in" | "admin_new_sign_up_approval_request";
+        /**
+         * NotificationUnreadCount
+         * @description The number of notifications a user has not read.
+         *
+         *     Attributes:
+         *         count: Number of unread notifications.
+         */
+        NotificationUnreadCount: {
+            /**
+             * Count
+             * @description Number of unread notifications
+             */
+            count: number;
+        };
         /**
          * OnboardingCreate
          * @description Request to create the first administrator.
@@ -23426,7 +23440,7 @@ export interface operations {
             };
         };
     };
-    read_notifications_number: {
+    mark_all_notifications_as_read: {
         parameters: {
             query?: never;
             header?: never;
@@ -23436,13 +23450,11 @@ export interface operations {
         requestBody?: never;
         responses: {
             /** @description Successful Response */
-            200: {
+            204: {
                 headers: {
                     [name: string]: unknown;
                 };
-                content: {
-                    "application/json": number;
-                };
+                content?: never;
             };
             /** @description The credential is missing, invalid or no longer valid. */
             401: {
@@ -23457,6 +23469,15 @@ export interface operations {
             };
             /** @description The caller is signed in but not allowed, for example a scope is missing. */
             403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description The request conflicts with the current state. */
+            409: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -23497,7 +23518,7 @@ export interface operations {
             };
         };
     };
-    mark_all_notifications_as_read: {
+    read_unread_notifications_count: {
         parameters: {
             query?: never;
             header?: never;
@@ -23507,11 +23528,13 @@ export interface operations {
         requestBody?: never;
         responses: {
             /** @description Successful Response */
-            204: {
+            200: {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["NotificationUnreadCount"];
+                };
             };
             /** @description The credential is missing, invalid or no longer valid. */
             401: {
@@ -23526,15 +23549,6 @@ export interface operations {
             };
             /** @description The caller is signed in but not allowed, for example a scope is missing. */
             403: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/problem+json": components["schemas"]["ProblemDetail"];
-                };
-            };
-            /** @description The request conflicts with the current state. */
-            409: {
                 headers: {
                     [name: string]: unknown;
                 };

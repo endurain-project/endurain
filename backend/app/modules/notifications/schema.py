@@ -109,3 +109,15 @@ class NotificationRead(NotificationBase):
             UTC-aware datetime or None.
         """
         return core_timezone.to_utc_aware(value)
+
+
+class NotificationUnreadCount(BaseModel):
+    """The number of notifications a user has not read.
+
+    Attributes:
+        count: Number of unread notifications.
+    """
+
+    model_config = ConfigDict(extra="forbid")
+
+    count: StrictInt = Field(..., ge=0, description="Number of unread notifications")
