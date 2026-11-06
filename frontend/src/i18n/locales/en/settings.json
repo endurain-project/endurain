@@ -162,7 +162,10 @@
       "createSuccess": "User added",
       "updateSuccess": "User updated",
       "conflict": "That username is already in use",
-      "saveError": "Couldn't save the user. Please try again."
+      "saveError": "Couldn't save the user. Please try again.",
+      "stepUpTitle": "Confirm your identity",
+      "stepUpDescription": "Changing the email, access type or active status of {username} signs them out everywhere. Confirm it is you to continue.",
+      "stepUpConfirm": "Save changes"
     },
     "delete": {
       "title": "Delete user",

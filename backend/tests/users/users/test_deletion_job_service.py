@@ -9,6 +9,7 @@ from sqlalchemy.orm.exc import StaleDataError
 
 import core.exceptions as core_exceptions
 import core.local_pool as core_local_pool
+import modules.auth.identity_providers.constants as identity_providers_constants
 import modules.users.users.constants as users_constants
 import modules.users.users.deletion_job_service as job_service
 import modules.users.users.deletion_state_store as deletion_state_store
@@ -137,28 +138,71 @@ class TestRequestDeletion:
 
 
 class TestRequestDeletionByAdministrator:
-    def test_an_administrator_cannot_delete_their_own_account_without_step_up(self, states, mock_db):
-        with patch(f"{_MODULE}.request_deletion") as request, pytest.raises(core_exceptions.PermissionDeniedError):
-            job_service.request_deletion_by_administrator(1, 1, states, MagicMock(), mock_db, if_match='"1"')
+    def _request(self, states, mock_db, actor_id=9, *, step_up=None, store=None, storage=None):
+        return job_service.request_deletion_by_administrator(
+            1,
+            actor_id,
+            "sid-9",
+            step_up or MagicMock(),
+            store or MagicMock(),
+            states,
+            storage or MagicMock(),
+            mock_db,
+            if_match='"4"',
+        )
 
+    def test_an_administrator_cannot_delete_their_own_account_here(self, states, mock_db):
+        with (
+            patch(f"{_MODULE}.request_deletion") as request,
+            patch(f"{_MODULE}.account_security_integration") as account_security,
+            pytest.raises(core_exceptions.PermissionDeniedError),
+        ):
+            self._request(states, mock_db, actor_id=1)
+
+        account_security.verify_step_up.assert_not_called()
         request.assert_not_called()
 
-    def test_another_users_account_is_queued(self, states, mock_db):
+    def test_another_users_account_is_queued_after_the_administrators_step_up(self, states, mock_db):
         storage = MagicMock()
-        with patch(f"{_MODULE}.request_deletion") as request:
-            result = job_service.request_deletion_by_administrator(1, 9, states, storage, mock_db, if_match='"4"')
+        store = MagicMock()
+        step_up = MagicMock()
+        with (
+            patch(f"{_MODULE}.request_deletion") as request,
+            patch(f"{_MODULE}.account_security_integration") as account_security,
+        ):
+            order = MagicMock()
+            order.attach_mock(account_security.verify_step_up, "step_up")
+            order.attach_mock(request, "delete")
 
+            result = self._request(states, mock_db, step_up=step_up, store=store, storage=storage)
+
+        assert [call[0] for call in order.mock_calls] == ["step_up", "delete"]
+        account_security.verify_step_up.assert_called_once_with(
+            step_up, 9, "sid-9", identity_providers_constants.StepUpAction.ADMIN_USER_DELETE, store, mock_db
+        )
         request.assert_called_once_with(1, states, storage, mock_db, if_match='"4"')
         assert result is request.return_value
+
+    def test_a_failed_step_up_queues_nothing(self, states, mock_db):
+        with (
+            patch(f"{_MODULE}.request_deletion") as request,
+            patch(f"{_MODULE}.account_security_integration") as account_security,
+            pytest.raises(core_exceptions.PermissionDeniedError),
+        ):
+            account_security.verify_step_up.side_effect = core_exceptions.PermissionDeniedError("wrong password")
+            self._request(states, mock_db)
+
+        request.assert_not_called()
 
     def test_a_deletion_that_races_past_the_version_check_is_a_precondition_failure(self, states, mock_db):
         with (
             patch(f"{_MODULE}.request_deletion", side_effect=StaleDataError("moved")),
+            patch(f"{_MODULE}.account_security_integration"),
             patch(f"{_MODULE}.users_crud") as users_crud,
         ):
             users_crud.get_user_by_id.return_value = MagicMock()
             with pytest.raises(core_exceptions.PreconditionFailedError):
-                job_service.request_deletion_by_administrator(1, 9, states, MagicMock(), mock_db, if_match='"4"')
+                self._request(states, mock_db)
 
 
 class TestRunDeletion:

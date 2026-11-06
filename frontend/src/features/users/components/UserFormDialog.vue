@@ -1,10 +1,13 @@
 <script setup lang="ts">
-import { computed, ref, watch } from 'vue'
+import { computed, nextTick, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 
 import type { ManagedUser, UserAccessType } from '@/features/users/types'
+import type { IdpReauth, StepUpInput } from '@/features/security/types'
+import type { IdpStepUpResume } from '@/features/security/composables/useIdpStepUp'
 import type { Schemas } from '@/types'
 
+import StepUpDialog from '@/features/security/components/StepUpDialog.vue'
 import PasswordInput from '@/features/security/components/PasswordInput.vue'
 import PasswordStrengthMeter from '@/features/security/components/PasswordStrengthMeter.vue'
 import {
@@ -21,6 +24,8 @@ import { useForm } from '@/composables/useForm'
 import { HttpError } from '@/services/http'
 import { applyServerFieldErrors } from '@/services/fieldErrors'
 import { isStaleWrite } from '@/services/ifMatch'
+import { isStepUpFailed, useIdpReauthChallenge } from '@/features/security/composables/useIdpStepUp'
+import { useAdminStepUp, useResumeOnce } from '@/features/users/composables/useAdminStepUp'
 import { toNumberOrNull } from '@/utils/number'
 import { cmToFeetInches } from '@/utils/units'
 import { compose, email, maxLength, pattern, required } from '@/utils/validators'
@@ -45,8 +50,10 @@ const props = withDefaults(
     user?: ManagedUser | null
     /** Whether the edited user is the signed-in administrator, whose email changes only through Security settings. */
     isSelf?: boolean
+    /** The identity-provider sign-in the browser just returned from, if any. */
+    resume?: IdpStepUpResume | null
   }>(),
-  { user: null, isSelf: false },
+  { user: null, isSelf: false, resume: null },
 )
 
 const emit = defineEmits<{
@@ -62,6 +69,13 @@ const languageCodes = computed(() =>
 
 const createMutation = useCreateUserMutation()
 const updateMutation = useUpdateUserMutation()
+const handleIdpChallenge = useIdpReauthChallenge()
+const { requirePassword, requireMfa } = useAdminStepUp()
+
+// Changing the email, access type or active flag needs the administrator's own step-up, collected by a
+// second dialog over this one.
+const isStepUpOpen = ref(false)
+const idpReauth = ref<IdpReauth | null>(null)
 
 /**
  * Form shape — the full set of admin-editable user fields. `password` is only
@@ -126,10 +140,17 @@ function defaultValues(): UserFormValues {
  *
  * @param formValues - The validated form values.
  */
-async function submitForm(formValues: UserFormValues): Promise<void> {
+async function submitForm(
+  formValues: UserFormValues,
+  stepUp: StepUpInput | null = null,
+): Promise<void> {
   // Nothing changed: skip the request and just close.
   if (props.user && !isDirty.value) {
     open.value = false
+    return
+  }
+  if (props.user && !stepUp && changesSensitiveField(props.user, formValues)) {
+    isStepUpOpen.value = true
     return
   }
   const city = formValues.city.trim() ? formValues.city.trim() : null
@@ -143,6 +164,7 @@ async function submitForm(formValues: UserFormValues): Promise<void> {
     if (props.user) {
       await updateMutation.mutateAsync({
         user: props.user,
+        stepUp,
         edits: {
           name: formValues.name.trim(),
           username: formValues.username.trim(),
@@ -187,9 +209,17 @@ async function submitForm(formValues: UserFormValues): Promise<void> {
       })
       emit('success', t('settings.users.form.createSuccess'))
     }
+    isStepUpOpen.value = false
     open.value = false
   } catch (error) {
     const passwordProblem = policyError(error)
+    if (handleIdpChallenge(error)) {
+      return
+    }
+    if (isStepUpFailed(error)) {
+      emit('error', t('settings.security.linked.invalidCredentials'))
+      return
+    }
     if (
       applyServerFieldErrors(error, setErrors, t, FORM_KEYS, {
         height: formValues.units === 'metric' ? 'heightCm' : 'heightFeet',
@@ -200,6 +230,7 @@ async function submitForm(formValues: UserFormValues): Promise<void> {
     if (passwordProblem) {
       emit('error', passwordProblem)
     } else if (isStaleWrite(error)) {
+      isStepUpOpen.value = false
       open.value = false
       emit('error', t('app.staleError'))
     } else if (error instanceof HttpError && error.status === 409) {
@@ -303,7 +334,7 @@ const {
         ? null
         : numberRange(11, t('settings.users.form.inchesInvalid'))(value),
   },
-  onSubmit: submitForm,
+  onSubmit: (formValues) => submitForm(formValues),
 })
 
 const isEditing = computed(() => props.user !== null)
@@ -347,6 +378,57 @@ watch(emailChanged, (changed) => {
   }
 })
 
+/**
+ * Whether the edit changes the email, the access type or the active flag, the three changes the backend
+ * asks the administrator's step-up for.
+ *
+ * @param user - The user as loaded.
+ * @param formValues - The submitted form values.
+ */
+function changesSensitiveField(user: ManagedUser, formValues: UserFormValues): boolean {
+  return (
+    formValues.email.trim().toLowerCase() !== user.email.toLowerCase() ||
+    formValues.accessType !== user.accessType ||
+    formValues.active !== user.active
+  )
+}
+
+/** The form values that survive the identity-provider sign-in; the password fields are blank when editing. */
+function draftValues(): UserFormValues {
+  return { ...values, password: '', confirmPassword: '' }
+}
+
+/** Keeps the stored draft entries that have the type of the matching form field. */
+function pickDraft(raw: unknown): Record<string, unknown> {
+  const stored: Record<string, unknown> = typeof raw === 'object' && raw !== null ? { ...raw } : {}
+  const picked: Record<string, unknown> = {}
+  for (const [key, base] of Object.entries(defaultValues())) {
+    const value = stored[key]
+    const fits =
+      base === null ? value === null || typeof value === 'number' : typeof value === typeof base
+    if (fits) {
+      picked[key] = value
+    }
+  }
+  return picked
+}
+
+/** Puts the form values back after the identity-provider sign-in. */
+async function restoreDraft(raw: unknown): Promise<void> {
+  const draft = pickDraft(raw)
+  Object.assign(values, draft)
+  // Changing the email resets the verified flag on the next tick; the stored choice wins.
+  await nextTick()
+  if (typeof draft.emailVerified === 'boolean') {
+    values.emailVerified = draft.emailVerified
+  }
+}
+
+/** Runs the save with the administrator's step-up from the second dialog. */
+function onStepUpConfirm(input: StepUpInput): void {
+  void submitForm(values, input)
+}
+
 const dialogTitle = computed(() =>
   isEditing.value ? t('settings.users.form.editTitle') : t('settings.users.form.addTitle'),
 )
@@ -383,12 +465,37 @@ function populate(): void {
   markPristine()
 }
 
+// The form and the step-up come back once the identity-provider sign-in returns for this user.
+let restoredDraft: unknown = null
+useResumeOnce(
+  () => props.resume,
+  'admin_user_edit',
+  () => props.user?.id ?? null,
+  (resume) => {
+    restoredDraft = resume.pending.draft ?? {}
+    idpReauth.value = resume.reauth
+    open.value = true
+  },
+)
+
 // Re-seed each time the dialog opens; the parent sets `user` before opening.
-watch(open, (isOpen) => {
-  if (isOpen) {
+watch(
+  open,
+  (isOpen) => {
+    if (!isOpen) {
+      return
+    }
     populate()
-  }
-})
+    if (restoredDraft !== null) {
+      const draft = restoredDraft
+      restoredDraft = null
+      void restoreDraft(draft).then(() => {
+        isStepUpOpen.value = true
+      })
+    }
+  },
+  { immediate: true },
+)
 </script>
 
 <template>
@@ -750,4 +857,18 @@ watch(open, (isOpen) => {
       <p class="text-hint sm:col-span-2">* {{ t('settings.users.form.requiredField') }}</p>
     </div>
   </FormDialog>
+  <StepUpDialog
+    v-if="user"
+    v-model:open="isStepUpOpen"
+    v-model:reauth="idpReauth"
+    action="admin_user_edit"
+    :title="t('settings.users.form.stepUpTitle')"
+    :description="t('settings.users.form.stepUpDescription', { username: user.username })"
+    :confirm-label="t('settings.users.form.stepUpConfirm')"
+    :require-password="requirePassword"
+    :require-mfa="requireMfa"
+    :pending-context="{ userId: user.id, draft: draftValues() }"
+    :pending="updateMutation.isPending.value"
+    @confirm="onStepUpConfirm"
+  />
 </template>

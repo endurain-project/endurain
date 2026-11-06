@@ -22,6 +22,8 @@ Edit a user's profile fields, access type and whether the account is active. You
 
 Changing a user's email sends a confirmation link to the new address. The address changes when the user follows the link, which is valid for 24 hours. Until then the user keeps signing in and resetting their password with the current address, and the user's detail page shows the pending address and when its link expires. To apply the new address at once, switch on **Mark the new address as verified** in the edit form. The address is then marked verified and no link is sent. If the server has no mail configured, the address changes at once and stays unverified. A deactivated account stays deactivated when its user follows a confirmation link: the link changes and verifies the address, and only an administrator reactivates the account.
 
+Changing a user's email, access type or active flag asks for your own password (or a fresh identity-provider sign-in if your account has none) and your MFA code when MFA is on, so a stolen session cannot hand an account over. Other edits need no confirmation.
+
 Some edits end the user's sessions, so a session issued under the old values cannot outlive the change. The user is signed out of every device when you save a change to their:
 
 - email, even while the new address waits for confirmation,
@@ -32,7 +34,7 @@ Endurain always keeps at least one active administrator. You cannot delete, deac
 
 ## Your own account
 
-The administrative actions that change how an account is secured, resetting the password, unlinking an identity provider, deleting the account and changing the email, are refused for your own account (`403`). Use your own account settings instead, which ask for your current password and MFA code first.
+The administrative actions that change how an account is secured, resetting the password, unlinking an identity provider, deleting the account and changing the email, are refused for your own account (`403`). Use your own account settings instead, which ask for your current password and MFA code first. The same actions on another user's account ask for your own password and MFA code too.
 
 ## Approving sign-ups
 
@@ -45,15 +47,15 @@ Approve the user from their row. Endurain activates the account and emails the u
 
 ## Resetting a password
 
-**Reset password** sets a new password for the user without needing their current one. It must satisfy the password policy. Endurain revokes the user's sessions and other sign-in state, so they must sign in again with the new password. Use this when a user cannot receive the [reset email](accounts-and-sign-in.md#forgotten-password), for example because no mail server is configured. It is also how an account that has no local password gets one: such an account cannot set its own. An administrator cannot reset their own password here.
+**Reset password** sets a new password for the user without needing their current one. It must satisfy the password policy. Endurain revokes the user's sessions and other sign-in state, so they must sign in again with the new password. Use this when a user cannot receive the [reset email](accounts-and-sign-in.md#forgotten-password), for example because no mail server is configured. It is also how an account that has no local password gets one: such an account cannot set its own. It asks for your own password and MFA code (or a fresh identity-provider sign-in if your account has no password). An administrator cannot reset their own password here.
 
 ## Sessions and identity providers
 
-A user's detail page shows their sessions, which you can revoke, and the identity providers linked to the account, which you can unlink. Unlinking an identity provider removes that external sign-in. Check that the user has another way to sign in first.
+A user's detail page shows their sessions, which you can revoke, and the identity providers linked to the account, which you can unlink. Unlinking an identity provider removes that external sign-in. Unlinking asks for your own password and MFA code. Check that the user has another way to sign in first.
 
 ## Deleting a user
 
-Deleting a user deletes the account and everything it owns: activities, their laps, streams, photos, thumbnails and stored source files, gear, health records, goals, notifications and the profile photo. The user is signed out and deactivated at once, and a background job erases their data, so a large account does not hold up the server; the request answers `202`, and `GET /users/{user_id}/deletion` reports the job's progress. If the job fails, the account stays deactivated and signed out, and Endurain queues the deletion again every hour, up to five times. After that, delete the account again yourself. Reactivating the account cancels a deletion that has not finished. It cannot be undone, so ask users to [export their data](export-import.md) first if they want a copy.
+Deleting a user asks for your own password and MFA code (or a fresh identity-provider sign-in if your account has no password). It deletes the account and everything it owns: activities, their laps, streams, photos, thumbnails and stored source files, gear, health records, goals, notifications and the profile photo. The user is signed out and deactivated at once, and a background job erases their data, so a large account does not hold up the server; the request answers `202`, and `GET /users/{user_id}/deletion` reports the job's progress. If the job fails, the account stays deactivated and signed out, and Endurain queues the deletion again every hour, up to five times. After that, delete the account again yourself. Reactivating the account cancels a deletion that has not finished. It cannot be undone, so ask users to [export their data](export-import.md) first if they want a copy.
 
 ## For the person editing at the same time
 

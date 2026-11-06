@@ -1,15 +1,15 @@
 <script setup lang="ts">
-import { computed, onBeforeUnmount, reactive, ref, watch } from 'vue'
+import { computed, onBeforeUnmount, onMounted, reactive, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { Filter, Plus, Search, UserX, X } from '@lucide/vue'
 
 import type { ManagedUser, UserFilters } from '@/features/users/types'
 
+import UserDeleteDialog from '@/features/users/components/UserDeleteDialog.vue'
 import UserFormDialog from '@/features/users/components/UserFormDialog.vue'
 import UserListItem from '@/features/users/components/UserListItem.vue'
 import UserPasswordDialog from '@/features/users/components/UserPasswordDialog.vue'
 import { Button } from '@/components/ui/button'
-import { ConfirmDialog } from '@/components/ui/confirm-dialog'
 import { CountBadge } from '@/components/ui/count-badge'
 import { EmptyState } from '@/components/ui/empty-state'
 import { Input } from '@/components/ui/input'
@@ -22,15 +22,29 @@ import { MIN_USER_SEARCH_LENGTH } from '@/features/users/services/publicUsers'
 import { useRecordsPerPage } from '@/features/config/composables/useRecordsPerPage'
 import { useListPagination } from '@/composables/useListPagination'
 import { useToasts } from '@/composables/useToasts'
-import { isStaleWrite } from '@/services/ifMatch'
+import { consumeIdpStepUpReturn } from '@/features/security/composables/useIdpStepUp'
+import { resumeUserId } from '@/features/users/composables/useAdminStepUp'
 import {
   useApproveUserMutation,
-  useDeleteUserMutation,
+  useUserQuery,
   useUsersQuery,
 } from '@/features/users/composables/useUsers'
 
 const { t } = useI18n()
 const toasts = useToasts()
+
+// Returning from an identity-provider sign-in, the callback leaves its outcome in the URL fragment. It is
+// consumed once; the dialog that started it reopens for the same user, and a failure is reported once the
+// page is shown.
+const stepUpReturn = consumeIdpStepUpReturn()
+const resume = stepUpReturn && !stepUpReturn.error ? stepUpReturn : null
+onMounted(() => {
+  if (stepUpReturn?.error === 'not_fresh') {
+    toasts.error(t('settings.security.stepUp.notFresh'))
+  } else if (stepUpReturn?.error) {
+    toasts.error(t('settings.security.stepUp.failed'))
+  }
+})
 const { data: currentUser } = useCurrentUser()
 
 /**
@@ -198,37 +212,14 @@ function openPassword(user: ManagedUser): void {
 // Delete dialog state.
 const isDeleteOpen = ref(false)
 const userToDelete = ref<ManagedUser | null>(null)
-const deleteMutation = useDeleteUserMutation()
 
 function openDelete(user: ManagedUser): void {
   userToDelete.value = user
   isDeleteOpen.value = true
 }
 
-function confirmDelete(): void {
-  const user = userToDelete.value
-  if (!user) {
-    return
-  }
-  deleteMutation.mutate(
-    { id: user.id, version: user.version },
-    {
-      onSuccess: () => {
-        isDeleteOpen.value = false
-        toasts.success(t('settings.users.delete.success'))
-      },
-      onError: (error) => {
-        if (isStaleWrite(error)) {
-          isDeleteOpen.value = false
-        }
-        toasts.error(isStaleWrite(error) ? t('app.staleError') : t('settings.users.delete.error'))
-      },
-    },
-  )
-}
-
 // Pending sign-up moderation: approve clears the pending flag; reject deletes the
-// account after confirmation.
+// account after the administrator's step-up.
 const approveMutation = useApproveUserMutation()
 const isRejectOpen = ref(false)
 const userToReject = ref<ManagedUser | null>(null)
@@ -245,29 +236,29 @@ function openReject(user: ManagedUser): void {
   isRejectOpen.value = true
 }
 
-function confirmReject(): void {
-  const user = userToReject.value
-  if (!user) {
-    return
-  }
-  deleteMutation.mutate(
-    { id: user.id, version: user.version },
-    {
-      onSuccess: () => {
-        isRejectOpen.value = false
-        toasts.success(t('settings.users.approval.rejectSuccess'))
-      },
-      onError: (error) => {
-        if (isStaleWrite(error)) {
-          isRejectOpen.value = false
-        }
-        toasts.error(
-          isStaleWrite(error) ? t('app.staleError') : t('settings.users.approval.rejectError'),
-        )
-      },
-    },
-  )
-}
+// The user the returning sign-in was for may be on another page of the list, so it is fetched by id and
+// handed to the dialog that resumes; the dialog opens itself once it has the user.
+const resumedUser = useUserQuery(
+  resumeUserId(resume, ['admin_credential_reset', 'admin_user_edit', 'admin_user_delete']),
+).data
+watch(
+  resumedUser,
+  (user) => {
+    if (!user || !resume) {
+      return
+    }
+    if (resume.action === 'admin_credential_reset') {
+      passwordUser.value = user
+    } else if (resume.action === 'admin_user_edit') {
+      editingUser.value = user
+    } else if (resume.pending.variant === 'reject') {
+      userToReject.value = user
+    } else {
+      userToDelete.value = user
+    }
+  },
+  { once: true },
+)
 </script>
 
 <template>
@@ -391,36 +382,28 @@ function confirmReject(): void {
       v-model:open="isFormOpen"
       :user="editingUser"
       :is-self="editingUser !== null && isSelf(editingUser)"
+      :resume="resume"
       @success="onFormSuccess"
       @error="onFormError"
     />
-    <ConfirmDialog
+    <UserDeleteDialog
       v-model:open="isDeleteOpen"
-      :title="t('settings.users.delete.title')"
-      :description="t('settings.users.delete.body', { name: userToDelete?.name ?? '' })"
-      :confirm-label="t('settings.users.delete.confirm')"
-      :cancel-label="t('settings.users.delete.cancel')"
-      :close-label="t('settings.users.delete.close')"
-      :pending="deleteMutation.isPending.value"
-      @confirm="confirmDelete"
+      :user="userToDelete"
+      variant="delete"
+      :resume="resume"
     />
-    <ConfirmDialog
+    <UserDeleteDialog
       v-model:open="isRejectOpen"
-      :title="t('settings.users.approval.rejectTitle')"
-      :description="
-        t('settings.users.approval.rejectBody', { username: userToReject?.username ?? '' })
-      "
-      :confirm-label="t('settings.users.approval.rejectConfirm')"
-      :cancel-label="t('settings.users.approval.rejectCancel')"
-      :close-label="t('settings.users.approval.rejectClose')"
-      :pending="deleteMutation.isPending.value"
-      @confirm="confirmReject"
+      :user="userToReject"
+      variant="reject"
+      :resume="resume"
     />
     <UserPasswordDialog
       v-model:open="isPasswordOpen"
       :user-id="passwordUser?.id ?? 0"
       :username="passwordUser?.username ?? ''"
       :access-type="passwordUser?.accessType ?? 'regular'"
+      :resume="resume"
       @success="onFormSuccess"
       @error="onFormError"
     />

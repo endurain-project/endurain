@@ -71,13 +71,22 @@ describe('user identity providers service', () => {
     expect(providers[0]?.name).toBe('Authelia')
   })
 
-  it('unlinkUserIdentityProvider issues a scoped DELETE by provider id', async () => {
+  it('unlinkUserIdentityProvider POSTs to the unlink route with the admin step-up', async () => {
     vi.mocked(apiFetch).mockResolvedValue(undefined)
 
-    await unlinkUserIdentityProvider(7, 11)
+    await unlinkUserIdentityProvider(7, 11, {
+      currentPassword: null,
+      mfaCode: null,
+      idpReauth: { ticket: 't1', codeVerifier: 'v1' },
+    })
 
-    expect(apiFetch).toHaveBeenCalledWith('/users/7/identity-providers/11', {
-      method: 'DELETE',
+    expect(apiFetch).toHaveBeenCalledWith('/users/7/identity-providers/11/unlink', {
+      method: 'POST',
+      body: JSON.stringify({
+        current_password: null,
+        mfa_code: null,
+        idp_reauth: { ticket: 't1', code_verifier: 'v1' },
+      }),
       responseType: 'void',
     })
   })

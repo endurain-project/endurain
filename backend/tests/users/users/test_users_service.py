@@ -11,6 +11,7 @@ import modules.auth.account_security.integration_service as account_security_int
 import modules.auth.credentials.contracts as credentials_contracts
 import modules.auth.credentials.integration_service as credentials_integration
 import modules.auth.identity_provider_links.integration_service as identity_links_integration
+import modules.auth.identity_providers.constants as identity_providers_constants
 import modules.auth.mfa.integration_service as mfa_integration
 import modules.auth.sign_up_tokens.contracts as sign_up_contracts
 import modules.users.users.schema as users_schema
@@ -53,6 +54,14 @@ def _profile(**overrides) -> users_schema.UserBase:
 
 _auth_service_mock: MagicMock | None = None
 _delete_all_sessions_mock: MagicMock
+_verify_step_up_mock: MagicMock
+
+
+def _admin_edit(user_id, edit, actor_id, db, *, step_up=None, store=None):
+    """Edit as an administrator whose session is ``sid-<actor_id>``."""
+    return users_service.edit_user(
+        user_id, edit, step_up, actor_id, f"sid-{actor_id}", store or MagicMock(), db, if_match="*"
+    )
 
 
 def _identity() -> MagicMock:
@@ -84,8 +93,11 @@ def _auth_integration_mocks(monkeypatch):
     """Mock auth integration boundaries while preserving each test's configured values."""
     global _auth_service_mock
     global _delete_all_sessions_mock
+    global _verify_step_up_mock
     _auth_service_mock = None
     _delete_all_sessions_mock = MagicMock()
+    _verify_step_up_mock = MagicMock()
+    monkeypatch.setattr(account_security_integration, "verify_step_up", _verify_step_up_mock)
 
     def mock_call(name, *args, **kwargs):
         if _auth_service_mock is None:
@@ -774,7 +786,7 @@ class TestEdits:
         identity.get_identity_link_counts_for_users.return_value = {1: 2}
         identity.get_mfa_enabled_for_users.return_value = {1: True}
 
-        result = users_service.edit_user(1, _edit(1), 9, mock_db, if_match="*")
+        result = _admin_edit(1, _edit(1), 9, mock_db)
 
         mock_db.commit.assert_called_once()
         assert result.external_auth_count == 2
@@ -801,7 +813,7 @@ class TestEdits:
         order.attach_mock(mock_db.commit, "commit")
         order.attach_mock(identity.delete_all_user_sessions, "revoke")
 
-        users_service.edit_user(1, _edit(1, **{**before, **after}), 9, mock_db, if_match="*")
+        _admin_edit(1, _edit(1, **{**before, **after}), 9, mock_db)
 
         assert [call[0] for call in order.mock_calls] == ["revoke", "commit"]
         _delete_all_sessions_mock.assert_called_once_with(1, mock_db)
@@ -818,7 +830,7 @@ class TestEdits:
         order.attach_mock(sign_up.request_email_change, "request")
         order.attach_mock(mock_db.commit, "commit")
 
-        users_service.edit_user(1, _edit(1, email="Other@example.com", email_verified=False), 9, mock_db, if_match="*")
+        _admin_edit(1, _edit(1, email="Other@example.com", email_verified=False), 9, mock_db)
 
         assert [call[0] for call in order.mock_calls] == ["request", "edit", "commit"]
         changes = mock_crud.update_user.call_args.args[1]
@@ -834,7 +846,7 @@ class TestEdits:
         mock_crud.update_user.return_value = _user(1)
 
         with pytest.raises(core_exceptions.ConflictError):
-            users_service.edit_user(1, _edit(1, email="other@example.com"), 9, mock_db, if_match="*")
+            _admin_edit(1, _edit(1, email="other@example.com"), 9, mock_db)
 
         sign_up.request_email_change.assert_not_called()
         mock_db.rollback.assert_called_once()
@@ -847,9 +859,7 @@ class TestEdits:
         mock_crud.update_user.return_value = _user(1, email="other@example.com", email_verified=True)
         _identity()
 
-        result = users_service.edit_user(
-            1, _edit(1, email="other@example.com", email_verified=True), 9, mock_db, if_match="*"
-        )
+        result = _admin_edit(1, _edit(1, email="other@example.com", email_verified=True), 9, mock_db)
 
         changes = mock_crud.update_user.call_args.args[1]
         assert (changes["email"], changes["email_verified"]) == ("other@example.com", True)
@@ -867,7 +877,7 @@ class TestEdits:
         sign_up.request_email_change.return_value = False
         _identity()
 
-        result = users_service.edit_user(1, _edit(1, email="other@example.com"), 9, mock_db, if_match="*")
+        result = _admin_edit(1, _edit(1, email="other@example.com"), 9, mock_db)
 
         mock_crud.update_user.assert_called_once()
         changes = mock_crud.update_user.call_args.args[1]
@@ -882,7 +892,7 @@ class TestEdits:
         mock_crud.update_user.return_value = _user(1, email="other@example.com", email_verified=True)
         _identity()
 
-        users_service.edit_user(1, _edit(1, email="other@example.com", email_verified=True), 9, mock_db, if_match="*")
+        _admin_edit(1, _edit(1, email="other@example.com", email_verified=True), 9, mock_db)
 
         password_reset.revoke_unused_tokens.assert_called_once_with(1, mock_db)
 
@@ -912,7 +922,7 @@ class TestEdits:
         mock_crud.update_user.return_value = _user(1)
         _identity()
 
-        users_service.edit_user(1, _edit(1, email="other@example.com"), 9, mock_db, if_match="*")
+        _admin_edit(1, _edit(1, email="other@example.com"), 9, mock_db)
 
         password_reset.revoke_unused_tokens.assert_not_called()
 
@@ -920,7 +930,7 @@ class TestEdits:
         mock_crud.get_user_by_id.return_value = _user(1)
         mock_crud.update_user.return_value = _user(1, name="Renamed")
 
-        users_service.edit_user(1, _edit(1, name="Renamed"), 9, mock_db, if_match="*")
+        _admin_edit(1, _edit(1, name="Renamed"), 9, mock_db)
 
         sign_up.request_email_change.assert_not_called()
         sign_up.revoke_pending_tokens.assert_not_called()
@@ -935,7 +945,7 @@ class TestEdits:
         }
         _identity()
 
-        result = users_service.edit_user(1, _edit(1, email="other@example.com"), 9, mock_db, if_match="*")
+        result = _admin_edit(1, _edit(1, email="other@example.com"), 9, mock_db)
 
         assert (result.pending_email, result.pending_email_expires_at) == ("other@example.com", expires)
 
@@ -943,7 +953,7 @@ class TestEdits:
         mock_crud.get_user_by_id.return_value = _user(1)
         mock_crud.update_user.return_value = _user(1, name="Renamed")
 
-        users_service.edit_user(1, _edit(1, name="Renamed"), 9, mock_db, if_match="*")
+        _admin_edit(1, _edit(1, name="Renamed"), 9, mock_db)
 
         _delete_all_sessions_mock.assert_not_called()
 
@@ -952,16 +962,72 @@ class TestEdits:
         mock_crud.update_user.return_value = _user(1, access_type="regular")
         mock_crud.lock_active_admin_ids.return_value = [1, 2]
 
-        users_service.edit_user(1, _edit(1, access_type="regular"), 1, mock_db, if_match="*")
+        _admin_edit(1, _edit(1, access_type="regular"), 1, mock_db)
 
         _delete_all_sessions_mock.assert_not_called()
+
+    @pytest.mark.parametrize(
+        "after",
+        [{"email": "other@example.com"}, {"access_type": "admin"}, {"active": False}],
+        ids=["email", "access_type", "active"],
+    )
+    def test_a_security_relevant_edit_needs_the_step_up_of_the_administrator(
+        self, mock_crud, mock_weight, mock_db, after
+    ):
+        mock_crud.get_user_by_id.return_value = _user(1)
+        mock_crud.get_user_by_email.return_value = None
+        mock_crud.update_user.return_value = _user(1, **after)
+        mock_crud.lock_active_admin_ids.return_value = [1, 2]
+        _identity()
+        store = MagicMock()
+        step_up = users_schema.StepUpVerification(current_password="admin-password")
+        order = MagicMock()
+        order.attach_mock(_verify_step_up_mock, "step_up")
+        order.attach_mock(mock_crud.update_user, "edit")
+
+        _admin_edit(1, _edit(1, **after), 9, mock_db, step_up=step_up, store=store)
+
+        assert [call[0] for call in order.mock_calls] == ["step_up", "edit"]
+        _verify_step_up_mock.assert_called_once_with(
+            step_up, 9, "sid-9", identity_providers_constants.StepUpAction.ADMIN_USER_EDIT, store, mock_db
+        )
+
+    def test_a_missing_step_up_is_verified_as_empty_credentials(self, mock_crud, mock_weight, mock_db):
+        mock_crud.get_user_by_id.return_value = _user(1)
+        mock_crud.update_user.return_value = _user(1, active=False)
+        mock_crud.lock_active_admin_ids.return_value = [1, 2]
+        _identity()
+        _admin_edit(1, _edit(1, active=False), 9, mock_db)
+
+        assert _verify_step_up_mock.call_args.args[0] == users_schema.StepUpVerification()
+
+    @pytest.mark.parametrize("actor_id", [9, 1])
+    def test_a_failed_step_up_changes_nothing(self, mock_crud, mock_weight, mock_db, actor_id):
+        mock_crud.get_user_by_id.return_value = _user(1, access_type="admin")
+        _verify_step_up_mock.side_effect = core_exceptions.PermissionDeniedError("wrong password")
+
+        with pytest.raises(core_exceptions.PermissionDeniedError):
+            _admin_edit(1, _edit(1, access_type="regular"), actor_id, mock_db)
+
+        mock_crud.update_user.assert_not_called()
+        mock_db.commit.assert_not_called()
+        _delete_all_sessions_mock.assert_not_called()
+
+    def test_an_edit_that_changes_none_of_the_three_needs_no_step_up(self, mock_crud, mock_weight, mock_db):
+        mock_crud.get_user_by_id.return_value = _user(1)
+        mock_crud.update_user.return_value = _user(1, name="Renamed")
+
+        _admin_edit(1, _edit(1, name="Renamed"), 9, mock_db)
+
+        _verify_step_up_mock.assert_not_called()
 
     def test_an_administrator_cannot_change_their_own_email_without_step_up(self, mock_crud, mock_weight, mock_db):
         mock_crud.get_user_by_id.return_value = _user(1)
 
         with pytest.raises(core_exceptions.PermissionDeniedError):
-            users_service.edit_user(1, _edit(1, email="other@example.com"), 1, mock_db, if_match="*")
+            _admin_edit(1, _edit(1, email="other@example.com"), 1, mock_db)
 
+        _verify_step_up_mock.assert_not_called()
         mock_crud.update_user.assert_not_called()
         mock_db.commit.assert_not_called()
 
@@ -970,7 +1036,7 @@ class TestEdits:
         mock_crud.update_user.side_effect = core_exceptions.ConflictError("dup")
 
         with pytest.raises(core_exceptions.ConflictError):
-            users_service.edit_user(1, _edit(1), 9, mock_db, if_match="*")
+            _admin_edit(1, _edit(1), 9, mock_db)
 
         mock_db.rollback.assert_called_once()
         mock_db.commit.assert_not_called()

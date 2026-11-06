@@ -47,6 +47,7 @@ A resource has a collection and an item:
 - An action that is neither a replacement nor a partial edit is `POST /things/{thing_id}/<verb>` (`approve`,
   `revoke`, `read`, `complete`) **(test)**.
 - A `POST` that creates a resource answers `201`.
+- Removing a thing that needs the caller's step-up in the body is `POST /things/{thing_id}/delete` or `.../unlink`, not `DELETE`, which carries no body: `POST /profile/delete-account`, `POST /profile/identity-providers/{idp_id}/unlink`, `POST /users/{user_id}/delete` and `POST /users/{user_id}/identity-providers/{idp_id}/unlink`. `POST /users/{user_id}/delete` keeps `If-Match` and the `202` status resource of a delete.
 
 ## Status codes
 

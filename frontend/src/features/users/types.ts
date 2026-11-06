@@ -3,8 +3,8 @@ import type { Schemas } from '@/types'
 /** Raw `UserRead` payload as returned by the backend (snake_case wire shape). */
 export type UserDto = Schemas['UserRead']
 
-/** `UserEdit` payload: the body of an administrative edit of a user. */
-export type UserEditDto = Schemas['UserEdit']
+/** `UserAdminEdit` payload: the body of an administrative edit of a user. */
+export type UserEditDto = Schemas['UserAdminEdit']
 
 /** Raw `UserPublicRead` payload: what any signed-in or anonymous viewer may learn about a user. */
 export type PublicUserDto = Schemas['UserPublicRead']

@@ -445,6 +445,50 @@ class UserPublicRead(BaseModel):
 UserPublicPage = core_pagination.Page[UserPublicRead]
 
 
+class StepUpVerification(BaseModel):
+    """Generic step-up verification payload.
+
+    Used by sensitive account-level operations (API key
+    creation, MFA backup-code regeneration, etc.) to require
+    fresh proof of identity beyond a valid access token.
+
+    An account without a local password (it signs in through an
+    identity provider) proves a fresh sign-in with a linked provider
+    instead: ``idp_reauth`` carries the ticket from
+    ``POST /profile/identity-providers/{idp_id}/step-up``.
+
+    Attributes:
+        current_password: Caller's existing password. Required
+            when the account has a local password.
+        mfa_code: TOTP or backup code, required when MFA is
+            enabled on the account.
+        idp_reauth: Proof of a fresh identity-provider sign-in. Required
+            when the account has no local password.
+    """
+
+    current_password: StrictStr | None = Field(
+        default=None,
+        min_length=1,
+        max_length=250,
+        description=("Current password (step-up verification). Required when the account has a local password."),
+    )
+    mfa_code: StrictStr | None = Field(
+        default=None,
+        max_length=32,
+        description="TOTP or backup code, required when MFA is enabled",
+    )
+
+    idp_reauth: idp_schema.IdpReauthProof | None = Field(
+        default=None,
+        description="Fresh identity-provider sign-in, required when the account has no local password",
+    )
+
+    model_config = ConfigDict(
+        extra="forbid",
+        validate_assignment=True,
+    )
+
+
 class UserEdit(User):
     """Users schema for an administrative edit.
 
@@ -480,6 +524,30 @@ class UserEdit(User):
             ),
             context={core_types.STORED_CONTEXT: True},
         )
+
+
+class UserAdminEdit(UserEdit):
+    """An administrator's edit of another user, the body of ``PATCH /users/{user_id}``.
+
+    Attributes:
+        step_up: The administrator's own step-up verification. Required when the edit changes the email,
+            the access type or the active flag; it is never a user field.
+    """
+
+    step_up: StepUpVerification | None = Field(
+        default=None,
+        description=(
+            "The administrator's step-up verification, required to change the email, access type or active flag"
+        ),
+    )
+
+    def to_edit(self) -> UserEdit:
+        """Return the user fields of the request, without the step-up.
+
+        Returns:
+            The edit as a :class:`UserEdit`, with the same fields set.
+        """
+        return UserEdit.model_validate(self.model_dump(exclude={"step_up"}, exclude_unset=True))
 
 
 class UserMe(UserRead):
@@ -676,13 +744,12 @@ class UserEmailLookup(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
 
-class UserAdminEditPassword(BaseModel):
+class UserAdminEditPassword(StepUpVerification):
     """Schema for admin password reset operations.
 
-    Admin password resets are authorised by the caller's
-    ``users:write`` scope on the admin route, not by knowing the
-    target user's current password. Self-service password changes
-    must use :class:`UserEditPassword` instead.
+    Setting another user's password needs the ``users:write`` scope and the administrator's own step-up
+    verification, not the target user's current password. Self-service password changes must use
+    :class:`UserEditPassword` instead.
 
     Attributes:
         password: New password (min 8 chars).
@@ -695,11 +762,6 @@ class UserAdminEditPassword(BaseModel):
         description="New password",
     )
 
-    model_config = ConfigDict(
-        extra="forbid",
-        validate_assignment=True,
-    )
-
 
 class UserPhotoRead(BaseModel):
     """The photo a user has after an upload.
@@ -709,50 +771,6 @@ class UserPhotoRead(BaseModel):
     """
 
     photo_path: StrictStr | None = Field(default=None, description="Servable URL of the user's photo")
-
-
-class StepUpVerification(BaseModel):
-    """Generic step-up verification payload.
-
-    Used by sensitive account-level operations (API key
-    creation, MFA backup-code regeneration, etc.) to require
-    fresh proof of identity beyond a valid access token.
-
-    An account without a local password (it signs in through an
-    identity provider) proves a fresh sign-in with a linked provider
-    instead: ``idp_reauth`` carries the ticket from
-    ``POST /profile/identity-providers/{idp_id}/step-up``.
-
-    Attributes:
-        current_password: Caller's existing password. Required
-            when the account has a local password.
-        mfa_code: TOTP or backup code, required when MFA is
-            enabled on the account.
-        idp_reauth: Proof of a fresh identity-provider sign-in. Required
-            when the account has no local password.
-    """
-
-    current_password: StrictStr | None = Field(
-        default=None,
-        min_length=1,
-        max_length=250,
-        description=("Current password (step-up verification). Required when the account has a local password."),
-    )
-    mfa_code: StrictStr | None = Field(
-        default=None,
-        max_length=32,
-        description="TOTP or backup code, required when MFA is enabled",
-    )
-
-    idp_reauth: idp_schema.IdpReauthProof | None = Field(
-        default=None,
-        description="Fresh identity-provider sign-in, required when the account has no local password",
-    )
-
-    model_config = ConfigDict(
-        extra="forbid",
-        validate_assignment=True,
-    )
 
 
 class IdentityProviderLinkStart(StepUpVerification):

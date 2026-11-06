@@ -250,8 +250,8 @@ def admin_delete_identity_provider_link(
 
     Unlike :func:`delete_identity_provider_link`, this is an
     administrative action against another user's account: it does not
-    require step-up verification from the caller (authorization is
-    enforced by the ``users:write`` scope on the route).
+    verify step-up itself. The users service verifies the administrator's
+    own step-up before it calls this.
 
     Args:
         user_id: ID of the user to unlink the IdP from.

@@ -178,7 +178,7 @@ _ACCEPTING_ROUTES = [
         id="strava-unlink",
     ),
     pytest.param(
-        ("DELETE", "/users/12", {}),
+        ("POST", "/users/12/delete", {"json": {"current_password": "secret"}}),
         (users_router.users_deletion_job_service, "request_deletion_by_administrator"),
         users_schema.UserDeletionStatus(status=core_job_status.JobState.QUEUED),
         "/users/12/deletion",

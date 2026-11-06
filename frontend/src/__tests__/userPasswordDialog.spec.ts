@@ -1,6 +1,7 @@
 import { flushPromises, mount } from '@vue/test-utils'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { ref } from 'vue'
+import { QueryClient, VueQueryPlugin } from '@tanstack/vue-query'
 
 import i18n from '@/i18n'
 import UserPasswordDialog from '@/features/users/components/UserPasswordDialog.vue'
@@ -11,12 +12,17 @@ const { mutateAsync } = vi.hoisted(() => ({
 }))
 
 vi.mock('@/features/users/composables/useUsers', () => ({
-  useChangeUserPasswordMutation: () => ({ mutateAsync }),
+  useChangeUserPasswordMutation: () => ({ mutateAsync, isPending: ref(false) }),
 }))
 vi.mock('@/features/config/composables/usePublicServerSettings', () => ({
   usePublicServerSettings: () => ({
     serverSettings: ref({ password_length_regular_users: 8, password_length_admin_users: 20 }),
   }),
+}))
+
+vi.mock('@/features/users/composables/useAdminStepUp', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('@/features/users/composables/useAdminStepUp')>()),
+  useAdminStepUp: () => ({ requirePassword: ref(true), requireMfa: ref(false) }),
 }))
 
 /** Passthrough stub so the dialog portal is skipped and the form renders inline. */
@@ -31,7 +37,7 @@ async function submitFilled() {
   const wrapper = mount(UserPasswordDialog, {
     props: { open: false, userId: 2, username: 'bob', accessType: 'admin' },
     global: {
-      plugins: [i18n],
+      plugins: [i18n, [VueQueryPlugin, { queryClient: new QueryClient() }]],
       stubs: {
         Dialog: passthrough,
         DialogContent: passthrough,
@@ -45,6 +51,7 @@ async function submitFilled() {
   await wrapper.setProps({ open: true })
   await wrapper.get('input[name="new-password"]').setValue('a-long-enough-password-1')
   await wrapper.get('input[name="confirm-password"]').setValue('a-long-enough-password-1')
+  await wrapper.get('#stepup-password').setValue('admin-pw')
   await wrapper.get('form').trigger('submit')
   await flushPromises()
   return wrapper
@@ -64,6 +71,29 @@ describe('UserPasswordDialog weak password', () => {
     expect(wrapper.emitted('error')?.[0]).toEqual([
       i18n.global.t('app.password.tooShort', { min: 20 }),
     ])
+  })
+
+  it('sends the administrator step-up with the new password', async () => {
+    mutateAsync.mockResolvedValue()
+    await submitFilled()
+
+    expect(mutateAsync).toHaveBeenCalledWith({
+      userId: 2,
+      password: 'a-long-enough-password-1',
+      stepUp: { currentPassword: 'admin-pw', mfaCode: null, idpReauth: null },
+    })
+  })
+
+  it('reports a refused step-up as invalid credentials and stays open', async () => {
+    mutateAsync.mockRejectedValue(
+      new HttpError(403, 'Forbidden', null, 'urn:endurain:error:step-up-failed'),
+    )
+    const wrapper = await submitFilled()
+
+    expect(wrapper.emitted('error')?.[0]).toEqual([
+      i18n.global.t('settings.security.linked.invalidCredentials'),
+    ])
+    expect(wrapper.emitted('update:open')).toBeUndefined()
   })
 
   it('keeps the generic message for any other 422', async () => {

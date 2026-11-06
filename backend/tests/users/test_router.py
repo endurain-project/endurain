@@ -18,15 +18,20 @@ class TestEditUserPassword:
         """
         user_id = 42
         new_password = "new-secure-password"
-        user_attributes = users_schema.UserAdminEditPassword(password=new_password)
+        user_attributes = users_schema.UserAdminEditPassword(password=new_password, current_password="admin-password")
         db = MagicMock()
 
-        with patch.object(account_security_integration, "change_managed_user_password") as change_password:
+        with (
+            patch.object(account_security_integration, "verify_step_up"),
+            patch.object(account_security_integration, "change_managed_user_password") as change_password,
+        ):
             users_router.edit_user_password(
                 request=MagicMock(),
                 user_id=user_id,
                 user_attributes=user_attributes,
                 token_user_id=7,
+                token_session_id="sid-7",
+                step_up_store=MagicMock(),
                 db=db,
             )
 

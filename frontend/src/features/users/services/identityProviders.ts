@@ -1,7 +1,9 @@
+import type { StepUpInput } from '@/features/security/types'
 import type { UserIdentityProvider, UserIdentityProviderDto } from '@/features/users/types'
 
 import { apiFetch } from '@/services/http'
 import { fetchAllPages } from '@/services/pagination'
+import { toStepUpWire } from '@/features/security/services/security'
 
 /**
  * Maps a raw `IdentityProviderLinkRead` payload to the clean
@@ -51,11 +53,17 @@ export async function fetchUserIdentityProviders(
  *
  * @param userId - The target user id.
  * @param idpId - The identity provider id to unlink.
+ * @param stepUp - The administrator's step-up credentials.
  * @throws {HttpError} When the request fails.
  */
-export async function unlinkUserIdentityProvider(userId: number, idpId: number): Promise<void> {
-  await apiFetch<void>(`/users/${userId}/identity-providers/${idpId}`, {
-    method: 'DELETE',
+export async function unlinkUserIdentityProvider(
+  userId: number,
+  idpId: number,
+  stepUp: StepUpInput,
+): Promise<void> {
+  await apiFetch<void>(`/users/${userId}/identity-providers/${idpId}/unlink`, {
+    method: 'POST',
+    body: JSON.stringify(toStepUpWire(stepUp)),
     responseType: 'void',
   })
 }

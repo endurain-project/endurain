@@ -18,6 +18,12 @@ Certain sensitive account operations require the user to re-prove possession of 
 | Remove IdP link | `POST /profile/identity-providers/{idp_id}/unlink` |
 | Delete own account | `POST /profile/delete-account` |
 | Export own profile data | `POST /profile/export` |
+| Set another user's password (administrators) | `POST /users/{user_id}/password/change` |
+| Change another user's email, access type or active flag (administrators) | `PATCH /users/{user_id}`, in its `step_up` object |
+| Delete another user's account (administrators) | `POST /users/{user_id}/delete` |
+| Unlink another user's identity provider (administrators) | `POST /users/{user_id}/identity-providers/{idp_id}/unlink` |
+
+The administrator operations verify the **administrator's own** credentials, never the target user's, so a stolen access token alone cannot set a password, hand over or delete an account. `PATCH /users/{user_id}` needs step-up only when the edit changes the email, the access type or the active flag; it carries the fields in a `step_up` object next to the user fields, and an edit of anything else needs none. Forcing a user's sessions to end, creating a user and approving one need no step-up.
 
 Removing an identity provider link, yourself or as an administrator, also ends every session of that user that signed in through the provider, the caller's own session included when it did. A client holding such a session gets `401` on its next request and refreshes no further. The link responses carry no `idp_access_token_expires_at` or `idp_refresh_token_updated_at`: Endurain keeps provider tokens per session, not per link.
 
@@ -44,7 +50,7 @@ All step-up operations accept the following fields in their JSON request body (a
 }
 ```
 
-Account deletion and email change use the same fields. Password change (`POST /profile/password/change`) needs a local password and is answered `403` for an account without one; an administrator sets the first password through `POST /users/{user_id}/password/change`, which refuses the administrator's own account.
+Account deletion and email change use the same fields. Password change (`POST /profile/password/change`) needs a local password and is answered `403` for an account without one; an administrator sets the first password through `POST /users/{user_id}/password/change`, which refuses the administrator's own account and takes the administrator's step-up fields next to `password`.
 
 ### Step-up Refusal
 
@@ -52,7 +58,7 @@ A step-up that does not verify is `403` with `urn:endurain:error:step-up-failed`
 
 ### Step-up for accounts without a password
 
-An account without a local password cannot prove a password, and MFA alone does not pass step-up for it. It must prove a fresh sign-in with an identity provider linked to the account. This covers API key creation, IdP link, IdP unlink, email change, account deletion, profile export, MFA enable, MFA disable and backup-code regeneration.
+An account without a local password cannot prove a password, and MFA alone does not pass step-up for it. It must prove a fresh sign-in with an identity provider linked to the account. This covers API key creation, IdP link, IdP unlink, email change, account deletion, profile export, MFA enable, MFA disable, backup-code regeneration and the administrator operations above, where it is the administrator's own account that has no password.
 
 1. The sensitive request arrives without `idp_reauth`. The API answers `401` with problem type `urn:endurain:error:idp-reauth-required` and `WWW-Authenticate: Bearer error="insufficient_user_authentication", max_age="60"` ([RFC 9470](https://datatracker.ietf.org/doc/html/rfc9470)). A missing proof is not counted as a failed attempt.
 2. The client generates a PKCE verifier and starts the sign-in with `POST /profile/identity-providers/{idp_id}/step-up`:
@@ -65,7 +71,7 @@ An account without a local password cannot prove a password, and MFA alone does 
     }
     ```
 
-    `action` is one of `api_key_create`, `idp_link`, `idp_unlink`, `email_change`, `account_delete`, `profile_export`, `mfa_enable`, `mfa_disable`, `mfa_backup_codes`. `redirect` must be a relative path; other values, including custom schemes, are refused. The response is `{"authorization_url": "..."}` and sets the HttpOnly, `SameSite=Lax` cookie `endurain_idp_binding`, scoped to the callback path, which ties the flow to that browser.
+    `action` is one of `api_key_create`, `idp_link`, `idp_unlink`, `email_change`, `account_delete`, `profile_export`, `mfa_enable`, `mfa_disable`, `mfa_backup_codes`, `admin_credential_reset`, `admin_user_edit`, `admin_user_delete`, `admin_idp_unlink`. A ticket pays only for the action it was started for. `redirect` must be a relative path; other values, including custom schemes, are refused. The response is `{"authorization_url": "..."}` and sets the HttpOnly, `SameSite=Lax` cookie `endurain_idp_binding`, scoped to the callback path, which ties the flow to that browser.
 3. The browser opens `authorization_url`. Endurain asks the provider for a new sign-in (`prompt=login`, `max_age=60`, PKCE). The callback verifies the ID token (signature, `iss`, `aud`, `azp`, `exp`/`iat` with 60 seconds of leeway, `nonce`) and requires `auth_time` to be no earlier than 60 seconds before the step-up started. The userinfo endpoint is not used, and the provider account must be the one linked to the user.
 4. The callback redirects to `redirect` with the result in the URL fragment: `#step_up_ticket=<ticket>` on success, or `#step_up_error=failed` or `#step_up_error=not_fresh`. `not_fresh` means the provider did not make the user sign in again.
 5. The client repeats the sensitive request with `idp_reauth`:

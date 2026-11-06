@@ -35,7 +35,7 @@ The only `202` with no status route is [your own account deletion](#delete-your-
 | Export your profile | `POST /profile/export` | `GET /profile/export` | No |
 | Import a profile | `POST /profile/import` | `GET /profile/import` | No |
 | Bulk edit activity visibility | `PATCH /activities` | `GET /activities/bulk-edit` | No |
-| Delete a user (administrators) | `DELETE /users/{user_id}` | `GET /users/{user_id}/deletion` | No |
+| Delete a user (administrators) | `POST /users/{user_id}/delete` | `GET /users/{user_id}/deletion` | No |
 | Delete your account | `POST /profile/delete-account` | None, see [below](#delete-your-account) | No |
 
 The activity upload and the archive bulk import take an `Idempotency-Key`. Every other start route refuses a second request while one of the same kind is still running (see [`409`](#conflicts-409)), which is what protects a retry.
@@ -132,10 +132,11 @@ A provider that answers with a rate limit makes the job `failed` (gear and healt
 
 ## Delete a user (administrators)
 
-`DELETE /users/{user_id}` needs `users:write` and the user's `ETag` in `If-Match` (see [Errors, concurrency and rate limits](errors-and-limits.md#concurrent-edits-with-etag-and-if-match)). It signs the user out everywhere, deactivates the account and answers `202` with the envelope. A background job then erases the data. An administrator polls `GET /users/{user_id}/deletion` (needs `users:read_all`); the record is kept for 2 hours.
+`POST /users/{user_id}/delete` needs `users:write`, the user's `ETag` in `If-Match` (see [Errors, concurrency and rate limits](errors-and-limits.md#concurrent-edits-with-etag-and-if-match)) and the administrator's own [step-up](account-security.md#step-up-authentication) in the body (`current_password`, or `idp_reauth` for an administrator without a password, and `mfa_code` when MFA is on). It signs the user out everywhere, deactivates the account and answers `202` with the envelope. A background job then erases the data. An administrator polls `GET /users/{user_id}/deletion` (needs `users:read_all`); the record is kept for 2 hours.
 
 - `409` when the user is the only administrator, or when a deletion is already pending.
 - `403` when an administrator targets their own account. Use `POST /profile/delete-account` for that.
+- `403` with `urn:endurain:error:step-up-failed` (or `401` `idp-reauth-required`) when the administrator's step-up does not verify; nothing is deleted.
 - `412` and `428` as for any versioned write.
 - If the job fails, the account stays deactivated and signed out. Endurain queues the deletion again every hour, up to five times, and after that an administrator deletes the account again.
 

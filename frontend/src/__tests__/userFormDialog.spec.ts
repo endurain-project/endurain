@@ -1,5 +1,6 @@
 import { flushPromises, mount } from '@vue/test-utils'
 import { describe, expect, it, vi } from 'vitest'
+import { ref } from 'vue'
 
 import { QueryClient, VueQueryPlugin } from '@tanstack/vue-query'
 
@@ -13,6 +14,11 @@ import UserFormDialog from '@/features/users/components/UserFormDialog.vue'
 vi.mock('@/services/http', () => ({
   apiFetch: vi.fn<typeof apiFetch>(),
   HttpError: class extends Error {},
+}))
+
+vi.mock('@/features/users/composables/useAdminStepUp', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('@/features/users/composables/useAdminStepUp')>()),
+  useAdminStepUp: () => ({ requirePassword: ref(true), requireMfa: ref(false) }),
 }))
 
 const user: ManagedUser = {
@@ -47,6 +53,25 @@ const user: ManagedUser = {
  * renders inline where the test can drive it. */
 const passthrough = { template: '<div><slot /></div>' }
 
+const stubs = {
+  Dialog: passthrough,
+  DialogContent: passthrough,
+  DialogHeader: passthrough,
+  DialogTitle: passthrough,
+  DialogDescription: passthrough,
+  DialogFooter: passthrough,
+  RouterLink: { props: ['to'], template: '<a :data-to="to.name"><slot /></a>' },
+}
+
+type Wrapper = Awaited<ReturnType<typeof mountDialog>>
+
+/** Fills the administrator's password in the step-up dialog and confirms it. */
+async function confirmStepUp(wrapper: Wrapper): Promise<void> {
+  await flushPromises()
+  await wrapper.get('#stepup-password').setValue('admin-pw')
+  await wrapper.findAll('form')[1]!.trigger('submit')
+}
+
 async function mountDialog(
   isSelf: boolean,
   edited: ManagedUser = user,
@@ -56,15 +81,7 @@ async function mountDialog(
     props: { open: false, user: edited, isSelf },
     global: {
       plugins: [i18n, [VueQueryPlugin, { queryClient }]],
-      stubs: {
-        Dialog: passthrough,
-        DialogContent: passthrough,
-        DialogHeader: passthrough,
-        DialogTitle: passthrough,
-        DialogDescription: passthrough,
-        DialogFooter: passthrough,
-        RouterLink: { props: ['to'], template: '<a :data-to="to.name"><slot /></a>' },
-      },
+      stubs,
     },
   })
   // The form seeds itself when the dialog opens.
@@ -136,11 +153,85 @@ describe('UserFormDialog email verification switches', () => {
     await wrapper.find('input[name="email"]').setValue('new@example.com')
     await switches(wrapper)[2]!.setValue(true)
     await wrapper.find('form').trigger('submit')
+    await confirmStepUp(wrapper)
 
     expect(await sentUpdate()).toMatchObject({
       email: 'new@example.com',
       email_verified: true,
     })
+  })
+})
+
+describe('UserFormDialog step-up', () => {
+  /** The step-up dialog renders as the second form of the stubbed dialogs. */
+  const stepUpPatches = () =>
+    vi.mocked(apiFetch).mock.calls.filter(([, init]) => init?.method === 'PATCH')
+
+  it.each([
+    ['email', async (w: Wrapper) => w.find('input[name="email"]').setValue('new@example.com')],
+    [
+      'access type',
+      async (w: Wrapper) =>
+        w
+          .findAll('select')
+          .find((select) => select.find('option[value="admin"]').exists())!
+          .setValue('regular'),
+    ],
+    ['active flag', async (w: Wrapper) => w.find('input[role="switch"]').setValue(false)],
+  ])('asks for the administrator step-up before saving a changed %s', async (_label, change) => {
+    vi.mocked(apiFetch).mockClear()
+    vi.mocked(apiFetch).mockResolvedValue({ ...user })
+    const wrapper = await mountDialog(false)
+    await change(wrapper)
+    await wrapper.find('form').trigger('submit')
+    await flushPromises()
+
+    expect(stepUpPatches()).toHaveLength(0)
+
+    await confirmStepUp(wrapper)
+    const body = (await sentUpdate()) as { step_up?: unknown }
+    expect(body.step_up).toEqual({ current_password: 'admin-pw', mfa_code: null })
+  })
+
+  it('saves without a step-up when no sensitive field changed', async () => {
+    vi.mocked(apiFetch).mockClear()
+    vi.mocked(apiFetch).mockResolvedValue({ ...user })
+    const wrapper = await mountDialog(false)
+    await wrapper.find('input[name="name"]').setValue('Renamed')
+    await wrapper.find('form').trigger('submit')
+
+    expect(await sentUpdate()).not.toHaveProperty('step_up')
+  })
+
+  it('reopens the step-up with the draft restored after an identity-provider return', async () => {
+    vi.mocked(apiFetch).mockClear()
+    vi.mocked(apiFetch).mockResolvedValue({ ...user })
+    const wrapper = mount(UserFormDialog, {
+      props: {
+        open: false,
+        user,
+        resume: {
+          action: 'admin_user_edit',
+          reauth: { ticket: 't1', codeVerifier: 'v1' },
+          pending: {
+            userId: user.id,
+            draft: { name: 'Draft name', email: 'draft@example.com', password: 'ignored' },
+          },
+        },
+      },
+      global: { plugins: [i18n, [VueQueryPlugin, { queryClient: new QueryClient() }]], stubs },
+    })
+    await flushPromises()
+
+    expect(wrapper.emitted('update:open')?.[0]).toEqual([true])
+    await wrapper.setProps({ open: true })
+    await flushPromises()
+    expect((wrapper.find('input[name="name"]').element as HTMLInputElement).value).toBe(
+      'Draft name',
+    )
+    expect((wrapper.find('input[name="email"]').element as HTMLInputElement).value).toBe(
+      'draft@example.com',
+    )
   })
 })
 

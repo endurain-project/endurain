@@ -267,8 +267,11 @@ class TestAdminEmailEdit:
     def _edit(db, **overrides):
         current = users_service.require_user(7, db)
         edit = users_schema.UserEdit.from_read(current).model_copy(update=overrides)
-        with patch(_ALL_SESSIONS) as sessions:
-            updated = users_service.edit_user(7, edit, 9, db, if_match=str(current.version))
+        with (
+            patch(_ALL_SESSIONS) as sessions,
+            patch("modules.users.users.service.account_security_integration.verify_step_up"),
+        ):
+            updated = users_service.edit_user(7, edit, None, 9, "sid-9", MagicMock(), db, if_match=str(current.version))
         return updated, sessions
 
     def test_an_unchanged_email_edits_as_before(self, db, mail, publish):

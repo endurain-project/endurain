@@ -46,6 +46,10 @@ class StepUpAction(StrEnum):
         MFA_ENABLE: Enable MFA.
         MFA_DISABLE: Disable MFA.
         MFA_BACKUP_CODES: Regenerate MFA backup codes.
+        ADMIN_CREDENTIAL_RESET: An administrator sets another user's password.
+        ADMIN_USER_EDIT: An administrator changes another user's email, access type or active flag.
+        ADMIN_USER_DELETE: An administrator deletes another user's account.
+        ADMIN_IDP_UNLINK: An administrator unlinks an identity provider from another user.
     """
 
     API_KEY_CREATE = "api_key_create"
@@ -57,6 +61,10 @@ class StepUpAction(StrEnum):
     MFA_ENABLE = "mfa_enable"
     MFA_DISABLE = "mfa_disable"
     MFA_BACKUP_CODES = "mfa_backup_codes"
+    ADMIN_CREDENTIAL_RESET = "admin_credential_reset"
+    ADMIN_USER_EDIT = "admin_user_edit"
+    ADMIN_USER_DELETE = "admin_user_delete"
+    ADMIN_IDP_UNLINK = "admin_idp_unlink"
 
 
 class IdentityProviderTemplate(TypedDict):

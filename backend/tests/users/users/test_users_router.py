@@ -18,6 +18,8 @@ import modules.users.users.schema as users_schema
 
 _SERVICE = "modules.users.users.router.users_service"
 _PHOTO = "modules.users.users.router.users_photo_service"
+_STEP_UP_STORE = MagicMock()
+_STEP_UP = {"current_password": "admin-password"}
 
 
 @pytest.fixture
@@ -33,6 +35,8 @@ def _app_client(mock_db, scopes: frozenset[str]) -> TestClient:
     core_exceptions.register_exception_handlers(app)
     app.dependency_overrides[auth_dependencies.check_scopes] = lambda: None
     app.dependency_overrides[auth_dependencies.get_sub_from_access_token] = lambda: 9
+    app.dependency_overrides[auth_dependencies.get_sid_from_access_token] = lambda: "sid-9"
+    app.dependency_overrides[auth_dependencies.get_step_up_attempts] = lambda: _STEP_UP_STORE
     app.dependency_overrides[auth_dependencies.get_scopes_from_access_token] = lambda: scopes
     app.dependency_overrides[core_database.get_db] = lambda: mock_db
     app.dependency_overrides[core_dependencies.get_storage] = lambda: MagicMock()
@@ -321,7 +325,30 @@ class TestEditUser:
         assert response.status_code == 200
         assert response.json()["external_auth_count"] == 2
         assert mock_edit.call_args.args[0] == 1
-        assert mock_edit.call_args.args[2:] == (9, mock_db)
+        assert mock_edit.call_args.args[2:] == (None, 9, "sid-9", _STEP_UP_STORE, mock_db)
+
+    @patch(f"{_SERVICE}.edit_user")
+    def test_the_step_up_travels_apart_from_the_user_fields(self, mock_edit, client):
+        mock_edit.return_value = _user(1)
+
+        response = client.patch(
+            "/users/1",
+            json={
+                "name": "Updated User",
+                "username": "updated",
+                "email": "updated@example.com",
+                "active": True,
+                "access_type": "regular",
+                "step_up": _STEP_UP,
+            },
+            headers={"If-Match": '"1"'},
+        )
+
+        assert response.status_code == 200
+        edit, step_up = mock_edit.call_args.args[1:3]
+        assert type(edit) is users_schema.UserEdit
+        assert "step_up" not in edit.model_dump()
+        assert step_up == users_schema.StepUpVerification(current_password="admin-password")
 
 
 class TestApproveUser:
@@ -343,15 +370,26 @@ class TestApproveUser:
 
 
 class TestEditUserPassword:
-    def test_success(self, client, mock_db):
-        with patch(
-            "modules.users.users.router.account_security_integration.change_managed_user_password"
-        ) as change_password:
-            response = client.post("/users/1/password/change", json={"password": "newpassword123"})
+    @patch(f"{_SERVICE}.change_user_password")
+    def test_changes_the_password_with_the_administrators_step_up(self, change_password, client, mock_db):
+        response = client.post(
+            "/users/1/password/change", json={"password": "newpassword123", "current_password": "admin-password"}
+        )
 
         assert response.status_code == 204
         assert response.content == b""
-        change_password.assert_called_once_with(1, "newpassword123", mock_db)
+        args = change_password.call_args.args
+        assert args[0] == 1
+        assert (args[1].password, args[1].current_password) == ("newpassword123", "admin-password")
+        assert args[2:] == (9, "sid-9", _STEP_UP_STORE, mock_db)
+
+    @patch(f"{_SERVICE}.change_user_password")
+    def test_a_refused_step_up_is_the_services_answer(self, change_password, client):
+        change_password.side_effect = core_exceptions.PermissionDeniedError("wrong password")
+
+        response = client.post("/users/1/password/change", json={"password": "newpassword123"})
+
+        assert response.status_code == 403
 
 
 class TestDeleteUserPhoto:
@@ -370,7 +408,7 @@ class TestDeleteUser:
     def test_queues_the_deletion(self, mock_request, client, mock_db):
         mock_request.return_value = users_schema.UserDeletionStatus(status="queued")
 
-        response = client.delete("/users/1", headers={"If-Match": '"3"'})
+        response = client.post("/users/1/delete", json=_STEP_UP, headers={"If-Match": '"3"'})
 
         assert response.status_code == 202
         assert response.json() == {
@@ -380,33 +418,79 @@ class TestDeleteUser:
             "error_code": None,
             "status": "queued",
         }
-        assert mock_request.call_args.args[:2] == (1, 9)
-        assert mock_request.call_args.args[2] is not None
-        assert mock_request.call_args.args[4] == mock_db
+        args = mock_request.call_args.args
+        assert args[:3] == (1, 9, "sid-9")
+        assert args[3] == users_schema.StepUpVerification(current_password="admin-password")
+        assert args[4] is _STEP_UP_STORE
+        assert args[5] is not None
+        assert args[7] == mock_db
         assert mock_request.call_args.kwargs == {"if_match": '"3"'}
 
     @patch("modules.users.users.router.users_deletion_job_service.request_deletion_by_administrator")
     def test_without_if_match_is_428(self, mock_request, client):
-        assert client.delete("/users/1").status_code == 428
+        assert client.post("/users/1/delete", json=_STEP_UP).status_code == 428
         mock_request.assert_not_called()
 
     @patch("modules.users.users.router.users_deletion_job_service.request_deletion_by_administrator")
     def test_a_stale_if_match_is_412(self, mock_request, client):
         mock_request.side_effect = core_exceptions.PreconditionFailedError("stale")
 
-        assert client.delete("/users/1", headers={"If-Match": '"1"'}).status_code == 412
+        assert client.post("/users/1/delete", json=_STEP_UP, headers={"If-Match": '"1"'}).status_code == 412
 
     @patch("modules.users.users.router.users_deletion_job_service.request_deletion_by_administrator")
     def test_unknown_user_is_not_found(self, mock_request, client):
         mock_request.side_effect = core_exceptions.NotFoundError("User not found")
 
-        assert client.delete("/users/1", headers={"If-Match": '"1"'}).status_code == 404
+        assert client.post("/users/1/delete", json=_STEP_UP, headers={"If-Match": '"1"'}).status_code == 404
 
     @patch("modules.users.users.router.users_deletion_job_service.request_deletion_by_administrator")
     def test_the_only_administrator_is_refused(self, mock_request, client):
         mock_request.side_effect = core_exceptions.ConflictError("The only administrator cannot be deleted")
 
-        assert client.delete("/users/1", headers={"If-Match": '"1"'}).status_code == 409
+        assert client.post("/users/1/delete", json=_STEP_UP, headers={"If-Match": '"1"'}).status_code == 409
+
+    def test_the_delete_verb_is_gone(self, client):
+        assert client.delete("/users/1", headers={"If-Match": '"1"'}).status_code == 405
+
+    @patch("modules.users.users.router.users_deletion_job_service.request_deletion_by_administrator")
+    def test_a_refused_step_up_queues_nothing(self, mock_request, client):
+        mock_request.side_effect = core_exceptions.PermissionDeniedError("wrong password")
+
+        assert client.post("/users/1/delete", json={}, headers={"If-Match": '"1"'}).status_code == 403
+
+    @patch("modules.users.users.router.users_deletion_job_service.request_deletion_by_administrator")
+    def test_a_body_with_an_unknown_field_is_422(self, mock_request, client):
+        response = client.post("/users/1/delete", json={"extra": 1}, headers={"If-Match": '"1"'})
+
+        assert response.status_code == 422
+        mock_request.assert_not_called()
+
+
+class TestUnlinkUserIdentityProvider:
+    @patch(f"{_SERVICE}.unlink_identity_provider")
+    def test_unlinks_with_the_administrators_step_up(self, unlink, client, mock_db):
+        response = client.post("/users/4/identity-providers/2/unlink", json=_STEP_UP)
+
+        assert response.status_code == 204
+        assert response.content == b""
+        unlink.assert_called_once_with(
+            4,
+            2,
+            9,
+            "sid-9",
+            users_schema.StepUpVerification(current_password="admin-password"),
+            _STEP_UP_STORE,
+            mock_db,
+        )
+
+    def test_the_delete_verb_is_gone(self, client):
+        assert client.delete("/users/4/identity-providers/2").status_code in (404, 405)
+
+    @patch(f"{_SERVICE}.unlink_identity_provider")
+    def test_a_refused_step_up_is_the_services_answer(self, unlink, client):
+        unlink.side_effect = core_exceptions.PermissionDeniedError("wrong password")
+
+        assert client.post("/users/4/identity-providers/2/unlink", json={}).status_code == 403
 
 
 class TestReadUserDeletionStatus:

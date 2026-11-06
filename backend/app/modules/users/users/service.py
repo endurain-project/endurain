@@ -22,6 +22,7 @@ import core.timezone as core_timezone
 import modules.auth.account_security.integration_service as account_security_integration
 import modules.auth.credentials.integration_service as credentials_integration
 import modules.auth.identity_provider_links.integration_service as identity_provider_links_integration
+import modules.auth.identity_providers.constants as identity_providers_constants
 import modules.auth.mfa.integration_service as mfa_integration
 import modules.auth.password_reset_tokens.integration_service as password_reset_tokens_integration
 import modules.auth.sign_up_tokens.integration_service as sign_up_tokens_integration
@@ -787,14 +788,18 @@ def _stage_edit_with_email_change(
 def edit_user(
     user_id: int,
     user: users_schema.UserEdit,
+    step_up: users_schema.StepUpVerification | None,
     actor_id: int,
+    session_id: str,
+    step_up_store: account_security_integration.StepUpStore,
     db: Session,
     *,
     if_match: str,
 ) -> users_schema.UserRead:
     """Edit a user as an administrator, commit, and add their authentication status.
 
-    A change of email, access type or active flag signs the edited user out everywhere, so a
+    A change of email, access type or active flag needs the administrator's own step-up verification, so a
+    stolen access token cannot hand an account over. It signs the edited user out everywhere, so a
     demoted, deactivated or re-addressed account does not keep working sessions. An administrator
     editing their own account stays signed in. A changed email that the administrator does not mark
     verified is requested, not applied: the user keeps the stored address, a confirmation link is queued
@@ -805,7 +810,10 @@ def edit_user(
     Args:
         user_id: ID of the user to update.
         user: The user data to apply.
+        step_up: The administrator's step-up verification; verified as empty credentials when missing.
         actor_id: ID of the administrator making the edit.
+        session_id: The administrator's session.
+        step_up_store: Step-up lockout store.
         db: Database session.
         if_match: The ``If-Match`` precondition.
 
@@ -813,7 +821,8 @@ def edit_user(
         The updated user, with its pending email change, identity provider count and MFA status.
 
     Raises:
-        PermissionDeniedError: If the administrator changes their own email, which needs step-up.
+        PermissionDeniedError: If the administrator changes their own email, which needs their account settings.
+        StepUpFailedError: If the edit changes the email, access type or active flag and the step-up fails.
         NotFoundError: If the user does not exist.
         ConflictError: If the username or email is already taken.
         PreconditionFailedError: If the user changed since the client read them.
@@ -822,6 +831,15 @@ def edit_user(
     email_changed = existing.email != user.email.lower()
     if email_changed:
         require_other_user(user_id, actor_id, "change your email")
+    if _edit_ends_sessions(existing, user):
+        account_security_integration.verify_step_up(
+            step_up or users_schema.StepUpVerification(),
+            actor_id,
+            session_id,
+            identity_providers_constants.StepUpAction.ADMIN_USER_EDIT,
+            step_up_store,
+            db,
+        )
     applied_unverified = False
     with core_etag.refuse_stale_write(
         db, "user", lambda: users_crud.get_user_by_id(user_id, db) is not None, "User not found"
@@ -1136,41 +1154,75 @@ def require_other_user(user_id: int, actor_id: int, action: str) -> None:
         raise core_exceptions.PermissionDeniedError(f"Use your account settings to {action}")
 
 
-def change_user_password(user_id: int, new_password: str, actor_id: int, db: Session) -> None:
-    """Change another user's password as an administrator, ending their sessions.
+def change_user_password(
+    user_id: int,
+    attributes: users_schema.UserAdminEditPassword,
+    actor_id: int,
+    session_id: str,
+    step_up_store: account_security_integration.StepUpStore,
+    db: Session,
+) -> None:
+    """Change another user's password as an administrator after their step-up, ending the user's sessions.
 
     Args:
         user_id: ID of the user whose password changes.
-        new_password: New plaintext password; it must satisfy the configured policy.
+        attributes: The new plaintext password, which must satisfy the configured policy, and the
+            administrator's step-up verification.
         actor_id: ID of the administrator making the change.
+        session_id: The administrator's session.
+        step_up_store: Step-up lockout store.
         db: Database session.
 
     Raises:
         PermissionDeniedError: If the administrator targets their own account.
+        StepUpFailedError: If the administrator's step-up verification fails.
         NotFoundError: If the user does not exist.
         PasswordPolicyError: If the password fails the configured policy.
     """
     require_other_user(user_id, actor_id, "change your password")
-    account_security_integration.change_managed_user_password(user_id, new_password, db)
+    account_security_integration.verify_step_up(
+        attributes,
+        actor_id,
+        session_id,
+        identity_providers_constants.StepUpAction.ADMIN_CREDENTIAL_RESET,
+        step_up_store,
+        db,
+    )
+    account_security_integration.change_managed_user_password(user_id, attributes.password, db)
     db.commit()
     logger.info("Password changed by an administrator", extra=core_logger.context(user_id=user_id))
 
 
-def unlink_identity_provider(user_id: int, idp_id: int, actor_id: int, db: Session) -> None:
-    """Unlink an identity provider from another user as an administrator.
+def unlink_identity_provider(
+    user_id: int,
+    idp_id: int,
+    actor_id: int,
+    session_id: str,
+    step_up: users_schema.StepUpVerification,
+    step_up_store: account_security_integration.StepUpStore,
+    db: Session,
+) -> None:
+    """Unlink an identity provider from another user as an administrator after their step-up.
 
     Args:
         user_id: ID of the user to unlink the provider from.
         idp_id: ID of the identity provider.
         actor_id: ID of the administrator making the change.
+        session_id: The administrator's session.
+        step_up: The administrator's step-up verification.
+        step_up_store: Step-up lockout store.
         db: Database session.
 
     Raises:
         PermissionDeniedError: If the administrator targets their own account.
+        StepUpFailedError: If the administrator's step-up verification fails.
         NotFoundError: If the provider or the link does not exist.
         InvalidInputError: If unlinking would remove the user's last way to sign in.
     """
     require_other_user(user_id, actor_id, "unlink an identity provider")
+    account_security_integration.verify_step_up(
+        step_up, actor_id, session_id, identity_providers_constants.StepUpAction.ADMIN_IDP_UNLINK, step_up_store, db
+    )
     account_security_integration.admin_delete_identity_provider_link(user_id, idp_id, db)
     db.commit()
     logger.info(

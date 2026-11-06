@@ -3,6 +3,7 @@ import { storeToRefs } from 'pinia'
 import { keepPreviousData, useMutation, useQuery, useQueryClient } from '@tanstack/vue-query'
 
 import type { User } from '@/features/auth/types'
+import type { StepUpInput } from '@/features/security/types'
 import type {
   CreateUserInput,
   EditUserFields,
@@ -90,10 +91,17 @@ export function useCreateUserMutation() {
 export function useUpdateUserMutation() {
   const client = useQueryClient()
 
-  return useInvalidatingMutation<ManagedUser, { user: ManagedUser; edits: EditUserFields }>({
+  return useInvalidatingMutation<
+    ManagedUser,
+    {
+      user: ManagedUser
+      edits: EditUserFields
+      stepUp?: StepUpInput | null
+    }
+  >({
     mutationKey: queryKeys.users.all(),
-    mutationFn: async ({ user, edits }) => {
-      const updated = await updateUser(user, edits)
+    mutationFn: async ({ user, edits, stepUp }) => {
+      const updated = await updateUser(user, edits, stepUp)
       if (client.getQueryData<User>(queryKeys.currentUser())?.id === user.id) {
         invalidateHeightDependentQueries(client, edits.height)
       }
@@ -108,9 +116,9 @@ export function useUpdateUserMutation() {
  * @returns The TanStack Query mutation for deleting a user.
  */
 export function useDeleteUserMutation() {
-  return useInvalidatingMutation<void, { id: number; version: number }>({
+  return useInvalidatingMutation<void, { id: number; version: number; stepUp: StepUpInput }>({
     mutationKey: queryKeys.users.all(),
-    mutationFn: ({ id, version }) => deleteUser(id, version),
+    mutationFn: ({ id, version, stepUp }) => deleteUser(id, version, stepUp),
   })
 }
 
@@ -152,8 +160,15 @@ export function useUserQuery(id: MaybeRefOrGetter<number | null>) {
  */
 export function useChangeUserPasswordMutation() {
   return useMutation({
-    mutationFn: ({ userId, password }: { userId: number; password: string }) =>
-      changeUserPassword(userId, password),
+    mutationFn: ({
+      userId,
+      password,
+      stepUp,
+    }: {
+      userId: number
+      password: string
+      stepUp: StepUpInput
+    }) => changeUserPassword(userId, password, stepUp),
   })
 }
 

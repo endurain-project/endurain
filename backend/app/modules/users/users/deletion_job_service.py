@@ -27,6 +27,7 @@ import core.exceptions as core_exceptions
 import core.local_pool as core_local_pool
 import core.logger as core_logger
 import modules.auth.account_security.integration_service as account_security_integration
+import modules.auth.identity_providers.constants as identity_providers_constants
 import modules.auth.sign_up_tokens.integration_service as sign_up_tokens_integration
 import modules.users.contributor_registry as users_contributor_registry
 import modules.users.users.audit_actions as users_audit_actions
@@ -129,17 +130,23 @@ def request_deletion(
 def request_deletion_by_administrator(
     user_id: int,
     actor_id: int,
+    session_id: str,
+    step_up: users_schema.StepUpVerification,
+    step_up_store: account_security_integration.StepUpStore,
     states: users_deletion_state_store.UserDeletionStateStore,
     storage: platform_providers.StorageProvider,
     db: Session,
     *,
     if_match: str,
 ) -> users_schema.UserDeletionStatus:
-    """Queue the erasure of another user's account on an administrator's request.
+    """Queue the erasure of another user's account on an administrator's request, after their step-up.
 
     Args:
         user_id: The user to delete.
         actor_id: ID of the administrator making the request.
+        session_id: The administrator's session.
+        step_up: The administrator's step-up verification.
+        step_up_store: Step-up lockout store.
         states: Shared store of the deletion's state.
         storage: The platform storage provider, for the in-process pool.
         db: Database session.
@@ -149,13 +156,17 @@ def request_deletion_by_administrator(
         The deletion's initial status.
 
     Raises:
-        PermissionDeniedError: If the administrator targets their own account, which needs step-up.
+        PermissionDeniedError: If the administrator targets their own account, which needs their account settings.
+        StepUpFailedError: If the administrator's step-up verification fails.
         NotFoundError: If the user does not exist.
         PreconditionFailedError: If the user changed since the client read it.
         ConflictError: If the user is the only administrator, or a deletion is already pending.
         PoolFullError: When there is no durable worker and the in-process pool is full.
     """
     users_service.require_other_user(user_id, actor_id, "delete your account")
+    account_security_integration.verify_step_up(
+        step_up, actor_id, session_id, identity_providers_constants.StepUpAction.ADMIN_USER_DELETE, step_up_store, db
+    )
     with core_etag.refuse_stale_write(
         db, "user", lambda: users_crud.get_user_by_id(user_id, db) is not None, "User not found"
     ):

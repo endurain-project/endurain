@@ -2,7 +2,7 @@
 
 from typing import Annotated
 
-from fastapi import APIRouter, Query, Request, Response, Security, UploadFile, status
+from fastapi import APIRouter, Depends, Query, Request, Response, Security, UploadFile, status
 
 import core.dependencies as core_dependencies
 import core.etag as core_etag
@@ -226,21 +226,31 @@ def put_user_image(
 def edit_user(
     request: Request,
     user_id: core_dependencies.PositiveId,
-    user_attributtes: users_schema.UserEdit,
+    user_attributtes: users_schema.UserAdminEdit,
     token_user_id: auth_dependencies.CurrentUserId,
+    token_session_id: auth_dependencies.CurrentSessionId,
+    step_up_store: Annotated[
+        auth_dependencies.StepUpStore,
+        Depends(auth_dependencies.get_step_up_attempts),
+    ],
     db: core_dependencies.DbSession,
     response: Response,
     if_match: core_dependencies.IfMatch,
 ) -> users_schema.UserRead:
     """Update user information.
 
-    A change of email, access type or active flag signs the edited user out everywhere.
+    A change of email, access type or active flag needs the administrator's own step-up verification in
+    `step_up` (their current password or, for an account without one, a fresh identity-provider sign-in,
+    and an MFA code when MFA is enabled), and signs the edited user out everywhere. An edit that changes none
+    of the three needs no `step_up`.
 
     Args:
         request: The incoming request, read by the rate limiter.
         user_id: ID of user to update.
-        user_attributtes: User data to update.
+        user_attributtes: User data to update, and the administrator's step-up.
         token_user_id: ID of the administrator making the edit.
+        token_session_id: Session ID of the administrator.
+        step_up_store: Step-up lockout store.
         db: Database session dependency.
         response: The response, which carries the new ETag.
         if_match: The ``If-Match`` precondition.
@@ -248,7 +258,16 @@ def edit_user(
     Returns:
         Updated user data.
     """
-    updated = users_service.edit_user(user_id, user_attributtes, token_user_id, db, if_match=if_match)
+    updated = users_service.edit_user(
+        user_id,
+        user_attributtes.to_edit(),
+        user_attributtes.step_up,
+        token_user_id,
+        token_session_id,
+        step_up_store,
+        db,
+        if_match=if_match,
+    )
     core_etag.set_etag(response, updated.version)
     return updated
 
@@ -289,21 +308,31 @@ def edit_user_password(
     user_id: core_dependencies.PositiveId,
     user_attributes: users_schema.UserAdminEditPassword,
     token_user_id: auth_dependencies.CurrentUserId,
+    token_session_id: auth_dependencies.CurrentSessionId,
+    step_up_store: Annotated[
+        auth_dependencies.StepUpStore,
+        Depends(auth_dependencies.get_step_up_attempts),
+    ],
     db: core_dependencies.DbSession,
 ) -> None:
     """Update another user's password.
 
+    Requires the administrator's own step-up verification: their current password (or, for an account
+    without one, a fresh identity-provider sign-in), and an MFA code when MFA is enabled.
+
     Args:
         request: The incoming request, read by the rate limiter.
         user_id: ID of user to update password for.
-        user_attributes: New password data.
+        user_attributes: New password data and the administrator's step-up.
         token_user_id: ID of the administrator making the change.
+        token_session_id: Session ID of the administrator.
+        step_up_store: Step-up lockout store.
         db: Database session dependency.
 
     Raises:
         HTTPException: 422 if the password is too short, too common or matches the account's details.
     """
-    users_service.change_user_password(user_id, user_attributes.password, token_user_id, db)
+    users_service.change_user_password(user_id, user_attributes, token_user_id, token_session_id, step_up_store, db)
 
 
 @router.delete(
@@ -333,8 +362,8 @@ def delete_user_photo(
     users_photo_service.delete_photo(user_id, storage, db, audit=True)
 
 
-@router.delete(
-    "/{user_id}",
+@router.post(
+    "/{user_id}/delete",
     status_code=status.HTTP_202_ACCEPTED,
     response_model=users_schema.UserDeletionStatus,
     responses=core_location.ACCEPTED_RESPONSE,
@@ -345,7 +374,13 @@ def delete_user(
     request: Request,
     response: Response,
     user_id: core_dependencies.PositiveId,
+    step_up: users_schema.StepUpVerification,
     token_user_id: auth_dependencies.CurrentUserId,
+    token_session_id: auth_dependencies.CurrentSessionId,
+    step_up_store: Annotated[
+        auth_dependencies.StepUpStore,
+        Depends(auth_dependencies.get_step_up_attempts),
+    ],
     states: users_dependencies.UserDeletionStateStoreDep,
     storage: core_dependencies.Storage,
     if_match: core_dependencies.IfMatch,
@@ -353,14 +388,19 @@ def delete_user(
 ) -> users_schema.UserDeletionStatus:
     """Queue the deletion of another user's account.
 
-    The user is signed out and deactivated at once and a background job erases their data. Poll
-    ``GET /users/{user_id}/deletion`` for the outcome; a failed deletion is requested again.
+    Requires the administrator's own step-up verification: their current password (or, for an account
+    without one, a fresh identity-provider sign-in), and an MFA code when MFA is enabled. The user is signed
+    out and deactivated at once and a background job erases their data. Poll ``GET /users/{user_id}/deletion``
+    for the outcome; a failed deletion is requested again.
 
     Args:
         request: The incoming request, read by the rate limiter.
         response: The response, which names the status route and when to poll it.
         user_id: ID of user to delete.
+        step_up: The administrator's step-up verification.
         token_user_id: ID of the administrator making the request.
+        token_session_id: Session ID of the administrator.
+        step_up_store: Step-up lockout store.
         states: Shared store of the deletion's state.
         storage: The platform storage provider.
         if_match: The ``If-Match`` precondition.
@@ -376,7 +416,7 @@ def delete_user(
         ConflictError: If the user is the only administrator, or a deletion is already pending.
     """
     deletion = users_deletion_job_service.request_deletion_by_administrator(
-        user_id, token_user_id, states, storage, db, if_match=if_match
+        user_id, token_user_id, token_session_id, step_up, step_up_store, states, storage, db, if_match=if_match
     )
     core_location.set_status_location(
         response,
@@ -441,8 +481,8 @@ def get_user_identity_providers(
     return account_security_integration.get_user_identity_provider_links(user_id, page, db)
 
 
-@router.delete(
-    "/{user_id}/identity-providers/{idp_id}",
+@router.post(
+    "/{user_id}/identity-providers/{idp_id}/unlink",
     status_code=status.HTTP_204_NO_CONTENT,
     response_model=None,
     dependencies=[Security(auth_dependencies.check_scopes, scopes=["users:write"])],
@@ -452,19 +492,31 @@ def delete_user_identity_provider(
     request: Request,
     user_id: core_dependencies.PositiveId,
     idp_id: core_dependencies.PositiveId,
+    step_up: users_schema.StepUpVerification,
     token_user_id: auth_dependencies.CurrentUserId,
+    token_session_id: auth_dependencies.CurrentSessionId,
+    step_up_store: Annotated[
+        auth_dependencies.StepUpStore,
+        Depends(auth_dependencies.get_step_up_attempts),
+    ],
     db: core_dependencies.DbSession,
 ) -> None:
     """Unlink an identity provider from another user (admin).
+
+    Requires the administrator's own step-up verification: their current password (or, for an account
+    without one, a fresh identity-provider sign-in), and an MFA code when MFA is enabled.
 
     Args:
         request: The incoming request, read by the rate limiter.
         user_id: ID of the user to unlink the identity provider from.
         idp_id: ID of the identity provider to unlink.
+        step_up: The administrator's step-up verification.
         token_user_id: ID of the administrator making the change.
+        token_session_id: Session ID of the administrator.
+        step_up_store: Step-up lockout store.
         db: Database session.
 
     Returns:
         None
     """
-    users_service.unlink_identity_provider(user_id, idp_id, token_user_id, db)
+    users_service.unlink_identity_provider(user_id, idp_id, token_user_id, token_session_id, step_up, step_up_store, db)

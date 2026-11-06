@@ -111,9 +111,10 @@ class TestTicket:
             ({"user_id": USER_ID + 1}, {}),
             ({"session_id": "99999999-2222-3333-4444-555555555555"}, {}),
             ({"action": StepUpAction.ACCOUNT_DELETE}, {}),
+            ({"action": StepUpAction.ADMIN_USER_EDIT}, {"action": StepUpAction.ADMIN_USER_DELETE}),
             ({}, {"verifier": "w" * 43}),
         ],
-        ids=["another-user", "another-session", "another-action", "wrong-verifier"],
+        ids=["another-user", "another-session", "another-action", "another-admin-action", "wrong-verifier"],
     )
     def test_a_ticket_issued_for_something_else_is_refused_and_counted(self, state, store, account, issued, presented):
         ticket = _issue(state, **issued)

@@ -120,11 +120,24 @@ class TestAccountCreation:
 
 class TestAdminEdit:
     def _edit(self, mock_db, before, after, requested):
-        with patch(_CRUD) as crud, jasil_testing.capture_audit() as audit:
+        with (
+            patch(_CRUD) as crud,
+            patch("modules.users.users.service.account_security_integration.verify_step_up"),
+            jasil_testing.capture_audit() as audit,
+        ):
             crud.get_user_by_id.return_value = before
             crud.update_user.return_value = after
             crud.lock_active_admin_ids.return_value = [1, 2]
-            users_service.edit_user(before.id, users_schema.UserEdit.from_read(requested), 9, mock_db, if_match="*")
+            users_service.edit_user(
+                before.id,
+                users_schema.UserEdit.from_read(requested),
+                None,
+                9,
+                "sid-9",
+                MagicMock(),
+                mock_db,
+                if_match="*",
+            )
         return audit
 
     def test_names_the_fields_that_changed_and_never_their_values(self, mock_db):

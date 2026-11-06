@@ -1,4 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { ref } from 'vue'
 
 import { flushPromises, mount } from '@vue/test-utils'
 import { QueryClient, VueQueryPlugin } from '@tanstack/vue-query'
@@ -21,6 +22,11 @@ import UserFormDialog from '@/features/users/components/UserFormDialog.vue'
 vi.mock('@/services/http', async (importOriginal) => ({
   ...(await importOriginal<typeof import('@/services/http')>()),
   apiFetch: vi.fn<typeof apiFetch>(),
+}))
+
+vi.mock('@/features/users/composables/useAdminStepUp', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('@/features/users/composables/useAdminStepUp')>()),
+  useAdminStepUp: () => ({ requirePassword: ref(true), requireMfa: ref(false) }),
 }))
 
 const t = i18n.global.t as (key: string) => string

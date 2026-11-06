@@ -3800,21 +3800,17 @@ export interface paths {
         get: operations["read_user"];
         put?: never;
         post?: never;
-        /**
-         * Delete User
-         * @description Queue the deletion of another user's account.
-         *
-         *     The user is signed out and deactivated at once and a background job erases their data. Poll
-         *     ``GET /users/{user_id}/deletion`` for the outcome; a failed deletion is requested again.
-         */
-        delete: operations["delete_user"];
+        delete?: never;
         options?: never;
         head?: never;
         /**
          * Edit User
          * @description Update user information.
          *
-         *     A change of email, access type or active flag signs the edited user out everywhere.
+         *     A change of email, access type or active flag needs the administrator's own step-up verification in
+         *     `step_up` (their current password or, for an account without one, a fresh identity-provider sign-in,
+         *     and an MFA code when MFA is enabled), and signs the edited user out everywhere. An edit that changes none
+         *     of the three needs no `step_up`.
          */
         patch: operations["edit_user"];
         trace?: never;
@@ -3879,6 +3875,30 @@ export interface paths {
          *     A user who is not awaiting approval, is deactivated or is queued for deletion is refused with 409.
          */
         post: operations["approve_user"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/users/{user_id}/delete": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Delete User
+         * @description Queue the deletion of another user's account.
+         *
+         *     Requires the administrator's own step-up verification: their current password (or, for an account
+         *     without one, a fresh identity-provider sign-in), and an MFA code when MFA is enabled. The user is signed out and deactivated at once and a background job erases their data. Poll
+         *     ``GET /users/{user_id}/deletion`` for the outcome; a failed deletion is requested again.
+         */
+        post: operations["delete_user"];
         delete?: never;
         options?: never;
         head?: never;
@@ -4006,7 +4026,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/v1/users/{user_id}/identity-providers/{idp_id}": {
+    "/api/v1/users/{user_id}/identity-providers/{idp_id}/unlink": {
         parameters: {
             query?: never;
             header?: never;
@@ -4015,12 +4035,15 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        post?: never;
         /**
          * Delete User Identity Provider
          * @description Unlink an identity provider from another user (admin).
+         *
+         *     Requires the administrator's own step-up verification: their current password (or, for an account
+         *     without one, a fresh identity-provider sign-in), and an MFA code when MFA is enabled.
          */
-        delete: operations["delete_user_identity_provider"];
+        post: operations["delete_user_identity_provider"];
+        delete?: never;
         options?: never;
         head?: never;
         patch?: never;
@@ -4058,6 +4081,9 @@ export interface paths {
         /**
          * Edit User Password
          * @description Update another user's password.
+         *
+         *     Requires the administrator's own step-up verification: their current password (or, for an account
+         *     without one, a fresh identity-provider sign-in), and an MFA code when MFA is enabled.
          */
         post: operations["edit_user_password"];
         delete?: never;
@@ -10751,9 +10777,13 @@ export interface components {
          *         MFA_ENABLE: Enable MFA.
          *         MFA_DISABLE: Disable MFA.
          *         MFA_BACKUP_CODES: Regenerate MFA backup codes.
+         *         ADMIN_CREDENTIAL_RESET: An administrator sets another user's password.
+         *         ADMIN_USER_EDIT: An administrator changes another user's email, access type or active flag.
+         *         ADMIN_USER_DELETE: An administrator deletes another user's account.
+         *         ADMIN_IDP_UNLINK: An administrator unlinks an identity provider from another user.
          * @enum {string}
          */
-        StepUpAction: "api_key_create" | "idp_link" | "idp_unlink" | "email_change" | "account_delete" | "profile_export" | "mfa_enable" | "mfa_disable" | "mfa_backup_codes";
+        StepUpAction: "api_key_create" | "idp_link" | "idp_unlink" | "email_change" | "account_delete" | "profile_export" | "mfa_enable" | "mfa_disable" | "mfa_backup_codes" | "admin_credential_reset" | "admin_user_edit" | "admin_user_delete" | "admin_idp_unlink";
         /**
          * StepUpStartRequest
          * @description Start a step-up re-authentication with a linked identity provider.
@@ -11264,18 +11294,131 @@ export interface components {
          */
         UserAccessType: "regular" | "admin";
         /**
+         * UserAdminEdit
+         * @description An administrator's edit of another user, the body of ``PATCH /users/{user_id}``.
+         *
+         *     Attributes:
+         *         step_up: The administrator's own step-up verification. Required when the edit changes the email,
+         *             the access type or the active flag; it is never a user field.
+         */
+        UserAdminEdit: {
+            /** @description User access level */
+            access_type: components["schemas"]["UserAccessType"];
+            /**
+             * Active
+             * @description Whether the user is active
+             */
+            active: boolean;
+            /**
+             * Birthdate
+             * @description User's birthdate
+             */
+            birthdate?: string | null;
+            /**
+             * City
+             * @description User's city
+             */
+            city?: string | null;
+            /**
+             * @description User currency (euro, dollar, pound)
+             * @default euro
+             */
+            currency: components["schemas"]["Currency"];
+            /**
+             * Email
+             * Format: email
+             * @description User's email address
+             */
+            email: string;
+            /**
+             * Email Verified
+             * @description Whether email is verified
+             * @default false
+             */
+            email_verified: boolean;
+            /**
+             * @description First day of the week
+             * @default monday
+             */
+            first_day_of_week: components["schemas"]["WeekDay"];
+            /**
+             * @description User's gender
+             * @default unspecified
+             */
+            gender: components["schemas"]["Gender"];
+            /** Height */
+            height?: number | null;
+            /**
+             * Max Heart Rate
+             * @description Maximum heart rate in bpm
+             */
+            max_heart_rate?: number | null;
+            /**
+             * Mfa Enabled
+             * @description Whether MFA is enabled
+             * @default false
+             */
+            mfa_enabled: boolean;
+            /**
+             * Name
+             * @description User's full name
+             */
+            name: string;
+            /**
+             * Pending Admin Approval
+             * @description Whether pending admin approval
+             * @default false
+             */
+            pending_admin_approval: boolean;
+            /**
+             * @description Preferred language
+             * @default en
+             */
+            preferred_language: components["schemas"]["Language"];
+            /** @description The administrator's step-up verification, required to change the email, access type or active flag */
+            step_up?: components["schemas"]["StepUpVerification"] | null;
+            /**
+             * Timezone
+             * @description IANA timezone the athlete lives in. Used as the fallback for activities imported without a GPS track, which would otherwise inherit the server's timezone. Null means not set.
+             */
+            timezone?: string | null;
+            /**
+             * @description User units (metric, imperial)
+             * @default metric
+             */
+            units: components["schemas"]["Units"];
+            /**
+             * Username
+             * @description Unique username (alphanumeric, dots, hyphen, underscore)
+             */
+            username: string;
+            /** @description Weight units override (metric - kg, imperial - lb), follows 'units' when null */
+            weight_units?: components["schemas"]["Units"] | null;
+        };
+        /**
          * UserAdminEditPassword
          * @description Schema for admin password reset operations.
          *
-         *     Admin password resets are authorised by the caller's
-         *     ``users:write`` scope on the admin route, not by knowing the
-         *     target user's current password. Self-service password changes
-         *     must use :class:`UserEditPassword` instead.
+         *     Setting another user's password needs the ``users:write`` scope and the administrator's own step-up
+         *     verification, not the target user's current password. Self-service password changes must use
+         *     :class:`UserEditPassword` instead.
          *
          *     Attributes:
          *         password: New password (min 8 chars).
          */
         UserAdminEditPassword: {
+            /**
+             * Current Password
+             * @description Current password (step-up verification). Required when the account has a local password.
+             */
+            current_password?: string | null;
+            /** @description Fresh identity-provider sign-in, required when the account has no local password */
+            idp_reauth?: components["schemas"]["IdpReauthProof"] | null;
+            /**
+             * Mfa Code
+             * @description TOTP or backup code, required when MFA is enabled
+             */
+            mfa_code?: string | null;
             /**
              * Password
              * @description New password
@@ -11789,107 +11932,6 @@ export interface components {
             readonly id?: string | null;
             /** @description Where the job is */
             status: components["schemas"]["JobState"];
-        };
-        /**
-         * UserEdit
-         * @description Users schema for an administrative edit.
-         *
-         *     The stored columns of a user and nothing a read adds: ``id`` is the path, and
-         *     ``external_auth_count``, the photo URL and the pending email change are derived. ``mfa_enabled`` is a read-only
-         *     projection, so a write ignores it. A name already stored is re-applied as it is, even if it would not pass as
-         *     new input.
-         */
-        UserEdit: {
-            /** @description User access level */
-            access_type: components["schemas"]["UserAccessType"];
-            /**
-             * Active
-             * @description Whether the user is active
-             */
-            active: boolean;
-            /**
-             * Birthdate
-             * @description User's birthdate
-             */
-            birthdate?: string | null;
-            /**
-             * City
-             * @description User's city
-             */
-            city?: string | null;
-            /**
-             * @description User currency (euro, dollar, pound)
-             * @default euro
-             */
-            currency: components["schemas"]["Currency"];
-            /**
-             * Email
-             * Format: email
-             * @description User's email address
-             */
-            email: string;
-            /**
-             * Email Verified
-             * @description Whether email is verified
-             * @default false
-             */
-            email_verified: boolean;
-            /**
-             * @description First day of the week
-             * @default monday
-             */
-            first_day_of_week: components["schemas"]["WeekDay"];
-            /**
-             * @description User's gender
-             * @default unspecified
-             */
-            gender: components["schemas"]["Gender"];
-            /** Height */
-            height?: number | null;
-            /**
-             * Max Heart Rate
-             * @description Maximum heart rate in bpm
-             */
-            max_heart_rate?: number | null;
-            /**
-             * Mfa Enabled
-             * @description Whether MFA is enabled
-             * @default false
-             */
-            mfa_enabled: boolean;
-            /**
-             * Name
-             * @description User's full name
-             */
-            name: string;
-            /**
-             * Pending Admin Approval
-             * @description Whether pending admin approval
-             * @default false
-             */
-            pending_admin_approval: boolean;
-            /**
-             * @description Preferred language
-             * @default en
-             */
-            preferred_language: components["schemas"]["Language"];
-            /**
-             * Timezone
-             * @description IANA timezone the athlete lives in. Used as the fallback for activities imported without a GPS track, which would otherwise inherit the server's timezone. Null means not set.
-             */
-            timezone?: string | null;
-            /**
-             * @description User units (metric, imperial)
-             * @default metric
-             */
-            units: components["schemas"]["Units"];
-            /**
-             * Username
-             * @description Unique username (alphanumeric, dots, hyphen, underscore)
-             */
-            username: string;
-            /** @description Weight units override (metric - kg, imperial - lb), follows 'units' when null */
-            weight_units?: components["schemas"]["Units"] | null;
         };
         /**
          * UserEditPassword
@@ -33139,139 +33181,6 @@ export interface operations {
             };
         };
     };
-    delete_user: {
-        parameters: {
-            query?: never;
-            header: {
-                "If-Match": string;
-            };
-            path: {
-                user_id: number;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Accepted. The work runs in the background and `Content-Location` names where to poll it. */
-            202: {
-                headers: {
-                    /** @description Path of the status resource to poll for the outcome. */
-                    "Content-Location"?: string;
-                    /** @description Seconds to wait before the first poll. */
-                    "Retry-After"?: number;
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["UserDeletionStatus"];
-                };
-            };
-            /** @description The request is refused, for example `If-Match: *`. */
-            400: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/problem+json": components["schemas"]["ProblemDetail"];
-                };
-            };
-            /** @description The credential is missing, invalid or no longer valid. */
-            401: {
-                headers: {
-                    /** @description The authentication challenge. */
-                    "WWW-Authenticate"?: string;
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/problem+json": components["schemas"]["ProblemDetail"];
-                };
-            };
-            /** @description The caller is signed in but not allowed, for example a scope is missing. */
-            403: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/problem+json": components["schemas"]["ProblemDetail"];
-                };
-            };
-            /** @description The resource does not exist, or is concealed from the caller. */
-            404: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/problem+json": components["schemas"]["ProblemDetail"];
-                };
-            };
-            /** @description The request conflicts with the current state. */
-            409: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/problem+json": components["schemas"]["ProblemDetail"];
-                };
-            };
-            /** @description The `If-Match` tag is stale: the resource changed since it was read. */
-            412: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/problem+json": components["schemas"]["ProblemDetail"];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/problem+json": components["schemas"]["ProblemDetail"];
-                };
-            };
-            /** @description The `If-Match` header is missing. */
-            428: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/problem+json": components["schemas"]["ProblemDetail"];
-                };
-            };
-            /** @description The rate limit was reached. */
-            429: {
-                headers: {
-                    /** @description Seconds to wait before the request can succeed. */
-                    "Retry-After"?: number;
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/problem+json": components["schemas"]["ProblemDetail"];
-                };
-            };
-            /** @description A dependency is unavailable for a moment. */
-            503: {
-                headers: {
-                    /** @description Seconds to wait before the request can succeed. */
-                    "Retry-After"?: number;
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/problem+json": components["schemas"]["ProblemDetail"];
-                };
-            };
-            /** @description Unexpected error */
-            default: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/problem+json": components["schemas"]["ProblemDetail"];
-                };
-            };
-        };
-    };
     edit_user: {
         parameters: {
             query?: never;
@@ -33285,7 +33194,7 @@ export interface operations {
         };
         requestBody: {
             content: {
-                "application/json": components["schemas"]["UserEdit"];
+                "application/json": components["schemas"]["UserAdminEdit"];
             };
         };
         responses: {
@@ -33672,6 +33581,152 @@ export interface operations {
             };
             /** @description Validation Error */
             422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description The rate limit was reached. */
+            429: {
+                headers: {
+                    /** @description Seconds to wait before the request can succeed. */
+                    "Retry-After"?: number;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description A dependency is unavailable for a moment. */
+            503: {
+                headers: {
+                    /** @description Seconds to wait before the request can succeed. */
+                    "Retry-After"?: number;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Unexpected error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+        };
+    };
+    delete_user: {
+        parameters: {
+            query?: never;
+            header: {
+                "If-Match": string;
+            };
+            path: {
+                user_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["StepUpVerification"];
+            };
+        };
+        responses: {
+            /** @description Accepted. The work runs in the background and `Content-Location` names where to poll it. */
+            202: {
+                headers: {
+                    /** @description Path of the status resource to poll for the outcome. */
+                    "Content-Location"?: string;
+                    /** @description Seconds to wait before the first poll. */
+                    "Retry-After"?: number;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["UserDeletionStatus"];
+                };
+            };
+            /** @description The request is refused, for example `If-Match: *`. */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description The credential is missing, invalid or no longer valid. */
+            401: {
+                headers: {
+                    /** @description The authentication challenge. */
+                    "WWW-Authenticate"?: string;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description The caller is signed in but not allowed, for example a scope is missing. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description The resource does not exist, or is concealed from the caller. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description The request conflicts with the current state. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description The `If-Match` tag is stale: the resource changed since it was read. */
+            412: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description The body is larger than the route accepts. */
+            413: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description The `If-Match` header is missing. */
+            428: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -34298,7 +34353,11 @@ export interface operations {
             };
             cookie?: never;
         };
-        requestBody?: never;
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["StepUpVerification"];
+            };
+        };
         responses: {
             /** @description Successful Response */
             204: {
@@ -34338,6 +34397,15 @@ export interface operations {
             };
             /** @description The request conflicts with the current state. */
             409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description The body is larger than the route accepts. */
+            413: {
                 headers: {
                     [name: string]: unknown;
                 };

@@ -139,6 +139,15 @@ class TestStartRoute:
         start.assert_not_called()
 
 
+@pytest.mark.parametrize(
+    "action", ["admin_credential_reset", "admin_user_edit", "admin_user_delete", "admin_idp_unlink"]
+)
+def test_an_administrator_action_can_be_started_for_a_passwordless_administrator(action):
+    request = idp_schema.StepUpStartRequest(code_challenge="c" * 43, action=action, redirect="/")
+
+    assert request.action == StepUpAction(action)
+
+
 class TestResultUrl:
     def test_the_outcome_travels_in_the_fragment(self):
         url = idp_utils.build_step_up_result_url(

@@ -297,26 +297,71 @@ describe('users service requests', () => {
     expect(await fetchUserById(7)).toBeNull()
   })
 
-  it('changeUserPassword PUTs the new password', async () => {
+  it('updateUser sends step_up only when the caller supplies one', async () => {
+    vi.mocked(apiFetch).mockResolvedValue(makeUserDto({ email: 'new@example.com' }))
+    const user = mapManagedUser(makeUserDto())
+    const edits = { ...user, email: 'new@example.com', weightUnits: null }
+
+    await updateUser(user, edits, { currentPassword: 'pw', mfaCode: '123456' })
+    const [, withStepUp] = vi.mocked(apiFetch).mock.calls[0]!
+    expect(JSON.parse(String(withStepUp?.body))).toMatchObject({
+      email: 'new@example.com',
+      step_up: { current_password: 'pw', mfa_code: '123456' },
+    })
+
+    vi.mocked(apiFetch).mockClear()
+    await updateUser(user, edits)
+    const [, without] = vi.mocked(apiFetch).mock.calls[0]!
+    expect(JSON.parse(String(without?.body))).not.toHaveProperty('step_up')
+  })
+
+  it('updateUser sends the identity-provider proof in step_up', async () => {
+    vi.mocked(apiFetch).mockResolvedValue(makeUserDto())
+    const user = mapManagedUser(makeUserDto())
+
+    await updateUser(
+      user,
+      { ...user, weightUnits: null },
+      {
+        currentPassword: null,
+        mfaCode: null,
+        idpReauth: { ticket: 't1', codeVerifier: 'v1' },
+      },
+    )
+
+    const [, init] = vi.mocked(apiFetch).mock.calls[0]!
+    expect(JSON.parse(String(init?.body)).step_up).toEqual({
+      current_password: null,
+      mfa_code: null,
+      idp_reauth: { ticket: 't1', code_verifier: 'v1' },
+    })
+  })
+
+  it('changeUserPassword POSTs the new password with the admin step-up', async () => {
     vi.mocked(apiFetch).mockResolvedValue(undefined)
 
-    await changeUserPassword(7, 'secret123')
+    await changeUserPassword(7, 'secret123', { currentPassword: 'admin-pw', mfaCode: '654321' })
 
     expect(apiFetch).toHaveBeenCalledWith('/users/7/password/change', {
       method: 'POST',
-      body: JSON.stringify({ password: 'secret123' }),
+      body: JSON.stringify({
+        password: 'secret123',
+        current_password: 'admin-pw',
+        mfa_code: '654321',
+      }),
       responseType: 'void',
     })
   })
 
-  it('deleteUser issues a DELETE for the id', async () => {
+  it('deleteUser POSTs to the delete route with If-Match and the admin step-up', async () => {
     vi.mocked(apiFetch).mockResolvedValue(undefined)
 
-    await deleteUser(7, 2)
+    await deleteUser(7, 2, { currentPassword: 'admin-pw', mfaCode: null })
 
-    expect(apiFetch).toHaveBeenCalledWith('/users/7', {
-      method: 'DELETE',
+    expect(apiFetch).toHaveBeenCalledWith('/users/7/delete', {
+      method: 'POST',
       headers: { 'If-Match': '"2"' },
+      body: JSON.stringify({ current_password: 'admin-pw', mfa_code: null }),
       responseType: 'void',
     })
   })

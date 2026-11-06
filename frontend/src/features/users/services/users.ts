@@ -8,11 +8,13 @@ import type {
   UsersListResponseDto,
   UsersPage,
 } from '@/features/users/types'
+import type { StepUpInput } from '@/features/security/types'
 import type { Schemas } from '@/types'
 
 import { resolveAvatarUrl } from '@/features/auth/services/mappers'
 import { apiFetch } from '@/services/http'
 import { ifMatchHeaders, rowVersion } from '@/services/ifMatch'
+import { toStepUpWire } from '@/features/security/services/security'
 
 /**
  * Maps a raw `UserRead` payload to the clean {@link ManagedUser} model — the
@@ -182,18 +184,26 @@ export async function createUser(input: CreateUserInput): Promise<ManagedUser> {
  * merged onto the existing record and the editable columns are sent; the
  * derived read-only fields (`mfa_enabled`, `external_auth_count`) are omitted so
  * the endpoint's mass-assignment never tries to write a non-writable attribute.
+ * An edit that changes the email, access type or active flag carries the
+ * administrator's own step-up; any other edit sends none.
  *
  * @param user - The existing managed user.
  * @param edits - The admin-editable field values.
+ * @param stepUp - The administrator's step-up, for an edit of email, access type or active flag.
  * @returns The updated user, mapped to the clean model.
- * @throws {HttpError} When the request fails (e.g. duplicate username/email).
+ * @throws {HttpError} When the request fails (e.g. duplicate username/email, or a refused step-up).
  */
-export async function updateUser(user: ManagedUser, edits: EditUserFields): Promise<ManagedUser> {
+export async function updateUser(
+  user: ManagedUser,
+  edits: EditUserFields,
+  stepUp: StepUpInput | null = null,
+): Promise<ManagedUser> {
   const merged: ManagedUser = { ...user, ...edits }
+  const wire = toUserWire(merged)
   const dto = await apiFetch<UserDto>(`/users/${user.id}`, {
     method: 'PATCH',
     headers: ifMatchHeaders(user.version),
-    body: JSON.stringify(toUserWire(merged)),
+    body: JSON.stringify(stepUp ? { ...wire, step_up: toStepUpWire(stepUp) } : wire),
   })
   return mapManagedUser(dto)
 }
@@ -213,16 +223,24 @@ export async function fetchUserById(id: number, signal?: AbortSignal): Promise<M
 
 /**
  * Sets a new password for a user (admin scope `users:write`). Authorised by the
- * caller's admin scope, not by the target user's current password.
+ * administrator's own step-up, not by the target user's current password.
  *
  * @param userId - The target user id.
  * @param password - The new password.
- * @throws {HttpError} When the request fails (e.g. password too short).
+ * @param stepUp - The administrator's step-up credentials.
+ * @throws {HttpError} When the request fails (e.g. password too short, or a refused step-up).
  */
-export async function changeUserPassword(userId: number, password: string): Promise<void> {
+export async function changeUserPassword(
+  userId: number,
+  password: string,
+  stepUp: StepUpInput,
+): Promise<void> {
   await apiFetch<void>(`/users/${userId}/password/change`, {
     method: 'POST',
-    body: JSON.stringify({ password } satisfies Schemas['UserAdminEditPassword']),
+    body: JSON.stringify({
+      password,
+      ...toStepUpWire(stepUp),
+    } satisfies Schemas['UserAdminEditPassword']),
     responseType: 'void',
   })
 }
@@ -265,12 +283,14 @@ export async function deleteUserPhoto(userId: number): Promise<void> {
  *
  * @param id - The user id to delete.
  * @param version - The user version the caller read, for `If-Match`.
+ * @param stepUp - The administrator's step-up credentials.
  * @throws {HttpError} When the request fails (`412` when the user changed since it was read).
  */
-export async function deleteUser(id: number, version: number): Promise<void> {
-  await apiFetch<void>(`/users/${id}`, {
-    method: 'DELETE',
+export async function deleteUser(id: number, version: number, stepUp: StepUpInput): Promise<void> {
+  await apiFetch<void>(`/users/${id}/delete`, {
+    method: 'POST',
     headers: ifMatchHeaders(version),
+    body: JSON.stringify(toStepUpWire(stepUp)),
     responseType: 'void',
   })
 }
