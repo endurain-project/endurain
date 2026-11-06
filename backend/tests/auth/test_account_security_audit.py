@@ -19,8 +19,8 @@ import modules.auth.account_security.mfa_workflow_service as mfa_workflow
 import modules.auth.account_security.step_up_service as step_up_service
 import modules.auth.api_keys.schema as api_keys_schema
 import modules.auth.mfa.schema as mfa_schema
+import modules.auth.schema as auth_schema
 import modules.auth.sessions.audit_actions as sessions_audit_actions
-import modules.users.users.schema as users_schema
 
 Change = account_security_events.AccountSecurityChange
 Reason = account_security_audit_actions.StepUpFailureReason
@@ -180,7 +180,7 @@ class TestMfaAudit:
         assert_event(published, Change.MFA_DISABLED)
 
     def test_backup_codes(self, mock_db, published):
-        step_up = users_schema.StepUpVerification(current_password="pw", mfa_code="123456")
+        step_up = auth_schema.StepUpVerification(current_password="pw", mfa_code="123456")
         with (
             patch.object(mfa_workflow.users_integration, "get_user", return_value=MagicMock(id=7)),
             patch.object(mfa_workflow.mfa_integration, "is_mfa_enabled_for_user", return_value=True),
@@ -332,7 +332,7 @@ class TestIdentityUnlinkAudit:
         )
 
     def test_own_unlink(self, mock_db, published):
-        step_up = users_schema.StepUpVerification(current_password="pw")
+        step_up = auth_schema.StepUpVerification(current_password="pw")
         p = self._patches()
         with (
             p[0],
@@ -372,7 +372,7 @@ class TestIdentityUnlinkAudit:
             if admin:
                 account_security_integration.admin_delete_identity_provider_link(7, 3, mock_db)
             else:
-                step_up = users_schema.StepUpVerification(current_password="pw")
+                step_up = auth_schema.StepUpVerification(current_password="pw")
                 identity_link_service.delete_identity_provider_link(3, step_up, 7, "sid", MagicMock(), mock_db)
 
         end_sessions.assert_called_once_with(7, 3, mock_db)

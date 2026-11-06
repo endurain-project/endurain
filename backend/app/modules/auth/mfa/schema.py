@@ -9,7 +9,7 @@ from pydantic import (
     field_validator,
 )
 
-import modules.auth.identity_providers.schema as idp_schema
+import modules.auth.schema as auth_schema
 
 
 class MFARequest(BaseModel):
@@ -86,7 +86,7 @@ class MFADisableRequest(MFARequest):
         max_length=250,
         description=("Current password (step-up verification). Required when the account has a local password."),
     )
-    idp_reauth: idp_schema.IdpReauthProof | None = Field(
+    idp_reauth: auth_schema.IdpReauthProof | None = Field(
         default=None,
         description="Fresh identity-provider sign-in, required when the account has no local password",
     )
@@ -134,7 +134,7 @@ class MFASetupRequest(BaseModel):
         description=("Current password (step-up verification). Required when the account has a local password."),
     )
 
-    idp_reauth: idp_schema.IdpReauthProof | None = Field(
+    idp_reauth: auth_schema.IdpReauthProof | None = Field(
         default=None,
         description="Fresh identity-provider sign-in, required when the account has no local password",
     )

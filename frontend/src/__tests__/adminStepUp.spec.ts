@@ -33,8 +33,8 @@ vi.mock('@/composables/useToasts', () => ({
 vi.mock('@/features/auth/composables/useCurrentUser', () => ({
   useCurrentUser: () => ({ data: ref({ id: 1 }) }),
 }))
-vi.mock('@/features/users/composables/useAdminStepUp', async (importOriginal) => ({
-  ...(await importOriginal<typeof import('@/features/users/composables/useAdminStepUp')>()),
+vi.mock('@/features/security/composables/useAdminStepUp', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('@/features/security/composables/useAdminStepUp')>()),
   useAdminStepUp: () => ({ requirePassword: ref(true), requireMfa: ref(false) }),
 }))
 vi.mock('@/features/users/composables/useUsers', () => ({

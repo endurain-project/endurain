@@ -7,10 +7,12 @@ import type {
   IdentityProviderTemplateDto,
   IdentityProviderUpdateDto,
 } from '@/features/identityProviders/types'
+import type { StepUpInput } from '@/features/security/types'
 
 import { apiFetch } from '@/services/http'
 import { fetchAllPages } from '@/services/pagination'
 import { ifMatchHeaders, rowVersion } from '@/services/ifMatch'
+import { toStepUpWire } from '@/features/security/services/security'
 
 /**
  * Maps a raw `IdentityProvider` payload to the clean {@link IdentityProvider}
@@ -143,17 +145,21 @@ export async function fetchIdentityProviderTemplates(
 /**
  * Creates an identity provider (admin scope `identity_providers:write`). The
  * client secret is required here; the backend returns `409` on a duplicate slug.
+ * The request carries the administrator's own step-up.
  *
  * @param input - The clean provider input.
+ * @param stepUp - The administrator's step-up credentials.
  * @returns The created provider, mapped to the clean model.
  * @throws {HttpError} When the request fails (e.g. duplicate slug).
  */
 export async function createIdentityProvider(
   input: IdentityProviderInput,
+  stepUp: StepUpInput,
 ): Promise<IdentityProvider> {
   const payload: IdentityProviderCreateDto = {
     ...toWireBase(input),
     client_secret: input.clientSecret ?? '',
+    step_up: toStepUpWire(stepUp),
   }
   const dto = await apiFetch<IdentityProviderDto>('/identity-providers', {
     method: 'POST',
@@ -165,11 +171,12 @@ export async function createIdentityProvider(
 /**
  * Updates an identity provider (admin scope `identity_providers:write`). The
  * client secret is sent only when the admin entered a new one, so leaving the
- * field blank keeps the stored secret.
+ * field blank keeps the stored secret. The request carries the administrator's own step-up.
  *
  * @param id - The provider id.
  * @param input - The clean provider input.
  * @param version - The provider version read by the editor.
+ * @param stepUp - The administrator's step-up credentials.
  * @returns The updated provider, mapped to the clean model.
  * @throws {HttpError} When the request fails (e.g. duplicate slug, not found).
  */
@@ -177,8 +184,12 @@ export async function updateIdentityProvider(
   id: number,
   input: IdentityProviderInput,
   version: number,
+  stepUp: StepUpInput,
 ): Promise<IdentityProvider> {
-  const payload: IdentityProviderUpdateDto = { ...toWireBase(input) }
+  const payload: IdentityProviderUpdateDto = {
+    ...toWireBase(input),
+    step_up: toStepUpWire(stepUp),
+  }
   if (input.clientSecret) {
     payload.client_secret = input.clientSecret
   }

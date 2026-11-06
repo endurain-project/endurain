@@ -6,6 +6,7 @@ import pytest
 
 import core.exceptions as core_exceptions
 import modules.auth.identity_providers.constants as identity_providers_constants
+import modules.auth.schema as auth_schema
 import modules.users.users.schema as users_schema
 import modules.users.users.service as users_service
 
@@ -59,7 +60,7 @@ class TestAdministratorPasswordChange:
 class TestAdministratorUnlink:
     def test_commits_after_the_step_up_of_the_administrator(self, mock_db):
         store = MagicMock()
-        step_up = users_schema.StepUpVerification(current_password="admin-password")
+        step_up = auth_schema.StepUpVerification(current_password="admin-password")
         with patch(_ACCOUNT_SECURITY) as account_security:
             order = MagicMock()
             order.attach_mock(account_security.verify_step_up, "step_up")
@@ -78,7 +79,7 @@ class TestAdministratorUnlink:
         with patch(_ACCOUNT_SECURITY) as account_security, pytest.raises(core_exceptions.PermissionDeniedError):
             _failing_step_up(account_security)
             users_service.unlink_identity_provider(
-                4, 9, 8, "sid-8", users_schema.StepUpVerification(), MagicMock(), mock_db
+                4, 9, 8, "sid-8", auth_schema.StepUpVerification(), MagicMock(), mock_db
             )
 
         account_security.admin_delete_identity_provider_link.assert_not_called()
@@ -87,7 +88,7 @@ class TestAdministratorUnlink:
     def test_an_administrator_cannot_unlink_their_own_identity_provider_here(self, mock_db):
         with patch(_ACCOUNT_SECURITY) as account_security, pytest.raises(core_exceptions.PermissionDeniedError):
             users_service.unlink_identity_provider(
-                4, 9, 4, "sid-4", users_schema.StepUpVerification(), MagicMock(), mock_db
+                4, 9, 4, "sid-4", auth_schema.StepUpVerification(), MagicMock(), mock_db
             )
 
         account_security.verify_step_up.assert_not_called()

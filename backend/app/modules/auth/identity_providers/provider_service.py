@@ -20,6 +20,7 @@ import modules.auth.identity_providers.icon_service as idp_icon_service
 import modules.auth.identity_providers.oidc_client_service as oidc_client_service
 import modules.auth.identity_providers.schema as identity_provider_schema
 import modules.auth.identity_providers.serializers as identity_provider_serializers
+import modules.auth.schema as auth_schema
 
 logger = core_logger.get_logger(__name__)
 
@@ -149,22 +150,31 @@ def _changed_fields(
 
 
 def create_identity_provider(
-    data: identity_provider_schema.IdentityProviderCreate, db: Session
+    data: identity_provider_schema.IdentityProviderCreate,
+    step_up: auth_schema.StepUpVerification,
+    verify_step_up: identity_provider_contracts.StepUpVerifier,
+    db: Session,
 ) -> identity_provider_schema.IdentityProviderRead:
-    """Create a provider after checking its URLs and its normalized slug.
+    """Create a provider after the administrator's step-up and a check of its URLs and its normalized slug.
+
+    A rogue provider can claim accounts, so the step-up is verified before anything else is checked or written.
 
     Args:
         data: The new provider.
+        step_up: The administrator's step-up verification.
+        verify_step_up: Verifies the step-up for the calling administrator.
         db: Database session.
 
     Returns:
         The created provider.
 
     Raises:
+        StepUpFailedError: If the step-up does not verify.
         InvalidInputError: If a URL field is plain http to a host outside SSRF_ALLOWED_HOSTS, or resolves to a
             non-public address.
         ConflictError: If the slug is already in use.
     """
+    verify_step_up(step_up, identity_provider_constants.StepUpAction.ADMIN_IDP_CREATE)
     _reject_unsafe_urls(data.model_dump())
     slug = data.slug.lower()
     if idp_crud.get_identity_provider_by_slug(slug, db) is not None:
@@ -185,16 +195,23 @@ def create_identity_provider(
 def update_identity_provider(
     idp_id: int,
     data: identity_provider_schema.IdentityProviderUpdate,
+    step_up: auth_schema.StepUpVerification,
+    verify_step_up: identity_provider_contracts.StepUpVerifier,
     oidc: oidc_client_service.OidcClientService,
     db: Session,
     *,
     if_match: str,
 ) -> identity_provider_schema.IdentityProviderRead:
-    """Update a provider only when the client's version is current, then drop its cached discovery document.
+    """Update a provider after the administrator's step-up, only when the client's version is current.
+
+    Drops the provider's cached discovery document afterwards. A rogue provider configuration can claim accounts,
+    so the step-up is verified before anything else is checked or written.
 
     Args:
         idp_id: Identity-provider row to update.
         data: Replacement fields.
+        step_up: The administrator's step-up verification.
+        verify_step_up: Verifies the step-up for the calling administrator.
         oidc: The identity-provider client whose cached discovery document for the provider is dropped.
         db: Database session.
         if_match: Version tag the client read.
@@ -203,12 +220,14 @@ def update_identity_provider(
         The updated provider.
 
     Raises:
+        StepUpFailedError: When the step-up does not verify.
         InvalidInputError: When a URL field being set is plain http to a host outside SSRF_ALLOWED_HOSTS, or
             resolves to a non-public address.
         NotFoundError: When the provider is missing or removed during the update.
         PreconditionFailedError: When the provider changed since the client read it.
         ConflictError: When the new slug is already in use.
     """
+    verify_step_up(step_up, identity_provider_constants.StepUpAction.ADMIN_IDP_EDIT)
     values = data.model_dump(exclude_unset=True)
     _reject_unsafe_urls(values)
     current = idp_crud.get_identity_provider(idp_id, db)

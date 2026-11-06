@@ -24,7 +24,7 @@ import core.pagination as core_pagination
 import core.partial_update as core_partial_update
 import core.types as core_types
 import modules.activities.activity.constants as activity_constants
-import modules.auth.identity_providers.schema as idp_schema
+import modules.auth.schema as auth_schema
 import modules.server_settings.schema as server_settings_schema
 
 
@@ -445,50 +445,6 @@ class UserPublicRead(BaseModel):
 UserPublicPage = core_pagination.Page[UserPublicRead]
 
 
-class StepUpVerification(BaseModel):
-    """Generic step-up verification payload.
-
-    Used by sensitive account-level operations (API key
-    creation, MFA backup-code regeneration, etc.) to require
-    fresh proof of identity beyond a valid access token.
-
-    An account without a local password (it signs in through an
-    identity provider) proves a fresh sign-in with a linked provider
-    instead: ``idp_reauth`` carries the ticket from
-    ``POST /profile/identity-providers/{idp_id}/step-up``.
-
-    Attributes:
-        current_password: Caller's existing password. Required
-            when the account has a local password.
-        mfa_code: TOTP or backup code, required when MFA is
-            enabled on the account.
-        idp_reauth: Proof of a fresh identity-provider sign-in. Required
-            when the account has no local password.
-    """
-
-    current_password: StrictStr | None = Field(
-        default=None,
-        min_length=1,
-        max_length=250,
-        description=("Current password (step-up verification). Required when the account has a local password."),
-    )
-    mfa_code: StrictStr | None = Field(
-        default=None,
-        max_length=32,
-        description="TOTP or backup code, required when MFA is enabled",
-    )
-
-    idp_reauth: idp_schema.IdpReauthProof | None = Field(
-        default=None,
-        description="Fresh identity-provider sign-in, required when the account has no local password",
-    )
-
-    model_config = ConfigDict(
-        extra="forbid",
-        validate_assignment=True,
-    )
-
-
 class UserEdit(User):
     """Users schema for an administrative edit.
 
@@ -534,7 +490,7 @@ class UserAdminEdit(UserEdit):
             the access type or the active flag; it is never a user field.
     """
 
-    step_up: StepUpVerification | None = Field(
+    step_up: auth_schema.StepUpVerification | None = Field(
         default=None,
         description=(
             "The administrator's step-up verification, required to change the email, access type or active flag"
@@ -665,6 +621,28 @@ class UserCreate(User):
     password: UserPassword
 
 
+class UserAdminCreate(UserCreate):
+    """An administrator's creation of a user, the body of ``POST /users``.
+
+    Attributes:
+        step_up: The administrator's own step-up verification. Required when the new account is an
+            administrator's; it is never a user field.
+    """
+
+    step_up: auth_schema.StepUpVerification | None = Field(
+        default=None,
+        description="The administrator's step-up verification, required to create an administrator account",
+    )
+
+    def to_create(self) -> UserCreate:
+        """Return the user fields of the request, without the step-up.
+
+        Returns:
+            The user as a :class:`UserCreate`.
+        """
+        return UserCreate.model_validate(self.model_dump(exclude={"step_up"}))
+
+
 class FirstAdminCreate(BaseModel):
     """The only fields a caller supplies when the first administrator is created.
 
@@ -744,7 +722,7 @@ class UserEmailLookup(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
 
-class UserAdminEditPassword(StepUpVerification):
+class UserAdminEditPassword(auth_schema.StepUpVerification):
     """Schema for admin password reset operations.
 
     Setting another user's password needs the ``users:write`` scope and the administrator's own step-up
@@ -773,7 +751,7 @@ class UserPhotoRead(BaseModel):
     photo_path: StrictStr | None = Field(default=None, description="Servable URL of the user's photo")
 
 
-class IdentityProviderLinkStart(StepUpVerification):
+class IdentityProviderLinkStart(auth_schema.StepUpVerification):
     """Start linking an identity provider to the signed-in user's account, authorised by step-up verification.
 
     Attributes:
@@ -788,7 +766,7 @@ class IdentityProviderLinkStart(StepUpVerification):
     )
 
 
-class EmailChange(StepUpVerification):
+class EmailChange(auth_schema.StepUpVerification):
     """Self-service email change, authorised by step-up verification.
 
     Attributes:

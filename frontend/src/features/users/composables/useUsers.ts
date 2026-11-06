@@ -76,9 +76,12 @@ export function useUsersQuery(
  * @returns The TanStack Query mutation for creating a user.
  */
 export function useCreateUserMutation() {
-  return useInvalidatingMutation<ManagedUser, CreateUserInput>({
+  return useInvalidatingMutation<
+    ManagedUser,
+    { input: CreateUserInput; stepUp: StepUpInput | null }
+  >({
     mutationKey: queryKeys.users.all(),
-    mutationFn: (input) => createUser(input),
+    mutationFn: ({ input, stepUp }) => createUser(input, stepUp),
   })
 }
 

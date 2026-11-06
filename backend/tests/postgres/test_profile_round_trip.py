@@ -17,6 +17,7 @@ import zlib
 from datetime import UTC, date, datetime
 from pathlib import Path
 from typing import Any
+from unittest.mock import MagicMock
 
 import jasil.providers as platform_providers
 import pytest
@@ -173,6 +174,10 @@ def _create_account(factory: sessionmaker[Session]) -> int:
                 access_type=users_schema.UserAccessType.REGULAR,
                 active=True,
             ),
+            None,
+            1,
+            "sid-1",
+            MagicMock(),
             db,
         )
         return created.id

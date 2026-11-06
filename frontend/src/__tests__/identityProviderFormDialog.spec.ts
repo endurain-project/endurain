@@ -1,10 +1,12 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { ref } from 'vue'
 
 import { flushPromises, mount } from '@vue/test-utils'
 import { QueryClient, VueQueryPlugin } from '@tanstack/vue-query'
 
 import { HttpError, apiFetch } from '@/services/http'
 import i18n from '@/i18n'
+import type { IdentityProvider } from '@/features/identityProviders/types'
 import IdentityProviderFormDialog from '@/features/identityProviders/components/IdentityProviderFormDialog.vue'
 
 // Replace only the network seam; keep the real `HttpError` for the dialog's
@@ -14,13 +16,37 @@ vi.mock('@/services/http', async (importOriginal) => ({
   apiFetch: vi.fn<typeof import('@/services/http').apiFetch>(),
 }))
 
+vi.mock('@/features/security/composables/useAdminStepUp', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('@/features/security/composables/useAdminStepUp')>()),
+  useAdminStepUp: () => ({ requirePassword: ref(true), requireMfa: ref(false) }),
+}))
+
+const provider: IdentityProvider = {
+  id: 3,
+  version: 4,
+  name: 'Authentik',
+  slug: 'authentik',
+  providerType: 'oidc',
+  enabled: true,
+  issuerUrl: 'https://auth.example.com',
+  clientId: 'endurain',
+  scopes: 'openid profile email',
+  icon: null,
+  iconUploaded: false,
+  autoCreateUsers: true,
+  syncUserInfo: true,
+  authorizationEndpoint: null,
+  tokenEndpoint: null,
+  userinfoEndpoint: null,
+}
+
 /** Passthrough stub so the reka-ui portal/focus-trap is skipped and the form
  * renders inline where the test can drive it. */
 const passthrough = { template: '<div><slot /></div>' }
 
-function mountDialog() {
+function mountDialog(props: Record<string, unknown> = {}) {
   return mount(IdentityProviderFormDialog, {
-    props: { open: true, provider: null, templates: [] },
+    props: { open: true, provider: null, templates: [], ...props },
     global: {
       plugins: [i18n, [VueQueryPlugin, { queryClient: new QueryClient() }]],
       stubs: {
@@ -46,6 +72,19 @@ async function submitValidForm(wrapper: ReturnType<typeof mountDialog>) {
   await flushPromises()
 }
 
+/** Types the administrator's password in the step-up dialog (the second form) and confirms it. */
+async function confirmStepUp(wrapper: ReturnType<typeof mountDialog>) {
+  await wrapper.get('#stepup-password').setValue('admin-pw')
+  await wrapper.findAll('form')[1]!.trigger('submit')
+  await flushPromises()
+}
+
+/** The JSON body of the request the dialog sent last. */
+function sentBody(): { path: unknown; method: unknown; body: Record<string, unknown> } {
+  const [path, init] = vi.mocked(apiFetch).mock.calls[vi.mocked(apiFetch).mock.calls.length - 1]!
+  return { path, method: init?.method, body: JSON.parse(String(init?.body)) }
+}
+
 describe('IdentityProviderFormDialog save errors', () => {
   beforeEach(() => {
     vi.clearAllMocks()
@@ -56,6 +95,7 @@ describe('IdentityProviderFormDialog save errors', () => {
 
     const wrapper = mountDialog()
     await submitValidForm(wrapper)
+    await confirmStepUp(wrapper)
 
     expect(apiFetch).toHaveBeenCalledTimes(1)
     expect(wrapper.emitted('error')).toEqual([
@@ -68,7 +108,132 @@ describe('IdentityProviderFormDialog save errors', () => {
 
     const wrapper = mountDialog()
     await submitValidForm(wrapper)
+    await confirmStepUp(wrapper)
 
     expect(wrapper.emitted('error')).toEqual([[i18n.global.t('settings.idp.form.saveError')]])
+  })
+
+  it('keeps the step-up dialog open and reports invalid credentials when it is refused', async () => {
+    vi.mocked(apiFetch).mockRejectedValue(
+      new HttpError(403, 'Forbidden', null, 'urn:endurain:error:step-up-failed'),
+    )
+
+    const wrapper = mountDialog()
+    await submitValidForm(wrapper)
+    await confirmStepUp(wrapper)
+
+    expect(wrapper.emitted('error')).toEqual([
+      [i18n.global.t('settings.security.linked.invalidCredentials')],
+    ])
+    expect(wrapper.emitted('update:open')).toBeUndefined()
+    expect(wrapper.find('#stepup-password').exists()).toBe(true)
+  })
+})
+
+describe('IdentityProviderFormDialog step-up', () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+  })
+
+  it('sends nothing until the administrator confirms, then creates with the step-up', async () => {
+    vi.mocked(apiFetch).mockResolvedValue({ ...provider })
+
+    const wrapper = mountDialog()
+    await submitValidForm(wrapper)
+
+    expect(apiFetch).not.toHaveBeenCalled()
+    await confirmStepUp(wrapper)
+
+    expect(sentBody()).toMatchObject({
+      path: '/identity-providers',
+      method: 'POST',
+      body: { client_secret: 'secret', step_up: { current_password: 'admin-pw', mfa_code: null } },
+    })
+  })
+
+  it('asks for the step-up on every edit and keeps a blank secret out of the request', async () => {
+    vi.mocked(apiFetch).mockResolvedValue({ ...provider })
+
+    const wrapper = mountDialog({ provider })
+    await flushPromises()
+    await wrapper.find('input[name="name"]').setValue('Renamed')
+    await wrapper.find('form').trigger('submit')
+    await flushPromises()
+
+    expect(apiFetch).not.toHaveBeenCalled()
+    await confirmStepUp(wrapper)
+
+    const { path, method, body } = sentBody()
+    expect(path).toBe('/identity-providers/3')
+    expect(method).toBe('PATCH')
+    expect(body).toMatchObject({ name: 'Renamed', step_up: { current_password: 'admin-pw' } })
+    expect(body).not.toHaveProperty('client_secret')
+  })
+
+  it('never puts the client secret in the pending context', async () => {
+    const wrapper = mountDialog()
+    await wrapper.find('input[name="name"]').setValue('Authentik')
+    await wrapper.find('input[name="clientSecret"]').setValue('very-secret-value')
+
+    const context = wrapper.findComponent({ name: 'StepUpDialog' }).props('pendingContext')
+    expect(JSON.stringify(context)).not.toContain('very-secret-value')
+    expect(context).toMatchObject({ variant: 'form', draft: { name: 'Authentik' } })
+    expect(context.draft).not.toHaveProperty('clientSecret')
+  })
+
+  it('reopens a create with the draft restored and the step-up ready after a return', async () => {
+    const wrapper = mountDialog({
+      open: false,
+      resume: {
+        action: 'admin_idp_create',
+        reauth: { ticket: 't1', codeVerifier: 'v1' },
+        pending: {
+          variant: 'form',
+          draft: { name: 'Draft', clientSecret: 'leaked', slug: 'draft' },
+        },
+      },
+    })
+    await flushPromises()
+
+    expect(wrapper.emitted('update:open')?.[0]).toEqual([true])
+    await wrapper.setProps({ open: true })
+    await flushPromises()
+    expect((wrapper.find('input[name="name"]').element as HTMLInputElement).value).toBe('Draft')
+    expect((wrapper.find('input[name="clientSecret"]').element as HTMLInputElement).value).toBe('')
+    expect(wrapper.findComponent({ name: 'StepUpDialog' }).props('open')).toBe(true)
+    expect(wrapper.findComponent({ name: 'StepUpDialog' }).props('reauth')).toEqual({
+      ticket: 't1',
+      codeVerifier: 'v1',
+    })
+  })
+
+  it.each([
+    ['another provider', 'admin_idp_edit', { variant: 'form', idpId: 9, draft: {} }],
+    ['a toggle', 'admin_idp_edit', { variant: 'toggle', idpId: 3, enabled: false }],
+    ['a create', 'admin_idp_create', { variant: 'form', draft: {} }],
+  ])('does not open the edit of a provider for %s', async (_label, action, pending) => {
+    const wrapper = mountDialog({
+      open: false,
+      provider,
+      resume: { action, reauth: { ticket: 't1', codeVerifier: 'v1' }, pending },
+    })
+    await flushPromises()
+
+    expect(wrapper.emitted('update:open')).toBeUndefined()
+  })
+
+  it('reopens the edit of the provider the return was started for', async () => {
+    const wrapper = mountDialog({
+      open: false,
+      provider,
+      resume: {
+        action: 'admin_idp_edit',
+        reauth: { ticket: 't1', codeVerifier: 'v1' },
+        pending: { variant: 'form', idpId: 3, draft: { name: 'Draft' } },
+      },
+    })
+    await flushPromises()
+
+    expect(wrapper.emitted('update:open')?.[0]).toEqual([true])
   })
 })

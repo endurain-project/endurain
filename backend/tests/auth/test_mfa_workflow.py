@@ -22,7 +22,7 @@ import modules.auth.account_security.mfa_workflow_service as mfa_workflow
 import modules.auth.credentials.integration_service as credentials_integration
 import modules.auth.identity_providers.constants as identity_providers_constants
 import modules.auth.mfa.schema as mfa_schema
-import modules.users.users.schema as users_schema
+import modules.auth.schema as auth_schema
 
 
 @pytest.fixture
@@ -427,8 +427,8 @@ class TestVerifyMfa:
 class TestGenerateBackupCodes:
     """generate_backup_codes gates on user existence, MFA state, and step-up."""
 
-    def _step_up(self) -> users_schema.StepUpVerification:
-        return users_schema.StepUpVerification(current_password="old-pass", mfa_code="123456")
+    def _step_up(self) -> auth_schema.StepUpVerification:
+        return auth_schema.StepUpVerification(current_password="old-pass", mfa_code="123456")
 
     def test_happy_path_returns_codes(self, mock_db, step_up_store):
         user = MagicMock()

@@ -10,7 +10,11 @@ import core.pagination as core_pagination
 import modules.auth.identity_providers.models as idp_models
 import modules.auth.identity_providers.provider_service as provider_service
 import modules.auth.identity_providers.schema as idp_schema
+import modules.auth.schema as auth_schema
 from tests._helpers.db import create_sqlite_session
+
+STEP_UP = auth_schema.StepUpVerification()
+VERIFIER = MagicMock()
 
 
 def test_a_delete_that_races_past_the_version_check_is_a_precondition_failure(mock_db):
@@ -62,7 +66,9 @@ class TestSaveRefusesUnsafeUrls:
             patch.object(provider_service, "idp_crud") as crud,
             pytest.raises(core_exceptions.InvalidInputError) as exc,
         ):
-            provider_service.create_identity_provider(_create_data(**{field: "http://idp.example.com/x"}), mock_db)
+            provider_service.create_identity_provider(
+                _create_data(**{field: "http://idp.example.com/x"}), STEP_UP, VERIFIER, mock_db
+            )
         assert exc.value.status_code == 400
         assert exc.value.detail.startswith(f"{field}: URL must use https")
         crud.create_identity_provider.assert_not_called()
@@ -78,7 +84,9 @@ class TestSaveRefusesUnsafeUrls:
         ):
             crud.get_identity_provider_by_slug.return_value = None
             crud.create_identity_provider.return_value = MagicMock(id=3, provider_type="oidc")
-            provider_service.create_identity_provider(_create_data(issuer_url="http://idp.internal"), mock_db)
+            provider_service.create_identity_provider(
+                _create_data(issuer_url="http://idp.internal"), STEP_UP, VERIFIER, mock_db
+            )
         crud.create_identity_provider.assert_called_once()
         mock_db.commit.assert_called_once()
 
@@ -93,7 +101,7 @@ class TestSaveRefusesUnsafeUrls:
             crud.get_identity_provider_by_slug.return_value = None
             crud.create_identity_provider.return_value = MagicMock(id=3, provider_type="oidc")
             provider_service.create_identity_provider(
-                _create_data(issuer_url="https://idp.example.com", token_endpoint=""), mock_db
+                _create_data(issuer_url="https://idp.example.com", token_endpoint=""), STEP_UP, VERIFIER, mock_db
             )
         crud.create_identity_provider.assert_called_once()
 
@@ -106,7 +114,7 @@ class TestSaveRefusesUnsafeUrls:
             patch.object(provider_service, "idp_crud") as crud,
             pytest.raises(core_exceptions.InvalidInputError) as exc,
         ):
-            provider_service.update_identity_provider(3, data, MagicMock(), mock_db, if_match='"1"')
+            provider_service.update_identity_provider(3, data, STEP_UP, VERIFIER, MagicMock(), mock_db, if_match='"1"')
         assert exc.value.detail.startswith("issuer_url: URL must use https")
         crud.update_identity_provider.assert_not_called()
         mock_db.commit.assert_not_called()
@@ -123,7 +131,7 @@ class TestSaveRefusesUnsafeUrls:
         ):
             crud.get_identity_provider.return_value = MagicMock(slug="pocket")
             crud.update_identity_provider.return_value = MagicMock()
-            provider_service.update_identity_provider(3, data, oidc, mock_db, if_match='"1"')
+            provider_service.update_identity_provider(3, data, STEP_UP, VERIFIER, oidc, mock_db, if_match='"1"')
         getaddrinfo.assert_not_called()
         crud.update_identity_provider.assert_called_once()
 
@@ -143,7 +151,7 @@ class TestDiscoveryCacheEviction:
         ):
             crud.get_identity_provider.return_value = MagicMock(slug="pocket")
             crud.update_identity_provider.return_value = MagicMock()
-            provider_service.update_identity_provider(3, data, oidc, mock_db, if_match='"1"')
+            provider_service.update_identity_provider(3, data, STEP_UP, VERIFIER, oidc, mock_db, if_match='"1"')
         assert order.mock_calls == [call.commit(), call.forget(3)]
 
     def test_update_that_fails_leaves_the_cache_alone(self, mock_db):
@@ -152,7 +160,7 @@ class TestDiscoveryCacheEviction:
         with patch.object(provider_service, "idp_crud") as crud:
             crud.get_identity_provider.return_value = None
             with pytest.raises(core_exceptions.NotFoundError):
-                provider_service.update_identity_provider(3, data, oidc, mock_db, if_match='"1"')
+                provider_service.update_identity_provider(3, data, STEP_UP, VERIFIER, oidc, mock_db, if_match='"1"')
         oidc.forget_discovery.assert_not_called()
 
     def test_delete_forgets_the_document_after_the_commit(self, mock_db):

@@ -12,6 +12,7 @@ import modules.auth.account_security.identity_link_service as identity_link_serv
 import modules.auth.dependencies as auth_dependencies
 import modules.auth.identity_provider_links.schema as auth_identity_links_schema
 import modules.auth.identity_providers.schema as identity_providers_schema
+import modules.auth.schema as auth_schema
 import modules.users.users.schema as users_schema
 
 router = APIRouter()
@@ -157,7 +158,7 @@ def get_my_identity_providers(
 @core_rate_limit.limiter.limit(core_rate_limit.SENSITIVE)
 def delete_my_identity_provider(
     idp_id: core_dependencies.PositiveId,
-    step_up: users_schema.StepUpVerification,
+    step_up: auth_schema.StepUpVerification,
     request: Request,
     token_user_id: auth_dependencies.CurrentUserId,
     token_session_id: auth_dependencies.CurrentSessionId,

@@ -14,7 +14,7 @@ Search by username, and filter the list by:
 
 ## Adding a user
 
-**Add user** creates an account with a name, username, email, access type (regular user or administrator) and a password. The password must satisfy the [password policy](accounts-and-sign-in.md#password-rules). A new account starts with the default settings every account gets.
+**Add user** creates an account with a name, username, email, access type (regular user or administrator) and a password. The password must satisfy the [password policy](accounts-and-sign-in.md#password-rules). Creating an administrator asks for your own password and MFA code first; creating a regular user does not. A new account starts with the default settings every account gets.
 
 ## Editing a user
 

@@ -25,7 +25,7 @@ import { HttpError } from '@/services/http'
 import { applyServerFieldErrors } from '@/services/fieldErrors'
 import { isStaleWrite } from '@/services/ifMatch'
 import { isStepUpFailed, useIdpReauthChallenge } from '@/features/security/composables/useIdpStepUp'
-import { useAdminStepUp, useResumeOnce } from '@/features/users/composables/useAdminStepUp'
+import { useAdminStepUp, useResumeOnce } from '@/features/security/composables/useAdminStepUp'
 import { toNumberOrNull } from '@/utils/number'
 import { cmToFeetInches } from '@/utils/units'
 import { compose, email, maxLength, pattern, required } from '@/utils/validators'
@@ -72,8 +72,8 @@ const updateMutation = useUpdateUserMutation()
 const handleIdpChallenge = useIdpReauthChallenge()
 const { requirePassword, requireMfa } = useAdminStepUp()
 
-// Changing the email, access type or active flag needs the administrator's own step-up, collected by a
-// second dialog over this one.
+// Changing the email, access type or active flag, or creating an administrator, needs the administrator's
+// own step-up, collected by a second dialog over this one.
 const isStepUpOpen = ref(false)
 const idpReauth = ref<IdpReauth | null>(null)
 
@@ -149,7 +149,10 @@ async function submitForm(
     open.value = false
     return
   }
-  if (props.user && !stepUp && changesSensitiveField(props.user, formValues)) {
+  const needsStepUp = props.user
+    ? changesSensitiveField(props.user, formValues)
+    : formValues.accessType === 'admin'
+  if (!stepUp && needsStepUp) {
     isStepUpOpen.value = true
     return
   }
@@ -188,24 +191,27 @@ async function submitForm(
       emit('success', t('settings.users.form.updateSuccess'))
     } else {
       await createMutation.mutateAsync({
-        name: formValues.name.trim(),
-        username: formValues.username.trim(),
-        email: formValues.email.trim(),
-        password: formValues.password,
-        accessType: formValues.accessType,
-        active: formValues.active,
-        emailVerified: formValues.emailVerified,
-        pendingAdminApproval: formValues.pendingAdminApproval,
-        preferredLanguage: formValues.preferredLanguage,
-        gender: formValues.gender,
-        units: formValues.units,
-        weightUnits,
-        currency: formValues.currency,
-        firstDayOfWeek: formValues.firstDayOfWeek,
-        city,
-        birthdate,
-        height,
-        maxHeartRate,
+        stepUp,
+        input: {
+          name: formValues.name.trim(),
+          username: formValues.username.trim(),
+          email: formValues.email.trim(),
+          password: formValues.password,
+          accessType: formValues.accessType,
+          active: formValues.active,
+          emailVerified: formValues.emailVerified,
+          pendingAdminApproval: formValues.pendingAdminApproval,
+          preferredLanguage: formValues.preferredLanguage,
+          gender: formValues.gender,
+          units: formValues.units,
+          weightUnits,
+          currency: formValues.currency,
+          firstDayOfWeek: formValues.firstDayOfWeek,
+          city,
+          birthdate,
+          height,
+          maxHeartRate,
+        },
       })
       emit('success', t('settings.users.form.createSuccess'))
     }
@@ -393,16 +399,19 @@ function changesSensitiveField(user: ManagedUser, formValues: UserFormValues): b
   )
 }
 
-/** The form values that survive the identity-provider sign-in; the password fields are blank when editing. */
+/** The form values that survive the identity-provider sign-in; the password fields are always blank. */
 function draftValues(): UserFormValues {
   return { ...values, password: '', confirmPassword: '' }
 }
 
-/** Keeps the stored draft entries that have the type of the matching form field. */
+/** Keeps the stored draft entries that have the type of the matching form field, except the passwords. */
 function pickDraft(raw: unknown): Record<string, unknown> {
   const stored: Record<string, unknown> = typeof raw === 'object' && raw !== null ? { ...raw } : {}
   const picked: Record<string, unknown> = {}
   for (const [key, base] of Object.entries(defaultValues())) {
+    if (key === 'password' || key === 'confirmPassword') {
+      continue
+    }
     const value = stored[key]
     const fits =
       base === null ? value === null || typeof value === 'number' : typeof value === typeof base
@@ -467,13 +476,27 @@ function populate(): void {
 
 // The form and the step-up come back once the identity-provider sign-in returns for this user.
 let restoredDraft: unknown = null
+let restoredCreate = false
 useResumeOnce(
   () => props.resume,
   'admin_user_edit',
-  () => props.user?.id ?? null,
+  (pending) => pending.userId === props.user?.id,
   (resume) => {
     restoredDraft = resume.pending.draft ?? {}
     idpReauth.value = resume.reauth
+    open.value = true
+  },
+)
+// A creation has no user yet, so its context carries a marker instead of an id. The passwords were not
+// kept, so the step-up dialog opens when the administrator retypes them and saves again.
+useResumeOnce(
+  () => props.resume,
+  'admin_user_create',
+  (pending) => props.user === null && pending.create === true,
+  (resume) => {
+    restoredDraft = resume.pending.draft ?? {}
+    idpReauth.value = resume.reauth
+    restoredCreate = true
     open.value = true
   },
 )
@@ -489,8 +512,10 @@ watch(
     if (restoredDraft !== null) {
       const draft = restoredDraft
       restoredDraft = null
+      const reopenStepUp = !restoredCreate
+      restoredCreate = false
       void restoreDraft(draft).then(() => {
-        isStepUpOpen.value = true
+        isStepUpOpen.value = reopenStepUp
       })
     }
   },
@@ -858,17 +883,22 @@ watch(
     </div>
   </FormDialog>
   <StepUpDialog
-    v-if="user"
     v-model:open="isStepUpOpen"
     v-model:reauth="idpReauth"
-    action="admin_user_edit"
+    :action="user ? 'admin_user_edit' : 'admin_user_create'"
     :title="t('settings.users.form.stepUpTitle')"
-    :description="t('settings.users.form.stepUpDescription', { username: user.username })"
-    :confirm-label="t('settings.users.form.stepUpConfirm')"
+    :description="
+      user
+        ? t('settings.users.form.stepUpDescription', { username: user.username })
+        : t('settings.users.form.stepUpCreateDescription')
+    "
+    :confirm-label="user ? t('settings.users.form.stepUpConfirm') : t('settings.users.form.create')"
     :require-password="requirePassword"
     :require-mfa="requireMfa"
-    :pending-context="{ userId: user.id, draft: draftValues() }"
-    :pending="updateMutation.isPending.value"
+    :pending-context="
+      user ? { userId: user.id, draft: draftValues() } : { create: true, draft: draftValues() }
+    "
+    :pending="updateMutation.isPending.value || createMutation.isPending.value"
     @confirm="onStepUpConfirm"
   />
 </template>

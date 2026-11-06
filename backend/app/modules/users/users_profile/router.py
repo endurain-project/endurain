@@ -28,6 +28,7 @@ import core.openapi_contract as core_openapi_contract
 import core.rate_limit as core_rate_limit
 import modules.auth.authentication.dependencies as authentication_dependencies
 import modules.auth.dependencies as auth_dependencies
+import modules.auth.schema as auth_schema
 import modules.users.users.integration_service as users_integration
 import modules.users.users.schema as users_schema
 import modules.users.users_privacy_settings.schema as users_privacy_settings_schema
@@ -409,7 +410,7 @@ def delete_profile_photo(
 def delete_my_account(
     request: Request,
     response: Response,
-    step_up: users_schema.StepUpVerification,
+    step_up: auth_schema.StepUpVerification,
     token_user_id: auth_dependencies.CurrentUserId,
     token_session_id: auth_dependencies.CurrentSessionId,
     step_up_store: Annotated[
@@ -460,7 +461,7 @@ def delete_my_account(
 def export_profile_data(
     request: Request,
     response: Response,
-    step_up: users_schema.StepUpVerification,
+    step_up: auth_schema.StepUpVerification,
     token_user_id: auth_dependencies.CurrentUserId,
     token_session_id: auth_dependencies.CurrentSessionId,
     step_up_store: Annotated[

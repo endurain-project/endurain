@@ -23,7 +23,7 @@ import { useRecordsPerPage } from '@/features/config/composables/useRecordsPerPa
 import { useListPagination } from '@/composables/useListPagination'
 import { useToasts } from '@/composables/useToasts'
 import { consumeIdpStepUpReturn } from '@/features/security/composables/useIdpStepUp'
-import { resumeUserId } from '@/features/users/composables/useAdminStepUp'
+import { resumeTargetId } from '@/features/security/composables/useAdminStepUp'
 import {
   useApproveUserMutation,
   useUserQuery,
@@ -239,7 +239,11 @@ function openReject(user: ManagedUser): void {
 // The user the returning sign-in was for may be on another page of the list, so it is fetched by id and
 // handed to the dialog that resumes; the dialog opens itself once it has the user.
 const resumedUser = useUserQuery(
-  resumeUserId(resume, ['admin_credential_reset', 'admin_user_edit', 'admin_user_delete']),
+  resumeTargetId(
+    resume,
+    ['admin_credential_reset', 'admin_user_edit', 'admin_user_delete'],
+    'userId',
+  ),
 ).data
 watch(
   resumedUser,

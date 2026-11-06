@@ -22,7 +22,7 @@ import core.exceptions as core_exceptions
 import core.logger as core_logger
 import modules.auth.account_security.integration_service as account_security_integration
 import modules.auth.identity_providers.constants as identity_providers_constants
-import modules.users.users.schema as users_schema
+import modules.auth.schema as auth_schema
 import modules.users.users_profile.audit_actions as profile_audit_actions
 import modules.users.users_profile.constants as profile_constants
 import modules.users.users_profile.event_publishers as profile_event_publishers
@@ -43,7 +43,7 @@ _STREAM_CHUNK_BYTES = 64 * 1024
 def request_export(
     user_id: int,
     session_id: str,
-    step_up: users_schema.StepUpVerification,
+    step_up: auth_schema.StepUpVerification,
     step_up_store: account_security_integration.StepUpStore,
     states: profile_export_state_store.ProfileExportStateStore,
     db: Session,

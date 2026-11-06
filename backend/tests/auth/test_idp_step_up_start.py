@@ -140,7 +140,16 @@ class TestStartRoute:
 
 
 @pytest.mark.parametrize(
-    "action", ["admin_credential_reset", "admin_user_edit", "admin_user_delete", "admin_idp_unlink"]
+    "action",
+    [
+        "admin_credential_reset",
+        "admin_user_edit",
+        "admin_user_delete",
+        "admin_idp_unlink",
+        "admin_user_create",
+        "admin_idp_create",
+        "admin_idp_edit",
+    ],
 )
 def test_an_administrator_action_can_be_started_for_a_passwordless_administrator(action):
     request = idp_schema.StepUpStartRequest(code_challenge="c" * 43, action=action, redirect="/")

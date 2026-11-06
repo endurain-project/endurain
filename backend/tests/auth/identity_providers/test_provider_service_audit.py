@@ -10,6 +10,10 @@ import modules.auth.identity_providers.audit_actions as idp_audit_actions
 import modules.auth.identity_providers.contracts as idp_contracts
 import modules.auth.identity_providers.provider_service as provider_service
 import modules.auth.identity_providers.schema as idp_schema
+import modules.auth.schema as auth_schema
+
+STEP_UP = auth_schema.StepUpVerification()
+VERIFIER = MagicMock()
 
 
 def _state(**overrides) -> idp_contracts.IdentityProviderState:
@@ -49,7 +53,7 @@ def test_creating_a_provider_is_audited_with_its_type_only(mock_db):
     ):
         crud.get_identity_provider_by_slug.return_value = None
         crud.create_identity_provider.return_value = _state()
-        provider_service.create_identity_provider(data, mock_db)
+        provider_service.create_identity_provider(data, STEP_UP, VERIFIER, mock_db)
 
     entry = audit.assert_audited(
         idp_audit_actions.IDENTITY_PROVIDER_CREATE.id, target_type="identity_provider", target_id="3"
@@ -70,7 +74,7 @@ class TestUpdate:
             crud.get_identity_provider_by_slug.return_value = None
             crud.identity_provider_exists.return_value = True
             crud.update_identity_provider.return_value = after
-            provider_service.update_identity_provider(3, data, MagicMock(), mock_db, if_match='"1"')
+            provider_service.update_identity_provider(3, data, STEP_UP, VERIFIER, MagicMock(), mock_db, if_match='"1"')
         return audit
 
     def test_names_the_fields_that_changed_and_never_their_values(self, mock_db):

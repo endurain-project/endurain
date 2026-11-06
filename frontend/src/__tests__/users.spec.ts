@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
-import type { UserDto } from '@/features/users/types'
+import type { CreateUserInput, UserDto } from '@/features/users/types'
 
 import { apiFetch } from '@/services/http'
 import {
@@ -230,6 +230,41 @@ describe('users service requests', () => {
         height: 180,
         max_heart_rate: 190,
       }),
+    })
+  })
+
+  it('createUser sends the administrator step-up when given one', async () => {
+    vi.mocked(apiFetch).mockResolvedValue(makeUserDto())
+    const input: CreateUserInput = {
+      name: 'New User',
+      username: 'new',
+      email: 'new@example.com',
+      password: 'secret12',
+      accessType: 'regular',
+      active: true,
+      emailVerified: true,
+      pendingAdminApproval: false,
+      preferredLanguage: 'en',
+      gender: 'unspecified',
+      units: 'metric',
+      weightUnits: 'imperial',
+      currency: 'euro',
+      firstDayOfWeek: 'monday',
+      city: 'Lisbon',
+      birthdate: '1990-01-01',
+      height: 180,
+      maxHeartRate: 190,
+    }
+
+    await createUser(
+      { ...input, accessType: 'admin' },
+      { currentPassword: 'admin-pw', mfaCode: '123456' },
+    )
+
+    const [, init] = vi.mocked(apiFetch).mock.calls[0]!
+    expect(JSON.parse(String(init?.body))).toMatchObject({
+      access_type: 'admin',
+      step_up: { current_password: 'admin-pw', mfa_code: '123456' },
     })
   })
 

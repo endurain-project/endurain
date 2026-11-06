@@ -15,6 +15,7 @@ import core.rate_limit as core_rate_limit
 import modules.auth.account_security.integration_service as account_security_integration
 import modules.auth.dependencies as auth_dependencies
 import modules.auth.identity_provider_links.schema as auth_identity_links_schema
+import modules.auth.schema as auth_schema
 import modules.users.users.constants as users_constants
 import modules.users.users.deletion_job_service as users_deletion_job_service
 import modules.users.users.dependencies as users_dependencies
@@ -156,22 +157,37 @@ def read_user(
 @core_rate_limit.limiter.limit(core_rate_limit.SENSITIVE)
 def create_user(
     request: Request,
-    user: users_schema.UserCreate,
+    user: users_schema.UserAdminCreate,
+    token_user_id: auth_dependencies.CurrentUserId,
+    token_session_id: auth_dependencies.CurrentSessionId,
+    step_up_store: Annotated[
+        auth_dependencies.StepUpStore,
+        Depends(auth_dependencies.get_step_up_attempts),
+    ],
     db: core_dependencies.DbSession,
     response: Response,
 ) -> users_schema.UserRead:
     """Create a new user (admin operation).
 
+    An administrator account needs the creating administrator's own step-up verification in `step_up` (their
+    current password or, for an account without one, a fresh identity-provider sign-in, and an MFA code when MFA
+    is enabled). A regular account needs no `step_up`.
+
     Args:
         request: The incoming request, read by the rate limiter.
-        user: User creation data.
+        user: User creation data, and the administrator's step-up.
+        token_user_id: ID of the administrator creating the user.
+        token_session_id: Session ID of the administrator.
+        step_up_store: Step-up lockout store.
         db: Database session dependency.
         response: The response, whose ``Location`` names where the user is read.
 
     Returns:
         Created user data.
     """
-    created = users_service.create_user(user, db)
+    created = users_service.create_user(
+        user.to_create(), user.step_up, token_user_id, token_session_id, step_up_store, db
+    )
     core_location.set_location(response, request, "read_user", user_id=created.id)
     core_etag.set_etag(response, created.version)
     return created
@@ -374,7 +390,7 @@ def delete_user(
     request: Request,
     response: Response,
     user_id: core_dependencies.PositiveId,
-    step_up: users_schema.StepUpVerification,
+    step_up: auth_schema.StepUpVerification,
     token_user_id: auth_dependencies.CurrentUserId,
     token_session_id: auth_dependencies.CurrentSessionId,
     step_up_store: Annotated[
@@ -492,7 +508,7 @@ def delete_user_identity_provider(
     request: Request,
     user_id: core_dependencies.PositiveId,
     idp_id: core_dependencies.PositiveId,
-    step_up: users_schema.StepUpVerification,
+    step_up: auth_schema.StepUpVerification,
     token_user_id: auth_dependencies.CurrentUserId,
     token_session_id: auth_dependencies.CurrentSessionId,
     step_up_store: Annotated[

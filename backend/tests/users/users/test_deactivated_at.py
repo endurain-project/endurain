@@ -170,7 +170,7 @@ class TestCreation:
             patch(f"{_SERVICE}._stage_default_data"),
         ):
             credentials.validate_and_hash_password_for_user.return_value = "hash"
-            users_service.create_user(user, MagicMock())
+            users_service.create_user(user, None, 9, "sid-9", MagicMock(), MagicMock())
         return crud.create_user.call_args.args[0]
 
     def test_an_administrator_created_inactive_account_is_marked(self):

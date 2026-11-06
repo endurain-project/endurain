@@ -16,6 +16,8 @@ vi.mock('@/features/identityProviders/services/identityProviders', async (import
   updateIdentityProvider: vi.fn<typeof updateIdentityProvider>(),
 }))
 
+const stepUp = { currentPassword: 'admin-pw', mfaCode: null }
+
 const input: IdentityProviderInput = {
   name: 'Keycloak',
   slug: 'keycloak',
@@ -67,7 +69,7 @@ describe('useUpdateIdentityProviderMutation', () => {
     vi.mocked(updateIdentityProvider).mockRejectedValue(stale)
     const mutation = mountMutation(queryClient)
 
-    await expect(mutation.mutateAsync({ id: 3, input, version: 1 })).rejects.toBe(stale)
+    await expect(mutation.mutateAsync({ id: 3, input, version: 1, stepUp })).rejects.toBe(stale)
     await flushPromises()
 
     expect(invalidateQueries).toHaveBeenCalledWith({ queryKey: queryKeys.identityProviders.all() })

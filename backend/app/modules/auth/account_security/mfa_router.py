@@ -11,7 +11,7 @@ import modules.auth.account_security.mfa_workflow_service as mfa_workflow_servic
 import modules.auth.dependencies as auth_dependencies
 import modules.auth.mfa.schema as mfa_schema
 import modules.auth.mfa_backup_codes.schema as mfa_backup_codes_schema
-import modules.users.users.schema as users_schema
+import modules.auth.schema as auth_schema
 
 router = APIRouter()
 
@@ -240,7 +240,7 @@ def verify_mfa(
 def generate_mfa_backup_codes(
     response: Response,
     request: Request,
-    step_up: users_schema.StepUpVerification,
+    step_up: auth_schema.StepUpVerification,
     token_user_id: auth_dependencies.CurrentUserId,
     token_session_id: auth_dependencies.CurrentSessionId,
     step_up_store: Annotated[

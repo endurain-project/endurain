@@ -20,6 +20,7 @@ import modules.auth.identity_providers.constants as identity_providers_constants
 import modules.auth.identity_providers.contracts as identity_providers_contracts
 import modules.auth.identity_providers.integration_service as identity_providers_integration
 import modules.auth.identity_providers.schema as identity_providers_schema
+import modules.auth.schema as auth_schema
 import modules.auth.sessions.audit_actions as sessions_audit_actions
 import modules.users.users.schema as users_schema
 
@@ -179,7 +180,7 @@ def _stage_unlink(user_id: int, idp_id: int, db: Session) -> None:
 
 def delete_identity_provider_link(
     idp_id: int,
-    step_up: users_schema.StepUpVerification,
+    step_up: auth_schema.StepUpVerification,
     token_user_id: int,
     session_id: str,
     step_up_store: account_security_step_up_store.StepUpStore,

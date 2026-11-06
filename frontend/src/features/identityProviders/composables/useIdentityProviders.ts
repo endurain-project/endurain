@@ -2,6 +2,7 @@ import { storeToRefs } from 'pinia'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/vue-query'
 
 import type { IdentityProvider, IdentityProviderInput } from '@/features/identityProviders/types'
+import type { StepUpInput } from '@/features/security/types'
 
 import { queryKeys } from '@/services/queryKeys'
 import { useAuthStore } from '@/features/auth/stores/auth'
@@ -68,9 +69,13 @@ function invalidateIdentityProviders(client: ReturnType<typeof useQueryClient>):
 export function useCreateIdentityProviderMutation() {
   const client = useQueryClient()
 
-  return useMutation<IdentityProvider, Error, IdentityProviderInput>({
+  return useMutation<
+    IdentityProvider,
+    Error,
+    { input: IdentityProviderInput; stepUp: StepUpInput }
+  >({
     mutationKey: queryKeys.identityProviders.all(),
-    mutationFn: (input) => createIdentityProvider(input),
+    mutationFn: ({ input, stepUp }) => createIdentityProvider(input, stepUp),
     onSettled: () => invalidateIdentityProviders(client),
   })
 }
@@ -87,10 +92,11 @@ export function useUpdateIdentityProviderMutation() {
   return useMutation<
     IdentityProvider,
     Error,
-    { id: number; input: IdentityProviderInput; version: number }
+    { id: number; input: IdentityProviderInput; version: number; stepUp: StepUpInput }
   >({
     mutationKey: queryKeys.identityProviders.all(),
-    mutationFn: ({ id, input, version }) => updateIdentityProvider(id, input, version),
+    mutationFn: ({ id, input, version, stepUp }) =>
+      updateIdentityProvider(id, input, version, stepUp),
     onSettled: () => invalidateIdentityProviders(client),
   })
 }

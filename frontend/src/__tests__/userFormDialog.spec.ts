@@ -4,6 +4,7 @@ import { ref } from 'vue'
 
 import { QueryClient, VueQueryPlugin } from '@tanstack/vue-query'
 
+import type { IdpStepUpResume } from '@/features/security/composables/useIdpStepUp'
 import type { ManagedUser } from '@/features/users/types'
 
 import { apiFetch } from '@/services/http'
@@ -16,8 +17,8 @@ vi.mock('@/services/http', () => ({
   HttpError: class extends Error {},
 }))
 
-vi.mock('@/features/users/composables/useAdminStepUp', async (importOriginal) => ({
-  ...(await importOriginal<typeof import('@/features/users/composables/useAdminStepUp')>()),
+vi.mock('@/features/security/composables/useAdminStepUp', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('@/features/security/composables/useAdminStepUp')>()),
   useAdminStepUp: () => ({ requirePassword: ref(true), requireMfa: ref(false) }),
 }))
 
@@ -350,5 +351,115 @@ describe('UserFormDialog height', () => {
       '/users/1',
       expect.objectContaining({ method: 'PATCH' }),
     )
+  })
+})
+
+describe('UserFormDialog create step-up', () => {
+  const PASSWORD = 'a-very-long-password-123'
+
+  async function mountCreate(resume: IdpStepUpResume | null = null) {
+    const wrapper = mount(UserFormDialog, {
+      props: { open: false, user: null, resume },
+      global: { plugins: [i18n, [VueQueryPlugin, { queryClient: new QueryClient() }]], stubs },
+    })
+    await wrapper.setProps({ open: true })
+    await flushPromises()
+    return wrapper
+  }
+
+  async function fillCreate(wrapper: Awaited<ReturnType<typeof mountCreate>>, accessType: string) {
+    await wrapper.find('input[name="name"]').setValue('New')
+    await wrapper.find('input[name="username"]').setValue('newuser')
+    await wrapper.find('input[name="email"]').setValue('new@example.com')
+    await wrapper.find('input[name="new-password"]').setValue(PASSWORD)
+    await wrapper.find('input[name="confirm-password"]').setValue(PASSWORD)
+    await wrapper
+      .findAll('select')
+      .find((select) => select.find('option[value="admin"]').exists())!
+      .setValue(accessType)
+    await wrapper.find('form').trigger('submit')
+    await flushPromises()
+  }
+
+  const createPosts = () =>
+    vi
+      .mocked(apiFetch)
+      .mock.calls.filter(([path, init]) => path === '/users' && init?.method === 'POST')
+
+  it('asks for the administrator step-up before creating an administrator', async () => {
+    vi.mocked(apiFetch).mockClear()
+    vi.mocked(apiFetch).mockResolvedValue({ ...user })
+    const wrapper = await mountCreate()
+    await fillCreate(wrapper, 'admin')
+
+    expect(createPosts()).toHaveLength(0)
+
+    await confirmStepUp(wrapper)
+    await vi.waitFor(() => expect(createPosts()).toHaveLength(1))
+    const body = JSON.parse(String(createPosts()[0]![1]?.body)) as { step_up?: unknown }
+    expect(body.step_up).toEqual({ current_password: 'admin-pw', mfa_code: null })
+  })
+
+  it('creates a regular account without a step-up', async () => {
+    vi.mocked(apiFetch).mockClear()
+    vi.mocked(apiFetch).mockResolvedValue({ ...user })
+    const wrapper = await mountCreate()
+    await fillCreate(wrapper, 'regular')
+
+    await vi.waitFor(() => expect(createPosts()).toHaveLength(1))
+    expect(JSON.parse(String(createPosts()[0]![1]?.body))).not.toHaveProperty('step_up')
+  })
+
+  it('reopens the form with the draft after an identity-provider return, without the passwords', async () => {
+    const wrapper = await mountCreate({
+      action: 'admin_user_create',
+      reauth: { ticket: 't1', codeVerifier: 'v1' },
+      pending: { create: true, draft: { name: 'Draft', accessType: 'admin', password: PASSWORD } },
+    })
+
+    expect(wrapper.emitted('update:open')?.[0]).toEqual([true])
+    expect((wrapper.find('input[name="name"]').element as HTMLInputElement).value).toBe('Draft')
+    expect((wrapper.find('input[name="new-password"]').element as HTMLInputElement).value).toBe('')
+  })
+
+  it('keeps the pending context free of the passwords', async () => {
+    const wrapper = await mountCreate()
+    await wrapper.find('input[name="new-password"]').setValue(PASSWORD)
+    await wrapper.find('input[name="confirm-password"]').setValue(PASSWORD)
+
+    const context = wrapper.findComponent({ name: 'StepUpDialog' }).props('pendingContext')
+    expect(JSON.stringify(context)).not.toContain(PASSWORD)
+    expect(context).toMatchObject({ create: true })
+  })
+
+  it.each<[string, IdpStepUpResume['action'], Record<string, unknown>]>([
+    ['an edit return', 'admin_user_edit', { userId: 1, draft: {} }],
+    ['a return for another action', 'admin_credential_reset', { create: true, draft: {} }],
+  ])('does not open the create form for %s', async (_label, action, pending) => {
+    const wrapper = await mountCreate({
+      action,
+      reauth: { ticket: 't1', codeVerifier: 'v1' },
+      pending,
+    })
+
+    expect(wrapper.emitted('update:open')).toBeUndefined()
+  })
+
+  it('does not open the edit form for a create return', async () => {
+    const wrapper = mount(UserFormDialog, {
+      props: {
+        open: false,
+        user,
+        resume: {
+          action: 'admin_user_edit',
+          reauth: { ticket: 't1', codeVerifier: 'v1' },
+          pending: { create: true, draft: {} },
+        },
+      },
+      global: { plugins: [i18n, [VueQueryPlugin, { queryClient: new QueryClient() }]], stubs },
+    })
+    await flushPromises()
+
+    expect(wrapper.emitted('update:open')).toBeUndefined()
   })
 })

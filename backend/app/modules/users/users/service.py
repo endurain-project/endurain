@@ -25,6 +25,7 @@ import modules.auth.identity_provider_links.integration_service as identity_prov
 import modules.auth.identity_providers.constants as identity_providers_constants
 import modules.auth.mfa.integration_service as mfa_integration
 import modules.auth.password_reset_tokens.integration_service as password_reset_tokens_integration
+import modules.auth.schema as auth_schema
 import modules.auth.sign_up_tokens.integration_service as sign_up_tokens_integration
 import modules.server_settings.integration_service as server_settings_integration
 import modules.server_settings.schema as server_settings_schema
@@ -404,21 +405,42 @@ def _stage_user(
 
 def create_user(
     user: users_schema.UserCreate,
+    step_up: auth_schema.StepUpVerification | None,
+    actor_id: int,
+    session_id: str,
+    step_up_store: account_security_integration.StepUpStore,
     db: Session,
 ) -> users_schema.UserRead:
     """Create a user as an administrator, with their password and default data.
 
+    An administrator account needs the creating administrator's own step-up verification, so a stolen access
+    token cannot mint one. It is the creating administrator's credentials that are checked, not the new user's.
+
     Args:
         user: User creation data with a plain text password.
+        step_up: The administrator's step-up verification; verified as empty credentials when missing.
+        actor_id: ID of the administrator creating the user.
+        session_id: The administrator's session.
+        step_up_store: Step-up lockout store.
         db: Database session.
 
     Returns:
         The created user.
 
     Raises:
+        StepUpFailedError: If the new user is an administrator and the step-up fails.
         ConflictError: If the username or email is already taken.
         PasswordPolicyError: If the password fails the configured policy.
     """
+    if users_schema.normalize_access_type(user.access_type) == users_schema.UserAccessType.ADMIN.value:
+        account_security_integration.verify_step_up(
+            step_up or auth_schema.StepUpVerification(),
+            actor_id,
+            session_id,
+            identity_providers_constants.StepUpAction.ADMIN_USER_CREATE,
+            step_up_store,
+            db,
+        )
     try:
         created = _stage_user(user, users_audit_actions.UserCreateMethod.ADMIN, db)
     except core_exceptions.ConflictError:
@@ -788,7 +810,7 @@ def _stage_edit_with_email_change(
 def edit_user(
     user_id: int,
     user: users_schema.UserEdit,
-    step_up: users_schema.StepUpVerification | None,
+    step_up: auth_schema.StepUpVerification | None,
     actor_id: int,
     session_id: str,
     step_up_store: account_security_integration.StepUpStore,
@@ -833,7 +855,7 @@ def edit_user(
         require_other_user(user_id, actor_id, "change your email")
     if _edit_ends_sessions(existing, user):
         account_security_integration.verify_step_up(
-            step_up or users_schema.StepUpVerification(),
+            step_up or auth_schema.StepUpVerification(),
             actor_id,
             session_id,
             identity_providers_constants.StepUpAction.ADMIN_USER_EDIT,
@@ -1198,7 +1220,7 @@ def unlink_identity_provider(
     idp_id: int,
     actor_id: int,
     session_id: str,
-    step_up: users_schema.StepUpVerification,
+    step_up: auth_schema.StepUpVerification,
     step_up_store: account_security_integration.StepUpStore,
     db: Session,
 ) -> None:

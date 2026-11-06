@@ -13,6 +13,8 @@ from fastapi.security import SecurityScopes
 
 import core.exceptions as core_exceptions
 import modules.auth.dependencies as auth_dependencies
+import modules.auth.identity_providers.contracts as idp_contracts
+import modules.auth.schema as auth_schema
 from modules.auth.contracts import ApiKeyCred, PasswordCred, Principal
 from modules.auth.dependencies import (
     AuthContext,
@@ -25,6 +27,7 @@ from modules.auth.dependencies import (
     validate_access_token,
     validate_access_token_or_api_key,
 )
+from modules.auth.identity_providers.constants import StepUpAction
 
 
 class TestGetAccessToken:
@@ -394,3 +397,32 @@ class TestRequireScopesAudit:
             _require_scopes(["profile"], SecurityScopes(scopes=["profile"]))
 
         audit.assert_not_audited("auth.scope.denied")
+
+
+class TestStepUpVerifier:
+    """The verifier handed to identity-provider routes is bound to the calling administrator."""
+
+    def test_it_verifies_with_the_administrators_id_session_and_store(self):
+        store, db, step_up = MagicMock(), MagicMock(), auth_schema.StepUpVerification(current_password="pw")
+        with patch.object(auth_dependencies.account_security_integration, "verify_step_up") as verify:
+            verifier = auth_dependencies.get_step_up_verifier(9, "sid-9", store, db)
+            verifier(step_up, StepUpAction.ADMIN_IDP_CREATE)
+
+        verify.assert_called_once_with(step_up, 9, "sid-9", StepUpAction.ADMIN_IDP_CREATE, store, db)
+
+    def test_a_refusal_propagates(self):
+        with patch.object(
+            auth_dependencies.account_security_integration,
+            "verify_step_up",
+            side_effect=core_exceptions.StepUpFailedError(),
+        ):
+            verifier = auth_dependencies.get_step_up_verifier(9, "sid-9", MagicMock(), MagicMock())
+            with pytest.raises(core_exceptions.StepUpFailedError):
+                verifier(auth_schema.StepUpVerification(), StepUpAction.ADMIN_IDP_EDIT)
+
+    def test_it_satisfies_the_identity_provider_contract(self):
+        verifier: idp_contracts.StepUpVerifier = auth_dependencies.get_step_up_verifier(
+            9, "sid-9", MagicMock(), MagicMock()
+        )
+
+        assert callable(verifier)

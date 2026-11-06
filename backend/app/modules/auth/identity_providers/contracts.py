@@ -1,11 +1,13 @@
 """Internal contracts for identity-provider persistence and OIDC flows."""
 
 from datetime import datetime
-from typing import Any, Literal
+from typing import Any, Literal, Protocol
 
 from pydantic import BaseModel, ConfigDict
 
+import modules.auth.identity_providers.constants as idp_constants
 import modules.auth.oauth_state.constants as oauth_state_constants
+import modules.auth.schema as auth_schema
 
 #: The protocols a provider can speak, as the provider's schema validates them.
 ProviderType = Literal["oidc", "oauth2", "saml"]
@@ -96,3 +98,27 @@ class StepUpTicket(BaseModel):
     action: str
 
     model_config = ConfigDict(frozen=True)
+
+
+class StepUpVerifier(Protocol):
+    """Verifies the step-up of the administrator making the request, for an operation this package administers.
+
+    The identity-provider routes cannot verify a step-up themselves: that lives in ``account_security``, which
+    depends on this package. The auth composition layer (``modules.auth.dependencies``) installs an implementation
+    bound to the calling administrator's id and session, and the service calls it before it checks or writes
+    anything.
+    """
+
+    def __call__(self, step_up: auth_schema.StepUpVerification, action: idp_constants.StepUpAction) -> None:
+        """Verify the administrator's step-up for an action.
+
+        Args:
+            step_up: The step-up verification the administrator sent.
+            action: The operation the step-up must authorise.
+
+        Raises:
+            StepUpFailedError: When the verification fails.
+            IdpReauthRequiredError: When the administrator has no password and sent no identity-provider proof.
+            TooManyRequestsError: When the administrator is locked out of step-up.
+        """
+        ...

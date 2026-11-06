@@ -28,6 +28,7 @@ import core.local_pool as core_local_pool
 import core.logger as core_logger
 import modules.auth.account_security.integration_service as account_security_integration
 import modules.auth.identity_providers.constants as identity_providers_constants
+import modules.auth.schema as auth_schema
 import modules.auth.sign_up_tokens.integration_service as sign_up_tokens_integration
 import modules.users.contributor_registry as users_contributor_registry
 import modules.users.users.audit_actions as users_audit_actions
@@ -131,7 +132,7 @@ def request_deletion_by_administrator(
     user_id: int,
     actor_id: int,
     session_id: str,
-    step_up: users_schema.StepUpVerification,
+    step_up: auth_schema.StepUpVerification,
     step_up_store: account_security_integration.StepUpStore,
     states: users_deletion_state_store.UserDeletionStateStore,
     storage: platform_providers.StorageProvider,

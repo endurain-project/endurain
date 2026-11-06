@@ -50,6 +50,9 @@ class StepUpAction(StrEnum):
         ADMIN_USER_EDIT: An administrator changes another user's email, access type or active flag.
         ADMIN_USER_DELETE: An administrator deletes another user's account.
         ADMIN_IDP_UNLINK: An administrator unlinks an identity provider from another user.
+        ADMIN_USER_CREATE: An administrator creates an administrator account.
+        ADMIN_IDP_CREATE: An administrator adds an identity provider.
+        ADMIN_IDP_EDIT: An administrator edits an identity provider.
     """
 
     API_KEY_CREATE = "api_key_create"
@@ -65,6 +68,9 @@ class StepUpAction(StrEnum):
     ADMIN_USER_EDIT = "admin_user_edit"
     ADMIN_USER_DELETE = "admin_user_delete"
     ADMIN_IDP_UNLINK = "admin_idp_unlink"
+    ADMIN_USER_CREATE = "admin_user_create"
+    ADMIN_IDP_CREATE = "admin_idp_create"
+    ADMIN_IDP_EDIT = "admin_idp_edit"
 
 
 class IdentityProviderTemplate(TypedDict):

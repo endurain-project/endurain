@@ -1,5 +1,7 @@
 """Identity-provider version checks against real PostgreSQL."""
 
+from unittest.mock import MagicMock
+
 import pytest
 from jasil.backends.state_memory import MemoryState
 from sqlalchemy import event
@@ -9,8 +11,12 @@ import modules.auth.identity_providers.models as idp_models
 import modules.auth.identity_providers.oidc_client_service as idp_oidc_client_service
 import modules.auth.identity_providers.provider_service as idp_provider_service
 import modules.auth.identity_providers.schema as idp_schema
+import modules.auth.schema as auth_schema
 from modules.auth.identity_providers import crud as idp_crud
 from modules.auth.identity_providers.serializers import to_read_schema
+
+STEP_UP = auth_schema.StepUpVerification()
+VERIFIER = MagicMock()
 
 
 def _create_provider(factory) -> idp_schema.IdentityProviderRead:
@@ -38,11 +44,15 @@ def _edit(name: str = "Keycloak Updated") -> idp_schema.IdentityProviderUpdate:
 def test_a_provider_edit_requires_the_version_it_read_and_increments_it(pg_factory):
     created = _create_provider(pg_factory)
     with pg_factory() as db:
-        updated = idp_provider_service.update_identity_provider(created.id, _edit(), _oidc(), db, if_match='"1"')
+        updated = idp_provider_service.update_identity_provider(
+            created.id, _edit(), STEP_UP, VERIFIER, _oidc(), db, if_match='"1"'
+        )
     assert (updated.name, updated.version) == ("Keycloak Updated", 2)
 
     with pg_factory() as db, pytest.raises(core_exceptions.PreconditionFailedError):
-        idp_provider_service.update_identity_provider(created.id, _edit("Stale update"), _oidc(), db, if_match='"1"')
+        idp_provider_service.update_identity_provider(
+            created.id, _edit("Stale update"), STEP_UP, VERIFIER, _oidc(), db, if_match='"1"'
+        )
 
 
 def test_a_concurrent_provider_edit_is_refused_at_flush(pg_factory):
@@ -57,7 +67,9 @@ def test_a_concurrent_provider_edit_is_refused_at_flush(pg_factory):
 
         event.listen(db, "before_flush", commit_competing_edit, once=True)
         with pytest.raises(core_exceptions.PreconditionFailedError):
-            idp_provider_service.update_identity_provider(created.id, _edit(), _oidc(), db, if_match='"1"')
+            idp_provider_service.update_identity_provider(
+                created.id, _edit(), STEP_UP, VERIFIER, _oidc(), db, if_match='"1"'
+            )
 
 
 def test_a_provider_deleted_during_edit_returns_not_found(pg_factory):
@@ -71,4 +83,6 @@ def test_a_provider_deleted_during_edit_returns_not_found(pg_factory):
 
         event.listen(db, "before_flush", delete_competing_provider, once=True)
         with pytest.raises(core_exceptions.NotFoundError):
-            idp_provider_service.update_identity_provider(created.id, _edit(), _oidc(), db, if_match='"1"')
+            idp_provider_service.update_identity_provider(
+                created.id, _edit(), STEP_UP, VERIFIER, _oidc(), db, if_match='"1"'
+            )

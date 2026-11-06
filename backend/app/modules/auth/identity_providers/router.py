@@ -90,8 +90,9 @@ def read_identity_provider(
     status_code=status.HTTP_201_CREATED,
     description=(
         "Create a new identity provider.\n\n"
+        "Needs the administrator's own step-up verification in step_up.\n\n"
         "Args:\n"
-        "    idp_data: Data required to create the identity provider.\n"
+        "    idp_data: Data required to create the identity provider, and the step-up.\n"
         "    db: SQLAlchemy database session dependency.\n"
         "    request: Incoming request.\n"
         "\n"
@@ -99,8 +100,8 @@ def read_identity_provider(
         "    The newly created identity provider.\n\n"
         "Raises:\n"
         "    HTTPException: 400 if a URL is plain http to a host outside\n"
-        "        SSRF_ALLOWED_HOSTS or non-public, 409 if the slug already\n"
-        "        exists, 500 on database errors."
+        "        SSRF_ALLOWED_HOSTS or non-public, 403 if the step-up fails,\n"
+        "        409 if the slug already exists, 500 on database errors."
     ),
     responses={
         status.HTTP_201_CREATED: {
@@ -116,27 +117,31 @@ def read_identity_provider(
 )
 @core_rate_limit.limiter.limit(core_rate_limit.WRITE)
 def create_identity_provider(
-    idp_data: idp_schema.IdentityProviderCreate,
+    idp_data: idp_schema.IdentityProviderCreateRequest,
     request: Request,
     db: core_dependencies.DbSession,
     response: Response,
+    verify_step_up: auth_dependencies.StepUpVerifierDep,
 ) -> idp_schema.IdentityProviderRead:
     """Create a new identity provider.
 
+    Needs the administrator's own step-up verification in `step_up`, as a rogue provider can claim accounts.
+
     Args:
-        idp_data: Data required to create the identity provider.
+        idp_data: Data required to create the identity provider, and the administrator's step-up.
         db: SQLAlchemy database session dependency.
         request: Incoming request.
         response: The response, which carries the new ETag.
+        verify_step_up: Verifies the administrator's step-up.
 
     Returns:
         The newly created identity provider.
 
     Raises:
-        HTTPException: 400 if a URL is plain http to a host outside SSRF_ALLOWED_HOSTS or non-public, 409 if the
-            slug already exists, 500 on database errors.
+        HTTPException: 400 if a URL is plain http to a host outside SSRF_ALLOWED_HOSTS or non-public, 403 if the
+            step-up fails, 409 if the slug already exists, 500 on database errors.
     """
-    provider = idp_provider_service.create_identity_provider(idp_data, db)
+    provider = idp_provider_service.create_identity_provider(idp_data.to_create(), idp_data.step_up, verify_step_up, db)
     core_location.set_location(response, request, "read_identity_provider", idp_id=provider.id)
     core_etag.set_etag(response, provider.version)
     return provider
@@ -147,9 +152,10 @@ def create_identity_provider(
     response_model=idp_schema.IdentityProviderRead,
     description=(
         "Update an existing identity provider.\n\n"
+        "Needs the administrator's own step-up verification in step_up.\n\n"
         "Args:\n"
         "    idp_id: The unique identifier of the identity provider to update.\n"
-        "    idp_data: The data to update the identity provider with.\n"
+        "    idp_data: The data to update the identity provider with, and the step-up.\n"
         "    db: SQLAlchemy database session dependency.\n"
         "    request: Incoming request.\n"
         "\n"
@@ -157,8 +163,9 @@ def create_identity_provider(
         "    The updated identity provider.\n\n"
         "Raises:\n"
         "    HTTPException: 400 if a URL is plain http to a host outside\n"
-        "        SSRF_ALLOWED_HOSTS or non-public, 404 if the provider is not\n"
-        "        found, 409 on slug conflict, 500 on database errors."
+        "        SSRF_ALLOWED_HOSTS or non-public, 403 if the step-up fails,\n"
+        "        404 if the provider is not found, 409 on slug conflict,\n"
+        "        500 on database errors."
     ),
     responses={
         status.HTTP_200_OK: {
@@ -177,32 +184,39 @@ def create_identity_provider(
 @core_rate_limit.limiter.limit(core_rate_limit.WRITE)
 def update_identity_provider(
     idp_id: core_dependencies.PositiveId,
-    idp_data: idp_schema.IdentityProviderUpdate,
+    idp_data: idp_schema.IdentityProviderUpdateRequest,
     request: Request,
     db: core_dependencies.DbSession,
     response: Response,
     if_match: core_dependencies.IfMatch,
     oidc: idp_dependencies.OidcClientService,
+    verify_step_up: auth_dependencies.StepUpVerifierDep,
 ) -> idp_schema.IdentityProviderRead:
     """Update an existing identity provider.
 
+    Needs the administrator's own step-up verification in `step_up`, as a rogue provider can claim accounts.
+
     Args:
         idp_id: The unique identifier of the identity provider to update.
-        idp_data: The data to update the identity provider with.
+        idp_data: The data to update the identity provider with, and the administrator's step-up.
         db: SQLAlchemy database session dependency.
         request: Incoming request.
         response: The response, which carries the new ETag.
         if_match: The ``If-Match`` precondition the client read.
         oidc: The identity-provider client, whose cached discovery document for the provider is dropped.
+        verify_step_up: Verifies the administrator's step-up.
 
     Returns:
         The updated identity provider.
 
     Raises:
-        HTTPException: 400 if a URL is plain http to a host outside SSRF_ALLOWED_HOSTS or non-public, 404 if the
-            provider is not found, 409 on slug conflict, 412 if the provider changed, or 500 on database errors.
+        HTTPException: 400 if a URL is plain http to a host outside SSRF_ALLOWED_HOSTS or non-public, 403 if the
+            step-up fails, 404 if the provider is not found, 409 on slug conflict, 412 if the provider changed, or
+            500 on database errors.
     """
-    provider = idp_provider_service.update_identity_provider(idp_id, idp_data, oidc, db, if_match=if_match)
+    provider = idp_provider_service.update_identity_provider(
+        idp_id, idp_data.to_update(), idp_data.step_up, verify_step_up, oidc, db, if_match=if_match
+    )
     core_etag.set_etag(response, provider.version)
     return provider
 

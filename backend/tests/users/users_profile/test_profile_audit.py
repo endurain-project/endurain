@@ -10,6 +10,7 @@ from jasil.backends.state_memory import MemoryState
 from sqlalchemy.exc import OperationalError
 
 import core.exceptions as core_exceptions
+import modules.auth.schema as auth_schema
 import modules.users.users.schema as users_schema
 import modules.users.users_privacy_settings.schema as privacy_schema
 import modules.users.users_profile.audit_actions as profile_audit_actions
@@ -29,7 +30,7 @@ _TARGET = {"target_type": "user", "target_id": "7", "target_owner_id": "7"}
 
 def _request_export(states, db):
     return export_job_service.request_export(
-        7, "session-1", users_schema.StepUpVerification(current_password="pw"), MagicMock(), states, db
+        7, "session-1", auth_schema.StepUpVerification(current_password="pw"), MagicMock(), states, db
     )
 
 

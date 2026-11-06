@@ -18,6 +18,7 @@ from pydantic import (
 import core.cryptography as core_cryptography
 import core.pagination as core_pagination
 import modules.auth.identity_providers.constants as idp_constants
+import modules.auth.schema as auth_schema
 
 
 class IdentityProviderBase(BaseModel):
@@ -154,6 +155,46 @@ class IdentityProviderUpdate(IdentityProviderBase):
     model_config = ConfigDict(extra="forbid")
 
 
+class IdentityProviderCreateRequest(IdentityProviderCreate):
+    """The body of ``POST /identity-providers``: a new provider and the administrator's step-up.
+
+    Attributes:
+        step_up: The administrator's own step-up verification; it is never a provider field.
+    """
+
+    step_up: auth_schema.StepUpVerification = Field(
+        ..., description="The administrator's step-up verification, required to add an identity provider"
+    )
+
+    def to_create(self) -> IdentityProviderCreate:
+        """Return the provider fields of the request, without the step-up.
+
+        Returns:
+            The provider as an :class:`IdentityProviderCreate`.
+        """
+        return IdentityProviderCreate.model_validate(self.model_dump(exclude={"step_up"}))
+
+
+class IdentityProviderUpdateRequest(IdentityProviderUpdate):
+    """The body of ``PATCH /identity-providers/{idp_id}``: the provider changes and the administrator's step-up.
+
+    Attributes:
+        step_up: The administrator's own step-up verification; it is never a provider field.
+    """
+
+    step_up: auth_schema.StepUpVerification = Field(
+        ..., description="The administrator's step-up verification, required to edit an identity provider"
+    )
+
+    def to_update(self) -> IdentityProviderUpdate:
+        """Return the provider fields the client sent, without the step-up.
+
+        Returns:
+            The changes as an :class:`IdentityProviderUpdate`, with the same fields set.
+        """
+        return IdentityProviderUpdate.model_validate(self.model_dump(exclude={"step_up"}, exclude_unset=True))
+
+
 class IdentityProviderRead(IdentityProviderBase):
     """Represents an identity provider with decrypted client credentials.
 
@@ -257,25 +298,6 @@ class IdentityProviderTemplateRead(BaseModel):
     user_mapping: dict[str, Any] | None = None
     description: StrictStr = Field(..., description="Description of this template")
     configuration_notes: StrictStr | None = Field(default=None, description="Setup instructions for this IdP")
-
-
-class IdpReauthProof(BaseModel):
-    """Proof that a password-less account signed in again with its identity provider.
-
-    The provider's callback hands the ticket to the browser that started the step-up; that browser also holds
-    the PKCE verifier whose challenge the ticket records, so a ticket alone cannot be redeemed.
-
-    Attributes:
-        ticket: The single-use step-up ticket.
-        code_verifier: The PKCE verifier the step-up was started with.
-    """
-
-    ticket: StrictStr = Field(..., min_length=43, max_length=64, description="Single-use step-up ticket")
-    code_verifier: StrictStr = Field(
-        ..., min_length=43, max_length=128, description="PKCE verifier the step-up was started with"
-    )
-
-    model_config = ConfigDict(extra="forbid")
 
 
 class StepUpStartRequest(BaseModel):

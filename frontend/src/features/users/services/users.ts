@@ -146,12 +146,18 @@ export async function fetchUsers(
  * profile and access fields via the form; only MFA and the photo are seeded
  * here (MFA off, no photo) — the user can enrol MFA and upload a photo later.
  *
+ * Creating an administrator carries the creating administrator's own step-up; any other account sends none.
+ *
  * @param input - The clean create input.
+ * @param stepUp - The administrator's step-up, for the creation of an administrator.
  * @returns The created user, mapped to the clean model.
- * @throws {HttpError} When the request fails (e.g. duplicate username/email).
+ * @throws {HttpError} When the request fails (e.g. duplicate username/email, or a refused step-up).
  */
-export async function createUser(input: CreateUserInput): Promise<ManagedUser> {
-  const payload: Schemas['UserCreate'] = {
+export async function createUser(
+  input: CreateUserInput,
+  stepUp: StepUpInput | null = null,
+): Promise<ManagedUser> {
+  const payload: Schemas['UserAdminCreate'] = {
     name: input.name,
     username: input.username,
     email: input.email,
@@ -171,6 +177,7 @@ export async function createUser(input: CreateUserInput): Promise<ManagedUser> {
     birthdate: input.birthdate,
     height: input.height,
     max_heart_rate: input.maxHeartRate,
+    ...(stepUp ? { step_up: toStepUpWire(stepUp) } : {}),
   }
   const dto = await apiFetch<UserDto>('/users', {
     method: 'POST',

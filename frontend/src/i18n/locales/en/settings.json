@@ -165,6 +165,7 @@
       "saveError": "Couldn't save the user. Please try again.",
       "stepUpTitle": "Confirm your identity",
       "stepUpDescription": "Changing the email, access type or active status of {username} signs them out everywhere. Confirm it is you to continue.",
+      "stepUpCreateDescription": "Creating an administrator account grants full access. Confirm it is you to continue.",
       "stepUpConfirm": "Save changes"
     },
     "delete": {
@@ -490,6 +491,8 @@
     "subtitle": "Configure SSO providers for single sign-on",
     "buttonAdd": "Add provider",
     "toggleError": "Couldn't change the provider. Please try again.",
+    "toggleStepUpDescription": "Changing whether {name} is enabled decides who can sign in to this server. Confirm it is you to continue.",
+    "toggleStepUpConfirm": "Confirm",
     "enableSuccess": "Provider enabled",
     "disableSuccess": "Provider disabled",
     "type": {
@@ -573,6 +576,8 @@
       "syncUserInfo": "Sync profile info on each login",
       "createSuccess": "Provider added",
       "updateSuccess": "Provider updated",
+      "stepUpTitle": "Confirm your identity",
+      "stepUpDescription": "Identity providers decide who can sign in to this server. Confirm it is you to continue.",
       "slugConflict": "That slug is already in use",
       "staleError": "This provider changed elsewhere. Your changes weren't saved. Close and reopen it to load the current settings.",
       "saveError": "Couldn't save the provider. Please try again."

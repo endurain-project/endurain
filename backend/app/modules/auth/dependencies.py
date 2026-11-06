@@ -21,8 +21,11 @@ import modules.auth.authentication.audit_actions as authentication_audit_actions
 import modules.auth.authentication.dependencies as authentication_dependencies
 import modules.auth.authentication.integration_service as authentication_integration
 import modules.auth.contracts as auth_contracts
+import modules.auth.identity_providers.constants as identity_providers_constants
+import modules.auth.identity_providers.contracts as identity_providers_contracts
 import modules.auth.identity_providers.dependencies as identity_providers_dependencies
 import modules.auth.mfa.dependencies as auth_mfa_dependencies
+import modules.auth.schema as auth_schema
 
 logger = core_logger.get_logger(__name__)
 
@@ -232,6 +235,38 @@ get_step_up_attempts = account_security_integration.get_step_up_attempts
 MFASecretStoreBackend = auth_mfa_dependencies.MFASecretStoreBackend
 get_mfa_secret_store = auth_mfa_dependencies.get_mfa_secret_store
 
+
+def get_step_up_verifier(
+    user_id: CurrentUserId,
+    session_id: CurrentSessionId,
+    step_up_store: Annotated[StepUpStore, Depends(get_step_up_attempts)],
+    db: core_dependencies.DbSession,
+) -> identity_providers_contracts.StepUpVerifier:
+    """Return the step-up verifier bound to the calling administrator.
+
+    The identity-provider package declares the verifier it needs and cannot import ``account_security``, which
+    depends on it; this installs the ``account_security`` implementation, with the administrator's own id and
+    session.
+
+    Args:
+        user_id: The authenticated administrator.
+        session_id: The administrator's session.
+        step_up_store: Step-up lockout store.
+        db: Database session.
+
+    Returns:
+        A verifier that refuses by raising, as ``account_security_integration.verify_step_up`` does.
+    """
+
+    def verify(step_up: auth_schema.StepUpVerification, action: identity_providers_constants.StepUpAction) -> None:
+        account_security_integration.verify_step_up(step_up, user_id, session_id, action, step_up_store, db)
+
+    return verify
+
+
+#: Verifies the calling administrator's step-up for an operation the identity-provider package administers.
+StepUpVerifierDep = Annotated[identity_providers_contracts.StepUpVerifier, Depends(get_step_up_verifier)]
+
 __all__ = [
     "AuthContext",
     "CurrentScopes",
@@ -239,6 +274,7 @@ __all__ = [
     "CurrentUserId",
     "MFASecretStoreBackend",
     "StepUpStore",
+    "StepUpVerifierDep",
     "audit_context_from_request",
     "check_auth_scopes",
     "check_scopes",
@@ -247,6 +283,7 @@ __all__ = [
     "get_scopes_from_access_token",
     "get_sid_from_access_token",
     "get_step_up_attempts",
+    "get_step_up_verifier",
     "get_sub_from_access_token",
     "get_user_id_from_auth",
     "require_scopes",

@@ -13,6 +13,7 @@ import modules.auth.credentials.integration_service as credentials_integration
 import modules.auth.identity_provider_links.integration_service as identity_links_integration
 import modules.auth.identity_providers.constants as identity_providers_constants
 import modules.auth.mfa.integration_service as mfa_integration
+import modules.auth.schema as auth_schema
 import modules.auth.sign_up_tokens.contracts as sign_up_contracts
 import modules.users.users.schema as users_schema
 import modules.users.users.service as users_service
@@ -62,6 +63,11 @@ def _admin_edit(user_id, edit, actor_id, db, *, step_up=None, store=None):
     return users_service.edit_user(
         user_id, edit, step_up, actor_id, f"sid-{actor_id}", store or MagicMock(), db, if_match="*"
     )
+
+
+def _admin_create(user, db, *, step_up=None, store=None):
+    """Create as an administrator whose session is ``sid-9``."""
+    return users_service.create_user(user, step_up, 9, "sid-9", store or MagicMock(), db)
 
 
 def _identity() -> MagicMock:
@@ -404,7 +410,7 @@ class TestCreateUser:
             password="password123",
         )
 
-        created = users_service.create_user(user, mock_db)
+        created = _admin_create(user, mock_db)
 
         fields = mock_crud.create_user.call_args.args[0]
         assert fields["username"] == "newuser" and fields["email"] == "new@example.com"
@@ -424,10 +430,90 @@ class TestCreateUser:
         )
 
         with pytest.raises(core_exceptions.ConflictError):
-            users_service.create_user(user, mock_db)
+            _admin_create(user, mock_db)
 
         mock_db.rollback.assert_called_once()
         identity.set_local_password_hash.assert_not_called()
+
+
+class TestCreateUserStepUp:
+    def _new(self, access_type: str) -> users_schema.UserCreate:
+        return users_schema.UserCreate(
+            name="N",
+            username="newadmin",
+            email="new@example.com",
+            active=True,
+            access_type=access_type,
+            password="password123",
+        )
+
+    @patch("modules.users.users.service._stage_default_data")
+    @patch(_SETTINGS)
+    @patch(_CRUD)
+    def test_an_administrator_account_needs_the_step_up_of_the_creating_administrator(
+        self, mock_crud, mock_settings, mock_defaults, mock_db
+    ):
+        _identity().validate_and_hash_password_for_user.return_value = "hash"
+        mock_crud.create_user.return_value = _user(7, access_type="admin")
+        store = MagicMock()
+        step_up = auth_schema.StepUpVerification(current_password="admin-password")
+        order = MagicMock()
+        order.attach_mock(_verify_step_up_mock, "step_up")
+        order.attach_mock(mock_crud.create_user, "insert")
+
+        _admin_create(self._new("admin"), mock_db, step_up=step_up, store=store)
+
+        assert [call[0] for call in order.mock_calls] == ["step_up", "insert"]
+        _verify_step_up_mock.assert_called_once_with(
+            step_up, 9, "sid-9", identity_providers_constants.StepUpAction.ADMIN_USER_CREATE, store, mock_db
+        )
+
+    @patch("modules.users.users.service._stage_default_data")
+    @patch(_SETTINGS)
+    @patch(_CRUD)
+    def test_the_access_type_is_read_as_an_enum_member_too(self, mock_crud, mock_settings, mock_defaults, mock_db):
+        _identity().validate_and_hash_password_for_user.return_value = "hash"
+        mock_crud.create_user.return_value = _user(7, access_type="admin")
+
+        _admin_create(self._new(users_schema.UserAccessType.ADMIN), mock_db)
+
+        _verify_step_up_mock.assert_called_once()
+
+    @patch("modules.users.users.service._stage_default_data")
+    @patch(_SETTINGS)
+    @patch(_CRUD)
+    def test_a_missing_step_up_is_verified_as_empty_credentials(self, mock_crud, mock_settings, mock_defaults, mock_db):
+        _identity().validate_and_hash_password_for_user.return_value = "hash"
+        mock_crud.create_user.return_value = _user(7, access_type="admin")
+
+        _admin_create(self._new("admin"), mock_db)
+
+        assert _verify_step_up_mock.call_args.args[0] == auth_schema.StepUpVerification()
+
+    @patch(_SETTINGS)
+    @patch(_CRUD)
+    def test_a_failed_step_up_creates_nothing(self, mock_crud, mock_settings, mock_db):
+        identity = _identity()
+        _verify_step_up_mock.side_effect = core_exceptions.PermissionDeniedError("wrong password")
+
+        with pytest.raises(core_exceptions.PermissionDeniedError):
+            _admin_create(self._new("admin"), mock_db)
+
+        mock_crud.create_user.assert_not_called()
+        identity.set_local_password_hash.assert_not_called()
+        mock_db.commit.assert_not_called()
+
+    @patch("modules.users.users.service._stage_default_data")
+    @patch(_SETTINGS)
+    @patch(_CRUD)
+    def test_a_regular_account_needs_no_step_up(self, mock_crud, mock_settings, mock_defaults, mock_db):
+        _identity().validate_and_hash_password_for_user.return_value = "hash"
+        mock_crud.create_user.return_value = _user(7)
+
+        _admin_create(self._new("regular"), mock_db)
+
+        _verify_step_up_mock.assert_not_called()
+        mock_db.commit.assert_called_once()
 
 
 class TestStageFirstAdmin:
@@ -548,7 +634,7 @@ class TestAccountCreationIsOneUnit:
             name="N", username="n", email="n@example.com", active=True, access_type="regular", password="password123"
         )
 
-        users_service.create_user(user, mock_db)
+        _admin_create(user, mock_db)
 
         names = [call[0] for call in order.mock_calls]
         assert names[-1] == "commit"
@@ -980,7 +1066,7 @@ class TestEdits:
         mock_crud.lock_active_admin_ids.return_value = [1, 2]
         _identity()
         store = MagicMock()
-        step_up = users_schema.StepUpVerification(current_password="admin-password")
+        step_up = auth_schema.StepUpVerification(current_password="admin-password")
         order = MagicMock()
         order.attach_mock(_verify_step_up_mock, "step_up")
         order.attach_mock(mock_crud.update_user, "edit")
@@ -999,7 +1085,7 @@ class TestEdits:
         _identity()
         _admin_edit(1, _edit(1, active=False), 9, mock_db)
 
-        assert _verify_step_up_mock.call_args.args[0] == users_schema.StepUpVerification()
+        assert _verify_step_up_mock.call_args.args[0] == auth_schema.StepUpVerification()
 
     @pytest.mark.parametrize("actor_id", [9, 1])
     def test_a_failed_step_up_changes_nothing(self, mock_crud, mock_weight, mock_db, actor_id):

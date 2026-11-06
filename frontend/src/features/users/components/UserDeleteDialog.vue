@@ -10,7 +10,7 @@ import StepUpDialog from '@/features/security/components/StepUpDialog.vue'
 import { useToasts } from '@/composables/useToasts'
 import { isStaleWrite } from '@/services/ifMatch'
 import { isStepUpFailed, useIdpReauthChallenge } from '@/features/security/composables/useIdpStepUp'
-import { useAdminStepUp, useResumeOnce } from '@/features/users/composables/useAdminStepUp'
+import { useAdminStepUp, useResumeOnce } from '@/features/security/composables/useAdminStepUp'
 import { useDeleteUserMutation } from '@/features/users/composables/useUsers'
 
 const open = defineModel<boolean>('open', { required: true })
@@ -41,12 +41,11 @@ const idpReauth = ref<IdpReauth | null>(null)
 useResumeOnce(
   () => props.resume,
   'admin_user_delete',
-  () => props.user?.id ?? null,
+  (pending) => pending.userId === props.user?.id && pending.variant === props.variant,
   (resume) => {
     idpReauth.value = resume.reauth
     open.value = true
   },
-  (pending) => pending.variant === props.variant,
 )
 
 const copy = computed(() =>

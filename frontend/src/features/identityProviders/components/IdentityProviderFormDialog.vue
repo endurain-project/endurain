@@ -7,6 +7,8 @@ import type {
   IdentityProviderInput,
   IdentityProviderTemplate,
 } from '@/features/identityProviders/types'
+import type { IdpReauth, StepUpInput } from '@/features/security/types'
+import type { IdpStepUpResume } from '@/features/security/composables/useIdpStepUp'
 
 import { Alert } from '@/components/ui/alert'
 import { FormDialog } from '@/components/ui/form-dialog'
@@ -17,6 +19,9 @@ import { Switch } from '@/components/ui/switch'
 import { useForm } from '@/composables/useForm'
 import ProviderIconPicker from '@/features/identityProviders/components/ProviderIconPicker.vue'
 import PasswordInput from '@/features/security/components/PasswordInput.vue'
+import StepUpDialog from '@/features/security/components/StepUpDialog.vue'
+import { isStepUpFailed, useIdpReauthChallenge } from '@/features/security/composables/useIdpStepUp'
+import { useAdminStepUp, useResumeOnce } from '@/features/security/composables/useAdminStepUp'
 import { HttpError } from '@/services/http'
 import { isStaleWrite } from '@/services/ifMatch'
 import {
@@ -42,8 +47,10 @@ const props = withDefaults(
     provider?: IdentityProvider | null
     /** Presets offered in the add form's template selector. */
     templates?: IdentityProviderTemplate[]
+    /** The identity-provider sign-in the browser just returned from, if any. */
+    resume?: IdpStepUpResume | null
   }>(),
-  { provider: null, templates: () => [] },
+  { provider: null, templates: () => [], resume: null },
 )
 
 const emit = defineEmits<{
@@ -57,6 +64,12 @@ const createMutation = useCreateIdentityProviderMutation()
 const updateMutation = useUpdateIdentityProviderMutation()
 const uploadIconMutation = useUploadIdentityProviderIconMutation()
 const deleteIconMutation = useDeleteIdentityProviderIconMutation()
+const handleIdpChallenge = useIdpReauthChallenge()
+const { requirePassword, requireMfa } = useAdminStepUp()
+
+// Every save needs the administrator's own step-up, collected by a second dialog over this one.
+const isStepUpOpen = ref(false)
+const idpReauth = ref<IdpReauth | null>(null)
 
 const DEFAULT_SCOPES = 'openid profile email'
 
@@ -133,6 +146,33 @@ function buildInput(values: ProviderFormValues): IdentityProviderInput {
 }
 
 /**
+ * The form values that survive the identity-provider sign-in. The client secret is left out, so it never
+ * reaches storage and the administrator enters it again.
+ */
+function draftValues(): Record<string, unknown> {
+  const draft: Record<string, unknown> = { ...values }
+  delete draft.clientSecret
+  return draft
+}
+
+/** Keeps the stored draft entries that have the type of the matching form field, except the secret. */
+function pickDraft(raw: unknown): Record<string, unknown> {
+  const stored: Record<string, unknown> = typeof raw === 'object' && raw !== null ? { ...raw } : {}
+  const picked: Record<string, unknown> = {}
+  for (const [key, base] of Object.entries(defaultValues())) {
+    if (key !== 'clientSecret' && typeof stored[key] === typeof base) {
+      picked[key] = stored[key]
+    }
+  }
+  return picked
+}
+
+/** Runs the save with the administrator's step-up from the second dialog. */
+function onStepUpConfirm(input: StepUpInput): void {
+  void submitForm(values, input)
+}
+
+/**
  * Applies the chosen icon source to the uploaded image: uploads the picked file,
  * or removes the stored image when another source replaced it.
  *
@@ -162,8 +202,16 @@ async function syncUploadedIcon(id: number, values: ProviderFormValues): Promise
  * stays open for correction.
  *
  * @param values - The validated form values.
+ * @param stepUp - The administrator's step-up from the second dialog; `null` opens that dialog first.
  */
-async function submitForm(values: ProviderFormValues): Promise<void> {
+async function submitForm(
+  values: ProviderFormValues,
+  stepUp: StepUpInput | null = null,
+): Promise<void> {
+  if (!stepUp) {
+    isStepUpOpen.value = true
+    return
+  }
   const input = buildInput(values)
   try {
     const saved = props.provider
@@ -171,8 +219,9 @@ async function submitForm(values: ProviderFormValues): Promise<void> {
           id: props.provider.id,
           input,
           version: props.provider.version,
+          stepUp,
         })
-      : await createMutation.mutateAsync(input)
+      : await createMutation.mutateAsync({ input, stepUp })
     // The provider is saved by now, so an icon failure is reported without keeping the dialog open:
     // a retry of the create would only hit the slug conflict.
     const iconSaved = await syncUploadedIcon(saved.id, values)
@@ -184,8 +233,18 @@ async function submitForm(values: ProviderFormValues): Promise<void> {
     } else {
       emit('error', t('settings.idp.form.iconSaveError'))
     }
+    isStepUpOpen.value = false
     open.value = false
   } catch (error) {
+    if (handleIdpChallenge(error)) {
+      return
+    }
+    if (isStepUpFailed(error)) {
+      emit('error', t('settings.security.linked.invalidCredentials'))
+      return
+    }
+    // The remaining failures are corrected in the form, so the step-up dialog gives way to it.
+    isStepUpOpen.value = false
     if (isStaleWrite(error)) {
       open.value = false
       emit('error', t('app.staleError'))
@@ -326,12 +385,47 @@ function populate(): void {
   }
 }
 
+// The form and the step-up come back once the identity-provider sign-in returns for this form. A
+// creation has no provider yet, so its context carries no id.
+let restoredDraft: unknown = null
+useResumeOnce(
+  () => props.resume,
+  'admin_idp_create',
+  (pending) => props.provider === null && pending.variant === 'form',
+  (resume) => reopen(resume),
+)
+useResumeOnce(
+  () => props.resume,
+  'admin_idp_edit',
+  (pending) =>
+    props.provider !== null && pending.variant === 'form' && pending.idpId === props.provider.id,
+  (resume) => reopen(resume),
+)
+
+/** Reopens the form with the stored draft and the sign-in proof. */
+function reopen(resume: IdpStepUpResume): void {
+  restoredDraft = resume.pending.draft ?? {}
+  idpReauth.value = resume.reauth
+  open.value = true
+}
+
 // Re-seed each time the dialog opens; the parent sets `provider` before opening.
-watch(open, (isOpen) => {
-  if (isOpen) {
+watch(
+  open,
+  (isOpen) => {
+    if (!isOpen) {
+      return
+    }
     populate()
-  }
-})
+    if (restoredDraft !== null) {
+      const draft = pickDraft(restoredDraft)
+      restoredDraft = null
+      Object.assign(values, draft)
+      isStepUpOpen.value = true
+    }
+  },
+  { immediate: true },
+)
 </script>
 
 <template>
@@ -521,4 +615,17 @@ watch(open, (isOpen) => {
       </Alert>
     </div>
   </FormDialog>
+  <StepUpDialog
+    v-model:open="isStepUpOpen"
+    v-model:reauth="idpReauth"
+    :action="isEditing ? 'admin_idp_edit' : 'admin_idp_create'"
+    :title="t('settings.idp.form.stepUpTitle')"
+    :description="t('settings.idp.form.stepUpDescription')"
+    :confirm-label="isEditing ? t('settings.idp.form.save') : t('settings.idp.form.create')"
+    :require-password="requirePassword"
+    :require-mfa="requireMfa"
+    :pending-context="{ variant: 'form', idpId: provider?.id, draft: draftValues() }"
+    :pending="createMutation.isPending.value || updateMutation.isPending.value"
+    @confirm="onStepUpConfirm"
+  />
 </template>

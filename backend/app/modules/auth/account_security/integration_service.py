@@ -12,7 +12,7 @@ import modules.auth.account_security.step_up_store as step_up_store_module
 import modules.auth.identity_provider_links.schema as identity_links_schema
 import modules.auth.identity_providers.constants as identity_providers_constants
 import modules.auth.mfa.schema as mfa_schema
-import modules.users.users.schema as users_schema
+import modules.auth.schema as auth_schema
 
 StepUpStore = step_up_store_module.StepUpStore
 
@@ -23,7 +23,7 @@ def get_step_up_attempts(state: core_dependencies.PlatformState) -> StepUpStore:
 
 
 def verify_step_up(
-    step_up: users_schema.StepUpVerification,
+    step_up: auth_schema.StepUpVerification,
     user_id: int,
     session_id: str,
     action: identity_providers_constants.StepUpAction,

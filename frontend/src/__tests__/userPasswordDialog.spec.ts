@@ -20,8 +20,8 @@ vi.mock('@/features/config/composables/usePublicServerSettings', () => ({
   }),
 }))
 
-vi.mock('@/features/users/composables/useAdminStepUp', async (importOriginal) => ({
-  ...(await importOriginal<typeof import('@/features/users/composables/useAdminStepUp')>()),
+vi.mock('@/features/security/composables/useAdminStepUp', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('@/features/security/composables/useAdminStepUp')>()),
   useAdminStepUp: () => ({ requirePassword: ref(true), requireMfa: ref(false) }),
 }))
 

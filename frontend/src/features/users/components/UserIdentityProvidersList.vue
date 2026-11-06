@@ -16,7 +16,7 @@ import { useToasts } from '@/composables/useToasts'
 import { HttpError } from '@/services/http'
 import { formatMediumDate } from '@/utils/datetime'
 import { isStepUpFailed, useIdpReauthChallenge } from '@/features/security/composables/useIdpStepUp'
-import { useAdminStepUp, useResumeOnce } from '@/features/users/composables/useAdminStepUp'
+import { useAdminStepUp, useResumeOnce } from '@/features/security/composables/useAdminStepUp'
 import {
   useUnlinkUserIdentityProviderMutation,
   useUserIdentityProvidersQuery,
@@ -53,10 +53,9 @@ const { requirePassword, requireMfa } = useAdminStepUp()
 useResumeOnce(
   () => props.resume,
   'admin_idp_unlink',
-  () =>
-    providers.value.some((provider) => provider.idpId === props.resume?.pending.idpId)
-      ? props.userId
-      : null,
+  (pending) =>
+    pending.userId === props.userId &&
+    providers.value.some((provider) => provider.idpId === pending.idpId),
   (resume) => {
     providerToUnlink.value =
       providers.value.find((provider) => provider.idpId === resume.pending.idpId) ?? null

@@ -5,6 +5,8 @@ from datetime import UTC, datetime
 import pytest
 from pydantic import ValidationError
 
+import modules.auth.identity_providers.schema as idp_schema
+import modules.auth.schema as auth_schema
 from modules.auth.identity_providers.schema import (
     IdentityProviderBase,
     IdentityProviderCreate,
@@ -687,3 +689,40 @@ class TestIdentityProviderReadClientId:
             idp = IdentityProviderRead(**idp_data)
             # Should return encrypted value if decryption fails
             assert idp.client_id is not None
+
+
+class TestStepUpRequests:
+    """The step-up rides in the body but is never a provider field."""
+
+    def test_a_create_request_requires_the_step_up(self):
+        with pytest.raises(ValidationError):
+            idp_schema.IdentityProviderCreateRequest(name="P", slug="p", client_id="c", client_secret="s")
+
+    def test_a_create_request_hands_over_only_the_provider_fields(self):
+        request = idp_schema.IdentityProviderCreateRequest(
+            name="P", slug="p", client_id="c", client_secret="s", step_up={"current_password": "pw"}
+        )
+
+        created = request.to_create()
+
+        assert type(created) is IdentityProviderCreate
+        assert "step_up" not in created.model_dump()
+        assert request.step_up == auth_schema.StepUpVerification(current_password="pw")
+
+    def test_an_update_request_requires_the_step_up(self):
+        with pytest.raises(ValidationError):
+            idp_schema.IdentityProviderUpdateRequest(name="P", slug="p")
+
+    def test_an_update_request_keeps_only_the_fields_the_client_sent(self):
+        request = idp_schema.IdentityProviderUpdateRequest(
+            name="P", slug="p", step_up={"current_password": "pw"}, client_id=None
+        )
+
+        update = request.to_update()
+
+        assert type(update) is IdentityProviderUpdate
+        assert set(update.model_dump(exclude_unset=True)) == {"name", "slug", "client_id"}
+
+    def test_the_step_up_does_not_accept_unknown_fields(self):
+        with pytest.raises(ValidationError):
+            idp_schema.IdentityProviderUpdateRequest(name="P", slug="p", step_up={"current_password": "pw", "x": 1})

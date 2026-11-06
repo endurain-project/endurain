@@ -17,7 +17,7 @@ import {
 import { HttpError } from '@/services/http'
 import { compose, required } from '@/utils/validators'
 import { isStepUpFailed, useIdpReauthChallenge } from '@/features/security/composables/useIdpStepUp'
-import { useAdminStepUp, useResumeOnce } from '@/features/users/composables/useAdminStepUp'
+import { useAdminStepUp, useResumeOnce } from '@/features/security/composables/useAdminStepUp'
 import { useChangeUserPasswordMutation } from '@/features/users/composables/useUsers'
 
 const open = defineModel<boolean>('open', { required: true })
@@ -53,7 +53,7 @@ const idpReauth = ref<IdpReauth | null>(null)
 useResumeOnce(
   () => props.resume ?? null,
   'admin_credential_reset',
-  () => props.userId || null,
+  (pending) => Boolean(props.userId) && pending.userId === props.userId,
   (resume) => {
     idpReauth.value = resume.reauth
     open.value = true

@@ -73,6 +73,9 @@ function makeTemplateDto(
   }
 }
 
+/** The administrator's step-up sent with every create and edit. */
+const stepUp = { currentPassword: 'admin-pw', mfaCode: null }
+
 /** A clean provider input used by the create/update cases. */
 function makeInput(overrides: Partial<IdentityProviderInput> = {}): IdentityProviderInput {
   return {
@@ -178,7 +181,7 @@ describe('identity providers service requests', () => {
       return Promise.resolve(makeProviderDto())
     })
 
-    await createIdentityProvider(makeInput())
+    await createIdentityProvider(makeInput(), stepUp)
 
     expect(apiFetch).toHaveBeenCalledWith(
       '/identity-providers',
@@ -196,6 +199,7 @@ describe('identity providers service requests', () => {
       auto_create_users: true,
       sync_user_info: true,
       client_secret: 'shh',
+      step_up: { current_password: 'admin-pw', mfa_code: null },
     })
   })
 
@@ -206,7 +210,7 @@ describe('identity providers service requests', () => {
       return Promise.resolve(makeProviderDto())
     })
 
-    await updateIdentityProvider(3, makeInput({ clientSecret: null }), 4)
+    await updateIdentityProvider(3, makeInput({ clientSecret: null }), 4, stepUp)
 
     expect(apiFetch).toHaveBeenCalledWith(
       '/identity-providers/3',
@@ -214,7 +218,11 @@ describe('identity providers service requests', () => {
     )
     const parsed = JSON.parse(body as string) as Record<string, unknown>
     expect(parsed).not.toHaveProperty('client_secret')
-    expect(parsed).toMatchObject({ name: 'Keycloak', enabled: true })
+    expect(parsed).toMatchObject({
+      name: 'Keycloak',
+      enabled: true,
+      step_up: { current_password: 'admin-pw', mfa_code: null },
+    })
   })
 
   it('updateIdentityProvider includes the client secret when provided', async () => {
@@ -224,7 +232,7 @@ describe('identity providers service requests', () => {
       return Promise.resolve(makeProviderDto())
     })
 
-    await updateIdentityProvider(3, makeInput({ clientSecret: 'rotated' }), 4)
+    await updateIdentityProvider(3, makeInput({ clientSecret: 'rotated' }), 4, stepUp)
 
     expect((JSON.parse(body as string) as Record<string, unknown>).client_secret).toBe('rotated')
   })

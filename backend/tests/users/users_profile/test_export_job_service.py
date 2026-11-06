@@ -11,7 +11,7 @@ from sqlalchemy.exc import OperationalError
 
 import core.exceptions as core_exceptions
 import modules.auth.identity_providers.constants as identity_providers_constants
-import modules.users.users.schema as users_schema
+import modules.auth.schema as auth_schema
 import modules.users.users_profile.constants as profile_constants
 import modules.users.users_profile.events as profile_events
 import modules.users.users_profile.exceptions as profile_exceptions
@@ -37,7 +37,7 @@ def verify_step_up():
 
 def _request(states, db):
     return job_service.request_export(
-        7, "session-1", users_schema.StepUpVerification(current_password="pw"), MagicMock(), states, db
+        7, "session-1", auth_schema.StepUpVerification(current_password="pw"), MagicMock(), states, db
     )
 
 

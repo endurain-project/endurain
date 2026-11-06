@@ -13,6 +13,7 @@ import core.exceptions as core_exceptions
 import core.pagination as core_pagination
 import modules.auth.constants as auth_constants
 import modules.auth.dependencies as auth_dependencies
+import modules.auth.schema as auth_schema
 import modules.users.users.dependencies as users_dependencies
 import modules.users.users.schema as users_schema
 
@@ -245,7 +246,48 @@ class TestCreateUser:
         assert response.json()["username"] == "newuser"
         assert response.headers["Location"] == "/users/1"
         assert response.headers["ETag"] == '"1"'
-        assert mock_create.call_args.args[1:] == (mock_db,)
+        assert mock_create.call_args.args[1:] == (None, 9, "sid-9", _STEP_UP_STORE, mock_db)
+
+    @patch(f"{_SERVICE}.create_user")
+    def test_the_step_up_travels_apart_from_the_user_fields(self, mock_create, client):
+        mock_create.return_value = _user(1, access_type="admin")
+
+        response = client.post(
+            "/users",
+            json={
+                "name": "New Admin",
+                "username": "newadmin",
+                "email": "new@example.com",
+                "active": True,
+                "access_type": "admin",
+                "password": "testpass123",
+                "step_up": _STEP_UP,
+            },
+        )
+
+        assert response.status_code == 201
+        created, step_up = mock_create.call_args.args[:2]
+        assert type(created) is users_schema.UserCreate
+        assert "step_up" not in created.model_dump()
+        assert step_up == auth_schema.StepUpVerification(current_password="admin-password")
+
+    @patch(f"{_SERVICE}.create_user")
+    def test_a_refused_step_up_is_the_uniform_403(self, mock_create, client):
+        mock_create.side_effect = core_exceptions.StepUpFailedError()
+
+        response = client.post(
+            "/users",
+            json={
+                "name": "New Admin",
+                "username": "newadmin",
+                "email": "new@example.com",
+                "active": True,
+                "access_type": "admin",
+                "password": "testpass123",
+            },
+        )
+
+        assert response.status_code == 403
 
     @patch(f"{_SERVICE}.create_user")
     def test_duplicate_is_a_conflict(self, mock_create, client):
@@ -348,7 +390,7 @@ class TestEditUser:
         edit, step_up = mock_edit.call_args.args[1:3]
         assert type(edit) is users_schema.UserEdit
         assert "step_up" not in edit.model_dump()
-        assert step_up == users_schema.StepUpVerification(current_password="admin-password")
+        assert step_up == auth_schema.StepUpVerification(current_password="admin-password")
 
 
 class TestApproveUser:
@@ -420,7 +462,7 @@ class TestDeleteUser:
         }
         args = mock_request.call_args.args
         assert args[:3] == (1, 9, "sid-9")
-        assert args[3] == users_schema.StepUpVerification(current_password="admin-password")
+        assert args[3] == auth_schema.StepUpVerification(current_password="admin-password")
         assert args[4] is _STEP_UP_STORE
         assert args[5] is not None
         assert args[7] == mock_db
@@ -478,7 +520,7 @@ class TestUnlinkUserIdentityProvider:
             2,
             9,
             "sid-9",
-            users_schema.StepUpVerification(current_password="admin-password"),
+            auth_schema.StepUpVerification(current_password="admin-password"),
             _STEP_UP_STORE,
             mock_db,
         )

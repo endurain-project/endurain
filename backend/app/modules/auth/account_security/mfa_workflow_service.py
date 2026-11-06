@@ -33,8 +33,8 @@ import modules.auth.mfa.integration_service as mfa_integration
 import modules.auth.mfa.schema as mfa_schema
 import modules.auth.mfa_backup_codes.integration_service as mfa_backup_codes_integration
 import modules.auth.mfa_backup_codes.schema as mfa_backup_codes_schema
+import modules.auth.schema as auth_schema
 import modules.users.users.integration_service as users_integration
-import modules.users.users.schema as users_schema
 from modules.auth.mfa.contracts import MFASecretStoreBackend
 
 logger = core_logger.get_logger(__name__)
@@ -225,7 +225,7 @@ def verify_mfa(
 
 
 def generate_backup_codes(
-    step_up: users_schema.StepUpVerification,
+    step_up: auth_schema.StepUpVerification,
     token_user_id: int,
     session_id: str,
     step_up_store: account_security_step_up_store.StepUpStore,

@@ -11,7 +11,7 @@ import core.exceptions as core_exceptions
 import modules.auth.account_security.step_up_service as step_up_service
 import modules.auth.account_security.step_up_store as step_up_store_module
 import modules.auth.identity_providers.contracts as idp_contracts
-import modules.auth.identity_providers.schema as idp_schema
+import modules.auth.schema as auth_schema
 from modules.auth.identity_providers.constants import StepUpAction
 from modules.auth.identity_providers.step_up_ticket_store import StepUpTicketStore
 
@@ -55,7 +55,7 @@ def _issue(state, **overrides) -> str:
 
 
 def _verify(store, ticket: str | None, *, verifier: str = VERIFIER, mfa_code: str | None = None, **overrides):
-    proof = idp_schema.IdpReauthProof(ticket=ticket, code_verifier=verifier) if ticket else None
+    proof = auth_schema.IdpReauthProof(ticket=ticket, code_verifier=verifier) if ticket else None
     step_up_service.verify_step_up_credentials(
         USER_ID,
         None,
@@ -112,9 +112,23 @@ class TestTicket:
             ({"session_id": "99999999-2222-3333-4444-555555555555"}, {}),
             ({"action": StepUpAction.ACCOUNT_DELETE}, {}),
             ({"action": StepUpAction.ADMIN_USER_EDIT}, {"action": StepUpAction.ADMIN_USER_DELETE}),
+            ({"action": StepUpAction.ADMIN_USER_CREATE}, {"action": StepUpAction.ADMIN_USER_EDIT}),
+            ({"action": StepUpAction.ADMIN_IDP_CREATE}, {"action": StepUpAction.ADMIN_IDP_EDIT}),
+            ({"action": StepUpAction.ADMIN_IDP_EDIT}, {"action": StepUpAction.ADMIN_IDP_CREATE}),
+            ({"action": StepUpAction.ADMIN_IDP_EDIT}, {"action": StepUpAction.ADMIN_IDP_UNLINK}),
             ({}, {"verifier": "w" * 43}),
         ],
-        ids=["another-user", "another-session", "another-action", "another-admin-action", "wrong-verifier"],
+        ids=[
+            "another-user",
+            "another-session",
+            "another-action",
+            "another-admin-action",
+            "user-create-for-edit",
+            "idp-create-for-edit",
+            "idp-edit-for-create",
+            "idp-edit-for-unlink",
+            "wrong-verifier",
+        ],
     )
     def test_a_ticket_issued_for_something_else_is_refused_and_counted(self, state, store, account, issued, presented):
         ticket = _issue(state, **issued)
@@ -148,7 +162,7 @@ class TestTicket:
                 None,
                 store,
                 MagicMock(),
-                idp_reauth=idp_schema.IdpReauthProof(ticket=ticket, code_verifier=VERIFIER),
+                idp_reauth=auth_schema.IdpReauthProof(ticket=ticket, code_verifier=VERIFIER),
             )
 
     def test_a_ticket_redeemed_by_a_racing_request_is_refused(self, state, store, account):

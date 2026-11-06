@@ -131,7 +131,7 @@ Save the generated **Client ID** and **Client Secret**.
 3. Click **Add Identity Provider**
 4. Select your provider type or choose **Custom** for OIDC providers
 5. Fill in the required fields (see table below)
-6. Click **Save**
+6. Click **Save**. Adding or editing a provider asks for your own password and MFA code first (or a fresh sign-in with a provider linked to your account, if you have no password), because a rogue provider can claim accounts.
 
 | Field | Description | Example |
 | ----- | ----------- | ------- |

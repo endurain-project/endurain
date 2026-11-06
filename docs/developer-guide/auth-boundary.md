@@ -50,4 +50,13 @@ CRUD functions stage database changes with `flush()` and raise domain errors fro
 
 The flow lives in `identity_providers`: `account_security.identity_link_service.start_idp_step_up` stages the state through `authorization_service.stage_step_up`, and `callback_service.complete_step_up_callback` verifies the ID token and issues a single-use ticket in `step_up_ticket_store`. The ticket records the user, session, action and PKCE challenge; `account_security` reads and redeems it only through `identity_providers.integration_service`, after every other factor passed, so a wrong MFA code does not cost the ticket.
 
+### Administrator step-up on identity-provider configuration
+
+`POST /identity-providers` and `PATCH /identity-providers/{idp_id}` stay in `identity_providers` and always need the administrator's own step-up (`admin_idp_create`, `admin_idp_edit`), but `account_security` imports `identity_providers` for the tickets, so `identity_providers` cannot import `account_security`. The edge is inverted with a seam:
+
+- `identity_providers.contracts.StepUpVerifier` declares the callable the service needs: `(step_up, action) -> None`, raising on refusal.
+- `modules.auth.dependencies.get_step_up_verifier` (exported as `StepUpVerifierDep`) installs it. It binds the calling administrator's id and session, the step-up store and the database session, and calls `account_security.integration_service.verify_step_up`. The routes take the dependency and pass the verifier to `provider_service`, which calls it before it validates or writes anything.
+
+The request shapes every step-up uses, `StepUpVerification` and `IdpReauthProof`, live in the namespace-level `modules/auth/schema.py`, so neither `users` nor `identity_providers` owns them. The body schemas of these two routes extend the provider schemas with a required `step_up` and hand the service the provider fields without it, so `step_up` is never persisted or audited as a provider field.
+
 The provider's `auth_time` claim decides freshness, not the `prompt=login` the request sends, because providers differ in honouring `prompt` and `max_age`. A provider that cannot put a recent `auth_time` in the ID token cannot step up; an administrator then sets a local password for the user.

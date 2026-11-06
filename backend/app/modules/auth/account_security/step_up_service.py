@@ -15,10 +15,10 @@ import modules.auth.computation as auth_computation
 import modules.auth.credentials.integration_service as credentials_integration
 import modules.auth.identity_providers.constants as identity_providers_constants
 import modules.auth.identity_providers.contracts as identity_providers_contracts
-import modules.auth.identity_providers.schema as identity_providers_schema
 import modules.auth.lockout.contracts as lockout_contracts
 import modules.auth.lockout.integration_service as lockout_integration
 import modules.auth.mfa.integration_service as mfa_integration
+import modules.auth.schema as auth_schema
 import modules.users.users.integration_service as users_integration
 
 logger = core_logger.get_logger(__name__)
@@ -151,7 +151,7 @@ def verify_step_up_credentials(
     step_up_store: account_security_step_up_store.StepUpStore,
     db: Session,
     *,
-    idp_reauth: identity_providers_schema.IdpReauthProof | None = None,
+    idp_reauth: auth_schema.IdpReauthProof | None = None,
     session_id: str | None = None,
     action: identity_providers_constants.StepUpAction | None = None,
 ) -> None:

@@ -69,6 +69,10 @@ class TestAccountCreation:
                     access_type="regular",
                     password="password123",
                 ),
+                None,
+                9,
+                "sid-9",
+                MagicMock(),
                 mock_db,
             )
 

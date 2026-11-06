@@ -15,7 +15,7 @@ from pydantic import (
 import core.pagination as core_pagination
 import modules.auth.api_keys.constants as api_keys_constants
 import modules.auth.api_keys.utils as api_keys_utils
-import modules.auth.identity_providers.schema as idp_schema
+import modules.auth.schema as auth_schema
 
 
 class UserApiKeyCreate(BaseModel):
@@ -118,7 +118,7 @@ class UserApiKeyCreate(BaseModel):
             raise ValueError("expires_at must be in the future")
         return expires_at
 
-    idp_reauth: idp_schema.IdpReauthProof | None = Field(
+    idp_reauth: auth_schema.IdpReauthProof | None = Field(
         default=None,
         description="Fresh identity-provider sign-in, required when the account has no local password",
     )

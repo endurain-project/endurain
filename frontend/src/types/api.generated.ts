@@ -1714,6 +1714,8 @@ export interface paths {
         /**
          * Create Identity Provider
          * @description Create a new identity provider.
+         *
+         *     Needs the administrator's own step-up verification in step_up.
          */
         post: operations["create_identity_provider"];
         delete?: never;
@@ -1768,6 +1770,8 @@ export interface paths {
         /**
          * Update Identity Provider
          * @description Update an existing identity provider.
+         *
+         *     Needs the administrator's own step-up verification in step_up.
          */
         patch: operations["update_identity_provider"];
         trace?: never;
@@ -3752,6 +3756,10 @@ export interface paths {
         /**
          * Create User
          * @description Create a new user (admin operation).
+         *
+         *     An administrator account needs the creating administrator's own step-up verification in `step_up` (their
+         *     current password or, for an account without one, a fresh identity-provider sign-in, and an MFA code when MFA
+         *     is enabled). A regular account needs no `step_up`.
          */
         post: operations["create_user"];
         delete?: never;
@@ -3895,8 +3903,9 @@ export interface paths {
          * @description Queue the deletion of another user's account.
          *
          *     Requires the administrator's own step-up verification: their current password (or, for an account
-         *     without one, a fresh identity-provider sign-in), and an MFA code when MFA is enabled. The user is signed out and deactivated at once and a background job erases their data. Poll
-         *     ``GET /users/{user_id}/deletion`` for the outcome; a failed deletion is requested again.
+         *     without one, a fresh identity-provider sign-in), and an MFA code when MFA is enabled. The user is signed
+         *     out and deactivated at once and a background job erases their data. Poll ``GET /users/{user_id}/deletion``
+         *     for the outcome; a failed deletion is requested again.
          */
         post: operations["delete_user"];
         delete?: never;
@@ -8061,16 +8070,13 @@ export interface components {
             zone_5: components["schemas"]["HrZone"];
         };
         /**
-         * IdentityProviderCreate
-         * @description Schema for creating a new Identity Provider.
-         *
-         *     Inherits from:
-         *         IdentityProviderBase
+         * IdentityProviderCreateRequest
+         * @description The body of ``POST /identity-providers``: a new provider and the administrator's step-up.
          *
          *     Attributes:
-         *         client_secret (str): OAuth2/OIDC client secret. Must be between 1 and 512 characters.
+         *         step_up: The administrator's own step-up verification; it is never a provider field.
          */
-        IdentityProviderCreate: {
+        IdentityProviderCreateRequest: {
             /**
              * Authorization Endpoint
              * @description OAuth2/OIDC authorization endpoint
@@ -8132,6 +8138,8 @@ export interface components {
              * @description URL-safe identifier
              */
             slug: string;
+            /** @description The administrator's step-up verification, required to add an identity provider */
+            step_up: components["schemas"]["StepUpVerification"];
             /**
              * Sync User Info
              * @description Sync user info on each login
@@ -8471,16 +8479,13 @@ export interface components {
             } | null;
         };
         /**
-         * IdentityProviderUpdate
-         * @description Schema for updating an existing Identity Provider.
-         *
-         *     Inherits from:
-         *         IdentityProviderBase
+         * IdentityProviderUpdateRequest
+         * @description The body of ``PATCH /identity-providers/{idp_id}``: the provider changes and the administrator's step-up.
          *
          *     Attributes:
-         *         client_secret (str | None): The client secret for the provider (1-512 characters).
+         *         step_up: The administrator's own step-up verification; it is never a provider field.
          */
-        IdentityProviderUpdate: {
+        IdentityProviderUpdateRequest: {
             /**
              * Authorization Endpoint
              * @description OAuth2/OIDC authorization endpoint
@@ -8539,6 +8544,8 @@ export interface components {
              * @description URL-safe identifier
              */
             slug: string;
+            /** @description The administrator's step-up verification, required to edit an identity provider */
+            step_up: components["schemas"]["StepUpVerification"];
             /**
              * Sync User Info
              * @description Sync user info on each login
@@ -10781,9 +10788,12 @@ export interface components {
          *         ADMIN_USER_EDIT: An administrator changes another user's email, access type or active flag.
          *         ADMIN_USER_DELETE: An administrator deletes another user's account.
          *         ADMIN_IDP_UNLINK: An administrator unlinks an identity provider from another user.
+         *         ADMIN_USER_CREATE: An administrator creates an administrator account.
+         *         ADMIN_IDP_CREATE: An administrator adds an identity provider.
+         *         ADMIN_IDP_EDIT: An administrator edits an identity provider.
          * @enum {string}
          */
-        StepUpAction: "api_key_create" | "idp_link" | "idp_unlink" | "email_change" | "account_delete" | "profile_export" | "mfa_enable" | "mfa_disable" | "mfa_backup_codes" | "admin_credential_reset" | "admin_user_edit" | "admin_user_delete" | "admin_idp_unlink";
+        StepUpAction: "api_key_create" | "idp_link" | "idp_unlink" | "email_change" | "account_delete" | "profile_export" | "mfa_enable" | "mfa_disable" | "mfa_backup_codes" | "admin_credential_reset" | "admin_user_edit" | "admin_user_delete" | "admin_idp_unlink" | "admin_user_create" | "admin_idp_create" | "admin_idp_edit";
         /**
          * StepUpStartRequest
          * @description Start a step-up re-authentication with a linked identity provider.
@@ -11294,6 +11304,113 @@ export interface components {
          */
         UserAccessType: "regular" | "admin";
         /**
+         * UserAdminCreate
+         * @description An administrator's creation of a user, the body of ``POST /users``.
+         *
+         *     Attributes:
+         *         step_up: The administrator's own step-up verification. Required when the new account is an
+         *             administrator's; it is never a user field.
+         */
+        UserAdminCreate: {
+            /** @description User access level */
+            access_type: components["schemas"]["UserAccessType"];
+            /**
+             * Active
+             * @description Whether the user is active
+             */
+            active: boolean;
+            /**
+             * Birthdate
+             * @description User's birthdate
+             */
+            birthdate?: string | null;
+            /**
+             * City
+             * @description User's city
+             */
+            city?: string | null;
+            /**
+             * @description User currency (euro, dollar, pound)
+             * @default euro
+             */
+            currency: components["schemas"]["Currency"];
+            /**
+             * Email
+             * Format: email
+             * @description User's email address
+             */
+            email: string;
+            /**
+             * Email Verified
+             * @description Whether email is verified
+             * @default false
+             */
+            email_verified: boolean;
+            /**
+             * @description First day of the week
+             * @default monday
+             */
+            first_day_of_week: components["schemas"]["WeekDay"];
+            /**
+             * @description User's gender
+             * @default unspecified
+             */
+            gender: components["schemas"]["Gender"];
+            /** Height */
+            height?: number | null;
+            /**
+             * Max Heart Rate
+             * @description Maximum heart rate in bpm
+             */
+            max_heart_rate?: number | null;
+            /**
+             * Mfa Enabled
+             * @description Whether MFA is enabled
+             * @default false
+             */
+            mfa_enabled: boolean;
+            /**
+             * Name
+             * @description User's full name
+             */
+            name: string;
+            /**
+             * Password
+             * @description User's password
+             */
+            password: string;
+            /**
+             * Pending Admin Approval
+             * @description Whether pending admin approval
+             * @default false
+             */
+            pending_admin_approval: boolean;
+            /**
+             * @description Preferred language
+             * @default en
+             */
+            preferred_language: components["schemas"]["Language"];
+            /** @description The administrator's step-up verification, required to create an administrator account */
+            step_up?: components["schemas"]["StepUpVerification"] | null;
+            /**
+             * Timezone
+             * @description IANA timezone the athlete lives in. Used as the fallback for activities imported without a GPS track, which would otherwise inherit the server's timezone. Null means not set.
+             */
+            timezone?: string | null;
+            /**
+             * @description User units (metric, imperial)
+             * @default metric
+             */
+            units: components["schemas"]["Units"];
+            /**
+             * Username
+             * @description Unique username (alphanumeric, dots, hyphen, underscore)
+             */
+            username: string;
+            /** @description Weight units override (metric - kg, imperial - lb), follows 'units' when null */
+            weight_units?: components["schemas"]["Units"] | null;
+        };
+        /**
          * UserAdminEdit
          * @description An administrator's edit of another user, the body of ``PATCH /users/{user_id}``.
          *
@@ -11613,110 +11730,6 @@ export interface components {
              * @description Owner's user ID
              */
             user_id: number;
-        };
-        /**
-         * UserCreate
-         * @description Users schema for admin user creation.
-         *
-         *     Attributes:
-         *         password: User's password (min 8 chars).
-         */
-        UserCreate: {
-            /** @description User access level */
-            access_type: components["schemas"]["UserAccessType"];
-            /**
-             * Active
-             * @description Whether the user is active
-             */
-            active: boolean;
-            /**
-             * Birthdate
-             * @description User's birthdate
-             */
-            birthdate?: string | null;
-            /**
-             * City
-             * @description User's city
-             */
-            city?: string | null;
-            /**
-             * @description User currency (euro, dollar, pound)
-             * @default euro
-             */
-            currency: components["schemas"]["Currency"];
-            /**
-             * Email
-             * Format: email
-             * @description User's email address
-             */
-            email: string;
-            /**
-             * Email Verified
-             * @description Whether email is verified
-             * @default false
-             */
-            email_verified: boolean;
-            /**
-             * @description First day of the week
-             * @default monday
-             */
-            first_day_of_week: components["schemas"]["WeekDay"];
-            /**
-             * @description User's gender
-             * @default unspecified
-             */
-            gender: components["schemas"]["Gender"];
-            /** Height */
-            height?: number | null;
-            /**
-             * Max Heart Rate
-             * @description Maximum heart rate in bpm
-             */
-            max_heart_rate?: number | null;
-            /**
-             * Mfa Enabled
-             * @description Whether MFA is enabled
-             * @default false
-             */
-            mfa_enabled: boolean;
-            /**
-             * Name
-             * @description User's full name
-             */
-            name: string;
-            /**
-             * Password
-             * @description User's password
-             */
-            password: string;
-            /**
-             * Pending Admin Approval
-             * @description Whether pending admin approval
-             * @default false
-             */
-            pending_admin_approval: boolean;
-            /**
-             * @description Preferred language
-             * @default en
-             */
-            preferred_language: components["schemas"]["Language"];
-            /**
-             * Timezone
-             * @description IANA timezone the athlete lives in. Used as the fallback for activities imported without a GPS track, which would otherwise inherit the server's timezone. Null means not set.
-             */
-            timezone?: string | null;
-            /**
-             * @description User units (metric, imperial)
-             * @default metric
-             */
-            units: components["schemas"]["Units"];
-            /**
-             * Username
-             * @description Unique username (alphanumeric, dots, hyphen, underscore)
-             */
-            username: string;
-            /** @description Weight units override (metric - kg, imperial - lb), follows 'units' when null */
-            weight_units?: components["schemas"]["Units"] | null;
         };
         /**
          * UserDefaultGearRead
@@ -23022,7 +23035,7 @@ export interface operations {
         };
         requestBody: {
             content: {
-                "application/json": components["schemas"]["IdentityProviderCreate"];
+                "application/json": components["schemas"]["IdentityProviderCreateRequest"];
             };
         };
         responses: {
@@ -23423,7 +23436,7 @@ export interface operations {
         };
         requestBody: {
             content: {
-                "application/json": components["schemas"]["IdentityProviderUpdate"];
+                "application/json": components["schemas"]["IdentityProviderUpdateRequest"];
             };
         };
         responses: {
@@ -32887,7 +32900,7 @@ export interface operations {
         };
         requestBody: {
             content: {
-                "application/json": components["schemas"]["UserCreate"];
+                "application/json": components["schemas"]["UserAdminCreate"];
             };
         };
         responses: {
