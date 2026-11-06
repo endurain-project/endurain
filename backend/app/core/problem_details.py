@@ -31,6 +31,8 @@ from typing import Any
 from fastapi import FastAPI
 from pydantic import BaseModel, ConfigDict, Field
 
+import core.openapi_contract as core_openapi_contract
+
 # Media type mandated by RFC 9457 for a problem document.
 PROBLEM_CONTENT_TYPE = "application/problem+json"
 
@@ -142,6 +144,7 @@ def _rewrite_error_responses(schema: dict[str, Any]) -> dict[str, Any]:
     components.update(problem_schema.pop("$defs", {}))
     components[ProblemDetail.__name__] = problem_schema
 
+    core_openapi_contract.declare_contract(schema)
     for path_item in schema.get("paths", {}).values():
         for operation in path_item.values():
             if not isinstance(operation, dict) or "responses" not in operation:
@@ -150,6 +153,7 @@ def _rewrite_error_responses(schema: dict[str, Any]) -> dict[str, Any]:
             for status_code in list(responses):
                 if _is_error_status(status_code):
                     responses[status_code] = {
+                        **responses[status_code],
                         "description": responses[status_code].get("description", "Error"),
                         "content": _problem_content(),
                     }

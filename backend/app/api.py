@@ -81,6 +81,58 @@ from modules.auth.identity_providers import (
     public_router as identity_providers_public_router,
 )
 
+#: The server the OpenAPI document states. Every path in it already starts with the API root, so the server is the
+#: origin the document was loaded from.
+OPENAPI_SERVERS = [{"url": "/", "description": "This server. Every path starts with the API root, `/api/v1`."}]
+
+#: What each tag groups, as the OpenAPI document and the API reference show it.
+OPENAPI_TAGS = [
+    {"name": "activities", "description": "Activities: list, read, edit, delete, import and upload."},
+    {"name": "activity_detail", "description": "An activity with the first page of its laps, sets and steps."},
+    {"name": "activity_exercise_titles", "description": "Exercise titles of strength activities."},
+    {"name": "activity_laps", "description": "Laps of an activity."},
+    {"name": "activity_media", "description": "Photos and other media attached to an activity."},
+    {"name": "activity_sets", "description": "Performed workout sets of an activity."},
+    {"name": "activity_streams", "description": "Per-sample data of an activity: heart rate, power, cadence, pace."},
+    {"name": "activity_summaries", "description": "Totals of activities over a period."},
+    {"name": "activity_workout_steps", "description": "Planned workout steps of an activity."},
+    {"name": "api-keys", "description": "API keys of the signed-in user."},
+    {"name": "auth", "description": "Sign in, sign out, refresh, multi-factor authentication and SSO."},
+    {"name": "core", "description": "Server metadata and health."},
+    {"name": "followers", "description": "Follow requests, followers and following."},
+    {"name": "garmin", "description": "Link a Garmin Connect account and poll the link."},
+    {"name": "gear_components", "description": "Components of a gear item, such as a chain or tyres."},
+    {"name": "gears", "description": "Bikes, shoes and other gear."},
+    {"name": "health", "description": "The health dashboard."},
+    {"name": "health_fasting", "description": "Fasting records."},
+    {"name": "health_poop", "description": "Bowel movement records."},
+    {"name": "health_sleep", "description": "Sleep records."},
+    {"name": "health_steps", "description": "Daily step counts."},
+    {"name": "health_targets", "description": "Health targets of the signed-in user."},
+    {"name": "health_water", "description": "Water intake records."},
+    {"name": "health_weight", "description": "Weight and body composition records."},
+    {"name": "identity_providers", "description": "Administration of SSO identity providers."},
+    {"name": "identity_providers_public", "description": "Public SSO sign-in flow and provider icons."},
+    {"name": "notifications", "description": "Notifications of the signed-in user."},
+    {"name": "password_reset_tokens", "description": "Request and use a password reset."},
+    {"name": "profile", "description": "The signed-in user's profile, goals, default gear, sessions and export."},
+    {"name": "public_activities", "description": "Activities shared publicly, readable without signing in."},
+    {"name": "public_activities_laps", "description": "Laps of a publicly shared activity."},
+    {"name": "public_activity_detail", "description": "A publicly shared activity with its children."},
+    {"name": "public_activity_exercise_titles", "description": "Exercise titles of a publicly shared activity."},
+    {"name": "public_activity_sets", "description": "Sets of a publicly shared activity."},
+    {"name": "public_activity_streams", "description": "Streams of a publicly shared activity."},
+    {"name": "public_activity_workout_steps", "description": "Workout steps of a publicly shared activity."},
+    {"name": "public_onboarding", "description": "First-run setup of a new server."},
+    {"name": "public_server_settings", "description": "Server settings visible without signing in."},
+    {"name": "server_settings", "description": "Administration of server settings and logs."},
+    {"name": "sessions", "description": "Administration of user sessions."},
+    {"name": "sign_up_tokens", "description": "Sign-up by email verification."},
+    {"name": "strava", "description": "Link a Strava account and import its gear."},
+    {"name": "users", "description": "Users: list, read, edit, create, delete and their photos."},
+    {"name": "websocket", "description": "Tickets to open the notification websocket."},
+]
+
 router = APIRouter()
 
 # Router files (alphabetical order)

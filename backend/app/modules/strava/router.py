@@ -8,6 +8,7 @@ import core.dependencies as core_dependencies
 import core.etag as core_etag
 import core.location as core_location
 import core.middleware_body_limit as core_middleware_body_limit
+import core.openapi_contract as core_openapi_contract
 import core.rate_limit as core_rate_limit
 import modules.activities.activity_ingestion.integration_service as activity_ingestion_integration
 import modules.activities.activity_ingestion.schema as activity_ingestion_schema
@@ -189,6 +190,7 @@ def import_shoes_from_strava_export(
 @router.put(
     "/client",
     response_model=strava_schema.StravaDetail,
+    responses={200: {"headers": core_openapi_contract.ETAG_HEADERS}},
     dependencies=[Security(auth_dependencies.check_scopes, scopes=["profile"])],
 )
 @core_rate_limit.limiter.limit(core_rate_limit.WRITE)

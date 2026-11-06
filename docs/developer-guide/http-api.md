@@ -122,8 +122,13 @@ A resource has a collection and an item:
 
 - An endpoint docstring is the public OpenAPI description: what the endpoint does for a client, with no `Args:`,
   `Returns:` or `Raises:` sections and no internal parameter names **(test)**.
-- A route that returns bytes declares its media types in `responses=`, and a header the client relies on is declared
-  there too.
+- A route that returns bytes declares its media types with `core.openapi_contract.binary_response` and
+  `response_class=Response`.
+- `core/openapi_contract.py` derives the rest for every operation: `401`/`403` from the security requirement, `404` from a
+  path parameter, `413`/`415`/`409` from a body, an upload or a write, `429`/`503` for all, a required `If-Match` with
+  `400`/`412`/`428`, `ETag` and `Location` on a versioned success response, and `readOnly` on `id`, `version`,
+  `created_at` and `updated_at` of a schema a client does not send. A `202` lists `ACCEPTED_RESPONSE` and a response
+  whose version is not a body field lists `ETAG_HEADERS` itself **(test)**.
 
 ## Client documentation
 

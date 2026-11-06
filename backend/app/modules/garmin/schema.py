@@ -36,7 +36,7 @@ class GarminLinkStatus(BaseModel):
 
     Attributes:
         status: ``pending`` while logging in, ``mfa_required`` when the user must submit a code
-            through ``POST /garminconnect/mfa``, then ``completed`` or ``failed``.
+            through ``POST /garmin/mfa``, then ``completed`` or ``failed``.
         reason: Why the attempt failed; set only when ``status`` is ``failed``.
     """
 

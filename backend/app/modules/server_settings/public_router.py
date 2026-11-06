@@ -5,6 +5,7 @@ from fastapi import APIRouter, Request, Response, status
 import core.dependencies as core_dependencies
 import core.etag as core_etag
 import core.exceptions as core_exceptions
+import core.openapi_contract as core_openapi_contract
 import core.rate_limit as core_rate_limit
 import modules.server_settings.login_photo_service as server_settings_login_photo_service
 import modules.server_settings.schema as server_settings_schema
@@ -62,7 +63,11 @@ _LOGIN_PHOTO_CACHE_MAX_AGE = 300
 
 @router.get(
     "/login-photo",
-    responses={200: {"content": {"image/*": {}}}, 304: {"description": "Not modified"}},
+    response_class=Response,
+    responses={
+        **core_openapi_contract.binary_response("image/*", description="The login photo."),
+        304: {"description": "Not modified"},
+    },
 )
 @core_rate_limit.limiter.limit(core_rate_limit.PUBLIC_READ)
 def read_login_photo(

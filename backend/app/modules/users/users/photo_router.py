@@ -19,6 +19,7 @@ from fastapi import APIRouter, Query, Request, Response
 
 import core.dependencies as core_dependencies
 import core.http_cache as core_http_cache
+import core.openapi_contract as core_openapi_contract
 import core.rate_limit as core_rate_limit
 import modules.users.users.photo_service as users_photo_service
 
@@ -27,7 +28,8 @@ router = APIRouter()
 
 @router.get(
     "/{user_id}/photo",
-    responses={200: {"content": {"image/*": {}}}},
+    response_class=Response,
+    responses=core_openapi_contract.binary_response("image/*", description="The profile photo."),
 )
 @core_rate_limit.limiter.limit(core_rate_limit.PUBLIC_READ)
 def read_user_photo(

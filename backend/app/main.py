@@ -42,6 +42,7 @@ import module_registry as runtime_module_registry
 import modules.auth.authentication.dependencies as auth_dependencies
 import modules.server_settings.constants as server_settings_constants
 import modules.server_settings.integration_service as server_settings_integration
+from api import OPENAPI_SERVERS, OPENAPI_TAGS
 from api import router as api_router
 from core.database import SessionLocal
 from core.database import engine as core_db_engine
@@ -355,6 +356,8 @@ def create_app() -> FastAPI:
         redoc_url=redoc_url,
         title="Endurain",
         summary="Endurain API for the Endurain app",
+        servers=OPENAPI_SERVERS,
+        openapi_tags=OPENAPI_TAGS,
         version=core_config.API_VERSION,
         license_info={
             "name": core_config.LICENSE_NAME,

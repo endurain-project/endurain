@@ -5,6 +5,7 @@ from typing import Annotated
 from fastapi import APIRouter, Query, Request, Security, status
 from fastapi.responses import FileResponse
 
+import core.openapi_contract as core_openapi_contract
 import core.rate_limit as core_rate_limit
 import modules.auth.dependencies as auth_dependencies
 import modules.server_settings.logs_schema as logs_schema
@@ -67,7 +68,7 @@ def read_logs(
 @router.get(
     "/download",
     response_class=FileResponse,
-    responses={status.HTTP_200_OK: {"content": {"text/plain": {}}, "description": "The current log file"}},
+    responses=core_openapi_contract.binary_response("text/plain", description="The current log file."),
     dependencies=[Security(auth_dependencies.check_scopes, scopes=["server_settings:logs"])],
 )
 def download_logs() -> FileResponse:

@@ -15,6 +15,7 @@ import core.dependencies as core_dependencies
 import core.etag as core_etag
 import core.exceptions as core_exceptions
 import core.network as core_network
+import core.openapi_contract as core_openapi_contract
 import core.pagination as core_pagination
 import core.rate_limit as core_rate_limit
 import modules.auth.credentials.integration_service as credentials_integration
@@ -181,7 +182,11 @@ def handle_callback(
 
 @router.get(
     "/{idp_slug}/icon",
-    responses={200: {"content": {"image/*": {}}}, 304: {"description": "Not modified"}},
+    response_class=Response,
+    responses={
+        **core_openapi_contract.binary_response("image/*", description="The provider icon."),
+        304: {"description": "Not modified"},
+    },
 )
 @core_rate_limit.limiter.limit(core_rate_limit.PUBLIC_READ)
 def read_identity_provider_icon(

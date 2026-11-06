@@ -4,6 +4,7 @@ from fastapi import APIRouter, Response, Security
 
 import core.dependencies as core_dependencies
 import core.etag as core_etag
+import core.openapi_contract as core_openapi_contract
 import modules.activities.activity.dependencies as activity_dependencies
 import modules.activities.activity_detail.schema as activity_detail_schema
 import modules.activities.activity_detail.service as activity_detail_service
@@ -15,6 +16,7 @@ router = APIRouter()
 @router.get(
     "/detail",
     response_model=activity_detail_schema.ActivityDetailRead,
+    responses={200: {"headers": core_openapi_contract.ETAG_HEADERS}},
     dependencies=[Security(auth_dependencies.check_scopes, scopes=["activities:read"])],
 )
 def read_activity_detail(

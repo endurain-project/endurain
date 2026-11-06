@@ -479,6 +479,125 @@ class TestApiContract:
             "_DOCSTRING_SECTIONS:\n  " + "\n  ".join(mismatches)
         )
 
+    def test_if_match_is_required_and_its_failures_documented(self):
+        """An operation that takes ``If-Match`` declares it required and documents 400, 412 and 428.
+
+        A write without the header is refused with 428, so a client generated from the document must be made
+        to send it; 412 is a stale tag and 400 the wildcard.
+        """
+        problems: set[str] = set()
+        for method, path, operation in _operations():
+            headers = [p for p in operation.get("parameters", []) if p["in"] == "header" and p["name"] == "If-Match"]
+            if not headers:
+                continue
+            route = f"{method.upper()} {path}"
+            if not headers[0].get("required"):
+                problems.add(f"{route}: If-Match is not required")
+            problems |= {f"{route}: no {code}" for code in ("400", "412", "428") if code not in operation["responses"]}
+
+        _compare("An If-Match operation is not fully declared", problems, {}, "Declare it in core.openapi_contract")
+
+    def test_a_header_a_handler_sets_is_declared(self):
+        """An operation whose handler sets ``Location``, ``ETag`` or ``Retry-After`` declares it on that status.
+
+        OpenAPI is the only description a generated client reads; a header it does not list is invisible to it.
+        ``Location`` belongs to the ``201``, ``ETag`` to the success response that carries the version and
+        ``Retry-After`` to the polled status read.
+        """
+        undeclared: set[str] = set()
+        for (method, path), (_, function) in _handlers().items():
+            calls = _calls(function)
+            success = {
+                code: response for code, response in _paths()[path][method]["responses"].items() if code.startswith("2")
+            }
+            declared = {name for response in success.values() for name in response.get("headers", {})}
+            if "set_location" in calls and "Location" not in success.get("201", {}).get("headers", {}):
+                undeclared.add(f"{method.upper()} {path}: Location on 201")
+            if "set_etag" in calls and "ETag" not in declared:
+                undeclared.add(f"{method.upper()} {path}: ETag")
+            if "ETag" in declared and "set_etag" not in calls:
+                undeclared.add(f"{method.upper()} {path}: ETag declared but not sent")
+            if "set_retry_after_while_running" in calls and "Retry-After" not in declared:
+                undeclared.add(f"{method.upper()} {path}: Retry-After")
+
+        _compare("A header the handler sets is not declared", undeclared, {}, "Declare it in core.openapi_contract")
+
+    def test_every_operation_documents_the_errors_it_can_answer(self):
+        """The error statuses an operation can answer are documented, from what the operation declares.
+
+        Authentication answers 401 and 403, a path parameter a 404, a body a 413, an upload a 415, a write a
+        409, and the default rate limit and an unavailable database 429 and 503 for every operation.
+        """
+        missing: set[str] = set()
+        for method, path, operation in _operations():
+            wanted = {"429", "503"}
+            if operation.get("security"):
+                wanted |= {"401", "403"}
+            if any(p["in"] == "path" for p in operation.get("parameters", [])):
+                wanted.add("404")
+            if "requestBody" in operation:
+                wanted.add("413")
+            if "x-max-body-bytes" in operation:
+                wanted.add("415")
+            if method != "get":
+                wanted.add("409")
+            missing |= {f"{method.upper()} {path}: {code}" for code in wanted - operation["responses"].keys()}
+
+        _compare("An operation does not document an error", missing, {}, "Derive it in core.openapi_contract")
+
+    def test_error_headers_are_declared(self):
+        """401 declares ``WWW-Authenticate`` and 429 and 503 declare ``Retry-After``."""
+        wanted = {"401": "WWW-Authenticate", "429": "Retry-After", "503": "Retry-After"}
+        missing = {
+            f"{method.upper()} {path}: {header} on {code}"
+            for method, path, operation in _operations()
+            for code, header in wanted.items()
+            if code in operation["responses"] and header not in operation["responses"][code].get("headers", {})
+        }
+
+        _compare("An error response does not declare its header", missing, {}, "Declare it in core.openapi_contract")
+
+    def test_a_success_response_names_its_real_content(self):
+        """No success response declares an empty JSON body: a binary route lists the media type it sends."""
+        empty = {
+            f"{method.upper()} {path}: {code}"
+            for method, path, operation in _operations()
+            for code, response in operation["responses"].items()
+            if code.startswith("2") and response.get("content", {}).get("application/json", {}).get("schema") == {}
+        }
+
+        _compare(
+            "A success response declares an empty JSON body", empty, {}, "Use core.openapi_contract.binary_response"
+        )
+
+    def test_the_document_has_servers_and_described_tags(self):
+        """The document states its server and describes every tag an operation uses."""
+        document = _openapi()
+        used = {tag for _, _, operation in _operations() for tag in operation.get("tags", [])}
+        described = {tag["name"] for tag in document.get("tags", []) if tag.get("description")}
+
+        assert document.get("servers"), "the document declares no servers"
+        assert not used - described, f"tags without a description: {sorted(used - described)}"
+
+    def test_server_owned_response_fields_are_read_only(self):
+        """``id``, ``version``, ``created_at`` and ``updated_at`` are ``readOnly`` in every non-request schema."""
+        requests = {name for _, _, name, _ in _request_schemas()}
+        pending = list(requests)
+        while pending:
+            for ref in re.findall(r"#/components/schemas/(\w+)", str(_schemas().get(pending.pop(), {}))):
+                if ref not in requests:
+                    requests.add(ref)
+                    pending.append(ref)
+        writable = {
+            f"{name}.{field}"
+            for name, schema in _schemas().items()
+            if name not in requests
+            for field, prop in schema.get("properties", {}).items()
+            if field in {"id", "version", "created_at", "updated_at"} and not prop.get("readOnly")
+        }
+
+        _compare("A server-owned response field is not readOnly", writable, {}, "Mark it in core.openapi_contract")
+
     def test_errors_are_problem_documents(self):
         """Outside ``core.exceptions`` and ``core.problem_details``, no 4xx/5xx is built with a response class.
 

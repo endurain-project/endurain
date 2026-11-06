@@ -24,6 +24,7 @@ import core.etag as core_etag
 import core.file_uploads as core_file_uploads
 import core.location as core_location
 import core.middleware_body_limit as core_middleware_body_limit
+import core.openapi_contract as core_openapi_contract
 import core.rate_limit as core_rate_limit
 import modules.auth.authentication.dependencies as authentication_dependencies
 import modules.auth.dependencies as auth_dependencies
@@ -503,6 +504,7 @@ def read_profile_export_status(
 @router.get(
     "/export/download",
     response_class=StreamingResponse,
+    responses=core_openapi_contract.binary_response("application/zip", description="The ZIP archive of the export."),
     dependencies=[Security(auth_dependencies.check_scopes, scopes=["profile"])],
 )
 @core_rate_limit.limiter.limit(core_rate_limit.SENSITIVE)

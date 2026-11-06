@@ -1,7 +1,7 @@
 """Shared state of a Garmin Connect link attempt.
 
 Linking logs in to Garmin in a background thread that may wait for an MFA code, while the
-browser polls ``GET /garminconnect/link/status``. The poll can land on any replica, so the
+browser polls ``GET /garmin/link/status``. The poll can land on any replica, so the
 state lives in the platform ``StateProvider`` (see :mod:`core.attempt_state`). The state
 is the contract: the browser learns that an MFA code is wanted by reading it, never from a push
 that could be lost.

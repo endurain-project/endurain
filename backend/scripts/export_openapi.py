@@ -32,6 +32,7 @@ os.environ.setdefault("SECRET_KEY", "openapi-export-placeholder")
 
 import core.config as core_config  # noqa: E402
 import core.problem_details as core_problem_details  # noqa: E402
+from api import OPENAPI_SERVERS, OPENAPI_TAGS  # noqa: E402
 from api import router as api_router  # noqa: E402
 
 
@@ -46,6 +47,8 @@ def build_openapi() -> dict:
     app = core_problem_details.ProblemDetailsFastAPI(
         title="Endurain",
         summary="Endurain API for the Endurain app",
+        servers=OPENAPI_SERVERS,
+        openapi_tags=OPENAPI_TAGS,
         version=core_config.API_VERSION,
         license_info={
             "name": core_config.LICENSE_NAME,

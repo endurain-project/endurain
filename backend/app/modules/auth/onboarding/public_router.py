@@ -4,6 +4,7 @@ from fastapi import APIRouter, Request, Response, status
 
 import core.dependencies as core_dependencies
 import core.etag as core_etag
+import core.openapi_contract as core_openapi_contract
 import core.rate_limit as core_rate_limit
 import modules.auth.onboarding.dependencies as onboarding_dependencies
 import modules.auth.onboarding.schema as onboarding_schema
@@ -23,7 +24,12 @@ def read_onboarding_status(
     return onboarding_service.get_onboarding_status(db)
 
 
-@router.post("", status_code=status.HTTP_201_CREATED, response_model=users_schema.UsersRead)
+@router.post(
+    "",
+    status_code=status.HTTP_201_CREATED,
+    response_model=users_schema.UsersRead,
+    responses={201: {"headers": core_openapi_contract.ETAG_HEADERS}},
+)
 @core_rate_limit.limiter.limit(core_rate_limit.SENSITIVE)
 def complete_onboarding(
     request: Request,

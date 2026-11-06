@@ -13,6 +13,7 @@ from fastapi import APIRouter, Query, Request, Response
 
 import core.dependencies as core_dependencies
 import core.http_cache as core_http_cache
+import core.openapi_contract as core_openapi_contract
 import core.rate_limit as core_rate_limit
 import modules.activities.activity.dependencies as activity_dependencies
 import modules.activities.activity_media.service as activity_media_service
@@ -22,7 +23,8 @@ router = APIRouter()
 
 @router.get(
     "/{activity_id}/media/{media_id}/file",
-    responses={200: {"content": {"image/*": {}}}},
+    response_class=Response,
+    responses=core_openapi_contract.binary_response("image/*", description="The media file."),
 )
 @core_rate_limit.limiter.limit(core_rate_limit.PUBLIC_READ)
 def read_activity_media_file(
