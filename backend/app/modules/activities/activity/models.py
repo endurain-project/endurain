@@ -2,6 +2,7 @@
 
 from datetime import datetime
 from decimal import Decimal
+from typing import Any
 
 from sqlalchemy import (
     DECIMAL,
@@ -284,7 +285,7 @@ class Activity(Base):
         nullable=True,
         comment="Garmin Connect gear ID",
     )
-    import_info: Mapped[dict | None] = mapped_column(
+    import_info: Mapped[dict[str, Any] | None] = mapped_column(
         JSON,
         default=None,
         nullable=True,

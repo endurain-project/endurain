@@ -14,23 +14,21 @@ class TestRequestPasswordReset:
     returns a 422 on malformed input.
     """
 
-    @patch("modules.auth.password_reset_tokens.router.password_reset_tokens_utils.request_password_reset_email")
+    @patch("modules.auth.password_reset_tokens.public_router.password_reset_service.request_password_reset_email")
     def test_request_password_reset_success(
         self,
         mock_send: MagicMock,
         fast_api_client,
     ) -> None:
-        """Returns 200 with a generic message once the email is queued."""
+        """Returns 204 with no body once the email is queued."""
 
         response = fast_api_client.post(
             "/password-reset/request",
             json={"email": "user@example.com"},
         )
 
-        assert response.status_code == status.HTTP_200_OK
-        body = response.json()
-        assert "message" in body
-        assert "password reset link" in body["message"]
+        assert response.status_code == status.HTTP_204_NO_CONTENT
+        assert response.content == b""
 
     def test_request_password_reset_invalid_email_format(
         self,
@@ -56,7 +54,7 @@ class TestRequestPasswordReset:
 
         assert response.status_code == status.HTTP_422_UNPROCESSABLE_CONTENT
 
-    @patch("modules.auth.password_reset_tokens.router.password_reset_tokens_utils.request_password_reset_email")
+    @patch("modules.auth.password_reset_tokens.public_router.password_reset_service.request_password_reset_email")
     def test_request_propagates_503_when_email_not_configured(
         self,
         mock_send: MagicMock,
@@ -78,14 +76,14 @@ class TestRequestPasswordReset:
 
         assert response.status_code == status.HTTP_503_SERVICE_UNAVAILABLE
 
-    @patch("modules.auth.password_reset_tokens.router.password_reset_tokens_utils.request_password_reset_email")
-    def test_request_returns_same_200_for_unknown_email(
+    @patch("modules.auth.password_reset_tokens.public_router.password_reset_service.request_password_reset_email")
+    def test_request_returns_same_204_for_unknown_email(
         self,
         mock_send: MagicMock,
         fast_api_client,
     ) -> None:
         """
-        Returns 200 with the same generic message for an unknown
+        Returns the same 204 with no body for an unknown
         email address, preventing user enumeration.
 
         The request_password_reset_email utility returns quietly for
@@ -98,11 +96,9 @@ class TestRequestPasswordReset:
             json={"email": "doesnotexist@example.com"},
         )
 
-        assert response.status_code == status.HTTP_200_OK
-        body = response.json()
-        assert "message" in body
         # Response must be indistinguishable from a successful send
-        assert "password reset link" in body["message"]
+        assert response.status_code == status.HTTP_204_NO_CONTENT
+        assert response.content == b""
 
 
 class TestConfirmPasswordReset:
@@ -115,14 +111,14 @@ class TestConfirmPasswordReset:
     """
 
     @patch(
-        "modules.auth.password_reset_tokens.router.password_reset_tokens_utils.use_password_reset_token",
+        "modules.auth.password_reset_tokens.public_router.password_reset_service.use_password_reset_token",
     )
     def test_confirm_password_reset_success(
         self,
         mock_use,
         fast_api_client,
     ) -> None:
-        """Returns 200 with success message on a valid token."""
+        """Returns 204 with no body on a valid token."""
         mock_use.return_value = None
 
         response = fast_api_client.post(
@@ -133,11 +129,11 @@ class TestConfirmPasswordReset:
             },
         )
 
-        assert response.status_code == status.HTTP_200_OK
-        assert response.json()["message"] == "Password reset successful"
+        assert response.status_code == status.HTTP_204_NO_CONTENT
+        assert response.content == b""
 
     @patch(
-        "modules.auth.password_reset_tokens.router.password_reset_tokens_utils.use_password_reset_token",
+        "modules.auth.password_reset_tokens.public_router.password_reset_service.use_password_reset_token",
     )
     def test_confirm_password_reset_invalid_token(
         self,
@@ -161,7 +157,7 @@ class TestConfirmPasswordReset:
         assert response.status_code == status.HTTP_400_BAD_REQUEST
 
     @patch(
-        "modules.auth.password_reset_tokens.router.password_reset_tokens_utils.use_password_reset_token",
+        "modules.auth.password_reset_tokens.public_router.password_reset_service.use_password_reset_token",
     )
     def test_confirm_password_reset_policy_violation(
         self,
@@ -214,7 +210,7 @@ class TestConfirmPasswordReset:
         assert response.status_code == status.HTTP_422_UNPROCESSABLE_CONTENT
 
     @patch(
-        "modules.auth.password_reset_tokens.router.password_reset_tokens_utils.use_password_reset_token",
+        "modules.auth.password_reset_tokens.public_router.password_reset_service.use_password_reset_token",
     )
     def test_confirm_propagates_500_from_use_password_reset_token(
         self,
@@ -239,3 +235,28 @@ class TestConfirmPasswordReset:
         )
 
         assert response.status_code == status.HTTP_500_INTERNAL_SERVER_ERROR
+
+
+class TestValidatePasswordResetToken:
+    """Test suite for POST /password-reset/validate endpoint."""
+
+    @patch("modules.auth.password_reset_tokens.public_router.password_reset_service.validate_password_reset_token")
+    def test_validate_returns_204_without_body(self, mock_validate, fast_api_client) -> None:
+        """Returns 204 with an empty body when the token is usable."""
+        response = fast_api_client.post("/password-reset/validate", json={"token": "valid-reset-token-value"})
+
+        assert response.status_code == status.HTTP_204_NO_CONTENT
+        assert response.content == b""
+        assert mock_validate.call_args.args[0] == "valid-reset-token-value"
+
+    def test_validate_missing_token(self, fast_api_client) -> None:
+        """Returns 422 when the token field is absent."""
+        assert fast_api_client.post("/password-reset/validate", json={}).status_code == (
+            status.HTTP_422_UNPROCESSABLE_CONTENT
+        )
+
+    def test_validate_rejects_extra_fields(self, fast_api_client) -> None:
+        """Returns 422 when the body carries anything but the token."""
+        response = fast_api_client.post("/password-reset/validate", json={"token": "t", "new_password": "x" * 12})
+
+        assert response.status_code == status.HTTP_422_UNPROCESSABLE_CONTENT

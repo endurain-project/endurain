@@ -1,0 +1,33 @@
+{
+  "km": "km",
+  "mi": "mi",
+  "m": "m",
+  "ft": "ft",
+  "yd": "yd",
+  "cm": "cm",
+  "in": "in",
+  "kg": "kg",
+  "lb": "lb",
+  "ml": "ml",
+  "flOz": "fl oz",
+  "kmh": "km/h",
+  "mph": "mph",
+  "kn": "kn",
+  "minPerKm": "min/km",
+  "minPerMi": "min/mi",
+  "minPer100m": "min/100m",
+  "minPer100yd": "min/100yd",
+  "minPer500m": "min/500m",
+  "bpm": "bpm",
+  "w": "W",
+  "kcal": "kcal",
+  "rpm": "rpm",
+  "spm": "spm",
+  "celsius": "°C",
+  "fahrenheit": "°F",
+  "h": "u",
+  "duration": {
+    "hoursMinutes": "{hours} u {minutes} min",
+    "minutes": "{minutes} min"
+  }
+}

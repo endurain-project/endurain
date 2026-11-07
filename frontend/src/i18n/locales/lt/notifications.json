@@ -8,7 +8,7 @@
   "seeAll": "Žiūrėti visus",
   "loadMore": "Įkelti daugiau",
   "loading": "Įkeliama…",
-  "badge": "{count} neperskaitytų pranešimų",
+  "badge": "{count} neperskaitytas pranešimas | {count} neperskaityti pranešimai | {count} neperskaitytų pranešimų",
   "empty": {
     "title": "Viskas perskaityta",
     "description": "Naujienos apie jūsų veiklas, sekėjus ir integracijas bus rodomos čia."
@@ -38,6 +38,63 @@
     "garminTokenExpired": {
       "title": "Garmin Connect reikia dėmesio",
       "body": "Jūsų Garmin Connect sesija baigėsi. Prijunkite iš naujo, kad sinchronizavimas tęstųsi."
+    },
+    "stravaTokenExpired": {
+      "title": "Strava reikia dėmesio",
+      "body": "Strava atmetė jūsų ryšį. Prijunkite iš naujo, kad sinchronizavimas tęstųsi.",
+      "bodyRevoked": "Prieiga prie Strava baigėsi. Su Strava sinchronizuotos veiklos ir įranga bus ištrintos {date}, jei neprisijungsite iš naujo."
+    },
+    "stravaDataDeleted": {
+      "title": "Strava duomenys ištrinti",
+      "body": "Su Strava sinchronizuotos veiklos ir įranga buvo ištrintos, nes prieiga prie Strava baigėsi, o jūs neprisijungėte iš naujo."
+    },
+    "idpLinked": {
+      "title": "Susietas naujas prisijungimo teikėjas",
+      "body": "{name} buvo susietas su jūsų paskyra. Jei tai nebuvote Jūs, peržiūrėkite saugumo nustatymus.",
+      "bodyGeneric": "Prisijungimo teikėjas buvo susietas su jūsų paskyra. Jei tai nebuvote Jūs, peržiūrėkite saugumo nustatymus."
+    },
+    "accountSecurityChanged": {
+      "passwordChanged": {
+        "title": "Slaptažodis pakeistas",
+        "body": "Jūsų slaptažodis buvo pakeistas. Jei tai nebuvote Jūs, nustatykite slaptažodį iš naujo ir peržiūrėkite saugumo nustatymus."
+      },
+      "passwordReset": {
+        "title": "Slaptažodis nustatytas iš naujo",
+        "body": "Jūsų slaptažodis buvo nustatytas iš naujo naudojant atkūrimo nuorodą. Jei tai nebuvote Jūs, vėl nustatykite slaptažodį iš naujo ir peržiūrėkite saugumo nustatymus."
+      },
+      "passwordSetByAdmin": {
+        "title": "Slaptažodį nustatė administratorius",
+        "body": "Administratorius nustatė naują jūsų paskyros slaptažodį. Jei to nesitikėjote, susisiekite su administratoriumi."
+      },
+      "mfaEnabled": {
+        "title": "Dviejų veiksnių autentifikavimas įjungtas",
+        "body": "Jūsų paskyroje įjungtas dviejų veiksnių autentifikavimas. Jei tai nebuvote Jūs, nustatykite slaptažodį iš naujo ir peržiūrėkite saugumo nustatymus."
+      },
+      "mfaDisabled": {
+        "title": "Dviejų veiksnių autentifikavimas išjungtas",
+        "body": "Jūsų paskyroje išjungtas dviejų veiksnių autentifikavimas. Jei tai nebuvote Jūs, nustatykite slaptažodį iš naujo ir peržiūrėkite saugumo nustatymus."
+      },
+      "backupCodesGenerated": {
+        "title": "Sugeneruoti nauji atsarginiai kodai",
+        "body": "Jūsų paskyrai sugeneruoti nauji atsarginiai kodai. Jei tai nebuvote Jūs, nustatykite slaptažodį iš naujo ir peržiūrėkite saugumo nustatymus."
+      },
+      "apiKeyCreated": {
+        "title": "Sukurtas naujas API raktas",
+        "body": "Jūsų paskyrai sukurtas naujas API raktas. Jei tai nebuvote Jūs, nustatykite slaptažodį iš naujo ir peržiūrėkite saugumo nustatymus."
+      },
+      "identityProviderUnlinked": {
+        "title": "Prisijungimo teikėjas atsietas",
+        "body": "{name} buvo atsietas nuo jūsų paskyros. Jei tai nebuvote Jūs, nustatykite slaptažodį iš naujo ir peržiūrėkite saugumo nustatymus.",
+        "bodyGeneric": "Prisijungimo teikėjas buvo atsietas nuo jūsų paskyros. Jei tai nebuvote Jūs, nustatykite slaptažodį iš naujo ir peržiūrėkite saugumo nustatymus."
+      },
+      "unknown": {
+        "title": "Pasikeitė paskyros saugumas",
+        "body": "Pasikeitė jūsų paskyros saugumo nustatymas. Jei tai nebuvote Jūs, nustatykite slaptažodį iš naujo ir peržiūrėkite saugumo nustatymus."
+      }
+    },
+    "newDeviceSignIn": {
+      "title": "Naujas prisijungimas",
+      "body": "Naujas prisijungimas iš {browser} sistemoje {os} ({ip}). Jei tai nebuvote Jūs, pakeiskite slaptažodį ir atsijunkite iš kitų sesijų."
     },
     "adminSignUpApproval": {
       "title": "Nauja registracija laukia patvirtinimo",

@@ -46,7 +46,6 @@
     "thisWeek": "Tällä viikolla",
     "thisMonth": "Tässä kuussa",
     "empty": "Ei aktiviteetteja tällä jaksolla",
-    "caloriesUnit": "kcal",
     "metric": {
       "distance": "Matka",
       "time": "Aika",
@@ -63,12 +62,13 @@
     "snow_ski": "Hiihto",
     "snowboard": "Lumilautailu",
     "windsurf": "Purjelautailu",
-    "stand_up_paddleboarding": "SUP-lautailu",
-    "surfing": "Surffaus",
+    "stand_up_paddling": "SUP-lautailu",
+    "surf": "Surffaus",
     "kayaking": "Melonta",
     "sailing": "Purjehdus",
-    "snowshoeing": "Lumikenkäily",
-    "inline_skating": "Rullaluistelu"
+    "snow_shoeing": "Lumikenkäily",
+    "inline_skating": "Rullaluistelu",
+    "other": "Muut"
   },
   "goals": {
     "title": "Tavoitteet",

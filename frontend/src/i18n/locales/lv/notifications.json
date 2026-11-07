@@ -8,7 +8,7 @@
   "seeAll": "Skatīt visus",
   "loadMore": "Ielādēt vairāk",
   "loading": "Notiek ielāde…",
-  "badge": "{count} nelasīti paziņojumi",
+  "badge": "{count} nelasīti paziņojumi | {count} nelasīts paziņojums | {count} nelasīti paziņojumi",
   "empty": {
     "title": "Viss ir izskatīts",
     "description": "Šeit parādīsies atjauninājumi par jūsu aktivitātēm, sekotājiem un integrācijām."
@@ -38,6 +38,63 @@
     "garminTokenExpired": {
       "title": "Garmin Connect nepieciešama uzmanība",
       "body": "Jūsu Garmin Connect sesijai beidzies derīgums. Atjaunojiet savienojumu, lai turpinātu sinhronizāciju."
+    },
+    "stravaTokenExpired": {
+      "title": "Strava nepieciešama uzmanība",
+      "body": "Strava noraidīja jūsu savienojumu. Pievienojiet to atkārtoti, lai turpinātu sinhronizāciju.",
+      "bodyRevoked": "Piekļuve Strava ir beigusies. Ar Strava sinhronizētās aktivitātes un aprīkojums tiks dzēsti {date}, ja nepievienosies atkārtoti."
+    },
+    "stravaDataDeleted": {
+      "title": "Strava dati izdzēsti",
+      "body": "Ar Strava sinhronizētās aktivitātes un aprīkojums tika izdzēsti, jo piekļuve Strava beidzās un tu nepievienojies atkārtoti."
+    },
+    "idpLinked": {
+      "title": "Piesaistīts jauns pieteikšanās pakalpojuma sniedzējs",
+      "body": "{name} tika piesaistīts jūsu kontam. Ja tas neesat bijis Jūs, pārskatiet drošības iestatījumus.",
+      "bodyGeneric": "Jūsu kontam tika piesaistīts pieteikšanās pakalpojuma sniedzējs. Ja tas neesat bijis Jūs, pārskatiet drošības iestatījumus."
+    },
+    "accountSecurityChanged": {
+      "passwordChanged": {
+        "title": "Parole nomainīta",
+        "body": "Jūsu parole tika nomainīta. Ja tas neesat bijis Jūs, atiestatiet paroli un pārskatiet drošības iestatījumus."
+      },
+      "passwordReset": {
+        "title": "Parole atiestatīta",
+        "body": "Jūsu parole tika atiestatīta, izmantojot atiestatīšanas saiti. Ja tas neesat bijis Jūs, atkal atiestatiet paroli un pārskatiet drošības iestatījumus."
+      },
+      "passwordSetByAdmin": {
+        "title": "Administrators iestatīja paroli",
+        "body": "Administrators iestatīja jūsu kontam jaunu paroli. Ja negaidījāt to, sazinieties ar administratoru."
+      },
+      "mfaEnabled": {
+        "title": "Divfaktoru autentifikācija ieslēgta",
+        "body": "Jūsu kontam tika ieslēgta divfaktoru autentifikācija. Ja tas neesat bijis Jūs, atiestatiet paroli un pārskatiet drošības iestatījumus."
+      },
+      "mfaDisabled": {
+        "title": "Divfaktoru autentifikācija izslēgta",
+        "body": "Jūsu kontam tika izslēgta divfaktoru autentifikācija. Ja tas neesat bijis Jūs, atiestatiet paroli un pārskatiet drošības iestatījumus."
+      },
+      "backupCodesGenerated": {
+        "title": "Izveidoti jauni rezerves kodi",
+        "body": "Jūsu kontam tika izveidoti jauni rezerves kodi. Ja tas neesat bijis Jūs, atiestatiet paroli un pārskatiet drošības iestatījumus."
+      },
+      "apiKeyCreated": {
+        "title": "Izveidota jauna API atslēga",
+        "body": "Jūsu kontam tika izveidota jauna API atslēga. Ja tas neesat bijis Jūs, atiestatiet paroli un pārskatiet drošības iestatījumus."
+      },
+      "identityProviderUnlinked": {
+        "title": "Pieteikšanās pakalpojuma sniedzējs atsaistīts",
+        "body": "{name} tika atsaistīts no jūsu konta. Ja tas neesat bijis Jūs, atiestatiet paroli un pārskatiet drošības iestatījumus.",
+        "bodyGeneric": "Pieteikšanās pakalpojuma sniedzējs tika atsaistīts no jūsu konta. Ja tas neesat bijis Jūs, atiestatiet paroli un pārskatiet drošības iestatījumus."
+      },
+      "unknown": {
+        "title": "Konta drošība mainīta",
+        "body": "Mainīts kāds jūsu konta drošības iestatījums. Ja tas neesat bijis Jūs, atiestatiet paroli un pārskatiet drošības iestatījumus."
+      }
+    },
+    "newDeviceSignIn": {
+      "title": "Jauna pieteikšanās",
+      "body": "Jauna pieteikšanās no {browser} sistēmā {os} ({ip}). Ja tas neesat bijis Jūs, nomainiet paroli un izrakstieties no citām sesijām."
     },
     "adminSignUpApproval": {
       "title": "Jaunai reģistrācijai nepieciešams apstiprinājums",

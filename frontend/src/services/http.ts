@@ -1,4 +1,4 @@
-import type { AuthTokenResponse } from '@/types'
+import type { AuthTokenResponse, Schemas } from '@/types'
 
 import { clearAuthTokens, getAccessToken, getCsrfToken, setAuthTokens } from './authTokens'
 import { getApiBaseUrl } from './runtime'
@@ -9,6 +9,11 @@ export const API_BASE_URL = getApiBaseUrl()
 
 const STATE_CHANGING_METHODS = new Set(['POST', 'PUT', 'PATCH', 'DELETE'])
 
+const REFRESH_PATH = '/auth/refresh'
+
+/** Problem type of a 401 caused by the bearer token itself (missing, expired, malformed, session ended). */
+const INVALID_TOKEN_PROBLEM = 'urn:endurain:error:invalid-token'
+
 /**
  * Default per-request timeout. Caps a hung backend so requests fail fast
  * instead of leaving the UI (and TanStack Query) waiting forever. Override or
@@ -18,7 +23,7 @@ const DEFAULT_TIMEOUT_MS = 30_000
 
 type ResponseType = 'json' | 'text' | 'blob' | 'void'
 
-interface ApiFetchOptions extends RequestInit {
+export interface ApiFetchOptions extends RequestInit {
   auth?: boolean
   responseType?: ResponseType
   retryOnUnauthorized?: boolean
@@ -37,6 +42,7 @@ export class HttpError extends Error {
    *   different 409s.
    * @param requestId - The backend's `X-Request-ID` for this failure. Quoting it
    *   in a bug report resolves to the exact server log line.
+   * @param errors - Per-field validation failures of a 422 response; empty otherwise.
    */
   constructor(
     readonly status: number,
@@ -44,6 +50,7 @@ export class HttpError extends Error {
     readonly detail: unknown = null,
     readonly type: string | null = null,
     readonly requestId: string | null = null,
+    readonly errors: readonly Schemas['FieldError'][] = [],
   ) {
     super(getErrorMessage(status, statusText, detail))
     this.name = 'HttpError'
@@ -55,6 +62,7 @@ interface ProblemDocument {
   type?: unknown
   detail?: unknown
   request_id?: unknown
+  errors?: unknown
 }
 
 /** The parsed pieces of a failed response the client keeps. */
@@ -62,6 +70,7 @@ interface ParsedError {
   detail: unknown
   type: string | null
   requestId: string | null
+  errors: Schemas['FieldError'][]
 }
 
 /**
@@ -90,7 +99,7 @@ function getErrorMessage(status: number, statusText: string, detail: unknown): s
  * @returns The problem type, detail and request id, as far as they are present.
  */
 async function parseError(response: Response): Promise<ParsedError> {
-  const empty: ParsedError = { detail: null, type: null, requestId: null }
+  const empty: ParsedError = { detail: null, type: null, requestId: null, errors: [] }
   const text = await response.text()
   if (!text) {
     return empty
@@ -101,6 +110,7 @@ async function parseError(response: Response): Promise<ParsedError> {
       detail: parsed.detail ?? parsed,
       type: typeof parsed.type === 'string' ? parsed.type : null,
       requestId: typeof parsed.request_id === 'string' ? parsed.request_id : null,
+      errors: Array.isArray(parsed.errors) ? (parsed.errors as Schemas['FieldError'][]) : [],
     }
   } catch {
     return { ...empty, detail: text }
@@ -110,10 +120,11 @@ async function parseError(response: Response): Promise<ParsedError> {
 /**
  * Builds request headers shared by every API call.
  *
+ * @param path - Path relative to {@link API_BASE_URL}.
  * @param init - Fetch options supplied by the caller.
  * @returns A normalized mutable `Headers` instance.
  */
-function buildHeaders(init: ApiFetchOptions): Headers {
+function buildHeaders(path: string, init: ApiFetchOptions): Headers {
   const headers = new Headers(init.headers)
   const method = (init.method ?? 'GET').toUpperCase()
 
@@ -137,7 +148,9 @@ function buildHeaders(init: ApiFetchOptions): Headers {
     if (accessToken) {
       headers.set('Authorization', `Bearer ${accessToken}`)
     }
-    if (csrfToken && STATE_CHANGING_METHODS.has(method)) {
+    // The refresh is authorised by the HttpOnly SameSite=Strict cookie and the backend accepts it
+    // without the header. Another tab may have rotated the CSRF token, so a stale one would fail it.
+    if (csrfToken && STATE_CHANGING_METHODS.has(method) && path !== REFRESH_PATH) {
       headers.set('X-CSRF-Token', csrfToken)
     }
   }
@@ -172,7 +185,7 @@ let refreshPromise: Promise<AuthTokenResponse> | null = null
  * @throws {HttpError} When the refresh session is invalid or expired.
  */
 async function refreshAuthTokens(): Promise<AuthTokenResponse> {
-  refreshPromise ??= rawApiFetch<AuthTokenResponse>('/auth/refresh', {
+  refreshPromise ??= rawApiFetch<AuthTokenResponse>(REFRESH_PATH, {
     method: 'POST',
     retryOnUnauthorized: false,
   })
@@ -205,7 +218,7 @@ async function rawApiFetch<T>(path: string, init: ApiFetchOptions = {}): Promise
   const response = await fetch(`${API_BASE_URL}${path}`, {
     ...init,
     credentials: 'include',
-    headers: buildHeaders(init),
+    headers: buildHeaders(path, init),
     signal: buildSignal(init),
   })
 
@@ -217,6 +230,7 @@ async function rawApiFetch<T>(path: string, init: ApiFetchOptions = {}): Promise
       parsed.detail,
       parsed.type,
       parsed.requestId,
+      parsed.errors,
     )
   }
 
@@ -250,6 +264,11 @@ async function rawApiFetch<T>(path: string, init: ApiFetchOptions = {}): Promise
  * auth cookies travel with the request, and throws {@link HttpError} on
  * non-2xx responses.
  *
+ * A 401 whose problem type is `urn:endurain:error:invalid-token` (the bearer token itself is
+ * missing, expired, malformed or its session ended) refreshes the tokens once and replays the
+ * request. Any other 401, such as a wrong step-up password, is thrown as-is. Opt out with
+ * `auth: false` or `retryOnUnauthorized: false`; `/auth/refresh` never retries.
+ *
  * @typeParam T - Expected shape of the parsed JSON response.
  * @param path - Path relative to {@link API_BASE_URL} (e.g. `/config`).
  * @param init - Standard `fetch` options plus auth/retry options.
@@ -262,12 +281,10 @@ export async function apiFetch<T>(path: string, init: ApiFetchOptions = {}): Pro
   } catch (error) {
     const shouldRetry =
       error instanceof HttpError &&
-      error.status === 401 &&
+      error.type === INVALID_TOKEN_PROBLEM &&
       init.auth !== false &&
       init.retryOnUnauthorized !== false &&
-      path !== '/auth/login' &&
-      path !== '/auth/mfa/verify' &&
-      path !== '/auth/refresh'
+      path !== REFRESH_PATH
 
     if (!shouldRetry) {
       throw error

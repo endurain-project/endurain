@@ -9,10 +9,11 @@ from pydantic import (
     field_validator,
 )
 
+import modules.auth.schema as auth_schema
+
 
 class MFARequest(BaseModel):
-    """
-    Request model for MFA verification.
+    """Request model for MFA verification.
 
     Attributes:
         mfa_code: The MFA code to verify (6-digit TOTP or
@@ -34,8 +35,7 @@ class MFARequest(BaseModel):
     @field_validator("mfa_code")
     @classmethod
     def validate_mfa_code_format(cls, v: str) -> str:
-        """
-        Validate MFA code format.
+        """Validate MFA code format.
 
         Args:
             v: MFA code to validate.
@@ -48,7 +48,7 @@ class MFARequest(BaseModel):
         """
         normalized = v.strip().upper()
         # 6-digit TOTP
-        if len(normalized) == 6 and normalized.isdigit():
+        if len(normalized) == 6 and normalized.isascii() and normalized.isdecimal():
             return normalized
         # 9-char backup code (XXXX-XXXX)
         if len(normalized) == 9 and normalized[4] == "-":
@@ -56,78 +56,23 @@ class MFARequest(BaseModel):
         raise ValueError("MFA code must be 6-digit TOTP or XXXX-XXXX")
 
 
-class MFADisableRequest(MFARequest):
-    """
-    Request model for MFA disable verification.
-
-    Disabling MFA is a sensitive, security-reducing operation
-    and must be gated by step-up verification: the caller has to
-    re-prove possession of the current password in addition to a
-    valid MFA code. The password length bounds match the other
-    step-up schemas (see ``UsersEditPassword``) — they validate
-    the supplied input only and do not impose a policy on the
-    stored password.
-
-    For SSO-only accounts (no local password set), the password
-    field may be omitted and the password check is skipped — see
-    :func:`modules.auth._internal.services.step_up_service.verify_step_up_credentials`
-    and ``docs/developer-guide/auth-boundary.md`` for the rationale
-    and the tracked SSO-only step-up gap.
+class MFAChangeRequest(BaseModel):
+    """Request model for a change to the second factor, authorised by step-up verification.
 
     Attributes:
-        current_password: Caller's existing password (step-up
-            verification). Required when the account has a local
-            password; may be omitted for SSO-only accounts.
+        step_up: The caller's step-up verification.
+        revoke_other_sessions: Whether to sign out the user's other sessions after the change.
     """
 
-    current_password: StrictStr | None = Field(
-        default=None,
-        min_length=1,
-        max_length=250,
-        description=("Current password (step-up verification). Required when the account has a local password."),
+    step_up: auth_schema.StepUpVerification = Field(
+        ..., description="Step-up verification, required to change the second factor"
     )
-
-
-class MFASetupRequest(BaseModel):
-    """
-    Request model for MFA setup verification.
-
-    Enabling MFA binds a TOTP secret — just handed to the caller
-    by ``POST /profile/mfa/setup`` — to the account, and issues
-    backup codes. A stolen access token alone must not be enough
-    to complete this binding (otherwise the attacker enrols their
-    own authenticator and locks the legitimate user out), so the
-    request is gated by step-up verification: the caller must
-    re-prove their current password in addition to the freshly
-    enrolled TOTP code.
-
-    For SSO-only accounts (no local password set), the password
-    field may be omitted and the password check is skipped — see
-    :func:`modules.auth._internal.services.step_up_service.verify_step_up_credentials`
-    and ``docs/developer-guide/auth-boundary.md`` for the rationale
-    and the tracked SSO-only step-up gap.
-
-    Attributes:
-        mfa_code: The 6-digit TOTP code generated from the secret
-            returned by the setup endpoint, used to confirm the
-            authenticator app is correctly enrolled.
-        current_password: Caller's existing password (step-up
-            verification). Required when the account has a local
-            password; may be omitted for SSO-only accounts.
-    """
-
-    mfa_code: StrictStr = Field(
-        ...,
-        min_length=6,
-        max_length=6,
-        pattern=r"^\d{6}$",
-        description="6-digit TOTP code",
-    )
-    current_password: StrictStr | None = Field(
-        default=None,
-        min_length=1,
-        max_length=250,
-        description=("Current password (step-up verification). Required when the account has a local password."),
+    revoke_other_sessions: StrictBool = Field(
+        default=True,
+        description=(
+            "After the change, all of the user's other sessions "
+            "(keeping the current one) are revoked unless the client sends false."
+        ),
     )
 
     model_config = ConfigDict(
@@ -136,9 +81,42 @@ class MFASetupRequest(BaseModel):
     )
 
 
-class MFASetupResponse(BaseModel):
+class MFASetupRequest(MFAChangeRequest):
+    """Request model for MFA setup verification.
+
+    Enabling MFA binds a TOTP secret — just handed to the caller
+    by ``POST /profile/mfa/setup`` — to the account, and issues
+    backup codes. A stolen access token alone must not be enough
+    to complete this binding (otherwise the attacker enrols their
+    own authenticator and locks the legitimate user out), so the
+    request is gated by step-up verification, carried in ``step_up``,
+    in addition to the freshly enrolled TOTP code.
+
+    Attributes:
+        mfa_code: The 6-digit TOTP code generated from the secret
+            returned by the setup endpoint, used to confirm the
+            authenticator app is correctly enrolled.
     """
-    Response model for MFA setup initialization.
+
+    mfa_code: StrictStr = Field(
+        ...,
+        min_length=6,
+        max_length=6,
+        pattern=r"^[0-9]{6}$",
+        description="6-digit TOTP code",
+    )
+
+
+class MFADisableRequest(MFAChangeRequest):
+    """Request model for turning MFA off: the step-up verification, with its MFA code, and the session choice."""
+
+
+class MFABackupCodesRequest(MFAChangeRequest):
+    """Request model for issuing new MFA backup codes: the step-up verification and the session choice."""
+
+
+class MFASetupRead(BaseModel):
+    """Response model for MFA setup initialization.
 
     Attributes:
         secret: The MFA secret key.
@@ -164,9 +142,8 @@ class MFASetupResponse(BaseModel):
     )
 
 
-class MFAStatusResponse(BaseModel):
-    """
-    Response model for MFA status.
+class MFAStatusRead(BaseModel):
+    """Response model for MFA status.
 
     Attributes:
         mfa_enabled: Whether MFA is enabled for the user.
@@ -180,3 +157,17 @@ class MFAStatusResponse(BaseModel):
     model_config = ConfigDict(
         extra="forbid",
     )
+
+
+class MFAEnableRead(BaseModel):
+    """Response returned after MFA is enabled.
+
+    Attributes:
+        message: Confirmation message.
+        backup_codes: Newly generated one-time backup codes.
+    """
+
+    message: StrictStr
+    backup_codes: list[StrictStr]
+
+    model_config = ConfigDict(extra="forbid")

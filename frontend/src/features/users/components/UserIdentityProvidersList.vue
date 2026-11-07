@@ -4,15 +4,19 @@ import { useI18n } from 'vue-i18n'
 import { ShieldCheck, Unlink } from '@lucide/vue'
 
 import type { UserIdentityProvider } from '@/features/users/types'
+import type { IdpReauth, StepUpInput } from '@/features/security/types'
+import type { IdpStepUpResume } from '@/features/security/composables/useIdpStepUp'
 
+import StepUpDialog from '@/features/security/components/StepUpDialog.vue'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
-import { ConfirmDialog } from '@/components/ui/confirm-dialog'
 import { Skeleton } from '@/components/ui/skeleton'
 import { useToasts } from '@/composables/useToasts'
 import { HttpError } from '@/services/http'
 import { formatMediumDate } from '@/utils/datetime'
+import { isStepUpFailed, useIdpReauthChallenge } from '@/features/security/composables/useIdpStepUp'
+import { useAdminStepUp, useResumeOnce } from '@/features/security/composables/useAdminStepUp'
 import {
   useUnlinkUserIdentityProviderMutation,
   useUserIdentityProvidersQuery,
@@ -26,6 +30,8 @@ import {
 const props = defineProps<{
   /** The user whose identity-provider links to list. */
   userId: number
+  /** The identity-provider sign-in the browser just returned from, if any. */
+  resume: IdpStepUpResume | null
 }>()
 
 const { t, locale } = useI18n()
@@ -38,6 +44,25 @@ const providers = computed(() => data.value ?? [])
 const unlinkMutation = useUnlinkUserIdentityProviderMutation()
 const isConfirmOpen = ref(false)
 const providerToUnlink = ref<UserIdentityProvider | null>(null)
+const idpReauth = ref<IdpReauth | null>(null)
+const handleIdpChallenge = useIdpReauthChallenge()
+const { requirePassword, requireMfa } = useAdminStepUp()
+
+// Reopens the unlink dialog once the identity-provider sign-in returns, as soon as the provider it was for
+// is in the list.
+useResumeOnce(
+  () => props.resume,
+  'admin_idp_unlink',
+  (pending) =>
+    pending.userId === props.userId &&
+    providers.value.some((provider) => provider.idpId === pending.idpId),
+  (resume) => {
+    providerToUnlink.value =
+      providers.value.find((provider) => provider.idpId === resume.pending.idpId) ?? null
+    idpReauth.value = resume.reauth
+    isConfirmOpen.value = true
+  },
+)
 
 /** A display name for a provider, falling back to its slug. */
 function providerLabel(provider: UserIdentityProvider): string {
@@ -54,19 +79,26 @@ function openUnlink(provider: UserIdentityProvider): void {
   isConfirmOpen.value = true
 }
 
-function confirmUnlink(): void {
+function confirmUnlink(stepUp: StepUpInput): void {
   const provider = providerToUnlink.value
   if (!provider) {
     return
   }
   unlinkMutation.mutate(
-    { userId: props.userId, idpId: provider.idpId },
+    { userId: props.userId, idpId: provider.idpId, stepUp },
     {
       onSuccess: () => {
         isConfirmOpen.value = false
         toasts.success(t('settings.users.identityProviders.unlinkSuccess'))
       },
       onError: (error) => {
+        if (handleIdpChallenge(error)) {
+          return
+        }
+        if (isStepUpFailed(error)) {
+          toasts.error(t('settings.security.linked.invalidCredentials'))
+          return
+        }
         // 400 = the backend guard against removing the user's last auth method.
         toasts.error(
           error instanceof HttpError && error.status === 400
@@ -141,8 +173,10 @@ function confirmUnlink(): void {
       </li>
     </ul>
 
-    <ConfirmDialog
+    <StepUpDialog
       v-model:open="isConfirmOpen"
+      v-model:reauth="idpReauth"
+      action="admin_idp_unlink"
       :title="t('settings.users.identityProviders.unlinkTitle')"
       :description="
         t('settings.users.identityProviders.unlinkBody', {
@@ -150,8 +184,10 @@ function confirmUnlink(): void {
         })
       "
       :confirm-label="t('settings.users.identityProviders.unlinkConfirm')"
-      :cancel-label="t('settings.users.identityProviders.unlinkCancel')"
-      :close-label="t('settings.users.identityProviders.unlinkClose')"
+      :require-password="requirePassword"
+      :require-mfa="requireMfa"
+      :pending-context="{ userId, idpId: providerToUnlink?.idpId }"
+      destructive
       :pending="unlinkMutation.isPending.value"
       @confirm="confirmUnlink"
     />

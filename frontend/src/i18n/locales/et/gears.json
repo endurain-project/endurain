@@ -9,8 +9,6 @@
   "fromStrava": "Strava",
   "fromGarmin": "Garmin Connect",
   "filters": "Filtrid",
-  "unitKm": "km",
-  "unitMi": "mi",
   "types": {
     "bicycle": "Jalgratas",
     "shoes": "Jalanõud",
@@ -41,8 +39,8 @@
     "model": "Mudel",
     "modelTooLong": "Mudel tohib olla kuni 250 tähemärki",
     "active": "Aktiivne",
-    "createdAt": "Loodud",
-    "createdAtRequired": "Loomiskuupäev on kohustuslik",
+    "acquiredOn": "Loodud",
+    "acquiredOnRequired": "Loomiskuupäev on kohustuslik",
     "initialDistance": "Algvahemaa",
     "purchaseValue": "Ostuväärtus",
     "totalCost": "Kogumaksumus",
@@ -57,6 +55,8 @@
   "delete": {
     "title": "Kustuta varustus",
     "body": "Kas oled kindel, et soovid kustutada „{nickname}“? Seda ei saa tagasi võtta.",
+    "activities": "{count} tegevus kasutab seda varustust; see säilitatakse ja eemaldatakse varustuselt. | {count} tegevust kasutavad seda varustust; need säilitatakse ja eemaldatakse varustuselt.",
+    "components": "Selle {count} komponent kustutatakse. | Selle {count} komponenti kustutatakse.",
     "confirm": "Kustuta",
     "cancel": "Tühista",
     "close": "Sulge",
@@ -91,7 +91,6 @@
     "unsupported": "See varustuse tüüp ei jälgi komponente.",
     "noneActive": "Kõik komponendid on mitteaktiivsed. Lülita sisse „Näita mitteaktiivseid“, et neid näha.",
     "inactive": "Mitteaktiivne",
-    "unitHours": "h",
     "purchasedOn": "Ostetud {date}",
     "wearLabel": "{name} kulumine",
     "actions": {

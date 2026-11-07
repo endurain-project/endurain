@@ -29,8 +29,11 @@ class TestReadExerciseTitles:
         "modules.activities.activity_exercise_titles.router.activity_exercise_titles_service.list_activity_exercise_titles"
     )
     def test_read_titles_success(self, mock_get, mock_db):
-        client = TestClient(_build_app(mock_db))
-        mock_get.return_value = []
+        from modules.activities.activity_exercise_titles.schema import ActivityExerciseTitlesPage
 
-        response = client.get("/activities_exercise_titles/all", headers={"Authorization": "Bearer x"})
+        client = TestClient(_build_app(mock_db))
+        mock_get.return_value = ActivityExerciseTitlesPage.build([], 0, 1, 25)
+
+        response = client.get("/activities_exercise_titles", headers={"Authorization": "Bearer x"})
         assert response.status_code == 200
+        assert response.json()["items"] == []

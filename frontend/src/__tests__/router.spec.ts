@@ -10,6 +10,12 @@ vi.mock('@/features/config/composables/useAppConfig', () => ({
   useFeatureFlags: () => ({ isEnabled }),
 }))
 
+const { fetchOnboardingStatus } = vi.hoisted(() => ({
+  fetchOnboardingStatus: vi.fn<() => Promise<{ onboardingRequired: boolean }>>(),
+}))
+
+vi.mock('@/features/auth/services/onboarding', () => ({ fetchOnboardingStatus }))
+
 import { authGuard } from '@/router'
 import { useAuthStore } from '@/features/auth/stores/auth'
 import { queryClient } from '@/plugins/vueQuery'
@@ -44,6 +50,8 @@ describe('authGuard', () => {
   beforeEach(() => {
     setActivePinia(createPinia())
     isEnabled.mockReturnValue(true)
+    fetchOnboardingStatus.mockReset()
+    fetchOnboardingStatus.mockResolvedValue({ onboardingRequired: false })
   })
 
   afterEach(() => {
@@ -129,5 +137,98 @@ describe('authGuard', () => {
     const result = await authGuard(routeTo({ requiresAuth: true, requiresAdmin: true }))
 
     expect(result).toEqual({ name: 'home' })
+  })
+
+  describe('first-run onboarding', () => {
+    const onboardingRoute = { requiresAuth: false, guestOnly: true }
+
+    /**
+     * Builds a named route location, so the guard can tell the onboarding route apart.
+     *
+     * @param name - Route name.
+     * @param meta - Route meta flags.
+     * @returns A route location accepted by {@link authGuard}.
+     */
+    function namedRoute(name: string, meta: Record<string, unknown>): RouteLocationNormalized {
+      return { ...routeTo(meta, `/${name}`), name }
+    }
+
+    it('sends visitors from the login screen to onboarding while no account exists', async () => {
+      fetchOnboardingStatus.mockResolvedValue({ onboardingRequired: true })
+      useAuthStore().isReady = true
+
+      const result = await authGuard(namedRoute('login', onboardingRoute))
+
+      expect(result).toEqual({ name: 'onboarding' })
+    })
+
+    it('sends visitors from a protected route to onboarding while no account exists', async () => {
+      fetchOnboardingStatus.mockResolvedValue({ onboardingRequired: true })
+      useAuthStore().isReady = true
+
+      const result = await authGuard(namedRoute('activities', { requiresAuth: true }))
+
+      expect(result).toEqual({ name: 'onboarding' })
+    })
+
+    it('lets visitors open onboarding while it is required', async () => {
+      fetchOnboardingStatus.mockResolvedValue({ onboardingRequired: true })
+      useAuthStore().isReady = true
+
+      const result = await authGuard(namedRoute('onboarding', onboardingRoute))
+
+      expect(result).toBe(true)
+    })
+
+    it('sends visitors from onboarding to login once an account exists', async () => {
+      useAuthStore().isReady = true
+
+      const result = await authGuard(namedRoute('onboarding', onboardingRoute))
+
+      expect(result).toEqual({ name: 'login' })
+    })
+
+    it('does not request the status for an authenticated session', async () => {
+      const auth = useAuthStore()
+      auth.isReady = true
+      auth.isAuthenticated = true
+
+      const result = await authGuard(namedRoute('activities', { requiresAuth: true }))
+
+      expect(result).toBe(true)
+      expect(fetchOnboardingStatus).not.toHaveBeenCalled()
+    })
+
+    it('treats a failed status request as not required', async () => {
+      fetchOnboardingStatus.mockRejectedValue(new Error('network'))
+      useAuthStore().isReady = true
+
+      const login = await authGuard(namedRoute('login', onboardingRoute))
+      const onboarding = await authGuard(namedRoute('onboarding', onboardingRoute))
+
+      expect(login).toBe(true)
+      expect(onboarding).toEqual({ name: 'login' })
+    })
+
+    it('never refetches a cached "not required" status', async () => {
+      useAuthStore().isReady = true
+
+      await authGuard(namedRoute('login', onboardingRoute))
+      await authGuard(namedRoute('login', onboardingRoute))
+
+      expect(fetchOnboardingStatus).toHaveBeenCalledTimes(1)
+    })
+
+    it('re-checks a cached "required" status on every navigation', async () => {
+      fetchOnboardingStatus.mockResolvedValue({ onboardingRequired: true })
+      useAuthStore().isReady = true
+
+      await authGuard(namedRoute('login', onboardingRoute))
+      fetchOnboardingStatus.mockResolvedValue({ onboardingRequired: false })
+      const result = await authGuard(namedRoute('onboarding', onboardingRoute))
+
+      expect(fetchOnboardingStatus).toHaveBeenCalledTimes(2)
+      expect(result).toEqual({ name: 'login' })
+    })
   })
 })

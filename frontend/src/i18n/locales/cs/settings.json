@@ -31,6 +31,7 @@
       "admin": "Administrátor",
       "inactive": "Neaktivní",
       "unverified": "Neověřený e-mail",
+      "pendingEmail": "Čeká na změnu e-mailu",
       "pending": "Čeká na schválení",
       "externalAuth": "Externí ověření"
     },
@@ -64,18 +65,15 @@
       "email": "E-mail",
       "emailRequired": "E-mail je povinný",
       "emailInvalid": "Zadejte platnou e-mailovou adresu",
+      "emailChangeHint": "Na novou adresu se odešle potvrzovací odkaz a po potvrzení nahradí stávající. Uživatel bude odhlášen ze všech zařízení. Chcete-li ji použít okamžitě, označte novou adresu jako ověřenou.",
       "accessType": "Typ přístupu",
       "accessTypeRegular": "Běžný uživatel",
       "accessTypeAdmin": "Administrátor",
       "password": "Heslo",
       "passwordHint": "Alespoň 8 znaků",
-      "passwordHintStrict": "Alespoň {min} znaků, s velkým písmenem, malým písmenem, číslicí a speciálním znakem",
-      "passwordHintLength": "Alespoň {min} znaků",
       "passwordRequired": "Heslo je povinné",
-      "passwordInvalid": "Toto heslo nesplňuje požadavky",
       "confirmPassword": "Potvrďte heslo",
       "confirmPasswordRequired": "Potvrďte heslo",
-      "passwordMismatch": "Hesla se neshodují",
       "preferredLanguage": "Preferovaný jazyk",
       "languages": {
         "ca": "Katalánština",
@@ -118,14 +116,16 @@
       "units": "Jednotky",
       "unitsMetric": "Metrické",
       "unitsImperial": "Imperiální",
+      "weightUnits": "Jednotky hmotnosti",
+      "weightUnitsDefault": "Podle jednotek",
+      "weightUnitsMetric": "Kilogramy (kg)",
+      "weightUnitsImperial": "Libry (lb)",
       "height": "Výška",
-      "unitCm": "cm",
-      "unitFeet": "ft",
-      "unitInches": "in",
+      "heightInvalid": "Výška musí být mezi 50 a 272 cm",
+      "maxHeartRateInvalid": "Maximální tepová frekvence musí být mezi 30 a 250 tepy za minutu",
       "feetInvalid": "Stopy musí být mezi 0 a 10",
       "inchesInvalid": "Palce musí být mezi 0 a 11",
       "maxHeartRate": "Maximální tepová frekvence",
-      "unitBpm": "bpm",
       "currency": "Měna",
       "currencies": {
         "euro": "Euro",
@@ -134,6 +134,8 @@
       },
       "firstDayOfWeek": "První den v týdnu",
       "timezone": "Časové pásmo",
+      "timezoneNotSet": "Nenastaveno",
+      "timezoneUseBrowser": "Použít časové pásmo mého prohlížeče ({timezone})",
       "timezoneHint": "Používá se pro aktivity zaznamenané bez GPS, například běh na pásu nebo jízdu na trenažéru.",
       "weekdays": {
         "sunday": "Neděle",
@@ -149,6 +151,8 @@
       "statusLegend": "Stav účtu",
       "active": "Aktivní",
       "emailVerified": "E-mail ověřen",
+      "emailVerifiedCurrentHint": "Toto je stav aktuální adresy.",
+      "newEmailVerified": "Označit novou adresu jako ověřenou",
       "pendingAdminApproval": "Čeká na schválení administrátorem",
       "requiredField": "Povinné pole",
       "create": "Přidat uživatele",
@@ -171,6 +175,7 @@
     },
     "detail": {
       "back": "Zpět na uživatele",
+      "pendingEmail": "Čeká se na změnu e-mailu na {email}, odkaz vyprší {date}",
       "notFoundTitle": "Uživatel nenalezen",
       "notFoundDescription": "Tento účet mohl být smazán",
       "securityTitle": "Zabezpečení",
@@ -186,16 +191,12 @@
       "title": "Obnovit heslo",
       "description": "Nastavte nové heslo pro {username}",
       "newLabel": "Nové heslo",
-      "hintLength": "Alespoň {min} znaků",
-      "hintStrict": "Alespoň {min} znaků, s velkým písmenem, malým písmenem, číslicí a speciálním znakem",
       "confirmLabel": "Potvrďte nové heslo",
-      "mismatch": "Hesla se neshodují",
       "required": "Heslo je povinné",
       "submit": "Obnovit heslo",
       "cancel": "Zrušit",
       "close": "Zavřít",
       "success": "Heslo aktualizováno",
-      "invalid": "Toto heslo nesplňuje požadavky",
       "error": "Nepodařilo se aktualizovat heslo. Zkuste to prosím znovu."
     },
     "sessions": {
@@ -277,6 +278,32 @@
     "saving": "Ukládání…",
     "saveSuccess": "Nastavení serveru aktualizováno",
     "saveError": "Nepodařilo se aktualizovat nastavení serveru. Zkuste to prosím znovu.",
+    "staleError": "Tato nastavení během úprav změnil někdo jiný. Vaše změny nebyly uloženy. Načtěte stránku znovu, abyste viděli aktuální hodnoty.",
+    "envLocked": "Nastaveno proměnnou {name}",
+    "envSection": "Některá nastavení zde jsou určena proměnnými prostředí ({names}). Odeberte je z prostředí, abyste tato nastavení mohli upravit zde.",
+    "unsaved": "Neuložené změny",
+    "fixErrors": "Pro uložení opravte výše uvedené chyby",
+    "discard": "Zahodit",
+    "tabs": {
+      "label": "Sekce nastavení serveru",
+      "general": "Obecné",
+      "access": "Přístup a zabezpečení",
+      "maps": "Mapy a poloha",
+      "email": "E-mail",
+      "logs": "Logy",
+      "unsaved": "Obsahuje neuložené změny"
+    },
+    "search": {
+      "placeholder": "Hledat nastavení…",
+      "noResults": "Nastavení nenalezena"
+    },
+    "leave": {
+      "title": "Odejít bez uložení?",
+      "description": "Máte neuložené změny. Pokud stránku opustíte, budou ztraceny.",
+      "confirm": "Odejít bez uložení",
+      "stay": "Zůstat na stránce",
+      "close": "Zavřít"
+    },
     "loadError": {
       "title": "Nepodařilo se načíst nastavení serveru",
       "description": "Při načítání nastavení serveru se něco pokazilo. Můžete to zkusit znovu.",
@@ -295,11 +322,33 @@
     },
     "password": {
       "title": "Zásady hesel",
-      "type": "Zásada",
-      "typeStrict": "Striktní (vyžadována složitost)",
-      "typeLengthOnly": "Pouze délka",
       "lengthRegular": "Minimální délka pro běžné uživatele",
       "lengthAdmin": "Minimální délka pro administrátory"
+    },
+    "session": {
+      "title": "Relace",
+      "description": "Změny se projeví u nových přihlášení a při příští obnově tokenu. Již vydané tokeny si zachovávají svou platnost.",
+      "idleTimeoutEnabled": "Vynucovat časový limit nečinnosti",
+      "idleHours": "Časový limit nečinnosti (hodiny)",
+      "idleHoursHint": "Je-li zapnut, relace skončí po tomto počtu hodin bez aktivity.",
+      "absoluteHours": "Absolutní časový limit (hodiny)",
+      "absoluteHoursHint": "Relace skončí po tomto počtu hodin od přihlášení bez ohledu na aktivitu. Platí vždy. Není kratší než časový limit nečinnosti.",
+      "accessMinutes": "Platnost přístupového tokenu (minuty)",
+      "refreshDays": "Platnost obnovovacího tokenu (dny)",
+      "apiKeyDays": "Maximální platnost API klíče (dny)",
+      "apiKeyDaysHint": "Nový API klíč vyprší po tomto počtu dnů, pokud jeho vlastník nezvolí dřívější datum.",
+      "invalidRange": "Zadejte celé číslo mezi {min} a {max}.",
+      "absoluteBelowIdle": "Nesmí být kratší než časový limit nečinnosti."
+    },
+    "retention": {
+      "title": "Uchovávání dat",
+      "readNotifications": "Smazat přečtená oznámení po (dnech)",
+      "readNotificationsHint": "0 uchovává přečtená oznámení navždy. Nepřečtená oznámení se nikdy nemažou.",
+      "auditTrail": "Smazat záznamy auditní stopy po (dnech)",
+      "auditTrailHint": "0 uchovává vše. Jinak je minimum 30 dní; záznamy se mažou po celých dnech.",
+      "auditTrailInvalid": "Zadejte 0 nebo celé číslo mezi {min} a {max}.",
+      "auditLegalHold": "Právní blokace auditní stopy",
+      "auditLegalHoldHint": "Je-li zapnuta, pozastaví veškeré mazání auditní stopy bez ohledu na dobu uchovávání."
     },
     "signup": {
       "title": "Registrace",
@@ -336,12 +385,33 @@
       "attribution": "Atribuce",
       "apiKey": "API klíč dlaždicového serveru",
       "apiKeyWarning": "API klíč je uložen zašifrovaný. Ponechte prázdné, pokud váš dlaždicový server žádný nevyžaduje.",
+      "apiKeyStored": "Klíč je uložen",
+      "apiKeyRemove": "Odebrat uložený klíč API",
       "backgroundColor": "Barva pozadí mapy",
       "regenerateThumbnails": "Znovu vygenerovat náhledy aktivit při změně nastavení map"
+    },
+    "geocoding": {
+      "title": "Reverzní geokódování",
+      "description": "Převádí souřadnice aktivit na názvy míst. Změny se projeví bez restartu.",
+      "service": "Služba",
+      "serviceNominatim": "Nominatim",
+      "servicePhoton": "Photon",
+      "serviceGeocode": "geocode.maps.co",
+      "host": "Hostitel",
+      "hostHint": "Název hostitele s volitelným portem, bez schématu. Hostitel v privátní síti musí být uveden v SSRF_ALLOWED_HOSTS.",
+      "useHttps": "Připojit přes HTTPS",
+      "rateLimit": "Požadavků za sekundu",
+      "rateLimitHint": "0 vypne omezování. Pro veřejné služby Nominatim a Photon ponechte 1.",
+      "rateLimitInvalid": "Zadejte číslo mezi 0 a 100.",
+      "apiKey": "Klíč API",
+      "apiKeyStored": "Klíč je uložen. Ponechte prázdné, chcete-li jej zachovat.",
+      "apiKeyRemove": "Odebrat uložený klíč API",
+      "apiKeyRequired": "geocode.maps.co vyžaduje klíč API."
     },
     "photo": {
       "title": "Fotografie přihlášení",
       "description": "Vlastní obrázek zobrazený na přihlašovací obrazovce",
+      "previewAlt": "Aktuální přihlašovací fotografie",
       "add": "Nahrát fotografii přihlášení",
       "replace": "Nahradit fotografii přihlášení",
       "delete": "Odebrat fotografii přihlášení",
@@ -355,6 +425,30 @@
       "cancel": "Zrušit",
       "close": "Zavřít"
     },
+    "logs": {
+      "title": "Logy serveru",
+      "description": "Nejnovější záznamy aplikačního logu. Logy z nasazení s více procesy shromažďuje místo toho vaše platforma.",
+      "level": "Minimální úroveň",
+      "allLevels": "Všechny úrovně",
+      "search": "Hledat",
+      "searchPlaceholder": "Text, logger nebo ID požadavku…",
+      "live": "Živě",
+      "refresh": "Obnovit",
+      "download": "Stáhnout",
+      "downloadError": "Soubor logu se nepodařilo stáhnout.",
+      "clear": "Vymazat",
+      "cleared": "Logy vymazány",
+      "clearError": "Logy se nepodařilo vymazat.",
+      "clearConfirm": {
+        "title": "Vymazat logy serveru?",
+        "description": "Tím se trvale smaže soubor logu a jeho rotované zálohy. Pokud je můžete potřebovat, nejprve log stáhněte. Samotná akce se zaznamená do nového logu.",
+        "confirm": "Vymazat logy",
+        "cancel": "Zrušit",
+        "close": "Zavřít"
+      },
+      "loadError": "Logy se nepodařilo načíst.",
+      "empty": "Nenalezeny žádné záznamy logu"
+    },
     "email": {
       "title": "E-mail",
       "description": "Endurain odesílá e-maily pro obnovení hesla a registraci přes SMTP server nakonfigurovaný v prostředí.",
@@ -366,7 +460,26 @@
       "sendHint": "Testovací e-mail se odešle na vaši vlastní adresu.",
       "sent": "Testovací e-mail odeslán",
       "failed": "Testovací e-mail se nepodařilo odeslat",
-      "failedUnknown": "Podrobnosti najdete v logech serveru."
+      "failedUnknown": "Podrobnosti najdete v logech serveru.",
+      "settingsLoadError": "Nastavení pošty se nepodařilo načíst.",
+      "host": "Hostitel",
+      "hostHint": "Ponechte prázdné, chcete-li vypnout e-mail.",
+      "port": "Port",
+      "portInvalid": "Zadejte port mezi 1 a 65535.",
+      "security": "Zabezpečení spojení",
+      "securityStarttls": "STARTTLS",
+      "securitySsl": "SSL/TLS",
+      "securityNone": "Žádné (pouze privátní relay)",
+      "securityNoneWarning": "Bez šifrování je přijímán pouze poštovní server na privátní adrese nebo adrese loopback a nelze použít uživatelské jméno a heslo.",
+      "username": "Uživatelské jméno",
+      "password": "Heslo",
+      "passwordStored": "Heslo je uloženo. Ponechte prázdné, chcete-li je zachovat.",
+      "passwordRemove": "Odebrat uložené heslo",
+      "fromAddress": "Adresa odesílatele",
+      "fromAddressHint": "Ponechte prázdné, chcete-li použít uživatelské jméno.",
+      "save": "Uložit nastavení pošty",
+      "saveSuccess": "Nastavení pošty uložena",
+      "saveError": "Nastavení pošty se nepodařilo uložit"
     }
   },
   "idp": {
@@ -428,6 +541,7 @@
       "issuerUrl": "URL vydavatele",
       "issuerUrlHint": "OIDC vydavatel poskytovatele nebo URL pro objevování",
       "issuerUrlRequired": "URL vydavatele je povinná",
+      "issuerUrlRefused": "URL poskytovatele bylo odmítnuto. Musí používat https://, být přeložitelné ze serveru a poskytovatel v privátní síti musí být uveden v SSRF_ALLOWED_HOSTS.",
       "issuerUrlTooLong": "URL vydavatele musí mít nejvýše 500 znaků",
       "clientId": "Client ID",
       "clientIdRequired": "Client ID je povinné",
@@ -442,15 +556,22 @@
       "scopesTooLong": "Rozsahy musí mít nejvýše 500 znaků",
       "icon": "Ikona",
       "iconNone": "Žádná",
-      "iconCustom": "Vlastní URL",
-      "customIconUrl": "URL vlastní ikony",
-      "customIconUrlHint": "Odkaz na obrázek zobrazený na přihlašovacím tlačítku",
+      "iconUpload": "Nahrát obrázek",
+      "iconFileHint": "Obrázek PNG, JPEG nebo WebP do 1 MB, zobrazený na přihlašovacím tlačítku",
+      "iconChoose": "Vybrat obrázek",
+      "iconReplace": "Nahradit obrázek",
+      "iconPreviewAlt": "Náhled ikony",
+      "iconFileRequired": "Vyberte obrázek k nahrání",
+      "iconFileInvalidType": "Ikona musí být obrázek PNG, JPEG nebo WebP",
+      "iconFileTooLarge": "Ikona může mít nejvýše 1 MB",
+      "iconSaveError": "Poskytovatel byl uložen, ale jeho ikonu se nepodařilo aktualizovat. Upravte poskytovatele a zkuste to znovu.",
       "enabled": "Povoleno",
       "autoCreateUsers": "Automaticky vytvářet uživatele při prvním přihlášení",
       "syncUserInfo": "Synchronizovat informace o profilu při každém přihlášení",
       "createSuccess": "Poskytovatel přidán",
       "updateSuccess": "Poskytovatel aktualizován",
       "slugConflict": "Tento slug se již používá",
+      "staleError": "Tento poskytovatel byl změněn jinde. Vaše změny nebyly uloženy. Zavřete jej a znovu otevřete, abyste načetli aktuální nastavení.",
       "saveError": "Nepodařilo se uložit poskytovatele. Zkuste to prosím znovu."
     }
   },
@@ -458,7 +579,7 @@
     "title": "Moje cíle",
     "subtitle": "Nastavte si cíle pro své aktivity a sledujte svůj pokrok",
     "buttonAdd": "Přidat cíl",
-    "count": "Celkem je {count} cíl(ů):",
+    "count": "Celkem je {count} cíl: | Celkem jsou {count} cíle: | Celkem je {count} cílů:",
     "filters": "Filtry",
     "filter": {
       "all": "Vše",
@@ -492,13 +613,6 @@
       "elevation": "Převýšení",
       "duration": "Doba trvání"
     },
-    "unit": {
-      "calories": "kcal",
-      "km": "km",
-      "miles": "mi",
-      "meters": "m",
-      "feet": "ft"
-    },
     "list": {
       "edit": "Upravit cíl {name}",
       "delete": "Smazat cíl {name}"
@@ -522,6 +636,7 @@
       "error": "Nepodařilo se smazat cíl. Zkuste to prosím znovu."
     },
     "form": {
+      "targetInvalid": "Zadejte hodnotu větší než 0.",
       "addTitle": "Přidat cíl",
       "editTitle": "Upravit cíl",
       "description": "Nastavte cíl pro aktivitu v opakujícím se období",
@@ -549,6 +664,7 @@
     "hidePassword": "Skrýt heslo",
     "mfaCode": "Ověřovací kód",
     "mfaCodePlaceholder": "123456",
+    "confirmPhrase": "Pro potvrzení napište {phrase}",
     "loadError": {
       "title": "Nepodařilo se načíst nastavení zabezpečení",
       "description": "Něco se pokazilo. Můžete to zkusit znovu."
@@ -559,9 +675,6 @@
       "current": "Aktuální heslo",
       "new": "Nové heslo",
       "confirm": "Potvrďte nové heslo",
-      "requirementsStrict": "Alespoň {length} znaků, včetně velkého písmene, malého písmene, číslice a symbolu.",
-      "requirementsLength": "Alespoň {length} znaků.",
-      "mismatch": "Hesla se neshodují.",
       "revokeOthers": "Odhlásit se ze všech ostatních zařízení",
       "submit": "Změnit heslo",
       "success": "Heslo změněno",
@@ -575,7 +688,7 @@
       "disabledDescription": "Dvoufaktorové ověřování je vypnuté. Zapněte jej pro lepší ochranu svého účtu.",
       "enable": "Povolit dvoufaktorové ověřování",
       "enabledDescription": "Dvoufaktorové ověřování je zapnuté.",
-      "backupRemaining": "Zbývá {unused} z {total} záložních kódů.",
+      "backupRemaining": "Zbývá {unused} z {total} záložního kódu. | Zbývá {unused} z {total} záložních kódů. | Zbývá {unused} z {total} záložních kódů.",
       "regenerate": "Znovu vygenerovat záložní kódy",
       "disable": "Zakázat",
       "setupTitle": "Povolit dvoufaktorové ověřování",
@@ -649,7 +762,39 @@
       "unlinkError": "Nepodařilo se zrušit propojení účtu. Zkuste to prosím znovu.",
       "invalidCredentials": "Vaše heslo nebo kód je nesprávný.",
       "alreadyLinked": "Tento účet je již propojen.",
-      "lastMethodError": "Nemůžete zrušit propojení své jediné metody přihlášení. Nejprve nastavte heslo."
+      "lastMethodError": "Nemůžete zrušit propojení své jediné metody přihlášení. Nejprve nastavte heslo.",
+      "linkedOn": "Připojeno {date}"
+    },
+    "email": {
+      "title": "E-mailová adresa",
+      "subtitle": "Sem se posílají odkazy na obnovení hesla a upozornění. Při změně je třeba potvrdit svou totožnost a nová adresa začne platit, až ji potvrdíte pomocí odkazu, který na ni odešleme.",
+      "current": "Současný e-mail",
+      "action": "Změnit e-mail",
+      "new": "Nový e-mail",
+      "invalid": "Zadejte platnou e-mailovou adresu.",
+      "sameAsCurrent": "Toto je již vaše e-mailová adresa.",
+      "success": "Potvrzovací odkaz byl odeslán na novou adresu. Vaše e-mailová adresa se změní, jakmile ji potvrdíte.",
+      "appliedSuccess": "E-mail byl změněn.",
+      "pending": "Čekající změna na {email}",
+      "pendingExpires": "Potvrzovací odkaz vyprší {date}.",
+      "resend": "Odeslat odkaz znovu",
+      "cancel": "Zrušit změnu",
+      "resendSuccess": "Pokud čeká změna, na novou adresu míří nový odkaz.",
+      "resendError": "Odkaz se nepodařilo znovu odeslat. Zkuste to prosím znovu.",
+      "cancelSuccess": "Změna e-mailu byla zrušena.",
+      "cancelError": "Změnu se nepodařilo zrušit. Zkuste to prosím znovu.",
+      "conflict": "Tento e-mail je již používán.",
+      "error": "E-mail se nepodařilo změnit. Zkuste to prosím znovu."
+    },
+    "deleteAccount": {
+      "title": "Smazat můj účet",
+      "subtitle": "Trvale smažte svůj účet a všechna svá data, včetně aktivit a jejich souborů, zdravotních záznamů, vybavení, cílů, integrací a relací. Tuto akci nelze vrátit zpět. Chcete-li si ponechat kopii, nejprve data exportujte.",
+      "action": "Smazat můj účet",
+      "dialogTitle": "Smazat váš účet?",
+      "dialogDescription": "Tím se trvale smaže váš účet a všechna data. Pro pokračování potvrďte svou totožnost.",
+      "confirm": "Smazat můj účet",
+      "error": "Váš účet se nepodařilo smazat. Zkuste to prosím znovu.",
+      "onlyAdminError": "Jste jediný správce. Před smazáním účtu udělte práva správce jinému uživateli."
     },
     "apiKeys": {
       "title": "API klíče",
@@ -662,11 +807,12 @@
       "scopes": "Oprávnění",
       "scopesHint": "Zvolte, co tento klíč může dělat. Je vyžadováno alespoň jedno oprávnění.",
       "expiry": "Vypršení platnosti (volitelné)",
-      "expiryHint": "Ponechte prázdné pro klíč, který nikdy nevyprší.",
+      "expiryHint": "Ponechte prázdné, chcete-li použít nejdelší platnost, kterou server povoluje. Pozdější datum bude odmítnuto.",
       "createTitle": "Vytvořit API klíč",
       "createDescription": "Potvrďte svou identitu pro vytvoření nového API klíče.",
       "createSuccess": "API klíč vytvořen",
       "createError": "Nepodařilo se vytvořit API klíč. Zkuste to prosím znovu.",
+      "expiryTooLate": "Toto datum vypršení je pozdější, než server povoluje. Zvolte dřívější datum nebo pole ponechte prázdné.",
       "invalidCredentials": "Vaše heslo nebo kód je nesprávný.",
       "invalidScopes": "Tato oprávnění nejsou pro API klíče povolena.",
       "revealTitle": "Zkopírujte svůj API klíč",
@@ -683,7 +829,6 @@
       "lastUsed": "Naposledy použito {date}",
       "neverUsed": "Nikdy nepoužito",
       "expires": "Vyprší {date}",
-      "neverExpires": "Nikdy nevyprší",
       "revoke": "Zrušit",
       "revokeTitle": "Zrušit API klíč?",
       "revokeBody": "{name} okamžitě přestane fungovat. Tuto akci nelze vrátit zpět.",
@@ -694,6 +839,18 @@
       "deleteBody": "{name} bude trvale smazán. Tuto akci nelze vrátit zpět.",
       "deleteSuccess": "API klíč smazán",
       "deleteError": "Nepodařilo se smazat API klíč. Zkuste to prosím znovu."
+    },
+    "stepUp": {
+      "prompt": "Váš účet nemá heslo. Přihlaste se znovu přes propojeného poskytovatele identity a potvrďte, že jste to vy.",
+      "continueWith": "Pokračovat přes {name}",
+      "ready": "Přihlášení přes poskytovatele identity potvrzeno.",
+      "restart": "Přihlásit se znovu",
+      "noProviders": "K potvrzení vaší totožnosti není k dispozici žádný propojený poskytovatel identity.",
+      "startError": "Přihlášení přes poskytovatele identity se nepodařilo zahájit. Zkuste to prosím znovu.",
+      "tooManyAttempts": "Příliš mnoho pokusů. Zkuste to prosím později.",
+      "reauthRequired": "Pro pokračování potvrďte svou totožnost u poskytovatele identity.",
+      "failed": "Opětovné přihlášení přes poskytovatele identity se nezdařilo. Zkuste to prosím znovu.",
+      "notFresh": "Poskytovatel identity nevyžadoval opětovné přihlášení. Kontaktujte správce."
     }
   },
   "integrations": {
@@ -733,6 +890,7 @@
       "clientIdPlaceholder": "123456",
       "clientSecret": "Client secret",
       "connectError": "Nepodařilo se připojit ke službě Strava. Zkontrolujte prosím své údaje a zkuste to znovu.",
+      "scopeError": "Strava neobdržela všechna oprávnění, která Endurain potřebuje. Připojte se znovu a ponechte všechna oprávnění zaškrtnutá.",
       "completing": "Dokončování připojení ke službě Strava…",
       "linkSuccess": "Strava připojena",
       "retrieveActivitiesTitle": "Načíst aktivity ze služby Strava",
@@ -741,9 +899,10 @@
       "retrievingGear": "Načítání vašeho vybavení ze služby Strava na pozadí…",
       "retrieveGearError": "Nepodařilo se zahájit načítání vybavení ze služby Strava. Zkuste to prosím znovu.",
       "unlinkTitle": "Odpojit službu Strava?",
-      "unlinkBody": "Endurain přestane importovat ze služby Strava. Vaše stávající aktivity zůstanou zachovány.",
+      "unlinkBody": "Endurain přestane importovat ze Strava a smaže aktivity a vybavení synchronizované ze Strava. Aktivity z jiných zdrojů, včetně nahraných exportních souborů Strava, zůstanou zachovány.",
       "unlinkSuccess": "Strava odpojena",
-      "unlinkError": "Nepodařilo se odpojit službu Strava. Zkuste to prosím znovu."
+      "unlinkError": "Nepodařilo se odpojit službu Strava. Zkuste to prosím znovu.",
+      "revokedNotice": "Přístup ke Strava skončil {revokedAt}. Aktivity a vybavení synchronizované se Strava budou smazány {deletionAt}, pokud se znovu nepřipojíte."
     },
     "garmin": {
       "title": "Garmin Connect",
@@ -807,8 +966,8 @@
     },
     "job": {
       "preparing": "Příprava importu…",
-      "progress": "Importováno {done} z {total} souborů ({failed} se nezdařilo)…",
-      "finished": "Import dokončen: importováno {done} z {total} souborů, {failed} se nezdařilo.",
+      "progress": "Importováno {done} z {total} souboru ({failed} se nezdařilo)… | Importováno {done} z {total} souborů ({failed} se nezdařilo)… | Importováno {done} z {total} souborů ({failed} se nezdařilo)…",
+      "finished": "Import dokončen: importováno {done} z {total} souboru, {failed} se nezdařilo. | Import dokončen: importováno {done} z {total} souborů, {failed} se nezdařilo. | Import dokončen: importováno {done} z {total} souborů, {failed} se nezdařilo.",
       "failed": "Import se nepodařilo dokončit."
     }
   },
@@ -816,6 +975,8 @@
     "title": "Můj profil",
     "subtitle": "Spravujte podrobnosti svého účtu a soukromí",
     "notSet": "Nenastaveno",
+    "emailManagedIn": "Váš e-mail se mění v nastavení zabezpečení.",
+    "emailManagedLink": "Otevřít nastavení zabezpečení",
     "error": {
       "title": "Nepodařilo se načíst váš profil",
       "description": "Při načítání vašeho profilu se něco pokazilo. Můžete to zkusit znovu.",
@@ -874,6 +1035,8 @@
       "hideLaps": "Okruhy",
       "hideWorkoutSetsSteps": "Série a kroky tréninku",
       "hideGear": "Vybavení",
+      "discoverable": "Nechat ostatní, aby mě našli ve vyhledávání",
+      "discoverableHint": "Ostatní uživatelé vás mohou při hledání najít podle uživatelského jména. Váš profil zůstává dostupný přes přímý odkaz.",
       "save": "Uložit soukromí",
       "saving": "Ukládání…",
       "saveSuccess": "Nastavení soukromí aktualizováno",
@@ -921,10 +1084,53 @@
       "export": "Exportovat data",
       "import": "Importovat data",
       "invalidType": "Vyberte prosím archiv .zip.",
-      "exportSuccess": "Export připraven, vaše stahování by mělo brzy začít",
+      "download": "Stáhnout export",
+      "downloadSuccess": "Stahování by mělo brzy začít",
+      "downloadError": "Export se nepodařilo stáhnout. Zkuste to prosím znovu.",
+      "exportQueued": "Export byl zahájen. Tuto stránku můžete opustit.",
       "exportError": "Nepodařilo se exportovat vaše data. Zkuste to prosím znovu.",
-      "importSuccess": "Data importována",
-      "importError": "Nepodařilo se importovat archiv. Zkontrolujte prosím soubor a zkuste to znovu."
+      "exportInProgress": "Export již probíhá.",
+      "exportStepUp": {
+        "title": "Potvrďte, že jste to vy",
+        "description": "Export zkopíruje všechna vaše data, proto nejprve potvrďte svou totožnost."
+      },
+      "exportStatus": {
+        "queued": "Čekání na zahájení exportu…",
+        "running": "Připravuje se váš export…",
+        "succeeded": "Váš export je připraven ke stažení. Zůstane dostupný dvě hodiny.",
+        "failed": "Export nebyl dokončen: {reason}"
+      },
+      "exportFailure": {
+        "timed_out": "trval příliš dlouho. Můžete to zkusit znovu.",
+        "processing_failed": "něco se pokazilo. Můžete to zkusit znovu."
+      },
+      "importQueued": "Import byl zahájen. Tuto stránku můžete opustit.",
+      "importError": "Nepodařilo se importovat archiv. Zkontrolujte prosím soubor a zkuste to znovu.",
+      "importInProgress": "Import již probíhá.",
+      "status": {
+        "queued": "Čekání na zahájení importu…",
+        "running": "Importují se vaše data…",
+        "succeeded": "Import dokončen: importována {activities} aktivita, vybavení: {gears}. | Import dokončen: importovány {activities} aktivity, vybavení: {gears}. | Import dokončen: importováno {activities} aktivit, vybavení: {gears}.",
+        "failed": "Import nebyl dokončen: {reason}"
+      },
+      "failure": {
+        "invalid_file": "archiv není platným exportem Endurain. Nic nebylo importováno.",
+        "too_large": "archiv je příliš velký. Nic nebylo importováno.",
+        "too_many_activities": "archiv obsahuje příliš mnoho aktivit. Nic nebylo importováno.",
+        "timed_out": "trval příliš dlouho. Nic nebylo importováno, takže to můžete zkusit znovu.",
+        "files_incomplete": "vaše data byla importována, ale některé soubory chybí. Neimportujte je znovu, data by se zduplikovala.",
+        "processing_failed": "něco se pokazilo. Nic nebylo importováno, takže to můžete zkusit znovu.",
+        "wrong_account": "archiv byl exportován z jiného účtu. Nic nebylo importováno."
+      }
+    },
+    "blockedUsers": {
+      "title": "Blokovaní uživatelé",
+      "subtitle": "Blokovaní uživatelé vás nemohou požádat o sledování. Zablokováním někoho se také zruší veškeré sledování mezi vámi.",
+      "empty": "Nikoho jste nezablokovali.",
+      "unblock": "Odblokovat",
+      "unblockError": "Tohoto uživatele se nepodařilo odblokovat. Zkuste to prosím znovu.",
+      "loadError": "Blokované uživatele se nepodařilo načíst.",
+      "retry": "Zkusit znovu"
     }
   }
 }

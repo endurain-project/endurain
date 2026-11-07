@@ -1,11 +1,15 @@
 import type {
-  LinkTokenDto,
+  IdentityProviderLinkStartDto,
   LinkedProvider,
   LinkedProviderDto,
   StepUpInput,
+  StepUpRequestDto,
+  StepUpStartResultDto,
 } from '@/features/security/types'
 
-import { API_BASE_URL, apiFetch } from '@/services/http'
+import { apiFetch } from '@/services/http'
+import { fetchAllPages } from '@/services/pagination'
+import { toStepUpWire } from '@/features/security/services/security'
 
 /**
  * Maps a raw linked-provider payload to the clean {@link LinkedProvider} model
@@ -21,18 +25,11 @@ export function mapLinkedProvider(dto: LinkedProviderDto): LinkedProvider {
     name: dto.idp_name ?? null,
     slug: dto.idp_slug ?? null,
     icon: dto.idp_icon ?? null,
+    iconUploaded: dto.idp_icon_uploaded ?? false,
     providerType: dto.idp_provider_type ?? null,
     subject: dto.idp_subject,
     linkedAt: dto.linked_at,
     lastLogin: dto.last_login ?? null,
-  }
-}
-
-/** Builds the step-up wire body shared by link-token and unlink requests. */
-function toStepUpWire(input: StepUpInput) {
-  return {
-    current_password: input.currentPassword,
-    mfa_code: input.mfaCode,
   }
 }
 
@@ -44,51 +41,45 @@ function toStepUpWire(input: StepUpInput) {
  * @throws {HttpError} When the request fails.
  */
 export async function fetchLinkedProviders(signal?: AbortSignal): Promise<LinkedProvider[]> {
-  const dtos = await apiFetch<LinkedProviderDto[] | null>('/profile/idp', { signal })
-  return (dtos ?? []).map(mapLinkedProvider)
-}
-
-/**
- * Generates a one-time link token after step-up verification. The token is then
- * consumed by navigating the browser to {@link buildLinkStartUrl} to begin the
- * provider OAuth flow.
- *
- * @param idpId - The identity-provider id to link.
- * @param input - The step-up credentials.
- * @returns The one-time link token.
- * @throws {HttpError} When the request fails (401 step-up, 409 already linked).
- */
-export async function generateLinkToken(idpId: number, input: StepUpInput): Promise<string> {
-  const dto = await apiFetch<LinkTokenDto>(`/profile/idp/${idpId}/link/token`, {
-    method: 'POST',
-    body: JSON.stringify(toStepUpWire(input)),
+  const dtos = await fetchAllPages<LinkedProviderDto>('/profile/identity-providers', undefined, {
+    signal,
   })
-  return dto.token
+  return dtos.map(mapLinkedProvider)
 }
 
 /**
- * Builds the absolute backend URL that begins the provider OAuth link. The
- * browser is navigated here (full-page) with the one-time token; the backend
- * 307-redirects on to the provider's authorization page.
+ * Starts linking an identity provider after step-up verification. The response
+ * also sets the cookie that binds the link to this browser, so the browser must
+ * then be sent to the returned URL.
  *
  * The `returnPath` is captured on the backend's OAuth state and used to build
  * the final post-callback redirect, so the browser lands back on this exact
- * frontend route (carrying the `idp_link` result) instead of the legacy v1
- * default. It must be a relative path; the backend validates it against open
- * redirects.
+ * frontend route (carrying the `idp_link` result). It must be a relative path;
+ * the backend validates it against open redirects.
  *
- * @param idpId - The identity-provider id being linked.
- * @param token - The one-time link token from {@link generateLinkToken}.
+ * @param idpId - The identity-provider id to link.
+ * @param input - The step-up credentials.
+ * @param revokeOtherSessions - Whether completing the link signs out every other session.
  * @param returnPath - The frontend route to return to after the callback.
- * @returns The absolute link-start URL.
+ * @returns The identity provider's authorization URL.
+ * @throws {HttpError} When the request fails (403 step-up, 409 already linked).
  */
-export function buildLinkStartUrl(
+export async function startProviderLink(
   idpId: number,
-  token: string,
+  input: StepUpInput,
+  revokeOtherSessions: boolean,
   returnPath = '/settings/security',
-): string {
-  const params = new URLSearchParams({ link_token: token, redirect: returnPath })
-  return `${API_BASE_URL}/profile/idp/${idpId}/link?${params.toString()}`
+): Promise<string> {
+  const payload: IdentityProviderLinkStartDto = {
+    redirect: returnPath,
+    revoke_other_sessions: revokeOtherSessions,
+    step_up: toStepUpWire(input),
+  }
+  const dto = await apiFetch<StepUpStartResultDto>(`/profile/identity-providers/${idpId}/link`, {
+    method: 'POST',
+    body: JSON.stringify(payload),
+  })
+  return dto.authorization_url
 }
 
 /**
@@ -98,12 +89,12 @@ export function buildLinkStartUrl(
  *
  * @param idpId - The identity-provider id to unlink.
  * @param input - The step-up credentials.
- * @throws {HttpError} When the request fails (401 step-up, 400 last method).
+ * @throws {HttpError} When the request fails (403 step-up, 400 last method).
  */
 export async function unlinkProvider(idpId: number, input: StepUpInput): Promise<void> {
-  await apiFetch(`/profile/idp/${idpId}/unlink`, {
+  await apiFetch(`/profile/identity-providers/${idpId}/unlink`, {
     method: 'POST',
-    body: JSON.stringify(toStepUpWire(input)),
+    body: JSON.stringify({ step_up: toStepUpWire(input) } satisfies StepUpRequestDto),
     responseType: 'void',
   })
 }

@@ -8,7 +8,7 @@
   "seeAll": "Tout voir",
   "loadMore": "Charger plus",
   "loading": "Chargement…",
-  "badge": "{count} notifications non lues",
+  "badge": "{count} notification non lue | {count} notifications non lues",
   "empty": {
     "title": "Vous êtes à jour",
     "description": "Les mises à jour concernant vos activités, abonnés et intégrations apparaîtront ici."
@@ -38,6 +38,63 @@
     "garminTokenExpired": {
       "title": "Garmin Connect nécessite votre attention",
       "body": "Votre session Garmin Connect a expiré. Reconnectez-la pour continuer la synchronisation."
+    },
+    "stravaTokenExpired": {
+      "title": "Strava requiert votre attention",
+      "body": "Strava a rejeté votre connexion. Reconnectez-la pour continuer la synchronisation.",
+      "bodyRevoked": "L'accès à Strava a pris fin. Vos activités et équipements synchronisés depuis Strava seront supprimés le {date} si vous ne vous reconnectez pas."
+    },
+    "stravaDataDeleted": {
+      "title": "Données Strava supprimées",
+      "body": "Vos activités et équipements synchronisés depuis Strava ont été supprimés, car l'accès à Strava a pris fin et vous ne vous êtes pas reconnecté."
+    },
+    "idpLinked": {
+      "title": "Nouveau fournisseur de connexion associé",
+      "body": "{name} a été associé à votre compte. Si ce n'était pas vous, vérifiez vos paramètres de sécurité.",
+      "bodyGeneric": "Un fournisseur de connexion a été associé à votre compte. Si ce n'était pas vous, vérifiez vos paramètres de sécurité."
+    },
+    "accountSecurityChanged": {
+      "passwordChanged": {
+        "title": "Mot de passe modifié",
+        "body": "Votre mot de passe a été modifié. Si ce n'était pas vous, réinitialisez votre mot de passe et vérifiez vos paramètres de sécurité."
+      },
+      "passwordReset": {
+        "title": "Mot de passe réinitialisé",
+        "body": "Votre mot de passe a été réinitialisé à l'aide d'un lien de réinitialisation. Si ce n'était pas vous, réinitialisez-le à nouveau et vérifiez vos paramètres de sécurité."
+      },
+      "passwordSetByAdmin": {
+        "title": "Mot de passe défini par un administrateur",
+        "body": "Un administrateur a défini un nouveau mot de passe pour votre compte. Si vous ne vous y attendiez pas, contactez votre administrateur."
+      },
+      "mfaEnabled": {
+        "title": "Authentification à deux facteurs activée",
+        "body": "L'authentification à deux facteurs a été activée sur votre compte. Si ce n'était pas vous, réinitialisez votre mot de passe et vérifiez vos paramètres de sécurité."
+      },
+      "mfaDisabled": {
+        "title": "Authentification à deux facteurs désactivée",
+        "body": "L'authentification à deux facteurs a été désactivée sur votre compte. Si ce n'était pas vous, réinitialisez votre mot de passe et vérifiez vos paramètres de sécurité."
+      },
+      "backupCodesGenerated": {
+        "title": "Nouveaux codes de secours générés",
+        "body": "De nouveaux codes de secours ont été générés pour votre compte. Si ce n'était pas vous, réinitialisez votre mot de passe et vérifiez vos paramètres de sécurité."
+      },
+      "apiKeyCreated": {
+        "title": "Nouvelle clé API créée",
+        "body": "Une nouvelle clé API a été créée pour votre compte. Si ce n'était pas vous, réinitialisez votre mot de passe et vérifiez vos paramètres de sécurité."
+      },
+      "identityProviderUnlinked": {
+        "title": "Fournisseur de connexion dissocié",
+        "body": "{name} a été dissocié de votre compte. Si ce n'était pas vous, réinitialisez votre mot de passe et vérifiez vos paramètres de sécurité.",
+        "bodyGeneric": "Un fournisseur de connexion a été dissocié de votre compte. Si ce n'était pas vous, réinitialisez votre mot de passe et vérifiez vos paramètres de sécurité."
+      },
+      "unknown": {
+        "title": "Sécurité du compte modifiée",
+        "body": "Un paramètre de sécurité de votre compte a été modifié. Si ce n'était pas vous, réinitialisez votre mot de passe et vérifiez vos paramètres de sécurité."
+      }
+    },
+    "newDeviceSignIn": {
+      "title": "Nouvelle connexion",
+      "body": "Nouvelle connexion depuis {browser} sur {os} ({ip}). Si ce n'était pas vous, changez votre mot de passe et déconnectez-vous de vos autres sessions."
     },
     "adminSignUpApproval": {
       "title": "Nouvelle inscription en attente d'approbation",

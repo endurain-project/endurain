@@ -25,7 +25,7 @@ from sqlalchemy.orm import Session
 
 import core.config as core_config
 import core.logger as core_logger
-import migrations.crud as migrations_crud
+import migrations.service as migrations_service
 import modules.activities.activity_media.migration_service as activity_media_crud
 import modules.activities.activity_media.migration_service as activity_media_signing
 
@@ -146,7 +146,7 @@ def process_migration_9(db: Session) -> None:
 
     if processed_with_no_errors:
         try:
-            migrations_crud.set_migration_as_executed(9, db)
+            migrations_service.mark_executed(9, db)
         except Exception as err:
             logger.error(
                 f"Migration 9 - Failed to set migration as executed: {err}",

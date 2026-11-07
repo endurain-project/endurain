@@ -1,14 +1,26 @@
 {
   "verifyingBody": "請稍候，我們正在確認您的電子郵件地址。",
+  "choosePasswordTitle": "選擇你的密碼",
+  "choosePasswordBody": "為帳號設定密碼後，你的電子郵件即完成驗證。",
+  "submitPassword": "設定密碼",
+  "submittingPassword": "正在儲存密碼",
   "successTitle": "電子郵件已驗證",
   "successBody": "您的電子郵件地址已確認。",
   "adminApprovalBody": "您的帳號正在等待管理員核准。",
   "continueButton": "繼續前往登入",
   "invalidTitle": "驗證失敗",
-  "missingTokenBody": "此驗證連結缺少權杖。",
   "errorInvalidToken": "此驗證連結無效或已過期。",
+  "errorEmailTaken": "此信箱地址現已被其他帳號使用，因此無法確認。",
   "errorNotFound": "我們找不到此連結對應的帳號。",
   "errorGeneral": "無法驗證您的電子郵件，請再試一次。",
   "retry": "重試",
-  "backToLogin": "返回登入"
+  "backToLogin": "返回登入",
+  "resendTitle": "需要新連結？",
+  "resendBody": "請輸入您註冊時使用的地址，如果仍在等待驗證，我們將寄出一封新的驗證郵件。",
+  "resendEmail": "電子郵件地址",
+  "resendButton": "寄送新郵件",
+  "resendSending": "正在寄送",
+  "resendSent": "如果該地址正在等待驗證，新郵件已在途中。",
+  "resendTooManyAttempts": "嘗試次數過多，請稍候再試。",
+  "resendError": "我們無法寄出郵件，請再試一次。"
 }

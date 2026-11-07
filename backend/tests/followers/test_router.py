@@ -9,10 +9,11 @@ def _build_app(mock_db):
     import core.exceptions as core_exceptions
     import modules.auth.dependencies as auth_deps
     import modules.followers.router as router
-    import modules.users.users.dependencies as users_deps
+    import modules.followers.user_router as user_router
 
     app = FastAPI()
-    app.include_router(router.router)
+    app.include_router(router.router, prefix="/profile/follow-requests")
+    app.include_router(user_router.router, prefix="/users")
     # Same domain-error boundary the real app registers, so these tests assert
     # the status codes clients actually receive.
     core_exceptions.register_exception_handlers(app)
@@ -25,8 +26,6 @@ def _build_app(mock_db):
 
     app.dependency_overrides[auth_deps.check_scopes] = _mock
     app.dependency_overrides[auth_deps.get_sub_from_access_token] = _uid
-    app.dependency_overrides[users_deps.validate_user_id] = _mock
-    app.dependency_overrides[users_deps.validate_target_user_id] = _mock
     app.dependency_overrides[core_db.get_db] = lambda: mock_db
     return app
 
@@ -101,6 +100,37 @@ class TestGetUserFollowers:
 
         response = client.get("/users/2/followers", headers={"Authorization": "Bearer x"})
         assert response.status_code == 200
+
+
+class TestFollowerListsCarryProfiles:
+    @patch("modules.followers.service.users_integration.list_public_profiles")
+    @patch("modules.followers.crud.count_followers_by_user_id")
+    @patch("modules.followers.crud.get_all_followers_by_user_id")
+    def test_followers_response_includes_the_users_by_id(self, mock_get, mock_count, mock_profiles, mock_db):
+        from modules.followers.schema import FollowRelationshipRead
+        from modules.users.users.schema import UserPublicRead
+
+        client = TestClient(_build_app(mock_db))
+        mock_get.return_value = [FollowRelationshipRead(follower_id=3, followee_id=1, status="accepted")]
+        mock_count.return_value = 1
+        mock_profiles.return_value = {3: UserPublicRead(id=3, name="Ada", username="ada", city="Porto")}
+
+        response = client.get("/users/1/followers", headers={"Authorization": "Bearer x"})
+
+        assert response.status_code == 200
+        assert response.json()["users"] == {
+            "3": {"id": 3, "name": "Ada", "username": "ada", "city": "Porto", "photo_path": None}
+        }
+
+    @patch("modules.followers.service.users_integration.list_public_profiles", return_value={})
+    @patch("modules.followers.crud.count_followers_by_user_id", return_value=0)
+    @patch("modules.followers.crud.get_all_followers_by_user_id", return_value=[])
+    def test_an_empty_list_has_an_empty_users_object(self, _get, _count, _profiles, mock_db):
+        client = TestClient(_build_app(mock_db))
+
+        response = client.get("/users/1/followers", headers={"Authorization": "Bearer x"})
+
+        assert response.json()["users"] == {}
 
 
 class TestGetUserFollowing:
@@ -179,7 +209,7 @@ class TestListFollowRequests:
         mock_get.return_value = [FollowRelationshipRead(follower_id=3, followee_id=1, status="pending")]
         mock_count.return_value = 1
 
-        response = client.get("/follow-requests", headers={"Authorization": "Bearer x"})
+        response = client.get("/profile/follow-requests", headers={"Authorization": "Bearer x"})
 
         assert response.status_code == 200
         assert response.json()["total"] == 1
@@ -199,37 +229,21 @@ class TestAcceptFollowRequest:
         )
         client = TestClient(_build_app(mock_db))
 
-        response = client.patch(
-            "/follow-requests/2", json={"status": "accepted"}, headers={"Authorization": "Bearer x"}
-        )
+        response = client.post("/profile/follow-requests/2/accept", headers={"Authorization": "Bearer x"})
 
         assert response.status_code == 200
         assert response.json() == {"follower_id": 2, "followee_id": 1, "status": "accepted"}
         mock_accept.assert_called_once_with(1, 2, mock_db)
 
     @patch("modules.followers.service.accept_follow_request")
-    def test_rejects_an_unsupported_transition(self, mock_accept, mock_db):
-        """``pending`` is not a decision; only ``accepted`` may be written."""
-        client = TestClient(_build_app(mock_db))
-
-        response = client.patch("/follow-requests/2", json={"status": "pending"}, headers={"Authorization": "Bearer x"})
-
-        assert response.status_code == 422
-        mock_accept.assert_not_called()
-
-    @patch("modules.followers.service.accept_follow_request")
-    def test_rejects_an_unknown_field(self, mock_accept, mock_db):
-        """Mass-assignment guard: an unrecognized field 422s instead of being
-        silently ignored."""
+    def test_the_old_patch_with_a_status_body_is_gone(self, mock_accept, mock_db):
         client = TestClient(_build_app(mock_db))
 
         response = client.patch(
-            "/follow-requests/2",
-            json={"status": "accepted", "followee_id": 99},
-            headers={"Authorization": "Bearer x"},
+            "/profile/follow-requests/2", json={"status": "accepted"}, headers={"Authorization": "Bearer x"}
         )
 
-        assert response.status_code == 422
+        assert response.status_code == 405
         mock_accept.assert_not_called()
 
 
@@ -238,7 +252,7 @@ class TestRejectFollowRequest:
     def test_success(self, mock_reject, mock_db):
         client = TestClient(_build_app(mock_db))
 
-        response = client.delete("/follow-requests/2", headers={"Authorization": "Bearer x"})
+        response = client.delete("/profile/follow-requests/2", headers={"Authorization": "Bearer x"})
 
         assert response.status_code == 204
         mock_reject.assert_called_once_with(1, 2, mock_db)

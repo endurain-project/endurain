@@ -1,6 +1,12 @@
 {
   "title": "Veselība",
   "subtitle": "Skatiet visus savus veselības datus vienuviet",
+  "chartBucket": {
+    "week": "Nedēļas vidējie rādītāji: katra josla ir attiecīgās nedēļas vidējā diena.",
+    "month": "Mēneša vidējie rādītāji: katra josla ir attiecīgā mēneša vidējā diena."
+  },
+  "targetInvalid": "Ievadiet vērtību, kas lielāka par 0, vai atstājiet lauku tukšu, lai noņemtu mērķi.",
+  "chartError": "Neizdevās ielādēt diagrammu šim laika periodam.",
   "nav": {
     "label": "Veselības sadaļas",
     "soon": "Drīzumā",
@@ -34,6 +40,7 @@
     "stepsTargetLabel": "soļi",
     "poopTargetLabel": "/ dienā",
     "noWeightData": "Nav svara datu",
+    "noHeightData": "Pievienojiet savu augumu profilā, lai redzētu savu BMI.",
     "bmiUnderweight": "Nepietiekams svars",
     "bmiNormalWeight": "Normāls svars",
     "bmiOverweight": "Liekais svars",
@@ -88,7 +95,6 @@
       "weightRequired": "Lūdzu, ievadiet savu svaru.",
       "weightInvalid": "Ievadiet svaru, kas lielāks par nulli.",
       "bodyComposition": "Ķermeņa uzbūve (neobligāti)",
-      "bmi": "BMI",
       "bodyFat": "Ķermeņa tauki (%)",
       "bodyWater": "Ķermeņa ūdens (%)",
       "boneMass": "Kaulu masa",
@@ -308,6 +314,8 @@
       "totalSleepRequired": "Lūdzu, ievadiet, cik ilgi gulējāt.",
       "hours": "Stundas",
       "minutes": "Minūtes",
+      "hoursOf": "{field}, stundas",
+      "minutesOf": "{field}, minūtes",
       "stageBreakdown": "Stadiju sadalījums (neobligāti)",
       "deep": "Dziļais miegs",
       "light": "Vieglais miegs",
@@ -350,7 +358,11 @@
       "close": "Aizvērt",
       "createSuccess": "Miegs reģistrēts.",
       "updateSuccess": "Miega ieraksts atjaunināts.",
-      "saveError": "Neizdevās saglabāt jūsu miega ierakstu. Lūdzu, mēģiniet vēlreiz."
+      "saveError": "Neizdevās saglabāt jūsu miega ierakstu. Lūdzu, mēģiniet vēlreiz.",
+      "numberRange": "Ievadiet vērtību no {min} līdz {max}.",
+      "numberMin": "Ievadiet {min} vai vairāk.",
+      "stagesExceedTotal": "Dziļā, vieglā un REM miega kopsumma pārsniedz kopējo miega ilgumu.",
+      "inconsistentError": "Šie miega rādītāji nesakrīt. Pārbaudiet, vai miega fāzes un kopējais ilgums atbilst miega laikam."
     },
     "target": {
       "title": "Iestatīt miega mērķi",
@@ -596,6 +608,8 @@
       "startTime": "Sākuma laiks",
       "startTimeRequired": "Lūdzu, izvēlieties sākuma laiku.",
       "endTime": "Beigu laiks",
+      "endBeforeStart": "Beigu laiks nedrīkst būt pirms sākuma laika.",
+      "endWhileInProgress": "Notiekošai badošanās nevar būt beigu laika.",
       "status": "Statuss",
       "notes": "Piezīmes",
       "create": "Sākt",
@@ -604,7 +618,9 @@
       "close": "Aizvērt",
       "createSuccess": "Badošanās sākta.",
       "updateSuccess": "Badošanās sesija atjaunināta.",
-      "saveError": "Neizdevās saglabāt jūsu badošanās sesiju. Lūdzu, mēģiniet vēlreiz."
+      "saveError": "Neizdevās saglabāt jūsu badošanās sesiju. Lūdzu, mēģiniet vēlreiz.",
+      "overlapError": "Šī badošanās pārklājas ar citu badošanās sesiju, vai jau norisinās cita badošanās.",
+      "invalidTimesError": "Badošanās nevar beigties pirms sākuma, pabeigtai vai pārtrauktai badošanās ir nepieciešams beigu laiks, bet notiekošai badošanās tā nevar būt."
     },
     "target": {
       "title": "Iestatīt badošanās mērķi",
@@ -621,6 +637,20 @@
     "complete": {
       "success": "Badošanās beigta.",
       "error": "Neizdevās beigt jūsu badošanos. Lūdzu, mēģiniet vēlreiz."
+    },
+    "endConfirm": {
+      "broken": {
+        "title": "Pārtraukt šo badošanos?",
+        "body": "Badošanās beidzas tagad un tiek saglabāta kā pārtraukta. To nevar atsaukt.",
+        "confirm": "Pārtraukt badošanos"
+      },
+      "cancelled": {
+        "title": "Atcelt šo badošanos?",
+        "body": "Badošanās beidzas tagad un tiek saglabāta kā atcelta. To nevar atsaukt.",
+        "confirm": "Atcelt badošanos"
+      },
+      "cancel": "Turpināt badoties",
+      "close": "Aizvērt"
     },
     "empty": {
       "title": "Vēl nav badošanās",

@@ -46,7 +46,6 @@
     "thisWeek": "Ta teden",
     "thisMonth": "Ta mesec",
     "empty": "Ni aktivnosti v tem obdobju",
-    "caloriesUnit": "kcal",
     "metric": {
       "distance": "Razdalja",
       "time": "Čas",
@@ -63,12 +62,13 @@
     "snow_ski": "Smučanje",
     "snowboard": "Snowboarding",
     "windsurf": "Windsurfing",
-    "stand_up_paddleboarding": "Veslanje stoje",
-    "surfing": "Surfanje",
+    "stand_up_paddling": "Veslanje stoje",
+    "surf": "Surfanje",
     "kayaking": "Kajakaštvo",
     "sailing": "Jadranje",
-    "snowshoeing": "Pohod s krpljami",
-    "inline_skating": "Rolkanje"
+    "snow_shoeing": "Pohod s krpljami",
+    "inline_skating": "Rolkanje",
+    "other": "Drugo"
   },
   "goals": {
     "title": "Cilji",

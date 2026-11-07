@@ -8,7 +8,7 @@
   "seeAll": "Ver todas",
   "loadMore": "Cargar máis",
   "loading": "Cargando…",
-  "badge": "{count} notificacións non lidas",
+  "badge": "{count} notificación non lida | {count} notificacións non lidas",
   "empty": {
     "title": "Estás ao día",
     "description": "As actualizacións sobre as túas actividades, seguidores e integracións aparecerán aquí."
@@ -38,6 +38,63 @@
     "garminTokenExpired": {
       "title": "Garmin Connect precisa atención",
       "body": "A túa sesión de Garmin Connect expirou. Reconéctaa para continuar sincronizando."
+    },
+    "stravaTokenExpired": {
+      "title": "Strava necesita atención",
+      "body": "Strava rexeitou a túa conexión. Volve conectala para seguir sincronizando.",
+      "bodyRevoked": "O acceso a Strava rematou. As túas actividades e equipamento sincronizados con Strava eliminaranse o {date} se non te volves conectar."
+    },
+    "stravaDataDeleted": {
+      "title": "Datos de Strava eliminados",
+      "body": "As túas actividades e equipamento sincronizados con Strava eliminaronse porque o acceso a Strava rematou e non te volviches conectar."
+    },
+    "idpLinked": {
+      "title": "Novo provedor de inicio de sesión vinculado",
+      "body": "{name} vinculouse á túa conta. Se non foches ti, revisa a túa configuración de seguridade.",
+      "bodyGeneric": "Vinculouse un provedor de inicio de sesión á túa conta. Se non foches ti, revisa a túa configuración de seguridade."
+    },
+    "accountSecurityChanged": {
+      "passwordChanged": {
+        "title": "Contrasinal cambiado",
+        "body": "Cambiouse o teu contrasinal. Se non foches ti, restablece o contrasinal e revisa a túa configuración de seguridade."
+      },
+      "passwordReset": {
+        "title": "Contrasinal restablecido",
+        "body": "Restableceuse o teu contrasinal cunha ligazón de restablecemento. Se non foches ti, volve restablecer o contrasinal e revisa a túa configuración de seguridade."
+      },
+      "passwordSetByAdmin": {
+        "title": "Contrasinal definido por un administrador",
+        "body": "Un administrador definiu un novo contrasinal para a túa conta. Se non o esperabas, contacta co teu administrador."
+      },
+      "mfaEnabled": {
+        "title": "Autenticación en dous pasos activada",
+        "body": "Activouse a autenticación en dous pasos na túa conta. Se non foches ti, restablece o contrasinal e revisa a túa configuración de seguridade."
+      },
+      "mfaDisabled": {
+        "title": "Autenticación en dous pasos desactivada",
+        "body": "Desactivouse a autenticación en dous pasos na túa conta. Se non foches ti, restablece o contrasinal e revisa a túa configuración de seguridade."
+      },
+      "backupCodesGenerated": {
+        "title": "Xeráronse novos códigos de recuperación",
+        "body": "Xeráronse novos códigos de recuperación para a túa conta. Se non foches ti, restablece o contrasinal e revisa a túa configuración de seguridade."
+      },
+      "apiKeyCreated": {
+        "title": "Nova clave de API creada",
+        "body": "Creouse unha nova clave de API para a túa conta. Se non foches ti, restablece o contrasinal e revisa a túa configuración de seguridade."
+      },
+      "identityProviderUnlinked": {
+        "title": "Provedor de inicio de sesión desvinculado",
+        "body": "{name} desvinculouse da túa conta. Se non foches ti, restablece o contrasinal e revisa a túa configuración de seguridade.",
+        "bodyGeneric": "Desvinculouse un provedor de inicio de sesión da túa conta. Se non foches ti, restablece o contrasinal e revisa a túa configuración de seguridade."
+      },
+      "unknown": {
+        "title": "Seguridade da conta cambiada",
+        "body": "Cambiou unha opción de seguridade da túa conta. Se non foches ti, restablece o contrasinal e revisa a túa configuración de seguridade."
+      }
+    },
+    "newDeviceSignIn": {
+      "title": "Novo inicio de sesión",
+      "body": "Novo inicio de sesión desde {browser} en {os} ({ip}). Se non foches ti, cambia o contrasinal e pecha as túas outras sesións."
     },
     "adminSignUpApproval": {
       "title": "Novo rexistro pendente de aprobación",

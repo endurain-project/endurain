@@ -1,6 +1,7 @@
 import { computed, type Ref } from 'vue'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/vue-query'
 
+import { invalidateActivityData } from '@/composables/useInvalidatingMutation'
 import { queryKeys } from '@/services/queryKeys'
 import {
   type BulkImportSource,
@@ -49,7 +50,7 @@ export function useBulkImportJobQuery(jobId: Ref<string | null>) {
       const job = query.state.data
       if (job && isTerminalIngestionJob(job)) {
         // A finished import has created activities; refresh what shows them.
-        void client.invalidateQueries({ queryKey: queryKeys.activities.all() })
+        void invalidateActivityData(client)
         return false
       }
       return PROGRESS_POLL_MS

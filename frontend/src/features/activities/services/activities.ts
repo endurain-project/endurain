@@ -1,7 +1,13 @@
 import type { Schemas } from '@/types'
 
 import { apiFetch, HttpError } from '@/services/http'
-import { todayIsoDate } from '@/utils/datetime'
+import { ifMatchHeaders, rowVersion } from '@/services/ifMatch'
+import { mapEmbeddedUsers } from '@/features/users/services/publicUsers'
+import { pastWeekRange, todayIsoDate } from '@/utils/datetime'
+
+import { isActivityType } from '../utils/activityType'
+import { mapActivityOwner } from './activityOwner'
+import { mapActivityMedia } from './activityMedia'
 
 /** Job handle returned by the refresh endpoint; polled via `fetchIngestionJob`. */
 type ActivityIngestionJob = Schemas['ActivityIngestionJobRead']
@@ -9,6 +15,7 @@ type ActivityIngestionJob = Schemas['ActivityIngestionJobRead']
 import type {
   ActivitiesPage,
   Activity,
+  ActivityDetail,
   ActivityDto,
   ActivityEditDto,
   ActivityEditInput,
@@ -21,11 +28,11 @@ import type {
   ActivityStats,
   ActivityStream,
   ActivityStreamDto,
+  ActivityType,
   ActivityWorkoutSet,
   ActivityWorkoutStep,
   ActivityWorkoutStepDto,
   HrZoneBucket,
-  StreamWaypoint,
 } from '../types'
 
 /** Context controlling whether to hit the authenticated or public endpoints. */
@@ -97,10 +104,10 @@ export function mapActivity(dto: ActivityDto): Activity {
     description: dto.description ?? null,
     privateNotes: dto.private_notes ?? null,
     activityType: dto.activity_type,
-    visibility: dto.visibility ?? 0,
+    visibility: dto.visibility ?? 'public',
     isHidden: dto.is_hidden,
     gearId: dto.gear_id ?? null,
-    version: dto.version ?? null,
+    version: rowVersion(dto.version),
 
     // The UTC instant plus the recording timezone. Views localize for display
     // via `formatZonedDateTime`, so the athlete's own wall clock is shown to
@@ -133,6 +140,7 @@ export function mapActivity(dto: ActivityDto): Activity {
     garminActivityId: dto.garminconnect_activity_id ?? null,
 
     mapThumbnailUrl: dto.map_thumbnail_url ?? null,
+    media: (dto.media ?? []).map(mapActivityMedia),
 
     privacy: {
       hideStartTime: dto.hide_start_time ?? false,
@@ -152,44 +160,30 @@ export function mapActivity(dto: ActivityDto): Activity {
 }
 
 /**
- * Decodes the HR stream's `zone_percentages.hr` block into ordered zone buckets
- * (zones 1–5). Returns `null` when the payload is absent or malformed.
+ * Flattens the HR stream's `zone_percentages.hr` breakdown into ordered zone
+ * buckets (zones 1–5). Returns `null` when the stream carries no breakdown.
  *
- * Wire shape: `{ hr: { zone_1: { percent, hr, time_seconds }, … } }`.
- *
- * @param zonePercentages - The stream's raw `zone_percentages` field.
+ * @param zonePercentages - The stream's `zone_percentages` field.
  * @returns Ordered zone buckets, or `null`.
  */
 function mapHrZones(zonePercentages: ActivityStreamDto['zone_percentages']): HrZoneBucket[] | null {
-  if (!zonePercentages || typeof zonePercentages !== 'object') {
+  if (!zonePercentages) {
     return null
   }
-  const hr = (zonePercentages as Record<string, unknown>).hr
-  if (!hr || typeof hr !== 'object') {
-    return null
-  }
-  const block = hr as Record<string, unknown>
-  const buckets: HrZoneBucket[] = []
-  for (let zone = 1; zone <= 5; zone += 1) {
-    const entry = block[`zone_${zone}`]
-    if (entry && typeof entry === 'object') {
-      const record = entry as Record<string, unknown>
-      buckets.push({
-        zone,
-        percent: typeof record.percent === 'number' ? record.percent : 0,
-        hrRange: typeof record.hr === 'string' ? record.hr : '',
-        timeSeconds: typeof record.time_seconds === 'number' ? record.time_seconds : 0,
-      })
-    }
-  }
-  return buckets.length > 0 ? buckets : null
+  const { hr } = zonePercentages
+  return [hr.zone_1, hr.zone_2, hr.zone_3, hr.zone_4, hr.zone_5].map((entry, index) => ({
+    zone: index + 1,
+    percent: entry.percent,
+    hrRange: entry.hr,
+    timeSeconds: entry.time_seconds,
+  }))
 }
 
 /**
- * Maps a stream DTO to the domain model. The wire `stream_waypoints` are an
- * untyped object array; they are narrowed to {@link StreamWaypoint} here and
- * read defensively downstream. The HR stream's zone percentages are decoded
- * into {@link HrZoneBucket}s.
+ * Maps a stream DTO to the domain model. The wire `stream_waypoints` are typed
+ * per stream type; every shape fits the domain `StreamWaypoint`, whose keys are read
+ * defensively downstream. The HR stream's zone percentages are decoded into
+ * {@link HrZoneBucket}s.
  *
  * @param dto - The stream wire payload.
  * @returns The stream domain model.
@@ -198,7 +192,7 @@ export function mapActivityStream(dto: ActivityStreamDto): ActivityStream {
   return {
     id: dto.id,
     streamType: dto.stream_type,
-    waypoints: (dto.stream_waypoints ?? []) as StreamWaypoint[],
+    waypoints: dto.stream_waypoints,
     hrZones: mapHrZones(dto.zone_percentages),
   }
 }
@@ -254,6 +248,55 @@ export async function fetchActivity(
 }
 
 /**
+ * Maps one child collection of a detail response to its rows, or `null` when the response held only
+ * its first page (so the collection must be read in full from its own route).
+ *
+ * @param page - The collection's page envelope.
+ * @param map - Maps one row to the domain model.
+ * @returns Every row, or `null` for an incomplete collection.
+ */
+function completeRows<Dto, T>(page: ChildPage<Dto>, map: (dto: Dto) => T): T[] | null {
+  return page.next ? null : (page.items ?? []).map(map)
+}
+
+/**
+ * Fetches an activity together with its laps, sets and workout steps in one request (auth or
+ * public endpoint), so the page needs neither the activity before the collections nor a request
+ * for each. Returns `null` when the activity is missing or not publicly shareable.
+ *
+ * @param id - Activity identifier.
+ * @param context - Auth + cancellation context.
+ * @returns The activity and each collection that arrived in full, or `null` when not found/accessible.
+ */
+export async function fetchActivityDetail(
+  id: number,
+  context: ActivityFetchContext,
+): Promise<ActivityDetail | null> {
+  const path = resourcePath(
+    context.authenticated,
+    `/activities/${id}/detail`,
+    `/public/activities/${id}/detail`,
+  )
+  try {
+    const dto = await apiFetch<Schemas['ActivityDetailRead']>(path, {
+      auth: context.authenticated,
+      signal: context.signal,
+    })
+    return {
+      activity: mapActivity(dto.activity),
+      laps: completeRows(dto.laps, mapActivityLap),
+      sets: completeRows(dto.sets, mapActivitySet),
+      workoutSteps: completeRows(dto.workout_steps, mapActivityWorkoutStep),
+    }
+  } catch (error) {
+    if (error instanceof HttpError && (error.status === 404 || error.status === 422)) {
+      return null
+    }
+    throw error
+  }
+}
+
+/**
  * Searches the viewer's activities whose name contains the given term. The
  * backend scopes the result to activities the caller may see (their own plus
  * any visible to them).
@@ -267,7 +310,7 @@ export async function searchActivitiesByName(
   name: string,
   signal?: AbortSignal,
 ): Promise<Activity[]> {
-  const params = new URLSearchParams({ name })
+  const params = new URLSearchParams({ name_contains: name })
   const page_ = await apiFetch<Schemas['Page_ActivityRead_']>(`/activities?${params.toString()}`, {
     signal,
   })
@@ -275,7 +318,7 @@ export async function searchActivitiesByName(
 }
 
 /** A timeframe accepted by the activity stats endpoints. */
-export type ActivityStatsTimeframe = 'week' | 'month'
+export type ActivityStatsTimeframe = Schemas['StatsPeriod']
 
 /**
  * Fetches one page of the authenticated viewer's own activities for the home
@@ -313,7 +356,7 @@ export async function fetchUserActivities(
  * @param cursor - Opaque cursor from the previous slice, or null to start.
  * @param numRecords - Slice size.
  * @param signal - Optional abort signal for cancellation.
- * @returns The slice's activities plus the cursor for the next one.
+ * @returns The slice's activities, the cursor for the next one, and each owner's profile.
  * @throws {HttpError} When the request fails.
  */
 export async function fetchFollowersActivities(
@@ -325,13 +368,19 @@ export async function fetchFollowersActivities(
   if (cursor) {
     params.set('cursor', cursor)
   }
-  const slice = await apiFetch<Schemas['CursorPage_ActivityRead_']>(
+  const slice = await apiFetch<Schemas['ActivityFeedPage']>(
     `/activities/feed?${params.toString()}`,
     { signal },
   )
+  const items = (slice.items ?? []).map(mapActivity)
   return {
-    items: (slice.items ?? []).map(mapActivity),
+    items,
     nextCursor: slice.next_cursor ?? null,
+    owners: mapEmbeddedUsers(
+      items.flatMap((activity) => (activity.userId === null ? [] : [activity.userId])),
+      slice.users,
+      mapActivityOwner,
+    ),
   }
 }
 
@@ -344,25 +393,10 @@ function isoDate(date: Date): string {
 }
 
 /**
- * Computes the inclusive Monday–Sunday date range for an ISO-week offset, where
- * `0` is the current week and each increment steps one week into the past.
- *
- * Uses the viewer's **local** calendar. Reading UTC fields meant a user far
- * enough east or west was shown the neighbouring week for part of every day —
- * for someone at UTC+13, all of Monday morning belonged to "last week".
+ * The week-browser bucket that holds everything older than the dated weeks: it
+ * has no start date, only an end date just before the previous bucket begins.
  */
-function weekDateRange(weekOffset: number): { startDate: string; endDate: string } {
-  const now = new Date()
-  const mondayIndex = (now.getDay() + 6) % 7 // 0 = Monday
-  const monday = new Date(
-    now.getFullYear(),
-    now.getMonth(),
-    now.getDate() - mondayIndex - weekOffset * 7,
-  )
-  const sunday = new Date(monday)
-  sunday.setDate(monday.getDate() + 6)
-  return { startDate: isoDate(monday), endDate: isoDate(sunday) }
-}
+export const OLDEST_WEEK_BUCKET = 51
 
 /** Computes the inclusive first-of-month → today date range in the viewer's local calendar. */
 function currentMonthRange(): { startDate: string; endDate: string } {
@@ -372,13 +406,16 @@ function currentMonthRange(): { startDate: string; endDate: string } {
 }
 
 /**
- * Fetches a user's activities for a single ISO week, newest first. Week `0` is
- * the current week and each increment steps one week into the past (mirrors
- * v1's public-profile week browser). Authenticated-only; the backend applies
- * the viewer's visibility rules.
+ * Fetches a user's activities for a single week, newest first. Week `0` is the
+ * current week and each increment steps one week into the past (mirrors v1's
+ * public-profile week browser). Weeks begin on the viewer's first day of the
+ * week, using the viewer's local calendar; {@link OLDEST_WEEK_BUCKET} reaches
+ * back without limit. Authenticated-only; the backend applies the viewer's
+ * visibility rules.
  *
  * @param userId - The profile owner's user id.
  * @param week - Week offset (0 = this week).
+ * @param firstDayOfWeek - The viewer's configured first weekday.
  * @param signal - Optional abort signal for cancellation.
  * @returns That week's activities, mapped to the clean model.
  * @throws {HttpError} When the request fails.
@@ -386,16 +423,18 @@ function currentMonthRange(): { startDate: string; endDate: string } {
 export async function fetchUserWeekActivities(
   userId: number,
   week: number,
+  firstDayOfWeek: Schemas['WeekDay'],
   signal?: AbortSignal,
 ): Promise<Activity[]> {
-  const { startDate, endDate } = weekDateRange(week)
-  const params = new URLSearchParams({
-    start_date: startDate,
-    end_date: endDate,
-    num_records: '200',
-  })
+  const { start, end } = pastWeekRange(week, firstDayOfWeek)
+  const params = new URLSearchParams()
+  if (week < OLDEST_WEEK_BUCKET) {
+    params.set('start_date', start)
+  }
+  params.set('end_date', end)
+  params.set('num_records', '200')
   const page_ = await apiFetch<Schemas['Page_ActivityRead_']>(
-    `/activities/users/${userId}?${params.toString()}`,
+    `/users/${userId}/activities?${params.toString()}`,
     { signal },
   )
   return (page_.items ?? []).map(mapActivity)
@@ -419,8 +458,8 @@ export type ActivitySortOrder = 'asc' | 'desc'
 
 /** Server-side filters for the user activities list. */
 export interface ActivityListFilters {
-  /** Activity-type code, or `0`/`null` for all types. */
-  type: number | null
+  /** Activity type, or `null` for all types. */
+  type: ActivityType | null
   /** Inclusive start date (`YYYY-MM-DD`), or `null`. */
   startDate: string | null
   /** Inclusive end date (`YYYY-MM-DD`), or `null`. */
@@ -453,8 +492,8 @@ export interface ActivityListParams {
  * @param filters - The active filters.
  */
 function appendActivityFilters(params: URLSearchParams, filters: ActivityListFilters): void {
-  if (filters.type !== null && filters.type > 0) {
-    params.set('type', String(filters.type))
+  if (filters.type !== null) {
+    params.set('type', filters.type)
   }
   if (filters.startDate) {
     params.set('start_date', filters.startDate)
@@ -464,7 +503,7 @@ function appendActivityFilters(params: URLSearchParams, filters: ActivityListFil
   }
   const name = filters.nameSearch?.trim()
   if (name) {
-    params.set('name', name)
+    params.set('name_contains', name)
   }
 }
 
@@ -501,44 +540,19 @@ export async function fetchUserActivitiesPage(
 }
 
 /**
- * Fetches the authenticated user's owned activity types as a `code → name` map.
- * The backend returns a `{ code: name }` object keyed by stringified codes; this
- * normalizes the keys to numbers and drops any non-numeric entries. Backs both
- * the activity-type filter options and the summary view's name-based type filter
- * (the summary endpoint filters by type name, not code).
+ * Fetches the activity types the authenticated user owns, ordered as the backend
+ * returns them. Backs the activity and summary type filters, so they only offer
+ * types the user has.
  *
  * @param signal - Optional abort signal for cancellation.
- * @returns A map of activity-type code to backend type name.
+ * @returns The activity types the user has recorded.
  * @throws {HttpError} When the request fails.
  */
-export async function fetchUserActivityTypeMap(signal?: AbortSignal): Promise<Map<number, string>> {
-  const types = await apiFetch<Record<string, string> | null>('/activities/types', { signal })
-  const map = new Map<number, string>()
-  if (!types) {
-    return map
-  }
-  for (const [code, name] of Object.entries(types)) {
-    const numericCode = Number(code)
-    if (Number.isFinite(numericCode)) {
-      map.set(numericCode, name)
-    }
-  }
-  return map
-}
-
-/**
- * Fetches the distinct activity-type codes the authenticated user owns, sorted
- * ascending. Backs the activity-type filter so it only offers types the user
- * actually has. Derives from {@link fetchUserActivityTypeMap}; the labels are
- * localized client-side via `presentActivityType`.
- *
- * @param signal - Optional abort signal for cancellation.
- * @returns The user's distinct activity-type codes, ascending.
- * @throws {HttpError} When the request fails.
- */
-export async function fetchUserActivityTypeCodes(signal?: AbortSignal): Promise<number[]> {
-  const map = await fetchUserActivityTypeMap(signal)
-  return [...map.keys()].sort((a, b) => a - b)
+export async function fetchUserActivityTypes(signal?: AbortSignal): Promise<ActivityType[]> {
+  const types = await apiFetch<Partial<Record<ActivityType, string>> | null>('/activities/types', {
+    signal,
+  })
+  return Object.keys(types ?? {}).filter(isActivityType)
 }
 
 /**
@@ -561,7 +575,7 @@ export async function fetchActivityStats(
 ): Promise<ActivityStats> {
   const params = new URLSearchParams({ period: timeframe, date: todayIsoDate() })
   const stats = await apiFetch<ActivityStats | null>(
-    `/activities/users/${userId}/stats?${params.toString()}`,
+    `/users/${userId}/activities/stats?${params.toString()}`,
     { signal },
   )
   return stats ?? {}
@@ -584,15 +598,13 @@ export async function fetchUserThisMonthActivityCount(
   const params = new URLSearchParams({
     start_date: startDate,
     end_date: endDate,
-    num_records: '200',
+    num_records: '1',
   })
   const page_ = await apiFetch<Schemas['Page_ActivityRead_']>(
-    `/activities/users/${userId}?${params.toString()}`,
+    `/users/${userId}/activities?${params.toString()}`,
     { signal },
   )
-  // The envelope's total is the real match count. This previously returned the
-  // length of the returned page, so any week with more than num_records
-  // activities under-reported.
+  // The envelope's total is the match count, so a one-row page is enough.
   return page_.total
 }
 
@@ -758,28 +770,11 @@ export async function fetchActivityExerciseTitles(
 ): Promise<ActivityExerciseTitle[]> {
   const path = resourcePath(
     context.authenticated,
-    `/activities/exercise-titles/all`,
-    `/public/activities/exercise-titles/all`,
+    `/activities/exercise-titles`,
+    `/public/activities/exercise-titles`,
   )
-  const dtos = await apiFetch<ActivityExerciseTitleDto[] | null>(path, {
-    auth: context.authenticated,
-    signal: context.signal,
-  })
-  return (dtos ?? []).map(mapActivityExerciseTitle)
-}
-
-/**
- * Builds the conditional-write headers for an activity mutation.
- *
- * Without `If-Match` the write is last-writer-wins: the edit form posts every
- * field it holds, so saving a copy loaded before someone else's change silently
- * reverts that change.
- *
- * @param version - The row version the caller's copy was read at.
- * @returns The headers to merge into the request, empty when no version is known.
- */
-function ifMatchHeaders(version: number | null | undefined): HeadersInit {
-  return version == null ? {} : { 'If-Match': `"${version}"` }
+  const dtos = await fetchAllChildPages<ActivityExerciseTitleDto>(path, context)
+  return dtos.map(mapActivityExerciseTitle)
 }
 
 /**
@@ -808,40 +803,55 @@ export async function setActivityGear(
  * Permanently deletes an activity owned by the current user.
  *
  * @param id - Activity identifier.
- * @throws {HttpError} When the delete fails (e.g. not found or not owned).
+ * @param version - The activity version the caller read, for `If-Match`.
+ * @throws {HttpError} When the delete fails (e.g. not found, not owned, or `412` when stale).
  */
-export async function deleteActivity(id: number): Promise<void> {
-  await apiFetch(`/activities/${id}`, { method: 'DELETE' })
+export async function deleteActivity(id: number, version: number): Promise<void> {
+  await apiFetch(`/activities/${id}`, { method: 'DELETE', headers: ifMatchHeaders(version) })
 }
 
-/**
- * Wire values the backend stores for each visibility level.
- *
- * The activities API works in these integers while the profile UI works in the
- * `ActivityVisibility` names, so the translation has to happen somewhere. It
- * belongs here, at the one call site that talks to the activities endpoint.
- */
-const VISIBILITY_TO_WIRE: Record<Schemas['ActivityVisibility'], number> = {
-  public: 0,
-  followers: 1,
-  private: 2,
-}
+/** How often the bulk visibility edit is checked while it runs. */
+const BULK_EDIT_POLL_MS = 2_000
+
+/** How long the bulk visibility edit is followed before giving up. */
+const BULK_EDIT_TIMEOUT_MS = 10 * 60_000
 
 /**
  * Changes the visibility of every existing activity owned by the current user.
- * New activities keep using the profile default configured separately.
+ * New activities keep using the profile default configured separately. The server
+ * queues the edit, because it can touch a whole library, so this follows the queued
+ * job until it finishes.
  *
  * @param visibility - The visibility to apply to all existing activities.
- * @throws {HttpError} When the update fails.
+ * @throws {HttpError} When the request is refused (e.g. an edit is already running).
+ * @throws {Error} When the edit fails on the server or does not finish in time.
  */
 export async function updateUserActivitiesVisibility(
   visibility: Schemas['ActivityVisibility'],
 ): Promise<void> {
-  await apiFetch<void>('/activities', {
+  const deadline = Date.now() + BULK_EDIT_TIMEOUT_MS
+  let job: Schemas['ActivitiesBulkEditStatus'] | null = await apiFetch<
+    Schemas['ActivitiesBulkEditStatus']
+  >('/activities', {
     method: 'PATCH',
-    body: JSON.stringify({ visibility: VISIBILITY_TO_WIRE[visibility] }),
-    responseType: 'void',
+    body: JSON.stringify({ visibility }),
   })
+  for (;;) {
+    if (job === null) {
+      throw new Error('The activities visibility edit status expired')
+    }
+    if (job.status === 'succeeded') {
+      return
+    }
+    if (job.status === 'failed') {
+      throw new Error('Updating the activities visibility failed')
+    }
+    if (Date.now() >= deadline) {
+      throw new Error('Updating the activities visibility did not finish in time')
+    }
+    await new Promise((resolve) => setTimeout(resolve, BULK_EDIT_POLL_MS))
+    job = await apiFetch<Schemas['ActivitiesBulkEditStatus'] | null>('/activities/bulk-edit')
+  }
 }
 
 /**
@@ -859,7 +869,7 @@ export async function updateUserActivitiesVisibility(
 export async function editActivity(
   id: number,
   input: ActivityEditInput,
-  version?: number | null,
+  version: number,
 ): Promise<Activity> {
   const body: ActivityEditDto = {
     name: input.name,

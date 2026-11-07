@@ -1,6 +1,12 @@
 {
   "title": "Zdravje",
   "subtitle": "Vsi tvoji zdravstveni podatki na enem mestu",
+  "chartBucket": {
+    "week": "Tedenska povprečja: vsak stolpec je povprečen dan tistega tedna.",
+    "month": "Mesečna povprečja: vsak stolpec je povprečen dan tistega meseca."
+  },
+  "targetInvalid": "Vnesi vrednost, večjo od 0, ali pusti polje prazno, da odstraniš cilj.",
+  "chartError": "Grafikona za to časovno obdobje ni bilo mogoče naložiti.",
   "nav": {
     "label": "Razdelki zdravja",
     "soon": "Kmalu",
@@ -34,6 +40,7 @@
     "stepsTargetLabel": "korakov",
     "poopTargetLabel": "/ dan",
     "noWeightData": "Ni podatkov o teži",
+    "noHeightData": "V profil dodaj svojo višino, da vidiš svoj BMI.",
     "bmiUnderweight": "Podhranjenost",
     "bmiNormalWeight": "Normalna teža",
     "bmiOverweight": "Prekomerna teža",
@@ -88,7 +95,6 @@
       "weightRequired": "Prosim, vnesi svojo težo.",
       "weightInvalid": "Vnesi težo večjo od nič.",
       "bodyComposition": "Sestava telesa (neobvezno)",
-      "bmi": "BMI",
       "bodyFat": "Telesna maščoba (%)",
       "bodyWater": "Telesna voda (%)",
       "boneMass": "Kostna masa",
@@ -308,6 +314,8 @@
       "totalSleepRequired": "Prosim, vnesi, kako dolgo si spal/a.",
       "hours": "Ure",
       "minutes": "Minute",
+      "hoursOf": "{field}, ure",
+      "minutesOf": "{field}, minute",
       "stageBreakdown": "Razčlenitev faz (neobvezno)",
       "deep": "Globoko spanje",
       "light": "Lahko spanje",
@@ -350,7 +358,11 @@
       "close": "Zapri",
       "createSuccess": "Spanje zabeleženo.",
       "updateSuccess": "Vnos spanja posodobljen.",
-      "saveError": "Vnosa spanja ni bilo mogoče shraniti. Prosim, poskusi znova."
+      "saveError": "Vnosa spanja ni bilo mogoče shraniti. Prosim, poskusi znova.",
+      "numberRange": "Vnesi vrednost med {min} in {max}.",
+      "numberMin": "Vnesi {min} ali več.",
+      "stagesExceedTotal": "Globoko, lahko in REM spanje skupaj presegajo skupni čas spanja.",
+      "inconsistentError": "Ti podatki o spanju se ne ujemajo. Preveri, ali se faze in skupni čas ujemajo s časi spanja."
     },
     "target": {
       "title": "Nastavi cilj spanja",
@@ -596,6 +608,8 @@
       "startTime": "Čas začetka",
       "startTimeRequired": "Prosim, izberi čas začetka.",
       "endTime": "Čas konca",
+      "endBeforeStart": "Čas konca ne sme biti pred časom začetka.",
+      "endWhileInProgress": "Post v teku ne more imeti časa konca.",
       "status": "Status",
       "notes": "Opombe",
       "create": "Začni",
@@ -604,7 +618,9 @@
       "close": "Zapri",
       "createSuccess": "Post začet.",
       "updateSuccess": "Seja posta posodobljena.",
-      "saveError": "Seje posta ni bilo mogoče shraniti. Prosim, poskusi znova."
+      "saveError": "Seje posta ni bilo mogoče shraniti. Prosim, poskusi znova.",
+      "overlapError": "Ta post se prekriva z drugim postom ali pa že poteka drug post.",
+      "invalidTimesError": "Post se ne more končati, preden se začne, zaključen ali prekinjen post potrebuje čas konca, post v teku pa ga ne more imeti."
     },
     "target": {
       "title": "Nastavi cilj posta",
@@ -621,6 +637,20 @@
     "complete": {
       "success": "Post zaključen.",
       "error": "Posta ni bilo mogoče zaključiti. Prosim, poskusi znova."
+    },
+    "endConfirm": {
+      "broken": {
+        "title": "Prekiniti ta post?",
+        "body": "Post se zdaj konča in se shrani kot prekinjen. Tega ni mogoče razveljaviti.",
+        "confirm": "Prekini post"
+      },
+      "cancelled": {
+        "title": "Preklicati ta post?",
+        "body": "Post se zdaj konča in se shrani kot preklican. Tega ni mogoče razveljaviti.",
+        "confirm": "Prekliči post"
+      },
+      "cancel": "Nadaljuj s postom",
+      "close": "Zapri"
     },
     "empty": {
       "title": "Še ni postov",

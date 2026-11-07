@@ -1,35 +1,39 @@
+"""Pydantic request and response shapes for health steps records."""
+
 from datetime import date as datetime_date
 from enum import Enum
+from typing import ClassVar
 
-from pydantic import BaseModel, ConfigDict, Field, StrictInt, model_validator
+from pydantic import BaseModel, ConfigDict, Field, StrictInt
 
-import core.config as core_config
-import core.timezone as core_timezone
-import modules.health.schema as health_schema
+import core.partial_update as core_partial_update
+import core.types as core_types
+
+#: The largest value of the ``steps`` column, a 32-bit integer.
+MAX_STEPS = 2_147_483_647
 
 
 class Source(Enum):
-    """
-    An enumeration representing supported sources for the application.
+    """An enumeration representing supported sources for the application.
 
     Members:
+        MANUAL: Manually entered data
         GARMIN: Garmin health data source
     """
 
+    MANUAL = "manual"
     GARMIN = "garmin"
 
 
 class HealthStepsBase(BaseModel):
-    """
-    Base model for health steps data.
+    """Base model for health steps data.
 
     Represents the core attributes of a user's step count record, including the user reference,
-    date of the record, number of steps taken, and the source of the data.
+    date of the record and number of steps taken.
 
     Attributes:
         date (datetime_date | None): Calendar date of the steps record. Optional field.
         steps (StrictInt | None): Number of steps taken. Must be a non-negative integer. Optional field.
-        source (Source | None): Source of the steps data (e.g., device, API, manual entry). Optional field.
 
     Configuration:
         - from_attributes: Allows model to be populated from ORM objects.
@@ -39,8 +43,7 @@ class HealthStepsBase(BaseModel):
     """
 
     date: datetime_date | None = Field(default=None, description="Calendar date of the steps")
-    steps: StrictInt | None = Field(default=None, ge=0, description="Number of steps taken")
-    source: Source | None = Field(default=None, description="Source of the steps data")
+    steps: StrictInt | None = Field(default=None, ge=0, le=MAX_STEPS, description="Number of steps taken")
 
     model_config = ConfigDict(
         from_attributes=True,
@@ -50,70 +53,69 @@ class HealthStepsBase(BaseModel):
     )
 
 
-class HealthStepsCreate(HealthStepsBase):
+class HealthStepsWrite(HealthStepsBase):
+    """Steps fields a client writes: the date is bounded, which a stored row read back need not be."""
+
+    date: core_types.RecordDate | None = Field(default=None, description="Calendar date of the steps")
+
+
+class HealthStepsCreate(HealthStepsWrite):
+    """Schema for creating a health steps record.
+
+    The date is optional; ``service`` fills it in when the client sends none.
     """
-    Validator for HealthStepsCreate model that automatically sets the date field.
 
-    This validator runs after model initialization to ensure that if no date
-    is provided, it defaults to today's date.
-    """
-
-    @model_validator(mode="after")
-    def set_default_date(self) -> "HealthStepsCreate":
-        """
-        Set date to today if not provided.
-
-        Clients should always send their own local date — the request carries no
-        timezone, so this fallback can only use the server's configured zone and
-        will file an entry logged near local midnight under the wrong day for an
-        athlete elsewhere. Resolved through ``settings.TZ`` explicitly rather
-        than ``date.today()``, which silently depends on the container's clock.
-
-        Returns:
-            The validated model instance with date set.
-        """
-        if self.date is None:
-            self.date = core_timezone.today_in(core_config.settings.TZ)
-        return self
+    steps: StrictInt = Field(..., ge=0, le=MAX_STEPS, description="Number of steps taken")
 
 
 class HealthStepsRead(HealthStepsBase):
-    """
-    Schema for reading health steps records.
+    """Schema for reading health steps records.
 
     Extends the base health steps schema with an identifier field for retrieving
     or referencing existing steps records in the database.
 
     Attributes:
+        source (Source | None): Source of the steps data (e.g., device, API, manual entry). Optional field.
         id (StrictInt): Unique identifier for the steps record to update. Required field.
         user_id (StrictInt): Foreign key reference to the user. Required field.
     """
 
+    source: Source = Field(default=Source.MANUAL, validate_default=True, description="Source of the steps data")
     id: StrictInt = Field(..., description="Unique identifier for the steps record to update")
     user_id: StrictInt = Field(..., description="Foreign key reference to the user")
+    version: StrictInt = Field(default=1, ge=1, description="Optimistic-concurrency counter, also sent as the ETag")
 
 
-class HealthStepsUpdate(HealthStepsRead):
+class HealthStepsUpdate(core_partial_update.NotClearable, HealthStepsWrite):
+    """Schema for the fields a PATCH changes on a steps record.
+
+    The record is named by the path, so the body carries neither an id nor an owner; only the
+    fields present are changed.
     """
-    Schema for updating health steps records.
 
-    Inherits from HealthStepsRead to maintain consistency with read operations
-    while allowing modifications to health steps data. This schema is used for
-    PUT/PATCH requests to update existing health steps entries.
-    """
+    not_clearable: ClassVar[tuple[str, ...]] = ("date", "steps")
 
 
-class HealthStepsListResponse(health_schema.HealthListResponse):
-    """
-    Response model for listing health steps records.
+class HealthStepsImport(HealthStepsCreate):
+    """Steps record written by the server itself: a provider sync or a profile import.
 
-    Extends the base HealthListResponse to provide a typed response containing
-    a list of steps records. This model is used when returning multiple steps
-    entries from API endpoints.
+    Unlike :class:`HealthStepsCreate` it carries the provenance, which a client never sets. Every
+    server-side writer of ``source`` takes ``Health<Kind>Import`` (create) or ``Health<Kind>ImportUpdate``.
 
     Attributes:
-        records: A list of HealthStepsRead objects representing individual
-            steps records.
+        source (Source): The source the record came from; ``manual`` when none is given.
     """
 
-    records: list[HealthStepsRead] = Field(..., description="List of health steps records")
+    source: Source = Field(default=Source.MANUAL, validate_default=True, description="Source of the steps data")
+
+
+class HealthStepsImportUpdate(HealthStepsUpdate):
+    """Fields a provider sync or a profile import changes on a steps record, provenance included.
+
+    Attributes:
+        source (Source | None): The source the record came from.
+    """
+
+    not_clearable: ClassVar[tuple[str, ...]] = (*HealthStepsUpdate.not_clearable, "source")
+
+    source: Source | None = Field(default=None, description="Source of the steps data")

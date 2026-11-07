@@ -1,20 +1,18 @@
+"""SQLAlchemy ORM model for health sleep records."""
+
 from datetime import date as date_type
 from datetime import datetime
 from decimal import Decimal
-from typing import TYPE_CHECKING
+from typing import Any
 
-from sqlalchemy import JSON, DateTime, ForeignKey, Numeric, String
-from sqlalchemy.orm import Mapped, mapped_column, relationship
+from sqlalchemy import JSON, DateTime, ForeignKey, Numeric, String, UniqueConstraint
+from sqlalchemy.orm import Mapped, mapped_column
 
 from core.database import Base
 
-if TYPE_CHECKING:
-    from modules.users.users.models import Users
-
 
 class HealthSleep(Base):
-    """
-    User sleep tracking data with metrics and quality scores.
+    """User sleep tracking data with metrics and quality scores.
 
     Attributes:
         id: Primary key.
@@ -34,9 +32,9 @@ class HealthSleep(Base):
         avg_heart_rate: Average heart rate.
         min_heart_rate: Minimum heart rate.
         max_heart_rate: Maximum heart rate.
-        avg_spo2: Average SpO2 percentage.
-        lowest_spo2: Lowest SpO2 reading.
-        highest_spo2: Highest SpO2 reading.
+        avg_spo2_percent: Average SpO2 percentage.
+        lowest_spo2_percent: Lowest SpO2 reading.
+        highest_spo2_percent: Highest SpO2 reading.
         avg_respiration: Average respiration rate.
         lowest_respiration: Lowest respiration.
         highest_respiration: Highest respiration.
@@ -58,10 +56,10 @@ class HealthSleep(Base):
         light_percentage_score: Light percentage score.
         avg_sleep_stress: Average sleep stress.
         sleep_stress_score: Sleep stress score.
-        user: Relationship to Users model.
     """
 
     __tablename__ = "health_sleep"
+    __table_args__ = (UniqueConstraint("user_id", "date", name="uq_health_sleep_user_date"),)
 
     id: Mapped[int] = mapped_column(
         primary_key=True,
@@ -138,15 +136,15 @@ class HealthSleep(Base):
         nullable=True,
         comment="Maximum heart rate during sleep",
     )
-    avg_spo2: Mapped[int | None] = mapped_column(
+    avg_spo2_percent: Mapped[int | None] = mapped_column(
         nullable=True,
         comment="Average SpO2 oxygen saturation percentage",
     )
-    lowest_spo2: Mapped[int | None] = mapped_column(
+    lowest_spo2_percent: Mapped[int | None] = mapped_column(
         nullable=True,
         comment="Lowest SpO2 reading during sleep",
     )
-    highest_spo2: Mapped[int | None] = mapped_column(
+    highest_spo2_percent: Mapped[int | None] = mapped_column(
         nullable=True,
         comment="Highest SpO2 reading during sleep",
     )
@@ -193,14 +191,16 @@ class HealthSleep(Base):
         nullable=True,
         comment="External Garmin Connect sleep ID",
     )
-    sleep_stages: Mapped[dict | None] = mapped_column(
+    sleep_stages: Mapped[list[dict[str, Any]] | None] = mapped_column(
         JSON,
         nullable=True,
         comment="List of sleep stage intervals as JSON",
     )
-    source: Mapped[str | None] = mapped_column(
+    source: Mapped[str] = mapped_column(
         String(250),
-        nullable=True,
+        nullable=False,
+        server_default="manual",
+        default="manual",
         comment="Source of the health sleep data",
     )
     hrv_status: Mapped[str | None] = mapped_column(
@@ -247,5 +247,13 @@ class HealthSleep(Base):
         comment="Sleep stress score",
     )
 
-    # Define a relationship to the Users model
-    users: Mapped["Users"] = relationship(back_populates="health_sleep")
+    version: Mapped[int] = mapped_column(
+        nullable=False,
+        server_default="1",
+        default=1,
+        comment="Optimistic-concurrency counter, surfaced to clients as the ETag",
+    )
+
+    # SQLAlchemy bumps ``version`` on each ORM flush and adds it to the UPDATE's
+    # WHERE clause, raising StaleDataError when the row moved underneath.
+    __mapper_args__ = {"version_id_col": version}  # noqa: RUF012

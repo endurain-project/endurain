@@ -28,7 +28,8 @@ def edit_activity(
     Returns:
         The updated activity.
     """
-    activity = activity_crud.edit_activity(user_id, activity_id, activity_attributes, db)
+    # A migration overwrites whatever the row holds, so it names no version.
+    activity = activity_crud.edit_activity(user_id, activity_id, activity_attributes, db, if_match="*")
     db.commit()
     return activity
 

@@ -8,7 +8,7 @@
   "seeAll": "Se alle",
   "loadMore": "Last inn mer",
   "loading": "Laster…",
-  "badge": "{count} uleste varsler",
+  "badge": "{count} ulest varsel | {count} uleste varsler",
   "empty": {
     "title": "Du er à jour",
     "description": "Oppdateringer om aktivitetene, følgerne og integrasjonene dine vises her."
@@ -38,6 +38,63 @@
     "garminTokenExpired": {
       "title": "Garmin Connect trenger oppmerksomhet",
       "body": "Garmin Connect-økten din utløp. Koble til på nytt for å fortsette synkroniseringen."
+    },
+    "stravaTokenExpired": {
+      "title": "Strava trenger oppmerksomhet",
+      "body": "Strava avviste tilkoblingen din. Koble til på nytt for å fortsette synkroniseringen.",
+      "bodyRevoked": "Tilgangen til Strava har opphørt. Aktivitetene og utstyret ditt som er synkronisert med Strava, slettes {date} med mindre du kobler til igjen."
+    },
+    "stravaDataDeleted": {
+      "title": "Strava-data slettet",
+      "body": "Aktivitetene og utstyret ditt som var synkronisert med Strava, ble slettet fordi tilgangen til Strava opphørte og du ikke koblet til igjen."
+    },
+    "idpLinked": {
+      "title": "Ny innloggingsleverandør koblet til",
+      "body": "{name} ble koblet til kontoen din. Hvis dette ikke var deg, bør du gå gjennom sikkerhetsinnstillingene dine.",
+      "bodyGeneric": "En innloggingsleverandør ble koblet til kontoen din. Hvis dette ikke var deg, bør du gå gjennom sikkerhetsinnstillingene dine."
+    },
+    "accountSecurityChanged": {
+      "passwordChanged": {
+        "title": "Passord endret",
+        "body": "Passordet ditt ble endret. Hvis dette ikke var deg, tilbakestill passordet og gå gjennom sikkerhetsinnstillingene dine."
+      },
+      "passwordReset": {
+        "title": "Passord tilbakestilt",
+        "body": "Passordet ditt ble tilbakestilt med en tilbakestillingslenke. Hvis dette ikke var deg, tilbakestill passordet på nytt og gå gjennom sikkerhetsinnstillingene dine."
+      },
+      "passwordSetByAdmin": {
+        "title": "Passord satt av en administrator",
+        "body": "En administrator har satt et nytt passord for kontoen din. Hvis du ikke ventet dette, kontakt administratoren din."
+      },
+      "mfaEnabled": {
+        "title": "Tofaktorautentisering slått på",
+        "body": "Tofaktorautentisering ble slått på for kontoen din. Hvis dette ikke var deg, tilbakestill passordet og gå gjennom sikkerhetsinnstillingene dine."
+      },
+      "mfaDisabled": {
+        "title": "Tofaktorautentisering slått av",
+        "body": "Tofaktorautentisering ble slått av for kontoen din. Hvis dette ikke var deg, tilbakestill passordet og gå gjennom sikkerhetsinnstillingene dine."
+      },
+      "backupCodesGenerated": {
+        "title": "Nye reservekoder generert",
+        "body": "Nye reservekoder ble generert for kontoen din. Hvis dette ikke var deg, tilbakestill passordet og gå gjennom sikkerhetsinnstillingene dine."
+      },
+      "apiKeyCreated": {
+        "title": "Ny API-nøkkel opprettet",
+        "body": "En ny API-nøkkel ble opprettet for kontoen din. Hvis dette ikke var deg, tilbakestill passordet og gå gjennom sikkerhetsinnstillingene dine."
+      },
+      "identityProviderUnlinked": {
+        "title": "Innloggingsleverandør frakoblet",
+        "body": "{name} ble koblet fra kontoen din. Hvis dette ikke var deg, tilbakestill passordet og gå gjennom sikkerhetsinnstillingene dine.",
+        "bodyGeneric": "En innloggingsleverandør ble koblet fra kontoen din. Hvis dette ikke var deg, tilbakestill passordet og gå gjennom sikkerhetsinnstillingene dine."
+      },
+      "unknown": {
+        "title": "Kontosikkerheten ble endret",
+        "body": "En sikkerhetsinnstilling på kontoen din ble endret. Hvis dette ikke var deg, tilbakestill passordet og gå gjennom sikkerhetsinnstillingene dine."
+      }
+    },
+    "newDeviceSignIn": {
+      "title": "Ny innlogging",
+      "body": "Ny innlogging fra {browser} på {os} ({ip}). Hvis dette ikke var deg, bytt passord og logg ut av de andre øktene dine."
     },
     "adminSignUpApproval": {
       "title": "Ny registrering trenger godkjenning",

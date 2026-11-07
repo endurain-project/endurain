@@ -46,7 +46,6 @@
     "thisWeek": "Цей тиждень",
     "thisMonth": "Цей місяць",
     "empty": "Немає активності за цей період",
-    "caloriesUnit": "kcal",
     "metric": {
       "distance": "Дистанція",
       "time": "Час",
@@ -63,12 +62,13 @@
     "snow_ski": "Лижі",
     "snowboard": "Сноуборд",
     "windsurf": "Віндсерфінг",
-    "stand_up_paddleboarding": "Веслування на дошці",
-    "surfing": "Серфінг",
+    "stand_up_paddling": "Веслування на дошці",
+    "surf": "Серфінг",
     "kayaking": "Каякінг",
     "sailing": "Вітрильний спорт",
-    "snowshoeing": "Ходьба на снігоступах",
-    "inline_skating": "Катання на роликах"
+    "snow_shoeing": "Ходьба на снігоступах",
+    "inline_skating": "Катання на роликах",
+    "other": "Інше"
   },
   "goals": {
     "title": "Цілі",

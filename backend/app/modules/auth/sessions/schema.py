@@ -11,10 +11,11 @@ from pydantic import (
     StrictStr,
 )
 
+import core.pagination as core_pagination
 
-class UsersSessionsBase(BaseModel):
-    """
-    Base user session schema with safe fields.
+
+class UserSessionsBase(BaseModel):
+    """Base user session schema with safe fields.
 
     Attributes:
         id: Unique session identifier.
@@ -43,9 +44,8 @@ class UsersSessionsBase(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
 
-class UsersSessionsRead(UsersSessionsBase):
-    """
-    User session read schema for API responses.
+class UserSessionsRead(UserSessionsBase):
+    """User session read schema for API responses.
 
     Extends base with user_id. Excludes sensitive fields
     like refresh_token and csrf_token_hash.
@@ -54,9 +54,12 @@ class UsersSessionsRead(UsersSessionsBase):
     user_id: StrictInt = Field(..., ge=1, description="User ID that owns this session")
 
 
-class UsersSessionsInternal(UsersSessionsBase):
-    """
-    Internal user session schema with all fields.
+#: One page of a user's sessions.
+UserSessionsPage = core_pagination.Page[UserSessionsRead]
+
+
+class UserSessionsInternal(UserSessionsBase):
+    """Internal user session schema with all fields.
 
     Used for CRUD operations. Includes sensitive fields like
     refresh_token and csrf_token_hash that should never be

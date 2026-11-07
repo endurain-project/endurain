@@ -24,12 +24,10 @@
     "waterSports": "Su sporları",
     "skating": "Paten"
   },
-  "results": {
-    "inactive": "Pasif"
-  },
   "idle": {
     "title": "Endurain'de ara",
-    "description": "Ne arayacağınızı seçin, ardından eşleşmeleri görmek için yazmaya başlayın."
+    "description": "Ne arayacağınızı seçin, ardından eşleşmeleri görmek için yazmaya başlayın.",
+    "usersDescription": "Kullanıcı aramak için en az {min} karakter yazın."
   },
   "empty": {
     "title": "Eşleşme bulunamadı",

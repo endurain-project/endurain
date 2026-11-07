@@ -1,3 +1,8 @@
+from jasil.backends.state_memory import MemoryState
+
+import modules.garmin.rate_limit_store as garmin_rate_limit_store
+
+
 def make_garmin_activity(
     activity_id: int = 1,
     activity_name: str = "Morning Run",
@@ -31,3 +36,8 @@ def make_garmin_gear(gear_id: str = "g12345", display_name: str = "Nike Pegasus"
         "displayName": display_name,
         "distance": 500000.0,
     }
+
+
+def rate_limits() -> garmin_rate_limit_store.GarminRateLimitStore:
+    """Return a rate-limit store over fresh state, so a limit one test records never reaches another."""
+    return garmin_rate_limit_store.GarminRateLimitStore(MemoryState())

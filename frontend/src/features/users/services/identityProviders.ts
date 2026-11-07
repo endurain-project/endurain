@@ -1,9 +1,12 @@
+import type { StepUpInput, StepUpRequestDto } from '@/features/security/types'
 import type { UserIdentityProvider, UserIdentityProviderDto } from '@/features/users/types'
 
 import { apiFetch } from '@/services/http'
+import { fetchAllPages } from '@/services/pagination'
+import { toStepUpWire } from '@/features/security/services/security'
 
 /**
- * Maps a raw `UsersIdentityProviderResponse` payload to the clean
+ * Maps a raw `IdentityProviderLinkRead` payload to the clean
  * {@link UserIdentityProvider} model — the single boundary where the snake_case
  * wire shape is normalized.
  *
@@ -35,11 +38,12 @@ export async function fetchUserIdentityProviders(
   userId: number,
   signal?: AbortSignal,
 ): Promise<UserIdentityProvider[]> {
-  const dtos = await apiFetch<UserIdentityProviderDto[] | null>(
+  const dtos = await fetchAllPages<UserIdentityProviderDto>(
     `/users/${userId}/identity-providers`,
+    undefined,
     { signal },
   )
-  return (dtos ?? []).map(mapUserIdentityProvider)
+  return dtos.map(mapUserIdentityProvider)
 }
 
 /**
@@ -49,11 +53,17 @@ export async function fetchUserIdentityProviders(
  *
  * @param userId - The target user id.
  * @param idpId - The identity provider id to unlink.
+ * @param stepUp - The administrator's step-up credentials.
  * @throws {HttpError} When the request fails.
  */
-export async function unlinkUserIdentityProvider(userId: number, idpId: number): Promise<void> {
-  await apiFetch<void>(`/users/${userId}/identity-providers/${idpId}`, {
-    method: 'DELETE',
+export async function unlinkUserIdentityProvider(
+  userId: number,
+  idpId: number,
+  stepUp: StepUpInput,
+): Promise<void> {
+  await apiFetch<void>(`/users/${userId}/identity-providers/${idpId}/unlink`, {
+    method: 'POST',
+    body: JSON.stringify({ step_up: toStepUpWire(stepUp) } satisfies StepUpRequestDto),
     responseType: 'void',
   })
 }

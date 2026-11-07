@@ -12,10 +12,13 @@ import { Select } from '@/components/ui/select'
 import { Switch } from '@/components/ui/switch'
 import { inputFieldClass } from '@/components/ui/input/fieldClasses'
 import { useForm } from '@/composables/useForm'
+import { useUnitFormat } from '@/composables/useUnitFormat'
 import { HttpError } from '@/services/http'
+import { applyServerFieldErrors } from '@/services/fieldErrors'
+import { isStaleWrite } from '@/services/ifMatch'
 import { todayIsoDate } from '@/utils/datetime'
 import { toNumberOrNull } from '@/utils/number'
-import { kmToMiles, milesToKm } from '@/utils/units'
+import { baseValueUnlessEdited, kmToMiles, milesToKm } from '@/utils/units'
 import { compose, maxLength, required } from '@/utils/validators'
 import { currencySymbol } from '@/features/gears/utils/format'
 import { GEAR_TYPE, GEAR_TYPE_VALUES, presentGearType } from '@/features/gears/utils/gearType'
@@ -41,6 +44,7 @@ const emit = defineEmits<{
 }>()
 
 const { t } = useI18n()
+const { unitLabel } = useUnitFormat()
 
 const createMutation = useCreateGearMutation()
 const updateMutation = useUpdateGearMutation()
@@ -52,7 +56,7 @@ interface GearFormValues {
   brand: string
   model: string
   active: boolean
-  createdAt: string
+  acquiredOn: string
   initialDistance: string
   purchaseValue: string
 }
@@ -76,7 +80,7 @@ function defaultValues(): GearFormValues {
     brand: '',
     model: '',
     active: true,
-    createdAt: todayIsoDate(),
+    acquiredOn: todayIsoDate(),
     initialDistance: '',
     purchaseValue: '',
   }
@@ -88,8 +92,15 @@ function buildInput(values: GearFormValues): GearInput {
   const distanceValue = toNumberOrNull(values.initialDistance)
   let initialKms: number | null = null
   if (!isRacquet && distanceValue !== null) {
-    const km = props.units === 'imperial' ? milesToKm(distanceValue) : distanceValue
-    initialKms = Math.round(km * 1000) / 1000
+    initialKms = baseValueUnlessEdited(
+      values.initialDistance,
+      displayDistanceFromKm(props.gear?.initialKms ?? null),
+      props.gear?.initialKms,
+      () => {
+        const km = props.units === 'imperial' ? milesToKm(distanceValue) : distanceValue
+        return Math.round(km * 1000) / 1000
+      },
+    )
   }
   const brand = values.brand.trim()
   const model = values.model.trim()
@@ -99,7 +110,7 @@ function buildInput(values: GearFormValues): GearInput {
     brand: brand.length > 0 ? brand : null,
     model: model.length > 0 ? model : null,
     active: values.active,
-    createdAt: values.createdAt || null,
+    acquiredOn: values.acquiredOn || null,
     initialKms,
     purchaseValue: toNumberOrNull(values.purchaseValue),
   }
@@ -114,10 +125,15 @@ function buildInput(values: GearFormValues): GearInput {
  * @param values - The validated form values.
  */
 async function submitForm(values: GearFormValues): Promise<void> {
+  // Nothing changed: skip the request and just close.
+  if (props.gear && !isDirty.value) {
+    open.value = false
+    return
+  }
   const input = buildInput(values)
   try {
     if (props.gear) {
-      await updateMutation.mutateAsync({ id: props.gear.id, input })
+      await updateMutation.mutateAsync({ id: props.gear.id, input, version: props.gear.version })
       emit('success', t('gears.form.updateSuccess'))
     } else {
       await createMutation.mutateAsync(input)
@@ -125,7 +141,15 @@ async function submitForm(values: GearFormValues): Promise<void> {
     }
     open.value = false
   } catch (error) {
-    if (error instanceof HttpError && error.status === 409) {
+    if (
+      applyServerFieldErrors(error, setErrors, t, FORM_KEYS, { initial_kms: 'initialDistance' })
+    ) {
+      return
+    }
+    if (isStaleWrite(error)) {
+      open.value = false
+      emit('error', t('app.staleError'))
+    } else if (error instanceof HttpError && error.status === 409) {
       emit('error', t('gears.form.nicknameTaken'))
     } else {
       emit('error', t('gears.form.saveError'))
@@ -133,20 +157,41 @@ async function submitForm(values: GearFormValues): Promise<void> {
   }
 }
 
-const { values, errors, isValid, isSubmitting, handleSubmit, handleBlur, reset } =
-  useForm<GearFormValues>({
-    initialValues: defaultValues(),
-    validators: {
-      nickname: compose(
-        required<string>(t('gears.form.nicknameRequired')),
-        maxLength(NICKNAME_MAX, t('gears.form.nicknameTooLong')),
-      ),
-      brand: maxLength(NICKNAME_MAX, t('gears.form.brandTooLong')),
-      model: maxLength(NICKNAME_MAX, t('gears.form.modelTooLong')),
-      createdAt: required<string>(t('gears.form.createdAtRequired')),
-    },
-    onSubmit: submitForm,
-  })
+const FORM_KEYS = [
+  'nickname',
+  'gearType',
+  'brand',
+  'model',
+  'active',
+  'acquiredOn',
+  'initialDistance',
+  'purchaseValue',
+] as const
+
+const {
+  values,
+  errors,
+  isValid,
+  isSubmitting,
+  handleSubmit,
+  handleBlur,
+  reset,
+  isDirty,
+  markPristine,
+  setErrors,
+} = useForm<GearFormValues>({
+  initialValues: defaultValues(),
+  validators: {
+    nickname: compose(
+      required<string>(t('gears.form.nicknameRequired')),
+      maxLength(NICKNAME_MAX, t('gears.form.nicknameTooLong')),
+    ),
+    brand: maxLength(NICKNAME_MAX, t('gears.form.brandTooLong')),
+    model: maxLength(NICKNAME_MAX, t('gears.form.modelTooLong')),
+    acquiredOn: required<string>(t('gears.form.acquiredOnRequired')),
+  },
+  onSubmit: submitForm,
+})
 
 const isEditing = computed(() => props.gear !== null)
 const dialogTitle = computed(() =>
@@ -154,9 +199,7 @@ const dialogTitle = computed(() =>
 )
 // Racquets have no odometer, so the distance field is hidden for that type.
 const showDistance = computed(() => values.gearType !== GEAR_TYPE.RACQUET)
-const distanceUnitLabel = computed(() =>
-  props.units === 'imperial' ? t('gears.unitMi') : t('gears.unitKm'),
-)
+const distanceUnitLabel = computed(() => unitLabel(props.units === 'imperial' ? 'mi' : 'km'))
 const distanceLabel = computed(
   () => `${t('gears.form.initialDistance')} (${distanceUnitLabel.value})`,
 )
@@ -167,7 +210,7 @@ const purchaseValueLabel = computed(
 /** Seeds the form from the gear being edited, or pristine defaults for "add". */
 function populate(): void {
   reset()
-  values.createdAt = todayIsoDate()
+  values.acquiredOn = todayIsoDate()
   const gear = props.gear
   if (!gear) {
     return
@@ -177,9 +220,10 @@ function populate(): void {
   values.brand = gear.brand ?? ''
   values.model = gear.model ?? ''
   values.active = gear.active
-  values.createdAt = gear.createdAt ? gear.createdAt.slice(0, 10) : todayIsoDate()
+  values.acquiredOn = gear.acquiredOn ? gear.acquiredOn.slice(0, 10) : todayIsoDate()
   values.initialDistance = displayDistanceFromKm(gear.initialKms)
   values.purchaseValue = gear.purchaseValue !== null ? String(gear.purchaseValue) : ''
+  markPristine()
 }
 
 // Re-seed each time the dialog opens; the parent sets `gear` before opening.
@@ -225,7 +269,7 @@ watch(open, (isOpen) => {
         </template>
       </FormField>
 
-      <FormField :label="t('gears.form.gearType')">
+      <FormField :label="t('gears.form.gearType')" :error="errors.gearType">
         <template #default="{ fieldId }">
           <Select :id="fieldId" v-model="values.gearType" :disabled="isSubmitting">
             <option v-for="type in GEAR_TYPE_VALUES" :key="type" :value="type">
@@ -235,17 +279,17 @@ watch(open, (isOpen) => {
         </template>
       </FormField>
 
-      <FormField :label="t('gears.form.createdAt')" :error="errors.createdAt" required>
+      <FormField :label="t('gears.form.acquiredOn')" :error="errors.acquiredOn" required>
         <template #default="{ fieldId, describedBy, invalid }">
           <input
             :id="fieldId"
-            v-model="values.createdAt"
+            v-model="values.acquiredOn"
             :class="inputFieldClass"
             :aria-describedby="describedBy"
             :aria-invalid="invalid"
             type="date"
             :disabled="isSubmitting"
-            @blur="handleBlur('createdAt')"
+            @blur="handleBlur('acquiredOn')"
           />
         </template>
       </FormField>
@@ -290,7 +334,12 @@ watch(open, (isOpen) => {
         </template>
       </FormField>
 
-      <FormField v-if="showDistance" :label="distanceLabel" :placeholder="distanceLabel">
+      <FormField
+        v-if="showDistance"
+        :label="distanceLabel"
+        :error="errors.initialDistance"
+        :placeholder="distanceLabel"
+      >
         <template #default="{ fieldId, placeholder }">
           <input
             :id="fieldId"
@@ -306,7 +355,11 @@ watch(open, (isOpen) => {
         </template>
       </FormField>
 
-      <FormField :label="purchaseValueLabel" :placeholder="purchaseValueLabel">
+      <FormField
+        :label="purchaseValueLabel"
+        :error="errors.purchaseValue"
+        :placeholder="purchaseValueLabel"
+      >
         <template #default="{ fieldId, placeholder }">
           <input
             :id="fieldId"

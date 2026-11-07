@@ -46,7 +46,6 @@
     "thisWeek": "Diese Woche",
     "thisMonth": "Diesen Monat",
     "empty": "Keine Aktivität in diesem Zeitraum",
-    "caloriesUnit": "kcal",
     "metric": {
       "distance": "Distanz",
       "time": "Zeit",
@@ -63,12 +62,13 @@
     "snow_ski": "Skifahren",
     "snowboard": "Snowboarden",
     "windsurf": "Windsurfen",
-    "stand_up_paddleboarding": "Paddeln",
-    "surfing": "Surfen",
+    "stand_up_paddling": "Paddeln",
+    "surf": "Surfen",
     "kayaking": "Kajak",
     "sailing": "Segeln",
-    "snowshoeing": "Schneeschuhwandern",
-    "inline_skating": "Inlineskaten"
+    "snow_shoeing": "Schneeschuhwandern",
+    "inline_skating": "Inlineskaten",
+    "other": "Sonstige"
   },
   "goals": {
     "title": "Ziele",

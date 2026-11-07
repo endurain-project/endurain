@@ -5,19 +5,21 @@ Processes every existing activity from FIT/GPX files or Strava and populates
 the laps, workout steps, and sets tables.
 """
 
-import asyncio
 import glob
 import os
+from collections.abc import Mapping, Sequence
 
 import fitdecode
+import jasil.runtime as platform_runtime
 from sqlalchemy.orm import Session
 
 import core.config as core_config
 import core.file_uploads as file_uploads
 import core.logger as core_logger
-import migrations.crud as migrations_crud
+import migrations.service as migrations_service
 import modules.activities.activity.contracts as activities_contracts
 import modules.activities.activity.migration_service as activities_crud
+import modules.activities.activity_exercise_titles.contracts as activity_exercise_titles_contracts
 import modules.activities.activity_exercise_titles.migration_service as activity_exercise_titles_crud
 import modules.activities.activity_file_import.migration_service as activity_file_import_utils
 import modules.activities.activity_file_import.migration_service as fit_utils
@@ -25,10 +27,10 @@ import modules.activities.activity_laps.migration_service as activity_laps_crud
 import modules.activities.activity_sets.migration_service as activity_sets_migration_service
 import modules.activities.activity_streams.constants as activity_streams_constants
 import modules.activities.activity_streams.migration_service as activity_streams_crud
+import modules.activities.activity_workout_steps.contracts as activity_workout_steps_contracts
 import modules.activities.activity_workout_steps.migration_service as activity_workout_steps_crud
-import modules.garmin.activity_utils as garmin_activity_utils
-import modules.strava.activity_utils as strava_activity_utils
-import modules.strava.utils as strava_utils
+import modules.garmin.migration_service as garmin_migration_service
+import modules.strava.migration_service as strava_migration
 
 logger = core_logger.get_logger(__name__)
 
@@ -74,7 +76,7 @@ def process_migration_3(db: Session) -> None:
                     if (
                         activity_fit_file_path is None or not os.path.exists(activity_fit_file_path)
                     ) and activity.garminconnect_activity_id is not None:
-                        get_fit_file_from_garminconnect(activity, db)
+                        get_fit_file_from_garminconnect(activity, activity.garminconnect_activity_id, db)
                         activity_fit_file_path = find_activity_fit_file(activity.id)
 
                     # if .gpx and .fit for activity do not exist, skip
@@ -121,7 +123,7 @@ def process_migration_3(db: Session) -> None:
     # Mark migration as executed
     if activities_processed_with_no_errors:
         try:
-            migrations_crud.set_migration_as_executed(3, db)
+            migrations_service.mark_executed(3, db)
         except Exception as err:
             logger.error(
                 f"Migration 3 - Failed to set migration as executed: {err}",
@@ -173,6 +175,7 @@ def find_activity_fit_file(activity_id: int) -> str | None:
 
 def get_fit_file_from_garminconnect(
     activity: activities_contracts.ActivityMigrationRef,
+    garminconnect_activity_id: int,
     db: Session,
 ) -> str:
     """
@@ -180,6 +183,7 @@ def get_fit_file_from_garminconnect(
 
     Args:
         activity: ORM Activity instance.
+        garminconnect_activity_id: The activity's id on Garmin Connect.
         db: Active database session.
 
     Returns:
@@ -197,7 +201,7 @@ def get_fit_file_from_garminconnect(
     )
 
     # Get the user Garmin Connect client
-    garminconnect_client = garmin_activity_utils.get_user_garminconnect_client(activity.user_id, db)
+    garminconnect_client = garmin_migration_service.get_user_garminconnect_client(activity.user_id, db)
 
     if garminconnect_client is None:
         logger.error(
@@ -207,40 +211,33 @@ def get_fit_file_from_garminconnect(
         return os.path.join(core_config.FILES_PROCESSED_DIR, f"{activity.id}.fit")
 
     # Download the activity in original format (.zip file)
+    gc_id = str(garminconnect_activity_id)
     zip_data = garminconnect_client.download_activity(
-        activity.garminconnect_activity_id,
+        gc_id,
         dl_fmt=garminconnect_client.ActivityDownloadFormat.ORIGINAL,
     )
 
-    # Persist + extract through the unified pipeline. Migrations are
-    # synchronous, so we drive the async helpers via a single
-    # ``asyncio.run`` over both calls — one event-loop setup per
-    # archive instead of two.
-    gc_id = str(activity.garminconnect_activity_id)
+    # Persist + extract through the unified pipeline.
     zip_filename = f"{gc_id}.zip"
     files_dir = core_config.settings.FILES_DIR
     fallback_path = os.path.join(core_config.FILES_PROCESSED_DIR, f"{activity.id}.fit")
 
-    async def _save_and_extract() -> tuple[str, list]:
-        saved = await file_uploads.save_validated_bytes(
+    try:
+        output_file = file_uploads.save_validated_bytes_sync(
             zip_data,
             kind=file_uploads.UploadKind.ZIP,
             upload_dir=files_dir,
             filename=zip_filename,
         )
         try:
-            paths = await file_uploads.extract_validated_zip(
-                saved,
+            extracted_paths = file_uploads.extract_validated_zip_sync(
+                output_file,
                 dest_dir=files_dir,
                 per_entry_kind=file_uploads.UploadKind.ACTIVITY,
             )
         except BaseException:
-            file_uploads.safe_remove_within(saved, base_dir=files_dir)
+            file_uploads.safe_remove_within(output_file, base_dir=files_dir)
             raise
-        return saved, paths
-
-    try:
-        output_file, extracted_paths = asyncio.run(_save_and_extract())
     except Exception as err:
         logger.error(
             f"Migration 3 - Garmin ZIP handling failed for activity {activity.id}: {type(err).__name__}",
@@ -339,15 +336,32 @@ def process_fit_file(
 
                     # Extract exercise title data
                     if frame.name == "exercise_title":
-                        exercises_titles.append(fit_utils.parse_frame_exercise_title(frame))
+                        exercise_title = fit_utils.parse_frame_exercise_title(frame)
+                        if exercise_title is not None:
+                            exercises_titles.append(exercise_title)
 
                     # Extract set data
                     if frame.name == "set":
                         sets.append(fit_utils.parse_frame_set(frame))
+
+        # A file with several sessions keeps only the laps inside this activity's time window; a lap
+        # without a start time cannot be placed in it and is skipped, as the FIT parser does
+        if len(sessions) > 1:
+            filtered_laps = []
+            for lap in laps:
+                lap_start_time = lap["start_time"]
+                if lap_start_time is not None and activity.start_time <= lap_start_time <= activity.end_time:
+                    logger.info(
+                        f"start_time: {activity.start_time}, lap_start_time: {lap_start_time}, "
+                        f"end_time: {activity.end_time}",
+                        extra=core_logger.context(console=True),
+                    )
+                    filtered_laps.append(lap)
+            laps = filtered_laps
+
         # Store data in the database
         store_data_in_db(
             activity,
-            sessions,
             laps,
             workout_steps,
             exercises_titles,
@@ -398,7 +412,7 @@ def process_activity_using_streams(
             stream_map.get(activity_streams_constants.STREAM_TYPE_SPEED) or [],
         )
 
-        store_data_in_db(activity, [], laps, [], [], [], db)
+        store_data_in_db(activity, laps, [], [], [], db)
     except Exception as err:
         logger.error(
             f"Migration 3 - Failed to process activity {activity.id} file: {err}",
@@ -426,7 +440,7 @@ def process_strava_activity(
         None.
     """
     # Get the user integrations by user ID
-    user_integrations = strava_utils.fetch_user_integrations_and_validate_token(activity.user_id, db)
+    user_integrations = strava_migration.fetch_user_integrations_and_validate_token(activity.user_id, db)
 
     if user_integrations is None:
         logger.info(
@@ -473,7 +487,7 @@ def process_strava_activity(
     ]
 
     # Create a Strava client with the user's access token
-    strava_client = strava_utils.create_strava_client(user_integrations)
+    strava_client = strava_migration.create_strava_client(user_integrations)
 
     if not activity.strava_activity_id:
         logger.info(
@@ -483,17 +497,22 @@ def process_strava_activity(
         return False
 
     # Get laps from Strava
-    laps = strava_activity_utils.fetch_and_process_activity_laps(
+    laps = strava_migration.fetch_activity_laps(
         strava_client,
         activity.strava_activity_id,
         activity.user_id,
         stream_data,
+        user_integrations,
+        platform_runtime.get_state(),
     )
 
     # Create activity laps in the database
     activity_laps_crud.create_activity_laps(laps or [], activity.id, db)
 
-    logger.info(f"Migration 3 - Strava activity {activity.id} file processed.", extra=core_logger.context(console=True))
+    logger.info(
+        "Migration 3 - Strava activity file processed",
+        extra=core_logger.context(console=True, activity_id=activity.id),
+    )
 
     # Return true if the activity was processed successfully
     return True
@@ -501,11 +520,10 @@ def process_strava_activity(
 
 def store_data_in_db(
     activity: activities_contracts.ActivityMigrationRef,
-    sessions: list,
-    laps: list,
-    workout_steps: list,
-    exercises_titles: list,
-    sets: list,
+    laps: Sequence[Mapping[str, object]],
+    workout_steps: list[activity_workout_steps_contracts.ActivityWorkoutStepsCreate],
+    exercises_titles: list[activity_exercise_titles_contracts.ActivityExerciseTitlesCreate],
+    sets: Sequence[list[object]],
     db: Session,
 ) -> None:
     """
@@ -513,8 +531,7 @@ def store_data_in_db(
 
     Args:
         activity: ORM Activity instance.
-        sessions: Parsed session records from the FIT file.
-        laps: Parsed lap records from the FIT file.
+        laps: Lap records to store.
         workout_steps: Parsed workout-step records.
         exercises_titles: Parsed exercise-title records.
         sets: Parsed set records from the FIT file.
@@ -526,46 +543,20 @@ def store_data_in_db(
     Raises:
         None.
     """
-    laps_to_store = []
-    workout_steps_to_store = workout_steps if workout_steps else []
-    exercises_titles_to_store = exercises_titles if exercises_titles else []
-    sets_to_store = sets if sets else []
-
-    if sessions and len(sessions) > 1:
-        if laps:
-            filtered_laps = []  # Temporary list to store filtered laps
-            for lap in laps:
-                start_time = activity.start_time
-                end_time = activity.end_time
-                lap_start_time = lap["start_time"]
-
-                if start_time <= lap_start_time <= end_time:
-                    # Append the lap to the temporary list
-                    logger.info(
-                        f"start_time: {start_time}, lap_start_time: {lap_start_time}, end_time: {end_time}",
-                        extra=core_logger.context(console=True),
-                    )
-                    filtered_laps.append(lap)
-
-            # Extend laps_to_store with the filtered laps
-            laps_to_store.extend(filtered_laps)
-    else:
-        laps_to_store = laps if laps else []
-
     # Create activity laps in the database
-    if laps_to_store:
-        activity_laps_crud.create_activity_laps(laps_to_store, activity.id, db)
+    if laps:
+        activity_laps_crud.create_activity_laps(laps, activity.id, db)
 
     # Create activity workout steps in the database
-    if workout_steps_to_store:
-        activity_workout_steps_crud.create_activity_workout_steps(workout_steps_to_store, activity.id, db)
+    if workout_steps:
+        activity_workout_steps_crud.create_activity_workout_steps(workout_steps, activity.id, db)
 
     # Create activity exercise titles in the database
-    if exercises_titles_to_store:
-        activity_exercise_titles_crud.create_activity_exercise_titles(exercises_titles_to_store, db)
+    if exercises_titles:
+        activity_exercise_titles_crud.create_activity_exercise_titles(exercises_titles, db)
 
     # Create activity sets in the database
-    if sets_to_store:
-        activity_sets_migration_service.create_activity_sets(sets_to_store, activity.id, db)
+    if sets:
+        activity_sets_migration_service.create_activity_sets(sets, activity.id, db)
 
-    logger.info(f"Migration 3 - Activity {activity.id} processed.", extra=core_logger.context(console=True))
+    logger.info("Migration 3 - Activity processed", extra=core_logger.context(console=True, activity_id=activity.id))

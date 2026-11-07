@@ -1,18 +1,26 @@
 <script setup lang="ts">
-import { computed, ref, watch } from 'vue'
+import { computed, reactive, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { Plus, Trash2 } from '@lucide/vue'
 
-import type { SleepEntry, SleepEntryInput, SleepStage } from '@/features/health/types'
+import type {
+  SleepEntry,
+  SleepEntryInput,
+  SleepStage,
+  SleepStageType,
+} from '@/features/health/types'
 
 import { Button } from '@/components/ui/button'
 import { FormDialog } from '@/components/ui/form-dialog'
 import { FormField } from '@/components/ui/form-field'
 import { inputFieldClass } from '@/components/ui/input/fieldClasses'
 import { useForm } from '@/composables/useForm'
-import { todayIsoDate } from '@/utils/datetime'
+import { HttpError } from '@/services/http'
+import { isStaleWrite } from '@/services/ifMatch'
+import { todayDateTimeLocalMax } from '@/features/health/utils/healthFormat'
+import { secondsToHoursMinutes, todayIsoDate } from '@/utils/datetime'
 import { toNumberOrNull } from '@/utils/number'
-import { required } from '@/utils/validators'
+import { compose, numberBetween, required, type Validator } from '@/utils/validators'
 import {
   useCreateSleepEntryMutation,
   useUpdateSleepEntryMutation,
@@ -90,10 +98,8 @@ function secondsToHm(seconds: number | null): { hours: string; minutes: string }
   if (seconds === null || seconds <= 0) {
     return { hours: '', minutes: '' }
   }
-  return {
-    hours: String(Math.floor(seconds / 3600)),
-    minutes: String(Math.round((seconds % 3600) / 60)),
-  }
+  const split = secondsToHoursMinutes(seconds)
+  return { hours: String(split.hours), minutes: String(split.minutes) }
 }
 
 /** Trims an ISO timestamp to the `yyyy-MM-ddThh:mm` a datetime-local input wants. */
@@ -107,7 +113,7 @@ const stages = ref<StageRow[]>([])
 /** Appends a blank stage row defaulted to deep sleep. */
 function addStage(): void {
   stages.value.push({
-    stageType: '0',
+    stageType: 'deep',
     startTimeGmt: '',
     endTimeGmt: '',
     durationHours: '',
@@ -129,7 +135,7 @@ function buildStage(row: StageRow): SleepStage | null {
     return null
   }
   return {
-    stageType: toNumberOrNull(row.stageType),
+    stageType: row.stageType as SleepStageType,
     startTimeGmt,
     endTimeGmt,
     durationSeconds,
@@ -202,12 +208,21 @@ function buildInput(values: SleepFormValues): SleepEntryInput {
  * @param values - The validated form values.
  */
 async function submitForm(values: SleepFormValues): Promise<void> {
+  // Nothing changed (the stage rows live outside the form values): skip the request and just close.
+  if (props.entry && !isDirty.value && JSON.stringify(stages.value) === seededStages) {
+    open.value = false
+    return
+  }
+  if (stageErrors.value.some(Boolean)) {
+    openSections.stages = true
+    return
+  }
   const input = buildInput(values)
   try {
     if (props.entry) {
       await updateMutation.mutateAsync({
         id: props.entry.id,
-        userId: props.entry.userId,
+        version: props.entry.version,
         input,
       })
       emit('success', t('health.sleep.form.updateSuccess'))
@@ -216,49 +231,245 @@ async function submitForm(values: SleepFormValues): Promise<void> {
       emit('success', t('health.sleep.form.createSuccess'))
     }
     open.value = false
-  } catch {
-    emit('error', t('health.sleep.form.saveError'))
+  } catch (error) {
+    if (isStaleWrite(error)) {
+      open.value = false
+      emit('error', t('app.staleError'))
+    } else if (error instanceof HttpError && error.status === 400) {
+      emit('error', t('health.sleep.form.inconsistentError'))
+    } else {
+      emit('error', t('health.sleep.form.saveError'))
+    }
   }
 }
 
-const { values, errors, isValid, isSubmitting, handleSubmit, handleBlur, reset } =
-  useForm<SleepFormValues>({
-    initialValues: defaultValues(),
-    validators: {
-      date: required<string>(t('health.sleep.form.dateRequired')),
-    },
-    onSubmit: submitForm,
-  })
+/** Largest minutes value of an hours/minutes pair. */
+const MAX_MINUTES = 59
+
+/** Shared input class: fills its grid cell and may shrink inside a flex row. */
+const fieldClass = `${inputFieldClass} w-full min-w-0`
+
+const sectionClass = 'mt-2 rounded-input border border-border px-3 py-2'
+
+/** Mirrors a native `<details>` toggle into `openSections` so the user's choice sticks. */
+function onToggle(name: SectionName, event: Event): void {
+  openSections[name] = (event.target as HTMLDetailsElement).open
+}
+
+/**
+ * Bounds a numeric text field with a translated message; blank values pass so optional fields stay optional.
+ *
+ * @param min - Smallest accepted value.
+ * @param max - Largest accepted value, or `undefined` for no upper bound.
+ * @returns A validator returning the range message when the value is out of bounds.
+ */
+function bounded(min: number, max?: number): Validator<string> {
+  return numberBetween(
+    min,
+    max,
+    max === undefined
+      ? t('health.sleep.form.numberMin', { min })
+      : t('health.sleep.form.numberRange', { min, max }),
+  )
+}
+
+/** Seconds the stage breakdown may exceed the total by (the backend's tolerance). */
+const STAGE_TOLERANCE_SECONDS = 60
+
+/** Rejects deep, light and REM sleep that add up to more than the total (mirrors the backend rule). */
+function stagesWithinTotal(): string | null {
+  const total = hmToSeconds(values.totalHours, values.totalMinutes)
+  if (total === null) {
+    return null
+  }
+  const stagesTotal = [
+    hmToSeconds(values.deepHours, values.deepMinutes),
+    hmToSeconds(values.lightHours, values.lightMinutes),
+    hmToSeconds(values.remHours, values.remMinutes),
+  ].reduce<number>((sum, seconds) => sum + (seconds ?? 0), 0)
+  return stagesTotal > total + STAGE_TOLERANCE_SECONDS
+    ? t('health.sleep.form.stagesExceedTotal')
+    : null
+}
+
+/** Number fields with backend bounds (`health_sleep/schema.py`). */
+/** Inclusive numeric bounds; `max` is absent for lower-bound-only fields. */
+type Bounds = readonly [min: number, max?: number]
+
+function bounds(min: number, max?: number): Bounds {
+  return [min, max]
+}
+
+const boundedFields = {
+  totalMinutes: bounds(0, MAX_MINUTES),
+  deepHours: bounds(0),
+  deepMinutes: bounds(0, MAX_MINUTES),
+  lightHours: bounds(0),
+  lightMinutes: bounds(0, MAX_MINUTES),
+  remHours: bounds(0),
+  remMinutes: bounds(0, MAX_MINUTES),
+  awakeHours: bounds(0),
+  awakeMinutes: bounds(0, MAX_MINUTES),
+  awakeCount: bounds(0),
+  sleepScore: bounds(0, 100),
+  restingHeartRate: bounds(20, 220),
+  avgHeartRate: bounds(20, 220),
+  minHeartRate: bounds(20, 220),
+  maxHeartRate: bounds(20, 220),
+  spo2: bounds(70, 100),
+  lowestSpo2: bounds(70, 100),
+  highestSpo2: bounds(70, 100),
+  avgSleepStress: bounds(0, 100),
+}
+
+const boundedValidators = Object.fromEntries(
+  (Object.entries(boundedFields) as [string, Bounds][]).map(([key, [min, max]]) => [
+    key,
+    bounded(min, max),
+  ]),
+) as Partial<Record<keyof SleepFormValues, Validator<string>>>
+
+const {
+  values,
+  errors,
+  isSubmitting,
+  handleSubmit,
+  handleBlur,
+  validateField,
+  reset,
+  isDirty,
+  markPristine,
+} = useForm<SleepFormValues>({
+  initialValues: defaultValues(),
+  validators: {
+    ...boundedValidators,
+    date: required<string>(t('health.sleep.form.dateRequired')),
+    // Total sleep is required: at least one of hours/minutes must be present.
+    totalHours: compose<string>(
+      (): string | null =>
+        hmToSeconds(values.totalHours, values.totalMinutes) === null
+          ? t('health.sleep.form.totalSleepRequired')
+          : null,
+      bounded(0),
+      stagesWithinTotal,
+    ),
+    // Sleep start must precede sleep end when both times are provided.
+    sleepEndTimeLocal: (end: string): string | null =>
+      values.sleepStartTimeLocal && end && values.sleepStartTimeLocal >= end
+        ? t('health.sleep.form.endBeforeStart')
+        : null,
+  },
+  onSubmit: submitForm,
+})
 
 const isEditing = computed(() => props.entry !== null)
 const dialogTitle = computed(() =>
   isEditing.value ? t('health.sleep.form.editTitle') : t('health.sleep.form.addTitle'),
 )
 
-/** Total sleep is required: at least one of hours/minutes must be present. */
-const hasTotal = computed(() => hmToSeconds(values.totalHours, values.totalMinutes) !== null)
+/** Hours/minutes pairs of the stage breakdown, in display order. */
+const durationFields = [
+  { label: 'deep', hours: 'deepHours', minutes: 'deepMinutes' },
+  { label: 'light', hours: 'lightHours', minutes: 'lightMinutes' },
+  { label: 'rem', hours: 'remHours', minutes: 'remMinutes' },
+  { label: 'awake', hours: 'awakeHours', minutes: 'awakeMinutes' },
+] as const
 
-/** Sleep start must precede sleep end when both times are provided. */
-const timesValid = computed(() => {
-  const start = values.sleepStartTimeLocal
-  const end = values.sleepEndTimeLocal
-  if (!start || !end) {
-    return true
-  }
-  return start < end
+/** Plain number inputs per collapsible section. */
+const heartRateFields = [
+  'restingHeartRate',
+  'avgHeartRate',
+  'minHeartRate',
+  'maxHeartRate',
+] as const
+const bloodOxygenFields = ['spo2', 'lowestSpo2', 'highestSpo2'] as const
+const metricsFields = ['sleepScore', 'avgSleepStress'] as const
+
+/** Fields whose error forces their collapsible section open. */
+const sectionFields = {
+  times: ['sleepEndTimeLocal'],
+  breakdown: [...durationFields.flatMap((f) => [f.hours, f.minutes]), 'awakeCount'],
+  heartRate: [...heartRateFields],
+  bloodOxygen: [...bloodOxygenFields],
+  metrics: [...metricsFields],
+} as const satisfies Record<string, readonly (keyof SleepFormValues)[]>
+
+type SectionName = keyof typeof sectionFields | 'stages'
+
+const openSections = reactive<Record<SectionName, boolean>>({
+  times: false,
+  breakdown: false,
+  heartRate: false,
+  bloodOxygen: false,
+  metrics: false,
+  stages: false,
 })
 
-/** Inline error for the end-time field, or `undefined` when valid. */
-const endTimeError = computed(() =>
-  timesValid.value ? undefined : t('health.sleep.form.endBeforeStart'),
+/** Error message for the first failing field of an hours/minutes pair. */
+function pairError(
+  hours: keyof SleepFormValues,
+  minutes: keyof SleepFormValues,
+): string | undefined {
+  return errors.value[hours] ?? errors.value[minutes]
+}
+
+/** Validates both halves of an hours/minutes pair once either loses focus. */
+function blurPair(hours: keyof SleepFormValues, minutes: keyof SleepFormValues): void {
+  handleBlur(hours)
+  handleBlur(minutes)
+  if (hmToSeconds(values.totalHours, values.totalMinutes) !== null) {
+    validateField('totalHours')
+  }
+}
+
+/** Validates the end time too, since its rule depends on the start time. */
+function blurStart(): void {
+  if (values.sleepEndTimeLocal) {
+    validateField('sleepEndTimeLocal')
+  }
+}
+
+/** Per-row stage duration errors; stage rows live outside the form values. */
+const stageErrors = computed(() =>
+  stages.value.map((row) => {
+    const hours = bounded(0)(row.durationHours)
+    return hours ?? bounded(0, MAX_MINUTES)(row.durationMinutes)
+  }),
 )
 
-const canSubmit = computed(() => isValid.value && hasTotal.value && timesValid.value)
+watch(
+  () => stageErrors.value.some(Boolean),
+  (hasError) => {
+    if (hasError) {
+      openSections.stages = true
+    }
+  },
+)
+
+for (const [name, fields] of Object.entries(sectionFields) as [
+  keyof typeof sectionFields,
+  readonly (keyof SleepFormValues)[],
+][]) {
+  watch(
+    () => fields.some((field) => errors.value[field]),
+    (hasError) => {
+      if (hasError) {
+        openSections[name] = true
+      }
+    },
+  )
+}
+
+/** The stage rows as seeded for the entry being edited, to tell whether they were changed. */
+let seededStages = ''
 
 /** Seeds the form from the entry being edited, or pristine defaults for "add". */
 function populate(): void {
   reset()
   stages.value = []
+  for (const name of Object.keys(openSections) as SectionName[]) {
+    openSections[name] = false
+  }
   const entry = props.entry
   if (!entry) {
     values.date = todayIsoDate()
@@ -297,13 +508,15 @@ function populate(): void {
   stages.value = entry.sleepStages.map((stage) => {
     const duration = secondsToHm(stage.durationSeconds)
     return {
-      stageType: stage.stageType !== null ? String(stage.stageType) : '0',
+      stageType: stage.stageType ?? 'deep',
       startTimeGmt: toDateTimeLocal(stage.startTimeGmt),
       endTimeGmt: toDateTimeLocal(stage.endTimeGmt),
       durationHours: duration.hours,
       durationMinutes: duration.minutes,
     }
   })
+  markPristine()
+  seededStages = JSON.stringify(stages.value)
 }
 
 // Re-seed each time the dialog opens; the parent sets `entry` before opening.
@@ -323,7 +536,7 @@ watch(open, (isOpen) => {
     :cancel-label="t('health.sleep.form.cancel')"
     :close-label="t('health.sleep.form.close')"
     :submitting="isSubmitting"
-    :can-submit="canSubmit"
+    content-class="max-w-2xl"
     @submit="handleSubmit"
   >
     <div class="grid grid-cols-1 gap-2 sm:grid-cols-2">
@@ -332,34 +545,50 @@ watch(open, (isOpen) => {
           <input
             :id="fieldId"
             v-model="values.date"
-            :class="inputFieldClass"
+            :class="fieldClass"
             :aria-describedby="describedBy"
             :aria-invalid="invalid"
             type="date"
+            :max="todayIsoDate()"
             :disabled="isSubmitting"
             @blur="handleBlur('date')"
           />
         </template>
       </FormField>
 
-      <FormField :label="t('health.sleep.form.totalSleep')" required>
-        <template #default="{ fieldId }">
+      <FormField
+        :label="t('health.sleep.form.totalSleep')"
+        :error="pairError('totalHours', 'totalMinutes')"
+        required
+      >
+        <template #default="{ fieldId, describedBy, invalid }">
           <div class="flex items-center gap-1">
             <input
               :id="fieldId"
               v-model="values.totalHours"
-              :class="inputFieldClass"
+              :class="fieldClass"
+              :aria-describedby="describedBy"
+              :aria-invalid="invalid"
+              :aria-label="
+                t('health.sleep.form.hoursOf', { field: t('health.sleep.form.totalSleep') })
+              "
               :placeholder="t('health.sleep.form.hours')"
               type="number"
               min="0"
               step="1"
               inputmode="numeric"
               :disabled="isSubmitting"
+              @blur="blurPair('totalHours', 'totalMinutes')"
             />
             <span class="text-hint">h</span>
             <input
               v-model="values.totalMinutes"
-              :class="inputFieldClass"
+              :class="fieldClass"
+              :aria-describedby="describedBy"
+              :aria-invalid="invalid"
+              :aria-label="
+                t('health.sleep.form.minutesOf', { field: t('health.sleep.form.totalSleep') })
+              "
               :placeholder="t('health.sleep.form.minutes')"
               type="number"
               min="0"
@@ -367,6 +596,7 @@ watch(open, (isOpen) => {
               step="1"
               inputmode="numeric"
               :disabled="isSubmitting"
+              @blur="blurPair('totalHours', 'totalMinutes')"
             />
             <span class="text-hint">m</span>
           </div>
@@ -374,7 +604,7 @@ watch(open, (isOpen) => {
       </FormField>
     </div>
 
-    <details class="mt-2 rounded-input border border-border px-3 py-2">
+    <details :class="sectionClass" :open="openSections.times" @toggle="onToggle('times', $event)">
       <summary class="cursor-pointer text-caption select-none">
         {{ t('health.sleep.form.sleepTimes') }}
       </summary>
@@ -384,52 +614,76 @@ watch(open, (isOpen) => {
             <input
               :id="fieldId"
               v-model="values.sleepStartTimeLocal"
-              :class="inputFieldClass"
+              :class="fieldClass"
               type="datetime-local"
+              :max="todayDateTimeLocalMax()"
               :disabled="isSubmitting"
+              @blur="blurStart"
             />
           </template>
         </FormField>
 
-        <FormField :label="t('health.sleep.form.endTime')" :error="endTimeError">
+        <FormField :label="t('health.sleep.form.endTime')" :error="errors.sleepEndTimeLocal">
           <template #default="{ fieldId, describedBy, invalid }">
             <input
               :id="fieldId"
               v-model="values.sleepEndTimeLocal"
-              :class="inputFieldClass"
+              :class="fieldClass"
               :aria-describedby="describedBy"
               :aria-invalid="invalid"
               type="datetime-local"
+              :max="todayDateTimeLocalMax()"
               :disabled="isSubmitting"
+              @blur="handleBlur('sleepEndTimeLocal')"
             />
           </template>
         </FormField>
       </div>
     </details>
 
-    <details class="mt-2 rounded-input border border-border px-3 py-2">
+    <details
+      :class="sectionClass"
+      :open="openSections.breakdown"
+      @toggle="onToggle('breakdown', $event)"
+    >
       <summary class="cursor-pointer text-caption select-none">
         {{ t('health.sleep.form.stageBreakdown') }}
       </summary>
       <div class="mt-2 grid grid-cols-1 gap-2 sm:grid-cols-2">
-        <FormField :label="t('health.sleep.form.deep')">
-          <template #default="{ fieldId }">
+        <FormField
+          v-for="field in durationFields"
+          :key="field.label"
+          :label="t(`health.sleep.form.${field.label}`)"
+          :error="pairError(field.hours, field.minutes)"
+        >
+          <template #default="{ fieldId, describedBy, invalid }">
             <div class="flex items-center gap-1">
               <input
                 :id="fieldId"
-                v-model="values.deepHours"
-                :class="inputFieldClass"
+                v-model="values[field.hours]"
+                :class="fieldClass"
+                :aria-describedby="describedBy"
+                :aria-invalid="invalid"
+                :aria-label="
+                  t('health.sleep.form.hoursOf', { field: t(`health.sleep.form.${field.label}`) })
+                "
                 :placeholder="t('health.sleep.form.hours')"
                 type="number"
                 min="0"
                 step="1"
                 inputmode="numeric"
                 :disabled="isSubmitting"
+                @blur="blurPair(field.hours, field.minutes)"
               />
               <span class="text-hint">h</span>
               <input
-                v-model="values.deepMinutes"
-                :class="inputFieldClass"
+                v-model="values[field.minutes]"
+                :class="fieldClass"
+                :aria-describedby="describedBy"
+                :aria-invalid="invalid"
+                :aria-label="
+                  t('health.sleep.form.minutesOf', { field: t(`health.sleep.form.${field.label}`) })
+                "
                 :placeholder="t('health.sleep.form.minutes')"
                 type="number"
                 min="0"
@@ -437,290 +691,138 @@ watch(open, (isOpen) => {
                 step="1"
                 inputmode="numeric"
                 :disabled="isSubmitting"
+                @blur="blurPair(field.hours, field.minutes)"
               />
               <span class="text-hint">m</span>
             </div>
           </template>
         </FormField>
 
-        <FormField :label="t('health.sleep.form.light')">
-          <template #default="{ fieldId }">
-            <div class="flex items-center gap-1">
-              <input
-                :id="fieldId"
-                v-model="values.lightHours"
-                :class="inputFieldClass"
-                :placeholder="t('health.sleep.form.hours')"
-                type="number"
-                min="0"
-                step="1"
-                inputmode="numeric"
-                :disabled="isSubmitting"
-              />
-              <span class="text-hint">h</span>
-              <input
-                v-model="values.lightMinutes"
-                :class="inputFieldClass"
-                :placeholder="t('health.sleep.form.minutes')"
-                type="number"
-                min="0"
-                max="59"
-                step="1"
-                inputmode="numeric"
-                :disabled="isSubmitting"
-              />
-              <span class="text-hint">m</span>
-            </div>
-          </template>
-        </FormField>
-
-        <FormField :label="t('health.sleep.form.rem')">
-          <template #default="{ fieldId }">
-            <div class="flex items-center gap-1">
-              <input
-                :id="fieldId"
-                v-model="values.remHours"
-                :class="inputFieldClass"
-                :placeholder="t('health.sleep.form.hours')"
-                type="number"
-                min="0"
-                step="1"
-                inputmode="numeric"
-                :disabled="isSubmitting"
-              />
-              <span class="text-hint">h</span>
-              <input
-                v-model="values.remMinutes"
-                :class="inputFieldClass"
-                :placeholder="t('health.sleep.form.minutes')"
-                type="number"
-                min="0"
-                max="59"
-                step="1"
-                inputmode="numeric"
-                :disabled="isSubmitting"
-              />
-              <span class="text-hint">m</span>
-            </div>
-          </template>
-        </FormField>
-
-        <FormField :label="t('health.sleep.form.awake')">
-          <template #default="{ fieldId }">
-            <div class="flex items-center gap-1">
-              <input
-                :id="fieldId"
-                v-model="values.awakeHours"
-                :class="inputFieldClass"
-                :placeholder="t('health.sleep.form.hours')"
-                type="number"
-                min="0"
-                step="1"
-                inputmode="numeric"
-                :disabled="isSubmitting"
-              />
-              <span class="text-hint">h</span>
-              <input
-                v-model="values.awakeMinutes"
-                :class="inputFieldClass"
-                :placeholder="t('health.sleep.form.minutes')"
-                type="number"
-                min="0"
-                max="59"
-                step="1"
-                inputmode="numeric"
-                :disabled="isSubmitting"
-              />
-              <span class="text-hint">m</span>
-            </div>
-          </template>
-        </FormField>
-
-        <FormField :label="t('health.sleep.form.awakeCount')">
-          <template #default="{ fieldId }">
+        <FormField
+          v-for="key in ['awakeCount' as const]"
+          :key="key"
+          :label="t(`health.sleep.form.${key}`)"
+          :error="errors[key]"
+        >
+          <template #default="{ fieldId, describedBy, invalid }">
             <input
               :id="fieldId"
-              v-model="values.awakeCount"
-              :class="inputFieldClass"
+              v-model="values[key]"
+              :class="fieldClass"
+              :aria-describedby="describedBy"
+              :aria-invalid="invalid"
               type="number"
-              min="0"
+              :min="boundedFields[key][0]"
+              :max="boundedFields[key][1]"
               step="1"
               inputmode="numeric"
               :disabled="isSubmitting"
+              @blur="handleBlur(key)"
             />
           </template>
         </FormField>
       </div>
     </details>
 
-    <details class="mt-2 rounded-input border border-border px-3 py-2">
+    <details
+      :class="sectionClass"
+      :open="openSections.heartRate"
+      @toggle="onToggle('heartRate', $event)"
+    >
       <summary class="cursor-pointer text-caption select-none">
         {{ t('health.sleep.form.heartRate') }}
       </summary>
       <div class="mt-2 grid grid-cols-1 gap-2 sm:grid-cols-2">
         <FormField
-          :label="t('health.sleep.form.restingHeartRate')"
-          :placeholder="t('health.sleep.form.restingHeartRate')"
+          v-for="key in heartRateFields"
+          :key="key"
+          :label="t(`health.sleep.form.${key}`)"
+          :error="errors[key]"
         >
-          <template #default="{ fieldId, placeholder }">
+          <template #default="{ fieldId, describedBy, invalid }">
             <input
               :id="fieldId"
-              v-model="values.restingHeartRate"
-              :class="inputFieldClass"
-              :placeholder="placeholder"
+              v-model="values[key]"
+              :class="fieldClass"
+              :aria-describedby="describedBy"
+              :aria-invalid="invalid"
               type="number"
-              min="20"
-              max="220"
+              :min="boundedFields[key][0]"
+              :max="boundedFields[key][1]"
               step="1"
               inputmode="numeric"
               :disabled="isSubmitting"
-            />
-          </template>
-        </FormField>
-
-        <FormField :label="t('health.sleep.form.avgHeartRate')">
-          <template #default="{ fieldId }">
-            <input
-              :id="fieldId"
-              v-model="values.avgHeartRate"
-              :class="inputFieldClass"
-              type="number"
-              min="20"
-              max="220"
-              step="1"
-              inputmode="numeric"
-              :disabled="isSubmitting"
-            />
-          </template>
-        </FormField>
-
-        <FormField :label="t('health.sleep.form.minHeartRate')">
-          <template #default="{ fieldId }">
-            <input
-              :id="fieldId"
-              v-model="values.minHeartRate"
-              :class="inputFieldClass"
-              type="number"
-              min="20"
-              max="220"
-              step="1"
-              inputmode="numeric"
-              :disabled="isSubmitting"
-            />
-          </template>
-        </FormField>
-
-        <FormField :label="t('health.sleep.form.maxHeartRate')">
-          <template #default="{ fieldId }">
-            <input
-              :id="fieldId"
-              v-model="values.maxHeartRate"
-              :class="inputFieldClass"
-              type="number"
-              min="20"
-              max="220"
-              step="1"
-              inputmode="numeric"
-              :disabled="isSubmitting"
+              @blur="handleBlur(key)"
             />
           </template>
         </FormField>
       </div>
     </details>
 
-    <details class="mt-2 rounded-input border border-border px-3 py-2">
+    <details
+      :class="sectionClass"
+      :open="openSections.bloodOxygen"
+      @toggle="onToggle('bloodOxygen', $event)"
+    >
       <summary class="cursor-pointer text-caption select-none">
         {{ t('health.sleep.form.bloodOxygen') }}
       </summary>
       <div class="mt-2 grid grid-cols-1 gap-2 sm:grid-cols-2">
-        <FormField :label="t('health.sleep.form.spo2')" :placeholder="t('health.sleep.form.spo2')">
-          <template #default="{ fieldId, placeholder }">
+        <FormField
+          v-for="key in bloodOxygenFields"
+          :key="key"
+          :label="t(`health.sleep.form.${key}`)"
+          :error="errors[key]"
+        >
+          <template #default="{ fieldId, describedBy, invalid }">
             <input
               :id="fieldId"
-              v-model="values.spo2"
-              :class="inputFieldClass"
-              :placeholder="placeholder"
+              v-model="values[key]"
+              :class="fieldClass"
+              :aria-describedby="describedBy"
+              :aria-invalid="invalid"
               type="number"
-              min="70"
-              max="100"
+              :min="boundedFields[key][0]"
+              :max="boundedFields[key][1]"
               step="1"
               inputmode="numeric"
               :disabled="isSubmitting"
-            />
-          </template>
-        </FormField>
-
-        <FormField :label="t('health.sleep.form.lowestSpo2')">
-          <template #default="{ fieldId }">
-            <input
-              :id="fieldId"
-              v-model="values.lowestSpo2"
-              :class="inputFieldClass"
-              type="number"
-              min="70"
-              max="100"
-              step="1"
-              inputmode="numeric"
-              :disabled="isSubmitting"
-            />
-          </template>
-        </FormField>
-
-        <FormField :label="t('health.sleep.form.highestSpo2')">
-          <template #default="{ fieldId }">
-            <input
-              :id="fieldId"
-              v-model="values.highestSpo2"
-              :class="inputFieldClass"
-              type="number"
-              min="70"
-              max="100"
-              step="1"
-              inputmode="numeric"
-              :disabled="isSubmitting"
+              @blur="handleBlur(key)"
             />
           </template>
         </FormField>
       </div>
     </details>
 
-    <details class="mt-2 rounded-input border border-border px-3 py-2">
+    <details
+      :class="sectionClass"
+      :open="openSections.metrics"
+      @toggle="onToggle('metrics', $event)"
+    >
       <summary class="cursor-pointer text-caption select-none">
         {{ t('health.sleep.form.metrics') }}
       </summary>
       <div class="mt-2 grid grid-cols-1 gap-2 sm:grid-cols-2">
         <FormField
-          :label="t('health.sleep.form.sleepScore')"
-          :placeholder="t('health.sleep.form.sleepScore')"
+          v-for="key in metricsFields"
+          :key="key"
+          :label="t(`health.sleep.form.${key}`)"
+          :error="errors[key]"
         >
-          <template #default="{ fieldId, placeholder }">
+          <template #default="{ fieldId, describedBy, invalid }">
             <input
               :id="fieldId"
-              v-model="values.sleepScore"
-              :class="inputFieldClass"
-              :placeholder="placeholder"
+              v-model="values[key]"
+              :class="fieldClass"
+              :aria-describedby="describedBy"
+              :aria-invalid="invalid"
               type="number"
-              min="0"
-              max="100"
+              :min="boundedFields[key][0]"
+              :max="boundedFields[key][1]"
               step="1"
               inputmode="numeric"
               :disabled="isSubmitting"
-            />
-          </template>
-        </FormField>
-
-        <FormField :label="t('health.sleep.form.avgSleepStress')">
-          <template #default="{ fieldId }">
-            <input
-              :id="fieldId"
-              v-model="values.avgSleepStress"
-              :class="inputFieldClass"
-              type="number"
-              min="0"
-              max="100"
-              step="1"
-              inputmode="numeric"
-              :disabled="isSubmitting"
+              @blur="handleBlur(key)"
             />
           </template>
         </FormField>
@@ -733,7 +835,7 @@ watch(open, (isOpen) => {
             <input
               :id="fieldId"
               v-model="values.skinTempDeviation"
-              :class="inputFieldClass"
+              :class="fieldClass"
               :placeholder="placeholder"
               type="number"
               step="0.1"
@@ -745,7 +847,7 @@ watch(open, (isOpen) => {
       </div>
     </details>
 
-    <details class="mt-2 rounded-input border border-border px-3 py-2">
+    <details :class="sectionClass" :open="openSections.stages" @toggle="onToggle('stages', $event)">
       <summary class="cursor-pointer text-caption select-none">
         {{ t('health.sleep.form.sleepStages') }}
       </summary>
@@ -779,24 +881,34 @@ watch(open, (isOpen) => {
                 <select
                   :id="fieldId"
                   v-model="stage.stageType"
-                  :class="inputFieldClass"
+                  :class="fieldClass"
                   :disabled="isSubmitting"
                 >
-                  <option value="0">{{ t('health.sleep.form.stageDeep') }}</option>
-                  <option value="1">{{ t('health.sleep.form.stageLight') }}</option>
-                  <option value="2">{{ t('health.sleep.form.stageRem') }}</option>
-                  <option value="3">{{ t('health.sleep.form.stageAwake') }}</option>
+                  <option value="deep">{{ t('health.sleep.form.stageDeep') }}</option>
+                  <option value="light">{{ t('health.sleep.form.stageLight') }}</option>
+                  <option value="rem">{{ t('health.sleep.form.stageRem') }}</option>
+                  <option value="awake">{{ t('health.sleep.form.stageAwake') }}</option>
                 </select>
               </template>
             </FormField>
 
-            <FormField :label="t('health.sleep.form.stageDuration')">
-              <template #default="{ fieldId }">
+            <FormField
+              :label="t('health.sleep.form.stageDuration')"
+              :error="stageErrors[index] ?? undefined"
+            >
+              <template #default="{ fieldId, describedBy, invalid }">
                 <div class="flex items-center gap-1">
                   <input
                     :id="fieldId"
                     v-model="stage.durationHours"
-                    :class="inputFieldClass"
+                    :class="fieldClass"
+                    :aria-describedby="describedBy"
+                    :aria-invalid="invalid"
+                    :aria-label="
+                      t('health.sleep.form.hoursOf', {
+                        field: t('health.sleep.form.stageDuration'),
+                      })
+                    "
                     :placeholder="t('health.sleep.form.hours')"
                     type="number"
                     min="0"
@@ -807,7 +919,14 @@ watch(open, (isOpen) => {
                   <span class="text-hint">h</span>
                   <input
                     v-model="stage.durationMinutes"
-                    :class="inputFieldClass"
+                    :class="fieldClass"
+                    :aria-describedby="describedBy"
+                    :aria-invalid="invalid"
+                    :aria-label="
+                      t('health.sleep.form.minutesOf', {
+                        field: t('health.sleep.form.stageDuration'),
+                      })
+                    "
                     :placeholder="t('health.sleep.form.minutes')"
                     type="number"
                     min="0"
@@ -826,7 +945,7 @@ watch(open, (isOpen) => {
                 <input
                   :id="fieldId"
                   v-model="stage.startTimeGmt"
-                  :class="inputFieldClass"
+                  :class="fieldClass"
                   type="datetime-local"
                   :disabled="isSubmitting"
                 />
@@ -838,7 +957,7 @@ watch(open, (isOpen) => {
                 <input
                   :id="fieldId"
                   v-model="stage.endTimeGmt"
-                  :class="inputFieldClass"
+                  :class="fieldClass"
                   type="datetime-local"
                   :disabled="isSubmitting"
                 />

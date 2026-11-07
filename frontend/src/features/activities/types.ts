@@ -7,13 +7,19 @@ import type { Schemas } from '@/types'
  * them into the camelCase domain models below.
  */
 export type ActivityDto = Schemas['ActivityRead']
-export type ActivityStreamDto = Schemas['ActivityStreamsRead']
+export type ActivityStreamDto = Schemas['ActivityStreamResponse']
 export type ActivityLapDto = Schemas['ActivityLapsRead']
 export type ActivityEditDto = Schemas['ActivityEdit']
 export type ActivityMediaDto = Schemas['ActivityMediaRead']
 export type ActivityWorkoutStepDto = Schemas['ActivityWorkoutStepsRead']
 export type ActivitySetDto = Schemas['ActivitySetsRead']
 export type ActivityExerciseTitleDto = Schemas['ActivityExerciseTitlesRead']
+
+/** The sport an activity records, as the backend names it. */
+export type ActivityType = Schemas['ActivityType']
+
+/** Who may see an activity. */
+export type ActivityVisibility = Schemas['ActivityVisibility']
 
 /**
  * Per-sport aggregated stats for a timeframe (this week / this month). Keys are
@@ -29,31 +35,35 @@ export type ActivitySportStats = Schemas['ActivitySportStats']
 /** A sport key present in {@link ActivityStats}. */
 export type ActivitySportKey = keyof ActivityStats
 
+/** The kind of data a stream holds, as the backend names it. */
+export type ActivityStreamType = Schemas['ActivityStreamType']
+
 /**
- * Numeric stream-type codes used by the backend. A single activity exposes one
+ * The backend stream type of each chart metric. A single activity exposes one
  * stream per available metric; the detail view fans these out into charts.
  */
 export const STREAM_TYPE = {
-  hr: 1,
-  power: 2,
-  cadence: 3,
-  elevation: 4,
-  velocity: 5,
-  pace: 6,
+  hr: 'heart_rate',
+  power: 'power',
+  cadence: 'cadence',
+  elevation: 'elevation',
+  velocity: 'speed',
+  pace: 'pace',
   /**
-   * 7 is the lat/lon (GPS) stream — not a chart metric. It is consumed by the
-   * map (see `extractTrackPoints`), so it is intentionally absent here.
+   * The `map` stream is the lat/lon (GPS) stream — not a chart metric. It is
+   * consumed by the map (see `extractTrackPoints`), so it is intentionally
+   * absent here.
    */
-  temperature: 8,
-} as const
+  temperature: 'temperature',
+} as const satisfies Record<string, ActivityStreamType>
 
 /** A metric kind that can be rendered as a stream chart. */
 export type StreamMetric = keyof typeof STREAM_TYPE
 
 /**
- * A single sampled point along a stream. The backend serializes waypoints as an
- * untyped object array; this is the subset of keys the detail view consumes.
- * Every field is optional because the present keys depend on the stream type.
+ * A single sampled point along a stream. The backend types waypoints per stream
+ * type; this is the union of the value keys the detail view consumes. Every field
+ * is optional because the present keys depend on the stream type.
  */
 export interface StreamWaypoint {
   /** Heart rate in bpm. */
@@ -70,9 +80,9 @@ export interface StreamWaypoint {
   pace?: number | null
   /** Temperature in degrees Celsius. */
   temp?: number | null
-  /** Latitude in decimal degrees (present on the GPS/map stream, type 7). */
+  /** Latitude in decimal degrees (present on the GPS/map stream). */
   lat?: number | null
-  /** Longitude in decimal degrees (present on the GPS/map stream, type 7). */
+  /** Longitude in decimal degrees (present on the GPS/map stream). */
   lon?: number | null
 }
 
@@ -91,7 +101,7 @@ export interface HrZoneBucket {
 /** One metric stream for an activity (e.g. the full heart-rate series). */
 export interface ActivityStream {
   id: number
-  streamType: number
+  streamType: ActivityStreamType
   waypoints: StreamWaypoint[]
   /** Decoded heart-rate zone buckets, present only on the HR stream. */
   hrZones: HrZoneBucket[] | null
@@ -206,9 +216,8 @@ export interface Activity {
   name: string
   description: string | null
   privateNotes: string | null
-  activityType: number
-  /** 0 - public, 1 - followers, 2 - private. */
-  visibility: number
+  activityType: ActivityType
+  visibility: ActivityVisibility
   isHidden: boolean
   gearId: number | null
 
@@ -217,7 +226,7 @@ export interface Activity {
    * built from a stale copy is refused instead of overwriting whoever saved in
    * between. `null` when the activity came from a response that omits it.
    */
-  version: number | null
+  version: number
 
   /**
    * Activity start as a UTC instant (ISO 8601 with offset), or `null` when the
@@ -272,6 +281,13 @@ export interface Activity {
    */
   mapThumbnailUrl: string | null
 
+  /**
+   * The activity's photos as embedded by a list response, so a card needs no
+   * request of its own. Only the viewer's own activities carry photos; empty on
+   * every other response (a single-activity read, someone else's activity).
+   */
+  media: ActivityMedia[]
+
   privacy: ActivityPrivacy
 }
 
@@ -303,11 +319,10 @@ export interface ActivityOwner {
 /** The editable fields of an activity, as bound by the edit form. */
 export interface ActivityEditInput {
   name: string
-  activityType: number
+  activityType: ActivityType
   description: string
   privateNotes: string
-  /** 0 - public, 1 - followers, 2 - private. */
-  visibility: number
+  visibility: ActivityVisibility
   isHidden: boolean
   hideStartTime: boolean
   hideLocation: boolean
@@ -324,12 +339,31 @@ export interface ActivityEditInput {
 }
 
 /**
+ * An activity with the child collections the detail view shows, as one response carries them.
+ *
+ * @property activity - The activity.
+ * @property laps - Every lap, or `null` when the response held only the first page of them.
+ * @property sets - Every performed workout set, or `null` when the response held only the first page.
+ * @property workoutSteps - Every planned workout step, or `null` when the response held only the
+ *   first page.
+ */
+export interface ActivityDetail {
+  activity: Activity
+  laps: ActivityLap[] | null
+  sets: ActivityWorkoutSet[] | null
+  workoutSteps: ActivityWorkoutStep[] | null
+}
+
+/**
  * One keyset slice of the following feed.
  *
  * @property items - The slice's activities, newest first.
  * @property nextCursor - Cursor for the next slice, or `null` at the end.
+ * @property owners - The owner of each activity on the slice, by user id, as the same response
+ *   carries them; `null` for an owner the server left out (inactive, or awaiting approval).
  */
 export interface ActivityFeedSlice {
   items: Activity[]
   nextCursor: string | null
+  owners: Map<number, ActivityOwner | null>
 }

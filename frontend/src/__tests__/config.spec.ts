@@ -1,36 +1,20 @@
-import { describe, expect, it, vi } from 'vitest'
+import { describe, expect, it } from 'vitest'
 
 import type { PublicServerSettings } from '@/features/config/types'
 
 import { DEFAULT_MAP_CONFIG } from '@/features/config/defaults'
-import {
-  DEFAULT_APP_CONFIG,
-  fetchAppConfig,
-  mapServerSettingsToAppConfig,
-} from '@/features/config/services/config'
-import {
-  DEFAULT_PUBLIC_SERVER_SETTINGS,
-  fetchPublicServerSettings,
-} from '@/features/config/services/serverSettings'
-
-vi.mock('@/features/config/services/serverSettings', async (importOriginal) => {
-  const original =
-    await importOriginal<typeof import('@/features/config/services/serverSettings')>()
-  return {
-    ...original,
-    fetchPublicServerSettings: vi.fn<typeof original.fetchPublicServerSettings>(),
-  }
-})
+import { DEFAULT_APP_CONFIG, mapServerSettingsToAppConfig } from '@/features/config/services/config'
+import { DEFAULT_PUBLIC_SERVER_SETTINGS } from '@/features/config/services/serverSettings'
 
 const publicSettings: PublicServerSettings = {
   login_photo_set: false,
   signup_enabled: true,
+  signup_require_email_verification: false,
   sso_enabled: false,
   local_login_enabled: true,
   sso_auto_redirect: false,
   units: 'metric',
   currency: 'euro',
-  password_type: 'strict',
   password_length_regular_users: 8,
   password_length_admin_users: 12,
   num_records_per_page: 25,
@@ -74,16 +58,8 @@ describe('mapServerSettingsToAppConfig', () => {
   })
 })
 
-describe('fetchAppConfig', () => {
-  it('derives the app config from the public server settings', async () => {
-    vi.mocked(fetchPublicServerSettings).mockResolvedValue({
-      ...publicSettings,
-      signup_enabled: false,
-    })
-
-    const config = await fetchAppConfig()
-
-    expect(fetchPublicServerSettings).toHaveBeenCalledOnce()
-    expect(config.features.signUp).toBe(false)
+describe('public server settings fallback', () => {
+  it('carries the sign-up email verification flag, off when the server is unreachable', () => {
+    expect(DEFAULT_PUBLIC_SERVER_SETTINGS.signup_require_email_verification).toBe(false)
   })
 })

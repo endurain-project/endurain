@@ -82,5 +82,13 @@
       "ownTitle": "Jums vēl nav neviena sekotāja.",
       "otherTitle": "Vēl nav sekotāju."
     }
+  },
+  "block": {
+    "block": "Bloķēt",
+    "unblock": "Atbloķēt",
+    "confirmTitle": "Vai bloķēt {name}?",
+    "confirmBody": "{name} vairs nevarēs pieprasīt tev sekot, un jebkāda savstarpējā sekošana tiks noņemta. Lietotājs netiks informēts.",
+    "blockError": "Neizdevās nobloķēt šo lietotāju. Mēģini vēlreiz.",
+    "unblockError": "Neizdevās atbloķēt šo lietotāju. Mēģini vēlreiz."
   }
 }

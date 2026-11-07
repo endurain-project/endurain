@@ -12,6 +12,7 @@ from typing import Annotated, Any
 
 from pydantic import (
     BaseModel,
+    BeforeValidator,
     ConfigDict,
     Field,
     StrictBool,
@@ -20,13 +21,27 @@ from pydantic import (
     field_validator,
 )
 
+import core.job_status as core_job_status
 import core.pagination as core_pagination
+import core.partial_update as core_partial_update
 import core.timezone as core_timezone
+import core.types as core_types
+import modules.activities.activity.constants as activity_constants
+import modules.users.users.schema as users_schema
 
-PositiveInt = Annotated[StrictInt, Field(ge=1)]
-VisibilityValue = Annotated[StrictInt, Field(ge=0, le=2)]
+#: The activity type of a stored row or an ingestion producer, which hand over the stored integer. A request
+#: field is the plain enum instead, which refuses the integer.
+StoredActivityType = Annotated[
+    activity_constants.ActivityType, BeforeValidator(activity_constants.ActivityType.accept_stored)
+]
+#: The media type of a stored row, which hands over the stored integer.
+StoredMediaType = Annotated[activity_constants.MediaType, BeforeValidator(activity_constants.MediaType.accept_stored)]
+#: The visibility of a stored row or an ingestion producer, which hand over the stored integer.
+StoredActivityVisibility = Annotated[
+    activity_constants.ActivityVisibility, BeforeValidator(activity_constants.ActivityVisibility.accept_stored)
+]
 LongText = Annotated[StrictStr, Field(max_length=2500)]
-ActivityName = Annotated[StrictStr, Field(max_length=250)]
+ActivityName = core_types.DisplayName
 
 
 class ActivityBase(BaseModel):
@@ -46,7 +61,7 @@ class ActivityBase(BaseModel):
         private_notes: Private notes visible only to owner.
         distance: Total distance in meters.
         name: Activity name.
-        activity_type: Numeric code for the sport type.
+        activity_type: The sport type.
         start_time: Activity start as a timezone-aware UTC instant.
         end_time: Activity end as a timezone-aware UTC instant.
         timezone: IANA timezone the activity was recorded in. Clients render
@@ -61,7 +76,7 @@ class ActivityBase(BaseModel):
         created_at: Record creation as a timezone-aware UTC instant.
         elevation_gain: Total elevation gain in meters.
         elevation_loss: Total elevation loss in meters.
-        pace: Average pace in seconds per kilometer.
+        pace: Average pace in seconds per meter.
         average_speed: Average speed in meters per second.
         max_speed: Maximum speed in meters per second.
         average_power: Average power output in watts.
@@ -104,43 +119,51 @@ class ActivityBase(BaseModel):
 
     model_config = ConfigDict(from_attributes=True, extra="forbid")
 
-    user_id: int | None = Field(default=None, ge=1)
+    user_id: core_types.RecordId | None = None
     description: str | None = Field(default=None, max_length=2500)
     private_notes: str | None = Field(default=None, max_length=2500)
-    distance: int = Field(ge=0)
+    distance: int = Field(ge=0, description="Total distance in meters")
     name: str = Field(max_length=250)
-    activity_type: int = Field(ge=1)
+    activity_type: StoredActivityType
     start_time: datetime | None = None
     end_time: datetime | None = None
     timezone: str | None = Field(default=None, max_length=250)
-    total_elapsed_time: float | None = Field(default=None, ge=0)
-    total_timer_time: float | None = Field(default=None, ge=0)
+    total_elapsed_time: float | None = Field(default=None, ge=0, description="Total elapsed wall-clock time in seconds")
+    total_timer_time: float | None = Field(default=None, ge=0, description="Active timer time in seconds")
     city: str | None = Field(default=None, max_length=250)
     town: str | None = Field(default=None, max_length=250)
     country: str | None = Field(default=None, max_length=250)
     created_at: datetime | None = None
-    elevation_gain: int | None = None
-    elevation_loss: int | None = None
-    pace: float | None = None
-    average_speed: float | None = None
-    max_speed: float | None = None
-    average_power: int | None = None
-    max_power: int | None = None
-    normalized_power: int | None = None
-    average_hr: int | None = Field(default=None, ge=0)
-    max_hr: int | None = Field(default=None, ge=0)
-    average_cad: int | None = Field(default=None, ge=0)
-    max_cad: int | None = Field(default=None, ge=0)
-    workout_feeling: int | None = Field(default=None, ge=0, le=100)
-    workout_rpe: int | None = Field(default=None, ge=10, le=100)
-    calories: int | None = Field(default=None, ge=0)
-    visibility: int | None = Field(default=None, ge=0, le=2)
-    gear_id: int | None = Field(default=None, ge=1)
+    elevation_gain: int | None = Field(default=None, description="Total elevation gain in meters")
+    elevation_loss: int | None = Field(default=None, description="Total elevation loss in meters")
+    pace: float | None = Field(default=None, description="Average pace in seconds per meter")
+    average_speed: float | None = Field(default=None, description="Average speed in meters per second")
+    max_speed: float | None = Field(default=None, description="Maximum speed in meters per second")
+    average_power: int | None = Field(default=None, description="Average power output in watts")
+    max_power: int | None = Field(default=None, description="Maximum power output in watts")
+    normalized_power: int | None = Field(default=None, description="Normalized power in watts")
+    average_hr: int | None = Field(default=None, ge=0, description="Average heart rate in beats per minute")
+    max_hr: int | None = Field(default=None, ge=0, description="Maximum heart rate in beats per minute")
+    average_cad: int | None = Field(
+        default=None, ge=0, description="Average cadence in revolutions per minute (steps per minute for running)"
+    )
+    max_cad: int | None = Field(
+        default=None, ge=0, description="Maximum cadence in revolutions per minute (steps per minute for running)"
+    )
+    workout_feeling: int | None = Field(
+        default=None, ge=0, le=100, description="Subjective feeling score from 0 to 100"
+    )
+    workout_rpe: int | None = Field(
+        default=None, ge=10, le=100, description="Rate of perceived exertion score from 10 to 100"
+    )
+    calories: int | None = Field(default=None, ge=0, description="Estimated energy burned in kilocalories")
+    visibility: StoredActivityVisibility | None = None
+    gear_id: core_types.RecordId | None = None
     strava_gear_id: str | None = Field(default=None, max_length=45)
     strava_activity_id: int | None = None
     garminconnect_activity_id: int | None = None
     garminconnect_gear_id: str | None = Field(default=None, max_length=45)
-    import_info: dict | None = None
+    import_info: dict[str, Any] | None = None
     is_hidden: bool = False
     hide_start_time: bool | None = None
     hide_location: bool | None = None
@@ -156,7 +179,9 @@ class ActivityBase(BaseModel):
     hide_gear: bool | None = None
     tracker_manufacturer: str | None = Field(default=None, max_length=250)
     tracker_model: str | None = Field(default=None, max_length=250)
-    total_cycles: int | None = Field(default=None, ge=0)
+    total_cycles: int | None = Field(
+        default=None, ge=0, description="Number of cycles recorded, such as pedal strokes or strides"
+    )
 
     @field_validator("timezone", mode="after")
     @classmethod
@@ -173,7 +198,7 @@ class ActivityBase(BaseModel):
 
     @field_validator("start_time", "end_time", "created_at", mode="before")
     @classmethod
-    def _normalize_to_utc_aware(cls, value: Any) -> Any:
+    def _normalize_to_utc_aware(cls, value: object) -> object:
         """Accept the ingestion producers' ISO strings, expose an aware UTC datetime.
 
         The field type is ``datetime | None`` so the API promises a ``date-time``
@@ -191,6 +216,27 @@ class ActivityBase(BaseModel):
         return core_timezone.to_utc_aware(value) if isinstance(value, str) else value
 
 
+class ActivityMediaEmbedded(BaseModel):
+    """A photo of an activity, as embedded in an activity list response.
+
+    The activity media package extends this with the same fields for its own endpoints, so
+    the root package declares the shape it embeds without importing that package.
+
+    Attributes:
+        id: Media record identifier.
+        activity_id: The activity the photo belongs to.
+        media_type: Media kind.
+        url: Signed, servable address of the photo.
+    """
+
+    model_config = ConfigDict(from_attributes=True, extra="forbid")
+
+    id: StrictInt = Field(ge=1)
+    activity_id: StrictInt = Field(ge=1)
+    media_type: StoredMediaType
+    url: str = Field(min_length=1)
+
+
 class ActivityRead(ActivityBase):
     """Schema representing a stored fitness activity — what the API returns.
 
@@ -205,12 +251,18 @@ class ActivityRead(ActivityBase):
             only: it is excluded from serialization, so a client never receives it.
         map_thumbnail_url: The servable, token-gated URL of the thumbnail, set by
             the service layer for a viewer allowed to see the map.
+        media: The activity's photos with signed URLs, set by the service layer on list
+            responses for the viewer's own activities and empty otherwise.
     """
 
     id: int = Field(ge=1)
     map_thumbnail_path: str | None = Field(default=None, max_length=500, exclude=True)
     map_thumbnail_url: str | None = None
     version: int | None = Field(default=None, ge=1)
+    media: list[ActivityMediaEmbedded] = Field(
+        default_factory=list,
+        description="The activity's photos, set on list responses for the viewer's own activities",
+    )
 
 
 class ActivitySportStats(BaseModel):
@@ -224,9 +276,9 @@ class ActivitySportStats(BaseModel):
 
     model_config = ConfigDict(from_attributes=True, extra="forbid")
 
-    distance: float = Field(default=0.0, ge=0)
-    time: float = Field(default=0.0, ge=0)
-    calories: float = Field(default=0.0, ge=0)
+    distance: float = Field(default=0.0, ge=0, description="Total distance in meters")
+    time: float = Field(default=0.0, ge=0, description="Total active time in seconds")
+    calories: float = Field(default=0.0, ge=0, description="Total energy burned in kilocalories")
 
 
 class ActivityStatsRead(BaseModel):
@@ -242,12 +294,13 @@ class ActivityStatsRead(BaseModel):
         snow_ski: Stats for snow skiing activities.
         snowboard: Stats for snowboarding activities.
         windsurf: Stats for windsurfing activities.
-        stand_up_paddleboarding: Stats for SUP activities.
-        surfing: Stats for surfing activities.
+        stand_up_paddling: Stats for SUP activities.
+        surf: Stats for surfing activities.
         kayaking: Stats for kayaking activities.
         sailing: Stats for sailing activities.
-        snowshoeing: Stats for snowshoeing activities.
+        snow_shoeing: Stats for snowshoeing activities.
         inline_skating: Stats for inline skating activities.
+        other: Stats for activity types that belong to none of the sports above.
     """
 
     model_config = ConfigDict(from_attributes=True, extra="forbid")
@@ -261,12 +314,13 @@ class ActivityStatsRead(BaseModel):
     snow_ski: ActivitySportStats = Field(default_factory=ActivitySportStats)
     snowboard: ActivitySportStats = Field(default_factory=ActivitySportStats)
     windsurf: ActivitySportStats = Field(default_factory=ActivitySportStats)
-    stand_up_paddleboarding: ActivitySportStats = Field(default_factory=ActivitySportStats)
-    surfing: ActivitySportStats = Field(default_factory=ActivitySportStats)
+    stand_up_paddling: ActivitySportStats = Field(default_factory=ActivitySportStats)
+    surf: ActivitySportStats = Field(default_factory=ActivitySportStats)
     kayaking: ActivitySportStats = Field(default_factory=ActivitySportStats)
     sailing: ActivitySportStats = Field(default_factory=ActivitySportStats)
-    snowshoeing: ActivitySportStats = Field(default_factory=ActivitySportStats)
+    snow_shoeing: ActivitySportStats = Field(default_factory=ActivitySportStats)
     inline_skating: ActivitySportStats = Field(default_factory=ActivitySportStats)
+    other: ActivitySportStats = Field(default_factory=ActivitySportStats)
 
 
 #: One page of activities. Aliases the shared :class:`core.pagination.Page` so
@@ -274,24 +328,31 @@ class ActivityStatsRead(BaseModel):
 #: envelope rather than each inventing its own.
 ActivityPage = core_pagination.Page[ActivityRead]
 
-#: One keyset slice of the following feed. The feed takes inserts at the head
-#: continuously, so offset paging would repeat and skip rows across requests.
-ActivityFeedPage = core_pagination.CursorPage[ActivityRead]
 
+class ActivityFeedPage(core_pagination.CursorPage[ActivityRead]):
+    """One keyset slice of the following feed.
 
-class VisibilityUpdateRead(BaseModel):
-    """Result of a bulk visibility change across a user's activities.
+    The feed takes inserts at the head continuously, so offset paging would repeat and skip rows
+    across requests.
 
     Attributes:
-        detail: Human-readable outcome of the operation.
-        updated: Number of activities whose visibility changed.
+        users: The public profile of each owner on this slice, keyed by user ID, one entry per
+            owner however many of their activities the slice holds. It is the projection
+            ``GET /users/{user_id}`` returns, so the client needs no lookup per owner. An owner
+            who is inactive or awaiting approval has no entry.
     """
 
-    detail: str
-    updated: int
+    users: dict[int, users_schema.UserPublicRead] = Field(
+        default_factory=dict,
+        description="Public profile of each activity owner on this slice, keyed by user ID",
+    )
 
 
-class ActivitiesBulkEdit(BaseModel):
+class ActivitiesBulkEditStatus(core_job_status.JobStatus):
+    """Where a queued bulk edit across a user's activities is."""
+
+
+class ActivitiesBulkEdit(core_partial_update.NotClearable):
     """Schema for a bulk (PATCH) update across the caller's own activities.
 
     Every field is optional and only the fields present in the request body are
@@ -302,15 +363,16 @@ class ActivitiesBulkEdit(BaseModel):
 
     Attributes:
         visibility: Visibility to apply to every activity the caller owns.
-            0 public, 1 followers, 2 private.
     """
 
     model_config = ConfigDict(extra="forbid")
 
-    visibility: int | None = Field(default=None, ge=0, le=2)
+    not_clearable = ("visibility",)
+
+    visibility: activity_constants.ActivityVisibility | None = None
 
 
-class ActivityEdit(BaseModel):
+class ActivityEdit(core_partial_update.NotClearable, BaseModel):
     """Schema for partial (PATCH) updates to an activity.
 
     Every field is optional: only the fields present in the request body are
@@ -321,8 +383,8 @@ class ActivityEdit(BaseModel):
         description: Public activity description.
         private_notes: Private notes (owner only).
         name: Activity name.
-        activity_type: Numeric sport type code.
-        visibility: 0 - public, 1 - followers, 2 - private.
+        activity_type: The sport type.
+        visibility: Who may see the activity.
         is_hidden: Whether the activity is hidden.
         gear_id: Associated gear identifier.
         hide_start_time: Hide start time from others.
@@ -339,15 +401,34 @@ class ActivityEdit(BaseModel):
         hide_gear: Hide gear from others.
     """
 
+    not_clearable = (
+        "name",
+        "activity_type",
+        "visibility",
+        "is_hidden",
+        "hide_start_time",
+        "hide_location",
+        "hide_map",
+        "hide_hr",
+        "hide_power",
+        "hide_cadence",
+        "hide_elevation",
+        "hide_speed",
+        "hide_pace",
+        "hide_laps",
+        "hide_workout_sets_steps",
+        "hide_gear",
+    )
+
     model_config = ConfigDict(extra="forbid")
 
     description: LongText | None = None
     private_notes: LongText | None = None
     name: ActivityName | None = None
-    activity_type: PositiveInt | None = None
-    visibility: VisibilityValue | None = None
+    activity_type: activity_constants.ActivityType | None = None
+    visibility: activity_constants.ActivityVisibility | None = None
     is_hidden: StrictBool | None = None
-    gear_id: PositiveInt | None = None
+    gear_id: core_types.RecordId | None = None
     hide_start_time: StrictBool | None = None
     hide_location: StrictBool | None = None
     hide_map: StrictBool | None = None

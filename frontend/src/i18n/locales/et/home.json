@@ -46,7 +46,6 @@
     "thisWeek": "See nädal",
     "thisMonth": "See kuu",
     "empty": "Sel perioodil pole tegevust",
-    "caloriesUnit": "kcal",
     "metric": {
       "distance": "Vahemaa",
       "time": "Aeg",
@@ -63,12 +62,13 @@
     "snow_ski": "Suusatamine",
     "snowboard": "Lumelauasõit",
     "windsurf": "Purjelauasõit",
-    "stand_up_paddleboarding": "SUP-lauasõit",
-    "surfing": "Surfamine",
+    "stand_up_paddling": "SUP-lauasõit",
+    "surf": "Surfamine",
     "kayaking": "Süstasõit",
     "sailing": "Purjetamine",
-    "snowshoeing": "Lumeräätsadega kõndimine",
-    "inline_skating": "Rulluisutamine"
+    "snow_shoeing": "Lumeräätsadega kõndimine",
+    "inline_skating": "Rulluisutamine",
+    "other": "Muu"
   },
   "goals": {
     "title": "Eesmärgid",

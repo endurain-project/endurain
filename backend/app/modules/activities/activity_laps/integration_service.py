@@ -2,10 +2,13 @@
 
 from typing import Any
 
+from pydantic import TypeAdapter
 from sqlalchemy.orm import Session
 
+import modules.activities.activity.schema as activity_schema
 import modules.activities.activity_laps.crud as activity_laps_crud
 import modules.activities.activity_laps.schema as activity_laps_schema
+import modules.activities.activity_laps.service as activity_laps_service
 import modules.activities.contributors as activities_contributors
 
 
@@ -25,8 +28,12 @@ def _list_laps_for_activities(
     return activity_laps_crud.get_activities_laps(activity_ids, db)
 
 
+#: The parsed laps: one row of lap fields per lap, in recorded order.
+_PAYLOAD: TypeAdapter[list[dict[str, object]]] = TypeAdapter(list[dict[str, object]])
+
+
 def _store_laps(
-    laps: list[dict],
+    laps: list[dict[str, object]],
     activity_id: int,
     db: Session,
 ) -> None:
@@ -40,7 +47,7 @@ def _store_laps(
     activity_laps_crud.create_activity_laps(laps, activity_id, db)
 
 
-def _parse_profile_record(record: dict[str, Any], _activity_id: int) -> dict[str, Any]:
+def _parse_profile_record(record: dict[str, Any], _activity_id: int) -> dict[str, object]:
     """Validate one archived lap record.
 
     Laps are stored from plain dicts and carry no parent id of their own, so the
@@ -54,7 +61,7 @@ def _parse_profile_record(record: dict[str, Any], _activity_id: int) -> dict[str
         The validated lap as a dict.
     """
     data = {key: value for key, value in record.items() if key != "activity_id"}
-    return activity_laps_schema.ActivityLapsBase.model_validate(data).model_dump()
+    return activity_laps_schema.ActivityLapsCreate.model_validate(data).model_dump()
 
 
 def ingestion_contributor() -> activities_contributors.ActivityIngestionContributor:
@@ -63,7 +70,7 @@ def ingestion_contributor() -> activities_contributors.ActivityIngestionContribu
     Returns:
         The contributor.
     """
-    return activities_contributors.child_ingestion_contributor(key="laps", store=_store_laps)
+    return activities_contributors.child_ingestion_contributor(key="laps", payload=_PAYLOAD, store=_store_laps)
 
 
 def profile_contributor() -> activities_contributors.ProfileActivityContributor:
@@ -81,3 +88,21 @@ def profile_contributor() -> activities_contributors.ProfileActivityContributor:
         store=_store_laps,
         parse_record=_parse_profile_record,
     )
+
+
+def list_for_activity(
+    activity: activity_schema.ActivityRead,
+    requester_user_id: int | None,
+    db: Session,
+) -> activity_laps_schema.ActivityLapsPage:
+    """Return the first page of an activity's laps for a viewer who may already see the activity.
+
+    Args:
+        activity: The parent activity, as the viewer is allowed to see it.
+        requester_user_id: The authenticated viewer, or ``None`` for an anonymous one.
+        db: Database session.
+
+    Returns:
+        The page envelope, empty when the laps are hidden from this viewer.
+    """
+    return activity_laps_service.list_for_activity(activity, requester_user_id, db)

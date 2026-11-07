@@ -1,14 +1,26 @@
 {
   "verifyingBody": "Vydržte, kým potvrdíme vašu adresu.",
+  "choosePasswordTitle": "Zvoľte si heslo",
+  "choosePasswordBody": "Váš e-mail bude potvrdený, keď pre svoj účet nastavíte heslo.",
+  "submitPassword": "Nastaviť heslo",
+  "submittingPassword": "Ukladá sa heslo",
   "successTitle": "E-mail overený",
   "successBody": "Vaša e-mailová adresa bola potvrdená.",
   "adminApprovalBody": "Váš účet teraz čaká na schválenie administrátorom.",
   "continueButton": "Pokračovať na prihlásenie",
   "invalidTitle": "Overenie zlyhalo",
-  "missingTokenBody": "Tomuto overovaciemu odkazu chýba token.",
   "errorInvalidToken": "Tento overovací odkaz je neplatný alebo vypršal.",
+  "errorEmailTaken": "Táto e-mailová adresa je teraz používaná iným účtom, takže ju nie je možné potvrdiť.",
   "errorNotFound": "Pre tento odkaz sme nenašli žiadny účet.",
   "errorGeneral": "Váš e-mail sa nepodarilo overiť. Skúste to znova.",
   "retry": "Skúsiť znova",
-  "backToLogin": "Späť na prihlásenie"
+  "backToLogin": "Späť na prihlásenie",
+  "resendTitle": "Potrebujete nový odkaz?",
+  "resendBody": "Zadajte adresu, s ktorou ste sa zaregistrovali, a ak stále čaká na overenie, pošleme nový overovací e-mail.",
+  "resendEmail": "E-mailová adresa",
+  "resendButton": "Odoslať nový e-mail",
+  "resendSending": "Odosiela sa",
+  "resendSent": "Ak táto adresa čaká na overenie, nový e-mail je na ceste.",
+  "resendTooManyAttempts": "Príliš veľa pokusov. Počkajte prosím pred ďalším pokusom.",
+  "resendError": "E-mail sa nepodarilo odoslať. Skúste to prosím znova."
 }

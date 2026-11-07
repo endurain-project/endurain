@@ -5,6 +5,7 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 import core.exceptions as core_exceptions
+from modules.followers.constants import FollowStatus
 
 
 class TestGetAllFollowersByUserId:
@@ -274,19 +275,16 @@ class TestDeleteFollower:
     def test_success(self, mock_db):
         import modules.followers.crud as crud
 
-        r = MagicMock()
-        r.rowcount = 1
-        mock_db.execute.return_value = r
-        crud.delete_follower(user_id=1, target_user_id=2, db=mock_db)
+        mock_db.execute.return_value.scalar_one_or_none.return_value = "pending"
+        deleted = crud.delete_follower(user_id=1, target_user_id=2, db=mock_db)
+        assert deleted == FollowStatus.PENDING
         mock_db.flush.assert_called_once()
         mock_db.commit.assert_not_called()
 
     def test_not_found(self, mock_db):
         import modules.followers.crud as crud
 
-        r = MagicMock()
-        r.rowcount = 0
-        mock_db.execute.return_value = r
+        mock_db.execute.return_value.scalar_one_or_none.return_value = None
         with pytest.raises(core_exceptions.NotFoundError) as e:
             crud.delete_follower(user_id=1, target_user_id=999, db=mock_db)
         assert e.value.status_code == 404

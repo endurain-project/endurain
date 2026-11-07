@@ -108,3 +108,23 @@ export function mlToFlOz(ml: number): number {
 export function flOzToMl(flOz: number): number {
   return flOz / FL_OZ_PER_ML
 }
+
+/**
+ * Resolves the base-unit value to send for a unit-converted form field. A field the user has not
+ * edited still holds the rounded display text it was seeded with; converting that back would drift
+ * from the stored value, so the stored value is kept. An edited field is converted.
+ *
+ * @param current - The field's current input.
+ * @param seeded - The display text the field was seeded with from `stored`.
+ * @param stored - The value the record holds, or `null`/`undefined` when there is none.
+ * @param convert - Converts the current input to the base unit.
+ * @returns The stored value for an untouched field, otherwise the converted input.
+ */
+export function baseValueUnlessEdited(
+  current: string | number,
+  seeded: string,
+  stored: number | null | undefined,
+  convert: (current: string | number) => number,
+): number {
+  return stored != null && String(current).trim() === seeded ? stored : convert(current)
+}

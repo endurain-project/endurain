@@ -9,8 +9,6 @@
   "fromStrava": "Strava",
   "fromGarmin": "Garmin Connect",
   "filters": "Filters",
-  "unitKm": "km",
-  "unitMi": "mi",
   "types": {
     "bicycle": "Bicycle",
     "shoes": "Shoes",
@@ -41,8 +39,8 @@
     "model": "Model",
     "modelTooLong": "Model must be 250 characters or fewer",
     "active": "Active",
-    "createdAt": "Created at",
-    "createdAtRequired": "A creation date is required",
+    "acquiredOn": "Acquired on",
+    "acquiredOnRequired": "An acquisition date is required",
     "initialDistance": "Initial distance",
     "purchaseValue": "Purchase value",
     "totalCost": "Total cost",
@@ -57,6 +55,8 @@
   "delete": {
     "title": "Delete gear",
     "body": "Are you sure you want to delete \"{nickname}\"? This can't be undone.",
+    "activities": "{count} activity uses this gear; it will be kept and unassigned. | {count} activities use this gear; they will be kept and unassigned.",
+    "components": "Its {count} component will be deleted. | Its {count} components will be deleted.",
     "confirm": "Delete",
     "cancel": "Cancel",
     "close": "Close",
@@ -91,7 +91,6 @@
     "unsupported": "This gear type doesn't track components.",
     "noneActive": "All components are inactive. Turn on \"Show inactive\" to see them.",
     "inactive": "Inactive",
-    "unitHours": "h",
     "purchasedOn": "Purchased {date}",
     "wearLabel": "{name} wear",
     "actions": {

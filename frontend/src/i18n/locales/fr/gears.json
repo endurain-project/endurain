@@ -9,8 +9,6 @@
   "fromStrava": "Strava",
   "fromGarmin": "Garmin Connect",
   "filters": "Filtres",
-  "unitKm": "km",
-  "unitMi": "mi",
   "types": {
     "bicycle": "Vélo",
     "shoes": "Chaussures",
@@ -41,8 +39,8 @@
     "model": "Modèle",
     "modelTooLong": "Le modèle doit contenir 250 caractères ou moins",
     "active": "Actif",
-    "createdAt": "Créé le",
-    "createdAtRequired": "Une date de création est requise",
+    "acquiredOn": "Créé le",
+    "acquiredOnRequired": "Une date de création est requise",
     "initialDistance": "Distance initiale",
     "purchaseValue": "Valeur d'achat",
     "totalCost": "Coût total",
@@ -57,6 +55,8 @@
   "delete": {
     "title": "Supprimer l'équipement",
     "body": "Êtes-vous sûr(e) de vouloir supprimer \"{nickname}\" ? Cette action est irréversible.",
+    "activities": "{count} activité utilise cet équipement ; elle sera conservée et non attribuée. | {count} activités utilisent cet équipement ; elles seront conservées et non attribuées.",
+    "components": "Son composant ({count}) sera supprimé. | Ses {count} composants seront supprimés.",
     "confirm": "Supprimer",
     "cancel": "Annuler",
     "close": "Fermer",
@@ -91,7 +91,6 @@
     "unsupported": "Ce type d'équipement ne permet pas de suivre les composants.",
     "noneActive": "Tous les composants sont inactifs. Activez \"Afficher les inactifs\" pour les voir.",
     "inactive": "Inactif",
-    "unitHours": "h",
     "purchasedOn": "Acheté le {date}",
     "wearLabel": "Usure de {name}",
     "actions": {

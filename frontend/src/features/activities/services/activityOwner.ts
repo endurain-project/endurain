@@ -1,11 +1,11 @@
 import { resolveAvatarUrl } from '@/features/auth/services/mappers'
-import { apiFetch } from '@/services/http'
+import { apiFetch, HttpError } from '@/services/http'
 
 import type { ActivityOwner } from '../types'
 import type { Schemas } from '@/types'
 
-/** Wire shape of a user record returned by the (public or authed) user endpoint. */
-type ActivityOwnerDto = Schemas['UsersRead']
+/** Wire shape of the public user projection returned by the authenticated user or public activity owner endpoint. */
+type ActivityOwnerDto = Schemas['UserPublicRead']
 
 /**
  * Maps a user DTO to the minimal owner identity shown in the activity header,
@@ -24,22 +24,31 @@ export function mapActivityOwner(dto: ActivityOwnerDto): ActivityOwner {
 
 /**
  * Fetches an activity owner's public-facing identity. Authenticated viewers use
- * the authenticated user endpoint; anonymous viewers use the public endpoint,
- * which the backend gates on the `public_shareable_links_user_info` server
- * setting — returning `null` (so the header falls back to a placeholder) when it
- * is disabled.
+ * the authenticated user endpoint; anonymous viewers use the public activity's
+ * owner endpoint, which the backend gates on the activity being shareable and the
+ * `public_shareable_links_user_info` server setting — returning `null` (so the
+ * header falls back to a placeholder) when either refuses.
  *
+ * @param activityId - The shared activity's id (`Activity.id`), used for anonymous viewers.
  * @param userId - The owner's user id (`Activity.userId`).
  * @param authenticated - Whether the viewer is logged in.
  * @param signal - Optional abort signal (e.g. TanStack Query cancellation).
  * @returns The owner identity, or `null` when it is not available.
  */
 export async function fetchActivityOwner(
+  activityId: number,
   userId: number,
   authenticated: boolean,
   signal?: AbortSignal,
 ): Promise<ActivityOwner | null> {
-  const path = authenticated ? `/users/id/${userId}` : `/public/users/id/${userId}`
-  const dto = await apiFetch<ActivityOwnerDto | null>(path, { auth: authenticated, signal })
-  return dto ? mapActivityOwner(dto) : null
+  const path = authenticated ? `/users/${userId}` : `/public/activities/${activityId}/owner`
+  try {
+    const dto = await apiFetch<ActivityOwnerDto>(path, { auth: authenticated, signal })
+    return mapActivityOwner(dto)
+  } catch (error) {
+    if (error instanceof HttpError && error.status === 404) {
+      return null
+    }
+    throw error
+  }
 }

@@ -8,7 +8,7 @@
   "seeAll": "See all",
   "loadMore": "Load more",
   "loading": "Loading…",
-  "badge": "{count} unread notifications",
+  "badge": "{count} unread notification | {count} unread notifications",
   "empty": {
     "title": "You're all caught up",
     "description": "Updates about your activities, followers and integrations will show up here."
@@ -38,6 +38,67 @@
     "garminTokenExpired": {
       "title": "Garmin Connect needs attention",
       "body": "Your Garmin Connect session expired. Reconnect it to keep syncing."
+    },
+    "stravaTokenExpired": {
+      "title": "Strava needs attention",
+      "body": "Strava rejected your connection. Reconnect it to keep syncing.",
+      "bodyRevoked": "Strava access ended. Your Strava-synced activities and gear will be deleted on {date} unless you reconnect."
+    },
+    "stravaDataDeleted": {
+      "title": "Strava data deleted",
+      "body": "Your Strava-synced activities and gear were deleted because Strava access ended and you did not reconnect."
+    },
+    "idpLinked": {
+      "title": "New sign-in provider linked",
+      "body": "{name} was linked to your account. If this wasn't you, review your security settings.",
+      "bodyGeneric": "A sign-in provider was linked to your account. If this wasn't you, review your security settings."
+    },
+    "accountSecurityChanged": {
+      "passwordChanged": {
+        "title": "Password changed",
+        "body": "Your password was changed. If this wasn't you, reset your password and review your security settings."
+      },
+      "passwordReset": {
+        "title": "Password reset",
+        "body": "Your password was reset using a reset link. If this wasn't you, reset your password again and review your security settings."
+      },
+      "passwordSetByAdmin": {
+        "title": "Password set by an administrator",
+        "body": "An administrator set a new password for your account. If you didn't expect this, contact your administrator."
+      },
+      "mfaEnabled": {
+        "title": "Two-factor authentication turned on",
+        "body": "Two-factor authentication was turned on for your account. If this wasn't you, reset your password and review your security settings."
+      },
+      "mfaDisabled": {
+        "title": "Two-factor authentication turned off",
+        "body": "Two-factor authentication was turned off for your account. If this wasn't you, reset your password and review your security settings."
+      },
+      "backupCodesGenerated": {
+        "title": "New backup codes generated",
+        "body": "New backup codes were generated for your account. If this wasn't you, reset your password and review your security settings."
+      },
+      "apiKeyCreated": {
+        "title": "New API key created",
+        "body": "A new API key was created for your account. If this wasn't you, reset your password and review your security settings."
+      },
+      "identityProviderUnlinked": {
+        "title": "Sign-in provider unlinked",
+        "body": "{name} was unlinked from your account. If this wasn't you, reset your password and review your security settings.",
+        "bodyGeneric": "A sign-in provider was unlinked from your account. If this wasn't you, reset your password and review your security settings."
+      },
+      "accountLocked": {
+        "title": "Account locked",
+        "body": "Your account was locked after 100 failed sign-in attempts in a row. Browsers and apps you have signed in from before can still sign in. If these attempts weren't yours, change or reset your password, which also lifts the lock."
+      },
+      "unknown": {
+        "title": "Account security changed",
+        "body": "A security setting of your account changed. If this wasn't you, reset your password and review your security settings."
+      }
+    },
+    "newDeviceSignIn": {
+      "title": "New sign-in",
+      "body": "New sign-in from {browser} on {os} ({ip}). If this wasn't you, change your password and sign out of your other sessions."
     },
     "adminSignUpApproval": {
       "title": "New sign-up needs approval",

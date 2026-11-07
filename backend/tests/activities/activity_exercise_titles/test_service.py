@@ -2,6 +2,8 @@
 
 from unittest.mock import MagicMock, patch
 
+import core.pagination as core_pagination
+
 
 class TestListActivityExerciseTitles:
     @patch("modules.activities.activity_exercise_titles.service.activity_exercise_titles_crud")
@@ -9,10 +11,13 @@ class TestListActivityExerciseTitles:
         from modules.activities.activity_exercise_titles import service
 
         db = MagicMock()
-        mock_crud.get_activity_exercise_titles.return_value = ["title"]
+        mock_crud.get_activity_exercise_titles_page.return_value = []
+        mock_crud.count_activity_exercise_titles.return_value = 450
 
-        assert service.list_activity_exercise_titles(db) == ["title"]
-        mock_crud.get_activity_exercise_titles.assert_called_once_with(db)
+        page = service.list_activity_exercise_titles(core_pagination.PageParams(2, 200), db)
+
+        assert (page.total, page.page, page.next) == (450, 2, 3)
+        mock_crud.get_activity_exercise_titles_page.assert_called_once_with(db, limit=200, offset=200)
 
 
 class TestListPublicActivityExerciseTitles:
@@ -22,9 +27,12 @@ class TestListPublicActivityExerciseTitles:
         from modules.activities.activity_exercise_titles import service
 
         mock_settings.public_shareable_links_enabled.return_value = True
-        mock_crud.get_activity_exercise_titles.return_value = ["title"]
+        mock_crud.get_activity_exercise_titles_page.return_value = []
+        mock_crud.count_activity_exercise_titles.return_value = 3
 
-        assert service.list_public_activity_exercise_titles(MagicMock()) == ["title"]
+        page = service.list_public_activity_exercise_titles(core_pagination.PageParams(1, 25), MagicMock())
+
+        assert page.total == 3
 
     @patch("modules.activities.activity_exercise_titles.service.activity_exercise_titles_crud")
     @patch("modules.activities.activity_exercise_titles.service.server_settings_integration")
@@ -33,5 +41,7 @@ class TestListPublicActivityExerciseTitles:
 
         mock_settings.public_shareable_links_enabled.return_value = False
 
-        assert service.list_public_activity_exercise_titles(MagicMock()) == []
-        mock_crud.get_activity_exercise_titles.assert_not_called()
+        page = service.list_public_activity_exercise_titles(core_pagination.PageParams(1, 25), MagicMock())
+
+        assert (page.items, page.total) == ([], 0)
+        mock_crud.get_activity_exercise_titles_page.assert_not_called()

@@ -17,6 +17,9 @@ export type ThemeColorToken =
   | '--color-hr'
   | '--color-info'
   | '--color-goal'
+  | '--color-hr-zone-4'
+  | '--color-cadence'
+  | '--color-temperature'
 
 /**
  * Bundled fallbacks mirroring `main.css`, used when the live stylesheet is not
@@ -29,6 +32,9 @@ const TOKEN_FALLBACKS: Record<ThemeColorToken, string> = {
   '--color-hr': '#e24b4a',
   '--color-info': '#378add',
   '--color-goal': '#639922',
+  '--color-hr-zone-4': '#f97316',
+  '--color-cadence': '#a855f7',
+  '--color-temperature': '#f97316',
 }
 
 /**

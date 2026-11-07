@@ -1,10 +1,12 @@
 <script setup lang="ts">
-import { computed, ref } from 'vue'
+import { computed, onMounted, ref } from 'vue'
 import { RouterLink, useRoute, useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import { ArrowLeft, Check, KeyRound, Pencil, Trash2, Upload, X } from '@lucide/vue'
 
+import { IMAGE_ACCEPTED_TYPES } from '@/lib/imageTypes'
 import UserAvatar from '@/components/UserAvatar.vue'
+import UserDeleteDialog from '@/features/users/components/UserDeleteDialog.vue'
 import UserFormDialog from '@/features/users/components/UserFormDialog.vue'
 import UserIdentityProvidersList from '@/features/users/components/UserIdentityProvidersList.vue'
 import UserPasswordDialog from '@/features/users/components/UserPasswordDialog.vue'
@@ -17,9 +19,10 @@ import { ErrorState } from '@/components/ui/error-state'
 import { Skeleton } from '@/components/ui/skeleton'
 import { useCurrentUser } from '@/features/auth/composables/useCurrentUser'
 import { useToasts } from '@/composables/useToasts'
+import { consumeIdpStepUpReturn } from '@/features/security/composables/useIdpStepUp'
+import { formatMediumDateTime } from '@/utils/datetime'
 import {
   useApproveUserMutation,
-  useDeleteUserMutation,
   useDeleteUserPhotoMutation,
   useUploadUserPhotoMutation,
   useUserQuery,
@@ -32,9 +35,22 @@ import {
  */
 const route = useRoute()
 const router = useRouter()
-const { t } = useI18n()
+const { t, locale } = useI18n()
 const toasts = useToasts()
 const { data: currentUser } = useCurrentUser()
+
+// Returning from an identity-provider sign-in, the callback leaves its outcome in the URL fragment. It is
+// consumed once; the dialog that started it reopens for the same user, and a failure is reported once the
+// page is shown.
+const stepUpReturn = consumeIdpStepUpReturn()
+const resume = stepUpReturn && !stepUpReturn.error ? stepUpReturn : null
+onMounted(() => {
+  if (stepUpReturn?.error === 'not_fresh') {
+    toasts.error(t('settings.security.stepUp.notFresh'))
+  } else if (stepUpReturn?.error) {
+    toasts.error(t('settings.security.stepUp.failed'))
+  }
+})
 
 // A non-numeric or non-positive `:id` resolves to `null`, which keeps the query
 // disabled and surfaces the not-found state below.
@@ -69,24 +85,12 @@ function onFormError(message: string): void {
   toasts.error(message)
 }
 
-// Delete mirrors the list action: confirm, delete, then return to the list
-// (this page would otherwise resolve to "not found"). Self-delete is disallowed.
+// Delete mirrors the list action: confirm with the administrator's step-up, delete, then return to the
+// list (this page would otherwise resolve to "not found"). Self-delete is disallowed.
 const isDeleteOpen = ref(false)
-const deleteMutation = useDeleteUserMutation()
 
-function confirmDelete(): void {
-  const target = user.value
-  if (!target) {
-    return
-  }
-  deleteMutation.mutate(target.id, {
-    onSuccess: () => {
-      isDeleteOpen.value = false
-      toasts.success(t('settings.users.delete.success'))
-      void router.push({ name: 'settings-users' })
-    },
-    onError: () => toasts.error(t('settings.users.delete.error')),
-  })
+function onDeleted(): void {
+  void router.push({ name: 'settings-users' })
 }
 
 // Photo management: a hidden file input drives the upload. The backend validates
@@ -138,9 +142,8 @@ function removePhoto(): void {
 }
 
 // Pending sign-up moderation: approve clears the pending flag; reject deletes the
-// account (after confirmation) and returns to the list.
+// account (after the administrator's step-up) and returns to the list.
 const approveMutation = useApproveUserMutation()
-const rejectMutation = useDeleteUserMutation()
 const isRejectOpen = ref(false)
 
 /** Approves the pending sign-up. */
@@ -152,22 +155,6 @@ function approve(): void {
   approveMutation.mutate(target.id, {
     onSuccess: () => toasts.success(t('settings.users.approval.approveSuccess')),
     onError: () => toasts.error(t('settings.users.approval.approveError')),
-  })
-}
-
-/** Rejects the pending sign-up by deleting it, then returns to the list. */
-function reject(): void {
-  const target = user.value
-  if (!target) {
-    return
-  }
-  rejectMutation.mutate(target.id, {
-    onSuccess: () => {
-      isRejectOpen.value = false
-      toasts.success(t('settings.users.approval.rejectSuccess'))
-      void router.push({ name: 'settings-users' })
-    },
-    onError: () => toasts.error(t('settings.users.approval.rejectError')),
   })
 }
 </script>
@@ -268,8 +255,18 @@ function reject(): void {
             />
           </span>
           <div class="min-w-0">
-            <h1 class="truncate text-page-title">{{ user.name }}</h1>
+            <h1 class="truncate text-page-title">
+              <bdi>{{ user.name }}</bdi>
+            </h1>
             <p class="truncate text-body">@{{ user.username }} · {{ user.email }}</p>
+            <p v-if="user.pendingEmail && user.pendingEmailExpiresAt" class="text-hint">
+              {{
+                t('settings.users.detail.pendingEmail', {
+                  email: user.pendingEmail,
+                  date: formatMediumDateTime(user.pendingEmailExpiresAt, locale),
+                })
+              }}
+            </p>
             <UserStatusBadges :user="user" :is-self="isSelf" class="mt-2" />
           </div>
         </div>
@@ -281,7 +278,7 @@ function reject(): void {
           <input
             ref="fileInput"
             type="file"
-            accept="image/*"
+            :accept="IMAGE_ACCEPTED_TYPES.join(',')"
             class="hidden"
             @change="onPhotoSelected"
           />
@@ -303,13 +300,7 @@ function reject(): void {
           >
             {{ t('settings.users.photo.remove') }}
           </Button>
-          <Button
-            v-if="!isSelf"
-            variant="destructive"
-            size="sm"
-            :disabled="deleteMutation.isPending.value"
-            @click="isDeleteOpen = true"
-          >
+          <Button v-if="!isSelf" variant="destructive" size="sm" @click="isDeleteOpen = true">
             <Trash2 class="size-4" aria-hidden="true" />
             {{ t('settings.users.actions.delete') }}
           </Button>
@@ -332,7 +323,7 @@ function reject(): void {
           </Button>
           <Button
             variant="destructive"
-            :disabled="rejectMutation.isPending.value || !user.emailVerified"
+            :disabled="!user.emailVerified"
             @click="isRejectOpen = true"
           >
             <X class="size-4" aria-hidden="true" />
@@ -355,15 +346,16 @@ function reject(): void {
         </Button>
       </Card>
 
-      <UserIdentityProvidersList :user-id="user.id" />
+      <UserIdentityProvidersList :user-id="user.id" :resume="resume" />
 
-      <UserSessionsList :user-id="user.id" />
+      <UserSessionsList :user-id="user.id" :resume="resume" />
 
       <UserPasswordDialog
         v-model:open="isPasswordOpen"
         :user-id="user.id"
         :username="user.username"
         :access-type="user.accessType"
+        :resume="resume"
         @success="onPasswordSuccess"
         @error="onPasswordError"
       />
@@ -379,33 +371,29 @@ function reject(): void {
         @confirm="removePhoto"
       />
 
-      <ConfirmDialog
+      <UserDeleteDialog
         v-model:open="isRejectOpen"
-        :title="t('settings.users.approval.rejectTitle')"
-        :description="t('settings.users.approval.rejectBody', { username: user.username })"
-        :confirm-label="t('settings.users.approval.rejectConfirm')"
-        :cancel-label="t('settings.users.approval.rejectCancel')"
-        :close-label="t('settings.users.approval.rejectClose')"
-        :pending="rejectMutation.isPending.value"
-        @confirm="reject"
+        :user="user"
+        variant="reject"
+        :resume="resume"
+        @success="onDeleted"
       />
 
       <UserFormDialog
         v-model:open="isFormOpen"
         :user="user"
+        :is-self="isSelf"
+        :resume="resume"
         @success="onFormSuccess"
         @error="onFormError"
       />
 
-      <ConfirmDialog
+      <UserDeleteDialog
         v-model:open="isDeleteOpen"
-        :title="t('settings.users.delete.title')"
-        :description="t('settings.users.delete.body', { name: user.name })"
-        :confirm-label="t('settings.users.delete.confirm')"
-        :cancel-label="t('settings.users.delete.cancel')"
-        :close-label="t('settings.users.delete.close')"
-        :pending="deleteMutation.isPending.value"
-        @confirm="confirmDelete"
+        :user="user"
+        variant="delete"
+        :resume="resume"
+        @success="onDeleted"
       />
     </template>
   </section>

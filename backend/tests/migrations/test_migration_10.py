@@ -17,17 +17,18 @@ def _run(tmp_path: Path, rows, *, storage_uri: str = "local://"):
     with (
         patch(f"{_MODULE}.core_config") as config,
         patch(f"{_MODULE}.platform_runtime") as runtime,
-        patch(f"{_MODULE}.users_crud") as crud,
-        patch(f"{_MODULE}.migrations_crud") as migrations_crud,
+        patch(f"{_MODULE}.users_migration") as crud,
+        patch(f"{_MODULE}.migrations_service") as migrations_service,
     ):
         config.settings.DATA_DIR = str(tmp_path)
+        crud.USER_IMAGE_STORAGE_AREA = "user_images"
         config.settings.resolved_storage_uri = storage_uri
         runtime.get_active_platform.return_value.storage = storage
         crud.get_stored_photo_keys.return_value = rows
 
         migration_10.process_migration_10(db)
 
-    return crud, storage, migrations_crud
+    return crud, storage, migrations_service
 
 
 class TestProcessMigration10:
@@ -36,13 +37,13 @@ class TestProcessMigration10:
         area.mkdir()
         (area / "7.jpg").write_bytes(b"photo")
 
-        crud, storage, migrations_crud = _run(tmp_path, [(7, "/app/backend/data/user_images/7.jpg")])
+        crud, storage, migrations_service = _run(tmp_path, [(7, "/app/backend/data/user_images/7.jpg")])
 
-        crud.set_user_photo_key.assert_called_once()
-        assert crud.set_user_photo_key.call_args.args[:2] == (7, "7.jpg")
+        crud.set_photo_key.assert_called_once()
+        assert crud.set_photo_key.call_args.args[:2] == (7, "7.jpg")
         # Local storage already maps the area to this directory, so nothing is copied.
         storage.save.assert_not_called()
-        migrations_crud.set_migration_as_executed.assert_called_once()
+        migrations_service.mark_executed.assert_called_once()
 
     def test_uploads_the_bytes_when_storage_is_remote(self, tmp_path: Path):
         area = tmp_path / "user_images"
@@ -58,7 +59,7 @@ class TestProcessMigration10:
 
         crud, _, _ = _run(tmp_path, [(7, "data/user_images/7.jpg")])
 
-        assert crud.set_user_photo_key.call_args.args[:2] == (7, None)
+        assert crud.set_photo_key.call_args.args[:2] == (7, None)
 
     def test_is_idempotent_for_rows_already_holding_a_key(self, tmp_path: Path):
         area = tmp_path / "user_images"
@@ -67,13 +68,13 @@ class TestProcessMigration10:
 
         crud, storage, _ = _run(tmp_path, [(7, "7.jpg")])
 
-        crud.set_user_photo_key.assert_not_called()
+        crud.set_photo_key.assert_not_called()
         storage.save.assert_not_called()
 
     def test_skips_users_without_a_photo(self, tmp_path: Path):
         crud, _, _ = _run(tmp_path, [(7, None), (8, "")])
 
-        crud.set_user_photo_key.assert_not_called()
+        crud.set_photo_key.assert_not_called()
 
     def test_a_path_escaping_the_area_is_not_migrated(self, tmp_path: Path):
         """A crafted row must not pull an arbitrary file into the photo area."""
@@ -83,7 +84,7 @@ class TestProcessMigration10:
 
         crud, _, _ = _run(tmp_path, [(7, "../secret.jpg")])
 
-        assert crud.set_user_photo_key.call_args.args[:2] == (7, None)
+        assert crud.set_photo_key.call_args.args[:2] == (7, None)
 
     def test_a_failure_leaves_the_migration_unexecuted(self, tmp_path: Path):
         area = tmp_path / "user_images"
@@ -94,30 +95,32 @@ class TestProcessMigration10:
         with (
             patch(f"{_MODULE}.core_config") as config,
             patch(f"{_MODULE}.platform_runtime"),
-            patch(f"{_MODULE}.users_crud") as crud,
-            patch(f"{_MODULE}.migrations_crud") as migrations_crud,
+            patch(f"{_MODULE}.users_migration") as crud,
+            patch(f"{_MODULE}.migrations_service") as migrations_service,
         ):
             config.settings.DATA_DIR = str(tmp_path)
+            crud.USER_IMAGE_STORAGE_AREA = "user_images"
             config.settings.resolved_storage_uri = "local://"
             crud.get_stored_photo_keys.return_value = [(7, "data/user_images/7.jpg")]
-            crud.set_user_photo_key.side_effect = RuntimeError("db down")
+            crud.set_photo_key.side_effect = RuntimeError("db down")
 
             migration_10.process_migration_10(db)
 
-        migrations_crud.set_migration_as_executed.assert_not_called()
+        migrations_service.mark_executed.assert_not_called()
 
     def test_a_fetch_failure_aborts_without_marking_executed(self, tmp_path: Path):
         db = MagicMock(spec=Session)
         with (
             patch(f"{_MODULE}.core_config") as config,
             patch(f"{_MODULE}.platform_runtime"),
-            patch(f"{_MODULE}.users_crud") as crud,
-            patch(f"{_MODULE}.migrations_crud") as migrations_crud,
+            patch(f"{_MODULE}.users_migration") as crud,
+            patch(f"{_MODULE}.migrations_service") as migrations_service,
         ):
             config.settings.DATA_DIR = str(tmp_path)
+            crud.USER_IMAGE_STORAGE_AREA = "user_images"
             config.settings.resolved_storage_uri = "local://"
             crud.get_stored_photo_keys.side_effect = RuntimeError("db down")
 
             migration_10.process_migration_10(db)
 
-        migrations_crud.set_migration_as_executed.assert_not_called()
+        migrations_service.mark_executed.assert_not_called()

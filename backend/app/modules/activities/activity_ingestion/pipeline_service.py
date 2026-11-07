@@ -39,7 +39,9 @@ import modules.activities.activity_file_storage.integration_service as activity_
 import modules.activities.activity_ingestion.contracts as activity_ingestion_contracts
 import modules.activities.activity_ingestion.enrichment_service as activity_ingestion_enrichment_service
 import modules.activities.contributor_registry as activities_contributor_registry
+import modules.server_settings.schema as server_settings_schema
 import modules.users.users.integration_service as users_integration
+import modules.users.users_privacy_settings.integration_service as users_privacy_settings_integration
 
 logger = core_logger.get_logger(__name__)
 
@@ -50,6 +52,7 @@ def parse_file(
     filename: str,
     activity_name: str | None = None,
     default_timezone: str | None = None,
+    units: server_settings_schema.Units = server_settings_schema.Units.METRIC,
 ) -> activity_contracts.ParsedFile | None:
     """Parse one activity file into its activities.
 
@@ -60,13 +63,16 @@ def parse_file(
         activity_name: Optional override for the parsed activity's name.
         default_timezone: The owner's IANA timezone, used only when the file
             yields no timezone of its own.
+        units: The owner's measurement units; they set the length of an automatic lap
+            for formats that carry no device laps.
 
     Returns:
         The parsed file, or ``None`` for the bulk-import package marker file.
 
     Raises:
         UnsupportedFormatError: When no parser is registered for the extension.
-        ProcessingError: On a parse failure.
+        InvalidInputError: When the file's content cannot be parsed.
+        ProcessingError: When the file cannot be read.
     """
     try:
         if filename.lower() == "bulk_import/__init__.py":
@@ -87,22 +93,27 @@ def parse_file(
             )
         # The parsers are pure and cannot read settings, so the server timezone
         # fallback for a file with no zone of its own is applied here.
-        return parser(filename, token_user_id, activity_name, default_timezone or core_config.settings.TZ)
+        lap_distance_km = activity_file_import_integration.auto_lap_distance_km(
+            units is server_settings_schema.Units.IMPERIAL
+        )
+        return parser(
+            filename, token_user_id, activity_name, default_timezone or core_config.settings.TZ, lap_distance_km
+        )
     except core_exceptions.DomainError:
         raise
-    except (
-        OSError,
-        EOFError,
-        gzip.BadGzipFile,
-        ValueError,
-        RuntimeError,
-        KeyError,
-        TypeError,
-    ) as err:
-        # Log the exception with full traceback but return a generic
-        # error message to the caller to avoid internal info disclosure.
-        logger.error(
-            "Error in parse_file",
+    except (EOFError, gzip.BadGzipFile, ValueError, KeyError, TypeError) as err:
+        # The file's content broke the parser: every retry reaches the same verdict, so the upload ends as
+        # an invalid file. The traceback is kept at WARNING in case the parser itself is at fault.
+        logger.warning(
+            "Could not parse an activity file",
+            exc_info=err,
+            extra=core_logger.context(file=Path(filename).name, user_id=token_user_id),
+        )
+        raise core_exceptions.InvalidInputError("The activity file could not be read") from err
+    except (OSError, RuntimeError) as err:
+        # Server-side and possibly transient; the job runner logs it with this context's traceback.
+        logger.debug(
+            "Failed to read an activity file",
             exc_info=err,
             extra=core_logger.context(file=Path(filename).name, user_id=token_user_id),
         )
@@ -192,7 +203,7 @@ def store_activities_from_file(
     if user is None:
         raise core_exceptions.NotFoundError("User not found")
 
-    user_privacy_settings = users_integration.get_privacy_settings(user.id, db)
+    user_privacy_settings = users_privacy_settings_integration.get_privacy_settings(user.id, db)
     if user_privacy_settings is None:
         raise core_exceptions.NotFoundError("User privacy settings not found")
 
@@ -208,8 +219,8 @@ def store_activities_from_file(
 
     # CPU-bound + sync I/O parsing (gpxpy, geopy, timezonefinder). This runs
     # directly: every entry point reaches here on a worker thread (a sync route
-    # on Starlette's threadpool, the bulk-import ThreadPoolExecutor, or
-    # ``asyncio.to_thread`` from the Garmin sync), never on the main event loop.
+    # on Starlette's threadpool, the bulk-import ThreadPoolExecutor, or a provider
+    # sync job), never on the main event loop.
     parsed_file = parse_file(
         token_user_id,
         file_extension,
@@ -219,6 +230,7 @@ def store_activities_from_file(
         # a GPS-less activity (treadmill, turbo, pool) inherits the *server's*
         # timezone, which is meaningless for an athlete on another continent.
         user.timezone,
+        server_settings_schema.Units(user.units),
     )
 
     if parsed_file is None:
@@ -235,7 +247,7 @@ def store_activities_from_file(
             continue
         contributor = activities_contributor_registry.get_file_ingestion_contributor(key)
         if contributor is None:
-            logger.error(
+            logger.debug(
                 "No file ingestion contributor is registered for a parsed component",
                 extra=core_logger.context(component=key),
             )
@@ -353,9 +365,9 @@ def validate_prepare_and_store_file(
 ) -> list[activity_schema.ActivityRead] | None:
     """Validate, decompress, and store one on-disk activity file — **raising** on failure.
 
-    The shared raising core behind the swallowing provider entry
+    The shared raising core behind the provider entry
     (:func:`~modules.activities.activity_ingestion.provider_entry_service.store_activity_file`,
-    which logs and returns ``None``) and the bulk import's per-file step, which
+    which logs a refused file and returns ``None``) and the bulk import's per-file step, which
     counts the failure and keeps the file. Does no failure handling itself — the
     caller owns the policy.
 

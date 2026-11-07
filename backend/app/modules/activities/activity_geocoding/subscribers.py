@@ -56,7 +56,7 @@ def geocode_activity_for_event(event: Event) -> None:
 on_activity_created_geocode = best_effort(geocode_activity_for_event)
 
 
-def register_geocoding_subscribers(events: EventBusProvider) -> None:
+def register_bus_subscribers(events: EventBusProvider) -> None:
     """Register the geocoding subscriber for ``activity.created``.
 
     Called once at startup before the event bus is started.
@@ -67,7 +67,7 @@ def register_geocoding_subscribers(events: EventBusProvider) -> None:
     events.subscribe(activity_events.ACTIVITY_CREATED, on_activity_created_geocode)
 
 
-def register_geocoding_durable_handlers(registry: JobHandlerRegistry) -> None:
+def register_durable_handlers(registry: JobHandlerRegistry) -> None:
     """Register the geocoding handler as a durable job subscriber.
 
     Used when durable jobs are enabled: the outbox relay fans ``activity.created``

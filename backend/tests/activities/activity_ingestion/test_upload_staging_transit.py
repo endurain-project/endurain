@@ -12,15 +12,6 @@ import core.config as core_config
 import modules.activities.activity_ingestion.upload_entry_service as upload_entry_service
 
 
-def _skip_validator(coro):
-    """Stand in for ``_run_validator_sync``, closing the coroutine it was handed.
-
-    The caller builds the ``validate_upload`` coroutine before passing it in, so
-    bypassing the validator without closing it leaves it unawaited.
-    """
-    coro.close()
-
-
 def _receive(upload: UploadFile) -> upload_entry_service.ReceivedUpload:
     """Receive an upload through the real writer, bound the way the router binds it."""
     return upload_entry_service.receive_upload(
@@ -58,7 +49,7 @@ class TestStagingTransit:
             patch.object(core_config, "FILES_UPLOAD_INCOMING_DIR", str(incoming)),
             # The safeuploads validator is covered by its own tests; this one is
             # about where the bytes go.
-            patch.object(upload_entry_service.core_file_uploads, "_run_validator_sync", side_effect=_skip_validator),
+            patch.object(upload_entry_service.core_file_uploads, "_validate_upload"),
         ):
             key = upload_entry_service.store_received_upload(_receive(upload), platform.storage)
 
@@ -79,7 +70,7 @@ class TestStagingTransit:
         assert not incoming.exists()
         with (
             patch.object(core_config, "FILES_UPLOAD_INCOMING_DIR", str(incoming)),
-            patch.object(upload_entry_service.core_file_uploads, "_run_validator_sync", side_effect=_skip_validator),
+            patch.object(upload_entry_service.core_file_uploads, "_validate_upload"),
         ):
             upload_entry_service.store_received_upload(_receive(upload), platform.storage)
 
@@ -94,7 +85,7 @@ class TestStagingTransit:
 
         with (
             patch.object(core_config, "FILES_UPLOAD_INCOMING_DIR", str(incoming)),
-            patch.object(upload_entry_service.core_file_uploads, "_run_validator_sync", side_effect=_skip_validator),
+            patch.object(upload_entry_service.core_file_uploads, "_validate_upload"),
             pytest.raises(RuntimeError),
         ):
             upload_entry_service.store_received_upload(_receive(upload), platform.storage)

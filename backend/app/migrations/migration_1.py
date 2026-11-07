@@ -5,7 +5,7 @@ from datetime import datetime
 from sqlalchemy.orm import Session
 
 import core.logger as core_logger
-import migrations.crud as migrations_crud
+import migrations.service as migrations_service
 import modules.activities.activity.migration_service as activities_crud
 import modules.activities.activity_streams.constants as activity_streams_constants
 import modules.activities.activity_streams.migration_service as activity_streams_crud
@@ -148,7 +148,7 @@ def process_migration_1(db: Session) -> None:
     # Mark migration as executed
     if activities_processed_with_no_errors:
         try:
-            migrations_crud.set_migration_as_executed(1, db)
+            migrations_service.mark_executed(1, db)
         except Exception as err:
             logger.error(
                 f"Migration 1 - Failed to set migration as executed: {err}",

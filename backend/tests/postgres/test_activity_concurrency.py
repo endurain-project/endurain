@@ -15,7 +15,7 @@ import modules.activities.activity.schema as activity_schema
 from tests.postgres.test_transaction_ownership import _add_activity
 
 
-def _edit(factory, activity_id: int, name: str, *, if_match: str | None = None) -> None:
+def _edit(factory, activity_id: int, name: str, *, if_match: str = "*") -> None:
     with factory() as db:
         activity_crud.edit_activity(1, activity_id, activity_schema.ActivityEdit(name=name), db, if_match=if_match)
         db.commit()
@@ -78,12 +78,13 @@ def test_delete_all_waits_for_a_bulk_edit_that_holds_the_rows(pg_factory):
 
     def delete_all() -> None:
         with pg_factory() as db:
-            deleted.extend(activity_crud.delete_all_activities_for_user(1, db))
+            deleted.extend(activity_crud.delete_activities_batch_for_user(1, 100, db))
             db.commit()
         finished.set()
 
     with pg_factory() as editor:
-        activity_crud.edit_user_activities_visibility(1, 2, editor)
+        # _add_activity stores visibility 2; the batch only locks rows whose value differs, so change it to 0.
+        activity_crud.edit_user_activities_visibility_batch(1, 0, 100, editor)
         worker = threading.Thread(target=delete_all)
         worker.start()
         assert not finished.wait(timeout=1)

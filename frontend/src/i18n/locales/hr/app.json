@@ -18,6 +18,16 @@
     "help": "Provjerite pokazuje li ENDURAIN_HOST na URL na kojem je vaša Endurain instanca dostupna (na primjer https://endurain.example.com) i je li pozadinski sustav pokrenut, zatim ponovno učitajte stranicu.",
     "reload": "Ponovno učitaj"
   },
+  "staleError": "Ovo je promijenjeno drugdje dok ste to gledali, pa ništa nije spremljeno. Učitana je trenutačna verzija. Pregledajte je i pokušajte ponovno.",
+  "fieldError": {
+    "required": "Ovo polje je obavezno",
+    "tooShort": "Ova vrijednost je prekratka",
+    "tooLong": "Ova vrijednost je predugačka",
+    "tooLarge": "Ova vrijednost je prevelika",
+    "tooSmall": "Ova vrijednost je premala",
+    "invalidFormat": "Ova vrijednost ima neispravan format",
+    "invalid": "Ova vrijednost nije ispravna"
+  },
   "dismiss": "Odbaci",
   "language": "Jezik",
   "theme": {
@@ -35,5 +45,23 @@
     "edit": "Uredi",
     "supported": "Markdown podržan",
     "empty": "Nema ničega za pregled"
+  },
+  "password": {
+    "hintLength": "Najmanje {min} znakova.",
+    "invalid": "Lozinka ne zadovoljava zahtjeve",
+    "mismatch": "Lozinke se ne podudaraju",
+    "tooShort": "Ova je lozinka prekratka. Upotrijebite barem {min} znakova.",
+    "tooCommon": "Ova je lozinka previše uobičajena. Odaberite onu koju je teže pogoditi.",
+    "matchesAccount": "Ne koristite svoje korisničko ime ili adresu e-pošte kao lozinku.",
+    "blank": "Lozinka ne može sadržavati samo razmake.",
+    "unchanged": "Odaberite lozinku koja se razlikuje od trenutne.",
+    "strength": {
+      "label": "Jačina lozinke: {level}",
+      "tooWeak": "Preslaba",
+      "weak": "Slaba",
+      "fair": "Prihvatljiva",
+      "good": "Dobra",
+      "strong": "Jaka"
+    }
   }
 }

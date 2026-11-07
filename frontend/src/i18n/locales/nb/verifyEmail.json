@@ -1,14 +1,26 @@
 {
   "verifyingBody": "Vent litt mens vi bekrefter adressen din.",
+  "choosePasswordTitle": "Velg passordet ditt",
+  "choosePasswordBody": "E-postadressen din bekreftes når du har angitt et passord for kontoen din.",
+  "submitPassword": "Angi passord",
+  "submittingPassword": "Lagrer passord",
   "successTitle": "E-post bekreftet",
   "successBody": "E-postadressen din er bekreftet.",
   "adminApprovalBody": "Kontoen din venter nå på godkjenning fra en administrator.",
   "continueButton": "Fortsett til innlogging",
   "invalidTitle": "Bekreftelse mislyktes",
-  "missingTokenBody": "Denne bekreftelseslenken mangler tokenet sitt.",
   "errorInvalidToken": "Denne bekreftelseslenken er ugyldig eller utløpt.",
+  "errorEmailTaken": "Denne e-postadressen brukes nå av en annen konto, så den kan ikke bekreftes.",
   "errorNotFound": "Vi fant ingen konto for denne lenken.",
   "errorGeneral": "Vi kunne ikke bekrefte e-posten din. Vennligst prøv igjen.",
   "retry": "Prøv igjen",
-  "backToLogin": "Tilbake til innlogging"
+  "backToLogin": "Tilbake til innlogging",
+  "resendTitle": "Trenger du en ny lenke?",
+  "resendBody": "Skriv inn adressen du registrerte deg med, så sender vi en ny bekreftelses-e-post hvis den fortsatt venter.",
+  "resendEmail": "E-postadresse",
+  "resendButton": "Send ny e-post",
+  "resendSending": "Sender",
+  "resendSent": "Hvis den adressen venter på bekreftelse, er en ny e-post på vei.",
+  "resendTooManyAttempts": "For mange forsøk. Vent litt før du prøver igjen.",
+  "resendError": "Vi kunne ikke sende e-posten. Vennligst prøv igjen."
 }

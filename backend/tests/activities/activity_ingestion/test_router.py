@@ -6,6 +6,7 @@ from unittest.mock import ANY, MagicMock, patch
 import pytest
 
 import core.exceptions as core_exceptions
+import core.job_status as core_job_status
 import modules.activities.activity_ingestion.constants as activity_ingestion_constants
 import modules.activities.activity_ingestion.router as router
 import modules.activities.activity_ingestion.schema as activity_ingestion_schema
@@ -18,11 +19,16 @@ def _upload_job(**overrides):
         "id": "job-1",
         "kind": activity_ingestion_constants.IngestionJobKind.UPLOAD,
         "filename": "ride.gpx",
-        "status": activity_ingestion_constants.IngestionJobStatus.PENDING,
+        "status": core_job_status.JobState.QUEUED,
         "created_at": now,
         "updated_at": now,
     }
     return activity_ingestion_schema.ActivityIngestionJobRead(**{**defaults, **overrides})
+
+
+def _bulk_job(**overrides):
+    """Build a pending bulk-import job for the route tests."""
+    return _upload_job(kind=activity_ingestion_constants.IngestionJobKind.BULK_IMPORT, filename=None, **overrides)
 
 
 class TestUploadRoute:
@@ -34,9 +40,9 @@ class TestUploadRoute:
             accept.return_value = job
             result = router.create_activity_with_uploaded_file(
                 request=MagicMock(),
+                response=MagicMock(),
                 token_user_id=7,
                 file=file,
-                _check_scopes=None,
                 db=db,
                 storage="storage",
                 idempotency_key="key-1",
@@ -54,9 +60,9 @@ class TestUploadRoute:
         with patch.object(router.activity_ingestion_service, "accept_upload", return_value=_upload_job()) as accept:
             router.create_activity_with_uploaded_file(
                 request=MagicMock(),
+                response=MagicMock(),
                 token_user_id=7,
                 file=MagicMock(),
-                _check_scopes=None,
                 db=db,
                 storage="storage",
             )
@@ -94,7 +100,7 @@ class TestUploadRoute:
         assert response.status_code == 202
         body = response.json()
         assert body["id"] == "job-1"
-        assert body["status"] == "pending"
+        assert body["status"] == "queued"
         # The activity is attributed to the authenticated user, not any body field.
         assert accept.call_args.args[0] == 7
 
@@ -111,8 +117,8 @@ class TestUploadRoute:
             router.read_activity_ingestion_job(
                 job_id="someone-elses-job",
                 token_user_id=7,
-                _check_scopes=None,
                 db=db,
+                response=MagicMock(),
             )
 
         # The owner is part of the lookup, so another user's job is simply absent
@@ -126,8 +132,8 @@ class TestUploadRoute:
             result = router.read_activity_ingestion_job(
                 job_id="job-1",
                 token_user_id=7,
-                _check_scopes=None,
                 db=db,
+                response=MagicMock(),
             )
 
         assert result == job
@@ -139,19 +145,20 @@ class TestBulkImportRoutesDelegate:
     def test_the_archive_route_hands_the_upload_to_the_service_unread(self):
         db = MagicMock()
         file = MagicMock()
-        job = MagicMock()
+        job = _bulk_job()
         with patch.object(router.activity_ingestion_bulk_import_service, "accept_archive", return_value=job) as accept:
             result = router.create_bulk_import_from_archive(
                 request=MagicMock(),
+                response=MagicMock(),
                 token_user_id=3,
                 file=file,
-                _check_scopes=None,
                 db=db,
                 storage="storage",
                 source="strava",
+                idempotency_key="key-1",
             )
 
-        accept.assert_called_once_with(3, file.filename, ANY, "strava", "storage", db)
+        accept.assert_called_once_with(3, file.filename, ANY, "strava", "storage", db, idempotency_key="key-1")
         # The service never sees the upload itself: only the shared writer, bound to it.
         save_upload = accept.call_args.args[2]
         assert save_upload.func is router.core_file_uploads.save_validated_upload_sync
@@ -160,15 +167,16 @@ class TestBulkImportRoutesDelegate:
 
     def test_the_folder_route_delegates_with_the_callers_id_and_source(self):
         db = MagicMock()
+        job = _bulk_job()
         with patch.object(
-            router.activity_ingestion_bulk_import_service, "start_from_directory", return_value="job"
+            router.activity_ingestion_bulk_import_service, "start_from_directory", return_value=job
         ) as start:
             result = router.create_bulk_import_from_folder(
-                request=MagicMock(), token_user_id=3, _check_scopes=None, db=db, storage="storage", source="generic"
+                request=MagicMock(), response=MagicMock(), token_user_id=3, db=db, storage="storage", source="generic"
             )
 
         start.assert_called_once_with(3, "generic", "storage", db)
-        assert result == "job"
+        assert result == job
 
     def test_a_service_refusal_is_not_swallowed(self):
         """A second import while one runs must reach the client as the conflict it is."""
@@ -181,5 +189,10 @@ class TestBulkImportRoutesDelegate:
             pytest.raises(core_exceptions.ConflictError),
         ):
             router.create_bulk_import_from_folder(
-                request=MagicMock(), token_user_id=3, _check_scopes=None, db=MagicMock(), storage="s", source="generic"
+                request=MagicMock(),
+                response=MagicMock(),
+                token_user_id=3,
+                db=MagicMock(),
+                storage="s",
+                source="generic",
             )

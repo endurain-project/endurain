@@ -1,5 +1,5 @@
 # Stage 0: Pin uv version
-FROM ghcr.io/astral-sh/uv:0.12.24@sha256:3af4716e991d6956a41e573eab705d0ee08500cd829ed30293eb8472f372c65a AS uv-dist
+FROM ghcr.io/astral-sh/uv:0.13.5@sha256:32a7bb39b496babbd997b0a39a4d66c126bdaf5661b302bf6f06abda8deca6ff AS uv-dist
 
 # Stage 1: Build Vue.js app
 FROM node:24-slim@sha256:a5f4366e834695d5f363b920c104953a535d3a9864d1bdf74566a0ebe01daee5 AS frontend-build
@@ -73,11 +73,6 @@ ENV BEHIND_PROXY=false
 WORKDIR /app/frontend
 
 COPY --from=frontend-build --chown=${UID}:${GID} /tmp/frontend/dist ./dist
-
-# env.js is created world-writable (666) so the file can be overwritten at
-# runtime even when docker-compose overrides the container user via `user:`
-# to a UID different from the one baked in at build time (ARG UID).
-RUN touch /app/frontend/dist/env.js && chmod 666 /app/frontend/dist/env.js /app/frontend/dist/index.html
 
 # --- Backend ---
 WORKDIR /app/backend

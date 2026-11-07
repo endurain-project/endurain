@@ -28,7 +28,9 @@ import model_registry
 import module_registry
 
 model_registry.import_all_models()
-substrate_settings = core_platform_settings.build_jasil_settings(core_config.settings)
+substrate_settings = core_platform_settings.build_jasil_settings(
+    core_config.settings, plain_areas=module_registry.storage_plain_areas()
+)
 jasil_settings.configure(substrate_settings)
 platform = container.build_platform(substrate_settings)
 runtime.set_active_platform(platform)
@@ -38,9 +40,9 @@ module_registry.register_durable_handlers(jobs_registry.registry)
 
 import modules.activities.activity_ingestion.service as ingestion_service
 import modules.users.users.models as users_models
-import modules.users.users_default_gear.crud as default_gear_crud
-import modules.users.users_integrations.crud as integrations_crud
-import modules.users.users_privacy_settings.crud as privacy_crud
+import modules.users.users_default_gear.integration_service as default_gear_integration
+import modules.users.users_integrations.integration_service as integrations_integration
+import modules.users.users_privacy_settings.integration_service as privacy_integration
 from core.database import SessionLocal
 
 count, tag = int(sys.argv[1]), sys.argv[2]
@@ -58,9 +60,10 @@ with SessionLocal() as db:
         )
         db.add(user)
         db.commit()
-        privacy_crud.create_user_privacy_settings(user.id, db)
-        integrations_crud.create_user_integrations(user.id, db)
-        default_gear_crud.create_user_default_gear(user.id, db)
+        privacy_integration.create_privacy_settings(user.id, db)
+        integrations_integration.create_integrations(user.id, db)
+        default_gear_integration.create_default_gear(user.id, db)
+        db.commit()
     user_id = user.id
 
 

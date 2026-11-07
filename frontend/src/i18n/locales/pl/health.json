@@ -1,6 +1,12 @@
 {
   "title": "Zdrowie",
   "subtitle": "Zobacz wszystkie swoje dane o zdrowiu w jednym miejscu",
+  "chartBucket": {
+    "week": "Średnie tygodniowe: każdy słupek to przeciętny dzień danego tygodnia.",
+    "month": "Średnie miesięczne: każdy słupek to przeciętny dzień danego miesiąca."
+  },
+  "targetInvalid": "Wpisz wartość większą niż 0 lub zostaw pole puste, aby usunąć cel.",
+  "chartError": "Nie udało się wczytać wykresu dla tego zakresu czasu.",
   "nav": {
     "label": "Sekcje zdrowia",
     "soon": "Wkrótce",
@@ -34,6 +40,7 @@
     "stepsTargetLabel": "kroków",
     "poopTargetLabel": "/ dzień",
     "noWeightData": "Brak danych o wadze",
+    "noHeightData": "Dodaj swój wzrost w profilu, aby zobaczyć BMI.",
     "bmiUnderweight": "Niedowaga",
     "bmiNormalWeight": "Waga prawidłowa",
     "bmiOverweight": "Nadwaga",
@@ -88,7 +95,6 @@
       "weightRequired": "Wprowadź swoją wagę.",
       "weightInvalid": "Wprowadź wagę większą niż zero.",
       "bodyComposition": "Skład ciała (opcjonalnie)",
-      "bmi": "BMI",
       "bodyFat": "Tkanka tłuszczowa (%)",
       "bodyWater": "Woda w organizmie (%)",
       "boneMass": "Masa kostna",
@@ -308,6 +314,8 @@
       "totalSleepRequired": "Wprowadź, jak długo spałeś/spałaś.",
       "hours": "Godziny",
       "minutes": "Minuty",
+      "hoursOf": "{field}, godziny",
+      "minutesOf": "{field}, minuty",
       "stageBreakdown": "Rozbicie na fazy (opcjonalnie)",
       "deep": "Sen głęboki",
       "light": "Sen lekki",
@@ -350,7 +358,11 @@
       "close": "Zamknij",
       "createSuccess": "Zapisano sen.",
       "updateSuccess": "Zaktualizowano wpis snu.",
-      "saveError": "Nie udało się zapisać wpisu snu. Spróbuj ponownie."
+      "saveError": "Nie udało się zapisać wpisu snu. Spróbuj ponownie.",
+      "numberRange": "Wpisz wartość od {min} do {max}.",
+      "numberMin": "Wpisz {min} lub więcej.",
+      "stagesExceedTotal": "Sen głęboki, lekki i REM w sumie przekraczają całkowity czas snu.",
+      "inconsistentError": "Te dane o śnie nie zgadzają się ze sobą. Sprawdź, czy fazy i łączny czas mieszczą się w godzinach snu."
     },
     "target": {
       "title": "Ustaw cel snu",
@@ -596,6 +608,8 @@
       "startTime": "Czas rozpoczęcia",
       "startTimeRequired": "Wybierz czas rozpoczęcia.",
       "endTime": "Czas zakończenia",
+      "endBeforeStart": "Czas zakończenia nie może być wcześniejszy niż czas rozpoczęcia.",
+      "endWhileInProgress": "Post w toku nie może mieć czasu zakończenia.",
       "status": "Status",
       "notes": "Notatki",
       "create": "Rozpocznij",
@@ -604,7 +618,9 @@
       "close": "Zamknij",
       "createSuccess": "Rozpoczęto post.",
       "updateSuccess": "Zaktualizowano sesję postu.",
-      "saveError": "Nie udało się zapisać sesji postu. Spróbuj ponownie."
+      "saveError": "Nie udało się zapisać sesji postu. Spróbuj ponownie.",
+      "overlapError": "Ten post nakłada się na inną sesję postu albo inny post jest już w toku.",
+      "invalidTimesError": "Post nie może zakończyć się przed rozpoczęciem, ukończony lub przerwany post wymaga czasu zakończenia, a post w toku nie może go mieć."
     },
     "target": {
       "title": "Ustaw cel postu",
@@ -621,6 +637,20 @@
     "complete": {
       "success": "Zakończono post.",
       "error": "Nie udało się zakończyć postu. Spróbuj ponownie."
+    },
+    "endConfirm": {
+      "broken": {
+        "title": "Przerwać ten post?",
+        "body": "Post kończy się teraz i zostaje zapisany jako przerwany. Tego nie można cofnąć.",
+        "confirm": "Przerwij post"
+      },
+      "cancelled": {
+        "title": "Anulować ten post?",
+        "body": "Post kończy się teraz i zostaje zapisany jako anulowany. Tego nie można cofnąć.",
+        "confirm": "Anuluj post"
+      },
+      "cancel": "Kontynuuj post",
+      "close": "Zamknij"
     },
     "empty": {
       "title": "Brak postów",

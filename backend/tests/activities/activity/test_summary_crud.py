@@ -1,11 +1,13 @@
 from datetime import UTC, date, datetime
 from decimal import Decimal
-from unittest.mock import MagicMock, patch
+from unittest.mock import MagicMock
 
 import pytest
 from sqlalchemy import insert
 from tests._helpers.db import create_sqlite_session, setup_mock_execute
 from tests._helpers.models import mock_model
+
+from modules.activities.activity.constants import ActivityType
 
 
 @pytest.fixture
@@ -114,7 +116,7 @@ class TestGetWeeklySummary:
             user_id=1,
             target_date=datetime(2024, 1, 15),
             first_day_of_week="monday",
-            activity_type="running",
+            activity_type=ActivityType.RUN,
             db=mock_db,
         )
         assert r.activity_count == 1
@@ -260,7 +262,7 @@ class TestGetYearlySummary:
             [row],
             [],
         ]
-        r = crud.get_yearly_summary(user_id=1, year=2024, activity_type="cycling", db=mock_db)
+        r = crud.get_yearly_summary(user_id=1, year=2024, activity_type=ActivityType.RIDE, db=mock_db)
         assert r.activity_count == 1
 
 
@@ -324,38 +326,23 @@ class TestGetLifetimeSummary:
             [yearly_row],
             [],
         ]
-        r = crud.get_lifetime_summary(user_id=1, activity_type="running", db=mock_db)
+        r = crud.get_lifetime_summary(user_id=1, activity_type=ActivityType.RUN, db=mock_db)
         assert r.activity_count == 5
 
 
 class TestApplyActivityTypeFilter:
-    @patch("modules.activities.activity.constants.ACTIVITY_NAME_TO_ID", {"running": 1})
     def test_no_filter(self):
         import modules.activities.activity.summary_crud as crud
 
         stmt = MagicMock()
-        _, type_id = crud._apply_activity_type_filter(stmt, None)
-        assert type_id is None
+        assert crud._apply_activity_type_filter(stmt, None) is stmt
         stmt.where.assert_not_called()
 
-    @patch("modules.activities.activity.constants.ACTIVITY_NAME_TO_ID", {"running": 1})
-    def test_known_type(self):
+    def test_a_type_filters_on_its_stored_id(self):
         import modules.activities.activity.summary_crud as crud
 
         stmt = MagicMock()
-        stmt.where.return_value = stmt
-        _, type_id = crud._apply_activity_type_filter(stmt, "running")
-        assert type_id == 1
-        stmt.where.assert_called_once()
-
-    @patch("modules.activities.activity.constants.ACTIVITY_NAME_TO_ID", {"running": 1})
-    def test_unknown_type(self):
-        import modules.activities.activity.summary_crud as crud
-
-        stmt = MagicMock()
-        stmt.where.return_value = stmt
-        _, type_id = crud._apply_activity_type_filter(stmt, "swimming")
-        assert type_id is None
+        assert crud._apply_activity_type_filter(stmt, ActivityType.RUN) is stmt.where.return_value
         stmt.where.assert_called_once()
 
 
@@ -373,7 +360,7 @@ class TestGetTypeBreakdown:
         mock_db.execute.return_value.all.return_value = [row]
         result = crud._get_type_breakdown(1, date.min, date.max, mock_db)
         assert len(result) == 1
-        assert result[0].activity_type_id == 1
+        assert result[0].activity_type == "run"
         assert result[0].total_distance == 10000.0
 
     def test_empty(self, mock_db):
@@ -394,14 +381,8 @@ class TestGetTypeBreakdown:
         row.total_calories = 250.0
         row.activity_count = 1
         mock_db.execute.return_value.all.return_value = [row]
-        result = crud._get_type_breakdown(1, date.min, date.max, mock_db, activity_type="running")
+        result = crud._get_type_breakdown(1, date.min, date.max, mock_db, activity_type=ActivityType.RUN)
         assert len(result) == 1
-
-    def test_with_unknown_type_filter(self, mock_db):
-        import modules.activities.activity.summary_crud as crud
-
-        result = crud._get_type_breakdown(1, date.min, date.max, mock_db, activity_type="unknown_sport")
-        assert result == []
 
 
 class TestLocalTimeBuckets:

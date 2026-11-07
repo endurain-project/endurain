@@ -18,6 +18,16 @@
     "help": "Preverite, ali ENDURAIN_HOST kaže na URL, kjer je vaša instanca Endurain dosegljiva (na primer https://endurain.example.com), in ali zaledje deluje, nato pa znova naložite stran.",
     "reload": "Znova naloži"
   },
+  "staleError": "To je bilo spremenjeno drugje, medtem ko ste si to ogledovali, zato ničesar ni bilo shranjeno. Naložena je trenutna različica. Preglejte jo in poskusite znova.",
+  "fieldError": {
+    "required": "To polje je obvezno",
+    "tooShort": "Ta vrednost je prekratka",
+    "tooLong": "Ta vrednost je predolga",
+    "tooLarge": "Ta vrednost je prevelika",
+    "tooSmall": "Ta vrednost je premajhna",
+    "invalidFormat": "Ta vrednost ima neveljavno obliko",
+    "invalid": "Ta vrednost je neveljavna"
+  },
   "dismiss": "Zapri",
   "language": "Jezik",
   "theme": {
@@ -35,5 +45,23 @@
     "edit": "Uredi",
     "supported": "Markdown podprt",
     "empty": "Ni ničesar za predogled"
+  },
+  "password": {
+    "hintLength": "Vsaj {min} znakov.",
+    "invalid": "Geslo ne izpolnjuje zahtev",
+    "mismatch": "Gesli se ne ujemata",
+    "tooShort": "To geslo je prekratko. Uporabi vsaj {min} znakov.",
+    "tooCommon": "To geslo je preveč običajno. Izberi tako, ki ga je težje uganiti.",
+    "matchesAccount": "Kot geslo ne uporabljaj uporabniškega imena ali e-poštnega naslova.",
+    "blank": "Geslo ne sme vsebovati samo presledkov.",
+    "unchanged": "Izberi geslo, ki se razlikuje od trenutnega.",
+    "strength": {
+      "label": "Moč gesla: {level}",
+      "tooWeak": "Prešibko",
+      "weak": "Šibko",
+      "fair": "Zadovoljivo",
+      "good": "Dobro",
+      "strong": "Močno"
+    }
   }
 }

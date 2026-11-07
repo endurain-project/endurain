@@ -4,7 +4,10 @@ import type { SecuritySessionDto } from '@/features/security/types'
 
 import { apiFetch } from '@/services/http'
 import {
+  cancelEmailChange,
+  changeEmail,
   changePassword,
+  deleteAccount,
   disableMfa,
   enableMfa,
   fetchBackupCodeStatus,
@@ -16,6 +19,7 @@ import {
   mapMfaStatus,
   mapSecuritySession,
   regenerateBackupCodes,
+  resendEmailChange,
   revokeOtherSessions,
   revokeSession,
   setupMfa,
@@ -96,13 +100,12 @@ describe('security service requests', () => {
       revokeOtherSessions: true,
     })
 
-    expect(apiFetch).toHaveBeenCalledWith('/profile/password', {
-      method: 'PUT',
+    expect(apiFetch).toHaveBeenCalledWith('/profile/password/change', {
+      method: 'POST',
       body: JSON.stringify({
-        current_password: 'old',
         password: 'new',
-        mfa_code: '123456',
         revoke_other_sessions: true,
+        step_up: { current_password: 'old', mfa_code: '123456' },
       }),
       responseType: 'void',
     })
@@ -129,28 +132,57 @@ describe('security service requests', () => {
     expect(apiFetch).toHaveBeenCalledWith('/profile/mfa/setup', { method: 'POST' })
   })
 
-  it('enableMfa PUTs the code and returns the backup codes', async () => {
+  it('enableMfa POSTs the code and returns the backup codes', async () => {
     vi.mocked(apiFetch).mockResolvedValue({ backup_codes: ['a', 'b'] })
 
-    const codes = await enableMfa({ mfaCode: '123456', currentPassword: 'pw' })
+    const codes = await enableMfa({
+      mfaCode: '123456',
+      currentPassword: 'pw',
+      revokeOtherSessions: true,
+    })
 
     expect(apiFetch).toHaveBeenCalledWith('/profile/mfa/enable', {
-      method: 'PUT',
-      body: JSON.stringify({ mfa_code: '123456', current_password: 'pw' }),
+      method: 'POST',
+      body: JSON.stringify({
+        mfa_code: '123456',
+        step_up: { current_password: 'pw', mfa_code: null },
+        revoke_other_sessions: true,
+      }),
     })
     expect(codes).toEqual(['a', 'b'])
   })
 
-  it('disableMfa PUTs the step-up body', async () => {
+  it('enableMfa sends false when the user keeps their other sessions', async () => {
+    vi.mocked(apiFetch).mockResolvedValue({ backup_codes: [] })
+
+    await enableMfa({ mfaCode: '123456', currentPassword: 'pw', revokeOtherSessions: false })
+
+    const body = JSON.parse(String(vi.mocked(apiFetch).mock.calls[0]![1]?.body))
+    expect(body.revoke_other_sessions).toBe(false)
+  })
+
+  it('disableMfa POSTs the step-up body', async () => {
     vi.mocked(apiFetch).mockResolvedValue(undefined)
 
-    await disableMfa({ currentPassword: 'pw', mfaCode: '123456' })
+    await disableMfa({ currentPassword: 'pw', mfaCode: '123456' }, true)
 
     expect(apiFetch).toHaveBeenCalledWith('/profile/mfa/disable', {
-      method: 'PUT',
-      body: JSON.stringify({ mfa_code: '123456', current_password: 'pw' }),
+      method: 'POST',
+      body: JSON.stringify({
+        step_up: { current_password: 'pw', mfa_code: '123456' },
+        revoke_other_sessions: true,
+      }),
       responseType: 'void',
     })
+  })
+
+  it('disableMfa sends false when the user keeps their other sessions', async () => {
+    vi.mocked(apiFetch).mockResolvedValue(undefined)
+
+    await disableMfa({ currentPassword: 'pw', mfaCode: '123456' }, false)
+
+    const body = JSON.parse(String(vi.mocked(apiFetch).mock.calls[0]![1]?.body))
+    expect(body.revoke_other_sessions).toBe(false)
   })
 
   it('fetchBackupCodeStatus maps the counts', async () => {
@@ -173,21 +205,41 @@ describe('security service requests', () => {
   it('regenerateBackupCodes POSTs the step-up body and maps the result', async () => {
     vi.mocked(apiFetch).mockResolvedValue({ codes: ['x'], created_at: '2026-01-01' })
 
-    const result = await regenerateBackupCodes({ currentPassword: 'pw', mfaCode: '123456' })
+    const result = await regenerateBackupCodes({ currentPassword: 'pw', mfaCode: '123456' }, true)
 
     expect(apiFetch).toHaveBeenCalledWith('/profile/mfa/backup-codes', {
       method: 'POST',
-      body: JSON.stringify({ current_password: 'pw', mfa_code: '123456' }),
+      body: JSON.stringify({
+        step_up: { current_password: 'pw', mfa_code: '123456' },
+        revoke_other_sessions: true,
+      }),
     })
     expect(result).toEqual({ codes: ['x'], createdAt: '2026-01-01' })
   })
 
-  it('fetchSessions reads the sessions path and maps the records', async () => {
-    vi.mocked(apiFetch).mockResolvedValue([sessionDto])
+  it('regenerateBackupCodes sends false when the user keeps their other sessions', async () => {
+    vi.mocked(apiFetch).mockResolvedValue({ codes: [], created_at: '2026-01-01' })
 
-    expect(await fetchSessions()).toEqual([mappedSession])
-    expect(apiFetch).toHaveBeenCalledWith(
-      '/profile/sessions',
+    await regenerateBackupCodes({ currentPassword: 'pw', mfaCode: '123456' }, false)
+
+    const body = JSON.parse(String(vi.mocked(apiFetch).mock.calls[0]![1]?.body))
+    expect(body.revoke_other_sessions).toBe(false)
+  })
+
+  it('fetchSessions reads the sessions path and maps the records', async () => {
+    vi.mocked(apiFetch)
+      .mockResolvedValueOnce({ items: [sessionDto], next: 2 })
+      .mockResolvedValueOnce({ items: [sessionDto], next: null })
+
+    expect(await fetchSessions()).toEqual([mappedSession, mappedSession])
+    expect(apiFetch).toHaveBeenNthCalledWith(
+      1,
+      '/profile/sessions?page_number=1',
+      expect.objectContaining({ signal: undefined }),
+    )
+    expect(apiFetch).toHaveBeenNthCalledWith(
+      2,
+      '/profile/sessions?page_number=2',
       expect.objectContaining({ signal: undefined }),
     )
   })
@@ -214,6 +266,128 @@ describe('security service requests', () => {
     await revokeOtherSessions()
 
     expect(apiFetch).toHaveBeenCalledWith('/profile/sessions', {
+      method: 'DELETE',
+      responseType: 'void',
+    })
+  })
+})
+
+describe('deleteAccount', () => {
+  beforeEach(() => {
+    vi.mocked(apiFetch).mockReset()
+  })
+
+  it('POSTs the step-up body to the delete-account path', async () => {
+    vi.mocked(apiFetch).mockResolvedValue(undefined)
+
+    await deleteAccount({ currentPassword: 'pw', mfaCode: '123456' })
+
+    expect(apiFetch).toHaveBeenCalledWith('/profile/delete-account', {
+      method: 'POST',
+      body: JSON.stringify({ step_up: { current_password: 'pw', mfa_code: '123456' } }),
+      responseType: 'void',
+    })
+  })
+
+  it('sends null for step-up fields that do not apply', async () => {
+    vi.mocked(apiFetch).mockResolvedValue(undefined)
+
+    await deleteAccount({ currentPassword: null, mfaCode: null })
+
+    expect(apiFetch).toHaveBeenCalledWith(
+      '/profile/delete-account',
+      expect.objectContaining({
+        body: JSON.stringify({ step_up: { current_password: null, mfa_code: null } }),
+      }),
+    )
+  })
+})
+
+describe('identity-provider re-authentication', () => {
+  beforeEach(() => {
+    vi.mocked(apiFetch).mockReset()
+  })
+
+  it('sends the ticket and verifier as idp_reauth', async () => {
+    vi.mocked(apiFetch).mockResolvedValue(undefined)
+
+    await deleteAccount({
+      currentPassword: null,
+      mfaCode: null,
+      idpReauth: { ticket: 't', codeVerifier: 'v' },
+    })
+
+    expect(apiFetch).toHaveBeenCalledWith(
+      '/profile/delete-account',
+      expect.objectContaining({
+        body: JSON.stringify({
+          step_up: {
+            current_password: null,
+            mfa_code: null,
+            idp_reauth: { ticket: 't', code_verifier: 'v' },
+          },
+        }),
+      }),
+    )
+  })
+})
+
+describe('changeEmail', () => {
+  beforeEach(() => {
+    vi.mocked(apiFetch).mockReset()
+  })
+
+  it('POSTs the new address together with the step-up credentials', async () => {
+    vi.mocked(apiFetch).mockResolvedValue({ pending_email: 'new@example.com' })
+
+    const pending = await changeEmail(
+      'new@example.com',
+      { currentPassword: 'pw', mfaCode: '123456' },
+      true,
+    )
+
+    expect(apiFetch).toHaveBeenCalledWith('/profile/email/change', {
+      method: 'POST',
+      body: JSON.stringify({
+        email: 'new@example.com',
+        revoke_other_sessions: true,
+        step_up: { current_password: 'pw', mfa_code: '123456' },
+      }),
+    })
+    expect(pending).toBe(true)
+  })
+
+  it('reports an address the server applied at once as not pending', async () => {
+    vi.mocked(apiFetch).mockResolvedValue({ email: 'new@example.com', pending_email: null })
+
+    await expect(
+      changeEmail('new@example.com', { currentPassword: 'pw', mfaCode: null }, false),
+    ).resolves.toBe(false)
+  })
+})
+
+describe('pending email change', () => {
+  beforeEach(() => {
+    vi.mocked(apiFetch).mockReset()
+  })
+
+  it('POSTs the resend endpoint', async () => {
+    vi.mocked(apiFetch).mockResolvedValue(undefined)
+
+    await resendEmailChange()
+
+    expect(apiFetch).toHaveBeenCalledWith('/profile/email/change/resend', {
+      method: 'POST',
+      responseType: 'void',
+    })
+  })
+
+  it('DELETEs the pending change', async () => {
+    vi.mocked(apiFetch).mockResolvedValue(undefined)
+
+    await cancelEmailChange()
+
+    expect(apiFetch).toHaveBeenCalledWith('/profile/email/change', {
       method: 'DELETE',
       responseType: 'void',
     })

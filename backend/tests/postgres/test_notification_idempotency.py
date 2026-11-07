@@ -30,6 +30,7 @@ def test_concurrent_deliveries_of_one_event_create_one_notification(pg_factory):
                 ),
                 db,
             )
+            db.commit()
             created.append(was_created)
 
     threads = [threading.Thread(target=deliver) for _ in range(6)]
@@ -42,3 +43,27 @@ def test_concurrent_deliveries_of_one_event_create_one_notification(pg_factory):
     assert len(created) == 6
     with pg_factory() as db:
         assert db.scalar(select(func.count()).select_from(notifications_models.Notification)) == 1
+
+
+def test_deleting_notifications_naming_a_user_matches_the_json_reference(pg_factory):
+    for user_id in (1, 2, 3):
+        ensure_user(pg_factory, user_id)
+    with pg_factory() as db:
+        for owner, options in [
+            (1, {"user_id": 3, "user_name": "A", "user_username": "a"}),
+            (2, {"user_id": 3, "user_name": "A", "user_username": "a"}),
+            (1, {"user_id": 2, "user_name": "B", "user_username": "b"}),
+            (2, {"user_id": 1, "user_name": "C", "user_username": "c"}),
+        ]:
+            notifications_crud.create_notification(
+                notifications_schema.NotificationCreate(
+                    user_id=owner, type=notifications_constants.NotificationType.NEW_FOLLOWER_REQUEST, options=options
+                ),
+                db,
+            )
+        db.commit()
+
+    with pg_factory() as db:
+        assert notifications_crud.delete_notifications_naming_user(3, db) == 2
+        db.commit()
+        assert db.scalar(select(func.count()).select_from(notifications_models.Notification)) == 2

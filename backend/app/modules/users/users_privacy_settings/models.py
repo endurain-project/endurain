@@ -1,19 +1,13 @@
 """User privacy settings database models."""
 
-from typing import TYPE_CHECKING
-
-from sqlalchemy import ForeignKey, String
-from sqlalchemy.orm import Mapped, mapped_column, relationship
+from sqlalchemy import ForeignKey, String, true
+from sqlalchemy.orm import Mapped, mapped_column
 
 from core.database import Base
 
-if TYPE_CHECKING:
-    from modules.users.users.models import Users
-
 
 class UsersPrivacySettings(Base):
-    """
-    User privacy settings for activity visibility control.
+    """User privacy settings for activity visibility control.
 
     Attributes:
         id: Primary key.
@@ -33,7 +27,7 @@ class UsersPrivacySettings(Base):
         hide_activity_workout_sets_steps: Hide activity workout
             sets and steps.
         hide_activity_gear: Hide activity gear.
-        user: Relationship to Users model.
+        discoverable: Appear in other users' username search.
     """
 
     __tablename__ = "users_privacy_settings"
@@ -51,7 +45,7 @@ class UsersPrivacySettings(Base):
     )
     default_activity_visibility: Mapped[str] = mapped_column(
         String(20),
-        default="public",
+        default="private",
         nullable=False,
         comment="public, followers, private",
     )
@@ -115,6 +109,20 @@ class UsersPrivacySettings(Base):
         nullable=False,
         comment="Hide activity gear",
     )
+    discoverable: Mapped[bool] = mapped_column(
+        default=True,
+        server_default=true(),
+        nullable=False,
+        comment="Appear in other users' username search",
+    )
 
-    # Define a relationship to the Users model
-    users: Mapped["Users"] = relationship(back_populates="users_privacy_settings")
+    version: Mapped[int] = mapped_column(
+        nullable=False,
+        server_default="1",
+        default=1,
+        comment="Optimistic-concurrency counter, surfaced to clients as the ETag",
+    )
+
+    # SQLAlchemy bumps ``version`` on each ORM flush and adds it to the UPDATE's
+    # WHERE clause, raising StaleDataError when the row moved underneath.
+    __mapper_args__ = {"version_id_col": version}  # noqa: RUF012

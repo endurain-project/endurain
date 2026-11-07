@@ -1,14 +1,26 @@
 {
   "verifyingBody": "Agarda un momento mentres confirmamos o teu enderezo.",
+  "choosePasswordTitle": "Escolle o teu contrasinal",
+  "choosePasswordBody": "O teu correo confírmase cando estableces un contrasinal para a túa conta.",
+  "submitPassword": "Establecer contrasinal",
+  "submittingPassword": "Gardando o contrasinal",
   "successTitle": "Correo electrónico verificado",
   "successBody": "O teu enderezo de correo electrónico foi confirmado.",
   "adminApprovalBody": "A túa conta está agora agardando a aprobación do administrador.",
   "continueButton": "Continuar para iniciar sesión",
   "invalidTitle": "Verificación fallida",
-  "missingTokenBody": "A este enlace de verificación fáltalle o token.",
   "errorInvalidToken": "Este enlace de verificación non é válido ou expirou.",
+  "errorEmailTaken": "Este enderezo de correo xa o usa outra conta, polo que non se pode confirmar.",
   "errorNotFound": "Non puidemos atopar unha conta para este enlace.",
   "errorGeneral": "Non puidemos verificar o teu correo electrónico. Por favor, téntao de novo.",
   "retry": "Tentar de novo",
-  "backToLogin": "Volver ao inicio de sesión"
+  "backToLogin": "Volver ao inicio de sesión",
+  "resendTitle": "Necesitas unha ligazón nova?",
+  "resendBody": "Introduce o enderezo co que te rexistraches e enviaremos un novo correo de verificación se aínda está pendente.",
+  "resendEmail": "Enderezo de correo electrónico",
+  "resendButton": "Enviar un novo correo",
+  "resendSending": "Enviando",
+  "resendSent": "Se ese enderezo está pendente de verificación, un novo correo está en camiño.",
+  "resendTooManyAttempts": "Demasiados intentos. Agarda antes de tentalo de novo.",
+  "resendError": "Non puidemos enviar o correo. Por favor, téntao de novo."
 }

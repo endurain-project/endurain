@@ -11,7 +11,7 @@
     "subtitle": "Prebrskaj, filtriraj in razvrsti vse svoje aktivnosti.",
     "searchPlaceholder": "Išči po imenu ali lokaciji",
     "clearSearch": "Počisti iskanje",
-    "resultCount": "{count} aktivnosti",
+    "resultCount": "{count} aktivnost | {count} aktivnosti | {count} aktivnosti | {count} aktivnosti",
     "filters": {
       "type": "Vrsta aktivnosti",
       "allTypes": "Vse vrste",
@@ -188,6 +188,7 @@
     "cancel": "Prekliči",
     "close": "Zapri",
     "name": "Ime",
+    "nameRequired": "Vnesi ime aktivnosti",
     "type": "Vrsta aktivnosti",
     "description": "Opis",
     "privateNotes": "Zasebne opombe",

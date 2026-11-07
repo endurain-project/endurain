@@ -7,6 +7,7 @@ import type { Units } from '@/features/activities/utils/format'
 import type { MetricVisibility } from '@/features/activities/utils/metrics'
 
 import { MetricPill } from '@/components/ui/metric-pill'
+import { useUnitFormat } from '@/composables/useUnitFormat'
 import { buildActivityMetrics } from '@/features/activities/utils/metrics'
 
 const props = defineProps<{
@@ -16,6 +17,7 @@ const props = defineProps<{
 }>()
 
 const { t } = useI18n()
+const { unitLabel } = useUnitFormat()
 
 const tiles = computed(() => buildActivityMetrics(props.activity, props.units, props.visibility))
 </script>
@@ -27,7 +29,7 @@ const tiles = computed(() => buildActivityMetrics(props.activity, props.units, p
       :key="tile.key"
       :label="t(tile.labelKey)"
       :value="tile.value"
-      :unit="tile.unit"
+      :unit="tile.unit ? unitLabel(tile.unit) : undefined"
       :accent="tile.accent"
       class=""
     />

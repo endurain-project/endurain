@@ -1,15 +1,16 @@
-import type { IdentityProviderPublic, SsoTokenExchangeResponse } from '@/types'
+import type { AuthTokenResponse, IdentityProviderPublic } from '@/types'
 
 import { apiFetch, API_BASE_URL } from './http'
+import { fetchAllPages } from './pagination'
 
 /**
- * Fetches enabled public identity providers.
+ * Fetches every enabled public identity provider, without credentials.
  *
  * @returns Enabled SSO providers.
  * @throws {HttpError} When provider discovery fails.
  */
 export function fetchEnabledIdentityProviders(): Promise<IdentityProviderPublic[]> {
-  return apiFetch<IdentityProviderPublic[]>('/public/idp', {
+  return fetchAllPages<IdentityProviderPublic>('/public/idp', undefined, {
     auth: false,
     retryOnUnauthorized: false,
   })
@@ -31,20 +32,20 @@ export function getIdentityProviderLoginUrl(slug: string, params: URLSearchParam
  *
  * @param sessionId - Session ID returned by the backend callback.
  * @param codeVerifier - PKCE code verifier stored before SSO redirect.
- * @returns Token exchange response.
- * @throws {HttpError} When the exchange fails.
+ * @param mfaCode - TOTP or backup code, sent when the account has MFA enabled.
+ * @returns The web token body, the same one login answers.
+ * @throws {HttpError} When the exchange fails; the `mfa-required` problem type
+ *   means the account needs `mfaCode`.
  */
 export function exchangeSessionForTokens(
   sessionId: string,
   codeVerifier: string,
-): Promise<SsoTokenExchangeResponse> {
-  return apiFetch<SsoTokenExchangeResponse>(
-    `/public/idp/session/${encodeURIComponent(sessionId)}/tokens`,
-    {
-      method: 'POST',
-      body: JSON.stringify({ code_verifier: codeVerifier }),
-      auth: false,
-      retryOnUnauthorized: false,
-    },
-  )
+  mfaCode?: string,
+): Promise<AuthTokenResponse> {
+  return apiFetch<AuthTokenResponse>(`/auth/sessions/${encodeURIComponent(sessionId)}/tokens`, {
+    method: 'POST',
+    body: JSON.stringify({ code_verifier: codeVerifier, mfa_code: mfaCode }),
+    auth: false,
+    retryOnUnauthorized: false,
+  })
 }

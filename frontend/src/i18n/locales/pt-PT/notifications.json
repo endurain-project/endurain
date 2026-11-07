@@ -8,7 +8,7 @@
   "seeAll": "Ver tudo",
   "loadMore": "Carregar mais",
   "loading": "A carregar…",
-  "badge": "{count} notificações não lidas",
+  "badge": "{count} notificação não lida | {count} notificações não lidas",
   "empty": {
     "title": "Estás a par de tudo",
     "description": "Aqui aparecerão atualizações sobre as tuas atividades, seguidores e integrações."
@@ -38,6 +38,63 @@
     "garminTokenExpired": {
       "title": "Garmin Connect precisa de atenção",
       "body": "A tua sessão do Garmin Connect expirou. Volta a ligar para continuar a sincronizar."
+    },
+    "stravaTokenExpired": {
+      "title": "O Strava precisa de atenção",
+      "body": "O Strava rejeitou a tua ligação. Volta a ligá-lo para continuar a sincronizar.",
+      "bodyRevoked": "O acesso ao Strava terminou. As tuas atividades e equipamento sincronizados com o Strava serão eliminados em {date}, a menos que voltes a ligar."
+    },
+    "stravaDataDeleted": {
+      "title": "Dados do Strava eliminados",
+      "body": "As tuas atividades e equipamento sincronizados com o Strava foram eliminados porque o acesso ao Strava terminou e não voltaste a ligar."
+    },
+    "idpLinked": {
+      "title": "Novo fornecedor de início de sessão associado",
+      "body": "{name} foi associado à sua conta. Se não foi você, reveja as definições de segurança.",
+      "bodyGeneric": "Um fornecedor de início de sessão foi associado à sua conta. Se não foi você, reveja as definições de segurança."
+    },
+    "accountSecurityChanged": {
+      "passwordChanged": {
+        "title": "Palavra-passe alterada",
+        "body": "A tua palavra-passe foi alterada. Se não foste tu, repõe a palavra-passe e revê as tuas definições de segurança."
+      },
+      "passwordReset": {
+        "title": "Palavra-passe reposta",
+        "body": "A tua palavra-passe foi reposta através de uma ligação de reposição. Se não foste tu, repõe novamente a palavra-passe e revê as tuas definições de segurança."
+      },
+      "passwordSetByAdmin": {
+        "title": "Palavra-passe definida por um administrador",
+        "body": "Um administrador definiu uma nova palavra-passe para a tua conta. Se não estavas à espera, contacta o teu administrador."
+      },
+      "mfaEnabled": {
+        "title": "Autenticação de dois fatores ativada",
+        "body": "A autenticação de dois fatores foi ativada na tua conta. Se não foste tu, repõe a palavra-passe e revê as tuas definições de segurança."
+      },
+      "mfaDisabled": {
+        "title": "Autenticação de dois fatores desativada",
+        "body": "A autenticação de dois fatores foi desativada na tua conta. Se não foste tu, repõe a palavra-passe e revê as tuas definições de segurança."
+      },
+      "backupCodesGenerated": {
+        "title": "Novos códigos de recuperação gerados",
+        "body": "Foram gerados novos códigos de recuperação para a tua conta. Se não foste tu, repõe a palavra-passe e revê as tuas definições de segurança."
+      },
+      "apiKeyCreated": {
+        "title": "Nova chave de API criada",
+        "body": "Foi criada uma nova chave de API para a tua conta. Se não foste tu, repõe a palavra-passe e revê as tuas definições de segurança."
+      },
+      "identityProviderUnlinked": {
+        "title": "Fornecedor de início de sessão desassociado",
+        "body": "{name} foi desassociado da tua conta. Se não foste tu, repõe a palavra-passe e revê as tuas definições de segurança.",
+        "bodyGeneric": "Um fornecedor de início de sessão foi desassociado da tua conta. Se não foste tu, repõe a palavra-passe e revê as tuas definições de segurança."
+      },
+      "unknown": {
+        "title": "Segurança da conta alterada",
+        "body": "Uma definição de segurança da tua conta foi alterada. Se não foste tu, repõe a palavra-passe e revê as tuas definições de segurança."
+      }
+    },
+    "newDeviceSignIn": {
+      "title": "Novo início de sessão",
+      "body": "Novo início de sessão a partir de {browser} em {os} ({ip}). Se não foste tu, altera a palavra-passe e termina as tuas outras sessões."
     },
     "adminSignUpApproval": {
       "title": "Novo registo aguarda aprovação",

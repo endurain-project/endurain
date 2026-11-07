@@ -30,6 +30,9 @@ const { t } = useI18n()
     <Badge v-if="!user.emailVerified" variant="warning">{{
       t('settings.users.list.unverified')
     }}</Badge>
+    <Badge v-if="user.pendingEmail" variant="warning">{{
+      t('settings.users.list.pendingEmail')
+    }}</Badge>
     <Badge v-if="user.pendingAdminApproval" variant="warning">{{
       t('settings.users.list.pending')
     }}</Badge>

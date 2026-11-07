@@ -1,6 +1,12 @@
 {
   "title": "Helse",
   "subtitle": "Se alle helsedataene dine på ett sted",
+  "chartBucket": {
+    "week": "Ukentlige gjennomsnitt: hver søyle er gjennomsnittsdagen i den uken.",
+    "month": "Månedlige gjennomsnitt: hver søyle er gjennomsnittsdagen i den måneden."
+  },
+  "targetInvalid": "Angi en verdi større enn 0, eller la feltet stå tomt for å fjerne målet.",
+  "chartError": "Kunne ikke laste diagrammet for dette tidsrommet.",
   "nav": {
     "label": "Helseseksjoner",
     "soon": "Snart",
@@ -34,6 +40,7 @@
     "stepsTargetLabel": "skritt",
     "poopTargetLabel": "/ dag",
     "noWeightData": "Ingen vektdata",
+    "noHeightData": "Legg til høyden din i profilen for å se BMI.",
     "bmiUnderweight": "Undervekt",
     "bmiNormalWeight": "Normalvekt",
     "bmiOverweight": "Overvekt",
@@ -88,7 +95,6 @@
       "weightRequired": "Vennligst skriv inn vekten din.",
       "weightInvalid": "Skriv inn en vekt større enn null.",
       "bodyComposition": "Kroppssammensetning (valgfritt)",
-      "bmi": "BMI",
       "bodyFat": "Kroppsfett (%)",
       "bodyWater": "Kroppsvann (%)",
       "boneMass": "Beinmasse",
@@ -308,6 +314,8 @@
       "totalSleepRequired": "Vennligst skriv inn hvor lenge du sov.",
       "hours": "Timer",
       "minutes": "Minutter",
+      "hoursOf": "{field}, timer",
+      "minutesOf": "{field}, minutter",
       "stageBreakdown": "Oppdeling av stadier (valgfritt)",
       "deep": "Dyp søvn",
       "light": "Lett søvn",
@@ -350,7 +358,11 @@
       "close": "Lukk",
       "createSuccess": "Søvn registrert.",
       "updateSuccess": "Søvnoppføring oppdatert.",
-      "saveError": "Kunne ikke lagre søvnoppføringen din. Vennligst prøv igjen."
+      "saveError": "Kunne ikke lagre søvnoppføringen din. Vennligst prøv igjen.",
+      "numberRange": "Skriv inn en verdi mellom {min} og {max}.",
+      "numberMin": "Skriv inn {min} eller mer.",
+      "stagesExceedTotal": "Dyp søvn, lett søvn og REM-søvn utgjør til sammen mer enn totalen.",
+      "inconsistentError": "Søvntallene stemmer ikke overens. Kontroller at fasene og totalen passer innenfor søvntidene."
     },
     "target": {
       "title": "Sett søvnmål",
@@ -596,6 +608,8 @@
       "startTime": "Starttidspunkt",
       "startTimeRequired": "Vennligst velg et starttidspunkt.",
       "endTime": "Sluttidspunkt",
+      "endBeforeStart": "Sluttidspunktet kan ikke være før starttidspunktet.",
+      "endWhileInProgress": "En faste som pågår kan ikke ha et sluttidspunkt.",
       "status": "Status",
       "notes": "Notater",
       "create": "Start",
@@ -604,7 +618,9 @@
       "close": "Lukk",
       "createSuccess": "Faste startet.",
       "updateSuccess": "Fasteøkt oppdatert.",
-      "saveError": "Kunne ikke lagre fasteøkten din. Vennligst prøv igjen."
+      "saveError": "Kunne ikke lagre fasteøkten din. Vennligst prøv igjen.",
+      "overlapError": "Denne fasten overlapper en annen fasteøkt, eller en annen faste pågår allerede.",
+      "invalidTimesError": "En faste kan ikke ende før den starter, en fullført eller brutt faste må ha et sluttidspunkt, og en faste som pågår kan ikke ha det."
     },
     "target": {
       "title": "Sett fastemål",
@@ -621,6 +637,20 @@
     "complete": {
       "success": "Faste avsluttet.",
       "error": "Kunne ikke avslutte fasten din. Vennligst prøv igjen."
+    },
+    "endConfirm": {
+      "broken": {
+        "title": "Bryte denne fasten?",
+        "body": "Fasten avsluttes nå og lagres som brutt. Dette kan ikke angres.",
+        "confirm": "Bryt faste"
+      },
+      "cancelled": {
+        "title": "Avbryte denne fasten?",
+        "body": "Fasten avsluttes nå og lagres som avbrutt. Dette kan ikke angres.",
+        "confirm": "Avbryt faste"
+      },
+      "cancel": "Fortsett å faste",
+      "close": "Lukk"
     },
     "empty": {
       "title": "Ingen faster ennå",

@@ -49,11 +49,11 @@ class TestOnActivityCreatedGeocode:
     def test_subscribes_to_created(self):
         from modules.activities.activity_geocoding.subscribers import (
             on_activity_created_geocode,
-            register_geocoding_subscribers,
+            register_bus_subscribers,
         )
 
         events = MagicMock()
-        register_geocoding_subscribers(events)
+        register_bus_subscribers(events)
 
         events.subscribe.assert_called_once_with("activity.created", on_activity_created_geocode)
 
@@ -84,11 +84,11 @@ class TestGeocodeActivityForEvent:
         from modules.activities.activity_geocoding.subscribers import (
             GEOCODING_SUBSCRIBER_ID,
             geocode_activity_for_event,
-            register_geocoding_durable_handlers,
+            register_durable_handlers,
         )
 
         registry = MagicMock()
-        register_geocoding_durable_handlers(registry)
+        register_durable_handlers(registry)
 
         registry.register.assert_called_once_with(
             "activity.created",

@@ -9,8 +9,6 @@
   "fromStrava": "Strava",
   "fromGarmin": "Garmin Connect",
   "filters": "Filtre",
-  "unitKm": "km",
-  "unitMi": "mi",
   "types": {
     "bicycle": "Cykel",
     "shoes": "Sko",
@@ -41,8 +39,8 @@
     "model": "Model",
     "modelTooLong": "Model må højst være 250 tegn",
     "active": "Aktiv",
-    "createdAt": "Oprettet den",
-    "createdAtRequired": "En oprettelsesdato er påkrævet",
+    "acquiredOn": "Oprettet den",
+    "acquiredOnRequired": "En oprettelsesdato er påkrævet",
     "initialDistance": "Startdistance",
     "purchaseValue": "Købsværdi",
     "totalCost": "Samlet omkostning",
@@ -57,6 +55,8 @@
   "delete": {
     "title": "Slet udstyr",
     "body": "Er du sikker på, at du vil slette \"{nickname}\"? Dette kan ikke fortrydes.",
+    "activities": "{count} aktivitet bruger dette udstyr; den beholdes og fjernes fra udstyret. | {count} aktiviteter bruger dette udstyr; de beholdes og fjernes fra udstyret.",
+    "components": "Dens {count} komponent slettes. | Dens {count} komponenter slettes.",
     "confirm": "Slet",
     "cancel": "Annullér",
     "close": "Luk",
@@ -91,7 +91,6 @@
     "unsupported": "Denne udstyrstype registrerer ikke komponenter.",
     "noneActive": "Alle komponenter er inaktive. Aktivér \"Vis inaktive\" for at se dem.",
     "inactive": "Inaktiv",
-    "unitHours": "t",
     "purchasedOn": "Købt {date}",
     "wearLabel": "{name} slid",
     "actions": {

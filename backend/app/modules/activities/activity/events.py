@@ -37,6 +37,10 @@ ACTIVITY_UPDATED = "activity.updated"
 # without the route knowing who reacts.
 ACTIVITY_DELETED = "activity.deleted"
 
+# Published once per accepted bulk visibility edit when durable jobs are enabled; a durable subscriber runs
+# it on a worker. Durable-delivery only: without durable jobs the edit runs on the module's in-process pool.
+ACTIVITIES_VISIBILITY_EDIT_REQUESTED = "activities.visibility_edit_requested"
+
 
 class ActivityCreatedPayload(VersionedPayload):
     """Validated payload for the ``activity.created`` event.
@@ -97,3 +101,19 @@ class ActivityUpdatedPayload(VersionedPayload):
     activity_id: int
     user_id: int | None = None
     changed_fields: list[str] = Field(default_factory=list)
+
+
+class VisibilityEditRequestedPayload(VersionedPayload):
+    """Validated payload for the ``activities.visibility_edit_requested`` event.
+
+    Attributes:
+        user_id: The user whose activities are edited.
+        visibility: The visibility to apply: 0 public, 1 followers, 2 private.
+    """
+
+    model_config = ConfigDict(extra="ignore")
+
+    SCHEMA_VERSION: ClassVar[int] = 1
+
+    user_id: int
+    visibility: int

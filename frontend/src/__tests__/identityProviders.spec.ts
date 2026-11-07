@@ -10,12 +10,14 @@ import { apiFetch } from '@/services/http'
 import {
   createIdentityProvider,
   deleteIdentityProvider,
+  deleteIdentityProviderIcon,
   fetchIdentityProviders,
   fetchIdentityProviderTemplates,
   mapIdentityProvider,
   mapIdentityProviderTemplate,
   toProviderInput,
   updateIdentityProvider,
+  uploadIdentityProviderIcon,
 } from '@/features/identityProviders/services/identityProviders'
 import {
   isBuiltinProviderIcon,
@@ -30,6 +32,7 @@ vi.mock('@/services/http', () => ({
 function makeProviderDto(overrides: Partial<IdentityProviderDto> = {}): IdentityProviderDto {
   return {
     id: 3,
+    version: 1,
     name: 'Keycloak',
     slug: 'keycloak',
     provider_type: 'oidc',
@@ -41,8 +44,11 @@ function makeProviderDto(overrides: Partial<IdentityProviderDto> = {}): Identity
     jwks_uri: 'https://idp.test/certs',
     scopes: 'openid profile email',
     icon: 'keycloak',
+    icon_uploaded: false,
     auto_create_users: true,
+    link_by_email: false,
     sync_user_info: true,
+    sync_email: false,
     client_id: 'endurain',
     user_mapping: null,
     created_at: '2026-01-01T00:00:00Z',
@@ -51,7 +57,7 @@ function makeProviderDto(overrides: Partial<IdentityProviderDto> = {}): Identity
   }
 }
 
-/** Builds a full `IdentityProviderTemplate` wire payload, overridable per case. */
+/** Builds a full `IdentityProviderTemplateRead` wire payload, overridable per case. */
 function makeTemplateDto(
   overrides: Partial<IdentityProviderTemplateDto> = {},
 ): IdentityProviderTemplateDto {
@@ -60,6 +66,8 @@ function makeTemplateDto(
     name: 'Keycloak',
     provider_type: 'oidc',
     issuer_url: 'https://idp.test',
+    link_by_email: false,
+    sync_email: false,
     scopes: 'openid profile email',
     icon: 'keycloak',
     user_mapping: null,
@@ -68,6 +76,9 @@ function makeTemplateDto(
     ...overrides,
   }
 }
+
+/** The administrator's step-up sent with every create and edit. */
+const stepUp = { currentPassword: 'admin-pw', mfaCode: null }
 
 /** A clean provider input used by the create/update cases. */
 function makeInput(overrides: Partial<IdentityProviderInput> = {}): IdentityProviderInput {
@@ -82,7 +93,9 @@ function makeInput(overrides: Partial<IdentityProviderInput> = {}): IdentityProv
     scopes: 'openid profile email',
     icon: 'keycloak',
     autoCreateUsers: true,
+    linkByEmail: false,
     syncUserInfo: true,
+    syncEmail: false,
     ...overrides,
   }
 }
@@ -91,6 +104,7 @@ describe('mapIdentityProvider', () => {
   it('maps the wire shape to the clean camel-cased model', () => {
     expect(mapIdentityProvider(makeProviderDto())).toEqual({
       id: 3,
+      version: 1,
       name: 'Keycloak',
       slug: 'keycloak',
       providerType: 'oidc',
@@ -99,12 +113,27 @@ describe('mapIdentityProvider', () => {
       clientId: 'endurain',
       scopes: 'openid profile email',
       icon: 'keycloak',
+      iconUploaded: false,
       autoCreateUsers: true,
+      linkByEmail: false,
       syncUserInfo: true,
+      syncEmail: false,
       authorizationEndpoint: 'https://idp.test/auth',
       tokenEndpoint: 'https://idp.test/token',
       userinfoEndpoint: 'https://idp.test/userinfo',
     })
+  })
+
+  it('maps the link-by-email and email-sync switches', () => {
+    expect(
+      mapIdentityProvider(makeProviderDto({ link_by_email: true, sync_email: true })),
+    ).toMatchObject({ linkByEmail: true, syncEmail: true })
+  })
+
+  it('maps an oauth2 provider type', () => {
+    expect(mapIdentityProvider(makeProviderDto({ provider_type: 'oauth2' })).providerType).toBe(
+      'oauth2',
+    )
   })
 
   it('normalizes absent optional fields to null', () => {
@@ -124,6 +153,8 @@ describe('mapIdentityProviderTemplate', () => {
       name: 'Keycloak',
       providerType: 'oidc',
       issuerUrl: 'https://idp.test',
+      linkByEmail: false,
+      syncEmail: false,
       scopes: 'openid profile email',
       icon: 'keycloak',
       description: 'Keycloak OIDC',
@@ -138,6 +169,13 @@ describe('toProviderInput', () => {
     expect(input.clientSecret).toBeNull()
     expect(input).toMatchObject({ name: 'Keycloak', slug: 'keycloak', enabled: true })
   })
+
+  it('keeps the two switches of the stored provider', () => {
+    const input = toProviderInput(
+      mapIdentityProvider(makeProviderDto({ link_by_email: true, sync_email: true })),
+    )
+    expect(input).toMatchObject({ linkByEmail: true, syncEmail: true })
+  })
 })
 
 describe('identity providers service requests', () => {
@@ -145,19 +183,24 @@ describe('identity providers service requests', () => {
     vi.clearAllMocks()
   })
 
-  it('fetchIdentityProviders maps the list and tolerates a null payload', async () => {
-    vi.mocked(apiFetch).mockResolvedValueOnce([makeProviderDto()])
-    expect(await fetchIdentityProviders()).toHaveLength(1)
-    expect(apiFetch).toHaveBeenCalledWith('/idp', { signal: undefined })
+  it('fetchIdentityProviders reads every page and maps the providers', async () => {
+    vi.mocked(apiFetch)
+      .mockResolvedValueOnce({ items: [makeProviderDto()], next: 2 })
+      .mockResolvedValueOnce({ items: [makeProviderDto({ id: 4 })], next: null })
 
-    vi.mocked(apiFetch).mockResolvedValueOnce(null)
-    expect(await fetchIdentityProviders()).toEqual([])
+    expect((await fetchIdentityProviders()).map((provider) => provider.id)).toEqual([3, 4])
+    expect(apiFetch).toHaveBeenNthCalledWith(1, '/identity-providers?page_number=1', {
+      signal: undefined,
+    })
+    expect(apiFetch).toHaveBeenNthCalledWith(2, '/identity-providers?page_number=2', {
+      signal: undefined,
+    })
   })
 
   it('fetchIdentityProviderTemplates reads the templates endpoint', async () => {
     vi.mocked(apiFetch).mockResolvedValueOnce([makeTemplateDto()])
     expect(await fetchIdentityProviderTemplates()).toHaveLength(1)
-    expect(apiFetch).toHaveBeenCalledWith('/idp/templates', { signal: undefined })
+    expect(apiFetch).toHaveBeenCalledWith('/identity-providers/templates', { signal: undefined })
   })
 
   it('createIdentityProvider posts the wire body including the client secret', async () => {
@@ -167,9 +210,12 @@ describe('identity providers service requests', () => {
       return Promise.resolve(makeProviderDto())
     })
 
-    await createIdentityProvider(makeInput())
+    await createIdentityProvider(makeInput(), stepUp)
 
-    expect(apiFetch).toHaveBeenCalledWith('/idp', expect.objectContaining({ method: 'POST' }))
+    expect(apiFetch).toHaveBeenCalledWith(
+      '/identity-providers',
+      expect.objectContaining({ method: 'POST' }),
+    )
     expect(JSON.parse(body as string)).toEqual({
       name: 'Keycloak',
       slug: 'keycloak',
@@ -180,8 +226,30 @@ describe('identity providers service requests', () => {
       scopes: 'openid profile email',
       icon: 'keycloak',
       auto_create_users: true,
+      link_by_email: false,
       sync_user_info: true,
+      sync_email: false,
       client_secret: 'shh',
+      step_up: { current_password: 'admin-pw', mfa_code: null },
+    })
+  })
+
+  it('createIdentityProvider sends the two switches as the form set them', async () => {
+    let body: unknown
+    vi.mocked(apiFetch).mockImplementation((_path, init) => {
+      body = init?.body
+      return Promise.resolve(makeProviderDto())
+    })
+
+    await createIdentityProvider(
+      makeInput({ providerType: 'oauth2', linkByEmail: true, syncEmail: true }),
+      stepUp,
+    )
+
+    expect(JSON.parse(body as string)).toMatchObject({
+      provider_type: 'oauth2',
+      link_by_email: true,
+      sync_email: true,
     })
   })
 
@@ -192,12 +260,19 @@ describe('identity providers service requests', () => {
       return Promise.resolve(makeProviderDto())
     })
 
-    await updateIdentityProvider(3, makeInput({ clientSecret: null }))
+    await updateIdentityProvider(3, makeInput({ clientSecret: null }), 4, stepUp)
 
-    expect(apiFetch).toHaveBeenCalledWith('/idp/3', expect.objectContaining({ method: 'PUT' }))
+    expect(apiFetch).toHaveBeenCalledWith(
+      '/identity-providers/3',
+      expect.objectContaining({ method: 'PATCH', headers: { 'If-Match': '"4"' } }),
+    )
     const parsed = JSON.parse(body as string) as Record<string, unknown>
     expect(parsed).not.toHaveProperty('client_secret')
-    expect(parsed).toMatchObject({ name: 'Keycloak', enabled: true })
+    expect(parsed).toMatchObject({
+      name: 'Keycloak',
+      enabled: true,
+      step_up: { current_password: 'admin-pw', mfa_code: null },
+    })
   })
 
   it('updateIdentityProvider includes the client secret when provided', async () => {
@@ -207,7 +282,7 @@ describe('identity providers service requests', () => {
       return Promise.resolve(makeProviderDto())
     })
 
-    await updateIdentityProvider(3, makeInput({ clientSecret: 'rotated' }))
+    await updateIdentityProvider(3, makeInput({ clientSecret: 'rotated' }), 4, stepUp)
 
     expect((JSON.parse(body as string) as Record<string, unknown>).client_secret).toBe('rotated')
   })
@@ -215,9 +290,36 @@ describe('identity providers service requests', () => {
   it('deleteIdentityProvider issues a DELETE', async () => {
     vi.mocked(apiFetch).mockResolvedValue(undefined)
 
-    await deleteIdentityProvider(3)
+    await deleteIdentityProvider(3, 5)
 
-    expect(apiFetch).toHaveBeenCalledWith('/idp/3', { method: 'DELETE', responseType: 'void' })
+    expect(apiFetch).toHaveBeenCalledWith('/identity-providers/3', {
+      method: 'DELETE',
+      headers: { 'If-Match': '"5"' },
+      responseType: 'void',
+    })
+  })
+
+  it('uploadIdentityProviderIcon posts the file as multipart form data', async () => {
+    vi.mocked(apiFetch).mockResolvedValue(undefined)
+    const file = new File(['png'], 'logo.png', { type: 'image/png' })
+
+    await uploadIdentityProviderIcon(3, file)
+
+    const [path, init] = vi.mocked(apiFetch).mock.calls[0] ?? ['', {}]
+    expect(path).toBe('/identity-providers/3/icon')
+    expect(init).toMatchObject({ method: 'PUT', responseType: 'void' })
+    expect((init as { body: FormData }).body.get('file')).toBe(file)
+  })
+
+  it('deleteIdentityProviderIcon issues a DELETE', async () => {
+    vi.mocked(apiFetch).mockResolvedValue(undefined)
+
+    await deleteIdentityProviderIcon(3)
+
+    expect(apiFetch).toHaveBeenCalledWith('/identity-providers/3/icon', {
+      method: 'DELETE',
+      responseType: 'void',
+    })
   })
 })
 
@@ -228,13 +330,31 @@ describe('resolveProviderLogo', () => {
     expect(typeof logo).toBe('string')
   })
 
-  it('returns the raw URL for a custom icon', () => {
-    expect(resolveProviderLogo('https://example.com/logo.png')).toBe('https://example.com/logo.png')
+  it('returns null for an icon that is not a built-in key', () => {
+    expect(resolveProviderLogo('https://example.com/logo.png')).toBeNull()
   })
 
   it('returns null when no icon is set', () => {
     expect(resolveProviderLogo(null)).toBeNull()
     expect(resolveProviderLogo('')).toBeNull()
+  })
+
+  it('addresses an uploaded icon by the provider slug, ahead of the stored icon', () => {
+    const logo = resolveProviderLogo('keycloak', { slug: 'my idp', iconUploaded: true })
+
+    expect(logo?.endsWith('/public/idp/my%20idp/icon')).toBe(true)
+  })
+
+  it('adds the provider version to an uploaded icon so a replaced image is refetched', () => {
+    const logo = resolveProviderLogo(null, { slug: 'x', iconUploaded: true, version: 4 })
+
+    expect(logo?.endsWith('/public/idp/x/icon?v=4')).toBe(true)
+  })
+
+  it('ignores the slug when no icon is uploaded', () => {
+    expect(resolveProviderLogo('keycloak', { slug: 'x', iconUploaded: false })).toBe(
+      resolveProviderLogo('keycloak'),
+    )
   })
 })
 

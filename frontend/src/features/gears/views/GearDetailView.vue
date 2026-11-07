@@ -12,13 +12,15 @@ import GearFormDialog from '@/features/gears/components/GearFormDialog.vue'
 import GearInfoCard from '@/features/gears/components/GearInfoCard.vue'
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
-import { ConfirmDialog } from '@/components/ui/confirm-dialog'
+import GearDeleteDialog from '@/features/gears/components/GearDeleteDialog.vue'
 import { EmptyState } from '@/components/ui/empty-state'
 import { ErrorState } from '@/components/ui/error-state'
 import { Skeleton } from '@/components/ui/skeleton'
 import { useCurrentUser } from '@/features/auth/composables/useCurrentUser'
 import { useToasts } from '@/composables/useToasts'
+import { isStaleWrite } from '@/services/ifMatch'
 import { presentGearType } from '@/features/gears/utils/gearType'
+import { useGearComponentsQuery } from '@/features/gears/composables/useGearComponents'
 import { useDeleteGearMutation, useGearQuery } from '@/features/gears/composables/useGears'
 
 const route = useRoute()
@@ -36,6 +38,8 @@ const gearId = computed(() => {
 })
 
 const { data: gear, isPending, isError, refetch } = useGearQuery(gearId)
+// The components panel loads the same query, so this reuses its cached result.
+const componentsQuery = useGearComponentsQuery(gearId)
 
 const typeLabel = computed(() =>
   gear.value ? t(presentGearType(gear.value.gearType).labelKey) : '',
@@ -70,16 +74,22 @@ function confirmDelete(): void {
   if (!target) {
     return
   }
-  deleteMutation.mutate(target.id, {
-    onSuccess: () => {
-      isDeleteOpen.value = false
-      toasts.success(t('gears.delete.success'))
-      void router.push({ name: 'gears' })
+  deleteMutation.mutate(
+    { id: target.id, version: target.version },
+    {
+      onSuccess: () => {
+        isDeleteOpen.value = false
+        toasts.success(t('gears.delete.success'))
+        void router.push({ name: 'gears' })
+      },
+      onError: (error) => {
+        if (isStaleWrite(error)) {
+          isDeleteOpen.value = false
+        }
+        toasts.error(isStaleWrite(error) ? t('app.staleError') : t('gears.delete.error'))
+      },
     },
-    onError: () => {
-      toasts.error(t('gears.delete.error'))
-    },
-  })
+  )
 }
 </script>
 
@@ -216,13 +226,10 @@ function confirmDelete(): void {
         @success="onFormSuccess"
         @error="onFormError"
       />
-      <ConfirmDialog
+      <GearDeleteDialog
         v-model:open="isDeleteOpen"
-        :title="t('gears.delete.title')"
-        :description="t('gears.delete.body', { nickname: gear.nickname })"
-        :confirm-label="t('gears.delete.confirm')"
-        :cancel-label="t('gears.delete.cancel')"
-        :close-label="t('gears.delete.close')"
+        :gear="gear"
+        :component-count="componentsQuery.data.value?.length"
         :pending="deleteMutation.isPending.value"
         @confirm="confirmDelete"
       />

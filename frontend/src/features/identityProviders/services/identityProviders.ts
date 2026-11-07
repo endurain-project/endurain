@@ -7,8 +7,12 @@ import type {
   IdentityProviderTemplateDto,
   IdentityProviderUpdateDto,
 } from '@/features/identityProviders/types'
+import type { StepUpInput } from '@/features/security/types'
 
 import { apiFetch } from '@/services/http'
+import { fetchAllPages } from '@/services/pagination'
+import { ifMatchHeaders, rowVersion } from '@/services/ifMatch'
+import { toStepUpWire } from '@/features/security/services/security'
 
 /**
  * Maps a raw `IdentityProvider` payload to the clean {@link IdentityProvider}
@@ -21,6 +25,7 @@ import { apiFetch } from '@/services/http'
 export function mapIdentityProvider(dto: IdentityProviderDto): IdentityProvider {
   return {
     id: dto.id,
+    version: rowVersion(dto.version),
     name: dto.name,
     slug: dto.slug,
     providerType: dto.provider_type,
@@ -29,8 +34,11 @@ export function mapIdentityProvider(dto: IdentityProviderDto): IdentityProvider 
     clientId: dto.client_id ?? null,
     scopes: dto.scopes,
     icon: dto.icon ?? null,
+    iconUploaded: dto.icon_uploaded ?? false,
     autoCreateUsers: dto.auto_create_users,
+    linkByEmail: dto.link_by_email,
     syncUserInfo: dto.sync_user_info,
+    syncEmail: dto.sync_email,
     authorizationEndpoint: dto.authorization_endpoint ?? null,
     tokenEndpoint: dto.token_endpoint ?? null,
     userinfoEndpoint: dto.userinfo_endpoint ?? null,
@@ -51,6 +59,8 @@ export function mapIdentityProviderTemplate(
     name: dto.name,
     providerType: dto.provider_type,
     issuerUrl: dto.issuer_url ?? null,
+    linkByEmail: dto.link_by_email,
+    syncEmail: dto.sync_email,
     scopes: dto.scopes,
     icon: dto.icon ?? null,
     description: dto.description,
@@ -78,7 +88,9 @@ export function toProviderInput(provider: IdentityProvider): IdentityProviderInp
     scopes: provider.scopes,
     icon: provider.icon,
     autoCreateUsers: provider.autoCreateUsers,
+    linkByEmail: provider.linkByEmail,
     syncUserInfo: provider.syncUserInfo,
+    syncEmail: provider.syncEmail,
   }
 }
 
@@ -99,7 +111,9 @@ function toWireBase(input: IdentityProviderInput) {
     scopes: input.scopes,
     icon: input.icon,
     auto_create_users: input.autoCreateUsers,
+    link_by_email: input.linkByEmail,
     sync_user_info: input.syncUserInfo,
+    sync_email: input.syncEmail,
   }
 }
 
@@ -112,8 +126,10 @@ function toWireBase(input: IdentityProviderInput) {
  * @throws {HttpError} When the request fails.
  */
 export async function fetchIdentityProviders(signal?: AbortSignal): Promise<IdentityProvider[]> {
-  const dtos = await apiFetch<IdentityProviderDto[] | null>('/idp', { signal })
-  return (dtos ?? []).map(mapIdentityProvider)
+  const dtos = await fetchAllPages<IdentityProviderDto>('/identity-providers', undefined, {
+    signal,
+  })
+  return dtos.map(mapIdentityProvider)
 }
 
 /**
@@ -127,26 +143,33 @@ export async function fetchIdentityProviders(signal?: AbortSignal): Promise<Iden
 export async function fetchIdentityProviderTemplates(
   signal?: AbortSignal,
 ): Promise<IdentityProviderTemplate[]> {
-  const dtos = await apiFetch<IdentityProviderTemplateDto[] | null>('/idp/templates', { signal })
+  const dtos = await apiFetch<IdentityProviderTemplateDto[] | null>(
+    '/identity-providers/templates',
+    { signal },
+  )
   return (dtos ?? []).map(mapIdentityProviderTemplate)
 }
 
 /**
  * Creates an identity provider (admin scope `identity_providers:write`). The
  * client secret is required here; the backend returns `409` on a duplicate slug.
+ * The request carries the administrator's own step-up.
  *
  * @param input - The clean provider input.
+ * @param stepUp - The administrator's step-up credentials.
  * @returns The created provider, mapped to the clean model.
  * @throws {HttpError} When the request fails (e.g. duplicate slug).
  */
 export async function createIdentityProvider(
   input: IdentityProviderInput,
+  stepUp: StepUpInput,
 ): Promise<IdentityProvider> {
   const payload: IdentityProviderCreateDto = {
     ...toWireBase(input),
     client_secret: input.clientSecret ?? '',
+    step_up: toStepUpWire(stepUp),
   }
-  const dto = await apiFetch<IdentityProviderDto>('/idp', {
+  const dto = await apiFetch<IdentityProviderDto>('/identity-providers', {
     method: 'POST',
     body: JSON.stringify(payload),
   })
@@ -156,23 +179,31 @@ export async function createIdentityProvider(
 /**
  * Updates an identity provider (admin scope `identity_providers:write`). The
  * client secret is sent only when the admin entered a new one, so leaving the
- * field blank keeps the stored secret.
+ * field blank keeps the stored secret. The request carries the administrator's own step-up.
  *
  * @param id - The provider id.
  * @param input - The clean provider input.
+ * @param version - The provider version read by the editor.
+ * @param stepUp - The administrator's step-up credentials.
  * @returns The updated provider, mapped to the clean model.
  * @throws {HttpError} When the request fails (e.g. duplicate slug, not found).
  */
 export async function updateIdentityProvider(
   id: number,
   input: IdentityProviderInput,
+  version: number,
+  stepUp: StepUpInput,
 ): Promise<IdentityProvider> {
-  const payload: IdentityProviderUpdateDto = { ...toWireBase(input) }
+  const payload: IdentityProviderUpdateDto = {
+    ...toWireBase(input),
+    step_up: toStepUpWire(stepUp),
+  }
   if (input.clientSecret) {
     payload.client_secret = input.clientSecret
   }
-  const dto = await apiFetch<IdentityProviderDto>(`/idp/${id}`, {
-    method: 'PUT',
+  const dto = await apiFetch<IdentityProviderDto>(`/identity-providers/${id}`, {
+    method: 'PATCH',
+    headers: ifMatchHeaders(version),
     body: JSON.stringify(payload),
   })
   return mapIdentityProvider(dto)
@@ -183,8 +214,47 @@ export async function updateIdentityProvider(
  * backend returns `409` when users are still linked to the provider.
  *
  * @param id - The provider id.
- * @throws {HttpError} When the request fails (e.g. users still linked).
+ * @param version - The provider version the list item was read at, for `If-Match`.
+ * @throws {HttpError} When the request fails (e.g. users still linked, or `412` when stale).
  */
-export async function deleteIdentityProvider(id: number): Promise<void> {
-  await apiFetch(`/idp/${id}`, { method: 'DELETE', responseType: 'void' })
+export async function deleteIdentityProvider(id: number, version: number): Promise<void> {
+  await apiFetch(`/identity-providers/${id}`, {
+    method: 'DELETE',
+    headers: ifMatchHeaders(version),
+    responseType: 'void',
+  })
+}
+
+/**
+ * Uploads the image a provider shows on the login screen (admin scope
+ * `identity_providers:write`). The file is sent as multipart form data under the
+ * `file` field; the backend validates it and stores it under a server-generated
+ * key, so the caller's filename is never used. The upload replaces any custom
+ * icon URL until it is removed.
+ *
+ * @param id - The provider id.
+ * @param file - The PNG, JPEG or WebP image.
+ * @throws {HttpError} When the upload fails (e.g. wrong file type or too large).
+ */
+export async function uploadIdentityProviderIcon(id: number, file: File): Promise<void> {
+  const formData = new FormData()
+  formData.append('file', file)
+  await apiFetch(`/identity-providers/${id}/icon`, {
+    method: 'PUT',
+    body: formData,
+    responseType: 'void',
+  })
+}
+
+/**
+ * Removes a provider's uploaded icon (admin scope `identity_providers:write`).
+ *
+ * @param id - The provider id.
+ * @throws {HttpError} When the deletion fails.
+ */
+export async function deleteIdentityProviderIcon(id: number): Promise<void> {
+  await apiFetch(`/identity-providers/${id}/icon`, {
+    method: 'DELETE',
+    responseType: 'void',
+  })
 }

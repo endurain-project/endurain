@@ -2,6 +2,7 @@
 
 from typing import Any
 
+from pydantic import InstanceOf, TypeAdapter
 from sqlalchemy.orm import Session
 
 import modules.activities.activity.schema as activity_schema
@@ -42,8 +43,14 @@ def _store_streams(
     activity_streams_crud.create_activity_streams(streams, activity, db)
 
 
+#: The parsed streams.
+_PAYLOAD: TypeAdapter[list[activity_streams_contracts.ParsedStream]] = TypeAdapter(
+    list[InstanceOf[activity_streams_contracts.ParsedStream]]
+)
+
+
 def _persist_ingestion_component(
-    data: Any,
+    data: object,
     activity: activity_schema.ActivityRead,
     db: Session,
 ) -> None:
@@ -53,15 +60,19 @@ def _persist_ingestion_component(
         data: The parsed component payload.
         activity: The newly created parent activity.
         db: Database session.
+
+    Raises:
+        ValidationError: When the parser handed something other than parsed streams, before anything is staged.
     """
     streams = [
         activity_streams_contracts.ActivityStreamsCreate(
             activity_id=activity.id,
             stream_type=stream.stream_type,
-            stream_waypoints=stream.stream_waypoints,
+            # A parsed sample is any mapping (a parser's typed sample, a provider's dict); the row stores a dict.
+            stream_waypoints=[dict(waypoint) for waypoint in stream.stream_waypoints],
             strava_activity_stream_id=None,
         )
-        for stream in data
+        for stream in _PAYLOAD.validate_python(data)
     ]
     _store_streams(streams, activity, db)
 
@@ -152,7 +163,7 @@ def get_stream_for_derivation(
     return activity_streams_crud.get_activity_stream_by_type(activity_id, stream_type, db)
 
 
-def get_gps_waypoints_for_activities(activity_ids: list[int], db: Session) -> dict[int, list]:
+def get_gps_waypoints_for_activities(activity_ids: list[int], db: Session) -> dict[int, list[dict[str, Any]]]:
     """Return GPS waypoints for several activities in one query.
 
     Activities with no GPS stream are absent from the result.

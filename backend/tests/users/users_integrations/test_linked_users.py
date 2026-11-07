@@ -6,7 +6,7 @@ stores a JSON ``null`` rather than SQL ``NULL``, which a mocked session cannot s
 
 import pytest
 
-import modules.users.users_integrations.crud as integrations_crud
+import modules.users.users_integrations.integration_service as integrations_integration
 import modules.users.users_integrations.models as integrations_models
 from tests._helpers.db import create_sqlite_session
 
@@ -36,14 +36,14 @@ class TestStravaLinkedUsers:
         _link(db, 2)
         _link(db, 3, strava=True)
 
-        assert integrations_crud.list_user_ids_with_strava_linked(0, 10, db) == [1, 3]
+        assert integrations_integration.list_user_ids_with_strava_linked(0, 10, db) == [1, 3]
 
     def test_pages_by_cursor(self, db):
         for user_id in (1, 2, 3):
             _link(db, user_id, strava=True)
 
-        assert integrations_crud.list_user_ids_with_strava_linked(1, 1, db) == [2]
-        assert integrations_crud.list_user_ids_with_strava_linked(2, 5, db) == [3]
+        assert integrations_integration.list_user_ids_with_strava_linked(1, 1, db) == [2]
+        assert integrations_integration.list_user_ids_with_strava_linked(2, 5, db) == [3]
 
 
 class TestGarminLinkedUsers:
@@ -55,7 +55,7 @@ class TestGarminLinkedUsers:
         integration.garminconnect_token = None
         db.commit()
 
-        assert integrations_crud.list_user_ids_with_garminconnect_linked(0, 10, db) == [1]
+        assert integrations_integration.list_user_ids_with_garminconnect_linked(0, 10, db) == [1]
 
     def test_a_page_of_unlinked_users_does_not_end_the_listing(self, db):
         """The caller stops on an empty page, so a run of unlinked users must not return one."""
@@ -63,13 +63,13 @@ class TestGarminLinkedUsers:
             _link(db, user_id)
         _link(db, 6, garmin={"di_token": "z"})
 
-        assert integrations_crud.list_user_ids_with_garminconnect_linked(0, 2, db) == [6]
+        assert integrations_integration.list_user_ids_with_garminconnect_linked(0, 2, db) == [6]
 
     def test_a_full_page_is_cut_at_the_limit_and_resumes_after_its_last_id(self, db):
         for user_id in (1, 2, 3):
             _link(db, user_id, garmin={"di_token": "t"})
 
-        first = integrations_crud.list_user_ids_with_garminconnect_linked(0, 2, db)
-        second = integrations_crud.list_user_ids_with_garminconnect_linked(first[-1], 2, db)
+        first = integrations_integration.list_user_ids_with_garminconnect_linked(0, 2, db)
+        second = integrations_integration.list_user_ids_with_garminconnect_linked(first[-1], 2, db)
 
         assert (first, second) == ([1, 2], [3])

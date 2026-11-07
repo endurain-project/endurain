@@ -2,6 +2,7 @@ import { computed, type MaybeRefOrGetter, toValue } from 'vue'
 import { storeToRefs } from 'pinia'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/vue-query'
 
+import type { StepUpInput } from '@/features/security/types'
 import type { UserIdentityProvider } from '@/features/users/types'
 
 import { queryKeys } from '@/services/queryKeys'
@@ -39,8 +40,15 @@ export function useUnlinkUserIdentityProviderMutation() {
   const queryClient = useQueryClient()
 
   return useMutation({
-    mutationFn: ({ userId, idpId }: { userId: number; idpId: number }) =>
-      unlinkUserIdentityProvider(userId, idpId),
+    mutationFn: ({
+      userId,
+      idpId,
+      stepUp,
+    }: {
+      userId: number
+      idpId: number
+      stepUp: StepUpInput
+    }) => unlinkUserIdentityProvider(userId, idpId, stepUp),
     onSuccess: (_data, { userId }) => {
       void queryClient.invalidateQueries({ queryKey: queryKeys.users.identityProviders(userId) })
       void queryClient.invalidateQueries({ queryKey: queryKeys.users.detail(userId) })

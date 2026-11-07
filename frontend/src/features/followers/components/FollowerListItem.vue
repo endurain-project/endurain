@@ -116,7 +116,9 @@ const confirmLabel = computed(() => {
           icon-class="size-5"
         />
         <div class="min-w-0">
-          <p class="truncate text-item-title">{{ user.name }}</p>
+          <p class="truncate text-item-title">
+            <bdi>{{ user.name }}</bdi>
+          </p>
           <p class="truncate text-caption">@{{ user.username }}</p>
         </div>
       </RouterLink>

@@ -1,13 +1,71 @@
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
+
+import type { UnitKey } from '@/i18n'
 
 import {
   dateTimeLocalToIso,
+  formatHealthChartLabel,
+  formatHoursMinutes,
+  formatRestingHeartRate,
+  formatSkinTempDeviation,
+  formatWater,
+  requiredDateTimeLocalToIso,
+  formatWeight,
   localDayOf,
   nowDateTimeLocalInput,
   toDateTimeLocalInput,
 } from '@/features/health/utils/healthFormat'
 
+/** Wraps the unit key so a test can tell the resolver supplied the symbol. */
+const label = (unit: UnitKey): string => `<${unit}>`
+
+describe('unit-bearing formatters', () => {
+  it('formatHoursMinutes hands the parts to the duration formatter and keeps zero hours', () => {
+    const duration = vi.fn<(hours: number, minutes: number, showZeroHours?: boolean) => string>(
+      () => 'formatted',
+    )
+
+    expect(formatHoursMinutes(29100, duration)).toBe('formatted')
+    expect(duration).toHaveBeenCalledWith(8, 5, true)
+    formatHoursMinutes(-30, duration)
+    expect(duration).toHaveBeenLastCalledWith(0, 0, true)
+  })
+
+  it('formatRestingHeartRate rounds and takes the bpm symbol from the resolver', () => {
+    expect(formatRestingHeartRate(51.6, label)).toBe('52 <bpm>')
+  })
+
+  it('formatSkinTempDeviation takes the Celsius symbol from the resolver', () => {
+    expect(formatSkinTempDeviation(-1.24, 'metric', label)).toBe('-1.2 <celsius>')
+  })
+
+  it('formatSkinTempDeviation scales a delta to Fahrenheit without the +32 offset', () => {
+    expect(formatSkinTempDeviation(1, 'imperial', label)).toBe('1.8 <fahrenheit>')
+    expect(formatSkinTempDeviation(-0.5, 'imperial', label)).toBe('-0.9 <fahrenheit>')
+  })
+
+  it('formatWeight picks kg or lb by unit system', () => {
+    expect(formatWeight(72, 'metric', label)).toBe('72.0 <kg>')
+    expect(formatWeight(72, 'imperial', label)).toBe('158.7 <lb>')
+  })
+
+  it('formatWater picks ml or fl oz by unit system', () => {
+    expect(formatWater(1500.4, 'metric', label)).toBe('1,500 <ml>')
+    expect(formatWater(1500, 'imperial', label)).toBe('50.7 <flOz>')
+  })
+})
+
 describe('datetime-local round trip', () => {
+  it('converts a required local wall clock to the same instant', () => {
+    expect(requiredDateTimeLocalToIso('2024-01-15T09:00')).toBe(
+      dateTimeLocalToIso('2024-01-15T09:00'),
+    )
+  })
+
+  it('refuses a required value that is not a date-time', () => {
+    expect(() => requiredDateTimeLocalToIso('nonsense')).toThrow(RangeError)
+  })
+
   it('converts a local wall clock to a real UTC instant', () => {
     const iso = dateTimeLocalToIso('2024-01-15T09:00')
     // Whatever the runner's zone, the instant must correspond to 09:00 local.
@@ -54,5 +112,19 @@ describe('localDayOf', () => {
   it('returns null for missing or unparseable values', () => {
     expect(localDayOf(null)).toBeNull()
     expect(localDayOf('nonsense')).toBeNull()
+  })
+})
+
+describe('formatHealthChartLabel', () => {
+  it('labels a monthly bucket with its month and year', () => {
+    expect(formatHealthChartLabel('2026-06-01', 'month', 'en')).toBe('Jun 2026')
+  })
+
+  it.each(['day', 'week'] as const)('labels a %s bucket with its first day', (bucket) => {
+    expect(formatHealthChartLabel('2026-06-22', bucket, 'en')).toBe('Jun 22, 2026')
+  })
+
+  it('returns an empty string for an unparseable date', () => {
+    expect(formatHealthChartLabel('nonsense', 'month', 'en')).toBe('')
   })
 })

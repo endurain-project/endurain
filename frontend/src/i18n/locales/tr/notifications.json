@@ -8,7 +8,7 @@
   "seeAll": "Tümünü gör",
   "loadMore": "Daha fazla yükle",
   "loading": "Yükleniyor…",
-  "badge": "{count} okunmamış bildirim",
+  "badge": "{count} okunmamış bildirim | {count} okunmamış bildirim",
   "empty": {
     "title": "Her şeyi gördünüz",
     "description": "Etkinlikleriniz, takipçileriniz ve entegrasyonlarınızla ilgili güncellemeler burada görünecek."
@@ -38,6 +38,63 @@
     "garminTokenExpired": {
       "title": "Garmin Connect ilgi bekliyor",
       "body": "Garmin Connect oturumunuzun süresi doldu. Eşitlemeyi sürdürmek için yeniden bağlanın."
+    },
+    "stravaTokenExpired": {
+      "title": "Strava dikkatinizi bekliyor",
+      "body": "Strava bağlantınızı reddetti. Senkronizasyona devam etmek için yeniden bağlayın.",
+      "bodyRevoked": "Strava erişimi sona erdi. Strava ile eşitlenen etkinlikleriniz ve ekipmanlarınız, yeniden bağlanmazsanız {date} tarihinde silinecek."
+    },
+    "stravaDataDeleted": {
+      "title": "Strava verileri silindi",
+      "body": "Strava erişimi sona erdiği ve yeniden bağlanmadığınız için Strava ile eşitlenen etkinlikleriniz ve ekipmanlarınız silindi."
+    },
+    "idpLinked": {
+      "title": "Yeni giriş sağlayıcısı bağlandı",
+      "body": "{name} hesabınıza bağlandı. Bu işlemi siz yapmadıysanız güvenlik ayarlarınızı gözden geçirin.",
+      "bodyGeneric": "Hesabınıza bir giriş sağlayıcısı bağlandı. Bu işlemi siz yapmadıysanız güvenlik ayarlarınızı gözden geçirin."
+    },
+    "accountSecurityChanged": {
+      "passwordChanged": {
+        "title": "Parola değiştirildi",
+        "body": "Parolanız değiştirildi. Bunu siz yapmadıysanız parolanızı sıfırlayın ve güvenlik ayarlarınızı gözden geçirin."
+      },
+      "passwordReset": {
+        "title": "Parola sıfırlandı",
+        "body": "Parolanız bir sıfırlama bağlantısıyla sıfırlandı. Bunu siz yapmadıysanız parolanızı tekrar sıfırlayın ve güvenlik ayarlarınızı gözden geçirin."
+      },
+      "passwordSetByAdmin": {
+        "title": "Parola bir yönetici tarafından belirlendi",
+        "body": "Bir yönetici hesabınız için yeni bir parola belirledi. Bunu beklemiyorsanız yöneticinizle iletişime geçin."
+      },
+      "mfaEnabled": {
+        "title": "İki adımlı kimlik doğrulama açıldı",
+        "body": "Hesabınız için iki adımlı kimlik doğrulama açıldı. Bunu siz yapmadıysanız parolanızı sıfırlayın ve güvenlik ayarlarınızı gözden geçirin."
+      },
+      "mfaDisabled": {
+        "title": "İki adımlı kimlik doğrulama kapatıldı",
+        "body": "Hesabınız için iki adımlı kimlik doğrulama kapatıldı. Bunu siz yapmadıysanız parolanızı sıfırlayın ve güvenlik ayarlarınızı gözden geçirin."
+      },
+      "backupCodesGenerated": {
+        "title": "Yeni yedek kodlar oluşturuldu",
+        "body": "Hesabınız için yeni yedek kodlar oluşturuldu. Bunu siz yapmadıysanız parolanızı sıfırlayın ve güvenlik ayarlarınızı gözden geçirin."
+      },
+      "apiKeyCreated": {
+        "title": "Yeni API anahtarı oluşturuldu",
+        "body": "Hesabınız için yeni bir API anahtarı oluşturuldu. Bunu siz yapmadıysanız parolanızı sıfırlayın ve güvenlik ayarlarınızı gözden geçirin."
+      },
+      "identityProviderUnlinked": {
+        "title": "Giriş sağlayıcısının bağlantısı kaldırıldı",
+        "body": "{name} sağlayıcısının hesabınızla bağlantısı kaldırıldı. Bunu siz yapmadıysanız parolanızı sıfırlayın ve güvenlik ayarlarınızı gözden geçirin.",
+        "bodyGeneric": "Bir giriş sağlayıcısının hesabınızla bağlantısı kaldırıldı. Bunu siz yapmadıysanız parolanızı sıfırlayın ve güvenlik ayarlarınızı gözden geçirin."
+      },
+      "unknown": {
+        "title": "Hesap güvenliği değişti",
+        "body": "Hesabınızın bir güvenlik ayarı değişti. Bunu siz yapmadıysanız parolanızı sıfırlayın ve güvenlik ayarlarınızı gözden geçirin."
+      }
+    },
+    "newDeviceSignIn": {
+      "title": "Yeni giriş",
+      "body": "{os} üzerinde {browser} ile yeni bir giriş yapıldı ({ip}). Bunu siz yapmadıysanız parolanızı değiştirin ve diğer oturumlarınızı kapatın."
     },
     "adminSignUpApproval": {
       "title": "Yeni kayıt onay bekliyor",

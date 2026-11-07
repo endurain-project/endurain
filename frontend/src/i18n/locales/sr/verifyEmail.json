@@ -1,14 +1,26 @@
 {
   "verifyingBody": "Sačekajte dok potvrđujemo vašu adresu.",
+  "choosePasswordTitle": "Izaberite lozinku",
+  "choosePasswordBody": "Vaša e-adresa biće potvrđena kada podesite lozinku za svoj nalog.",
+  "submitPassword": "Podesi lozinku",
+  "submittingPassword": "Čuvanje lozinke",
   "successTitle": "Email je verifikovan",
   "successBody": "Vaša email adresa je potvrđena.",
   "adminApprovalBody": "Vaš nalog sada čeka odobrenje administratora.",
   "continueButton": "Nastavi na prijavu",
   "invalidTitle": "Verifikacija nije uspela",
-  "missingTokenBody": "Ovom linku za verifikaciju nedostaje token.",
   "errorInvalidToken": "Ovaj link za verifikaciju je nevažeći ili je istekao.",
+  "errorEmailTaken": "Ovu email adresu sada koristi drugi nalog, pa se ne može potvrditi.",
   "errorNotFound": "Nismo mogli da pronađemo nalog za ovaj link.",
   "errorGeneral": "Nismo mogli da verifikujemo vaš email. Pokušajte ponovo.",
   "retry": "Pokušaj ponovo",
-  "backToLogin": "Nazad na prijavu"
+  "backToLogin": "Nazad na prijavu",
+  "resendTitle": "Treba vam novi link?",
+  "resendBody": "Unesite adresu sa kojom ste se registrovali i poslaćemo novu e-poruku za potvrdu ako još čeka.",
+  "resendEmail": "Adresa e-pošte",
+  "resendButton": "Pošalji novu e-poruku",
+  "resendSending": "Slanje",
+  "resendSent": "Ako ta adresa čeka potvrdu, nova e-poruka je na putu.",
+  "resendTooManyAttempts": "Previše pokušaja. Sačekajte pre novog pokušaja.",
+  "resendError": "E-poruku nismo mogli da pošaljemo. Pokušajte ponovo."
 }

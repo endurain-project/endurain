@@ -9,8 +9,6 @@
   "fromStrava": "Strava",
   "fromGarmin": "Garmin Connect",
   "filters": "Szűrők",
-  "unitKm": "km",
-  "unitMi": "mi",
   "types": {
     "bicycle": "Kerékpár",
     "shoes": "Cipő",
@@ -41,8 +39,8 @@
     "model": "Modell",
     "modelTooLong": "A modell legfeljebb 250 karakter lehet",
     "active": "Aktív",
-    "createdAt": "Létrehozva",
-    "createdAtRequired": "A létrehozási dátum megadása kötelező",
+    "acquiredOn": "Létrehozva",
+    "acquiredOnRequired": "A létrehozási dátum megadása kötelező",
     "initialDistance": "Kezdeti távolság",
     "purchaseValue": "Vásárlási érték",
     "totalCost": "Teljes költség",
@@ -57,6 +55,8 @@
   "delete": {
     "title": "Felszerelés törlése",
     "body": "Biztosan törölni szeretnéd a(z) „{nickname}” felszerelést? Ezt nem lehet visszavonni.",
+    "activities": "{count} tevékenység használja ezt a felszerelést; megmarad, és leválasztásra kerül róla. | {count} tevékenység használja ezt a felszerelést; megmaradnak, és leválasztásra kerülnek róla.",
+    "components": "A hozzá tartozó {count} alkatrész törlésre kerül. | A hozzá tartozó {count} alkatrész törlésre kerül.",
     "confirm": "Törlés",
     "cancel": "Mégse",
     "close": "Bezárás",
@@ -91,7 +91,6 @@
     "unsupported": "Ennél a felszereléstípusnál nem követhetők nyomon az alkatrészek.",
     "noneActive": "Minden alkatrész inaktív. Kapcsold be az „Inaktívak megjelenítése” lehetőséget a megtekintésükhöz.",
     "inactive": "Inaktív",
-    "unitHours": "ó",
     "purchasedOn": "Vásárolva: {date}",
     "wearLabel": "{name} kopás",
     "actions": {

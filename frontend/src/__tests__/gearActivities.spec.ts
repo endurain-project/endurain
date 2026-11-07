@@ -12,7 +12,7 @@ vi.mock('@/services/http', () => ({
 const activityDto: GearActivityDto = {
   id: 11,
   name: 'Morning Ride',
-  activity_type: 1,
+  activity_type: 'ride',
   start_time: '2024-03-01T07:00:00Z',
   timezone: 'Europe/Lisbon',
   distance: 25_000,
@@ -23,7 +23,7 @@ const activityDto: GearActivityDto = {
 const mappedActivity: GearActivity = {
   id: 11,
   name: 'Morning Ride',
-  activityType: 1,
+  activityType: 'ride',
   startTime: '2024-03-01T07:00:00Z',
   timezone: 'Europe/Lisbon',
   distance: 25_000,
@@ -37,11 +37,17 @@ describe('mapGearActivity', () => {
 
   it('defaults absent optionals to null', () => {
     expect(
-      mapGearActivity({ id: 7, name: 'Run', activity_type: 2, distance: 5000, is_hidden: false }),
+      mapGearActivity({
+        id: 7,
+        name: 'Run',
+        activity_type: 'trail_run',
+        distance: 5000,
+        is_hidden: false,
+      }),
     ).toEqual({
       id: 7,
       name: 'Run',
-      activityType: 2,
+      activityType: 'trail_run',
       startTime: null,
       timezone: null,
       distance: 5000,
@@ -69,7 +75,7 @@ describe('fetchGearActivities', () => {
     // One request: the total arrives with the page.
     expect(apiFetch).toHaveBeenCalledTimes(1)
     expect(apiFetch).toHaveBeenCalledWith(
-      '/activities/gears/5?page_number=1&num_records=25',
+      '/gears/5/activities?page_number=1&num_records=25',
       expect.objectContaining({ signal: undefined }),
     )
     expect(result).toEqual({ records: [mappedActivity], total: 1 })

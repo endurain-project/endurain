@@ -1,6 +1,7 @@
 import { computed, toValue, type MaybeRefOrGetter } from 'vue'
 import { storeToRefs } from 'pinia'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/vue-query'
+import { useRouter } from 'vue-router'
 
 import type {
   ApiKeyCreateInput,
@@ -9,13 +10,18 @@ import type {
   MfaSetup,
   PasswordChangeInput,
   StepUpInput,
+  StepUpWithSessions,
 } from '@/features/security/types'
 
+import { useInvalidatingMutation } from '@/composables/useInvalidatingMutation'
 import { queryKeys } from '@/services/queryKeys'
 import { useAuthStore } from '@/features/auth/stores/auth'
 import {
+  cancelEmailChange,
+  changeEmail,
   changePassword,
   createApiKey,
+  deleteAccount,
   deleteApiKey,
   disableMfa,
   enableMfa,
@@ -24,6 +30,7 @@ import {
   fetchMfaStatus,
   fetchSessions,
   regenerateBackupCodes,
+  resendEmailChange,
   revokeApiKey,
   revokeOtherSessions,
   revokeSession,
@@ -135,9 +142,9 @@ export function useEnableMfaMutation() {
 export function useDisableMfaMutation() {
   const client = useQueryClient()
 
-  return useMutation<void, Error, StepUpInput>({
+  return useMutation<void, Error, StepUpWithSessions>({
     mutationKey: queryKeys.security.all(),
-    mutationFn: (input) => disableMfa(input),
+    mutationFn: ({ input, revokeOtherSessions }) => disableMfa(input, revokeOtherSessions),
     onSuccess: () => {
       void client.invalidateQueries({ queryKey: queryKeys.security.all() })
     },
@@ -153,9 +160,10 @@ export function useDisableMfaMutation() {
 export function useRegenerateBackupCodesMutation() {
   const client = useQueryClient()
 
-  return useMutation<BackupCodesResult, Error, StepUpInput>({
+  return useMutation<BackupCodesResult, Error, StepUpWithSessions>({
     mutationKey: queryKeys.security.all(),
-    mutationFn: (input) => regenerateBackupCodes(input),
+    mutationFn: ({ input, revokeOtherSessions }) =>
+      regenerateBackupCodes(input, revokeOtherSessions),
     onSuccess: () => {
       void client.invalidateQueries({ queryKey: queryKeys.security.backupCodeStatus() })
     },
@@ -187,14 +195,10 @@ export function useRevokeSessionMutation() {
  * @returns The TanStack Query mutation for revoking other sessions.
  */
 export function useRevokeOtherSessionsMutation() {
-  const client = useQueryClient()
-
-  return useMutation<void, Error, void>({
+  return useInvalidatingMutation<void, void>({
     mutationKey: queryKeys.security.all(),
     mutationFn: () => revokeOtherSessions(),
-    onSettled: () => {
-      void client.invalidateQueries({ queryKey: queryKeys.security.sessions() })
-    },
+    invalidateKey: queryKeys.security.sessions(),
   })
 }
 
@@ -263,5 +267,92 @@ export function useDeleteApiKeyMutation() {
     onSuccess: () => {
       void client.invalidateQueries({ queryKey: queryKeys.security.apiKeys() })
     },
+  })
+}
+
+/**
+ * Delete-my-account mutation. On success the account and its sessions no longer
+ * exist on the server, so it leaves for the farewell page and then clears only
+ * the local session; calling the logout endpoint would just fail. Navigation
+ * comes first because clearing empties the Query cache, which unmounts the
+ * calling view and with it any per-call `mutate` callback.
+ *
+ * @returns The TanStack Query mutation for deleting the account.
+ */
+export function useDeleteAccountMutation() {
+  const authStore = useAuthStore()
+  const router = useRouter()
+
+  return useMutation<void, Error, StepUpInput>({
+    mutationKey: queryKeys.security.all(),
+    mutationFn: (input) => deleteAccount(input),
+    onSuccess: async () => {
+      await router.replace({ name: 'account-deleted' })
+      authStore.clearLocalSession()
+    },
+  })
+}
+
+/**
+ * Change-email mutation, run after step-up. The address and its verified state are shown by the
+ * profile, the app shell and an admin's users views, so all of them are refetched.
+ *
+ * @returns The TanStack Query mutation for changing the account email.
+ */
+export function useChangeEmailMutation() {
+  const invalidate = useInvalidateEmailViews()
+
+  return useMutation<
+    boolean,
+    Error,
+    { email: string; stepUp: StepUpInput; revokeOtherSessions: boolean }
+  >({
+    mutationKey: queryKeys.security.all(),
+    mutationFn: ({ email, stepUp, revokeOtherSessions }) =>
+      changeEmail(email, stepUp, revokeOtherSessions),
+    onSettled: invalidate,
+  })
+}
+
+/**
+ * Invalidates every view of the account email, so the pending change shows (or disappears)
+ * in the profile, the app shell and an admin's users views.
+ */
+function useInvalidateEmailViews(): () => void {
+  const client = useQueryClient()
+  return () => {
+    void client.invalidateQueries({ queryKey: queryKeys.profile.all() })
+    void client.invalidateQueries({ queryKey: queryKeys.currentUser() })
+    void client.invalidateQueries({ queryKey: queryKeys.users.all() })
+  }
+}
+
+/**
+ * Resend mutation for the pending email-change confirmation link.
+ *
+ * @returns The TanStack Query mutation for resending the link.
+ */
+export function useResendEmailChangeMutation() {
+  const invalidate = useInvalidateEmailViews()
+
+  return useMutation<void, Error, void>({
+    mutationKey: queryKeys.security.all(),
+    mutationFn: () => resendEmailChange(),
+    onSettled: invalidate,
+  })
+}
+
+/**
+ * Cancel mutation for the pending email change.
+ *
+ * @returns The TanStack Query mutation for cancelling the change.
+ */
+export function useCancelEmailChangeMutation() {
+  const invalidate = useInvalidateEmailViews()
+
+  return useMutation<void, Error, void>({
+    mutationKey: queryKeys.security.all(),
+    mutationFn: () => cancelEmailChange(),
+    onSettled: invalidate,
   })
 }

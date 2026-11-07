@@ -94,28 +94,13 @@ class TestUsersDefaultGearModel:
         assert model.id.nullable is False
         assert model.user_id.nullable is False
 
-    def test_users_default_gear_model_has_relationships(self):
+    def test_users_default_gear_user_is_deleted_with_the_user_by_the_database(self):
         """
-        Test UsersDefaultGear model has relationship to User and Gear.
+        Test the user foreign key cascades on delete, with no ORM relationship needed.
         """
         # Assert
-        model = user_default_gear_models.UsersDefaultGear
-        assert hasattr(model, "users")
-        assert hasattr(model, "run_gear")
-        assert hasattr(model, "trail_run_gear")
-        assert hasattr(model, "virtual_run_gear")
-        assert hasattr(model, "ride_gear")
-        assert hasattr(model, "gravel_ride_gear")
-        assert hasattr(model, "mtb_ride_gear")
-        assert hasattr(model, "virtual_ride_gear")
-        assert hasattr(model, "ows_gear")
-        assert hasattr(model, "walk_gear")
-        assert hasattr(model, "hike_gear")
-        assert hasattr(model, "tennis_gear")
-        assert hasattr(model, "alpine_ski_gear")
-        assert hasattr(model, "nordic_ski_gear")
-        assert hasattr(model, "snowboard_gear")
-        assert hasattr(model, "windsurf_gear")
+        foreign_key = next(iter(user_default_gear_models.UsersDefaultGear.__table__.c.user_id.foreign_keys))
+        assert foreign_key.ondelete == "CASCADE"
 
     def test_users_default_gear_model_gear_id_fields_indexed(self):
         """

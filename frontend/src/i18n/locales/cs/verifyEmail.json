@@ -1,14 +1,26 @@
 {
   "verifyingBody": "Vydržte, zatímco potvrzujeme vaši adresu.",
+  "choosePasswordTitle": "Zvolte si heslo",
+  "choosePasswordBody": "Váš e-mail bude potvrzen, jakmile pro svůj účet nastavíte heslo.",
+  "submitPassword": "Nastavit heslo",
+  "submittingPassword": "Ukládání hesla",
   "successTitle": "E-mail ověřen",
   "successBody": "Vaše e-mailová adresa byla potvrzena.",
   "adminApprovalBody": "Váš účet nyní čeká na schválení administrátorem.",
   "continueButton": "Pokračovat na přihlášení",
   "invalidTitle": "Ověření selhalo",
-  "missingTokenBody": "Tomuto ověřovacímu odkazu chybí token.",
   "errorInvalidToken": "Tento ověřovací odkaz je neplatný nebo vypršel.",
+  "errorEmailTaken": "Tato e-mailová adresa je nyní používána jiným účtem, a proto ji nelze potvrdit.",
   "errorNotFound": "Pro tento odkaz se nepodařilo najít účet.",
   "errorGeneral": "Váš e-mail se nepodařilo ověřit. Zkuste to prosím znovu.",
   "retry": "Zkusit znovu",
-  "backToLogin": "Zpět na přihlášení"
+  "backToLogin": "Zpět na přihlášení",
+  "resendTitle": "Potřebujete nový odkaz?",
+  "resendBody": "Zadejte adresu, se kterou jste se zaregistrovali, a pokud stále čeká na ověření, pošleme nový ověřovací e-mail.",
+  "resendEmail": "E-mailová adresa",
+  "resendButton": "Odeslat nový e-mail",
+  "resendSending": "Odesílá se",
+  "resendSent": "Pokud tato adresa čeká na ověření, nový e-mail je na cestě.",
+  "resendTooManyAttempts": "Příliš mnoho pokusů. Počkejte prosím před dalším pokusem.",
+  "resendError": "E-mail se nepodařilo odeslat. Zkuste to prosím znovu."
 }

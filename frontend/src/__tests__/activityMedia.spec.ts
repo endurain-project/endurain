@@ -15,7 +15,7 @@ vi.mock('@/services/http', () => ({ apiFetch: vi.fn<typeof apiFetch>() }))
 const mediaDto: ActivityMediaDto = {
   id: 3,
   activity_id: 5,
-  media_type: 1,
+  media_type: 'photo',
   url: '/api/v1/activities/5/media/3/file?t=signed-token',
 }
 

@@ -33,7 +33,7 @@ class TestCreateActivityStreams:
 class TestGetActivityStreams:
     """Persistence only — access and per-type masking live in ``activity_streams.service``."""
 
-    @patch("modules.activities.activity_streams.crud.activity_streams_serializers.to_read_schema")
+    @patch("modules.activities.activity_streams.crud.activity_streams_serializers.to_read_schemas")
     def test_success(self, mock_transform, mock_db):
         import modules.activities.activity_streams.crud as crud
         import modules.activities.activity_streams.models as m
@@ -67,7 +67,7 @@ class TestGetActivityStreams:
         mock_db.scalars.return_value.first.return_value = None
         assert crud.get_activity_stream_by_type(activity_id=1, stream_type=1, db=mock_db) is None
 
-    @patch("modules.activities.activity_streams.crud.activity_streams_serializers.to_read_schema")
+    @patch("modules.activities.activity_streams.crud.activity_streams_serializers.to_read_schemas")
     def test_empty(self, mock_transform, mock_db):
         import modules.activities.activity_streams.crud as crud
 
@@ -79,7 +79,7 @@ class TestGetActivityStreams:
 class TestGetActivitiesStreams:
     """The batch read no longer joins the parent: it is handed scoped ids."""
 
-    @patch("modules.activities.activity_streams.crud.activity_streams_serializers.to_read_schema")
+    @patch("modules.activities.activity_streams.crud.activity_streams_serializers.to_read_schemas")
     def test_success(self, mock_transform, mock_db):
         import modules.activities.activity_streams.crud as crud
         import modules.activities.activity_streams.models as m

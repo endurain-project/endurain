@@ -1,6 +1,12 @@
 {
   "title": "Salud",
   "subtitle": "Ve todos tus datos de salud en un solo lugar",
+  "chartBucket": {
+    "week": "Promedios semanales: cada barra es el día promedio de esa semana.",
+    "month": "Promedios mensuales: cada barra es el día promedio de ese mes."
+  },
+  "targetInvalid": "Introduce un valor mayor que 0 o déjalo vacío para quitar el objetivo.",
+  "chartError": "No se pudo cargar el gráfico para este intervalo de tiempo.",
   "nav": {
     "label": "Secciones de salud",
     "soon": "Próximamente",
@@ -34,6 +40,7 @@
     "stepsTargetLabel": "pasos",
     "poopTargetLabel": "/ día",
     "noWeightData": "Sin datos de peso",
+    "noHeightData": "Añade tu altura en tu perfil para ver tu IMC.",
     "bmiUnderweight": "Bajo peso",
     "bmiNormalWeight": "Peso normal",
     "bmiOverweight": "Sobrepeso",
@@ -88,7 +95,6 @@
       "weightRequired": "Introduce tu peso.",
       "weightInvalid": "Introduce un peso mayor que cero.",
       "bodyComposition": "Composición corporal (opcional)",
-      "bmi": "IMC",
       "bodyFat": "Grasa corporal (%)",
       "bodyWater": "Agua corporal (%)",
       "boneMass": "Masa ósea",
@@ -308,6 +314,8 @@
       "totalSleepRequired": "Indica cuánto dormiste.",
       "hours": "Horas",
       "minutes": "Minutos",
+      "hoursOf": "{field}, horas",
+      "minutesOf": "{field}, minutos",
       "stageBreakdown": "Desglose por fases (opcional)",
       "deep": "Sueño profundo",
       "light": "Sueño ligero",
@@ -350,7 +358,11 @@
       "close": "Cerrar",
       "createSuccess": "Sueño registrado.",
       "updateSuccess": "Entrada de sueño actualizada.",
-      "saveError": "No se pudo guardar tu entrada de sueño. Inténtalo de nuevo."
+      "saveError": "No se pudo guardar tu entrada de sueño. Inténtalo de nuevo.",
+      "numberRange": "Introduce un valor entre {min} y {max}.",
+      "numberMin": "Introduce {min} o más.",
+      "stagesExceedTotal": "El sueño profundo, ligero y REM suman más que el total.",
+      "inconsistentError": "Estos datos de sueño no cuadran. Comprueba que las fases y el total encajen dentro de las horas de sueño."
     },
     "target": {
       "title": "Establecer objetivo de sueño",
@@ -596,6 +608,8 @@
       "startTime": "Hora de inicio",
       "startTimeRequired": "Elige una hora de inicio.",
       "endTime": "Hora de fin",
+      "endBeforeStart": "La hora de fin no puede ser anterior a la hora de inicio.",
+      "endWhileInProgress": "Un ayuno en curso no puede tener hora de fin.",
       "status": "Estado",
       "notes": "Notas",
       "create": "Iniciar",
@@ -604,7 +618,9 @@
       "close": "Cerrar",
       "createSuccess": "Ayuno iniciado.",
       "updateSuccess": "Sesión de ayuno actualizada.",
-      "saveError": "No se pudo guardar tu sesión de ayuno. Inténtalo de nuevo."
+      "saveError": "No se pudo guardar tu sesión de ayuno. Inténtalo de nuevo.",
+      "overlapError": "Este ayuno se solapa con otra sesión de ayuno, o ya hay otro ayuno en curso.",
+      "invalidTimesError": "Un ayuno no puede terminar antes de empezar, un ayuno completado o roto necesita una hora de fin, y un ayuno en curso no puede tenerla."
     },
     "target": {
       "title": "Establecer objetivo de ayuno",
@@ -621,6 +637,20 @@
     "complete": {
       "success": "Ayuno finalizado.",
       "error": "No se pudo finalizar tu ayuno. Inténtalo de nuevo."
+    },
+    "endConfirm": {
+      "broken": {
+        "title": "¿Interrumpir este ayuno?",
+        "body": "El ayuno termina ahora y se guarda como interrumpido. Esta acción no se puede deshacer.",
+        "confirm": "Interrumpir ayuno"
+      },
+      "cancelled": {
+        "title": "¿Cancelar este ayuno?",
+        "body": "El ayuno termina ahora y se guarda como cancelado. Esta acción no se puede deshacer.",
+        "confirm": "Cancelar ayuno"
+      },
+      "cancel": "Seguir en ayunas",
+      "close": "Cerrar"
     },
     "empty": {
       "title": "Todavía no hay ayunos",

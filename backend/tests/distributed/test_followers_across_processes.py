@@ -27,17 +27,17 @@ def _follow_and_accept(cluster, *, distributed: bool) -> None:
 
 def _assert_each_user_notified_once(cluster, *, workers: int) -> None:
     assert cluster.wait_for_durable_jobs(len(_SUBSCRIBERS)), cluster.query(
-        "SELECT subscriber_id, status FROM processing_jobs"
+        "SELECT subscriber_id, status FROM jasil_processing_jobs"
     )
-    assert {row[0] for row in cluster.query("SELECT subscriber_id FROM processing_jobs")} == _SUBSCRIBERS
+    assert {row[0] for row in cluster.query("SELECT subscriber_id FROM jasil_processing_jobs")} == _SUBSCRIBERS
     notified = dict(
         cluster.query("SELECT u.username, count(*) FROM notifications n JOIN users u ON u.id = n.user_id GROUP BY 1")
     )
     assert notified == {"followee-user": 1, "follower-user": 1}, (
         "the target hears of the request, the requester of the accept"
     )
-    assert not cluster.query("SELECT job_id FROM job_attempts GROUP BY 1 HAVING count(*) > 1"), "no job ran twice"
-    assert cluster.scalar("SELECT count(*) FROM job_workers WHERE stopped_at IS NULL") == workers
+    assert not cluster.query("SELECT job_id FROM jasil_job_attempts GROUP BY 1 HAVING count(*) > 1"), "no job ran twice"
+    assert cluster.scalar("SELECT count(*) FROM jasil_job_workers WHERE stopped_at IS NULL") == workers
     assert cluster.error_lines() == []
 
 

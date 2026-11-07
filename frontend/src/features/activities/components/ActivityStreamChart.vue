@@ -7,6 +7,7 @@ import type { StreamStat } from '@/features/activities/utils/streams'
 
 import { Card } from '@/components/ui/card'
 import { useChartProvider } from '@/composables/useChartProvider'
+import { useUnitFormat } from '@/composables/useUnitFormat'
 import { useRenderProvidersReady } from '@/providers'
 
 const props = withDefaults(
@@ -22,6 +23,7 @@ const props = withDefaults(
 )
 
 const { t } = useI18n()
+const { unitLabel } = useUnitFormat()
 
 const ready = useRenderProvidersReady()
 const container = ref<HTMLElement | null>(null)
@@ -85,7 +87,9 @@ onBeforeUnmount(() => {
         <dt class="text-caption">{{ t(stat.labelKey) }}</dt>
         <dd class="text-item-title">
           {{ stat.value
-          }}<span v-if="stat.unit" class="ms-1 text-hint font-normal">{{ stat.unit }}</span>
+          }}<span v-if="stat.unit" class="ms-1 text-hint font-normal">{{
+            unitLabel(stat.unit)
+          }}</span>
         </dd>
       </div>
     </dl>

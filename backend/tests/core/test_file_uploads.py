@@ -2,9 +2,11 @@
 
 from __future__ import annotations
 
+import asyncio
 import gzip
 import io
 import logging
+import os
 import struct
 import zipfile
 import zlib
@@ -12,6 +14,8 @@ from pathlib import Path
 
 import pytest
 from fastapi import UploadFile
+from PIL import Image, ImageCms
+from safeuploads import ErrorCode
 from safeuploads.exceptions import (
     CompressionSecurityError,
     ExtensionSecurityError,
@@ -32,22 +36,18 @@ import core.file_uploads as core_file_uploads
 from core.file_uploads import (
     UploadKind,
     _resolve_upload_path,
-    _stream_to_path,
+    _stream_to_path_sync,
     _to_domain_error,
-    ensure_within,
-    extract_validated_zip,
+    extract_validated_zip_sync,
     move_within,
     read_validated_upload_sync,
-    resolve_storage_path,
     safe_remove_within,
-    save_file,
-    save_validated_bytes,
-    save_validated_upload,
+    save_validated_bytes_sync,
     save_validated_upload_sync,
-    validate_bytes,
+    validate_bytes_sync,
     validate_local_file_sync,
-    validate_upload,
 )
+from tests._helpers import images
 
 # ---------------------------------------------------------------------------
 # Fixtures: minimal valid payloads per UploadKind
@@ -124,9 +124,9 @@ _KIND_CASES = [
     "err,expected_status",
     [
         (FileSizeError("too big"), 413),
-        (MimeTypeError("bad mime"), 400),
-        (FileSignatureError("bad sig"), 400),
-        (ExtensionSecurityError("bad ext"), 400),
+        (MimeTypeError("bad mime"), 415),
+        (FileSignatureError("bad sig"), 415),
+        (ExtensionSecurityError("bad ext"), 415),
         (FilenameSecurityError("bad name"), 400),
         (WindowsReservedNameError("CON"), 400),
         (UnicodeSecurityError("rtl"), 400),
@@ -142,6 +142,34 @@ def test_to_domain_error_mapping(err, expected_status):
     assert isinstance(domain_err, core_exceptions.DomainError)
     assert domain_err.status_code == expected_status
     assert domain_err.detail
+
+
+def test_a_file_type_the_validators_refuse_keeps_the_unsupported_media_type_code():
+    """A refused file type is a 415 with the same problem code as a refused photo extension."""
+    domain_err = _to_domain_error(MimeTypeError("bad mime"))
+
+    assert isinstance(domain_err, core_exceptions.UnsupportedMediaTypeError)
+
+
+def test_to_domain_error_maps_an_empty_file_to_invalid_input():
+    """An empty file is bad content, not an oversized payload."""
+    err = FileSizeError("Empty file not allowed", size=0, error_code=ErrorCode.FILE_EMPTY)
+
+    domain_err = _to_domain_error(err)
+
+    assert isinstance(domain_err, core_exceptions.InvalidInputError)
+    assert domain_err.status_code == 400
+
+
+@pytest.mark.parametrize("kind,filename,_b", _KIND_CASES)
+def test_read_validated_upload_sync_rejects_an_empty_file_as_invalid_input(kind: UploadKind, filename: str, _b):
+    """A 0-byte upload is refused with 400 for every kind."""
+    upload = _upload(filename, b"")
+    with pytest.raises(core_exceptions.InvalidInputError):
+        try:
+            read_validated_upload_sync(upload, kind=kind)
+        finally:
+            upload.file.close()
 
 
 # ---------------------------------------------------------------------------
@@ -172,23 +200,21 @@ def test_resolve_upload_path_accepts_safe(tmp_path: Path):
 
 
 # ---------------------------------------------------------------------------
-# validate_upload: happy + sad paths per kind
+# read_validated_upload_sync: happy + sad paths per kind
 # ---------------------------------------------------------------------------
 
 
-@pytest.mark.asyncio
 @pytest.mark.parametrize("kind,filename,builder", _KIND_CASES)
-async def test_validate_upload_accepts_valid_payload(kind: UploadKind, filename: str, builder):
+def test_read_validated_upload_sync_accepts_valid_payload(kind: UploadKind, filename: str, builder):
     """Each kind validates without raising on a well-formed payload."""
     upload = _upload(filename, builder())
     try:
-        await validate_upload(upload, kind=kind)
+        read_validated_upload_sync(upload, kind=kind)
     finally:
-        await upload.close()
+        upload.file.close()
 
 
-@pytest.mark.asyncio
-async def test_validate_upload_accepts_zip_with_gzip_entries():
+def test_read_validated_upload_sync_accepts_zip_with_gzip_entries():
     """A ZIP holding ``.gz`` activities (Strava bulk export layout) validates."""
     buf = io.BytesIO()
     with zipfile.ZipFile(buf, "w", zipfile.ZIP_DEFLATED) as zf:
@@ -196,33 +222,31 @@ async def test_validate_upload_accepts_zip_with_gzip_entries():
         zf.writestr("activities/1.gpx.gz", _make_gzip_bytes())
     upload = _upload("export.zip", buf.getvalue())
     try:
-        await validate_upload(upload, kind=UploadKind.ZIP)
+        read_validated_upload_sync(upload, kind=UploadKind.ZIP)
     finally:
-        await upload.close()
+        upload.file.close()
 
 
-@pytest.mark.asyncio
 @pytest.mark.parametrize("kind,filename,_b", _KIND_CASES)
-async def test_validate_upload_rejects_garbage(kind: UploadKind, filename: str, _b):
+def test_read_validated_upload_sync_rejects_garbage_per_kind(kind: UploadKind, filename: str, _b):
     """Garbage bytes with a valid extension are rejected."""
     upload = _upload(filename, b"not a real payload")
     with pytest.raises(core_exceptions.DomainError) as exc:
         try:
-            await validate_upload(upload, kind=kind)
+            read_validated_upload_sync(upload, kind=kind)
         finally:
-            await upload.close()
-    # 400 for signature/MIME mismatch, 413 if size cap would
+            upload.file.close()
+    # 415 for signature/MIME mismatch, 413 if size cap would
     # somehow trigger first; both are acceptable rejections.
-    assert exc.value.status_code in {400, 413}
+    assert exc.value.status_code in {400, 413, 415}
 
 
 # ---------------------------------------------------------------------------
-# _stream_to_path: success / oversize / cleanup
+# _stream_to_path_sync: success / oversize / cleanup
 # ---------------------------------------------------------------------------
 
 
-@pytest.mark.asyncio
-async def test_stream_to_path_writes_and_cleans_part_file(
+def test_stream_to_path_sync_writes_and_cleans_part_file(
     tmp_path: Path,
 ):
     """Successful streaming leaves the destination, no .part."""
@@ -230,106 +254,65 @@ async def test_stream_to_path_writes_and_cleans_part_file(
     upload = _upload("blob.bin", payload)
     destination = tmp_path / "blob.bin"
     try:
-        await _stream_to_path(upload, destination, max_bytes=10 * 1024 * 1024)
+        _stream_to_path_sync(upload, destination, max_bytes=10 * 1024 * 1024)
     finally:
-        await upload.close()
+        upload.file.close()
     assert destination.read_bytes() == payload
     assert not (tmp_path / "blob.bin.part").exists()
 
 
-@pytest.mark.asyncio
-async def test_stream_to_path_aborts_on_oversize(tmp_path: Path):
+def test_stream_to_path_sync_aborts_on_oversize(tmp_path: Path):
     """Exceeding max_bytes raises 413 and removes the .part file."""
     payload = b"y" * (2 * 1024 * 1024)
     upload = _upload("over.bin", payload)
     destination = tmp_path / "over.bin"
     with pytest.raises(core_exceptions.DomainError) as exc:
         try:
-            await _stream_to_path(upload, destination, max_bytes=1024)
+            _stream_to_path_sync(upload, destination, max_bytes=1024)
         finally:
-            await upload.close()
+            upload.file.close()
     assert exc.value.status_code == 413
     assert not destination.exists()
     assert not (tmp_path / "over.bin.part").exists()
 
 
 # ---------------------------------------------------------------------------
-# save_validated_upload: end-to-end per kind + traversal
+# save_validated_upload_sync: end-to-end per kind + traversal
 # ---------------------------------------------------------------------------
 
 
-@pytest.mark.asyncio
-async def test_save_validated_upload_image_happy_path(tmp_path: Path):
+def test_save_validated_upload_sync_image_happy_path(tmp_path: Path):
     """A valid image is validated then persisted to disk."""
     upload = _upload("avatar.png", _make_png_bytes())
     try:
-        path = await save_validated_upload(
+        path = save_validated_upload_sync(
             upload,
             kind=UploadKind.IMAGE,
             upload_dir=str(tmp_path),
             filename="avatar.png",
         )
     finally:
-        await upload.close()
+        upload.file.close()
     assert Path(path).exists()
     assert Path(path).read_bytes() == _make_png_bytes()
     assert not (tmp_path / "avatar.png.part").exists()
 
 
-@pytest.mark.asyncio
-async def test_save_validated_upload_streamed_activity(tmp_path: Path):
-    """Streaming mode writes the validated bytes atomically."""
-    upload = _upload("ride.gpx", _make_gpx_bytes())
-    try:
-        path = await save_validated_upload(
-            upload,
-            kind=UploadKind.ACTIVITY,
-            upload_dir=str(tmp_path),
-            filename="ride.gpx",
-            stream=True,
-        )
-    finally:
-        await upload.close()
-    assert Path(path).exists()
-    assert Path(path).read_bytes() == _make_gpx_bytes()
-
-
-@pytest.mark.asyncio
-async def test_save_validated_upload_traversal_rejected(tmp_path: Path):
-    """A traversal filename never produces a file on disk."""
-    upload = _upload("ride.gpx", _make_gpx_bytes())
-    with pytest.raises(core_exceptions.DomainError) as exc:
-        try:
-            await save_validated_upload(
-                upload,
-                kind=UploadKind.ACTIVITY,
-                upload_dir=str(tmp_path),
-                filename="../escape.gpx",
-            )
-        finally:
-            await upload.close()
-    assert exc.value.status_code == 400
-    # Nothing under tmp_path, and no parent escape either.
-    assert list(tmp_path.iterdir()) == []
-    assert not (tmp_path.parent / "escape.gpx").exists()
-
-
-@pytest.mark.asyncio
-async def test_save_validated_upload_signature_mismatch_no_partial(
+def test_save_validated_upload_sync_signature_mismatch_no_partial(
     tmp_path: Path,
 ):
     """Failed validation must not leave any file behind."""
     upload = _upload("evil.png", b"this is not a png")
     with pytest.raises(core_exceptions.DomainError):
         try:
-            await save_validated_upload(
+            save_validated_upload_sync(
                 upload,
                 kind=UploadKind.IMAGE,
                 upload_dir=str(tmp_path),
                 filename="evil.png",
             )
         finally:
-            await upload.close()
+            upload.file.close()
     assert list(tmp_path.iterdir()) == []
 
 
@@ -349,17 +332,16 @@ def test_module_exposes_singleton_validator():
     assert limits.enable_audit_logging is True
 
 
-@pytest.mark.asyncio
-async def test_failed_validation_emits_audit_record(caplog):
+def test_failed_validation_emits_audit_record(caplog):
     """Rejected uploads emit a structured audit failure record."""
     upload = _upload("evil.png", b"this is not a png")
     caplog.set_level(logging.WARNING, logger="safeuploads.audit")
 
     with pytest.raises(core_exceptions.DomainError):
         try:
-            await validate_upload(upload, kind=UploadKind.IMAGE)
+            core_file_uploads._validate_upload(upload, kind=UploadKind.IMAGE)
         finally:
-            await upload.close()
+            upload.file.close()
 
     failure_records = [
         record for record in caplog.records if getattr(record, "audit_event_type", "") == "validation_failure"
@@ -369,31 +351,28 @@ async def test_failed_validation_emits_audit_record(caplog):
 
 
 # ---------------------------------------------------------------------------
-# Phase 19: validate_bytes / save_validated_bytes
+# Phase 19: validate_bytes_sync / save_validated_bytes_sync
 # ---------------------------------------------------------------------------
 
 
-@pytest.mark.asyncio
 @pytest.mark.parametrize("kind,filename,builder", _KIND_CASES)
-async def test_validate_bytes_accepts_valid_payload(kind: UploadKind, filename: str, builder):
+def test_validate_bytes_sync_accepts_valid_payload(kind: UploadKind, filename: str, builder):
     """Valid in-memory bytes pass per-kind validation."""
-    await validate_bytes(builder(), kind=kind, filename=filename)
+    validate_bytes_sync(builder(), kind=kind, filename=filename)
 
 
-@pytest.mark.asyncio
-async def test_validate_bytes_rejects_garbage():
+def test_validate_bytes_sync_rejects_garbage():
     """Garbage bytes with a valid extension are rejected."""
     with pytest.raises(core_exceptions.DomainError) as exc:
-        await validate_bytes(b"not a real zip", kind=UploadKind.ZIP, filename="x.zip")
-    assert exc.value.status_code in {400, 413}
+        validate_bytes_sync(b"not a real zip", kind=UploadKind.ZIP, filename="x.zip")
+    assert exc.value.status_code in {400, 413, 415}
 
 
-@pytest.mark.asyncio
-async def test_save_validated_bytes_writes_validated_payload(
+def test_save_validated_bytes_sync_writes_validated_payload(
     tmp_path: Path,
 ):
     """Bytes are validated then atomically written to disk."""
-    saved = await save_validated_bytes(
+    saved = save_validated_bytes_sync(
         _make_zip_bytes(),
         kind=UploadKind.ZIP,
         upload_dir=str(tmp_path),
@@ -404,8 +383,7 @@ async def test_save_validated_bytes_writes_validated_payload(
     assert not (tmp_path / "ok.zip.part").exists()
 
 
-@pytest.mark.asyncio
-async def test_save_validated_bytes_preserves_existing_on_replace_error(
+def test_save_validated_bytes_sync_preserves_existing_on_replace_error(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
 ):
@@ -420,7 +398,7 @@ async def test_save_validated_bytes_preserves_existing_on_replace_error(
     monkeypatch.setattr(core_file_uploads.os, "replace", fail_replace)
 
     with pytest.raises(core_exceptions.DomainError) as exc:
-        await save_validated_bytes(
+        save_validated_bytes_sync(
             _make_zip_bytes(),
             kind=UploadKind.ZIP,
             upload_dir=str(tmp_path),
@@ -432,11 +410,10 @@ async def test_save_validated_bytes_preserves_existing_on_replace_error(
     assert not (tmp_path / "ok.zip.part").exists()
 
 
-@pytest.mark.asyncio
-async def test_save_validated_bytes_rejects_bad_filename(tmp_path: Path):
+def test_save_validated_bytes_sync_rejects_bad_filename(tmp_path: Path):
     """Server-generated filename guard still applies for byte writes."""
     with pytest.raises(core_exceptions.DomainError) as exc:
-        await save_validated_bytes(
+        save_validated_bytes_sync(
             _make_zip_bytes(),
             kind=UploadKind.ZIP,
             upload_dir=str(tmp_path),
@@ -446,7 +423,7 @@ async def test_save_validated_bytes_rejects_bad_filename(tmp_path: Path):
 
 
 # ---------------------------------------------------------------------------
-# Phase 19: extract_validated_zip
+# Phase 19: extract_validated_zip_sync
 # ---------------------------------------------------------------------------
 
 
@@ -461,8 +438,7 @@ def _build_zip_with_entries(
     return buf.getvalue()
 
 
-@pytest.mark.asyncio
-async def test_extract_validated_zip_happy_path(tmp_path: Path):
+def test_extract_validated_zip_sync_happy_path(tmp_path: Path):
     """All safe entries are extracted under dest_dir."""
     payload = _build_zip_with_entries(
         [
@@ -474,7 +450,7 @@ async def test_extract_validated_zip_happy_path(tmp_path: Path):
     zip_path.write_bytes(payload)
     dest = tmp_path / "out"
 
-    extracted = await extract_validated_zip(zip_path, dest_dir=dest)
+    extracted = extract_validated_zip_sync(zip_path, dest_dir=dest)
 
     assert len(extracted) == 2
     for entry in extracted:
@@ -482,8 +458,7 @@ async def test_extract_validated_zip_happy_path(tmp_path: Path):
         assert entry.exists()
 
 
-@pytest.mark.asyncio
-async def test_extract_validated_zip_rejects_zip_slip(tmp_path: Path):
+def test_extract_validated_zip_sync_rejects_zip_slip(tmp_path: Path):
     """A traversal entry name aborts extraction with 400."""
     payload = _build_zip_with_entries([("../escape.gpx", _make_gpx_bytes())])
     zip_path = tmp_path / "evil.zip"
@@ -491,14 +466,13 @@ async def test_extract_validated_zip_rejects_zip_slip(tmp_path: Path):
     dest = tmp_path / "out"
 
     with pytest.raises(core_exceptions.DomainError) as exc:
-        await extract_validated_zip(zip_path, dest_dir=dest)
+        extract_validated_zip_sync(zip_path, dest_dir=dest)
     assert exc.value.status_code == 400
     # No file should have leaked outside dest.
     assert not (tmp_path / "escape.gpx").exists()
 
 
-@pytest.mark.asyncio
-async def test_extract_validated_zip_rejects_absolute_entry(
+def test_extract_validated_zip_sync_rejects_absolute_entry(
     tmp_path: Path,
 ):
     """An absolute entry name is treated as a zip-slip attempt."""
@@ -508,12 +482,11 @@ async def test_extract_validated_zip_rejects_absolute_entry(
     dest = tmp_path / "out"
 
     with pytest.raises(core_exceptions.DomainError) as exc:
-        await extract_validated_zip(zip_path, dest_dir=dest)
+        extract_validated_zip_sync(zip_path, dest_dir=dest)
     assert exc.value.status_code == 400
 
 
-@pytest.mark.asyncio
-async def test_extract_validated_zip_rejects_windows_drive_entry(
+def test_extract_validated_zip_sync_rejects_windows_drive_entry(
     tmp_path: Path,
 ):
     """A Windows-drive entry name is treated as unsafe."""
@@ -523,12 +496,11 @@ async def test_extract_validated_zip_rejects_windows_drive_entry(
     dest = tmp_path / "out"
 
     with pytest.raises(core_exceptions.DomainError) as exc:
-        await extract_validated_zip(zip_path, dest_dir=dest)
+        extract_validated_zip_sync(zip_path, dest_dir=dest)
     assert exc.value.status_code == 400
 
 
-@pytest.mark.asyncio
-async def test_extract_validated_zip_cleans_previous_entries_on_error(
+def test_extract_validated_zip_sync_cleans_previous_entries_on_error(
     tmp_path: Path,
 ):
     """A later unsafe entry removes earlier extracted files."""
@@ -543,14 +515,13 @@ async def test_extract_validated_zip_cleans_previous_entries_on_error(
     dest = tmp_path / "out"
 
     with pytest.raises(core_exceptions.DomainError) as exc:
-        await extract_validated_zip(zip_path, dest_dir=dest)
+        extract_validated_zip_sync(zip_path, dest_dir=dest)
     assert exc.value.status_code == 400
     assert not (dest / "good.gpx").exists()
     assert not (tmp_path / "escape.gpx").exists()
 
 
-@pytest.mark.asyncio
-async def test_extract_validated_zip_refuses_existing_target(
+def test_extract_validated_zip_sync_refuses_existing_target(
     tmp_path: Path,
 ):
     """Existing files under dest_dir are never overwritten."""
@@ -563,15 +534,14 @@ async def test_extract_validated_zip_refuses_existing_target(
     zip_path.write_bytes(payload)
 
     with pytest.raises(core_exceptions.DomainError) as exc:
-        await extract_validated_zip(zip_path, dest_dir=dest)
+        extract_validated_zip_sync(zip_path, dest_dir=dest)
 
     assert exc.value.status_code == 400
     assert existing.read_bytes() == b"original"
     assert not any(path.name.startswith(".extract-") for path in dest.iterdir())
 
 
-@pytest.mark.asyncio
-async def test_extract_validated_zip_rejects_duplicate_target(
+def test_extract_validated_zip_sync_rejects_duplicate_target(
     tmp_path: Path,
 ):
     """Duplicate archive entries that resolve together are rejected."""
@@ -586,14 +556,13 @@ async def test_extract_validated_zip_rejects_duplicate_target(
     dest = tmp_path / "out"
 
     with pytest.raises(core_exceptions.DomainError) as exc:
-        await extract_validated_zip(zip_path, dest_dir=dest)
+        extract_validated_zip_sync(zip_path, dest_dir=dest)
 
     assert exc.value.status_code == 400
     assert not (dest / "dup.gpx").exists()
 
 
-@pytest.mark.asyncio
-async def test_extract_validated_zip_per_entry_validation_drops_bad(
+def test_extract_validated_zip_sync_per_entry_validation_drops_bad(
     tmp_path: Path,
 ):
     """Invalid entries are dropped when per_entry_kind is given."""
@@ -607,7 +576,7 @@ async def test_extract_validated_zip_per_entry_validation_drops_bad(
     zip_path.write_bytes(payload)
     dest = tmp_path / "out"
 
-    extracted = await extract_validated_zip(
+    extracted = extract_validated_zip_sync(
         zip_path,
         dest_dir=dest,
         per_entry_kind=UploadKind.ACTIVITY,
@@ -619,8 +588,7 @@ async def test_extract_validated_zip_per_entry_validation_drops_bad(
     assert not (dest / "bad.gpx").exists()
 
 
-@pytest.mark.asyncio
-async def test_extract_validated_zip_max_entries_enforced(tmp_path: Path):
+def test_extract_validated_zip_sync_max_entries_enforced(tmp_path: Path):
     """max_entries cap aborts before any file is written."""
     payload = _build_zip_with_entries([(f"f{i}.gpx", _make_gpx_bytes()) for i in range(5)])
     zip_path = tmp_path / "many.zip"
@@ -628,7 +596,7 @@ async def test_extract_validated_zip_max_entries_enforced(tmp_path: Path):
     dest = tmp_path / "out"
 
     with pytest.raises(core_exceptions.DomainError) as exc:
-        await extract_validated_zip(zip_path, dest_dir=dest, max_entries=2)
+        extract_validated_zip_sync(zip_path, dest_dir=dest, max_entries=2)
     assert exc.value.status_code == 400
     # Nothing should have been extracted on entry-count rejection.
     assert not any(dest.iterdir()) if dest.exists() else True
@@ -683,28 +651,6 @@ def test_move_within_rejects_source_outside_base(tmp_path: Path):
     assert outside.exists()
 
 
-def test_ensure_within_returns_resolved_inside(tmp_path: Path):
-    """A path inside the base dir resolves and is returned."""
-    base = tmp_path / "base"
-    base.mkdir()
-    target = base / "sub" / "file.bin"
-
-    resolved = ensure_within(target, base)
-
-    assert resolved == target.resolve()
-
-
-def test_ensure_within_rejects_escape(tmp_path: Path):
-    """A path outside the base dir is rejected with HTTP 400."""
-    base = tmp_path / "base"
-    base.mkdir()
-    outside = tmp_path / "outside.bin"
-
-    with pytest.raises(core_exceptions.DomainError) as exc:
-        ensure_within(outside, base)
-    assert exc.value.status_code == 400
-
-
 def test_safe_remove_within_removes_inside(tmp_path: Path):
     """File under base_dir is removed and True is returned."""
     target = tmp_path / "doomed.bin"
@@ -734,7 +680,7 @@ def test_safe_remove_within_missing_file_returns_false(tmp_path: Path):
 
 
 # ---------------------------------------------------------------------------
-# _validator_for / _max_bytes_for: dispatch edge cases
+# _validator_for / max_bytes_for: dispatch edge cases
 # ---------------------------------------------------------------------------
 
 
@@ -744,20 +690,20 @@ def test_validator_for_unknown_kind():
         core_file_uploads._validator_for("unknown")
 
 
-def test_max_bytes_for_image():
+def testmax_bytes_for_image():
     """IMAGE kind returns the expected byte cap."""
-    assert core_file_uploads._max_bytes_for(UploadKind.IMAGE) == 20 * 1024 * 1024
+    assert core_file_uploads.max_bytes_for(UploadKind.IMAGE) == 20 * 1024 * 1024
 
 
-def test_max_bytes_for_gzip():
+def testmax_bytes_for_gzip():
     """GZIP kind returns the expected byte cap."""
-    assert core_file_uploads._max_bytes_for(UploadKind.GZIP) == 200 * 1024 * 1024
+    assert core_file_uploads.max_bytes_for(UploadKind.GZIP) == 200 * 1024 * 1024
 
 
-def test_max_bytes_for_unknown_kind():
+def testmax_bytes_for_unknown_kind():
     """Unrecognized UploadKind raises ValueError."""
     with pytest.raises(ValueError, match="Unsupported UploadKind"):
-        core_file_uploads._max_bytes_for("unknown")
+        core_file_uploads.max_bytes_for("unknown")
 
 
 # ---------------------------------------------------------------------------
@@ -791,36 +737,21 @@ def test_resolve_upload_path_rejects_nul_byte(tmp_path: Path):
     assert exc.value.status_code == 400
 
 
-def test_resolve_storage_path(tmp_path: Path):
-    """Wrapper returns the same result as the internal function."""
-    resolved = resolve_storage_path(str(tmp_path), "ok.png")
-    assert resolved == _resolve_upload_path(str(tmp_path), "ok.png")
-
-
 # ---------------------------------------------------------------------------
-# save_file: bytes input + error handler
+# save_validated_bytes_sync: error handler
 # ---------------------------------------------------------------------------
 
 
-@pytest.mark.asyncio
-async def test_save_file_with_bytes(tmp_path: Path):
-    """save_file accepts raw bytes as input."""
-    path = await save_file(b"raw bytes content", str(tmp_path), "raw.bin")
-    assert Path(path).exists()
-    assert Path(path).read_bytes() == b"raw bytes content"
+def test_save_validated_bytes_sync_generic_error(tmp_path: Path, monkeypatch):
+    """Non-domain error in save_validated_bytes_sync raises 500."""
 
-
-@pytest.mark.asyncio
-async def test_save_file_generic_error(tmp_path: Path, monkeypatch):
-    """Non-domain error in save_file raises 500."""
-
-    async def fail_makedirs(*args: object, **kwargs: object) -> None:
+    def fail_makedirs(*args: object, **kwargs: object) -> None:
         raise OSError("disk full")
 
-    monkeypatch.setattr(core_file_uploads.aiofiles.os, "makedirs", fail_makedirs)
+    monkeypatch.setattr(core_file_uploads.os, "makedirs", fail_makedirs)
 
     with pytest.raises(core_exceptions.DomainError) as exc:
-        await save_file(b"data", str(tmp_path), "fail.bin")
+        save_validated_bytes_sync(_make_zip_bytes(), kind=UploadKind.ZIP, upload_dir=str(tmp_path), filename="fail.zip")
     assert exc.value.status_code == 500
 
 
@@ -837,8 +768,7 @@ def test_bytes_to_path_sync_oversize(tmp_path: Path):
     assert exc.value.status_code == 413
 
 
-@pytest.mark.asyncio
-async def test_bytes_to_path_cleans_part_on_oserror(tmp_path: Path, monkeypatch):
+def test_bytes_to_path_sync_cleans_part_on_oserror(tmp_path: Path, monkeypatch):
     """Part file cleanup handles OSError silently."""
     gpx_bytes = _make_gpx_bytes()
 
@@ -857,7 +787,7 @@ async def test_bytes_to_path_cleans_part_on_oserror(tmp_path: Path, monkeypatch)
     monkeypatch.setattr(Path, "unlink", fail_unlink)
 
     with pytest.raises(core_exceptions.DomainError) as exc:
-        await save_validated_bytes(
+        save_validated_bytes_sync(
             gpx_bytes,
             kind=UploadKind.ACTIVITY,
             upload_dir=str(tmp_path),
@@ -871,8 +801,7 @@ async def test_bytes_to_path_cleans_part_on_oserror(tmp_path: Path, monkeypatch)
 # ---------------------------------------------------------------------------
 
 
-@pytest.mark.asyncio
-async def test_stream_to_path_handles_cleanup_oserror(tmp_path: Path, monkeypatch):
+def test_stream_to_path_sync_handles_cleanup_oserror(tmp_path: Path, monkeypatch):
     """OSError from part.unlink during stream cleanup is caught."""
     payload = b"x" * 1024
     upload = _upload("blob.bin", payload)
@@ -894,36 +823,35 @@ async def test_stream_to_path_handles_cleanup_oserror(tmp_path: Path, monkeypatc
 
     with pytest.raises(OSError):
         try:
-            await _stream_to_path(upload, destination, max_bytes=10 * 1024 * 1024)
+            _stream_to_path_sync(upload, destination, max_bytes=10 * 1024 * 1024)
         finally:
-            await upload.close()
+            upload.file.close()
 
 
 # ---------------------------------------------------------------------------
-# save_validated_upload: generic error handler
+# save_validated_upload_sync: generic error handler
 # ---------------------------------------------------------------------------
 
 
-@pytest.mark.asyncio
-async def test_save_validated_upload_generic_error(tmp_path: Path, monkeypatch):
-    """Non-domain error in save_validated_upload is wrapped in 500."""
+def test_save_validated_upload_sync_generic_error(tmp_path: Path, monkeypatch):
+    """Non-domain error in save_validated_upload_sync is wrapped in 500."""
 
-    async def fail_makedirs(*args: object, **kwargs: object) -> None:
+    def fail_makedirs(*args: object, **kwargs: object) -> None:
         raise OSError("disk full")
 
-    monkeypatch.setattr(core_file_uploads.aiofiles.os, "makedirs", fail_makedirs)
+    monkeypatch.setattr(core_file_uploads.os, "makedirs", fail_makedirs)
 
     upload = _upload("ride.gpx", _make_gpx_bytes())
     with pytest.raises(core_exceptions.DomainError) as exc:
         try:
-            await save_validated_upload(
+            save_validated_upload_sync(
                 upload,
                 kind=UploadKind.ACTIVITY,
                 upload_dir=str(tmp_path),
                 filename="ride.gpx",
             )
         finally:
-            await upload.close()
+            upload.file.close()
     assert exc.value.status_code == 500
     assert exc.value.detail == "Failed to save file"
 
@@ -931,39 +859,6 @@ async def test_save_validated_upload_generic_error(tmp_path: Path, monkeypatch):
 # ---------------------------------------------------------------------------
 # delete_files_by_pattern: per-file and generic errors
 # ---------------------------------------------------------------------------
-
-
-@pytest.mark.asyncio
-async def test_delete_files_by_pattern_no_files(tmp_path: Path):
-    """Pattern matching no files is a no-op."""
-    await core_file_uploads.delete_files_by_pattern(str(tmp_path), "*.nonexistent")
-
-
-@pytest.mark.asyncio
-async def test_delete_files_by_pattern_logs_per_file_oserror(tmp_path: Path, monkeypatch):
-    """OSError during individual file delete is caught and logged."""
-    target = tmp_path / "test.txt"
-    target.write_text("hello")
-
-    async def fail_remove(path: object, *args: object, **kwargs: object) -> None:
-        if "test.txt" in str(path):
-            raise OSError("permission denied")
-
-    monkeypatch.setattr(core_file_uploads.aiofiles.os, "remove", fail_remove)
-
-    await core_file_uploads.delete_files_by_pattern(str(tmp_path), "*.txt")
-
-
-@pytest.mark.asyncio
-async def test_delete_files_by_pattern_generic_error(tmp_path: Path, monkeypatch):
-    """Non-OSError exception during glob lookup is caught and logged."""
-
-    def fail_glob(_pattern: str) -> list[str]:
-        raise Exception("glob engine failed")
-
-    monkeypatch.setattr(core_file_uploads.glob, "glob", fail_glob)
-
-    await core_file_uploads.delete_files_by_pattern(str(tmp_path), "*.txt")
 
 
 # ---------------------------------------------------------------------------
@@ -986,7 +881,7 @@ def test_is_safe_extraction_target_equals_dest(tmp_path: Path):
 
 
 # ---------------------------------------------------------------------------
-# extract_validated_zip: directory entries / symlink / size caps / bad file
+# extract_validated_zip_sync: directory entries / symlink / size caps / bad file
 # ---------------------------------------------------------------------------
 
 
@@ -999,20 +894,18 @@ def _make_zip_with_dir_entry() -> bytes:
     return buf.getvalue()
 
 
-@pytest.mark.asyncio
-async def test_extract_validated_zip_skips_dir_entries(tmp_path: Path):
+def test_extract_validated_zip_sync_skips_dir_entries(tmp_path: Path):
     """Directory entries in ZIP are skipped."""
     zip_path = tmp_path / "withdir.zip"
     zip_path.write_bytes(_make_zip_with_dir_entry())
     dest = tmp_path / "out"
 
-    extracted = await extract_validated_zip(zip_path, dest_dir=dest)
+    extracted = extract_validated_zip_sync(zip_path, dest_dir=dest)
     assert len(extracted) == 1
     assert extracted[0].name == "file.txt"
 
 
-@pytest.mark.asyncio
-async def test_extract_validated_zip_rejects_symlink(tmp_path: Path):
+def test_extract_validated_zip_sync_rejects_symlink(tmp_path: Path):
     """Symlink entries in ZIP are rejected."""
     buf = io.BytesIO()
     with zipfile.ZipFile(buf, "w", zipfile.ZIP_DEFLATED) as zf:
@@ -1024,12 +917,11 @@ async def test_extract_validated_zip_rejects_symlink(tmp_path: Path):
     dest = tmp_path / "out"
 
     with pytest.raises(core_exceptions.DomainError) as exc:
-        await extract_validated_zip(zip_path, dest_dir=dest)
+        extract_validated_zip_sync(zip_path, dest_dir=dest)
     assert exc.value.status_code == 400
 
 
-@pytest.mark.asyncio
-async def test_extract_validated_zip_entry_size_exceeded(tmp_path: Path, monkeypatch):
+def test_extract_validated_zip_sync_entry_size_exceeded(tmp_path: Path, monkeypatch):
     """Entry exceeding max size is rejected with 413."""
     monkeypatch.setattr(core_file_uploads, "_MAX_EXTRACTED_ENTRY_BYTES", 10)
     payload = _build_zip_with_entries([("large.bin", b"x" * 100)])
@@ -1038,12 +930,11 @@ async def test_extract_validated_zip_entry_size_exceeded(tmp_path: Path, monkeyp
     dest = tmp_path / "out"
 
     with pytest.raises(core_exceptions.DomainError) as exc:
-        await extract_validated_zip(zip_path, dest_dir=dest)
+        extract_validated_zip_sync(zip_path, dest_dir=dest)
     assert exc.value.status_code == 413
 
 
-@pytest.mark.asyncio
-async def test_extract_validated_zip_total_size_exceeded(tmp_path: Path, monkeypatch):
+def test_extract_validated_zip_sync_total_size_exceeded(tmp_path: Path, monkeypatch):
     """Total uncompressed size exceeding max is rejected with 413."""
     monkeypatch.setattr(core_file_uploads, "_MAX_EXTRACTED_ENTRY_BYTES", 20)
     monkeypatch.setattr(core_file_uploads, "_MAX_TOTAL_EXTRACTED_BYTES", 15)
@@ -1058,24 +949,22 @@ async def test_extract_validated_zip_total_size_exceeded(tmp_path: Path, monkeyp
     dest = tmp_path / "out"
 
     with pytest.raises(core_exceptions.DomainError) as exc:
-        await extract_validated_zip(zip_path, dest_dir=dest)
+        extract_validated_zip_sync(zip_path, dest_dir=dest)
     assert exc.value.status_code == 413
 
 
-@pytest.mark.asyncio
-async def test_extract_validated_zip_bad_file(tmp_path: Path):
+def test_extract_validated_zip_sync_bad_file(tmp_path: Path):
     """Invalid ZIP file raises 400."""
     zip_path = tmp_path / "bad.zip"
     zip_path.write_bytes(b"not a zip file")
     dest = tmp_path / "out"
 
     with pytest.raises(core_exceptions.DomainError) as exc:
-        await extract_validated_zip(zip_path, dest_dir=dest)
+        extract_validated_zip_sync(zip_path, dest_dir=dest)
     assert exc.value.status_code == 400
 
 
-@pytest.mark.asyncio
-async def test_extract_validated_zip_promotion_failure(tmp_path: Path, monkeypatch):
+def test_extract_validated_zip_sync_promotion_failure(tmp_path: Path, monkeypatch):
     """OSError during promotion raises 500."""
     payload = _build_zip_with_entries([("a.gpx", _make_gpx_bytes())])
     zip_path = tmp_path / "ok.zip"
@@ -1095,7 +984,7 @@ async def test_extract_validated_zip_promotion_failure(tmp_path: Path, monkeypat
     )
 
     with pytest.raises(core_exceptions.DomainError) as exc:
-        await extract_validated_zip(zip_path, dest_dir=dest)
+        extract_validated_zip_sync(zip_path, dest_dir=dest)
     assert exc.value.status_code == 500
 
 
@@ -1212,7 +1101,7 @@ def test_save_validated_upload_sync_rejects_garbage(tmp_path: Path):
             upload_dir=str(tmp_path),
             filename="server.gpx",
         )
-    assert exc.value.status_code in {400, 413}
+    assert exc.value.status_code in {400, 413, 415}
     assert list(tmp_path.iterdir()) == []
 
 
@@ -1250,7 +1139,7 @@ def test_read_validated_upload_sync_rejects_garbage():
     """Garbage bytes with a valid extension are rejected rather than returned."""
     with pytest.raises(core_exceptions.DomainError) as exc:
         read_validated_upload_sync(_upload("photo.png", b"not a real image"), kind=UploadKind.IMAGE)
-    assert exc.value.status_code in {400, 413}
+    assert exc.value.status_code in {400, 413, 415}
 
 
 def test_validate_local_file_sync_rejects_garbage(tmp_path: Path):
@@ -1259,7 +1148,34 @@ def test_validate_local_file_sync_rejects_garbage(tmp_path: Path):
     path.write_bytes(b"not a real activity file")
     with pytest.raises(core_exceptions.DomainError) as exc:
         validate_local_file_sync(str(path), kind=UploadKind.ACTIVITY)
-    assert exc.value.status_code in {400, 413}
+    assert exc.value.status_code in {400, 413, 415}
+
+
+def test_the_synchronous_forms_start_no_event_loop(tmp_path: Path, monkeypatch: pytest.MonkeyPatch):
+    """Every synchronous entry point validates on the calling thread, without an event loop."""
+
+    def refuse_loop(*args, **kwargs):
+        raise AssertionError("an event loop was started")
+
+    monkeypatch.setattr(asyncio.events, "new_event_loop", refuse_loop)
+    archive = io.BytesIO()
+    with zipfile.ZipFile(archive, "w") as zf:
+        zf.writestr("ride.gpx", _make_gpx_bytes())
+    activity = tmp_path / "ride.gpx"
+    activity.write_bytes(_make_gpx_bytes())
+
+    validate_bytes_sync(_make_png_bytes(), kind=UploadKind.IMAGE, filename="photo.png")
+    validate_local_file_sync(str(activity), kind=UploadKind.ACTIVITY)
+    read_validated_upload_sync(_upload("photo.png", _make_png_bytes()), kind=UploadKind.IMAGE)
+    save_validated_upload_sync(
+        _upload("ride.gpx", _make_gpx_bytes()), kind=UploadKind.ACTIVITY, upload_dir=str(tmp_path), filename="up.gpx"
+    )
+    saved = save_validated_bytes_sync(
+        archive.getvalue(), kind=UploadKind.ZIP, upload_dir=str(tmp_path / "zip"), filename="a.zip"
+    )
+    extracted = extract_validated_zip_sync(saved, dest_dir=str(tmp_path / "out"), per_entry_kind=UploadKind.ACTIVITY)
+
+    assert [path.name for path in extracted] == ["ride.gpx"]
 
 
 # ---------------------------------------------------------------------------
@@ -1361,3 +1277,160 @@ def test_decompress_gzip_rejects_decompression_bomb(tmp_path: Path, monkeypatch:
     with pytest.raises(core_exceptions.DomainError) as exc:
         file_uploads.decompress_gzip(archive)
     assert exc.value.status_code == 413
+
+
+# ---------------------------------------------------------------------------
+# Metadata strip
+# ---------------------------------------------------------------------------
+
+
+class TestStripImageMetadata:
+    def test_jpeg_loses_exif_gps_and_keeps_format(self):
+        original = images.jpeg_with_exif()
+        assert images.has_metadata(original)
+
+        stripped = core_file_uploads.strip_image_metadata(original)
+
+        with Image.open(io.BytesIO(stripped)) as image:
+            assert image.format == "JPEG"
+            assert not image.getexif()
+        assert not images.has_metadata(stripped)
+
+    def test_exif_orientation_is_applied_so_the_picture_stays_upright(self):
+        original = images.jpeg_with_exif((40, 20), orientation=6)
+
+        stripped = core_file_uploads.strip_image_metadata(original)
+
+        with Image.open(io.BytesIO(stripped)) as image:
+            assert image.size == (20, 40)
+
+    def test_png_loses_text_chunks_and_keeps_alpha(self):
+        original = images.png_with_text()
+        assert images.has_metadata(original)
+
+        stripped = core_file_uploads.strip_image_metadata(original)
+
+        with Image.open(io.BytesIO(stripped)) as image:
+            assert image.format == "PNG"
+            assert image.mode == "RGBA"
+            assert image.getpixel((0, 0))[3] == 0
+        assert not images.has_metadata(stripped)
+
+    def test_palette_png_keeps_its_transparency(self):
+        buffer = io.BytesIO()
+        Image.new("P", (4, 4), 0).save(buffer, "PNG", transparency=0)
+
+        stripped = core_file_uploads.strip_image_metadata(buffer.getvalue())
+
+        with Image.open(io.BytesIO(stripped)) as image:
+            assert image.mode == "P"
+            assert "transparency" in image.info
+
+    def test_webp_loses_exif_and_keeps_format(self):
+        exif = Image.Exif()
+        exif[0x010F] = "TestCamera"
+        buffer = io.BytesIO()
+        Image.new("RGB", (8, 8)).save(buffer, "WEBP", exif=exif)
+
+        stripped = core_file_uploads.strip_image_metadata(buffer.getvalue())
+
+        with Image.open(io.BytesIO(stripped)) as image:
+            assert image.format == "WEBP"
+        assert not images.has_metadata(stripped)
+
+    def test_the_icc_profile_is_kept(self):
+        profile = ImageCms.ImageCmsProfile(ImageCms.createProfile("sRGB")).tobytes()
+        buffer = io.BytesIO()
+        Image.new("RGB", (8, 8)).save(buffer, "JPEG", icc_profile=profile)
+
+        stripped = core_file_uploads.strip_image_metadata(buffer.getvalue())
+
+        with Image.open(io.BytesIO(stripped)) as image:
+            assert image.info["icc_profile"] == profile
+
+    def test_max_dimension_downsizes_the_long_edge_keeping_the_ratio(self):
+        buffer = io.BytesIO()
+        Image.new("RGB", (400, 200)).save(buffer, "PNG")
+
+        stripped = core_file_uploads.strip_image_metadata(buffer.getvalue(), max_dimension=100)
+
+        with Image.open(io.BytesIO(stripped)) as image:
+            assert image.size == (100, 50)
+
+    def test_max_dimension_never_upscales(self):
+        buffer = io.BytesIO()
+        Image.new("RGB", (40, 20)).save(buffer, "PNG")
+
+        stripped = core_file_uploads.strip_image_metadata(buffer.getvalue(), max_dimension=512)
+
+        with Image.open(io.BytesIO(stripped)) as image:
+            assert image.size == (40, 20)
+
+    def test_undecodable_bytes_are_refused(self):
+        with pytest.raises(core_exceptions.InvalidInputError):
+            core_file_uploads.strip_image_metadata(b"not an image")
+
+    def test_a_truncated_image_is_refused(self):
+        with pytest.raises(core_exceptions.InvalidInputError):
+            core_file_uploads.strip_image_metadata(images.jpeg_with_exif()[:200])
+
+    def test_a_format_that_cannot_be_rewritten_is_refused(self):
+        buffer = io.BytesIO()
+        Image.new("P", (4, 4)).save(buffer, "GIF")
+
+        with pytest.raises(core_exceptions.UnsupportedMediaTypeError):
+            core_file_uploads.strip_image_metadata(buffer.getvalue())
+
+    @pytest.mark.filterwarnings("ignore::PIL.Image.DecompressionBombWarning")
+    def test_an_image_over_the_pixel_cap_is_refused(self):
+        buffer = io.BytesIO()
+        Image.new("1", (20_000, 6_000)).save(buffer, "PNG")
+
+        with pytest.raises(core_exceptions.PayloadTooLargeError):
+            core_file_uploads.strip_image_metadata(buffer.getvalue())
+
+
+class TestImageAllowList:
+    def test_the_validator_accepts_exactly_the_shared_allow_list(self):
+        config = core_file_uploads.file_validator.config
+
+        assert {ext: media_type for media_type, exts in config.ALLOWED_IMAGE_TYPES.items() for ext in exts} == dict(
+            core_file_uploads.IMAGE_CONTENT_TYPES
+        )
+        assert set(core_file_uploads.IMAGE_CONTENT_TYPES) == {".jpg", ".jpeg", ".png", ".webp"}
+
+    @pytest.mark.parametrize(
+        ("name", "data", "media_type"),
+        [
+            ("a.jpg", images.jpeg_with_exif(), "image/jpeg"),
+            ("a.png", images.png_with_text(), "image/png"),
+            ("a.webp", images.webp_with_exif(), "image/webp"),
+        ],
+        ids=["jpeg", "png", "webp"],
+    )
+    def test_each_allowed_format_is_accepted_and_sniffed(self, name: str, data: bytes, media_type: str):
+        assert read_validated_upload_sync(_upload(name, data), kind=UploadKind.IMAGE) == data
+        assert core_file_uploads.sniff_image_type(data) == media_type
+        assert core_file_uploads.IMAGE_CONTENT_TYPES[os.path.splitext(name)[1]] == media_type
+
+    @pytest.mark.parametrize(
+        ("name", "data"),
+        [("a.gif", images.gif()), ("a.heic", images.heic_like()), ("a.heif", images.heic_like())],
+        ids=["gif", "heic", "heif"],
+    )
+    def test_gif_and_heic_are_refused(self, name: str, data: bytes):
+        with pytest.raises(core_exceptions.DomainError) as exc:
+            read_validated_upload_sync(_upload(name, data), kind=UploadKind.IMAGE)
+        assert exc.value.status_code == 415
+
+    def test_a_gif_renamed_to_webp_is_refused(self):
+        with pytest.raises(core_exceptions.DomainError):
+            read_validated_upload_sync(_upload("a.webp", images.gif()), kind=UploadKind.IMAGE)
+
+    def test_a_gif_is_not_sniffed(self):
+        assert core_file_uploads.sniff_image_type(images.gif()) is None
+
+    def test_a_webp_passes_the_pixel_cap_check(self):
+        data = images.webp_with_exif()
+
+        core_file_uploads.validate_bytes_sync(data, kind=UploadKind.IMAGE, filename="a.webp")

@@ -46,7 +46,6 @@
     "thisWeek": "Αυτή την εβδομάδα",
     "thisMonth": "Αυτόν τον μήνα",
     "empty": "Καμία δραστηριότητα σε αυτήν την περίοδο",
-    "caloriesUnit": "kcal",
     "metric": {
       "distance": "Απόσταση",
       "time": "Χρόνος",
@@ -63,12 +62,13 @@
     "snow_ski": "Σκι",
     "snowboard": "Σνόουμπορντ",
     "windsurf": "Γουίντσερφ",
-    "stand_up_paddleboarding": "Paddleboarding",
-    "surfing": "Σερφ",
+    "stand_up_paddling": "Paddleboarding",
+    "surf": "Σερφ",
     "kayaking": "Καγιάκ",
     "sailing": "Ιστιοπλοΐα",
-    "snowshoeing": "Πεζοπορία με χιονοπέδιλα",
-    "inline_skating": "Πατινάζ με ρόλερ"
+    "snow_shoeing": "Πεζοπορία με χιονοπέδιλα",
+    "inline_skating": "Πατινάζ με ρόλερ",
+    "other": "Άλλα"
   },
   "goals": {
     "title": "Στόχοι",

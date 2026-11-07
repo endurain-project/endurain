@@ -194,19 +194,38 @@ export function shiftWeeks(iso: string, delta: number): string {
 }
 
 /**
+ * Returns the configured week a number of weeks before the current one.
+ *
+ * @param weekOffset - Whole weeks back from the current week (0 = this week).
+ * @param firstDayOfWeek - User's configured first weekday.
+ * @param today - The `YYYY-MM-DD` date that counts as today.
+ * @returns The week's first and last dates as `YYYY-MM-DD`.
+ */
+export function pastWeekRange(
+  weekOffset: number,
+  firstDayOfWeek: Schemas['WeekDay'],
+  today: string = todayIsoDate(),
+): { start: string; end: string } {
+  const start = shiftWeeks(weekStart(today, firstDayOfWeek), -weekOffset)
+  return { start, end: weekEnd(start, firstDayOfWeek) }
+}
+
+/**
  * Formats an ISO timestamp as a localized medium-style date (e.g. "Jun 25,
  * 2026"), or an empty string when the value cannot be parsed. Shared by list
  * rows that show a creation, link, or last-used date without a time component.
  *
  * @param iso - The timestamp to format, as an ISO 8601 string.
  * @param locale - BCP-47 locale tag controlling the output language.
+ * @param timeZone - IANA time zone to read the date in; pass `'UTC'` for a date-only value
+ *   (`yyyy-mm-dd`) so the day never shifts. Defaults to the viewer's zone.
  * @returns The localized date, or an empty string when `iso` is not a valid date.
  */
-export function formatMediumDate(iso: string, locale = 'en'): string {
+export function formatMediumDate(iso: string, locale = 'en', timeZone?: string): string {
   const date = new Date(iso)
   return Number.isNaN(date.getTime())
     ? ''
-    : new Intl.DateTimeFormat(locale, { dateStyle: 'medium' }).format(date)
+    : new Intl.DateTimeFormat(locale, { dateStyle: 'medium', timeZone }).format(date)
 }
 
 /**
@@ -223,4 +242,22 @@ export function formatMediumDateTime(iso: string, locale = 'en'): string {
   return Number.isNaN(date.getTime())
     ? ''
     : new Intl.DateTimeFormat(locale, { dateStyle: 'medium', timeStyle: 'short' }).format(date)
+}
+
+/** An hours/minutes breakdown of a duration. */
+export interface HoursMinutes {
+  hours: number
+  minutes: number
+}
+
+/**
+ * Splits a duration in seconds into whole hours and minutes. The duration is
+ * rounded to whole minutes first, so the minutes part never reaches 60.
+ *
+ * @param seconds - Duration in seconds (clamped to zero if negative).
+ * @returns The hours and remaining minutes.
+ */
+export function secondsToHoursMinutes(seconds: number): HoursMinutes {
+  const totalMinutes = Math.max(0, Math.round(seconds / 60))
+  return { hours: Math.floor(totalMinutes / 60), minutes: totalMinutes % 60 }
 }

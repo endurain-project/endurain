@@ -6,6 +6,7 @@ import type { GearActivitiesPage } from '@/features/gears/types'
 
 import { queryKeys } from '@/services/queryKeys'
 import { useAuthStore } from '@/features/auth/stores/auth'
+import { GEAR_QUERY_STALE_TIME_MS } from '@/features/gears/constants'
 import { fetchGearActivities } from '@/features/gears/services/gearActivities'
 
 /**
@@ -40,6 +41,7 @@ export function useGearActivitiesQuery(
         { page: toValue(page), numRecords: toValue(pageSize) },
         signal,
       ),
+    staleTime: GEAR_QUERY_STALE_TIME_MS,
     placeholderData: keepPreviousData,
     enabled: computed(
       () => isAuthenticated.value && id.value !== null && Number.isFinite(id.value),

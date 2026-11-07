@@ -38,6 +38,11 @@ withDefaults(
   },
 )
 
+const emit = defineEmits<{
+  /** The input lost focus; forwarded so a form can validate the field on blur. */
+  blur: [event: FocusEvent]
+}>()
+
 const { t } = useI18n()
 
 /** Whether the value is currently revealed as plain text. */
@@ -58,6 +63,7 @@ const show = ref(false)
       :aria-invalid="ariaInvalid"
       :aria-describedby="ariaDescribedby"
       class="w-full pr-10"
+      @blur="emit('blur', $event)"
     />
     <button
       type="button"

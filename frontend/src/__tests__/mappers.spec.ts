@@ -18,10 +18,11 @@ const baseDto: UserProfileDto = {
   active: true,
   mfa_enabled: true,
   photo_path: '/api/v1/users/7/photo?t=sig',
-  is_strava_linked: 1,
-  is_garminconnect_linked: 0,
+  is_strava_linked: true,
+  is_garminconnect_linked: false,
   has_local_password: true,
   units: 'metric',
+  weight_units: null,
   currency: 'euro',
   first_day_of_week: 'sunday',
 }
@@ -44,13 +45,25 @@ describe('mapUserProfile', () => {
       isGarminConnectLinked: false,
       hasLocalPassword: true,
       units: 'metric',
+      weightUnits: 'metric',
       currency: 'euro',
       firstDayOfWeek: 'sunday',
     })
   })
 
-  it('coerces number-encoded link flags to booleans', () => {
-    const user = mapUserProfile({ ...baseDto, is_strava_linked: 0, is_garminconnect_linked: 1 })
+  it('resolves weightUnits from the explicit override, falling back to units', () => {
+    expect(mapUserProfile({ ...baseDto, weight_units: 'imperial' }).weightUnits).toBe('imperial')
+    expect(mapUserProfile({ ...baseDto, units: 'imperial', weight_units: null }).weightUnits).toBe(
+      'imperial',
+    )
+  })
+
+  it('reads the link flags', () => {
+    const user = mapUserProfile({
+      ...baseDto,
+      is_strava_linked: false,
+      is_garminconnect_linked: true,
+    })
 
     expect(user.isStravaLinked).toBe(false)
     expect(user.isGarminConnectLinked).toBe(true)
@@ -79,10 +92,8 @@ describe('mapUserProfile', () => {
     ).toBe('https://cdn.test/api/v1/users/7/photo?t=a.b')
   })
 
-  it('defaults hasLocalPassword to false when absent', () => {
-    expect(mapUserProfile({ ...baseDto, has_local_password: null }).hasLocalPassword).toBe(false)
-    expect(mapUserProfile({ ...baseDto, has_local_password: undefined }).hasLocalPassword).toBe(
-      false,
-    )
+  it('maps hasLocalPassword straight from the payload', () => {
+    expect(mapUserProfile({ ...baseDto, has_local_password: true }).hasLocalPassword).toBe(true)
+    expect(mapUserProfile({ ...baseDto, has_local_password: false }).hasLocalPassword).toBe(false)
   })
 })

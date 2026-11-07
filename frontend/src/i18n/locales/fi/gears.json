@@ -9,8 +9,6 @@
   "fromStrava": "Strava",
   "fromGarmin": "Garmin Connect",
   "filters": "Suodattimet",
-  "unitKm": "km",
-  "unitMi": "mi",
   "types": {
     "bicycle": "Polkupyörä",
     "shoes": "Kengät",
@@ -41,8 +39,8 @@
     "model": "Malli",
     "modelTooLong": "Malli saa olla enintään 250 merkkiä",
     "active": "Aktiivinen",
-    "createdAt": "Luotu",
-    "createdAtRequired": "Luontipäivämäärä on pakollinen",
+    "acquiredOn": "Luotu",
+    "acquiredOnRequired": "Luontipäivämäärä on pakollinen",
     "initialDistance": "Alkumatka",
     "purchaseValue": "Ostohinta",
     "totalCost": "Kokonaiskustannus",
@@ -57,6 +55,8 @@
   "delete": {
     "title": "Poista varuste",
     "body": "Haluatko varmasti poistaa varusteen \"{nickname}\"? Tätä ei voi kumota.",
+    "activities": "{count} aktiviteetti käyttää tätä varustetta; se säilytetään ja irrotetaan varusteesta. | {count} aktiviteettia käyttää tätä varustetta; ne säilytetään ja irrotetaan varusteesta.",
+    "components": "Sen {count} komponentti poistetaan. | Sen {count} komponenttia poistetaan.",
     "confirm": "Poista",
     "cancel": "Peruuta",
     "close": "Sulje",
@@ -91,7 +91,6 @@
     "unsupported": "Tämä varustetyyppi ei seuraa komponentteja.",
     "noneActive": "Kaikki komponentit ovat ei-aktiivisia. Ota käyttöön \"Näytä ei-aktiiviset\" nähdäksesi ne.",
     "inactive": "Ei käytössä",
-    "unitHours": "h",
     "purchasedOn": "Ostettu {date}",
     "wearLabel": "{name} kuluminen",
     "actions": {

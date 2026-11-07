@@ -1,14 +1,26 @@
 {
   "verifyingBody": "Un momento mientras confirmamos tu dirección.",
+  "choosePasswordTitle": "Elige tu contraseña",
+  "choosePasswordBody": "Tu correo se confirma cuando estableces una contraseña para tu cuenta.",
+  "submitPassword": "Establecer contraseña",
+  "submittingPassword": "Guardando contraseña",
   "successTitle": "Correo verificado",
   "successBody": "Tu dirección de correo ha sido confirmada.",
   "adminApprovalBody": "Tu cuenta está ahora esperando la aprobación del administrador.",
   "continueButton": "Continuar para iniciar sesión",
   "invalidTitle": "Verificación fallida",
-  "missingTokenBody": "A este enlace de verificación le falta el token.",
   "errorInvalidToken": "Este enlace de verificación no es válido o ha caducado.",
+  "errorEmailTaken": "Esta dirección de correo ya la usa otra cuenta, por lo que no se puede confirmar.",
   "errorNotFound": "No pudimos encontrar una cuenta para este enlace.",
   "errorGeneral": "No pudimos verificar tu correo. Inténtalo de nuevo.",
   "retry": "Intentar de nuevo",
-  "backToLogin": "Volver a iniciar sesión"
+  "backToLogin": "Volver a iniciar sesión",
+  "resendTitle": "¿Necesitas un enlace nuevo?",
+  "resendBody": "Introduce la dirección con la que te registraste y te enviaremos un nuevo correo de verificación si aún está pendiente.",
+  "resendEmail": "Dirección de correo electrónico",
+  "resendButton": "Enviar un correo nuevo",
+  "resendSending": "Enviando",
+  "resendSent": "Si esa dirección está pendiente de verificación, un nuevo correo está en camino.",
+  "resendTooManyAttempts": "Demasiados intentos. Espera antes de volver a intentarlo.",
+  "resendError": "No pudimos enviar el correo. Inténtalo de nuevo."
 }

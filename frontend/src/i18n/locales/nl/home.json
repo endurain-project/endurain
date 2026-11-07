@@ -46,7 +46,6 @@
     "thisWeek": "Deze week",
     "thisMonth": "Deze maand",
     "empty": "Geen activiteit in deze periode",
-    "caloriesUnit": "kcal",
     "metric": {
       "distance": "Afstand",
       "time": "Tijd",
@@ -63,12 +62,13 @@
     "snow_ski": "Skiën",
     "snowboard": "Snowboarden",
     "windsurf": "Windsurfen",
-    "stand_up_paddleboarding": "Paddleboarden",
-    "surfing": "Surfen",
+    "stand_up_paddling": "Paddleboarden",
+    "surf": "Surfen",
     "kayaking": "Kajakken",
     "sailing": "Zeilen",
-    "snowshoeing": "Sneeuwschoenwandelen",
-    "inline_skating": "Inline skaten"
+    "snow_shoeing": "Sneeuwschoenwandelen",
+    "inline_skating": "Inline skaten",
+    "other": "Overig"
   },
   "goals": {
     "title": "Doelen",

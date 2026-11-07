@@ -1,164 +1,56 @@
 from datetime import date as datetime_date
-from unittest.mock import ANY, MagicMock, patch
+from unittest.mock import ANY, patch
 
-from fastapi import HTTPException, status
-
-import modules.health.health_weight.models as health_weight_models
+import core.exceptions as core_exceptions
+import core.pagination as core_pagination
 import modules.health.health_weight.schema as health_weight_schema
+
+_LIST = "modules.health.health_weight.router.health_weight_service.list_health_weight"
+
+
+def _record(record_id: int, day: int, weight: float) -> health_weight_schema.HealthWeightRead:
+    return health_weight_schema.HealthWeightRead(
+        id=record_id, user_id=1, date=datetime_date(2024, 1, day), weight_kg=weight, bmi=24.5
+    )
 
 
 class TestReadHealthWeightAll:
-    """
-    Test suite for read_health_weight_all endpoint.
-    """
-
-    @patch("modules.health.health_weight.router.health_weight_crud.get_health_weight_number_by_user_id")
-    @patch("modules.health.health_weight.router.health_weight_crud.get_health_weight_by_user_id")
-    def test_read_health_weight_all_success(self, mock_get_all, mock_get_number, fast_api_client, fast_api_app):
-        """
-        Test successful retrieval of all health weight records with total count.
-        """
-        # Arrange
-        mock_weight1 = MagicMock(spec=health_weight_models.HealthWeight)
-        mock_weight1.id = 1
-        mock_weight1.user_id = 1
-        mock_weight1.date = datetime_date(2024, 1, 15)
-        mock_weight1.weight = 75.5
-        mock_weight1.bmi = 24.5
-        mock_weight1.body_fat = None
-        mock_weight1.body_water = None
-        mock_weight1.bone_mass = None
-        mock_weight1.muscle_mass = None
-        mock_weight1.physique_rating = None
-        mock_weight1.visceral_fat = None
-        mock_weight1.metabolic_age = None
-        mock_weight1.source = None
-
-        mock_weight2 = MagicMock(spec=health_weight_models.HealthWeight)
-        mock_weight2.id = 2
-        mock_weight2.user_id = 1
-        mock_weight2.date = datetime_date(2024, 1, 16)
-        mock_weight2.weight = 75.0
-        mock_weight2.bmi = 24.3
-        mock_weight2.body_fat = None
-        mock_weight2.body_water = None
-        mock_weight2.bone_mass = None
-        mock_weight2.muscle_mass = None
-        mock_weight2.physique_rating = None
-        mock_weight2.visceral_fat = None
-        mock_weight2.metabolic_age = None
-        mock_weight2.source = None
-
-        mock_get_all.return_value = [mock_weight1, mock_weight2]
-        mock_get_number.return_value = 2
-
-        # Act
-        response = fast_api_client.get(
-            "/health_weight",
-            headers={"Authorization": "Bearer mock_token"},
+    @patch(_LIST)
+    def test_returns_the_page_and_total(self, mock_list, fast_api_client, fast_api_app):
+        mock_list.return_value = core_pagination.Page(
+            items=[_record(1, 15, 75.5), _record(2, 16, 75.0)], total=2, page=1, num_records=25
         )
 
-        # Assert
+        response = fast_api_client.get("/health_weight", headers={"Authorization": "Bearer mock_token"})
+
         assert response.status_code == 200
         data = response.json()
         assert data["total"] == 2
-        assert len(data["records"]) == 2
+        assert [r["weight_kg"] for r in data["items"]] == [75.5, 75.0]
 
-    @patch("modules.health.health_weight.router.health_weight_crud.get_health_weight_number_by_user_id")
-    @patch("modules.health.health_weight.router.health_weight_crud.get_all_health_weight_by_user_id")
-    def test_read_health_weight_all_empty(self, mock_get_all, mock_get_number, fast_api_client, fast_api_app):
-        """
-        Test retrieval when user has no health weight records.
-        """
-        # Arrange
-        mock_get_all.return_value = []
-        mock_get_number.return_value = 0
+    @patch(_LIST)
+    def test_empty(self, mock_list, fast_api_client, fast_api_app):
+        mock_list.return_value = core_pagination.Page(items=[], total=0, page=1, num_records=25)
 
-        # Act
+        response = fast_api_client.get("/health_weight", headers={"Authorization": "Bearer mock_token"})
+
+        assert response.status_code == 200
+        assert response.json()["items"] == []
+
+    @patch(_LIST)
+    def test_passes_pagination_and_interval_through(self, mock_list, fast_api_client, fast_api_app):
+        mock_list.return_value = core_pagination.Page(items=[], total=0, page=2, num_records=10)
+
         response = fast_api_client.get(
-            "/health_weight",
+            "/health_weight?page_number=2&num_records=10&interval=last_30_days",
             headers={"Authorization": "Bearer mock_token"},
         )
 
-        # Assert
         assert response.status_code == 200
-        data = response.json()
-        assert data["total"] == 0
-        assert data["records"] == []
-
-
-class TestReadHealthWeightAllPagination:
-    """
-    Test suite for read_health_weight_all_pagination endpoint.
-    """
-
-    @patch("modules.health.health_weight.router.health_weight_crud.get_health_weight_number_by_user_id")
-    @patch("modules.health.health_weight.router.health_weight_crud.get_health_weight_by_user_id")
-    def test_read_health_weight_all_pagination_success(
-        self, mock_get_paginated, mock_get_number, fast_api_client, fast_api_app
-    ):
-        """
-        Test successful retrieval of paginated health weight records with total count.
-        """
-        # Arrange
-        mock_weight1 = MagicMock(spec=health_weight_models.HealthWeight)
-        mock_weight1.id = 1
-        mock_weight1.user_id = 1
-        mock_weight1.date = datetime_date(2024, 1, 15)
-        mock_weight1.weight = 75.5
-        mock_weight1.bmi = 24.5
-        mock_weight1.body_fat = None
-        mock_weight1.body_water = None
-        mock_weight1.bone_mass = None
-        mock_weight1.muscle_mass = None
-        mock_weight1.physique_rating = None
-        mock_weight1.visceral_fat = None
-        mock_weight1.metabolic_age = None
-        mock_weight1.source = None
-
-        mock_get_paginated.return_value = [mock_weight1]
-        mock_get_number.return_value = 10
-
-        # Act
-        response = fast_api_client.get(
-            "/health_weight?page_number=1&num_records=5",
-            headers={"Authorization": "Bearer mock_token"},
-        )
-
-        # Assert
-        assert response.status_code == 200
-        data = response.json()
-        assert data["total"] == 10
-        assert data["num_records"] == 5
-        assert data["page_number"] == 1
-        assert len(data["records"]) == 1
-
-    @patch("modules.health.health_weight.router.health_weight_crud.get_health_weight_number_by_user_id")
-    @patch("modules.health.health_weight.router.health_weight_crud.get_health_weight_by_user_id")
-    def test_read_health_weight_all_pagination_different_page(
-        self, mock_get_paginated, mock_get_number, fast_api_client, fast_api_app
-    ):
-        """
-        Test paginated retrieval with different page numbers.
-        """
-        # Arrange
-        mock_get_paginated.return_value = []
-        mock_get_number.return_value = 20
-
-        # Act
-        response = fast_api_client.get(
-            "/health_weight?page_number=2&num_records=10",
-            headers={"Authorization": "Bearer mock_token"},
-        )
-
-        # Assert
-        assert response.status_code == 200
-        data = response.json()
-        assert data["total"] == 20
-        assert data["num_records"] == 10
-        assert data["page_number"] == 2
-        assert data["records"] == []
-        mock_get_paginated.assert_called_once_with(1, ANY, 2, 10, None)
+        args = mock_list.call_args
+        assert args.args[0] == 1
+        assert (args.kwargs["page_number"], args.kwargs["num_records"]) == (2, 10)
+        assert args.kwargs["interval"].value == "last_30_days"
 
 
 class TestCreateHealthWeight:
@@ -166,11 +58,9 @@ class TestCreateHealthWeight:
     Test suite for create_health_weight endpoint.
     """
 
-    @patch("modules.health.health_weight.router.health_weight_crud.create_health_weight")
-    @patch("modules.health.health_weight.router.health_weight_crud.get_health_weight_by_date_and_user_id")
+    @patch("modules.health.health_weight.router.health_weight_service.create_health_weight")
     def test_create_health_weight_success(
         self,
-        mock_get_by_date,
         mock_create,
         fast_api_client,
         fast_api_app,
@@ -179,12 +69,11 @@ class TestCreateHealthWeight:
         Test successful creation of health weight entry.
         """
         # Arrange
-        mock_get_by_date.return_value = None
         created_weight = health_weight_schema.HealthWeightRead(
             id=1,
             user_id=1,
             date=datetime_date(2024, 1, 15),
-            weight=75.5,
+            weight_kg=75.5,
             bmi=24.5,
         )
         mock_create.return_value = created_weight
@@ -194,7 +83,7 @@ class TestCreateHealthWeight:
             "/health_weight",
             json={
                 "date": "2024-01-15",
-                "weight": 75.5,
+                "weight_kg": 75.5,
             },
             headers={"Authorization": "Bearer mock_token"},
         )
@@ -202,41 +91,7 @@ class TestCreateHealthWeight:
         # Assert
         assert response.status_code == 201
         data = response.json()
-        assert data["weight"] == 75.5
-
-    @patch("modules.health.health_weight.router.health_weight_crud.edit_health_weight")
-    @patch("modules.health.health_weight.router.health_weight_crud.get_health_weight_by_date_and_user_id")
-    def test_create_health_weight_updates_existing(self, mock_get_by_date, mock_edit, fast_api_client, fast_api_app):
-        """
-        Test creating health weight when entry exists updates it.
-        """
-        # Arrange
-        existing_weight = MagicMock()
-        existing_weight.id = 1
-        mock_get_by_date.return_value = existing_weight
-
-        updated_weight = health_weight_schema.HealthWeightRead(
-            id=1,
-            user_id=1,
-            date=datetime_date(2024, 1, 15),
-            weight=76.0,
-            bmi=24.7,
-        )
-        mock_edit.return_value = updated_weight
-
-        # Act
-        response = fast_api_client.post(
-            "/health_weight",
-            json={
-                "date": "2024-01-15",
-                "weight": 76.0,
-            },
-            headers={"Authorization": "Bearer mock_token"},
-        )
-
-        # Assert
-        assert response.status_code == 201
-        mock_edit.assert_called_once()
+        assert data["weight_kg"] == 75.5
 
 
 class TestEditHealthWeight:
@@ -244,7 +99,7 @@ class TestEditHealthWeight:
     Test suite for edit_health_weight endpoint.
     """
 
-    @patch("modules.health.health_weight.router.health_weight_crud.edit_health_weight")
+    @patch("modules.health.health_weight.router.health_weight_service.edit_health_weight")
     def test_edit_health_weight_success(self, mock_edit, fast_api_client, fast_api_app):
         """
         Test successful edit of health weight entry.
@@ -254,49 +109,42 @@ class TestEditHealthWeight:
             id=1,
             user_id=1,
             date=datetime_date(2024, 1, 15),
-            weight=76.0,
+            weight_kg=76.0,
             bmi=24.7,
         )
         mock_edit.return_value = updated_weight
 
         # Act
-        response = fast_api_client.put(
-            "/health_weight",
+        response = fast_api_client.patch(
+            "/health_weight/1",
             json={
-                "id": 1,
-                "user_id": 1,
                 "date": "2024-01-15",
-                "weight": 76.0,
+                "weight_kg": 76.0,
             },
-            headers={"Authorization": "Bearer mock_token"},
+            headers={**{"Authorization": "Bearer mock_token"}, "If-Match": '"1"'},
         )
 
         # Assert
         assert response.status_code == 200
         data = response.json()
-        assert data["weight"] == 76.0
+        assert data["weight_kg"] == 76.0
 
-    @patch("modules.health.health_weight.router.health_weight_crud.edit_health_weight")
+    @patch("modules.health.health_weight.router.health_weight_service.edit_health_weight")
     def test_edit_health_weight_not_found(self, mock_edit, fast_api_client, fast_api_app):
         """
         Test edit when health weight not found.
         """
         # Arrange
-        mock_edit.side_effect = HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Health weight not found",
-        )
+        mock_edit.side_effect = core_exceptions.NotFoundError("Health weight not found")
 
         # Act
-        response = fast_api_client.put(
-            "/health_weight",
+        response = fast_api_client.patch(
+            "/health_weight/999",
             json={
-                "id": 999,
-                "user_id": 1,
                 "date": "2024-01-15",
-                "weight": 76.0,
+                "weight_kg": 76.0,
             },
-            headers={"Authorization": "Bearer mock_token"},
+            headers={**{"Authorization": "Bearer mock_token"}, "If-Match": '"1"'},
         )
 
         # Assert
@@ -308,7 +156,7 @@ class TestDeleteHealthWeight:
     Test suite for delete_health_weight endpoint.
     """
 
-    @patch("modules.health.health_weight.router.health_weight_crud.delete_health_weight")
+    @patch("modules.health.health_weight.router.health_weight_service.delete_health_weight")
     def test_delete_health_weight_success(self, mock_delete, fast_api_client, fast_api_app):
         """
         Test successful deletion of health weight entry.
@@ -319,29 +167,64 @@ class TestDeleteHealthWeight:
         # Act
         response = fast_api_client.delete(
             "/health_weight/1",
-            headers={"Authorization": "Bearer mock_token"},
+            headers={"Authorization": "Bearer mock_token", "If-Match": '"1"'},
         )
 
         # Assert
         assert response.status_code == 204
-        mock_delete.assert_called_once_with(1, 1, ANY)
+        mock_delete.assert_called_once_with(1, 1, ANY, if_match='"1"')
 
-    @patch("modules.health.health_weight.router.health_weight_crud.delete_health_weight")
+    @patch("modules.health.health_weight.router.health_weight_service.delete_health_weight")
     def test_delete_health_weight_not_found(self, mock_delete, fast_api_client, fast_api_app):
         """
         Test deletion when health weight not found.
         """
         # Arrange
-        mock_delete.side_effect = HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Health weight with id 999 for user 1 not found",
-        )
+        mock_delete.side_effect = core_exceptions.NotFoundError("Health weight not found")
 
         # Act
         response = fast_api_client.delete(
             "/health_weight/999",
-            headers={"Authorization": "Bearer mock_token"},
+            headers={"Authorization": "Bearer mock_token", "If-Match": '"1"'},
         )
 
         # Assert
         assert response.status_code == 404
+
+
+_GET = "modules.health.health_weight.router.health_weight_service.get_health_weight"
+
+
+class TestReadHealthWeightById:
+    @patch(_GET)
+    def test_returns_the_record_with_its_etag(self, mock_get, fast_api_client, fast_api_app):
+        mock_get.return_value = _record(1, 15, 75.5)
+
+        response = fast_api_client.get("/health_weight/1", headers={"Authorization": "Bearer mock_token"})
+
+        assert response.status_code == 200
+        assert response.headers["ETag"] == '"1"'
+        assert mock_get.call_args.args[:2] == (1, 1)
+
+    @patch(_GET)
+    def test_a_record_the_user_does_not_have_is_404(self, mock_get, fast_api_client, fast_api_app):
+        mock_get.side_effect = core_exceptions.NotFoundError("Health weight not found")
+
+        response = fast_api_client.get("/health_weight/99", headers={"Authorization": "Bearer mock_token"})
+
+        assert response.status_code == 404
+
+
+class TestCreateHealthWeightHeaders:
+    @patch("modules.health.health_weight.router.health_weight_service.create_health_weight")
+    def test_create_names_the_record_and_its_version(self, mock_create, fast_api_client, fast_api_app):
+        mock_create.return_value = _record(7, 15, 75.5)
+
+        response = fast_api_client.post(
+            "/health_weight",
+            json={"date": "2024-01-15", "weight_kg": 75.5},
+            headers={"Authorization": "Bearer mock_token"},
+        )
+
+        assert response.headers["Location"] == "/health_weight/7"
+        assert response.headers["ETag"] == '"1"'

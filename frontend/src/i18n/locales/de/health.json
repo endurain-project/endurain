@@ -1,6 +1,12 @@
 {
   "title": "Gesundheit",
   "subtitle": "Sieh alle deine Gesundheitsdaten auf einen Blick",
+  "chartBucket": {
+    "week": "Wochendurchschnitte: Jeder Balken zeigt den durchschnittlichen Tag dieser Woche.",
+    "month": "Monatsdurchschnitte: Jeder Balken zeigt den durchschnittlichen Tag dieses Monats."
+  },
+  "targetInvalid": "Gib einen Wert größer als 0 ein oder lasse das Feld leer, um das Ziel zu entfernen.",
+  "chartError": "Das Diagramm für diesen Zeitraum konnte nicht geladen werden.",
   "nav": {
     "label": "Gesundheitsbereiche",
     "soon": "Bald",
@@ -34,6 +40,7 @@
     "stepsTargetLabel": "Schritte",
     "poopTargetLabel": "/ Tag",
     "noWeightData": "Keine Gewichtsdaten",
+    "noHeightData": "Trage deine Größe in deinem Profil ein, um deinen BMI zu sehen.",
     "bmiUnderweight": "Untergewicht",
     "bmiNormalWeight": "Normalgewicht",
     "bmiOverweight": "Übergewicht",
@@ -88,7 +95,6 @@
       "weightRequired": "Bitte gib dein Gewicht ein.",
       "weightInvalid": "Gib ein Gewicht größer als null ein.",
       "bodyComposition": "Körperzusammensetzung (optional)",
-      "bmi": "BMI",
       "bodyFat": "Körperfett (%)",
       "bodyWater": "Körperwasser (%)",
       "boneMass": "Knochenmasse",
@@ -308,6 +314,8 @@
       "totalSleepRequired": "Bitte gib an, wie lange du geschlafen hast.",
       "hours": "Stunden",
       "minutes": "Minuten",
+      "hoursOf": "{field}, Stunden",
+      "minutesOf": "{field}, Minuten",
       "stageBreakdown": "Phasenaufschlüsselung (optional)",
       "deep": "Tiefschlaf",
       "light": "Leichtschlaf",
@@ -350,7 +358,11 @@
       "close": "Schließen",
       "createSuccess": "Schlaf eingetragen.",
       "updateSuccess": "Schlafeintrag aktualisiert.",
-      "saveError": "Dein Schlafeintrag konnte nicht gespeichert werden. Bitte versuche es erneut."
+      "saveError": "Dein Schlafeintrag konnte nicht gespeichert werden. Bitte versuche es erneut.",
+      "numberRange": "Gib einen Wert zwischen {min} und {max} ein.",
+      "numberMin": "Gib {min} oder mehr ein.",
+      "stagesExceedTotal": "Tiefschlaf, Leichtschlaf und REM-Schlaf ergeben zusammen mehr als die Gesamtdauer.",
+      "inconsistentError": "Diese Schlafwerte passen nicht zusammen. Prüfe, ob die Phasen und die Gesamtdauer in die Schlafzeiten passen."
     },
     "target": {
       "title": "Schlafziel setzen",
@@ -596,6 +608,8 @@
       "startTime": "Startzeit",
       "startTimeRequired": "Bitte wähle eine Startzeit.",
       "endTime": "Endzeit",
+      "endBeforeStart": "Die Endzeit darf nicht vor der Startzeit liegen.",
+      "endWhileInProgress": "Ein laufendes Fasten kann keine Endzeit haben.",
       "status": "Status",
       "notes": "Notizen",
       "create": "Starten",
@@ -604,7 +618,9 @@
       "close": "Schließen",
       "createSuccess": "Fasten gestartet.",
       "updateSuccess": "Fastensitzung aktualisiert.",
-      "saveError": "Deine Fastensitzung konnte nicht gespeichert werden. Bitte versuche es erneut."
+      "saveError": "Deine Fastensitzung konnte nicht gespeichert werden. Bitte versuche es erneut.",
+      "overlapError": "Dieses Fasten überschneidet sich mit einer anderen Fastensitzung, oder es läuft bereits ein anderes Fasten.",
+      "invalidTimesError": "Ein Fasten kann nicht enden, bevor es beginnt, ein abgeschlossenes oder unterbrochenes Fasten braucht eine Endzeit, und ein laufendes Fasten kann keine haben."
     },
     "target": {
       "title": "Fastenziel setzen",
@@ -621,6 +637,20 @@
     "complete": {
       "success": "Fasten beendet.",
       "error": "Dein Fasten konnte nicht beendet werden. Bitte versuche es erneut."
+    },
+    "endConfirm": {
+      "broken": {
+        "title": "Dieses Fasten abbrechen?",
+        "body": "Das Fasten endet jetzt und wird als abgebrochen gespeichert. Das kann nicht rückgängig gemacht werden.",
+        "confirm": "Fasten abbrechen"
+      },
+      "cancelled": {
+        "title": "Dieses Fasten verwerfen?",
+        "body": "Das Fasten endet jetzt und wird als verworfen gespeichert. Das kann nicht rückgängig gemacht werden.",
+        "confirm": "Fasten verwerfen"
+      },
+      "cancel": "Weiter fasten",
+      "close": "Schließen"
     },
     "empty": {
       "title": "Noch keine Fasten",

@@ -11,7 +11,7 @@
     "subtitle": "Blader, filter en sorteer al je activiteiten.",
     "searchPlaceholder": "Zoek op naam of locatie",
     "clearSearch": "Zoekterm wissen",
-    "resultCount": "{count} activiteiten",
+    "resultCount": "{count} activiteit | {count} activiteiten",
     "filters": {
       "type": "Activiteitstype",
       "allTypes": "Alle types",
@@ -188,6 +188,7 @@
     "cancel": "Annuleren",
     "close": "Sluiten",
     "name": "Naam",
+    "nameRequired": "Voer een naam in voor de activiteit",
     "type": "Activiteitstype",
     "description": "Beschrijving",
     "privateNotes": "Privénotities",

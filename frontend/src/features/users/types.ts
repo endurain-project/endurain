@@ -1,17 +1,23 @@
 import type { Schemas } from '@/types'
 
-/** Raw `UsersRead` payload as returned by the backend (snake_case wire shape). */
-export type UserDto = Schemas['UsersRead']
+/** Raw `UserRead` payload as returned by the backend (snake_case wire shape). */
+export type UserDto = Schemas['UserRead']
+
+/** `UserAdminEdit` payload: the body of an administrative edit of a user. */
+export type UserEditDto = Schemas['UserAdminEdit']
+
+/** Raw `UserPublicRead` payload: what any signed-in or anonymous viewer may learn about a user. */
+export type PublicUserDto = Schemas['UserPublicRead']
 
 /** Raw paginated users list payload. */
-export type UsersListResponseDto = Schemas['UsersListResponse']
+export type UsersListResponseDto = Schemas['Page_UserRead_']
 
 /** User access tier, mirrored from the backend enum (`regular` | `admin`). */
 export type UserAccessType = Schemas['UserAccessType']
 
 /**
  * The clean, camel-cased user model used across the admin users zone. Carries
- * every `UsersRead` field — not just the ones shown — because the backend's
+ * every `UserRead` field — not just the ones shown — because the backend's
  * edit endpoint replaces the whole record, so unedited fields must round-trip
  * untouched (see `toUserWire`). Mapped from {@link UserDto} at the service
  * boundary so components never touch the raw DTO.
@@ -23,12 +29,15 @@ export type UserAccessType = Schemas['UserAccessType']
  * @property accessType - Authorization tier.
  * @property active - Whether the account is enabled.
  * @property emailVerified - Whether the email has been verified.
+ * @property pendingEmail - Address awaiting confirmation, or `null` when no change is pending.
+ * @property pendingEmailExpiresAt - When the pending address's confirmation link expires, or `null`.
  * @property pendingAdminApproval - Whether the sign-up awaits admin approval.
  * @property mfaEnabled - Whether MFA is enabled.
  * @property externalAuthCount - Number of linked external identity providers.
  * @property preferredLanguage - Backend language code.
  * @property gender - Gender.
  * @property units - Measurement system.
+ * @property weightUnits - Weight units override, or `null` to follow `units`.
  * @property currency - Preferred currency.
  * @property firstDayOfWeek - First day of the week.
  * @property city - City, or `null`.
@@ -40,18 +49,23 @@ export type UserAccessType = Schemas['UserAccessType']
  */
 export interface ManagedUser {
   id: number
+  /** The row version, sent back in `If-Match` so an edit of a stale copy is refused. */
+  version: number
   name: string
   username: string
   email: string
   accessType: UserAccessType
   active: boolean
   emailVerified: boolean
+  pendingEmail: string | null
+  pendingEmailExpiresAt: string | null
   pendingAdminApproval: boolean
   mfaEnabled: boolean
   externalAuthCount: number
   preferredLanguage: Schemas['Language']
   gender: Schemas['Gender']
   units: Schemas['Units']
+  weightUnits: Schemas['Units'] | null
   currency: Schemas['Currency']
   firstDayOfWeek: Schemas['WeekDay']
   city: string | null
@@ -71,7 +85,7 @@ export interface UsersPage {
 /**
  * A user's public-facing profile, shown on the `/user/:id` page and in
  * follower/following lists. A deliberately privacy-conscious subset of
- * `UsersRead` — only the fields a profile renders, omitting email, birthdate,
+ * `UserRead` — only the fields a profile renders, omitting email, birthdate,
  * and other sensitive columns. Mapped from {@link UserDto} at the service
  * boundary so components never touch the raw DTO.
  *
@@ -90,9 +104,29 @@ export interface PublicUser {
 }
 
 /**
+ * Public profile data and the summary metrics shown above the profile tabs.
+ *
+ * @property user - The profile's public user projection.
+ * @property weekStats - Visible per-sport activity totals for the current week.
+ * @property monthStats - Visible per-sport activity totals for the current month.
+ * @property monthActivityCount - Visible activity count for the current month.
+ * @property followersCount - Accepted followers, or null when the network is private.
+ * @property followingCount - Accepted followees, or null when the network is private.
+ */
+export interface UserProfileOverview {
+  user: PublicUser
+  weekStats: Schemas['ActivityStatsRead']
+  monthStats: Schemas['ActivityStatsRead']
+  monthActivityCount: number
+  followersCount: number | null
+  followingCount: number | null
+}
+
+/**
  * The five admin user-list filters. Each flag, when `true`, includes that
  * category in the results; setting it to `false` excludes the category
- * server-side (mirrors v1's filter set).
+ * server-side (`active=true`, `email_verified=true`, `pending_approval=false`,
+ * `external_auth=true` or `false` when exactly one of the two authentication switches is off).
  *
  * @property showInactive - Include deactivated accounts.
  * @property showEmailUnverified - Include accounts with an unverified email.
@@ -114,6 +148,8 @@ export interface UsersListParams extends UserFilters {
   page: number
   /** Page size (records per page). */
   numRecords: number
+  /** Keep only users whose username contains this text (at least 3 characters). */
+  username?: string
 }
 
 /**
@@ -132,6 +168,7 @@ export interface EditUserFields {
   preferredLanguage: Schemas['Language']
   gender: Schemas['Gender']
   units: Schemas['Units']
+  weightUnits: Schemas['Units'] | null
   currency: Schemas['Currency']
   firstDayOfWeek: Schemas['WeekDay']
   city: string | null
@@ -156,6 +193,7 @@ export interface CreateUserInput {
   preferredLanguage: Schemas['Language']
   gender: Schemas['Gender']
   units: Schemas['Units']
+  weightUnits: Schemas['Units'] | null
   currency: Schemas['Currency']
   firstDayOfWeek: Schemas['WeekDay']
   city: string | null
@@ -164,8 +202,8 @@ export interface CreateUserInput {
   maxHeartRate: number | null
 }
 
-/** Raw `UsersSessionsRead` payload as returned by the backend (snake_case). */
-export type UserSessionDto = Schemas['UsersSessionsRead']
+/** Raw `UserSessionsRead` payload as returned by the backend (snake_case). */
+export type UserSessionDto = Schemas['UserSessionsRead']
 
 /**
  * A user session in the admin view, camel-cased from {@link UserSessionDto}.
@@ -194,8 +232,8 @@ export interface UserSession {
   expiresAt: string
 }
 
-/** Raw `UsersIdentityProviderResponse` payload as returned by the backend. */
-export type UserIdentityProviderDto = Schemas['UsersIdentityProviderResponse']
+/** Raw `IdentityProviderLinkRead` payload as returned by the backend. */
+export type UserIdentityProviderDto = Schemas['IdentityProviderLinkRead']
 
 /**
  * A user's linked identity provider in the admin view, camel-cased from

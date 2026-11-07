@@ -18,6 +18,16 @@
     "help": "Kontrolli, et ENDURAIN_HOST viitaks aadressile, kus sinu Enduraini eksemplar on kättesaadav (näiteks https://endurain.example.com) ja et backend töötab, seejärel laadi leht uuesti.",
     "reload": "Laadi uuesti"
   },
+  "staleError": "Seda muudeti mujal, kui vaatasid seda, seetõttu ei salvestatud midagi. Praegune versioon on laaditud. Vaata see üle ja proovi uuesti.",
+  "fieldError": {
+    "required": "See väli on kohustuslik",
+    "tooShort": "See väärtus on liiga lühike",
+    "tooLong": "See väärtus on liiga pikk",
+    "tooLarge": "See väärtus on liiga suur",
+    "tooSmall": "See väärtus on liiga väike",
+    "invalidFormat": "Selle väärtuse vorming on vigane",
+    "invalid": "See väärtus on vigane"
+  },
   "dismiss": "Sulge",
   "language": "Keel",
   "theme": {
@@ -35,5 +45,23 @@
     "edit": "Muuda",
     "supported": "Markdown on toetatud",
     "empty": "Pole midagi näidata"
+  },
+  "password": {
+    "hintLength": "Vähemalt {min} tähemärki.",
+    "invalid": "Parool ei vasta nõuetele",
+    "mismatch": "Paroolid ei kattu",
+    "tooShort": "See parool on liiga lühike. Kasuta vähemalt {min} märki.",
+    "tooCommon": "See parool on liiga levinud. Vali raskemini äraarvatav.",
+    "matchesAccount": "Ära kasuta parooliks oma kasutajanime ega e-posti aadressi.",
+    "blank": "Parool ei tohi koosneda ainult tühikutest.",
+    "unchanged": "Vali parool, mis erineb sinu praegusest paroolist.",
+    "strength": {
+      "label": "Parooli tugevus: {level}",
+      "tooWeak": "Liiga nõrk",
+      "weak": "Nõrk",
+      "fair": "Rahuldav",
+      "good": "Hea",
+      "strong": "Tugev"
+    }
   }
 }

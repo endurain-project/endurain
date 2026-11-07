@@ -1,14 +1,26 @@
 {
   "verifyingBody": "Adresinizi doğrularken lütfen bekleyin.",
+  "choosePasswordTitle": "Parolanızı seçin",
+  "choosePasswordBody": "Hesabınız için bir parola belirlediğinizde e-postanız doğrulanır.",
+  "submitPassword": "Parolayı belirle",
+  "submittingPassword": "Parola kaydediliyor",
   "successTitle": "E-posta doğrulandı",
   "successBody": "E-posta adresiniz onaylandı.",
   "adminApprovalBody": "Hesabınız artık yönetici onayını bekliyor.",
   "continueButton": "Girişe devam et",
   "invalidTitle": "Doğrulama başarısız",
-  "missingTokenBody": "Bu doğrulama bağlantısında belirteç eksik.",
   "errorInvalidToken": "Bu doğrulama bağlantısı geçersiz veya süresi dolmuş.",
+  "errorEmailTaken": "Bu e-posta adresi artık başka bir hesap tarafından kullanılıyor, bu nedenle onaylanamaz.",
   "errorNotFound": "Bu bağlantıya ait bir hesap bulamadık.",
   "errorGeneral": "E-postanızı doğrulayamadık. Lütfen tekrar deneyin.",
   "retry": "Tekrar dene",
-  "backToLogin": "Girişe geri dön"
+  "backToLogin": "Girişe geri dön",
+  "resendTitle": "Yeni bir bağlantıya mı ihtiyacınız var?",
+  "resendBody": "Kaydolurken kullandığınız adresi girin; hâlâ bekliyorsa yeni bir doğrulama e-postası göndeririz.",
+  "resendEmail": "E-posta adresi",
+  "resendButton": "Yeni e-posta gönder",
+  "resendSending": "Gönderiliyor",
+  "resendSent": "Bu adres doğrulama bekliyorsa yeni bir e-posta yolda.",
+  "resendTooManyAttempts": "Çok fazla deneme yapıldı. Lütfen tekrar denemeden önce bekleyin.",
+  "resendError": "E-postayı gönderemedik. Lütfen tekrar deneyin."
 }

@@ -2,9 +2,10 @@ from datetime import datetime
 from unittest.mock import MagicMock, patch
 
 import pytest
-from sqlalchemy.exc import IntegrityError, SQLAlchemyError
+from sqlalchemy.exc import IntegrityError
 
 import core.exceptions as core_exceptions
+from tests._helpers.db import create_sqlite_session
 
 
 class TestGetUserNotificationById:
@@ -13,7 +14,13 @@ class TestGetUserNotificationById:
         import modules.notifications.models as m
 
         n = MagicMock(
-            spec=m.Notification, id=1, user_id=1, type=1, read=False, options=None, created_at=datetime(2024, 1, 1)
+            spec=m.Notification,
+            id=1,
+            user_id=1,
+            type=1,
+            read=False,
+            options={"activity_id": 5},
+            created_at=datetime(2024, 1, 1),
         )
         mock_db.execute.return_value.scalars.return_value.first.return_value = n
         r = crud.get_user_notification_by_id(notification_id=1, user_id=1, db=mock_db)
@@ -27,14 +34,6 @@ class TestGetUserNotificationById:
         mock_db.execute.return_value.scalars.return_value.first.return_value = None
         r = crud.get_user_notification_by_id(notification_id=999, user_id=1, db=mock_db)
         assert r is None
-
-    def test_db_error(self, mock_db):
-        import modules.notifications.crud as crud
-
-        mock_db.execute.side_effect = SQLAlchemyError("err")
-        with pytest.raises(core_exceptions.ProcessingError) as e:
-            crud.get_user_notification_by_id(notification_id=1, user_id=1, db=mock_db)
-        assert e.value.status_code == 500
 
 
 class TestGetUserNotificationsCount:
@@ -52,14 +51,6 @@ class TestGetUserNotificationsCount:
         r = crud.get_user_notifications_count(user_id=1, db=mock_db)
         assert r == 0
 
-    def test_db_error(self, mock_db):
-        import modules.notifications.crud as crud
-
-        mock_db.execute.side_effect = SQLAlchemyError("err")
-        with pytest.raises(core_exceptions.ProcessingError) as e:
-            crud.get_user_notifications_count(user_id=1, db=mock_db)
-        assert e.value.status_code == 500
-
 
 class TestGetUserNotificationsWithPagination:
     def test_success(self, mock_db):
@@ -67,7 +58,13 @@ class TestGetUserNotificationsWithPagination:
         import modules.notifications.models as m
 
         n = MagicMock(
-            spec=m.Notification, id=1, user_id=1, type=1, read=False, options=None, created_at=datetime(2024, 1, 1)
+            spec=m.Notification,
+            id=1,
+            user_id=1,
+            type=1,
+            read=False,
+            options={"activity_id": 5},
+            created_at=datetime(2024, 1, 1),
         )
         mock_db.execute.return_value.scalars.return_value.all.return_value = [n]
         r = crud.get_user_notifications_with_pagination(user_id=1, db=mock_db, page_number=1, num_records=5)
@@ -89,13 +86,78 @@ class TestGetUserNotificationsWithPagination:
         r = crud.get_user_notifications_with_pagination(user_id=1, db=mock_db)
         assert r == []
 
-    def test_db_error(self, mock_db):
+
+class TestUnreadOnlyFilter:
+    """The unread filter is a SQL ``WHERE``, so it runs against a real session."""
+
+    @pytest.fixture
+    def db(self):
+        import modules.notifications.models as m
+
+        session = create_sqlite_session()
+        # User 1: two read and three unread, oldest first. User 2: one unread.
+        for notification_id, user_id, read in [
+            (1, 1, True),
+            (2, 1, False),
+            (3, 1, True),
+            (4, 1, False),
+            (5, 1, False),
+            (6, 2, False),
+        ]:
+            session.add(
+                m.Notification(
+                    id=notification_id,
+                    user_id=user_id,
+                    type=1,
+                    read=read,
+                    options={"activity_id": notification_id},
+                    created_at=datetime(2024, 1, notification_id),
+                )
+            )
+        session.commit()
+        yield session
+        session.close()
+
+    def test_count_includes_read_notifications_by_default(self, db):
         import modules.notifications.crud as crud
 
-        mock_db.execute.side_effect = SQLAlchemyError("err")
-        with pytest.raises(core_exceptions.ProcessingError) as e:
-            crud.get_user_notifications_with_pagination(user_id=1, db=mock_db)
-        assert e.value.status_code == 500
+        assert crud.get_user_notifications_count(user_id=1, db=db) == 5
+
+    def test_count_unread_only_skips_read_and_other_users_notifications(self, db):
+        import modules.notifications.crud as crud
+
+        assert crud.get_user_notifications_count(user_id=1, db=db, unread_only=True) == 3
+
+    def test_count_unread_only_is_zero_once_everything_is_read(self, db):
+        import modules.notifications.crud as crud
+
+        crud.mark_all_notifications_as_read(1, db)
+
+        assert crud.get_user_notifications_count(user_id=1, db=db, unread_only=True) == 0
+
+    def test_page_unread_only_returns_the_unread_ones_newest_first(self, db):
+        import modules.notifications.crud as crud
+
+        page = crud.get_user_notifications_with_pagination(user_id=1, db=db, num_records=10, unread_only=True)
+
+        assert [n.id for n in page] == [5, 4, 2]
+        assert all(not n.read for n in page)
+
+    def test_page_unread_only_pages_over_the_filtered_rows(self, db):
+        import modules.notifications.crud as crud
+
+        second = crud.get_user_notifications_with_pagination(
+            user_id=1, db=db, page_number=2, num_records=2, unread_only=True
+        )
+
+        assert [n.id for n in second] == [2]
+
+    def test_page_includes_read_notifications_by_default(self, db):
+        import modules.notifications.crud as crud
+
+        page = crud.get_user_notifications_with_pagination(user_id=1, db=db, num_records=10)
+
+        assert [n.id for n in page] == [5, 4, 3, 2, 1]
 
 
 class TestCreateNotification:
@@ -103,39 +165,22 @@ class TestCreateNotification:
         import modules.notifications.crud as crud
         import modules.notifications.schema as schema
 
-        notification_data = schema.NotificationCreate(user_id=1, type=1, options={})
+        notification_data = schema.NotificationCreate(user_id=1, type="new_activity", options={"activity_id": 5})
 
         mock_notification = MagicMock()
         mock_notification.id = 1
         mock_notification.user_id = 1
         mock_notification.type = 1
         mock_notification.read = False
-        mock_notification.options = None
+        mock_notification.options = {"activity_id": 5}
         mock_notification.created_at = datetime(2024, 1, 1)
 
         with patch("modules.notifications.crud.notifications_models.Notification", return_value=mock_notification):
             n = crud.create_notification(notification=notification_data, db=mock_db)
         assert n is not None
         mock_db.add.assert_called_once()
-        mock_db.commit.assert_called_once()
+        mock_db.flush.assert_called_once()
         mock_db.refresh.assert_called_once()
-
-    def test_db_error(self, mock_db):
-        from pydantic import BaseModel
-
-        import modules.notifications.crud as crud
-
-        mock_db.add.side_effect = SQLAlchemyError("err")
-
-        class NC(BaseModel):
-            user_id: int = 1
-            type: str = "follow_request"
-            options: dict = {}
-            source_event_id: str | None = None
-
-        with pytest.raises(core_exceptions.ProcessingError) as e:
-            crud.create_notification(notification=NC(), db=mock_db)
-        assert e.value.status_code == 500
 
 
 class TestCreateNotificationOnce:
@@ -145,7 +190,7 @@ class TestCreateNotificationOnce:
 
         notification_data = schema.NotificationCreate(
             user_id=2,
-            type=11,
+            type="new_follower_request",
             source_event_id="event-1",
             options={"user_id": 1},
         )
@@ -167,12 +212,13 @@ class TestCreateNotificationOnce:
 
         notification_data = schema.NotificationCreate(
             user_id=2,
-            type=11,
+            type="new_follower_request",
             source_event_id="event-1",
             options={"user_id": 1},
         )
         existing = MagicMock(id=7)
         integrity_error = IntegrityError("INSERT", {}, RuntimeError("duplicate"))
+        mock_db.begin_nested.return_value.__exit__.return_value = False
 
         with (
             patch(
@@ -189,17 +235,18 @@ class TestCreateNotificationOnce:
         assert notification is existing
         assert created is False
 
-    def test_unrelated_integrity_error_propagates(self, mock_db):
+    def test_unrelated_integrity_error_becomes_conflict(self, mock_db):
         import modules.notifications.crud as crud
         import modules.notifications.schema as schema
 
         notification_data = schema.NotificationCreate(
             user_id=2,
-            type=11,
+            type="new_follower_request",
             source_event_id="event-1",
             options={"user_id": 1},
         )
         integrity_error = IntegrityError("INSERT", {}, RuntimeError("foreign key"))
+        mock_db.begin_nested.return_value.__exit__.return_value = False
 
         with (
             patch(
@@ -210,7 +257,7 @@ class TestCreateNotificationOnce:
                 "modules.notifications.crud.create_notification",
                 side_effect=integrity_error,
             ),
-            pytest.raises(IntegrityError),
+            pytest.raises(core_exceptions.ConflictError),
         ):
             crud.create_notification_once(notification_data, mock_db)
 
@@ -221,7 +268,13 @@ class TestMarkNotificationAsRead:
         import modules.notifications.models as m
 
         n = MagicMock(
-            spec=m.Notification, id=1, user_id=1, type=1, read=False, options=None, created_at=datetime(2024, 1, 1)
+            spec=m.Notification,
+            id=1,
+            user_id=1,
+            type=1,
+            read=False,
+            options={"activity_id": 5},
+            created_at=datetime(2024, 1, 1),
         )
         mock_db.execute.return_value.scalars.return_value.first.return_value = n
 
@@ -230,7 +283,7 @@ class TestMarkNotificationAsRead:
         assert r is not None
         assert r.id == 1
         assert r.user_id == 1
-        mock_db.commit.assert_called_once()
+        mock_db.flush.assert_called_once()
         mock_db.refresh.assert_called_once_with(n)
 
     def test_not_found(self, mock_db):
@@ -239,18 +292,6 @@ class TestMarkNotificationAsRead:
         mock_db.execute.return_value.scalars.return_value.first.return_value = None
         r = crud.mark_notification_as_read(notification_id=999, user_id=1, db=mock_db)
         assert r is None
-
-    def test_db_error(self, mock_db):
-        import modules.notifications.crud as crud
-        import modules.notifications.models as m
-
-        n = MagicMock(spec=m.Notification, id=1, user_id=1, read=False)
-        mock_db.execute.return_value.scalars.return_value.first.return_value = n
-        mock_db.commit.side_effect = SQLAlchemyError("err")
-
-        with pytest.raises(core_exceptions.ProcessingError) as e:
-            crud.mark_notification_as_read(notification_id=1, user_id=1, db=mock_db)
-        assert e.value.status_code == 500
 
 
 class TestMarkAllNotificationsAsRead:
@@ -261,13 +302,74 @@ class TestMarkAllNotificationsAsRead:
 
         assert result is None
         mock_db.execute.assert_called_once()
-        mock_db.commit.assert_called_once()
+        mock_db.flush.assert_called_once()
 
-    def test_db_error(self, mock_db):
+
+class TestDeleteNotificationsNamingUser:
+    @pytest.fixture
+    def db(self):
+        import modules.notifications.models as m
+
+        session = create_sqlite_session()
+        named = {"user_id": 7, "user_name": "Ana", "user_username": "ana"}
+        other = {"user_id": 8, "user_name": "Bo", "user_username": "bo"}
+        for notification_id, user_id, notification_type, options in [
+            (1, 1, 11, named),  # follow request
+            (2, 2, 12, named),  # follow accepted
+            (3, 3, 41, named),  # admin sign-up approval
+            (4, 1, 11, other),
+            (5, 1, 1, {"activity_id": 7}),
+            (6, 2, 21, {}),
+            (7, 2, 21, None),
+        ]:
+            session.add(m.Notification(id=notification_id, user_id=user_id, type=notification_type, options=options))
+        session.commit()
+        yield session
+        session.close()
+
+    def test_deletes_every_owners_notifications_that_name_the_user(self, db):
         import modules.notifications.crud as crud
+        import modules.notifications.models as m
 
-        mock_db.execute.side_effect = SQLAlchemyError("err")
+        deleted = crud.delete_notifications_naming_user(7, db)
+        db.commit()
 
-        with pytest.raises(core_exceptions.ProcessingError) as e:
-            crud.mark_all_notifications_as_read(user_id=1, db=mock_db)
-        assert e.value.status_code == 500
+        assert deleted == 3
+        remaining = {n.id for n in db.query(m.Notification).all()}
+        assert remaining == {4, 5, 6, 7}
+
+
+class TestDeleteAndMarkSeveral:
+    @pytest.fixture
+    def db(self):
+        import modules.notifications.models as m
+
+        session = create_sqlite_session()
+        for notification_id, user_id in [(1, 1), (2, 1), (3, 1), (4, 2)]:
+            session.add(
+                m.Notification(id=notification_id, user_id=user_id, type=1, options={"activity_id": 5}, read=False)
+            )
+        session.commit()
+        yield session
+        session.close()
+
+    def test_marking_several_skips_ids_that_are_not_the_users(self, db):
+        import modules.notifications.crud as crud
+        import modules.notifications.models as m
+
+        crud.mark_notifications_as_read([1, 4, 99], user_id=1, db=db)
+        db.commit()
+
+        read = {n.id for n in db.query(m.Notification).filter_by(read=True)}
+        assert read == {1}
+
+    def test_delete_removes_only_the_users_notification(self, db):
+        import modules.notifications.crud as crud
+        import modules.notifications.models as m
+
+        assert crud.delete_user_notification(2, user_id=1, db=db) is True
+        assert crud.delete_user_notification(4, user_id=1, db=db) is False
+        assert crud.delete_user_notification(99, user_id=1, db=db) is False
+        db.commit()
+
+        assert {n.id for n in db.query(m.Notification)} == {1, 3, 4}

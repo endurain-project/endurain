@@ -1,14 +1,26 @@
 {
   "verifyingBody": "Even geduld, we bevestigen je adres.",
+  "choosePasswordTitle": "Kies je wachtwoord",
+  "choosePasswordBody": "Je e-mailadres wordt bevestigd zodra je een wachtwoord voor je account hebt ingesteld.",
+  "submitPassword": "Wachtwoord instellen",
+  "submittingPassword": "Wachtwoord opslaan",
   "successTitle": "E-mailadres geverifieerd",
   "successBody": "Je e-mailadres is bevestigd.",
   "adminApprovalBody": "Je account wacht nu op goedkeuring door de beheerder.",
   "continueButton": "Doorgaan naar inloggen",
   "invalidTitle": "Verificatie mislukt",
-  "missingTokenBody": "Er ontbreekt een token in deze verificatielink.",
   "errorInvalidToken": "Deze verificatielink is ongeldig of verlopen.",
+  "errorEmailTaken": "Dit e-mailadres wordt nu door een ander account gebruikt, dus het kan niet worden bevestigd.",
   "errorNotFound": "We konden geen account vinden voor deze link.",
   "errorGeneral": "We konden je e-mailadres niet verifiëren. Probeer het opnieuw.",
   "retry": "Opnieuw proberen",
-  "backToLogin": "Terug naar inloggen"
+  "backToLogin": "Terug naar inloggen",
+  "resendTitle": "Een nieuwe link nodig?",
+  "resendBody": "Voer het adres in waarmee je je hebt aangemeld en we sturen een nieuwe verificatie-e-mail als die nog openstaat.",
+  "resendEmail": "E-mailadres",
+  "resendButton": "Nieuwe e-mail versturen",
+  "resendSending": "Versturen",
+  "resendSent": "Als dat adres op verificatie wacht, is er een nieuwe e-mail onderweg.",
+  "resendTooManyAttempts": "Te veel pogingen. Wacht even voordat je het opnieuw probeert.",
+  "resendError": "We konden de e-mail niet versturen. Probeer het opnieuw."
 }

@@ -18,5 +18,5 @@
 
 ## Pre-commit gate
 
-- `npm run check` (type-check, lint:check, format:check, test) is the CI gate.
+- `npm run check` (type-check, lint:check, format:check, test) is the local gate. CI also runs `npm run test:coverage` and the OpenAPI types drift check (`npm run gen:api` must leave no diff).
 - Run `npm run format` and `npm run lint` to auto-fix.

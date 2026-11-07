@@ -24,6 +24,7 @@ import {
   UploadValidationError,
 } from '@/features/upload/types'
 import type { Activity } from '@/features/activities/types'
+import * as realtime from '@/composables/useRealtime'
 
 import { makeActivity } from './fixtures/activity'
 
@@ -65,7 +66,7 @@ function uploadJob(overrides: Partial<ActivityIngestionJob> = {}): ActivityInges
     id: 'job-1',
     kind: 'upload',
     filename: 'ride.gpx',
-    status: 'pending',
+    status: 'queued',
     activity_ids: [],
     created_at: '2026-07-28T10:00:00Z',
     updated_at: '2026-07-28T10:00:00Z',
@@ -179,7 +180,7 @@ describe('uploadActivityFile', () => {
 
     // A handle to poll, not the parsed activities: parsing happens on a worker.
     expect(result.id).toBe('job-1')
-    expect(result.status).toBe('pending')
+    expect(result.status).toBe('queued')
   })
 
   it('never interpolates a hostile filename into the request URL', async () => {
@@ -217,16 +218,56 @@ describe('fetchIngestionJob', () => {
 })
 
 describe('pollIngestionJob', () => {
+  it('follows the hints of its own job', async () => {
+    const watch = vi.spyOn(realtime, 'watchJob')
+    fetchMock
+      .mockResolvedValueOnce(jsonResponse(uploadJob({ status: 'running' })))
+      .mockResolvedValueOnce(jsonResponse(uploadJob({ status: 'succeeded', activity_ids: [7] })))
+
+    await pollIngestionJob('job-1', { intervalMs: 0 })
+
+    expect(watch).toHaveBeenCalledExactlyOnceWith('ingestion:job-1')
+    watch.mockRestore()
+  })
+
+  it('stops following the hints once the import fails', async () => {
+    const stop = vi.fn<() => void>()
+    const watch = vi
+      .spyOn(realtime, 'watchJob')
+      .mockReturnValue({ wait: () => Promise.resolve(), stop })
+    fetchMock.mockResolvedValueOnce(jsonResponse(uploadJob({ status: 'failed' })))
+
+    await expect(pollIngestionJob('job-1', { intervalMs: 0 })).rejects.toThrow(
+      'Activity import failed',
+    )
+
+    expect(stop).toHaveBeenCalledOnce()
+    watch.mockRestore()
+  })
+
   it('polls until the import reaches a terminal state', async () => {
     fetchMock
-      .mockResolvedValueOnce(jsonResponse(uploadJob({ status: 'pending' })))
-      .mockResolvedValueOnce(jsonResponse(uploadJob({ status: 'processing' })))
-      .mockResolvedValueOnce(jsonResponse(uploadJob({ status: 'completed', activity_ids: [7, 8] })))
+      .mockResolvedValueOnce(jsonResponse(uploadJob({ status: 'queued' })))
+      .mockResolvedValueOnce(jsonResponse(uploadJob({ status: 'running' })))
+      .mockResolvedValueOnce(jsonResponse(uploadJob({ status: 'succeeded', activity_ids: [7, 8] })))
 
     const job = await pollIngestionJob('job-1', { intervalMs: 0 })
 
     expect(fetchMock).toHaveBeenCalledTimes(3)
     expect(job.activity_ids).toEqual([7, 8])
+  })
+
+  it('keeps polling a refresh that is waiting for a provider rate limit to clear', async () => {
+    fetchMock
+      .mockResolvedValueOnce(
+        jsonResponse(uploadJob({ status: 'queued', retry_after: '2026-01-01T12:00:00Z' })),
+      )
+      .mockResolvedValueOnce(jsonResponse(uploadJob({ status: 'succeeded', activity_ids: [3] })))
+
+    const job = await pollIngestionJob('job-1', { intervalMs: 0 })
+
+    expect(fetchMock).toHaveBeenCalledTimes(2)
+    expect(job.activity_ids).toEqual([3])
   })
 
   it('surfaces the sanitized failure code', async () => {
@@ -241,7 +282,7 @@ describe('pollIngestionJob', () => {
   })
 
   it('gives up once the deadline passes', async () => {
-    fetchMock.mockResolvedValue(jsonResponse(uploadJob({ status: 'processing' })))
+    fetchMock.mockResolvedValue(jsonResponse(uploadJob({ status: 'running' })))
 
     await expect(pollIngestionJob('job-1', { intervalMs: 0, timeoutMs: 0 })).rejects.toBeInstanceOf(
       IngestionJobTimeoutError,

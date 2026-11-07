@@ -105,7 +105,10 @@ export default defineConfig({
         // a single screen; it is above Workbox's 2 MiB precache cap and would
         // bloat the install payload for every client, so it is fetched from
         // the network instead.
-        globIgnores: ['**/env.js', '**/assets/login-*.png'],
+        //
+        // The password strength meter's zxcvbn dictionaries (~1.6 MB) are only
+        // needed on screens that set a password, so they load on demand too.
+        globIgnores: ['**/env.js', '**/assets/login-*.png', '**/assets/passwordScorer-*.js'],
         cleanupOutdatedCaches: true,
         clientsClaim: true,
         skipWaiting: true,

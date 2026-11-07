@@ -1,8 +1,8 @@
 <script setup lang="ts">
-import { computed, reactive, watch } from 'vue'
+import { computed, reactive, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 
-import type { Activity, ActivityEditInput } from '@/features/activities/types'
+import type { Activity, ActivityEditInput, ActivityVisibility } from '@/features/activities/types'
 
 import { FormDialog } from '@/components/ui/form-dialog'
 import { FormField } from '@/components/ui/form-field'
@@ -10,10 +10,16 @@ import { Input } from '@/components/ui/input'
 import { inputFieldClass } from '@/components/ui/input'
 import { MarkdownEditor } from '@/components/ui/markdown-editor'
 import { Switch } from '@/components/ui/switch'
-import { HttpError } from '@/services/http'
+import { isStaleWrite } from '@/services/ifMatch'
 import { useToasts } from '@/composables/useToasts'
+import { required } from '@/utils/validators'
 import { useEditActivityMutation } from '@/features/activities/composables/useActivityDetail'
-import { ACTIVITY_TYPE_LABEL_KEYS } from '@/features/activities/utils/activityType'
+import {
+  ACTIVITY_TYPE_LABEL_KEYS,
+  isActivityType,
+  presentActivityType,
+  sortActivityTypesByLabel,
+} from '@/features/activities/utils/activityType'
 
 const props = defineProps<{
   /** The activity being edited; seeds the form whenever the dialog opens. */
@@ -22,7 +28,7 @@ const props = defineProps<{
 
 const open = defineModel<boolean>('open', { required: true })
 
-const { t } = useI18n()
+const { t, locale } = useI18n()
 const toasts = useToasts()
 
 const editMutation = useEditActivityMutation()
@@ -59,20 +65,23 @@ const form = reactive<ActivityEditInput>(toFormValues(props.activity))
 watch(open, (isOpen) => {
   if (isOpen) {
     Object.assign(form, toFormValues(props.activity))
+    nameTouched.value = false
   }
 })
 
-/** Activity-type options, sorted by code, for the type selector. */
+/** Activity-type options, sorted by label, for the type selector. */
 const activityTypeOptions = computed(() =>
-  Object.entries(ACTIVITY_TYPE_LABEL_KEYS)
-    .map(([value, labelKey]) => ({ value: Number(value), labelKey }))
-    .sort((a, b) => a.value - b.value),
+  sortActivityTypesByLabel(
+    Object.keys(ACTIVITY_TYPE_LABEL_KEYS).filter(isActivityType),
+    t,
+    locale.value,
+  ).map((value) => ({ value, labelKey: presentActivityType(value).labelKey })),
 )
 
-const visibilityOptions = [
-  { value: 0, labelKey: 'activities.visibility.public' },
-  { value: 1, labelKey: 'activities.visibility.followers' },
-  { value: 2, labelKey: 'activities.visibility.private' },
+const visibilityOptions: { value: ActivityVisibility; labelKey: string }[] = [
+  { value: 'public', labelKey: 'activities.visibility.public' },
+  { value: 'followers', labelKey: 'activities.visibility.followers' },
+  { value: 'private', labelKey: 'activities.visibility.private' },
 ]
 
 /** The per-metric "hide from others" toggles, mirroring v1's edit modal. */
@@ -91,10 +100,16 @@ const privacyFields = [
   { key: 'hideGear', labelKey: 'activities.edit.hideGear' },
 ] as const
 
-const canSubmit = computed(() => form.name.trim().length > 0)
+const validateName = required<string>(t('activities.edit.nameRequired'))
+const nameTouched = ref(false)
+const nameError = computed(() =>
+  nameTouched.value ? (validateName(form.name) ?? undefined) : undefined,
+)
+const canSubmit = computed(() => validateName(form.name) === null)
 
 /** Persists the edited fields, then closes the dialog. */
 async function submit(): Promise<void> {
+  nameTouched.value = true
   if (!canSubmit.value) {
     return
   }
@@ -110,7 +125,7 @@ async function submit(): Promise<void> {
     // 412 is not a failure to save, it is a refusal to overwrite: the form was
     // built from a copy that someone else has since changed. Saying so lets the
     // user reopen the (now refreshed) activity instead of retrying blindly.
-    if (error instanceof HttpError && error.status === 412) {
+    if (isStaleWrite(error)) {
       open.value = false
       toasts.error(t('activities.edit.staleError'))
       return
@@ -133,14 +148,17 @@ async function submit(): Promise<void> {
     @submit="submit"
   >
     <div class="flex flex-col gap-3">
-      <FormField :label="t('activities.edit.name')">
-        <template #default="{ fieldId }">
+      <FormField :label="t('activities.edit.name')" :error="nameError" required>
+        <template #default="{ fieldId, describedBy, invalid }">
           <Input
             :id="fieldId"
             v-model="form.name"
+            :aria-describedby="describedBy"
+            :aria-invalid="invalid"
             class="w-full"
             :maxlength="45"
             :disabled="isSaving"
+            @blur="nameTouched = true"
           />
         </template>
       </FormField>

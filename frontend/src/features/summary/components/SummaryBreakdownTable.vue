@@ -5,9 +5,9 @@ import type { Units } from '@/features/activities/utils/format'
 import type { SummaryBreakdownRow, SummaryViewType } from '@/features/summary/types'
 
 import { Card } from '@/components/ui/card'
+import { useUnitFormat } from '@/composables/useUnitFormat'
 import { monthNameLabel, weekdayLabel } from '@/features/summary/utils/period'
 import {
-  combineSummaryMetric,
   formatSummaryCalories,
   formatSummaryDistance,
   formatSummaryDuration,
@@ -24,6 +24,13 @@ const props = defineProps<{
 }>()
 
 const { t, locale } = useI18n()
+const { formatMetric, duration } = useUnitFormat()
+
+/** Renders the aggregate duration in the localized hours-and-minutes format. */
+function summaryDuration(seconds: number): string {
+  const { hours, minutes } = formatSummaryDuration(seconds)
+  return duration(hours, minutes)
+}
 
 /** Resolves the period-column label for a row's bucket, per view type. */
 function periodLabel(bucket: number): string {
@@ -74,16 +81,16 @@ function periodLabel(bucket: number): string {
           <tr v-for="row in rows" :key="row.bucket" class="border-b border-border last:border-0">
             <td class="py-2 pe-3">{{ periodLabel(row.bucket) }}</td>
             <td class="px-3 py-2 text-end tabular-nums">
-              {{ combineSummaryMetric(formatSummaryDistance(row.totalDistance, units)) }}
+              {{ formatMetric(formatSummaryDistance(row.totalDistance, units)) }}
             </td>
             <td class="px-3 py-2 text-end tabular-nums">
-              {{ combineSummaryMetric(formatSummaryDuration(row.totalDuration)) }}
+              {{ summaryDuration(row.totalDuration) }}
             </td>
             <td class="hidden px-3 py-2 text-end tabular-nums sm:table-cell">
-              {{ combineSummaryMetric(formatSummaryElevation(row.totalElevationGain, units)) }}
+              {{ formatMetric(formatSummaryElevation(row.totalElevationGain, units)) }}
             </td>
             <td class="hidden px-3 py-2 text-end tabular-nums sm:table-cell">
-              {{ combineSummaryMetric(formatSummaryCalories(row.totalCalories)) }}
+              {{ formatMetric(formatSummaryCalories(row.totalCalories)) }}
             </td>
             <td class="hidden py-2 ps-3 text-end tabular-nums md:table-cell">
               {{ row.activityCount }}

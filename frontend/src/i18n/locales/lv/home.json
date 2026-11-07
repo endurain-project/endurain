@@ -46,7 +46,6 @@
     "thisWeek": "Šonedēļ",
     "thisMonth": "Šomēnes",
     "empty": "Šajā periodā nav aktivitāšu",
-    "caloriesUnit": "kcal",
     "metric": {
       "distance": "Distance",
       "time": "Laiks",
@@ -63,12 +62,13 @@
     "snow_ski": "Slēpošana",
     "snowboard": "Snovbords",
     "windsurf": "Vindsērfings",
-    "stand_up_paddleboarding": "SUP airēšana",
-    "surfing": "Sērfošana",
+    "stand_up_paddling": "SUP airēšana",
+    "surf": "Sērfošana",
     "kayaking": "Kajakošana",
     "sailing": "Burāšana",
-    "snowshoeing": "Pastaiga ar sniega kurpēm",
-    "inline_skating": "Skrituļslīdošana"
+    "snow_shoeing": "Pastaiga ar sniega kurpēm",
+    "inline_skating": "Skrituļslīdošana",
+    "other": "Citi"
   },
   "goals": {
     "title": "Mērķi",

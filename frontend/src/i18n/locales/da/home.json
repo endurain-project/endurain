@@ -46,7 +46,6 @@
     "thisWeek": "Denne uge",
     "thisMonth": "Denne måned",
     "empty": "Ingen aktivitet i denne periode",
-    "caloriesUnit": "kcal",
     "metric": {
       "distance": "Distance",
       "time": "Tid",
@@ -63,12 +62,13 @@
     "snow_ski": "Skiløb",
     "snowboard": "Snowboarding",
     "windsurf": "Windsurfing",
-    "stand_up_paddleboarding": "Paddleboarding",
-    "surfing": "Surfing",
+    "stand_up_paddling": "Paddleboarding",
+    "surf": "Surfing",
     "kayaking": "Kajakroning",
     "sailing": "Sejlads",
-    "snowshoeing": "Snesko-vandring",
-    "inline_skating": "Rulleskøjteløb"
+    "snow_shoeing": "Snesko-vandring",
+    "inline_skating": "Rulleskøjteløb",
+    "other": "Andre"
   },
   "goals": {
     "title": "Mål",

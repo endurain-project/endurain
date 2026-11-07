@@ -62,7 +62,7 @@ class TestThumbnailTokenSigning:
 
         import modules.activities.activity_thumbnail.signing as signing
 
-        monkeypatch.setattr(signing, "_SIGNER", replace(signing._SIGNER, max_age_seconds=1))
+        monkeypatch.setattr(signing, "_SIGNER", replace(signing._SIGNER, max_age_seconds=1, bucket_seconds=1))
         token = signing.sign_thumbnail_token(42)
         time.sleep(2.1)
 

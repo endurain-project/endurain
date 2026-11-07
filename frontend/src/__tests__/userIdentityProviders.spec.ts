@@ -13,7 +13,7 @@ vi.mock('@/services/http', () => ({
   apiFetch: vi.fn<typeof apiFetch>(),
 }))
 
-/** Builds a full `UsersIdentityProviderResponse` wire payload, overridable per case. */
+/** Builds a full `IdentityProviderLinkRead` wire payload, overridable per case. */
 function makeIdpDto(overrides: Partial<UserIdentityProviderDto> = {}): UserIdentityProviderDto {
   return {
     id: 3,
@@ -22,10 +22,9 @@ function makeIdpDto(overrides: Partial<UserIdentityProviderDto> = {}): UserIdent
     idp_name: 'Authelia',
     idp_slug: 'authelia',
     idp_icon: null,
+    idp_icon_uploaded: false,
     idp_provider_type: 'oidc',
     idp_subject: 'auth|abc123',
-    idp_access_token_expires_at: null,
-    idp_refresh_token_updated_at: null,
     last_login: '2026-06-02T11:00:00Z',
     linked_at: '2026-06-01T10:00:00Z',
     ...overrides,
@@ -62,27 +61,34 @@ describe('user identity providers service', () => {
   })
 
   it('fetchUserIdentityProviders calls the endpoint and maps records', async () => {
-    vi.mocked(apiFetch).mockResolvedValue([makeIdpDto()])
+    vi.mocked(apiFetch).mockResolvedValue({ items: [makeIdpDto()], next: null })
 
     const providers = await fetchUserIdentityProviders(7)
 
-    expect(apiFetch).toHaveBeenCalledWith('/users/7/identity-providers', { signal: undefined })
+    expect(apiFetch).toHaveBeenCalledWith('/users/7/identity-providers?page_number=1', {
+      signal: undefined,
+    })
     expect(providers[0]?.name).toBe('Authelia')
   })
 
-  it('fetchUserIdentityProviders maps a null payload to an empty array', async () => {
-    vi.mocked(apiFetch).mockResolvedValue(null)
-
-    expect(await fetchUserIdentityProviders(7)).toEqual([])
-  })
-
-  it('unlinkUserIdentityProvider issues a scoped DELETE by provider id', async () => {
+  it('unlinkUserIdentityProvider POSTs to the unlink route with the admin step-up', async () => {
     vi.mocked(apiFetch).mockResolvedValue(undefined)
 
-    await unlinkUserIdentityProvider(7, 11)
+    await unlinkUserIdentityProvider(7, 11, {
+      currentPassword: null,
+      mfaCode: null,
+      idpReauth: { ticket: 't1', codeVerifier: 'v1' },
+    })
 
-    expect(apiFetch).toHaveBeenCalledWith('/users/7/identity-providers/11', {
-      method: 'DELETE',
+    expect(apiFetch).toHaveBeenCalledWith('/users/7/identity-providers/11/unlink', {
+      method: 'POST',
+      body: JSON.stringify({
+        step_up: {
+          current_password: null,
+          mfa_code: null,
+          idp_reauth: { ticket: 't1', code_verifier: 'v1' },
+        },
+      }),
       responseType: 'void',
     })
   })

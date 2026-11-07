@@ -23,12 +23,12 @@ class TestHealthWeightModel:
         assert hasattr(health_weight_models.HealthWeight, "id")
         assert hasattr(health_weight_models.HealthWeight, "user_id")
         assert hasattr(health_weight_models.HealthWeight, "date")
-        assert hasattr(health_weight_models.HealthWeight, "weight")
+        assert hasattr(health_weight_models.HealthWeight, "weight_kg")
         assert hasattr(health_weight_models.HealthWeight, "bmi")
-        assert hasattr(health_weight_models.HealthWeight, "body_fat")
-        assert hasattr(health_weight_models.HealthWeight, "body_water")
-        assert hasattr(health_weight_models.HealthWeight, "bone_mass")
-        assert hasattr(health_weight_models.HealthWeight, "muscle_mass")
+        assert hasattr(health_weight_models.HealthWeight, "body_fat_percent")
+        assert hasattr(health_weight_models.HealthWeight, "body_water_percent")
+        assert hasattr(health_weight_models.HealthWeight, "bone_mass_kg")
+        assert hasattr(health_weight_models.HealthWeight, "muscle_mass_kg")
         assert hasattr(health_weight_models.HealthWeight, "physique_rating")
         assert hasattr(health_weight_models.HealthWeight, "visceral_fat")
         assert hasattr(health_weight_models.HealthWeight, "metabolic_age")
@@ -62,14 +62,14 @@ class TestHealthWeightModel:
         """
         # Assert
         assert health_weight_models.HealthWeight.bmi.nullable is True
-        assert health_weight_models.HealthWeight.body_fat.nullable is True
-        assert health_weight_models.HealthWeight.body_water.nullable is True
-        assert health_weight_models.HealthWeight.bone_mass.nullable is True
-        assert health_weight_models.HealthWeight.muscle_mass.nullable is True
+        assert health_weight_models.HealthWeight.body_fat_percent.nullable is True
+        assert health_weight_models.HealthWeight.body_water_percent.nullable is True
+        assert health_weight_models.HealthWeight.bone_mass_kg.nullable is True
+        assert health_weight_models.HealthWeight.muscle_mass_kg.nullable is True
         assert health_weight_models.HealthWeight.physique_rating.nullable is True
         assert health_weight_models.HealthWeight.visceral_fat.nullable is True
         assert health_weight_models.HealthWeight.metabolic_age.nullable is True
-        assert health_weight_models.HealthWeight.source.nullable is True
+        assert health_weight_models.HealthWeight.source.nullable is False
 
     def test_health_weight_model_required_fields(self):
         """
@@ -78,7 +78,7 @@ class TestHealthWeightModel:
         # Assert
         assert health_weight_models.HealthWeight.user_id.nullable is False
         assert health_weight_models.HealthWeight.date.nullable is False
-        assert health_weight_models.HealthWeight.weight.nullable is False
+        assert health_weight_models.HealthWeight.weight_kg.nullable is False
 
     def test_health_weight_model_column_types(self):
         """
@@ -97,19 +97,12 @@ class TestHealthWeightModel:
         Test HealthWeight model decimal fields precision.
         """
         # Assert
-        assert health_weight_models.HealthWeight.weight.type.precision == 10
-        assert health_weight_models.HealthWeight.weight.type.scale == 2
+        assert health_weight_models.HealthWeight.weight_kg.type.precision == 10
+        assert health_weight_models.HealthWeight.weight_kg.type.scale == 2
         assert health_weight_models.HealthWeight.bmi.type.precision == 10
         assert health_weight_models.HealthWeight.bmi.type.scale == 2
-        assert health_weight_models.HealthWeight.body_fat.type.precision == 10
-        assert health_weight_models.HealthWeight.body_fat.type.scale == 2
-
-    def test_health_weight_model_has_user_relationship(self):
-        """
-        Test HealthWeight model has user relationship.
-        """
-        # Assert
-        assert hasattr(health_weight_models.HealthWeight, "users")
+        assert health_weight_models.HealthWeight.body_fat_percent.type.precision == 10
+        assert health_weight_models.HealthWeight.body_fat_percent.type.scale == 2
 
     def test_health_weight_model_docstring(self):
         """

@@ -46,7 +46,6 @@
     "thisWeek": "本周",
     "thisMonth": "本月",
     "empty": "本期间无活动",
-    "caloriesUnit": "千卡",
     "metric": {
       "distance": "距离",
       "time": "时间",
@@ -63,12 +62,13 @@
     "snow_ski": "滑雪",
     "snowboard": "单板滑雪",
     "windsurf": "帆板运动",
-    "stand_up_paddleboarding": "站立式划桨",
-    "surfing": "冲浪",
+    "stand_up_paddling": "站立式划桨",
+    "surf": "冲浪",
     "kayaking": "皮划艇",
     "sailing": "帆船",
-    "snowshoeing": "雪鞋行走",
-    "inline_skating": "直排轮滑"
+    "snow_shoeing": "雪鞋行走",
+    "inline_skating": "直排轮滑",
+    "other": "其他"
   },
   "goals": {
     "title": "目标",

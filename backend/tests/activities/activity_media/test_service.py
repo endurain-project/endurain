@@ -1,12 +1,24 @@
 """Tests for the activity media service (authorization, storage, cleanup)."""
 
+import io
 from unittest.mock import MagicMock, patch
 
+import jasil.providers as platform_providers
 import pytest
+from fastapi import UploadFile
+from tests._helpers import images
 
 import core.exceptions as core_exceptions
+import core.file_uploads as core_file_uploads
+import core.hashing as core_hashing
 
 _SVC = "modules.activities.activity_media.service"
+_JPEG = images.jpeg_with_exif()
+
+
+def _read_jpeg() -> bytes:
+    """The upload reader the service is handed."""
+    return _JPEG
 
 
 class TestBuildStorageKey:
@@ -90,6 +102,19 @@ class TestListActivityMedia:
 
 
 class TestStoreActivityMedia:
+    @patch(f"{_SVC}.activity_integration")
+    def test_an_activity_that_is_not_the_callers_is_refused_before_the_upload_is_read(self, mock_activities_service):
+        from modules.activities.activity_media.service import store_activity_media
+
+        mock_activities_service.owns_activity.return_value = False
+        storage, read_upload = MagicMock(), MagicMock()
+
+        with pytest.raises(core_exceptions.NotFoundError):
+            store_activity_media(1, 2, "ride.jpg", read_upload, storage, MagicMock())
+
+        read_upload.assert_not_called()
+        storage.save.assert_not_called()
+
     @patch(f"{_SVC}.activity_media_crud")
     @patch(f"{_SVC}.activity_integration")
     def test_saves_blob_and_creates_record(self, mock_activities_service, mock_media_crud):
@@ -103,14 +128,14 @@ class TestStoreActivityMedia:
             id=9, activity_id=1, media_path="1_abc.jpg", media_type=1
         )
 
-        result = store_activity_media(1, 2, "ride.jpg", b"bytes", storage, MagicMock())
+        result = store_activity_media(1, 2, "ride.jpg", _read_jpeg, storage, MagicMock())
 
         assert result.id == 9
         assert "/activities/1/media/9/file?t=" in result.url
         area, key, data, content_type = storage.save.call_args.args
         assert area == "activity_media"
         assert key.startswith("1_") and key.endswith(".jpg")
-        assert data == b"bytes"
+        assert not images.has_metadata(data)
         # Derived from the validated extension: the client's Content-Type header
         # must never reach the storage backend as object metadata.
         assert content_type == "image/jpeg"
@@ -133,7 +158,7 @@ class TestStoreActivityMedia:
         existing = ActivityMediaRecord(id=4, activity_id=1, media_path="1_existing.jpg", media_type=1)
         mock_media_crud.get_activity_media_by_content_hash.return_value = existing
 
-        result = store_activity_media(1, 2, "ride.jpg", b"bytes", storage, MagicMock())
+        result = store_activity_media(1, 2, "ride.jpg", _read_jpeg, storage, MagicMock())
 
         assert result.id == 4
         storage.save.assert_not_called()
@@ -148,7 +173,7 @@ class TestStoreActivityMedia:
 
         with pytest.raises(core_exceptions.NotFoundError) as exc:
             storage = MagicMock()
-            store_activity_media(1, 2, "ride.jpg", b"bytes", storage, MagicMock())
+            store_activity_media(1, 2, "ride.jpg", _read_jpeg, storage, MagicMock())
 
         assert exc.value.status_code == 404
         # Nothing is stored for an activity the caller does not own.
@@ -165,7 +190,7 @@ class TestStoreActivityMedia:
         mock_media_crud.create_activity_media.side_effect = core_exceptions.ConflictError("dup")
 
         with pytest.raises(core_exceptions.ConflictError):
-            store_activity_media(1, 2, "ride.jpg", b"bytes", storage, MagicMock())
+            store_activity_media(1, 2, "ride.jpg", _read_jpeg, storage, MagicMock())
 
         # A failed upload leaves no orphaned blob.
         stored_key = storage.save.call_args.args[1]
@@ -182,11 +207,12 @@ class TestStoreActivityMedia:
         mock_activities_service.owns_activity.return_value = True
         storage = MagicMock()
         db = MagicMock()
-        db.commit.side_effect = OperationalError("stmt", {}, Exception("connection lost"))
+        # The first commit ends the duplicate check's transaction; the second stores the row.
+        db.commit.side_effect = [None, OperationalError("stmt", {}, Exception("connection lost"))]
         mock_media_crud.get_activity_media_by_content_hash.return_value = None
 
         with pytest.raises(OperationalError):
-            store_activity_media(1, 2, "ride.jpg", b"bytes", storage, db)
+            store_activity_media(1, 2, "ride.jpg", _read_jpeg, storage, db)
 
         stored_key = storage.save.call_args.args[1]
         storage.delete.assert_called_once_with("activity_media", stored_key)
@@ -207,7 +233,7 @@ class TestStoreActivityMedia:
         mock_media_crud.get_activity_media_by_content_hash.side_effect = [None, winner]
         mock_media_crud.create_activity_media.side_effect = core_exceptions.ConflictError("dup")
 
-        result = store_activity_media(1, 2, "ride.jpg", b"bytes", storage, MagicMock())
+        result = store_activity_media(1, 2, "ride.jpg", _read_jpeg, storage, MagicMock())
 
         assert result.id == 4
         stored_key = storage.save.call_args.args[1]
@@ -232,11 +258,12 @@ class TestStoreActivityMedia:
         mock_media_crud.get_activity_media_by_content_hash.side_effect = lookup
         mock_media_crud.create_activity_media.side_effect = core_exceptions.ConflictError("dup")
 
-        result = store_activity_media_bytes(1, "photo.jpg", b"bytes", MagicMock(), db)
+        result = store_activity_media_bytes(1, "photo.jpg", _JPEG, MagicMock(), db)
 
         assert result.id == 4
         assert events == ["lookup", "rollback", "lookup"]
-        db.commit.assert_not_called()
+        # Only the commit that ended the duplicate check's transaction; the row was never stored.
+        db.commit.assert_called_once()
 
     @patch(f"{_SVC}.activity_media_crud")
     def test_a_successful_store_commits(self, mock_media_crud):
@@ -249,9 +276,45 @@ class TestStoreActivityMedia:
             id=9, activity_id=1, media_path="1_abc.jpg", media_type=1
         )
 
-        store_activity_media_bytes(1, "photo.jpg", b"bytes", MagicMock(), db)
+        store_activity_media_bytes(1, "photo.jpg", _JPEG, MagicMock(), db)
 
-        db.commit.assert_called_once()
+        # One commit ends the duplicate check before the blob is written, one stores the row.
+        assert db.commit.call_count == 2
+
+
+class TestStoredMediaMetadata:
+    @patch(f"{_SVC}.activity_media_crud")
+    def test_the_hash_covers_the_original_bytes_while_the_blob_is_stripped(self, mock_media_crud):
+        """A re-run import of the same original photo is still recognised as a duplicate."""
+        from modules.activities.activity_media.contracts import ActivityMediaRecord
+        from modules.activities.activity_media.service import store_activity_media_bytes
+
+        storage = MagicMock()
+        mock_media_crud.get_activity_media_by_content_hash.return_value = None
+        mock_media_crud.create_activity_media.return_value = ActivityMediaRecord(
+            id=9, activity_id=1, media_path="1_abc.jpg", media_type=1
+        )
+
+        store_activity_media_bytes(1, "photo.jpg", _JPEG, storage, MagicMock())
+
+        stored = storage.save.call_args.args[2]
+        assert stored != _JPEG
+        assert not images.has_metadata(stored)
+        assert mock_media_crud.get_activity_media_by_content_hash.call_args.args[1] == core_hashing.sha256_hex(_JPEG)
+        assert mock_media_crud.create_activity_media.call_args.kwargs["content_hash"] == core_hashing.sha256_hex(_JPEG)
+
+    @patch(f"{_SVC}.activity_media_crud")
+    def test_an_undecodable_image_stores_nothing(self, mock_media_crud):
+        from modules.activities.activity_media.service import store_activity_media_bytes
+
+        storage = MagicMock()
+        mock_media_crud.get_activity_media_by_content_hash.return_value = None
+
+        with pytest.raises(core_exceptions.InvalidInputError):
+            store_activity_media_bytes(1, "photo.jpg", b"not an image", storage, MagicMock())
+
+        storage.save.assert_not_called()
+        mock_media_crud.create_activity_media.assert_not_called()
 
 
 class TestStoreActivityMediaBytes:
@@ -268,12 +331,12 @@ class TestStoreActivityMediaBytes:
             id=9, activity_id=1, media_path="1_abc.jpg", media_type=1
         )
 
-        result = store_activity_media_bytes(1, "photo.jpg", b"bytes", storage, MagicMock())
+        result = store_activity_media_bytes(1, "photo.jpg", _JPEG, storage, MagicMock())
 
         assert result.id == 9
         area, _key, data, content_type = storage.save.call_args.args
         assert area == "activity_media"
-        assert data == b"bytes"
+        assert not images.has_metadata(data)
         assert content_type == "image/jpeg"
         assert mock_media_crud.create_activity_media.call_args.kwargs["content_hash"]
 
@@ -288,7 +351,7 @@ class TestStoreActivityMediaBytes:
         existing = ActivityMediaRecord(id=4, activity_id=1, media_path="1_existing.jpg", media_type=1)
         mock_media_crud.get_activity_media_by_content_hash.return_value = existing
 
-        result = store_activity_media_bytes(1, "photo.jpg", b"bytes", storage, MagicMock())
+        result = store_activity_media_bytes(1, "photo.jpg", _JPEG, storage, MagicMock())
 
         assert result.id == 4
         storage.save.assert_not_called()
@@ -365,10 +428,118 @@ class TestDeleteActivityMedia:
         mock_media_crud.get_activity_media_by_id.return_value = MagicMock(activity_id=1, media_path="1_abc.jpg")
         mock_activities_service.owns_activity.return_value = True
         storage = MagicMock()
-        storage.delete.side_effect = OSError("backend down")
+        storage.delete.side_effect = platform_providers.StorageBackendUnavailableError("backend down")
 
         delete_activity_media(1, 5, 2, storage, MagicMock())
 
         # The row is still gone; only the blob cleanup failed.
         mock_media_crud.delete_activity_media.assert_called_once()
         mock_logger.warning.assert_called_once()
+
+
+class TestNoConnectionHeldWhileUsingStorage:
+    """A read leaves the session holding a pooled connection, so the blob is moved only after it has ended."""
+
+    def test_storing_media_commits_the_duplicate_check_before_the_blob_is_written(self):
+        from modules.activities.activity_media import service
+
+        db = MagicMock()
+        storage = MagicMock()
+        order = MagicMock()
+        order.attach_mock(db.commit, "commit")
+        order.attach_mock(storage.save, "save")
+        storage.save.side_effect = RuntimeError("stop here")
+
+        with (
+            patch(f"{_SVC}.activity_media_crud.get_activity_media_by_content_hash", return_value=None),
+            pytest.raises(RuntimeError, match="stop here"),
+        ):
+            service._persist_media_bytes(1, "a.jpg", _JPEG, storage, db)
+
+        assert [call[0] for call in order.mock_calls] == ["commit", "save"]
+
+    def test_serving_media_ends_the_read_before_the_blob_is_fetched(self):
+        from modules.activities.activity_media import service
+
+        db = MagicMock()
+        storage = MagicMock()
+        storage.get.return_value = b"image"
+        order = MagicMock()
+        order.attach_mock(db.commit, "commit")
+        order.attach_mock(storage.get, "get")
+
+        with (
+            patch(f"{_SVC}.activity_media_signing.verify_media_token", return_value=True),
+            patch(
+                f"{_SVC}.activity_media_crud.get_activity_media_by_id",
+                return_value=MagicMock(activity_id=1, media_path="1_x.jpg"),
+            ),
+        ):
+            service.read_activity_media_blob(1, 2, "token", storage, db)
+
+        assert [call[0] for call in order.mock_calls] == ["commit", "get"]
+
+
+class TestImageFormats:
+    @pytest.mark.parametrize(
+        ("key", "expected"),
+        [
+            ("1_a.jpg", "image/jpeg"),
+            ("1_a.JPEG", "image/jpeg"),
+            ("1_a.png", "image/png"),
+            ("1_a.webp", "image/webp"),
+            ("1_a.heic", "application/octet-stream"),
+        ],
+    )
+    def test_a_stored_key_is_served_with_the_type_of_its_extension(self, key, expected):
+        from modules.activities.activity_media.service import _content_type_for
+
+        assert _content_type_for(key) == expected
+
+    @pytest.mark.parametrize("name", ["a.gif", "a.heic", "a.heif"])
+    def test_gif_and_heic_names_are_refused(self, name):
+        from modules.activities.activity_media.service import _build_storage_key
+
+        with pytest.raises(core_exceptions.UnsupportedMediaTypeError):
+            _build_storage_key(1, name)
+
+    @patch(f"{_SVC}.activity_media_crud")
+    @patch(f"{_SVC}.activity_integration")
+    def test_a_webp_is_stored_without_its_metadata(self, mock_activities_service, mock_media_crud):
+        from modules.activities.activity_media.contracts import ActivityMediaRecord
+        from modules.activities.activity_media.service import store_activity_media
+
+        mock_activities_service.owns_activity.return_value = True
+        mock_media_crud.get_activity_media_by_content_hash.return_value = None
+        mock_media_crud.create_activity_media.return_value = ActivityMediaRecord(
+            id=9, activity_id=1, media_path="1_abc.webp", media_type=1
+        )
+        storage = MagicMock()
+        webp = images.webp_with_exif()
+
+        store_activity_media(
+            1,
+            2,
+            "ride.webp",
+            lambda: core_file_uploads.read_validated_upload_sync(
+                UploadFile(io.BytesIO(webp), filename="ride.webp"), kind=core_file_uploads.UploadKind.IMAGE
+            ),
+            storage,
+            MagicMock(),
+        )
+
+        _area, key, data, content_type = storage.save.call_args.args
+        assert key.endswith(".webp")
+        assert content_type == "image/webp"
+        assert not images.has_metadata(data)
+
+    @pytest.mark.parametrize(
+        ("name", "data"), [("a.gif", images.gif()), ("a.heic", images.heic_like())], ids=["gif", "heic"]
+    )
+    def test_gif_and_heic_uploads_are_refused_by_the_validator(self, name, data):
+        with pytest.raises(core_exceptions.DomainError) as exc:
+            core_file_uploads.read_validated_upload_sync(
+                UploadFile(io.BytesIO(data), filename=name), kind=core_file_uploads.UploadKind.IMAGE
+            )
+
+        assert exc.value.status_code == 415

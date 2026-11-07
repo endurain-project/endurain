@@ -1,5 +1,6 @@
 """User goals Pydantic schemas and validators."""
 
+from datetime import date
 from enum import StrEnum
 
 from pydantic import (
@@ -7,15 +8,16 @@ from pydantic import (
     ConfigDict,
     Field,
     StrictInt,
-    StrictStr,
     model_validator,
 )
 from pydantic_core import PydanticCustomError
 
+import core.pagination as core_pagination
+import core.types as core_types
+
 
 class Interval(StrEnum):
-    """
-    Recurrence intervals for user goals.
+    """Recurrence intervals for user goals.
 
     Attributes:
         DAILY: Daily recurrence interval.
@@ -30,9 +32,8 @@ class Interval(StrEnum):
     YEARLY = "yearly"
 
 
-class ActivityType(StrEnum):
-    """
-    Supported activity types for user goals.
+class GoalActivityType(StrEnum):
+    """Supported activity types for user goals.
 
     Attributes:
         RUN: Running activities.
@@ -52,8 +53,7 @@ class ActivityType(StrEnum):
 
 
 class GoalType(StrEnum):
-    """
-    Types of measurable user goals.
+    """Types of measurable user goals.
 
     Attributes:
         CALORIES: Target calories burned.
@@ -80,9 +80,8 @@ TYPE_TO_FIELD = {
 }
 
 
-class UsersGoalBase(BaseModel):
-    """
-    Base schema for users fitness goals.
+class UserGoalBase(BaseModel):
+    """Base schema for users fitness goals.
 
     Attributes:
         interval: Goal time interval (daily, weekly, monthly,
@@ -97,13 +96,23 @@ class UsersGoalBase(BaseModel):
     """
 
     interval: Interval = Field(..., description="Goal time interval")
-    activity_type: ActivityType = Field(..., description="Type of activity for the goal")
+    activity_type: GoalActivityType = Field(..., description="Type of activity for the goal")
     goal_type: GoalType = Field(..., description="Type of goal metric being tracked")
-    goal_calories: StrictInt | None = Field(default=None, ge=0, description="Target calories in kcal")
-    goal_activities_number: StrictInt | None = Field(default=None, ge=0, description="Target number of activities")
-    goal_distance: StrictInt | None = Field(default=None, ge=0, description="Target distance in meters")
-    goal_elevation: StrictInt | None = Field(default=None, ge=0, description="Target elevation gain in meters")
-    goal_duration: StrictInt | None = Field(default=None, ge=0, description="Target duration in seconds")
+    goal_calories: StrictInt | None = Field(
+        default=None, ge=0, le=core_types.INT32_MAX, description="Target calories in kcal"
+    )
+    goal_activities_number: StrictInt | None = Field(
+        default=None, ge=0, le=core_types.INT32_MAX, description="Target number of activities"
+    )
+    goal_distance: StrictInt | None = Field(
+        default=None, ge=0, le=core_types.INT32_MAX, description="Target distance in meters"
+    )
+    goal_elevation: StrictInt | None = Field(
+        default=None, ge=0, le=core_types.INT32_MAX, description="Target elevation gain in meters"
+    )
+    goal_duration: StrictInt | None = Field(
+        default=None, ge=0, le=core_types.INT32_MAX, description="Target duration in seconds"
+    )
 
     model_config = ConfigDict(
         from_attributes=True,
@@ -113,9 +122,8 @@ class UsersGoalBase(BaseModel):
     )
 
     @model_validator(mode="after")
-    def ensure_correct_goal_field(self) -> "UsersGoalBase":
-        """
-        Validate exactly one goal field matches goal_type.
+    def ensure_correct_goal_field(self) -> "UserGoalBase":
+        """Validate exactly one goal field matches goal_type.
 
         Returns:
             Self with validated goal field.
@@ -153,17 +161,35 @@ class UsersGoalBase(BaseModel):
         return self
 
 
-class UsersGoalCreate(UsersGoalBase):
-    """
-    Schema for creating a new users goal.
+class _UserGoalWrite(UserGoalBase):
+    """A goal a client writes: its target is above zero, which a goal stored before that rule may not be."""
 
-    Inherits all validation from UsersGoalBase.
+    goal_calories: StrictInt | None = Field(
+        default=None, gt=0, le=core_types.INT32_MAX, description="Target calories in kcal"
+    )
+    goal_activities_number: StrictInt | None = Field(
+        default=None, gt=0, le=core_types.INT32_MAX, description="Target number of activities"
+    )
+    goal_distance: StrictInt | None = Field(
+        default=None, gt=0, le=core_types.INT32_MAX, description="Target distance in meters"
+    )
+    goal_elevation: StrictInt | None = Field(
+        default=None, gt=0, le=core_types.INT32_MAX, description="Target elevation gain in meters"
+    )
+    goal_duration: StrictInt | None = Field(
+        default=None, gt=0, le=core_types.INT32_MAX, description="Target duration in seconds"
+    )
+
+
+class UserGoalCreate(_UserGoalWrite):
+    """Schema for creating a new users goal.
+
+    Inherits all validation from UserGoalBase.
     """
 
 
-class UsersGoalRead(UsersGoalBase):
-    """
-    Schema for reading a user goal.
+class UserGoalRead(UserGoalBase):
+    """Schema for reading a user goal.
 
     Attributes:
         id: Unique identifier for the goal.
@@ -172,19 +198,23 @@ class UsersGoalRead(UsersGoalBase):
 
     id: StrictInt = Field(..., ge=1, description="Unique identifier for the goal")
     user_id: StrictInt = Field(..., ge=1, description="User who owns this goal")
+    version: StrictInt = Field(default=1, ge=1, description="Optimistic-concurrency counter, also sent as the ETag")
 
 
-class UsersGoalUpdate(UsersGoalRead):
+#: One page of a user's goals.
+UserGoalPage = core_pagination.Page[UserGoalRead]
+
+
+class UserGoalUpdate(_UserGoalWrite):
+    """Schema for replacing an existing users goal.
+
+    The goal is named by the path, so the body carries neither an id nor an owner. It is the whole
+    goal, because the goal type decides which target field is required.
     """
-    Schema for updating an existing users goal.
-
-    Supports partial updates. Omitted fields remain unchanged.
-    """
 
 
-class UsersGoalProgress(BaseModel):
-    """
-    Schema for user goal progress tracking.
+class UserGoalProgress(BaseModel):
+    """Schema for user goal progress tracking.
 
     Attributes:
         goal_id: Goal identifier.
@@ -208,23 +238,23 @@ class UsersGoalProgress(BaseModel):
 
     goal_id: StrictInt = Field(..., ge=1, description="Goal identifier")
     interval: Interval = Field(..., description="Goal time interval")
-    activity_type: ActivityType = Field(..., description="Activity type for this goal")
+    activity_type: GoalActivityType = Field(..., description="Activity type for this goal")
     goal_type: GoalType
-    start_date: StrictStr = Field(..., description="Period start date")
-    end_date: StrictStr = Field(..., description="Period end date")
+    start_date: date = Field(..., description="First day of the goal period")
+    end_date: date = Field(..., description="Last day of the goal period")
     percentage_completed: StrictInt | None = Field(default=None, ge=0, le=100, description="Completion percentage")
     # total
-    total_calories: StrictInt | None = Field(default=None, ge=0, description="Total calories achieved")
+    total_calories: StrictInt | None = Field(default=None, ge=0, description="Total calories burned in kcal")
     total_activities_number: StrictInt | None = Field(default=None, ge=0, description="Total activities completed")
-    total_distance: StrictInt | None = Field(default=None, ge=0, description="Total distance achieved")
-    total_elevation: StrictInt | None = Field(default=None, ge=0, description="Total elevation gained")
-    total_duration: StrictInt | None = Field(default=None, ge=0, description="Total duration achieved")
+    total_distance: StrictInt | None = Field(default=None, ge=0, description="Total distance in meters")
+    total_elevation: StrictInt | None = Field(default=None, ge=0, description="Total elevation gain in meters")
+    total_duration: StrictInt | None = Field(default=None, ge=0, description="Total duration in seconds")
     # goal
-    goal_calories: StrictInt | None = Field(default=None, ge=0, description="Target calories")
-    goal_activities_number: StrictInt | None = Field(default=None, ge=0, description="Target activities count")
-    goal_distance: StrictInt | None = Field(default=None, ge=0, description="Target distance")
-    goal_elevation: StrictInt | None = Field(default=None, ge=0, description="Target elevation")
-    goal_duration: StrictInt | None = Field(default=None, ge=0, description="Target duration")
+    goal_calories: StrictInt | None = Field(default=None, ge=0, description="Target calories in kcal")
+    goal_activities_number: StrictInt | None = Field(default=None, ge=0, description="Target number of activities")
+    goal_distance: StrictInt | None = Field(default=None, ge=0, description="Target distance in meters")
+    goal_elevation: StrictInt | None = Field(default=None, ge=0, description="Target elevation gain in meters")
+    goal_duration: StrictInt | None = Field(default=None, ge=0, description="Target duration in seconds")
 
     model_config = ConfigDict(
         from_attributes=True,
@@ -232,3 +262,7 @@ class UsersGoalProgress(BaseModel):
         validate_assignment=True,
         use_enum_values=True,
     )
+
+
+#: One page of a user's goal progress.
+UserGoalProgressPage = core_pagination.Page[UserGoalProgress]

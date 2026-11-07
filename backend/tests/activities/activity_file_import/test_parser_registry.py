@@ -27,47 +27,49 @@ class TestSupportedExtensions:
 
 class TestAdapters:
     @patch("modules.activities.activity_file_import.parser_registry.activity_file_import_adapter")
-    @patch("modules.activities.activity_file_import.parser_registry.activity_file_import_gpx_utils")
+    @patch("modules.activities.activity_file_import.parser_registry.activity_file_import_gpx_parser")
     def test_gpx_adapter_returns_a_single_activity_parsed_file(self, mock_gpx, mock_adapter):
         mock_gpx.parse_gpx_file.return_value = {"activity": "gpx"}
         mock_adapter.parsed_info_to_parsed_activity.return_value = "parsed-gpx"
         parser = registry.get_parser(".gpx")
 
-        result = parser("/f.gpx", 7, "Name", "Asia/Tokyo")
+        result = parser("/f.gpx", 7, "Name", "Asia/Tokyo", 1.609344)
 
         assert result.activities == ["parsed-gpx"]
         assert result.components == {}
         mock_gpx.parse_gpx_file.assert_called_once_with(
-            "/f.gpx", 7, activity_name_input="Name", default_timezone="Asia/Tokyo"
+            "/f.gpx", 7, activity_name_input="Name", default_timezone="Asia/Tokyo", distance_per_lap_km=1.609344
         )
         mock_adapter.parsed_info_to_parsed_activity.assert_called_once_with({"activity": "gpx"})
 
     @patch("modules.activities.activity_file_import.parser_registry.activity_file_import_adapter")
-    @patch("modules.activities.activity_file_import.parser_registry.activity_file_import_tcx_utils")
+    @patch("modules.activities.activity_file_import.parser_registry.activity_file_import_tcx_parser")
     def test_tcx_adapter_forwards_the_fallback_timezone(self, mock_tcx, mock_adapter):
         mock_tcx.parse_tcx_file.return_value = {"activity": "tcx"}
         mock_adapter.parsed_info_to_parsed_activity.return_value = "parsed-tcx"
         parser = registry.get_parser(".tcx")
 
-        result = parser("/f.tcx", 7, "Name", "Asia/Tokyo")
+        result = parser("/f.tcx", 7, "Name", "Asia/Tokyo", 1.0)
 
         assert result.activities == ["parsed-tcx"]
         mock_tcx.parse_tcx_file.assert_called_once_with(
             "/f.tcx", 7, activity_name_input="Name", default_timezone="Asia/Tokyo"
         )
 
-    @patch("modules.activities.activity_file_import.parser_registry.activity_file_import_gpx_utils")
+    @patch("modules.activities.activity_file_import.parser_registry.activity_file_import_gpx_parser")
     def test_fallback_timezone_is_the_callers_to_supply(self, mock_gpx):
         # Parsers read no settings, so the caller resolves the fallback zone.
         mock_gpx.parse_gpx_file.return_value = {"activity": "gpx"}
         parser = registry.get_parser(".gpx")
         with pytest.raises(TypeError):
             parser("/f.gpx", 7)
-        parser("/f.gpx", 7, None, "UTC")
-        mock_gpx.parse_gpx_file.assert_called_once_with("/f.gpx", 7, activity_name_input=None, default_timezone="UTC")
+        parser("/f.gpx", 7, None, "UTC", 1.0)
+        mock_gpx.parse_gpx_file.assert_called_once_with(
+            "/f.gpx", 7, activity_name_input=None, default_timezone="UTC", distance_per_lap_km=1.0
+        )
 
     @patch("modules.activities.activity_file_import.parser_registry.activity_file_import_adapter")
-    @patch("modules.activities.activity_file_import.parser_registry.activity_file_import_fit_utils")
+    @patch("modules.activities.activity_file_import.parser_registry.activity_file_import_fit_parser")
     def test_fit_adapter_runs_the_split_and_build_stages(self, mock_fit, mock_adapter):
         # FIT's first stage is owner- and timezone-agnostic; the owner and the
         # fallback timezone apply in the second stage, which the adapter runs so
@@ -78,7 +80,7 @@ class TestAdapters:
         mock_adapter.parsed_info_to_parsed_activity.side_effect = lambda info: f"parsed-{info}"
         parser = registry.get_parser(".fit")
 
-        result = parser("/f.fit", 7, "Name", "Asia/Tokyo")
+        result = parser("/f.fit", 7, "Name", "Asia/Tokyo", 1.0)
 
         assert result.activities == ["parsed-info-a", "parsed-info-b"]
         assert result.components == {"exercise_titles": ["title"]}
@@ -87,7 +89,7 @@ class TestAdapters:
         mock_fit.create_activity_objects.assert_called_once_with(["session-a", "session-b"], 7, "Asia/Tokyo")
 
     @patch("modules.activities.activity_file_import.parser_registry.activity_file_import_adapter")
-    @patch("modules.activities.activity_file_import.parser_registry.activity_file_import_fit_utils")
+    @patch("modules.activities.activity_file_import.parser_registry.activity_file_import_fit_parser")
     def test_multi_activity_fit_is_not_special_to_the_caller(self, mock_fit, mock_adapter):
         # The whole point of ParsedFile: one file can hold several activities and
         # the ingestion core does not branch on the extension to find out.
@@ -96,7 +98,7 @@ class TestAdapters:
         mock_fit.create_activity_objects.return_value = ["i1", "i2", "i3"]
         mock_adapter.parsed_info_to_parsed_activity.side_effect = lambda info: info
 
-        result = registry.get_parser(".fit")("/f.fit", 7, None, "UTC")
+        result = registry.get_parser(".fit")("/f.fit", 7, None, "UTC", 1.0)
 
         assert result.activities == ["i1", "i2", "i3"]
         assert result.components == {"exercise_titles": None}

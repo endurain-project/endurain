@@ -26,7 +26,7 @@ def _config(tmp_path, storage_uri="local://"):
 
 
 class TestProcessMigration9:
-    @patch("migrations.migration_9.migrations_crud")
+    @patch("migrations.migration_9.migrations_service")
     @patch("migrations.migration_9.activity_media_crud")
     @patch("migrations.migration_9.platform_runtime")
     def test_local_storage_rewrites_the_row_without_re_saving(self, mock_runtime, mock_crud, mock_migrations, tmp_path):
@@ -48,9 +48,9 @@ class TestProcessMigration9:
         # left alone and only the DB value changes.
         storage.save.assert_not_called()
         assert mock_crud.edit_activity_media_media_path.call_args.args[:2] == (1, "5_abc.jpg")
-        mock_migrations.set_migration_as_executed.assert_called_once()
+        mock_migrations.mark_executed.assert_called_once()
 
-    @patch("migrations.migration_9.migrations_crud")
+    @patch("migrations.migration_9.migrations_service")
     @patch("migrations.migration_9.activity_media_crud")
     @patch("migrations.migration_9.platform_runtime")
     def test_object_storage_uploads_the_bytes(self, mock_runtime, mock_crud, mock_migrations, tmp_path):
@@ -71,7 +71,7 @@ class TestProcessMigration9:
         storage.save.assert_called_once_with(_AREA, "5_abc.jpg", b"image")
         assert mock_crud.edit_activity_media_media_path.call_args.args[:2] == (1, "5_abc.jpg")
 
-    @patch("migrations.migration_9.migrations_crud")
+    @patch("migrations.migration_9.migrations_service")
     @patch("migrations.migration_9.activity_media_crud")
     @patch("migrations.migration_9.platform_runtime")
     def test_row_with_no_file_is_dropped(self, mock_runtime, mock_crud, mock_migrations, tmp_path):
@@ -90,9 +90,9 @@ class TestProcessMigration9:
         # The record can no longer resolve to anything servable.
         assert mock_crud.delete_activity_media.call_args.args[0] == 1
         mock_crud.edit_activity_media_media_path.assert_not_called()
-        mock_migrations.set_migration_as_executed.assert_called_once()
+        mock_migrations.mark_executed.assert_called_once()
 
-    @patch("migrations.migration_9.migrations_crud")
+    @patch("migrations.migration_9.migrations_service")
     @patch("migrations.migration_9.activity_media_crud")
     @patch("migrations.migration_9.platform_runtime")
     def test_a_path_from_another_container_layout_resolves_by_basename(
@@ -117,7 +117,7 @@ class TestProcessMigration9:
 
         assert mock_crud.edit_activity_media_media_path.call_args.args[:2] == (1, "5_abc.jpg")
 
-    @patch("migrations.migration_9.migrations_crud")
+    @patch("migrations.migration_9.migrations_service")
     @patch("migrations.migration_9.activity_media_crud")
     @patch("migrations.migration_9.platform_runtime")
     def test_a_failure_leaves_the_migration_pending(self, mock_runtime, mock_crud, mock_migrations, tmp_path):
@@ -136,9 +136,9 @@ class TestProcessMigration9:
             patcher.stop()
 
         # Not marked executed, so it runs again on the next startup.
-        mock_migrations.set_migration_as_executed.assert_not_called()
+        mock_migrations.mark_executed.assert_not_called()
 
-    @patch("migrations.migration_9.migrations_crud")
+    @patch("migrations.migration_9.migrations_service")
     @patch("migrations.migration_9.activity_media_crud")
     @patch("migrations.migration_9.platform_runtime")
     def test_no_legacy_rows_is_a_no_op(self, mock_runtime, mock_crud, mock_migrations, tmp_path):
@@ -154,4 +154,4 @@ class TestProcessMigration9:
             patcher.stop()
 
         mock_crud.edit_activity_media_media_path.assert_not_called()
-        mock_migrations.set_migration_as_executed.assert_called_once()
+        mock_migrations.mark_executed.assert_called_once()

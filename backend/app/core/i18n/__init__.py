@@ -144,7 +144,10 @@ def _load_catalog(locale: str) -> dict[str, str]:
     catalog_path = _LOCALES_DIR / locale / "email.json"
     if not catalog_path.exists():
         if locale != DEFAULT_LOCALE:
-            logger.warning(f"i18n: missing email catalog for locale '{locale}', falling back to '{DEFAULT_LOCALE}'")
+            logger.warning(
+                "i18n: missing email catalog for locale, falling back to the default",
+                extra=core_logger.context(locale=locale, default_locale=DEFAULT_LOCALE),
+            )
         catalog_path = _LOCALES_DIR / DEFAULT_LOCALE / "email.json"
     with catalog_path.open(encoding="utf-8") as fh:
         return json.load(fh)

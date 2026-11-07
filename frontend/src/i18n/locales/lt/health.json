@@ -1,6 +1,12 @@
 {
   "title": "Sveikata",
   "subtitle": "Matykite visus savo sveikatos duomenis vienoje vietoje",
+  "chartBucket": {
+    "week": "Savaitės vidurkiai: kiekviena juosta yra vidutinė tos savaitės diena.",
+    "month": "Mėnesio vidurkiai: kiekviena juosta yra vidutinė to mėnesio diena."
+  },
+  "targetInvalid": "Įveskite reikšmę, didesnę nei 0, arba palikite lauką tuščią, kad pašalintumėte tikslą.",
+  "chartError": "Nepavyko įkelti šio laikotarpio diagramos.",
   "nav": {
     "label": "Sveikatos skiltys",
     "soon": "Netrukus",
@@ -34,6 +40,7 @@
     "stepsTargetLabel": "žingsnių",
     "poopTargetLabel": "/ diena",
     "noWeightData": "Nėra svorio duomenų",
+    "noHeightData": "Pridėkite savo ūgį profilyje, kad matytumėte savo BMI.",
     "bmiUnderweight": "Per mažas svoris",
     "bmiNormalWeight": "Normalus svoris",
     "bmiOverweight": "Antsvoris",
@@ -88,7 +95,6 @@
       "weightRequired": "Įveskite savo svorį.",
       "weightInvalid": "Įveskite už nulį didesnį svorį.",
       "bodyComposition": "Kūno sudėtis (nebūtina)",
-      "bmi": "BMI",
       "bodyFat": "Kūno riebalai (%)",
       "bodyWater": "Kūno vanduo (%)",
       "boneMass": "Kaulų masė",
@@ -308,6 +314,8 @@
       "totalSleepRequired": "Įveskite, kiek miegojote.",
       "hours": "Valandos",
       "minutes": "Minutės",
+      "hoursOf": "{field}, valandos",
+      "minutesOf": "{field}, minutės",
       "stageBreakdown": "Fazių išskaidymas (nebūtina)",
       "deep": "Gilus miegas",
       "light": "Lengvas miegas",
@@ -350,7 +358,11 @@
       "close": "Uždaryti",
       "createSuccess": "Miegas įrašytas.",
       "updateSuccess": "Miego įrašas atnaujintas.",
-      "saveError": "Nepavyko išsaugoti miego įrašo. Bandykite dar kartą."
+      "saveError": "Nepavyko išsaugoti miego įrašo. Bandykite dar kartą.",
+      "numberRange": "Įveskite reikšmę nuo {min} iki {max}.",
+      "numberMin": "Įveskite {min} arba daugiau.",
+      "stagesExceedTotal": "Gilus, lengvas ir REM miegas kartu sudaro daugiau nei bendra trukmė.",
+      "inconsistentError": "Šie miego duomenys nesutampa. Patikrinkite, ar fazės ir bendra trukmė telpa į miego laiką."
     },
     "target": {
       "title": "Nustatyti miego tikslą",
@@ -596,6 +608,8 @@
       "startTime": "Pradžios laikas",
       "startTimeRequired": "Pasirinkite pradžios laiką.",
       "endTime": "Pabaigos laikas",
+      "endBeforeStart": "Pabaigos laikas negali būti ankstesnis už pradžios laiką.",
+      "endWhileInProgress": "Vykstančio badavimo pabaigos laikas negali būti nurodytas.",
       "status": "Būsena",
       "notes": "Pastabos",
       "create": "Pradėti",
@@ -604,7 +618,9 @@
       "close": "Uždaryti",
       "createSuccess": "Badavimas pradėtas.",
       "updateSuccess": "Badavimo sesija atnaujinta.",
-      "saveError": "Nepavyko išsaugoti jūsų badavimo sesijos. Bandykite dar kartą."
+      "saveError": "Nepavyko išsaugoti jūsų badavimo sesijos. Bandykite dar kartą.",
+      "overlapError": "Šis badavimas persidengia su kitu badavimo laikotarpiu arba kitas badavimas jau vyksta.",
+      "invalidTimesError": "Badavimas negali baigtis prieš prasidėdamas, užbaigtam ar nutrauktam badavimui reikia pabaigos laiko, o vykstančio badavimo pabaigos laikas negali būti nurodytas."
     },
     "target": {
       "title": "Nustatyti badavimo tikslą",
@@ -621,6 +637,20 @@
     "complete": {
       "success": "Badavimas baigtas.",
       "error": "Nepavyko užbaigti jūsų badavimo. Bandykite dar kartą."
+    },
+    "endConfirm": {
+      "broken": {
+        "title": "Nutraukti šį badavimą?",
+        "body": "Badavimas baigiamas dabar ir išsaugomas kaip nutrauktas. Šio veiksmo atšaukti negalima.",
+        "confirm": "Nutraukti badavimą"
+      },
+      "cancelled": {
+        "title": "Atšaukti šį badavimą?",
+        "body": "Badavimas baigiamas dabar ir išsaugomas kaip atšauktas. Šio veiksmo atšaukti negalima.",
+        "confirm": "Atšaukti badavimą"
+      },
+      "cancel": "Tęsti badavimą",
+      "close": "Uždaryti"
     },
     "empty": {
       "title": "Badavimų dar nėra",

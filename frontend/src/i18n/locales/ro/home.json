@@ -46,7 +46,6 @@
     "thisWeek": "Săptămâna aceasta",
     "thisMonth": "Luna aceasta",
     "empty": "Nicio activitate în această perioadă",
-    "caloriesUnit": "kcal",
     "metric": {
       "distance": "Distanță",
       "time": "Timp",
@@ -63,12 +62,13 @@
     "snow_ski": "Schi",
     "snowboard": "Snowboard",
     "windsurf": "Windsurf",
-    "stand_up_paddleboarding": "Paddleboarding",
-    "surfing": "Surf",
+    "stand_up_paddling": "Paddleboarding",
+    "surf": "Surf",
     "kayaking": "Caiac",
     "sailing": "Navigație cu vele",
-    "snowshoeing": "Mers cu rachete de zăpadă",
-    "inline_skating": "Role"
+    "snow_shoeing": "Mers cu rachete de zăpadă",
+    "inline_skating": "Role",
+    "other": "Altele"
   },
   "goals": {
     "title": "Obiective",

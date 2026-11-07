@@ -31,6 +31,7 @@
       "admin": "Beheerder",
       "inactive": "Inactief",
       "unverified": "E-mail niet bevestigd",
+      "pendingEmail": "E-mailwijziging in behandeling",
       "pending": "Wacht op goedkeuring",
       "externalAuth": "Externe authenticatie"
     },
@@ -64,18 +65,15 @@
       "email": "E-mail",
       "emailRequired": "E-mail is verplicht",
       "emailInvalid": "Voer een geldig e-mailadres in",
+      "emailChangeHint": "Er wordt een bevestigingslink naar het nieuwe adres gestuurd en het vervangt het huidige adres zodra het is bevestigd. De gebruiker wordt op alle apparaten afgemeld. Markeer het nieuwe adres als geverifieerd om het nu direct toe te passen.",
       "accessType": "Toegangstype",
       "accessTypeRegular": "Gewone gebruiker",
       "accessTypeAdmin": "Beheerder",
       "password": "Wachtwoord",
       "passwordHint": "Minimaal 8 tekens",
-      "passwordHintStrict": "Minimaal {min} tekens, met hoofdletter, kleine letter, een cijfer en een speciaal teken",
-      "passwordHintLength": "Minimaal {min} tekens",
       "passwordRequired": "Wachtwoord is verplicht",
-      "passwordInvalid": "Dat wachtwoord voldoet niet aan de vereisten",
       "confirmPassword": "Wachtwoord bevestigen",
       "confirmPasswordRequired": "Wachtwoord bevestigen",
-      "passwordMismatch": "Wachtwoorden komen niet overeen",
       "preferredLanguage": "Voorkeurstaal",
       "languages": {
         "ca": "Catalaans",
@@ -118,14 +116,16 @@
       "units": "Eenheden",
       "unitsMetric": "Metrisch",
       "unitsImperial": "Imperiaal",
+      "weightUnits": "Gewichtseenheden",
+      "weightUnitsDefault": "Eenheden volgen",
+      "weightUnitsMetric": "Kilogram (kg)",
+      "weightUnitsImperial": "Pond (lb)",
       "height": "Lengte",
-      "unitCm": "cm",
-      "unitFeet": "ft",
-      "unitInches": "in",
+      "heightInvalid": "De lengte moet tussen 50 en 272 cm liggen",
+      "maxHeartRateInvalid": "De maximale hartslag moet tussen 30 en 250 bpm liggen",
       "feetInvalid": "Voeten moet tussen 0 en 10 zijn",
       "inchesInvalid": "Inches moet tussen 0 en 11 zijn",
       "maxHeartRate": "Max. hartslag",
-      "unitBpm": "bpm",
       "currency": "Valuta",
       "currencies": {
         "euro": "Euro",
@@ -134,6 +134,8 @@
       },
       "firstDayOfWeek": "Eerste dag van de week",
       "timezone": "Tijdzone",
+      "timezoneNotSet": "Niet ingesteld",
+      "timezoneUseBrowser": "Tijdzone van mijn browser gebruiken ({timezone})",
       "timezoneHint": "Wordt gebruikt voor activiteiten die zonder GPS zijn opgenomen, zoals hardlopen op de loopband en binnenfietsen.",
       "weekdays": {
         "sunday": "Zondag",
@@ -149,6 +151,8 @@
       "statusLegend": "Accountstatus",
       "active": "Actief",
       "emailVerified": "E-mail bevestigd",
+      "emailVerifiedCurrentHint": "Dit is de status van het huidige adres.",
+      "newEmailVerified": "Markeer het nieuwe adres als geverifieerd",
       "pendingAdminApproval": "Wacht op beheerdergoedkeuring",
       "requiredField": "Verplicht veld",
       "create": "Gebruiker toevoegen",
@@ -171,6 +175,7 @@
     },
     "detail": {
       "back": "Terug naar gebruikers",
+      "pendingEmail": "E-mailwijziging naar {email} in behandeling, link verloopt op {date}",
       "notFoundTitle": "Gebruiker niet gevonden",
       "notFoundDescription": "Dit account is mogelijk verwijderd",
       "securityTitle": "Beveiliging",
@@ -186,16 +191,12 @@
       "title": "Wachtwoord opnieuw instellen",
       "description": "Stel een nieuw wachtwoord in voor {username}",
       "newLabel": "Nieuw wachtwoord",
-      "hintLength": "Minimaal {min} tekens",
-      "hintStrict": "Minimaal {min} tekens, met hoofdletter, kleine letter, een cijfer en een speciaal teken",
       "confirmLabel": "Nieuw wachtwoord bevestigen",
-      "mismatch": "Wachtwoorden komen niet overeen",
       "required": "Wachtwoord is verplicht",
       "submit": "Wachtwoord opnieuw instellen",
       "cancel": "Annuleren",
       "close": "Sluiten",
       "success": "Wachtwoord bijgewerkt",
-      "invalid": "Dat wachtwoord voldoet niet aan de vereisten",
       "error": "Wachtwoord kon niet worden bijgewerkt. Probeer het opnieuw."
     },
     "sessions": {
@@ -277,6 +278,32 @@
     "saving": "Opslaan…",
     "saveSuccess": "Serverinstellingen bijgewerkt",
     "saveError": "Serverinstellingen konden niet worden bijgewerkt. Probeer het opnieuw.",
+    "staleError": "Deze instellingen zijn door iemand anders gewijzigd terwijl je ze bewerkte. Je wijzigingen zijn niet opgeslagen. Laad de pagina opnieuw om de huidige waarden te zien.",
+    "envLocked": "Ingesteld door {name}",
+    "envSection": "Sommige instellingen hier worden ingesteld door omgevingsvariabelen ({names}). Verwijder ze uit de omgeving om die instellingen hier te bewerken.",
+    "unsaved": "Niet-opgeslagen wijzigingen",
+    "fixErrors": "Los de fouten hierboven op om op te slaan",
+    "discard": "Verwerpen",
+    "tabs": {
+      "label": "Secties van de serverinstellingen",
+      "general": "Algemeen",
+      "access": "Toegang en beveiliging",
+      "maps": "Kaarten en locatie",
+      "email": "E-mail",
+      "logs": "Logboeken",
+      "unsaved": "Bevat niet-opgeslagen wijzigingen"
+    },
+    "search": {
+      "placeholder": "Instellingen zoeken…",
+      "noResults": "Geen instellingen gevonden"
+    },
+    "leave": {
+      "title": "Verlaten zonder op te slaan?",
+      "description": "Je hebt niet-opgeslagen wijzigingen. Als je deze pagina verlaat, gaan ze verloren.",
+      "confirm": "Verlaten zonder op te slaan",
+      "stay": "Op de pagina blijven",
+      "close": "Sluiten"
+    },
     "loadError": {
       "title": "Serverinstellingen konden niet worden geladen",
       "description": "Er is iets misgegaan bij het laden van de serverinstellingen. Je kunt het opnieuw proberen.",
@@ -295,11 +322,33 @@
     },
     "password": {
       "title": "Wachtwoordbeleid",
-      "type": "Beleid",
-      "typeStrict": "Strikt (complexiteit vereist)",
-      "typeLengthOnly": "Alleen lengte",
       "lengthRegular": "Minimale lengte gewone gebruikers",
       "lengthAdmin": "Minimale lengte beheerders"
+    },
+    "session": {
+      "title": "Sessies",
+      "description": "Wijzigingen gelden voor nieuwe aanmeldingen en de volgende tokenvernieuwing. Reeds uitgegeven tokens behouden hun levensduur.",
+      "idleTimeoutEnabled": "Time-out bij inactiviteit afdwingen",
+      "idleHours": "Time-out bij inactiviteit (uren)",
+      "idleHoursHint": "Indien afgedwongen eindigt een sessie na dit aantal uren zonder activiteit.",
+      "absoluteHours": "Absolute time-out (uren)",
+      "absoluteHoursHint": "Een sessie eindigt dit aantal uren na het inloggen, ongeacht de activiteit. Geldt altijd. Niet korter dan de time-out bij inactiviteit.",
+      "accessMinutes": "Levensduur toegangstoken (minuten)",
+      "refreshDays": "Levensduur vernieuwingstoken (dagen)",
+      "apiKeyDays": "Maximale levensduur API-sleutel (dagen)",
+      "apiKeyDaysHint": "Een nieuwe API-sleutel verloopt na dit aantal dagen, tenzij de eigenaar een eerdere datum kiest.",
+      "invalidRange": "Voer een geheel getal in tussen {min} en {max}.",
+      "absoluteBelowIdle": "Mag niet korter zijn dan de time-out bij inactiviteit."
+    },
+    "retention": {
+      "title": "Gegevensbewaring",
+      "readNotifications": "Gelezen meldingen verwijderen na (dagen)",
+      "readNotificationsHint": "Bij 0 blijven gelezen meldingen voor altijd bewaard. Ongelezen meldingen worden nooit verwijderd.",
+      "auditTrail": "Auditlogvermeldingen verwijderen na (dagen)",
+      "auditTrailHint": "Bij 0 blijft alles bewaard. Anders is het minimum 30 dagen; vermeldingen worden per hele dag verwijderd.",
+      "auditTrailInvalid": "Voer 0 in, of een geheel getal tussen {min} en {max}.",
+      "auditLegalHold": "Juridische bewaarplicht voor het auditlog",
+      "auditLegalHoldHint": "Zolang dit aan staat, wordt het opschonen van het auditlog gepauzeerd, ongeacht de bewaartermijn."
     },
     "signup": {
       "title": "Registratie",
@@ -336,12 +385,33 @@
       "attribution": "Naamsvermelding",
       "apiKey": "Tegelserver-API-sleutel",
       "apiKeyWarning": "De API-sleutel wordt versleuteld opgeslagen. Laat leeg als je tegelserver er geen nodig heeft.",
+      "apiKeyStored": "Er is een sleutel opgeslagen",
+      "apiKeyRemove": "Opgeslagen API-sleutel verwijderen",
       "backgroundColor": "Kaartachtergrondkleur",
       "regenerateThumbnails": "Activiteitsminiaturen opnieuw genereren wanneer kaartinstellingen wijzigen"
+    },
+    "geocoding": {
+      "title": "Omgekeerde geocodering",
+      "description": "Zet activiteitcoördinaten om in plaatsnamen. Wijzigingen gelden zonder herstart.",
+      "service": "Dienst",
+      "serviceNominatim": "Nominatim",
+      "servicePhoton": "Photon",
+      "serviceGeocode": "geocode.maps.co",
+      "host": "Host",
+      "hostHint": "Hostnaam met optionele poort, zonder schema. Een host op een privénetwerk moet in SSRF_ALLOWED_HOSTS staan.",
+      "useHttps": "Verbinden via HTTPS",
+      "rateLimit": "Verzoeken per seconde",
+      "rateLimitHint": "Bij 0 is begrenzing uitgeschakeld. Houd 1 aan voor de openbare Nominatim- en Photon-diensten.",
+      "rateLimitInvalid": "Voer een getal in tussen 0 en 100.",
+      "apiKey": "API-sleutel",
+      "apiKeyStored": "Er is een sleutel opgeslagen. Laat leeg om deze te behouden.",
+      "apiKeyRemove": "Opgeslagen API-sleutel verwijderen",
+      "apiKeyRequired": "geocode.maps.co heeft een API-sleutel nodig."
     },
     "photo": {
       "title": "Inlogfoto",
       "description": "Een aangepaste afbeelding op het inlogscherm",
+      "previewAlt": "Huidige inlogfoto",
       "add": "Inlogfoto uploaden",
       "replace": "Inlogfoto vervangen",
       "delete": "Inlogfoto verwijderen",
@@ -355,6 +425,30 @@
       "cancel": "Annuleren",
       "close": "Sluiten"
     },
+    "logs": {
+      "title": "Serverlogboeken",
+      "description": "De nieuwste records van het applicatielogboek. Logboeken van deployments met meerdere processen worden in plaats daarvan door je platform verzameld.",
+      "level": "Minimaal niveau",
+      "allLevels": "Alle niveaus",
+      "search": "Zoeken",
+      "searchPlaceholder": "Tekst, logger of verzoek-ID…",
+      "live": "Live",
+      "refresh": "Vernieuwen",
+      "download": "Downloaden",
+      "downloadError": "Het logbestand kon niet worden gedownload.",
+      "clear": "Wissen",
+      "cleared": "Logboeken gewist",
+      "clearError": "De logboeken konden niet worden gewist.",
+      "clearConfirm": {
+        "title": "De serverlogboeken wissen?",
+        "description": "Dit verwijdert het logbestand en de geroteerde back-ups definitief. Download het logboek eerst als je het mogelijk nodig hebt. De actie zelf wordt vastgelegd in het nieuwe logboek.",
+        "confirm": "Logboeken wissen",
+        "cancel": "Annuleren",
+        "close": "Sluiten"
+      },
+      "loadError": "De logboeken konden niet worden geladen.",
+      "empty": "Geen logrecords gevonden"
+    },
     "email": {
       "title": "E-mail",
       "description": "Endurain verstuurt e-mails voor het opnieuw instellen van het wachtwoord en voor registratie via de SMTP-server die in de omgeving is geconfigureerd.",
@@ -366,7 +460,26 @@
       "sendHint": "De test-e-mail wordt naar je eigen adres gestuurd.",
       "sent": "Test-e-mail verzonden",
       "failed": "De test-e-mail kon niet worden verzonden",
-      "failedUnknown": "Bekijk de serverlogs voor details."
+      "failedUnknown": "Bekijk de serverlogs voor details.",
+      "settingsLoadError": "De e-mailinstellingen konden niet worden geladen.",
+      "host": "Host",
+      "hostHint": "Laat leeg om e-mail uit te schakelen.",
+      "port": "Poort",
+      "portInvalid": "Voer een poort in tussen 1 en 65535.",
+      "security": "Verbindingsbeveiliging",
+      "securityStarttls": "STARTTLS",
+      "securitySsl": "SSL/TLS",
+      "securityNone": "Geen (alleen privérelay)",
+      "securityNoneWarning": "Zonder versleuteling wordt alleen een mailserver op een privé- of loopback-adres geaccepteerd, en kunnen gebruikersnaam en wachtwoord niet worden gebruikt.",
+      "username": "Gebruikersnaam",
+      "password": "Wachtwoord",
+      "passwordStored": "Er is een wachtwoord opgeslagen. Laat leeg om het te behouden.",
+      "passwordRemove": "Opgeslagen wachtwoord verwijderen",
+      "fromAddress": "Afzenderadres",
+      "fromAddressHint": "Laat leeg om de gebruikersnaam te gebruiken.",
+      "save": "E-mailinstellingen opslaan",
+      "saveSuccess": "E-mailinstellingen opgeslagen",
+      "saveError": "De e-mailinstellingen konden niet worden opgeslagen"
     }
   },
   "idp": {
@@ -428,6 +541,7 @@
       "issuerUrl": "Issuer-URL",
       "issuerUrlHint": "De OIDC-issuer of discovery-URL van de provider",
       "issuerUrlRequired": "Issuer-URL is verplicht",
+      "issuerUrlRefused": "De provider-URL is geweigerd. Deze moet https:// gebruiken en vanaf de server te herleiden zijn, en een provider op een privénetwerk moet in SSRF_ALLOWED_HOSTS staan.",
       "issuerUrlTooLong": "Issuer-URL mag maximaal 500 tekens zijn",
       "clientId": "Client-ID",
       "clientIdRequired": "Client-ID is verplicht",
@@ -442,15 +556,22 @@
       "scopesTooLong": "Scopes mogen maximaal 500 tekens zijn",
       "icon": "Pictogram",
       "iconNone": "Geen",
-      "iconCustom": "Aangepaste URL",
-      "customIconUrl": "Aangepaste pictogram-URL",
-      "customIconUrlHint": "Link naar een afbeelding op de inlogknop",
+      "iconUpload": "Een afbeelding uploaden",
+      "iconFileHint": "Een PNG-, JPEG- of WebP-afbeelding tot 1 MB, getoond op de inlogknop",
+      "iconChoose": "Afbeelding kiezen",
+      "iconReplace": "Afbeelding vervangen",
+      "iconPreviewAlt": "Voorbeeld van pictogram",
+      "iconFileRequired": "Kies een afbeelding om te uploaden",
+      "iconFileInvalidType": "Het pictogram moet een PNG-, JPEG- of WebP-afbeelding zijn",
+      "iconFileTooLarge": "Het pictogram mag maximaal 1 MB groot zijn",
+      "iconSaveError": "De provider is opgeslagen, maar het pictogram kon niet worden bijgewerkt. Bewerk de provider om het opnieuw te proberen.",
       "enabled": "Ingeschakeld",
       "autoCreateUsers": "Gebruikers automatisch aanmaken bij eerste aanmelding",
       "syncUserInfo": "Profielinformatie synchroniseren bij elke aanmelding",
       "createSuccess": "Provider toegevoegd",
       "updateSuccess": "Provider bijgewerkt",
       "slugConflict": "Die slug is al in gebruik",
+      "staleError": "Deze provider is elders gewijzigd. Je wijzigingen zijn niet opgeslagen. Sluit hem en open hem opnieuw om de huidige instellingen te laden.",
       "saveError": "Provider kon niet worden opgeslagen. Probeer het opnieuw."
     }
   },
@@ -458,7 +579,7 @@
     "title": "Mijn doelen",
     "subtitle": "Stel targets in voor je activiteiten en volg je voortgang",
     "buttonAdd": "Doel toevoegen",
-    "count": "Er zijn in totaal {count} doel(en):",
+    "count": "Er is in totaal {count} doel: | Er zijn in totaal {count} doelen:",
     "filters": "Filters",
     "filter": {
       "all": "Alle",
@@ -492,13 +613,6 @@
       "elevation": "Hoogte",
       "duration": "Duur"
     },
-    "unit": {
-      "calories": "kcal",
-      "km": "km",
-      "miles": "mi",
-      "meters": "m",
-      "feet": "ft"
-    },
     "list": {
       "edit": "Doel {name} bewerken",
       "delete": "Doel {name} verwijderen"
@@ -522,6 +636,7 @@
       "error": "Doel kon niet worden verwijderd. Probeer het opnieuw."
     },
     "form": {
+      "targetInvalid": "Voer een waarde groter dan 0 in.",
       "addTitle": "Doel toevoegen",
       "editTitle": "Doel bewerken",
       "description": "Stel een target in voor een activiteit over een terugkerende periode",
@@ -549,6 +664,7 @@
     "hidePassword": "Wachtwoord verbergen",
     "mfaCode": "Authenticatiecode",
     "mfaCodePlaceholder": "123456",
+    "confirmPhrase": "Typ {phrase} om te bevestigen",
     "loadError": {
       "title": "Beveiligingsinstellingen konden niet worden geladen",
       "description": "Er is iets misgegaan. Je kunt het opnieuw proberen."
@@ -559,9 +675,6 @@
       "current": "Huidig wachtwoord",
       "new": "Nieuw wachtwoord",
       "confirm": "Nieuw wachtwoord bevestigen",
-      "requirementsStrict": "Minimaal {length} tekens, inclusief een hoofdletter, kleine letter, een cijfer en een symbool.",
-      "requirementsLength": "Minimaal {length} tekens.",
-      "mismatch": "De wachtwoorden komen niet overeen.",
       "revokeOthers": "Uitloggen op alle andere apparaten",
       "submit": "Wachtwoord wijzigen",
       "success": "Wachtwoord gewijzigd",
@@ -575,7 +688,7 @@
       "disabledDescription": "Tweefactorauthenticatie is uitgeschakeld. Schakel het in voor betere beveiliging van je account.",
       "enable": "Tweefactor inschakelen",
       "enabledDescription": "Tweefactorauthenticatie is ingeschakeld.",
-      "backupRemaining": "{unused} van {total} herstelcodes over.",
+      "backupRemaining": "{unused} van {total} herstelcode over. | {unused} van {total} herstelcodes over.",
       "regenerate": "Herstelcodes opnieuw genereren",
       "disable": "Uitschakelen",
       "setupTitle": "Tweefactorauthenticatie inschakelen",
@@ -649,7 +762,39 @@
       "unlinkError": "Account kon niet worden ontkoppeld. Probeer het opnieuw.",
       "invalidCredentials": "Je wachtwoord of code is onjuist.",
       "alreadyLinked": "Dat account is al gekoppeld.",
-      "lastMethodError": "Je kunt je enige inlogmethode niet ontkoppelen. Stel eerst een wachtwoord in."
+      "lastMethodError": "Je kunt je enige inlogmethode niet ontkoppelen. Stel eerst een wachtwoord in.",
+      "linkedOn": "Gekoppeld op {date}"
+    },
+    "email": {
+      "title": "E-mailadres",
+      "subtitle": "Hier worden wachtwoordherstellingen en meldingen naartoe gestuurd. Voor een wijziging moet je je identiteit bevestigen, en het nieuwe adres gaat pas in zodra je het bevestigt via een link die we ernaartoe sturen.",
+      "current": "Huidig e-mailadres",
+      "action": "E-mailadres wijzigen",
+      "new": "Nieuw e-mailadres",
+      "invalid": "Voer een geldig e-mailadres in.",
+      "sameAsCurrent": "Dit is al je e-mailadres.",
+      "success": "Bevestigingslink verzonden naar het nieuwe adres. Je e-mailadres wijzigt zodra je het bevestigt.",
+      "appliedSuccess": "E-mailadres gewijzigd.",
+      "pending": "Wijziging naar {email} in behandeling",
+      "pendingExpires": "De bevestigingslink verloopt op {date}.",
+      "resend": "Link opnieuw versturen",
+      "cancel": "Wijziging annuleren",
+      "resendSuccess": "Als er een wijziging in behandeling is, is er een nieuwe link onderweg naar het nieuwe adres.",
+      "resendError": "De link kon niet opnieuw worden verstuurd. Probeer het opnieuw.",
+      "cancelSuccess": "E-mailwijziging geannuleerd.",
+      "cancelError": "De wijziging kon niet worden geannuleerd. Probeer het opnieuw.",
+      "conflict": "Dat e-mailadres is al in gebruik.",
+      "error": "Je e-mailadres kon niet worden gewijzigd. Probeer het opnieuw."
+    },
+    "deleteAccount": {
+      "title": "Mijn account verwijderen",
+      "subtitle": "Verwijder je account en al je gegevens definitief, inclusief activiteiten en hun bestanden, gezondheidsgegevens, uitrusting, doelen, integraties en sessies. Dit kan niet ongedaan worden gemaakt. Exporteer eerst je gegevens als je een kopie wilt bewaren.",
+      "action": "Mijn account verwijderen",
+      "dialogTitle": "Je account verwijderen?",
+      "dialogDescription": "Dit verwijdert je account en al je gegevens definitief. Bevestig je identiteit om door te gaan.",
+      "confirm": "Mijn account verwijderen",
+      "error": "Je account kon niet worden verwijderd. Probeer het opnieuw.",
+      "onlyAdminError": "Je bent de enige beheerder. Maak eerst een andere gebruiker beheerder voordat je je account verwijdert."
     },
     "apiKeys": {
       "title": "API-sleutels",
@@ -662,11 +807,12 @@
       "scopes": "Machtigingen",
       "scopesHint": "Kies wat deze sleutel mag doen. Minimaal één is verplicht.",
       "expiry": "Vervaldatum (optioneel)",
-      "expiryHint": "Laat leeg voor een sleutel die nooit verloopt.",
+      "expiryHint": "Laat leeg om de langste levensduur te gebruiken die de server toestaat. Een latere datum wordt geweigerd.",
       "createTitle": "API-sleutel aanmaken",
       "createDescription": "Bevestig je identiteit om een nieuwe API-sleutel aan te maken.",
       "createSuccess": "API-sleutel aangemaakt",
       "createError": "API-sleutel kon niet worden aangemaakt. Probeer het opnieuw.",
+      "expiryTooLate": "Deze vervaldatum ligt later dan de server toestaat. Kies een eerdere datum of laat het veld leeg.",
       "invalidCredentials": "Je wachtwoord of code is onjuist.",
       "invalidScopes": "Die machtigingen zijn niet toegestaan voor API-sleutels.",
       "revealTitle": "Kopieer je API-sleutel",
@@ -683,7 +829,6 @@
       "lastUsed": "Laatst gebruikt {date}",
       "neverUsed": "Nooit gebruikt",
       "expires": "Verloopt {date}",
-      "neverExpires": "Verloopt nooit",
       "revoke": "Intrekken",
       "revokeTitle": "API-sleutel intrekken?",
       "revokeBody": "{name} werkt dan onmiddellijk niet meer. Dit kan niet ongedaan worden gemaakt.",
@@ -694,6 +839,18 @@
       "deleteBody": "{name} wordt definitief verwijderd. Dit kan niet ongedaan worden gemaakt.",
       "deleteSuccess": "API-sleutel verwijderd",
       "deleteError": "API-sleutel kon niet worden verwijderd. Probeer het opnieuw."
+    },
+    "stepUp": {
+      "prompt": "Je account heeft geen wachtwoord. Log opnieuw in met een gekoppelde identiteitsprovider om te bevestigen dat jij het bent.",
+      "continueWith": "Doorgaan met {name}",
+      "ready": "Inloggen bij de identiteitsprovider bevestigd.",
+      "restart": "Opnieuw inloggen",
+      "noProviders": "Er is geen gekoppelde identiteitsprovider beschikbaar om je identiteit te bevestigen.",
+      "startError": "Inloggen bij de identiteitsprovider kon niet worden gestart. Probeer het opnieuw.",
+      "tooManyAttempts": "Te veel pogingen. Probeer het later opnieuw.",
+      "reauthRequired": "Bevestig je identiteit bij je identiteitsprovider om door te gaan.",
+      "failed": "Opnieuw inloggen bij je identiteitsprovider is mislukt. Probeer het opnieuw.",
+      "notFresh": "Je identiteitsprovider heeft niet gevraagd om opnieuw in te loggen. Neem contact op met je beheerder."
     }
   },
   "integrations": {
@@ -733,6 +890,7 @@
       "clientIdPlaceholder": "123456",
       "clientSecret": "Client-secret",
       "connectError": "Kon geen verbinding maken met Strava. Controleer je gegevens en probeer het opnieuw.",
+      "scopeError": "Strava heeft niet alle rechten gekregen die Endurain nodig heeft. Verbind opnieuw en laat alle rechten aangevinkt.",
       "completing": "Strava-verbinding voltooien…",
       "linkSuccess": "Strava verbonden",
       "retrieveActivitiesTitle": "Strava-activiteiten ophalen",
@@ -741,9 +899,10 @@
       "retrievingGear": "Je Strava-uitrusting wordt op de achtergrond opgehaald…",
       "retrieveGearError": "Strava-uitrusting ophalen kon niet worden gestart. Probeer het opnieuw.",
       "unlinkTitle": "Strava verbreken?",
-      "unlinkBody": "Endurain stopt met importeren van Strava. Je bestaande activiteiten blijven bewaard.",
+      "unlinkBody": "Endurain stopt met importeren vanuit Strava en verwijdert de activiteiten en uitrusting die uit Strava zijn gesynchroniseerd. Activiteiten uit andere bronnen, ook geüploade Strava-exportbestanden, blijven behouden.",
       "unlinkSuccess": "Strava verbroken",
-      "unlinkError": "Strava kon niet worden verbroken. Probeer het opnieuw."
+      "unlinkError": "Strava kon niet worden verbroken. Probeer het opnieuw.",
+      "revokedNotice": "De toegang tot Strava is beëindigd op {revokedAt}. Met Strava gesynchroniseerde activiteiten en uitrusting worden op {deletionAt} verwijderd, tenzij je opnieuw verbindt."
     },
     "garmin": {
       "title": "Garmin Connect",
@@ -807,8 +966,8 @@
     },
     "job": {
       "preparing": "Import voorbereiden…",
-      "progress": "{done} van {total} bestanden geïmporteerd ({failed} mislukt)…",
-      "finished": "Import voltooid: {done} van {total} bestanden geïmporteerd, {failed} mislukt.",
+      "progress": "{done} van {total} bestand geïmporteerd ({failed} mislukt)… | {done} van {total} bestanden geïmporteerd ({failed} mislukt)…",
+      "finished": "Import voltooid: {done} van {total} bestand geïmporteerd, {failed} mislukt. | Import voltooid: {done} van {total} bestanden geïmporteerd, {failed} mislukt.",
       "failed": "De import kon niet worden voltooid."
     }
   },
@@ -816,6 +975,8 @@
     "title": "Mijn profiel",
     "subtitle": "Beheer je accountgegevens en privacy",
     "notSet": "Niet ingesteld",
+    "emailManagedIn": "Je e-mailadres wijzig je in de beveiligingsinstellingen.",
+    "emailManagedLink": "Beveiligingsinstellingen openen",
     "error": {
       "title": "Profiel kon niet worden geladen",
       "description": "Er is iets misgegaan bij het laden van je profiel. Je kunt het opnieuw proberen.",
@@ -874,6 +1035,8 @@
       "hideLaps": "Rondes",
       "hideWorkoutSetsSteps": "Trainingssets en -stappen",
       "hideGear": "Uitrusting",
+      "discoverable": "Laat anderen mij vinden in zoekresultaten",
+      "discoverableHint": "Andere gebruikers kunnen je op gebruikersnaam vinden als ze zoeken. Je profiel blijft bereikbaar via een directe link.",
       "save": "Privacy opslaan",
       "saving": "Opslaan…",
       "saveSuccess": "Privacy-instellingen bijgewerkt",
@@ -921,10 +1084,53 @@
       "export": "Gegevens exporteren",
       "import": "Gegevens importeren",
       "invalidType": "Kies een .zip-archief.",
-      "exportSuccess": "Export gereed, je download begint binnenkort",
+      "download": "Export downloaden",
+      "downloadSuccess": "Je download zou zo moeten beginnen",
+      "downloadError": "De export kon niet worden gedownload. Probeer het opnieuw.",
+      "exportQueued": "Export gestart. Je kunt deze pagina verlaten.",
       "exportError": "Gegevens konden niet worden geëxporteerd. Probeer het opnieuw.",
-      "importSuccess": "Gegevens geïmporteerd",
-      "importError": "Archief kon niet worden geïmporteerd. Controleer het bestand en probeer het opnieuw."
+      "exportInProgress": "Er loopt al een export.",
+      "exportStepUp": {
+        "title": "Bevestig dat jij het bent",
+        "description": "De export kopieert al je gegevens, dus bevestig eerst je identiteit."
+      },
+      "exportStatus": {
+        "queued": "Wachten tot de export start…",
+        "running": "Je export wordt voorbereid…",
+        "succeeded": "Je export staat klaar om te downloaden. Hij blijft twee uur beschikbaar.",
+        "failed": "De export is niet voltooid: {reason}"
+      },
+      "exportFailure": {
+        "timed_out": "het duurde te lang. Je kunt het opnieuw proberen.",
+        "processing_failed": "er ging iets mis. Je kunt het opnieuw proberen."
+      },
+      "importQueued": "Import gestart. Je kunt deze pagina verlaten.",
+      "importError": "Archief kon niet worden geïmporteerd. Controleer het bestand en probeer het opnieuw.",
+      "importInProgress": "Er loopt al een import.",
+      "status": {
+        "queued": "Wachten tot de import start…",
+        "running": "Je gegevens worden geïmporteerd…",
+        "succeeded": "Import voltooid: {activities} activiteit geïmporteerd, uitrusting: {gears}. | Import voltooid: {activities} activiteiten geïmporteerd, uitrusting: {gears}.",
+        "failed": "De import is niet voltooid: {reason}"
+      },
+      "failure": {
+        "invalid_file": "het archief is geen geldige Endurain-export. Er is niets geïmporteerd.",
+        "too_large": "het archief is te groot. Er is niets geïmporteerd.",
+        "too_many_activities": "het archief bevat te veel activiteiten. Er is niets geïmporteerd.",
+        "timed_out": "het duurde te lang. Er is niets geïmporteerd, dus je kunt het opnieuw proberen.",
+        "files_incomplete": "je gegevens zijn geïmporteerd, maar sommige bestanden ontbreken. Importeer ze niet opnieuw; dat zou je gegevens dupliceren.",
+        "processing_failed": "er ging iets mis. Er is niets geïmporteerd, dus je kunt het opnieuw proberen.",
+        "wrong_account": "het archief is geëxporteerd vanaf een ander account. Er is niets geïmporteerd."
+      }
+    },
+    "blockedUsers": {
+      "title": "Geblokkeerde gebruikers",
+      "subtitle": "Geblokkeerde gebruikers kunnen je niet vragen om te volgen. Als je iemand blokkeert, wordt ook elke volgrelatie tussen jullie verwijderd.",
+      "empty": "Je hebt niemand geblokkeerd.",
+      "unblock": "Deblokkeren",
+      "unblockError": "Deze gebruiker kon niet worden gedeblokkeerd. Probeer het opnieuw.",
+      "loadError": "Je geblokkeerde gebruikers konden niet worden geladen.",
+      "retry": "Opnieuw proberen"
     }
   }
 }

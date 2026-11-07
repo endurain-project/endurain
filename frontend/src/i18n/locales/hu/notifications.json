@@ -8,7 +8,7 @@
   "seeAll": "Összes megtekintése",
   "loadMore": "Több betöltése",
   "loading": "Betöltés…",
-  "badge": "{count} olvasatlan értesítés",
+  "badge": "{count} olvasatlan értesítés | {count} olvasatlan értesítés",
   "empty": {
     "title": "Mindennel naprakész vagy",
     "description": "A tevékenységeiddel, követőiddel és integrációiddal kapcsolatos frissítések itt jelennek meg."
@@ -38,6 +38,63 @@
     "garminTokenExpired": {
       "title": "A Garmin Connect figyelmet igényel",
       "body": "A Garmin Connect munkameneted lejárt. Csatlakoztasd újra a szinkronizálás folytatásához."
+    },
+    "stravaTokenExpired": {
+      "title": "A Strava figyelmet igényel",
+      "body": "A Strava elutasította a kapcsolatodat. Csatlakoztasd újra a szinkronizálás folytatásához.",
+      "bodyRevoked": "A Strava-hozzáférés megszűnt. A Stravával szinkronizált tevékenységeid és felszerelésed {date} napon törlődik, ha nem csatlakozol újra."
+    },
+    "stravaDataDeleted": {
+      "title": "Strava-adatok törölve",
+      "body": "A Stravával szinkronizált tevékenységeid és felszerelésed törlődött, mert a Strava-hozzáférés megszűnt, és nem csatlakoztál újra."
+    },
+    "idpLinked": {
+      "title": "Új bejelentkezési szolgáltató összekapcsolva",
+      "body": "A(z) {name} összekapcsolva a fiókoddal. Ha nem te voltál, ellenőrizd a biztonsági beállításaidat.",
+      "bodyGeneric": "Egy bejelentkezési szolgáltató összekapcsolva a fiókoddal. Ha nem te voltál, ellenőrizd a biztonsági beállításaidat."
+    },
+    "accountSecurityChanged": {
+      "passwordChanged": {
+        "title": "Jelszó módosítva",
+        "body": "A jelszavadat módosítottuk. Ha nem te voltál, állítsd vissza a jelszavadat, és ellenőrizd a biztonsági beállításaidat."
+      },
+      "passwordReset": {
+        "title": "Jelszó visszaállítva",
+        "body": "A jelszavadat egy visszaállító hivatkozással állítottuk vissza. Ha nem te voltál, állítsd vissza újra a jelszavadat, és ellenőrizd a biztonsági beállításaidat."
+      },
+      "passwordSetByAdmin": {
+        "title": "A rendszergazda jelszót állított be",
+        "body": "A rendszergazda új jelszót állított be a fiókodhoz. Ha nem számítottál rá, fordulj a rendszergazdához."
+      },
+      "mfaEnabled": {
+        "title": "Kétfaktoros hitelesítés bekapcsolva",
+        "body": "A fiókodnál bekapcsoltuk a kétfaktoros hitelesítést. Ha nem te voltál, állítsd vissza a jelszavadat, és ellenőrizd a biztonsági beállításaidat."
+      },
+      "mfaDisabled": {
+        "title": "Kétfaktoros hitelesítés kikapcsolva",
+        "body": "A fiókodnál kikapcsoltuk a kétfaktoros hitelesítést. Ha nem te voltál, állítsd vissza a jelszavadat, és ellenőrizd a biztonsági beállításaidat."
+      },
+      "backupCodesGenerated": {
+        "title": "Új tartalék kódok létrehozva",
+        "body": "A fiókodhoz új tartalék kódokat hoztunk létre. Ha nem te voltál, állítsd vissza a jelszavadat, és ellenőrizd a biztonsági beállításaidat."
+      },
+      "apiKeyCreated": {
+        "title": "Új API-kulcs létrehozva",
+        "body": "A fiókodhoz új API-kulcsot hoztak létre. Ha nem te voltál, állítsd vissza a jelszavadat, és ellenőrizd a biztonsági beállításaidat."
+      },
+      "identityProviderUnlinked": {
+        "title": "Bejelentkezési szolgáltató leválasztva",
+        "body": "A(z) {name} leválasztva a fiókodról. Ha nem te voltál, állítsd vissza a jelszavadat, és ellenőrizd a biztonsági beállításaidat.",
+        "bodyGeneric": "Egy bejelentkezési szolgáltató leválasztva a fiókodról. Ha nem te voltál, állítsd vissza a jelszavadat, és ellenőrizd a biztonsági beállításaidat."
+      },
+      "unknown": {
+        "title": "A fiók biztonsága megváltozott",
+        "body": "A fiókod egyik biztonsági beállítása megváltozott. Ha nem te voltál, állítsd vissza a jelszavadat, és ellenőrizd a biztonsági beállításaidat."
+      }
+    },
+    "newDeviceSignIn": {
+      "title": "Új bejelentkezés",
+      "body": "Új bejelentkezés ebből: {browser}, rendszer: {os} ({ip}). Ha nem te voltál, változtasd meg a jelszavadat, és jelentkezz ki a többi munkamenetből."
     },
     "adminSignUpApproval": {
       "title": "Új regisztráció vár jóváhagyásra",

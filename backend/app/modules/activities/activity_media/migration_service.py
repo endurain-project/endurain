@@ -2,11 +2,11 @@
 
 from sqlalchemy.orm import Session
 
+import modules.activities.activity_media.constants as activity_media_constants
 import modules.activities.activity_media.contracts as activity_media_contracts
 import modules.activities.activity_media.crud as activity_media_crud
-import modules.activities.activity_media.signing as activity_media_signing
 
-MEDIA_STORAGE_AREA = activity_media_signing.MEDIA_STORAGE_AREA
+MEDIA_STORAGE_AREA = activity_media_constants.MEDIA_STORAGE_AREA
 get_all_activity_media = activity_media_crud.get_all_activity_media
 get_media_with_legacy_path = activity_media_crud.get_media_with_legacy_path
 

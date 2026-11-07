@@ -9,8 +9,7 @@ from core.database import Base
 
 
 class UsersApiKeys(Base):
-    """
-    User API key for third-party integrations.
+    """User API key for third-party integrations.
 
     Attributes:
         id: Unique key identifier (UUID).
@@ -21,8 +20,7 @@ class UsersApiKeys(Base):
         key_hash: SHA-256 hex digest of the full raw
             key. Never stored plaintext.
         scopes: JSON-encoded list of granted scopes.
-        expires_at: Optional expiration timestamp.
-            NULL means the key never expires.
+        expires_at: Expiration timestamp.
         last_used_at: Timestamp of last successful
             authentication. Updated on each use.
         created_at: Key creation timestamp.
@@ -66,10 +64,10 @@ class UsersApiKeys(Base):
         nullable=False,
         comment="JSON-encoded list of granted scope strings",
     )
-    expires_at: Mapped[datetime | None] = mapped_column(
+    expires_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
-        nullable=True,
-        comment="Key expiration timestamp (NULL = no expiry)",
+        nullable=False,
+        comment="Key expiration timestamp",
     )
     last_used_at: Mapped[datetime | None] = mapped_column(
         DateTime(timezone=True),

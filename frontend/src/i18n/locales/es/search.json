@@ -1,7 +1,7 @@
 {
   "title": "Búsqueda",
   "subtitle": "Encuentra usuarios, actividades y equipamiento en Endurain.",
-  "placeholder": "Buscar\u2026",
+  "placeholder": "Buscar…",
   "clear": "Borrar búsqueda",
   "scopes": {
     "users": "Usuarios",
@@ -24,12 +24,10 @@
     "waterSports": "Deportes acuáticos",
     "skating": "Patinaje"
   },
-  "results": {
-    "inactive": "Inactivo"
-  },
   "idle": {
     "title": "Buscar en Endurain",
-    "description": "Elige qué buscar y empieza a escribir para ver resultados."
+    "description": "Elige qué buscar y empieza a escribir para ver resultados.",
+    "usersDescription": "Escribe al menos {min} caracteres para buscar usuarios."
   },
   "empty": {
     "title": "Sin resultados",

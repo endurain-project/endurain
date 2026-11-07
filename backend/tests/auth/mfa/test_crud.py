@@ -12,6 +12,9 @@ class TestCreateUsersMFARow:
     def test_creates_disabled_row(self):
         db = MagicMock()
         fake_row = MagicMock(spec=auth_mfa_models.UsersMFA)
+        fake_row.user_id = 42
+        fake_row.mfa_enabled = False
+        fake_row.mfa_secret = None
 
         with patch.object(
             auth_mfa_crud.auth_mfa_models,
@@ -21,19 +24,25 @@ class TestCreateUsersMFARow:
             row = auth_mfa_crud.create_users_mfa_row(42, db)
 
         ctor.assert_called_once_with(user_id=42, mfa_enabled=False, mfa_secret=None)
-        assert row is fake_row
+        assert row.user_id == 42
+        assert row.mfa_enabled is False
+        assert row.mfa_secret is None
 
     def test_persists_via_db(self):
         db = MagicMock()
         fake_row = MagicMock(spec=auth_mfa_models.UsersMFA)
+        fake_row.user_id = 7
+        fake_row.mfa_enabled = False
+        fake_row.mfa_secret = None
 
         with patch.object(
             auth_mfa_crud.auth_mfa_models,
             "UsersMFA",
             return_value=fake_row,
         ):
-            row = auth_mfa_crud.create_users_mfa_row(7, db)
+            auth_mfa_crud.create_users_mfa_row(7, db)
 
-        db.add.assert_called_once_with(row)
-        db.commit.assert_called_once()
-        db.refresh.assert_called_once_with(row)
+        db.add.assert_called_once_with(fake_row)
+        db.flush.assert_called_once()
+        db.commit.assert_not_called()
+        db.refresh.assert_called_once_with(fake_row)

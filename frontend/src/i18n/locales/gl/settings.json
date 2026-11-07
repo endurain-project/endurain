@@ -31,6 +31,7 @@
       "admin": "Administrador",
       "inactive": "Inactivo",
       "unverified": "Correo non verificado",
+      "pendingEmail": "Cambio de correo pendente",
       "pending": "Pendente de aprobación",
       "externalAuth": "Autenticación externa"
     },
@@ -64,18 +65,15 @@
       "email": "Correo electrónico",
       "emailRequired": "O correo electrónico é obrigatorio",
       "emailInvalid": "Introduce un enderezo de correo electrónico válido",
+      "emailChangeHint": "Envíase unha ligazón de confirmación ao novo enderezo e este substitúe o actual unha vez confirmado. O usuario é desconectado de todos os dispositivos. Marca o novo enderezo como verificado para aplicalo agora.",
       "accessType": "Tipo de acceso",
       "accessTypeRegular": "Usuario regular",
       "accessTypeAdmin": "Administrador",
       "password": "Contrasinal",
       "passwordHint": "Polo menos 8 caracteres",
-      "passwordHintStrict": "Polo menos {min} caracteres, con maiúsculas, minúsculas, un número e un carácter especial",
-      "passwordHintLength": "Polo menos {min} caracteres",
       "passwordRequired": "O contrasinal é obrigatorio",
-      "passwordInvalid": "Ese contrasinal non cumpre os requisitos",
       "confirmPassword": "Confirmar contrasinal",
       "confirmPasswordRequired": "Confirmar contrasinal",
-      "passwordMismatch": "Os contrasinais non coinciden",
       "preferredLanguage": "Idioma preferido",
       "languages": {
         "ca": "Catalán",
@@ -118,14 +116,16 @@
       "units": "Unidades",
       "unitsMetric": "Métrico",
       "unitsImperial": "Imperial",
+      "weightUnits": "Unidades de peso",
+      "weightUnitsDefault": "Seguir unidades",
+      "weightUnitsMetric": "Quilogramos (kg)",
+      "weightUnitsImperial": "Libras (lb)",
       "height": "Altura",
-      "unitCm": "cm",
-      "unitFeet": "ft",
-      "unitInches": "in",
+      "heightInvalid": "A altura debe estar entre 50 e 272 cm",
+      "maxHeartRateInvalid": "A frecuencia cardíaca máxima debe estar entre 30 e 250 bpm",
       "feetInvalid": "Os pés deben estar entre 0 e 10",
       "inchesInvalid": "As polgadas deben estar entre 0 e 11",
       "maxHeartRate": "FC máxima",
-      "unitBpm": "ppm",
       "currency": "Moeda",
       "currencies": {
         "euro": "Euro",
@@ -134,6 +134,8 @@
       },
       "firstDayOfWeek": "Primeiro día da semana",
       "timezone": "Fuso horario",
+      "timezoneNotSet": "Sen definir",
+      "timezoneUseBrowser": "Usar o fuso horario do meu navegador ({timezone})",
       "timezoneHint": "Utilízase para actividades rexistradas sen GPS, como carreiras na cinta ou ciclismo en interior.",
       "weekdays": {
         "sunday": "Domingo",
@@ -149,6 +151,8 @@
       "statusLegend": "Estado da conta",
       "active": "Activo",
       "emailVerified": "Correo verificado",
+      "emailVerifiedCurrentHint": "Este é o estado do enderezo actual.",
+      "newEmailVerified": "Marcar o novo enderezo como verificado",
       "pendingAdminApproval": "Pendente de aprobación do administrador",
       "requiredField": "Campo obrigatorio",
       "create": "Engadir usuario",
@@ -171,6 +175,7 @@
     },
     "detail": {
       "back": "Volver aos usuarios",
+      "pendingEmail": "Cambio de correo pendente a {email}, a ligazón caduca o {date}",
       "notFoundTitle": "Usuario non atopado",
       "notFoundDescription": "Esta conta pode ter sido eliminada",
       "securityTitle": "Seguridade",
@@ -186,16 +191,12 @@
       "title": "Restablecer contrasinal",
       "description": "Establece un novo contrasinal para {username}",
       "newLabel": "Novo contrasinal",
-      "hintLength": "Polo menos {min} caracteres",
-      "hintStrict": "Polo menos {min} caracteres, con maiúsculas, minúsculas, un número e un carácter especial",
       "confirmLabel": "Confirmar novo contrasinal",
-      "mismatch": "Os contrasinais non coinciden",
       "required": "O contrasinal é obrigatorio",
       "submit": "Restablecer contrasinal",
       "cancel": "Cancelar",
       "close": "Pechar",
       "success": "Contrasinal actualizado",
-      "invalid": "Ese contrasinal non cumpre os requisitos",
       "error": "Non se puido actualizar o contrasinal. Por favor, téntao de novo."
     },
     "sessions": {
@@ -277,6 +278,32 @@
     "saving": "Gardando…",
     "saveSuccess": "Configuración do servidor actualizada",
     "saveError": "Non se puido actualizar a configuración do servidor. Por favor, téntao de novo.",
+    "staleError": "Outra persoa cambiou esta configuración mentres a editabas. Os teus cambios non se gardaron. Recarga a páxina para ver os valores actuais.",
+    "envLocked": "Definido por {name}",
+    "envSection": "Algúns axustes de aquí defínense mediante variables de contorno ({names}). Elimínaas do contorno para editar eses axustes aquí.",
+    "unsaved": "Cambios sen gardar",
+    "fixErrors": "Corrixe os erros de arriba para gardar",
+    "discard": "Descartar",
+    "tabs": {
+      "label": "Seccións dos axustes do servidor",
+      "general": "Xeral",
+      "access": "Acceso e seguranza",
+      "maps": "Mapas e localización",
+      "email": "Correo electrónico",
+      "logs": "Rexistros",
+      "unsaved": "Ten cambios sen gardar"
+    },
+    "search": {
+      "placeholder": "Buscar axustes…",
+      "noResults": "Non se atoparon axustes"
+    },
+    "leave": {
+      "title": "Saír sen gardar?",
+      "description": "Tes cambios sen gardar. Se sáes desta páxina perderanse.",
+      "confirm": "Saír sen gardar",
+      "stay": "Quedar na páxina",
+      "close": "Pechar"
+    },
     "loadError": {
       "title": "Non se puido cargar a configuración do servidor",
       "description": "Produciuse un erro ao cargar a configuración do servidor. Podes tentar de novo.",
@@ -295,11 +322,33 @@
     },
     "password": {
       "title": "Política de contrasinais",
-      "type": "Política",
-      "typeStrict": "Estrita (complexidade requirida)",
-      "typeLengthOnly": "Só lonxitude",
       "lengthRegular": "Lonxitude mínima usuarios regulares",
       "lengthAdmin": "Lonxitude mínima usuarios administradores"
+    },
+    "session": {
+      "title": "Sesións",
+      "description": "Os cambios aplícanse aos novos inicios de sesión e á seguinte renovación do token. Os tokens xa emitidos manteñen a súa duración.",
+      "idleTimeoutEnabled": "Aplicar tempo límite de inactividade",
+      "idleHours": "Tempo límite de inactividade (horas)",
+      "idleHoursHint": "Cando se aplica, unha sesión remata despois deste número de horas sen actividade.",
+      "absoluteHours": "Tempo límite absoluto (horas)",
+      "absoluteHoursHint": "Unha sesión remata este número de horas despois de iniciala, sexa cal sexa a actividade. Aplícase sempre. Non pode ser inferior ao tempo límite de inactividade.",
+      "accessMinutes": "Duración do token de acceso (minutos)",
+      "refreshDays": "Duración do token de renovación (días)",
+      "apiKeyDays": "Duración máxima dunha clave de API (días)",
+      "apiKeyDaysHint": "Unha clave de API nova caduca despois destes días, salvo que o seu propietario escolla unha data anterior.",
+      "invalidRange": "Introduce un número enteiro entre {min} e {max}.",
+      "absoluteBelowIdle": "Non pode ser inferior ao tempo límite de inactividade."
+    },
+    "retention": {
+      "title": "Retención de datos",
+      "readNotifications": "Eliminar notificacións lidas despois de (días)",
+      "readNotificationsHint": "0 mantén as notificacións lidas para sempre. As notificacións non lidas nunca se eliminan.",
+      "auditTrail": "Eliminar entradas do rexistro de auditoría despois de (días)",
+      "auditTrailHint": "0 mantén todo. Se non, o mínimo é de 30 días; as entradas elimínanse por días completos.",
+      "auditTrailInvalid": "Introduce 0 ou un número enteiro entre {min} e {max}.",
+      "auditLegalHold": "Retención legal do rexistro de auditoría",
+      "auditLegalHoldHint": "Mentres está activada, detén toda a eliminación do rexistro de auditoría, sexa cal sexa a retención."
     },
     "signup": {
       "title": "Rexistro",
@@ -336,12 +385,33 @@
       "attribution": "Atribución",
       "apiKey": "Clave de API do servidor de teselas",
       "apiKeyWarning": "A clave de API gárdase cifrada. Déixao en branco se o teu servidor de teselas non necesita ningunha.",
+      "apiKeyStored": "Hai unha clave gardada",
+      "apiKeyRemove": "Eliminar a clave de API gardada",
       "backgroundColor": "Cor de fondo do mapa",
       "regenerateThumbnails": "Rexenerar miniaturas de actividades cando cambia a configuración do mapa"
+    },
+    "geocoding": {
+      "title": "Xeocodificación inversa",
+      "description": "Converte as coordenadas das actividades en nomes de lugares. Os cambios aplícanse sen reiniciar.",
+      "service": "Servizo",
+      "serviceNominatim": "Nominatim",
+      "servicePhoton": "Photon",
+      "serviceGeocode": "geocode.maps.co",
+      "host": "Servidor",
+      "hostHint": "Nome do servidor cun porto opcional, sen esquema. Un servidor dunha rede privada debe figurar en SSRF_ALLOWED_HOSTS.",
+      "useHttps": "Conectar por HTTPS",
+      "rateLimit": "Solicitudes por segundo",
+      "rateLimitHint": "0 desactiva a limitación. Mantén 1 para os servizos públicos Nominatim e Photon.",
+      "rateLimitInvalid": "Introduce un número entre 0 e 100.",
+      "apiKey": "Clave de API",
+      "apiKeyStored": "Hai unha clave gardada. Déixao baleiro para conservala.",
+      "apiKeyRemove": "Eliminar a clave de API gardada",
+      "apiKeyRequired": "geocode.maps.co necesita unha clave de API."
     },
     "photo": {
       "title": "Foto de inicio de sesión",
       "description": "Unha imaxe personalizada mostrada na pantalla de inicio de sesión",
+      "previewAlt": "Foto actual do inicio de sesión",
       "add": "Subir foto de inicio de sesión",
       "replace": "Substituír foto de inicio de sesión",
       "delete": "Eliminar foto de inicio de sesión",
@@ -355,6 +425,30 @@
       "cancel": "Cancelar",
       "close": "Pechar"
     },
+    "logs": {
+      "title": "Rexistros do servidor",
+      "description": "Os rexistros máis recentes da aplicación. Os rexistros das instalacións con varios procesos recóllenos a túa plataforma.",
+      "level": "Nivel mínimo",
+      "allLevels": "Todos os niveis",
+      "search": "Buscar",
+      "searchPlaceholder": "Texto, logger ou ID da solicitude…",
+      "live": "En directo",
+      "refresh": "Actualizar",
+      "download": "Descargar",
+      "downloadError": "Non se puido descargar o ficheiro de rexistro.",
+      "clear": "Limpar",
+      "cleared": "Rexistros limpos",
+      "clearError": "Non se puideron limpar os rexistros.",
+      "clearConfirm": {
+        "title": "Limpar os rexistros do servidor?",
+        "description": "Isto elimina de forma permanente o ficheiro de rexistro e as súas copias rotadas. Descárgao primeiro se o podes necesitar. A propia acción queda rexistrada no novo rexistro.",
+        "confirm": "Limpar rexistros",
+        "cancel": "Cancelar",
+        "close": "Pechar"
+      },
+      "loadError": "Non se puideron cargar os rexistros.",
+      "empty": "Non se atopou ningún rexistro"
+    },
     "email": {
       "title": "Correo electrónico",
       "description": "Endurain envía os correos de restablecemento de contrasinal e de rexistro a través do servidor SMTP configurado no contorno.",
@@ -366,7 +460,26 @@
       "sendHint": "O correo de proba envíase ao teu propio enderezo.",
       "sent": "Correo de proba enviado",
       "failed": "Non se puido enviar o correo de proba",
-      "failedUnknown": "Consulta os rexistros do servidor para ver máis detalles."
+      "failedUnknown": "Consulta os rexistros do servidor para ver máis detalles.",
+      "settingsLoadError": "Non se puido cargar a configuración do correo.",
+      "host": "Servidor",
+      "hostHint": "Déixao baleiro para desactivar o correo.",
+      "port": "Porto",
+      "portInvalid": "Introduce un porto entre 1 e 65535.",
+      "security": "Seguridade da conexión",
+      "securityStarttls": "STARTTLS",
+      "securitySsl": "SSL/TLS",
+      "securityNone": "Ningunha (só retransmisión privada)",
+      "securityNoneWarning": "Sen cifrado, só se acepta un servidor de correo nun enderezo privado ou de loopback, e non se pode usar nome de usuario nin contrasinal.",
+      "username": "Nome de usuario",
+      "password": "Contrasinal",
+      "passwordStored": "Hai un contrasinal gardado. Déixao baleiro para conservalo.",
+      "passwordRemove": "Eliminar o contrasinal gardado",
+      "fromAddress": "Enderezo do remitente",
+      "fromAddressHint": "Déixao baleiro para usar o nome de usuario.",
+      "save": "Gardar configuración do correo",
+      "saveSuccess": "Configuración do correo gardada",
+      "saveError": "Non se puido gardar a configuración do correo"
     }
   },
   "idp": {
@@ -428,6 +541,7 @@
       "issuerUrl": "URL do emisor",
       "issuerUrlHint": "O URL de descubrimento ou emisor OIDC do provedor",
       "issuerUrlRequired": "O URL do emisor é obrigatorio",
+      "issuerUrlRefused": "Rexeitouse o URL do provedor. Debe usar https:// e resolverse desde o servidor, e un provedor dunha rede privada debe figurar en SSRF_ALLOWED_HOSTS.",
       "issuerUrlTooLong": "O URL do emisor debe ter 500 caracteres ou menos",
       "clientId": "ID de cliente",
       "clientIdRequired": "O ID de cliente é obrigatorio",
@@ -442,15 +556,22 @@
       "scopesTooLong": "Os ámbitos deben ter 500 caracteres ou menos",
       "icon": "Icona",
       "iconNone": "Ningún",
-      "iconCustom": "URL personalizado",
-      "customIconUrl": "URL da icona personalizada",
-      "customIconUrlHint": "Ligazón a unha imaxe mostrada no botón de inicio de sesión",
+      "iconUpload": "Subir unha imaxe",
+      "iconFileHint": "Unha imaxe PNG, JPEG ou WebP de ata 1 MB, que se mostra no botón de inicio de sesión",
+      "iconChoose": "Escoller imaxe",
+      "iconReplace": "Substituír imaxe",
+      "iconPreviewAlt": "Vista previa da icona",
+      "iconFileRequired": "Escolle unha imaxe para subir",
+      "iconFileInvalidType": "A icona debe ser unha imaxe PNG, JPEG ou WebP",
+      "iconFileTooLarge": "A icona debe ocupar 1 MB ou menos",
+      "iconSaveError": "O provedor gardouse, pero non se puido actualizar a súa icona. Edita o provedor para tentalo de novo.",
       "enabled": "Activado",
       "autoCreateUsers": "Crear usuarios automaticamente no primeiro inicio de sesión",
       "syncUserInfo": "Sincronizar información do perfil en cada inicio de sesión",
       "createSuccess": "Provedor engadido",
       "updateSuccess": "Provedor actualizado",
       "slugConflict": "Ese slug xa está en uso",
+      "staleError": "Este provedor cambiou noutro lugar. Os teus cambios non se gardaron. Péchao e ábreo de novo para cargar a configuración actual.",
       "saveError": "Non se puido gardar o provedor. Por favor, téntao de novo."
     }
   },
@@ -458,7 +579,7 @@
     "title": "Os meus obxectivos",
     "subtitle": "Establece obxectivos para as túas actividades e rexistra o teu progreso",
     "buttonAdd": "Engadir obxectivo",
-    "count": "Hai un total de {count} obxectivo(s):",
+    "count": "Hai un total de {count} obxectivo: | Hai un total de {count} obxectivos:",
     "filters": "Filtros",
     "filter": {
       "all": "Todos",
@@ -492,13 +613,6 @@
       "elevation": "Desnivel",
       "duration": "Duración"
     },
-    "unit": {
-      "calories": "kcal",
-      "km": "km",
-      "miles": "mi",
-      "meters": "m",
-      "feet": "ft"
-    },
     "list": {
       "edit": "Editar obxectivo {name}",
       "delete": "Eliminar obxectivo {name}"
@@ -522,6 +636,7 @@
       "error": "Non se puido eliminar o obxectivo. Por favor, téntao de novo."
     },
     "form": {
+      "targetInvalid": "Introduce un valor maior que 0.",
       "addTitle": "Engadir obxectivo",
       "editTitle": "Editar obxectivo",
       "description": "Establece un obxectivo para unha actividade durante un período recorrente",
@@ -549,6 +664,7 @@
     "hidePassword": "Ocultar contrasinal",
     "mfaCode": "Código de autenticación",
     "mfaCodePlaceholder": "123456",
+    "confirmPhrase": "Escribe {phrase} para confirmar",
     "loadError": {
       "title": "Non se puido cargar a configuración de seguridade",
       "description": "Produciuse un erro. Podes tentar de novo."
@@ -559,9 +675,6 @@
       "current": "Contrasinal actual",
       "new": "Novo contrasinal",
       "confirm": "Confirmar novo contrasinal",
-      "requirementsStrict": "Polo menos {length} caracteres, incluíndo unha maiúscula, unha minúscula, un número e un símbolo.",
-      "requirementsLength": "Polo menos {length} caracteres.",
-      "mismatch": "Os contrasinais non coinciden.",
       "revokeOthers": "Pechar sesión en todos os outros dispositivos",
       "submit": "Cambiar contrasinal",
       "success": "Contrasinal cambiado",
@@ -575,7 +688,7 @@
       "disabledDescription": "A autenticación en dous pasos está desactivada. Actívaa para protexer mellor a túa conta.",
       "enable": "Activar autenticación en dous pasos",
       "enabledDescription": "A autenticación en dous pasos está activada.",
-      "backupRemaining": "{unused} de {total} códigos de recuperación restantes.",
+      "backupRemaining": "{unused} de {total} código de recuperación restante. | {unused} de {total} códigos de recuperación restantes.",
       "regenerate": "Rexenerar códigos de recuperación",
       "disable": "Desactivar",
       "setupTitle": "Activar a autenticación en dous pasos",
@@ -649,7 +762,39 @@
       "unlinkError": "Non se puido desvincular a conta. Por favor, téntao de novo.",
       "invalidCredentials": "O teu contrasinal ou código é incorrecto.",
       "alreadyLinked": "Esa conta xa está vinculada.",
-      "lastMethodError": "Non podes desvincular o teu único método de inicio de sesión. Establece un contrasinal primeiro."
+      "lastMethodError": "Non podes desvincular o teu único método de inicio de sesión. Establece un contrasinal primeiro.",
+      "linkedOn": "Vinculado o {date}"
+    },
+    "email": {
+      "title": "Enderezo de correo electrónico",
+      "subtitle": "Aquí envíanse os restablecementos de contrasinal e os avisos. Para cambialo tes que confirmar a túa identidade, e o novo enderezo xa é efectivo cando o confirmes desde unha ligazón que enviamos alí.",
+      "current": "Correo electrónico actual",
+      "action": "Cambiar correo electrónico",
+      "new": "Novo correo electrónico",
+      "invalid": "Introduce un enderezo de correo electrónico válido.",
+      "sameAsCurrent": "Esta xa é o teu enderezo de correo electrónico.",
+      "success": "Enviouse unha ligazón de confirmación ao novo enderezo. O teu correo cambiará cando o confirmes.",
+      "appliedSuccess": "Correo electrónico cambiado.",
+      "pending": "Cambio pendente a {email}",
+      "pendingExpires": "A ligazón de confirmación caduca o {date}.",
+      "resend": "Reenviar a ligazón",
+      "cancel": "Cancelar o cambio",
+      "resendSuccess": "Se hai un cambio pendente, hai unha nova ligazón de camiño ao novo enderezo.",
+      "resendError": "Non se puido reenviar a ligazón. Téntao de novo.",
+      "cancelSuccess": "Cancelouse o cambio de correo.",
+      "cancelError": "Non se puido cancelar o cambio. Téntao de novo.",
+      "conflict": "Ese correo electrónico xa está en uso.",
+      "error": "Non se puido cambiar o teu correo electrónico. Por favor, téntao de novo."
+    },
+    "deleteAccount": {
+      "title": "Eliminar a miña conta",
+      "subtitle": "Elimina de forma permanente a túa conta e todos os teus datos, incluídas as actividades e os seus ficheiros, os rexistros de saúde, o equipamento, os obxectivos, as integracións e as sesións. Non se pode desfacer. Exporta primeiro os teus datos se queres conservar unha copia.",
+      "action": "Eliminar a miña conta",
+      "dialogTitle": "Eliminar a túa conta?",
+      "dialogDescription": "Isto elimina de forma permanente a túa conta e todos os teus datos. Confirma a túa identidade para continuar.",
+      "confirm": "Eliminar a miña conta",
+      "error": "Non se puido eliminar a túa conta. Por favor, téntao de novo.",
+      "onlyAdminError": "Es o único administrador. Converte a outro usuario en administrador antes de eliminar a túa conta."
     },
     "apiKeys": {
       "title": "Claves de API",
@@ -662,11 +807,12 @@
       "scopes": "Permisos",
       "scopesHint": "Escolle o que esta clave pode facer. É obrigatorio polo menos un.",
       "expiry": "Caducidade (opcional)",
-      "expiryHint": "Déixao en branco para unha clave que nunca caduca.",
+      "expiryHint": "Déixao en branco para usar a duración máis longa que permite o servidor. Rexéitase unha data posterior.",
       "createTitle": "Crear clave de API",
       "createDescription": "Confirma a túa identidade para crear unha nova clave de API.",
       "createSuccess": "Clave de API creada",
       "createError": "Non se puido crear a clave de API. Por favor, téntao de novo.",
+      "expiryTooLate": "Esa caducidade é posterior á que permite o servidor. Escolle unha data anterior ou déixao en branco.",
       "invalidCredentials": "O teu contrasinal ou código é incorrecto.",
       "invalidScopes": "Eses permisos non están permitidos para as claves de API.",
       "revealTitle": "Copia a túa clave de API",
@@ -683,7 +829,6 @@
       "lastUsed": "Último uso {date}",
       "neverUsed": "Nunca usada",
       "expires": "Caduca {date}",
-      "neverExpires": "Nunca caduca",
       "revoke": "Revogar",
       "revokeTitle": "Revogar clave de API?",
       "revokeBody": "{name} deixará de funcionar inmediatamente. Esta acción non se pode desfacer.",
@@ -694,6 +839,18 @@
       "deleteBody": "{name} eliminarse permanentemente. Esta acción non se pode desfacer.",
       "deleteSuccess": "Clave de API eliminada",
       "deleteError": "Non se puido eliminar a clave de API. Por favor, téntao de novo."
+    },
+    "stepUp": {
+      "prompt": "A túa conta non ten contrasinal. Inicia sesión de novo cun provedor de identidade vinculado para confirmar que es ti.",
+      "continueWith": "Continuar con {name}",
+      "ready": "Inicio de sesión do provedor de identidade confirmado.",
+      "restart": "Iniciar sesión de novo",
+      "noProviders": "Non hai ningún provedor de identidade vinculado dispoñible para confirmar a túa identidade.",
+      "startError": "Non se puido iniciar a sesión co provedor de identidade. Por favor, téntao de novo.",
+      "tooManyAttempts": "Demasiados intentos. Por favor, téntao de novo máis tarde.",
+      "reauthRequired": "Confirma a túa identidade co teu provedor de identidade para continuar.",
+      "failed": "Fallou o novo inicio de sesión co teu provedor de identidade. Por favor, téntao de novo.",
+      "notFresh": "O teu provedor de identidade non che pediu que inicies sesión de novo. Contacta co teu administrador."
     }
   },
   "integrations": {
@@ -733,6 +890,7 @@
       "clientIdPlaceholder": "123456",
       "clientSecret": "Segredo do cliente",
       "connectError": "Non se puido conectar a Strava. Por favor, comproba os teus datos e téntao de novo.",
+      "scopeError": "Strava non recibiu todos os permisos que Endurain necesita. Volve conectar e deixa todos os permisos marcados.",
       "completing": "Finalizando a conexión con Strava…",
       "linkSuccess": "Strava conectado",
       "retrieveActivitiesTitle": "Recuperar actividades de Strava",
@@ -741,9 +899,10 @@
       "retrievingGear": "Recuperando o teu equipamento de Strava en segundo plano…",
       "retrieveGearError": "Non se puido comezar a recuperar o equipamento de Strava. Por favor, téntao de novo.",
       "unlinkTitle": "Desconectar Strava?",
-      "unlinkBody": "Endurain deixará de importar de Strava. As túas actividades existentes consérvanse.",
+      "unlinkBody": "Endurain deixará de importar de Strava e eliminará as actividades e o equipamento sincronizados desde Strava. As actividades doutras fontes, incluídos os ficheiros de exportación de Strava cargados, consérvanse.",
       "unlinkSuccess": "Strava desconectado",
-      "unlinkError": "Non se puido desconectar Strava. Por favor, téntao de novo."
+      "unlinkError": "Non se puido desconectar Strava. Por favor, téntao de novo.",
+      "revokedNotice": "O acceso a Strava rematou o {revokedAt}. As actividades e o equipamento sincronizados con Strava eliminaranse o {deletionAt} se non te volves conectar."
     },
     "garmin": {
       "title": "Garmin Connect",
@@ -807,8 +966,8 @@
     },
     "job": {
       "preparing": "Preparando a importación…",
-      "progress": "Importados {done} de {total} ficheiros ({failed} con erro)…",
-      "finished": "Importación rematada: {done} de {total} ficheiros importados, {failed} con erro.",
+      "progress": "Importados {done} de {total} ficheiro ({failed} con erro)… | Importados {done} de {total} ficheiros ({failed} con erro)…",
+      "finished": "Importación rematada: {done} de {total} ficheiro importado, {failed} con erro. | Importación rematada: {done} de {total} ficheiros importados, {failed} con erro.",
       "failed": "Non se puido completar a importación."
     }
   },
@@ -816,6 +975,8 @@
     "title": "O meu perfil",
     "subtitle": "Xestiona os detalles da túa conta e privacidade",
     "notSet": "Non establecido",
+    "emailManagedIn": "O teu correo electrónico cámbiase na configuración de Seguridade.",
+    "emailManagedLink": "Abrir configuración de Seguridade",
     "error": {
       "title": "Non se puido cargar o teu perfil",
       "description": "Produciuse un erro ao cargar o teu perfil. Podes tentar de novo.",
@@ -874,6 +1035,8 @@
       "hideLaps": "Voltas",
       "hideWorkoutSetsSteps": "Series e pasos do adestramento",
       "hideGear": "Equipamento",
+      "discoverable": "Permitir que outros me atopen na busca",
+      "discoverableHint": "Outros usuarios poden atoparte polo nome de usuario cando buscan. O teu perfil segue accesible desde unha ligazón directa.",
       "save": "Gardar privacidade",
       "saving": "Gardando…",
       "saveSuccess": "Configuración de privacidade actualizada",
@@ -921,10 +1084,53 @@
       "export": "Exportar datos",
       "import": "Importar datos",
       "invalidType": "Por favor, escolle un arquivo .zip.",
-      "exportSuccess": "Exportación lista, a túa descarga debería comezar en breve",
+      "download": "Descargar exportación",
+      "downloadSuccess": "A descarga debería comezar en breve",
+      "downloadError": "Non se puido descargar a exportación. Por favor, téntao de novo.",
+      "exportQueued": "Exportación iniciada. Podes saír desta páxina.",
       "exportError": "Non se puideron exportar os teus datos. Por favor, téntao de novo.",
-      "importSuccess": "Datos importados",
-      "importError": "Non se puido importar o arquivo. Por favor, comproba o ficheiro e téntao de novo."
+      "exportInProgress": "Xa hai unha exportación en curso.",
+      "exportStepUp": {
+        "title": "Confirma que es ti",
+        "description": "A exportación copia todos os teus datos, así que confirma primeiro a túa identidade."
+      },
+      "exportStatus": {
+        "queued": "Agardando a que comece a exportación…",
+        "running": "Preparando a túa exportación…",
+        "succeeded": "A túa exportación está lista para descargar. Segue dispoñible durante dúas horas.",
+        "failed": "A exportación non se completou: {reason}"
+      },
+      "exportFailure": {
+        "timed_out": "tardou demasiado. Podes tentalo de novo.",
+        "processing_failed": "algo foi mal. Podes tentalo de novo."
+      },
+      "importQueued": "Importación iniciada. Podes saír desta páxina.",
+      "importError": "Non se puido importar o arquivo. Por favor, comproba o ficheiro e téntao de novo.",
+      "importInProgress": "Xa hai unha importación en curso.",
+      "status": {
+        "queued": "Agardando a que comece a importación…",
+        "running": "Importando os teus datos…",
+        "succeeded": "Importación rematada: importouse {activities} actividade, equipamentos: {gears}. | Importación rematada: importáronse {activities} actividades, equipamentos: {gears}.",
+        "failed": "A importación non se completou: {reason}"
+      },
+      "failure": {
+        "invalid_file": "o arquivo non é unha exportación válida de Endurain. Non se importou nada.",
+        "too_large": "o arquivo é demasiado grande. Non se importou nada.",
+        "too_many_activities": "o arquivo ten demasiadas actividades. Non se importou nada.",
+        "timed_out": "tardou demasiado. Non se importou nada, así que podes tentalo de novo.",
+        "files_incomplete": "importáronse os teus datos pero faltan algúns ficheiros. Non os importes de novo; duplicaríanse os teus datos.",
+        "processing_failed": "algo foi mal. Non se importou nada, así que podes tentalo de novo.",
+        "wrong_account": "o arquivo exportouse desde outra conta. Non se importou nada."
+      }
+    },
+    "blockedUsers": {
+      "title": "Usuarios bloqueados",
+      "subtitle": "Os usuarios bloqueados non poden solicitar seguirte. Bloquear a alguén tamén elimina calquera seguimento entre vós.",
+      "empty": "Non bloqueaches a ninguén.",
+      "unblock": "Desbloquear",
+      "unblockError": "Non se puido desbloquear este usuario. Téntao de novo.",
+      "loadError": "Non se puideron cargar os teus usuarios bloqueados.",
+      "retry": "Tentar de novo"
     }
   }
 }

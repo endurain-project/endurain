@@ -8,6 +8,8 @@ import { FormDialog } from '@/components/ui/form-dialog'
 import { FormField } from '@/components/ui/form-field'
 import { inputFieldClass } from '@/components/ui/input/fieldClasses'
 import { useForm } from '@/composables/useForm'
+import { isStaleWrite } from '@/services/ifMatch'
+import { secondsToHoursMinutes } from '@/utils/datetime'
 import { toNumberOrNull } from '@/utils/number'
 import { useUpdateFastingTargetMutation } from '@/features/health/composables/useHealth'
 
@@ -50,19 +52,37 @@ function targetToSeconds(formValues: TargetFormValues): number | null {
 async function submitForm(formValues: TargetFormValues): Promise<void> {
   try {
     await updateTargetMutation.mutateAsync({
-      id: props.targets.id,
-      userId: props.targets.userId,
+      version: props.targets.version,
       fastingSeconds: targetToSeconds(formValues),
     })
     emit('success', t('health.fasting.target.saveSuccess'))
     open.value = false
-  } catch {
-    emit('error', t('health.fasting.target.saveError'))
+  } catch (error) {
+    if (isStaleWrite(error)) {
+      open.value = false
+    }
+    emit('error', isStaleWrite(error) ? t('app.staleError') : t('health.fasting.target.saveError'))
   }
 }
 
-const { values, isSubmitting, handleSubmit, reset } = useForm<TargetFormValues>({
+/**
+ * Rejects a target whose total is zero or negative; both fields blank passes
+ * because that clears the target.
+ *
+ * @returns The shared target error, or `null` when blank or positive.
+ */
+function totalPositive(): string | null {
+  const hours = toNumberOrNull(values.hours)
+  const minutes = toNumberOrNull(values.minutes)
+  if (hours === null && minutes === null) {
+    return null
+  }
+  return (hours ?? 0) * 3600 + (minutes ?? 0) * 60 > 0 ? null : t('health.targetInvalid')
+}
+
+const { values, errors, isSubmitting, handleSubmit, reset } = useForm<TargetFormValues>({
   initialValues: { hours: '', minutes: '' },
+  validators: { minutes: totalPositive },
   onSubmit: submitForm,
 })
 
@@ -71,8 +91,9 @@ function populate(): void {
   reset()
   const seconds = props.targets.fastingSeconds
   if (seconds != null && seconds > 0) {
-    values.hours = String(Math.floor(seconds / 3600))
-    values.minutes = String(Math.round((seconds % 3600) / 60))
+    const split = secondsToHoursMinutes(seconds)
+    values.hours = String(split.hours)
+    values.minutes = String(split.minutes)
   }
 }
 
@@ -112,6 +133,7 @@ watch(open, (isOpen) => {
 
       <FormField
         :label="t('health.fasting.target.minutes')"
+        :error="errors.minutes"
         :hint="t('health.fasting.target.hint')"
       >
         <template #default="{ fieldId }">

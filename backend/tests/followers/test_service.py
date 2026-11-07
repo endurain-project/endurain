@@ -2,6 +2,7 @@
 
 from unittest.mock import MagicMock, patch
 
+import jasil.testing as jasil_testing
 import pytest
 
 
@@ -37,6 +38,38 @@ class TestNetworkPrivacy:
         assert count_method.call_args.kwargs["accepted_only"] is True
 
     @patch("modules.followers.service.followers_crud")
+    def test_profile_counts_include_only_accepted_relationships(self, mock_crud):
+        from modules.followers import service
+        from modules.followers.schema import FollowRelationshipRead
+
+        mock_crud.get_follower_for_user_id_and_target_user_id.return_value = FollowRelationshipRead(
+            follower_id=1,
+            followee_id=2,
+            status="accepted",
+        )
+        mock_crud.count_followers_by_user_id.return_value = 12
+        mock_crud.count_following_by_user_id.return_value = 8
+        db = MagicMock()
+
+        counts = service.get_profile_follow_counts(2, 1, db)
+
+        assert (counts.followers, counts.following) == (12, 8)
+        mock_crud.count_followers_by_user_id.assert_called_once_with(2, db, accepted_only=True)
+        mock_crud.count_following_by_user_id.assert_called_once_with(2, db, accepted_only=True)
+
+    @patch("modules.followers.service.followers_crud")
+    def test_profile_counts_are_absent_when_the_network_is_private(self, mock_crud):
+        from modules.followers import service
+
+        mock_crud.get_follower_for_user_id_and_target_user_id.return_value = None
+
+        counts = service.get_profile_follow_counts(2, 1, MagicMock())
+
+        assert counts is None
+        mock_crud.count_followers_by_user_id.assert_not_called()
+        mock_crud.count_following_by_user_id.assert_not_called()
+
+    @patch("modules.followers.service.followers_crud")
     def test_owner_can_include_pending_relationships(self, mock_crud):
         from modules.followers import service
 
@@ -50,14 +83,119 @@ class TestNetworkPrivacy:
         assert mock_crud.count_followers_by_user_id.call_args.kwargs["accepted_only"] is False
 
 
+def _profile(user_id: int):
+    from modules.users.users.schema import UserPublicRead
+
+    return UserPublicRead(id=user_id, name=f"User {user_id}", username=f"user{user_id}")
+
+
+class TestListsCarryTheOtherUsersProfile:
+    """Every row's other side arrives with the page, so the client needs no lookup per row."""
+
+    @patch("modules.followers.service.users_integration")
+    @patch("modules.followers.service.followers_crud")
+    def test_followers_are_looked_up_by_follower_id(self, mock_crud, mock_users):
+        from modules.followers import service
+        from modules.followers.schema import FollowRelationshipRead
+
+        mock_crud.get_all_followers_by_user_id.return_value = [
+            FollowRelationshipRead(follower_id=3, followee_id=1, status="accepted"),
+            FollowRelationshipRead(follower_id=4, followee_id=1, status="pending"),
+        ]
+        mock_crud.count_followers_by_user_id.return_value = 2
+        mock_users.list_public_profiles.return_value = {3: _profile(3), 4: _profile(4)}
+        db = MagicMock()
+
+        page = service.list_followers(1, 1, db)
+
+        mock_users.list_public_profiles.assert_called_once_with({3, 4}, db)
+        assert set(page.users) == {3, 4}
+        assert page.users[3].name == "User 3"
+
+    @patch("modules.followers.service.users_integration")
+    @patch("modules.followers.service.followers_crud")
+    def test_following_are_looked_up_by_followee_id(self, mock_crud, mock_users):
+        from modules.followers import service
+        from modules.followers.schema import FollowRelationshipRead
+
+        mock_crud.get_all_following_by_user_id.return_value = [
+            FollowRelationshipRead(follower_id=1, followee_id=8, status="accepted"),
+        ]
+        mock_crud.count_following_by_user_id.return_value = 1
+        mock_users.list_public_profiles.return_value = {8: _profile(8)}
+        db = MagicMock()
+
+        page = service.list_following(1, 1, db)
+
+        mock_users.list_public_profiles.assert_called_once_with({8}, db)
+        assert set(page.users) == {8}
+
+    @patch("modules.followers.service.users_integration")
+    @patch("modules.followers.service.followers_crud")
+    def test_pending_requests_are_looked_up_by_requester_id(self, mock_crud, mock_users):
+        from modules.followers import service
+        from modules.followers.schema import FollowRelationshipRead
+
+        mock_crud.get_pending_requests_for_user_id.return_value = [
+            FollowRelationshipRead(follower_id=6, followee_id=1, status="pending"),
+        ]
+        mock_crud.is_blocked.return_value = False
+        mock_crud.get_last_decline_at.return_value = None
+        mock_crud.count_pending_requests_for_user_id.return_value = 1
+        mock_users.list_public_profiles.return_value = {6: _profile(6)}
+        db = MagicMock()
+
+        page = service.list_pending_requests(1, db)
+
+        mock_users.list_public_profiles.assert_called_once_with({6}, db)
+        assert set(page.users) == {6}
+
+    @patch("modules.followers.service.users_integration")
+    @patch("modules.followers.service.followers_crud")
+    def test_a_user_without_a_profile_has_no_entry(self, mock_crud, mock_users):
+        from modules.followers import service
+        from modules.followers.schema import FollowRelationshipRead
+
+        mock_crud.get_all_followers_by_user_id.return_value = [
+            FollowRelationshipRead(follower_id=3, followee_id=1, status="accepted"),
+        ]
+        mock_crud.count_followers_by_user_id.return_value = 1
+        mock_users.list_public_profiles.return_value = {}
+
+        page = service.list_followers(1, 1, MagicMock())
+
+        assert page.users == {}
+        assert [item.follower_id for item in page.items] == [3]
+
+    @patch("modules.followers.service.users_integration")
+    @patch("modules.followers.service.followers_crud")
+    def test_the_envelope_is_unchanged_apart_from_the_users(self, mock_crud, mock_users):
+        from modules.followers import service
+        from modules.followers.schema import FollowRelationshipRead
+
+        mock_crud.get_all_followers_by_user_id.return_value = [
+            FollowRelationshipRead(follower_id=3, followee_id=1, status="accepted"),
+        ]
+        mock_crud.count_followers_by_user_id.return_value = 40
+        mock_users.list_public_profiles.return_value = {3: _profile(3)}
+
+        page = service.list_followers(1, 1, MagicMock(), page_number=1, num_records=25)
+
+        assert (page.total, page.page, page.num_records, page.next) == (40, 1, 25, 2)
+
+
 class TestFollowUser:
+    @patch("modules.followers.service.users_integration")
     @patch("modules.followers.service.followers_event_publishers")
     @patch("modules.followers.service.followers_crud")
-    def test_creates_and_publishes(self, mock_crud, mock_pub):
+    def test_creates_and_publishes(self, mock_crud, mock_pub, mock_users):
         from modules.followers.schema import FollowRelationshipRead
         from modules.followers.service import follow_user
 
         db = MagicMock()
+        mock_crud.is_blocked.return_value = False
+        mock_crud.get_last_decline_at.return_value = None
+        mock_crud.count_pending_requests_for_user_id.return_value = 0
         mock_crud.create_follower.return_value = FollowRelationshipRead(follower_id=1, followee_id=2, status="pending")
 
         result = follow_user(1, 2, db)
@@ -81,6 +219,98 @@ class TestFollowUser:
         mock_crud.create_follower.assert_not_called()
         mock_pub.publish_follower_requested.assert_not_called()
 
+    @patch("modules.followers.service.users_integration")
+    @patch("modules.followers.service.followers_event_publishers")
+    @patch("modules.followers.service.followers_crud")
+    def test_a_target_with_too_many_pending_requests_is_refused(self, mock_crud, mock_pub, mock_users):
+        import core.exceptions as core_exceptions
+        from modules.followers.constants import MAX_PENDING_REQUESTS
+        from modules.followers.service import follow_user
+
+        db = MagicMock()
+        mock_crud.is_blocked.return_value = False
+        mock_crud.get_last_decline_at.return_value = None
+        mock_crud.count_pending_requests_for_user_id.return_value = MAX_PENDING_REQUESTS
+
+        with pytest.raises(core_exceptions.ConflictError) as e:
+            follow_user(1, 2, db)
+
+        assert e.value.status_code == 409
+        mock_crud.create_follower.assert_not_called()
+        mock_pub.publish_follower_requested.assert_not_called()
+
+
+class TestFollowUserHiddenTargets:
+    """A target that is missing, inactive or awaiting approval answers the same not found."""
+
+    @pytest.fixture
+    def factory(self):
+        from tests._helpers.db import create_sqlite_session_factory, ensure_user
+
+        factory = create_sqlite_session_factory()
+        ensure_user(factory, 1)
+        yield factory
+        factory.kw["bind"].dispose()
+
+    @staticmethod
+    def _set_target_state(factory, state: str) -> None:
+        import modules.users.users.models as users_models
+        from tests._helpers.db import ensure_user
+
+        if state == "missing":
+            return
+        ensure_user(factory, 2)
+        with factory() as db:
+            user = db.get(users_models.Users, 2)
+            user.active = state != "inactive"
+            user.pending_admin_approval = state == "pending"
+            db.commit()
+
+    @pytest.mark.parametrize("state", ["missing", "inactive", "pending"])
+    @patch("modules.followers.service.followers_event_publishers")
+    @patch("modules.followers.service.followers_crud")
+    def test_hidden_target_is_not_found_even_when_its_pending_requests_are_full(
+        self, mock_crud, mock_pub, factory, state
+    ):
+        import core.exceptions as core_exceptions
+        from modules.followers.constants import MAX_PENDING_REQUESTS
+        from modules.followers.service import follow_user
+
+        self._set_target_state(factory, state)
+        mock_crud.is_blocked.return_value = False
+        mock_crud.get_last_decline_at.return_value = None
+        mock_crud.count_pending_requests_for_user_id.return_value = MAX_PENDING_REQUESTS
+
+        with factory() as db, pytest.raises(core_exceptions.NotFoundError) as e:
+            follow_user(1, 2, db)
+
+        assert e.value.status_code == 404
+        assert e.value.detail == "User not found"
+        mock_crud.lock_pending_requests.assert_not_called()
+        mock_crud.count_pending_requests_for_user_id.assert_not_called()
+        mock_crud.create_follower.assert_not_called()
+        mock_pub.publish_follower_requested.assert_not_called()
+
+
+class TestPendingCapIsSerialised:
+    @patch("modules.followers.service.users_integration")
+    @patch("modules.followers.service.followers_event_publishers")
+    @patch("modules.followers.service.followers_crud")
+    def test_the_targets_requests_are_locked_before_they_are_counted(self, mock_crud, mock_pub, mock_users):
+        from modules.followers.service import follow_user
+
+        calls = MagicMock()
+        calls.attach_mock(mock_crud.lock_pending_requests, "lock")
+        calls.attach_mock(mock_crud.count_pending_requests_for_user_id, "count")
+        calls.attach_mock(mock_crud.create_follower, "create")
+        mock_crud.is_blocked.return_value = False
+        mock_crud.get_last_decline_at.return_value = None
+        mock_crud.count_pending_requests_for_user_id.return_value = 0
+
+        follow_user(1, 2, MagicMock())
+
+        assert [call[0] for call in calls.mock_calls] == ["lock", "count", "create"]
+
 
 class TestAcceptFollowRequest:
     @patch("modules.followers.service.followers_event_publishers")
@@ -89,10 +319,46 @@ class TestAcceptFollowRequest:
         from modules.followers.service import accept_follow_request
 
         db = MagicMock()
+        mock_crud.count_following_by_user_id.return_value = 0
         accept_follow_request(1, 2, db)
 
         mock_crud.accept_follower.assert_called_once_with(1, 2, db)
         mock_pub.publish_follower_accepted.assert_called_once_with(1, 2, db, commit=db.commit)
+
+    @patch("modules.followers.service.followers_event_publishers")
+    @patch("modules.followers.service.followers_crud")
+    def test_a_follower_at_the_followee_cap_cannot_be_accepted(self, mock_crud, mock_pub):
+        import core.exceptions as core_exceptions
+        from modules.followers.constants import MAX_ACCEPTED_FOLLOWEES
+        from modules.followers.service import accept_follow_request
+
+        db = MagicMock()
+        mock_crud.count_following_by_user_id.return_value = MAX_ACCEPTED_FOLLOWEES
+
+        with pytest.raises(core_exceptions.ConflictError) as e:
+            accept_follow_request(1, 2, db)
+
+        assert e.value.status_code == 409
+        mock_crud.count_following_by_user_id.assert_called_once_with(2, db, accepted_only=True)
+        mock_crud.accept_follower.assert_not_called()
+        mock_pub.publish_follower_accepted.assert_not_called()
+
+    @patch("modules.followers.service.followers_event_publishers")
+    @patch("modules.followers.service.followers_crud")
+    def test_the_followers_followees_are_locked_before_they_are_counted(self, mock_crud, mock_pub):
+        from modules.followers.service import accept_follow_request
+
+        calls = MagicMock()
+        calls.attach_mock(mock_crud.lock_accepted_followees, "lock")
+        calls.attach_mock(mock_crud.count_following_by_user_id, "count")
+        calls.attach_mock(mock_crud.accept_follower, "accept")
+        mock_crud.count_following_by_user_id.return_value = 0
+
+        accept_follow_request(1, 2, MagicMock())
+
+        assert [call[0] for call in calls.mock_calls] == ["lock", "count", "accept"]
+        mock_crud.lock_accepted_followees.assert_called_once()
+        assert mock_crud.lock_accepted_followees.call_args.args[0] == 2
 
 
 class TestDeleteRelationship:
@@ -105,6 +371,30 @@ class TestDeleteRelationship:
 
         crud.delete_follower.assert_called_once_with(1, 2, db)
         db.commit.assert_called_once()
+
+    @pytest.mark.parametrize(
+        "status,published",
+        [("pending", True), ("accepted", False)],
+    )
+    def test_only_a_pending_request_publishes_its_removal(self, status, published):
+        from modules.followers.constants import FollowStatus
+        from modules.followers.service import delete_relationship
+
+        db = MagicMock()
+        with (
+            patch("modules.followers.service.followers_crud") as crud,
+            patch("modules.followers.service.followers_event_publishers") as pub,
+        ):
+            crud.delete_follower.return_value = FollowStatus(status)
+            delete_relationship(2, 1, 1, db)
+
+        assert pub.publish_follower_request_removed.called is published
+        if published:
+            pub.publish_follower_request_removed.assert_called_once_with(
+                1, 2, db, commit=db.commit, source="api:delete_follow_relationship"
+            )
+        else:
+            db.commit.assert_called_once()
 
     def test_removing_a_follower_deletes_the_same_row(self):
         """Same row, opposite caller — the reason these are one operation."""
@@ -143,6 +433,20 @@ class TestRejectFollowRequest:
         crud.delete_follower.assert_called_once_with(2, 1, db, status=FollowStatus.PENDING)
         db.commit.assert_called_once()
 
+    def test_publishes_the_removal(self):
+        from modules.followers.service import reject_follow_request
+
+        db = MagicMock()
+        with (
+            patch("modules.followers.service.followers_crud"),
+            patch("modules.followers.service.followers_event_publishers") as pub,
+        ):
+            reject_follow_request(1, 2, db)
+
+        pub.publish_follower_request_removed.assert_called_once_with(
+            2, 1, db, commit=db.commit, source="api:reject_follow_request"
+        )
+
 
 class TestListAcceptedFolloweeIds:
     @patch("modules.followers.integration_service.followers_crud")
@@ -167,3 +471,123 @@ class TestListAcceptedFolloweeIds:
         import modules.followers.service as followers_service
 
         assert not hasattr(followers_service, "list_accepted_followee_ids")
+
+
+class TestStateChangesLogAtInfo:
+    @pytest.mark.parametrize(
+        ("call", "message"),
+        [
+            (lambda s, db: s.follow_user(1, 2, db), "Follow requested"),
+            (lambda s, db: s.accept_follow_request(1, 2, db), "Follow request accepted"),
+            (lambda s, db: s.reject_follow_request(1, 2, db), "Follow request rejected"),
+            (lambda s, db: s.delete_relationship(2, 1, 1, db), "Deleted a follow relationship"),
+        ],
+    )
+    @patch("modules.followers.service.users_integration")
+    @patch("modules.followers.service.followers_event_publishers")
+    @patch("modules.followers.service.followers_crud")
+    def test_a_completed_change_is_logged_once_at_info(self, mock_crud, _mock_pub, _mock_users, call, message, caplog):
+        from modules.followers import service
+
+        mock_crud.is_blocked.return_value = False
+        mock_crud.get_last_decline_at.return_value = None
+        mock_crud.count_pending_requests_for_user_id.return_value = 0
+        mock_crud.count_following_by_user_id.return_value = 0
+
+        with caplog.at_level("DEBUG", logger=service.logger.name):
+            call(service, MagicMock())
+
+        assert [(record.levelname, record.getMessage()) for record in caplog.records] == [("INFO", message)]
+
+
+class TestFollowAudit:
+    @patch("modules.followers.service.followers_event_publishers")
+    @patch("modules.followers.service.followers_crud")
+    def test_accepting_a_request_is_audited_with_the_follower_as_target(self, mock_crud, mock_pub):
+        from modules.followers.audit_actions import FOLLOW_ACCEPT
+        from modules.followers.service import accept_follow_request
+
+        mock_crud.count_following_by_user_id.return_value = 0
+        with jasil_testing.capture_audit() as audit:
+            accept_follow_request(1, 2, MagicMock())
+
+        entry = audit.assert_audited(FOLLOW_ACCEPT.id, target_type="user", target_id="2", target_owner_id="1")
+        assert entry.details is None
+
+    @patch("modules.followers.service.followers_event_publishers")
+    @patch("modules.followers.service.followers_crud")
+    def test_a_refused_acceptance_is_not_audited(self, mock_crud, mock_pub):
+        import core.exceptions as core_exceptions
+        from modules.followers.audit_actions import FOLLOW_ACCEPT
+        from modules.followers.constants import MAX_ACCEPTED_FOLLOWEES
+        from modules.followers.service import accept_follow_request
+
+        mock_crud.count_following_by_user_id.return_value = MAX_ACCEPTED_FOLLOWEES
+        with jasil_testing.capture_audit() as audit, pytest.raises(core_exceptions.ConflictError):
+            accept_follow_request(1, 2, MagicMock())
+
+        audit.assert_not_audited(FOLLOW_ACCEPT.id)
+
+    @pytest.mark.parametrize(
+        "followee_id,follower_id,caller",
+        [(2, 1, 1), (1, 2, 1)],
+        ids=["follower unfollows", "followed user removes the follower"],
+    )
+    @patch("modules.followers.service.followers_event_publishers")
+    @patch("modules.followers.service.followers_crud")
+    def test_removing_an_accepted_relationship_is_audited_from_either_side(
+        self, mock_crud, mock_pub, followee_id, follower_id, caller
+    ):
+        from modules.followers.audit_actions import FOLLOW_REMOVE
+        from modules.followers.constants import FollowStatus
+        from modules.followers.service import delete_relationship
+
+        mock_crud.delete_follower.return_value = FollowStatus.ACCEPTED
+        with jasil_testing.capture_audit() as audit:
+            delete_relationship(followee_id, follower_id, caller, MagicMock())
+
+        entry = audit.assert_audited(
+            FOLLOW_REMOVE.id,
+            target_type="user",
+            target_id=str(follower_id),
+            target_owner_id=str(followee_id),
+        )
+        assert entry.details is None
+
+    @patch("modules.followers.service.followers_event_publishers")
+    @patch("modules.followers.service.followers_crud")
+    def test_deleting_a_pending_request_is_not_audited(self, mock_crud, mock_pub):
+        from modules.followers.audit_actions import FOLLOW_REMOVE
+        from modules.followers.constants import FollowStatus
+        from modules.followers.service import delete_relationship
+
+        mock_crud.delete_follower.return_value = FollowStatus.PENDING
+        with jasil_testing.capture_audit() as audit:
+            delete_relationship(2, 1, 1, MagicMock())
+
+        audit.assert_not_audited(FOLLOW_REMOVE.id)
+
+    @patch("modules.followers.service.followers_event_publishers")
+    @patch("modules.followers.service.followers_crud")
+    def test_declining_a_request_is_not_audited(self, mock_crud, mock_pub):
+        from modules.followers.audit_actions import FOLLOW_REMOVE
+        from modules.followers.service import reject_follow_request
+
+        with jasil_testing.capture_audit() as audit:
+            reject_follow_request(1, 2, MagicMock())
+
+        audit.assert_not_audited(FOLLOW_REMOVE.id)
+
+    @patch("modules.followers.service.users_integration")
+    @patch("modules.followers.service.followers_event_publishers")
+    @patch("modules.followers.service.followers_crud")
+    def test_creating_a_request_is_not_audited(self, mock_crud, mock_pub, mock_users):
+        from modules.followers.service import follow_user
+
+        mock_crud.is_blocked.return_value = False
+        mock_crud.get_last_decline_at.return_value = None
+        mock_crud.count_pending_requests_for_user_id.return_value = 0
+        with jasil_testing.capture_audit() as audit:
+            follow_user(1, 2, MagicMock())
+
+        assert audit.entries == []

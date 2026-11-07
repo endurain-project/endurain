@@ -2,6 +2,7 @@ import { computed, type MaybeRefOrGetter, toValue } from 'vue'
 import { storeToRefs } from 'pinia'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/vue-query'
 
+import type { StepUpInput } from '@/features/security/types'
 import type { UserSession } from '@/features/users/types'
 
 import { queryKeys } from '@/services/queryKeys'
@@ -39,8 +40,15 @@ export function useRevokeUserSessionMutation() {
   const queryClient = useQueryClient()
 
   return useMutation({
-    mutationFn: ({ sessionId, userId }: { sessionId: string; userId: number }) =>
-      revokeUserSession(sessionId, userId),
+    mutationFn: ({
+      sessionId,
+      userId,
+      stepUp,
+    }: {
+      sessionId: string
+      userId: number
+      stepUp: StepUpInput
+    }) => revokeUserSession(sessionId, userId, stepUp),
     onSuccess: (_data, { userId }) => {
       void queryClient.invalidateQueries({ queryKey: queryKeys.users.sessions(userId) })
     },
@@ -58,8 +66,15 @@ export function useRevokeOtherUserSessionsMutation() {
   const queryClient = useQueryClient()
 
   return useMutation({
-    mutationFn: ({ userId, excludeSessionId }: { userId: number; excludeSessionId?: string }) =>
-      revokeOtherUserSessions(userId, excludeSessionId),
+    mutationFn: ({
+      userId,
+      stepUp,
+      excludeSessionId,
+    }: {
+      userId: number
+      stepUp: StepUpInput
+      excludeSessionId?: string
+    }) => revokeOtherUserSessions(userId, stepUp, excludeSessionId),
     onSuccess: (_data, { userId }) => {
       void queryClient.invalidateQueries({ queryKey: queryKeys.users.sessions(userId) })
     },

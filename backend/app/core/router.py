@@ -1,16 +1,27 @@
 """Core metadata and static fallback routes."""
 
-from typing import Annotated
+from datetime import UTC, datetime, timedelta
+from typing import Literal
 
-from fastapi import APIRouter, Depends, HTTPException, status
+import jasil.audit as jasil_audit
+import jasil.settings as jasil_settings
+from fastapi import APIRouter, HTTPException, status
 from fastapi.responses import FileResponse
+from fastapi.routing import APIRoute
+from jasil.providers import StateBackendUnavailableError
 from pydantic import BaseModel, ConfigDict
 from sqlalchemy import text
-from sqlalchemy.orm import Session
+from sqlalchemy.exc import SQLAlchemyError
+from starlette.routing import Match
+from starlette.types import Scope
 
 import core.config as core_config
-import core.database as core_database
+import core.dependencies as core_dependencies
+import core.exceptions as core_exceptions
+import core.logger as core_logger
 import core.utils as core_utils
+
+logger = core_logger.get_logger(__name__)
 
 # Define the API router
 router = APIRouter()
@@ -53,7 +64,6 @@ class AboutResponse(BaseModel):
 @router.get(
     core_config.ROOT_PATH + "/about",
     response_model=AboutResponse,
-    status_code=status.HTTP_200_OK,
 )
 async def about() -> AboutResponse:
     """
@@ -73,58 +83,115 @@ async def about() -> AboutResponse:
     )
 
 
-@router.get(core_config.ROOT_PATH + "/health", status_code=status.HTTP_200_OK)
-def health(db: Annotated[Session, Depends(core_database.get_db)]) -> dict[str, str]:
+class HealthResponse(BaseModel):
     """
-    Liveness check that needs a database connection.
+    Health of the dependencies this process needs.
+
+    Attributes:
+        status: ``ok``, or ``degraded`` when the shared state backend is unreachable or the audit trail
+            is unhealthy.
+        state: Whether the shared state backend (rate limits, claims, tickets) answers.
+        audit: Whether the audit trail is healthy: tomorrow's partition exists, the latest checkpoint is
+            recent and no audit record failed to write recently.
+    """
+
+    model_config = ConfigDict(frozen=True)
+
+    status: Literal["ok", "degraded"]
+    state: Literal["ok", "unavailable"]
+    audit: Literal["ok", "degraded"]
+
+
+#: Seconds a monitor is told to wait before probing an instance whose database does not answer.
+_HEALTH_RETRY_AFTER_SECONDS = 5
+
+#: Key the health probe reads. It is never written, so the probe leaves nothing in the backend.
+_STATE_PROBE_KEY = "endurain:health:probe"
+
+
+#: How old the latest sealed checkpoint, or how recent a failed refusal-row write, may be before the audit
+#: trail counts as degraded.
+_AUDIT_HEALTH_WINDOW = timedelta(hours=1)
+
+
+def _audit_degraded_reason() -> str | None:
+    """
+    Find why the audit trail is unhealthy.
+
+    A checkpoint that was never sealed is not flagged: no timestamp tells how long the instance has run,
+    and maintenance records the partition and the checkpoint together, so a scheduler that never ran
+    already shows as a missing partition.
+
+    Returns:
+        A fixed description of the first problem found, or ``None`` when the audit trail is healthy or
+        disabled.
+    """
+    if not jasil_settings.get_settings().audit.enabled:
+        return None
+    try:
+        audit_health = jasil_audit.get_audit_health()
+    except (SQLAlchemyError, RuntimeError) as err:
+        return f"the audit health could not be read ({type(err).__name__})"
+    now = datetime.now(UTC)
+    furthest_partition_date = audit_health["furthest_partition_date"]
+    if furthest_partition_date is None or furthest_partition_date < now.date() + timedelta(days=1):
+        return "tomorrow's audit partition does not exist"
+    last_checkpoint_at = audit_health["last_checkpoint_at"]
+    if last_checkpoint_at is not None and now - last_checkpoint_at > _AUDIT_HEALTH_WINDOW:
+        return "the latest audit checkpoint is older than an hour"
+    last_failure_at = audit_health["last_failure_at"]
+    if last_failure_at is not None and now - last_failure_at <= _AUDIT_HEALTH_WINDOW:
+        return "an audit record failed to write within the last hour"
+    return None
+
+
+@router.get(core_config.ROOT_PATH + "/health", response_model=HealthResponse)
+def health(db: core_dependencies.DbSession, state: core_dependencies.PlatformState) -> HealthResponse:
+    """
+    Liveness check that needs a database connection, and reports the shared state backend.
 
     Unlike ``/about``, this fails when the connection pool is exhausted or the
-    database is unreachable, so orchestrators can detect a wedged instance.
+    database is unreachable, so orchestrators can detect a wedged instance. A state
+    backend that does not answer does not fail it: the process still serves most
+    routes (rate limits fall back to per-process counters), and restarting or
+    de-routing replicas would not bring the backend back. It answers 200 with
+    ``degraded`` so a monitor can alert on the body. An unhealthy audit trail does the same.
 
     Args:
         db: Database session.
+        state: The platform state provider.
 
     Returns:
-        ``{"status": "ok"}`` when the database answers.
+        ``ok`` when the database and the state backend answer and the audit trail is healthy,
+        ``degraded`` when only the state backend or the audit trail is not.
 
     Raises:
-        HTTPException: 503 when no connection can be obtained or the query fails.
+        ServiceUnavailableError: When no connection can be obtained or the query fails, with ``Retry-After``.
     """
     try:
         db.execute(text("SELECT 1"))
     except Exception as err:
-        raise HTTPException(status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail="Database unavailable") from err
-    return {"status": "ok"}
+        unavailable = core_exceptions.ServiceUnavailableError("Database unavailable")
+        unavailable.headers = {"Retry-After": str(_HEALTH_RETRY_AFTER_SECONDS)}
+        raise unavailable from err
+    state_ok = True
+    try:
+        state.get(_STATE_PROBE_KEY)
+    except StateBackendUnavailableError as err:
+        logger.warning("The shared state backend did not answer the health probe", exc_info=err)
+        state_ok = False
+    audit_reason = _audit_degraded_reason()
+    if audit_reason is not None:
+        logger.warning("The audit trail is degraded: %s", audit_reason)
+    audit_ok = audit_reason is None
+    return HealthResponse(
+        status="ok" if state_ok and audit_ok else "degraded",
+        state="ok" if state_ok else "unavailable",
+        audit="ok" if audit_ok else "degraded",
+    )
 
 
-@router.get("/server_images/{server_img}", response_class=FileResponse)
-def server_img_return(
-    server_img: str,
-) -> FileResponse:
-    """
-    Retrieves the file path for a given server image.
-
-    Args:
-        server_img (str): The identifier or filename of the server image.
-
-    Returns:
-        str: The file path to the server image.
-
-    Raises:
-        HTTPException: If the server image path cannot be found.
-    """
-    path = core_utils.return_server_img_path(server_img)
-
-    if path is None:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Server image not found",
-        )
-
-    return path
-
-
-# NOTE: there is deliberately no ``/user_images/{user_img}``,
+# NOTE: there is deliberately no ``/server_images/{img}``, ``/user_images/{user_img}``,
 # ``/activity_media/{media}`` or ``/activity_thumbnails/{thumbnail}`` route here.
 # All three serve private user data and are reachable only through their
 # token-gated routes. A filename-addressed route beside them is a full bypass of
@@ -132,11 +199,27 @@ def server_img_return(
 # ``{user_id}.{ext}``, it enumerated the entire user base.
 
 
-@router.get(
-    "/{path:path}",
-    include_in_schema=False,
-    response_class=FileResponse,
-)
+class _GetOnlyRoute(APIRoute):
+    """A route that only a ``GET`` matches, so another method on a path it covers falls through to a 404.
+
+    Starlette remembers a route that matches a path but not the method as a partial match, and answers ``405`` from
+    the first one it finds. The frontend fallback covers every path, so it would turn every unknown path into a 405
+    for a method other than ``GET``.
+    """
+
+    def matches(self, scope: Scope) -> tuple[Match, Scope]:
+        """Match a request, treating a method mismatch as no match.
+
+        Args:
+            scope: The ASGI scope of the request.
+
+        Returns:
+            The match and the scope entries it adds.
+        """
+        match, child_scope = super().matches(scope)
+        return (Match.NONE, {}) if match == Match.PARTIAL else (match, child_scope)
+
+
 def frontend_not_found(
     path: str,
 ) -> FileResponse:
@@ -150,8 +233,13 @@ def frontend_not_found(
         Response: The frontend index file or the requested resource if found.
 
     Raises:
+        NotFoundError: If the path is under the API prefix, since no API route matched it.
         HTTPException: If the requested resource is not found.
     """
+    api_prefix = core_config.ROOT_PATH.strip("/")
+    if path == api_prefix or path.startswith(f"{api_prefix}/"):
+        raise core_exceptions.NotFoundError("Resource not found")
+
     if "." in path.split("/")[-1]:
         result = core_utils.return_frontend_index(path)
         if result is None:
@@ -168,3 +256,14 @@ def frontend_not_found(
             detail="Frontend index not found",
         )
     return result
+
+
+# Registered last, so every API route is tried before the frontend fallback.
+router.add_api_route(
+    "/{path:path}",
+    frontend_not_found,
+    methods=["GET"],
+    include_in_schema=False,
+    response_class=FileResponse,
+    route_class_override=_GetOnlyRoute,
+)

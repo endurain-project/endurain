@@ -1,5 +1,4 @@
-"""
-SQLAlchemy models for health poop (bowel movement) tracking.
+"""SQLAlchemy models for health poop (bowel movement) tracking.
 
 This module defines the database models for storing user bowel
 movement data, including Bristol stool scale type, color, and
@@ -7,20 +6,15 @@ optional notes.
 """
 
 from datetime import datetime
-from typing import TYPE_CHECKING
 
 from sqlalchemy import DateTime, ForeignKey, String
-from sqlalchemy.orm import Mapped, mapped_column, relationship
+from sqlalchemy.orm import Mapped, mapped_column
 
 from core.database import Base
 
-if TYPE_CHECKING:
-    from modules.users.users.models import Users
-
 
 class HealthPoop(Base):
-    """
-    User bowel movement tracking data.
+    """User bowel movement tracking data.
 
     Attributes:
         id: Primary key, auto-incremented unique identifier.
@@ -30,13 +24,9 @@ class HealthPoop(Base):
         color: Stool color description.
         notes: Optional notes about the bowel movement.
         source: Source of the data.
-        user: Relationship to the Users model.
 
     Table:
         health_poop
-
-    Relationships:
-        - Many-to-One with Users model through user_id
     """
 
     __tablename__ = "health_poop"
@@ -71,11 +61,21 @@ class HealthPoop(Base):
         nullable=True,
         comment="Optional notes about the bowel movement",
     )
-    source: Mapped[str | None] = mapped_column(
+    source: Mapped[str] = mapped_column(
         String(250),
-        nullable=True,
+        nullable=False,
+        server_default="manual",
+        default="manual",
         comment="Source of the health poop data",
     )
 
-    # Define a relationship to the Users model
-    users: Mapped["Users"] = relationship(back_populates="health_poop")
+    version: Mapped[int] = mapped_column(
+        nullable=False,
+        server_default="1",
+        default=1,
+        comment="Optimistic-concurrency counter, surfaced to clients as the ETag",
+    )
+
+    # SQLAlchemy bumps ``version`` on each ORM flush and adds it to the UPDATE's
+    # WHERE clause, raising StaleDataError when the row moved underneath.
+    __mapper_args__ = {"version_id_col": version}  # noqa: RUF012

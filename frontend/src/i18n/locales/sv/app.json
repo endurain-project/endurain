@@ -18,6 +18,16 @@
     "help": "Kontrollera att ENDURAIN_HOST pekar på den URL där din Endurain-instans är nåbar (till exempel https://endurain.example.com) och att backend körs, och ladda sedan om sidan.",
     "reload": "Ladda om"
   },
+  "staleError": "Detta ändrades på annat håll medan du tittade på det, så inget sparades. Den aktuella versionen har lästs in. Granska den och försök igen.",
+  "fieldError": {
+    "required": "Det här fältet är obligatoriskt",
+    "tooShort": "Värdet är för kort",
+    "tooLong": "Värdet är för långt",
+    "tooLarge": "Värdet är för stort",
+    "tooSmall": "Värdet är för litet",
+    "invalidFormat": "Värdet har ett ogiltigt format",
+    "invalid": "Värdet är ogiltigt"
+  },
   "dismiss": "Stäng",
   "language": "Språk",
   "theme": {
@@ -35,5 +45,23 @@
     "edit": "Redigera",
     "supported": "Markdown stöds",
     "empty": "Inget att förhandsgranska"
+  },
+  "password": {
+    "hintLength": "Minst {min} tecken.",
+    "invalid": "Lösenordet uppfyller inte kraven",
+    "mismatch": "Lösenorden matchar inte",
+    "tooShort": "Lösenordet är för kort. Använd minst {min} tecken.",
+    "tooCommon": "Lösenordet är för vanligt. Välj ett som är svårare att gissa.",
+    "matchesAccount": "Använd inte ditt användarnamn eller din e-postadress som lösenord.",
+    "blank": "Ett lösenord kan inte bestå enbart av blanksteg.",
+    "unchanged": "Välj ett lösenord som skiljer sig från ditt nuvarande.",
+    "strength": {
+      "label": "Lösenordsstyrka: {level}",
+      "tooWeak": "För svagt",
+      "weak": "Svagt",
+      "fair": "Okej",
+      "good": "Bra",
+      "strong": "Starkt"
+    }
   }
 }

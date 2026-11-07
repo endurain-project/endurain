@@ -18,6 +18,16 @@
     "help": "Sprawdź, czy ENDURAIN_HOST wskazuje adres URL, pod którym dostępna jest Twoja instancja Endurain (na przykład https://endurain.example.com), oraz czy zaplecze działa, a następnie odśwież stronę.",
     "reload": "Odśwież"
   },
+  "staleError": "Zostało to zmienione w innym miejscu, gdy na to patrzyłeś, więc nic nie zostało zapisane. Załadowano aktualną wersję. Sprawdź ją i spróbuj ponownie.",
+  "fieldError": {
+    "required": "To pole jest wymagane",
+    "tooShort": "Ta wartość jest za krótka",
+    "tooLong": "Ta wartość jest za długa",
+    "tooLarge": "Ta wartość jest za duża",
+    "tooSmall": "Ta wartość jest za mała",
+    "invalidFormat": "Ta wartość ma nieprawidłowy format",
+    "invalid": "Ta wartość jest nieprawidłowa"
+  },
   "dismiss": "Odrzuć",
   "language": "Język",
   "theme": {
@@ -35,5 +45,23 @@
     "edit": "Edytuj",
     "supported": "Obsługa Markdown",
     "empty": "Nie ma nic do podglądu"
+  },
+  "password": {
+    "hintLength": "Co najmniej {min} znaków.",
+    "invalid": "Hasło nie spełnia wymagań",
+    "mismatch": "Hasła nie są zgodne",
+    "tooShort": "To hasło jest za krótkie. Użyj co najmniej {min} znaków.",
+    "tooCommon": "To hasło jest zbyt popularne. Wybierz takie, które trudniej odgadnąć.",
+    "matchesAccount": "Nie używaj nazwy użytkownika ani adresu e-mail jako hasła.",
+    "blank": "Hasło nie może składać się wyłącznie ze spacji.",
+    "unchanged": "Wybierz hasło inne niż obecne.",
+    "strength": {
+      "label": "Siła hasła: {level}",
+      "tooWeak": "Zbyt słabe",
+      "weak": "Słabe",
+      "fair": "Przeciętne",
+      "good": "Dobre",
+      "strong": "Silne"
+    }
   }
 }

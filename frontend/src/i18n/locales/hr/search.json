@@ -24,12 +24,10 @@
     "waterSports": "Vodeni sportovi",
     "skating": "Klizanje"
   },
-  "results": {
-    "inactive": "Neaktivno"
-  },
   "idle": {
     "title": "Pretraži Endurain",
-    "description": "Odaberite što tražite, zatim počnite tipkati za prikaz podudaranja."
+    "description": "Odaberite što tražite, zatim počnite tipkati za prikaz podudaranja.",
+    "usersDescription": "Upišite najmanje {min} znaka za pretraživanje korisnika."
   },
   "empty": {
     "title": "Nema pronađenih podudaranja",

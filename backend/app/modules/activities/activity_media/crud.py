@@ -14,6 +14,7 @@ from sqlalchemy.orm import Session
 
 import core.exceptions as core_exceptions
 import core.pagination as core_pagination
+import modules.activities.activity.constants as activity_constants
 import modules.activities.activity_media.contracts as activity_media_contracts
 import modules.activities.activity_media.models as activity_media_models
 import modules.activities.activity_media.serializers as activity_media_serializers
@@ -121,6 +122,33 @@ def get_activities_media(
 
     stmt = select(activity_media_models.ActivityMedia).where(
         activity_media_models.ActivityMedia.activity_id.in_(activity_ids)
+    )
+    return [activity_media_serializers.to_read_schema(media) for media in db.scalars(stmt).all()]
+
+
+def get_media_for_owned_activities(
+    activity_ids: list[int],
+    db: Session,
+) -> list[activity_media_contracts.ActivityMediaRecord]:
+    """Retrieve the media records of several activities the requester owns, oldest first, in one query.
+
+    Performs no access check: the activities service passes only IDs of activities the
+    requester owns, which is the rule :func:`get_media_for_activity` leaves to its caller.
+
+    Args:
+        activity_ids: The activities to read, already scoped to their owner.
+        db: Database session.
+
+    Returns:
+        The media records of those activities, empty when there are none.
+    """
+    if not activity_ids:
+        return []
+
+    stmt = (
+        select(activity_media_models.ActivityMedia)
+        .where(activity_media_models.ActivityMedia.activity_id.in_(activity_ids))
+        .order_by(activity_media_models.ActivityMedia.id)
     )
     return [activity_media_serializers.to_read_schema(media) for media in db.scalars(stmt).all()]
 
@@ -235,7 +263,7 @@ def create_activity_media(
         db_activity_media = activity_media_models.ActivityMedia(
             activity_id=activity_id,
             media_path=media_key,
-            media_type=1,
+            media_type=activity_constants.MediaType.PHOTO.stored,
             content_hash=content_hash,
         )
         db.add(db_activity_media)
@@ -266,7 +294,8 @@ def create_activity_medias(
             activity_media_models.ActivityMedia(
                 activity_id=activity_id,
                 media_path=media_item.media_path,
-                media_type=media_item.media_type,
+                media_type=media_item.media_type.stored,
+                content_hash=media_item.content_hash,
             )
         )
 

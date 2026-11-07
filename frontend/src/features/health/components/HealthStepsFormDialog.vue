@@ -9,6 +9,7 @@ import { FormDialog } from '@/components/ui/form-dialog'
 import { FormField } from '@/components/ui/form-field'
 import { inputFieldClass } from '@/components/ui/input/fieldClasses'
 import { useForm } from '@/composables/useForm'
+import { isStaleWrite } from '@/services/ifMatch'
 import { todayIsoDate } from '@/utils/datetime'
 import { toNumberOrNull } from '@/utils/number'
 import { compose, required } from '@/utils/validators'
@@ -59,10 +60,12 @@ function defaultValues(): StepsFormValues {
   }
 }
 
-/** Converts a raw steps string to a rounded whole-number count (or `null`). */
-function stepsToCount(raw: string): number | null {
-  const value = toNumberOrNull(raw)
-  return value === null ? null : Math.round(value)
+/**
+ * Converts the validated steps field to a rounded whole-number count. A number input bound with
+ * `v-model` yields a `number` once edited and the seeded string otherwise, so both are accepted.
+ */
+function stepsToCount(raw: string | number): number {
+  return Math.round(toNumberOrNull(raw) ?? 0)
 }
 
 /** Converts the string-based form values into the clean {@link StepsEntryInput}. */
@@ -81,12 +84,17 @@ function buildInput(values: StepsFormValues): StepsEntryInput {
  * @param values - The validated form values.
  */
 async function submitForm(values: StepsFormValues): Promise<void> {
+  // Nothing changed: skip the request and just close.
+  if (props.entry && !isDirty.value) {
+    open.value = false
+    return
+  }
   const input = buildInput(values)
   try {
     if (props.entry) {
       await updateMutation.mutateAsync({
         id: props.entry.id,
-        userId: props.entry.userId,
+        version: props.entry.version,
         input,
       })
       emit('success', t('health.steps.form.updateSuccess'))
@@ -95,23 +103,35 @@ async function submitForm(values: StepsFormValues): Promise<void> {
       emit('success', t('health.steps.form.createSuccess'))
     }
     open.value = false
-  } catch {
-    emit('error', t('health.steps.form.saveError'))
+  } catch (error) {
+    if (isStaleWrite(error)) {
+      open.value = false
+    }
+    emit('error', isStaleWrite(error) ? t('app.staleError') : t('health.steps.form.saveError'))
   }
 }
 
-const { values, errors, isValid, isSubmitting, handleSubmit, handleBlur, reset } =
-  useForm<StepsFormValues>({
-    initialValues: defaultValues(),
-    validators: {
-      date: required<string>(t('health.steps.form.dateRequired')),
-      steps: compose(
-        required<string>(t('health.steps.form.stepsRequired')),
-        positiveNumber(t('health.steps.form.stepsInvalid')),
-      ),
-    },
-    onSubmit: submitForm,
-  })
+const {
+  values,
+  errors,
+  isValid,
+  isSubmitting,
+  handleSubmit,
+  handleBlur,
+  reset,
+  isDirty,
+  markPristine,
+} = useForm<StepsFormValues>({
+  initialValues: defaultValues(),
+  validators: {
+    date: required<string>(t('health.steps.form.dateRequired')),
+    steps: compose(
+      required<string>(t('health.steps.form.stepsRequired')),
+      positiveNumber(t('health.steps.form.stepsInvalid')),
+    ),
+  },
+  onSubmit: submitForm,
+})
 
 const isEditing = computed(() => props.entry !== null)
 const dialogTitle = computed(() =>
@@ -128,6 +148,7 @@ function populate(): void {
   }
   values.date = entry.date ?? todayIsoDate()
   values.steps = entry.steps !== null ? String(entry.steps) : ''
+  markPristine()
 }
 
 // Re-seed each time the dialog opens; the parent sets `entry` before opening.
@@ -160,6 +181,7 @@ watch(open, (isOpen) => {
             :aria-describedby="describedBy"
             :aria-invalid="invalid"
             type="date"
+            :max="todayIsoDate()"
             :disabled="isSubmitting"
             @blur="handleBlur('date')"
           />

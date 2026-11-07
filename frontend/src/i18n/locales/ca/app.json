@@ -18,6 +18,16 @@
     "help": "Comprova que ENDURAIN_HOST apunta a l'URL on la teva instància d'Endurain és accessible (per exemple https://endurain.example.com) i que el backend s'està executant; després, torna a carregar la pàgina.",
     "reload": "Torna a carregar"
   },
+  "staleError": "Això s'ha canviat en un altre lloc mentre ho estaves mirant, així que no s'ha desat res. S'ha carregat la versió actual. Revisa-la i torna-ho a provar.",
+  "fieldError": {
+    "required": "Aquest camp és obligatori",
+    "tooShort": "Aquest valor és massa curt",
+    "tooLong": "Aquest valor és massa llarg",
+    "tooLarge": "Aquest valor és massa gran",
+    "tooSmall": "Aquest valor és massa petit",
+    "invalidFormat": "Aquest valor té un format no vàlid",
+    "invalid": "Aquest valor no és vàlid"
+  },
   "dismiss": "Descarta",
   "language": "Idioma",
   "theme": {
@@ -35,5 +45,23 @@
     "edit": "Edita",
     "supported": "Markdown compatible",
     "empty": "Res per previsualitzar"
+  },
+  "password": {
+    "hintLength": "Almenys {min} caràcters.",
+    "invalid": "La contrasenya no compleix els requisits",
+    "mismatch": "Les contrasenyes no coincideixen",
+    "tooShort": "Aquesta contrasenya és massa curta. Utilitza almenys {min} caràcters.",
+    "tooCommon": "Aquesta contrasenya és massa comuna. Tria'n una de més difícil d'endevinar.",
+    "matchesAccount": "No utilitzis el teu nom d'usuari ni la teva adreça de correu com a contrasenya.",
+    "blank": "Una contrasenya no pot tenir només espais.",
+    "unchanged": "Tria una contrasenya diferent de l'actual.",
+    "strength": {
+      "label": "Fortalesa de la contrasenya: {level}",
+      "tooWeak": "Massa feble",
+      "weak": "Feble",
+      "fair": "Acceptable",
+      "good": "Bona",
+      "strong": "Forta"
+    }
   }
 }

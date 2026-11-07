@@ -105,12 +105,13 @@ class TestUsersPrivacySettingsModel:
         assert model.hide_activity_workout_sets_steps.type.python_type is bool
         assert model.hide_activity_gear.type.python_type is bool
 
-    def test_users_privacy_settings_model_relationship(self):
+    def test_users_privacy_settings_user_is_deleted_with_the_user_by_the_database(self):
         """
-        Test UsersPrivacySettings model has relationship to User.
+        Test the user foreign key cascades on delete, with no ORM relationship needed.
         """
         # Assert
-        assert hasattr(user_privacy_settings_models.UsersPrivacySettings, "users")
+        table = user_privacy_settings_models.UsersPrivacySettings.__table__
+        assert next(iter(table.c.user_id.foreign_keys)).ondelete == "CASCADE"
 
     def test_users_privacy_settings_model_default_visibility(self):
         """
@@ -120,7 +121,19 @@ class TestUsersPrivacySettingsModel:
         visibility_column = user_privacy_settings_models.UsersPrivacySettings.default_activity_visibility
 
         # Assert
-        assert visibility_column.default.arg == "public"
+        assert visibility_column.default.arg == "private"
+
+    def test_users_privacy_settings_model_discoverable_defaults_to_on(self):
+        """
+        Test a user is findable in search unless they switch it off, for new and existing rows alike.
+        """
+        # Arrange
+        column = user_privacy_settings_models.UsersPrivacySettings.discoverable
+
+        # Assert
+        assert column.default.arg is True
+        assert column.server_default is not None
+        assert column.nullable is False
 
     def test_users_privacy_settings_model_boolean_defaults(self):
         """

@@ -8,7 +8,7 @@
   "seeAll": "Zobrazit vše",
   "loadMore": "Načíst další",
   "loading": "Načítání…",
-  "badge": "{count} nepřečtených oznámení",
+  "badge": "{count} nepřečtené oznámení | {count} nepřečtená oznámení | {count} nepřečtených oznámení",
   "empty": {
     "title": "Máte vše přečtené",
     "description": "Aktualizace o vašich aktivitách, sledujících a integracích se zobrazí zde."
@@ -38,6 +38,63 @@
     "garminTokenExpired": {
       "title": "Garmin Connect vyžaduje pozornost",
       "body": "Vaše relace Garmin Connect vypršela. Znovu ji připojte, aby synchronizace pokračovala."
+    },
+    "stravaTokenExpired": {
+      "title": "Strava vyžaduje pozornost",
+      "body": "Strava odmítla vaše připojení. Připojte ji znovu, aby synchronizace pokračovala.",
+      "bodyRevoked": "Přístup ke Strava skončil. Vaše aktivity a vybavení synchronizované se Strava budou smazány {date}, pokud se znovu nepřipojíte."
+    },
+    "stravaDataDeleted": {
+      "title": "Data ze Strava smazána",
+      "body": "Vaše aktivity a vybavení synchronizované se Strava byly smazány, protože přístup ke Strava skončil a nepřipojili jste se znovu."
+    },
+    "idpLinked": {
+      "title": "Připojen nový poskytovatel přihlášení",
+      "body": "{name} byl připojen k vašemu účtu. Pokud jste to nebyli vy, zkontrolujte nastavení zabezpečení.",
+      "bodyGeneric": "K vašemu účtu byl připojen poskytovatel přihlášení. Pokud jste to nebyli vy, zkontrolujte nastavení zabezpečení."
+    },
+    "accountSecurityChanged": {
+      "passwordChanged": {
+        "title": "Heslo změněno",
+        "body": "Vaše heslo bylo změněno. Pokud jste to nebyli vy, obnovte heslo a zkontrolujte nastavení zabezpečení."
+      },
+      "passwordReset": {
+        "title": "Heslo obnoveno",
+        "body": "Vaše heslo bylo obnoveno pomocí odkazu pro obnovení. Pokud jste to nebyli vy, obnovte heslo znovu a zkontrolujte nastavení zabezpečení."
+      },
+      "passwordSetByAdmin": {
+        "title": "Heslo nastavil správce",
+        "body": "Správce nastavil pro váš účet nové heslo. Pokud jste to nečekali, kontaktujte správce."
+      },
+      "mfaEnabled": {
+        "title": "Dvoufaktorové ověřování zapnuto",
+        "body": "Pro váš účet bylo zapnuto dvoufaktorové ověřování. Pokud jste to nebyli vy, obnovte heslo a zkontrolujte nastavení zabezpečení."
+      },
+      "mfaDisabled": {
+        "title": "Dvoufaktorové ověřování vypnuto",
+        "body": "Pro váš účet bylo vypnuto dvoufaktorové ověřování. Pokud jste to nebyli vy, obnovte heslo a zkontrolujte nastavení zabezpečení."
+      },
+      "backupCodesGenerated": {
+        "title": "Vygenerovány nové záložní kódy",
+        "body": "Pro váš účet byly vygenerovány nové záložní kódy. Pokud jste to nebyli vy, obnovte heslo a zkontrolujte nastavení zabezpečení."
+      },
+      "apiKeyCreated": {
+        "title": "Vytvořen nový klíč API",
+        "body": "Pro váš účet byl vytvořen nový klíč API. Pokud jste to nebyli vy, obnovte heslo a zkontrolujte nastavení zabezpečení."
+      },
+      "identityProviderUnlinked": {
+        "title": "Poskytovatel přihlášení odpojen",
+        "body": "{name} byl odpojen od vašeho účtu. Pokud jste to nebyli vy, obnovte heslo a zkontrolujte nastavení zabezpečení.",
+        "bodyGeneric": "Od vašeho účtu byl odpojen poskytovatel přihlášení. Pokud jste to nebyli vy, obnovte heslo a zkontrolujte nastavení zabezpečení."
+      },
+      "unknown": {
+        "title": "Zabezpečení účtu změněno",
+        "body": "Změnilo se některé nastavení zabezpečení vašeho účtu. Pokud jste to nebyli vy, obnovte heslo a zkontrolujte nastavení zabezpečení."
+      }
+    },
+    "newDeviceSignIn": {
+      "title": "Nové přihlášení",
+      "body": "Nové přihlášení z prohlížeče {browser} v systému {os} ({ip}). Pokud jste to nebyli vy, změňte heslo a odhlaste se z ostatních relací."
     },
     "adminSignUpApproval": {
       "title": "Nová registrace vyžaduje schválení",

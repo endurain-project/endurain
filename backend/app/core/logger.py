@@ -35,19 +35,23 @@ Provides:
     every log record so all logs from a single request
     can be correlated.
   - ConsoleMirrorFilter: passes only records explicitly flagged for the console.
+  - WebSocketKeepaliveFilter: drops websocket PING/PONG frame lines.
   - _build_handlers: environment-aware handler factory
     (stdout JSON always in production/demo; file when
-    LOGS_DIR is set; file plus console mirror in development).
+    LOGS_DIR is set, rotated when one process writes it; file
+    plus console mirror in development).
   - setup_main_logger: configures the main, Alembic, and
     APScheduler loggers.
 """
 
 import json
 import logging
+import logging.handlers
 import sys
 from collections.abc import Mapping
 from datetime import UTC, datetime
-from typing import Any
+
+import jasil.correlation as jasil_correlation
 
 # NOTE: ``core.config`` is intentionally NOT imported at module top level.
 # ``core.config`` depends on this module to emit warnings from its settings
@@ -59,7 +63,7 @@ from typing import Any
 # ``logger`` is the lower-level module: it must not depend on ``config`` at
 # import time. The two functions below that genuinely need ``settings``
 # import it locally, after both modules have finished initializing.
-import core.middleware_request_id as core_middleware_request_id
+import core.environment as core_environment
 
 # The single configured application logger. Every logger handed out by
 # :func:`get_logger` is a child of it, so they inherit its level and handlers.
@@ -84,6 +88,10 @@ _LEVELS: dict[str, int] = {
     "trace": logging.DEBUG,
 }
 
+# Size at which a single-writer ``app.log`` rolls over, and how many rolled files are kept.
+LOG_FILE_MAX_BYTES = 10 * 1024 * 1024
+LOG_FILE_BACKUP_COUNT = 5
+
 # Format used by the development console mirror — matches uvicorn's own output
 # so operator-facing lifecycle lines blend into the server log.
 _CONSOLE_FORMAT = "%(levelname)s:     %(message)s"
@@ -93,10 +101,11 @@ class RequestIdFilter(logging.Filter):
     """
     Inject the current request ID into every log record.
 
-    Reads the value from
-    :func:`core_middleware_request_id.get_request_id`
+    Reads the value from :func:`jasil.correlation.get_correlation_id`
     and stores it as ``record.request_id`` so formatters
-    can reference ``%(request_id)s``.
+    can reference ``%(request_id)s``. Inside a request that is the
+    middleware's id; inside a durable background job it is the id of
+    the request that queued the job.
     """
 
     def filter(self, record: logging.LogRecord) -> bool:
@@ -109,9 +118,8 @@ class RequestIdFilter(logging.Filter):
         Returns:
             Always True so the record is never suppressed.
         """
-        record.request_id = (  # type: ignore[attr-defined]
-            core_middleware_request_id.get_request_id()
-        )
+        # A record's fields beyond the stdlib ones live in its ``__dict__``, which is where ``extra=`` puts them too.
+        record.__dict__["request_id"] = jasil_correlation.get_correlation_id() or ""
         return True
 
 
@@ -137,6 +145,34 @@ class ConsoleMirrorFilter(logging.Filter):
             True when the record carries a truthy ``console`` field.
         """
         return bool(getattr(record, CONSOLE_FIELD, False))
+
+
+class WebSocketKeepaliveFilter(logging.Filter):
+    """
+    Drop the PING/PONG keepalive frames the websockets library logs at DEBUG.
+
+    Uvicorn hands its ``uvicorn.error`` logger to the websockets protocol, so every
+    keepalive frame is logged beside Uvicorn's other debug output and cannot be
+    silenced by logger name or level alone.
+    """
+
+    _PREFIXES = ("> PING", "< PING", "> PONG", "< PONG")
+
+    def filter(self, record: logging.LogRecord) -> bool:
+        """
+        Report whether the record is something other than a keepalive frame.
+
+        Args:
+            record: The log record to test.
+
+        Returns:
+            False for a PING/PONG frame line, True otherwise.
+        """
+        return not record.getMessage().startswith(self._PREFIXES)
+
+
+# Shared instance so repeated ``setup_main_logger`` calls attach it once.
+_WEBSOCKET_KEEPALIVE_FILTER = WebSocketKeepaliveFilter()
 
 
 # Attributes always present on a LogRecord — excluded from the extra
@@ -175,7 +211,7 @@ _STDLIB_RECORD_ATTRS: frozenset[str] = frozenset(
 _NON_CONTEXT_ATTRS: frozenset[str] = _STDLIB_RECORD_ATTRS | {CONSOLE_FIELD}
 
 
-def _record_context(record: logging.LogRecord) -> dict[str, Any]:
+def _record_context(record: logging.LogRecord) -> dict[str, object]:
     """
     Extract the caller-supplied structured fields from a record.
 
@@ -214,7 +250,7 @@ def get_logger(name: str | None = None) -> logging.Logger:
     return logging.getLogger(f"{ROOT_LOGGER_NAME}.{name}")
 
 
-def _normalize_fields(fields: Mapping[str, Any]) -> dict[str, Any]:
+def _normalize_fields(fields: Mapping[str, object]) -> dict[str, object]:
     """
     Build a safe ``extra`` mapping from caller-supplied fields.
 
@@ -229,7 +265,7 @@ def _normalize_fields(fields: Mapping[str, Any]) -> dict[str, Any]:
     Returns:
         A mapping safe to pass as ``extra=``.
     """
-    normalized: dict[str, Any] = {}
+    normalized: dict[str, object] = {}
     for key, value in fields.items():
         if value is None:
             continue
@@ -238,7 +274,9 @@ def _normalize_fields(fields: Mapping[str, Any]) -> dict[str, Any]:
     return normalized
 
 
-def context(*, console: bool = False, **fields: Any) -> dict[str, Any]:
+def context(
+    fields: Mapping[str, object] | None = None, /, *, console: bool = False, **keyword_fields: object
+) -> dict[str, object]:
     """
     Build the ``extra`` mapping for a structured log record.
 
@@ -250,15 +288,17 @@ def context(*, console: bool = False, **fields: Any) -> dict[str, Any]:
         )
 
     Args:
+        fields: Structured fields whose names are known only at run time, such as a provider's
+            description of the item a record is about.
         console: Mirror this record to the console as well as the log file.
             No-op in deployed environments, where every record already reaches
             stdout.
-        **fields: Structured fields to attach. ``None`` values are dropped.
+        **keyword_fields: Structured fields to attach. ``None`` values are dropped.
 
     Returns:
         A mapping to pass as the ``extra=`` argument of a logging call.
     """
-    extra = _normalize_fields(fields)
+    extra = _normalize_fields({**(fields or {}), **keyword_fields})
     if console:
         extra[CONSOLE_FIELD] = True
     return extra
@@ -285,7 +325,7 @@ class JsonFormatter(logging.Formatter):
         Returns:
             Single-line JSON string representing the record.
         """
-        entry: dict = {
+        entry: dict[str, object] = {
             "timestamp": datetime.fromtimestamp(record.created, tz=UTC).isoformat(),
             "level": record.levelname,
             "logger": record.name,
@@ -304,7 +344,7 @@ class JsonFormatter(logging.Formatter):
 
 class _DevFormatter(logging.Formatter):
     """
-    Human-readable formatter for development log files.
+    Human-readable formatter for the development log file and console mirror.
 
     Appends any caller-supplied ``extra`` fields as a
     space-separated ``key=value`` string after the message
@@ -313,8 +353,14 @@ class _DevFormatter(logging.Formatter):
 
     _BASE = "%(asctime)s - %(name)s - %(levelname)s - [%(request_id)s] - %(message)s"
 
-    def __init__(self) -> None:
-        super().__init__(self._BASE)
+    def __init__(self, fmt: str = _BASE) -> None:
+        """
+        Build the formatter.
+
+        Args:
+            fmt: The format of the line the context is appended to.
+        """
+        super().__init__(fmt)
 
     def format(self, record: logging.LogRecord) -> str:
         """
@@ -358,6 +404,15 @@ def _build_handlers(log_level: int) -> list[logging.Handler]:
     # time we get here ``core.config`` is fully initialized.
     import core.config as core_config
 
+    def _file_handler(path: str) -> logging.FileHandler:
+        # Rotation renames the file under the other writers, so it is only safe
+        # when this is the sole process writing it.
+        if core_config.settings.single_log_writer:
+            return logging.handlers.RotatingFileHandler(
+                path, maxBytes=LOG_FILE_MAX_BYTES, backupCount=LOG_FILE_BACKUP_COUNT
+            )
+        return logging.FileHandler(path)
+
     def _configure(handler: logging.Handler, formatter: logging.Formatter) -> logging.Handler:
         handler.setFormatter(formatter)
         handler.setLevel(log_level)
@@ -366,7 +421,7 @@ def _build_handlers(log_level: int) -> list[logging.Handler]:
 
     # Treat both "production" and "demo" as deployed
     # environments where stdout JSON is preferred.
-    is_deployed = core_config.settings.ENVIRONMENT in ("production", "demo")
+    is_deployed = core_environment.is_deployed_environment(core_config.settings.ENVIRONMENT)
     if is_deployed:
         handlers: list[logging.Handler] = [_configure(logging.StreamHandler(sys.stdout), JsonFormatter())]
         # Also write to file when LOGS_DIR is configured so that Docker
@@ -374,16 +429,16 @@ def _build_handlers(log_level: int) -> list[logging.Handler]:
         # output regardless of the ENVIRONMENT value.
         if core_config.settings.LOGS_DIR:
             log_path = f"{core_config.settings.LOGS_DIR}/app.log"
-            handlers.append(_configure(logging.FileHandler(log_path), JsonFormatter()))
+            handlers.append(_configure(_file_handler(log_path), JsonFormatter()))
         # No console mirror here: stdout already carries every record, so adding
         # one would duplicate every operator-facing line.
         return handlers
 
     log_path = f"{core_config.settings.LOGS_DIR}/app.log"
-    console_mirror = _configure(logging.StreamHandler(sys.stdout), logging.Formatter(_CONSOLE_FORMAT))
+    console_mirror = _configure(logging.StreamHandler(sys.stdout), _DevFormatter(_CONSOLE_FORMAT))
     console_mirror.addFilter(ConsoleMirrorFilter())
     return [
-        _configure(logging.FileHandler(log_path), _DevFormatter()),
+        _configure(_file_handler(log_path), _DevFormatter()),
         console_mirror,
     ]
 
@@ -418,7 +473,22 @@ def _replace_handlers(
         old_handler.close()
 
 
-def setup_main_logger():
+class _SlowapiLimitExceededFilter(logging.Filter):
+    """Drop slowapi's own "limit exceeded" record, which the 429 handler already logs with the route."""
+
+    def filter(self, record: logging.LogRecord) -> bool:
+        """Keep every record except slowapi's per-request limit-exceeded line.
+
+        Args:
+            record: The record being logged.
+
+        Returns:
+            False for the limit-exceeded line, True otherwise.
+        """
+        return not str(record.msg).startswith("ratelimit ")
+
+
+def setup_main_logger() -> logging.Logger:
     """
     Set up the main application logger.
 
@@ -449,12 +519,18 @@ def setup_main_logger():
     # outcomes flow through the same handler/format pipeline
     # as the rest of the backend logs.
     safeuploads_audit_logger = logging.getLogger("safeuploads.audit")
+    # slowapi reports a rate-limit storage outage and its recovery here; without handlers they would
+    # reach stderr unstructured, and its own handler discards them.
+    slowapi_logger = logging.getLogger("slowapi")
+    if not any(isinstance(f, _SlowapiLimitExceededFilter) for f in slowapi_logger.filters):
+        slowapi_logger.addFilter(_SlowapiLimitExceededFilter())
 
     for logger in (
         main_logger,
         alembic_logger,
         scheduler_logger,
         safeuploads_audit_logger,
+        slowapi_logger,
     ):
         logger.setLevel(log_level)
 
@@ -465,9 +541,16 @@ def setup_main_logger():
             alembic_logger,
             scheduler_logger,
             safeuploads_audit_logger,
+            slowapi_logger,
         ),
         handlers,
     )
     safeuploads_audit_logger.propagate = True
+
+    uvicorn_logger = logging.getLogger("uvicorn.error")
+    if core_config.settings.LOG_WEBSOCKET_FRAMES:
+        uvicorn_logger.removeFilter(_WEBSOCKET_KEEPALIVE_FILTER)
+    else:
+        uvicorn_logger.addFilter(_WEBSOCKET_KEEPALIVE_FILTER)
 
     return main_logger

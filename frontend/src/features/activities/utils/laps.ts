@@ -1,4 +1,4 @@
-import type { ActivityLap } from '@/features/activities/types'
+import type { ActivityLap, ActivityType } from '@/features/activities/types'
 
 import { activityTypeIsSwimming } from '@/features/activities/utils/activityType'
 
@@ -52,7 +52,7 @@ export interface ActiveLapSummary {
  * @param activityType - Numeric activity-type code (for swim detection).
  * @returns The laps enriched with rest/score data, in the same order.
  */
-export function normalizeLaps(laps: ActivityLap[], activityType: number): NormalizedLap[] {
+export function normalizeLaps(laps: ActivityLap[], activityType: ActivityType): NormalizedLap[] {
   if (laps.length === 0) {
     return []
   }
@@ -109,7 +109,7 @@ export function normalizeLaps(laps: ActivityLap[], activityType: number): Normal
  */
 export function summarizeActiveLaps(
   laps: ActivityLap[],
-  activityType: number,
+  activityType: ActivityType,
 ): ActiveLapSummary | null {
   let totalDistance = 0
   let totalElapsedTime = 0

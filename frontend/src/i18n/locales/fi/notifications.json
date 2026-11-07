@@ -8,7 +8,7 @@
   "seeAll": "Näytä kaikki",
   "loadMore": "Lataa lisää",
   "loading": "Ladataan…",
-  "badge": "{count} lukematonta ilmoitusta",
+  "badge": "{count} lukematon ilmoitus | {count} lukematonta ilmoitusta",
   "empty": {
     "title": "Olet ajan tasalla",
     "description": "Päivitykset aktiviteeteistasi, seuraajistasi ja integraatioistasi näkyvät täällä."
@@ -38,6 +38,63 @@
     "garminTokenExpired": {
       "title": "Garmin Connect vaatii huomiota",
       "body": "Garmin Connect -istuntosi vanheni. Yhdistä se uudelleen jatkaaksesi synkronointia."
+    },
+    "stravaTokenExpired": {
+      "title": "Stravan yhteys vaatii huomiotasi",
+      "body": "Strava hylkäsi yhteytesi. Yhdistä se uudelleen, jotta synkronointi jatkuu.",
+      "bodyRevoked": "Stravan käyttöoikeus on päättynyt. Stravan kanssa synkronoidut aktiviteettisi ja varusteesi poistetaan {date}, ellet yhdistä uudelleen."
+    },
+    "stravaDataDeleted": {
+      "title": "Stravan tiedot poistettu",
+      "body": "Stravan kanssa synkronoidut aktiviteettisi ja varusteesi poistettiin, koska Stravan käyttöoikeus päättyi etkä yhdistänyt uudelleen."
+    },
+    "idpLinked": {
+      "title": "Uusi kirjautumispalvelu linkitetty",
+      "body": "{name} linkitettiin tiliisi. Jos et tehnyt tätä itse, tarkista turvallisuusasetuksesi.",
+      "bodyGeneric": "Kirjautumispalvelu linkitettiin tiliisi. Jos et tehnyt tätä itse, tarkista turvallisuusasetuksesi."
+    },
+    "accountSecurityChanged": {
+      "passwordChanged": {
+        "title": "Salasana vaihdettu",
+        "body": "Salasanasi vaihdettiin. Jos et tehnyt tätä itse, nollaa salasanasi ja tarkista turvallisuusasetuksesi."
+      },
+      "passwordReset": {
+        "title": "Salasana nollattu",
+        "body": "Salasanasi nollattiin nollauslinkin avulla. Jos et tehnyt tätä itse, nollaa salasanasi uudelleen ja tarkista turvallisuusasetuksesi."
+      },
+      "passwordSetByAdmin": {
+        "title": "Ylläpitäjä asetti salasanan",
+        "body": "Ylläpitäjä asetti tilillesi uuden salasanan. Jos et odottanut tätä, ota yhteyttä ylläpitäjääsi."
+      },
+      "mfaEnabled": {
+        "title": "Kaksivaiheinen todennus otettu käyttöön",
+        "body": "Tilillesi otettiin käyttöön kaksivaiheinen todennus. Jos et tehnyt tätä itse, nollaa salasanasi ja tarkista turvallisuusasetuksesi."
+      },
+      "mfaDisabled": {
+        "title": "Kaksivaiheinen todennus poistettu käytöstä",
+        "body": "Tililtäsi poistettiin käytöstä kaksivaiheinen todennus. Jos et tehnyt tätä itse, nollaa salasanasi ja tarkista turvallisuusasetuksesi."
+      },
+      "backupCodesGenerated": {
+        "title": "Uudet varakoodit luotu",
+        "body": "Tilillesi luotiin uudet varakoodit. Jos et tehnyt tätä itse, nollaa salasanasi ja tarkista turvallisuusasetuksesi."
+      },
+      "apiKeyCreated": {
+        "title": "Uusi API-avain luotu",
+        "body": "Tilillesi luotiin uusi API-avain. Jos et tehnyt tätä itse, nollaa salasanasi ja tarkista turvallisuusasetuksesi."
+      },
+      "identityProviderUnlinked": {
+        "title": "Kirjautumispalvelun linkitys poistettu",
+        "body": "{name} irrotettiin tilistäsi. Jos et tehnyt tätä itse, nollaa salasanasi ja tarkista turvallisuusasetuksesi.",
+        "bodyGeneric": "Kirjautumispalvelu irrotettiin tilistäsi. Jos et tehnyt tätä itse, nollaa salasanasi ja tarkista turvallisuusasetuksesi."
+      },
+      "unknown": {
+        "title": "Tilin turvallisuus muuttui",
+        "body": "Tilisi turvallisuusasetus muuttui. Jos et tehnyt tätä itse, nollaa salasanasi ja tarkista turvallisuusasetuksesi."
+      }
+    },
+    "newDeviceSignIn": {
+      "title": "Uusi kirjautuminen",
+      "body": "Uusi kirjautuminen selaimella {browser} järjestelmässä {os} ({ip}). Jos et tehnyt tätä itse, vaihda salasanasi ja kirjaudu ulos muista istunnoistasi."
     },
     "adminSignUpApproval": {
       "title": "Uusi rekisteröityminen vaatii hyväksynnän",

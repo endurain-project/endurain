@@ -24,12 +24,10 @@
     "waterSports": "Vattensporter",
     "skating": "Skridskor"
   },
-  "results": {
-    "inactive": "Inaktiv"
-  },
   "idle": {
     "title": "Sök i Endurain",
-    "description": "Välj vad du vill leta efter och börja sedan skriva för att se träffar."
+    "description": "Välj vad du vill leta efter och börja sedan skriva för att se träffar.",
+    "usersDescription": "Skriv minst {min} tecken för att söka efter användare."
   },
   "empty": {
     "title": "Inga träffar hittades",

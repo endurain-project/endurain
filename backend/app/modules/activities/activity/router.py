@@ -8,27 +8,27 @@ Literal paths are declared before ``/{activity_id}`` so FastAPI matches them
 first.
 """
 
-from collections.abc import Callable
-from datetime import date
 from typing import Annotated
 
 from fastapi import (
     APIRouter,
-    Depends,
-    Header,
     Query,
     Request,
     Response,
     Security,
     status,
 )
-from sqlalchemy.orm import Session
 
-import core.database as core_database
+import core.date_range as core_date_range
 import core.dependencies as core_dependencies
 import core.etag as core_etag
+import core.exceptions as core_exceptions
+import core.location as core_location
 import core.pagination as core_pagination
 import core.rate_limit as core_rate_limit
+import modules.activities.activity.bulk_edit_constants as bulk_edit_constants
+import modules.activities.activity.bulk_edit_job_service as activity_bulk_edit_job_service
+import modules.activities.activity.constants as activity_constants
 import modules.activities.activity.dependencies as activity_dependencies
 import modules.activities.activity.schema as activity_schema
 import modules.activities.activity.service as activity_service
@@ -41,16 +41,18 @@ router = APIRouter()
 @router.get(
     "",
     response_model=activity_schema.ActivityPage,
+    dependencies=[Security(auth_dependencies.check_scopes, scopes=["activities:read"])],
 )
 def list_own_activities(
-    _check_scopes: Annotated[Callable, Security(auth_dependencies.check_scopes, scopes=["activities:read"])],
-    token_user_id: Annotated[int, Depends(auth_dependencies.get_sub_from_access_token)],
-    db: Annotated[Session, Depends(core_database.get_db)],
-    page: Annotated[core_pagination.PageParams, Depends(core_pagination.list_page_params)],
+    token_user_id: auth_dependencies.CurrentUserId,
+    db: core_dependencies.DbSession,
+    page: core_pagination.ListPage,
+    date_range: core_date_range.DateRangeQuery,
     activity_type: activity_dependencies.ActivityTypeFilter = None,
-    start_date: Annotated[date | None, Query()] = None,
-    end_date: Annotated[date | None, Query()] = None,
-    name_search: Annotated[str | None, Query(alias="name")] = None,
+    name_contains: Annotated[
+        str | None,
+        Query(min_length=1, max_length=250, description="Keep only activities whose name contains this text"),
+    ] = None,
     sort_by: activity_dependencies.SortBy = None,
     sort_order: activity_dependencies.SortOrder = None,
 ) -> activity_schema.ActivityPage:
@@ -62,9 +64,9 @@ def list_own_activities(
         page_number=page.page_number,
         num_records=page.num_records,
         activity_type=activity_type,
-        start_date=start_date,
-        end_date=end_date,
-        name_search=name_search,
+        start_date=date_range.start_date,
+        end_date=date_range.end_date,
+        name_search=name_contains,
         sort_by=sort_by,
         sort_order=sort_order,
     )
@@ -72,29 +74,33 @@ def list_own_activities(
 
 @router.get(
     "/types",
-    response_model=dict[int, str],
+    response_model=dict[activity_constants.ActivityType, str],
+    dependencies=[Security(auth_dependencies.check_scopes, scopes=["activities:read"])],
 )
 def list_activity_types(
-    _check_scopes: Annotated[Callable, Security(auth_dependencies.check_scopes, scopes=["activities:read"])],
-    token_user_id: Annotated[int, Depends(auth_dependencies.get_sub_from_access_token)],
-    db: Annotated[Session, Depends(core_database.get_db)],
-) -> dict[int, str]:
-    """Return the distinct activity types the user has recorded, keyed by type code."""
+    token_user_id: auth_dependencies.CurrentUserId,
+    db: core_dependencies.DbSession,
+) -> dict[activity_constants.ActivityType, str]:
+    """Return the distinct activity types the user has recorded, keyed by type with the English name as value."""
     return activity_service.list_activity_types(token_user_id, db)
 
 
 @router.get(
     "/feed",
     response_model=activity_schema.ActivityFeedPage,
+    dependencies=[Security(auth_dependencies.check_scopes, scopes=["activities:read"])],
 )
 def list_following_feed(
-    _check_scopes: Annotated[Callable, Security(auth_dependencies.check_scopes, scopes=["activities:read"])],
-    token_user_id: Annotated[int, Depends(auth_dependencies.get_sub_from_access_token)],
-    db: Annotated[Session, Depends(core_database.get_db)],
+    token_user_id: auth_dependencies.CurrentUserId,
+    db: core_dependencies.DbSession,
     cursor: Annotated[str | None, Query()] = None,
     num_records: Annotated[int | None, Query(ge=1, le=core_pagination.MAX_NUM_RECORDS)] = None,
 ) -> activity_schema.ActivityFeedPage:
-    """List a keyset slice of the authenticated user's following feed."""
+    """List a keyset slice of the authenticated user's following feed.
+
+    The slice also carries the public profile of each owner on it in ``users`` (the projection
+    ``GET /users/{user_id}`` returns), so a token with ``activities:read`` alone receives it too.
+    """
     return activity_service.scroll_following_feed(
         token_user_id,
         cursor,
@@ -103,104 +109,23 @@ def list_following_feed(
     )
 
 
-@router.get(
-    "/gears/{gear_id}",
-    response_model=activity_schema.ActivityPage,
-)
-def list_gear_activities(
-    gear_id: core_dependencies.PositiveId,
-    _check_scopes: Annotated[Callable, Security(auth_dependencies.check_scopes, scopes=["activities:read"])],
-    token_user_id: Annotated[int, Depends(auth_dependencies.get_sub_from_access_token)],
-    db: Annotated[Session, Depends(core_database.get_db)],
-    page: Annotated[core_pagination.PageParams, Depends(core_pagination.list_page_params)],
-) -> activity_schema.ActivityPage:
-    """List the authenticated user's activities for a gear, with the matching total."""
-    return activity_service.page_gear_activities(
-        token_user_id,
-        gear_id,
-        db,
-        page_number=page.page_number,
-        num_records=page.num_records,
-    )
-
-
-@router.get(
-    "/users/{user_id}/stats",
-    response_model=activity_schema.ActivityStatsRead,
-)
-def read_user_activity_stats(
-    user_id: core_dependencies.PositiveId,
-    _check_scopes: Annotated[Callable, Security(auth_dependencies.check_scopes, scopes=["activities:read"])],
-    token_user_id: Annotated[int, Depends(auth_dependencies.get_sub_from_access_token)],
-    db: Annotated[Session, Depends(core_database.get_db)],
-    period: Annotated[str, Query(pattern="^(week|month)$")] = "week",
-    anchor_date: Annotated[
-        date | None,
-        Query(
-            alias="date",
-            description=(
-                "The caller's local calendar date, used to decide which week or month "
-                "is current. Defaults to today in the caller's configured timezone."
-            ),
-        ),
-    ] = None,
-) -> activity_schema.ActivityStatsRead:
-    """Aggregate per-sport stats for a user's current ``week`` or ``month``."""
-    return activity_service.period_stats(user_id, period, token_user_id, db, anchor=anchor_date)
-
-
-@router.get(
-    "/users/{user_id}",
-    response_model=activity_schema.ActivityPage,
-)
-def list_user_activities(
-    user_id: core_dependencies.PositiveId,
-    _check_scopes: Annotated[Callable, Security(auth_dependencies.check_scopes, scopes=["activities:read"])],
-    token_user_id: Annotated[int, Depends(auth_dependencies.get_sub_from_access_token)],
-    db: Annotated[Session, Depends(core_database.get_db)],
-    page: Annotated[core_pagination.PageParams, Depends(core_pagination.list_page_params)],
-    activity_type: activity_dependencies.ActivityTypeFilter = None,
-    start_date: Annotated[date | None, Query()] = None,
-    end_date: Annotated[date | None, Query()] = None,
-    name_search: Annotated[str | None, Query(alias="name")] = None,
-    sort_by: activity_dependencies.SortBy = None,
-    sort_order: activity_dependencies.SortOrder = None,
-) -> activity_schema.ActivityPage:
-    """List another user's visible activities, with the matching total."""
-    return activity_service.page_user_activities(
-        user_id,
-        token_user_id,
-        db,
-        page_number=page.page_number,
-        num_records=page.num_records,
-        activity_type=activity_type,
-        start_date=start_date,
-        end_date=end_date,
-        name_search=name_search,
-        sort_by=sort_by,
-        sort_order=sort_order,
-    )
-
-
 @router.patch(
     "",
-    response_model=activity_schema.VisibilityUpdateRead,
+    status_code=status.HTTP_202_ACCEPTED,
+    response_model=activity_schema.ActivitiesBulkEditStatus,
+    responses=core_location.ACCEPTED_RESPONSE,
+    dependencies=[Security(auth_dependencies.check_scopes, scopes=["activities:write"])],
 )
 @core_rate_limit.limiter.limit(core_rate_limit.WRITE)
 def edit_activities(
     request: Request,
+    response: Response,
     body: activity_schema.ActivitiesBulkEdit,
-    token_user_id: Annotated[
-        int,
-        Depends(auth_dependencies.get_sub_from_access_token),
-    ],
-    _check_scopes: Annotated[Callable, Security(auth_dependencies.check_scopes, scopes=["activities:write"])],
-    db: Annotated[
-        Session,
-        Depends(core_database.get_db),
-    ],
-) -> activity_schema.VisibilityUpdateRead:
-    """Apply a bulk edit across all of the authenticated user's activities.
+    token_user_id: auth_dependencies.CurrentUserId,
+    states: activity_dependencies.ActivityBulkEditStateStoreDep,
+    db: core_dependencies.DbSession,
+) -> activity_schema.ActivitiesBulkEditStatus:
+    """Queue a bulk edit across all of the authenticated user's activities.
 
     A PATCH on the collection with the change in the body, rather than the
     previous ``PUT /visibility/{visibility}``: the value being set is data, not
@@ -208,60 +133,100 @@ def edit_activities(
     not exist at that path. The body shape also leaves room for a second
     bulk-editable field without another endpoint.
 
-    Rejected as invalid input when the body asks for no change at all.
+    The edit can touch a whole library, so it runs as a background job: poll
+    ``GET /activities/bulk-edit`` for the outcome.
+
+    Args:
+        request: The incoming request, read by the rate limiter.
+        response: The response, which names the status route and when to poll it.
+        body: The fields to apply; only those present are changed.
+        token_user_id: User ID from the access token.
+        states: Shared store of the edit's state.
+        db: Database session dependency.
+
+    Returns:
+        The edit's initial status.
+
+    Raises:
+        InvalidInputError: When the body asks for no change at all. An empty
+            patch is a client bug, not a no-op worth reporting as success.
+        ConflictError: When a bulk edit is already pending.
     """
-    updated = activity_service.bulk_edit_activities(token_user_id, body, db)
-    return activity_schema.VisibilityUpdateRead(
-        detail=f"Visibility changed to {body.visibility} for all user activities",
-        updated=updated,
+    if body.visibility is None:
+        raise core_exceptions.InvalidInputError("No supported field to update was provided")
+    edit = activity_bulk_edit_job_service.request_visibility_edit(token_user_id, body.visibility.stored, states, db)
+    core_location.set_status_location(
+        response, request, "read_bulk_edit_status", bulk_edit_constants.BULK_EDIT_POLL_SECONDS
     )
+    return edit
+
+
+@router.get(
+    "/bulk-edit",
+    response_model=activity_schema.ActivitiesBulkEditStatus | None,
+    responses={200: {"headers": core_location.POLLED_STATUS_HEADERS}},
+    dependencies=[Security(auth_dependencies.check_scopes, scopes=["activities:read"])],
+)
+def read_bulk_edit_status(
+    token_user_id: auth_dependencies.CurrentUserId,
+    states: activity_dependencies.ActivityBulkEditStateStoreDep,
+    response: Response,
+) -> activity_schema.ActivitiesBulkEditStatus | None:
+    """Report where the authenticated user's bulk edit is.
+
+    ``Retry-After`` says when to poll again while the edit is not finished.
+
+    Args:
+        token_user_id: User ID from the access token.
+        states: Shared store of the edit's state.
+        response: The response, which carries ``Retry-After`` while the edit runs.
+
+    Returns:
+        The edit's status.
+
+    Raises:
+        NotFoundError: If no bulk edit is recorded or it has expired.
+    """
+    edit = activity_bulk_edit_job_service.get_visibility_edit_status(token_user_id, states)
+    if edit is None:
+        return None
+    core_location.set_retry_after_while_running(response, edit.status, bulk_edit_constants.BULK_EDIT_POLL_SECONDS)
+    return edit
 
 
 @router.get(
     "/{activity_id}",
     response_model=activity_schema.ActivityRead,
+    dependencies=[Security(auth_dependencies.check_scopes, scopes=["activities:read"])],
 )
 def read_activity(
     activity_id: activity_dependencies.ActivityId,
-    _check_scopes: Annotated[Callable, Security(auth_dependencies.check_scopes, scopes=["activities:read"])],
-    token_user_id: Annotated[
-        int,
-        Depends(auth_dependencies.get_sub_from_access_token),
-    ],
-    db: Annotated[
-        Session,
-        Depends(core_database.get_db),
-    ],
+    token_user_id: auth_dependencies.CurrentUserId,
+    db: core_dependencies.DbSession,
     response: Response,
 ) -> activity_schema.ActivityRead:
     """Read a single activity the requester owns or is permitted to see."""
     activity = activity_service.get_activity(activity_id, token_user_id, db)
     if activity.version is not None:
         # The tag the client echoes back in If-Match when it later saves.
-        response.headers["ETag"] = core_etag.format_etag(activity.version)
+        core_etag.set_etag(response, activity.version)
     return activity
 
 
 @router.patch(
     "/{activity_id}",
     response_model=activity_schema.ActivityRead,
+    dependencies=[Security(auth_dependencies.check_scopes, scopes=["activities:write"])],
 )
 @core_rate_limit.limiter.limit(core_rate_limit.WRITE)
 def edit_activity(
     request: Request,
     activity_id: activity_dependencies.ActivityId,
     activity_attributes: activity_schema.ActivityEdit,
-    _check_scopes: Annotated[Callable, Security(auth_dependencies.check_scopes, scopes=["activities:write"])],
-    token_user_id: Annotated[
-        int,
-        Depends(auth_dependencies.get_sub_from_access_token),
-    ],
-    db: Annotated[
-        Session,
-        Depends(core_database.get_db),
-    ],
+    token_user_id: auth_dependencies.CurrentUserId,
+    db: core_dependencies.DbSession,
     response: Response,
-    if_match: Annotated[str | None, Header(alias=core_etag.IF_MATCH_HEADER)] = None,
+    if_match: core_dependencies.IfMatch,
 ) -> activity_schema.ActivityRead:
     """Apply partial updates to one of the authenticated user's activities.
 
@@ -271,7 +236,7 @@ def edit_activity(
     """
     activity = activity_service.edit_activity(activity_id, token_user_id, activity_attributes, db, if_match=if_match)
     if activity.version is not None:
-        response.headers["ETag"] = core_etag.format_etag(activity.version)
+        core_etag.set_etag(response, activity.version)
     return activity
 
 
@@ -279,23 +244,19 @@ def edit_activity(
     "/{activity_id}",
     status_code=status.HTTP_204_NO_CONTENT,
     response_model=None,
+    dependencies=[Security(auth_dependencies.check_scopes, scopes=["activities:write"])],
 )
 @core_rate_limit.limiter.limit(core_rate_limit.WRITE)
 def delete_activity(
     request: Request,
     activity_id: activity_dependencies.ActivityId,
-    _check_scopes: Annotated[Callable, Security(auth_dependencies.check_scopes, scopes=["activities:write"])],
-    token_user_id: Annotated[
-        int,
-        Depends(auth_dependencies.get_sub_from_access_token),
-    ],
-    db: Annotated[
-        Session,
-        Depends(core_database.get_db),
-    ],
+    token_user_id: auth_dependencies.CurrentUserId,
+    if_match: core_dependencies.IfMatch,
+    db: core_dependencies.DbSession,
 ) -> None:
     """Delete one of the authenticated user's activities.
 
     Answers ``204`` with no body: the resource is gone, and the status says so.
+    Send ``If-Match`` with the activity's ``version`` as an ETag; a stale tag is refused with 412.
     """
-    activity_service.delete_activity(activity_id, token_user_id, db)
+    activity_service.delete_activity(activity_id, token_user_id, db, if_match=if_match)

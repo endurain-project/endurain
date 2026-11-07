@@ -82,5 +82,13 @@
       "ownTitle": "Sul pole veel ühtegi jälgijat.",
       "otherTitle": "Veel pole ühtegi jälgijat."
     }
+  },
+  "block": {
+    "block": "Blokeeri",
+    "unblock": "Eemalda blokeering",
+    "confirmTitle": "Kas blokeerida {name}?",
+    "confirmBody": "{name} ei saa sind enam jälgimiseks paluda ja kõik teie vahelised jälgimised eemaldatakse. Teda ei teavitata.",
+    "blockError": "Selle kasutaja blokeerimine ei õnnestunud. Proovi uuesti.",
+    "unblockError": "Selle kasutaja blokeeringut ei õnnestunud eemaldada. Proovi uuesti."
   }
 }

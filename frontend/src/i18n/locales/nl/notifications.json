@@ -8,7 +8,7 @@
   "seeAll": "Alles bekijken",
   "loadMore": "Meer laden",
   "loading": "Laden…",
-  "badge": "{count} ongelezen meldingen",
+  "badge": "{count} ongelezen melding | {count} ongelezen meldingen",
   "empty": {
     "title": "Je bent helemaal bijgewerkt",
     "description": "Updates over je activiteiten, volgers en integraties verschijnen hier."
@@ -38,6 +38,63 @@
     "garminTokenExpired": {
       "title": "Garmin Connect vereist aandacht",
       "body": "Je Garmin Connect-sessie is verlopen. Koppel opnieuw om te blijven synchroniseren."
+    },
+    "stravaTokenExpired": {
+      "title": "Strava heeft aandacht nodig",
+      "body": "Strava heeft je verbinding geweigerd. Verbind opnieuw om te blijven synchroniseren.",
+      "bodyRevoked": "De toegang tot Strava is beëindigd. Je met Strava gesynchroniseerde activiteiten en uitrusting worden op {date} verwijderd, tenzij je opnieuw verbindt."
+    },
+    "stravaDataDeleted": {
+      "title": "Strava-gegevens verwijderd",
+      "body": "Je met Strava gesynchroniseerde activiteiten en uitrusting zijn verwijderd omdat de toegang tot Strava is beëindigd en je niet opnieuw hebt verbonden."
+    },
+    "idpLinked": {
+      "title": "Nieuwe aanmeldprovider gekoppeld",
+      "body": "{name} is aan je account gekoppeld. Was jij dit niet, controleer dan je beveiligingsinstellingen.",
+      "bodyGeneric": "Er is een aanmeldprovider aan je account gekoppeld. Was jij dit niet, controleer dan je beveiligingsinstellingen."
+    },
+    "accountSecurityChanged": {
+      "passwordChanged": {
+        "title": "Wachtwoord gewijzigd",
+        "body": "Je wachtwoord is gewijzigd. Als jij dit niet was, stel je wachtwoord opnieuw in en controleer je beveiligingsinstellingen."
+      },
+      "passwordReset": {
+        "title": "Wachtwoord opnieuw ingesteld",
+        "body": "Je wachtwoord is opnieuw ingesteld via een resetlink. Als jij dit niet was, stel je wachtwoord opnieuw in en controleer je beveiligingsinstellingen."
+      },
+      "passwordSetByAdmin": {
+        "title": "Wachtwoord ingesteld door een beheerder",
+        "body": "Een beheerder heeft een nieuw wachtwoord voor je account ingesteld. Als je dit niet verwachtte, neem dan contact op met je beheerder."
+      },
+      "mfaEnabled": {
+        "title": "Tweefactorauthenticatie ingeschakeld",
+        "body": "Tweefactorauthenticatie is ingeschakeld voor je account. Als jij dit niet was, stel je wachtwoord opnieuw in en controleer je beveiligingsinstellingen."
+      },
+      "mfaDisabled": {
+        "title": "Tweefactorauthenticatie uitgeschakeld",
+        "body": "Tweefactorauthenticatie is uitgeschakeld voor je account. Als jij dit niet was, stel je wachtwoord opnieuw in en controleer je beveiligingsinstellingen."
+      },
+      "backupCodesGenerated": {
+        "title": "Nieuwe herstelcodes gegenereerd",
+        "body": "Er zijn nieuwe herstelcodes gegenereerd voor je account. Als jij dit niet was, stel je wachtwoord opnieuw in en controleer je beveiligingsinstellingen."
+      },
+      "apiKeyCreated": {
+        "title": "Nieuwe API-sleutel aangemaakt",
+        "body": "Er is een nieuwe API-sleutel aangemaakt voor je account. Als jij dit niet was, stel je wachtwoord opnieuw in en controleer je beveiligingsinstellingen."
+      },
+      "identityProviderUnlinked": {
+        "title": "Inlogprovider ontkoppeld",
+        "body": "{name} is losgekoppeld van je account. Als jij dit niet was, stel je wachtwoord opnieuw in en controleer je beveiligingsinstellingen.",
+        "bodyGeneric": "Een inlogprovider is losgekoppeld van je account. Als jij dit niet was, stel je wachtwoord opnieuw in en controleer je beveiligingsinstellingen."
+      },
+      "unknown": {
+        "title": "Accountbeveiliging gewijzigd",
+        "body": "Een beveiligingsinstelling van je account is gewijzigd. Als jij dit niet was, stel je wachtwoord opnieuw in en controleer je beveiligingsinstellingen."
+      }
+    },
+    "newDeviceSignIn": {
+      "title": "Nieuwe aanmelding",
+      "body": "Nieuwe aanmelding vanaf {browser} op {os} ({ip}). Als jij dit niet was, wijzig dan je wachtwoord en log uit bij je andere sessies."
     },
     "adminSignUpApproval": {
       "title": "Nieuwe registratie vereist goedkeuring",

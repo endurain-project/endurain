@@ -1,5 +1,6 @@
 """Public record and blob operations for activity media."""
 
+import re
 from typing import Any
 
 import jasil.providers as platform_providers
@@ -7,13 +8,17 @@ import jasil.runtime as platform_runtime
 from sqlalchemy.orm import Session
 
 import core.logger as core_logger
+import modules.activities.activity.constants as activity_constants
 import modules.activities.activity.schema as activity_schema
 import modules.activities.activity_media.contracts as activity_media_contracts
 import modules.activities.activity_media.crud as activity_media_crud
+import modules.activities.activity_media.schema as activity_media_schema
 import modules.activities.activity_media.service as activity_media_service
 import modules.activities.contributors as activities_contributors
 
 logger = core_logger.get_logger(__name__)
+
+_HASH_PATTERN = re.compile(activity_media_contracts.CONTENT_HASH_PATTERN)
 
 
 def _list_media_for_activities(
@@ -65,6 +70,7 @@ def _restore_profile_records(
         The number of records restored.
     """
     media: list[activity_media_contracts.ActivityMediaCreate] = []
+    seen_hashes: set[str] = set()
     for record in records:
         if record.get("activity_id") != original_activity_id:
             continue
@@ -79,10 +85,26 @@ def _restore_profile_records(
                 extra=core_logger.context(media_path=old_key),
             )
             continue
+        content_hash = data.get("content_hash")
+        if content_hash is not None and not (isinstance(content_hash, str) and _HASH_PATTERN.fullmatch(content_hash)):
+            logger.warning(
+                "Restoring activity media without its invalid content hash",
+                extra=core_logger.context(media_path=old_key),
+            )
+            content_hash = None
+        if content_hash is not None:
+            if content_hash in seen_hashes:
+                logger.warning(
+                    "Skipping activity media with a duplicate content hash",
+                    extra=core_logger.context(media_path=old_key),
+                )
+                continue
+            seen_hashes.add(content_hash)
         media.append(
             activity_media_contracts.ActivityMediaCreate(
                 media_path=media_path,
-                media_type=data.get("media_type", 1),
+                media_type=data.get("media_type", activity_constants.MediaType.PHOTO),
+                content_hash=content_hash,
             )
         )
 
@@ -105,6 +127,22 @@ def profile_contributor() -> activities_contributors.ProfileActivityContributor:
         export=_list_media_for_activities,
         restore=_restore_profile_records,
     )
+
+
+def media_for_activities(
+    activity_ids: list[int],
+    db: Session,
+) -> dict[int, list[activity_media_schema.ActivityMediaRead]]:
+    """Return the media of several activities, as the per-activity endpoint returns it.
+
+    Args:
+        activity_ids: IDs of the activities to read, already scoped to the requester.
+        db: Database session.
+
+    Returns:
+        The signed read models keyed by activity ID; an activity without media has no entry.
+    """
+    return activity_media_service.list_media_for_activities(activity_ids, db)
 
 
 def attach_media_bytes(

@@ -18,6 +18,16 @@
     "help": "Check that ENDURAIN_HOST points to the URL where your Endurain instance is reachable (for example https://endurain.example.com) and that the backend is running, then reload the page.",
     "reload": "Reload"
   },
+  "staleError": "This was changed elsewhere while you were looking at it, so nothing was saved. The current version has been loaded. Review it and try again.",
+  "fieldError": {
+    "required": "This field is required",
+    "tooShort": "This value is too short",
+    "tooLong": "This value is too long",
+    "tooLarge": "This value is too large",
+    "tooSmall": "This value is too small",
+    "invalidFormat": "This value has an invalid format",
+    "invalid": "This value is invalid"
+  },
   "dismiss": "Dismiss",
   "language": "Language",
   "theme": {
@@ -35,5 +45,23 @@
     "edit": "Edit",
     "supported": "Markdown supported",
     "empty": "Nothing to preview"
+  },
+  "password": {
+    "hintLength": "At least {min} characters.",
+    "invalid": "Password does not meet the requirements",
+    "mismatch": "Passwords don't match",
+    "tooShort": "This password is too short. Use at least {min} characters.",
+    "tooCommon": "This password is too common. Choose one that is harder to guess.",
+    "matchesAccount": "Don't use your username or email address as your password.",
+    "blank": "A password can't be only spaces.",
+    "unchanged": "Choose a password different from your current one.",
+    "strength": {
+      "label": "Password strength: {level}",
+      "tooWeak": "Too weak",
+      "weak": "Weak",
+      "fair": "Fair",
+      "good": "Good",
+      "strong": "Strong"
+    }
   }
 }

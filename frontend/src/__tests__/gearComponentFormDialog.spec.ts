@@ -34,10 +34,9 @@ const createdDto: GearComponentDto = {
   purchase_date: '2024-01-10',
   retired_date: null,
   active: true,
-  expected_kms: 5_000_000,
-  purchase_value: 45,
-  current_distance: 0,
-  current_time: 0,
+  expected_usage: 5_000_000,
+  purchase_value: '45.00',
+  version: 1,
 }
 
 /** Passthrough stub so the reka-ui portal/focus-trap is skipped and the form
@@ -92,7 +91,7 @@ describe('GearComponentFormDialog submit', () => {
     await flushPromises()
 
     expect(apiFetch).toHaveBeenCalledTimes(1)
-    expect(apiFetch).toHaveBeenCalledWith('/gear_components', {
+    expect(apiFetch).toHaveBeenCalledWith('/gear-components', {
       method: 'POST',
       body: JSON.stringify({
         gear_id: 5,
@@ -102,8 +101,8 @@ describe('GearComponentFormDialog submit', () => {
         purchase_date: '2024-01-10',
         retired_date: null,
         active: true,
-        expected_kms: 5_000_000,
-        purchase_value: 45,
+        expected_usage: 5_000_000,
+        purchase_value: '45.00',
       }),
     })
     expect(wrapper.emitted('success')).toBeTruthy()

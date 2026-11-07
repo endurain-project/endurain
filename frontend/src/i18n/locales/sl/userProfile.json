@@ -82,5 +82,13 @@
       "ownTitle": "Še nimaš sledilcev.",
       "otherTitle": "Še ni sledilcev."
     }
+  },
+  "block": {
+    "block": "Blokiraj",
+    "unblock": "Odblokiraj",
+    "confirmTitle": "Blokiram {name}?",
+    "confirmBody": "{name} vas ne bo mogel prositi za sledenje, vsako sledenje med vama pa se odstrani. Uporabnik ne bo obveščen.",
+    "blockError": "Tega uporabnika ni bilo mogoče blokirati. Poskusite znova.",
+    "unblockError": "Tega uporabnika ni bilo mogoče odblokirati. Poskusite znova."
   }
 }

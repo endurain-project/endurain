@@ -9,8 +9,6 @@
   "fromStrava": "Strava",
   "fromGarmin": "Garmin Connect",
   "filters": "Filteri",
-  "unitKm": "km",
-  "unitMi": "mi",
   "types": {
     "bicycle": "Bicikl",
     "shoes": "Patike",
@@ -41,8 +39,8 @@
     "model": "Model",
     "modelTooLong": "Model mora imati najviše 250 znakova",
     "active": "Aktivno",
-    "createdAt": "Kreirano",
-    "createdAtRequired": "Datum kreiranja je obavezan",
+    "acquiredOn": "Kreirano",
+    "acquiredOnRequired": "Datum kreiranja je obavezan",
     "initialDistance": "Početna udaljenost",
     "purchaseValue": "Vrednost kupovine",
     "totalCost": "Ukupna cena",
@@ -57,6 +55,8 @@
   "delete": {
     "title": "Obriši opremu",
     "body": "Da li ste sigurni da želite da obrišete \"{nickname}\"? Ovo se ne može poništiti.",
+    "activities": "{count} aktivnost koristi ovu opremu; biće zadržana, ali odvojena od nje. | {count} aktivnosti koriste ovu opremu; biće zadržane, ali odvojene od nje. | {count} aktivnosti koristi ovu opremu; biće zadržane, ali odvojene od nje.",
+    "components": "Njena {count} komponenta biće obrisana. | Njene {count} komponente biće obrisane. | Njenih {count} komponenti biće obrisano.",
     "confirm": "Obriši",
     "cancel": "Otkaži",
     "close": "Zatvori",
@@ -91,7 +91,6 @@
     "unsupported": "Ovaj tip opreme ne prati komponente.",
     "noneActive": "Sve komponente su neaktivne. Uključite \"Prikaži neaktivne\" da biste ih videli.",
     "inactive": "Neaktivno",
-    "unitHours": "h",
     "purchasedOn": "Kupljeno {date}",
     "wearLabel": "Habanost: {name}",
     "actions": {

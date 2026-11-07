@@ -1,6 +1,12 @@
 {
   "title": "Saúde",
   "subtitle": "Ve todos os teus datos de saúde nun só lugar",
+  "chartBucket": {
+    "week": "Medias semanais: cada barra é o día medio desa semana.",
+    "month": "Medias mensuais: cada barra é o día medio dese mes."
+  },
+  "targetInvalid": "Introduce un valor maior que 0 ou déixao baleiro para quitar o obxectivo.",
+  "chartError": "Non se puido cargar o gráfico para este intervalo de tempo.",
   "nav": {
     "label": "Seccións de saúde",
     "soon": "Proximamente",
@@ -34,6 +40,7 @@
     "stepsTargetLabel": "pasos",
     "poopTargetLabel": "/ día",
     "noWeightData": "Sen datos de peso",
+    "noHeightData": "Engade a túa altura no perfil para ver o teu BMI.",
     "bmiUnderweight": "Baixo peso",
     "bmiNormalWeight": "Peso normal",
     "bmiOverweight": "Sobrepeso",
@@ -88,7 +95,6 @@
       "weightRequired": "Por favor, introduce o teu peso.",
       "weightInvalid": "Introduce un peso maior que cero.",
       "bodyComposition": "Composición corporal (opcional)",
-      "bmi": "BMI",
       "bodyFat": "Graxa corporal (%)",
       "bodyWater": "Auga corporal (%)",
       "boneMass": "Masa ósea",
@@ -308,6 +314,8 @@
       "totalSleepRequired": "Por favor, introduce canto tempo durmiste.",
       "hours": "Horas",
       "minutes": "Minutos",
+      "hoursOf": "{field}, horas",
+      "minutesOf": "{field}, minutos",
       "stageBreakdown": "Desglose de fases (opcional)",
       "deep": "Sono profundo",
       "light": "Sono lixeiro",
@@ -350,7 +358,11 @@
       "close": "Pechar",
       "createSuccess": "Sono rexistrado.",
       "updateSuccess": "Entrada de sono actualizada.",
-      "saveError": "Non se puido gardar a entrada de sono. Por favor, téntao de novo."
+      "saveError": "Non se puido gardar a entrada de sono. Por favor, téntao de novo.",
+      "numberRange": "Introduce un valor entre {min} e {max}.",
+      "numberMin": "Introduce {min} ou máis.",
+      "stagesExceedTotal": "O sono profundo, lixeiro e REM suman máis que o total.",
+      "inconsistentError": "Estes datos de sono non cadran. Comproba que as fases e o total caiban dentro dos horarios de sono."
     },
     "target": {
       "title": "Establecer obxectivo de sono",
@@ -596,6 +608,8 @@
       "startTime": "Hora de inicio",
       "startTimeRequired": "Por favor, escolle unha hora de inicio.",
       "endTime": "Hora de fin",
+      "endBeforeStart": "A hora de fin non pode ser anterior á hora de inicio.",
+      "endWhileInProgress": "Un xaxún en progreso non pode ter hora de fin.",
       "status": "Estado",
       "notes": "Notas",
       "create": "Iniciar",
@@ -604,7 +618,9 @@
       "close": "Pechar",
       "createSuccess": "Xaxún iniciado.",
       "updateSuccess": "Sesión de xaxún actualizada.",
-      "saveError": "Non se puido gardar a túa sesión de xaxún. Por favor, téntao de novo."
+      "saveError": "Non se puido gardar a túa sesión de xaxún. Por favor, téntao de novo.",
+      "overlapError": "Este xaxún solápase con outra sesión de xaxún, ou xa hai outro xaxún en curso.",
+      "invalidTimesError": "Un xaxún non pode rematar antes de comezar, un xaxún completado ou roto necesita unha hora de fin, e un xaxún en progreso non pode telas."
     },
     "target": {
       "title": "Establecer obxectivo de xaxún",
@@ -621,6 +637,20 @@
     "complete": {
       "success": "Xaxún rematado.",
       "error": "Non se puido rematar o teu xaxún. Por favor, téntao de novo."
+    },
+    "endConfirm": {
+      "broken": {
+        "title": "Romper este xaxún?",
+        "body": "O xaxún remata agora e gárdase como roto. Non se pode desfacer.",
+        "confirm": "Romper xaxún"
+      },
+      "cancelled": {
+        "title": "Cancelar este xaxún?",
+        "body": "O xaxún remata agora e gárdase como cancelado. Non se pode desfacer.",
+        "confirm": "Cancelar xaxún"
+      },
+      "cancel": "Seguir en xaxún",
+      "close": "Pechar"
     },
     "empty": {
       "title": "Aínda non hai xaxúns",

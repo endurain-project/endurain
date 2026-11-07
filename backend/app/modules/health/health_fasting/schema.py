@@ -1,12 +1,11 @@
-"""
-Pydantic schemas for health fasting data.
+"""Pydantic schemas for health fasting data.
 
 This module defines the request/response schemas for fasting tracking,
 including validation rules and enumerations for fasting types and statuses.
 """
 
 from datetime import datetime
-from enum import Enum
+from enum import Enum, StrEnum
 
 from pydantic import (
     BaseModel,
@@ -14,15 +13,16 @@ from pydantic import (
     Field,
     StrictInt,
     StrictStr,
+    field_validator,
     model_validator,
 )
 
-import modules.health.schema as health_schema
+import core.partial_update as core_partial_update
+import core.types as core_types
 
 
 class Source(Enum):
-    """
-    Enumeration of data sources for fasting records.
+    """Enumeration of data sources for fasting records.
 
     Attributes:
         MANUAL: Manually entered fasting data.
@@ -34,8 +34,7 @@ class Source(Enum):
 
 
 class FastingType(Enum):
-    """
-    Enumeration of fasting protocol types.
+    """Enumeration of fasting protocol types.
 
     Attributes:
         IF_16_8: 16-hour fast with 8-hour eating window.
@@ -60,9 +59,8 @@ class FastingType(Enum):
     CUSTOM = "custom"
 
 
-class FastingStatus(Enum):
-    """
-    Enumeration of fasting session statuses.
+class FastingStatus(StrEnum):
+    """Enumeration of fasting session statuses.
 
     Attributes:
         IN_PROGRESS: Fasting session is currently active.
@@ -78,18 +76,15 @@ class FastingStatus(Enum):
 
 
 class HealthFastingBase(BaseModel):
-    """
-    Base schema for health fasting data.
+    """Base schema for health fasting data.
 
     Attributes:
         fast_start_time: Start time of fast.
         fast_end_time: End time of fast.
         target_duration_seconds: Target fasting duration in seconds.
-        actual_duration_seconds: Actual fasting duration in seconds.
         fasting_type: Type of fasting protocol.
         status: Current status of the fasting session.
         notes: Optional notes about the fasting session.
-        source: Data source for the record.
     """
 
     fast_start_time: datetime | None = Field(
@@ -106,11 +101,6 @@ class HealthFastingBase(BaseModel):
         le=259200,  # Max 72 hours
         description="Target fasting duration in seconds (max 72h)",
     )
-    actual_duration_seconds: StrictInt | None = Field(
-        default=None,
-        ge=0,
-        description="Actual fasting duration in seconds",
-    )
     fasting_type: FastingType | None = Field(
         default=None,
         description="Type of fasting protocol",
@@ -124,10 +114,6 @@ class HealthFastingBase(BaseModel):
         max_length=500,
         description="Optional notes about the fasting session",
     )
-    source: Source | None = Field(
-        default=None,
-        description="Data source for the record",
-    )
 
     model_config = ConfigDict(
         from_attributes=True,
@@ -137,63 +123,105 @@ class HealthFastingBase(BaseModel):
     )
 
 
-class HealthFastingCreate(HealthFastingBase):
-    """
-    Schema for creating a new fasting session.
+class HealthFastingWrite(HealthFastingBase):
+    """Fasting fields a client writes: the times are bounded, which a stored row read back need not be."""
+
+    fast_start_time: core_types.RecordInstant | None = Field(
+        default=None,
+        description="Start time of fast, with a UTC offset",
+    )
+    fast_end_time: core_types.RecordInstant | None = Field(
+        default=None,
+        description="End time of fast, with a UTC offset (null if ongoing)",
+    )
+
+
+class HealthFastingCreate(HealthFastingWrite):
+    """Schema for creating a new fasting session.
 
     Requires start time and sets defaults for status.
     """
 
+    fast_start_time: core_types.RecordInstant = Field(
+        ...,
+        description="Start time of fast, with a UTC offset",
+    )
+
     @model_validator(mode="after")
     def set_defaults_and_validate(self) -> "HealthFastingCreate":
-        """
-        Validate required fields and set defaults.
+        """Set the defaults of the fields left out.
 
         Returns:
             The validated model instance with defaults set.
-
-        Raises:
-            ValueError: If fast_start_time is not provided.
         """
-        if self.fast_start_time is None:
-            raise ValueError("fast_start_time is required")
         if self.status is None:
             self.status = FastingStatus.IN_PROGRESS
-        if self.source is None:
-            self.source = Source.MANUAL
         return self
 
 
 class HealthFastingRead(HealthFastingBase):
-    """
-    Schema for reading a fasting record.
+    """Schema for reading a fasting record.
 
     Attributes:
+        source: Data source for the record.
         id: Unique identifier for the fasting record.
         user_id: Foreign key reference to the user.
+        actual_duration_seconds: Seconds between the start and end time, derived by the server.
     """
 
+    source: Source = Field(
+        default=Source.MANUAL,
+        validate_default=True,
+        description="Data source for the record",
+    )
     id: StrictInt = Field(
         ...,
         description="Unique identifier for the fasting record",
+    )
+    fast_start_time: datetime = Field(
+        ...,
+        description="Start time of fast",
     )
     user_id: StrictInt = Field(
         ...,
         description="Foreign key reference to the user",
     )
+    actual_duration_seconds: StrictInt | None = Field(
+        default=None,
+        ge=0,
+        description="Seconds between the start and the end time, derived by the server; null while the fast has no end",
+    )
+    version: StrictInt = Field(default=1, ge=1, description="Optimistic-concurrency counter, also sent as the ETag")
 
 
-class HealthFastingUpdate(HealthFastingRead):
+class HealthFastingUpdate(core_partial_update.NotClearable, HealthFastingWrite):
+    """Schema for the fields a PATCH changes on a fasting record.
+
+    The record is named by the path, so the body carries neither an id nor an owner; only the
+    fields present are changed.
     """
-    Schema for updating a fasting record.
 
-    Inherits from HealthFastingRead for consistency with read operations.
+    not_clearable = ("fast_start_time", "status")
+
+
+class HealthFastingImport(HealthFastingCreate):
+    """Fasting session written by the server itself: a profile import, or a client's session with its source.
+
+    Unlike :class:`HealthFastingCreate` it carries the provenance, which a client never sets. Every
+    server-side writer of ``source`` takes ``Health<Kind>Import`` (create) or ``Health<Kind>ImportUpdate``. A
+    session without a source is a manual one.
+
+    Attributes:
+        source: The source the session came from; ``manual`` when none is given.
     """
+
+    source: Source = Field(default=Source.MANUAL, validate_default=True, description="Data source for the record")
+    fast_start_time: core_types.ImportedInstant = Field(..., description="Start time of fast")
+    fast_end_time: core_types.ImportedInstant | None = Field(default=None, description="End time of fast")
 
 
 class HealthFastingComplete(BaseModel):
-    """
-    Schema for completing or ending a fasting session.
+    """Schema for completing or ending a fasting session.
 
     Attributes:
         fast_end_time: End time of fast.
@@ -201,12 +229,13 @@ class HealthFastingComplete(BaseModel):
         notes: Optional notes about the fasting session.
     """
 
-    fast_end_time: datetime = Field(
+    fast_end_time: core_types.RecordInstant = Field(
         ...,
-        description="End time of fast",
+        description="End time of fast, with a UTC offset",
     )
     status: FastingStatus = Field(
         default=FastingStatus.COMPLETED,
+        validate_default=True,
         description="Final status of the fasting session",
     )
     notes: StrictStr | None = Field(
@@ -215,6 +244,25 @@ class HealthFastingComplete(BaseModel):
         description="Optional notes about the fasting session",
     )
 
+    @field_validator("status")
+    @classmethod
+    def _status_ends_the_fast(cls, value: FastingStatus) -> FastingStatus:
+        """Refuse ``in_progress``: completing a fast ends it.
+
+        Args:
+            value: The final status in the request.
+
+        Returns:
+            The final status.
+
+        Raises:
+            ValueError: When the status is ``in_progress``.
+        """
+        # ``use_enum_values`` hands the validator the plain string.
+        if getattr(value, "value", value) == FastingStatus.IN_PROGRESS.value:
+            raise ValueError("A completed fast cannot still be in progress")
+        return value
+
     model_config = ConfigDict(
         extra="forbid",
         validate_assignment=True,
@@ -222,28 +270,8 @@ class HealthFastingComplete(BaseModel):
     )
 
 
-class HealthFastingListResponse(health_schema.HealthListResponse):
-    """
-    Response model for listing health fasting records.
-
-    Extends the base HealthListResponse to provide a typed response containing
-    a list of fasting records. This model is used when returning multiple
-    fasting entries from API endpoints.
-
-    Attributes:
-        records: A list of HealthFastingRead objects representing individual
-        fasting records.
-    """
-
-    records: list[HealthFastingRead] = Field(
-        ...,
-        description="List of fasting records",
-    )
-
-
 class HealthFastingStatsResponse(BaseModel):
-    """
-    Response model for fasting statistics.
+    """Response model for fasting statistics.
 
     Attributes:
         total_fasts: Total number of completed fasts.

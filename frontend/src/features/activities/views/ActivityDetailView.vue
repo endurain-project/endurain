@@ -12,6 +12,7 @@ import { Card } from '@/components/ui/card'
 import { ErrorState } from '@/components/ui/error-state'
 import { Skeleton } from '@/components/ui/skeleton'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
+import { useUnitFormat } from '@/composables/useUnitFormat'
 import { useCurrentUser } from '@/features/auth/composables/useCurrentUser'
 import ActivityDetailHeader from '@/features/activities/components/ActivityDetailHeader.vue'
 import ActivityGallery from '@/features/activities/components/ActivityGallery.vue'
@@ -43,6 +44,7 @@ import { buildStreamCharts, extractTrackPoints } from '@/features/activities/uti
 
 const route = useRoute()
 const { t } = useI18n()
+const { unitLabel } = useUnitFormat()
 const { data: currentUser } = useCurrentUser()
 const units = useDisplayUnits()
 
@@ -103,6 +105,7 @@ const streamCharts = computed(() => {
     streams.value ?? [],
     activity.value,
     units.value,
+    unitLabel,
     streamMetricVisibility(activity.value, currentUserId.value),
   )
 })

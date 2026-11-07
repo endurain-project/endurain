@@ -46,7 +46,6 @@
     "thisWeek": "Tento týden",
     "thisMonth": "Tento měsíc",
     "empty": "V tomto období žádná aktivita",
-    "caloriesUnit": "kcal",
     "metric": {
       "distance": "Vzdálenost",
       "time": "Čas",
@@ -63,12 +62,13 @@
     "snow_ski": "Lyžování",
     "snowboard": "Snowboarding",
     "windsurf": "Windsurfing",
-    "stand_up_paddleboarding": "Paddleboarding",
-    "surfing": "Surfing",
+    "stand_up_paddling": "Paddleboarding",
+    "surf": "Surfing",
     "kayaking": "Kajakování",
     "sailing": "Jachting",
-    "snowshoeing": "Sněžnice",
-    "inline_skating": "In-line bruslení"
+    "snow_shoeing": "Sněžnice",
+    "inline_skating": "In-line bruslení",
+    "other": "Ostatní"
   },
   "goals": {
     "title": "Cíle",

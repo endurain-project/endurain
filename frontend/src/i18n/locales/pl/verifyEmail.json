@@ -1,14 +1,26 @@
 {
   "verifyingBody": "Poczekaj chwilę, potwierdzamy Twój adres.",
+  "choosePasswordTitle": "Wybierz hasło",
+  "choosePasswordBody": "Twój adres e-mail zostanie potwierdzony po ustawieniu hasła do konta.",
+  "submitPassword": "Ustaw hasło",
+  "submittingPassword": "Zapisywanie hasła",
   "successTitle": "E-mail zweryfikowany",
   "successBody": "Twój adres e-mail został potwierdzony.",
   "adminApprovalBody": "Twoje konto oczekuje teraz na zatwierdzenie przez administratora.",
   "continueButton": "Przejdź do logowania",
   "invalidTitle": "Weryfikacja nie powiodła się",
-  "missingTokenBody": "W tym linku weryfikacyjnym brakuje tokenu.",
   "errorInvalidToken": "Ten link weryfikacyjny jest nieprawidłowy lub wygasł.",
+  "errorEmailTaken": "Ten adres e-mail jest już używany przez inne konto, więc nie można go potwierdzić.",
   "errorNotFound": "Nie udało się znaleźć konta dla tego linku.",
   "errorGeneral": "Nie udało się zweryfikować Twojego e-maila. Spróbuj ponownie.",
   "retry": "Spróbuj ponownie",
-  "backToLogin": "Powrót do logowania"
+  "backToLogin": "Powrót do logowania",
+  "resendTitle": "Potrzebujesz nowego linku?",
+  "resendBody": "Wpisz adres, którego użyłeś przy rejestracji, a wyślemy nowy e-mail weryfikacyjny, jeśli nadal oczekuje na weryfikację.",
+  "resendEmail": "Adres e-mail",
+  "resendButton": "Wyślij nowy e-mail",
+  "resendSending": "Wysyłanie",
+  "resendSent": "Jeśli ten adres oczekuje na weryfikację, nowy e-mail jest w drodze.",
+  "resendTooManyAttempts": "Zbyt wiele prób. Poczekaj przed ponowną próbą.",
+  "resendError": "Nie udało się wysłać e-maila. Spróbuj ponownie."
 }

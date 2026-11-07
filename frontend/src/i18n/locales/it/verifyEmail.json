@@ -1,14 +1,26 @@
 {
   "verifyingBody": "Attendi mentre confermiamo il tuo indirizzo.",
+  "choosePasswordTitle": "Scegli la tua password",
+  "choosePasswordBody": "La tua e-mail viene confermata una volta impostata una password per il tuo account.",
+  "submitPassword": "Imposta password",
+  "submittingPassword": "Salvataggio della password",
   "successTitle": "Email verificata",
   "successBody": "Il tuo indirizzo email è stato confermato.",
   "adminApprovalBody": "Il tuo account è ora in attesa di approvazione da parte dell'amministratore.",
   "continueButton": "Continua con l'accesso",
   "invalidTitle": "Verifica non riuscita",
-  "missingTokenBody": "Questo link di verifica è privo del token.",
   "errorInvalidToken": "Questo link di verifica non è valido o è scaduto.",
+  "errorEmailTaken": "Questo indirizzo email è ora utilizzato da un altro account, quindi non può essere confermato.",
   "errorNotFound": "Non abbiamo trovato un account per questo link.",
   "errorGeneral": "Impossibile verificare la tua email. Riprova.",
   "retry": "Riprova",
-  "backToLogin": "Torna all'accesso"
+  "backToLogin": "Torna all'accesso",
+  "resendTitle": "Ti serve un nuovo link?",
+  "resendBody": "Inserisci l'indirizzo con cui ti sei registrato e invieremo una nuova e-mail di verifica se è ancora in attesa.",
+  "resendEmail": "Indirizzo e-mail",
+  "resendButton": "Invia una nuova e-mail",
+  "resendSending": "Invio in corso",
+  "resendSent": "Se questo indirizzo è in attesa di verifica, una nuova e-mail è in arrivo.",
+  "resendTooManyAttempts": "Troppi tentativi. Attendi prima di riprovare.",
+  "resendError": "Non è stato possibile inviare l'e-mail. Riprova."
 }

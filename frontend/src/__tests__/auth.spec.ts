@@ -9,6 +9,7 @@ import { HttpError } from '@/services/http'
 import { queryKeys } from '@/services/queryKeys'
 import { fetchCurrentUser } from '@/features/auth/services/profile'
 import {
+  changePasswordAtLogin,
   loginWithPassword,
   logoutSession,
   refreshSession,
@@ -31,6 +32,7 @@ vi.mock('@/features/auth/services/session', () => ({
   logoutSession: vi.fn<typeof logoutSession>(),
   refreshSession: vi.fn<typeof refreshSession>(),
   verifyMfaLogin: vi.fn<typeof verifyMfaLogin>(),
+  changePasswordAtLogin: vi.fn<typeof changePasswordAtLogin>(),
 }))
 
 const realtimeConnect = vi.fn<() => void>()
@@ -40,6 +42,7 @@ vi.mock('@/composables/useRealtime', () => ({
 }))
 
 const tokenResponse: AuthTokenResponse = {
+  next_step: 'tokens',
   session_id: 'session-1',
   access_token: 'access-token',
   csrf_token: 'csrf-token',
@@ -62,6 +65,7 @@ const authUser: User = {
   isGarminConnectLinked: false,
   hasLocalPassword: true,
   units: 'metric',
+  weightUnits: 'metric',
   currency: 'euro',
   firstDayOfWeek: 'sunday',
 }
@@ -76,18 +80,88 @@ describe('auth store', () => {
 
   it('returns an MFA-required state without storing tokens', async () => {
     vi.mocked(loginWithPassword).mockResolvedValue({
-      mfa_required: true,
-      username: 'demo',
-      message: 'MFA verification required',
+      next_step: 'mfa',
+      mfa_challenge: 'challenge-123',
     })
 
     const auth = useAuthStore()
     const result = await auth.login('demo', 'password123')
 
-    expect(result).toEqual({ status: 'mfa-required', username: 'demo' })
+    expect(result).toEqual({ status: 'mfa-required', challenge: 'challenge-123' })
     expect(setAuthTokens).not.toHaveBeenCalled()
     expect(fetchCurrentUser).not.toHaveBeenCalled()
     expect(auth.isAuthenticated).toBe(false)
+  })
+
+  it('returns a password-change state without storing tokens', async () => {
+    vi.mocked(loginWithPassword).mockResolvedValue({
+      next_step: 'password_change',
+      password_change_challenge: 'change-123',
+    })
+
+    const auth = useAuthStore()
+    const result = await auth.login('demo', 'password123')
+
+    expect(result).toEqual({ status: 'password-change-required', challenge: 'change-123' })
+    expect(setAuthTokens).not.toHaveBeenCalled()
+    expect(fetchCurrentUser).not.toHaveBeenCalled()
+    expect(auth.isAuthenticated).toBe(false)
+  })
+
+  it.each([
+    ['an exchange session', { next_step: 'exchange', session_id: 's', device_id: null }],
+    ['a step it does not know', { next_step: 'passkey' }],
+  ])('stops at %s without touching the session', async (_label, answer) => {
+    vi.mocked(loginWithPassword).mockResolvedValue(answer as never)
+
+    const auth = useAuthStore()
+    const result = await auth.login('demo', 'password123')
+
+    expect(result).toEqual({ status: 'unsupported-step' })
+    expect(setAuthTokens).not.toHaveBeenCalled()
+    expect(auth.isAuthenticated).toBe(false)
+  })
+
+  it('verifies MFA with the challenge the password step returned', async () => {
+    vi.mocked(verifyMfaLogin).mockResolvedValue(tokenResponse)
+    vi.mocked(fetchCurrentUser).mockResolvedValue(authUser)
+
+    const auth = useAuthStore()
+    const result = await auth.verifyMfa('challenge-123', '123456')
+
+    expect(verifyMfaLogin).toHaveBeenCalledWith({
+      mfa_challenge: 'challenge-123',
+      mfa_code: '123456',
+    })
+    expect(result).toEqual({ status: 'authenticated', user: authUser })
+  })
+
+  it('moves on to the password change after a verified MFA code', async () => {
+    vi.mocked(verifyMfaLogin).mockResolvedValue({
+      next_step: 'password_change',
+      password_change_challenge: 'change-123',
+    })
+
+    const auth = useAuthStore()
+    const result = await auth.verifyMfa('challenge-123', '123456')
+
+    expect(result).toEqual({ status: 'password-change-required', challenge: 'change-123' })
+    expect(setAuthTokens).not.toHaveBeenCalled()
+  })
+
+  it('signs in once the new password is chosen', async () => {
+    vi.mocked(changePasswordAtLogin).mockResolvedValue(tokenResponse)
+    vi.mocked(fetchCurrentUser).mockResolvedValue(authUser)
+
+    const auth = useAuthStore()
+    const result = await auth.changePassword('change-123', 'a new passphrase')
+
+    expect(changePasswordAtLogin).toHaveBeenCalledWith({
+      password_change_challenge: 'change-123',
+      password: 'a new passphrase',
+    })
+    expect(result).toEqual({ status: 'authenticated', user: authUser })
+    expect(setAuthTokens).toHaveBeenCalledWith('access-token', 'csrf-token')
   })
 
   it('hydrates the user after successful login', async () => {
@@ -122,7 +196,7 @@ describe('auth store', () => {
   it('logs out remotely and clears local auth state', async () => {
     vi.mocked(loginWithPassword).mockResolvedValue(tokenResponse)
     vi.mocked(fetchCurrentUser).mockResolvedValue(authUser)
-    vi.mocked(logoutSession).mockResolvedValue({ message: 'Logout successful' })
+    vi.mocked(logoutSession).mockResolvedValue({ idp_logout_url: null })
 
     const auth = useAuthStore()
     await auth.login('demo', 'password123')
@@ -136,13 +210,54 @@ describe('auth store', () => {
     expect(realtimeDisconnect).toHaveBeenCalled()
   })
 
+  it('returns the provider logout URL when the session signed in through a provider', async () => {
+    vi.mocked(loginWithPassword).mockResolvedValue(tokenResponse)
+    vi.mocked(fetchCurrentUser).mockResolvedValue(authUser)
+    vi.mocked(logoutSession).mockResolvedValue({
+      idp_logout_url: 'https://idp.example.com/logout?id_token_hint=abc',
+    })
+
+    const auth = useAuthStore()
+    await auth.login('demo', 'password123')
+
+    await expect(auth.logout()).resolves.toBe('https://idp.example.com/logout?id_token_hint=abc')
+    expect(auth.isAuthenticated).toBe(false)
+  })
+
+  it.each(['http://idp.example.com/logout', 'javascript:alert(1)', 'not a url', ''])(
+    'ignores a provider logout URL that is not https (%s)',
+    async (idpLogoutUrl) => {
+      vi.mocked(loginWithPassword).mockResolvedValue(tokenResponse)
+      vi.mocked(fetchCurrentUser).mockResolvedValue(authUser)
+      vi.mocked(logoutSession).mockResolvedValue({ idp_logout_url: idpLogoutUrl })
+
+      const auth = useAuthStore()
+      await auth.login('demo', 'password123')
+
+      await expect(auth.logout()).resolves.toBeNull()
+      expect(auth.isAuthenticated).toBe(false)
+    },
+  )
+
+  it('clears local state and returns no URL when the backend logout fails', async () => {
+    vi.mocked(loginWithPassword).mockResolvedValue(tokenResponse)
+    vi.mocked(fetchCurrentUser).mockResolvedValue(authUser)
+    vi.mocked(logoutSession).mockRejectedValue(new HttpError(401, 'Unauthorized'))
+
+    const auth = useAuthStore()
+    await auth.login('demo', 'password123')
+
+    await expect(auth.logout()).resolves.toBeNull()
+    expect(auth.isAuthenticated).toBe(false)
+  })
+
   it('clears user-scoped storage while preserving device preferences on logout', async () => {
     localStorage.setItem('endurain:activity-draft', JSON.stringify({ name: 'Morning ride' }))
     localStorage.setItem('endurain:theme', JSON.stringify('dark'))
     localStorage.setItem('endurain:locale', JSON.stringify('en'))
     vi.mocked(loginWithPassword).mockResolvedValue(tokenResponse)
     vi.mocked(fetchCurrentUser).mockResolvedValue(authUser)
-    vi.mocked(logoutSession).mockResolvedValue({ message: 'Logout successful' })
+    vi.mocked(logoutSession).mockResolvedValue({ idp_logout_url: null })
 
     const auth = useAuthStore()
     await auth.login('demo', 'password123')

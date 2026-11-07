@@ -9,8 +9,6 @@
   "fromStrava": "Strava",
   "fromGarmin": "Garmin Connect",
   "filters": "Filtreler",
-  "unitKm": "km",
-  "unitMi": "mi",
   "types": {
     "bicycle": "Bisiklet",
     "shoes": "Ayakkabı",
@@ -41,8 +39,8 @@
     "model": "Model",
     "modelTooLong": "Model en fazla 250 karakter olmalı",
     "active": "Aktif",
-    "createdAt": "Oluşturulma tarihi",
-    "createdAtRequired": "Bir oluşturulma tarihi zorunludur",
+    "acquiredOn": "Oluşturulma tarihi",
+    "acquiredOnRequired": "Bir oluşturulma tarihi zorunludur",
     "initialDistance": "Başlangıç mesafesi",
     "purchaseValue": "Satın alma değeri",
     "totalCost": "Toplam maliyet",
@@ -57,6 +55,8 @@
   "delete": {
     "title": "Ekipmanı sil",
     "body": "\"{nickname}\" öğesini silmek istediğinizden emin misiniz? Bu işlem geri alınamaz.",
+    "activities": "{count} etkinlik bu ekipmanı kullanıyor; etkinlik korunacak ve ekipmanla ilişkisi kaldırılacak. | {count} etkinlik bu ekipmanı kullanıyor; etkinlikler korunacak ve ekipmanla ilişkileri kaldırılacak.",
+    "components": "{count} bileşeni silinecek. | {count} bileşeni silinecek.",
     "confirm": "Sil",
     "cancel": "İptal",
     "close": "Kapat",
@@ -91,7 +91,6 @@
     "unsupported": "Bu ekipman türü bileşen takibi yapmaz.",
     "noneActive": "Tüm bileşenler pasif. Görmek için \"Pasif olanları göster\" seçeneğini açın.",
     "inactive": "Pasif",
-    "unitHours": "h",
     "purchasedOn": "{date} tarihinde satın alındı",
     "wearLabel": "{name} aşınması",
     "actions": {

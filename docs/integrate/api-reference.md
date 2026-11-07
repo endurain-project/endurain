@@ -2,6 +2,30 @@
 
 Browse every REST endpoint, its parameters, request bodies and responses. The schema is generated from the backend code at documentation build time, so it always matches the released version.
 
+Each operation declares the errors it can answer (`401`, `403`, `404`, `409`, `412`, `413`, `415`, `428`, `429`, `503`) as [problem documents](errors-and-limits.md), the headers it sends (`ETag`, `Location`, `Content-Location`, `Retry-After`) and whether it requires `If-Match`. Every path starts with the API root, `/api/v1`. Each operation's `operationId` is the name of its handler (`read_users_me`), which does not change when the route moves; a generated client names its methods after it. A description is the prose of the handler's docstring. An operation lists the credentials it accepts: the bearer token (`OAuth2PasswordBearer`), the `X-API-Key` header (`ApiKey`, only where API keys work) and, on `POST /auth/refresh` and `POST /auth/logout`, the refresh cookie (`RefreshTokenCookie`). `X-Client-Type` and `X-CSRF-Token` are ordinary header parameters. The `?api_key=` query parameter is not listed because it is off by default; see [API keys](api-keys.md).
+
+Users have one item URL, `GET /users/{user_id}`, and one list, `GET /users`. A token with `users:read_all` (an administrator) gets the full record with its `ETag`, and a token with only `users:read` gets the public projection (`id`, `name`, `username`, `city`, `photo_path`) of a user who is active and has been approved. The list filters by `username` (an exact name) and `username_contains` (at least 3 characters), and an administrator also by `active`, `email_verified`, `pending_approval`, `external_auth` (each `true` or `false`; `external_auth=false` keeps the users with a local password only); a regular token that sends one of those four gets `403`. A regular token's list leaves out users who switched off "Let others find me in search". A user's profile page data is `GET /users/{user_id}/overview`.
+
+Following a user is `POST /users/{user_id}/followers`; it always creates a `pending` request. The follow requests addressed to you are under `/profile/follow-requests`: `GET /profile/follow-requests` lists them, `POST /profile/follow-requests/{follower_id}/accept` accepts one (answers the accepted relationship) and `DELETE /profile/follow-requests/{follower_id}` declines it. Reading needs `followers:read` and the writes `followers:write`.
+
+After you decline a request, the same user cannot ask you again for 7 days: their `POST /users/{user_id}/followers` answers `429` with `Retry-After`. Your block list is `GET /profile/blocked-users` (a page of public profiles, newest block first), `PUT /profile/blocked-users/{user_id}` to block and `DELETE /profile/blocked-users/{user_id}` to unblock (`404` when that user is not blocked). Blocking answers `204` for any other user id, whether or not the account exists, and `422` for your own id. It removes every follow between you and that user, pending requests included, without notifying them. Following a user you blocked answers `409`. A blocked user's follow request answers the same `404` as a request to a user who cannot be followed. `GET /users/{user_id}/relationship` carries `is_blocked`, whether you blocked that user. A block list is not part of the profile export.
+
+`GET /notifications` lists your notifications, newest first, and takes `unread_only=true`. `GET /notifications/unread-count` answers `{"count": <int>}` with the number of unread ones; it needs `notifications:read`.
+
+`DELETE /notifications/{notification_id}` deletes one of your notifications (`204`, or `404` when it is not yours). `POST /notifications/read` with `{"ids": [...]}` (1 to 100 ids) marks those as read and answers `204`; an id that is not yours is skipped. Sent without a body it marks every unread notification. Both need `notifications:write`.
+
+A notification's `options` depend on its `type`, and the schema names each shape (the notification is a union discriminated by `type`):
+
+| `type` | `options` |
+| ------ | --------- |
+| `new_activity`, `duplicate_activity` | `activity_id` |
+| `new_follower_request`, `new_follower_request_accepted`, `admin_new_sign_up_approval_request` | `user_id`, `user_name`, `user_username` |
+| `garmin_token_expired`, `strava_data_deleted` | none (an empty object) |
+| `strava_token_expired` | `delete_on` (a date), only when Strava access was revoked |
+| `idp_linked` | `idp_id`, `idp_name` (null when the provider was deleted since) |
+| `account_security_changed` | `change`, and `idp_id` and `idp_name` for an unlink |
+| `new_device_sign_in` | `browser`, `operating_system`, `ip_address` |
+
 For authentication, scopes, errors and rate limits see the other pages in this section. Requests cannot be sent from this page; use your own Endurain instance's `/docs` for that.
 
 <swagger-ui src="./openapi.json"/>

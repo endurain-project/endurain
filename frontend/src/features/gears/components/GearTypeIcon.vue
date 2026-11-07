@@ -1,11 +1,12 @@
 <script setup lang="ts">
 import { computed, type HTMLAttributes } from 'vue'
 
+import type { GearType } from '@/features/gears/types'
 import { presentGearType } from '@/features/gears/utils/gearType'
 
 const props = defineProps<{
-  /** Numeric gear-type identifier (1–8). */
-  type: number
+  /** The gear type. */
+  type: GearType
   class?: HTMLAttributes['class']
 }>()
 

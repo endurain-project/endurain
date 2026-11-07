@@ -13,9 +13,11 @@ composition and contributor surfaces.
 """
 
 import statistics
+from collections.abc import Mapping, Sequence
 from datetime import UTC, datetime
 from itertools import pairwise
 from statistics import mean
+from typing import Any
 
 from geopy.distance import geodesic
 
@@ -44,27 +46,9 @@ def _elapsed_seconds(start: datetime, end: datetime) -> float:
     return (end.astimezone(UTC) - start.astimezone(UTC)).total_seconds()
 
 
-def append_if_not_none(
-    waypoint_list: list[dict],
-    waypoint_time,
-    value,
-    key: str,
-) -> None:
-    """Append ``{time, key: value}`` to ``waypoint_list`` if value is set.
-
-    Args:
-        waypoint_list: List to mutate in place.
-        waypoint_time: Timestamp associated with the value.
-        value: The value to record; ignored when ``None``.
-        key: Dict key under which ``value`` is stored.
-    """
-    if value is not None:
-        waypoint_list.append({"time": waypoint_time, key: value})
-
-
 def calculate_instant_speed(
-    prev_time,
-    waypoint_time,
+    prev_time: datetime | None,
+    waypoint_time: datetime,
     latitude: float,
     longitude: float,
     prev_latitude: float | None,
@@ -159,10 +143,10 @@ def _smooth_elevations(
 
 
 def smooth_elevation_stream(
-    elevations: list[dict],
+    elevations: Sequence[Mapping[str, Any]],
     median_window: int = ELEVATION_MEDIAN_WINDOW,
     avg_window: int = ELEVATION_AVG_WINDOW,
-) -> list[dict]:
+) -> Sequence[Mapping[str, Any]]:
     """Return an elevation stream with ``ele`` smoothed and other keys unchanged.
 
     Uses the same series that :func:`compute_elevation_gain_and_loss` sums, so the
@@ -186,7 +170,7 @@ def smooth_elevation_stream(
 
 
 def sum_elevation_deltas(
-    elevations: list[dict],
+    elevations: Sequence[Mapping[str, Any]],
     threshold: float = ELEVATION_THRESHOLD,
 ) -> tuple[float, float]:
     """Sum per-step elevation deltas above ``threshold``.
@@ -215,7 +199,7 @@ def sum_elevation_deltas(
 
 
 def compute_elevation_gain_and_loss(
-    elevations: list[dict],
+    elevations: Sequence[Mapping[str, Any]],
     median_window: int = ELEVATION_MEDIAN_WINDOW,
     avg_window: int = ELEVATION_AVG_WINDOW,
     threshold: float = ELEVATION_THRESHOLD,
@@ -248,8 +232,8 @@ def compute_elevation_gain_and_loss(
 
 def calculate_pace(
     distance: float,
-    first_waypoint_time,
-    last_waypoint_time,
+    first_waypoint_time: datetime,
+    last_waypoint_time: datetime,
 ) -> float:
     """Compute average pace (seconds per meter).
 
@@ -297,7 +281,11 @@ def calculate_pace_from_duration(
     return duration_seconds / distance
 
 
-def calculate_avg_and_max(data: list[dict], stream_type: str, exclude_zeros: bool = False) -> tuple[float, float]:
+def calculate_avg_and_max(
+    data: Sequence[Mapping[str, Any]],
+    stream_type: str,
+    exclude_zeros: bool = False,
+) -> tuple[float, float]:
     """Compute the mean and max of ``stream_type`` across waypoints.
 
     Zero values are always excluded when ``stream_type`` is ``"hr"`` because
@@ -356,7 +344,7 @@ def calculate_robust_max(values: list[float], window: int = 5) -> float:
     return max(statistics.median(values[i : i + window]) for i in range(len(values) - window + 1))
 
 
-def calculate_np(data: list[dict]) -> float:
+def calculate_np(data: Sequence[Mapping[str, Any]]) -> float:
     """Compute Normalized Power (NP) from power waypoints.
 
     Args:

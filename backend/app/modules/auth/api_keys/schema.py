@@ -1,8 +1,9 @@
 """User API key schemas."""
 
-from datetime import datetime
+from datetime import UTC, datetime
 
 from pydantic import (
+    AwareDatetime,
     BaseModel,
     ConfigDict,
     Field,
@@ -11,35 +12,25 @@ from pydantic import (
     field_validator,
 )
 
+import core.pagination as core_pagination
+import modules.auth.api_keys.constants as api_keys_constants
 import modules.auth.api_keys.utils as api_keys_utils
+import modules.auth.schema as auth_schema
 
 
-class UsersApiKeyCreate(BaseModel):
-    """
-    Schema for creating a new API key.
+class UserApiKeyCreate(BaseModel):
+    """Schema for creating a new API key.
 
     API-key creation is a sensitive, persistent grant of
     account access — it must be gated by step-up
-    verification. The caller MUST supply ``current_password``,
-    and an MFA code when MFA is enabled on the account.
-
-    For SSO-only accounts (no local password set), the password
-    field may be omitted and the password check is skipped — see
-    :func:`modules.auth._internal.services.step_up_service.verify_step_up_credentials`
-    and ``docs/developer-guide/auth-boundary.md`` for the rationale
-    and the tracked SSO-only step-up gap.
+    verification, carried in ``step_up``.
 
     Attributes:
         name: User-friendly label for the key.
         scopes: List containing the supported API key scope.
-        expires_at: Optional expiration datetime.
-            None means the key never expires.
-        current_password: Caller's existing password
-            (step-up verification). Required when the account
-            has a local password; may be omitted for SSO-only
-            accounts.
-        mfa_code: TOTP or backup code, required when MFA
-            is enabled on the account.
+        expires_at: Optional expiration datetime, at most the server's maximum API key lifetime from now. When
+            omitted the key expires at that maximum.
+        step_up: The caller's step-up verification.
     """
 
     name: StrictStr = Field(
@@ -53,27 +44,21 @@ class UsersApiKeyCreate(BaseModel):
         min_length=1,
         description="List of scope strings to grant",
     )
-    expires_at: datetime | None = Field(
+    expires_at: AwareDatetime | None = Field(
         None,
-        description=("Optional expiration datetime. None means the key never expires."),
+        description=(
+            "Optional expiration instant with a UTC offset, at most the server's maximum API key lifetime from now. "
+            "When omitted the key expires at that maximum."
+        ),
     )
-    current_password: StrictStr | None = Field(
-        default=None,
-        min_length=1,
-        max_length=250,
-        description=("Current password (step-up verification). Required when the account has a local password."),
-    )
-    mfa_code: StrictStr | None = Field(
-        default=None,
-        max_length=32,
-        description="TOTP or backup code, required when MFA is enabled",
+    step_up: auth_schema.StepUpVerification = Field(
+        ..., description="Step-up verification, required to create an API key"
     )
 
     @field_validator("scopes")
     @classmethod
     def scopes_must_be_valid(cls, v: list[str]) -> list[str]:
-        """
-        Validate API keys only grant activity upload access.
+        """Validate API keys only grant activity upload access.
 
         Args:
             v: List of scope strings to validate.
@@ -84,19 +69,40 @@ class UsersApiKeyCreate(BaseModel):
         Raises:
             ValueError: If any scope is not supported.
         """
-        unsupported = set(v) - api_keys_utils.SUPPORTED_API_KEY_SCOPES
+        unsupported = set(v) - api_keys_constants.SUPPORTED_API_KEY_SCOPES
         if unsupported:
             raise ValueError(
-                f"Unsupported API key scopes: {unsupported}. Valid scopes: {api_keys_utils.SUPPORTED_API_KEY_SCOPES}"
+                f"Unsupported API key scopes: {', '.join(sorted(unsupported))}. "
+                f"Valid scopes: {', '.join(sorted(api_keys_constants.SUPPORTED_API_KEY_SCOPES))}"
             )
         return v
 
-    model_config = ConfigDict(from_attributes=True)
+    @field_validator("expires_at")
+    @classmethod
+    def expires_at_must_be_future(cls, v: AwareDatetime | None) -> datetime | None:
+        """Validate the expiry is in the future.
+
+        Args:
+            v: Expiration instant, or None to take the server's maximum lifetime.
+
+        Returns:
+            The expiration in UTC, or None.
+
+        Raises:
+            ValueError: If the expiration is not after the current time.
+        """
+        if v is None:
+            return None
+        expires_at = v.astimezone(UTC)
+        if expires_at <= datetime.now(UTC):
+            raise ValueError("expires_at must be in the future")
+        return expires_at
+
+    model_config = ConfigDict(from_attributes=True, extra="forbid")
 
 
-class UsersApiKeyRead(BaseModel):
-    """
-    API key read schema for list/detail responses.
+class UserApiKeyRead(BaseModel):
+    """API key read schema for list/detail responses.
 
     Never exposes the raw key or its hash. Safe to
     return in all authenticated GET responses.
@@ -106,8 +112,8 @@ class UsersApiKeyRead(BaseModel):
         user_id: Owner's user ID.
         name: User-friendly label.
         key_prefix: First 8 chars of the random part.
-        scopes: JSON-encoded list of granted scopes.
-        expires_at: Optional expiration timestamp.
+        scopes: Granted scopes.
+        expires_at: Expiration timestamp.
         last_used_at: Last successful use timestamp.
         created_at: Key creation timestamp.
         is_active: Whether the key is currently active.
@@ -117,20 +123,32 @@ class UsersApiKeyRead(BaseModel):
     user_id: int = Field(..., ge=1, description="Owner's user ID")
     name: StrictStr = Field(..., description="User-friendly label")
     key_prefix: StrictStr = Field(..., description="First 8 chars of the random part")
-    scopes: StrictStr = Field(..., description="JSON-encoded list of granted scopes")
-    expires_at: datetime | None = Field(None, description="Optional expiration timestamp")
+    scopes: list[StrictStr] = Field(..., description="Granted scopes")
+    expires_at: datetime = Field(..., description="Expiration timestamp")
     last_used_at: datetime | None = Field(None, description="Last successful use timestamp")
     created_at: datetime = Field(..., description="Key creation timestamp")
     is_active: StrictBool = Field(..., description="Whether the key is currently active")
 
     model_config = ConfigDict(from_attributes=True)
 
+    @field_validator("scopes", mode="before")
+    @classmethod
+    def decode_stored_scopes(cls, v: object) -> object:
+        """Decode the JSON text the scopes are stored as.
 
-class UsersApiKeyCreated(UsersApiKeyRead):
-    """
-    API key creation response schema.
+        Args:
+            v: The stored JSON text, or an already-decoded list.
 
-    Extends UsersApiKeyRead with the raw key, returned
+        Returns:
+            The list of scopes.
+        """
+        return api_keys_utils.json_to_scopes(v) if isinstance(v, str) else v
+
+
+class UserApiKeyCreatedRead(UserApiKeyRead):
+    """API key creation response schema.
+
+    Extends UserApiKeyRead with the raw key, returned
     only once at creation time. The raw key is never
     stored and cannot be retrieved again.
 
@@ -148,3 +166,7 @@ class UsersApiKeyCreated(UsersApiKeyRead):
         from_attributes=True,
         extra="forbid",
     )
+
+
+#: One page of a user's API keys.
+UserApiKeyPage = core_pagination.Page[UserApiKeyRead]

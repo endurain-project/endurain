@@ -2,28 +2,34 @@
 import { computed, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 
-import type { ApiKeyCreateInput } from '@/features/security/types'
+import type { ApiKeyCreateInput, ApiKeyDraft, IdpReauth } from '@/features/security/types'
 
+import IdpStepUpSection from '@/features/security/components/IdpStepUpSection.vue'
 import PasswordInput from '@/features/security/components/PasswordInput.vue'
 import { FormDialog } from '@/components/ui/form-dialog'
 import { Input } from '@/components/ui/input'
 import { inputFieldClass } from '@/components/ui/input/fieldClasses'
 import { Label } from '@/components/ui/label'
+import { normalizeMfaCode } from '@/features/auth/utils/mfaCode'
 import { Switch } from '@/components/ui/switch'
 import { API_KEY_SCOPES } from '@/features/security/services/security'
 
 const open = defineModel<boolean>('open', { required: true })
+// The identity-provider sign-in proof, used when the account has no password.
+const reauth = defineModel<IdpReauth | null>('reauth', { default: null })
 
 const props = withDefaults(
   defineProps<{
-    /** Whether a password is required (the account has a local password). */
+    /** Whether a password is required; when not, the account signs in again with its identity provider. */
     requirePassword: boolean
+    /** Form values to restore after an identity-provider sign-in. */
+    draft?: ApiKeyDraft | null
     /** Whether an MFA/backup code is required (MFA is enabled). */
     requireMfa?: boolean
     /** Whether the create request is in flight. */
     pending: boolean
   }>(),
-  { requireMfa: true },
+  { requireMfa: true, draft: null },
 )
 
 const emit = defineEmits<{
@@ -62,17 +68,25 @@ const canSubmit = computed(
     name.value.trim().length > 0 &&
     selectedScopes.value.length > 0 &&
     (!props.requirePassword || password.value.length > 0) &&
+    (props.requirePassword || reauth.value !== null) &&
     (!props.requireMfa || mfaCode.value.trim().length > 0),
 )
+
+// Restored with the draft so the identity-provider round-trip loses nothing typed.
+const pendingContext = computed<ApiKeyDraft>(() => ({
+  name: name.value.trim(),
+  scopes: selectedScopes.value,
+  expiresAt: expiresAt.value || null,
+}))
 
 // Reset every field each time the dialog opens.
 watch(open, (isOpen) => {
   if (isOpen) {
-    name.value = ''
-    expiresAt.value = ''
+    name.value = props.draft?.name ?? ''
+    expiresAt.value = props.draft?.expiresAt ?? ''
     password.value = ''
     mfaCode.value = ''
-    selectedScopes.value = []
+    selectedScopes.value = props.draft?.scopes ?? []
   }
 })
 
@@ -83,7 +97,8 @@ function onSubmit(): void {
     scopes: selectedScopes.value,
     expiresAt: expiresAt.value || null,
     currentPassword: props.requirePassword ? password.value : null,
-    mfaCode: props.requireMfa ? mfaCode.value.trim() : null,
+    mfaCode: props.requireMfa ? normalizeMfaCode(mfaCode.value) : null,
+    idpReauth: props.requirePassword ? null : reauth.value,
   })
 }
 </script>
@@ -140,6 +155,14 @@ function onSubmit(): void {
         <p class="text-hint">{{ t('settings.security.apiKeys.expiryHint') }}</p>
       </div>
 
+      <IdpStepUpSection
+        v-if="!requirePassword"
+        v-model:reauth="reauth"
+        action="api_key_create"
+        :pending-context="pendingContext"
+        :disabled="pending"
+      />
+
       <div v-if="requirePassword" class="flex flex-col gap-1.5">
         <Label for="apikey-password">{{ t('settings.security.password.current') }}</Label>
         <PasswordInput
@@ -150,7 +173,7 @@ function onSubmit(): void {
         />
       </div>
 
-      <div v-if="requireMfa" class="flex flex-col gap-1.5">
+      <div v-if="requireMfa && (requirePassword || reauth)" class="flex flex-col gap-1.5">
         <Label for="apikey-mfa">{{ t('settings.security.mfaCode') }}</Label>
         <Input
           id="apikey-mfa"

@@ -58,9 +58,21 @@ def app_with_csrf():
         return {"message": "Login success"}
 
     # Public endpoint for testing
-    @app.post("/api/v1/public/idp/session/test/callback")
+    @app.post("/api/v1/auth/sessions/test/callback")
     async def test_public():
         return {"message": "Public success"}
+
+    @app.post("/api/v1/public/onboarding")
+    async def test_onboarding():
+        return {"message": "Onboarding success"}
+
+    @app.post("/api/v1/public/sign-up/resend")
+    async def test_sign_up_resend():
+        return {"message": "Resend success"}
+
+    @app.post("/api/v1/public/password-reset/validate")
+    async def test_password_reset_validate():
+        return {"message": "Validate success"}
 
     return app
 
@@ -109,7 +121,7 @@ class TestCSRFMiddlewareWebClients:
             headers={"X-Client-Type": "web"},
         )
         assert response.status_code == 403
-        assert response.json() == {"detail": "CSRF token required"}
+        assert response.json()["detail"] == "CSRF token required"
 
     def test_post_with_csrf_success(self, client):
         """
@@ -227,17 +239,41 @@ class TestCSRFMiddlewareExemptPaths:
         assert response.status_code == 200
         assert response.json() == {"message": "Login success"}
 
-    def test_public_idp_route_exempt(self, client):
+    def test_session_exchange_route_exempt(self, client):
         """
         Test that public IdP routes are exempt from CSRF checks.
 
         Verifies:
-            - Routes starting with /api/v1/public/idp/session/ are exempt
+            - Routes starting with /api/v1/auth/sessions/ are exempt
             - Dynamic route segments work correctly
         """
-        response = client.post("/api/v1/public/idp/session/test/callback", headers={"X-Client-Type": "web"})
+        response = client.post("/api/v1/auth/sessions/test/callback", headers={"X-Client-Type": "web"})
         assert response.status_code == 200
         assert response.json() == {"message": "Public success"}
+
+    def test_sign_up_resend_exempt_no_csrf_required(self, client):
+        """A visitor who is not signed in has no CSRF token, so the sign-up resend route is exempt."""
+        response = client.post("/api/v1/public/sign-up/resend", headers={"X-Client-Type": "web"})
+        assert response.status_code == 200
+        assert response.json() == {"message": "Resend success"}
+
+    def test_password_reset_validate_exempt_no_csrf_required(self, client):
+        """A visitor on the logged-out reset page has no CSRF token, so the validate route is exempt."""
+        response = client.post("/api/v1/public/password-reset/validate", headers={"X-Client-Type": "web"})
+        assert response.status_code == 200
+        assert response.json() == {"message": "Validate success"}
+
+    def test_onboarding_exempt_no_csrf_required(self, client):
+        """
+        Test that /api/v1/public/onboarding is exempt from CSRF checks.
+
+        Verifies:
+            - A web client creates the first administrator without X-CSRF-Token,
+              because it has no session yet and the setup token in the body is the secret
+        """
+        response = client.post("/api/v1/public/onboarding", headers={"X-Client-Type": "web"})
+        assert response.status_code == 200
+        assert response.json() == {"message": "Onboarding success"}
 
 
 class TestCSRFMiddlewareInMemoryModel:
@@ -328,7 +364,7 @@ class TestCSRFMiddlewareSameSiteCookie:
             headers={"X-Client-Type": "web"},
         )
         assert response.status_code == 403
-        assert response.json() == {"detail": "CSRF token required"}
+        assert response.json()["detail"] == "CSRF token required"
 
         # Request with both cookie and header - header wins
         client.cookies.clear()
@@ -370,6 +406,22 @@ class TestSecurityHeadersMiddleware:
         assert response.headers["Permissions-Policy"] == "geolocation=(), microphone=(), camera=()"
         assert "Strict-Transport-Security" not in response.headers
         assert "Server" not in response.headers
+
+    @pytest.mark.parametrize("path", ["/login", "/reset-password", "/verify-email"])
+    def test_pages_whose_url_carries_a_credential_send_no_referrer(self, path):
+        """A reset token, verification token or SSO session id in the URL never reaches another page as a Referer."""
+        from core.middleware import SecurityHeadersMiddleware
+
+        app = FastAPI()
+        app.add_middleware(SecurityHeadersMiddleware)
+
+        @app.get(path)
+        async def page():
+            return {"message": "ok"}
+
+        response = TestClient(app).get(path)
+
+        assert response.headers["Referrer-Policy"] == "no-referrer"
 
     def test_hsts_header_present_in_production(self):
         from fastapi import FastAPI
@@ -435,7 +487,7 @@ class TestSecurityHeadersMiddleware:
         assert csp is not None
         assert "default-src 'self'" in csp
 
-    def test_csp_header_absent_for_non_html_response(self):
+    def test_json_response_gets_the_policy_that_loads_nothing(self):
         from fastapi import FastAPI
         from fastapi.testclient import TestClient
 
@@ -452,7 +504,7 @@ class TestSecurityHeadersMiddleware:
         response = client.get("/json")
 
         assert response.status_code == 200
-        assert "Content-Security-Policy" not in response.headers
+        assert response.headers["Content-Security-Policy"] == "default-src 'none'; frame-ancestors 'none'"
 
     def test_server_header_removed_when_present(self):
         from fastapi import FastAPI
@@ -473,12 +525,11 @@ class TestSecurityHeadersMiddleware:
 
         assert "Server" not in response.headers
 
-    def test_allowed_tile_domains_uses_default_when_not_set(self):
+    def test_csp_has_no_tile_domains_until_the_app_seeds_them(self):
         from fastapi import FastAPI
         from fastapi.responses import HTMLResponse
         from fastapi.testclient import TestClient
 
-        import modules.server_settings.schema as server_settings_schema
         from core.middleware import SecurityHeadersMiddleware
 
         app = FastAPI()
@@ -491,9 +542,11 @@ class TestSecurityHeadersMiddleware:
         client = TestClient(app)
         response = client.get("/html")
 
+        # The composition root seeds app.state at startup; an app that never ran
+        # it gets a restrictive CSP instead of core guessing a tile provider.
         csp = response.headers["Content-Security-Policy"]
-        for domain in server_settings_schema.DEFAULT_ALLOWED_TILE_DOMAINS:
-            assert domain in csp
+        assert "img-src 'self' data:" in csp
+        assert "openstreetmap" not in csp
 
     def test_csp_allows_the_object_storage_origin_for_blobs(self):
         from fastapi import FastAPI
@@ -605,3 +658,122 @@ class TestSecurityHeadersMiddleware:
             "connect-src 'self' https://cdn.jsdelivr.net https://api.github.com https://auth.example.com https://proxy.example.com;"
             in csp
         )
+
+
+class TestAllowedTileDomainsRefresh:
+    """Each process re-reads the CSP tile domains, so an edit made elsewhere reaches it."""
+
+    @staticmethod
+    def _client(read_at, loader=None):
+        from fastapi import FastAPI
+        from fastapi.responses import HTMLResponse
+        from fastapi.testclient import TestClient
+
+        from core.middleware import SecurityHeadersMiddleware
+
+        app = FastAPI()
+        app.state.allowed_tile_domains = ["https://*.old.example.com"]
+        if read_at is not None:
+            app.state.allowed_tile_domains_read_at = read_at
+        if loader is not None:
+            app.state.allowed_tile_domains_loader = loader
+        app.add_middleware(SecurityHeadersMiddleware)
+
+        @app.get("/html")
+        async def html_endpoint():
+            return HTMLResponse("<html></html>")
+
+        return TestClient(app)
+
+    def test_a_stale_value_is_re_read_off_the_response_path(self):
+        import time
+
+        with self._client(read_at=-1e9, loader=lambda: ["https://new.example.com"]) as client:
+            first = client.get("/html").headers["Content-Security-Policy"]
+            csp = first
+            for _ in range(100):
+                if "new.example.com" in csp:
+                    break
+                time.sleep(0.02)
+                csp = client.get("/html").headers["Content-Security-Policy"]
+
+        assert "old.example.com" in first
+        assert "https://new.example.com" in csp
+        assert "old.example.com" not in csp
+
+    def test_a_fresh_value_is_not_re_read(self):
+        import time
+        from unittest.mock import MagicMock
+
+        loader = MagicMock()
+        csp = self._client(read_at=time.monotonic(), loader=loader).get("/html").headers["Content-Security-Policy"]
+
+        loader.assert_not_called()
+        assert "old.example.com" in csp
+
+    def test_a_failed_read_keeps_the_previous_value(self):
+        from unittest.mock import MagicMock
+
+        loader = MagicMock(side_effect=RuntimeError("db down"))
+        with self._client(read_at=-1e9, loader=loader) as client:
+            client.get("/html")
+            response = client.get("/html")
+
+        assert response.status_code == 200
+        assert "old.example.com" in response.headers["Content-Security-Policy"]
+
+    def test_an_app_without_a_loader_is_left_alone(self):
+        csp = self._client(read_at=-1e9).get("/html").headers["Content-Security-Policy"]
+
+        assert "old.example.com" in csp
+
+
+class TestCSRFRefusalIsAProblemDocument:
+    """The CSRF 403 is a problem document and sits inside CORS and the security headers."""
+
+    def _app(self) -> FastAPI:
+        from fastapi.middleware.cors import CORSMiddleware
+
+        from core.middleware import SecurityHeadersMiddleware
+
+        app = FastAPI()
+        # Added in the order create_app adds them: CSRF innermost, CORS and security headers outside it.
+        app.add_middleware(CSRFMiddleware)
+        app.add_middleware(CORSMiddleware, allow_origins=["https://app.example"], allow_credentials=True)
+        app.add_middleware(SecurityHeadersMiddleware)
+
+        @app.post("/write")
+        async def write():
+            return {"ok": True}
+
+        return app
+
+    def test_refusal_is_problem_json_with_the_permission_type(self):
+        response = TestClient(self._app()).post("/write", headers={"X-Client-Type": "web"})
+
+        assert response.status_code == 403
+        assert response.headers["content-type"].startswith("application/problem+json")
+        body = response.json()
+        assert body["type"] == "urn:endurain:error:permission-denied"
+        assert body["status"] == 403
+        assert body["detail"] == "CSRF token required"
+        assert body["instance"] == "/write"
+
+    def test_refusal_carries_security_and_cors_headers(self):
+        response = TestClient(self._app()).post(
+            "/write", headers={"X-Client-Type": "web", "Origin": "https://app.example"}
+        )
+
+        assert response.status_code == 403
+        assert response.headers["X-Content-Type-Options"] == "nosniff"
+        assert response.headers["access-control-allow-origin"] == "https://app.example"
+
+    def test_create_app_adds_csrf_before_cors_and_security_headers(self):
+        from pathlib import Path
+
+        main_source = (Path(__file__).resolve().parents[2] / "app" / "main.py").read_text()
+        source = main_source[main_source.index("def create_app") :]
+
+        csrf = source.index("CSRFMiddleware")
+        assert csrf < source.index("CORSMiddleware")
+        assert csrf < source.index("SecurityHeadersMiddleware")

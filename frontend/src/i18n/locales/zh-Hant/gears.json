@@ -9,8 +9,6 @@
   "fromStrava": "Strava",
   "fromGarmin": "Garmin Connect",
   "filters": "篩選",
-  "unitKm": "km",
-  "unitMi": "mi",
   "types": {
     "bicycle": "自行車",
     "shoes": "跑鞋",
@@ -41,8 +39,8 @@
     "model": "型號",
     "modelTooLong": "型號不可超過 250 個字元",
     "active": "啟用",
-    "createdAt": "建立日期",
-    "createdAtRequired": "建立日期為必填",
+    "acquiredOn": "建立日期",
+    "acquiredOnRequired": "建立日期為必填",
     "initialDistance": "初始里程",
     "purchaseValue": "購買金額",
     "totalCost": "總費用",
@@ -57,6 +55,8 @@
   "delete": {
     "title": "刪除裝備",
     "body": "確定要刪除「{nickname}」嗎？此操作無法復原。",
+    "activities": "{count} 個活動正在使用此裝備；這些活動將被保留，並解除與該裝備的關聯。",
+    "components": "其 {count} 個零件將被刪除。",
     "confirm": "刪除",
     "cancel": "取消",
     "close": "關閉",
@@ -91,7 +91,6 @@
     "unsupported": "此裝備類型不支援零件追蹤。",
     "noneActive": "所有零件均已停用。開啟「顯示停用裝備」以查看。",
     "inactive": "停用",
-    "unitHours": "h",
     "purchasedOn": "購買於 {date}",
     "wearLabel": "{name} 磨耗",
     "actions": {

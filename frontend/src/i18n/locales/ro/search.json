@@ -24,12 +24,10 @@
     "waterSports": "Sporturi nautice",
     "skating": "Patinaj"
   },
-  "results": {
-    "inactive": "Inactiv"
-  },
   "idle": {
     "title": "Caută în Endurain",
-    "description": "Alege ce să cauți, apoi începe să scrii pentru a vedea rezultatele."
+    "description": "Alege ce să cauți, apoi începe să scrii pentru a vedea rezultatele.",
+    "usersDescription": "Introdu cel puțin {min} caractere pentru a căuta utilizatori."
   },
   "empty": {
     "title": "Nicio potrivire găsită",

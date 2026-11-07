@@ -14,23 +14,108 @@ RunnerUp currently **does not** support login with MFA.
 
 ## Garmin Connect
 
-To enable Garmin Connect integration, Endurain will ask for your Garmin Connect credentials. These credentials are not stored, but the authentication tokens (access and refresh tokens) are stored in the DB, similar to the Strava integration. The credentials are sent from the frontend to the backend in plain text, so the use of HTTPS is highly recommended.
+Garmin Connect sync imports activities, gear and health data (body composition, daily steps and sleep). Endurain uses the [python-garminconnect](https://github.com/cyberjunky/python-garminconnect) module.
 
-Once the integration with Garmin Connect is configured, on startup, every one and four hours the backend will check if there is new unimported activities and new body composition entries respectively. If yes, the new data is automatically imported.
+### Connecting
 
-For Garmin Connect integration [python-garminconnect](https://github.com/cyberjunky/python-garminconnect) Python module is used.
+Open **Settings → Integrations → Garmin Connect → Connect** and sign in with your Garmin Connect email or username and password. Tick the China option if your account is on connect.garmin.cn.
+
+```mermaid
+sequenceDiagram
+    participant You
+    participant E as Endurain
+    participant G as Garmin Connect
+    You->>E: Username and password
+    E-->>You: Accepted, the login runs in the background
+    E->>G: Sign in
+    alt The account has MFA
+        G-->>E: Code needed
+        E-->>You: Ask for the authentication code
+        You->>E: Code from your authenticator app or SMS
+        E->>G: Code
+    end
+    G-->>E: Tokens
+    E-->>You: Connected
+```
+
+- Endurain signs in through Garmin's unofficial login, because Garmin offers no public sign-in for this. Your password is relayed to Garmin once, for that sign-in, and is **never stored**. Endurain keeps the authentication tokens Garmin returns, encrypted, similar to the Strava integration. The login is sent from the browser to the server as plain text inside the request, so use HTTPS. Because it carries your Garmin password and MFA code, linking is limited to 10 attempts per minute, for the link request and for the MFA code alike.
+- The login runs in the background, and the page follows its progress. Only one attempt per user can run at a time. A second one is refused until the first finishes.
+- A failed attempt says why: wrong credentials, wrong MFA code, too many requests (wait a while) or an internal error.
+- If Garmin later rejects the stored tokens, Endurain unlinks the account, sends you a [notification](notifications.md) and you connect again. Your imported data is kept.
+
+### What syncs and when
+
+| What | Automatically | On request |
+| ---- | ------------- | ---------- |
+| Activities | On startup and every hour, the last 24 hours | **Retrieve activities**, for the last N days or a date range |
+| Health data | On startup and every 4 hours, the last day | **Retrieve health data**, for a range of at most 31 days |
+| Gear | Never | **Retrieve gear** |
+
+The buttons start a background job and return at once. A sync of a kind that is already pending is refused, and you can start only a few syncs per minute, because each one makes several calls to Garmin. Health data is imported as it is: Endurain does not calculate [sleep scores](sleep-scoring.md) for sleep that comes from Garmin Connect.
+
+Duplicates are skipped by Garmin's activity id, so retrieving the same range twice is safe. See [Importing data](importing.md#duplicate-detection).
+
+### Disconnecting
+
+**Disconnect** removes the stored tokens and the gear sync setting. Everything already imported is kept.
 
 ## Strava
 
 !!! warning
     Due to Strava API changes, expect changes in the Strava integration in a future release.
 
-To enable Strava integration, ensure your Endurain instance is accessible from the internet and follow Strava's [API setup guide](https://developers.strava.com/docs/getting-started/). After the integration is successful the access and refresh tokens are stored in the DB. Each user will have his/hers own pair.
+Strava needs an API application of your own, because Strava limits each application. Every Endurain user connects with their own application's client ID and secret.
 
-Once the integration with Strava is configured, on startup and every hour the backend will check if there is new unimported activities. If yes, the new activity is automatically imported.
+### Before you connect
 
-On link, user will need to provide his/her API client ID and secret. Pair will be temporary stored in the DB until the process finishes. Info is sent on a JSON payload and HTTPS end2end is encouraged.
+1. Your Endurain must be reachable from the internet over **HTTPS**, and `ENDURAIN_HOST` must be that public address. Strava sends your browser back to `ENDURAIN_HOST/strava/callback`.
+2. Create an API application in your Strava settings (see Strava's [getting started guide](https://developers.strava.com/docs/getting-started/)). Set its **Authorization Callback Domain** to the host of your Endurain, for example `endurain.example.com`.
+3. Copy the application's **Client ID** and **Client Secret**.
 
-On Strava unlink action every data imported from Strava, i.e. activities and gears, will be deleted according to Strava [API Agreement](https://www.strava.com/legal/api).
+### Connecting
 
-For Strava integration [stravalib](https://github.com/stravalib/stravalib) Python module is used.
+```mermaid
+sequenceDiagram
+    participant You
+    participant E as Endurain
+    participant S as Strava
+    You->>E: Client ID and secret
+    E-->>You: Stored encrypted, plus a one-time state value
+    You->>S: Authorize Endurain (read-only scopes)
+    S-->>You: Redirect to ENDURAIN_HOST/strava/callback with a code
+    You->>E: The code and the state
+    E->>S: Exchange the code for tokens
+    S-->>E: Access and refresh tokens
+    E-->>You: Connected
+```
+
+Open **Settings → Integrations → Strava → Connect**, enter the client ID and secret, and authorize on Strava. You return to Endurain, which finishes the connection. Endurain asks only for read access (`read`, `profile:read_all`, `activity:read_all`). Strava's consent screen lets you untick permissions: if you do, Endurain refuses the connection and asks you to connect again and keep every permission ticked. Connections made earlier are not affected. The tokens are stored encrypted, and so are your client ID and secret. If the exchange fails, Endurain keeps your client ID and secret and stores no tokens. Authorize on Strava again to retry: the code from the failed attempt is used up, but you do not need to enter the credentials again.
+
+### What syncs and when
+
+| What | Automatically | On request |
+| ---- | ------------- | ---------- |
+| Activities | On startup and every hour, the last 24 hours | **Retrieve activities**, for the last N days or a date range |
+| Gear | Never | **Retrieve gear** |
+
+Strava's rate limits are per application. When one is hit, Endurain stops calling Strava for every user of the server until it expires, and tells you to try again later. Duplicates are skipped by Strava's activity id. To bring in your whole history, use a [Strava bulk export](importing.md#importing-data-from-a-strava-bulk-export-beta) instead of syncing.
+
+### Disconnecting
+
+**Disconnect** first asks Strava to revoke Endurain's access, and goes ahead even if Strava cannot be reached. It then **deletes the gear and activities that were synced from Strava**, in line with Strava's [API Agreement](https://www.strava.com/legal/api). It also clears the stored tokens, client ID and secret. Activities from other sources, such as an upload, a [Strava bulk export](importing.md#importing-data-from-a-strava-bulk-export-beta) or Garmin Connect, stay.
+
+!!! warning
+    Disconnecting Strava cannot be undone. [Export your data](export-import.md) first if you want a copy of what was imported.
+
+### When you revoke access on Strava
+
+If you withdraw Endurain's access in your Strava settings, Endurain notices at the next sync. When Strava refuses the access token, Endurain tries once to refresh it. A token that has merely expired is refreshed and the sync carries on. If Strava refuses the refresh token, or refuses the new access token as well, access counts as revoked. Strava also refuses the refresh if the application's client secret changed, so check that before you reconnect. A refresh that fails for another reason, such as Strava being unreachable, changes nothing and is tried again at the next sync. Endurain then:
+
+1. clears the stored tokens, keeps your client ID and secret and sends you a [notification](notifications.md) that gives the day your Strava-synced activities and gear will be deleted. The Strava card in **Settings → Integrations** shows the same dates;
+2. keeps your data for 7 days. Connect Strava again within that time and nothing is deleted;
+3. after the 7 days, deletes the activities and gear that were synced from Strava, as **Disconnect** does, and sends you a second notification. Endurain checks for due deletions every hour.
+
+Only what the Strava API synced is deleted. Activities from your own [Strava bulk export](importing.md#importing-data-from-a-strava-bulk-export-beta) and from other sources stay, and so do your client ID and secret.
+
+!!! note "Known gap"
+    An activity you delete on Strava is not removed from Endurain. Strava's API Policy (section 6.3) asks for this within 48 hours, so delete the activity in Endurain as well.

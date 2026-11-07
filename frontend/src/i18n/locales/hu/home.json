@@ -46,7 +46,6 @@
     "thisWeek": "Ezen a héten",
     "thisMonth": "Ebben a hónapban",
     "empty": "Nincs tevékenység ebben az időszakban",
-    "caloriesUnit": "kcal",
     "metric": {
       "distance": "Táv",
       "time": "Idő",
@@ -63,12 +62,13 @@
     "snow_ski": "Síelés",
     "snowboard": "Snowboardozás",
     "windsurf": "Szörfözés",
-    "stand_up_paddleboarding": "SUP-ozás",
-    "surfing": "Hullámlovaglás",
+    "stand_up_paddling": "SUP-ozás",
+    "surf": "Hullámlovaglás",
     "kayaking": "Kajakozás",
     "sailing": "Vitorlázás",
-    "snowshoeing": "Hótalpazás",
-    "inline_skating": "Görkorcsolyázás"
+    "snow_shoeing": "Hótalpazás",
+    "inline_skating": "Görkorcsolyázás",
+    "other": "Egyéb"
   },
   "goals": {
     "title": "Célok",

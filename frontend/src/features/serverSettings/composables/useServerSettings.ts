@@ -1,16 +1,34 @@
 import { storeToRefs } from 'pinia'
+import { computed, type Ref } from 'vue'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/vue-query'
 
-import type { EmailStatusDto, ServerSettings } from '@/features/serverSettings/types'
+import type { StepUpInput } from '@/features/security/types'
+import type {
+  EmailStatusDto,
+  LogFilters,
+  LoginPhotoDto,
+  LogPage,
+  LogsStatusDto,
+  MailSettings,
+  MailSettingsUpdate,
+  ServerSettings,
+  ServerSettingsUpdate,
+} from '@/features/serverSettings/types'
 
 import { queryKeys } from '@/services/queryKeys'
 import { useAuthStore } from '@/features/auth/stores/auth'
 import {
+  clearLogs,
   deleteLoginPhoto,
+  downloadLogs,
   fetchEmailStatus,
+  fetchLogs,
+  fetchLogsStatus,
+  fetchMailSettings,
   fetchServerSettings,
   fetchTileMapsTemplates,
   sendTestEmail,
+  updateMailSettings,
   updateServerSettings,
   uploadLoginPhoto,
 } from '@/features/serverSettings/services/serverSettings'
@@ -72,7 +90,7 @@ function invalidateServerSettings(client: ReturnType<typeof useQueryClient>): vo
 export function useUpdateServerSettingsMutation() {
   const client = useQueryClient()
 
-  return useMutation<ServerSettings, Error, ServerSettings>({
+  return useMutation<ServerSettings, Error, ServerSettingsUpdate>({
     mutationKey: queryKeys.serverSettings.all(),
     mutationFn: (settings) => updateServerSettings(settings),
     onSettled: () => invalidateServerSettings(client),
@@ -88,7 +106,7 @@ export function useUpdateServerSettingsMutation() {
 export function useUploadLoginPhotoMutation() {
   const client = useQueryClient()
 
-  return useMutation<void, Error, File>({
+  return useMutation<LoginPhotoDto, Error, File>({
     mutationKey: queryKeys.serverSettings.all(),
     mutationFn: (file) => uploadLoginPhoto(file),
     onSettled: () => invalidateServerSettings(client),
@@ -112,7 +130,7 @@ export function useDeleteLoginPhotoMutation() {
 
 /**
  * Whether outgoing email is usable. Always refetched on mount so the admin sees
- * the current state after fixing their SMTP environment and restarting.
+ * the current state.
  *
  * @returns The TanStack Query result for the email status.
  */
@@ -128,13 +146,136 @@ export function useEmailStatusQuery() {
 }
 
 /**
- * Sends a test email to the calling admin. Resolves with the confirmation
- * message; rejects with an `HttpError` whose detail carries the failure.
+ * Sends a test email to the calling admin. Rejects with an `HttpError` whose
+ * detail carries the failure.
  *
  * @returns The TanStack Query mutation for the test email.
  */
 export function useSendTestEmailMutation() {
-  return useMutation<string, Error, void>({
+  return useMutation<void, Error, void>({
     mutationFn: () => sendTestEmail(),
+  })
+}
+
+/**
+ * The editable mail server settings (admin scope). Always refetched on mount so
+ * the form never seeds from stale env-managed flags.
+ *
+ * @returns The TanStack Query result for the mail settings.
+ */
+export function useMailSettingsQuery() {
+  const { isAuthenticated } = storeToRefs(useAuthStore())
+
+  return useQuery<MailSettings>({
+    queryKey: queryKeys.serverSettings.mail(),
+    queryFn: ({ signal }) => fetchMailSettings(signal),
+    enabled: isAuthenticated,
+    staleTime: 0,
+  })
+}
+
+/**
+ * Update mutation for the mail server settings. Invalidates the settings and the
+ * email status, since whether email is usable depends on the settings.
+ *
+ * @returns The TanStack Query mutation for updating the mail settings.
+ */
+export function useUpdateMailSettingsMutation() {
+  const client = useQueryClient()
+
+  return useMutation<MailSettings, Error, { settings: MailSettingsUpdate; stepUp: StepUpInput }>({
+    mutationKey: queryKeys.serverSettings.mail(),
+    mutationFn: ({ settings, stepUp }) => updateMailSettings(settings, stepUp),
+    onSettled: () => {
+      void client.invalidateQueries({ queryKey: queryKeys.serverSettings.mail() })
+      void client.invalidateQueries({ queryKey: queryKeys.serverSettings.email() })
+    },
+  })
+}
+
+/** Most records the log viewer keeps in memory while tailing. */
+const MAX_LOG_ENTRIES = 1000
+
+/** How often a live tail asks for new records, in milliseconds. */
+const LOG_TAIL_INTERVAL_MS = 3000
+
+/**
+ * Whether the server-log viewer is available. A failure (for example a token
+ * that predates the logs scope) counts as unavailable.
+ *
+ * @returns The TanStack Query result for the viewer status.
+ */
+export function useLogsStatusQuery() {
+  const { isAuthenticated } = storeToRefs(useAuthStore())
+
+  return useQuery<LogsStatusDto>({
+    queryKey: queryKeys.serverSettings.logsStatus(),
+    queryFn: ({ signal }) => fetchLogsStatus(signal),
+    enabled: isAuthenticated,
+    retry: false,
+  })
+}
+
+/**
+ * The server-log tail for the given filters. The first fetch returns the
+ * newest records; every later fetch asks only for what was written since the
+ * last cursor and appends it, so a refetch (manual or live) extends the list.
+ * A cursor that moved backwards means the log rotated, which restarts the list.
+ *
+ * @param filters - Severity and text filters; a change starts a new tail.
+ * @param live - Whether to keep polling for new records.
+ * @returns The TanStack Query result for the accumulated log page.
+ */
+export function useLogsQuery(filters: Ref<LogFilters>, live: Ref<boolean>) {
+  const client = useQueryClient()
+  const queryKey = computed(() =>
+    queryKeys.serverSettings.logs(filters.value.level, filters.value.search),
+  )
+
+  return useQuery<LogPage>({
+    queryKey,
+    queryFn: async ({ signal }) => {
+      const previous = client.getQueryData<LogPage>(queryKey.value)
+      const page = await fetchLogs(filters.value, previous?.next_cursor ?? null, signal)
+      // The cursor is a byte offset: a smaller one means the log was rotated or cleared.
+      if (!previous || Number(page.next_cursor) < Number(previous.next_cursor)) {
+        return page
+      }
+      return {
+        ...page,
+        items: [...previous.items, ...page.items].slice(-MAX_LOG_ENTRIES),
+      }
+    },
+    refetchInterval: () => (live.value ? LOG_TAIL_INTERVAL_MS : false),
+    staleTime: 0,
+    gcTime: 0,
+  })
+}
+
+/**
+ * Download mutation. Resolves with the log file; the caller saves it (e.g. via
+ * `downloadBlob`). Modelled as a mutation purely for the in-flight / error
+ * state — it changes no server state.
+ *
+ * @returns The TanStack Query mutation that produces the log file blob.
+ */
+export function useDownloadLogsMutation() {
+  return useMutation<Blob, Error, void>({
+    mutationFn: () => downloadLogs(),
+  })
+}
+
+/**
+ * Clear mutation. Resets every cached log tail, since the file they were read
+ * from is gone and their cursors no longer point into it.
+ *
+ * @returns The TanStack Query mutation for clearing the server log.
+ */
+export function useClearLogsMutation() {
+  const client = useQueryClient()
+
+  return useMutation<void, Error, void>({
+    mutationFn: () => clearLogs(),
+    onSuccess: () => client.resetQueries({ queryKey: queryKeys.serverSettings.logsAll() }),
   })
 }

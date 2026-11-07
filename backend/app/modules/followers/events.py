@@ -20,6 +20,11 @@ FOLLOWER_REQUESTED = "follower.requested"
 # requester can be notified that their request was accepted.
 FOLLOWER_ACCEPTED = "follower.accepted"
 
+# Published after a pending follow request has been removed without being accepted
+# (the target declined it or the requester withdrew it), so the "wants to follow you"
+# notification that announced it can be taken away.
+FOLLOWER_REQUEST_REMOVED = "follower.request_removed"
+
 
 class FollowerRequestedPayload(VersionedPayload):
     """Validated payload for the ``follower.requested`` event.
@@ -55,3 +60,19 @@ class FollowerAcceptedPayload(VersionedPayload):
 
     accepter_user_id: int
     requester_user_id: int
+
+
+class FollowerRequestRemovedPayload(VersionedPayload):
+    """Validated payload for the ``follower.request_removed`` event.
+
+    Attributes:
+        requester_user_id: The user whose follow request was removed.
+        target_user_id: The user the request was addressed to (who owns the notification).
+    """
+
+    model_config = ConfigDict(extra="ignore")
+
+    SCHEMA_VERSION: ClassVar[int] = 1
+
+    requester_user_id: int
+    target_user_id: int

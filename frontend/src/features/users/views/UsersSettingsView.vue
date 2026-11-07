@@ -1,15 +1,15 @@
 <script setup lang="ts">
-import { computed, onBeforeUnmount, reactive, ref, watch } from 'vue'
+import { computed, onBeforeUnmount, onMounted, reactive, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { Filter, Plus, Search, UserX, X } from '@lucide/vue'
 
 import type { ManagedUser, UserFilters } from '@/features/users/types'
 
+import UserDeleteDialog from '@/features/users/components/UserDeleteDialog.vue'
 import UserFormDialog from '@/features/users/components/UserFormDialog.vue'
 import UserListItem from '@/features/users/components/UserListItem.vue'
 import UserPasswordDialog from '@/features/users/components/UserPasswordDialog.vue'
 import { Button } from '@/components/ui/button'
-import { ConfirmDialog } from '@/components/ui/confirm-dialog'
 import { CountBadge } from '@/components/ui/count-badge'
 import { EmptyState } from '@/components/ui/empty-state'
 import { Input } from '@/components/ui/input'
@@ -18,22 +18,41 @@ import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover
 import { Skeleton } from '@/components/ui/skeleton'
 import { Switch } from '@/components/ui/switch'
 import { useCurrentUser } from '@/features/auth/composables/useCurrentUser'
+import { MIN_USER_SEARCH_LENGTH } from '@/features/users/services/publicUsers'
 import { useRecordsPerPage } from '@/features/config/composables/useRecordsPerPage'
 import { useListPagination } from '@/composables/useListPagination'
 import { useToasts } from '@/composables/useToasts'
+import { consumeIdpStepUpReturn } from '@/features/security/composables/useIdpStepUp'
+import { resumeTargetId } from '@/features/security/composables/useAdminStepUp'
 import {
-  useDeleteUserMutation,
-  useUserSearchQuery,
+  useApproveUserMutation,
+  useUserQuery,
   useUsersQuery,
 } from '@/features/users/composables/useUsers'
 
 const { t } = useI18n()
 const toasts = useToasts()
+
+// Returning from an identity-provider sign-in, the callback leaves its outcome in the URL fragment. It is
+// consumed once; the dialog that started it reopens for the same user, and a failure is reported once the
+// page is shown.
+const stepUpReturn = consumeIdpStepUpReturn()
+const resume = stepUpReturn && !stepUpReturn.error ? stepUpReturn : null
+onMounted(() => {
+  if (stepUpReturn?.error === 'not_fresh') {
+    toasts.error(t('settings.security.stepUp.notFresh'))
+  } else if (stepUpReturn?.error) {
+    toasts.error(t('settings.security.stepUp.failed'))
+  }
+})
 const { data: currentUser } = useCurrentUser()
 
-/** Filter defaults: hide inactive accounts, show everything else (matches v1). */
+/**
+ * Filter defaults: show everything. An account awaiting approval is inactive until it is approved,
+ * so hiding inactive accounts would hide the sign-ups an administrator has to act on.
+ */
 const DEFAULT_FILTERS: UserFilters = {
-  showInactive: false,
+  showInactive: true,
   showEmailUnverified: true,
   showPendingApproval: true,
   showExternalAuth: true,
@@ -89,10 +108,19 @@ function clearSearch(): void {
   debouncedSearch.value = ''
 }
 
-const isSearching = computed(() => debouncedSearch.value.trim().length > 0)
+/** The search term the server accepts: empty until it reaches the minimum search length. */
+const effectiveSearch = computed(() => {
+  const term = debouncedSearch.value.trim()
+  return term.length >= MIN_USER_SEARCH_LENGTH ? term : ''
+})
 
-const listQuery = useUsersQuery(page, recordsPerPage, () => ({ ...filters }))
-const searchQuery = useUserSearchQuery(debouncedSearch)
+const isSearching = computed(() => effectiveSearch.value.length > 0)
+
+// The username search is a server-side filter on the same paginated list.
+const listQuery = useUsersQuery(page, recordsPerPage, () => ({
+  ...filters,
+  username: effectiveSearch.value,
+}))
 
 /** Users on the current page. */
 const listUsers = computed(() => listQuery.data.value?.records ?? [])
@@ -103,19 +131,9 @@ const totalCount = computed(() => listQuery.data.value?.total ?? 0)
 // total shrinks (e.g. after deleting the last user on the final page).
 const { totalPages, reset: resetPage } = useListPagination(page, totalCount, recordsPerPage)
 
-// Two modes share one render path: live username search vs. the paginated list.
-const displayedUsers = computed(() =>
-  isSearching.value ? (searchQuery.data.value ?? []) : listUsers.value,
-)
-const isPending = computed(() =>
-  isSearching.value ? searchQuery.isPending.value : listQuery.isPending.value,
-)
-const isError = computed(() =>
-  isSearching.value ? searchQuery.isError.value : listQuery.isError.value,
-)
-const isEmpty = computed(
-  () => !isPending.value && !isError.value && displayedUsers.value.length === 0,
-)
+const isPending = computed(() => listQuery.isPending.value)
+const isError = computed(() => listQuery.isError.value)
+const isEmpty = computed(() => !isPending.value && !isError.value && listUsers.value.length === 0)
 /** Number of filters deviating from their default, shown as a badge. */
 const activeFilterCount = computed(
   () =>
@@ -147,16 +165,12 @@ const emptyState = computed<{
   }
 })
 
-// Changing any filter alters the result set, so restart at the first page.
-watch(filters, resetPage)
+// Changing a filter or the search term alters the result set, so restart at the first page.
+watch([filters, effectiveSearch], resetPage)
 
-/** Refetches whichever query currently drives the view. */
+/** Refetches the list after an error. */
 function refetchActive(): void {
-  if (isSearching.value) {
-    void searchQuery.refetch()
-  } else {
-    void listQuery.refetch()
-  }
+  void listQuery.refetch()
 }
 
 /** Whether a row is the signed-in admin's own account (no self-delete). */
@@ -198,28 +212,57 @@ function openPassword(user: ManagedUser): void {
 // Delete dialog state.
 const isDeleteOpen = ref(false)
 const userToDelete = ref<ManagedUser | null>(null)
-const deleteMutation = useDeleteUserMutation()
 
 function openDelete(user: ManagedUser): void {
   userToDelete.value = user
   isDeleteOpen.value = true
 }
 
-function confirmDelete(): void {
-  const user = userToDelete.value
-  if (!user) {
-    return
-  }
-  deleteMutation.mutate(user.id, {
-    onSuccess: () => {
-      isDeleteOpen.value = false
-      toasts.success(t('settings.users.delete.success'))
-    },
-    onError: () => {
-      toasts.error(t('settings.users.delete.error'))
-    },
+// Pending sign-up moderation: approve clears the pending flag; reject deletes the
+// account after the administrator's step-up.
+const approveMutation = useApproveUserMutation()
+const isRejectOpen = ref(false)
+const userToReject = ref<ManagedUser | null>(null)
+
+function approve(user: ManagedUser): void {
+  approveMutation.mutate(user.id, {
+    onSuccess: () => toasts.success(t('settings.users.approval.approveSuccess')),
+    onError: () => toasts.error(t('settings.users.approval.approveError')),
   })
 }
+
+function openReject(user: ManagedUser): void {
+  userToReject.value = user
+  isRejectOpen.value = true
+}
+
+// The user the returning sign-in was for may be on another page of the list, so it is fetched by id and
+// handed to the dialog that resumes; the dialog opens itself once it has the user.
+const resumedUser = useUserQuery(
+  resumeTargetId(
+    resume,
+    ['admin_credential_reset', 'admin_user_edit', 'admin_user_delete'],
+    'userId',
+  ),
+).data
+watch(
+  resumedUser,
+  (user) => {
+    if (!user || !resume) {
+      return
+    }
+    if (resume.action === 'admin_credential_reset') {
+      passwordUser.value = user
+    } else if (resume.action === 'admin_user_edit') {
+      editingUser.value = user
+    } else if (resume.pending.variant === 'reject') {
+      userToReject.value = user
+    } else {
+      userToDelete.value = user
+    }
+  },
+  { once: true },
+)
 </script>
 
 <template>
@@ -263,11 +306,11 @@ function confirmDelete(): void {
       :is-loading="isPending"
       :is-error="isError"
       :is-empty="isEmpty"
-      :show-header="!isError && !isSearching"
+      :show-header="!isError"
       :error-title="t('settings.users.error.title')"
       :error-description="t('settings.users.error.description')"
       :retry-label="t('settings.users.error.retry')"
-      :paginated="!isSearching"
+      paginated
       :total-pages="totalPages"
       @retry="refetchActive"
     >
@@ -325,13 +368,15 @@ function confirmDelete(): void {
       </template>
 
       <ul class="divide-y divide-border">
-        <li v-for="user in displayedUsers" :key="user.id">
+        <li v-for="user in listUsers" :key="user.id">
           <UserListItem
             :user="user"
             :is-self="isSelf(user)"
             @password="openPassword"
             @edit="openEdit"
             @delete="openDelete"
+            @approve="approve"
+            @reject="openReject"
           />
         </li>
       </ul>
@@ -340,24 +385,29 @@ function confirmDelete(): void {
     <UserFormDialog
       v-model:open="isFormOpen"
       :user="editingUser"
+      :is-self="editingUser !== null && isSelf(editingUser)"
+      :resume="resume"
       @success="onFormSuccess"
       @error="onFormError"
     />
-    <ConfirmDialog
+    <UserDeleteDialog
       v-model:open="isDeleteOpen"
-      :title="t('settings.users.delete.title')"
-      :description="t('settings.users.delete.body', { name: userToDelete?.name ?? '' })"
-      :confirm-label="t('settings.users.delete.confirm')"
-      :cancel-label="t('settings.users.delete.cancel')"
-      :close-label="t('settings.users.delete.close')"
-      :pending="deleteMutation.isPending.value"
-      @confirm="confirmDelete"
+      :user="userToDelete"
+      variant="delete"
+      :resume="resume"
+    />
+    <UserDeleteDialog
+      v-model:open="isRejectOpen"
+      :user="userToReject"
+      variant="reject"
+      :resume="resume"
     />
     <UserPasswordDialog
       v-model:open="isPasswordOpen"
       :user-id="passwordUser?.id ?? 0"
       :username="passwordUser?.username ?? ''"
       :access-type="passwordUser?.accessType ?? 'regular'"
+      :resume="resume"
       @success="onFormSuccess"
       @error="onFormError"
     />

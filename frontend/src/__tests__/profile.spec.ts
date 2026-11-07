@@ -22,10 +22,12 @@ vi.mock('@/services/http', () => ({
   apiFetch: vi.fn<typeof apiFetch>(),
 }))
 
-/** Builds a full `/profile` (`UsersMe`) wire payload, overridable per case. */
+/** Builds a full `/profile` (`UserMe`) wire payload, overridable per case. */
 function makeProfileDto(overrides: Partial<ProfileDto> = {}): ProfileDto {
   return {
     id: 5,
+    version: 6,
+    has_local_password: true,
     name: 'Ada Lovelace',
     username: 'ada',
     email: 'ada@example.com',
@@ -100,12 +102,21 @@ describe('mapProfileDetails', () => {
 })
 
 describe('mapPrivacySettings', () => {
-  it('defaults a missing visibility to public and null flags to false', () => {
+  it('defaults a missing visibility to private, null flags to false and discoverable to on', () => {
     const privacy = mapPrivacySettings(
-      makeProfileDto({ default_activity_visibility: null, hide_activity_start_time: null }),
+      makeProfileDto({
+        default_activity_visibility: null,
+        hide_activity_start_time: null,
+        discoverable: null,
+      }),
     )
-    expect(privacy.defaultActivityVisibility).toBe('public')
+    expect(privacy.defaultActivityVisibility).toBe('private')
     expect(privacy.hideStartTime).toBe(false)
+    expect(privacy.discoverable).toBe(true)
+  })
+
+  it('maps an explicit discoverable opt-out', () => {
+    expect(mapPrivacySettings(makeProfileDto({ discoverable: false })).discoverable).toBe(false)
   })
 })
 
@@ -132,11 +143,11 @@ describe('profile service requests', () => {
     const input: ProfileEditInput = {
       name: 'Ada L',
       username: 'ada',
-      email: 'ada@example.com',
       city: 'Paris',
       birthdate: '1990-01-01',
       gender: 'female',
       units: 'imperial',
+      weightUnits: 'metric',
       currency: 'dollar',
       height: 172,
       maxHeartRate: 188,
@@ -145,17 +156,21 @@ describe('profile service requests', () => {
       timezone: 'America/Los_Angeles',
     }
 
-    await updateProfile(input)
+    await updateProfile(input, 6)
 
-    expect(apiFetch).toHaveBeenCalledWith('/profile', expect.objectContaining({ method: 'PUT' }))
+    expect(apiFetch).toHaveBeenCalledWith(
+      '/profile',
+      expect.objectContaining({ method: 'PATCH', headers: { 'If-Match': '"6"' } }),
+    )
+    expect(vi.mocked(apiFetch).mock.calls[0]?.[1]).not.toHaveProperty('responseType')
     expect(JSON.parse(body as string)).toEqual({
       name: 'Ada L',
       username: 'ada',
-      email: 'ada@example.com',
       city: 'Paris',
       birthdate: '1990-01-01',
       gender: 'female',
       units: 'imperial',
+      weight_units: 'metric',
       currency: 'dollar',
       height: 172,
       max_heart_rate: 188,
@@ -165,13 +180,14 @@ describe('profile service requests', () => {
     })
   })
 
-  it('updatePrivacySettings PUTs the snake-cased privacy fields', async () => {
+  it('updatePrivacySettings PATCHes the snake-cased privacy fields', async () => {
     let body: unknown
     vi.mocked(apiFetch).mockImplementation((_path, init) => {
       body = init?.body
       return Promise.resolve(undefined)
     })
     const privacy: PrivacySettings = {
+      version: 2,
       defaultActivityVisibility: 'private',
       hideStartTime: true,
       hideLocation: true,
@@ -185,19 +201,22 @@ describe('profile service requests', () => {
       hideLaps: false,
       hideWorkoutSetsSteps: false,
       hideGear: true,
+      discoverable: false,
     }
 
     await updatePrivacySettings(privacy)
 
     expect(apiFetch).toHaveBeenCalledWith(
       '/profile/privacy',
-      expect.objectContaining({ method: 'PUT' }),
+      expect.objectContaining({ method: 'PATCH', headers: { 'If-Match': '"2"' } }),
     )
+    expect(vi.mocked(apiFetch).mock.calls[0]?.[1]).not.toHaveProperty('responseType')
     const parsed = JSON.parse(body as string) as Record<string, unknown>
     expect(parsed.default_activity_visibility).toBe('private')
     expect(parsed.hide_activity_location).toBe(true)
     expect(parsed.hide_activity_gear).toBe(true)
     expect(parsed.hide_activity_map).toBe(false)
+    expect(parsed.discoverable).toBe(false)
   })
 
   it('uploadProfilePhoto posts the file as multipart form data', async () => {
@@ -211,8 +230,8 @@ describe('profile service requests', () => {
     await uploadProfilePhoto(file)
 
     expect(apiFetch).toHaveBeenCalledWith(
-      '/profile/image',
-      expect.objectContaining({ method: 'POST', timeoutMs: 0 }),
+      '/profile/photo',
+      expect.objectContaining({ method: 'PUT', timeoutMs: 0 }),
     )
     expect(body).toBeInstanceOf(FormData)
     const uploaded = (body as FormData).get('file')
@@ -220,13 +239,13 @@ describe('profile service requests', () => {
     expect((uploaded as File).name).toBe('me.png')
   })
 
-  it('deleteProfilePhoto issues a PUT to /profile/photo', async () => {
+  it('deleteProfilePhoto issues a DELETE to /profile/photo', async () => {
     vi.mocked(apiFetch).mockResolvedValue(undefined)
 
     await deleteProfilePhoto()
 
     expect(apiFetch).toHaveBeenCalledWith('/profile/photo', {
-      method: 'PUT',
+      method: 'DELETE',
       responseType: 'void',
     })
   })

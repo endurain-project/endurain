@@ -8,7 +8,7 @@
   "seeAll": "Veure totes",
   "loadMore": "Carrega més",
   "loading": "Carregant…",
-  "badge": "{count} notificacions no llegides",
+  "badge": "{count} notificació no llegida | {count} notificacions no llegides",
   "empty": {
     "title": "Estàs al dia",
     "description": "Les actualitzacions sobre les teves activitats, seguidors i integracions apareixeran aquí."
@@ -38,6 +38,63 @@
     "garminTokenExpired": {
       "title": "Garmin Connect necessita atenció",
       "body": "La teva sessió de Garmin Connect ha caducat. Reconnecta-la per continuar sincronitzant."
+    },
+    "stravaTokenExpired": {
+      "title": "Strava necessita atenció",
+      "body": "Strava ha rebutjat la teva connexió. Torna a connectar-la per continuar sincronitzant.",
+      "bodyRevoked": "L'accés a Strava ha acabat. Les teves activitats i el teu equipament sincronitzats amb Strava s'eliminaran el {date} si no et tornes a connectar."
+    },
+    "stravaDataDeleted": {
+      "title": "Dades de Strava eliminades",
+      "body": "Les teves activitats i el teu equipament sincronitzats amb Strava s'han eliminat perquè l'accés a Strava ha acabat i no t'has tornat a connectar."
+    },
+    "idpLinked": {
+      "title": "Nou proveïdor d'inici de sessió vinculat",
+      "body": "{name} s'ha vinculat al teu compte. Si no has estat tu, revisa la configuració de seguretat.",
+      "bodyGeneric": "S'ha vinculat un proveïdor d'inici de sessió al teu compte. Si no has estat tu, revisa la configuració de seguretat."
+    },
+    "accountSecurityChanged": {
+      "passwordChanged": {
+        "title": "Contrasenya canviada",
+        "body": "S'ha canviat la teva contrasenya. Si no has estat tu, restableix la contrasenya i revisa la configuració de seguretat."
+      },
+      "passwordReset": {
+        "title": "Contrasenya restablerta",
+        "body": "S'ha restablert la teva contrasenya amb un enllaç de restabliment. Si no has estat tu, torna a restablir la contrasenya i revisa la configuració de seguretat."
+      },
+      "passwordSetByAdmin": {
+        "title": "Contrasenya establerta per un administrador",
+        "body": "Un administrador ha establert una contrasenya nova per al teu compte. Si no ho esperaves, contacta amb l'administrador."
+      },
+      "mfaEnabled": {
+        "title": "Autenticació de dos factors activada",
+        "body": "S'ha activat l'autenticació de dos factors al teu compte. Si no has estat tu, restableix la contrasenya i revisa la configuració de seguretat."
+      },
+      "mfaDisabled": {
+        "title": "Autenticació de dos factors desactivada",
+        "body": "S'ha desactivat l'autenticació de dos factors al teu compte. Si no has estat tu, restableix la contrasenya i revisa la configuració de seguretat."
+      },
+      "backupCodesGenerated": {
+        "title": "Nous codis de seguretat generats",
+        "body": "S'han generat nous codis de seguretat per al teu compte. Si no has estat tu, restableix la contrasenya i revisa la configuració de seguretat."
+      },
+      "apiKeyCreated": {
+        "title": "Nova clau API creada",
+        "body": "S'ha creat una clau API nova per al teu compte. Si no has estat tu, restableix la contrasenya i revisa la configuració de seguretat."
+      },
+      "identityProviderUnlinked": {
+        "title": "Proveïdor d'inici de sessió desvinculat",
+        "body": "{name} s'ha desvinculat del teu compte. Si no has estat tu, restableix la contrasenya i revisa la configuració de seguretat.",
+        "bodyGeneric": "S'ha desvinculat un proveïdor d'inici de sessió del teu compte. Si no has estat tu, restableix la contrasenya i revisa la configuració de seguretat."
+      },
+      "unknown": {
+        "title": "Seguretat del compte canviada",
+        "body": "S'ha canviat una opció de seguretat del teu compte. Si no has estat tu, restableix la contrasenya i revisa la configuració de seguretat."
+      }
+    },
+    "newDeviceSignIn": {
+      "title": "Nou inici de sessió",
+      "body": "Nou inici de sessió des de {browser} a {os} ({ip}). Si no has estat tu, canvia la contrasenya i tanca les altres sessions."
     },
     "adminSignUpApproval": {
       "title": "Nou registre necessita aprovació",

@@ -1,4 +1,4 @@
-"""Signed capability tokens derived from the server ``SECRET_KEY``.
+"""Signed capability tokens keyed from the server ``SECRET_KEY``.
 
 A capability URL carries its own authorization: the token is unforgeable, bound
 to a specific value, and travels in the URL so it works in contexts that cannot
@@ -16,8 +16,10 @@ when the caller passes ``max_age`` — omitting it (the default) keeps a token
 valid forever, stable and cacheable, exactly as before. Pass ``max_age`` for a
 value that can be revisited after the access decision it was minted from has
 changed (e.g. an activity's visibility): a bounded token self-heals on every
-fresh view, because the value is re-serialized and re-signed with a new
-timestamp each time, while still tolerating the caller's own HTTP cache window.
+fresh view, because the value is re-serialized and re-signed with the current
+bucket's timestamp, while still tolerating the caller's own HTTP cache window.
+A capability signer rounds that timestamp down to a bucket, so repeated reads
+inside one bucket return the same URL and the browser cache can serve it.
 Their security still rests on being unforgeable and only ever handed to
 permitted viewers — an unexpired token is not re-checked against the current
 access decision, only against its own signature and age.
@@ -25,12 +27,14 @@ access decision, only against its own signature and age.
 
 import functools
 from dataclasses import dataclass
+from typing import Any
 from urllib.parse import urlsplit
 
 import jasil.runtime as platform_runtime
-from itsdangerous import BadData, URLSafeTimedSerializer
+from itsdangerous import BadData, TimestampSigner, URLSafeTimedSerializer
 
 import core.config as core_config
+import core.key_derivation as core_key_derivation
 
 #: How long a capability token stays valid. Every blob signer used to declare
 #: this itself, each with a comment saying it was "kept identical for
@@ -45,13 +49,51 @@ import core.config as core_config
 #: image never 404s mid-cache.
 DEFAULT_TOKEN_MAX_AGE_SECONDS = 24 * 60 * 60
 
+#: How coarsely a capability token's issue time is rounded down, so every mint for the same value inside one
+#: bucket is the same token and so the same URL. The browser caches a blob response per URL, and a token that
+#: changed on every read (its timestamp is part of it) made every cached response unreachable.
+#:
+#: A token minted at ``t`` is stamped ``t - t % bucket``, so it is at most one bucket "older" than it is, and
+#: is valid for at least ``max_age - bucket`` after it is handed out and never beyond ``max_age`` from now.
+#: With the 24 h lifetime and a 6 h bucket a URL is therefore good for 18 to 24 h from the read that returned
+#: it, against the 1 h the blob routes let a browser reuse a response (``core.http_cache``): a response cached
+#: from a URL is never cached past that URL's expiry.
+DEFAULT_TOKEN_BUCKET_SECONDS = 6 * 60 * 60
+
+
+class _BucketedTimestampSigner(TimestampSigner):
+    """A timestamp signer that rounds the issue time down to a bucket.
+
+    The signature is over the rounded time, so verification is the ordinary timed check and needs no bucket.
+
+    Attributes:
+        bucket_seconds: Width of the bucket the issue time is rounded down to; 1 keeps the exact second.
+    """
+
+    def __init__(self, *args: Any, bucket_seconds: int = 1, **kwargs: Any) -> None:
+        """Build the signer.
+
+        Args:
+            *args: Positional arguments of :class:`itsdangerous.TimestampSigner`.
+            bucket_seconds: Width of the bucket the issue time is rounded down to.
+            **kwargs: Keyword arguments of :class:`itsdangerous.TimestampSigner`.
+        """
+        super().__init__(*args, **kwargs)
+        self.bucket_seconds = bucket_seconds
+
+    def get_timestamp(self) -> int:
+        """Return the current time rounded down to the bucket."""
+        now = super().get_timestamp()
+        return now - now % self.bucket_seconds
+
 
 @functools.cache
-def _serializer(salt: str) -> URLSafeTimedSerializer:
-    """Return the process-wide signer for a salt (secret read once per salt).
+def _serializer(salt: str, bucket_seconds: int = 1) -> URLSafeTimedSerializer:
+    """Return the process-wide signer for a salt (key derived once per salt).
 
     Args:
         salt: Namespace for this family of tokens.
+        bucket_seconds: Width of the bucket the issue time is rounded down to; 1 keeps the exact second.
 
     Returns:
         The cached serializer.
@@ -59,23 +101,32 @@ def _serializer(salt: str) -> URLSafeTimedSerializer:
     Raises:
         RuntimeError: When ``SECRET_KEY`` is not configured.
     """
-    secret = core_config.read_secret("SECRET_KEY")
-    if not secret:
+    keys = core_key_derivation.derive_keys(core_key_derivation.CAPABILITY_URLS)
+    if not keys:
         raise RuntimeError("SECRET_KEY is not configured; cannot sign capability tokens")
-    return URLSafeTimedSerializer(secret, salt=salt)
+    # ``itsdangerous`` signs with the last key and verifies with every one, while ``SECRET_KEY`` lists the signing
+    # key first.
+    return URLSafeTimedSerializer(
+        list(reversed(keys)),
+        salt=salt,
+        signer=_BucketedTimestampSigner,
+        signer_kwargs={"bucket_seconds": bucket_seconds},
+    )
 
 
-def sign_token(salt: str, value: object) -> str:
+def sign_token(salt: str, value: object, *, bucket_seconds: int = 1) -> str:
     """Return a signed, URL-safe token binding ``value`` to ``salt``.
 
     Args:
         salt: Namespace for this family of tokens.
         value: JSON-serializable value to bind into the token.
+        bucket_seconds: Width of the bucket the issue time is rounded down to, so two calls inside one bucket
+            return the same token; 1 (default) stamps the exact second.
 
     Returns:
-        An unforgeable, URL-safe token, timestamped at signing time.
+        An unforgeable, URL-safe token, timestamped at signing time (rounded down to the bucket).
     """
-    return _serializer(salt).dumps(value)
+    return _serializer(salt, bucket_seconds).dumps(value)
 
 
 def verify_token(salt: str, value: object, token: str, *, max_age: int | None = None) -> bool:
@@ -114,14 +165,26 @@ class CapabilitySigner:
             never validates under another.
         max_age_seconds: Oldest acceptable token age, applied by
             :meth:`verify`.
+        bucket_seconds: Width of the bucket :meth:`sign` rounds the issue time down to, so the same value is
+            signed to the same token for the length of a bucket. A token is valid for at least
+            ``max_age_seconds - bucket_seconds`` from the moment it is signed.
+
+    Raises:
+        ValueError: When the bucket is longer than the lifetime, which would sign tokens already expired.
     """
 
     salt: str
     max_age_seconds: int = DEFAULT_TOKEN_MAX_AGE_SECONDS
+    bucket_seconds: int = DEFAULT_TOKEN_BUCKET_SECONDS
+
+    def __post_init__(self) -> None:
+        """Refuse a bucket longer than the lifetime, which would sign a token already expired."""
+        if not 0 < self.bucket_seconds <= self.max_age_seconds:
+            raise ValueError("bucket_seconds must be positive and no longer than max_age_seconds")
 
     def sign(self, value: object) -> str:
         """Return a signed, URL-safe token binding ``value`` to this salt."""
-        return sign_token(self.salt, value)
+        return sign_token(self.salt, value, bucket_seconds=self.bucket_seconds)
 
     def verify(self, value: object, token: str) -> bool:
         """Return whether ``token`` authentically binds ``value`` and is unexpired."""

@@ -3,6 +3,8 @@
 ``crud`` calls these at its edges so ORM rows never leave the persistence layer.
 """
 
+from collections.abc import Mapping
+
 import modules.activities.activity_laps.models as activity_laps_models
 import modules.activities.activity_laps.schema as activity_laps_schema
 
@@ -60,7 +62,7 @@ def to_read_schema(
     return activity_laps_schema.ActivityLapsRead.model_validate(orm_lap)
 
 
-def to_orm(lap: dict, activity_id: int) -> activity_laps_models.ActivityLaps:
+def to_orm(lap: Mapping[str, object], activity_id: int) -> activity_laps_models.ActivityLaps:
     """Build an ORM row from a parsed lap dict.
 
     Args:

@@ -2,7 +2,7 @@
 import { computed, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 
-import type { GearComponent, GearComponentInput } from '@/features/gears/types'
+import type { GearComponent, GearComponentInput, GearType } from '@/features/gears/types'
 import type { Schemas } from '@/types'
 
 import { FormDialog } from '@/components/ui/form-dialog'
@@ -12,10 +12,12 @@ import { Select } from '@/components/ui/select'
 import { Switch } from '@/components/ui/switch'
 import { inputFieldClass } from '@/components/ui/input/fieldClasses'
 import { useForm } from '@/composables/useForm'
+import { useUnitFormat } from '@/composables/useUnitFormat'
 import { HttpError } from '@/services/http'
+import { isStaleWrite } from '@/services/ifMatch'
 import { todayIsoDate } from '@/utils/datetime'
 import { toNumberOrNull } from '@/utils/number'
-import { kmToMiles, milesToKm } from '@/utils/units'
+import { baseValueUnlessEdited, kmToMiles, milesToKm } from '@/utils/units'
 import { compose, maxLength, required } from '@/utils/validators'
 import { currencySymbol } from '@/features/gears/utils/format'
 import { humanizeComponentType, isTimeBasedGear } from '@/features/gears/utils/gearComponentType'
@@ -33,7 +35,7 @@ const props = withDefaults(
     /** The parent gear id (used when creating a component). */
     gearId: number
     /** The parent gear's numeric type, selecting distance- vs time-based wear. */
-    gearType: number
+    gearType: GearType
     /** The component-type ids valid for the parent gear family. */
     availableTypes: string[]
     /** The viewer's measurement system, used for the expected-distance unit. */
@@ -50,6 +52,7 @@ const emit = defineEmits<{
 }>()
 
 const { t } = useI18n()
+const { unitLabel } = useUnitFormat()
 
 const createMutation = useCreateGearComponentMutation()
 const updateMutation = useUpdateGearComponentMutation()
@@ -114,6 +117,7 @@ function defaultValues(): ComponentFormValues {
 
 /** Converts the string-based form values into the clean {@link GearComponentInput}. */
 function buildInput(values: ComponentFormValues): GearComponentInput {
+  const expected = expectedToBaseUnits(values.expected)
   return {
     gearId: props.gearId,
     type: values.type,
@@ -122,7 +126,15 @@ function buildInput(values: ComponentFormValues): GearComponentInput {
     purchaseDate: values.purchaseDate || null,
     retiredDate: values.retiredDate || null,
     active: values.active,
-    expectedBaseUnits: expectedToBaseUnits(values.expected),
+    expectedBaseUnits:
+      expected === null
+        ? null
+        : baseValueUnlessEdited(
+            values.expected,
+            expectedFromBaseUnits(props.component?.expectedBaseUnits ?? null),
+            props.component?.expectedBaseUnits,
+            () => expected,
+          ),
     purchaseValue: toNumberOrNull(values.purchaseValue),
   }
 }
@@ -136,6 +148,11 @@ function buildInput(values: ComponentFormValues): GearComponentInput {
  * @param values - The validated form values.
  */
 async function submitForm(values: ComponentFormValues): Promise<void> {
+  // Nothing changed: skip the request and just close.
+  if (props.component && !isDirty.value) {
+    open.value = false
+    return
+  }
   const input = buildInput(values)
   if (input.retiredDate && input.purchaseDate && input.retiredDate <= input.purchaseDate) {
     emit('error', t('gears.components.form.retiredBeforePurchase'))
@@ -143,7 +160,11 @@ async function submitForm(values: ComponentFormValues): Promise<void> {
   }
   try {
     if (props.component) {
-      await updateMutation.mutateAsync({ id: props.component.id, input })
+      await updateMutation.mutateAsync({
+        id: props.component.id,
+        input,
+        version: props.component.version,
+      })
       emit('success', t('gears.components.form.updateSuccess'))
     } else {
       await createMutation.mutateAsync(input)
@@ -151,7 +172,10 @@ async function submitForm(values: ComponentFormValues): Promise<void> {
     }
     open.value = false
   } catch (error) {
-    if (error instanceof HttpError && error.status === 400) {
+    if (isStaleWrite(error)) {
+      open.value = false
+      emit('error', t('app.staleError'))
+    } else if (error instanceof HttpError && error.status === 400) {
       emit('error', t('gears.components.form.retiredBeforePurchase'))
     } else {
       emit('error', t('gears.components.form.saveError'))
@@ -159,23 +183,32 @@ async function submitForm(values: ComponentFormValues): Promise<void> {
   }
 }
 
-const { values, errors, isValid, isSubmitting, handleSubmit, handleBlur, reset } =
-  useForm<ComponentFormValues>({
-    initialValues: defaultValues(),
-    validators: {
-      type: required<string>(t('gears.components.form.typeRequired')),
-      brand: compose(
-        required<string>(t('gears.components.form.brandRequired')),
-        maxLength(TEXT_MAX, t('gears.components.form.brandTooLong')),
-      ),
-      model: compose(
-        required<string>(t('gears.components.form.modelRequired')),
-        maxLength(TEXT_MAX, t('gears.components.form.modelTooLong')),
-      ),
-      purchaseDate: required<string>(t('gears.components.form.purchaseDateRequired')),
-    },
-    onSubmit: submitForm,
-  })
+const {
+  values,
+  errors,
+  isValid,
+  isSubmitting,
+  handleSubmit,
+  handleBlur,
+  reset,
+  isDirty,
+  markPristine,
+} = useForm<ComponentFormValues>({
+  initialValues: defaultValues(),
+  validators: {
+    type: required<string>(t('gears.components.form.typeRequired')),
+    brand: compose(
+      required<string>(t('gears.components.form.brandRequired')),
+      maxLength(TEXT_MAX, t('gears.components.form.brandTooLong')),
+    ),
+    model: compose(
+      required<string>(t('gears.components.form.modelRequired')),
+      maxLength(TEXT_MAX, t('gears.components.form.modelTooLong')),
+    ),
+    purchaseDate: required<string>(t('gears.components.form.purchaseDateRequired')),
+  },
+  onSubmit: submitForm,
+})
 
 const isEditing = computed(() => props.component !== null)
 const dialogTitle = computed(() =>
@@ -187,12 +220,10 @@ const sortedTypes = computed(() =>
     humanizeComponentType(a).localeCompare(humanizeComponentType(b)),
   ),
 )
-const distanceUnitLabel = computed(() =>
-  props.units === 'imperial' ? t('gears.unitMi') : t('gears.unitKm'),
-)
+const distanceUnitLabel = computed(() => unitLabel(props.units === 'imperial' ? 'mi' : 'km'))
 const expectedLabel = computed(() =>
   isTimeBasedGear(props.gearType)
-    ? `${t('gears.components.form.expectedTime')} (${t('gears.components.unitHours')})`
+    ? `${t('gears.components.form.expectedTime')} (${unitLabel('h')})`
     : `${t('gears.components.form.expectedDistance')} (${distanceUnitLabel.value})`,
 )
 const purchaseValueLabel = computed(
@@ -230,6 +261,7 @@ function populate(): void {
   values.active = component.active
   values.expected = expectedFromBaseUnits(component.expectedBaseUnits)
   values.purchaseValue = component.purchaseValue !== null ? String(component.purchaseValue) : ''
+  markPristine()
 }
 
 // Re-seed each time the dialog opens; the parent sets `component` before opening.

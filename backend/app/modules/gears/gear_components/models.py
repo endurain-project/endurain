@@ -2,7 +2,6 @@
 
 from datetime import date as date_type
 from decimal import Decimal
-from typing import TYPE_CHECKING
 
 from sqlalchemy import (
     Date,
@@ -13,20 +12,14 @@ from sqlalchemy import (
 from sqlalchemy.orm import (
     Mapped,
     mapped_column,
-    relationship,
 )
 from sqlalchemy.sql import func
 
 from core.database import Base
 
-if TYPE_CHECKING:
-    from modules.gears.gear.models import Gear
-    from modules.users.users.models import Users
-
 
 class GearComponents(Base):
-    """
-    Gear component data model.
+    """Gear component data model.
 
     Attributes:
         id: Primary key.
@@ -38,10 +31,8 @@ class GearComponents(Base):
         purchase_date: Purchase date (calendar date, no time of day).
         retired_date: Retired date (calendar date, no time of day).
         active: Whether component is active.
-        expected_kms: Expected kilometers.
+        expected_usage: Wear threshold in meters for a distance-tracked gear and in seconds for a time-tracked one.
         purchase_value: Purchase value.
-        users: Relationship to Users model.
-        gear: Relationship to Gear model.
     """
 
     __tablename__ = "gear_components"
@@ -92,19 +83,24 @@ class GearComponents(Base):
         default=False,
         comment=("Whether the gear component is active (true - yes, false - no)"),
     )
-    expected_kms: Mapped[int | None] = mapped_column(
+    expected_usage: Mapped[int | None] = mapped_column(
         nullable=True,
-        comment=("Expected kilometers of the gear component"),
+        comment=(
+            "Wear threshold of the gear component: meters for a distance-tracked gear, seconds for a time-tracked one"
+        ),
     )
     purchase_value: Mapped[Decimal | None] = mapped_column(
         Numeric(precision=11, scale=2),
         nullable=True,
         comment=("Purchase value of the gear component"),
     )
+    version: Mapped[int] = mapped_column(
+        nullable=False,
+        server_default="1",
+        default=1,
+        comment="Optimistic-concurrency counter, surfaced to clients as the ETag",
+    )
 
-    users: Mapped["Users"] = relationship(
-        back_populates="gear_components",
-    )
-    gear: Mapped["Gear"] = relationship(
-        back_populates="gear_components",
-    )
+    # SQLAlchemy bumps ``version`` on each ORM flush and adds it to the UPDATE's
+    # WHERE clause, raising StaleDataError when the row moved underneath.
+    __mapper_args__ = {"version_id_col": version}  # noqa: RUF012

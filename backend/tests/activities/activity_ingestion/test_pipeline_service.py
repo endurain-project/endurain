@@ -18,7 +18,7 @@ import modules.activities.activity_ingestion.pipeline_service as pipeline
 
 class TestParseFile:
     @patch("modules.activities.activity_file_import.parser_registry.activity_file_import_adapter")
-    @patch("modules.activities.activity_file_import.parser_registry.activity_file_import_gpx_utils")
+    @patch("modules.activities.activity_file_import.parser_registry.activity_file_import_gpx_parser")
     def test_parse_gpx(self, mock_gpx, mock_adapter):
         mock_gpx.parse_gpx_file.return_value = {"activity": "data"}
         mock_adapter.parsed_info_to_parsed_activity.return_value = "parsed"
@@ -32,7 +32,7 @@ class TestParseFile:
         assert result.activities == ["parsed"]
 
     @patch("modules.activities.activity_file_import.parser_registry.activity_file_import_adapter")
-    @patch("modules.activities.activity_file_import.parser_registry.activity_file_import_tcx_utils")
+    @patch("modules.activities.activity_file_import.parser_registry.activity_file_import_tcx_parser")
     def test_parse_tcx(self, mock_tcx, mock_adapter):
         mock_tcx.parse_tcx_file.return_value = {"activity": "tcx_data"}
         mock_adapter.parsed_info_to_parsed_activity.return_value = "parsed"
@@ -46,7 +46,7 @@ class TestParseFile:
         assert result.activities == ["parsed"]
 
     @patch("modules.activities.activity_file_import.parser_registry.activity_file_import_adapter")
-    @patch("modules.activities.activity_file_import.parser_registry.activity_file_import_fit_utils")
+    @patch("modules.activities.activity_file_import.parser_registry.activity_file_import_fit_parser")
     def test_parse_fit_returns_every_activity_in_the_file(self, mock_fit, mock_adapter):
         # The pipeline no longer knows that .fit can hold several activities.
         mock_fit.parse_fit_file.return_value = {}
@@ -69,7 +69,7 @@ class TestParseFile:
                 file_extension=".xyz",
                 filename="/path/to/file.xyz",
             )
-        assert exc.value.status_code == 406
+        assert exc.value.status_code == 415
 
     def test_returns_none_for_bulk_import_init(self):
         result = pipeline.parse_file(
@@ -83,9 +83,23 @@ class TestParseFile:
 class TestParseFileError:
     """Exception handler in parse_file."""
 
-    @patch("modules.activities.activity_file_import.parser_registry.activity_file_import_gpx_utils")
-    def test_raises_500_on_parse_error(self, mock_gpx):
-        mock_gpx.parse_gpx_file.side_effect = ValueError("bad data")
+    @pytest.mark.parametrize("error", [ValueError("bad data"), KeyError("trkpt"), TypeError("None"), EOFError()])
+    @patch("modules.activities.activity_file_import.parser_registry.activity_file_import_gpx_parser")
+    def test_content_the_parser_cannot_read_is_the_files_fault(self, mock_gpx, error):
+        """A corrupt file fails the same way on every retry, so it ends as INVALID_FILE at once."""
+        mock_gpx.parse_gpx_file.side_effect = error
+
+        with pytest.raises(core_exceptions.InvalidInputError) as exc:
+            pipeline.parse_file(
+                token_user_id=1,
+                file_extension=".gpx",
+                filename="/path/to/file.gpx",
+            )
+        assert exc.value.status_code == 400
+
+    @patch("modules.activities.activity_file_import.parser_registry.activity_file_import_gpx_parser")
+    def test_a_file_that_cannot_be_read_stays_a_server_error(self, mock_gpx):
+        mock_gpx.parse_gpx_file.side_effect = OSError("disk")
 
         with pytest.raises(core_exceptions.ProcessingError) as exc:
             pipeline.parse_file(
@@ -136,8 +150,8 @@ class TestStoreActivitiesFromFile:
         db = MagicMock()
 
         with (
-            patch.object(pipeline.users_integration, "get_user"),
-            patch.object(pipeline.users_integration, "get_privacy_settings"),
+            patch.object(pipeline.users_integration, "get_user", return_value=MagicMock(units="metric")),
+            patch.object(pipeline.users_privacy_settings_integration, "get_privacy_settings"),
             patch.object(
                 pipeline,
                 "parse_file",
@@ -174,8 +188,8 @@ class TestStoreActivitiesFromFile:
         source_file.write_bytes(b"\x00")
 
         with (
-            patch.object(pipeline.users_integration, "get_user"),
-            patch.object(pipeline.users_integration, "get_privacy_settings"),
+            patch.object(pipeline.users_integration, "get_user", return_value=MagicMock(units="metric")),
+            patch.object(pipeline.users_privacy_settings_integration, "get_privacy_settings"),
             patch.object(
                 pipeline,
                 "parse_file",
@@ -202,8 +216,8 @@ class TestStoreActivitiesFromFile:
         source.write_bytes(b"\x00")
 
         with (
-            patch.object(pipeline.users_integration, "get_user"),
-            patch.object(pipeline.users_integration, "get_privacy_settings"),
+            patch.object(pipeline.users_integration, "get_user", return_value=MagicMock(units="metric")),
+            patch.object(pipeline.users_privacy_settings_integration, "get_privacy_settings"),
             patch.object(pipeline, "parse_file", return_value=activity_contracts.ParsedFile()),
             patch.object(pipeline.core_file_uploads, "sha256_file", return_value="hash"),
             patch.object(pipeline.activity_file_storage_integration, "store_activity_file_for_ids") as store,
@@ -227,8 +241,8 @@ class TestStoreActivitiesFromFile:
         source.write_bytes(b"<gpx/>")
 
         with (
-            patch.object(pipeline.users_integration, "get_user"),
-            patch.object(pipeline.users_integration, "get_privacy_settings"),
+            patch.object(pipeline.users_integration, "get_user", return_value=MagicMock(units="metric")),
+            patch.object(pipeline.users_privacy_settings_integration, "get_privacy_settings"),
             patch.object(pipeline, "parse_file", return_value=None),
         ):
             result = pipeline.store_activities_from_file(
@@ -259,6 +273,43 @@ class TestParseFileTimezoneFallback:
             pipeline_service.parse_file(1, ".gpx", "/f.gpx")
 
         assert parser.call_args.args[3] == core_config.settings.TZ
+
+    def test_an_imperial_owner_gets_mile_laps(self):
+        from unittest.mock import MagicMock, patch
+
+        import modules.activities.activity_ingestion.pipeline_service as pipeline_service
+        import modules.server_settings.schema as server_settings_schema
+
+        parser = MagicMock(return_value="parsed")
+        with patch.object(pipeline_service.activity_file_import_integration, "get_parser", return_value=parser):
+            pipeline_service.parse_file(1, ".gpx", "/f.gpx", units=server_settings_schema.Units.IMPERIAL)
+            assert parser.call_args.args[4] == pytest.approx(1.609344)
+            pipeline_service.parse_file(1, ".gpx", "/f.gpx", units=server_settings_schema.Units.METRIC)
+            assert parser.call_args.args[4] == 1.0
+
+    def test_the_stored_owner_units_reach_the_parser(self, tmp_path):
+        import modules.activities.activity_ingestion.pipeline_service as pipeline_service
+        import modules.server_settings.schema as server_settings_schema
+
+        source_file = tmp_path / "a.gpx"
+        source_file.write_bytes(b"x")
+        user = MagicMock(units="imperial")
+        with (
+            patch.object(pipeline_service.users_integration, "get_user", return_value=user),
+            patch.object(pipeline_service.users_privacy_settings_integration, "get_privacy_settings"),
+            patch.object(pipeline_service, "parse_file", return_value=None) as parse_file,
+        ):
+            pipeline_service.store_activities_from_file(
+                1,
+                str(source_file),
+                ".gpx",
+                "a.gpx",
+                MagicMock(),
+                source=sources.UploadSource(),
+                storage=MagicMock(),
+            )
+
+        assert parse_file.call_args.args[5] is server_settings_schema.Units.IMPERIAL
 
 
 class TestGzipArtifacts:

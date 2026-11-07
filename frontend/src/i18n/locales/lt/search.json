@@ -24,12 +24,10 @@
     "waterSports": "Vandens sportas",
     "skating": "Čiuožimas"
   },
-  "results": {
-    "inactive": "Neaktyvus"
-  },
   "idle": {
     "title": "Ieškoti Endurain",
-    "description": "Pasirinkite, ko ieškoti, tada pradėkite rašyti, kad pamatytumėte atitikmenis."
+    "description": "Pasirinkite, ko ieškoti, tada pradėkite rašyti, kad pamatytumėte atitikmenis.",
+    "usersDescription": "Norėdami ieškoti naudotojų, įveskite bent {min} simbolius."
   },
   "empty": {
     "title": "Atitikmenų nerasta",

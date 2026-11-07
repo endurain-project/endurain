@@ -8,12 +8,24 @@ import {
 import { fetchActivity } from '@/features/activities/services/activities'
 import type { Activity } from '@/features/activities/types'
 import {
+  pinActivities,
+  updatePinnedActivities,
+} from '@/features/upload/composables/usePinnedActivities'
+import {
   clearAwaitingThumbnail,
   markAwaitingThumbnail,
 } from '@/features/upload/composables/usePendingThumbnails'
 import { fetchIngestionJob, uploadActivityFile } from '@/features/upload/services/upload'
 import { type ActivityIngestionJob, isTerminalIngestionJob } from '@/features/upload/types'
+import { invalidateActivityData } from '@/composables/useInvalidatingMutation'
+import { watchJob } from '@/composables/useRealtime'
 import { queryKeys } from '@/services/queryKeys'
+
+/** Key prefixes of the home feeds, which an upload updates by hand. */
+const HOME_FEED_KEYS = [
+  ['activities', 'list', { scope: 'user-feed' }],
+  ['activities', 'list', { scope: 'followers-feed' }],
+] as const
 
 /** How long to wait between upload-job status polls. */
 const POLL_INTERVAL_MS = 1500
@@ -75,19 +87,24 @@ export async function pollIngestionJob(
   const intervalMs = options.intervalMs ?? POLL_INTERVAL_MS
   const timeoutMs = options.timeoutMs ?? POLL_TIMEOUT_MS
   const deadline = Date.now() + timeoutMs
+  const watch = watchJob(`ingestion:${jobId}`)
 
-  for (;;) {
-    const job = await fetchIngestionJob(jobId, { signal: options.signal })
-    if (isTerminalIngestionJob(job)) {
-      if (job.status === 'failed') {
-        throw new IngestionJobFailedError(job.error_code)
+  try {
+    for (;;) {
+      const job = await fetchIngestionJob(jobId, { signal: options.signal })
+      if (isTerminalIngestionJob(job)) {
+        if (job.status === 'failed') {
+          throw new IngestionJobFailedError(job.error_code)
+        }
+        return job
       }
-      return job
+      if (Date.now() >= deadline) {
+        throw new IngestionJobTimeoutError()
+      }
+      await watch.wait(intervalMs)
     }
-    if (Date.now() >= deadline) {
-      throw new IngestionJobTimeoutError()
-    }
-    await new Promise((resolve) => setTimeout(resolve, intervalMs))
+  } finally {
+    watch.stop()
   }
 }
 
@@ -165,6 +182,7 @@ export function replaceActivitiesInFeed(
  * @returns Nothing.
  */
 function patchUserFeed(queryClient: QueryClient, activities: Activity[]): void {
+  updatePinnedActivities(activities)
   queryClient.setQueriesData<InfiniteData<Activity[]>>(
     {
       queryKey: queryKeys.activities.lists(),
@@ -204,9 +222,13 @@ async function backfillMissingThumbnails(
         )
       ).filter((activity): activity is Activity => activity !== null)
 
+      // Patch every re-read row, not only the ones with a map: the location is
+      // filled in by a separate background job and may land first.
+      if (refreshed.length > 0) {
+        patchUserFeed(queryClient, refreshed)
+      }
       const ready = refreshed.filter((activity) => activity.mapThumbnailUrl !== null)
       if (ready.length > 0) {
-        patchUserFeed(queryClient, ready)
         const readyIds = ready.map((activity) => activity.id)
         clearAwaitingThumbnail(readyIds)
         const resolved = new Set(readyIds)
@@ -276,7 +298,10 @@ export function useUploadActivityFileMutation() {
         return
       }
       // Pin the new activities to the top of the viewer's own feed ("user-feed"
-      // scope). The followers feed never contains the viewer's own uploads.
+      // scope). The followers feed never contains the viewer's own uploads. The
+      // pin outlives the cache write: the feed query floats pinned activities
+      // above whatever a refetch returns (see `floatPinnedActivities`).
+      pinActivities(created)
       queryClient.setQueriesData<InfiniteData<Activity[]>>(
         {
           queryKey: queryKeys.activities.lists(),
@@ -301,13 +326,7 @@ export function useUploadActivityFileMutation() {
       // Refresh every activities query except the home feeds, which were just
       // updated by hand; refetching them would drop the new activity from the
       // top before the viewer sees it (a reload restores server ordering).
-      void queryClient.invalidateQueries({
-        queryKey: queryKeys.activities.all(),
-        predicate: (query) => {
-          const scope = activityListScope(query.queryKey)
-          return scope !== 'user-feed' && scope !== 'followers-feed'
-        },
-      })
+      void invalidateActivityData(queryClient, HOME_FEED_KEYS)
     },
   })
 }

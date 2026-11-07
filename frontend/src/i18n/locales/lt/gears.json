@@ -9,8 +9,6 @@
   "fromStrava": "Strava",
   "fromGarmin": "Garmin Connect",
   "filters": "Filtrai",
-  "unitKm": "km",
-  "unitMi": "mi",
   "types": {
     "bicycle": "Dviratis",
     "shoes": "Batai",
@@ -41,8 +39,8 @@
     "model": "Modelis",
     "modelTooLong": "Modelis turi būti ne ilgesnis nei 250 simbolių",
     "active": "Aktyvus",
-    "createdAt": "Sukurta",
-    "createdAtRequired": "Sukūrimo data yra privaloma",
+    "acquiredOn": "Sukurta",
+    "acquiredOnRequired": "Sukūrimo data yra privaloma",
     "initialDistance": "Pradinis atstumas",
     "purchaseValue": "Pirkimo vertė",
     "totalCost": "Bendra kaina",
@@ -57,6 +55,8 @@
   "delete": {
     "title": "Ištrinti įrangą",
     "body": "Ar tikrai norite ištrinti „{nickname}“? Šio veiksmo atšaukti negalima.",
+    "activities": "{count} veikla naudoja šią įrangą; ji bus išsaugota ir atsieta nuo įrangos. | {count} veiklos naudoja šią įrangą; jos bus išsaugotos ir atsietos nuo įrangos. | {count} veiklų naudoja šią įrangą; jos bus išsaugotos ir atsietos nuo įrangos.",
+    "components": "Jos {count} komponentas bus ištrintas. | Jos {count} komponentai bus ištrinti. | Jos {count} komponentų bus ištrinta.",
     "confirm": "Ištrinti",
     "cancel": "Atšaukti",
     "close": "Uždaryti",
@@ -91,7 +91,6 @@
     "unsupported": "Šis įrangos tipas nestebi komponentų.",
     "noneActive": "Visi komponentai neaktyvūs. Įjunkite „Rodyti neaktyvius“, kad juos pamatytumėte.",
     "inactive": "Neaktyvus",
-    "unitHours": "h",
     "purchasedOn": "Įsigyta {date}",
     "wearLabel": "{name} nusidėvėjimas",
     "actions": {

@@ -1,14 +1,26 @@
 {
   "verifyingBody": "Palaukite, kol patvirtinsime jūsų adresą.",
+  "choosePasswordTitle": "Pasirinkite slaptažodį",
+  "choosePasswordBody": "Jūsų el. paštas bus patvirtintas, kai nustatysite paskyros slaptažodį.",
+  "submitPassword": "Nustatyti slaptažodį",
+  "submittingPassword": "Slaptažodis išsaugomas",
   "successTitle": "El. paštas patvirtintas",
   "successBody": "Jūsų el. pašto adresas buvo patvirtintas.",
   "adminApprovalBody": "Jūsų paskyra dabar laukia administratoriaus patvirtinimo.",
   "continueButton": "Tęsti į prisijungimą",
   "invalidTitle": "Patvirtinimas nepavyko",
-  "missingTokenBody": "Šiai patvirtinimo nuorodai trūksta žetono.",
   "errorInvalidToken": "Ši patvirtinimo nuoroda negalioja arba baigė galioti.",
+  "errorEmailTaken": "Šį el. pašto adresą dabar naudoja kita paskyra, todėl jo patvirtinti negalima.",
   "errorNotFound": "Nepavyko rasti paskyros pagal šią nuorodą.",
   "errorGeneral": "Nepavyko patvirtinti jūsų el. pašto. Bandykite dar kartą.",
   "retry": "Bandyti dar kartą",
-  "backToLogin": "Grįžti į prisijungimą"
+  "backToLogin": "Grįžti į prisijungimą",
+  "resendTitle": "Reikia naujos nuorodos?",
+  "resendBody": "Įveskite adresą, kuriuo registravotės, ir mes išsiųsime naują patvirtinimo laišką, jei jis vis dar laukia.",
+  "resendEmail": "El. pašto adresas",
+  "resendButton": "Siųsti naują laišką",
+  "resendSending": "Siunčiama",
+  "resendSent": "Jei šis adresas laukia patvirtinimo, naujas laiškas jau pakeliui.",
+  "resendTooManyAttempts": "Per daug bandymų. Palaukite prieš bandydami dar kartą.",
+  "resendError": "Nepavyko išsiųsti laiško. Bandykite dar kartą."
 }

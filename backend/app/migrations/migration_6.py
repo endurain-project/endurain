@@ -3,8 +3,8 @@
 from sqlalchemy.orm import Session
 
 import core.logger as core_logger
-import migrations.crud as migrations_crud
-import modules.users.users.crud as user_crud
+import migrations.service as migrations_service
+import modules.users.users.migration_service as users_migration
 import modules.users.users.schema as users_schema
 
 logger = core_logger.get_logger(__name__)
@@ -29,7 +29,7 @@ async def process_migration_6(db: Session) -> None:
     users = []
 
     try:
-        users = user_crud.get_all_users(db)
+        users = users_migration.list_users(db)
     except Exception as err:
         logger.error(
             f"Migration 6 - Error fetching users: {err}", exc_info=err, extra=core_logger.context(console=True)
@@ -41,14 +41,14 @@ async def process_migration_6(db: Session) -> None:
             try:
                 username = user.username.lower()
                 birthdate = user.birthdate.isoformat() if user.birthdate else None
-                user_converted = users_schema.UsersRead.model_validate(user).model_copy(
+                user_converted = users_schema.UserRead.model_validate(user).model_copy(
                     update={
                         "username": username,
                         "birthdate": birthdate,
                     }
                 )
 
-                await user_crud.edit_user(user.id, user_converted, db)
+                users_migration.edit_user(user.id, users_schema.UserEdit.from_read(user_converted), db)
             except Exception as err:
                 logger.error(
                     f"Migration 6 - Error processing user {user.id}: {err}",
@@ -61,7 +61,7 @@ async def process_migration_6(db: Session) -> None:
     # Mark migration as executed
     if users_processed_with_no_errors:
         try:
-            migrations_crud.set_migration_as_executed(6, db)
+            migrations_service.mark_executed(6, db)
         except Exception as err:
             logger.error(
                 f"Migration 6 - Failed to set migration as executed: {err}",

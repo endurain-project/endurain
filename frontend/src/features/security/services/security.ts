@@ -8,6 +8,7 @@ import type {
   BackupCodeStatusDto,
   BackupCodesDto,
   BackupCodesResult,
+  MfaBackupCodesDto,
   MfaDisableDto,
   MfaEnableDto,
   MfaEnableInput,
@@ -19,11 +20,17 @@ import type {
   PasswordChangeInput,
   SecuritySession,
   SecuritySessionDto,
+  EmailChangeDto,
+  EmailChangeResultDto,
+  IdpReauth,
+  IdpReauthDto,
   StepUpDto,
+  StepUpRequestDto,
   StepUpInput,
 } from '@/features/security/types'
 
 import { apiFetch } from '@/services/http'
+import { fetchAllPages } from '@/services/pagination'
 
 /** The scopes an API key can be granted (mirrors the backend allow-list). */
 export const API_KEY_SCOPES = ['activities:upload'] as const
@@ -75,30 +82,28 @@ export function mapSecuritySession(dto: SecuritySessionDto): SecuritySession {
   }
 }
 
-/** Builds the step-up wire body, sending `null` for fields that don't apply. */
-function toStepUpWire(input: StepUpInput): StepUpDto {
+/** Maps the clean sign-in proof to its wire field, omitted when there is no proof. */
+function toIdpReauthWire(reauth: IdpReauth | null | undefined): { idp_reauth?: IdpReauthDto } {
+  return reauth ? { idp_reauth: { ticket: reauth.ticket, code_verifier: reauth.codeVerifier } } : {}
+}
+
+/**
+ * Builds the step-up wire body, sending `null` for fields that don't apply.
+ *
+ * @param input - The step-up credentials.
+ * @returns The wire body shared by every step-up-gated request.
+ */
+export function toStepUpWire(input: StepUpInput): StepUpDto {
   return {
     current_password: input.currentPassword,
     mfa_code: input.mfaCode,
-  }
-}
-
-/** Safely parses the backend's JSON-encoded scopes string into an array. */
-function parseScopes(scopesJson: string): string[] {
-  try {
-    const parsed: unknown = JSON.parse(scopesJson)
-    return Array.isArray(parsed)
-      ? parsed.filter((scope): scope is string => typeof scope === 'string')
-      : []
-  } catch {
-    return []
+    ...toIdpReauthWire(input.idpReauth),
   }
 }
 
 /**
  * Maps a raw API-key payload to the clean {@link ApiKey} model — the single
- * boundary where the snake_case wire shape is normalized and the JSON-encoded
- * `scopes` string is parsed into an array.
+ * boundary where the snake_case wire shape is normalized.
  *
  * @param dto - Raw API-key payload from the backend.
  * @returns The normalized API-key model.
@@ -108,8 +113,8 @@ export function mapApiKey(dto: ApiKeyDto): ApiKey {
     id: dto.id,
     name: dto.name,
     keyPrefix: dto.key_prefix,
-    scopes: parseScopes(dto.scopes),
-    expiresAt: dto.expires_at ?? null,
+    scopes: dto.scopes,
+    expiresAt: dto.expires_at,
     lastUsedAt: dto.last_used_at ?? null,
     createdAt: dto.created_at,
     isActive: dto.is_active,
@@ -125,13 +130,12 @@ export function mapApiKey(dto: ApiKeyDto): ApiKey {
  */
 export async function changePassword(input: PasswordChangeInput): Promise<void> {
   const payload: PasswordChangeDto = {
-    current_password: input.currentPassword,
     password: input.newPassword,
-    mfa_code: input.mfaCode,
     revoke_other_sessions: input.revokeOtherSessions,
+    step_up: toStepUpWire({ currentPassword: input.currentPassword, mfaCode: input.mfaCode }),
   }
-  await apiFetch('/profile/password', {
-    method: 'PUT',
+  await apiFetch('/profile/password/change', {
+    method: 'POST',
     body: JSON.stringify(payload),
     responseType: 'void',
   })
@@ -161,19 +165,25 @@ export async function setupMfa(): Promise<MfaSetup> {
 
 /**
  * Completes MFA enrolment with the first valid code (and a step-up password for
- * accounts that have one), returning the one-time backup codes.
+ * accounts that have one), returning the one-time backup codes. Optionally signs
+ * out every other session.
  *
- * @param input - The confirming code and optional step-up password.
+ * @param input - The confirming code, optional step-up password and sessions choice.
  * @returns The generated backup codes (shown once).
  * @throws {HttpError} When the request fails (e.g. 400 invalid code).
  */
 export async function enableMfa(input: MfaEnableInput): Promise<string[]> {
   const payload: MfaEnableDto = {
     mfa_code: input.mfaCode,
-    current_password: input.currentPassword,
+    step_up: toStepUpWire({
+      currentPassword: input.currentPassword,
+      mfaCode: null,
+      idpReauth: input.idpReauth,
+    }),
+    revoke_other_sessions: input.revokeOtherSessions,
   }
   const response = await apiFetch<{ backup_codes: string[] }>('/profile/mfa/enable', {
-    method: 'PUT',
+    method: 'POST',
     body: JSON.stringify(payload),
   })
   return response.backup_codes ?? []
@@ -184,15 +194,16 @@ export async function enableMfa(input: MfaEnableInput): Promise<string[]> {
  * password for accounts that have one).
  *
  * @param input - The step-up credentials.
- * @throws {HttpError} When the request fails (e.g. 401 verification failed).
+ * @param revokeOtherSessions - Whether to sign out every other session after the change.
+ * @throws {HttpError} When the request fails (e.g. 403 verification failed).
  */
-export async function disableMfa(input: StepUpInput): Promise<void> {
+export async function disableMfa(input: StepUpInput, revokeOtherSessions: boolean): Promise<void> {
   const payload: MfaDisableDto = {
-    mfa_code: input.mfaCode ?? '',
-    current_password: input.currentPassword,
+    step_up: toStepUpWire(input),
+    revoke_other_sessions: revokeOtherSessions,
   }
   await apiFetch('/profile/mfa/disable', {
-    method: 'PUT',
+    method: 'POST',
     body: JSON.stringify(payload),
     responseType: 'void',
   })
@@ -216,13 +227,21 @@ export async function fetchBackupCodeStatus(signal?: AbortSignal): Promise<Backu
  * is invalidated, so the new codes are shown once for the user to save.
  *
  * @param input - The step-up credentials.
+ * @param revokeOtherSessions - Whether to sign out every other session after the change.
  * @returns The newly generated backup codes.
- * @throws {HttpError} When the request fails (e.g. 401 verification failed).
+ * @throws {HttpError} When the request fails (e.g. 403 verification failed).
  */
-export async function regenerateBackupCodes(input: StepUpInput): Promise<BackupCodesResult> {
+export async function regenerateBackupCodes(
+  input: StepUpInput,
+  revokeOtherSessions: boolean,
+): Promise<BackupCodesResult> {
+  const payload: MfaBackupCodesDto = {
+    step_up: toStepUpWire(input),
+    revoke_other_sessions: revokeOtherSessions,
+  }
   const dto = await apiFetch<BackupCodesDto>('/profile/mfa/backup-codes', {
     method: 'POST',
-    body: JSON.stringify(toStepUpWire(input)),
+    body: JSON.stringify(payload),
   })
   return mapBackupCodes(dto)
 }
@@ -235,8 +254,8 @@ export async function regenerateBackupCodes(input: StepUpInput): Promise<BackupC
  * @throws {HttpError} When the request fails.
  */
 export async function fetchSessions(signal?: AbortSignal): Promise<SecuritySession[]> {
-  const dtos = await apiFetch<SecuritySessionDto[] | null>('/profile/sessions', { signal })
-  return (dtos ?? []).map(mapSecuritySession)
+  const dtos = await fetchAllPages<SecuritySessionDto>('/profile/sessions', undefined, { signal })
+  return dtos.map(mapSecuritySession)
 }
 
 /**
@@ -275,8 +294,8 @@ export async function revokeOtherSessions(): Promise<void> {
  * @throws {HttpError} When the request fails.
  */
 export async function fetchApiKeys(signal?: AbortSignal): Promise<ApiKey[]> {
-  const dtos = await apiFetch<ApiKeyDto[] | null>('/profile/api_keys', { signal })
-  return (dtos ?? []).map(mapApiKey)
+  const dtos = await fetchAllPages<ApiKeyDto>('/profile/api-keys', undefined, { signal })
+  return dtos.map(mapApiKey)
 }
 
 /**
@@ -286,17 +305,18 @@ export async function fetchApiKeys(signal?: AbortSignal): Promise<ApiKey[]> {
  *
  * @param input - The clean create-API-key input.
  * @returns The full raw API key, shown once.
- * @throws {HttpError} When the request fails (e.g. 401 step-up, 400 invalid scopes).
+ * @throws {HttpError} When the request fails (e.g. 403 step-up, 400 invalid scopes).
  */
 export async function createApiKey(input: ApiKeyCreateInput): Promise<string> {
   const payload: ApiKeyCreateDto = {
     name: input.name,
     scopes: input.scopes,
-    expires_at: input.expiresAt,
-    current_password: input.currentPassword,
-    mfa_code: input.mfaCode,
+    // The chosen day starts the expiry in the viewer's timezone; a bare date would be read as UTC midnight,
+    // which west of UTC can already be past for the earliest date the picker offers.
+    expires_at: input.expiresAt ? new Date(`${input.expiresAt}T00:00`).toISOString() : null,
+    step_up: toStepUpWire(input),
   }
-  const dto = await apiFetch<ApiKeyCreatedDto>('/profile/api_keys', {
+  const dto = await apiFetch<ApiKeyCreatedDto>('/profile/api-keys', {
     method: 'POST',
     body: JSON.stringify(payload),
   })
@@ -311,8 +331,8 @@ export async function createApiKey(input: ApiKeyCreateInput): Promise<string> {
  * @throws {HttpError} When the request fails.
  */
 export async function revokeApiKey(id: string): Promise<void> {
-  await apiFetch(`/profile/api_keys/${encodeURIComponent(id)}/revoke`, {
-    method: 'PATCH',
+  await apiFetch(`/profile/api-keys/${encodeURIComponent(id)}/revoke`, {
+    method: 'POST',
     responseType: 'void',
   })
 }
@@ -324,8 +344,74 @@ export async function revokeApiKey(id: string): Promise<void> {
  * @throws {HttpError} When the request fails.
  */
 export async function deleteApiKey(id: string): Promise<void> {
-  await apiFetch(`/profile/api_keys/${encodeURIComponent(id)}`, {
+  await apiFetch(`/profile/api-keys/${encodeURIComponent(id)}`, {
     method: 'DELETE',
     responseType: 'void',
   })
+}
+
+/**
+ * Queues the permanent deletion of the authenticated user's account and all of
+ * their data (the GDPR right to erasure) after step-up verification. The backend
+ * signs the user out and deactivates the account at once (202), then a background
+ * job removes the activities and their files, health records, gear, goals,
+ * integrations and every other row that references the user. It refuses when the
+ * user is the server's only administrator.
+ *
+ * @param input - The step-up credentials.
+ * @throws {HttpError} When the request fails (403 step-up, 409 only administrator).
+ */
+export async function deleteAccount(input: StepUpInput): Promise<void> {
+  await apiFetch('/profile/delete-account', {
+    method: 'POST',
+    body: JSON.stringify({ step_up: toStepUpWire(input) } satisfies StepUpRequestDto),
+    responseType: 'void',
+  })
+}
+
+/**
+ * Requests an account email change after step-up verification. With mail configured the new
+ * address is held as pending and emailed a confirmation link; without mail it applies at once,
+ * unverified. Submitting the current address cancels a pending change.
+ *
+ * @param email - The new email address.
+ * @param input - The step-up credentials (password and, with MFA, a code).
+ * @param revokeOtherSessions - Whether to sign out every other session after the change.
+ * @returns Whether the new address awaits confirmation (`false` when it applied at once).
+ * @throws {HttpError} When the request fails (403 step-up, 409 address already in use).
+ */
+export async function changeEmail(
+  email: string,
+  input: StepUpInput,
+  revokeOtherSessions: boolean,
+): Promise<boolean> {
+  const payload: EmailChangeDto = {
+    email,
+    revoke_other_sessions: revokeOtherSessions,
+    step_up: toStepUpWire(input),
+  }
+  const profile = await apiFetch<EmailChangeResultDto>('/profile/email/change', {
+    method: 'POST',
+    body: JSON.stringify(payload),
+  })
+  return profile.pending_email != null
+}
+
+/**
+ * Asks for a new confirmation link for the pending email change. The backend always answers 204,
+ * including when the resend cooldown suppresses the email.
+ *
+ * @throws {HttpError} When the request fails.
+ */
+export async function resendEmailChange(): Promise<void> {
+  await apiFetch('/profile/email/change/resend', { method: 'POST', responseType: 'void' })
+}
+
+/**
+ * Cancels the pending email change; the current address stays as it is.
+ *
+ * @throws {HttpError} When the request fails.
+ */
+export async function cancelEmailChange(): Promise<void> {
+  await apiFetch('/profile/email/change', { method: 'DELETE', responseType: 'void' })
 }

@@ -8,7 +8,7 @@
   "seeAll": "Pogledaj sve",
   "loadMore": "Učitaj više",
   "loading": "Učitavanje…",
-  "badge": "{count} nepročitanih obavijesti",
+  "badge": "{count} nepročitana obavijest | {count} nepročitane obavijesti | {count} nepročitanih obavijesti",
   "empty": {
     "title": "Sve ste pregledali",
     "description": "Ažuriranja o vašim aktivnostima, pratiteljima i integracijama prikazat će se ovdje."
@@ -38,6 +38,63 @@
     "garminTokenExpired": {
       "title": "Garmin Connect zahtijeva pažnju",
       "body": "Vaša Garmin Connect sesija je istekla. Ponovno je povežite kako bi se sinkronizacija nastavila."
+    },
+    "stravaTokenExpired": {
+      "title": "Strava traži vašu pažnju",
+      "body": "Strava je odbila vašu vezu. Ponovno je povežite kako bi se sinkronizacija nastavila.",
+      "bodyRevoked": "Pristup Stravi je završio. Vaše aktivnosti i oprema sinkronizirane sa Stravom bit će izbrisane {date} ako se ponovno ne povežete."
+    },
+    "stravaDataDeleted": {
+      "title": "Podaci sa Strave izbrisani",
+      "body": "Vaše aktivnosti i oprema sinkronizirane sa Stravom izbrisane su jer je pristup Stravi završio, a niste se ponovno povezali."
+    },
+    "idpLinked": {
+      "title": "Povezan je novi pružatelj prijave",
+      "body": "{name} je povezan s vašim računom. Ako to niste bili vi, pregledajte svoje sigurnosne postavke.",
+      "bodyGeneric": "Pružatelj prijave povezan je s vašim računom. Ako to niste bili vi, pregledajte svoje sigurnosne postavke."
+    },
+    "accountSecurityChanged": {
+      "passwordChanged": {
+        "title": "Lozinka promijenjena",
+        "body": "Vaša je lozinka promijenjena. Ako to niste bili vi, resetirajte lozinku i pregledajte svoje sigurnosne postavke."
+      },
+      "passwordReset": {
+        "title": "Lozinka resetirana",
+        "body": "Vaša je lozinka resetirana putem poveznice za resetiranje. Ako to niste bili vi, ponovno resetirajte lozinku i pregledajte svoje sigurnosne postavke."
+      },
+      "passwordSetByAdmin": {
+        "title": "Administrator je postavio lozinku",
+        "body": "Administrator je postavio novu lozinku za vaš račun. Ako to niste očekivali, obratite se administratoru."
+      },
+      "mfaEnabled": {
+        "title": "Dvofaktorska autentifikacija uključena",
+        "body": "Dvofaktorska autentifikacija uključena je za vaš račun. Ako to niste bili vi, resetirajte lozinku i pregledajte svoje sigurnosne postavke."
+      },
+      "mfaDisabled": {
+        "title": "Dvofaktorska autentifikacija isključena",
+        "body": "Dvofaktorska autentifikacija isključena je za vaš račun. Ako to niste bili vi, resetirajte lozinku i pregledajte svoje sigurnosne postavke."
+      },
+      "backupCodesGenerated": {
+        "title": "Generirani su novi sigurnosni kodovi",
+        "body": "Za vaš račun generirani su novi sigurnosni kodovi. Ako to niste bili vi, resetirajte lozinku i pregledajte svoje sigurnosne postavke."
+      },
+      "apiKeyCreated": {
+        "title": "Stvoren je novi API ključ",
+        "body": "Za vaš je račun stvoren novi API ključ. Ako to niste bili vi, resetirajte lozinku i pregledajte svoje sigurnosne postavke."
+      },
+      "identityProviderUnlinked": {
+        "title": "Pružatelj prijave odspojen",
+        "body": "{name} je odspojen od vašeg računa. Ako to niste bili vi, resetirajte lozinku i pregledajte svoje sigurnosne postavke.",
+        "bodyGeneric": "Pružatelj prijave odspojen je od vašeg računa. Ako to niste bili vi, resetirajte lozinku i pregledajte svoje sigurnosne postavke."
+      },
+      "unknown": {
+        "title": "Sigurnost računa promijenjena",
+        "body": "Promijenjena je sigurnosna postavka vašeg računa. Ako to niste bili vi, resetirajte lozinku i pregledajte svoje sigurnosne postavke."
+      }
+    },
+    "newDeviceSignIn": {
+      "title": "Nova prijava",
+      "body": "Nova prijava iz preglednika {browser} na sustavu {os} ({ip}). Ako to niste bili vi, promijenite lozinku i odjavite se iz ostalih sesija."
     },
     "adminSignUpApproval": {
       "title": "Nova registracija zahtijeva odobrenje",

@@ -1,22 +1,17 @@
+"""Tests for positive identity-provider route identifiers."""
+
 import pytest
-from fastapi import HTTPException
+from pydantic import TypeAdapter, ValidationError
+
+import core.dependencies as core_dependencies
 
 
-class TestValidateIdpId:
-    def test_valid(self):
-        from modules.auth.identity_providers.dependencies import validate_idp_id
+@pytest.mark.parametrize("value", [1, 100])
+def test_positive_id_accepts_positive_values(value):
+    assert TypeAdapter(core_dependencies.PositiveId).validate_python(value) == value
 
-        validate_idp_id(1)
-        validate_idp_id(100)
 
-    def test_invalid(self):
-        from modules.auth.identity_providers.dependencies import validate_idp_id
-
-        with pytest.raises(HTTPException):
-            validate_idp_id(0)
-
-    def test_negative(self):
-        from modules.auth.identity_providers.dependencies import validate_idp_id
-
-        with pytest.raises(HTTPException):
-            validate_idp_id(-1)
+@pytest.mark.parametrize("value", [0, -1])
+def test_positive_id_rejects_non_positive_values(value):
+    with pytest.raises(ValidationError):
+        TypeAdapter(core_dependencies.PositiveId).validate_python(value)

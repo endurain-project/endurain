@@ -1,6 +1,12 @@
 {
   "title": "Health",
   "subtitle": "See all your health data in one place",
+  "chartBucket": {
+    "week": "Weekly averages: each bar is the average day of that week.",
+    "month": "Monthly averages: each bar is the average day of that month."
+  },
+  "targetInvalid": "Enter a value greater than 0, or leave it empty to remove the target.",
+  "chartError": "Couldn't load the chart for this time range.",
   "nav": {
     "label": "Health sections",
     "soon": "Soon",
@@ -34,6 +40,7 @@
     "stepsTargetLabel": "steps",
     "poopTargetLabel": "/ day",
     "noWeightData": "No weight data",
+    "noHeightData": "Add your height in your profile to see your BMI.",
     "bmiUnderweight": "Underweight",
     "bmiNormalWeight": "Normal weight",
     "bmiOverweight": "Overweight",
@@ -88,7 +95,6 @@
       "weightRequired": "Please enter your weight.",
       "weightInvalid": "Enter a weight greater than zero.",
       "bodyComposition": "Body composition (optional)",
-      "bmi": "BMI",
       "bodyFat": "Body fat (%)",
       "bodyWater": "Body water (%)",
       "boneMass": "Bone mass",
@@ -308,6 +314,8 @@
       "totalSleepRequired": "Please enter how long you slept.",
       "hours": "Hours",
       "minutes": "Minutes",
+      "hoursOf": "{field}, hours",
+      "minutesOf": "{field}, minutes",
       "stageBreakdown": "Stage breakdown (optional)",
       "deep": "Deep sleep",
       "light": "Light sleep",
@@ -350,7 +358,11 @@
       "close": "Close",
       "createSuccess": "Sleep logged.",
       "updateSuccess": "Sleep entry updated.",
-      "saveError": "Couldn't save your sleep entry. Please try again."
+      "saveError": "Couldn't save your sleep entry. Please try again.",
+      "numberRange": "Enter a value between {min} and {max}.",
+      "numberMin": "Enter {min} or more.",
+      "stagesExceedTotal": "Deep, light and REM sleep add up to more than the total.",
+      "inconsistentError": "These sleep figures don't add up. Check that the stages and the total fit within the sleep times."
     },
     "target": {
       "title": "Set sleep target",
@@ -419,7 +431,8 @@
       "close": "Close",
       "createSuccess": "Water logged.",
       "updateSuccess": "Water entry updated.",
-      "saveError": "Couldn't save your water entry. Please try again."
+      "saveError": "Couldn't save your water entry. Please try again.",
+      "dayTakenError": "A water entry for that day already exists. Edit it instead of adding another."
     },
     "target": {
       "title": "Set water target",
@@ -596,6 +609,8 @@
       "startTime": "Start time",
       "startTimeRequired": "Please choose a start time.",
       "endTime": "End time",
+      "endBeforeStart": "The end time must not be before the start time.",
+      "endWhileInProgress": "A fast in progress cannot have an end time.",
       "status": "Status",
       "notes": "Notes",
       "create": "Start",
@@ -604,7 +619,9 @@
       "close": "Close",
       "createSuccess": "Fast started.",
       "updateSuccess": "Fasting session updated.",
-      "saveError": "Couldn't save your fasting session. Please try again."
+      "saveError": "Couldn't save your fasting session. Please try again.",
+      "overlapError": "This fast overlaps another fasting session, or another fast is already in progress.",
+      "invalidTimesError": "A fast cannot end before it starts, a completed or broken fast needs an end time, and a fast in progress cannot have one."
     },
     "target": {
       "title": "Set fasting target",
@@ -621,6 +638,20 @@
     "complete": {
       "success": "Fast ended.",
       "error": "Couldn't end your fast. Please try again."
+    },
+    "endConfirm": {
+      "broken": {
+        "title": "Break this fast?",
+        "body": "The fast ends now and is saved as broken. This cannot be undone.",
+        "confirm": "Break fast"
+      },
+      "cancelled": {
+        "title": "Cancel this fast?",
+        "body": "The fast ends now and is saved as cancelled. This cannot be undone.",
+        "confirm": "Cancel fast"
+      },
+      "cancel": "Keep fasting",
+      "close": "Close"
     },
     "empty": {
       "title": "No fasts yet",

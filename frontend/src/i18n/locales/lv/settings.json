@@ -31,6 +31,7 @@
       "admin": "Administrators",
       "inactive": "Neaktīvs",
       "unverified": "Neverificēts e-pasts",
+      "pendingEmail": "Gaida e-pasta maiņu",
       "pending": "Gaida apstiprinājumu",
       "externalAuth": "Ārējā autentifikācija"
     },
@@ -64,18 +65,15 @@
       "email": "E-pasts",
       "emailRequired": "E-pasts ir obligāts",
       "emailInvalid": "Ievadiet derīgu e-pasta adresi",
+      "emailChangeHint": "Uz jauno adresi tiek nosūtīta apstiprinājuma saite, un pēc apstiprināšanas tā aizstāj esošo. Lietotājs tiek izrakstīts no visām ierīcēm. Lai to piemērotu tūlīt, atzīmējiet jauno adresi kā verificētu.",
       "accessType": "Piekļuves veids",
       "accessTypeRegular": "Parasts lietotājs",
       "accessTypeAdmin": "Administrators",
       "password": "Parole",
       "passwordHint": "Vismaz 8 rakstzīmes",
-      "passwordHintStrict": "Vismaz {min} rakstzīmes, ar lielādiem un maziem burtiem, ciparu un īpašu rakstzīmi",
-      "passwordHintLength": "Vismaz {min} rakstzīmes",
       "passwordRequired": "Parole ir obligāta",
-      "passwordInvalid": "Šī parole neatbilst prasībām",
       "confirmPassword": "Apstiprināt paroli",
       "confirmPasswordRequired": "Apstiprināt paroli",
-      "passwordMismatch": "Paroles nesakrīt",
       "preferredLanguage": "Vēlamā valoda",
       "languages": {
         "ca": "Katalāņu",
@@ -118,14 +116,16 @@
       "units": "Mērvienības",
       "unitsMetric": "Metriskā",
       "unitsImperial": "Imperiskā",
+      "weightUnits": "Svara mērvienības",
+      "weightUnitsDefault": "Pēc mērvienībām",
+      "weightUnitsMetric": "Kilogrami (kg)",
+      "weightUnitsImperial": "Mārciņas (lb)",
       "height": "Augums",
-      "unitCm": "cm",
-      "unitFeet": "ft",
-      "unitInches": "in",
+      "heightInvalid": "Augumam jābūt no 50 līdz 272 cm",
+      "maxHeartRateInvalid": "Maksimālajam sirdsdarbības ātrumam jābūt no 30 līdz 250 sitieniem minūtē",
       "feetInvalid": "Pēdām jābūt no 0 līdz 10",
       "inchesInvalid": "Collām jābūt no 0 līdz 11",
       "maxHeartRate": "Maks. sirdsdarbība",
-      "unitBpm": "bpm",
       "currency": "Valūta",
       "currencies": {
         "euro": "Eiro",
@@ -134,6 +134,8 @@
       },
       "firstDayOfWeek": "Nedēļas pirmā diena",
       "timezone": "Laika josla",
+      "timezoneNotSet": "Nav iestatīts",
+      "timezoneUseBrowser": "Izmantot mana pārlūka laika joslu ({timezone})",
       "timezoneHint": "Izmanto aktivitātēm, kas ierakstītas bez GPS, piemēram, skriešanai uz skrejceļa un riteņbraukšanai telpās.",
       "weekdays": {
         "sunday": "Svētdiena",
@@ -149,6 +151,8 @@
       "statusLegend": "Konta statuss",
       "active": "Aktīvs",
       "emailVerified": "E-pasts verificēts",
+      "emailVerifiedCurrentHint": "Šī ir pašreizējās adreses statuss.",
+      "newEmailVerified": "Atzīmēt jauno adresi kā verificētu",
       "pendingAdminApproval": "Gaida administratora apstiprinājumu",
       "requiredField": "Obligāts lauks",
       "create": "Pievienot lietotāju",
@@ -171,6 +175,7 @@
     },
     "detail": {
       "back": "Atpakaļ uz lietotājiem",
+      "pendingEmail": "Gaida e-pasta maiņu uz {email}, saite beigsies {date}",
       "notFoundTitle": "Lietotājs nav atrasts",
       "notFoundDescription": "Šis konts, iespējams, ir dzēsts",
       "securityTitle": "Drošība",
@@ -186,16 +191,12 @@
       "title": "Atiestatīt paroli",
       "description": "Iestatiet jaunu paroli lietotājam {username}",
       "newLabel": "Jaunā parole",
-      "hintLength": "Vismaz {min} rakstzīmes",
-      "hintStrict": "Vismaz {min} rakstzīmes, ar lielādiem un maziem burtiem, ciparu un īpašu rakstzīmi",
       "confirmLabel": "Apstiprināt jauno paroli",
-      "mismatch": "Paroles nesakrīt",
       "required": "Parole ir obligāta",
       "submit": "Atiestatīt paroli",
       "cancel": "Atcelt",
       "close": "Aizvērt",
       "success": "Parole atjaunināta",
-      "invalid": "Šī parole neatbilst prasībām",
       "error": "Neizdevās atjaunināt paroli. Lūdzu, mēģiniet vēlreiz."
     },
     "sessions": {
@@ -277,6 +278,32 @@
     "saving": "Notiek saglabāšana…",
     "saveSuccess": "Servera iestatījumi atjaunināti",
     "saveError": "Neizdevās atjaunināt servera iestatījumus. Lūdzu, mēģiniet vēlreiz.",
+    "staleError": "Šos iestatījumus rediģēšanas laikā mainīja kāds cits. Jūsu izmaiņas netika saglabātas. Pārlādējiet lapu, lai redzētu pašreizējās vērtības.",
+    "envLocked": "Iestatīts ar {name}",
+    "envSection": "Dažus šeit redzamos iestatījumus nosaka vides mainīgie ({names}). Noņemiet tos no vides, lai šos iestatījumus varētu labot šeit.",
+    "unsaved": "Nesaglabātas izmaiņas",
+    "fixErrors": "Lai saglabātu, labojiet iepriekš norādītās kļūdas",
+    "discard": "Atmest",
+    "tabs": {
+      "label": "Servera iestatījumu sadaļas",
+      "general": "Vispārīgi",
+      "access": "Piekļuve un drošība",
+      "maps": "Kartes un atrašanās vieta",
+      "email": "E-pasts",
+      "logs": "Žurnāli",
+      "unsaved": "Ir nesaglabātas izmaiņas"
+    },
+    "search": {
+      "placeholder": "Meklēt iestatījumus…",
+      "noResults": "Iestatījumi nav atrasti"
+    },
+    "leave": {
+      "title": "Pamest lapu bez saglabāšanas?",
+      "description": "Jums ir nesaglabātas izmaiņas. Ja pametīsiet šo lapu, tās tiks zaudētas.",
+      "confirm": "Pamest bez saglabāšanas",
+      "stay": "Palikt lapā",
+      "close": "Aizvērt"
+    },
     "loadError": {
       "title": "Neizdevās ielādēt servera iestatījumus",
       "description": "Ielādējot servera iestatījumus, kaut kas nogāja greizi. Varat mēģināt vēlreiz.",
@@ -295,11 +322,33 @@
     },
     "password": {
       "title": "Paroles politika",
-      "type": "Politika",
-      "typeStrict": "Stingra (nepieciešama sarežģītība)",
-      "typeLengthOnly": "Tikai garums",
       "lengthRegular": "Minimālais garums parastajiem lietotājiem",
       "lengthAdmin": "Minimālais garums administratoriem"
+    },
+    "session": {
+      "title": "Sesijas",
+      "description": "Izmaiņas attiecas uz jaunām pieteikšanās reizēm un nākamo marķiera atjaunināšanu. Jau izsniegtajiem marķieriem derīguma termiņš nemainās.",
+      "idleTimeoutEnabled": "Ieviest neaktivitātes taimautu",
+      "idleHours": "Neaktivitātes taimauts (stundas)",
+      "idleHoursHint": "Ja tas ir ieviests, sesija beidzas pēc norādītā stundu skaita bez aktivitātes.",
+      "absoluteHours": "Absolūtais taimauts (stundas)",
+      "absoluteHoursHint": "Sesija beidzas pēc norādītā stundu skaita kopš pieteikšanās neatkarīgi no aktivitātes. Attiecas vienmēr. Nav īsāks par neaktivitātes taimautu.",
+      "accessMinutes": "Piekļuves marķiera derīguma termiņš (minūtes)",
+      "refreshDays": "Atjaunināšanas marķiera derīguma termiņš (dienas)",
+      "apiKeyDays": "API atslēgas maksimālais derīguma termiņš (dienas)",
+      "apiKeyDaysHint": "Jauna API atslēga beidzas pēc šāda dienu skaita, ja tās īpašnieks neizvēlas agrāku datumu.",
+      "invalidRange": "Ievadiet veselu skaitli no {min} līdz {max}.",
+      "absoluteBelowIdle": "Nedrīkst būt īsāks par neaktivitātes taimautu."
+    },
+    "retention": {
+      "title": "Datu glabāšana",
+      "readNotifications": "Dzēst izlasītos paziņojumus pēc (dienas)",
+      "readNotificationsHint": "0 glabā izlasītos paziņojumus uz visiem laikiem. Neizlasītie paziņojumi netiek dzēsti nekad.",
+      "auditTrail": "Dzēst audita žurnāla ierakstus pēc (dienas)",
+      "auditTrailHint": "0 saglabā visu. Citādi minimums ir 30 dienas; ieraksti tiek dzēsti veselām dienām.",
+      "auditTrailInvalid": "Ievadiet 0 vai veselu skaitli no {min} līdz {max}.",
+      "auditLegalHold": "Audita žurnāla juridiskā iesaldēšana",
+      "auditLegalHoldHint": "Kamēr ieslēgta, aptur visu audita žurnāla tīrīšanu neatkarīgi no glabāšanas perioda."
     },
     "signup": {
       "title": "Reģistrācija",
@@ -336,12 +385,33 @@
       "attribution": "Atsauce",
       "apiKey": "Flīžu servera API atslēga",
       "apiKeyWarning": "API atslēga tiek glabāta šifrēta. Atstājiet tukšu, ja jūsu flīžu serverim tā nav nepieciešama.",
+      "apiKeyStored": "Atslēga ir saglabāta",
+      "apiKeyRemove": "Noņemt saglabāto API atslēgu",
       "backgroundColor": "Kartes fona krāsa",
       "regenerateThumbnails": "Atkārtoti ģenerēt aktivitāšu sīktēlus, kad mainās kartes iestatījumi"
+    },
+    "geocoding": {
+      "title": "Apgrieztā ģeokodēšana",
+      "description": "Pārvērš aktivitāšu koordinātas vietu nosaukumos. Izmaiņas stājas spēkā bez restartēšanas.",
+      "service": "Pakalpojums",
+      "serviceNominatim": "Nominatim",
+      "servicePhoton": "Photon",
+      "serviceGeocode": "geocode.maps.co",
+      "host": "Resursdators",
+      "hostHint": "Resursdatora nosaukums ar neobligātu portu, bez shēmas. Resursdatoram privātā tīklā jābūt norādītam SSRF_ALLOWED_HOSTS.",
+      "useHttps": "Savienoties, izmantojot HTTPS",
+      "rateLimit": "Pieprasījumi sekundē",
+      "rateLimitHint": "0 izslēdz ierobežošanu. Publiskajiem Nominatim un Photon pakalpojumiem atstājiet 1.",
+      "rateLimitInvalid": "Ievadiet skaitli no 0 līdz 100.",
+      "apiKey": "API atslēga",
+      "apiKeyStored": "Atslēga ir saglabāta. Atstājiet tukšu, lai to paturētu.",
+      "apiKeyRemove": "Noņemt saglabāto API atslēgu",
+      "apiKeyRequired": "geocode.maps.co ir nepieciešama API atslēga."
     },
     "photo": {
       "title": "Pieteikšanās fotoattēls",
       "description": "Pielāgots attēls, kas tiek rādīts pieteikšanās ekrānā",
+      "previewAlt": "Pašreizējais pieteikšanās fotoattēls",
       "add": "Augšupielādēt pieteikšanās fotoattēlu",
       "replace": "Aizstāt pieteikšanās fotoattēlu",
       "delete": "Noņemt pieteikšanās fotoattēlu",
@@ -355,6 +425,30 @@
       "cancel": "Atcelt",
       "close": "Aizvērt"
     },
+    "logs": {
+      "title": "Servera žurnāli",
+      "description": "Jaunākie lietojumprogrammas žurnāla ieraksti. Žurnālus no vidēm, kurās darbojas vairāki procesi, tā vietā apkopo jūsu platforma.",
+      "level": "Minimālais līmenis",
+      "allLevels": "Visi līmeņi",
+      "search": "Meklēt",
+      "searchPlaceholder": "Teksts, reģistrētājs vai pieprasījuma ID…",
+      "live": "Tiešraide",
+      "refresh": "Atsvaidzināt",
+      "download": "Lejupielādēt",
+      "downloadError": "Neizdevās lejupielādēt žurnāla failu.",
+      "clear": "Notīrīt",
+      "cleared": "Žurnāli notīrīti",
+      "clearError": "Neizdevās notīrīt žurnālus.",
+      "clearConfirm": {
+        "title": "Notīrīt servera žurnālus?",
+        "description": "Tas neatgriezeniski izdzēš žurnāla failu un tā rotētās rezerves kopijas. Ja tas var būt nepieciešams, vispirms lejupielādējiet žurnālu. Pati darbība tiek ierakstīta jaunajā žurnālā.",
+        "confirm": "Notīrīt žurnālus",
+        "cancel": "Atcelt",
+        "close": "Aizvērt"
+      },
+      "loadError": "Neizdevās ielādēt žurnālus.",
+      "empty": "Žurnāla ieraksti nav atrasti"
+    },
     "email": {
       "title": "E-pasts",
       "description": "Endurain paroles atiestatīšanas un reģistrācijas e-pastus sūta, izmantojot vidē konfigurēto SMTP serveri.",
@@ -366,7 +460,26 @@
       "sendHint": "Testa e-pasts tiek nosūtīts uz jūsu pašu adresi.",
       "sent": "Testa e-pasts nosūtīts",
       "failed": "Testa e-pastu neizdevās nosūtīt",
-      "failedUnknown": "Sīkāku informāciju skatiet servera žurnālos."
+      "failedUnknown": "Sīkāku informāciju skatiet servera žurnālos.",
+      "settingsLoadError": "Neizdevās ielādēt pasta iestatījumus.",
+      "host": "Resursdators",
+      "hostHint": "Atstājiet tukšu, lai izslēgtu e-pastu.",
+      "port": "Ports",
+      "portInvalid": "Ievadiet portu no 1 līdz 65535.",
+      "security": "Savienojuma drošība",
+      "securityStarttls": "STARTTLS",
+      "securitySsl": "SSL/TLS",
+      "securityNone": "Nav (tikai privāts relejs)",
+      "securityNoneWarning": "Bez šifrēšanas tiek pieņemts tikai pasta serveris privātā vai loopback adresē, un lietotājvārdu un paroli izmantot nevar.",
+      "username": "Lietotājvārds",
+      "password": "Parole",
+      "passwordStored": "Parole ir saglabāta. Atstājiet tukšu, lai to paturētu.",
+      "passwordRemove": "Noņemt saglabāto paroli",
+      "fromAddress": "Sūtītāja adrese",
+      "fromAddressHint": "Atstājiet tukšu, lai izmantotu lietotājvārdu.",
+      "save": "Saglabāt pasta iestatījumus",
+      "saveSuccess": "Pasta iestatījumi saglabāti",
+      "saveError": "Neizdevās saglabāt pasta iestatījumus"
     }
   },
   "idp": {
@@ -428,6 +541,7 @@
       "issuerUrl": "Izdevēja URL",
       "issuerUrlHint": "Pakalpojumu sniedzēja OIDC izdevēja vai atklāšanas URL",
       "issuerUrlRequired": "Izdevēja URL ir obligāts",
+      "issuerUrlRefused": "Pakalpojuma sniedzēja URL tika noraidīts. Tam jāizmanto https://, tam jāatrisinās no servera, un pakalpojuma sniedzējam privātā tīklā jābūt norādītam SSRF_ALLOWED_HOSTS.",
       "issuerUrlTooLong": "Izdevēja URL jābūt 500 rakstzīmju vai īsākam",
       "clientId": "Klienta ID",
       "clientIdRequired": "Klienta ID ir obligāts",
@@ -442,15 +556,22 @@
       "scopesTooLong": "Tvērumiem jābūt 500 rakstzīmju vai īsākiem",
       "icon": "Ikona",
       "iconNone": "Nav",
-      "iconCustom": "Pielāgots URL",
-      "customIconUrl": "Pielāgots ikonas URL",
-      "customIconUrlHint": "Saite uz attēlu, kas tiek rādīts pieteikšanās pogā",
+      "iconUpload": "Augšupielādēt attēlu",
+      "iconFileHint": "PNG, JPEG vai WebP attēls līdz 1 MB, tiek rādīts pieteikšanās pogā",
+      "iconChoose": "Izvēlēties attēlu",
+      "iconReplace": "Aizstāt attēlu",
+      "iconPreviewAlt": "Ikonas priekšskatījums",
+      "iconFileRequired": "Izvēlieties augšupielādējamo attēlu",
+      "iconFileInvalidType": "Ikonai jābūt PNG, JPEG vai WebP attēlam",
+      "iconFileTooLarge": "Ikona nedrīkst būt lielāka par 1 MB",
+      "iconSaveError": "Pakalpojuma sniedzējs tika saglabāts, bet tā ikonu neizdevās atjaunināt. Rediģējiet pakalpojuma sniedzēju, lai mēģinātu vēlreiz.",
       "enabled": "Iespējots",
       "autoCreateUsers": "Automātiski izveidot lietotājus pirmajā pieteikšanās reizē",
       "syncUserInfo": "Sinhronizēt profila informāciju katrā pieteikšanās reizē",
       "createSuccess": "Pakalpojumu sniedzējs pievienots",
       "updateSuccess": "Pakalpojumu sniedzējs atjaunināts",
       "slugConflict": "Šis identifikators jau tiek izmantots",
+      "staleError": "Šis pakalpojuma sniedzējs tika mainīts citur. Jūsu izmaiņas netika saglabātas. Aizveriet un atveriet to vēlreiz, lai ielādētu pašreizējos iestatījumus.",
       "saveError": "Neizdevās saglabāt pakalpojumu sniedzēju. Lūdzu, mēģiniet vēlreiz."
     }
   },
@@ -458,7 +579,7 @@
     "title": "Mani mērķi",
     "subtitle": "Iestatiet mērķus savām aktivitātēm un izsekojiet savu progresu",
     "buttonAdd": "Pievienot mērķi",
-    "count": "Kopā ir {count} mērķi:",
+    "count": "Kopā ir {count} mērķi: | Kopā ir {count} mērķis: | Kopā ir {count} mērķi:",
     "filters": "Filtri",
     "filter": {
       "all": "Visi",
@@ -492,13 +613,6 @@
       "elevation": "Augstuma ieguvums",
       "duration": "Ilgums"
     },
-    "unit": {
-      "calories": "kcal",
-      "km": "km",
-      "miles": "mi",
-      "meters": "m",
-      "feet": "ft"
-    },
     "list": {
       "edit": "Rediģēt mērķi {name}",
       "delete": "Dzēst mērķi {name}"
@@ -522,6 +636,7 @@
       "error": "Neizdevās dzēst mērķi. Lūdzu, mēģiniet vēlreiz."
     },
     "form": {
+      "targetInvalid": "Ievadiet vērtību, kas ir lielāka par 0.",
       "addTitle": "Pievienot mērķi",
       "editTitle": "Rediģēt mērķi",
       "description": "Iestatiet mērķi aktivitātei atkārtotā periodā",
@@ -549,6 +664,7 @@
     "hidePassword": "Slēpt paroli",
     "mfaCode": "Autentifikācijas kods",
     "mfaCodePlaceholder": "123456",
+    "confirmPhrase": "Lai apstiprinātu, ierakstiet {phrase}",
     "loadError": {
       "title": "Neizdevās ielādēt jūsu drošības iestatījumus",
       "description": "Kaut kas nogāja greizi. Varat mēģināt vēlreiz."
@@ -559,9 +675,6 @@
       "current": "Pašreizējā parole",
       "new": "Jaunā parole",
       "confirm": "Apstiprināt jauno paroli",
-      "requirementsStrict": "Vismaz {length} rakstzīmes, tostarp lielais burts, mazais burts, cipars un simbols.",
-      "requirementsLength": "Vismaz {length} rakstzīmes.",
-      "mismatch": "Paroles nesakrīt.",
       "revokeOthers": "Izrakstīties no visām pārējām ierīcēm",
       "submit": "Mainīt paroli",
       "success": "Parole mainīta",
@@ -575,7 +688,7 @@
       "disabledDescription": "Divfaktoru autentifikācija ir izslēgta. Ieslēdziet to, lai labāk aizsargātu savu kontu.",
       "enable": "Iespējot divfaktoru",
       "enabledDescription": "Divfaktoru autentifikācija ir ieslēgta.",
-      "backupRemaining": "Atlikuši {unused} no {total} rezerves kodiem.",
+      "backupRemaining": "Atlikuši: {unused} no {total} rezerves kodiem. | Atlikuši: {unused} no {total} rezerves koda. | Atlikuši: {unused} no {total} rezerves kodiem.",
       "regenerate": "Atkārtoti ģenerēt rezerves kodus",
       "disable": "Atspējot",
       "setupTitle": "Iespējot divfaktoru autentifikāciju",
@@ -649,7 +762,39 @@
       "unlinkError": "Neizdevās atsaistīt kontu. Lūdzu, mēģiniet vēlreiz.",
       "invalidCredentials": "Jūsu parole vai kods ir nepareizs.",
       "alreadyLinked": "Šis konts jau ir saistīts.",
-      "lastMethodError": "Jūs nevarat atsaistīt savu vienīgo pieteikšanās metodi. Vispirms iestatiet paroli."
+      "lastMethodError": "Jūs nevarat atsaistīt savu vienīgo pieteikšanās metodi. Vispirms iestatiet paroli.",
+      "linkedOn": "Piesaistīts {date}"
+    },
+    "email": {
+      "title": "E-pasta adrese",
+      "subtitle": "Šeit tiek sūtītas paroles atjaunošanas saites un paziņojumi. Lai to mainītu, jāapstiprina sava identitāte, un jaunā adrese stāsies spēkā tikai pēc tam, kad to apstiprināsi, izmantojot uz to nosūtīto saiti.",
+      "current": "Pašreizējais e-pasts",
+      "action": "Mainīt e-pastu",
+      "new": "Jaunais e-pasts",
+      "invalid": "Ievadiet derīgu e-pasta adresi.",
+      "sameAsCurrent": "Šī jau ir jūsu e-pasta adrese.",
+      "success": "Apstiprinājuma saite nosūtīta uz jauno adresi. Jūsu e-pasts mainīsies pēc apstiprināšanas.",
+      "appliedSuccess": "E-pasta adrese nomainīta.",
+      "pending": "Gaidāma maiņa uz {email}",
+      "pendingExpires": "Apstiprinājuma saite beigsies {date}.",
+      "resend": "Nosūtīt saiti atkārtoti",
+      "cancel": "Atcelt maiņu",
+      "resendSuccess": "Ja ir gaidāma maiņa, uz jauno adresi ir ceļā jauna saite.",
+      "resendError": "Nevarēja atkārtoti nosūtīt saiti. Lūdzu, mēģiniet vēlreiz.",
+      "cancelSuccess": "E-pasta maiņa atcelta.",
+      "cancelError": "Nevarēja atcelt maiņu. Lūdzu, mēģiniet vēlreiz.",
+      "conflict": "Šis e-pasts jau tiek izmantots.",
+      "error": "Neizdevās mainīt e-pastu. Lūdzu, mēģiniet vēlreiz."
+    },
+    "deleteAccount": {
+      "title": "Dzēst manu kontu",
+      "subtitle": "Neatgriezeniski dzēsiet savu kontu un visus datus, tostarp aktivitātes un to failus, veselības ierakstus, inventāru, mērķus, integrācijas un sesijas. To nevar atsaukt. Ja vēlaties saglabāt kopiju, vispirms eksportējiet datus.",
+      "action": "Dzēst manu kontu",
+      "dialogTitle": "Dzēst jūsu kontu?",
+      "dialogDescription": "Tas neatgriezeniski izdzēš jūsu kontu un visus datus. Lai turpinātu, apstipriniet savu identitāti.",
+      "confirm": "Dzēst manu kontu",
+      "error": "Neizdevās izdzēst jūsu kontu. Lūdzu, mēģiniet vēlreiz.",
+      "onlyAdminError": "Jūs esat vienīgais administrators. Pirms konta dzēšanas piešķiriet administratora tiesības citam lietotājam."
     },
     "apiKeys": {
       "title": "API atslēgas",
@@ -662,11 +807,12 @@
       "scopes": "Atļaujas",
       "scopesHint": "Izvēlieties, ko šī atslēga drīkst darīt. Nepieciešama vismaz viena.",
       "expiry": "Derīguma termiņš (neobligāti)",
-      "expiryHint": "Atstājiet tukšu atslēgai, kurai nekad nebeidzas derīgums.",
+      "expiryHint": "Atstājiet tukšu, lai izmantotu ilgāko servera atļauto derīguma termiņu. Vēlāks datums tiek noraidīts.",
       "createTitle": "Izveidot API atslēgu",
       "createDescription": "Apstipriniet savu identitāti, lai izveidotu jaunu API atslēgu.",
       "createSuccess": "API atslēga izveidota",
       "createError": "Neizdevās izveidot API atslēgu. Lūdzu, mēģiniet vēlreiz.",
+      "expiryTooLate": "Šis derīguma beigu datums ir vēlāks, nekā atļauj serveris. Izvēlieties agrāku datumu vai atstājiet tukšu.",
       "invalidCredentials": "Jūsu parole vai kods ir nepareizs.",
       "invalidScopes": "Šīs atļaujas nav atļautas API atslēgām.",
       "revealTitle": "Kopējiet savu API atslēgu",
@@ -683,7 +829,6 @@
       "lastUsed": "Pēdējoreiz izmantota {date}",
       "neverUsed": "Nekad nav izmantota",
       "expires": "Derīguma termiņš beidzas {date}",
-      "neverExpires": "Nekad nebeidzas derīgums",
       "revoke": "Atsaukt",
       "revokeTitle": "Atsaukt API atslēgu?",
       "revokeBody": "{name} pārstās darboties nekavējoties. Šo nevar atsaukt.",
@@ -694,6 +839,18 @@
       "deleteBody": "{name} tiks neatgriezeniski dzēsta. Šo nevar atsaukt.",
       "deleteSuccess": "API atslēga dzēsta",
       "deleteError": "Neizdevās dzēst API atslēgu. Lūdzu, mēģiniet vēlreiz."
+    },
+    "stepUp": {
+      "prompt": "Jūsu kontam nav paroles. Piesakieties vēlreiz ar piesaistītu identitātes pakalpojumu sniedzēju, lai apstiprinātu, ka tas esat Jūs.",
+      "continueWith": "Turpināt ar {name}",
+      "ready": "Pieteikšanās ar identitātes pakalpojumu sniedzēju apstiprināta.",
+      "restart": "Pieteikties vēlreiz",
+      "noProviders": "Jūsu identitātes apstiprināšanai nav pieejams neviens piesaistīts identitātes pakalpojumu sniedzējs.",
+      "startError": "Neizdevās sākt pieteikšanos ar identitātes pakalpojumu sniedzēju. Lūdzu, mēģiniet vēlreiz.",
+      "tooManyAttempts": "Pārāk daudz mēģinājumu. Lūdzu, mēģiniet vēlreiz vēlāk.",
+      "reauthRequired": "Lai turpinātu, apstipriniet savu identitāti ar identitātes pakalpojumu sniedzēju.",
+      "failed": "Atkārtota pieteikšanās ar identitātes pakalpojumu sniedzēju neizdevās. Lūdzu, mēģiniet vēlreiz.",
+      "notFresh": "Identitātes pakalpojumu sniedzējs neprasīja pieteikties vēlreiz. Sazinieties ar administratoru."
     }
   },
   "integrations": {
@@ -733,6 +890,7 @@
       "clientIdPlaceholder": "123456",
       "clientSecret": "Klienta noslēpums",
       "connectError": "Neizdevās savienoties ar Strava. Lūdzu, pārbaudiet savus datus un mēģiniet vēlreiz.",
+      "scopeError": "Strava nesaņēma visas Endurain nepieciešamās atļaujas. Pievienojieties vēlreiz un atstājiet visas atļaujas atzīmētas.",
       "completing": "Notiek Strava savienojuma pabeigšana…",
       "linkSuccess": "Strava savienots",
       "retrieveActivitiesTitle": "Iegūt Strava aktivitātes",
@@ -741,9 +899,10 @@
       "retrievingGear": "Notiek jūsu Strava inventāra iegūšana fonā…",
       "retrieveGearError": "Neizdevās sākt Strava inventāra iegūšanu. Lūdzu, mēģiniet vēlreiz.",
       "unlinkTitle": "Atvienot Strava?",
-      "unlinkBody": "Endurain pārtrauks importēšanu no Strava. Jūsu esošās aktivitātes tiek saglabātas.",
+      "unlinkBody": "Endurain pārtrauks importēšanu no Strava un izdzēsīs no Strava sinhronizētās aktivitātes un aprīkojumu. Aktivitātes no citiem avotiem, tostarp augšupielādētie Strava eksporta faili, tiks saglabātas.",
       "unlinkSuccess": "Strava atvienots",
-      "unlinkError": "Neizdevās atvienot Strava. Lūdzu, mēģiniet vēlreiz."
+      "unlinkError": "Neizdevās atvienot Strava. Lūdzu, mēģiniet vēlreiz.",
+      "revokedNotice": "Piekļuve Strava beidzās {revokedAt}. Ar Strava sinhronizētās aktivitātes un aprīkojums tiks dzēsti {deletionAt}, ja nepievienosies atkārtoti."
     },
     "garmin": {
       "title": "Garmin Connect",
@@ -807,8 +966,8 @@
     },
     "job": {
       "preparing": "Tiek sagatavots imports…",
-      "progress": "Importēti {done} no {total} failiem (neizdevās {failed})…",
-      "finished": "Imports pabeigts: importēti {done} no {total} failiem, neizdevās {failed}.",
+      "progress": "Importēti {done} no {total} failiem (neizdevās {failed})… | Importēts {done} no {total} faila (neizdevās {failed})… | Importēti {done} no {total} failiem (neizdevās {failed})…",
+      "finished": "Imports pabeigts: importēti {done} no {total} failiem, neizdevās {failed}. | Imports pabeigts: importēts {done} no {total} faila, neizdevās {failed}. | Imports pabeigts: importēti {done} no {total} failiem, neizdevās {failed}.",
       "failed": "Importu neizdevās pabeigt."
     }
   },
@@ -816,6 +975,8 @@
     "title": "Mans profils",
     "subtitle": "Pārvaldiet sava konta detaļas un privātumu",
     "notSet": "Nav iestatīts",
+    "emailManagedIn": "Jūsu e-pasts tiek mainīts drošības iestatījumos.",
+    "emailManagedLink": "Atvērt drošības iestatījumus",
     "error": {
       "title": "Neizdevās ielādēt jūsu profilu",
       "description": "Ielādējot jūsu profilu, kaut kas nogāja greizi. Varat mēģināt vēlreiz.",
@@ -874,6 +1035,8 @@
       "hideLaps": "Apļi",
       "hideWorkoutSetsSteps": "Treniņa piegājieni un soļi",
       "hideGear": "Inventārs",
+      "discoverable": "Ļaut citiem mani atrast meklēšanā",
+      "discoverableHint": "Citi lietotāji var jūs atrast pēc lietotājvārda, meklējot. Jūsu profils joprojām ir pieejams, izmantojot tiešo saiti.",
       "save": "Saglabāt privātumu",
       "saving": "Notiek saglabāšana…",
       "saveSuccess": "Privātuma iestatījumi atjaunināti",
@@ -921,10 +1084,53 @@
       "export": "Eksportēt datus",
       "import": "Importēt datus",
       "invalidType": "Lūdzu, izvēlieties .zip arhīvu.",
-      "exportSuccess": "Eksports gatavs, jūsu lejupielāde drīz sāksies",
+      "download": "Lejupielādēt eksportu",
+      "downloadSuccess": "Lejupielāde drīz sāksies",
+      "downloadError": "Neizdevās lejupielādēt eksportu. Lūdzu, mēģiniet vēlreiz.",
+      "exportQueued": "Eksports sākts. Varat pamest šo lapu.",
       "exportError": "Neizdevās eksportēt jūsu datus. Lūdzu, mēģiniet vēlreiz.",
-      "importSuccess": "Dati importēti",
-      "importError": "Neizdevās importēt arhīvu. Lūdzu, pārbaudiet failu un mēģiniet vēlreiz."
+      "exportInProgress": "Eksports jau tiek veikts.",
+      "exportStepUp": {
+        "title": "Apstipriniet, ka tas esat jūs",
+        "description": "Eksports nokopē visus jūsu datus, tāpēc vispirms apstipriniet savu identitāti."
+      },
+      "exportStatus": {
+        "queued": "Tiek gaidīts eksporta sākums…",
+        "running": "Tiek sagatavots jūsu eksports…",
+        "succeeded": "Jūsu eksports ir gatavs lejupielādei. Tas būs pieejams divas stundas.",
+        "failed": "Eksports netika pabeigts: {reason}"
+      },
+      "exportFailure": {
+        "timed_out": "tas aizņēma pārāk ilgu laiku. Varat mēģināt vēlreiz.",
+        "processing_failed": "radās kļūda. Varat mēģināt vēlreiz."
+      },
+      "importQueued": "Imports sākts. Varat pamest šo lapu.",
+      "importError": "Neizdevās importēt arhīvu. Lūdzu, pārbaudiet failu un mēģiniet vēlreiz.",
+      "importInProgress": "Imports jau tiek veikts.",
+      "status": {
+        "queued": "Tiek gaidīts importa sākums…",
+        "running": "Tiek importēti jūsu dati…",
+        "succeeded": "Imports pabeigts: importētas {activities} aktivitātes, inventārs: {gears}. | Imports pabeigts: importēta {activities} aktivitāte, inventārs: {gears}. | Imports pabeigts: importētas {activities} aktivitātes, inventārs: {gears}.",
+        "failed": "Imports netika pabeigts: {reason}"
+      },
+      "failure": {
+        "invalid_file": "arhīvs nav derīgs Endurain eksports. Nekas netika importēts.",
+        "too_large": "arhīvs ir pārāk liels. Nekas netika importēts.",
+        "too_many_activities": "arhīvā ir pārāk daudz aktivitāšu. Nekas netika importēts.",
+        "timed_out": "tas aizņēma pārāk ilgu laiku. Nekas netika importēts, tāpēc varat mēģināt vēlreiz.",
+        "files_incomplete": "jūsu dati tika importēti, bet daži faili trūkst. Neimportējiet tos vēlreiz, jo dati dublēsies.",
+        "processing_failed": "radās kļūda. Nekas netika importēts, tāpēc varat mēģināt vēlreiz.",
+        "wrong_account": "arhīvs tika eksportēts no cita konta. Nekas netika importēts."
+      }
+    },
+    "blockedUsers": {
+      "title": "Bloķētie lietotāji",
+      "subtitle": "Bloķētie lietotāji nevar pieprasīt tev sekot. Bloķējot kādu, tiek noņemta arī jebkāda savstarpējā sekošana.",
+      "empty": "Tu neesi nevienu bloķējis.",
+      "unblock": "Atbloķēt",
+      "unblockError": "Neizdevās atbloķēt šo lietotāju. Mēģini vēlreiz.",
+      "loadError": "Neizdevās ielādēt bloķētos lietotājus.",
+      "retry": "Mēģināt vēlreiz"
     }
   }
 }

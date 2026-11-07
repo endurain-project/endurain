@@ -11,16 +11,17 @@ function makeGear(overrides: Partial<Gear> = {}): Gear {
   return {
     id: 1,
     userId: 1,
-    gearType: 1,
+    gearType: 'bike',
     nickname: 'Road bike',
     brand: null,
     model: null,
     active: true,
-    createdAt: null,
+    acquiredOn: null,
     initialKms: null,
     purchaseValue: null,
     stravaGearId: null,
     garminConnectGearId: null,
+    version: 1,
     ...overrides,
   }
 }

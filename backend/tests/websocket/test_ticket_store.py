@@ -5,59 +5,68 @@ from unittest.mock import MagicMock, patch
 import pytest
 from jasil.backends.state_memory import MemoryState
 from jasil.providers import StateBackendUnavailableError
+from jasil.testing import FixedClock
 
+import core.attempt_state as core_attempt_state
+import core.hashing as core_hashing
 from modules.websocket.ticket_store import (
+    HANDSHAKE_WINDOW_SECONDS,
+    MAX_HANDSHAKES_PER_WINDOW,
     TICKET_TTL_SECONDS,
+    WsTicketOwner,
     WsTicketStore,
-    WsTicketStoreProtocol,
-    WsTicketStoreUnavailableError,
-    get_ws_ticket_store,
 )
-
-
-class TestWsTicketStoreProtocol:
-    """Structural conformance to WsTicketStoreProtocol."""
-
-    def test_store_satisfies_protocol(self):
-        assert isinstance(WsTicketStore(state=MemoryState()), WsTicketStoreProtocol)
 
 
 class TestWsTicketStore:
     """WsTicketStore backed by the platform StateProvider."""
 
     def _store(self) -> WsTicketStore:
-        return WsTicketStore(state=MemoryState())
+        return WsTicketStore(MemoryState(), FixedClock())
 
     def test_create_ticket_returns_string(self):
-        ticket = self._store().create_ticket(user_id=1)
+        ticket = self._store().create_ticket(user_id=1, session_id="s1")
         assert isinstance(ticket, str)
         assert len(ticket) > 0
 
     def test_create_ticket_unique_per_call(self):
         store = self._store()
-        assert store.create_ticket(1) != store.create_ticket(1)
+        assert store.create_ticket(1, "s1") != store.create_ticket(1, "s1")
 
     def test_consume_returns_user_id(self):
         store = self._store()
-        ticket = store.create_ticket(user_id=42)
-        assert store.consume_ticket(ticket) == 42
+        ticket = store.create_ticket(user_id=42, session_id="s1")
+        assert store.consume_ticket(ticket) == WsTicketOwner(user_id=42, session_id="s1")
 
     def test_consume_is_single_use(self):
         store = self._store()
-        ticket = store.create_ticket(user_id=7)
-        assert store.consume_ticket(ticket) == 7
+        ticket = store.create_ticket(user_id=7, session_id="s1")
+        assert store.consume_ticket(ticket) == WsTicketOwner(user_id=7, session_id="s1")
         assert store.consume_ticket(ticket) is None
 
     def test_consume_unknown_returns_none(self):
         assert self._store().consume_ticket("not-a-real-ticket") is None
 
     def test_consume_expired_returns_none(self):
-        store = WsTicketStore(state=MemoryState())
+        store = WsTicketStore(MemoryState(), FixedClock())
         with patch("jasil.backends.state_memory.time.monotonic") as clock:
             clock.return_value = 0.0
-            ticket = store.create_ticket(user_id=3)
+            ticket = store.create_ticket(user_id=3, session_id="s1")
             clock.return_value = TICKET_TTL_SECONDS + 1
             assert store.consume_ticket(ticket) is None
+
+    def test_state_key_holds_hash_not_raw_ticket(self):
+        state = MemoryState()
+        ticket = WsTicketStore(state, FixedClock()).create_ticket(user_id=5, session_id="s1")
+        keys = list(state.iter_keys("endurain:websocket:ticket"))
+        assert len(keys) == 1
+        assert ticket not in keys[0]
+        assert keys[0] == core_attempt_state.key("websocket", "ticket", core_hashing.sha256_hex(ticket))
+
+    def test_ticket_carries_the_session_of_the_requester(self):
+        store = self._store()
+        ticket = store.create_ticket(user_id=5, session_id="abc-123")
+        assert store.consume_ticket(ticket) == WsTicketOwner(user_id=5, session_id="abc-123")
 
     def test_ticket_ttl_is_30_seconds(self):
         assert TICKET_TTL_SECONDS == 30
@@ -65,7 +74,7 @@ class TestWsTicketStore:
     def test_create_ticket_retries_on_collision(self):
         state = MagicMock()
         state.set_if_absent.side_effect = [False, True]
-        ticket = WsTicketStore(state=state).create_ticket(user_id=1)
+        ticket = WsTicketStore(state, FixedClock()).create_ticket(user_id=1, session_id="s1")
         assert isinstance(ticket, str)
         assert state.set_if_absent.call_count == 2
 
@@ -73,32 +82,78 @@ class TestWsTicketStore:
         state = MagicMock()
         state.get_and_delete.return_value = b"not-an-int"
         with patch("modules.websocket.ticket_store.logger") as mock_log:
-            assert WsTicketStore(state=state).consume_ticket("secret-ticket-abc") is None
+            assert WsTicketStore(state, FixedClock()).consume_ticket("secret-ticket-abc") is None
         assert len(mock_log.method_calls) == 1
         warning_msg = mock_log.warning.call_args.args[0]
         assert "secret-ticket-abc" not in warning_msg
-        assert "ws:ticket:" not in warning_msg
+        assert "endurain:websocket:ticket" not in warning_msg
+
+
+class TestHandshakeLimit:
+    """The per-network handshake counter in the platform state."""
+
+    def test_a_network_is_allowed_up_to_the_limit_and_refused_past_it(self):
+        store = WsTicketStore(MemoryState(), FixedClock())
+        assert all(store.allow_handshake("203.0.113.5") for _ in range(MAX_HANDSHAKES_PER_WINDOW))
+        assert not store.allow_handshake("203.0.113.5")
+
+    def test_networks_are_counted_apart(self):
+        store = WsTicketStore(MemoryState(), FixedClock())
+        for _ in range(MAX_HANDSHAKES_PER_WINDOW + 1):
+            store.allow_handshake("203.0.113.5")
+        assert store.allow_handshake("203.0.113.6")
+
+    def test_the_next_window_starts_fresh_even_if_attempts_never_paused(self):
+        clock = FixedClock()
+        store = WsTicketStore(MemoryState(), clock)
+        for _ in range(MAX_HANDSHAKES_PER_WINDOW + 1):
+            store.allow_handshake("203.0.113.5")
+        assert not store.allow_handshake("203.0.113.5")
+
+        clock.advance(HANDSHAKE_WINDOW_SECONDS)
+
+        assert store.allow_handshake("203.0.113.5")
+
+    def test_attempts_do_not_extend_the_window(self):
+        clock = FixedClock()
+        state = MemoryState()
+        store = WsTicketStore(state, clock)
+        for _ in range(MAX_HANDSHAKES_PER_WINDOW + 1):
+            clock.advance(HANDSHAKE_WINDOW_SECONDS / (MAX_HANDSHAKES_PER_WINDOW + 5))
+            store.allow_handshake("203.0.113.5")
+        clock.advance(HANDSHAKE_WINDOW_SECONDS)
+        assert store.allow_handshake("203.0.113.5")
+
+    def test_a_counter_always_expires(self):
+        state = MagicMock()
+        state.incr.return_value = 1
+        WsTicketStore(state, FixedClock()).allow_handshake("203.0.113.5")
+        assert state.incr.call_args.kwargs["ttl_seconds"] == 2 * HANDSHAKE_WINDOW_SECONDS
+
+    def test_the_count_lives_in_the_shared_state(self):
+        state = MemoryState()
+        for _ in range(MAX_HANDSHAKES_PER_WINDOW):
+            WsTicketStore(state, FixedClock()).allow_handshake("203.0.113.5")
+        assert not WsTicketStore(state, FixedClock()).allow_handshake("203.0.113.5")
+
+    def test_a_state_outage_surfaces_as_unavailable(self):
+        state = MagicMock()
+        state.incr.side_effect = StateBackendUnavailableError("down")
+        with pytest.raises(core_attempt_state.StateUnavailableError):
+            WsTicketStore(state, FixedClock()).allow_handshake("203.0.113.5")
 
 
 class TestWsTicketStoreUnavailable:
-    """Backend outages surface as WsTicketStoreUnavailableError."""
+    """Backend outages surface as core_attempt_state.StateUnavailableError."""
 
     def test_create_ticket_raises(self):
         state = MagicMock()
         state.set_if_absent.side_effect = StateBackendUnavailableError("down")
-        with pytest.raises(WsTicketStoreUnavailableError):
-            WsTicketStore(state=state).create_ticket(user_id=1)
+        with pytest.raises(core_attempt_state.StateUnavailableError):
+            WsTicketStore(state, FixedClock()).create_ticket(user_id=1, session_id="s1")
 
     def test_consume_ticket_raises(self):
         state = MagicMock()
         state.get_and_delete.side_effect = StateBackendUnavailableError("down")
-        with pytest.raises(WsTicketStoreUnavailableError):
-            WsTicketStore(state=state).consume_ticket("some-ticket")
-
-
-class TestGetWsTicketStore:
-    """get_ws_ticket_store: returns the module singleton."""
-
-    def test_returns_singleton(self):
-        assert get_ws_ticket_store() is get_ws_ticket_store()
-        assert isinstance(get_ws_ticket_store(), WsTicketStoreProtocol)
+        with pytest.raises(core_attempt_state.StateUnavailableError):
+            WsTicketStore(state, FixedClock()).consume_ticket("some-ticket")

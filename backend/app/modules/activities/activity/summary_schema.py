@@ -6,8 +6,9 @@ from pydantic import (
     Field,
     StrictFloat,
     StrictInt,
-    StrictStr,
 )
+
+import modules.activities.activity.constants as activity_constants
 
 
 class SummaryMetrics(BaseModel):
@@ -106,17 +107,12 @@ class TypeBreakdownItem(SummaryMetrics):
     """Summary metrics broken down by activity type.
 
     Attributes:
-        activity_type_id: Numeric activity type ID.
-        activity_type: Human-readable type name.
+        activity_type: The activity type the metrics are for.
     """
 
-    activity_type_id: StrictInt = Field(
+    activity_type: activity_constants.ActivityType = Field(
         ...,
-        description="Numeric activity type ID",
-    )
-    activity_type: StrictStr = Field(
-        ...,
-        description=("Human-readable activity type name"),
+        description="The activity type the metrics are for",
     )
 
 

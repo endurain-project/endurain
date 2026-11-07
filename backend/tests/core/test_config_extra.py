@@ -7,8 +7,10 @@ from unittest.mock import patch
 
 import pytest
 from cryptography.fernet import Fernet
+from pydantic import ValidationError
 
 import core.config as core_config
+from core.config import Settings
 
 
 class TestLookLikeIp:
@@ -44,6 +46,7 @@ class TestSettings:
 
         s = Settings(_env_file=None)
         assert s.LOG_LEVEL == "info"
+        assert s.LOG_WEBSOCKET_FRAMES is False
         assert s.ENVIRONMENT == "production"
         assert s.TZ == "UTC"
         assert s.ENDURAIN_HOST == "http://localhost:8080"
@@ -70,8 +73,37 @@ class TestSettings:
     def test_allowed_redirect_schemes_comma_separated(self):
         from core.config import Settings
 
-        s = Settings(_env_file=None, ALLOWED_REDIRECT_SCHEMES="http,https,myapp")
-        assert {"http", "https", "myapp"} == s.ALLOWED_REDIRECT_SCHEMES
+        s = Settings(_env_file=None, ALLOWED_REDIRECT_SCHEMES="endurain,gadgetbridge")
+        assert {"endurain", "gadgetbridge"} == s.ALLOWED_REDIRECT_SCHEMES
+
+    def test_allowed_redirect_schemes_lowercased(self):
+        from core.config import Settings
+
+        s = Settings(_env_file=None, ALLOWED_REDIRECT_SCHEMES="Endurain, MyApp")
+        assert {"endurain", "myapp"} == s.ALLOWED_REDIRECT_SCHEMES
+
+    @pytest.mark.parametrize("unsafe", ["http", "https", "javascript", "data", "file", "vbscript", "blob"])
+    def test_allowed_redirect_schemes_refuses_unsafe_scheme(self, unsafe):
+        """An unsafe scheme in ALLOWED_REDIRECT_SCHEMES must fail at startup.
+
+        Asserts:
+            - ValidationError naming the refused scheme
+        """
+        from core.config import Settings
+
+        with pytest.raises(ValidationError, match=unsafe):
+            Settings(_env_file=None, ALLOWED_REDIRECT_SCHEMES=f"endurain,{unsafe}")
+
+    def test_allowed_redirect_schemes_refuses_unsafe_scheme_in_any_case(self):
+        """The refusal must hold when the operator writes the scheme in upper case.
+
+        Asserts:
+            - ValidationError for HTTPS
+        """
+        from core.config import Settings
+
+        with pytest.raises(ValidationError, match="https"):
+            Settings(_env_file=None, ALLOWED_REDIRECT_SCHEMES="endurain,HTTPS")
 
     def test_allowed_redirect_schemes_empty(self):
         from core.config import Settings
@@ -167,11 +199,19 @@ class TestSettings:
         assert s.DATA_DIR == "/custom/data"
         assert s.FILES_DIR == "/custom/data/activity_files"
 
-    def test_development_trusted_proxies_default(self):
+    def test_development_trusts_no_proxy_by_default(self, monkeypatch):
         from core.config import Settings
 
+        monkeypatch.delenv("TRUSTED_PROXIES", raising=False)
         s = Settings(_env_file=None, ENVIRONMENT="development")
-        assert s.TRUSTED_PROXIES == ["*"]
+        assert s.TRUSTED_PROXIES == []
+
+    def test_development_trusted_proxies_can_be_set_explicitly(self, monkeypatch):
+        from core.config import Settings
+
+        monkeypatch.setenv("TRUSTED_PROXIES", "10.0.0.0/8")
+        s = Settings(_env_file=None, ENVIRONMENT="development")
+        assert s.TRUSTED_PROXIES == ["10.0.0.0/8"]
 
     def test_trusted_proxies_with_hostname(self):
         from core.config import Settings
@@ -633,12 +673,21 @@ class TestValidateFernetKey:
 
         assert validate_fernet_key("not-a-valid-fernet-key") is False
 
-    def test_unexpected_exception_during_fernet_validation_returns_false(self):
+    def test_key_list(self):
         from core.config import validate_fernet_key
 
-        with patch("core.config.logger"):
-            result = validate_fernet_key(b"some bytes")
-        assert result is False
+        keys = [Fernet.generate_key().decode(), Fernet.generate_key().decode()]
+        assert validate_fernet_key(f"{keys[0]}, {keys[1]}") is True
+
+    def test_key_list_with_invalid_entry(self):
+        from core.config import validate_fernet_key
+
+        assert validate_fernet_key(f"{Fernet.generate_key().decode()},not-a-valid-fernet-key") is False
+
+    def test_key_list_with_empty_entry(self):
+        from core.config import validate_fernet_key
+
+        assert validate_fernet_key(f"{Fernet.generate_key().decode()},") is False
 
 
 class TestValidateLogLevel:
@@ -668,7 +717,7 @@ class TestCheckRequiredEnvVars:
     def _minimal_env(self, **overrides):
         env = {
             "DB_PASSWORD": "dbpass",
-            "SECRET_KEY": "secretkey",
+            "SECRET_KEY": "x" * 32,
             "FERNET_KEY": Fernet.generate_key().decode(),
             "ENDURAIN_HOST": "http://localhost:8080",
         }
@@ -714,18 +763,6 @@ class TestCheckRequiredEnvVars:
             pytest.raises(ValueError, match="FERNET_KEY validation failed"),
         ):
             check_required_env_vars()
-
-    def test_email_not_configured(self):
-        from core.config import check_required_env_vars
-
-        with (
-            patch.dict(os.environ, self._minimal_env(), clear=True),
-            patch("core.config.logger") as mock_log,
-        ):
-            check_required_env_vars()
-
-        info_calls = [c for c in mock_log.method_calls if "Email not configured" in str(c)]
-        assert len(info_calls) >= 1
 
     def test_secret_via_file_variant(self):
         from core.config import check_required_env_vars
@@ -790,7 +827,7 @@ class TestModuleLevelConstants:
     def test_api_version(self):
         from core.config import API_VERSION
 
-        assert API_VERSION == "v0.20.2"
+        assert API_VERSION == "v0.21.0-beta1"
 
     def test_license_constants(self):
         from core.config import LICENSE_IDENTIFIER, LICENSE_NAME, LICENSE_URL
@@ -923,16 +960,119 @@ class TestCheckDeprecatedEnvVars:
 
 class TestBulkImportDirectoriesArePerUser:
     def test_each_user_gets_their_own_directory_under_the_base(self):
-        with (
-            patch("core.config.FILES_BULK_IMPORT_DIR", "/data/bulk_import"),
-            patch("core.config.STRAVA_BULK_IMPORT_DIR", "/data/strava_import"),
-        ):
+        with patch("core.config.FILES_BULK_IMPORT_DIR", "/data/bulk_import"):
             assert core_config.bulk_import_dir_for(1) == "/data/bulk_import/1"
             assert core_config.bulk_import_dir_for(2) == "/data/bulk_import/2"
-            assert core_config.strava_bulk_import_dir_for(2) == "/data/strava_import/2"
 
     def test_the_id_can_only_be_a_single_path_segment(self):
         with patch("core.config.FILES_BULK_IMPORT_DIR", "/data/bulk_import"):
             assert core_config.bulk_import_dir_for("7") == "/data/bulk_import/7"
             with pytest.raises(ValueError):
                 core_config.bulk_import_dir_for("../2")
+
+
+class TestSessionPolicySettings:
+    """The deprecated session and token variables keep the bounds the database enforces."""
+
+    def test_defaults_are_the_documented_ones(self):
+        s = Settings(_env_file=None)
+        assert (s.ACCESS_TOKEN_EXPIRE_MINUTES, s.REFRESH_TOKEN_EXPIRE_DAYS) == (15, 7)
+        assert (s.SESSION_IDLE_TIMEOUT_ENABLED, s.SESSION_IDLE_TIMEOUT_HOURS, s.SESSION_ABSOLUTE_TIMEOUT_HOURS) == (
+            False,
+            1,
+            24,
+        )
+
+    @pytest.mark.parametrize(
+        ("name", "value"),
+        [
+            ("ACCESS_TOKEN_EXPIRE_MINUTES", 0),
+            ("ACCESS_TOKEN_EXPIRE_MINUTES", 1441),
+            ("REFRESH_TOKEN_EXPIRE_DAYS", 0),
+            ("REFRESH_TOKEN_EXPIRE_DAYS", 366),
+            ("READ_NOTIFICATION_RETENTION_DAYS", -1),
+            ("READ_NOTIFICATION_RETENTION_DAYS", 3651),
+            ("SESSION_IDLE_TIMEOUT_HOURS", 0),
+            ("SESSION_IDLE_TIMEOUT_HOURS", 8761),
+            ("SESSION_ABSOLUTE_TIMEOUT_HOURS", 0),
+            ("SESSION_ABSOLUTE_TIMEOUT_HOURS", 8761),
+        ],
+    )
+    def test_out_of_range_values_fail_settings_construction(self, name, value):
+        with pytest.raises(ValidationError):
+            Settings(_env_file=None, **{name: value})
+
+    def test_values_are_read_from_the_environment(self):
+        with patch.dict(os.environ, {"ACCESS_TOKEN_EXPIRE_MINUTES": "30", "SESSION_IDLE_TIMEOUT_ENABLED": "true"}):
+            s = Settings(_env_file=None)
+        assert s.ACCESS_TOKEN_EXPIRE_MINUTES == 30
+        assert s.SESSION_IDLE_TIMEOUT_ENABLED is True
+        assert {"ACCESS_TOKEN_EXPIRE_MINUTES", "SESSION_IDLE_TIMEOUT_ENABLED"} <= s.model_fields_set
+
+
+class TestEnvironmentValidation:
+    """ENVIRONMENT is one of the documented values; a typo must not silently disable production hardening."""
+
+    def test_a_typo_is_rejected_at_settings_load(self):
+        from pydantic import ValidationError
+
+        from core.config import Settings
+
+        with pytest.raises(ValidationError, match="ENVIRONMENT"):
+            Settings(_env_file=None, ENVIRONMENT="prod")
+
+    @pytest.mark.parametrize("value", ["production", "demo", "development"])
+    def test_documented_values_are_accepted(self, value):
+        from core.config import Settings
+
+        assert value == Settings(_env_file=None, ENVIRONMENT=value).ENVIRONMENT
+
+    @pytest.mark.parametrize(("value", "deployed"), [("production", True), ("demo", True), ("development", False)])
+    def test_the_deployed_check_is_defined_once(self, value, deployed):
+        from core.environment import is_deployed_environment
+
+        assert is_deployed_environment(value) is deployed
+
+
+class TestSecretKeyLength:
+    """SECRET_KEY must be at least 32 characters, as the docs require."""
+
+    def test_a_short_key_stops_startup(self):
+        from core.config import check_required_env_vars
+
+        env = TestCheckRequiredEnvVars()._minimal_env(SECRET_KEY="short")
+        with (
+            patch.dict(os.environ, env, clear=True),
+            patch("core.config.logger"),
+            pytest.raises(ValueError, match="SECRET_KEY must be at least 32 characters"),
+        ):
+            check_required_env_vars()
+
+    def test_every_key_of_a_list_must_be_long_enough(self):
+        from core.config import check_required_env_vars
+
+        env = TestCheckRequiredEnvVars()._minimal_env(SECRET_KEY=f"{'x' * 32},short")
+        with (
+            patch.dict(os.environ, env, clear=True),
+            patch("core.config.logger"),
+            pytest.raises(ValueError, match="SECRET_KEY must be at least 32 characters"),
+        ):
+            check_required_env_vars()
+
+    def test_a_list_of_long_keys_starts(self):
+        from core.config import check_required_env_vars
+
+        env = TestCheckRequiredEnvVars()._minimal_env(SECRET_KEY=f"{'x' * 32}, {'y' * 40}")
+        with patch.dict(os.environ, env, clear=True), patch("core.config.logger"):
+            check_required_env_vars()
+
+    def test_an_empty_entry_stops_startup(self):
+        from core.config import check_required_env_vars
+
+        env = TestCheckRequiredEnvVars()._minimal_env(SECRET_KEY=f"{'x' * 32},")
+        with (
+            patch.dict(os.environ, env, clear=True),
+            patch("core.config.logger"),
+            pytest.raises(ValueError, match="SECRET_KEY contains an empty entry"),
+        ):
+            check_required_env_vars()

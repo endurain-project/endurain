@@ -28,12 +28,12 @@ def to_read_schema(
         files_done=orm_job.files_done,
         files_failed=orm_job.files_failed,
         provider=orm_job.provider,
-        status=activity_ingestion_constants.IngestionJobStatus(orm_job.status),
+        status=activity_ingestion_constants.IngestionJobStatus(orm_job.status).job_state,
         error_code=(
             activity_ingestion_constants.IngestionJobErrorCode(orm_job.error_code) if orm_job.error_code else None
         ),
         activity_ids=list(orm_job.activity_ids or []),
         created_at=orm_job.created_at,
         updated_at=orm_job.updated_at,
-        completed_at=orm_job.completed_at,
+        finished_at=orm_job.completed_at,
     )

@@ -6,6 +6,7 @@ import type { Notification, NotificationDto } from '@/features/notifications/typ
 import { apiFetch } from '@/services/http'
 import {
   fetchNotifications,
+  fetchUnreadNotificationsCount,
   mapNotification,
   markAllNotificationsRead,
   markNotificationRead,
@@ -23,17 +24,17 @@ vi.mock('@/services/http', () => ({
 
 const dto: NotificationDto = {
   id: 7,
-  type: 3,
+  type: 'new_activity',
   read: false,
   options: { activity_id: 42 },
   created_at: '2026-06-19T10:00:00Z',
   user_id: 1,
 }
 
-function notification(overrides: Partial<Notification> = {}): Notification {
+function notification(overrides: { id?: number; read?: boolean } = {}): Notification {
   return {
     id: 7,
-    type: 3,
+    type: 'new_activity',
     read: false,
     options: { activity_id: 42 },
     createdAt: '2026-06-19T10:00:00Z',
@@ -47,12 +48,20 @@ describe('mapNotification', () => {
     expect(mapNotification(dto)).toEqual(notification())
   })
 
-  it('coerces absent optional fields to null', () => {
-    expect(mapNotification({ id: 1, read: true, user_id: 9 })).toEqual({
+  it('coerces an absent creation time to null', () => {
+    expect(
+      mapNotification({
+        id: 1,
+        type: 'garmin_token_expired',
+        read: true,
+        options: {},
+        user_id: 9,
+      }),
+    ).toEqual({
       id: 1,
-      type: null,
+      type: 'garmin_token_expired',
       read: true,
-      options: null,
+      options: {},
       createdAt: null,
       userId: 9,
     })
@@ -65,40 +74,61 @@ describe('notification service requests', () => {
   })
 
   it('requests the paginated notifications path and maps the result', async () => {
-    vi.mocked(apiFetch).mockResolvedValue([dto])
+    vi.mocked(apiFetch).mockResolvedValue({
+      items: [dto],
+      total: 1,
+      page: 2,
+      num_records: 10,
+      next: null,
+    })
 
     const result = await fetchNotifications({ page: 2, numRecords: 10 })
 
     expect(apiFetch).toHaveBeenCalledWith(
-      '/notifications/page_number/2/num_records/10',
+      '/notifications?page_number=2&num_records=10',
       expect.objectContaining({ signal: undefined }),
     )
     expect(result).toEqual([notification()])
   })
 
-  it('treats a null list body as no notifications', async () => {
-    vi.mocked(apiFetch).mockResolvedValue(null)
+  it('reads the unread count from the unread-count route', async () => {
+    vi.mocked(apiFetch).mockResolvedValue({ count: 42 })
+    const signal = new AbortController().signal
+
+    await expect(fetchUnreadNotificationsCount(signal)).resolves.toBe(42)
+
+    expect(apiFetch).toHaveBeenCalledWith('/notifications/unread-count', { signal })
+  })
+
+  it('maps an empty page to no notifications', async () => {
+    vi.mocked(apiFetch).mockResolvedValue({
+      items: [],
+      total: 0,
+      page: 1,
+      num_records: 25,
+      next: null,
+    })
     await expect(fetchNotifications({ page: 1, numRecords: 25 })).resolves.toEqual([])
   })
 
-  it('marks a notification read via a void PUT', async () => {
+  it('marks a notification read via a void POST', async () => {
     vi.mocked(apiFetch).mockResolvedValue(undefined)
 
     await markNotificationRead(7)
 
-    expect(apiFetch).toHaveBeenCalledWith('/notifications/7/mark_as_read', {
-      method: 'PUT',
+    expect(apiFetch).toHaveBeenCalledWith('/notifications/7/read', {
+      method: 'POST',
       responseType: 'void',
     })
   })
 
-  it('marks all notifications read via a void PUT', async () => {
+  it('marks all notifications read via a void POST', async () => {
     vi.mocked(apiFetch).mockResolvedValue(undefined)
 
     await markAllNotificationsRead()
 
-    expect(apiFetch).toHaveBeenCalledWith('/notifications/mark_all_as_read', {
-      method: 'PUT',
+    expect(apiFetch).toHaveBeenCalledWith('/notifications/read', {
+      method: 'POST',
       responseType: 'void',
     })
   })

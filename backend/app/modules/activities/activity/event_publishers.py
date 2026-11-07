@@ -12,7 +12,7 @@ the domain rows; otherwise the event dispatches on the bus after the outermost
 commit and is dropped on rollback.
 """
 
-from collections.abc import Iterable, Sequence
+from collections.abc import Callable, Iterable, Sequence
 
 import jasil.publisher as platform_publisher
 from sqlalchemy.orm import Session
@@ -216,4 +216,30 @@ def publish_activities_deleted(
         },
         db=db,
         schema_version=activity_events.ActivityDeletedPayload.SCHEMA_VERSION,
+    )
+
+
+def publish_visibility_edit_requested(
+    user_id: int, visibility: int, db: Session, *, commit: Callable[[], None]
+) -> None:
+    """Publish ``activities.visibility_edit_requested`` so a durable worker applies the edit.
+
+    The event is the work, so it is staged in the transactional outbox on ``db`` and a staging failure
+    propagates.
+
+    Args:
+        user_id: The user whose activities to edit.
+        visibility: The visibility to apply.
+        db: The session to stage the event on.
+        commit: Zero-arg commit callable that ends the caller's transaction.
+    """
+    payload = activity_events.VisibilityEditRequestedPayload(user_id=user_id, visibility=visibility)
+    platform_publisher.publish_committing(
+        activity_events.ACTIVITIES_VISIBILITY_EDIT_REQUESTED,
+        payload.model_dump(),
+        source="api:bulk_edit_activities",
+        db=db,
+        commit=commit,
+        metadata={core_event_metadata.META_USER_ID: user_id},
+        schema_version=payload.SCHEMA_VERSION,
     )

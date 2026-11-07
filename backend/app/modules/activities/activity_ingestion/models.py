@@ -1,7 +1,6 @@
 """SQLAlchemy ORM model for user-facing activity ingestion jobs."""
 
 from datetime import datetime
-from typing import Any
 
 from sqlalchemy import (
     JSON,
@@ -69,7 +68,8 @@ class ActivityIngestionJob(Base):
         window_start: For a refresh, the start of the window to fetch; null means
             the default window ending when the job runs.
         window_end: For a refresh, the end of the window to fetch.
-        status: Lifecycle state: pending, processing, completed, or failed.
+        status: Lifecycle state: pending, processing, deferred, completed, or failed.
+        retry_after: When a deferred refresh runs again; set only while ``status`` is deferred.
         error_code: Stable, sanitized reason when ``status`` is failed.
         activity_ids: Ids created by the import, so the client can refresh
             exactly what changed instead of invalidating the whole feed.
@@ -179,14 +179,19 @@ class ActivityIngestionJob(Base):
         nullable=False,
         default="pending",
         server_default="pending",
-        comment="pending | processing | completed | failed",
+        comment="pending | processing | deferred | completed | failed",
+    )
+    retry_after: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True),
+        nullable=True,
+        comment="When a deferred refresh runs again; a provider's rate limit clears then",
     )
     error_code: Mapped[str | None] = mapped_column(
         String(50),
         nullable=True,
         comment="Sanitized failure reason when status is failed",
     )
-    activity_ids: Mapped[list[Any] | None] = mapped_column(
+    activity_ids: Mapped[list[int] | None] = mapped_column(
         JSON().with_variant(JSONB(), "postgresql"),
         nullable=True,
         comment="Ids of the activities the import created",

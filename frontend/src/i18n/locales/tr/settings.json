@@ -31,6 +31,7 @@
       "admin": "Yönetici",
       "inactive": "Pasif",
       "unverified": "Doğrulanmamış e-posta",
+      "pendingEmail": "Bekleyen e-posta değişikliği",
       "pending": "Onay bekliyor",
       "externalAuth": "Harici kimlik doğrulama"
     },
@@ -64,18 +65,15 @@
       "email": "E-posta",
       "emailRequired": "E-posta zorunludur",
       "emailInvalid": "Geçerli bir e-posta adresi girin",
+      "emailChangeHint": "Yeni adrese bir onay bağlantısı gönderilir ve onaylandığında mevcut adresin yerini alır. Kullanıcı tüm cihazlardan çıkış yapar. Yeni adresi hemen uygulamak için bunun yerine doğrulanmış olarak işaretleyin.",
       "accessType": "Erişim türü",
       "accessTypeRegular": "Normal kullanıcı",
       "accessTypeAdmin": "Yönetici",
       "password": "Parola",
       "passwordHint": "En az 8 karakter",
-      "passwordHintStrict": "En az {min} karakter; büyük harf, küçük harf, bir rakam ve bir özel karakter içermeli",
-      "passwordHintLength": "En az {min} karakter",
       "passwordRequired": "Parola zorunludur",
-      "passwordInvalid": "Bu parola gereksinimleri karşılamıyor",
       "confirmPassword": "Parolayı onayla",
       "confirmPasswordRequired": "Parolayı onayla",
-      "passwordMismatch": "Parolalar eşleşmiyor",
       "preferredLanguage": "Tercih edilen dil",
       "languages": {
         "ca": "Katalanca",
@@ -118,14 +116,16 @@
       "units": "Birimler",
       "unitsMetric": "Metrik",
       "unitsImperial": "İngiliz",
+      "weightUnits": "Ağırlık birimleri",
+      "weightUnitsDefault": "Birimleri takip et",
+      "weightUnitsMetric": "Kilogram (kg)",
+      "weightUnitsImperial": "Pound (lb)",
       "height": "Boy",
-      "unitCm": "cm",
-      "unitFeet": "ft",
-      "unitInches": "in",
+      "heightInvalid": "Boy 50 ile 272 cm arasında olmalıdır",
+      "maxHeartRateInvalid": "Maksimum kalp atış hızı 30 ile 250 bpm arasında olmalıdır",
       "feetInvalid": "Fit değeri 0 ile 10 arasında olmalı",
       "inchesInvalid": "İnç değeri 0 ile 11 arasında olmalı",
       "maxHeartRate": "Maks. kalp atış hızı",
-      "unitBpm": "bpm",
       "currency": "Para birimi",
       "currencies": {
         "euro": "Euro",
@@ -134,6 +134,8 @@
       },
       "firstDayOfWeek": "Haftanın ilk günü",
       "timezone": "Saat dilimi",
+      "timezoneNotSet": "Ayarlanmadı",
+      "timezoneUseBrowser": "Tarayıcınızın saat dilimini kullanın ({timezone})",
       "timezoneHint": "GPS olmadan kaydedilen etkinlikler için kullanılır; örneğin koşu bandında koşu ve iç mekân bisiklet sürüşleri.",
       "weekdays": {
         "sunday": "Pazar",
@@ -149,6 +151,8 @@
       "statusLegend": "Hesap durumu",
       "active": "Aktif",
       "emailVerified": "E-posta doğrulandı",
+      "emailVerifiedCurrentHint": "Bu, mevcut adresin durumudur.",
+      "newEmailVerified": "Yeni adresi doğrulanmış olarak işaretle",
       "pendingAdminApproval": "Yönetici onayı bekliyor",
       "requiredField": "Zorunlu alan",
       "create": "Kullanıcı ekle",
@@ -171,6 +175,7 @@
     },
     "detail": {
       "back": "Kullanıcılara geri dön",
+      "pendingEmail": "{email} adresine bekleyen e-posta değişikliği, bağlantının süresi {date} tarihinde doluyor",
       "notFoundTitle": "Kullanıcı bulunamadı",
       "notFoundDescription": "Bu hesap silinmiş olabilir",
       "securityTitle": "Güvenlik",
@@ -186,16 +191,12 @@
       "title": "Parolayı sıfırla",
       "description": "{username} için yeni bir parola belirleyin",
       "newLabel": "Yeni parola",
-      "hintLength": "En az {min} karakter",
-      "hintStrict": "En az {min} karakter; büyük harf, küçük harf, bir rakam ve bir özel karakter içermeli",
       "confirmLabel": "Yeni parolayı onayla",
-      "mismatch": "Parolalar eşleşmiyor",
       "required": "Parola zorunludur",
       "submit": "Parolayı sıfırla",
       "cancel": "İptal",
       "close": "Kapat",
       "success": "Parola güncellendi",
-      "invalid": "Bu parola gereksinimleri karşılamıyor",
       "error": "Parola güncellenemedi. Lütfen tekrar deneyin."
     },
     "sessions": {
@@ -277,6 +278,32 @@
     "saving": "Kaydediliyor…",
     "saveSuccess": "Sunucu ayarları güncellendi",
     "saveError": "Sunucu ayarları güncellenemedi. Lütfen tekrar deneyin.",
+    "staleError": "Siz düzenlerken bu ayarlar başka biri tarafından değiştirildi. Değişiklikleriniz kaydedilmedi. Güncel değerleri görmek için sayfayı yenileyin.",
+    "envLocked": "{name} tarafından ayarlanıyor",
+    "envSection": "Buradaki bazı ayarlar ortam değişkenleriyle ({names}) belirleniyor. Bu ayarları burada düzenlemek için değişkenleri ortamdan kaldırın.",
+    "unsaved": "Kaydedilmemiş değişiklikler",
+    "fixErrors": "Kaydetmek için yukarıdaki hataları düzeltin",
+    "discard": "Vazgeç",
+    "tabs": {
+      "label": "Sunucu ayarları bölümleri",
+      "general": "Genel",
+      "access": "Erişim ve güvenlik",
+      "maps": "Haritalar ve konum",
+      "email": "E-posta",
+      "logs": "Günlükler",
+      "unsaved": "Kaydedilmemiş değişiklikler içeriyor"
+    },
+    "search": {
+      "placeholder": "Ayarlarda ara…",
+      "noResults": "Ayar bulunamadı"
+    },
+    "leave": {
+      "title": "Kaydetmeden ayrılınsın mı?",
+      "description": "Kaydedilmemiş değişiklikleriniz var. Bu sayfadan ayrılırsanız kaybolacaklar.",
+      "confirm": "Kaydetmeden ayrıl",
+      "stay": "Sayfada kal",
+      "close": "Kapat"
+    },
     "loadError": {
       "title": "Sunucu ayarları yüklenemedi",
       "description": "Sunucu ayarları yüklenirken bir şeyler ters gitti. Tekrar deneyebilirsiniz.",
@@ -295,11 +322,33 @@
     },
     "password": {
       "title": "Parola ilkesi",
-      "type": "İlke",
-      "typeStrict": "Katı (karmaşıklık gerekli)",
-      "typeLengthOnly": "Yalnızca uzunluk",
       "lengthRegular": "Normal kullanıcılar için minimum uzunluk",
       "lengthAdmin": "Yönetici kullanıcılar için minimum uzunluk"
+    },
+    "session": {
+      "title": "Oturumlar",
+      "description": "Değişiklikler yeni girişler için ve bir sonraki belirteç yenilemesinde geçerli olur. Verilmiş belirteçler kendi ömürlerini korur.",
+      "idleTimeoutEnabled": "Boşta kalma zaman aşımını uygula",
+      "idleHours": "Boşta kalma zaman aşımı (saat)",
+      "idleHoursHint": "Uygulandığında, oturum bu kadar saat etkinlik olmadan kalırsa sona erer.",
+      "absoluteHours": "Mutlak zaman aşımı (saat)",
+      "absoluteHoursHint": "Oturum, etkinliğinden bağımsız olarak girişten bu kadar saat sonra sona erer. Her zaman geçerlidir. Boşta kalma zaman aşımından kısa olamaz.",
+      "accessMinutes": "Erişim belirteci ömrü (dakika)",
+      "refreshDays": "Yenileme belirteci ömrü (gün)",
+      "apiKeyDays": "API anahtarı azami ömrü (gün)",
+      "apiKeyDaysHint": "Yeni bir API anahtarı, sahibi daha erken bir tarih seçmedikçe bu kadar gün sonra sona erer.",
+      "invalidRange": "{min} ile {max} arasında bir tam sayı girin.",
+      "absoluteBelowIdle": "Boşta kalma zaman aşımından kısa olamaz."
+    },
+    "retention": {
+      "title": "Veri saklama",
+      "readNotifications": "Okunmuş bildirimleri şu süre sonra sil (gün)",
+      "readNotificationsHint": "0 değeri okunmuş bildirimleri süresiz saklar. Okunmamış bildirimler hiçbir zaman silinmez.",
+      "auditTrail": "Denetim kaydı girdilerini şu süre sonra sil (gün)",
+      "auditTrailHint": "0 değeri her şeyi saklar. Aksi halde en az 30 gün olmalıdır; girdiler tam gün olarak silinir.",
+      "auditTrailInvalid": "0 girin veya {min} ile {max} arasında bir tam sayı girin.",
+      "auditLegalHold": "Denetim kaydında yasal saklama",
+      "auditLegalHoldHint": "Açıkken, saklama süresinden bağımsız olarak denetim kaydının tüm temizlenmesini durdurur."
     },
     "signup": {
       "title": "Kayıt",
@@ -336,12 +385,33 @@
       "attribution": "Atıf",
       "apiKey": "Karo sunucusu API anahtarı",
       "apiKeyWarning": "API anahtarı şifrelenmiş olarak saklanır. Karo sunucunuz buna ihtiyaç duymuyorsa boş bırakın.",
+      "apiKeyStored": "Bir anahtar saklanıyor",
+      "apiKeyRemove": "Saklanan API anahtarını kaldır",
       "backgroundColor": "Harita arka plan rengi",
       "regenerateThumbnails": "Harita ayarları değiştiğinde etkinlik küçük resimlerini yeniden oluştur"
+    },
+    "geocoding": {
+      "title": "Ters coğrafi kodlama",
+      "description": "Etkinlik koordinatlarını yer adlarına dönüştürür. Değişiklikler yeniden başlatma gerektirmeden uygulanır.",
+      "service": "Hizmet",
+      "serviceNominatim": "Nominatim",
+      "servicePhoton": "Photon",
+      "serviceGeocode": "geocode.maps.co",
+      "host": "Ana makine",
+      "hostHint": "İsteğe bağlı bağlantı noktasıyla ana makine adı, şema olmadan. Özel ağdaki bir ana makine SSRF_ALLOWED_HOSTS içinde listelenmelidir.",
+      "useHttps": "HTTPS üzerinden bağlan",
+      "rateLimit": "Saniyedeki istek sayısı",
+      "rateLimitHint": "0 hız sınırlamasını kapatır. Herkese açık Nominatim ve Photon hizmetleri için 1 olarak bırakın.",
+      "rateLimitInvalid": "0 ile 100 arasında bir sayı girin.",
+      "apiKey": "API anahtarı",
+      "apiKeyStored": "Bir anahtar saklanıyor. Korumak için boş bırakın.",
+      "apiKeyRemove": "Saklanan API anahtarını kaldır",
+      "apiKeyRequired": "geocode.maps.co bir API anahtarı gerektirir."
     },
     "photo": {
       "title": "Giriş fotoğrafı",
       "description": "Giriş ekranında gösterilen özel bir görsel",
+      "previewAlt": "Geçerli giriş fotoğrafı",
       "add": "Giriş fotoğrafı yükle",
       "replace": "Giriş fotoğrafını değiştir",
       "delete": "Giriş fotoğrafını kaldır",
@@ -355,6 +425,30 @@
       "cancel": "İptal",
       "close": "Kapat"
     },
+    "logs": {
+      "title": "Sunucu günlükleri",
+      "description": "Uygulama günlüğünün en yeni kayıtları. Birden fazla işlem çalıştıran dağıtımların günlüklerini platformunuz toplar.",
+      "level": "Minimum düzey",
+      "allLevels": "Tüm düzeyler",
+      "search": "Ara",
+      "searchPlaceholder": "Metin, kaydedici veya istek kimliği…",
+      "live": "Canlı",
+      "refresh": "Yenile",
+      "download": "İndir",
+      "downloadError": "Günlük dosyası indirilemedi.",
+      "clear": "Temizle",
+      "cleared": "Günlükler temizlendi",
+      "clearError": "Günlükler temizlenemedi.",
+      "clearConfirm": {
+        "title": "Sunucu günlükleri temizlensin mi?",
+        "description": "Bu işlem günlük dosyasını ve döndürülmüş yedeklerini kalıcı olarak siler. İhtiyacınız olabilirse önce günlüğü indirin. İşlemin kendisi yeni günlüğe kaydedilir.",
+        "confirm": "Günlükleri temizle",
+        "cancel": "İptal",
+        "close": "Kapat"
+      },
+      "loadError": "Günlükler yüklenemedi.",
+      "empty": "Günlük kaydı bulunamadı"
+    },
     "email": {
       "title": "E-posta",
       "description": "Endurain, parola sıfırlama ve kayıt e-postalarını ortamda yapılandırılan SMTP sunucusu üzerinden gönderir.",
@@ -366,7 +460,26 @@
       "sendHint": "Test e-postası kendi adresinize gönderilir.",
       "sent": "Test e-postası gönderildi",
       "failed": "Test e-postası gönderilemedi",
-      "failedUnknown": "Ayrıntılar için sunucu günlüklerine bakın."
+      "failedUnknown": "Ayrıntılar için sunucu günlüklerine bakın.",
+      "settingsLoadError": "E-posta ayarları yüklenemedi.",
+      "host": "Ana makine",
+      "hostHint": "E-postayı kapatmak için boş bırakın.",
+      "port": "Bağlantı noktası",
+      "portInvalid": "1 ile 65535 arasında bir bağlantı noktası girin.",
+      "security": "Bağlantı güvenliği",
+      "securityStarttls": "STARTTLS",
+      "securitySsl": "SSL/TLS",
+      "securityNone": "Yok (yalnızca özel aktarıcı)",
+      "securityNoneWarning": "Şifreleme olmadan yalnızca özel veya geri döngü adresindeki bir posta sunucusu kabul edilir ve kullanıcı adı ile parola kullanılamaz.",
+      "username": "Kullanıcı adı",
+      "password": "Parola",
+      "passwordStored": "Bir parola saklanıyor. Korumak için boş bırakın.",
+      "passwordRemove": "Saklanan parolayı kaldır",
+      "fromAddress": "Gönderen adresi",
+      "fromAddressHint": "Kullanıcı adını kullanmak için boş bırakın.",
+      "save": "E-posta ayarlarını kaydet",
+      "saveSuccess": "E-posta ayarları kaydedildi",
+      "saveError": "E-posta ayarları kaydedilemedi"
     }
   },
   "idp": {
@@ -428,6 +541,7 @@
       "issuerUrl": "Veren URL'si",
       "issuerUrlHint": "Sağlayıcının OIDC veren veya keşif URL'si",
       "issuerUrlRequired": "Veren URL'si zorunludur",
+      "issuerUrlRefused": "Sağlayıcı URL'si reddedildi. https:// kullanmalı ve sunucudan çözümlenebilmelidir; özel ağdaki bir sağlayıcı SSRF_ALLOWED_HOSTS içinde listelenmelidir.",
       "issuerUrlTooLong": "Veren URL'si en fazla 500 karakter olmalı",
       "clientId": "İstemci kimliği",
       "clientIdRequired": "İstemci kimliği zorunludur",
@@ -442,15 +556,22 @@
       "scopesTooLong": "Kapsamlar en fazla 500 karakter olmalı",
       "icon": "Simge",
       "iconNone": "Yok",
-      "iconCustom": "Özel URL",
-      "customIconUrl": "Özel simge URL'si",
-      "customIconUrlHint": "Giriş düğmesinde gösterilen bir görsele bağlantı",
+      "iconUpload": "Görsel yükle",
+      "iconFileHint": "En fazla 1 MB'lık PNG, JPEG veya WebP görseli; giriş düğmesinde gösterilir",
+      "iconChoose": "Görsel seç",
+      "iconReplace": "Görseli değiştir",
+      "iconPreviewAlt": "Simge önizlemesi",
+      "iconFileRequired": "Yüklemek için bir görsel seçin",
+      "iconFileInvalidType": "Simge PNG, JPEG veya WebP görseli olmalıdır",
+      "iconFileTooLarge": "Simge en fazla 1 MB olmalıdır",
+      "iconSaveError": "Sağlayıcı kaydedildi ancak simgesi güncellenemedi. Tekrar denemek için sağlayıcıyı düzenleyin.",
       "enabled": "Etkin",
       "autoCreateUsers": "İlk girişte kullanıcıları otomatik oluştur",
       "syncUserInfo": "Her girişte profil bilgisini eşitle",
       "createSuccess": "Sağlayıcı eklendi",
       "updateSuccess": "Sağlayıcı güncellendi",
       "slugConflict": "Bu kısa ad zaten kullanılıyor",
+      "staleError": "Bu sağlayıcı başka bir yerde değiştirildi. Değişiklikleriniz kaydedilmedi. Güncel ayarları yüklemek için kapatıp yeniden açın.",
       "saveError": "Sağlayıcı kaydedilemedi. Lütfen tekrar deneyin."
     }
   },
@@ -458,7 +579,7 @@
     "title": "Hedeflerim",
     "subtitle": "Etkinlikleriniz için hedefler belirleyin ve ilerlemenizi takip edin",
     "buttonAdd": "Hedef ekle",
-    "count": "Toplam {count} hedef var:",
+    "count": "Toplam {count} hedef var: | Toplam {count} hedef var:",
     "filters": "Filtreler",
     "filter": {
       "all": "Tümü",
@@ -492,13 +613,6 @@
       "elevation": "Yükseklik",
       "duration": "Süre"
     },
-    "unit": {
-      "calories": "kcal",
-      "km": "km",
-      "miles": "mi",
-      "meters": "m",
-      "feet": "ft"
-    },
     "list": {
       "edit": "{name} hedefini düzenle",
       "delete": "{name} hedefini sil"
@@ -522,6 +636,7 @@
       "error": "Hedef silinemedi. Lütfen tekrar deneyin."
     },
     "form": {
+      "targetInvalid": "0'dan büyük bir değer girin.",
       "addTitle": "Hedef ekle",
       "editTitle": "Hedefi düzenle",
       "description": "Yinelenen bir dönem boyunca bir etkinlik için hedef belirleyin",
@@ -549,6 +664,7 @@
     "hidePassword": "Parolayı gizle",
     "mfaCode": "Kimlik doğrulama kodu",
     "mfaCodePlaceholder": "123456",
+    "confirmPhrase": "Onaylamak için {phrase} yazın",
     "loadError": {
       "title": "Güvenlik ayarlarınız yüklenemedi",
       "description": "Bir şeyler ters gitti. Tekrar deneyebilirsiniz."
@@ -559,9 +675,6 @@
       "current": "Mevcut parola",
       "new": "Yeni parola",
       "confirm": "Yeni parolayı onayla",
-      "requirementsStrict": "En az {length} karakter; büyük harf, küçük harf, bir rakam ve bir sembol içermeli.",
-      "requirementsLength": "En az {length} karakter.",
-      "mismatch": "Parolalar eşleşmiyor.",
       "revokeOthers": "Diğer tüm cihazlardan çıkış yap",
       "submit": "Parolayı değiştir",
       "success": "Parola değiştirildi",
@@ -575,7 +688,7 @@
       "disabledDescription": "İki adımlı kimlik doğrulama kapalı. Hesabınızı daha iyi korumak için açın.",
       "enable": "İki adımlı doğrulamayı etkinleştir",
       "enabledDescription": "İki adımlı kimlik doğrulama açık.",
-      "backupRemaining": "{total} yedek koddan {unused} tanesi kaldı.",
+      "backupRemaining": "{total} yedek koddan {unused} tanesi kaldı. | {total} yedek koddan {unused} tanesi kaldı.",
       "regenerate": "Yedek kodları yeniden oluştur",
       "disable": "Devre dışı bırak",
       "setupTitle": "İki adımlı kimlik doğrulamayı etkinleştir",
@@ -649,7 +762,39 @@
       "unlinkError": "Hesap bağlantısı kaldırılamadı. Lütfen tekrar deneyin.",
       "invalidCredentials": "Parolanız veya kodunuz yanlış.",
       "alreadyLinked": "Bu hesap zaten bağlı.",
-      "lastMethodError": "Tek giriş yönteminizin bağlantısını kaldıramazsınız. Önce bir parola belirleyin."
+      "lastMethodError": "Tek giriş yönteminizin bağlantısını kaldıramazsınız. Önce bir parola belirleyin.",
+      "linkedOn": "Bağlanma tarihi: {date}"
+    },
+    "email": {
+      "title": "E-posta adresi",
+      "subtitle": "Parola sıfırlamaları ve bildirimler buraya gönderilir. Değiştirmek için kimliğinizi doğrulamanız gerekir; yeni adres, oraya gönderdiğimiz bağlantıyı onayladığınızda geçerli olur.",
+      "current": "Mevcut e-posta",
+      "action": "E-postayı değiştir",
+      "new": "Yeni e-posta",
+      "invalid": "Geçerli bir e-posta adresi girin.",
+      "sameAsCurrent": "Bu zaten e-posta adresiniz.",
+      "success": "Onay bağlantısı yeni adrese gönderildi. E-posta adresiniz onayladığınızda değişecek.",
+      "appliedSuccess": "E-posta değiştirildi.",
+      "pending": "{email} adresine bekleyen değişiklik",
+      "pendingExpires": "Onay bağlantısının süresi {date} tarihinde doluyor.",
+      "resend": "Bağlantıyı yeniden gönder",
+      "cancel": "Değişikliği iptal et",
+      "resendSuccess": "Bekleyen bir değişiklik varsa yeni adrese yeni bir bağlantı gönderiliyor.",
+      "resendError": "Bağlantı yeniden gönderilemedi. Lütfen tekrar deneyin.",
+      "cancelSuccess": "E-posta değişikliği iptal edildi.",
+      "cancelError": "Değişiklik iptal edilemedi. Lütfen tekrar deneyin.",
+      "conflict": "Bu e-posta zaten kullanımda.",
+      "error": "E-postanız değiştirilemedi. Lütfen tekrar deneyin."
+    },
+    "deleteAccount": {
+      "title": "Hesabımı sil",
+      "subtitle": "Hesabınızı ve etkinlikler ile dosyaları, sağlık kayıtları, ekipman, hedefler, entegrasyonlar ve oturumlar dahil tüm verilerinizi kalıcı olarak silin. Bu işlem geri alınamaz. Bir kopyasını saklamak istiyorsanız önce verilerinizi dışa aktarın.",
+      "action": "Hesabımı sil",
+      "dialogTitle": "Hesabınız silinsin mi?",
+      "dialogDescription": "Bu işlem hesabınızı ve tüm verilerinizi kalıcı olarak siler. Devam etmek için kimliğinizi doğrulayın.",
+      "confirm": "Hesabımı sil",
+      "error": "Hesabınız silinemedi. Lütfen tekrar deneyin.",
+      "onlyAdminError": "Tek yönetici sizsiniz. Hesabınızı silmeden önce başka bir kullanıcıyı yönetici yapın."
     },
     "apiKeys": {
       "title": "API anahtarları",
@@ -662,11 +807,12 @@
       "scopes": "İzinler",
       "scopesHint": "Bu anahtarın neler yapabileceğini seçin. En az bir tane zorunludur.",
       "expiry": "Son kullanma (isteğe bağlı)",
-      "expiryHint": "Hiç sona ermeyen bir anahtar için boş bırakın.",
+      "expiryHint": "Sunucunun izin verdiği en uzun ömrü kullanmak için boş bırakın. Daha geç bir tarih reddedilir.",
       "createTitle": "API anahtarı oluştur",
       "createDescription": "Yeni bir API anahtarı oluşturmak için kimliğinizi onaylayın.",
       "createSuccess": "API anahtarı oluşturuldu",
       "createError": "API anahtarı oluşturulamadı. Lütfen tekrar deneyin.",
+      "expiryTooLate": "Bu bitiş tarihi sunucunun izin verdiğinden daha geç. Daha erken bir tarih seçin veya boş bırakın.",
       "invalidCredentials": "Parolanız veya kodunuz yanlış.",
       "invalidScopes": "Bu izinlere API anahtarları için izin verilmiyor.",
       "revealTitle": "API anahtarınızı kopyalayın",
@@ -683,7 +829,6 @@
       "lastUsed": "Son kullanım {date}",
       "neverUsed": "Hiç kullanılmadı",
       "expires": "{date} tarihinde sona erer",
-      "neverExpires": "Hiç sona ermez",
       "revoke": "İptal et",
       "revokeTitle": "API anahtarı iptal edilsin mi?",
       "revokeBody": "{name} hemen çalışmayı durduracak. Bu işlem geri alınamaz.",
@@ -694,6 +839,18 @@
       "deleteBody": "{name} kalıcı olarak silinecek. Bu işlem geri alınamaz.",
       "deleteSuccess": "API anahtarı silindi",
       "deleteError": "API anahtarı silinemedi. Lütfen tekrar deneyin."
+    },
+    "stepUp": {
+      "prompt": "Hesabınızın parolası yok. Kendiniz olduğunuzu doğrulamak için bağlı bir kimlik sağlayıcıyla yeniden giriş yapın.",
+      "continueWith": "{name} ile devam et",
+      "ready": "Kimlik sağlayıcı girişi doğrulandı.",
+      "restart": "Yeniden giriş yap",
+      "noProviders": "Kimliğinizi doğrulamak için kullanılabilecek bağlı bir kimlik sağlayıcı yok.",
+      "startError": "Kimlik sağlayıcı girişi başlatılamadı. Lütfen tekrar deneyin.",
+      "tooManyAttempts": "Çok fazla deneme yapıldı. Lütfen daha sonra tekrar deneyin.",
+      "reauthRequired": "Devam etmek için kimliğinizi kimlik sağlayıcınızla doğrulayın.",
+      "failed": "Kimlik sağlayıcınızla yeniden giriş yapılamadı. Lütfen tekrar deneyin.",
+      "notFresh": "Kimlik sağlayıcınız sizden yeniden giriş yapmanızı istemedi. Yöneticinizle iletişime geçin."
     }
   },
   "integrations": {
@@ -733,6 +890,7 @@
       "clientIdPlaceholder": "123456",
       "clientSecret": "İstemci sırrı",
       "connectError": "Strava'ya bağlanılamadı. Lütfen bilgilerinizi kontrol edip tekrar deneyin.",
+      "scopeError": "Strava, Endurain'in ihtiyaç duyduğu tüm izinleri almadı. Yeniden bağlanın ve tüm izinleri işaretli bırakın.",
       "completing": "Strava bağlantısı tamamlanıyor…",
       "linkSuccess": "Strava bağlandı",
       "retrieveActivitiesTitle": "Strava etkinliklerini al",
@@ -741,9 +899,10 @@
       "retrievingGear": "Strava ekipmanınız arka planda alınıyor…",
       "retrieveGearError": "Strava ekipmanını almaya başlanamadı. Lütfen tekrar deneyin.",
       "unlinkTitle": "Strava bağlantısı kesilsin mi?",
-      "unlinkBody": "Endurain, Strava'dan içe aktarmayı durduracak. Mevcut etkinlikleriniz korunur.",
+      "unlinkBody": "Endurain Strava'dan içe aktarmayı durdurur ve Strava'dan eşitlenen etkinlikleri ve ekipmanı siler. Yüklenen Strava dışa aktarma dosyaları dahil diğer kaynaklardan gelen etkinlikler korunur.",
       "unlinkSuccess": "Strava bağlantısı kesildi",
-      "unlinkError": "Strava bağlantısı kesilemedi. Lütfen tekrar deneyin."
+      "unlinkError": "Strava bağlantısı kesilemedi. Lütfen tekrar deneyin.",
+      "revokedNotice": "Strava erişimi {revokedAt} tarihinde sona erdi. Strava ile eşitlenen etkinlikler ve ekipmanlar, yeniden bağlanmazsanız {deletionAt} tarihinde silinecek."
     },
     "garmin": {
       "title": "Garmin Connect",
@@ -807,8 +966,8 @@
     },
     "job": {
       "preparing": "İçe aktarma hazırlanıyor…",
-      "progress": "{total} dosyadan {done} tanesi içe aktarıldı ({failed} başarısız)…",
-      "finished": "İçe aktarma tamamlandı: {total} dosyadan {done} tanesi içe aktarıldı, {failed} başarısız.",
+      "progress": "{total} dosyadan {done} tanesi içe aktarıldı ({failed} başarısız)… | {total} dosyadan {done} tanesi içe aktarıldı ({failed} başarısız)…",
+      "finished": "İçe aktarma tamamlandı: {total} dosyadan {done} tanesi içe aktarıldı, {failed} başarısız. | İçe aktarma tamamlandı: {total} dosyadan {done} tanesi içe aktarıldı, {failed} başarısız.",
       "failed": "İçe aktarma tamamlanamadı."
     }
   },
@@ -816,6 +975,8 @@
     "title": "Profilim",
     "subtitle": "Hesap ayrıntılarınızı ve gizliliğinizi yönetin",
     "notSet": "Ayarlanmadı",
+    "emailManagedIn": "E-postanız Güvenlik ayarlarından değiştirilir.",
+    "emailManagedLink": "Güvenlik ayarlarını aç",
     "error": {
       "title": "Profiliniz yüklenemedi",
       "description": "Profiliniz yüklenirken bir şeyler ters gitti. Tekrar deneyebilirsiniz.",
@@ -874,6 +1035,8 @@
       "hideLaps": "Turlar",
       "hideWorkoutSetsSteps": "Antrenman setleri ve adımları",
       "hideGear": "Ekipman",
+      "discoverable": "Başkalarının beni aramada bulmasına izin ver",
+      "discoverableHint": "Diğer kullanıcılar arama yaparken sizi kullanıcı adınızla bulabilir. Profiliniz doğrudan bağlantıyla erişilebilir kalır.",
       "save": "Gizliliği kaydet",
       "saving": "Kaydediliyor…",
       "saveSuccess": "Gizlilik ayarları güncellendi",
@@ -921,10 +1084,53 @@
       "export": "Verileri dışa aktar",
       "import": "Verileri içe aktar",
       "invalidType": "Lütfen bir .zip arşivi seçin.",
-      "exportSuccess": "Dışa aktarım hazır, indirme işleminiz kısa süre içinde başlamalı",
+      "download": "Dışa aktarımı indir",
+      "downloadSuccess": "İndirmeniz kısa süre içinde başlamalı",
+      "downloadError": "Dışa aktarım indirilemedi. Lütfen tekrar deneyin.",
+      "exportQueued": "Dışa aktarım başladı. Bu sayfadan ayrılabilirsiniz.",
       "exportError": "Verileriniz dışa aktarılamadı. Lütfen tekrar deneyin.",
-      "importSuccess": "Veriler içe aktarıldı",
-      "importError": "Arşiv içe aktarılamadı. Lütfen dosyayı kontrol edip tekrar deneyin."
+      "exportInProgress": "Zaten devam eden bir dışa aktarım var.",
+      "exportStepUp": {
+        "title": "Kimliğinizi doğrulayın",
+        "description": "Dışa aktarım tüm verilerinizi kopyalar, bu yüzden önce kimliğinizi doğrulayın."
+      },
+      "exportStatus": {
+        "queued": "Dışa aktarımın başlaması bekleniyor…",
+        "running": "Dışa aktarımınız hazırlanıyor…",
+        "succeeded": "Dışa aktarımınız indirilmeye hazır. İki saat boyunca erişilebilir kalır.",
+        "failed": "Dışa aktarım tamamlanmadı: {reason}"
+      },
+      "exportFailure": {
+        "timed_out": "çok uzun sürdü. Tekrar deneyebilirsiniz.",
+        "processing_failed": "bir şeyler ters gitti. Tekrar deneyebilirsiniz."
+      },
+      "importQueued": "İçe aktarım başladı. Bu sayfadan ayrılabilirsiniz.",
+      "importError": "Arşiv içe aktarılamadı. Lütfen dosyayı kontrol edip tekrar deneyin.",
+      "importInProgress": "Zaten devam eden bir içe aktarım var.",
+      "status": {
+        "queued": "İçe aktarımın başlaması bekleniyor…",
+        "running": "Verileriniz içe aktarılıyor…",
+        "succeeded": "İçe aktarım tamamlandı: {activities} etkinlik içe aktarıldı, ekipman: {gears}. | İçe aktarım tamamlandı: {activities} etkinlik içe aktarıldı, ekipman: {gears}.",
+        "failed": "İçe aktarım tamamlanmadı: {reason}"
+      },
+      "failure": {
+        "invalid_file": "arşiv geçerli bir Endurain dışa aktarımı değil. Hiçbir şey içe aktarılmadı.",
+        "too_large": "arşiv çok büyük. Hiçbir şey içe aktarılmadı.",
+        "too_many_activities": "arşivde çok fazla etkinlik var. Hiçbir şey içe aktarılmadı.",
+        "timed_out": "çok uzun sürdü. Hiçbir şey içe aktarılmadı, bu yüzden tekrar deneyebilirsiniz.",
+        "files_incomplete": "verileriniz içe aktarıldı ancak bazı dosyalar eksik. Tekrar içe aktarmayın; verileriniz çoğalır.",
+        "processing_failed": "bir şeyler ters gitti. Hiçbir şey içe aktarılmadı, bu yüzden tekrar deneyebilirsiniz.",
+        "wrong_account": "arşiv farklı bir hesaptan dışa aktarılmış. Hiçbir şey içe aktarılmadı."
+      }
+    },
+    "blockedUsers": {
+      "title": "Engellenen kullanıcılar",
+      "subtitle": "Engellenen kullanıcılar seni takip etme isteği gönderemez. Birini engellemek, aranızdaki tüm takip ilişkilerini de kaldırır.",
+      "empty": "Kimseyi engellemedin.",
+      "unblock": "Engeli kaldır",
+      "unblockError": "Bu kullanıcının engeli kaldırılamadı. Lütfen tekrar dene.",
+      "loadError": "Engellenen kullanıcılar yüklenemedi.",
+      "retry": "Tekrar dene"
     }
   }
 }

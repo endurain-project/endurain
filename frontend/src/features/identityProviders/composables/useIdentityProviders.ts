@@ -2,15 +2,18 @@ import { storeToRefs } from 'pinia'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/vue-query'
 
 import type { IdentityProvider, IdentityProviderInput } from '@/features/identityProviders/types'
+import type { StepUpInput } from '@/features/security/types'
 
 import { queryKeys } from '@/services/queryKeys'
 import { useAuthStore } from '@/features/auth/stores/auth'
 import {
   createIdentityProvider,
   deleteIdentityProvider,
+  deleteIdentityProviderIcon,
   fetchIdentityProviders,
   fetchIdentityProviderTemplates,
   updateIdentityProvider,
+  uploadIdentityProviderIcon,
 } from '@/features/identityProviders/services/identityProviders'
 
 /**
@@ -66,9 +69,13 @@ function invalidateIdentityProviders(client: ReturnType<typeof useQueryClient>):
 export function useCreateIdentityProviderMutation() {
   const client = useQueryClient()
 
-  return useMutation<IdentityProvider, Error, IdentityProviderInput>({
+  return useMutation<
+    IdentityProvider,
+    Error,
+    { input: IdentityProviderInput; stepUp: StepUpInput }
+  >({
     mutationKey: queryKeys.identityProviders.all(),
-    mutationFn: (input) => createIdentityProvider(input),
+    mutationFn: ({ input, stepUp }) => createIdentityProvider(input, stepUp),
     onSettled: () => invalidateIdentityProviders(client),
   })
 }
@@ -82,9 +89,14 @@ export function useCreateIdentityProviderMutation() {
 export function useUpdateIdentityProviderMutation() {
   const client = useQueryClient()
 
-  return useMutation<IdentityProvider, Error, { id: number; input: IdentityProviderInput }>({
+  return useMutation<
+    IdentityProvider,
+    Error,
+    { id: number; input: IdentityProviderInput; version: number; stepUp: StepUpInput }
+  >({
     mutationKey: queryKeys.identityProviders.all(),
-    mutationFn: ({ id, input }) => updateIdentityProvider(id, input),
+    mutationFn: ({ id, input, version, stepUp }) =>
+      updateIdentityProvider(id, input, version, stepUp),
     onSettled: () => invalidateIdentityProviders(client),
   })
 }
@@ -97,9 +109,40 @@ export function useUpdateIdentityProviderMutation() {
 export function useDeleteIdentityProviderMutation() {
   const client = useQueryClient()
 
+  return useMutation<void, Error, { id: number; version: number }>({
+    mutationKey: queryKeys.identityProviders.all(),
+    mutationFn: ({ id, version }) => deleteIdentityProvider(id, version),
+    onSettled: () => invalidateIdentityProviders(client),
+  })
+}
+
+/**
+ * Upload-icon mutation. Invalidates the admin and public caches on settle, so
+ * the login screen picks up the new image.
+ *
+ * @returns The TanStack Query mutation for uploading a provider icon.
+ */
+export function useUploadIdentityProviderIconMutation() {
+  const client = useQueryClient()
+
+  return useMutation<void, Error, { id: number; file: File }>({
+    mutationKey: queryKeys.identityProviders.all(),
+    mutationFn: ({ id, file }) => uploadIdentityProviderIcon(id, file),
+    onSettled: () => invalidateIdentityProviders(client),
+  })
+}
+
+/**
+ * Remove-icon mutation. Invalidates the admin and public caches on settle.
+ *
+ * @returns The TanStack Query mutation for removing a provider's uploaded icon.
+ */
+export function useDeleteIdentityProviderIconMutation() {
+  const client = useQueryClient()
+
   return useMutation<void, Error, number>({
     mutationKey: queryKeys.identityProviders.all(),
-    mutationFn: (id) => deleteIdentityProvider(id),
+    mutationFn: (id) => deleteIdentityProviderIcon(id),
     onSettled: () => invalidateIdentityProviders(client),
   })
 }

@@ -54,7 +54,7 @@ class TestReadPublicActivityStreams:
         client = TestClient(_build_app(mock_db))
         mock_get.return_value = ActivityStreamsRead(id=1, activity_id=1, stream_type=1, stream_waypoints=[{"x": 1}])
 
-        response = client.get("/public/activities/1/streams/1")
+        response = client.get("/public/activities/1/streams/heart_rate")
         assert response.status_code == 200
 
     @patch("modules.activities.activity_streams.public_router.activity_streams_service.get_public_activity_stream")
@@ -62,9 +62,35 @@ class TestReadPublicActivityStreams:
         client = TestClient(_build_app(mock_db))
         mock_get.side_effect = core_exceptions.NotFoundError("Activity stream not found")
 
-        response = client.get("/public/activities/999/streams/1")
+        response = client.get("/public/activities/999/streams/heart_rate")
         # Missing, not public, and public-links-disabled are one answer: this
         # endpoint is unauthenticated, so distinguishing them would let anyone
         # enumerate activity ids.
         assert response.status_code == 404
         assert response.json()["detail"] == "Activity stream not found"
+
+
+class TestStreamTypePath:
+    """The single-stream route accepts every type the list route can return."""
+
+    @patch("modules.activities.activity_streams.public_router.activity_streams_service.get_public_activity_stream")
+    def test_every_stored_type_is_accepted(self, mock_get, mock_db):
+        from modules.activities.activity_streams import constants
+        from modules.activities.activity_streams.schema import ActivityStreamsRead
+
+        client = TestClient(_build_app(mock_db))
+        stored = list(constants.ActivityStreamType)
+        for stream_type in stored:
+            mock_get.return_value = ActivityStreamsRead(
+                id=1, activity_id=1, stream_type=stream_type.stored, stream_waypoints=[]
+            )
+
+            response = client.get(f"/public/activities/1/streams/{stream_type.value}")
+
+            assert response.status_code == 200, stream_type
+
+    def test_an_unknown_type_and_the_stored_integer_are_rejected(self, mock_db):
+        client = TestClient(_build_app(mock_db))
+
+        assert client.get("/public/activities/1/streams/0").status_code == 422
+        assert client.get("/public/activities/1/streams/1").status_code == 422

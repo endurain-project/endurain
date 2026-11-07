@@ -13,8 +13,10 @@ import type { Notification } from '@/features/notifications/types'
 
 import { queryKeys } from '@/services/queryKeys'
 import { useAuthStore } from '@/features/auth/stores/auth'
+import { useRealtime } from '@/composables/useRealtime'
 import {
   fetchNotifications,
+  fetchUnreadNotificationsCount,
   markAllNotificationsRead,
   markNotificationRead,
   type NotificationsPage,
@@ -23,17 +25,30 @@ import {
 /** Default notifications page size when a caller doesn't specify one. */
 const DEFAULT_PAGE_SIZE = 25
 
+/** How often the unread badge polls while the realtime connection is unavailable. */
+export const UNREAD_POLL_INTERVAL_MS = 60_000
+
+/** Connected fallback for a realtime hint lost during a server-side channel gap. */
+export const UNREAD_CONNECTED_POLL_INTERVAL_MS = 5 * 60_000
+
 /**
  * Read path for the notifications list — the canonical server-state pattern:
  * a service function (`fetchNotifications`) + a key from the central
  * {@link queryKeys} factory, consumed through TanStack Query so callers inherit
  * caching, de-duplication, background refetch, and cancellation. The query is
- * gated on authentication so it never fires for a logged-out viewer.
+ * gated on authentication so it never fires for a logged-out viewer, and on the
+ * caller's `enabled` flag so a closed preview neither loads nor refetches on a
+ * realtime push. It is always stale, so each time the flag turns on it refetches:
+ * a push that was lost never leaves stale rows in front of the user.
  *
  * @param params - Optional reactive page/size; defaults to page 1.
+ * @param enabled - Reactive gate (e.g. "the preview is open") ANDed with the auth gate.
  * @returns The TanStack Query result for the notifications page.
  */
-export function useNotificationsQuery(params?: MaybeRefOrGetter<Partial<NotificationsPage>>) {
+export function useNotificationsQuery(
+  params?: MaybeRefOrGetter<Partial<NotificationsPage>>,
+  enabled: MaybeRefOrGetter<boolean> = true,
+) {
   const { isAuthenticated } = storeToRefs(useAuthStore())
 
   const page = computed<NotificationsPage>(() => {
@@ -47,7 +62,8 @@ export function useNotificationsQuery(params?: MaybeRefOrGetter<Partial<Notifica
   return useQuery<Notification[]>({
     queryKey: computed(() => queryKeys.notifications.list(page.value)),
     queryFn: ({ signal }) => fetchNotifications(page.value, signal),
-    enabled: isAuthenticated,
+    enabled: computed(() => toValue(enabled) && isAuthenticated.value),
+    staleTime: 0,
   })
 }
 
@@ -79,24 +95,29 @@ export function useInfiniteNotificationsQuery(pageSize: number = DEFAULT_PAGE_SI
 }
 
 /**
- * Derived unread-count query backing the navbar badge. The backend exposes a
- * total count (`/notifications/number`) but no unread count, so — matching v1 —
- * this counts unread rows in the most recent page client-side via `select`.
+ * Unread-count query backing the navbar badge: the server counts the unread
+ * notifications, so the badge is exact however many there are and only a number
+ * crosses the wire.
  * Stored under {@link queryKeys.notifications.unreadCount} (outside the `list`
- * prefix) so the optimistic updater never touches it; the mark-read mutation's
- * `onSettled` invalidation refreshes it for the authoritative count.
+ * prefix) so the optimistic updater never touches it; notification hints and
+ * mark-read mutations invalidate it for the authoritative count. It polls every
+ * {@link UNREAD_POLL_INTERVAL_MS} while disconnected and every
+ * {@link UNREAD_CONNECTED_POLL_INTERVAL_MS} while connected, covering hints lost
+ * during a server-side channel gap.
  *
- * @param pageSize - How many recent notifications to inspect for unread rows.
  * @returns A TanStack Query result whose `data` is the unread count.
  */
-export function useUnreadNotificationsCount(pageSize: number = DEFAULT_PAGE_SIZE) {
+export function useUnreadNotificationsCount() {
   const { isAuthenticated } = storeToRefs(useAuthStore())
+  const { status } = useRealtime()
 
-  return useQuery<Notification[], Error, number>({
+  return useQuery<number>({
     queryKey: queryKeys.notifications.unreadCount(),
-    queryFn: ({ signal }) => fetchNotifications({ page: 1, numRecords: pageSize }, signal),
+    queryFn: ({ signal }) => fetchUnreadNotificationsCount(signal),
     enabled: isAuthenticated,
-    select: (list) => list.reduce((count, item) => (item.read ? count : count + 1), 0),
+    refetchInterval: computed(() =>
+      status.value === 'open' ? UNREAD_CONNECTED_POLL_INTERVAL_MS : UNREAD_POLL_INTERVAL_MS,
+    ),
   })
 }
 

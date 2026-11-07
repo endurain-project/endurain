@@ -8,7 +8,7 @@
   "seeAll": "Se alle",
   "loadMore": "Indlæs mere",
   "loading": "Indlæser…",
-  "badge": "{count} ulæste notifikationer",
+  "badge": "{count} ulæst notifikation | {count} ulæste notifikationer",
   "empty": {
     "title": "Du er ajour",
     "description": "Opdateringer om dine aktiviteter, følgere og integrationer vises her."
@@ -38,6 +38,63 @@
     "garminTokenExpired": {
       "title": "Garmin Connect kræver handling",
       "body": "Din Garmin Connect-session er udløbet. Forbind igen for at fortsætte synkroniseringen."
+    },
+    "stravaTokenExpired": {
+      "title": "Strava kræver din opmærksomhed",
+      "body": "Strava afviste din forbindelse. Opret forbindelse igen for at blive ved med at synkronisere.",
+      "bodyRevoked": "Adgangen til Strava er ophørt. Dine aktiviteter og dit udstyr, der er synkroniseret med Strava, slettes den {date}, medmindre du forbinder igen."
+    },
+    "stravaDataDeleted": {
+      "title": "Strava-data slettet",
+      "body": "Dine aktiviteter og dit udstyr, der er synkroniseret med Strava, blev slettet, fordi adgangen til Strava ophørte, og du ikke forbandt igen."
+    },
+    "idpLinked": {
+      "title": "Ny loginudbyder tilknyttet",
+      "body": "{name} blev tilknyttet din konto. Hvis det ikke var dig, så gennemgå dine sikkerhedsindstillinger.",
+      "bodyGeneric": "En loginudbyder blev tilknyttet din konto. Hvis det ikke var dig, så gennemgå dine sikkerhedsindstillinger."
+    },
+    "accountSecurityChanged": {
+      "passwordChanged": {
+        "title": "Adgangskode ændret",
+        "body": "Din adgangskode blev ændret. Hvis det ikke var dig, så nulstil din adgangskode og gennemgå dine sikkerhedsindstillinger."
+      },
+      "passwordReset": {
+        "title": "Adgangskode nulstillet",
+        "body": "Din adgangskode blev nulstillet med et nulstillingslink. Hvis det ikke var dig, så nulstil din adgangskode igen og gennemgå dine sikkerhedsindstillinger."
+      },
+      "passwordSetByAdmin": {
+        "title": "Adgangskode angivet af en administrator",
+        "body": "En administrator har angivet en ny adgangskode til din konto. Hvis du ikke forventede det, så kontakt din administrator."
+      },
+      "mfaEnabled": {
+        "title": "Tofaktorgodkendelse slået til",
+        "body": "Tofaktorgodkendelse blev slået til for din konto. Hvis det ikke var dig, så nulstil din adgangskode og gennemgå dine sikkerhedsindstillinger."
+      },
+      "mfaDisabled": {
+        "title": "Tofaktorgodkendelse slået fra",
+        "body": "Tofaktorgodkendelse blev slået fra for din konto. Hvis det ikke var dig, så nulstil din adgangskode og gennemgå dine sikkerhedsindstillinger."
+      },
+      "backupCodesGenerated": {
+        "title": "Nye backup-koder genereret",
+        "body": "Der blev genereret nye backup-koder til din konto. Hvis det ikke var dig, så nulstil din adgangskode og gennemgå dine sikkerhedsindstillinger."
+      },
+      "apiKeyCreated": {
+        "title": "Ny API-nøgle oprettet",
+        "body": "Der blev oprettet en ny API-nøgle til din konto. Hvis det ikke var dig, så nulstil din adgangskode og gennemgå dine sikkerhedsindstillinger."
+      },
+      "identityProviderUnlinked": {
+        "title": "Loginudbyder frakoblet",
+        "body": "{name} blev frakoblet din konto. Hvis det ikke var dig, så nulstil din adgangskode og gennemgå dine sikkerhedsindstillinger.",
+        "bodyGeneric": "En loginudbyder blev frakoblet din konto. Hvis det ikke var dig, så nulstil din adgangskode og gennemgå dine sikkerhedsindstillinger."
+      },
+      "unknown": {
+        "title": "Kontosikkerheden er ændret",
+        "body": "En sikkerhedsindstilling på din konto er ændret. Hvis det ikke var dig, så nulstil din adgangskode og gennemgå dine sikkerhedsindstillinger."
+      }
+    },
+    "newDeviceSignIn": {
+      "title": "Nyt login",
+      "body": "Nyt login fra {browser} på {os} ({ip}). Hvis det ikke var dig, så skift din adgangskode og log ud af dine andre sessioner."
     },
     "adminSignUpApproval": {
       "title": "Ny tilmelding kræver godkendelse",

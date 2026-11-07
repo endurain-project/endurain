@@ -2,6 +2,8 @@ import { computed, type MaybeRefOrGetter, toValue } from 'vue'
 import { storeToRefs } from 'pinia'
 import { keepPreviousData, useMutation, useQuery, useQueryClient } from '@tanstack/vue-query'
 
+import type { User } from '@/features/auth/types'
+import type { StepUpInput } from '@/features/security/types'
 import type {
   CreateUserInput,
   EditUserFields,
@@ -13,6 +15,7 @@ import { queryKeys } from '@/services/queryKeys'
 import { bumpAvatarCacheToken } from '@/lib/avatarCache'
 import { useInvalidatingMutation } from '@/composables/useInvalidatingMutation'
 import { useAuthStore } from '@/features/auth/stores/auth'
+import { invalidateHeightDependentQueries } from '@/features/profile/composables/useProfile'
 import {
   approveUser,
   changeUserPassword,
@@ -21,7 +24,6 @@ import {
   deleteUserPhoto,
   fetchUserById,
   fetchUsers,
-  searchUsersByUsername,
   updateUser,
   uploadUserPhoto,
 } from '@/features/users/services/users'
@@ -34,13 +36,14 @@ import {
  *
  * @param page - Reactive 1-based page number.
  * @param pageSize - Reactive records-per-page (from server settings).
- * @param filters - Reactive list filters (inactive, unverified, etc.).
+ * @param filters - Reactive list filters (inactive, unverified, etc.) and the optional
+ *   username search term.
  * @returns The TanStack Query result for the current users page.
  */
 export function useUsersQuery(
   page: MaybeRefOrGetter<number>,
   pageSize: MaybeRefOrGetter<number>,
-  filters: MaybeRefOrGetter<UserFilters>,
+  filters: MaybeRefOrGetter<UserFilters & { username?: string }>,
 ) {
   const { isAuthenticated } = storeToRefs(useAuthStore())
 
@@ -67,45 +70,46 @@ export function useUsersQuery(
 }
 
 /**
- * Username "contains" search. Enabled only once the (debounced) term is
- * non-empty so an empty box never fires a request; gated on authentication.
- *
- * @param term - The reactive (debounced) search term.
- * @returns The TanStack Query result for the matching users.
- */
-export function useUserSearchQuery(term: MaybeRefOrGetter<string>) {
-  const { isAuthenticated } = storeToRefs(useAuthStore())
-  const trimmed = computed(() => toValue(term).trim())
-
-  return useQuery<ManagedUser[]>({
-    queryKey: computed(() => queryKeys.users.search(trimmed.value)),
-    queryFn: ({ signal }) => searchUsersByUsername(trimmed.value, signal),
-    enabled: computed(() => isAuthenticated.value && trimmed.value.length > 0),
-  })
-}
-
-/**
  * Create mutation. Invalidates the users domain on settle so every list and the
  * username search refetch the server-authoritative state.
  *
  * @returns The TanStack Query mutation for creating a user.
  */
 export function useCreateUserMutation() {
-  return useInvalidatingMutation<ManagedUser, CreateUserInput>({
+  return useInvalidatingMutation<
+    ManagedUser,
+    { input: CreateUserInput; stepUp: StepUpInput | null }
+  >({
     mutationKey: queryKeys.users.all(),
-    mutationFn: (input) => createUser(input),
+    mutationFn: ({ input, stepUp }) => createUser(input, stepUp),
   })
 }
 
 /**
- * Update mutation. Invalidates the users domain on settle.
+ * Update mutation. Invalidates the users domain on settle, and the health data
+ * when the signed-in user's own height changed, since BMI derives from it.
  *
  * @returns The TanStack Query mutation for updating a user.
  */
 export function useUpdateUserMutation() {
-  return useInvalidatingMutation<ManagedUser, { user: ManagedUser; edits: EditUserFields }>({
+  const client = useQueryClient()
+
+  return useInvalidatingMutation<
+    ManagedUser,
+    {
+      user: ManagedUser
+      edits: EditUserFields
+      stepUp?: StepUpInput | null
+    }
+  >({
     mutationKey: queryKeys.users.all(),
-    mutationFn: ({ user, edits }) => updateUser(user, edits),
+    mutationFn: async ({ user, edits, stepUp }) => {
+      const updated = await updateUser(user, edits, stepUp)
+      if (client.getQueryData<User>(queryKeys.currentUser())?.id === user.id) {
+        invalidateHeightDependentQueries(client, edits.height)
+      }
+      return updated
+    },
   })
 }
 
@@ -115,9 +119,9 @@ export function useUpdateUserMutation() {
  * @returns The TanStack Query mutation for deleting a user.
  */
 export function useDeleteUserMutation() {
-  return useInvalidatingMutation<void, number>({
+  return useInvalidatingMutation<void, { id: number; version: number; stepUp: StepUpInput }>({
     mutationKey: queryKeys.users.all(),
-    mutationFn: (id) => deleteUser(id),
+    mutationFn: ({ id, version, stepUp }) => deleteUser(id, version, stepUp),
   })
 }
 
@@ -159,8 +163,15 @@ export function useUserQuery(id: MaybeRefOrGetter<number | null>) {
  */
 export function useChangeUserPasswordMutation() {
   return useMutation({
-    mutationFn: ({ userId, password }: { userId: number; password: string }) =>
-      changeUserPassword(userId, password),
+    mutationFn: ({
+      userId,
+      password,
+      stepUp,
+    }: {
+      userId: number
+      password: string
+      stepUp: StepUpInput
+    }) => changeUserPassword(userId, password, stepUp),
   })
 }
 

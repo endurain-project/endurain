@@ -1,5 +1,14 @@
 import { watch, type ComputedRef } from 'vue'
-import { useRouter, type LocationQueryRaw } from 'vue-router'
+import {
+  useRoute,
+  useRouter,
+  type LocationQueryRaw,
+  type RouteLocationNormalizedLoaded,
+  type Router,
+} from 'vue-router'
+
+import type { ActivityType } from '@/features/activities/types'
+import { isActivityType } from '@/features/activities/utils/activityType'
 
 /**
  * Resolves a route query value to its first string value.
@@ -23,15 +32,102 @@ export function getScalarQueryString(value: unknown): string {
 }
 
 /**
- * Parses an activity type filter query param, where `0` represents all types.
+ * Removes one query parameter from the address bar and the history entry, keeping the others.
+ *
+ * @param route - The current route.
+ * @param router - The router that replaces the entry.
+ * @param key - The query parameter to remove.
+ */
+export function dropQueryParam(
+  route: RouteLocationNormalizedLoaded,
+  router: Router,
+  key: string,
+): void {
+  const { [key]: _dropped, ...query } = route.query
+  void router.replace({ query, hash: route.hash })
+}
+
+/** A one-time credential read from the URL, and a way to forget it. */
+export interface QueryCredential {
+  /** The credential, or an empty string when absent or malformed. */
+  value: string
+  /** Forgets the stored copy once the credential was used or refused for good. */
+  clear: () => void
+}
+
+/**
+ * Reads a one-time credential from the URL and removes it from the address bar, so it does not stay in
+ * the history, a bookmark or a shared screenshot. The tab's session storage keeps a copy, so a reload
+ * (which no longer has it in the URL) still finds it; it goes away with the tab or when cleared.
+ *
+ * @param key - The query parameter that carries the credential.
+ * @returns The credential and a function that forgets it.
+ */
+export function useQueryCredential(key: string): QueryCredential {
+  const route = useRoute()
+  const router = useRouter()
+  const storageKey = `endurain:credential:${route.path}:${key}`
+  const fromUrl = getScalarQueryString(route.query[key])
+  if (fromUrl) {
+    dropQueryParam(route, router, key)
+    writeSession(storageKey, fromUrl)
+  }
+  return {
+    value: fromUrl || readSession(storageKey),
+    clear: () => removeSession(storageKey),
+  }
+}
+
+/**
+ * Reads a session-storage value, treating blocked storage as empty.
+ *
+ * @param key - The storage key.
+ * @returns The stored value, or an empty string.
+ */
+function readSession(key: string): string {
+  try {
+    return sessionStorage.getItem(key) ?? ''
+  } catch {
+    return ''
+  }
+}
+
+/**
+ * Writes a session-storage value; best-effort when storage is blocked.
+ *
+ * @param key - The storage key.
+ * @param value - The value to keep.
+ */
+function writeSession(key: string, value: string): void {
+  try {
+    sessionStorage.setItem(key, value)
+  } catch {
+    // Without storage the credential lives only for this page load.
+  }
+}
+
+/**
+ * Removes a session-storage value; best-effort when storage is blocked.
+ *
+ * @param key - The storage key.
+ */
+function removeSession(key: string): void {
+  try {
+    sessionStorage.removeItem(key)
+  } catch {
+    // Nothing to forget if storage is blocked.
+  }
+}
+
+/**
+ * Parses an activity type filter query param, where the empty string represents all types.
  *
  * @param value - Raw route query value.
- * @returns A non-negative integer activity type code, or `0` when invalid.
+ * @returns The activity type, or the empty string when absent or unknown.
  */
-export function parseActivityTypeFilterQuery(value: unknown): number {
+export function parseActivityTypeFilterQuery(value: unknown): ActivityType | '' {
   const raw = getScalarQueryString(value)
-  const parsed = raw ? Number(raw) : Number.NaN
-  return Number.isInteger(parsed) && parsed >= 0 ? parsed : 0
+  return isActivityType(raw) ? raw : ''
 }
 
 /**

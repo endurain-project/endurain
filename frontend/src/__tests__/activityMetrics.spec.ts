@@ -1,5 +1,7 @@
 import { describe, expect, it } from 'vitest'
 
+import type { ActivityType } from '@/features/activities/types'
+
 import {
   activityDuration,
   buildActivityMetrics,
@@ -64,7 +66,7 @@ describe('distinctElapsedTime', () => {
 describe('buildActivityMetrics time tile', () => {
   const timeTile = (totalTimerTime: number | null, totalElapsedTime: number | null) =>
     buildActivityMetrics(
-      makeActivity({ activityType: 1, totalTimerTime, totalElapsedTime }),
+      makeActivity({ activityType: 'run', totalTimerTime, totalElapsedTime }),
       'metric',
       visible,
     ).find((tile) => tile.key === 'time')
@@ -87,7 +89,7 @@ describe('buildActivityMetrics time tile', () => {
 })
 
 describe('buildActivityMetrics elapsed tile', () => {
-  const keysFor = (activityType: number, totalElapsedTime: number) =>
+  const keysFor = (activityType: ActivityType, totalElapsedTime: number) =>
     buildActivityMetrics(
       makeActivity({ activityType, totalTimerTime: 600, totalElapsedTime }),
       'metric',
@@ -95,16 +97,16 @@ describe('buildActivityMetrics elapsed tile', () => {
     )
 
   it('adds elapsed time after the time tile for non-distance sessions when it differs', () => {
-    const tiles = keysFor(19, 1200)
+    const tiles = keysFor('strength_training', 1200)
     expect(tiles.map((tile) => tile.key)).toEqual(['calories', 'time', 'elapsedTime', 'avgHr'])
     expect(tiles.find((tile) => tile.key === 'elapsedTime')?.value).toBe('20:00')
   })
 
   it('omits elapsed time for non-distance sessions when it matches the timer time', () => {
-    expect(keysFor(19, 600).map((tile) => tile.key)).not.toContain('elapsedTime')
+    expect(keysFor('strength_training', 600).map((tile) => tile.key)).not.toContain('elapsedTime')
   })
 
   it('keeps elapsed time off the summary for distance activities', () => {
-    expect(keysFor(1, 1200).map((tile) => tile.key)).not.toContain('elapsedTime')
+    expect(keysFor('run', 1200).map((tile) => tile.key)).not.toContain('elapsedTime')
   })
 })

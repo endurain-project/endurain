@@ -1,7 +1,6 @@
 import type { AppConfig, PublicServerSettings } from '@/features/config/types'
 
 import { DEFAULT_MAP_CONFIG } from '../defaults'
-import { fetchPublicServerSettings } from './serverSettings'
 
 /**
  * Self-hosted defaults applied when the public server settings are
@@ -44,15 +43,4 @@ export function mapServerSettingsToAppConfig(settings: PublicServerSettings): Ap
     },
     enabledLocales: DEFAULT_APP_CONFIG.enabledLocales,
   }
-}
-
-/**
- * Fetches the instance's runtime configuration, derived from the public server
- * settings so per-instance flags have one source of truth.
- *
- * @returns The resolved {@link AppConfig}.
- * @throws {HttpError} When the public settings request fails.
- */
-export async function fetchAppConfig(): Promise<AppConfig> {
-  return mapServerSettingsToAppConfig(await fetchPublicServerSettings())
 }

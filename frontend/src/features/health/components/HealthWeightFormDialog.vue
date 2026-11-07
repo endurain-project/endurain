@@ -1,18 +1,21 @@
 <script setup lang="ts">
-import { computed, watch } from 'vue'
+import { computed, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 
 import type { Schemas } from '@/types'
 import type { WeightEntry, WeightEntryInput } from '@/features/health/types'
 import type { Validator } from '@/utils/validators'
 
+import { useUnitFormat } from '@/composables/useUnitFormat'
 import { FormDialog } from '@/components/ui/form-dialog'
 import { FormField } from '@/components/ui/form-field'
 import { inputFieldClass } from '@/components/ui/input/fieldClasses'
 import { useForm } from '@/composables/useForm'
+import { applyServerFieldErrors } from '@/services/fieldErrors'
+import { isStaleWrite } from '@/services/ifMatch'
 import { todayIsoDate } from '@/utils/datetime'
 import { toNumberOrNull } from '@/utils/number'
-import { kgToLbs, lbsToKg } from '@/utils/units'
+import { baseValueUnlessEdited, kgToLbs, lbsToKg } from '@/utils/units'
 import { compose, required } from '@/utils/validators'
 import {
   useCreateWeightEntryMutation,
@@ -25,8 +28,8 @@ const props = withDefaults(
   defineProps<{
     /** The weight entry being edited, or `null`/absent when logging a new one. */
     entry?: WeightEntry | null
-    /** The viewer's measurement system, used for the mass field units. */
-    units: Schemas['Units']
+    /** The measurement system used to present body mass (kg or lb). */
+    weightUnits: Schemas['Units']
   }>(),
   { entry: null },
 )
@@ -37,6 +40,7 @@ const emit = defineEmits<{
 }>()
 
 const { t } = useI18n()
+const { unitLabel } = useUnitFormat()
 
 const createMutation = useCreateWeightEntryMutation()
 const updateMutation = useUpdateWeightEntryMutation()
@@ -45,7 +49,6 @@ const updateMutation = useUpdateWeightEntryMutation()
 interface WeightFormValues {
   date: string
   weight: string
-  bmi: string
   bodyFat: string
   bodyWater: string
   boneMass: string
@@ -65,7 +68,6 @@ function defaultValues(): WeightFormValues {
   return {
     date: todayIsoDate(),
     weight: '',
-    bmi: '',
     bodyFat: '',
     bodyWater: '',
     boneMass: '',
@@ -78,30 +80,36 @@ function displayMassFromKg(kg: number | null): string {
   if (kg === null) {
     return ''
   }
-  const value = props.units === 'imperial' ? kgToLbs(kg) : kg
+  const value = props.weightUnits === 'imperial' ? kgToLbs(kg) : kg
   return String(Math.round(value * 100) / 100)
 }
 
-/** Converts a display-unit mass string back to kilograms for the wire. */
-function massToKg(raw: string): number | null {
-  const value = toNumberOrNull(raw)
-  if (value === null) {
-    return null
-  }
-  const kg = props.units === 'imperial' ? lbsToKg(value) : value
+/** Converts a validated display-unit mass back to kilograms for the wire. A typed `type=number` value is a number. */
+function massToKg(raw: string | number): number {
+  const value = toNumberOrNull(raw) ?? 0
+  const kg = props.weightUnits === 'imperial' ? lbsToKg(value) : value
   return Math.round(kg * 1000) / 1000
+}
+
+/** Converts a mass field to kilograms, keeping the stored value when the field was not edited. */
+function massToKgUnlessEdited(raw: string | number, stored: number | null | undefined): number {
+  return baseValueUnlessEdited(raw, displayMassFromKg(stored ?? null), stored, massToKg)
+}
+
+/** Like {@link massToKgUnlessEdited}, but a blank optional field stays `null` instead of becoming 0 kg. */
+function optionalMassToKg(raw: string | number, stored: number | null | undefined): number | null {
+  return toNumberOrNull(raw) === null ? null : massToKgUnlessEdited(raw, stored)
 }
 
 /** Converts the string-based form values into the clean {@link WeightEntryInput}. */
 function buildInput(values: WeightFormValues): WeightEntryInput {
   return {
     date: values.date || null,
-    weightKg: massToKg(values.weight),
-    bmi: toNumberOrNull(values.bmi),
+    weightKg: massToKgUnlessEdited(values.weight, props.entry?.weightKg),
     bodyFatPct: toNumberOrNull(values.bodyFat),
     bodyWaterPct: toNumberOrNull(values.bodyWater),
-    boneMassKg: massToKg(values.boneMass),
-    muscleMassKg: massToKg(values.muscleMass),
+    boneMassKg: optionalMassToKg(values.boneMass, props.entry?.boneMassKg),
+    muscleMassKg: optionalMassToKg(values.muscleMass, props.entry?.muscleMassKg),
   }
 }
 
@@ -113,12 +121,17 @@ function buildInput(values: WeightFormValues): WeightEntryInput {
  * @param values - The validated form values.
  */
 async function submitForm(values: WeightFormValues): Promise<void> {
+  // Nothing changed: skip the request and just close.
+  if (props.entry && !isDirty.value) {
+    open.value = false
+    return
+  }
   const input = buildInput(values)
   try {
     if (props.entry) {
       await updateMutation.mutateAsync({
         id: props.entry.id,
-        userId: props.entry.userId,
+        version: props.entry.version,
         input,
       })
       emit('success', t('health.weight.form.updateSuccess'))
@@ -127,38 +140,76 @@ async function submitForm(values: WeightFormValues): Promise<void> {
       emit('success', t('health.weight.form.createSuccess'))
     }
     open.value = false
-  } catch {
-    emit('error', t('health.weight.form.saveError'))
+  } catch (error) {
+    if (applyServerFieldErrors(error, setErrors, t, FORM_KEYS)) {
+      return
+    }
+    if (isStaleWrite(error)) {
+      open.value = false
+    }
+    emit('error', isStaleWrite(error) ? t('app.staleError') : t('health.weight.form.saveError'))
   }
 }
 
-const { values, errors, isValid, isSubmitting, handleSubmit, handleBlur, reset } =
-  useForm<WeightFormValues>({
-    initialValues: defaultValues(),
-    validators: {
-      date: required<string>(t('health.weight.form.dateRequired')),
-      weight: compose(
-        required<string>(t('health.weight.form.weightRequired')),
-        positiveNumber(t('health.weight.form.weightInvalid')),
-      ),
-    },
-    onSubmit: submitForm,
-  })
+const FORM_KEYS = ['date', 'weight', 'bodyFat', 'bodyWater', 'boneMass', 'muscleMass'] as const
+
+const {
+  values,
+  errors,
+  isValid,
+  isSubmitting,
+  handleSubmit,
+  handleBlur,
+  reset,
+  isDirty,
+  markPristine,
+  setErrors,
+} = useForm<WeightFormValues>({
+  initialValues: defaultValues(),
+  validators: {
+    date: required<string>(t('health.weight.form.dateRequired')),
+    weight: compose(
+      required<string>(t('health.weight.form.weightRequired')),
+      positiveNumber(t('health.weight.form.weightInvalid')),
+    ),
+  },
+  onSubmit: submitForm,
+})
 
 const isEditing = computed(() => props.entry !== null)
 const dialogTitle = computed(() =>
   isEditing.value ? t('health.weight.form.editTitle') : t('health.weight.form.addTitle'),
 )
-const massUnitLabel = computed(() => (props.units === 'imperial' ? 'lb' : 'kg'))
+const massUnitLabel = computed(() => unitLabel(props.weightUnits === 'imperial' ? 'lb' : 'kg'))
 const weightLabel = computed(() => `${t('health.weight.form.weight')} (${massUnitLabel.value})`)
 const boneMassLabel = computed(() => `${t('health.weight.form.boneMass')} (${massUnitLabel.value})`)
 const muscleMassLabel = computed(
   () => `${t('health.weight.form.muscleMass')} (${massUnitLabel.value})`,
 )
 
+const compositionFields = ['bodyFat', 'bodyWater', 'boneMass', 'muscleMass'] as const
+
+const compositionOpen = ref(false)
+
+/** Mirrors a native `<details>` toggle into `compositionOpen` so the user's choice sticks. */
+function onCompositionToggle(event: Event): void {
+  compositionOpen.value = (event.target as HTMLDetailsElement).open
+}
+
+// An error on a hidden body-composition field opens its section.
+watch(
+  () => compositionFields.some((field) => errors.value[field]),
+  (hasError) => {
+    if (hasError) {
+      compositionOpen.value = true
+    }
+  },
+)
+
 /** Seeds the form from the entry being edited, or pristine defaults for "add". */
 function populate(): void {
   reset()
+  compositionOpen.value = false
   const entry = props.entry
   if (!entry) {
     values.date = todayIsoDate()
@@ -166,11 +217,11 @@ function populate(): void {
   }
   values.date = entry.date ?? todayIsoDate()
   values.weight = displayMassFromKg(entry.weightKg)
-  values.bmi = entry.bmi !== null ? String(entry.bmi) : ''
   values.bodyFat = entry.bodyFatPct !== null ? String(entry.bodyFatPct) : ''
   values.bodyWater = entry.bodyWaterPct !== null ? String(entry.bodyWaterPct) : ''
   values.boneMass = displayMassFromKg(entry.boneMassKg)
   values.muscleMass = displayMassFromKg(entry.muscleMassKg)
+  markPristine()
 }
 
 // Re-seed each time the dialog opens; the parent sets `entry` before opening.
@@ -203,6 +254,7 @@ watch(open, (isOpen) => {
             :aria-describedby="describedBy"
             :aria-invalid="invalid"
             type="date"
+            :max="todayIsoDate()"
             :disabled="isSubmitting"
             @blur="handleBlur('date')"
           />
@@ -229,29 +281,18 @@ watch(open, (isOpen) => {
       </FormField>
     </div>
 
-    <details class="mt-2 rounded-input border border-border px-3 py-2">
+    <details
+      class="mt-2 rounded-input border border-border px-3 py-2"
+      :open="compositionOpen"
+      @toggle="onCompositionToggle"
+    >
       <summary class="cursor-pointer text-caption select-none">
         {{ t('health.weight.form.bodyComposition') }}
       </summary>
       <div class="mt-2 grid grid-cols-1 gap-2 sm:grid-cols-2">
-        <FormField :label="t('health.weight.form.bmi')" :placeholder="t('health.weight.form.bmi')">
-          <template #default="{ fieldId, placeholder }">
-            <input
-              :id="fieldId"
-              v-model="values.bmi"
-              :class="inputFieldClass"
-              :placeholder="placeholder"
-              type="number"
-              min="0"
-              step="0.1"
-              inputmode="decimal"
-              :disabled="isSubmitting"
-            />
-          </template>
-        </FormField>
-
         <FormField
           :label="t('health.weight.form.bodyFat')"
+          :error="errors.bodyFat"
           :placeholder="t('health.weight.form.bodyFat')"
         >
           <template #default="{ fieldId, placeholder }">
@@ -272,6 +313,7 @@ watch(open, (isOpen) => {
 
         <FormField
           :label="t('health.weight.form.bodyWater')"
+          :error="errors.bodyWater"
           :placeholder="t('health.weight.form.bodyWater')"
         >
           <template #default="{ fieldId, placeholder }">
@@ -290,7 +332,7 @@ watch(open, (isOpen) => {
           </template>
         </FormField>
 
-        <FormField :label="boneMassLabel" :placeholder="boneMassLabel">
+        <FormField :label="boneMassLabel" :error="errors.boneMass" :placeholder="boneMassLabel">
           <template #default="{ fieldId, placeholder }">
             <input
               :id="fieldId"
@@ -306,7 +348,11 @@ watch(open, (isOpen) => {
           </template>
         </FormField>
 
-        <FormField :label="muscleMassLabel" :placeholder="muscleMassLabel">
+        <FormField
+          :label="muscleMassLabel"
+          :error="errors.muscleMass"
+          :placeholder="muscleMassLabel"
+        >
           <template #default="{ fieldId, placeholder }">
             <input
               :id="fieldId"

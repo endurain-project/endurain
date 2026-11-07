@@ -11,7 +11,7 @@
     "subtitle": "Böngészd, szűrd és rendezd az összes tevékenységedet.",
     "searchPlaceholder": "Keresés név vagy hely szerint",
     "clearSearch": "Keresés törlése",
-    "resultCount": "{count} tevékenység",
+    "resultCount": "{count} tevékenység | {count} tevékenység",
     "filters": {
       "type": "Tevékenységtípus",
       "allTypes": "Minden típus",
@@ -188,6 +188,7 @@
     "cancel": "Mégse",
     "close": "Bezárás",
     "name": "Név",
+    "nameRequired": "Add meg a tevékenység nevét",
     "type": "Tevékenységtípus",
     "description": "Leírás",
     "privateNotes": "Privát jegyzetek",

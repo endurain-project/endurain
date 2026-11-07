@@ -1,10 +1,12 @@
 """Gear schema definitions."""
 
-from datetime import datetime as datetime_type
-from enum import IntEnum
+from datetime import date
+from typing import Annotated
 
 from pydantic import (
+    AfterValidator,
     BaseModel,
+    BeforeValidator,
     ConfigDict,
     Field,
     StrictBool,
@@ -13,47 +15,92 @@ from pydantic import (
     StrictStr,
 )
 
+import core.partial_update as core_partial_update
+import core.types as core_types
+from core.stored_enum import StoredStrEnum
 
-class GearType(IntEnum):
-    """
-    Supported gear type codes.
+
+class GearType(StoredStrEnum):
+    """Supported gear types; ``stored`` is the integer in ``gears.gear_type``.
 
     Attributes:
-        BIKE: Bicycle (1).
-        SHOES: Running or walking shoes (2).
-        WETSUIT: Wetsuit (3).
-        RACQUET: Racquet (4).
-        SKI: Skis (5).
-        SNOWBOARD: Snowboard (6).
-        WINDSURF: Windsurf board (7).
-        WATER_SPORTS_BOARD: Water sports board (8).
+        BIKE: Bicycle.
+        SHOES: Running or walking shoes.
+        WETSUIT: Wetsuit.
+        RACQUET: Racquet.
+        SKI: Skis.
+        SNOWBOARD: Snowboard.
+        WINDSURF: Windsurf board.
+        WATER_SPORTS_BOARD: Water sports board.
     """
 
-    BIKE = 1
-    SHOES = 2
-    WETSUIT = 3
-    RACQUET = 4
-    SKI = 5
-    SNOWBOARD = 6
-    WINDSURF = 7
-    WATER_SPORTS_BOARD = 8
+    BIKE = ("bike", 1)
+    SHOES = ("shoes", 2)
+    WETSUIT = ("wetsuit", 3)
+    RACQUET = ("racquet", 4)
+    SKI = ("ski", 5)
+    SNOWBOARD = ("snowboard", 6)
+    WINDSURF = ("windsurf", 7)
+    WATER_SPORTS_BOARD = ("water_sports_board", 8)
+
+
+#: The gear type of a stored row or an internal producer, which hand over the stored integer. A request
+#: field is the plain enum instead, which refuses the integer.
+StoredGearType = Annotated[GearType, BeforeValidator(GearType.accept_stored)]
+
+
+#: The largest value of the ``initial_distance`` column, a ``Numeric(14, 2)`` of meters.
+MAX_INITIAL_DISTANCE = 999_999_999_999.99
+
+
+def _require_nickname(value: str) -> str:
+    """Trim a nickname and reject one that is blank or carries a text direction control.
+
+    Args:
+        value: The submitted nickname.
+
+    Returns:
+        The trimmed nickname.
+
+    Raises:
+        ValueError: If nothing is left after trimming, or a direction control is present.
+    """
+    value = value.strip()
+    if not value:
+        raise ValueError("nickname cannot be blank")
+    if any(char in core_types.DIRECTION_CONTROLS for char in value):
+        raise ValueError("nickname must not contain text direction control characters")
+    return value
+
+
+def normalize_nickname(nickname: str) -> str:
+    """Normalize a nickname for case-insensitive comparison.
+
+    Args:
+        nickname: The nickname to compare.
+
+    Returns:
+        The nickname trimmed and lower-cased, as the unique index compares it.
+    """
+    return str(nickname).lower().strip()
+
+
+#: A nickname trimmed on input; blank is rejected.
+RequiredNickname = Annotated[StrictStr, AfterValidator(_require_nickname)]
 
 
 class GearBase(BaseModel):
-    """
-    Base model for gear data.
+    """Fields a client may set on a gear.
 
     Attributes:
         brand: Gear brand name.
         model: Gear model name.
         nickname: Gear display nickname.
         gear_type: Gear type identifier.
-        created_at: Gear creation timestamp.
+        acquired_on: Date the user acquired the gear; today when a gear is created without one.
         active: Whether the gear is active.
-        initial_kms: Initial kilometers.
-        purchase_value: Purchase value.
-        strava_gear_id: Strava gear ID.
-        garminconnect_gear_id: Garmin gear ID.
+        initial_distance: Distance the gear had before it was tracked, in meters.
+        purchase_value: Purchase price as a decimal string in the owner's currency.
     """
 
     brand: StrictStr | None = Field(
@@ -66,7 +113,52 @@ class GearBase(BaseModel):
         max_length=250,
         description="Gear model name",
     )
-    nickname: StrictStr = Field(
+    nickname: StrictStr | None = Field(
+        default=None,
+        max_length=250,
+        description="Gear display nickname",
+    )
+    gear_type: GearType | None = Field(
+        default=None,
+        description="Gear type identifier",
+    )
+    acquired_on: date | None = Field(
+        default=None,
+        description="Date the user acquired the gear",
+    )
+    active: StrictBool | None = Field(
+        default=None,
+        description="Whether the gear is active",
+    )
+    initial_distance: StrictFloat | None = Field(
+        default=None,
+        ge=0,
+        le=MAX_INITIAL_DISTANCE,
+        description="Distance the gear had before it was tracked, in meters, the unit of total_distance",
+    )
+    purchase_value: core_types.Money | None = Field(
+        default=None,
+        description=(
+            "Purchase price as a decimal string with two decimals, in the owner's currency "
+            "(the `currency` user setting), such as 129.90"
+        ),
+    )
+
+    model_config = ConfigDict(
+        from_attributes=True,
+        extra="forbid",
+        validate_assignment=True,
+    )
+
+
+class GearCreateRequest(GearBase):
+    """Request body for creating a gear.
+
+    Provider gear IDs are not accepted: only the Strava and Garmin Connect syncs and
+    the profile import set them, so a client cannot forge a provider link.
+    """
+
+    nickname: RequiredNickname = Field(
         ...,
         max_length=250,
         description="Gear display nickname",
@@ -75,23 +167,33 @@ class GearBase(BaseModel):
         ...,
         description="Gear type identifier",
     )
-    created_at: datetime_type | None = Field(
+    acquired_on: core_types.RecordDate | None = Field(
         default=None,
-        description="Gear creation timestamp",
+        description="Date the user acquired the gear",
     )
-    active: StrictBool | None = Field(
-        default=None,
-        description="Whether the gear is active",
+
+
+class GearCreate(GearBase):
+    """A gear to create, as built by the provider syncs and the profile import.
+
+    Attributes:
+        user_id: Foreign key to user; ignored on write, the owner is passed explicitly.
+        strava_gear_id: Strava gear ID.
+        garminconnect_gear_id: Garmin Connect gear ID.
+    """
+
+    nickname: StrictStr = Field(
+        ...,
+        max_length=250,
+        description="Gear display nickname",
     )
-    initial_kms: StrictFloat | None = Field(
-        default=None,
-        ge=0,
-        description="Initial kilometers",
+    gear_type: StoredGearType = Field(
+        ...,
+        description="Gear type identifier",
     )
-    purchase_value: StrictFloat | None = Field(
+    user_id: StrictInt | None = Field(
         default=None,
-        ge=0,
-        description="Purchase value",
+        description="Foreign key to user",
     )
     strava_gear_id: StrictStr | None = Field(
         default=None,
@@ -104,34 +206,14 @@ class GearBase(BaseModel):
         description="Garmin Connect gear ID",
     )
 
-    model_config = ConfigDict(
-        from_attributes=True,
-        extra="forbid",
-        validate_assignment=True,
-    )
 
-
-class GearCreate(GearBase):
-    """
-    Schema for creating a gear record.
-
-    Attributes:
-        user_id: Foreign key to user.
-    """
-
-    user_id: StrictInt | None = Field(
-        default=None,
-        description="Foreign key to user",
-    )
-
-
-class GearRead(GearBase):
-    """
-    Schema for reading a gear record.
+class GearRead(GearCreate):
+    """Schema for reading a gear record.
 
     Attributes:
         id: Unique identifier.
         user_id: Foreign key to user.
+        version: Optimistic-concurrency counter, also sent as the ``ETag``.
     """
 
     id: StrictInt = Field(
@@ -142,16 +224,20 @@ class GearRead(GearBase):
         ...,
         description="Foreign key to user",
     )
+    version: StrictInt = Field(
+        default=1,
+        ge=1,
+        description="Optimistic-concurrency counter",
+    )
 
 
 class GearDetailRead(GearRead):
-    """
-    Extended gear with computed stats.
+    """Extended gear with computed stats.
 
     Attributes:
         total_distance: Total distance (m).
         total_time: Total time (seconds).
-        total_components_cost: Sum of parts.
+        total_components_cost: Sum of the component purchase values as a decimal string in the owner's currency.
     """
 
     total_distance: StrictFloat = Field(
@@ -164,60 +250,30 @@ class GearDetailRead(GearRead):
         ge=0,
         description=("Total activity time in seconds"),
     )
-    total_components_cost: StrictFloat = Field(
-        default=0,
-        ge=0,
-        description=("Sum of component purchase values"),
+    total_components_cost: core_types.MoneyTotal = Field(
+        default="0.00",
+        description=(
+            "Sum of the component purchase values as a decimal string with two decimals, in the owner's "
+            "currency (the `currency` user setting)"
+        ),
     )
 
 
-class GearUpdate(GearBase):
-    """
-    Schema for updating a gear record.
+class GearUpdate(core_partial_update.NotClearable, GearBase):
+    """Partial update of a gear: omit a field to keep it, send null to clear a nullable one.
 
-    Attributes:
-        id: Unique identifier.
+    The gear comes from the path; provider gear IDs cannot be changed.
     """
 
-    id: StrictInt = Field(
-        ...,
-        description="Unique identifier",
-    )
+    not_clearable = ("nickname", "gear_type", "acquired_on", "active", "initial_distance")
 
-
-class GearsListResponse(BaseModel):
-    """
-    Response model for paginated gear listing.
-
-    Attributes:
-        total: Total number of gear records.
-        num_records: Number of records returned.
-        page_number: Current page number.
-        records: List of gear records.
-    """
-
-    total: StrictInt = Field(
-        ...,
-        ge=0,
-        description="Total number of gear records",
-    )
-    num_records: StrictInt | None = Field(
+    acquired_on: core_types.RecordDate | None = Field(
         default=None,
-        ge=0,
-        description="Number of records returned",
-    )
-    page_number: StrictInt | None = Field(
-        default=None,
-        ge=1,
-        description="Current page number",
-    )
-    records: list[GearRead] = Field(
-        ...,
-        description="List of gear records",
+        description="Date the user acquired the gear",
     )
 
-    model_config = ConfigDict(
-        from_attributes=True,
-        extra="forbid",
-        validate_assignment=True,
+    nickname: RequiredNickname | None = Field(
+        default=None,
+        max_length=250,
+        description="Gear display nickname",
     )

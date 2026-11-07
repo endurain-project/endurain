@@ -17,6 +17,7 @@ const STATUS_FLAG_ALERTS: ReadonlyArray<{ query: string; kind: Severity; key: st
   { query: 'sessionExpired', kind: 'warning', key: 'login.sessionExpired' },
   { query: 'passwordResetSuccess', kind: 'success', key: 'login.passwordResetSuccess' },
   { query: 'passwordResetInvalidLink', kind: 'error', key: 'login.passwordResetInvalidLink' },
+  { query: 'onboardingComplete', kind: 'success', key: 'login.onboardingComplete' },
   { query: 'emailVerificationSent', kind: 'info', key: 'login.emailVerificationSent' },
   { query: 'adminApprovalRequired', kind: 'info', key: 'login.adminApprovalRequired' },
   { query: 'verifyEmailInvalidLink', kind: 'error', key: 'login.verifyEmailInvalidLink' },
@@ -29,6 +30,8 @@ const SSO_ERROR_KEYS: Record<string, string> = {
   sso_account_not_found: 'login.ssoAccountNotFound',
   sso_account_disabled: 'login.ssoAccountDisabled',
   sso_auto_create_disabled: 'login.ssoAutoCreateDisabled',
+  sso_email_missing: 'login.ssoEmailMissing',
+  sso_link_by_email_disabled: 'login.ssoLinkByEmailDisabled',
 }
 
 /**
@@ -60,6 +63,13 @@ export function useLoginRouteMessages() {
   function resolveInitialAlert(): AlertState | null {
     if (shouldForceLocalLogin()) {
       return { kind: 'info', message: t('login.forceLocalLogin') }
+    }
+
+    if (
+      route.query.emailVerificationSent === 'true' &&
+      route.query.adminApprovalRequired === 'true'
+    ) {
+      return { kind: 'info', message: t('login.emailVerificationAndApprovalRequired') }
     }
 
     const statusMatch = STATUS_FLAG_ALERTS.find((entry) => route.query[entry.query] === 'true')

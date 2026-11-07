@@ -1,4 +1,4 @@
-import type { AuthTokenResponse, Schemas } from '@/types'
+import type { Schemas } from '@/types'
 
 /**
  * The authenticated user as consumed by the app: a clean, camel-cased, fully
@@ -18,6 +18,8 @@ import type { AuthTokenResponse, Schemas } from '@/types'
  * @property isGarminConnectLinked - Whether a Garmin Connect integration is linked.
  * @property hasLocalPassword - Whether the account has a local password.
  * @property units - Measurement system used to present distances and heights.
+ * @property weightUnits - Measurement system used to present body weight; falls
+ *   back to `units` when the user has not set an explicit override.
  * @property currency - Preferred currency for monetary values.
  * @property firstDayOfWeek - First day used for calendar week boundaries.
  */
@@ -35,19 +37,20 @@ export interface User {
   isGarminConnectLinked: boolean
   hasLocalPassword: boolean
   units: Schemas['Units']
+  weightUnits: Schemas['Units']
   currency: Schemas['Currency']
   firstDayOfWeek: Schemas['WeekDay']
 }
 
 /**
  * Raw `/profile` response as returned by the backend. Narrowed from the
- * generated `UsersMe` schema to the fields the app maps, so the snake-case
+ * generated `UserMe` schema to the fields the app maps, so the snake-case
  * keys and number-encoded booleans track the backend contract exactly. Never
  * consume this shape in components — map it to {@link User} at the service
  * boundary.
  */
 export type UserProfileDto = Pick<
-  Schemas['UsersMe'],
+  Schemas['UserMe'],
   | 'id'
   | 'name'
   | 'username'
@@ -61,22 +64,29 @@ export type UserProfileDto = Pick<
   | 'is_garminconnect_linked'
   | 'has_local_password'
   | 'units'
+  | 'weight_units'
   | 'currency'
   | 'first_day_of_week'
 >
 
 /**
- * Backend response indicating that MFA is required before login completes.
- * Derived from the generated `MFARequiredResponse` schema, with
- * `mfa_required` narrowed to the literal `true` so it acts as the discriminant
- * of the {@link LoginResponse} union.
+ * Answer of `POST /auth/login`, told apart by its `next_step`: `mfa` and `password_change` ask for one more step,
+ * `tokens` and `exchange` end the sign-in. Derived from the generated schemas.
  */
-export type MfaRequiredResponse = Omit<Schemas['MFARequiredResponse'], 'mfa_required'> & {
-  mfa_required: true
-}
+export type LoginResponse =
+  | Schemas['MFARequiredRead']
+  | Schemas['PasswordChangeRequiredRead']
+  | Schemas['MobileSessionRead']
+  | Schemas['TokenWebRead']
 
-/** Login response from the backend. */
-export type LoginResponse = AuthTokenResponse | MfaRequiredResponse
+/** Answer of `POST /auth/mfa/verify`: any login answer except another MFA step. */
+export type MfaVerifyResponse = Exclude<LoginResponse, Schemas['MFARequiredRead']>
+
+/** Answer of `POST /auth/password-change`: the web tokens, or the session of a mobile client. */
+export type PasswordChangeResponse = Exclude<
+  MfaVerifyResponse,
+  Schemas['PasswordChangeRequiredRead']
+>
 
 /**
  * MFA verification request payload. Derived from the backend's generated
@@ -85,21 +95,41 @@ export type LoginResponse = AuthTokenResponse | MfaRequiredResponse
 export type MfaLoginRequest = Schemas['MFALoginRequest']
 
 /**
- * Logout response from the backend. Derived from the generated `LogoutResponse`
- * schema so a contract change surfaces as a TypeScript error here instead of a
- * silent runtime mismatch.
+ * Password-change step payload. Derived from the backend's generated
+ * `PasswordChangeLoginRequest` schema.
  */
-export type LogoutResponse = Schemas['LogoutResponse']
+export type PasswordChangeLoginRequest = Schemas['PasswordChangeLoginRequest']
 
 /**
- * Sign-up request payload sent to `POST /sign-up/request`. Derived from the
- * backend's generated `UsersSignup` schema so a contract change surfaces as a
+ * Sign-up request payload sent to `POST /public/sign-up/request`. Derived from the
+ * backend's generated `UserSignup` schema so a contract change surfaces as a
  * TypeScript error here instead of a silent runtime mismatch.
  */
-export type SignUpRequest = Schemas['UsersSignup']
+export type SignUpRequest = Schemas['UserSignup']
 
 /**
- * Sign-up response returned by `POST /sign-up/request`, indicating whether the
+ * Sign-up response returned by `POST /public/sign-up/request`, indicating whether the
  * account still needs email verification and/or admin approval before login.
  */
-export type SignUpResponse = Schemas['SignUpResponse']
+export type SignUpResponse = Schemas['SignUpRead']
+
+/** Body of `POST /public/sign-up/confirm`; `password` is only sent for a sign-up link. */
+export type SignUpConfirm = Schemas['SignUpConfirm']
+
+/** Body of `POST /public/sign-up/resend`. */
+export type SignUpResend = Schemas['SignUpResend']
+
+/**
+ * Whether the installation still needs its first administrator.
+ *
+ * @property onboardingRequired - `true` only while no account exists.
+ */
+export interface OnboardingStatus {
+  onboardingRequired: boolean
+}
+
+/** Body of `POST /public/onboarding`, derived from the generated `OnboardingCreate` schema. */
+export type OnboardingRequest = Schemas['OnboardingCreate']
+
+/** Sign-out answer: the identity provider's end-session URL, or `null` when there is none. */
+export type LogoutResponse = Schemas['LogoutRead']

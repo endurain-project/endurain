@@ -30,8 +30,8 @@ export function makeActivity(overrides: Partial<Activity> = {}): Activity {
     name: 'Morning run',
     description: null,
     privateNotes: null,
-    activityType: 1,
-    visibility: 0,
+    activityType: 'run',
+    visibility: 'public',
     isHidden: false,
     gearId: null,
     startTime: '2024-05-01T07:00:00Z',
@@ -59,6 +59,7 @@ export function makeActivity(overrides: Partial<Activity> = {}): Activity {
     stravaActivityId: null,
     garminActivityId: null,
     mapThumbnailUrl: null,
+    media: [],
     ...overrides,
     privacy: { ...NO_PRIVACY, ...overrides.privacy },
   }

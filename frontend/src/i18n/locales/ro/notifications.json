@@ -8,7 +8,7 @@
   "seeAll": "Vezi toate",
   "loadMore": "Încarcă mai multe",
   "loading": "Se încarcă…",
-  "badge": "{count} notificări necitite",
+  "badge": "{count} notificare necitită | {count} notificări necitite | {count} de notificări necitite",
   "empty": {
     "title": "Ești la zi cu toate",
     "description": "Actualizările despre activitățile, urmăritorii și integrările tale vor apărea aici."
@@ -38,6 +38,63 @@
     "garminTokenExpired": {
       "title": "Garmin Connect necesită atenție",
       "body": "Sesiunea ta Garmin Connect a expirat. Reconectează-o pentru a continua sincronizarea."
+    },
+    "stravaTokenExpired": {
+      "title": "Strava necesită atenție",
+      "body": "Strava ți-a respins conexiunea. Reconecteaz-o pentru a continua sincronizarea.",
+      "bodyRevoked": "Accesul la Strava a luat sfârșit. Activitățile și echipamentul sincronizate cu Strava vor fi șterse la {date}, dacă nu te reconectezi."
+    },
+    "stravaDataDeleted": {
+      "title": "Datele Strava au fost șterse",
+      "body": "Activitățile și echipamentul sincronizate cu Strava au fost șterse deoarece accesul la Strava a luat sfârșit și nu te-ai reconectat."
+    },
+    "idpLinked": {
+      "title": "Furnizor de autentificare nou asociat",
+      "body": "{name} a fost asociat contului tău. Dacă nu ai fost tu, verifică setările de securitate.",
+      "bodyGeneric": "Un furnizor de autentificare a fost asociat contului tău. Dacă nu ai fost tu, verifică setările de securitate."
+    },
+    "accountSecurityChanged": {
+      "passwordChanged": {
+        "title": "Parolă schimbată",
+        "body": "Parola ta a fost schimbată. Dacă nu ai fost tu, resetează-ți parola și verifică setările de securitate."
+      },
+      "passwordReset": {
+        "title": "Parolă resetată",
+        "body": "Parola ta a fost resetată printr-un link de resetare. Dacă nu ai fost tu, resetează-ți din nou parola și verifică setările de securitate."
+      },
+      "passwordSetByAdmin": {
+        "title": "Parolă setată de un administrator",
+        "body": "Un administrator a setat o parolă nouă pentru contul tău. Dacă nu te așteptai la asta, contactează administratorul."
+      },
+      "mfaEnabled": {
+        "title": "Verificare în doi pași activată",
+        "body": "Verificarea în doi pași a fost activată pentru contul tău. Dacă nu ai fost tu, resetează-ți parola și verifică setările de securitate."
+      },
+      "mfaDisabled": {
+        "title": "Verificare în doi pași dezactivată",
+        "body": "Verificarea în doi pași a fost dezactivată pentru contul tău. Dacă nu ai fost tu, resetează-ți parola și verifică setările de securitate."
+      },
+      "backupCodesGenerated": {
+        "title": "Au fost generate coduri de rezervă noi",
+        "body": "Au fost generate coduri de rezervă noi pentru contul tău. Dacă nu ai fost tu, resetează-ți parola și verifică setările de securitate."
+      },
+      "apiKeyCreated": {
+        "title": "A fost creată o cheie API nouă",
+        "body": "A fost creată o cheie API nouă pentru contul tău. Dacă nu ai fost tu, resetează-ți parola și verifică setările de securitate."
+      },
+      "identityProviderUnlinked": {
+        "title": "Furnizor de autentificare dezasociat",
+        "body": "{name} a fost dezasociat de la contul tău. Dacă nu ai fost tu, resetează-ți parola și verifică setările de securitate.",
+        "bodyGeneric": "Un furnizor de autentificare a fost dezasociat de la contul tău. Dacă nu ai fost tu, resetează-ți parola și verifică setările de securitate."
+      },
+      "unknown": {
+        "title": "Securitatea contului a fost modificată",
+        "body": "O setare de securitate a contului tău a fost modificată. Dacă nu ai fost tu, resetează-ți parola și verifică setările de securitate."
+      }
+    },
+    "newDeviceSignIn": {
+      "title": "Autentificare nouă",
+      "body": "Autentificare nouă din {browser} pe {os} ({ip}). Dacă nu ai fost tu, schimbă-ți parola și deconectează-te din celelalte sesiuni."
     },
     "adminSignUpApproval": {
       "title": "O înscriere nouă necesită aprobare",

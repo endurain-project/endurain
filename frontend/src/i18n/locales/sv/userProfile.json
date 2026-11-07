@@ -82,5 +82,13 @@
       "ownTitle": "Du har inga följare ännu.",
       "otherTitle": "Inga följare ännu."
     }
+  },
+  "block": {
+    "block": "Blockera",
+    "unblock": "Avblockera",
+    "confirmTitle": "Blockera {name}?",
+    "confirmBody": "{name} kan inte be om att få följa dig, och all följning mellan er tas bort. Personen får inget meddelande.",
+    "blockError": "Det gick inte att blockera användaren. Försök igen.",
+    "unblockError": "Det gick inte att avblockera användaren. Försök igen."
   }
 }

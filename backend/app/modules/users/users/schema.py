@@ -1,10 +1,13 @@
 """User schema definitions for request and response models."""
 
 from datetime import date as datetime_date
-from enum import Enum
+from datetime import datetime
+from enum import Enum, StrEnum
+from typing import Annotated
 from zoneinfo import available_timezones
 
 from pydantic import (
+    AfterValidator,
     BaseModel,
     ConfigDict,
     EmailStr,
@@ -12,15 +15,21 @@ from pydantic import (
     StrictBool,
     StrictInt,
     StrictStr,
+    ValidationInfo,
     field_validator,
 )
 
+import core.job_status as core_job_status
+import core.pagination as core_pagination
+import core.partial_update as core_partial_update
+import core.types as core_types
+import modules.activities.activity.constants as activity_constants
+import modules.auth.schema as auth_schema
 import modules.server_settings.schema as server_settings_schema
 
 
 class Gender(Enum):
-    """
-    User gender enumeration.
+    """User gender enumeration.
 
     Attributes:
         MALE: Male gender.
@@ -33,9 +42,8 @@ class Gender(Enum):
     UNSPECIFIED = "unspecified"
 
 
-class Language(Enum):
-    """
-    Supported application languages.
+class Language(StrEnum):
+    """Supported application languages.
 
     Attributes:
         CATALAN: Catalan (ca).
@@ -103,8 +111,7 @@ class Language(Enum):
 
 
 class WeekDay(Enum):
-    """
-    Days of the week enumeration.
+    """Days of the week enumeration.
 
     Attributes:
         SUNDAY: Sunday.
@@ -125,9 +132,8 @@ class WeekDay(Enum):
     SATURDAY = "saturday"
 
 
-class UserAccessType(Enum):
-    """
-    User access level enumeration.
+class UserAccessType(StrEnum):
+    """User access level enumeration.
 
     Attributes:
         REGULAR: Standard user access.
@@ -139,8 +145,7 @@ class UserAccessType(Enum):
 
 
 def normalize_access_type(access_type: "UserAccessType | str") -> str:
-    """
-    Return the string value of an access type.
+    """Return the string value of an access type.
 
     Accepts either a :class:`UserAccessType` enum member or its raw
     string value and always returns the plain string form (e.g.
@@ -155,9 +160,57 @@ def normalize_access_type(access_type: "UserAccessType | str") -> str:
     return access_type.value if isinstance(access_type, UserAccessType) else access_type
 
 
-class UsersBase(BaseModel):
+#: Field types shared by every shape that takes an account's name, username, email address or new password.
+UserName = Annotated[StrictStr, Field(min_length=1, max_length=250, description="User's full name")]
+UserRequestName = Annotated[core_types.DisplayName, Field(description="User's full name")]
+UserUsername = Annotated[
+    StrictStr,
+    Field(
+        min_length=1,
+        max_length=250,
+        pattern=r"^[a-zA-Z0-9._-]+$",
+        description="Unique username (alphanumeric, dots, hyphen, underscore)",
+    ),
+]
+UserEmail = Annotated[EmailStr, Field(max_length=250, description="User's email address")]
+UserPassword = Annotated[StrictStr, Field(min_length=8, max_length=250, description="User's password")]
+
+
+#: Shortest and tallest height, in centimeters, a client may set.
+MIN_HEIGHT_CM = 50
+MAX_HEIGHT_CM = 272
+
+
+def _realistic_height(value: int, info: ValidationInfo) -> int:
+    """Refuse a height outside the realistic range, passing data re-applied from storage through.
+
+    Args:
+        value: The submitted height in centimeters.
+        info: Pydantic's validation info, whose context may mark stored data.
+
+    Returns:
+        The height, unchanged.
+
+    Raises:
+        ValueError: When the height is outside ``MIN_HEIGHT_CM`` to ``MAX_HEIGHT_CM``.
     """
-    Base users schema with common fields.
+    if info.context and info.context.get(core_types.STORED_CONTEXT):
+        return value
+    if not MIN_HEIGHT_CM <= value <= MAX_HEIGHT_CM:
+        raise ValueError(f"Height must be between {MIN_HEIGHT_CM} and {MAX_HEIGHT_CM} cm")
+    return value
+
+
+#: A height a client sends: stored heights keep the wider 1 to 300 cm they were saved under.
+UserRequestHeight = Annotated[
+    StrictInt,
+    Field(ge=1, le=300, description="Height in centimeters"),
+    AfterValidator(_realistic_height),
+]
+
+
+class UserBase(BaseModel):
+    """Base users schema with common fields.
 
     Attributes:
         name: User's full name (1-250 chars).
@@ -169,6 +222,8 @@ class UsersBase(BaseModel):
         preferred_language: Preferred language.
         gender: User's gender.
         units: User units (metric, imperial).
+        weight_units: Weight units override (metric - kg, imperial - lb);
+            null follows units.
         height: User's height in centimeters (1-300).
         max_heart_rate: Maximum heart rate in bpm (30-250).
         first_day_of_week: First day of the week.
@@ -176,30 +231,15 @@ class UsersBase(BaseModel):
         timezone: IANA timezone the athlete lives in.
     """
 
-    name: StrictStr = Field(
-        ...,
-        min_length=1,
-        max_length=250,
-        description="User's full name",
-    )
-    username: StrictStr = Field(
-        ...,
-        min_length=1,
-        max_length=250,
-        pattern=r"^[a-zA-Z0-9._-]+$",
-        description="Unique username (alphanumeric, dots, hyphen, underscore)",
-    )
-    email: EmailStr = Field(
-        ...,
-        max_length=250,
-        description="User's email address",
-    )
+    name: UserName
+    username: UserUsername
+    email: UserEmail
     city: StrictStr | None = Field(
         default=None,
         max_length=250,
         description="User's city",
     )
-    birthdate: datetime_date | None = Field(
+    birthdate: core_types.RecordDate | None = Field(
         default=None,
         description="User's birthdate",
     )
@@ -214,6 +254,10 @@ class UsersBase(BaseModel):
     units: server_settings_schema.Units = Field(
         default=server_settings_schema.Units.METRIC,
         description="User units (metric, imperial)",
+    )
+    weight_units: server_settings_schema.Units | None = Field(
+        default=None,
+        description="Weight units override (metric - kg, imperial - lb), follows 'units' when null",
     )
     height: StrictInt | None = Field(
         default=None,
@@ -245,7 +289,9 @@ class UsersBase(BaseModel):
         ),
     )
 
-    model_config = ConfigDict(use_enum_values=True)
+    # A default is validated too, so an enum default is stored as its value ("en"), not as the member a driver
+    # would write by name ("ENGLISH").
+    model_config = ConfigDict(use_enum_values=True, validate_default=True)
 
     @field_validator("timezone")
     @classmethod
@@ -274,8 +320,7 @@ class UsersBase(BaseModel):
     @field_validator("birthdate", mode="before")
     @classmethod
     def validate_birthdate(cls, value: datetime_date | str | None) -> str | None:
-        """
-        Convert birthdate to ISO format string.
+        """Convert birthdate to ISO format string.
 
         Args:
             value: Birthdate as date object, string, or None.
@@ -290,9 +335,8 @@ class UsersBase(BaseModel):
         return value
 
 
-class Users(UsersBase):
-    """
-    Complete users schema with administrative fields.
+class User(UserBase):
+    """Complete users schema with administrative fields.
 
     Note:
         ``mfa_secret`` is intentionally NOT part of any API-facing
@@ -304,8 +348,6 @@ class Users(UsersBase):
 
     Attributes:
         access_type: User access level.
-        photo_path: Servable URL of the user's photo, resolved from
-            the stored storage key. Read-only: writes are ignored.
         active: Whether the user is active.
         mfa_enabled: Whether MFA is enabled.
         email_verified: Whether email is verified.
@@ -315,11 +357,6 @@ class Users(UsersBase):
     access_type: UserAccessType = Field(
         ...,
         description="User access level",
-    )
-    photo_path: StrictStr | None = Field(
-        default=None,
-        max_length=500,
-        description="Servable URL of the user's photo (read-only)",
     )
     active: StrictBool = Field(
         ...,
@@ -346,13 +383,15 @@ class Users(UsersBase):
     )
 
 
-class UsersRead(Users):
-    """
-    Users schema for read operations.
+class UserRead(User):
+    """Users schema for read operations.
 
     Attributes:
         id: User ID.
+        photo_path: Servable URL of the user's photo, resolved from the stored storage key.
         external_auth_count: Number of external auth providers.
+        pending_email: Address awaiting confirmation, which replaces ``email`` once confirmed.
+        pending_email_expires_at: When the confirmation link for ``pending_email`` expires.
     """
 
     id: StrictInt = Field(
@@ -360,21 +399,125 @@ class UsersRead(Users):
         ge=1,
         description="User ID",
     )
+    photo_path: StrictStr | None = Field(
+        default=None,
+        max_length=500,
+        description="Servable URL of the user's photo",
+    )
     external_auth_count: StrictInt = Field(
         default=0,
         ge=0,
         description="Number of external auth providers linked",
     )
+    version: StrictInt = Field(default=1, ge=1, description="Optimistic-concurrency counter, also sent as the ETag")
+    pending_email: EmailStr | None = Field(
+        default=None, description="Email address awaiting confirmation, which replaces the current one once confirmed"
+    )
+    pending_email_expires_at: datetime | None = Field(
+        default=None, description="When the confirmation link for the pending email address expires"
+    )
 
 
-class UsersMe(UsersRead):
+class UserPublicRead(BaseModel):
+    """What any signed-in viewer, or an anonymous one on a shared link, may learn about a user.
+
+    A deliberate subset of :class:`UserRead`: no email, birthdate, access level or account
+    state, so a lookup cannot be used to harvest personal data or to probe who is an admin.
+
+    Attributes:
+        id: User ID.
+        name: User's full name.
+        username: Unique username.
+        city: User's city.
+        photo_path: Servable URL of the user's photo.
     """
-    Extended users schema for current user profile.
+
+    id: StrictInt = Field(..., ge=1, description="User ID")
+    name: StrictStr = Field(..., description="User's full name")
+    username: StrictStr = Field(..., description="Unique username")
+    city: StrictStr | None = Field(default=None, description="User's city")
+    photo_path: StrictStr | None = Field(default=None, description="Servable URL of the user's photo")
+
+    model_config = ConfigDict(from_attributes=True, extra="forbid")
+
+
+#: One page of public user projections, as a search returns them.
+UserPublicPage = core_pagination.Page[UserPublicRead]
+
+
+class UserEdit(User):
+    """Users schema for an administrative edit.
+
+    The stored columns of a user and nothing a read adds: ``id`` is the path, and
+    ``external_auth_count``, the photo URL and the pending email change are derived. ``mfa_enabled`` is a read-only
+    projection, so a write ignores it. A name already stored is re-applied as it is, even if it would not pass as
+    new input.
+    """
+
+    name: UserRequestName
+    height: UserRequestHeight | None = None
+
+    @classmethod
+    def from_read(cls, user: "UserRead") -> "UserEdit":
+        """Build the edit that re-applies a user as stored, for a caller that changes a few fields.
+
+        Args:
+            user: The user as read, usually with the changes already applied.
+
+        Returns:
+            The same user as an edit.
+        """
+        return cls.model_validate(
+            user.model_dump(
+                exclude={
+                    "id",
+                    "photo_path",
+                    "external_auth_count",
+                    "version",
+                    "pending_email",
+                    "pending_email_expires_at",
+                }
+            ),
+            context={core_types.STORED_CONTEXT: True},
+        )
+
+
+class UserAdminEdit(UserEdit):
+    """An administrator's edit of another user, the body of ``PATCH /users/{user_id}``.
+
+    Attributes:
+        step_up: The administrator's own step-up verification. Required when the edit changes the email,
+            the access type or the active flag; it is never a user field.
+    """
+
+    step_up: auth_schema.StepUpVerification | None = Field(
+        default=None,
+        description=(
+            "The administrator's step-up verification, required to change the email, access type or active flag"
+        ),
+    )
+
+    def to_edit(self) -> UserEdit:
+        """Return the user fields of the request, without the step-up.
+
+        Returns:
+            The edit as a :class:`UserEdit`, with the same fields set.
+        """
+        return UserEdit.model_validate(self.model_dump(exclude={"step_up"}, exclude_unset=True))
+
+
+class UserMe(UserRead):
+    """Extended users schema for current user profile.
 
     Includes privacy settings and integration status.
 
     Attributes:
+        privacy_settings_version: Version of the privacy settings, for ``If-Match``.
+        integrations_version: Version of the integrations, for ``If-Match`` when the Strava client is set.
         is_strava_linked: Strava integration status.
+        strava_revoked_at: When Strava refused the refresh token, ``None`` while access is intact.
+        strava_data_deletion_at: When the user's Strava data is deleted unless they relink, ``None`` while
+            access is intact.
         is_garminconnect_linked: Garmin Connect status.
         default_activity_visibility: Default visibility level.
         hide_activity_start_time: Hide start time setting.
@@ -390,13 +533,30 @@ class UsersMe(UsersRead):
         hide_activity_workout_sets_steps: Hide workout
             sets/steps.
         hide_activity_gear: Hide gear setting.
+        discoverable: Whether other users can find the user in username search.
         has_local_password: Whether the account has a local
-            password (False for SSO-only accounts).
+            password (False for accounts that sign in through an
+            identity provider).
     """
 
-    is_strava_linked: StrictInt | None = Field(default=None, description="Whether Strava is linked")
-    is_garminconnect_linked: StrictInt | None = Field(default=None, description="Whether Garmin Connect is linked")
-    default_activity_visibility: StrictStr | None = Field(default=None, description="Default activity visibility")
+    privacy_settings_version: StrictInt | None = Field(
+        default=None, description="Version of the privacy settings, sent back in If-Match when they are edited"
+    )
+    integrations_version: StrictInt | None = Field(
+        default=None,
+        description="Version of the integrations, sent back in If-Match when the Strava client is set",
+    )
+    is_strava_linked: StrictBool | None = Field(default=None, description="Whether Strava is linked")
+    strava_revoked_at: datetime | None = Field(
+        default=None, description="When Strava access ended because the user revoked it on Strava"
+    )
+    strava_data_deletion_at: datetime | None = Field(
+        default=None, description="When Strava-synced activities and gear are deleted unless Strava is relinked"
+    )
+    is_garminconnect_linked: StrictBool | None = Field(default=None, description="Whether Garmin Connect is linked")
+    default_activity_visibility: activity_constants.ActivityVisibility | None = Field(
+        default=None, description="Default activity visibility"
+    )
     hide_activity_start_time: StrictBool | None = Field(default=None, description="Hide activity start time")
     hide_activity_location: StrictBool | None = Field(default=None, description="Hide activity location")
     hide_activity_map: StrictBool | None = Field(default=None, description="Hide activity map")
@@ -411,92 +571,125 @@ class UsersMe(UsersRead):
         default=None, description="Hide activity workout sets and steps"
     )
     hide_activity_gear: StrictBool | None = Field(default=None, description="Hide activity gear")
-    has_local_password: StrictBool | None = Field(
-        default=None,
+    discoverable: StrictBool | None = Field(default=None, description="Appear in other users' username search")
+    has_local_password: StrictBool = Field(
+        ...,
         description=(
             "Whether the account has a local password set. False"
-            " indicates an SSO-only account, in which case"
-            " step-up flows must skip the password factor. The"
-            " raw password hash is never exposed; only this"
-            " derived boolean is returned."
+            " indicates an account that signs in through an identity"
+            " provider; its step-up proves a fresh sign-in with that"
+            " provider instead of a password. The raw password hash"
+            " is never exposed; only this derived boolean is returned."
         ),
     )
 
 
-class UsersSignup(UsersBase):
+class UserSignup(BaseModel):
+    """Users schema for a public sign-up request: only what an account needs.
+
+    The rest of the profile starts from the ``UserBase`` defaults and is edited after signing in.
+
+    Attributes:
+        name: User's full name (1-250 chars).
+        username: Unique username (1-250 chars, alphanumeric and dots).
+        email: User's email address (max 250 chars).
+        password: User's password (min 8 chars). Absent when the password is chosen at email verification.
+        preferred_language: Language of the account's emails and interface.
     """
-    Users schema for signup operations.
+
+    name: UserRequestName
+    username: UserUsername
+    email: UserEmail
+    password: UserPassword | None = None
+    preferred_language: Language = Field(
+        default=Language.ENGLISH,
+        description="Preferred language",
+    )
+
+    model_config = ConfigDict(use_enum_values=True, validate_default=True, extra="forbid")
+
+
+class UserCreate(User):
+    """Users schema for admin user creation.
 
     Attributes:
         password: User's password (min 8 chars).
     """
 
-    password: StrictStr = Field(
-        ...,
-        min_length=8,
-        max_length=250,
-        description="User's password",
-    )
+    name: UserRequestName
+    height: UserRequestHeight | None = None
+    password: UserPassword
 
 
-class UsersCreate(Users):
-    """
-    Users schema for admin user creation.
+class UserAdminCreate(UserCreate):
+    """An administrator's creation of a user, the body of ``POST /users``.
 
     Attributes:
-        password: User's password (min 8 chars).
+        step_up: The administrator's own step-up verification. Required when the new account is an
+            administrator's; it is never a user field.
     """
 
-    password: StrictStr = Field(
-        ...,
-        min_length=8,
-        max_length=250,
-        description="User's password",
+    step_up: auth_schema.StepUpVerification | None = Field(
+        default=None,
+        description="The administrator's step-up verification, required to create an administrator account",
     )
 
+    def to_create(self) -> UserCreate:
+        """Return the user fields of the request, without the step-up.
 
-class UsersEditPassword(BaseModel):
-    """
-    Schema for password update operations (self-service).
+        Returns:
+            The user as a :class:`UserCreate`.
+        """
+        return UserCreate.model_validate(self.model_dump(exclude={"step_up"}))
 
-    Requires the caller to prove possession of the current
-    password — and an MFA code when MFA is enabled — before
-    the new password is accepted. This prevents a stolen
-    in-memory access token from being parlayed into permanent
-    account takeover.
+
+class FirstAdminCreate(BaseModel):
+    """The only fields a caller supplies when the first administrator is created.
+
+    The access level and account state are not here: the users service sets them.
 
     Attributes:
-        current_password: Caller's existing password.
+        name: User's full name.
+        username: Unique username.
+        email: User's email address.
+        password: User's password (min 8 chars; the administrator policy applies on top).
+    """
+
+    name: UserRequestName
+    username: UserUsername
+    email: UserEmail
+    password: UserPassword
+
+    model_config = ConfigDict(extra="forbid")
+
+
+class UserEditPassword(BaseModel):
+    """Schema for password update operations (self-service).
+
+    Requires the caller's step-up verification, in ``step_up``, before the new password is accepted. This
+    prevents a stolen in-memory access token from being parlayed into permanent account takeover.
+
+    Attributes:
         password: New password (min 8 chars).
-        mfa_code: TOTP or backup code, required when MFA is
-            enabled on the account.
+        revoke_other_sessions: Whether to sign out the user's other sessions after the change.
+        step_up: The caller's step-up verification: the current password and, when MFA is enabled, an MFA code.
     """
 
-    current_password: StrictStr = Field(
-        ...,
-        min_length=1,
-        max_length=250,
-        description="Current password (step-up verification)",
-    )
     password: StrictStr = Field(
         ...,
         min_length=8,
         max_length=250,
         description="New password",
-    )
-    mfa_code: StrictStr | None = Field(
-        default=None,
-        max_length=32,
-        description="TOTP or backup code, required when MFA is enabled",
     )
     revoke_other_sessions: StrictBool = Field(
-        default=False,
+        default=True,
         description=(
-            "When true, revoke all of the user's other sessions "
-            "(keeping the current one) after the password change. "
-            "Use this to evict an attacker when changing a password "
-            "because of a suspected compromise."
+            "After the password change, all of the user's other sessions "
+            "(keeping the current one) are revoked unless the client sends false."
         ),
+    )
+    step_up: auth_schema.StepUpVerification = Field(
+        ..., description="Step-up verification, required to change the password"
     )
 
     model_config = ConfigDict(
@@ -505,17 +698,28 @@ class UsersEditPassword(BaseModel):
     )
 
 
-class UsersAdminEditPassword(BaseModel):
-    """
-    Schema for admin password reset operations.
+class UserEmailLookup(BaseModel):
+    """Schema for looking a user up by email address.
 
-    Admin password resets are authorised by the caller's
-    ``users:write`` scope on the admin route, not by knowing the
-    target user's current password. Self-service password changes
-    must use :class:`UsersEditPassword` instead.
+    Attributes:
+        email: Email address to search for, case-insensitive.
+    """
+
+    email: StrictStr = Field(..., min_length=1, max_length=250, description="Email address to search for")
+
+    model_config = ConfigDict(extra="forbid")
+
+
+class UserAdminEditPassword(BaseModel):
+    """Schema for admin password reset operations.
+
+    Setting another user's password needs the ``users:write`` scope and the administrator's own step-up
+    verification, not the target user's current password. Self-service password changes must use
+    :class:`UserEditPassword` instead.
 
     Attributes:
         password: New password (min 8 chars).
+        step_up: The administrator's own step-up verification.
     """
 
     password: StrictStr = Field(
@@ -524,56 +728,75 @@ class UsersAdminEditPassword(BaseModel):
         max_length=250,
         description="New password",
     )
-
-    model_config = ConfigDict(
-        extra="forbid",
-        validate_assignment=True,
+    step_up: auth_schema.StepUpVerification = Field(
+        ..., description="The administrator's step-up verification, required to set another user's password"
     )
 
+    model_config = ConfigDict(extra="forbid")
 
-class StepUpVerification(BaseModel):
-    """
-    Generic step-up verification payload.
 
-    Used by sensitive account-level operations (API key
-    creation, MFA backup-code regeneration, etc.) to require
-    fresh proof of identity beyond a valid access token.
-
-    For SSO-only accounts (no local password set), the password
-    field may be omitted and the password check is skipped — see
-    :func:`modules.auth._internal.services.step_up_service.verify_step_up_credentials`
-    and ``docs/developer-guide/auth-boundary.md`` for the rationale
-    and the tracked SSO-only step-up gap.
+class UserPhotoRead(BaseModel):
+    """The photo a user has after an upload.
 
     Attributes:
-        current_password: Caller's existing password. Required
-            when the account has a local password; may be
-            omitted for SSO-only accounts.
-        mfa_code: TOTP or backup code, required when MFA is
-            enabled on the account.
+        photo_path: Servable URL of the user's photo, or None when none is stored.
     """
 
-    current_password: StrictStr | None = Field(
+    photo_path: StrictStr | None = Field(default=None, description="Servable URL of the user's photo")
+
+
+class IdentityProviderLinkStart(BaseModel):
+    """Start linking an identity provider to the signed-in user's account, authorised by step-up verification.
+
+    Attributes:
+        redirect: Frontend return path after linking (a relative path or a configured custom scheme).
+        revoke_other_sessions: Whether to sign out the user's other sessions once the link completes.
+        step_up: The caller's step-up verification.
+    """
+
+    redirect: StrictStr | None = Field(
         default=None,
         min_length=1,
-        max_length=250,
-        description=("Current password (step-up verification). Required when the account has a local password."),
+        max_length=500,
+        description="Frontend return path after linking (relative path or a configured custom scheme)",
     )
-    mfa_code: StrictStr | None = Field(
-        default=None,
-        max_length=32,
-        description="TOTP or backup code, required when MFA is enabled",
+    revoke_other_sessions: StrictBool = Field(
+        default=True,
+        description=(
+            "When the link completes, all of the user's other sessions "
+            "(keeping the current one) are revoked unless the client sends false."
+        ),
+    )
+    step_up: auth_schema.StepUpVerification = Field(
+        ..., description="Step-up verification, required to link an identity provider"
     )
 
-    model_config = ConfigDict(
-        extra="forbid",
-        validate_assignment=True,
-    )
+    model_config = ConfigDict(extra="forbid")
 
 
-class ProfileUpdate(BaseModel):
+class EmailChange(BaseModel):
+    """Self-service email change, authorised by step-up verification.
+
+    Attributes:
+        email: The new email address.
+        revoke_other_sessions: Whether to sign out the user's other sessions after the change.
+        step_up: The caller's step-up verification.
     """
-    Schema for self-service profile updates.
+
+    email: EmailStr = Field(..., max_length=250, description="The new email address")
+    revoke_other_sessions: StrictBool = Field(
+        default=False,
+        description="When true, revoke all of the user's other sessions (keeping the current one) after the change",
+    )
+    step_up: auth_schema.StepUpVerification = Field(
+        ..., description="Step-up verification, required to change the email address"
+    )
+
+    model_config = ConfigDict(extra="forbid")
+
+
+class ProfileUpdate(core_partial_update.NotClearable, BaseModel):
+    """Schema for self-service profile updates.
 
     Strict allow-list of fields the authenticated user is
     permitted to change on their own account. Administrative
@@ -586,12 +809,12 @@ class ProfileUpdate(BaseModel):
     Attributes:
         name: User's full name.
         username: Unique username.
-        email: User's email address.
         city: User's city.
         birthdate: User's birthdate.
         preferred_language: Preferred application language.
         gender: User's gender.
         units: Preferred unit system.
+        weight_units: Preferred weight units, independent of units; null follows units.
         height: User's height in centimeters.
         max_heart_rate: Maximum heart rate in bpm.
         first_day_of_week: First day of the week.
@@ -599,26 +822,39 @@ class ProfileUpdate(BaseModel):
         timezone: IANA timezone the athlete lives in.
 
     Note:
+        ``email`` is deliberately absent. It is the address password resets go to, so changing
+        it needs fresh proof of identity and is :class:`EmailChange`.
+
         ``photo_path`` is deliberately absent. The photo is a
         server-issued storage key written only by the upload and
         delete endpoints, so accepting it here would let a caller
         repoint their avatar at another user's blob.
     """
 
-    name: StrictStr | None = Field(default=None, min_length=1, max_length=250)
+    not_clearable = (
+        "name",
+        "username",
+        "preferred_language",
+        "gender",
+        "units",
+        "first_day_of_week",
+        "currency",
+    )
+
+    name: core_types.DisplayName | None = None
     username: StrictStr | None = Field(
         default=None,
         min_length=1,
         max_length=250,
         pattern=r"^[a-zA-Z0-9._-]+$",
     )
-    email: EmailStr | None = Field(default=None, max_length=250)
     city: StrictStr | None = Field(default=None, max_length=250)
-    birthdate: datetime_date | None = None
+    birthdate: core_types.RecordDate | None = None
     preferred_language: Language | None = None
     gender: Gender | None = None
     units: server_settings_schema.Units | None = None
-    height: StrictInt | None = Field(default=None, ge=1, le=300)
+    weight_units: server_settings_schema.Units | None = None
+    height: UserRequestHeight | None = None
     max_heart_rate: StrictInt | None = Field(default=None, ge=30, le=250)
     first_day_of_week: WeekDay | None = None
     currency: server_settings_schema.Currency | None = None
@@ -633,7 +869,15 @@ class ProfileUpdate(BaseModel):
 
     @field_validator("birthdate", mode="before")
     @classmethod
-    def validate_birthdate(cls, value):
+    def validate_birthdate(cls, value: datetime_date | str | None) -> str | None:
+        """Normalize a birthdate to an ISO string.
+
+        Args:
+            value: The submitted birthdate, as a date or an ISO string.
+
+        Returns:
+            The ISO date string, or None.
+        """
         if value is None:
             return None
         if isinstance(value, datetime_date):
@@ -645,7 +889,7 @@ class ProfileUpdate(BaseModel):
     def validate_timezone(cls, value: str | None) -> str | None:
         """Reject anything that is not a known IANA timezone name.
 
-        Mirrors the check on :class:`UsersBase`: the value is later handed to
+        Mirrors the check on :class:`UserBase`: the value is later handed to
         ``ZoneInfo`` when stamping GPS-less activities, so an unknown name would
         surface as a runtime error far from the setting that caused it.
 
@@ -665,39 +909,5 @@ class ProfileUpdate(BaseModel):
         return value
 
 
-class UsersListResponse(BaseModel):
-    """
-    Response model for paginated user listing.
-
-    Attributes:
-        total: Total number of user records.
-        num_records: Number of records in this response.
-        page_number: Current page number.
-        records: List of user records.
-    """
-
-    total: StrictInt = Field(
-        ...,
-        ge=0,
-        description="Total number of user records",
-    )
-    num_records: StrictInt | None = Field(
-        default=None,
-        ge=0,
-        description="Number of records in this response",
-    )
-    page_number: StrictInt | None = Field(
-        default=None,
-        ge=1,
-        description="Current page number",
-    )
-    records: list[UsersRead] = Field(
-        ...,
-        description="List of user records",
-    )
-
-    model_config = ConfigDict(
-        from_attributes=True,
-        extra="forbid",
-        validate_assignment=True,
-    )
+class UserDeletionStatus(core_job_status.JobStatus):
+    """Where a queued account deletion is."""

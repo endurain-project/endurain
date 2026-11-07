@@ -44,7 +44,7 @@ class TestReverseGeocode:
         provider.reverse.assert_not_called()
 
     def test_delegates_coordinates_to_the_provider(self):
-        place = GeocodedPlace(city="Lisbon", town="Belem", country="Portugal")
+        place = GeocodedPlace(locality="Lisbon", sublocality="Belem", country="Portugal")
         provider = _provider_returning(place)
         assert reverse_geocode(provider, 38.0, -9.0) == place
         provider.reverse.assert_called_once_with(38.0, -9.0)
@@ -84,7 +84,10 @@ class TestGeocodeAndStore:
         assert geocode_and_store_activity_location(1, MagicMock(), MagicMock()) is False
         mock_update.assert_not_called()
 
-    @patch(f"{_SVC}.reverse_geocode", return_value=GeocodedPlace("Lisbon", "Belem", "Portugal"))
+    @patch(
+        f"{_SVC}.reverse_geocode",
+        return_value=GeocodedPlace(locality="Lisbon", sublocality="Belem", country="Portugal"),
+    )
     @patch(f"{_SVC}.activity_streams_integration.get_stream_for_derivation")
     @patch(f"{_SVC}.activity_integration.set_activity_location")
     def test_success_stores_location(self, mock_update, mock_stream, _mock_geo):
@@ -96,7 +99,10 @@ class TestGeocodeAndStore:
         # One commit ends the read transaction before the geocoder call, one persists the result.
         assert db.commit.call_count == 2
 
-    @patch(f"{_SVC}.reverse_geocode", return_value=GeocodedPlace("Lisbon", "Belem", "Portugal"))
+    @patch(
+        f"{_SVC}.reverse_geocode",
+        return_value=GeocodedPlace(locality="Lisbon", sublocality="Belem", country="Portugal"),
+    )
     @patch(f"{_SVC}.activity_streams_integration.get_stream_for_derivation")
     @patch(f"{_SVC}.activity_integration.set_activity_location", return_value=False)
     def test_does_not_commit_when_no_row_changed(self, _mock_update, mock_stream, _mock_geo):
@@ -150,7 +156,7 @@ class TestBackfill:
         db = MagicMock()
         mock_candidates.side_effect = [[MagicMock(id=1)], []]
         mock_waypoints.return_value = {1: [{"lat": 38.0, "lon": -9.0}]}
-        mock_geo.return_value = GeocodedPlace("Lisbon", None, "Portugal")
+        mock_geo.return_value = GeocodedPlace(locality="Lisbon", country="Portugal")
 
         assert backfill_missing_activity_locations(MagicMock(), _clock(), db) == 1
         mock_update.assert_called_once_with(1, "Lisbon", None, "Portugal", db)
@@ -170,7 +176,7 @@ class TestBackfill:
         mock_geo.assert_not_called()
         mock_defer.assert_called_once_with([1, 2], _NOW + LOOKUP_RETRY_DELAY, db)
 
-    @pytest.mark.parametrize("place", [None, GeocodedPlace(None, None, None)], ids=["nothing", "empty_place"])
+    @pytest.mark.parametrize("place", [None, GeocodedPlace()], ids=["nothing", "empty_place"])
     def test_a_lookup_that_resolves_nothing_is_deferred(
         self, mock_geo, mock_waypoints, mock_candidates, mock_update, mock_defer, place
     ):
@@ -191,7 +197,7 @@ class TestBackfill:
         db = MagicMock()
         mock_candidates.side_effect = [[MagicMock(id=1)], []]
         mock_waypoints.return_value = {1: [{"lat": 38.0, "lon": -9.0}]}
-        mock_geo.return_value = GeocodedPlace("Lisbon", None, "Portugal")
+        mock_geo.return_value = GeocodedPlace(locality="Lisbon", country="Portugal")
         mock_update.return_value = False
 
         assert backfill_missing_activity_locations(MagicMock(), _clock(), db) == 0
@@ -204,7 +210,7 @@ class TestBackfill:
         db = MagicMock()
         mock_candidates.side_effect = [[MagicMock(id=1), MagicMock(id=2)], [MagicMock(id=3)], []]
         mock_waypoints.side_effect = [{}, {3: [{"lat": 38.0, "lon": -9.0}]}]
-        mock_geo.return_value = GeocodedPlace("Lisbon", None, "Portugal")
+        mock_geo.return_value = GeocodedPlace(locality="Lisbon", country="Portugal")
 
         assert backfill_missing_activity_locations(MagicMock(), _clock(), db) == 1
         mock_update.assert_called_once_with(3, "Lisbon", None, "Portugal", db)

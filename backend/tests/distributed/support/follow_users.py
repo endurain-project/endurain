@@ -23,7 +23,9 @@ import model_registry
 import module_registry
 
 model_registry.import_all_models()
-substrate_settings = core_platform_settings.build_jasil_settings(core_config.settings)
+substrate_settings = core_platform_settings.build_jasil_settings(
+    core_config.settings, plain_areas=module_registry.storage_plain_areas()
+)
 jasil_settings.configure(substrate_settings)
 platform = container.build_platform(substrate_settings)
 runtime.set_active_platform(platform)

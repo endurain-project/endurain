@@ -18,16 +18,18 @@ it resolves its own gear and hands ingestion the id. This seam only answers
 from sqlalchemy.orm import Session
 
 import core.logger as core_logger
+import modules.activities.activity.constants as activity_constants
 import modules.activities.activity.contracts as activity_contracts
-import modules.users.users.integration_service as users_integration
+import modules.users.users_default_gear.integration_service as users_default_gear_integration
+import modules.users.users_privacy_settings.integration_service as users_privacy_settings_integration
 import modules.users.users_privacy_settings.schema as users_privacy_settings_schema
 
 logger = core_logger.get_logger(__name__)
 
 
 def build_activity_privacy_kwargs(
-    user_privacy_settings: users_privacy_settings_schema.UsersPrivacySettingsRead,
-) -> dict[str, bool | int]:
+    user_privacy_settings: users_privacy_settings_schema.UserPrivacySettingsRead,
+) -> dict[str, bool | activity_constants.ActivityVisibility]:
     """Build privacy field kwargs for an Activity from the owner's privacy settings.
 
     Args:
@@ -39,7 +41,7 @@ def build_activity_privacy_kwargs(
     """
     ups = user_privacy_settings
     return {
-        "visibility": users_integration.default_visibility_to_int(ups.default_activity_visibility),
+        "visibility": users_privacy_settings_integration.resolve_visibility(ups.default_activity_visibility),
         "hide_start_time": ups.hide_activity_start_time or False,
         "hide_location": ups.hide_activity_location or False,
         "hide_map": ups.hide_activity_map or False,
@@ -79,7 +81,7 @@ def resolve_gear_id(
     """
     gear_id = provider_gear_id
     if gear_id is None and activity_type is not None:
-        gear_id = users_integration.get_default_gear_for_activity_type(user_id, activity_type, db)
+        gear_id = users_default_gear_integration.get_default_gear_for_activity_type(user_id, activity_type, db)
     logger.debug(
         "Resolved gear for a parsed activity",
         extra=core_logger.context(
@@ -96,7 +98,7 @@ def enrich_parsed_activity(
     activity: activity_contracts.ActivityCore,
     *,
     user_id: int,
-    user_privacy_settings: users_privacy_settings_schema.UsersPrivacySettingsRead,
+    user_privacy_settings: users_privacy_settings_schema.UserPrivacySettingsRead,
     db: Session,
     from_garmin: bool = False,
     provider_gear_id: int | None = None,
@@ -124,7 +126,7 @@ def enrich_parsed_activity(
         setattr(activity, key, value)
 
     activity.gear_id = resolve_gear_id(
-        activity.activity_type,
+        activity.activity_type.stored,
         user_id,
         db,
         provider_gear_id=provider_gear_id,

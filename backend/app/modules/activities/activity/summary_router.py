@@ -7,14 +7,15 @@ of activities, and the period is a query parameter, not a path segment, because
 ``year``/``lifetime`` are four views of one resource, not four resources.
 """
 
-from collections.abc import Callable
-from datetime import date
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, Query, Security
-from sqlalchemy.orm import Session
+from fastapi import APIRouter, Query, Request, Security
 
-import core.database as core_database
+import core.date_range as core_date_range
+import core.dependencies as core_dependencies
+import core.rate_limit as core_rate_limit
+import modules.activities.activity.constants as activity_constants
+import modules.activities.activity.dependencies as activity_dependencies
 import modules.activities.activity.summary_schema as activity_summary_schema
 import modules.activities.activity.summary_service as activity_summary_service
 import modules.auth.dependencies as auth_dependencies
@@ -25,14 +26,16 @@ router = APIRouter()
 @router.get(
     "",
     response_model=activity_summary_schema.SummaryResponse,
+    dependencies=[Security(auth_dependencies.check_scopes, scopes=["activities:read"])],
 )
+@core_rate_limit.limiter.limit(core_rate_limit.EXPENSIVE_READ)
 def read_activity_summary(
-    _check_scopes: Annotated[Callable, Security(auth_dependencies.check_scopes, scopes=["activities:read"])],
-    token_user_id: Annotated[int, Depends(auth_dependencies.get_sub_from_access_token)],
-    db: Annotated[Session, Depends(core_database.get_db)],
-    period: Annotated[str, Query(pattern="^(week|month|year|lifetime)$")] = "week",
+    request: Request,
+    token_user_id: auth_dependencies.CurrentUserId,
+    db: core_dependencies.DbSession,
+    period: Annotated[activity_constants.SummaryPeriod, Query()] = activity_constants.SummaryPeriod.WEEK,
     anchor_date: Annotated[
-        date | None,
+        core_date_range.WindowDate | None,
         Query(
             alias="date",
             description=(
@@ -43,12 +46,17 @@ def read_activity_summary(
     ] = None,
     target_year: Annotated[
         int | None,
-        Query(alias="year", description="Target year for the yearly summary. Defaults to the anchor date's year."),
+        Query(
+            alias="year",
+            ge=activity_constants.MIN_SUMMARY_YEAR,
+            le=9999,
+            description=(
+                "Target year for the yearly summary. Defaults to the anchor date's year. "
+                "A year later than the caller's current year is refused."
+            ),
+        ),
     ] = None,
-    activity_type: Annotated[
-        str | None,
-        Query(alias="type", description="Filter the summary by activity type name."),
-    ] = None,
+    activity_type: activity_dependencies.ActivityTypeFilter = None,
 ) -> activity_summary_schema.SummaryResponse:
     """Return the authenticated user's activity summary for one period."""
     return activity_summary_service.build_summary(

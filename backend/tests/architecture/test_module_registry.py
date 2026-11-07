@@ -67,6 +67,24 @@ class TestRuntimeModuleRegistry:
         assert activities_contributor_registry.resolve_thumbnail_url("42.webp", 42) is not None
         assert activities_contributor_registry.resolve_thumbnail_url(None, 42) is None
 
+    def test_installs_the_media_resolver(self):
+        """Without it every activity list silently loses its photos.
+
+        The root activity package asks the registry rather than importing the
+        media package, so a missing registration is an empty ``media`` on every
+        activity in the API.
+        """
+        activities_contributor_registry.clear()
+        db = MagicMock()
+        assert activities_contributor_registry.resolve_media([1], db) == {}
+        db.scalars.assert_not_called()
+
+        runtime_module_registry.configure_activity_contributors()
+        db.scalars.return_value.all.return_value = []
+
+        assert activities_contributor_registry.resolve_media([1], db) == {}
+        db.scalars.assert_called_once()
+
     def test_registers_every_activity_bus_subscriber(self):
         events = MagicMock()
         runtime_module_registry.register_bus_subscribers(events)
@@ -110,3 +128,139 @@ class TestRuntimeModuleRegistry:
         registry = _register_durable_handlers()
         for subscriber_id in registry.subscriber_ids():
             assert registry.get(subscriber_id) is not None
+
+
+class TestConfigureApplication:
+    """The API and the standalone worker install the same seams through one call."""
+
+    def test_installs_contributors_erasers_and_providers_together(self):
+        from unittest.mock import patch
+
+        with (
+            patch.object(runtime_module_registry, "configure_activity_contributors") as activity,
+            patch.object(runtime_module_registry, "configure_gear_contributors") as gear,
+            patch.object(runtime_module_registry, "configure_user_contributors") as users,
+            patch.object(runtime_module_registry.strava_integration, "register_activity_provider") as strava,
+            patch.object(runtime_module_registry.garmin_integration, "register_activity_provider") as garmin,
+            patch.object(runtime_module_registry, "configure_audit") as audit,
+        ):
+            runtime_module_registry.configure_application()
+
+        for installed in (activity, gear, users, strava, garmin, audit):
+            installed.assert_called_once_with()
+
+
+class TestConfigureUserContributors:
+    """Composition installs the users namespace's callbacks, and installing twice is harmless."""
+
+    def test_installs_erasers_hooks_and_readers_idempotently(self):
+        import modules.users.contributor_registry as users_contributor_registry
+
+        runtime_module_registry.configure_user_contributors()
+        runtime_module_registry.configure_user_contributors()
+
+        assert users_contributor_registry.erasers() is not None
+        hooks = users_contributor_registry.lifecycle_hooks()
+        assert hooks.stage_new_user is runtime_module_registry.health_targets_integration.create_health_targets
+        assert hooks.stage_height_change is runtime_module_registry.health_weight_integration.recalculate_bmi_for_user
+        readers = users_contributor_registry.profile_readers()
+        assert readers.follow_counts is runtime_module_registry.followers_integration.get_profile_follow_counts
+
+    def test_registers_the_profile_sections_in_import_order(self):
+        import modules.users.contributor_registry as users_contributor_registry
+
+        runtime_module_registry.configure_user_contributors()
+        runtime_module_registry.configure_user_contributors()
+
+        sections = users_contributor_registry.profile_sections()
+        assert [section.key for section in sections] == [
+            "gears",
+            "gear_components",
+            "activities",
+            "health_weight",
+            "health_targets",
+            "health_sleep",
+            "health_steps",
+            "health_water",
+            "health_fasting",
+            "health_poop",
+        ]
+        assert len({section.key for section in sections}) == len(sections)
+
+
+class TestConfigureAudit:
+    """Every module's audit actions are registered, and the auth provider says who is acting."""
+
+    def test_registers_every_declared_action_and_installs_the_provider(self):
+        import jasil.audit as jasil_audit
+        import jasil.testing as jasil_testing
+
+        jasil_testing.reset_all()
+        runtime_module_registry.configure_audit()
+
+        catalog = jasil_audit.get_catalog()
+        for module in runtime_module_registry.MODULES:
+            for action in module.audit_actions:
+                assert catalog.get(action.id) == action
+        # The installed provider answers; outside a request the system is acting.
+        assert jasil_audit.get_context().actor_type is jasil_audit.ActorType.SYSTEM
+
+    def test_action_ids_are_unique_across_modules(self):
+        ids = [action.id for module in runtime_module_registry.MODULES for action in module.audit_actions]
+        assert len(ids) == len(set(ids))
+
+
+class TestDeferredSubscriptions:
+    """The in-process facade is a full event bus, so a module's registration needs no cast."""
+
+    def test_publish_start_and_stop_reach_the_wrapped_bus(self):
+        bus = MagicMock()
+        facade = runtime_module_registry._DeferredSubscriptions(bus)
+        event = MagicMock()
+
+        facade.publish(event)
+        facade.start()
+        facade.stop()
+
+        bus.publish.assert_called_once_with(event)
+        bus.start.assert_called_once_with()
+        bus.stop.assert_called_once_with()
+
+    def test_a_subscriber_is_handed_to_the_bus_under_its_own_name(self):
+        bus = MagicMock()
+
+        def handler(event):
+            return None
+
+        runtime_module_registry._DeferredSubscriptions(bus).subscribe("x.y", handler)
+
+        event_type, deferred = bus.subscribe.call_args.args
+        assert event_type == "x.y"
+        assert deferred.__name__ == "handler"
+
+
+class TestShutdownModulePools:
+    """Each module declares what it must release; the entry points release it all through one call."""
+
+    def test_every_declared_pool_and_the_subscriber_pool_are_released(self, monkeypatch):
+        released: list[str] = []
+        modules = (
+            *(
+                runtime_module_registry.RuntimeModule(name=name, shutdown=lambda name=name: released.append(name))
+                for name in ("first", "second")
+            ),
+            runtime_module_registry.RuntimeModule(name="no_pool"),
+        )
+        monkeypatch.setattr(runtime_module_registry, "MODULES", modules)
+        monkeypatch.setattr(
+            runtime_module_registry, "shutdown_deferred_subscribers", lambda: released.append("subscribers")
+        )
+
+        runtime_module_registry.shutdown_module_pools()
+
+        assert released == ["subscribers", "first", "second"]
+
+    def test_the_modules_that_run_pools_declare_their_release(self):
+        declared = {module.name for module in runtime_module_registry.MODULES if module.shutdown is not None}
+
+        assert {"activity", "activity_ingestion", "garmin", "strava", "users", "users_profile"} <= declared

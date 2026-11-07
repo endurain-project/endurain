@@ -33,12 +33,10 @@ only ever needs the URL, never the renderer.
 """
 
 import core.signing as core_signing
+import modules.activities.activity_thumbnail.constants as activity_thumbnail_constants
 
 # The salt carries a version: bumping it invalidates every previously minted token.
 _SIGNER = core_signing.CapabilitySigner(salt="activity-thumbnail-v2")
-
-# The storage area (domain-owned namespace) activity thumbnails live under.
-THUMBNAIL_STORAGE_AREA = "activity_thumbnails"
 
 
 def thumbnail_key(activity_id: int) -> str:
@@ -97,7 +95,7 @@ def thumbnail_url(key: str | None, activity_id: int) -> str | None:
     if not key:
         return None
     return core_signing.blob_url(
-        THUMBNAIL_STORAGE_AREA,
+        activity_thumbnail_constants.THUMBNAIL_STORAGE_AREA,
         key,
         local_path=f"/activities/{activity_id}/thumbnail",
         token=sign_thumbnail_token(activity_id),

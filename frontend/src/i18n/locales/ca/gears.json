@@ -9,8 +9,6 @@
   "fromStrava": "Strava",
   "fromGarmin": "Garmin Connect",
   "filters": "Filtres",
-  "unitKm": "km",
-  "unitMi": "mi",
   "types": {
     "bicycle": "Bicicleta",
     "shoes": "Sabatilles",
@@ -41,8 +39,8 @@
     "model": "Model",
     "modelTooLong": "El model ha de tenir 250 caràcters o menys",
     "active": "Actiu",
-    "createdAt": "Creat el",
-    "createdAtRequired": "Cal una data de creació",
+    "acquiredOn": "Creat el",
+    "acquiredOnRequired": "Cal una data de creació",
     "initialDistance": "Distància inicial",
     "purchaseValue": "Valor de compra",
     "totalCost": "Cost total",
@@ -57,6 +55,8 @@
   "delete": {
     "title": "Elimina l'equipament",
     "body": "Segur que vols eliminar \"{nickname}\"? Aquesta acció no es pot desfer.",
+    "activities": "{count} activitat utilitza aquest equipament; es conservarà i quedarà sense assignar. | {count} activitats utilitzen aquest equipament; es conservaran i quedaran sense assignar.",
+    "components": "El seu component ({count}) s'eliminarà. | Els seus {count} components s'eliminaran.",
     "confirm": "Elimina",
     "cancel": "Cancel·la",
     "close": "Tanca",
@@ -91,7 +91,6 @@
     "unsupported": "Aquest tipus d'equipament no fa el seguiment de components.",
     "noneActive": "Tots els components estan inactius. Activa \"Mostra els inactius\" per veure'ls.",
     "inactive": "Inactiu",
-    "unitHours": "h",
     "purchasedOn": "Comprat el {date}",
     "wearLabel": "Desgast de {name}",
     "actions": {

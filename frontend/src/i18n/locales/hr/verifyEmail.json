@@ -1,14 +1,26 @@
 {
   "verifyingBody": "Pričekajte dok potvrdimo vašu adresu.",
+  "choosePasswordTitle": "Odaberite lozinku",
+  "choosePasswordBody": "Vaša e-adresa bit će potvrđena kada postavite lozinku za svoj račun.",
+  "submitPassword": "Postavi lozinku",
+  "submittingPassword": "Spremanje lozinke",
   "successTitle": "E-pošta potvrđena",
   "successBody": "Vaša adresa e-pošte je potvrđena.",
   "adminApprovalBody": "Vaš račun sada čeka odobrenje administratora.",
   "continueButton": "Nastavi na prijavu",
   "invalidTitle": "Potvrda nije uspjela",
-  "missingTokenBody": "Ovom linku za potvrdu nedostaje token.",
   "errorInvalidToken": "Ovaj link za potvrdu nije valjan ili je istekao.",
+  "errorEmailTaken": "Ovu adresu e-pošte sada koristi drugi račun, pa se ne može potvrditi.",
   "errorNotFound": "Nismo mogli pronaći račun za ovaj link.",
   "errorGeneral": "Nismo mogli potvrditi vašu e-poštu. Pokušajte ponovno.",
   "retry": "Pokušaj ponovno",
-  "backToLogin": "Natrag na prijavu"
+  "backToLogin": "Natrag na prijavu",
+  "resendTitle": "Trebate novu poveznicu?",
+  "resendBody": "Unesite adresu s kojom ste se registrirali i poslat ćemo novu e-poruku za potvrdu ako još čeka.",
+  "resendEmail": "Adresa e-pošte",
+  "resendButton": "Pošalji novu e-poruku",
+  "resendSending": "Slanje",
+  "resendSent": "Ako ta adresa čeka potvrdu, nova je e-poruka na putu.",
+  "resendTooManyAttempts": "Previše pokušaja. Pričekajte prije novog pokušaja.",
+  "resendError": "E-poruku nismo mogli poslati. Pokušajte ponovno."
 }

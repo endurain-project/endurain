@@ -1,14 +1,26 @@
 {
   "verifyingBody": "Veuillez patienter pendant que nous confirmons votre adresse.",
+  "choosePasswordTitle": "Choisissez votre mot de passe",
+  "choosePasswordBody": "Votre adresse e-mail est confirmée une fois que vous avez défini un mot de passe pour votre compte.",
+  "submitPassword": "Définir le mot de passe",
+  "submittingPassword": "Enregistrement du mot de passe",
   "successTitle": "E-mail vérifié",
   "successBody": "Votre adresse e-mail a été confirmée.",
   "adminApprovalBody": "Votre compte est maintenant en attente d'approbation par un administrateur.",
   "continueButton": "Continuer vers la connexion",
   "invalidTitle": "Échec de la vérification",
-  "missingTokenBody": "Ce lien de vérification ne contient pas de jeton.",
   "errorInvalidToken": "Ce lien de vérification est invalide ou expiré.",
+  "errorEmailTaken": "Cette adresse e-mail est désormais utilisée par un autre compte, elle ne peut donc pas être confirmée.",
   "errorNotFound": "Impossible de trouver un compte pour ce lien.",
   "errorGeneral": "Impossible de vérifier votre e-mail. Veuillez réessayer.",
   "retry": "Réessayer",
-  "backToLogin": "Retour à la connexion"
+  "backToLogin": "Retour à la connexion",
+  "resendTitle": "Besoin d'un nouveau lien ?",
+  "resendBody": "Saisissez l'adresse avec laquelle vous vous êtes inscrit et nous enverrons un nouvel e-mail de vérification si elle est toujours en attente.",
+  "resendEmail": "Adresse e-mail",
+  "resendButton": "Envoyer un nouvel e-mail",
+  "resendSending": "Envoi en cours",
+  "resendSent": "Si cette adresse est en attente de vérification, un nouvel e-mail est en route.",
+  "resendTooManyAttempts": "Trop de tentatives. Veuillez patienter avant de réessayer.",
+  "resendError": "Nous n'avons pas pu envoyer l'e-mail. Veuillez réessayer."
 }

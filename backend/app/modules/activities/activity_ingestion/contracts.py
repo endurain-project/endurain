@@ -6,7 +6,7 @@ expressed, and the questions the pipeline asks ("where do failed files go?",
 "what metadata applies to this file?") are answered by the source itself.
 
 :class:`BulkImportSource` is the **extension point**, not a Strava switch. A
-provider *subclasses* it (``modules.strava.bulk_import_source``), so the
+provider *subclasses* it (``modules.strava.bulk_import_service``), so the
 dependency runs one way, from provider to activities, and adding a second export
 format means adding a subclass rather than another branch in here.
 """
@@ -20,6 +20,15 @@ from sqlalchemy.orm import Session
 
 import modules.activities.activity.contracts as activity_contracts
 import modules.activities.activity.schema as activity_schema
+
+
+class WindowStoppedError(Exception):
+    """Raised by an activity processor to end the window early, keeping what was already processed.
+
+    For a provider that has dealt with the cause itself, such as unlinking an account whose token was
+    rejected, so none of the activities that follow would succeed.
+    """
+
 
 #: Fetch a user's activities recorded in ``[window_start, window_end]``, storing
 #: each through the ingestion seam and returning what it stored. Returns an empty
@@ -59,7 +68,7 @@ def build_import_record(import_initiated_time: str, source_label: str = "Basic b
 
 def apply_bulk_import_metadata(
     activity: activity_contracts.ActivityCore,
-    activity_metadata: dict,
+    activity_metadata: dict[str, Any],
 ) -> None:
     """Apply a bulk import's supplemental metadata to a parsed activity, in place.
 
@@ -135,7 +144,7 @@ class BulkImportSource:
 
     kind = "bulk_import"
 
-    def metadata_for(self, file_base_name: str) -> dict:
+    def metadata_for(self, file_base_name: str) -> dict[str, Any]:
         """Build the supplemental metadata to apply to activities from one file.
 
         Args:
@@ -152,7 +161,7 @@ class BulkImportSource:
     def should_import(
         self,
         activity: activity_contracts.ActivityCore,
-        activity_metadata: dict,
+        activity_metadata: dict[str, Any],
         *,
         activities_in_file: int,
     ) -> bool:
@@ -172,7 +181,7 @@ class BulkImportSource:
     def apply_metadata(
         self,
         activity: activity_contracts.ActivityCore,
-        activity_metadata: dict,
+        activity_metadata: dict[str, Any],
     ) -> None:
         """Apply this import's supplemental metadata to a parsed activity, in place.
 

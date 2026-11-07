@@ -9,8 +9,6 @@
   "fromStrava": "Strava",
   "fromGarmin": "Garmin Connect",
   "filters": "Filtri",
-  "unitKm": "km",
-  "unitMi": "mi",
   "types": {
     "bicycle": "Kolo",
     "shoes": "Čevlji",
@@ -41,8 +39,8 @@
     "model": "Model",
     "modelTooLong": "Model mora biti 250 znakov ali manj",
     "active": "Aktivno",
-    "createdAt": "Ustvarjeno",
-    "createdAtRequired": "Datum ustvaritve je obvezen",
+    "acquiredOn": "Ustvarjeno",
+    "acquiredOnRequired": "Datum ustvaritve je obvezen",
     "initialDistance": "Začetna razdalja",
     "purchaseValue": "Vrednost nakupa",
     "totalCost": "Skupni strošek",
@@ -57,6 +55,8 @@
   "delete": {
     "title": "Izbriši opremo",
     "body": "Ali si prepričan/a, da želiš izbrisati \"{nickname}\"? Tega ni mogoče razveljaviti.",
+    "activities": "{count} aktivnost uporablja to opremo; ohranjena bo, vendar ne bo več dodeljena. | {count} aktivnosti uporabljata to opremo; ohranjeni bosta, vendar ne bosta več dodeljeni. | {count} aktivnosti uporabljajo to opremo; ohranjene bodo, vendar ne bodo več dodeljene. | {count} aktivnosti uporablja to opremo; ohranjene bodo, vendar ne bodo več dodeljene.",
+    "components": "Njena {count} komponenta bo izbrisana. | Njuni {count} komponenti bosta izbrisani. | Njene {count} komponente bodo izbrisane. | Njenih {count} komponent bo izbrisanih.",
     "confirm": "Izbriši",
     "cancel": "Prekliči",
     "close": "Zapri",
@@ -91,7 +91,6 @@
     "unsupported": "Ta vrsta opreme ne sledi komponentam.",
     "noneActive": "Vse komponente so neaktivne. Vklopi \"Pokaži neaktivno\", da jih vidiš.",
     "inactive": "Neaktivno",
-    "unitHours": "h",
     "purchasedOn": "Kupljeno {date}",
     "wearLabel": "Obraba {name}",
     "actions": {

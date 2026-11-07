@@ -1,10 +1,18 @@
 import { computed, type MaybeRefOrGetter, toValue } from 'vue'
 import { storeToRefs } from 'pinia'
-import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from '@tanstack/vue-query'
+import {
+  type QueryClient,
+  useInfiniteQuery,
+  useMutation,
+  useQuery,
+  useQueryClient,
+} from '@tanstack/vue-query'
 
 import type { Activity, ActivityFeedSlice, ActivityStats } from '@/features/activities/types'
+import type { Schemas } from '@/types'
 import type { GoalProgress } from '@/features/goals/types'
 
+import { invalidateActivityData } from '@/composables/useInvalidatingMutation'
 import { queryKeys } from '@/services/queryKeys'
 import { useAuthStore } from '@/features/auth/stores/auth'
 import {
@@ -17,6 +25,10 @@ import {
   refreshActivities,
 } from '@/features/activities/services/activities'
 import { fetchGoalResults } from '@/features/goals/services/goals'
+import {
+  floatPinnedActivities,
+  refreshPinnedActivities,
+} from '@/features/upload/composables/usePinnedActivities'
 import { pollIngestionJob } from '@/features/upload/composables/useUpload'
 import type { ActivityIngestionJob } from '@/features/upload/types'
 
@@ -27,6 +39,20 @@ export const DEFAULT_FEED_PAGE_SIZE = 25
 function resolveUserId(userId: MaybeRefOrGetter<number | null>): number {
   const value = toValue(userId)
   return value !== null && Number.isFinite(value) && value > 0 ? value : 0
+}
+
+/**
+ * Seeds each activity's media query with the photos its list response embedded, so
+ * a card's gallery makes no `/media` request of its own. An activity the viewer
+ * does not own is seeded empty, which is what its media endpoint answers.
+ *
+ * @param client - The query client holding the media queries.
+ * @param activities - The mapped activities of one list response.
+ */
+export function seedActivityMedia(client: QueryClient, activities: Activity[]): void {
+  for (const activity of activities) {
+    client.setQueryData(queryKeys.activities.media(activity.id), activity.media)
+  }
 }
 
 /**
@@ -46,17 +72,31 @@ export function useUserActivitiesFeed(
   pageSize: number = DEFAULT_FEED_PAGE_SIZE,
   enabled: MaybeRefOrGetter<boolean> = true,
 ) {
+  const client = useQueryClient()
   const { isAuthenticated } = storeToRefs(useAuthStore())
   const id = computed(() => resolveUserId(userId))
 
-  return useInfiniteQuery({
+  const query = useInfiniteQuery({
     queryKey: computed(() => queryKeys.activities.userFeed(id.value, pageSize)),
-    queryFn: ({ pageParam, signal }) => fetchUserActivities(pageParam, pageSize, signal),
+    queryFn: async ({ pageParam, signal }) => {
+      const page = await fetchUserActivities(pageParam, pageSize, signal)
+      seedActivityMedia(client, page)
+      if (pageParam === 1) {
+        await refreshPinnedActivities()
+      }
+      return page
+    },
     initialPageParam: 1,
     getNextPageParam: (lastPage: Activity[], _allPages, lastPageParam: number) =>
       lastPage.length < pageSize ? undefined : lastPageParam + 1,
     enabled: computed(() => toValue(enabled) && isAuthenticated.value && id.value > 0),
   })
+
+  // Activities uploaded this session stay on top through any refetch. Derived
+  // here rather than with `select` so a refreshed pin shows even when the
+  // refetch returned the same pages.
+  const data = computed(() => floatPinnedActivities(query.data.value))
+  return { ...query, data }
 }
 
 /**
@@ -68,21 +108,36 @@ export function useUserActivitiesFeed(
  *
  * @param userId - Reactive id of the profile owner.
  * @param week - Reactive week offset (0 = this week).
+ * @param firstDayOfWeek - Reactive first weekday of the viewer's weeks.
  * @param enabled - Reactive gate ANDed with the auth/id gate.
  * @returns The TanStack query result for that week's activities.
  */
 export function useUserWeekActivitiesQuery(
   userId: MaybeRefOrGetter<number | null>,
   week: MaybeRefOrGetter<number>,
+  firstDayOfWeek: MaybeRefOrGetter<Schemas['WeekDay']>,
   enabled: MaybeRefOrGetter<boolean> = true,
 ) {
+  const client = useQueryClient()
   const { isAuthenticated } = storeToRefs(useAuthStore())
   const id = computed(() => resolveUserId(userId))
   const weekValue = computed(() => toValue(week))
+  const firstDay = computed(() => toValue(firstDayOfWeek))
 
   return useQuery<Activity[]>({
-    queryKey: computed(() => queryKeys.activities.weekActivities(id.value, weekValue.value)),
-    queryFn: ({ signal }) => fetchUserWeekActivities(id.value, weekValue.value, signal),
+    queryKey: computed(() =>
+      queryKeys.activities.weekActivities(id.value, weekValue.value, firstDay.value),
+    ),
+    queryFn: async ({ signal }) => {
+      const activities = await fetchUserWeekActivities(
+        id.value,
+        weekValue.value,
+        firstDay.value,
+        signal,
+      )
+      seedActivityMedia(client, activities)
+      return activities
+    },
     enabled: computed(() => toValue(enabled) && isAuthenticated.value && id.value > 0),
     staleTime: 5 * 60_000,
   })
@@ -90,7 +145,8 @@ export function useUserWeekActivitiesQuery(
 
 /**
  * The home dashboard's infinite feed of activities from the people the viewer
- * follows. Same shape as {@link useUserActivitiesFeed}.
+ * follows. Same shape as {@link useUserActivitiesFeed}. The owners' profiles arrive
+ * with each slice and are seeded into the activity-owner cache the cards read.
  *
  * @param userId - Reactive id of the viewer.
  * @param pageSize - Records per page.
@@ -103,12 +159,20 @@ export function useFollowersActivitiesFeed(
   pageSize: number = DEFAULT_FEED_PAGE_SIZE,
   enabled: MaybeRefOrGetter<boolean> = true,
 ) {
+  const client = useQueryClient()
   const { isAuthenticated } = storeToRefs(useAuthStore())
   const id = computed(() => resolveUserId(userId))
 
   return useInfiniteQuery({
     queryKey: computed(() => queryKeys.activities.followersFeed(id.value, pageSize)),
-    queryFn: ({ pageParam, signal }) => fetchFollowersActivities(pageParam, pageSize, signal),
+    queryFn: async ({ pageParam, signal }) => {
+      const slice = await fetchFollowersActivities(pageParam, pageSize, signal)
+      seedActivityMedia(client, slice.items)
+      for (const [ownerId, owner] of slice.owners) {
+        client.setQueryData(queryKeys.activities.owner(ownerId), owner)
+      }
+      return slice
+    },
     // Keyset, not offset: the server hands back the position of the last row it
     // returned, so activities arriving mid-scroll cannot shift the window.
     initialPageParam: null as string | null,
@@ -200,12 +264,13 @@ export function useRefreshActivitiesMutation() {
   const client = useQueryClient()
 
   return useMutation<ActivityIngestionJob, Error, void>({
+    mutationKey: queryKeys.activities.all(),
     mutationFn: async () => {
       const job = await refreshActivities()
       return pollIngestionJob(job.id)
     },
     onSettled: () => {
-      void client.invalidateQueries({ queryKey: queryKeys.activities.all() })
+      void invalidateActivityData(client)
     },
   })
 }

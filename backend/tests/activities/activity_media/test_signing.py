@@ -44,7 +44,7 @@ class TestMediaTokenSigning:
 
         import modules.activities.activity_media.signing as signing
 
-        monkeypatch.setattr(signing, "_SIGNER", replace(signing._SIGNER, max_age_seconds=1))
+        monkeypatch.setattr(signing, "_SIGNER", replace(signing._SIGNER, max_age_seconds=1, bucket_seconds=1))
         token = signing.sign_media_token(42)
         time.sleep(2.1)
 

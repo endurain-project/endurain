@@ -1,3 +1,4 @@
+import type { ActivityType } from '@/features/activities/types'
 import type { Schemas } from '@/types'
 
 /** Raw `GearRead` payload as returned by the backend (snake_case wire shape). */
@@ -7,7 +8,7 @@ export type GearDto = Schemas['GearRead']
 export type GearDetailDto = Schemas['GearDetailRead']
 
 /**
- * Supported gear-type code (1–8), derived from the backend's generated
+ * Supported gear type, derived from the backend's generated
  * `GearType` schema so a change to the supported set surfaces here as a type
  * error instead of a silent mismatch.
  */
@@ -20,16 +21,18 @@ export type GearType = Schemas['GearType']
  *
  * @property id - Stable unique identifier.
  * @property userId - Owning user id.
- * @property gearType - Numeric gear-type identifier (1–8).
+ * @property gearType - The gear type.
  * @property nickname - Display nickname.
  * @property brand - Manufacturer brand, or `null`.
  * @property model - Model name, or `null`.
  * @property active - Whether the gear is in active use.
- * @property createdAt - Acquisition/creation date (ISO string), or `null`.
+ * @property acquiredOn - Date the user acquired the gear (`YYYY-MM-DD`), or `null`.
  * @property initialKms - Initial distance offset in kilometres, or `null`.
  * @property purchaseValue - Purchase price in the user's currency, or `null`.
  * @property stravaGearId - Linked Strava gear id, or `null`.
  * @property garminConnectGearId - Linked Garmin Connect gear id, or `null`.
+ * @property version - Row version behind the `ETag`, echoed as `If-Match` on save so an
+ *   edit built from a stale copy is refused instead of overwriting a newer one.
  */
 export interface Gear {
   id: number
@@ -39,11 +42,12 @@ export interface Gear {
   brand: string | null
   model: string | null
   active: boolean
-  createdAt: string | null
+  acquiredOn: string | null
   initialKms: number | null
   purchaseValue: number | null
   stravaGearId: string | null
   garminConnectGearId: string | null
+  version: number
 }
 
 /**
@@ -71,7 +75,7 @@ export interface GearInput {
   brand: string | null
   model: string | null
   active: boolean
-  createdAt: string | null
+  acquiredOn: string | null
   initialKms: number | null
   purchaseValue: number | null
 }
@@ -82,8 +86,12 @@ export interface GearsPage {
   total: number
 }
 
-/** Raw `GearComponentRead` payload as returned by the backend. */
-export type GearComponentDto = Schemas['GearComponentRead']
+/**
+ * Raw component payload as returned by the backend. Only the per-gear list
+ * (`GearComponentUsageRead`) carries the accumulated usage.
+ */
+export type GearComponentDto = Schemas['GearComponentRead'] &
+  Partial<Pick<Schemas['GearComponentUsageRead'], 'current_distance' | 'current_time'>>
 
 /** The four component-type catalogues, keyed by gear family. */
 export type GearComponentTypeLists = Schemas['GearComponentTypesRead']
@@ -101,12 +109,13 @@ export type GearComponentTypeLists = Schemas['GearComponentTypesRead']
  * @property purchaseDate - Purchase date (ISO string), or `null`.
  * @property retiredDate - Retirement date (ISO string), or `null`.
  * @property active - Whether the component is currently in use.
- * @property expectedBaseUnits - Backend `expected_kms`: the wear threshold in
+ * @property expectedBaseUnits - Backend `expected_usage`: the wear threshold in
  *   base units — **metres** for distance-tracked gears and **seconds** for the
  *   time-tracked racquet family — or `null` when no threshold is set.
  * @property purchaseValue - Purchase price in the user's currency, or `null`.
  * @property currentDistance - Accumulated activity distance in metres.
  * @property currentTime - Accumulated activity time in seconds.
+ * @property version - Row version behind the `ETag`, echoed as `If-Match` on save.
  */
 export interface GearComponent {
   id: number
@@ -122,6 +131,7 @@ export interface GearComponent {
   purchaseValue: number | null
   currentDistance: number
   currentTime: number
+  version: number
 }
 
 /**
@@ -160,7 +170,7 @@ export type GearActivityDto = Schemas['ActivityRead']
 export interface GearActivity {
   id: number
   name: string
-  activityType: number
+  activityType: ActivityType
   startTime: string | null
   timezone: string | null
   distance: number

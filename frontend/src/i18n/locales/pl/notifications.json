@@ -8,7 +8,7 @@
   "seeAll": "Zobacz wszystkie",
   "loadMore": "Wczytaj więcej",
   "loading": "Ładowanie…",
-  "badge": "{count} nieprzeczytanych powiadomień",
+  "badge": "{count} nieprzeczytane powiadomienie | {count} nieprzeczytane powiadomienia | {count} nieprzeczytanych powiadomień",
   "empty": {
     "title": "Wszystko na bieżąco",
     "description": "Aktualizacje dotyczące Twoich aktywności, obserwujących i integracji pojawią się tutaj."
@@ -38,6 +38,63 @@
     "garminTokenExpired": {
       "title": "Garmin Connect wymaga uwagi",
       "body": "Twoja sesja Garmin Connect wygasła. Połącz ją ponownie, aby kontynuować synchronizację."
+    },
+    "stravaTokenExpired": {
+      "title": "Strava wymaga uwagi",
+      "body": "Strava odrzuciła Twoje połączenie. Połącz ją ponownie, aby kontynuować synchronizację.",
+      "bodyRevoked": "Dostęp do Strava wygasł. Twoje aktywności i sprzęt zsynchronizowane ze Strava zostaną usunięte {date}, jeśli nie połączysz się ponownie."
+    },
+    "stravaDataDeleted": {
+      "title": "Dane ze Strava usunięte",
+      "body": "Twoje aktywności i sprzęt zsynchronizowane ze Strava zostały usunięte, ponieważ dostęp do Strava wygasł, a nie połączyłeś się ponownie."
+    },
+    "idpLinked": {
+      "title": "Połączono nowego dostawcę logowania",
+      "body": "{name} został połączony z Twoim kontem. Jeśli to nie Ty, sprawdź ustawienia zabezpieczeń.",
+      "bodyGeneric": "Dostawca logowania został połączony z Twoim kontem. Jeśli to nie Ty, sprawdź ustawienia zabezpieczeń."
+    },
+    "accountSecurityChanged": {
+      "passwordChanged": {
+        "title": "Hasło zostało zmienione",
+        "body": "Twoje hasło zostało zmienione. Jeśli to nie Ty, zresetuj hasło i sprawdź ustawienia zabezpieczeń."
+      },
+      "passwordReset": {
+        "title": "Hasło zostało zresetowane",
+        "body": "Twoje hasło zostało zresetowane za pomocą linku do resetowania. Jeśli to nie Ty, zresetuj hasło ponownie i sprawdź ustawienia zabezpieczeń."
+      },
+      "passwordSetByAdmin": {
+        "title": "Hasło ustawione przez administratora",
+        "body": "Administrator ustawił nowe hasło dla Twojego konta. Jeśli się tego nie spodziewasz, skontaktuj się z administratorem."
+      },
+      "mfaEnabled": {
+        "title": "Włączono uwierzytelnianie dwuskładnikowe",
+        "body": "Dla Twojego konta włączono uwierzytelnianie dwuskładnikowe. Jeśli to nie Ty, zresetuj hasło i sprawdź ustawienia zabezpieczeń."
+      },
+      "mfaDisabled": {
+        "title": "Wyłączono uwierzytelnianie dwuskładnikowe",
+        "body": "Dla Twojego konta wyłączono uwierzytelnianie dwuskładnikowe. Jeśli to nie Ty, zresetuj hasło i sprawdź ustawienia zabezpieczeń."
+      },
+      "backupCodesGenerated": {
+        "title": "Wygenerowano nowe kody zapasowe",
+        "body": "Dla Twojego konta wygenerowano nowe kody zapasowe. Jeśli to nie Ty, zresetuj hasło i sprawdź ustawienia zabezpieczeń."
+      },
+      "apiKeyCreated": {
+        "title": "Utworzono nowy klucz API",
+        "body": "Dla Twojego konta utworzono nowy klucz API. Jeśli to nie Ty, zresetuj hasło i sprawdź ustawienia zabezpieczeń."
+      },
+      "identityProviderUnlinked": {
+        "title": "Odłączono dostawcę logowania",
+        "body": "{name} został odłączony od Twojego konta. Jeśli to nie Ty, zresetuj hasło i sprawdź ustawienia zabezpieczeń.",
+        "bodyGeneric": "Dostawca logowania został odłączony od Twojego konta. Jeśli to nie Ty, zresetuj hasło i sprawdź ustawienia zabezpieczeń."
+      },
+      "unknown": {
+        "title": "Zmieniono zabezpieczenia konta",
+        "body": "Zmieniono jedno z ustawień zabezpieczeń Twojego konta. Jeśli to nie Ty, zresetuj hasło i sprawdź ustawienia zabezpieczeń."
+      }
+    },
+    "newDeviceSignIn": {
+      "title": "Nowe logowanie",
+      "body": "Nowe logowanie z przeglądarki {browser} w systemie {os} ({ip}). Jeśli to nie Ty, zmień hasło i wyloguj się z pozostałych sesji."
     },
     "adminSignUpApproval": {
       "title": "Nowa rejestracja wymaga zatwierdzenia",

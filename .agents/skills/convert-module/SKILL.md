@@ -73,10 +73,5 @@ Run the full suite before opening the PR.
 
 | Module | Watch for |
 | --- | --- |
-| `users` | Six sub-packages; `users_profile` export/import reaches `activities` and `gears`. Use the profile-contributor pattern the activity children already have. |
-| `gears` | `gears` and `activities` use each other (aggregations, dependencies); invert via a contract on the lower layer. |
-| `health` | Namespace-level `router.py`, `schema.py`, `utils.py` beside seven sub-packages; move them into a package or keep them composition-only. |
-| `strava`, `garmin` | Providers register with ingestion through `register_activity_provider`; keep them leaf modules. `garmin.mfa_code_store` still calls `get_state()`. |
-| `auth` | Surface is `identity_service.py` and `_internal/`; align naming only after the generic boundary rule exists. |
-| `notifications`, `websocket` | Consumed through `integration_service`; `websocket` ticket store and auth stores use `get_state()` and need a provider argument. |
-| `server_settings` | Read by many modules; expose a narrow `integration_service` and keep schema reads as data surfaces. |
+| `strava` | Providers register with ingestion through `register_activity_provider`; keep them leaf modules. Follow `garmin`: stores take the `StateProvider` from a dependency, the registration lives in `integration_service`, and peers without a surface get a forwarding one first. |
+| `auth` | Identity comes from `modules.auth.dependencies`; behavior crosses package boundaries through the owning child package's `integration_service.py`. |
