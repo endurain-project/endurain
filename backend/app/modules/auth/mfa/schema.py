@@ -56,7 +56,32 @@ class MFARequest(BaseModel):
         raise ValueError("MFA code must be 6-digit TOTP or XXXX-XXXX")
 
 
-class MFASetupRequest(BaseModel):
+class MFAChangeRequest(BaseModel):
+    """Request model for a change to the second factor, authorised by step-up verification.
+
+    Attributes:
+        step_up: The caller's step-up verification.
+        revoke_other_sessions: Whether to sign out the user's other sessions after the change.
+    """
+
+    step_up: auth_schema.StepUpVerification = Field(
+        ..., description="Step-up verification, required to change the second factor"
+    )
+    revoke_other_sessions: StrictBool = Field(
+        default=True,
+        description=(
+            "After the change, all of the user's other sessions "
+            "(keeping the current one) are revoked unless the client sends false."
+        ),
+    )
+
+    model_config = ConfigDict(
+        extra="forbid",
+        validate_assignment=True,
+    )
+
+
+class MFASetupRequest(MFAChangeRequest):
     """Request model for MFA setup verification.
 
     Enabling MFA binds a TOTP secret — just handed to the caller
@@ -71,7 +96,6 @@ class MFASetupRequest(BaseModel):
         mfa_code: The 6-digit TOTP code generated from the secret
             returned by the setup endpoint, used to confirm the
             authenticator app is correctly enrolled.
-        step_up: The caller's step-up verification.
     """
 
     mfa_code: StrictStr = Field(
@@ -81,12 +105,14 @@ class MFASetupRequest(BaseModel):
         pattern=r"^[0-9]{6}$",
         description="6-digit TOTP code",
     )
-    step_up: auth_schema.StepUpVerification = Field(..., description="Step-up verification, required to enable MFA")
 
-    model_config = ConfigDict(
-        extra="forbid",
-        validate_assignment=True,
-    )
+
+class MFADisableRequest(MFAChangeRequest):
+    """Request model for turning MFA off: the step-up verification, with its MFA code, and the session choice."""
+
+
+class MFABackupCodesRequest(MFAChangeRequest):
+    """Request model for issuing new MFA backup codes: the step-up verification and the session choice."""
 
 
 class MFASetupRead(BaseModel):

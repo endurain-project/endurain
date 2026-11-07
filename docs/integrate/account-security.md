@@ -56,7 +56,13 @@ Every step-up operation takes the credentials in a `step_up` object of its JSON 
 }
 ```
 
-Account deletion, profile export, identity provider unlink and backup-code regeneration send exactly this body. The other operations add their own fields next to `step_up`: `password` and `revoke_other_sessions` for the password change, `email` and `revoke_other_sessions` for the email change, `mfa_code` (the code of the authenticator being enrolled) for MFA enable, `redirect` for an identity provider link, and `name`, `scopes` and `expires_at` for an API key. MFA disable sends the code in `step_up.mfa_code`. Password change (`POST /profile/password/change`) needs a local password and is answered `403` for an account without one; an administrator sets the first password through `POST /users/{user_id}/password/change`, which refuses the administrator's own account and takes the administrator's `step_up` next to `password`.
+Account deletion, profile export and identity provider unlink send exactly this body. The other operations add their own fields next to `step_up`: `password` and `revoke_other_sessions` for the password change, `email` and `revoke_other_sessions` for the email change, `mfa_code` (the code of the authenticator being enrolled) and `revoke_other_sessions` for MFA enable, `revoke_other_sessions` for MFA disable and backup-code regeneration, `redirect` and `revoke_other_sessions` for an identity provider link, and `name`, `scopes` and `expires_at` for an API key. MFA disable sends the code in `step_up.mfa_code`. Password change (`POST /profile/password/change`) needs a local password and is answered `403` for an account without one; an administrator sets the first password through `POST /users/{user_id}/password/change`, which refuses the administrator's own account and takes the administrator's `step_up` next to `password`.
+
+### Ending other sessions after a change of an authentication factor
+
+Changing a factor ends the caller's other sessions, and keeps the session that made the change. `revoke_other_sessions` is a boolean that defaults to `true` on these operations: the password change, MFA enable, MFA disable, backup-code regeneration and the identity provider link. Send `false` to keep the other sessions. The email change takes the same field but defaults to `false`. Unlinking a provider ends the sessions that signed in through it, whatever the body says.
+
+The sessions end in the same transaction as the change. A request whose step-up is refused changes nothing and ends no session. The audit row of the change carries `sessions_revoked`, the number of sessions it ended (`0` when the client sent `false`); this applies to `auth.password.change`, `auth.mfa.enable`, `auth.mfa.disable` and `auth.backup_codes.generate`. A link completes in the provider callback, which ends the sessions then and records them as an `auth.session.revoke` row next to the link's own row.
 
 ### Step-up Refusal
 
@@ -290,7 +296,7 @@ Backup codes provide a recovery mechanism when users lose access to their authen
 | What | URL | Method | Description |
 | ---- | --- | ------ | ----------- |
 | **Get Backup Code Status** | `/profile/mfa/backup-codes/status` | GET | Returns count of unused/used codes |
-| **Regenerate Backup Codes** | `/profile/mfa/backup-codes` | POST | Generates new codes (invalidates old). Requires a step-up JSON body, `{"step_up": {...}}`: `current_password` for local-password accounts, `idp_reauth` for accounts without one, and `mfa_code` when MFA is enabled |
+| **Regenerate Backup Codes** | `/profile/mfa/backup-codes` | POST | Generates new codes (invalidates old). Requires a step-up JSON body, `{"step_up": {...}}`, and takes the optional `revoke_other_sessions` (default `true`): `current_password` for local-password accounts, `idp_reauth` for accounts without one, and `mfa_code` when MFA is enabled |
 
 ### Regenerate Backup Codes Request
 
@@ -305,11 +311,12 @@ Content-Type: application/json
   "step_up": {
     "current_password": "current-password",
     "mfa_code": "123456"
-  }
+  },
+  "revoke_other_sessions": true
 }
 ```
 
-Accounts without a local password send `step_up.idp_reauth` instead of `step_up.current_password`. If MFA is enabled, `step_up.mfa_code` is required.
+Accounts without a local password send `step_up.idp_reauth` instead of `step_up.current_password`. If MFA is enabled, `step_up.mfa_code` is required. `revoke_other_sessions` is optional and defaults to `true`: the user's other sessions end, and the current one stays.
 
 ### Backup Code Status Response
 

@@ -186,8 +186,12 @@ def profile_app(
     monkeypatch.setattr(
         mfa_workflow_service,
         "disable_mfa",
-        lambda request, user_id, session_id, store, db: mock_auth_services.disable_mfa(
-            request=request, user_id=user_id, session_id=session_id, step_up_store=store
+        lambda request, user_id, session_id, store, db, *, revoke_other_sessions: mock_auth_services.disable_mfa(
+            request=request,
+            user_id=user_id,
+            session_id=session_id,
+            step_up_store=store,
+            revoke_other_sessions=revoke_other_sessions,
         ),
     )
     monkeypatch.setattr(
@@ -200,8 +204,14 @@ def profile_app(
     monkeypatch.setattr(
         mfa_workflow_service,
         "generate_backup_codes",
-        lambda step_up, user_id, session_id, store, db: mock_auth_services.generate_backup_codes(
-            step_up=step_up, user_id=user_id, session_id=session_id, step_up_store=store
+        lambda step_up, user_id, session_id, store, db, *, revoke_other_sessions: (
+            mock_auth_services.generate_backup_codes(
+                step_up=step_up,
+                user_id=user_id,
+                session_id=session_id,
+                step_up_store=store,
+                revoke_other_sessions=revoke_other_sessions,
+            )
         ),
     )
     monkeypatch.setattr(

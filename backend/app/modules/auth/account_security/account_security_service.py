@@ -155,6 +155,27 @@ def delete_other_user_sessions(
     return revoked
 
 
+def end_other_sessions(user_id: int, current_session_id: str | None, db: Session) -> int:
+    """Stage the end of the user's sessions except the caller's, after a change of an authentication factor.
+
+    The caller stages the audit row that reports the count, in the transaction that commits the change.
+
+    Args:
+        user_id: ID of the user whose other sessions end.
+        current_session_id: The caller's session, kept so the caller stays signed in.
+        db: SQLAlchemy session.
+
+    Returns:
+        Number of sessions ended.
+    """
+    revoked = sessions_integration.delete_sessions_by_user(user_id, db, exclude_session_id=current_session_id)
+    logger.info(
+        "User <user_id> revoked <revoked> other session(s) after a change of an authentication factor",
+        extra=core_logger.context(user_id=user_id, revoked=revoked),
+    )
+    return revoked
+
+
 def _stage_password_written(
     action: jasil_audit.AuditAction,
     change: account_security_events.AccountSecurityChange,
@@ -301,15 +322,7 @@ def stage_change_own_password(
 
     revoked = 0
     if revoke_other_sessions:
-        revoked = sessions_integration.delete_sessions_by_user(
-            user_id,
-            db,
-            exclude_session_id=current_session_id,
-        )
-        logger.info(
-            "User <user_id> revoked <revoked> other session(s) after password change",
-            extra=core_logger.context(user_id=user_id, revoked=revoked),
-        )
+        revoked = end_other_sessions(user_id, current_session_id, db)
 
     _stage_password_written(
         account_security_audit_actions.PASSWORD_CHANGE,

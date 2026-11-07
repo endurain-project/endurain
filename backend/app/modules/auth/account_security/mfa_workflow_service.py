@@ -22,6 +22,7 @@ from sqlalchemy.orm import Session
 
 import core.exceptions as core_exceptions
 import core.logger as core_logger
+import modules.auth.account_security.account_security_service as account_security_service
 import modules.auth.account_security.audit_actions as account_security_audit_actions
 import modules.auth.account_security.event_publishers as account_security_event_publishers
 import modules.auth.account_security.events as account_security_events
@@ -34,6 +35,7 @@ import modules.auth.mfa.schema as mfa_schema
 import modules.auth.mfa_backup_codes.integration_service as mfa_backup_codes_integration
 import modules.auth.mfa_backup_codes.schema as mfa_backup_codes_schema
 import modules.auth.schema as auth_schema
+import modules.auth.sessions.audit_actions as sessions_audit_actions
 import modules.users.users.integration_service as users_integration
 from modules.auth.mfa.contracts import MFASecretStoreBackend
 
@@ -61,6 +63,23 @@ def _stage_security_change(
         db, action, target_type="user", target_id=str(user_id), target_owner_id=str(user_id), details=details
     )
     account_security_event_publishers.publish_account_security_changed(user_id, change, db)
+
+
+def _end_other_sessions(revoke_other_sessions: bool, user_id: int, session_id: str, db: Session) -> int:
+    """Stage the end of the user's other sessions when the change asks for it.
+
+    Args:
+        revoke_other_sessions: Whether the client asked to end the user's other sessions.
+        user_id: ID of the user whose second factor changed.
+        session_id: The caller's session, kept.
+        db: SQLAlchemy session.
+
+    Returns:
+        Number of sessions ended; 0 when the client asked to keep them.
+    """
+    if not revoke_other_sessions:
+        return 0
+    return account_security_service.end_other_sessions(user_id, session_id, db)
 
 
 def get_mfa_status(
@@ -159,11 +178,13 @@ def enable_mfa(
             db,
             replay_guard=step_up_store,
         )
+        revoked = _end_other_sessions(request.revoke_other_sessions, token_user_id, session_id, db)
         _stage_security_change(
             account_security_audit_actions.MFA_ENABLE,
             account_security_events.AccountSecurityChange.MFA_ENABLED,
             token_user_id,
             db,
+            details=sessions_audit_actions.SessionsRevokedDetails(sessions_revoked=revoked),
         )
         db.commit()
         mfa_secret_store.delete_secret(token_user_id)
@@ -185,8 +206,10 @@ def disable_mfa(
     session_id: str,
     step_up_store: account_security_step_up_store.StepUpStore,
     db: Session,
+    *,
+    revoke_other_sessions: bool,
 ) -> None:
-    """Disable MFA after step-up verification."""
+    """Disable MFA after step-up verification, ending the user's other sessions unless told not to."""
     step_up_service.verify_step_up_credentials(
         token_user_id,
         step_up.current_password,
@@ -198,11 +221,13 @@ def disable_mfa(
         action=identity_providers_constants.StepUpAction.MFA_DISABLE,
     )
     mfa_integration.disable_user_mfa(token_user_id, db)
+    revoked = _end_other_sessions(revoke_other_sessions, token_user_id, session_id, db)
     _stage_security_change(
         account_security_audit_actions.MFA_DISABLE,
         account_security_events.AccountSecurityChange.MFA_DISABLED,
         token_user_id,
         db,
+        details=sessions_audit_actions.SessionsRevokedDetails(sessions_revoked=revoked),
     )
     db.commit()
     logger.info(
@@ -230,8 +255,10 @@ def generate_backup_codes(
     session_id: str,
     step_up_store: account_security_step_up_store.StepUpStore,
     db: Session,
+    *,
+    revoke_other_sessions: bool,
 ) -> mfa_backup_codes_schema.MFABackupCodesRead:
-    """Generate new backup codes for an MFA-enabled account."""
+    """Generate new backup codes for an MFA-enabled account, ending the user's other sessions unless told not to."""
     user = users_integration.get_user(token_user_id, db)
 
     if not user:
@@ -256,12 +283,13 @@ def generate_backup_codes(
         credentials_integration.get_password_hasher(),
         db,
     )
+    revoked = _end_other_sessions(revoke_other_sessions, token_user_id, session_id, db)
     _stage_security_change(
         account_security_audit_actions.BACKUP_CODES_GENERATE,
         account_security_events.AccountSecurityChange.BACKUP_CODES_GENERATED,
         token_user_id,
         db,
-        details=account_security_audit_actions.BackupCodesDetails(count=len(codes)),
+        details=account_security_audit_actions.BackupCodesDetails(count=len(codes), sessions_revoked=revoked),
     )
     db.commit()
 

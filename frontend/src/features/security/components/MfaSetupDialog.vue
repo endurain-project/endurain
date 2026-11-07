@@ -10,6 +10,7 @@ import PasswordInput from '@/features/security/components/PasswordInput.vue'
 import { FormDialog } from '@/components/ui/form-dialog'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
+import { Switch } from '@/components/ui/switch'
 import {
   useEnableMfaMutation,
   useSetupMfaMutation,
@@ -18,6 +19,8 @@ import {
 const open = defineModel<boolean>('open', { required: true })
 // The identity-provider sign-in proof, used when the account has no password.
 const reauth = defineModel<IdpReauth | null>('reauth', { default: null })
+// Whether enabling MFA signs out the other devices; the parent keeps it across the identity-provider round-trip.
+const revokeOtherSessions = defineModel<boolean>('revokeOtherSessions', { default: true })
 
 const props = defineProps<{
   /** Whether a step-up password is required; when not, the account signs in again with its identity provider. */
@@ -81,6 +84,7 @@ async function onSubmit(): Promise<void> {
       mfaCode: code.value.replace(/\s+/g, ''),
       currentPassword: props.requirePassword ? password.value : null,
       idpReauth: props.requirePassword ? null : reauth.value,
+      revokeOtherSessions: revokeOtherSessions.value,
     })
     open.value = false
     emit('enabled', codes)
@@ -107,6 +111,7 @@ async function onSubmit(): Promise<void> {
         v-if="!requirePassword"
         v-model:reauth="reauth"
         action="mfa_enable"
+        :pending-context="{ revokeOtherSessions }"
         :disabled="enableMutation.isPending.value"
       />
       <div
@@ -164,6 +169,10 @@ async function onSubmit(): Promise<void> {
             class="w-full"
           />
         </div>
+
+        <Switch v-model="revokeOtherSessions" :disabled="enableMutation.isPending.value">
+          {{ t('settings.security.password.revokeOthers') }}
+        </Switch>
       </template>
     </div>
   </FormDialog>

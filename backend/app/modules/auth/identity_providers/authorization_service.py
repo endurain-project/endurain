@@ -85,6 +85,7 @@ class AuthorizationService:
         redirect: str | None,
         client_ip: str | None,
         allowed_schemes: set[str],
+        keep_session_id: str | None,
         db: Session,
     ) -> identity_provider_contracts.StagedBrowserFlow:
         """Stage the OAuth state of a user linking a provider from the browser; the caller commits.
@@ -98,6 +99,8 @@ class AuthorizationService:
             redirect: Frontend path or custom scheme to return to.
             client_ip: Address of the client that started the link.
             allowed_schemes: Custom URI schemes a redirect may use.
+            keep_session_id: The session that started the link, kept when the callback ends the user's other
+                sessions; None when the link ends none.
             db: Database session.
 
         Returns:
@@ -120,6 +123,7 @@ class AuthorizationService:
             client_ip=client_ip,
             redirect=redirect,
             db=db,
+            session_id=keep_session_id,
         )
         logger.info(
             "User initiated an identity provider link", extra=core_logger.context(user_id=user_id, idp_id=idp_id)
@@ -405,7 +409,7 @@ def _stage_bound_flow(
         client_ip: Address of the client that started the flow.
         redirect: Frontend path or custom scheme to return to.
         db: Database session.
-        session_id: The session a step-up belongs to.
+        session_id: The session a step-up belongs to, or the session a link keeps when it ends the others.
         action: The operation a step-up authorises.
         code_challenge: S256 challenge of the verifier a step-up's browser keeps.
 

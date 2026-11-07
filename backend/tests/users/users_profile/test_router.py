@@ -1069,6 +1069,7 @@ class TestDisableMFA:
 
         assert response.status_code == 204
         assert response.content == b""
+        assert mock_auth_services.disable_mfa.call_args.kwargs["revoke_other_sessions"] is True
 
     def test_step_up_fails(self, profile_client, mock_auth_services):
         """Step-up fails before disable."""

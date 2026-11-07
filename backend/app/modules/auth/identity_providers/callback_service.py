@@ -36,6 +36,7 @@ import modules.auth.login_audit.integration_service as login_audit_integration
 import modules.auth.oauth_state.constants as oauth_state_constants
 import modules.auth.oauth_state.integration_service as oauth_state_integration
 import modules.auth.oauth_state.schema as oauth_state_schema
+import modules.auth.sessions.audit_actions as sessions_audit_actions
 import modules.auth.sessions.integration_service as sessions_integration
 import modules.users.users.integration_service as users_integration
 import modules.users.users.schema as users_schema
@@ -490,6 +491,9 @@ class CallbackService:
                 )
                 user_provisioning_service.stage_identity_link(link_user_id, idp.id, db)
                 idp_event_publishers.publish_idp_linked(link_user_id, idp.id, db)
+                # The state records the session that started the link only when the user asked to end the others.
+                if oauth_state.session_id is not None:
+                    _stage_other_sessions_ended(link_user_id, oauth_state.session_id, db)
 
                 user = user_provisioning_service.update_user_from_idp(user, idp, userinfo, db)
 
@@ -843,6 +847,26 @@ class CallbackService:
         db.commit()
         logger.debug("SSO callback session created", extra=core_logger.context(user_id=user_read.id))
         return session_id
+
+
+def _stage_other_sessions_ended(user_id: int, keep_session_id: str, db: Session) -> None:
+    """Stage the end of the user's sessions except the one that started a link, with its audit row.
+
+    Args:
+        user_id: ID of the user who linked the provider.
+        keep_session_id: The session that started the link, kept.
+        db: Database session.
+    """
+    ended = sessions_integration.delete_sessions_by_user(user_id, db, exclude_session_id=keep_session_id)
+    if ended:
+        jasil_audit.stage(
+            db,
+            sessions_audit_actions.SESSION_REVOKE,
+            target_type="user",
+            target_id=str(user_id),
+            target_owner_id=str(user_id),
+            details=sessions_audit_actions.SessionsRevokedDetails(sessions_revoked=ended),
+        )
 
 
 def _record_login_refusal(

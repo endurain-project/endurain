@@ -149,39 +149,39 @@ class TestPasswordAudit:
 
 
 class TestMfaAudit:
-    def test_enable(self, mock_db, published):
+    @staticmethod
+    def _revoker(revoked=3):
+        return patch.object(
+            account_security_service.sessions_integration, "delete_sessions_by_user", return_value=revoked
+        )
+
+    def _enable(self, mock_db, *, revoke=True, step_up_error=None):
         store = MagicMock()
         store.get_secret.return_value = "secret"
         request = mfa_schema.MFASetupRequest(
-            mfa_code="123456", step_up=auth_schema.StepUpVerification(current_password="pw")
+            mfa_code="123456",
+            step_up=auth_schema.StepUpVerification(current_password="pw"),
+            revoke_other_sessions=revoke,
         )
         with (
-            patch.object(mfa_workflow.step_up_service, "verify_step_up_credentials"),
+            patch.object(mfa_workflow.step_up_service, "verify_step_up_credentials", side_effect=step_up_error),
             patch.object(mfa_workflow.mfa_integration, "enable_user_mfa", return_value=["a"]),
             jasil_testing.capture_audit() as audit,
         ):
             mfa_workflow.enable_mfa(request, 7, "sid", MagicMock(), store, mock_db)
+        return audit
 
-        audit.assert_audited(
-            account_security_audit_actions.MFA_ENABLE.id, target_type="user", target_id="7", target_owner_id="7"
-        )
-        assert_event(published, Change.MFA_ENABLED)
-
-    def test_disable(self, mock_db, published):
+    def _disable(self, mock_db, *, revoke=True):
         request = auth_schema.StepUpVerification(current_password="pw", mfa_code="123456")
         with (
             patch.object(mfa_workflow.step_up_service, "verify_step_up_credentials"),
             patch.object(mfa_workflow.mfa_integration, "disable_user_mfa"),
             jasil_testing.capture_audit() as audit,
         ):
-            mfa_workflow.disable_mfa(request, 7, "sid", MagicMock(), mock_db)
+            mfa_workflow.disable_mfa(request, 7, "sid", MagicMock(), mock_db, revoke_other_sessions=revoke)
+        return audit
 
-        audit.assert_audited(
-            account_security_audit_actions.MFA_DISABLE.id, target_type="user", target_id="7", target_owner_id="7"
-        )
-        assert_event(published, Change.MFA_DISABLED)
-
-    def test_backup_codes(self, mock_db, published):
+    def _backup_codes(self, mock_db, *, revoke=True):
         step_up = auth_schema.StepUpVerification(current_password="pw", mfa_code="123456")
         with (
             patch.object(mfa_workflow.users_integration, "get_user", return_value=MagicMock(id=7)),
@@ -190,29 +190,105 @@ class TestMfaAudit:
             patch.object(mfa_workflow.mfa_backup_codes_integration, "create_backup_codes", return_value=["a", "b"]),
             jasil_testing.capture_audit() as audit,
         ):
-            mfa_workflow.generate_backup_codes(step_up, 7, "sid", MagicMock(), mock_db)
+            mfa_workflow.generate_backup_codes(step_up, 7, "sid", MagicMock(), mock_db, revoke_other_sessions=revoke)
+        return audit
 
+    def test_enable(self, mock_db, published):
+        with self._revoker(3) as delete:
+            audit = self._enable(mock_db)
+
+        delete.assert_called_once_with(7, mock_db, exclude_session_id="sid")
         entry = audit.assert_audited(
-            account_security_audit_actions.BACKUP_CODES_GENERATE.id, target_type="user", target_id="7"
+            account_security_audit_actions.MFA_ENABLE.id, target_type="user", target_id="7", target_owner_id="7"
         )
-        assert entry.details == {"count": 2}
-        assert_event(published, Change.BACKUP_CODES_GENERATED)
+        assert entry.details == {"sessions_revoked": 3}
+        assert_event(published, Change.MFA_ENABLED)
 
-    def test_a_refused_step_up_writes_nothing(self, mock_db, published):
+    def test_enable_keeps_every_session_when_told_to(self, mock_db, published):
+        with self._revoker(3) as delete:
+            audit = self._enable(mock_db, revoke=False)
+
+        delete.assert_not_called()
+        assert audit.assert_audited(account_security_audit_actions.MFA_ENABLE.id).details == {"sessions_revoked": 0}
+
+    def test_a_refused_step_up_on_enable_ends_nothing(self, mock_db, published):
+        with self._revoker(3) as delete, pytest.raises(core_exceptions.UnauthenticatedError):
+            self._enable(mock_db, step_up_error=core_exceptions.UnauthenticatedError("bad"))
+
+        delete.assert_not_called()
+        mock_db.commit.assert_not_called()
+
+    def test_disable(self, mock_db, published):
+        with self._revoker(2) as delete:
+            audit = self._disable(mock_db)
+
+        delete.assert_called_once_with(7, mock_db, exclude_session_id="sid")
+        entry = audit.assert_audited(
+            account_security_audit_actions.MFA_DISABLE.id, target_type="user", target_id="7", target_owner_id="7"
+        )
+        assert entry.details == {"sessions_revoked": 2}
+        assert_event(published, Change.MFA_DISABLED)
+
+    def test_disable_keeps_every_session_when_told_to(self, mock_db, published):
+        with self._revoker(2) as delete:
+            audit = self._disable(mock_db, revoke=False)
+
+        delete.assert_not_called()
+        assert audit.assert_audited(account_security_audit_actions.MFA_DISABLE.id).details == {"sessions_revoked": 0}
+
+    def test_a_refused_step_up_on_disable_ends_nothing(self, mock_db, published):
         request = auth_schema.StepUpVerification(current_password="pw", mfa_code="123456")
         with (
+            self._revoker(2) as delete,
             patch.object(
                 mfa_workflow.step_up_service,
                 "verify_step_up_credentials",
-                side_effect=core_exceptions.UnauthenticatedError("no"),
+                side_effect=core_exceptions.UnauthenticatedError("bad"),
             ),
-            jasil_testing.capture_audit() as audit,
+            patch.object(mfa_workflow.mfa_integration, "disable_user_mfa"),
             pytest.raises(core_exceptions.UnauthenticatedError),
         ):
-            mfa_workflow.disable_mfa(request, 7, "sid", MagicMock(), mock_db)
+            mfa_workflow.disable_mfa(request, 7, "sid", MagicMock(), mock_db, revoke_other_sessions=True)
 
-        audit.assert_not_audited(account_security_audit_actions.MFA_DISABLE.id)
-        published.assert_not_called()
+        delete.assert_not_called()
+        mock_db.commit.assert_not_called()
+
+    def test_backup_codes(self, mock_db, published):
+        with self._revoker(4) as delete:
+            audit = self._backup_codes(mock_db)
+
+        delete.assert_called_once_with(7, mock_db, exclude_session_id="sid")
+        entry = audit.assert_audited(
+            account_security_audit_actions.BACKUP_CODES_GENERATE.id, target_type="user", target_id="7"
+        )
+        assert entry.details == {"count": 2, "sessions_revoked": 4}
+        assert_event(published, Change.BACKUP_CODES_GENERATED)
+
+    def test_backup_codes_keep_every_session_when_told_to(self, mock_db, published):
+        with self._revoker(4) as delete:
+            audit = self._backup_codes(mock_db, revoke=False)
+
+        delete.assert_not_called()
+        entry = audit.assert_audited(account_security_audit_actions.BACKUP_CODES_GENERATE.id)
+        assert entry.details == {"count": 2, "sessions_revoked": 0}
+
+    def test_a_refused_step_up_on_backup_codes_ends_nothing(self, mock_db, published):
+        step_up = auth_schema.StepUpVerification(current_password="pw", mfa_code="123456")
+        with (
+            self._revoker(4) as delete,
+            patch.object(mfa_workflow.users_integration, "get_user", return_value=MagicMock(id=7)),
+            patch.object(mfa_workflow.mfa_integration, "is_mfa_enabled_for_user", return_value=True),
+            patch.object(
+                mfa_workflow.step_up_service,
+                "verify_step_up_credentials",
+                side_effect=core_exceptions.UnauthenticatedError("bad"),
+            ),
+            pytest.raises(core_exceptions.UnauthenticatedError),
+        ):
+            mfa_workflow.generate_backup_codes(step_up, 7, "sid", MagicMock(), mock_db, revoke_other_sessions=True)
+
+        delete.assert_not_called()
+        mock_db.commit.assert_not_called()
 
 
 class TestApiKeyAudit:

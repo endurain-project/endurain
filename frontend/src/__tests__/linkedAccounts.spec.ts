@@ -91,12 +91,13 @@ describe('linked-accounts service requests', () => {
   it('startProviderLink POSTs the step-up body and return path and returns the provider URL', async () => {
     vi.mocked(apiFetch).mockResolvedValue({ authorization_url: 'https://idp.example.com/auth' })
 
-    const url = await startProviderLink(2, stepUp)
+    const url = await startProviderLink(2, stepUp, true)
 
     expect(apiFetch).toHaveBeenCalledWith('/profile/identity-providers/2/link', {
       method: 'POST',
       body: JSON.stringify({
         redirect: '/settings/security',
+        revoke_other_sessions: true,
         step_up: { current_password: 'pw', mfa_code: '123456' },
       }),
     })
@@ -106,12 +107,13 @@ describe('linked-accounts service requests', () => {
   it('startProviderLink honors an explicit return path', async () => {
     vi.mocked(apiFetch).mockResolvedValue({ authorization_url: 'https://idp.example.com/auth' })
 
-    await startProviderLink(3, stepUp, '/settings/security?foo=bar')
+    await startProviderLink(3, stepUp, false, '/settings/security?foo=bar')
 
     expect(apiFetch).toHaveBeenCalledWith('/profile/identity-providers/3/link', {
       method: 'POST',
       body: JSON.stringify({
         redirect: '/settings/security?foo=bar',
+        revoke_other_sessions: false,
         step_up: { current_password: 'pw', mfa_code: '123456' },
       }),
     })

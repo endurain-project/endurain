@@ -135,28 +135,54 @@ describe('security service requests', () => {
   it('enableMfa POSTs the code and returns the backup codes', async () => {
     vi.mocked(apiFetch).mockResolvedValue({ backup_codes: ['a', 'b'] })
 
-    const codes = await enableMfa({ mfaCode: '123456', currentPassword: 'pw' })
+    const codes = await enableMfa({
+      mfaCode: '123456',
+      currentPassword: 'pw',
+      revokeOtherSessions: true,
+    })
 
     expect(apiFetch).toHaveBeenCalledWith('/profile/mfa/enable', {
       method: 'POST',
       body: JSON.stringify({
         mfa_code: '123456',
         step_up: { current_password: 'pw', mfa_code: null },
+        revoke_other_sessions: true,
       }),
     })
     expect(codes).toEqual(['a', 'b'])
   })
 
+  it('enableMfa sends false when the user keeps their other sessions', async () => {
+    vi.mocked(apiFetch).mockResolvedValue({ backup_codes: [] })
+
+    await enableMfa({ mfaCode: '123456', currentPassword: 'pw', revokeOtherSessions: false })
+
+    const body = JSON.parse(String(vi.mocked(apiFetch).mock.calls[0]![1]?.body))
+    expect(body.revoke_other_sessions).toBe(false)
+  })
+
   it('disableMfa POSTs the step-up body', async () => {
     vi.mocked(apiFetch).mockResolvedValue(undefined)
 
-    await disableMfa({ currentPassword: 'pw', mfaCode: '123456' })
+    await disableMfa({ currentPassword: 'pw', mfaCode: '123456' }, true)
 
     expect(apiFetch).toHaveBeenCalledWith('/profile/mfa/disable', {
       method: 'POST',
-      body: JSON.stringify({ step_up: { current_password: 'pw', mfa_code: '123456' } }),
+      body: JSON.stringify({
+        step_up: { current_password: 'pw', mfa_code: '123456' },
+        revoke_other_sessions: true,
+      }),
       responseType: 'void',
     })
+  })
+
+  it('disableMfa sends false when the user keeps their other sessions', async () => {
+    vi.mocked(apiFetch).mockResolvedValue(undefined)
+
+    await disableMfa({ currentPassword: 'pw', mfaCode: '123456' }, false)
+
+    const body = JSON.parse(String(vi.mocked(apiFetch).mock.calls[0]![1]?.body))
+    expect(body.revoke_other_sessions).toBe(false)
   })
 
   it('fetchBackupCodeStatus maps the counts', async () => {
@@ -179,13 +205,25 @@ describe('security service requests', () => {
   it('regenerateBackupCodes POSTs the step-up body and maps the result', async () => {
     vi.mocked(apiFetch).mockResolvedValue({ codes: ['x'], created_at: '2026-01-01' })
 
-    const result = await regenerateBackupCodes({ currentPassword: 'pw', mfaCode: '123456' })
+    const result = await regenerateBackupCodes({ currentPassword: 'pw', mfaCode: '123456' }, true)
 
     expect(apiFetch).toHaveBeenCalledWith('/profile/mfa/backup-codes', {
       method: 'POST',
-      body: JSON.stringify({ step_up: { current_password: 'pw', mfa_code: '123456' } }),
+      body: JSON.stringify({
+        step_up: { current_password: 'pw', mfa_code: '123456' },
+        revoke_other_sessions: true,
+      }),
     })
     expect(result).toEqual({ codes: ['x'], createdAt: '2026-01-01' })
+  })
+
+  it('regenerateBackupCodes sends false when the user keeps their other sessions', async () => {
+    vi.mocked(apiFetch).mockResolvedValue({ codes: [], created_at: '2026-01-01' })
+
+    await regenerateBackupCodes({ currentPassword: 'pw', mfaCode: '123456' }, false)
+
+    const body = JSON.parse(String(vi.mocked(apiFetch).mock.calls[0]![1]?.body))
+    expect(body.revoke_other_sessions).toBe(false)
   })
 
   it('fetchSessions reads the sessions path and maps the records', async () => {

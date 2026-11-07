@@ -32,7 +32,7 @@ class OAuthState(Base):
         browser_binding_hash: SHA-256 of the secret the browser that started a link or step-up holds in a cookie.
         idp_code_verifier: PKCE verifier this server sends the identity provider at the token exchange.
         purpose: The flow the state belongs to (``OAuthStatePurpose``).
-        session_id: The session that started a step-up flow.
+        session_id: The session that started a step-up flow, or a link that ends the user's other sessions.
         action: The sensitive operation a step-up flow authorises.
     """
 
@@ -134,7 +134,7 @@ class OAuthState(Base):
     session_id: Mapped[str | None] = mapped_column(
         String(36),
         nullable=True,
-        comment="Session that started a step-up flow (step-up only)",
+        comment="Session that started a step-up flow, or a link that ends the user's other sessions",
     )
 
     action: Mapped[str | None] = mapped_column(

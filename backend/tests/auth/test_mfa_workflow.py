@@ -329,6 +329,7 @@ class TestDisableMfa:
                 "sid",
                 step_up_store,
                 mock_db,
+                revoke_other_sessions=False,
             )
 
         mock_verify.assert_called_once_with(
@@ -362,6 +363,7 @@ class TestDisableMfa:
                 "sid",
                 step_up_store,
                 mock_db,
+                revoke_other_sessions=False,
             )
 
         assert exc_info.value.status_code == 401
@@ -456,6 +458,7 @@ class TestGenerateBackupCodes:
                 "sid",
                 step_up_store,
                 mock_db,
+                revoke_other_sessions=False,
             )
 
         mock_verify.assert_called_once_with(
@@ -486,6 +489,7 @@ class TestGenerateBackupCodes:
                 "sid",
                 step_up_store,
                 mock_db,
+                revoke_other_sessions=False,
             )
 
         assert exc_info.value.status_code == status.HTTP_404_NOT_FOUND
@@ -510,6 +514,7 @@ class TestGenerateBackupCodes:
                 "sid",
                 step_up_store,
                 mock_db,
+                revoke_other_sessions=False,
             )
 
         assert exc_info.value.status_code == status.HTTP_400_BAD_REQUEST
@@ -539,6 +544,7 @@ class TestGenerateBackupCodes:
                 "sid",
                 step_up_store,
                 mock_db,
+                revoke_other_sessions=False,
             )
 
         assert exc_info.value.status_code == 401

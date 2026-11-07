@@ -56,15 +56,21 @@ def stage_browser_link(
     idp_id: int,
     redirect: str | None,
     client_ip: str | None,
+    keep_session_id: str | None,
     db: Session,
 ) -> identity_providers_contracts.StagedBrowserFlow:
-    """Stage the OAuth state of a user linking a provider from the browser; the caller commits, then builds the URL."""
+    """Stage the OAuth state of a user linking a provider from the browser; the caller commits, then builds the URL.
+
+    ``keep_session_id`` is the session the link keeps when the callback ends the user's other sessions, or None
+    when the link ends none.
+    """
     return _authorization_service().stage_browser_link(
         user_id,
         idp_id,
         redirect,
         client_ip,
         core_config.settings.ALLOWED_REDIRECT_SCHEMES,
+        keep_session_id,
         db,
     )
 

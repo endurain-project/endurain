@@ -73,8 +73,13 @@ export function useUnlinkProviderMutation() {
  * @returns The TanStack Query mutation for starting a provider link.
  */
 export function useStartProviderLinkMutation() {
-  return useMutation<string, Error, { idpId: number; input: StepUpInput }>({
+  return useMutation<
+    string,
+    Error,
+    { idpId: number; input: StepUpInput; revokeOtherSessions: boolean }
+  >({
     mutationKey: queryKeys.security.all(),
-    mutationFn: ({ idpId, input }) => startProviderLink(idpId, input),
+    mutationFn: ({ idpId, input, revokeOtherSessions }) =>
+      startProviderLink(idpId, input, revokeOtherSessions),
   })
 }

@@ -13,7 +13,10 @@ export type MfaSetupDto = Schemas['MFASetupRead']
 export type MfaEnableDto = Schemas['MFASetupRequest']
 
 /** Disable-MFA request body. */
-export type MfaDisableDto = StepUpRequestDto
+export type MfaDisableDto = Schemas['MFADisableRequest']
+
+/** Regenerate-backup-codes request body. */
+export type MfaBackupCodesDto = Schemas['MFABackupCodesRequest']
 
 /** Raw backup-code status payload. */
 export type BackupCodeStatusDto = Schemas['MFABackupCodeStatusRead']
@@ -97,11 +100,21 @@ export interface StepUpInput {
   idpReauth?: IdpReauth | null
 }
 
-/** Completes MFA enrolment: the first valid code plus the step-up password or sign-in proof. */
+/**
+ * Completes MFA enrolment: the first valid code plus the step-up password or sign-in proof.
+ * `revokeOtherSessions` signs out every other device on success.
+ */
 export interface MfaEnableInput {
   mfaCode: string
   currentPassword: string | null
   idpReauth?: IdpReauth | null
+  revokeOtherSessions: boolean
+}
+
+/** A step-up action plus whether it signs out every other device on success. */
+export interface StepUpWithSessions {
+  input: StepUpInput
+  revokeOtherSessions: boolean
 }
 
 /** The remaining-backup-codes summary shown while MFA is enabled. */

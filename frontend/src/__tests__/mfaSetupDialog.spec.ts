@@ -56,6 +56,34 @@ describe('MfaSetupDialog', () => {
     expect(JSON.parse(String(enable[1]?.body)).mfa_code).toBe('022643')
   })
 
+  it('sends the other-devices choice, signing them out by default', async () => {
+    const wrapper = await openDialog()
+
+    const toggle = wrapper.get<HTMLInputElement>('input[role="switch"]')
+    expect(toggle.element.checked).toBe(true)
+
+    await wrapper.find('#mfa-enable-code').setValue('022643')
+    await wrapper.find('#mfa-enable-password').setValue('secret')
+    await wrapper.find('form').trigger('submit')
+    await flushPromises()
+
+    const enable = vi.mocked(apiFetch).mock.calls.find(([path]) => path === '/profile/mfa/enable')!
+    expect(JSON.parse(String(enable[1]?.body)).revoke_other_sessions).toBe(true)
+  })
+
+  it('keeps the other devices when the switch is turned off', async () => {
+    const wrapper = await openDialog()
+
+    await wrapper.get('input[role="switch"]').setValue(false)
+    await wrapper.find('#mfa-enable-code').setValue('022643')
+    await wrapper.find('#mfa-enable-password').setValue('secret')
+    await wrapper.find('form').trigger('submit')
+    await flushPromises()
+
+    const enable = vi.mocked(apiFetch).mock.calls.find(([path]) => path === '/profile/mfa/enable')!
+    expect(JSON.parse(String(enable[1]?.body)).revoke_other_sessions).toBe(false)
+  })
+
   it('lets the grouping space be typed', async () => {
     const wrapper = await openDialog()
 

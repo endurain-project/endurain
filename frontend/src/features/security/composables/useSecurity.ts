@@ -10,6 +10,7 @@ import type {
   MfaSetup,
   PasswordChangeInput,
   StepUpInput,
+  StepUpWithSessions,
 } from '@/features/security/types'
 
 import { useInvalidatingMutation } from '@/composables/useInvalidatingMutation'
@@ -141,9 +142,9 @@ export function useEnableMfaMutation() {
 export function useDisableMfaMutation() {
   const client = useQueryClient()
 
-  return useMutation<void, Error, StepUpInput>({
+  return useMutation<void, Error, StepUpWithSessions>({
     mutationKey: queryKeys.security.all(),
-    mutationFn: (input) => disableMfa(input),
+    mutationFn: ({ input, revokeOtherSessions }) => disableMfa(input, revokeOtherSessions),
     onSuccess: () => {
       void client.invalidateQueries({ queryKey: queryKeys.security.all() })
     },
@@ -159,9 +160,10 @@ export function useDisableMfaMutation() {
 export function useRegenerateBackupCodesMutation() {
   const client = useQueryClient()
 
-  return useMutation<BackupCodesResult, Error, StepUpInput>({
+  return useMutation<BackupCodesResult, Error, StepUpWithSessions>({
     mutationKey: queryKeys.security.all(),
-    mutationFn: (input) => regenerateBackupCodes(input),
+    mutationFn: ({ input, revokeOtherSessions }) =>
+      regenerateBackupCodes(input, revokeOtherSessions),
     onSuccess: () => {
       void client.invalidateQueries({ queryKey: queryKeys.security.backupCodeStatus() })
     },

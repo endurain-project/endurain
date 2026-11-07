@@ -292,7 +292,9 @@ class TestHandleCallback:
             link_by_email=False,
         )
         idp.name = "Pocket ID"
-        oauth_state = MagicMock(user_id=7, purpose=_LINK, nonce="nonce", redirect_path="/", client_type="web")
+        oauth_state = MagicMock(
+            user_id=7, purpose=_LINK, nonce="nonce", redirect_path="/", client_type="web", session_id=None
+        )
         oauth_client = MagicMock()
         oauth_client.fetch_token.return_value = {"access_token": "at", "refresh_token": "rt"}
         user = MagicMock(id=7, username="alice")
@@ -499,7 +501,9 @@ class TestOidcLoginFailsClosed:
             provider_type="oidc",
         )
         idp.name = "Pocket ID"
-        oauth_state = MagicMock(user_id=7, purpose=purpose, nonce="nonce", redirect_path="/", client_type="web")
+        oauth_state = MagicMock(
+            user_id=7, purpose=purpose, nonce="nonce", redirect_path="/", client_type="web", session_id=None
+        )
         oauth_client = MagicMock()
         oauth_client.fetch_token.return_value = {"access_token": "at"}
         oauth_client.request.return_value.json.return_value = {"sub": "forged"}
@@ -547,7 +551,9 @@ class TestOauth2WithOpenidScopeRequiresIdToken:
             scopes=scopes,
         )
         idp.name = "Generic"
-        oauth_state = MagicMock(user_id=7, purpose=purpose, nonce="nonce", redirect_path="/", client_type="web")
+        oauth_state = MagicMock(
+            user_id=7, purpose=purpose, nonce="nonce", redirect_path="/", client_type="web", session_id=None
+        )
         oauth_client = MagicMock()
         oauth_client.fetch_token.return_value = token_response or {"access_token": "at", "id_token": "idt"}
         get_userinfo = MagicMock(return_value={"sub": "user-1"})

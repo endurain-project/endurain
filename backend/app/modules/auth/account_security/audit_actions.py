@@ -35,6 +35,7 @@ class BackupCodesDetails(VersionedPayload):
 
     Attributes:
         count: How many backup codes were issued.
+        sessions_revoked: How many of the user's other sessions the change ended.
     """
 
     model_config = ConfigDict(extra="forbid")
@@ -42,6 +43,7 @@ class BackupCodesDetails(VersionedPayload):
     SCHEMA_VERSION: ClassVar[int] = 1
 
     count: int
+    sessions_revoked: int = 0
 
 
 class ApiKeyCreateDetails(VersionedPayload):
@@ -112,6 +114,7 @@ MFA_ENABLE = jasil_audit.AuditAction(
     severity=jasil_audit.Severity.HIGH,
     description_key="audit.auth.mfa.enable",
     description_default="Two-factor authentication was turned on",
+    details_model=sessions_audit_actions.SessionsRevokedDetails,
 )
 
 MFA_DISABLE = jasil_audit.AuditAction(
@@ -120,6 +123,7 @@ MFA_DISABLE = jasil_audit.AuditAction(
     severity=jasil_audit.Severity.HIGH,
     description_key="audit.auth.mfa.disable",
     description_default="Two-factor authentication was turned off",
+    details_model=sessions_audit_actions.SessionsRevokedDetails,
 )
 
 BACKUP_CODES_GENERATE = jasil_audit.AuditAction(

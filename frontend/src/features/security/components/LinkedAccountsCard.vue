@@ -18,6 +18,7 @@ import StepUpDialog from '@/features/security/components/StepUpDialog.vue'
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
 import { Skeleton } from '@/components/ui/skeleton'
+import { Switch } from '@/components/ui/switch'
 import { useToasts } from '@/composables/useToasts'
 import { formatMediumDate } from '@/utils/datetime'
 import { queryKeys } from '@/services/queryKeys'
@@ -64,6 +65,9 @@ type PendingAction = { type: 'link' | 'unlink'; idpId: number; name: string }
 const pendingAction = ref<PendingAction | null>(null)
 const isStepUpOpen = ref(false)
 const idpReauth = ref<IdpReauth | null>(null)
+// Whether completing a link signs out the other devices; not a secret, so it survives the
+// identity-provider round-trip.
+const revokeOtherSessions = ref(true)
 
 const isActionPending = computed(
   () => unlinkMutation.isPending.value || startLinkMutation.isPending.value,
@@ -89,6 +93,7 @@ const stepUpConfirmLabel = computed(() =>
 function openLink(provider: AvailableProvider): void {
   pendingAction.value = { type: 'link', idpId: provider.id, name: provider.name }
   idpReauth.value = null
+  revokeOtherSessions.value = true
   isStepUpOpen.value = true
 }
 
@@ -106,7 +111,7 @@ function openUnlink(item: LinkedProvider): void {
 /** Begins the OAuth link: starts it on the backend, then navigates to the provider. */
 function confirmLink(idpId: number, input: StepUpInput): void {
   startLinkMutation.mutate(
-    { idpId, input },
+    { idpId, input, revokeOtherSessions: revokeOtherSessions.value },
     {
       onSuccess: (authorizationUrl) => {
         // Full-page navigation to the provider, which returns to this page
@@ -183,6 +188,7 @@ function restoreStepUp(): void {
   }
   pendingAction.value = { type, idpId, name }
   idpReauth.value = resume.reauth
+  revokeOtherSessions.value = resume.pending.revokeOtherSessions !== false
   isStepUpOpen.value = true
 }
 
@@ -305,7 +311,7 @@ onMounted(() => {
       v-model:open="isStepUpOpen"
       v-model:reauth="idpReauth"
       :action="pendingAction?.type === 'unlink' ? 'idp_unlink' : 'idp_link'"
-      :pending-context="pendingAction ?? {}"
+      :pending-context="pendingAction ? { ...pendingAction, revokeOtherSessions } : {}"
       :title="stepUpTitle"
       :description="stepUpDescription"
       :confirm-label="stepUpConfirmLabel"
@@ -313,6 +319,14 @@ onMounted(() => {
       :require-mfa="mfaEnabled"
       :pending="isActionPending"
       @confirm="onStepUpConfirm"
-    />
+    >
+      <Switch
+        v-if="pendingAction?.type === 'link'"
+        v-model="revokeOtherSessions"
+        :disabled="isActionPending"
+      >
+        {{ t('settings.security.password.revokeOthers') }}
+      </Switch>
+    </StepUpDialog>
   </Card>
 </template>

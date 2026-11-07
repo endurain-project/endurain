@@ -11,7 +11,6 @@ import modules.auth.account_security.mfa_workflow_service as mfa_workflow_servic
 import modules.auth.dependencies as auth_dependencies
 import modules.auth.mfa.schema as mfa_schema
 import modules.auth.mfa_backup_codes.schema as mfa_backup_codes_schema
-import modules.auth.schema as auth_schema
 
 router = APIRouter()
 
@@ -126,7 +125,8 @@ def enable_mfa(
     The ``mfa_code`` in the request body is the fresh enrolment code from the
     user's authenticator app and is verified separately by
     :func:`modules.auth.mfa.service.enable_user_mfa` against the secret
-    issued by ``POST /profile/mfa/setup``.
+    issued by ``POST /profile/mfa/setup``. The user's other sessions end with the
+    change unless ``revoke_other_sessions`` is false.
 
     Args:
         request: The incoming request, read by the rate limiter.
@@ -160,7 +160,7 @@ def enable_mfa(
 @core_rate_limit.limiter.limit(core_rate_limit.SENSITIVE)
 def disable_mfa(
     request: Request,
-    body: auth_schema.StepUpRequest,
+    body: mfa_schema.MFADisableRequest,
     token_user_id: auth_dependencies.CurrentUserId,
     token_session_id: auth_dependencies.CurrentSessionId,
     step_up_store: Annotated[
@@ -178,11 +178,12 @@ def disable_mfa(
     6-digit TOTP or an unused ``XXXX-XXXX`` backup code — the
     same set of factors accepted at login. Step-up verification
     is the single source of truth for the MFA check;
-    :func:`modules.auth.mfa.service.disable_user_mfa` only clears state.
+    :func:`modules.auth.mfa.service.disable_user_mfa` only clears state. The user's
+    other sessions end with the change unless ``revoke_other_sessions`` is false.
 
     Args:
         request: The incoming request, read by the rate limiter.
-        body: The step-up verification, with the MFA code.
+        body: The step-up verification, with the MFA code, and whether to end the other sessions.
         token_user_id: User ID from access token.
         token_session_id: Session ID from access token.
         step_up_store: Step-up lockout store.
@@ -193,7 +194,14 @@ def disable_mfa(
             the MFA code is invalid; 400 if MFA is not currently
             enabled.
     """
-    mfa_workflow_service.disable_mfa(body.step_up, token_user_id, token_session_id, step_up_store, db)
+    mfa_workflow_service.disable_mfa(
+        body.step_up,
+        token_user_id,
+        token_session_id,
+        step_up_store,
+        db,
+        revoke_other_sessions=body.revoke_other_sessions,
+    )
 
 
 @router.post(
@@ -238,7 +246,7 @@ def verify_mfa(
 def generate_mfa_backup_codes(
     response: Response,
     request: Request,
-    body: auth_schema.StepUpRequest,
+    body: mfa_schema.MFABackupCodesRequest,
     token_user_id: auth_dependencies.CurrentUserId,
     token_session_id: auth_dependencies.CurrentSessionId,
     step_up_store: Annotated[
@@ -253,12 +261,13 @@ def generate_mfa_backup_codes(
     when MFA is enabled). Issuing new backup codes invalidates
     the previous set, so an attacker holding only an access
     token must not be able to lock the legitimate user out of
-    their second factor.
+    their second factor. The user's other sessions end with the change
+    unless ``revoke_other_sessions`` is false.
 
     Args:
         response: The response, marked as not cacheable because it carries the codes.
         request: FastAPI request object for rate limiting.
-        body: The step-up verification.
+        body: The step-up verification and whether to end the other sessions.
         token_user_id: User ID from access token.
         token_session_id: Session ID from access token.
         step_up_store: Step-up lockout store.
@@ -272,4 +281,11 @@ def generate_mfa_backup_codes(
             user not found, 400 if MFA is not enabled.
     """
     core_cache_control.set_no_store(response)
-    return mfa_workflow_service.generate_backup_codes(body.step_up, token_user_id, token_session_id, step_up_store, db)
+    return mfa_workflow_service.generate_backup_codes(
+        body.step_up,
+        token_user_id,
+        token_session_id,
+        step_up_store,
+        db,
+        revoke_other_sessions=body.revoke_other_sessions,
+    )

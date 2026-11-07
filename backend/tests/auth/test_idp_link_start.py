@@ -78,3 +78,13 @@ def test_a_refused_start_is_answered_as_a_problem(client):
         response = client.post(URL, json={"step_up": {"current_password": "pw"}})
 
     assert response.status_code == 409
+
+
+@pytest.mark.parametrize(("extra", "expected"), [({}, True), ({"revoke_other_sessions": False}, False)])
+def test_the_route_passes_the_session_choice_on(client, extra, expected):
+    flow = idp_contracts.BrowserFlowStart(authorization_url="https://idp.example.com/authorize", browser_binding="b")
+    with patch.object(identity_link_service, "start_idp_link", return_value=flow) as start:
+        response = client.post(URL, json={"step_up": {"current_password": "pw"}, **extra})
+
+    assert response.status_code == 200
+    assert start.call_args.args[1].revoke_other_sessions is expected

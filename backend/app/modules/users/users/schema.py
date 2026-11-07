@@ -750,6 +750,7 @@ class IdentityProviderLinkStart(BaseModel):
 
     Attributes:
         redirect: Frontend return path after linking (a relative path or a configured custom scheme).
+        revoke_other_sessions: Whether to sign out the user's other sessions once the link completes.
         step_up: The caller's step-up verification.
     """
 
@@ -758,6 +759,13 @@ class IdentityProviderLinkStart(BaseModel):
         min_length=1,
         max_length=500,
         description="Frontend return path after linking (relative path or a configured custom scheme)",
+    )
+    revoke_other_sessions: StrictBool = Field(
+        default=True,
+        description=(
+            "When the link completes, all of the user's other sessions "
+            "(keeping the current one) are revoked unless the client sends false."
+        ),
     )
     step_up: auth_schema.StepUpVerification = Field(
         ..., description="Step-up verification, required to link an identity provider"

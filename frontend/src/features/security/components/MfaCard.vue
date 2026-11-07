@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, onMounted, ref } from 'vue'
+import { computed, onMounted, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { RefreshCw, ShieldCheck, Smartphone } from '@lucide/vue'
 
@@ -13,6 +13,7 @@ import { Alert } from '@/components/ui/alert'
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
 import { Skeleton } from '@/components/ui/skeleton'
+import { Switch } from '@/components/ui/switch'
 import { useToasts } from '@/composables/useToasts'
 import { useIdpReauthChallenge } from '@/features/security/composables/useIdpStepUp'
 import {
@@ -49,18 +50,42 @@ const backupCodes = ref<string[]>([])
 const setupReauth = ref<IdpReauth | null>(null)
 const disableReauth = ref<IdpReauth | null>(null)
 const regenerateReauth = ref<IdpReauth | null>(null)
+// Whether each action signs out the other devices; not a secret, so it survives the identity-provider
+// round-trip, and every dialog starts checked again once closed.
+const setupRevokeOthers = ref(true)
+const disableRevokeOthers = ref(true)
+const regenerateRevokeOthers = ref(true)
+
+watch(setupOpen, (isOpen) => {
+  if (!isOpen) {
+    setupRevokeOthers.value = true
+  }
+})
+watch(disableOpen, (isOpen) => {
+  if (!isOpen) {
+    disableRevokeOthers.value = true
+  }
+})
+watch(regenerateOpen, (isOpen) => {
+  if (!isOpen) {
+    regenerateRevokeOthers.value = true
+  }
+})
 
 /** Reopens the dialog the identity-provider sign-in was started for. */
 onMounted(() => {
   const { resume } = props
   if (resume?.action === 'mfa_enable') {
     setupReauth.value = resume.reauth
+    setupRevokeOthers.value = resume.pending.revokeOtherSessions !== false
     setupOpen.value = true
   } else if (resume?.action === 'mfa_disable') {
     disableReauth.value = resume.reauth
+    disableRevokeOthers.value = resume.pending.revokeOtherSessions !== false
     disableOpen.value = true
   } else if (resume?.action === 'mfa_backup_codes') {
     regenerateReauth.value = resume.reauth
+    regenerateRevokeOthers.value = resume.pending.revokeOtherSessions !== false
     regenerateOpen.value = true
   }
 })
@@ -75,36 +100,42 @@ function onEnabled(codes: string[]): void {
 
 /** Disables MFA with the collected step-up credentials. */
 function confirmDisable(input: StepUpInput): void {
-  disableMutation.mutate(input, {
-    onSuccess: () => {
-      disableOpen.value = false
-      disableReauth.value = null
-      toasts.success(t('settings.security.mfa.disableSuccess'))
+  disableMutation.mutate(
+    { input, revokeOtherSessions: disableRevokeOthers.value },
+    {
+      onSuccess: () => {
+        disableOpen.value = false
+        disableReauth.value = null
+        toasts.success(t('settings.security.mfa.disableSuccess'))
+      },
+      onError: (error) => {
+        if (!handleIdpChallenge(error)) {
+          toasts.error(t('settings.security.mfa.disableError'))
+        }
+      },
     },
-    onError: (error) => {
-      if (!handleIdpChallenge(error)) {
-        toasts.error(t('settings.security.mfa.disableError'))
-      }
-    },
-  })
+  )
 }
 
 /** Regenerates the backup codes, then shows the new set. */
 function confirmRegenerate(input: StepUpInput): void {
-  regenerateMutation.mutate(input, {
-    onSuccess: (result) => {
-      regenerateOpen.value = false
-      regenerateReauth.value = null
-      backupCodes.value = result.codes
-      backupCodesOpen.value = true
-      toasts.success(t('settings.security.mfa.regenerateSuccess'))
+  regenerateMutation.mutate(
+    { input, revokeOtherSessions: regenerateRevokeOthers.value },
+    {
+      onSuccess: (result) => {
+        regenerateOpen.value = false
+        regenerateReauth.value = null
+        backupCodes.value = result.codes
+        backupCodesOpen.value = true
+        toasts.success(t('settings.security.mfa.regenerateSuccess'))
+      },
+      onError: (error) => {
+        if (!handleIdpChallenge(error)) {
+          toasts.error(t('settings.security.mfa.regenerateError'))
+        }
+      },
     },
-    onError: (error) => {
-      if (!handleIdpChallenge(error)) {
-        toasts.error(t('settings.security.mfa.regenerateError'))
-      }
-    },
-  })
+  )
 }
 </script>
 
@@ -171,6 +202,7 @@ function confirmRegenerate(input: StepUpInput): void {
     <MfaSetupDialog
       v-model:open="setupOpen"
       v-model:reauth="setupReauth"
+      v-model:revoke-other-sessions="setupRevokeOthers"
       :require-password="hasLocalPassword"
       @enabled="onEnabled"
       @error="(message) => toasts.error(message)"
@@ -183,9 +215,14 @@ function confirmRegenerate(input: StepUpInput): void {
       :description="t('settings.security.mfa.disableDescription')"
       :confirm-label="t('settings.security.mfa.disable')"
       :require-password="hasLocalPassword"
+      :pending-context="{ revokeOtherSessions: disableRevokeOthers }"
       :pending="disableMutation.isPending.value"
       @confirm="confirmDisable"
-    />
+    >
+      <Switch v-model="disableRevokeOthers" :disabled="disableMutation.isPending.value">
+        {{ t('settings.security.password.revokeOthers') }}
+      </Switch>
+    </StepUpDialog>
     <StepUpDialog
       v-model:open="regenerateOpen"
       v-model:reauth="regenerateReauth"
@@ -194,9 +231,14 @@ function confirmRegenerate(input: StepUpInput): void {
       :description="t('settings.security.mfa.regenerateDescription')"
       :confirm-label="t('settings.security.mfa.regenerate')"
       :require-password="hasLocalPassword"
+      :pending-context="{ revokeOtherSessions: regenerateRevokeOthers }"
       :pending="regenerateMutation.isPending.value"
       @confirm="confirmRegenerate"
-    />
+    >
+      <Switch v-model="regenerateRevokeOthers" :disabled="regenerateMutation.isPending.value">
+        {{ t('settings.security.password.revokeOthers') }}
+      </Switch>
+    </StepUpDialog>
     <BackupCodesDialog v-model:open="backupCodesOpen" :codes="backupCodes" />
   </Card>
 </template>

@@ -88,6 +88,8 @@ Under **Settings → Security** you can:
 - create and revoke [API keys](../integrate/api-keys.md), which can upload activities and always expire, after at most the lifetime the administrator allows (365 days by default);
 - delete your account.
 
+Changing your password, turning two-step verification on or off, regenerating its backup codes or linking an identity provider signs you out of your other devices, and keeps the one you are using. Each of these forms has a switch, **Sign out of all other devices**, which is on by default; turn it off to keep your other sessions. Changing your email has the same switch, off by default.
+
 Accounts that sign in only through single sign-on have no local password. They cannot change a password themselves, and they confirm sensitive changes by signing in again with their identity provider; see [Single Sign-On](single-sign-on.md#confirming-sensitive-changes-without-a-password).
 
 Deleting an account signs you out at once and deletes its data in the background, including activities, photos, thumbnails and stored files. The request answers `202` and there is no progress to follow: the account is already signed out and deactivated, so you cannot check it, and an administrator can follow the job with `GET /users/{user_id}/deletion`. How long it takes depends on how many activities the account has. If it fails, Endurain queues it again every hour, up to five times; see [Background operations](../integrate/background-operations.md#delete-your-account). The only administrator of a server cannot delete or demote themselves; make another user an administrator first.

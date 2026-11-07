@@ -116,6 +116,39 @@ class TestMFASetupRequest:
         assert mfa_schema.MFASetupRequest.model_config.get("validate_assignment") is True
 
 
+_BODIES = [
+    (mfa_schema.MFASetupRequest, {"mfa_code": "123456", "step_up": {}}),
+    (mfa_schema.MFADisableRequest, {"step_up": {}}),
+    (mfa_schema.MFABackupCodesRequest, {"step_up": {}}),
+]
+
+
+class TestRevokeOtherSessionsOnMfaChanges:
+    """The three second-factor changes end the caller's other sessions unless the client opts out."""
+
+    @pytest.mark.parametrize(("schema", "body"), _BODIES, ids=[case[0].__name__ for case in _BODIES])
+    def test_defaults_to_true_and_accepts_false(self, schema, body):
+        assert schema(**body).revoke_other_sessions is True
+        assert schema(**body, revoke_other_sessions=False).revoke_other_sessions is False
+
+    @pytest.mark.parametrize(("schema", "body"), _BODIES, ids=[case[0].__name__ for case in _BODIES])
+    def test_flag_is_strict_boolean(self, schema, body):
+        with pytest.raises(ValidationError):
+            schema(**body, revoke_other_sessions="yes")
+
+    @pytest.mark.parametrize(("schema", "body"), _BODIES, ids=[case[0].__name__ for case in _BODIES])
+    def test_forbids_extra_keys(self, schema, body):
+        with pytest.raises(ValidationError) as exc:
+            schema(**body, unexpected="value")
+        assert exc.value.errors()[0]["type"] == "extra_forbidden"
+
+    @pytest.mark.parametrize("schema", [mfa_schema.MFADisableRequest, mfa_schema.MFABackupCodesRequest])
+    def test_step_up_is_required(self, schema):
+        with pytest.raises(ValidationError) as exc:
+            schema()
+        assert exc.value.errors()[0]["type"] == "missing"
+
+
 class TestMFASetupResponse:
     """Test suite for MFASetupRead schema."""
 

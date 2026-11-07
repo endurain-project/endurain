@@ -59,6 +59,7 @@ export async function fetchLinkedProviders(signal?: AbortSignal): Promise<Linked
  *
  * @param idpId - The identity-provider id to link.
  * @param input - The step-up credentials.
+ * @param revokeOtherSessions - Whether completing the link signs out every other session.
  * @param returnPath - The frontend route to return to after the callback.
  * @returns The identity provider's authorization URL.
  * @throws {HttpError} When the request fails (403 step-up, 409 already linked).
@@ -66,10 +67,12 @@ export async function fetchLinkedProviders(signal?: AbortSignal): Promise<Linked
 export async function startProviderLink(
   idpId: number,
   input: StepUpInput,
+  revokeOtherSessions: boolean,
   returnPath = '/settings/security',
 ): Promise<string> {
   const payload: IdentityProviderLinkStartDto = {
     redirect: returnPath,
+    revoke_other_sessions: revokeOtherSessions,
     step_up: toStepUpWire(input),
   }
   const dto = await apiFetch<StepUpStartResultDto>(`/profile/identity-providers/${idpId}/link`, {

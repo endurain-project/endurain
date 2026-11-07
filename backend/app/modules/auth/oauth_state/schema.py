@@ -50,7 +50,11 @@ class OAuthStateCreate(BaseModel):
         None, min_length=43, max_length=128, description="PKCE verifier sent to the identity provider"
     )
     purpose: oauth_state_constants.OAuthStatePurpose = Field(..., description="Flow the state belongs to")
-    session_id: StrictStr | None = Field(None, max_length=36, description="Session that started a step-up flow")
+    session_id: StrictStr | None = Field(
+        None,
+        max_length=36,
+        description="Session that started a step-up flow, or a link that ends the user's other sessions",
+    )
     action: StrictStr | None = Field(None, max_length=32, description="Operation a step-up flow authorises")
 
 
@@ -77,7 +81,9 @@ class OAuthStateRead(BaseModel):
     browser_binding_hash: StrictStr | None = Field(None, description="SHA-256 of the browser binding")
     idp_code_verifier: StrictStr | None = Field(None, description="PKCE verifier sent to the identity provider")
     purpose: oauth_state_constants.OAuthStatePurpose = Field(..., description="Flow the state belongs to")
-    session_id: StrictStr | None = Field(None, description="Session that started a step-up flow")
+    session_id: StrictStr | None = Field(
+        None, description="Session that started a step-up flow, or a link that ends the user's other sessions"
+    )
     action: StrictStr | None = Field(None, description="Operation a step-up flow authorises")
 
 

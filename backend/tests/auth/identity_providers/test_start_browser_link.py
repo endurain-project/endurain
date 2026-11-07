@@ -43,7 +43,7 @@ def _idp(enabled: bool = True) -> identity_provider_contracts.IdentityProviderSt
     )
 
 
-def _stage(*, redirect=None, provider=_UNSET):
+def _stage(*, redirect=None, provider=_UNSET, keep_session_id=None):
     if provider is _UNSET:
         provider = _idp()
     db = MagicMock()
@@ -61,7 +61,7 @@ def _stage(*, redirect=None, provider=_UNSET):
         ),
         patch.object(authorization_service.oauth_state_integration, "create_oauth_state") as create_state,
     ):
-        staged = integration_service.stage_browser_link(7, 1, redirect, "10.0.0.1", db)
+        staged = integration_service.stage_browser_link(7, 1, redirect, "10.0.0.1", keep_session_id, db)
     return staged, service, create_state
 
 
@@ -108,6 +108,18 @@ def test_a_link_state_keeps_a_fresh_pkce_verifier_for_the_provider():
     verifier = first.call_args.kwargs["idp_code_verifier"]
     assert 43 <= len(verifier) <= 128
     assert verifier != second.call_args.kwargs["idp_code_verifier"]
+
+
+def test_a_link_state_records_the_session_to_keep_when_other_sessions_end():
+    _, _, create_state = _stage(keep_session_id="sid")
+
+    assert create_state.call_args.kwargs["session_id"] == "sid"
+
+
+def test_a_link_state_records_no_session_when_every_session_stays():
+    _, _, create_state = _stage()
+
+    assert create_state.call_args.kwargs["session_id"] is None
 
 
 def test_stage_browser_link_preserves_redirect_and_client_type():

@@ -8,6 +8,7 @@ import type {
   BackupCodeStatusDto,
   BackupCodesDto,
   BackupCodesResult,
+  MfaBackupCodesDto,
   MfaDisableDto,
   MfaEnableDto,
   MfaEnableInput,
@@ -164,9 +165,10 @@ export async function setupMfa(): Promise<MfaSetup> {
 
 /**
  * Completes MFA enrolment with the first valid code (and a step-up password for
- * accounts that have one), returning the one-time backup codes.
+ * accounts that have one), returning the one-time backup codes. Optionally signs
+ * out every other session.
  *
- * @param input - The confirming code and optional step-up password.
+ * @param input - The confirming code, optional step-up password and sessions choice.
  * @returns The generated backup codes (shown once).
  * @throws {HttpError} When the request fails (e.g. 400 invalid code).
  */
@@ -178,6 +180,7 @@ export async function enableMfa(input: MfaEnableInput): Promise<string[]> {
       mfaCode: null,
       idpReauth: input.idpReauth,
     }),
+    revoke_other_sessions: input.revokeOtherSessions,
   }
   const response = await apiFetch<{ backup_codes: string[] }>('/profile/mfa/enable', {
     method: 'POST',
@@ -191,10 +194,14 @@ export async function enableMfa(input: MfaEnableInput): Promise<string[]> {
  * password for accounts that have one).
  *
  * @param input - The step-up credentials.
+ * @param revokeOtherSessions - Whether to sign out every other session after the change.
  * @throws {HttpError} When the request fails (e.g. 403 verification failed).
  */
-export async function disableMfa(input: StepUpInput): Promise<void> {
-  const payload: MfaDisableDto = { step_up: toStepUpWire(input) }
+export async function disableMfa(input: StepUpInput, revokeOtherSessions: boolean): Promise<void> {
+  const payload: MfaDisableDto = {
+    step_up: toStepUpWire(input),
+    revoke_other_sessions: revokeOtherSessions,
+  }
   await apiFetch('/profile/mfa/disable', {
     method: 'POST',
     body: JSON.stringify(payload),
@@ -220,13 +227,21 @@ export async function fetchBackupCodeStatus(signal?: AbortSignal): Promise<Backu
  * is invalidated, so the new codes are shown once for the user to save.
  *
  * @param input - The step-up credentials.
+ * @param revokeOtherSessions - Whether to sign out every other session after the change.
  * @returns The newly generated backup codes.
  * @throws {HttpError} When the request fails (e.g. 403 verification failed).
  */
-export async function regenerateBackupCodes(input: StepUpInput): Promise<BackupCodesResult> {
+export async function regenerateBackupCodes(
+  input: StepUpInput,
+  revokeOtherSessions: boolean,
+): Promise<BackupCodesResult> {
+  const payload: MfaBackupCodesDto = {
+    step_up: toStepUpWire(input),
+    revoke_other_sessions: revokeOtherSessions,
+  }
   const dto = await apiFetch<BackupCodesDto>('/profile/mfa/backup-codes', {
     method: 'POST',
-    body: JSON.stringify({ step_up: toStepUpWire(input) } satisfies StepUpRequestDto),
+    body: JSON.stringify(payload),
   })
   return mapBackupCodes(dto)
 }

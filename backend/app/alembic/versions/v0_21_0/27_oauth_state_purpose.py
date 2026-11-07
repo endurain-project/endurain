@@ -43,7 +43,7 @@ def upgrade() -> None:
             "session_id",
             sa.String(length=36),
             nullable=True,
-            comment="Session that started a step-up flow (step-up only)",
+            comment="Session that started a step-up flow, or a link that ends the user's other sessions",
         ),
     )
     op.add_column(

@@ -44,10 +44,10 @@ def start_idp_link(
 
     Args:
         idp_id: The identity provider to link.
-        link: The frontend return path and the step-up verification.
+        link: The frontend return path, the step-up verification and whether the completed link ends the other sessions.
         client_ip: Address of the client.
         token_user_id: The authenticated user's ID.
-        session_id: The caller's session.
+        session_id: The caller's session, kept when the completed link ends the user's other sessions.
         step_up_store: Step-up lockout store.
         db: Database session.
 
@@ -83,7 +83,10 @@ def start_idp_link(
         action=identity_providers_constants.StepUpAction.IDP_LINK,
     )
 
-    staged = identity_providers_integration.stage_browser_link(token_user_id, idp_id, link.redirect, client_ip, db)
+    # The callback runs without the caller's session, so the state carries the session to keep, or none to end nothing.
+    staged = identity_providers_integration.stage_browser_link(
+        token_user_id, idp_id, link.redirect, client_ip, session_id if link.revoke_other_sessions else None, db
+    )
     db.commit()
     logger.info(
         "Identity provider link started for user <token_user_id>: idp_id=<idp_id> (<name>)",

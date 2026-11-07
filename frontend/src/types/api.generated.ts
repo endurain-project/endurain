@@ -2573,7 +2573,8 @@ export interface paths {
          *     when MFA is enabled). Issuing new backup codes invalidates
          *     the previous set, so an attacker holding only an access
          *     token must not be able to lock the legitimate user out of
-         *     their second factor.
+         *     their second factor. The user's other sessions end with the change
+         *     unless ``revoke_other_sessions`` is false.
          */
         post: operations["generate_mfa_backup_codes"];
         delete?: never;
@@ -2622,7 +2623,8 @@ export interface paths {
          *     6-digit TOTP or an unused ``XXXX-XXXX`` backup code — the
          *     same set of factors accepted at login. Step-up verification
          *     is the single source of truth for the MFA check;
-         *     :func:`modules.auth.mfa.service.disable_user_mfa` only clears state.
+         *     :func:`modules.auth.mfa.service.disable_user_mfa` only clears state. The user's
+         *     other sessions end with the change unless ``revoke_other_sessions`` is false.
          */
         post: operations["disable_mfa"];
         delete?: never;
@@ -2654,7 +2656,8 @@ export interface paths {
          *     The ``mfa_code`` in the request body is the fresh enrolment code from the
          *     user's authenticator app and is verified separately by
          *     :func:`modules.auth.mfa.service.enable_user_mfa` against the secret
-         *     issued by ``POST /profile/mfa/setup``.
+         *     issued by ``POST /profile/mfa/setup``. The user's other sessions end with the
+         *     change unless ``revoke_other_sessions`` is false.
          */
         post: operations["enable_mfa"];
         delete?: never;
@@ -8318,6 +8321,7 @@ export interface components {
          *
          *     Attributes:
          *         redirect: Frontend return path after linking (a relative path or a configured custom scheme).
+         *         revoke_other_sessions: Whether to sign out the user's other sessions once the link completes.
          *         step_up: The caller's step-up verification.
          */
         IdentityProviderLinkStart: {
@@ -8326,6 +8330,12 @@ export interface components {
              * @description Frontend return path after linking (relative path or a configured custom scheme)
              */
             redirect?: string | null;
+            /**
+             * Revoke Other Sessions
+             * @description When the link completes, all of the user's other sessions (keeping the current one) are revoked unless the client sends false.
+             * @default true
+             */
+            revoke_other_sessions: boolean;
             /** @description Step-up verification, required to link an identity provider */
             step_up: components["schemas"]["StepUpVerification"];
         };
@@ -9018,6 +9028,34 @@ export interface components {
             readonly created_at: string;
         };
         /**
+         * MFABackupCodesRequest
+         * @description Request model for issuing new MFA backup codes: the step-up verification and the session choice.
+         */
+        MFABackupCodesRequest: {
+            /**
+             * Revoke Other Sessions
+             * @description After the change, all of the user's other sessions (keeping the current one) are revoked unless the client sends false.
+             * @default true
+             */
+            revoke_other_sessions: boolean;
+            /** @description Step-up verification, required to change the second factor */
+            step_up: components["schemas"]["StepUpVerification"];
+        };
+        /**
+         * MFADisableRequest
+         * @description Request model for turning MFA off: the step-up verification, with its MFA code, and the session choice.
+         */
+        MFADisableRequest: {
+            /**
+             * Revoke Other Sessions
+             * @description After the change, all of the user's other sessions (keeping the current one) are revoked unless the client sends false.
+             * @default true
+             */
+            revoke_other_sessions: boolean;
+            /** @description Step-up verification, required to change the second factor */
+            step_up: components["schemas"]["StepUpVerification"];
+        };
+        /**
          * MFAEnableRead
          * @description Response returned after MFA is enabled.
          *
@@ -9105,7 +9143,6 @@ export interface components {
          *         mfa_code: The 6-digit TOTP code generated from the secret
          *             returned by the setup endpoint, used to confirm the
          *             authenticator app is correctly enrolled.
-         *         step_up: The caller's step-up verification.
          */
         MFASetupRequest: {
             /**
@@ -9113,7 +9150,13 @@ export interface components {
              * @description 6-digit TOTP code
              */
             mfa_code: string;
-            /** @description Step-up verification, required to enable MFA */
+            /**
+             * Revoke Other Sessions
+             * @description After the change, all of the user's other sessions (keeping the current one) are revoked unless the client sends false.
+             * @default true
+             */
+            revoke_other_sessions: boolean;
+            /** @description Step-up verification, required to change the second factor */
             step_up: components["schemas"]["StepUpVerification"];
         };
         /**
@@ -27757,7 +27800,7 @@ export interface operations {
         };
         requestBody: {
             content: {
-                "application/json": components["schemas"]["StepUpRequest"];
+                "application/json": components["schemas"]["MFABackupCodesRequest"];
             };
         };
         responses: {
@@ -27930,7 +27973,7 @@ export interface operations {
         };
         requestBody: {
             content: {
-                "application/json": components["schemas"]["StepUpRequest"];
+                "application/json": components["schemas"]["MFADisableRequest"];
             };
         };
         responses: {
