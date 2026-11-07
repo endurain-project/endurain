@@ -162,13 +162,29 @@ def create_idp_session_token(
     encrypted_refresh_token: str | None,
     access_token_expires_at: datetime | None,
     db: Session,
+    *,
+    encrypted_id_token: str | None = None,
 ) -> identity_link_contracts.IdpSessionTokenRead:
-    """Stage the identity-provider sign-in behind a session, with the encrypted refresh token when one was issued."""
+    """Stage the identity-provider sign-in behind a session, with the encrypted tokens the provider issued.
+
+    Args:
+        session_id: The session the sign-in created.
+        user_id: The signed-in user.
+        idp_id: The identity provider.
+        encrypted_refresh_token: The encrypted refresh token, or None when none was issued.
+        access_token_expires_at: When the access token expires, or None when no refresh token was issued.
+        db: Database session.
+        encrypted_id_token: The encrypted ID token, or None when none was issued.
+
+    Returns:
+        The staged sign-in.
+    """
     row = identity_link_models.IdpSessionToken(
         session_id=session_id,
         user_id=user_id,
         idp_id=idp_id,
         refresh_token=encrypted_refresh_token,
+        id_token=encrypted_id_token,
         access_token_expires_at=access_token_expires_at,
         refresh_token_updated_at=datetime.now(UTC) if encrypted_refresh_token is not None else None,
     )
@@ -235,6 +251,8 @@ def replace_refresh_token_if_unchanged(
     encrypted_refresh_token: str,
     access_token_expires_at: datetime,
     db: Session,
+    *,
+    encrypted_id_token: str | None = None,
 ) -> bool:
     """Stage new provider-token metadata only while the session still holds the token that was read.
 
@@ -244,6 +262,7 @@ def replace_refresh_token_if_unchanged(
         encrypted_refresh_token: The encrypted refresh token to store.
         access_token_expires_at: When the new access token expires.
         db: Database session.
+        encrypted_id_token: The encrypted ID token the refresh returned; the stored one is kept when None.
 
     Returns:
         True when the token was replaced, False when the session holds another one now.
@@ -252,6 +271,8 @@ def replace_refresh_token_if_unchanged(
     if row is None:
         return False
     row.refresh_token = encrypted_refresh_token
+    if encrypted_id_token is not None:
+        row.id_token = encrypted_id_token
     row.access_token_expires_at = access_token_expires_at
     row.refresh_token_updated_at = datetime.now(UTC)
     db.flush()
@@ -301,4 +322,6 @@ def delete_idp_session_token_if_unchanged(session_id: str, expected_refresh_toke
 def stage_reencrypt_batch_session_tokens(after_id: int, limit: int, db: Session) -> core_key_rotation.BatchResult:
     """Stage the re-encryption of up to ``limit`` session-token rows after ``after_id`` (flushed, not committed)."""
     model = identity_link_models.IdpSessionToken
-    return core_key_rotation.stage_reencrypt_batch(model, model.id, (model.refresh_token,), after_id, limit, db)
+    return core_key_rotation.stage_reencrypt_batch(
+        model, model.id, (model.refresh_token, model.id_token), after_id, limit, db
+    )

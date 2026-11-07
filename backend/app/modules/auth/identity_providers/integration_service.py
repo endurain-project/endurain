@@ -12,6 +12,7 @@ import modules.auth.identity_providers.authorization_service as identity_provide
 import modules.auth.identity_providers.constants as identity_providers_constants
 import modules.auth.identity_providers.contracts as identity_providers_contracts
 import modules.auth.identity_providers.crud as identity_providers_crud
+import modules.auth.identity_providers.end_session_service as identity_providers_end_session
 import modules.auth.identity_providers.oidc_client_service as identity_providers_oidc_client
 import modules.auth.identity_providers.step_up_ticket_store as identity_providers_step_up_tickets
 import modules.auth.identity_providers.token_service as identity_providers_tokens
@@ -102,3 +103,21 @@ def redeem_step_up_ticket(state: StateProvider, ticket: str) -> identity_provide
 def request_idp_token_refresh(user_id: int, session_id: str, db: Session) -> None:
     """Clear the session's retired IdP token now and queue its refresh if it is expiring, with the caller's commit."""
     identity_providers_tokens.IdpTokenService(_oidc_client()).request_idp_token_refresh(user_id, session_id, db)
+
+
+def read_end_session(session_id: str, db: Session) -> identity_providers_contracts.EndSessionRequest | None:
+    """Read the provider and ID token a session signed in with, before the session ends; None if it used none."""
+    return identity_providers_end_session.EndSessionService.read_end_session(session_id, db)
+
+
+def end_session_url(
+    request: identity_providers_contracts.EndSessionRequest, post_logout_redirect_uri: str | None
+) -> str | None:
+    """Build the provider URL that ends the session at the provider, after the caller committed; None on failure.
+
+    It may reach the network for discovery, so no database session may be open. A failure is logged and answers
+    None, because the Endurain session has already ended.
+    """
+    return identity_providers_end_session.EndSessionService(_oidc_client()).end_session_url(
+        request, post_logout_redirect_uri
+    )

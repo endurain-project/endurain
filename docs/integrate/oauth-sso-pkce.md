@@ -49,6 +49,10 @@ An account without a local password proves a sensitive change by signing in agai
 
 ID tokens are checked for `azp` and allow 60 seconds of clock leeway.
 
+### Signing out of the provider
+
+Ending an SSO session at Endurain does not sign the user out of the identity provider, so the provider's next "Sign in" would sign them straight back in. Endurain keeps the ID token the provider issued at each SSO sign-in, encrypted, and `POST /auth/logout` answers `idp_logout_url`, the provider's `end_session_endpoint` (from its discovery document) with `id_token_hint`, `client_id` and, for a web client, `post_logout_redirect_uri` set to `<ENDURAIN_HOST>/login`. A web client navigates the browser to it; a mobile client may open it in the system browser. The URL is `null` when the provider has no `end_session_endpoint` or the session did not sign in through a provider. See [Logout](authentication.md#logout).
+
 ### OAuth Token Response
 When authenticating via OAuth, the response format matches the standard authentication:
 

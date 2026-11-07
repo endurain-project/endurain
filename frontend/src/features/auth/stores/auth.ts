@@ -59,6 +59,24 @@ function isExpectedAuthError(error: unknown): boolean {
   return error instanceof HttpError && [401, 404].includes(error.status)
 }
 
+/**
+ * Accepts only an absolute `https:` URL, so a malformed or non-TLS value from
+ * the server never becomes a navigation target.
+ *
+ * @param url - Candidate URL, or `null`.
+ * @returns The URL when it is `https:`, otherwise `null`.
+ */
+function httpsUrlOrNull(url: string | null): string | null {
+  if (!url) {
+    return null
+  }
+  try {
+    return new URL(url).protocol === 'https:' ? url : null
+  } catch {
+    return null
+  }
+}
+
 let restorePromise: Promise<void> | null = null
 
 /**
@@ -250,10 +268,14 @@ export const useAuthStore = defineStore('auth', () => {
 
   /**
    * Logs out from the backend and always clears local auth state.
+   *
+   * @returns The identity provider's end-session URL when the session signed in
+   *   through a provider and the URL is `https:`, otherwise `null`.
    */
-  async function logout(): Promise<void> {
+  async function logout(): Promise<string | null> {
+    let idpLogoutUrl: string | null = null
     try {
-      await logoutSession()
+      idpLogoutUrl = httpsUrlOrNull((await logoutSession()).idp_logout_url)
     } catch (error) {
       if (!isExpectedAuthError(error)) {
         useTelemetry().captureError(error, { scope: 'logout' })
@@ -263,6 +285,7 @@ export const useAuthStore = defineStore('auth', () => {
       isReady.value = true
       useTelemetry().trackEvent('logout')
     }
+    return idpLogoutUrl
   }
 
   return {

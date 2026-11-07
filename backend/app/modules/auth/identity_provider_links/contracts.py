@@ -54,13 +54,14 @@ class IdentityLinkRead(BaseModel):
 
 
 class IdpSessionTokenRead(BaseModel):
-    """Persisted identity-provider sign-in of one Endurain session, including its encrypted refresh token."""
+    """Persisted identity-provider sign-in of one Endurain session, including its encrypted refresh and ID tokens."""
 
     id: int
     session_id: str
     user_id: int
     idp_id: int
     refresh_token: str | None
+    id_token: str | None
     access_token_expires_at: datetime | None
     refresh_token_updated_at: datetime | None
     created_at: datetime

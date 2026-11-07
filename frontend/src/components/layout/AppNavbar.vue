@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed } from 'vue'
-import { RouterLink, useRoute, useRouter, type RouteLocationRaw } from 'vue-router'
+import { RouterLink, useRoute, type RouteLocationRaw } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import { ChevronDown, LogOut, Settings } from '@lucide/vue'
 
@@ -20,6 +20,7 @@ import { Badge } from '@/components/ui/badge'
 import { useAppConfig } from '@/features/config/composables/useAppConfig'
 import { useCurrentUser } from '@/features/auth/composables/useCurrentUser'
 import { useNavigation, type NavLink } from '@/composables/useNavigation'
+import { useSignOut } from '@/features/auth/composables/useSignOut'
 import { useAuthStore } from '@/features/auth/stores/auth'
 import { useUpdateCheck } from '@/features/core/composables/useUpdateCheck'
 import { cn } from '@/lib/utils'
@@ -28,8 +29,8 @@ const { t } = useI18n()
 const { config } = useAppConfig()
 const { primaryLinks } = useNavigation()
 const auth = useAuthStore()
+const { signOut } = useSignOut()
 const { data: currentUser } = useCurrentUser()
-const router = useRouter()
 const route = useRoute()
 const { updateAvailable, latestVersion } = useUpdateCheck()
 
@@ -54,11 +55,6 @@ const profileRoute = computed<RouteLocationRaw>(() =>
     ? { name: 'user', params: { id: currentUser.value.id } }
     : { name: 'settings-profile' },
 )
-
-async function signOut(): Promise<void> {
-  await auth.logout()
-  await router.push({ name: 'login', query: { logoutSuccess: 'true' } })
-}
 </script>
 
 <template>

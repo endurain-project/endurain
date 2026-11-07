@@ -228,6 +228,21 @@ The API is reachable under `/api/v1`. Below are the authentication-related endpo
 | **Change Password** | `/auth/password-change` | Header: `X-Client-Type: mobile`; JSON `{'password_change_challenge': <password_change_challenge from /auth/login or /auth/mfa/verify>, 'password': '<new password>'}`. The PKCE values of the sign-in are kept with the challenge | 10 requests/min |
 | **Logout** | `/auth/logout` | Header: `X-Client-Type: mobile`; Header: `Authorization: Bearer <Refresh Token>` | 30 requests/min |
 
+### Logout
+
+`POST /auth/logout` ends the session named by the refresh token and answers `200` with `Cache-Control: no-store` and a JSON body:
+
+```json
+{ "idp_logout_url": "https://idp.example.com/logout?id_token_hint=...&client_id=...&post_logout_redirect_uri=https%3A%2F%2Fendurain.example.com%2Flogin" }
+```
+
+`idp_logout_url` is `null` unless the session signed in through an identity provider whose discovery document names an `end_session_endpoint` ([OpenID Connect RP-Initiated Logout 1.0](https://openid.net/specs/openid-connect-rpinitiated-1_0.html)). Then it is that endpoint with the query parameters `id_token_hint` (the ID token the provider issued at sign-in), `client_id` and, for a web client only, `post_logout_redirect_uri` (`<ENDURAIN_HOST>/login`), added to any query string the endpoint already has. The URL carries the ID token, so use it once and do not store or log it.
+
+- **Web client:** the session is already ended and the refresh cookie cleared when the answer arrives. When `idp_logout_url` is an `https:` URL, navigate the browser to it so the provider ends its session and sends the user back to the login page; otherwise show the login page.
+- **Mobile client:** the session is already ended. To also end the provider session, open `idp_logout_url` in the system browser (`ASWebAuthenticationSession` or Custom Tabs), as for sign-in. It has no `post_logout_redirect_uri`, so the provider shows its own signed-out page. A client that does not open it leaves the provider session in place.
+
+The Endurain session is ended and committed before the provider is asked for its endpoint. If the provider cannot be reached for it, logout still succeeds with `idp_logout_url: null` and the provider session stays.
+
 ### OAuth/SSO Endpoints
 
 | What | Url | Expected Information | Rate Limit |

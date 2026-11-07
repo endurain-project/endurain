@@ -8,9 +8,9 @@ from fastapi import (
     Depends,
     Request,
     Response,
-    status,
 )
 
+import core.cache_control as core_cache_control
 import core.config as core_config
 import core.dependencies as core_dependencies
 import core.exceptions as core_exceptions
@@ -306,7 +306,7 @@ def refresh_token(
     return authentication_dependencies.deliver_auth_outcome(response, outcome)
 
 
-@router.post("/logout", response_model=None, status_code=status.HTTP_204_NO_CONTENT)
+@router.post("/logout", response_model=auth_schema.LogoutRead)
 @core_rate_limit.limiter.limit(core_rate_limit.WRITE)
 def logout(
     response: Response,
@@ -330,8 +330,15 @@ def logout(
         Depends(credentials_integration.get_password_hasher),
     ],
     db: core_dependencies.DbSession,
-) -> None:
-    """Log out a user by validating and deleting their session.
+) -> auth_schema.LogoutRead:
+    """Log out a user by deleting their session, and answer where to end it at the identity provider.
+
+    A session that signed in through an identity provider whose discovery document names an end-session endpoint
+    (OpenID Connect RP-Initiated Logout 1.0) gets idp_logout_url, the provider's URL carrying the ID token as a hint
+    and client_id. A web client also gets the login page as post_logout_redirect_uri, which the provider must have
+    registered; a mobile client gets none. Any other session gets null. When the provider cannot be reached for
+    its endpoint, the session still ends and idp_logout_url is null: the provider session stays. The answer is never
+    cached, because the URL carries the ID token.
 
     Args:
         response: The HTTP response object to modify cookies.
@@ -344,15 +351,21 @@ def logout(
         password_hasher: Utility for verifying the refresh token.
         db: Database session for CRUD operations.
 
+    Returns:
+        The identity provider's end-session URL, or None when there is none.
+
     Raises:
         HTTPException: If refresh token is invalid (401 Unauthorized).
     """
-    auth_service.logout(
+    idp_logout_url = auth_service.logout(
         token_session_id,
         refresh_token_value,
         token_user_id,
         password_hasher,
+        client_type,
         db,
     )
+    core_cache_control.set_no_store(response)
     if client_type == auth_constants.ClientType.WEB:
         authentication_dependencies.clear_refresh_token_cookies(response, environment=core_config.settings.ENVIRONMENT)
+    return auth_schema.LogoutRead(idp_logout_url=idp_logout_url)

@@ -73,6 +73,8 @@ class IdpSessionToken(Base):
         user_id: Foreign key to users table.
         idp_id: Foreign key to identity_providers table.
         refresh_token: Encrypted refresh token; ``None`` when the provider issued none.
+        id_token: Encrypted ID token the provider issued at sign-in, kept to name the session at RP-initiated
+            logout; ``None`` when the provider issued none.
         access_token_expires_at: Access token expiry time.
         refresh_token_updated_at: When the refresh token was last stored.
         created_at: When the session signed in.
@@ -103,6 +105,11 @@ class IdpSessionToken(Base):
         Text,
         nullable=True,
         comment="Encrypted refresh token",
+    )
+    id_token: Mapped[str | None] = mapped_column(
+        Text,
+        nullable=True,
+        comment="Encrypted ID token the provider issued at sign-in",
     )
     access_token_expires_at: Mapped[datetime | None] = mapped_column(
         DateTime(timezone=True),

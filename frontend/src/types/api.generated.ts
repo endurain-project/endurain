@@ -641,7 +641,14 @@ export interface paths {
         put?: never;
         /**
          * Logout
-         * @description Log out a user by validating and deleting their session.
+         * @description Log out a user by deleting their session, and answer where to end it at the identity provider.
+         *
+         *     A session that signed in through an identity provider whose discovery document names an end-session endpoint
+         *     (OpenID Connect RP-Initiated Logout 1.0) gets idp_logout_url, the provider's URL carrying the ID token as a hint
+         *     and client_id. A web client also gets the login page as post_logout_redirect_uri, which the provider must have
+         *     registered; a mobile client gets none. Any other session gets null. When the provider cannot be reached for
+         *     its endpoint, the session still ends and idp_logout_url is null: the provider session stays. The answer is never
+         *     cached, because the URL carries the ID token.
          */
         post: operations["logout"];
         delete?: never;
@@ -8897,6 +8904,22 @@ export interface components {
             readonly version: number;
         };
         /**
+         * LogoutRead
+         * @description Sign-out answer: where to end the session at the identity provider, when the session signed in through one.
+         *
+         *     Attributes:
+         *         idp_logout_url: The identity provider's end-session URL, carrying the ID token as a hint, or None when the
+         *             session did not sign in through a provider, the provider has no end-session endpoint, or the URL could
+         *             not be built. A web client sends the browser there; a mobile client may open it in the system browser.
+         */
+        LogoutRead: {
+            /**
+             * Idp Logout Url
+             * @description The identity provider's end-session URL, or null when there is none. It carries the ID token, so a client uses it once and does not store it.
+             */
+            idp_logout_url: string | null;
+        };
+        /**
          * LogsStatus
          * @description Whether the log viewer is available on this deployment.
          *
@@ -15991,11 +16014,13 @@ export interface operations {
         requestBody?: never;
         responses: {
             /** @description Successful Response */
-            204: {
+            200: {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["LogoutRead"];
+                };
             };
             /** @description The credential is missing, invalid or no longer valid. */
             401: {

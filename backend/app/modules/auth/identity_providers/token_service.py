@@ -94,9 +94,9 @@ class IdpTokenService:
         token_response: dict[str, Any],
         db: Session,
     ) -> None:
-        """Stage the identity-provider sign-in behind a new session, with its refresh token when one was issued.
+        """Stage the identity-provider sign-in behind a new session, with its refresh and ID tokens when issued.
 
-        The row is staged even when the provider issued no refresh token, or the token cannot be encrypted, so it
+        The row is staged even when the provider issued no refresh token, or a token cannot be encrypted, so it
         always records which provider the session signed in through; the caller commits it with the session.
 
         Args:
@@ -104,7 +104,7 @@ class IdpTokenService:
             user_id: The signed-in user.
             idp_id: The identity provider.
             token_response: The OAuth token response from the IdP containing access_token, refresh_token
-                (optional), and expires_in.
+                (optional), id_token (optional), and expires_in.
             db: The database session holding the session's transaction.
 
         Raises:
@@ -113,13 +113,44 @@ class IdpTokenService:
                 is left to it.
 
         Security Note:
-            - The refresh token is encrypted using Fernet before storage
-            - If encryption fails, the error is logged, no token is stored and authentication continues
+            - The refresh and ID tokens are encrypted using Fernet before storage
+            - If encryption fails, the error is logged, that token is not stored and authentication continues
         """
         encrypted_refresh, expires_at = IdpTokenService._encrypt_token_response(user_id, idp_id, token_response)
         identity_provider_links_integration.create_idp_session_token(
-            session_id, user_id, idp_id, encrypted_refresh, expires_at, db
+            session_id,
+            user_id,
+            idp_id,
+            encrypted_refresh,
+            expires_at,
+            db,
+            encrypted_id_token=IdpTokenService._encrypt_id_token(user_id, idp_id, token_response),
         )
+
+    @staticmethod
+    def _encrypt_id_token(user_id: int, idp_id: int, token_response: dict[str, Any]) -> str | None:
+        """Encrypt the ID token of a token response, which RP-initiated logout presents as the hint.
+
+        Args:
+            user_id: The user the token belongs to, for the log.
+            idp_id: The provider, for the log.
+            token_response: The OAuth token response.
+
+        Returns:
+            The encrypted ID token, or None when the provider issued none or it cannot be encrypted.
+        """
+        id_token = token_response.get("id_token")
+        if not id_token or not isinstance(id_token, str):
+            return None
+        try:
+            return core_cryptography.encrypt_token_fernet(id_token)
+        except core_exceptions.CryptographyError as err:
+            logger.error(
+                "Error encrypting the IdP ID token for user <user_id>, idp <idp_id>; it is not stored",
+                exc_info=err,
+                extra=core_logger.context(user_id=user_id, idp_id=idp_id),
+            )
+            return None
 
     @staticmethod
     def _encrypt_token_response(
@@ -173,6 +204,7 @@ class IdpTokenService:
         """Stage the token a refresh returned, only while the session still holds the token the refresh read.
 
         A slower refresh therefore never overwrites a newer token. A response with no refresh token stores nothing.
+        A new ID token in the response replaces the stored one; without one the stored ID token stays.
 
         Args:
             session_id: The refreshed session.
@@ -190,7 +222,12 @@ class IdpTokenService:
         if encrypted_refresh is None or expires_at is None:
             return
         if not identity_provider_links_integration.replace_idp_session_token_if_unchanged(
-            session_id, expected_refresh_token, encrypted_refresh, expires_at, db
+            session_id,
+            expected_refresh_token,
+            encrypted_refresh,
+            expires_at,
+            db,
+            encrypted_id_token=self._encrypt_id_token(user_id, idp_id, token_response),
         ):
             logger.debug(
                 "Kept the IdP refresh token another refresh stored for user <user_id>, idp <idp_id>",

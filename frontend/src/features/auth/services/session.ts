@@ -1,6 +1,7 @@
 import type { AuthTokenResponse } from '@/types'
 import type {
   LoginResponse,
+  LogoutResponse,
   MfaLoginRequest,
   MfaVerifyResponse,
   PasswordChangeLoginRequest,
@@ -87,10 +88,11 @@ export function refreshSession(): Promise<AuthTokenResponse> {
 /**
  * Logs out the current backend session and clears the refresh cookie.
  *
+ * @returns The identity provider's end-session URL, or `null` when the session did not sign in through one.
  * @throws {HttpError} When the refresh session cannot be validated.
  */
-export async function logoutSession(): Promise<void> {
-  await apiFetch<void>('/auth/logout', {
+export function logoutSession(): Promise<LogoutResponse> {
+  return apiFetch<LogoutResponse>('/auth/logout', {
     method: 'POST',
     retryOnUnauthorized: false,
   })

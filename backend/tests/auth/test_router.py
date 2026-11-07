@@ -8,6 +8,7 @@ import pytest
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
 
+import core.config as core_config
 import core.database as core_database
 import core.exceptions as core_exceptions
 import modules.auth.access_tokens.service as auth_token_manager
@@ -1932,6 +1933,13 @@ class TestRefreshEndpoint:
 class TestLogoutEndpoint:
     """Tests for POST /auth/logout endpoint."""
 
+    @pytest.fixture(autouse=True)
+    def _signed_in_with_no_provider(self):
+        with patch(
+            "modules.auth.authentication.service.identity_providers_integration.read_end_session", return_value=None
+        ):
+            yield
+
     @patch("modules.auth.authentication.service.sessions_integration.delete_session")
     @patch("modules.auth.authentication.service.sessions_integration.get_session_by_id_not_expired")
     def test_logout_success(
@@ -1960,8 +1968,9 @@ class TestLogoutEndpoint:
 
         response = auth_client.post("/auth/logout")
 
-        assert response.status_code == 204
-        assert response.content == b""
+        assert response.status_code == 200
+        assert response.json() == {"idp_logout_url": None}
+        assert response.headers["cache-control"] == "no-store"
         mock_delete_session.assert_called_once()
 
     @patch("modules.auth.authentication.service.sessions_integration.get_session_by_id_not_expired")
@@ -2027,7 +2036,8 @@ class TestLogoutEndpoint:
 
         response = auth_client.post("/auth/logout")
 
-        assert response.status_code == 204
+        assert response.status_code == 200
+        assert response.json() == {"idp_logout_url": None}
         mock_delete_session.assert_not_called()
 
     @patch("modules.auth.authentication.service.sessions_integration.get_session_by_id_not_expired")
@@ -2112,7 +2122,8 @@ class TestLogoutEndpoint:
 
         response = auth_client.post("/auth/logout")
 
-        assert response.status_code == 204
+        assert response.status_code == 200
+        assert response.json() == {"idp_logout_url": None}
         mock_clear_cookies.assert_called_once()
 
     @patch("modules.auth.authentication.dependencies.clear_refresh_token_cookies")
@@ -2160,7 +2171,8 @@ class TestLogoutEndpoint:
 
         response = auth_client.post("/auth/logout")
 
-        assert response.status_code == 204
+        assert response.status_code == 200
+        assert response.json() == {"idp_logout_url": None}
         mock_clear_cookies.assert_not_called()
 
     @patch("modules.auth.authentication.dependencies.clear_refresh_token_cookies")
@@ -2184,6 +2196,88 @@ class TestLogoutEndpoint:
         app.dependency_overrides[authentication_dependencies.get_and_return_refresh_token] = lambda: "rt"
 
         response = auth_client.post("/auth/logout")
-        assert response.status_code == 204
+        assert response.status_code == 200
+        assert response.json() == {"idp_logout_url": None}
         mock_delete_session.assert_not_called()
         mock_clear_cookies.assert_not_called()
+
+    @staticmethod
+    def _signed_in_session(auth_app, password_hasher, session_id="sid-idp"):
+        mock_session = MagicMock()
+        mock_session.expires_at = datetime.now(UTC) + timedelta(days=30)
+        mock_session.id = session_id
+        mock_session.refresh_token = password_hasher.hash_password("rt")
+        auth_app.dependency_overrides[authentication_dependencies.validate_refresh_token] = lambda: None
+        auth_app.dependency_overrides[authentication_dependencies.get_sub_from_refresh_token] = lambda: 1
+        auth_app.dependency_overrides[authentication_dependencies.get_sid_from_refresh_token] = lambda: session_id
+        auth_app.dependency_overrides[authentication_dependencies.get_and_return_refresh_token] = lambda: "rt"
+        return mock_session
+
+    @patch("modules.auth.authentication.service.identity_providers_integration.end_session_url")
+    @patch("modules.auth.authentication.service.identity_providers_integration.read_end_session")
+    @patch("modules.auth.authentication.service.sessions_integration.delete_session")
+    @patch("modules.auth.authentication.service.sessions_integration.get_session_by_id_not_expired")
+    def test_logout_of_a_web_idp_session_answers_the_provider_url_without_caching(
+        self,
+        mock_get_session,
+        mock_delete_session,
+        mock_read,
+        mock_url,
+        auth_client,
+        auth_app,
+        password_hasher,
+    ):
+        mock_get_session.return_value = self._signed_in_session(auth_app, password_hasher)
+        mock_read.return_value = "end-session-request"
+        mock_url.return_value = "https://idp.example.com/out?id_token_hint=abc"
+
+        response = auth_client.post("/auth/logout")
+
+        assert response.status_code == 200
+        assert response.json() == {"idp_logout_url": "https://idp.example.com/out?id_token_hint=abc"}
+        assert response.headers["cache-control"] == "no-store"
+        assert mock_read.call_args.args[0] == "sid-idp"
+        assert mock_url.call_args.args[0] == "end-session-request"
+        assert mock_url.call_args.args[1] == f"{core_config.settings.ENDURAIN_HOST}/login"
+
+    @patch("modules.auth.authentication.service.identity_providers_integration.end_session_url")
+    @patch("modules.auth.authentication.service.identity_providers_integration.read_end_session")
+    @patch("modules.auth.authentication.service.sessions_integration.delete_session")
+    @patch("modules.auth.authentication.service.sessions_integration.get_session_by_id_not_expired")
+    def test_logout_of_a_mobile_idp_session_asks_for_a_url_without_a_return_address(
+        self,
+        mock_get_session,
+        mock_delete_session,
+        mock_read,
+        mock_url,
+        auth_client,
+        auth_app,
+        password_hasher,
+    ):
+        auth_app.state._client_type = "mobile"
+        mock_get_session.return_value = self._signed_in_session(auth_app, password_hasher)
+        mock_read.return_value = "end-session-request"
+        mock_url.return_value = "https://idp.example.com/out"
+
+        response = auth_client.post("/auth/logout")
+
+        assert response.json() == {"idp_logout_url": "https://idp.example.com/out"}
+        assert mock_url.call_args.args[1] is None
+
+    @patch("modules.auth.authentication.service.identity_providers_integration.end_session_url")
+    @patch("modules.auth.authentication.service.identity_providers_integration.read_end_session")
+    @patch("modules.auth.authentication.service.sessions_integration.get_session_by_id_not_expired")
+    def test_logout_of_a_missing_session_asks_no_provider(
+        self, mock_get_session, mock_read, mock_url, auth_client, auth_app
+    ):
+        mock_get_session.return_value = None
+        auth_app.dependency_overrides[authentication_dependencies.validate_refresh_token] = lambda: None
+        auth_app.dependency_overrides[authentication_dependencies.get_sub_from_refresh_token] = lambda: 1
+        auth_app.dependency_overrides[authentication_dependencies.get_sid_from_refresh_token] = lambda: "gone"
+        auth_app.dependency_overrides[authentication_dependencies.get_and_return_refresh_token] = lambda: "rt"
+
+        response = auth_client.post("/auth/logout")
+
+        assert response.json() == {"idp_logout_url": None}
+        mock_read.assert_not_called()
+        mock_url.assert_not_called()

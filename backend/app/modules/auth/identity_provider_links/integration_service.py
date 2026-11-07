@@ -69,10 +69,18 @@ def create_idp_session_token(
     encrypted_refresh_token: str | None,
     access_token_expires_at: datetime | None,
     db: Session,
+    *,
+    encrypted_id_token: str | None = None,
 ) -> identity_link_contracts.IdpSessionTokenRead:
-    """Stage the identity-provider sign-in behind a session, with its encrypted refresh token when one was issued."""
+    """Stage the identity-provider sign-in behind a session, with the encrypted tokens the provider issued."""
     return identity_link_crud.create_idp_session_token(
-        session_id, user_id, idp_id, encrypted_refresh_token, access_token_expires_at, db
+        session_id,
+        user_id,
+        idp_id,
+        encrypted_refresh_token,
+        access_token_expires_at,
+        db,
+        encrypted_id_token=encrypted_id_token,
     )
 
 
@@ -87,10 +95,17 @@ def replace_idp_session_token_if_unchanged(
     encrypted_refresh_token: str,
     access_token_expires_at: datetime,
     db: Session,
+    *,
+    encrypted_id_token: str | None = None,
 ) -> bool:
     """Stage a session's new provider-token metadata only while it still holds the token that was read."""
     return identity_link_crud.replace_refresh_token_if_unchanged(
-        session_id, expected_refresh_token, encrypted_refresh_token, access_token_expires_at, db
+        session_id,
+        expected_refresh_token,
+        encrypted_refresh_token,
+        access_token_expires_at,
+        db,
+        encrypted_id_token=encrypted_id_token,
     )
 
 

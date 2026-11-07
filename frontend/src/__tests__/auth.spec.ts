@@ -196,7 +196,7 @@ describe('auth store', () => {
   it('logs out remotely and clears local auth state', async () => {
     vi.mocked(loginWithPassword).mockResolvedValue(tokenResponse)
     vi.mocked(fetchCurrentUser).mockResolvedValue(authUser)
-    vi.mocked(logoutSession).mockResolvedValue()
+    vi.mocked(logoutSession).mockResolvedValue({ idp_logout_url: null })
 
     const auth = useAuthStore()
     await auth.login('demo', 'password123')
@@ -210,13 +210,54 @@ describe('auth store', () => {
     expect(realtimeDisconnect).toHaveBeenCalled()
   })
 
+  it('returns the provider logout URL when the session signed in through a provider', async () => {
+    vi.mocked(loginWithPassword).mockResolvedValue(tokenResponse)
+    vi.mocked(fetchCurrentUser).mockResolvedValue(authUser)
+    vi.mocked(logoutSession).mockResolvedValue({
+      idp_logout_url: 'https://idp.example.com/logout?id_token_hint=abc',
+    })
+
+    const auth = useAuthStore()
+    await auth.login('demo', 'password123')
+
+    await expect(auth.logout()).resolves.toBe('https://idp.example.com/logout?id_token_hint=abc')
+    expect(auth.isAuthenticated).toBe(false)
+  })
+
+  it.each(['http://idp.example.com/logout', 'javascript:alert(1)', 'not a url', ''])(
+    'ignores a provider logout URL that is not https (%s)',
+    async (idpLogoutUrl) => {
+      vi.mocked(loginWithPassword).mockResolvedValue(tokenResponse)
+      vi.mocked(fetchCurrentUser).mockResolvedValue(authUser)
+      vi.mocked(logoutSession).mockResolvedValue({ idp_logout_url: idpLogoutUrl })
+
+      const auth = useAuthStore()
+      await auth.login('demo', 'password123')
+
+      await expect(auth.logout()).resolves.toBeNull()
+      expect(auth.isAuthenticated).toBe(false)
+    },
+  )
+
+  it('clears local state and returns no URL when the backend logout fails', async () => {
+    vi.mocked(loginWithPassword).mockResolvedValue(tokenResponse)
+    vi.mocked(fetchCurrentUser).mockResolvedValue(authUser)
+    vi.mocked(logoutSession).mockRejectedValue(new HttpError(401, 'Unauthorized'))
+
+    const auth = useAuthStore()
+    await auth.login('demo', 'password123')
+
+    await expect(auth.logout()).resolves.toBeNull()
+    expect(auth.isAuthenticated).toBe(false)
+  })
+
   it('clears user-scoped storage while preserving device preferences on logout', async () => {
     localStorage.setItem('endurain:activity-draft', JSON.stringify({ name: 'Morning ride' }))
     localStorage.setItem('endurain:theme', JSON.stringify('dark'))
     localStorage.setItem('endurain:locale', JSON.stringify('en'))
     vi.mocked(loginWithPassword).mockResolvedValue(tokenResponse)
     vi.mocked(fetchCurrentUser).mockResolvedValue(authUser)
-    vi.mocked(logoutSession).mockResolvedValue()
+    vi.mocked(logoutSession).mockResolvedValue({ idp_logout_url: null })
 
     const auth = useAuthStore()
     await auth.login('demo', 'password123')

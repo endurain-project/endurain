@@ -130,3 +130,6 @@ export interface OnboardingStatus {
 
 /** Body of `POST /public/onboarding`, derived from the generated `OnboardingCreate` schema. */
 export type OnboardingRequest = Schemas['OnboardingCreate']
+
+/** Sign-out answer: the identity provider's end-session URL, or `null` when there is none. */
+export type LogoutResponse = Schemas['LogoutRead']

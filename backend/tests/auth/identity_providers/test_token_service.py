@@ -543,6 +543,54 @@ class TestStoreSessionTokens:
         assert create.call_args.args[:5] == (SESSION, 7, 3, None, None)
         assert [record.levelno for record in caplog.records if record.levelno >= logging.WARNING] == [logging.ERROR]
 
+    def test_the_id_token_is_stored_encrypted_beside_the_refresh_token(self):
+        with (
+            patch.object(
+                token_service_module.core_cryptography, "encrypt_token_fernet", side_effect=lambda value: f"enc:{value}"
+            ),
+            patch.object(
+                token_service_module.identity_provider_links_integration, "create_idp_session_token"
+            ) as create,
+        ):
+            _service().store_session_tokens(SESSION, 7, 3, {"refresh_token": "rt", "id_token": "idt"}, MagicMock())
+
+        assert create.call_args.args[3] == "enc:rt"
+        assert create.call_args.kwargs == {"encrypted_id_token": "enc:idt"}
+
+    def test_an_id_token_is_stored_even_when_the_provider_issued_no_refresh_token(self):
+        with (
+            patch.object(
+                token_service_module.core_cryptography, "encrypt_token_fernet", side_effect=lambda value: f"enc:{value}"
+            ),
+            patch.object(
+                token_service_module.identity_provider_links_integration, "create_idp_session_token"
+            ) as create,
+        ):
+            _service().store_session_tokens(SESSION, 7, 3, {"id_token": "idt"}, MagicMock())
+
+        assert create.call_args.args[3] is None
+        assert create.call_args.kwargs == {"encrypted_id_token": "enc:idt"}
+
+    def test_a_response_without_an_id_token_stores_none(self):
+        create, _, _ = self._store({"refresh_token": "rt"})
+
+        assert create.call_args.kwargs == {"encrypted_id_token": None}
+
+    def test_an_id_token_that_cannot_be_encrypted_is_dropped_without_its_value_in_the_log(self, caplog):
+        import logging
+
+        def encrypt(value):
+            if value == "idt-secret":
+                raise core_exceptions.CryptographyError()
+            return "ciphertext"
+
+        with caplog.at_level(logging.DEBUG):
+            create, _, _ = self._store({"refresh_token": "rt", "id_token": "idt-secret"}, encrypt=encrypt)
+
+        assert create.call_args.args[3] == "ciphertext"
+        assert create.call_args.kwargs == {"encrypted_id_token": None}
+        assert "idt-secret" not in caplog.text
+
     def test_a_numeric_string_expires_in_is_stored(self):
         create, before, after = self._store({"refresh_token": "rt", "expires_in": "300"})
 
@@ -599,6 +647,28 @@ class TestStoreRefreshedToken:
 
         assert replace.call_args.args[:4] == (SESSION, "read-ciphertext", "ciphertext", replace.call_args.args[3])
         assert replace.call_args.args[3] > datetime.now(UTC)
+
+    def test_the_new_id_token_replaces_the_stored_one(self):
+        with (
+            patch.object(
+                token_service_module.core_cryptography, "encrypt_token_fernet", side_effect=lambda value: f"enc:{value}"
+            ),
+            patch.object(
+                token_service_module.identity_provider_links_integration,
+                "replace_idp_session_token_if_unchanged",
+                return_value=True,
+            ) as replace,
+        ):
+            _service()._store_refreshed_token(
+                SESSION, 7, 3, {"refresh_token": "rt", "id_token": "idt"}, "read-ciphertext", MagicMock()
+            )
+
+        assert replace.call_args.kwargs == {"encrypted_id_token": "enc:idt"}
+
+    def test_a_refresh_without_an_id_token_leaves_the_stored_one(self):
+        replace = self._store({"refresh_token": "rt"})
+
+        assert replace.call_args.kwargs == {"encrypted_id_token": None}
 
     def test_a_response_without_a_refresh_token_stores_nothing(self):
         replace = self._store({"access_token": "at"})

@@ -46,6 +46,7 @@ Pocket ID is a lightweight, self-hosted identity provider that works seamlessly 
     - **Name**: `Endurain`
     - **Client Launch URL**: Your Endurain FQDN (e.g., `https://endurain.mydomain.com`)
     - **Callback URLs**: `https://endurain.mydomain.com/api/v1/public/idp/callback/pocket-id`
+    - **Logout Callback URLs**: `https://endurain.mydomain.com/login`
 5. Click **Save**
 6. **Important**: Make a note of your **Client ID** and **Client Secret**
 
@@ -119,6 +120,7 @@ Create an OAuth 2.0/OIDC client application with the following settings:
 
 - **Application Name**: `Endurain`
 - **Redirect/Callback URI**: `https://<your-endurain-domain>/api/v1/public/idp/callback/<slug>`
+- **Post-logout redirect URI**: `https://<your-endurain-domain>/login` (the value of `ENDURAIN_HOST` followed by `/login`), so the provider can send the browser back to Endurain after it ends its session. Providers that require registered post-logout URIs refuse the sign-out redirect without it.
 - **Grant Type**: `Authorization Code`
 - **Scopes**: At minimum `openid profile email`
 
@@ -171,6 +173,7 @@ Each time you sign in through a provider, Endurain keeps the refresh token the p
 - **Refreshing.** The token is renewed in the background as your Endurain session is refreshed, never during a request. If the provider is unreachable or fails, the token is kept and the next refresh tries again.
 - **A refused refresh ends that sign-in.** When the provider refuses the refresh token (for example because you were removed from the provider or revoked the application there), Endurain signs out that one session and records it in the audit trail. Your other sessions are not affected. A token that Endurain can no longer decrypt, such as after a lost encryption key, is dropped without ending the session.
 - **Signing out revokes the token.** Signing out, revoking a session, changing or resetting the password, deactivating the account and a detected refresh-token reuse all end Endurain sessions. For each one Endurain asks the provider to revoke the session's refresh token ([RFC 7009](https://datatracker.ietf.org/doc/html/rfc7009)), when the provider advertises a `revocation_endpoint` in its discovery document, and then forgets it. A provider without one is not asked. If the provider cannot be reached, Endurain tries again every 15 minutes. Sessions that simply expire are handled by the same job.
+- **Signing out at Endurain also signs out at the provider.** When the provider advertises an `end_session_endpoint` ([OpenID Connect RP-Initiated Logout](https://openid.net/specs/openid-connect-rpinitiated-1_0.html)), signing out in the web app sends the browser to the provider with the ID token Endurain kept for that sign-in, so the provider ends its own session and returns to the Endurain login page. Endurain stores that ID token encrypted with the session's refresh token and deletes it with the sign-in. A provider without an `end_session_endpoint` is not asked, and if the provider cannot be reached for it, signing out at Endurain still succeeds and the provider session stays. A session from before this behaviour has no ID token and signs out of Endurain only.
 - **Unlinking a provider signs out its sessions.** Unlinking a provider, yourself or as an administrator, ends every session of that user that signed in through it, including your current one when it did, and revokes their tokens.
 - **Sessions from before the upgrade** keep working until they expire, but are not refreshed against the provider and have no token to revoke.
 

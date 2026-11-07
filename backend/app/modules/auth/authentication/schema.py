@@ -90,6 +90,25 @@ class MobileSessionRead(BaseModel):
     device_id: StrictStr | None = None
 
 
+class LogoutRead(BaseModel):
+    """Sign-out answer: where to end the session at the identity provider, when the session signed in through one.
+
+    Attributes:
+        idp_logout_url: The identity provider's end-session URL, carrying the ID token as a hint, or None when the
+            session did not sign in through a provider, the provider has no end-session endpoint, or the URL could
+            not be built. A web client sends the browser there; a mobile client may open it in the system browser.
+    """
+
+    model_config = ConfigDict(extra="forbid")
+
+    idp_logout_url: StrictStr | None = Field(
+        description=(
+            "The identity provider's end-session URL, or null when there is none. It carries the ID token, so a "
+            "client uses it once and does not store it."
+        )
+    )
+
+
 class TokenWebRead(BaseModel):
     """Token response payload for web clients.
 

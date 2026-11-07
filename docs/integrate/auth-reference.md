@@ -85,7 +85,7 @@ All errors, including authentication and authorization failures, use one problem
     - `X-Client-Type: web` for all requests
     - `X-CSRF-Token: {csrf_token}` for protected POST/PUT/DELETE/PATCH requests, except `/auth/refresh` bootstrap. Protected web writes require the header, though the server checks only that it is present; `/auth/refresh` also validates the token value when supplied and bound to the session
 5. **Handle page reload gracefully** - Call `/auth/refresh` on app initialization to restore in-memory tokens
-6. **Clear tokens on logout** - The httpOnly cookie is cleared by the backend
+6. **Clear tokens on logout** - The httpOnly cookie is cleared by the backend. When `POST /auth/logout` answers an `https:` `idp_logout_url`, navigate the browser to it to end the identity provider session too
 
 ### For Mobile Client Applications
 
@@ -97,7 +97,7 @@ All errors, including authentication and authorization failures, use one problem
     - `Authorization: Bearer {access_token}` for all authenticated requests
     - `X-Client-Type: mobile` for all requests
 4. **Handle token refresh proactively** - Refresh before expiration
-5. **Implement secure token deletion** on logout
+5. **Implement secure token deletion** on logout, and open an `idp_logout_url` the logout answer carries in the system browser if the provider session should end too
 
 ### For Security
 

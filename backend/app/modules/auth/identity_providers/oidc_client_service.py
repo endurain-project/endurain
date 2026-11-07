@@ -454,6 +454,31 @@ class OidcClientService:
         core_network.reject_private_url(revocation_endpoint, purpose="oidc_revocation", require_tls=True)
         return revocation_endpoint
 
+    def resolve_end_session_endpoint(self, idp: identity_provider_contracts.IdentityProviderState) -> str | None:
+        """Resolve the RP-initiated logout endpoint a provider advertises in its discovery document.
+
+        Args:
+            idp: The identity provider configuration.
+
+        Returns:
+            The end-session endpoint URL, or None when the provider has no issuer URL or its discovery document
+            names no end-session endpoint.
+
+        Raises:
+            UpstreamError: If the discovery document cannot be retrieved, so the provider may still have one.
+            InvalidInputError: If the SSRF guard refuses the advertised endpoint.
+        """
+        if not idp.issuer_url:
+            return None
+        config = self.get_oidc_configuration(idp)
+        if config is None:
+            raise core_exceptions.UpstreamError(f"Identity provider {idp.name} discovery document is unavailable")
+        end_session_endpoint = config.get("end_session_endpoint")
+        if not isinstance(end_session_endpoint, str) or not end_session_endpoint:
+            return None
+        core_network.reject_private_url(end_session_endpoint, purpose="oidc_end_session", require_tls=True)
+        return end_session_endpoint
+
     def create_oauth_client(
         self,
         client_id: str,

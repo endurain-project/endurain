@@ -9,6 +9,7 @@ from uuid import uuid4
 import jasil.audit as jasil_audit
 from sqlalchemy.orm import Session
 
+import core.config as core_config
 import core.exceptions as core_exceptions
 import core.logger as core_logger
 import core.timezone as core_timezone
@@ -23,6 +24,7 @@ import modules.auth.authentication.token_service as authentication_token_service
 import modules.auth.computation as auth_computation
 import modules.auth.constants as auth_constants
 import modules.auth.credentials.integration_service as credentials_integration
+import modules.auth.identity_providers.integration_service as identity_providers_integration
 import modules.auth.known_devices.events as known_devices_events
 import modules.auth.known_devices.integration_service as known_devices_integration
 import modules.auth.lockout.contracts as lockout_contracts
@@ -889,16 +891,29 @@ def logout(
     refresh_token_value: str,
     token_user_id: int,
     password_hasher: credentials_integration.PasswordHasher,
+    client_type: auth_constants.ClientType,
     db: Session,
-) -> None:
-    """Log out a user by validating and deleting their session.
+) -> str | None:
+    """Log out a user by validating and deleting their session, and name where to end it at the identity provider.
+
+    The provider and ID token of an identity-provider sign-in are read before the session is deleted, because the
+    sign-in is deleted with it. The deletion is committed first; only then is the provider's end-session endpoint
+    resolved, which may reach the network for discovery, so no transaction spans it. The user-facing operation has
+    already succeeded by then, so a provider failure there is logged and answers no URL: the Endurain session is
+    ended and the provider session stays.
 
     Args:
         token_session_id: The session ID extracted from the refresh token.
         refresh_token_value: The refresh token value from the request.
         token_user_id: The user ID extracted from the refresh token.
         password_hasher: Utility for verifying the refresh token.
+        client_type: The type of client; a web client is sent back to the login page after the provider ends its
+            session, a mobile client is not.
         db: Database session for CRUD operations.
+
+    Returns:
+        The identity provider's end-session URL, or None when the session did not sign in through a provider whose
+        discovery document names an end-session endpoint, or no live session was found.
 
     Raises:
         UnauthenticatedError: If the refresh token is invalid.
@@ -907,28 +922,37 @@ def logout(
     session = sessions_integration.get_session_by_id_not_expired(token_session_id, db)
 
     # Check if the session was found
-    if session is not None:
-        # Verify session has a refresh token (not pending PKCE exchange)
-        if not session.refresh_token:
-            raise core_exceptions.UnauthenticatedError(
-                "Tokens not yet exchanged via PKCE. Cannot logout incomplete session.", scheme="Bearer"
-            )
+    if session is None:
+        return None
 
-        # Verify the refresh token
-        is_valid = password_hasher.verify_password(refresh_token_value, session.refresh_token)
+    # Verify session has a refresh token (not pending PKCE exchange)
+    if not session.refresh_token:
+        raise core_exceptions.UnauthenticatedError(
+            "Tokens not yet exchanged via PKCE. Cannot logout incomplete session.", scheme="Bearer"
+        )
 
-        # If the refresh token is not valid, raise an exception
-        if not is_valid:
-            logger.warning(
-                "Logout refused: refresh token does not match session for user <token_user_id>",
-                extra=core_logger.context(token_user_id=token_user_id),
-            )
-            raise core_exceptions.UnauthenticatedError("Invalid refresh token", scheme="Bearer")
+    # Verify the refresh token
+    is_valid = password_hasher.verify_password(refresh_token_value, session.refresh_token)
 
-        # Delete the session from the database
-        sessions_integration.delete_session(session.id, token_user_id, db)
-        with authentication_refusal_audit.refresh_token_context(token_user_id):
-            jasil_audit.stage(
-                db, authentication_audit_actions.LOGOUT, **login_audit_integration.user_target(token_user_id)
-            )
-        db.commit()
+    # If the refresh token is not valid, raise an exception
+    if not is_valid:
+        logger.warning(
+            "Logout refused: refresh token does not match session for user <token_user_id>",
+            extra=core_logger.context(token_user_id=token_user_id),
+        )
+        raise core_exceptions.UnauthenticatedError("Invalid refresh token", scheme="Bearer")
+
+    end_session = identity_providers_integration.read_end_session(session.id, db)
+
+    # Delete the session from the database
+    sessions_integration.delete_session(session.id, token_user_id, db)
+    with authentication_refusal_audit.refresh_token_context(token_user_id):
+        jasil_audit.stage(db, authentication_audit_actions.LOGOUT, **login_audit_integration.user_target(token_user_id))
+    db.commit()
+
+    if end_session is None:
+        return None
+    post_logout_redirect_uri = (
+        f"{core_config.settings.ENDURAIN_HOST}/login" if client_type == auth_constants.ClientType.WEB else None
+    )
+    return identity_providers_integration.end_session_url(end_session, post_logout_redirect_uri)

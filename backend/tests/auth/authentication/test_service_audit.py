@@ -13,6 +13,7 @@ import modules.auth.authentication.failed_login_store as failed_login_store
 import modules.auth.authentication.refresh_service as authentication_service_refresh_service
 import modules.auth.authentication.service as authentication_service
 import modules.auth.authentication.sso_exchange_service as authentication_service_sso_exchange_service
+import modules.auth.constants as auth_constants
 import modules.auth.known_devices.contracts as known_devices_contracts
 import modules.auth.login_audit.audit_actions as login_audit_actions
 from tests._helpers.auth import pending_login
@@ -285,9 +286,10 @@ class TestLogoutAndReuse:
         with (
             patch(f"{_SERVICE}.sessions_integration.get_session_by_id_not_expired", return_value=self._session()),
             patch(f"{_SERVICE}.sessions_integration.delete_session"),
+            patch(f"{_SERVICE}.identity_providers_integration.read_end_session", return_value=None),
             jasil_testing.capture_audit() as audit,
         ):
-            authentication_service.logout("sid", "rt", 1, hasher, mock_db)
+            authentication_service.logout("sid", "rt", 1, hasher, auth_constants.ClientType.WEB, mock_db)
 
         audit.assert_audited(
             authentication_audit_actions.LOGOUT.id,
@@ -303,7 +305,7 @@ class TestLogoutAndReuse:
             patch(f"{_SERVICE}.sessions_integration.get_session_by_id_not_expired", return_value=None),
             jasil_testing.capture_audit() as audit,
         ):
-            authentication_service.logout("sid", "rt", 1, MagicMock(), mock_db)
+            authentication_service.logout("sid", "rt", 1, MagicMock(), auth_constants.ClientType.WEB, mock_db)
 
         audit.assert_not_audited(authentication_audit_actions.LOGOUT.id)
 

@@ -195,7 +195,12 @@ class TestModuleWiring:
     def test_identity_provider_links(self, db, rotating_keys):
         db.execute(
             insert(identity_link_models.IdpSessionToken).values(
-                id=1, session_id="session-1", user_id=1, idp_id=1, refresh_token=_token(OLD_KEY, "refresh")
+                id=1,
+                session_id="session-1",
+                user_id=1,
+                idp_id=1,
+                refresh_token=_token(OLD_KEY, "refresh"),
+                id_token=_token(OLD_KEY, "id-token"),
             )
         )
         db.commit()
@@ -205,6 +210,9 @@ class TestModuleWiring:
         stored = db.execute(select(identity_link_models.IdpSessionToken.refresh_token)).scalar_one()
         assert _plain(stored) == "refresh"
         Fernet(NEW_KEY.encode()).decrypt(stored.encode())
+        id_token = db.execute(select(identity_link_models.IdpSessionToken.id_token)).scalar_one()
+        assert _plain(id_token) == "id-token"
+        Fernet(NEW_KEY.encode()).decrypt(id_token.encode())
 
     def test_rotated_refresh_tokens(self, db, rotating_keys):
         now = datetime.now(UTC)

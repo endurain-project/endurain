@@ -176,6 +176,35 @@ class TestSessionTokens:
         assert self._stored(db).access_token_expires_at.replace(tzinfo=UTC) == expires
         db.close()
 
+    def test_the_id_token_is_stored_with_the_sign_in_and_replaced_by_a_refresh_that_returns_one(self):
+        db = create_sqlite_session()
+        old = core_cryptography.encrypt_token_fernet("old")
+        identity_links_crud.create_idp_session_token(SESSION, 7, 3, old, None, db, encrypted_id_token="id-1")
+        db.commit()
+        assert self._stored(db).id_token == "id-1"
+
+        assert identity_links_crud.replace_refresh_token_if_unchanged(
+            SESSION, old, "new", datetime.now(UTC), db, encrypted_id_token="id-2"
+        )
+        assert self._stored(db).id_token == "id-2"
+        db.close()
+
+    def test_a_refresh_that_returns_no_id_token_keeps_the_stored_one(self):
+        db = create_sqlite_session()
+        old = core_cryptography.encrypt_token_fernet("old")
+        identity_links_crud.create_idp_session_token(SESSION, 7, 3, old, None, db, encrypted_id_token="id-1")
+        db.commit()
+
+        assert identity_links_crud.replace_refresh_token_if_unchanged(SESSION, old, "new", datetime.now(UTC), db)
+        assert self._stored(db).id_token == "id-1"
+        db.close()
+
+    def test_a_sign_in_without_an_id_token_stores_none(self):
+        db = self._db_with_token("encrypted")
+
+        assert self._stored(db).id_token is None
+        db.close()
+
     def test_a_replace_over_a_token_another_refresh_stored_is_dropped(self):
         db = self._db_with_token("stored-by-another")
 

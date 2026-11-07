@@ -3,7 +3,7 @@
 from datetime import datetime
 from typing import Any, Literal, Protocol
 
-from pydantic import BaseModel, ConfigDict
+from pydantic import BaseModel, ConfigDict, Field
 
 import modules.auth.identity_providers.constants as idp_constants
 import modules.auth.oauth_state.constants as oauth_state_constants
@@ -62,6 +62,23 @@ class StagedBrowserFlow(BaseModel):
     nonce: str
     idp_code_verifier: str
     browser_binding: str
+
+    model_config = ConfigDict(frozen=True)
+
+
+class EndSessionRequest(BaseModel):
+    """What ending a session at its identity provider needs, read while the sign-in is still stored.
+
+    The sign-in is deleted once the Endurain session ends, so the provider and the ID token are read first and the
+    provider URL is built afterwards, with no database session open.
+
+    Attributes:
+        idp: The provider the session signed in through.
+        encrypted_id_token: The ID token the provider issued at sign-in, encrypted; kept out of the repr.
+    """
+
+    idp: IdentityProviderState
+    encrypted_id_token: str = Field(repr=False)
 
     model_config = ConfigDict(frozen=True)
 
