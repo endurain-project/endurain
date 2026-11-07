@@ -14,6 +14,7 @@ from jasil.backends.state_memory import MemoryState
 from jasil.providers import StateBackendUnavailableError
 from joserfc import jwt
 from joserfc.jwk import RSAKey
+from sqlalchemy.exc import OperationalError
 
 import core.exceptions as core_exceptions
 import modules.auth.identity_provider_links.crud as identity_links_crud
@@ -111,18 +112,19 @@ class _Run:
         self.live = set(live)
         self.deleted: list[tuple[str, int]] = []
 
+    def _delete(self, session_id: str, user_id: int, _db) -> bool:
+        if session_id not in self.live:
+            return False
+        self.deleted.append((session_id, user_id))
+        return True
+
     def __call__(self, token: str) -> None:
         with (
             patch.object(backchannel_logout_service.idp_crud, "get_identity_provider_by_slug", return_value=self.idp),
             patch.object(
                 identity_links_service.sessions_integration,
-                "get_existing_session_ids",
-                side_effect=lambda ids, _db: {i for i in ids if i in self.live},
-            ),
-            patch.object(
-                identity_links_service.sessions_integration,
-                "delete_session",
-                side_effect=lambda session_id, user_id, _db: self.deleted.append((session_id, user_id)),
+                "delete_session_if_present",
+                side_effect=self._delete,
             ),
         ):
             self.service.logout("pocket-id", token, self.db)
@@ -219,6 +221,58 @@ class TestMatching:
 
         assert run.deleted == []
         audit.assert_not_audited(sessions_audit_actions.SESSION_REVOKE.id)
+
+
+class TestSessionsThatVanish:
+    def test_a_session_gone_by_the_time_it_is_ended_is_skipped_and_the_audit_counts_the_ended_ones(
+        self, service, db, rsa_key
+    ):
+        run = _Run(service, db, live=("s1", "s3"))
+
+        with jasil_testing.capture_audit() as audit:
+            run(_token(rsa_key, sid="sid-a"))
+
+        assert sorted(run.deleted) == [("s1", 7), ("s3", 8)]
+        rows = {entry.target_id: entry.details for entry in audit.matching(sessions_audit_actions.SESSION_REVOKE.id)}
+        assert rows == {"7": {"sessions_revoked": 1}, "8": {"sessions_revoked": 1}}
+
+
+class TestFailureWhileEndingSessions:
+    def _fail_ending(self, error):
+        return patch.object(
+            backchannel_logout_service.identity_provider_links_integration, "end_idp_sessions_by_sid", side_effect=error
+        )
+
+    def test_the_claim_is_released_and_the_same_token_succeeds_on_retry(self, service, db, rsa_key):
+        token = _token(rsa_key, sid="sid-a")
+        error = OperationalError("COMMIT", {}, Exception("db down"))
+
+        with self._fail_ending(error), pytest.raises(OperationalError) as raised:
+            _Run(service, db)(token)
+        run = _Run(service, db)
+        run(token)
+
+        assert raised.value is error
+        assert sorted(run.deleted) == [("s1", 7), ("s2", 7), ("s3", 8)]
+
+    def test_a_release_that_fails_is_logged_and_the_original_error_is_raised(self, service, state, db, rsa_key):
+        error = OperationalError("COMMIT", {}, Exception("db down"))
+        broken = MagicMock(wraps=state)
+        broken.delete.side_effect = StateBackendUnavailableError("down")
+        service = backchannel_logout_service.BackchannelLogoutService(service._oidc, broken)
+
+        with self._fail_ending(error), pytest.raises(OperationalError) as raised:
+            _Run(service, db)(_token(rsa_key, sid="sid-a"))
+
+        assert raised.value is error
+
+    def test_a_replay_refusal_releases_nothing(self, service, db, rsa_key):
+        token = _token(rsa_key, sid="sid-a")
+        _Run(service, db)(token)
+
+        for _ in range(2):
+            with pytest.raises(core_exceptions.InvalidInputError):
+                _Run(service, db)(token)
 
 
 class TestAudit:

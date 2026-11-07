@@ -48,13 +48,20 @@ class BackchannelLogoutService:
             InvalidInputError: If the token does not verify, is replayed, or the provider's signing keys cannot be
                 read; the refusal is audited.
             ServiceUnavailableError: If the state store that records used tokens cannot be reached.
+
+        Any other failure while ending the sessions releases the token's claim and is raised unchanged, so the
+        provider's retry of the same token is accepted.
         """
         idp = _require_logout_provider(idp_slug, db)
         db.commit()
         logger.debug("Back-channel logout request for idp <idp_id>", extra=core_logger.context(idp_id=idp.id))
         claims = self._verify(idp, logout_token)
         self._claim_once(idp, claims)
-        _end_sessions(idp.id, claims, db)
+        try:
+            _end_sessions(idp.id, claims, db)
+        except Exception:
+            self._release_claim(idp.id, claims)
+            raise
 
     def _verify(self, idp: identity_provider_contracts.IdentityProviderState, logout_token: str) -> dict[str, Any]:
         """Verify a logout token against the provider's discovered issuer and signing keys.
@@ -96,6 +103,24 @@ class BackchannelLogoutService:
         ttl_seconds = max(1, math.ceil(expires_in))
         if not logout_token_replay_store.claim_logout_token(self._state, idp.id, claims["jti"], ttl_seconds):
             raise _refusal(idp.id, idp_audit_actions.BackchannelLogoutRefusal.REPLAYED)
+
+    def _release_claim(self, idp_id: int, claims: dict[str, Any]) -> None:
+        """Release the token's claim after the sessions failed to end, so the provider can retry it.
+
+        A release that fails is logged and not raised: the failure that ended the request is what the caller must see.
+
+        Args:
+            idp_id: The provider.
+            claims: The verified claims.
+        """
+        try:
+            logout_token_replay_store.release_logout_token(self._state, idp_id, claims["jti"])
+        except core_exceptions.ServiceUnavailableError as err:
+            logger.error(
+                "Back-channel logout token for idp <idp_id> could not be released; its retry will be refused",
+                extra=core_logger.context(idp_id=idp_id),
+                exc_info=err,
+            )
 
 
 def _require_logout_provider(idp_slug: str, db: Session) -> identity_provider_contracts.IdentityProviderState:

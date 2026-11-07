@@ -173,6 +173,26 @@ def update_session_csrf_token(session_id: str, new_csrf_token: str, db: Session)
 def stage_delete_session(session_id: str, user_id: int, db: Session) -> None:
     """Stage deletion of a session with its token and OAuth state records; the caller commits."""
     session = sessions_crud.delete_session(session_id, user_id, db)
+    _stage_deleted_session_cleanup(session, session_id, user_id, db)
+
+
+def stage_delete_session_if_present(session_id: str, user_id: int, db: Session) -> bool:
+    """Stage deletion of a session as ``stage_delete_session`` does, or do nothing when the user has no such session.
+
+    Returns:
+        True when a session was deleted, False when it was already gone.
+    """
+    session = sessions_crud.delete_session_if_present(session_id, user_id, db)
+    if session is None:
+        return False
+    _stage_deleted_session_cleanup(session, session_id, user_id, db)
+    return True
+
+
+def _stage_deleted_session_cleanup(
+    session: sessions_contracts.SessionRead, session_id: str, user_id: int, db: Session
+) -> None:
+    """Stage the removal of a deleted session's OAuth state and rotated tokens and publish the revocation."""
     if session.oauth_state_id:
         oauth_state_integration.delete_oauth_state(session.oauth_state_id, db)
     rotated_refresh_tokens_integration.delete_by_family(session.token_family_id, db)

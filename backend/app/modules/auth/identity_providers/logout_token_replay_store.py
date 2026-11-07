@@ -31,8 +31,32 @@ def claim_logout_token(state: StateProvider, idp_id: int, jti: str, ttl_seconds:
         ServiceUnavailableError: When the state store cannot be reached. The token is refused rather than
             accepted without the replay check.
     """
-    key = f"{_KEY_PREFIX}:{idp_id}:{core_hashing.sha256_hex(jti)}"
+    key = _key(idp_id, jti)
     try:
         return state.set_if_absent(key, b"1", ttl_seconds)
     except StateBackendUnavailableError as err:
         raise core_exceptions.ServiceUnavailableError("Back-channel logout temporarily unavailable") from err
+
+
+def release_logout_token(state: StateProvider, idp_id: int, jti: str) -> None:
+    """Forget a claimed logout token so the provider's retry of it is accepted.
+
+    Releasing a token that holds no claim is not an error.
+
+    Args:
+        state: The platform state provider.
+        idp_id: The provider that issued the token.
+        jti: The token's ``jti`` claim.
+
+    Raises:
+        ServiceUnavailableError: When the state store cannot be reached.
+    """
+    try:
+        state.delete(_key(idp_id, jti))
+    except StateBackendUnavailableError as err:
+        raise core_exceptions.ServiceUnavailableError("Back-channel logout temporarily unavailable") from err
+
+
+def _key(idp_id: int, jti: str) -> str:
+    """Return the state key of a provider's logout token."""
+    return f"{_KEY_PREFIX}:{idp_id}:{core_hashing.sha256_hex(jti)}"

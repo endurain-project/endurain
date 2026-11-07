@@ -112,6 +112,11 @@ def delete_session(session_id: str, user_id: int, db: Session) -> None:
     sessions_service.stage_delete_session(session_id, user_id, db)
 
 
+def delete_session_if_present(session_id: str, user_id: int, db: Session) -> bool:
+    """Stage deletion of a session owned by a user; returns False when it was already gone."""
+    return sessions_service.stage_delete_session_if_present(session_id, user_id, db)
+
+
 def delete_sessions_by_user(user_id: int, db: Session, exclude_session_id: str | None = None) -> int:
     """Stage deletion of a user's sessions."""
     return sessions_service.delete_sessions_by_user(user_id, db, exclude_session_id)

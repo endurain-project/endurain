@@ -76,7 +76,8 @@ def end_idp_sessions_by_sid(idp_id: int, idp_sid: str, db: Session, *, user_id: 
 def _end_live_sessions(owners: list[tuple[str, int]], db: Session) -> dict[int, int]:
     """Stage the end of the sessions that still exist among the given ones.
 
-    A sign-in row outlives its session, so a session that already ended is skipped.
+    A sign-in row outlives its session, and a session can end between the lookup and here, so a session that is
+    already gone is skipped and not counted.
 
     Args:
         owners: ``(session_id, user_id)`` per session.
@@ -85,11 +86,9 @@ def _end_live_sessions(owners: list[tuple[str, int]], db: Session) -> dict[int, 
     Returns:
         How many sessions ended, per user; a user with none ended is absent.
     """
-    alive = sessions_integration.get_existing_session_ids([session_id for session_id, _ in owners], db)
     ended: dict[int, int] = {}
     for session_id, owner_id in owners:
-        if session_id in alive:
-            sessions_integration.delete_session(session_id, owner_id, db)
+        if sessions_integration.delete_session_if_present(session_id, owner_id, db):
             ended[owner_id] = ended.get(owner_id, 0) + 1
     return ended
 

@@ -164,8 +164,12 @@ def update_session_csrf_hash(session_id: str, csrf_token_hash: str, db: Session)
         raise core_exceptions.NotFoundError("Session not found")
 
 
-def delete_session(session_id: str, user_id: int, db: Session) -> sessions_contracts.SessionRead:
-    """Stage deletion of a session owned by a user."""
+def delete_session_if_present(session_id: str, user_id: int, db: Session) -> sessions_contracts.SessionRead | None:
+    """Stage deletion of a session owned by a user, or do nothing when there is none.
+
+    Returns:
+        The deleted session, or ``None`` when the user has no such session.
+    """
     row = db.execute(
         select(sessions_models.UsersSessions).where(
             sessions_models.UsersSessions.id == session_id,
@@ -173,10 +177,22 @@ def delete_session(session_id: str, user_id: int, db: Session) -> sessions_contr
         )
     ).scalar_one_or_none()
     if row is None:
-        raise core_exceptions.NotFoundError("Session not found")
+        return None
     session = sessions_serializers.to_read_schema(row)
     db.delete(row)
     db.flush()
+    return session
+
+
+def delete_session(session_id: str, user_id: int, db: Session) -> sessions_contracts.SessionRead:
+    """Stage deletion of a session owned by a user.
+
+    Raises:
+        NotFoundError: When the user has no such session.
+    """
+    session = delete_session_if_present(session_id, user_id, db)
+    if session is None:
+        raise core_exceptions.NotFoundError("Session not found")
     return session
 
 
