@@ -83,6 +83,7 @@ class TestSaveRefusesUnsafeUrls:
             patch.object(provider_service.identity_provider_serializers, "to_read_schema"),
         ):
             crud.get_identity_provider_by_slug.return_value = None
+            crud.get_identity_provider_by_issuer.return_value = None
             crud.create_identity_provider.return_value = MagicMock(id=3, provider_type="oidc")
             provider_service.create_identity_provider(
                 _create_data(issuer_url="http://idp.internal"), STEP_UP, VERIFIER, mock_db
@@ -99,6 +100,7 @@ class TestSaveRefusesUnsafeUrls:
             patch.object(provider_service.identity_provider_serializers, "to_read_schema"),
         ):
             crud.get_identity_provider_by_slug.return_value = None
+            crud.get_identity_provider_by_issuer.return_value = None
             crud.create_identity_provider.return_value = MagicMock(id=3, provider_type="oidc")
             provider_service.create_identity_provider(
                 _create_data(issuer_url="https://idp.example.com", token_endpoint=""), STEP_UP, VERIFIER, mock_db
@@ -314,3 +316,147 @@ class TestGetIdentityProvider:
             pytest.raises(core_exceptions.NotFoundError),
         ):
             provider_service.get_identity_provider(3, mock_db)
+
+
+class TestIssuerBinding:
+    """A provider's issuer is unique and cannot change while users are linked to it."""
+
+    @staticmethod
+    def _update(mock_db, issuer_url, *, current_issuer, links, other=None):
+        data = idp_schema.IdentityProviderUpdate(name="Pocket", slug="pocket", issuer_url=issuer_url)
+        resolve, allowlist = _network(PUBLIC)
+        with (
+            resolve,
+            allowlist,
+            patch.object(provider_service, "idp_crud") as crud,
+            patch.object(
+                provider_service.identity_provider_links_integration,
+                "check_user_identity_providers_by_idp_id",
+                return_value=links,
+            ),
+            patch.object(provider_service.identity_provider_serializers, "to_read_schema"),
+        ):
+            crud.get_identity_provider.return_value = MagicMock(slug="pocket", issuer_url=current_issuer)
+            crud.get_identity_provider_by_issuer.return_value = other
+            crud.update_identity_provider.return_value = MagicMock()
+            try:
+                provider_service.update_identity_provider(
+                    3, data, STEP_UP, VERIFIER, MagicMock(), mock_db, if_match='"1"'
+                )
+            finally:
+                TestIssuerBinding.crud = crud
+
+    def test_update_refuses_a_new_issuer_while_users_are_linked(self, mock_db):
+        with pytest.raises(core_exceptions.IssuerLockedError) as exc:
+            self._update(mock_db, "https://b.example.com", current_issuer="https://a.example.com", links=True)
+        assert exc.value.status_code == 409
+        assert exc.value.code == "issuer-locked"
+        assert exc.value.detail == "The issuer cannot change while users are linked to this provider"
+        self.crud.update_identity_provider.assert_not_called()
+        mock_db.commit.assert_not_called()
+
+    @pytest.mark.parametrize(
+        ("current", "new"),
+        [(None, "https://b.example.com"), ("https://a.example.com", None), ("https://a.example.com", "")],
+    )
+    def test_update_refuses_setting_or_clearing_the_issuer_while_users_are_linked(self, mock_db, current, new):
+        with pytest.raises(core_exceptions.IssuerLockedError):
+            self._update(mock_db, new, current_issuer=current, links=True)
+
+    @pytest.mark.parametrize(
+        ("current", "new"),
+        [
+            ("https://a.example.com", "https://a.example.com/"),
+            ("https://a.example.com/", "https://a.example.com"),
+            ("https://a.example.com", "https://a.example.com"),
+        ],
+    )
+    def test_update_allows_a_trailing_slash_change_while_users_are_linked(self, mock_db, current, new):
+        self._update(mock_db, new, current_issuer=current, links=True)
+        self.crud.update_identity_provider.assert_called_once()
+
+    def test_update_allows_a_new_issuer_without_links(self, mock_db):
+        self._update(mock_db, "https://b.example.com", current_issuer="https://a.example.com", links=False)
+        self.crud.get_identity_provider_by_issuer.assert_called_once_with(
+            "https://b.example.com", mock_db, exclude_id=3
+        )
+        self.crud.update_identity_provider.assert_called_once()
+
+    def test_update_refuses_an_issuer_another_provider_uses(self, mock_db):
+        with pytest.raises(core_exceptions.IssuerInUseError) as exc:
+            self._update(mock_db, "https://b.example.com", current_issuer=None, links=False, other=MagicMock())
+        assert exc.value.code == "issuer-in-use"
+        assert exc.value.detail == "Another identity provider already uses this issuer"
+        self.crud.update_identity_provider.assert_not_called()
+
+    def test_update_to_a_null_issuer_is_never_a_conflict(self, mock_db):
+        self._update(mock_db, None, current_issuer="https://a.example.com", links=False)
+        self.crud.get_identity_provider_by_issuer.assert_not_called()
+        self.crud.update_identity_provider.assert_called_once()
+
+    def test_create_refuses_an_issuer_another_provider_uses(self, mock_db):
+        resolve, allowlist = _network(PUBLIC)
+        with (
+            resolve,
+            allowlist,
+            patch.object(provider_service, "idp_crud") as crud,
+            pytest.raises(core_exceptions.IssuerInUseError) as exc,
+        ):
+            crud.get_identity_provider_by_slug.return_value = None
+            crud.get_identity_provider_by_issuer.return_value = MagicMock()
+            provider_service.create_identity_provider(
+                _create_data(issuer_url="https://a.example.com"), STEP_UP, VERIFIER, mock_db
+            )
+        assert exc.value.code == "issuer-in-use"
+        assert exc.value.detail == "Another identity provider already uses this issuer"
+        crud.create_identity_provider.assert_not_called()
+
+    def test_create_without_an_issuer_skips_the_lookup(self, mock_db):
+        with (
+            patch.object(provider_service, "idp_crud") as crud,
+            patch.object(provider_service.identity_provider_serializers, "to_read_schema"),
+        ):
+            crud.get_identity_provider_by_slug.return_value = None
+            crud.create_identity_provider.return_value = MagicMock(id=3, provider_type="oidc")
+            provider_service.create_identity_provider(_create_data(), STEP_UP, VERIFIER, mock_db)
+        crud.get_identity_provider_by_issuer.assert_not_called()
+        crud.create_identity_provider.assert_called_once()
+
+    def test_step_up_is_verified_before_the_issuer_checks(self, mock_db):
+        verifier = MagicMock(side_effect=core_exceptions.StepUpFailedError("no"))
+        data = idp_schema.IdentityProviderUpdate(name="Pocket", slug="pocket", issuer_url="https://b.example.com")
+        with patch.object(provider_service, "idp_crud") as crud, pytest.raises(core_exceptions.StepUpFailedError):
+            provider_service.update_identity_provider(3, data, STEP_UP, verifier, MagicMock(), mock_db, if_match='"1"')
+        crud.get_identity_provider_by_issuer.assert_not_called()
+
+
+class TestGetIdentityProviderByIssuer:
+    """The issuer lookup is exact apart from one trailing slash and can leave a row out."""
+
+    @staticmethod
+    def _seed(db):
+        for slug, issuer in (("a", "https://a.example.com/"), ("b", None)):
+            db.add(
+                idp_models.IdentityProvider(name=slug, slug=slug, client_id="c", client_secret="s", issuer_url=issuer)
+            )
+        db.flush()
+
+    @pytest.mark.parametrize("lookup", ["https://a.example.com", "https://a.example.com/"])
+    def test_matches_with_or_without_a_trailing_slash(self, lookup):
+        db = create_sqlite_session()
+        try:
+            self._seed(db)
+            assert provider_service.idp_crud.get_identity_provider_by_issuer(lookup, db) is not None
+        finally:
+            db.close()
+
+    def test_does_not_match_another_issuer_or_the_excluded_row(self):
+        db = create_sqlite_session()
+        try:
+            self._seed(db)
+            crud = provider_service.idp_crud
+            assert crud.get_identity_provider_by_issuer("https://b.example.com", db) is None
+            row = crud.get_identity_provider_by_issuer("https://a.example.com", db)
+            assert crud.get_identity_provider_by_issuer("https://a.example.com", db, exclude_id=row.id) is None
+        finally:
+            db.close()

@@ -101,7 +101,8 @@ def read_identity_provider(
         "Raises:\n"
         "    HTTPException: 400 if a URL is plain http to a host outside\n"
         "        SSRF_ALLOWED_HOSTS or non-public, 403 if the step-up fails,\n"
-        "        409 if the slug already exists, 500 on database errors."
+        "        409 if the slug or the issuer is already used by another provider,\n"
+        "        500 on database errors."
     ),
     responses={
         status.HTTP_201_CREATED: {
@@ -139,7 +140,8 @@ def create_identity_provider(
 
     Raises:
         HTTPException: 400 if a URL is plain http to a host outside SSRF_ALLOWED_HOSTS or non-public, 403 if the
-            step-up fails, 409 if the slug already exists, 500 on database errors.
+            step-up fails, 409 if the slug or the issuer is already used by another provider, 500 on database
+            errors.
     """
     provider = idp_provider_service.create_identity_provider(idp_data.to_create(), idp_data.step_up, verify_step_up, db)
     core_location.set_location(response, request, "read_identity_provider", idp_id=provider.id)
@@ -164,7 +166,8 @@ def create_identity_provider(
         "Raises:\n"
         "    HTTPException: 400 if a URL is plain http to a host outside\n"
         "        SSRF_ALLOWED_HOSTS or non-public, 403 if the step-up fails,\n"
-        "        404 if the provider is not found, 409 on slug conflict,\n"
+        "        404 if the provider is not found, 409 on a slug or issuer conflict\n"
+        "        or an issuer change while users are linked,\n"
         "        500 on database errors."
     ),
     responses={
@@ -211,8 +214,8 @@ def update_identity_provider(
 
     Raises:
         HTTPException: 400 if a URL is plain http to a host outside SSRF_ALLOWED_HOSTS or non-public, 403 if the
-            step-up fails, 404 if the provider is not found, 409 on slug conflict, 412 if the provider changed, or
-            500 on database errors.
+            step-up fails, 404 if the provider is not found, 409 on a slug or issuer conflict or an issuer change
+            while users are linked, 412 if the provider changed, or 500 on database errors.
     """
     provider = idp_provider_service.update_identity_provider(
         idp_id, idp_data.to_update(), idp_data.step_up, verify_step_up, oidc, db, if_match=if_match

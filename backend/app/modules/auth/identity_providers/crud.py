@@ -11,6 +11,7 @@ import modules.auth.identity_providers.contracts as identity_provider_contracts
 import modules.auth.identity_providers.models as identity_provider_models
 import modules.auth.identity_providers.schema as identity_provider_schema
 import modules.auth.identity_providers.serializers as identity_provider_serializers
+import modules.auth.identity_providers.utils as idp_utils
 
 
 def get_identity_provider(idp_id: int, db: Session) -> identity_provider_contracts.IdentityProviderState | None:
@@ -26,6 +27,29 @@ def get_identity_provider_by_slug(slug: str, db: Session) -> identity_provider_c
     row = db.execute(
         select(identity_provider_models.IdentityProvider).where(identity_provider_models.IdentityProvider.slug == slug)
     ).scalar_one_or_none()
+    return identity_provider_serializers.to_state(row) if row is not None else None
+
+
+def get_identity_provider_by_issuer(
+    issuer_url: str, db: Session, *, exclude_id: int | None = None
+) -> identity_provider_contracts.IdentityProviderState | None:
+    """Return a provider whose issuer URL equals the given one, apart from one trailing slash.
+
+    Args:
+        issuer_url: The issuer URL to look up.
+        db: Database session.
+        exclude_id: A provider row to leave out of the lookup.
+
+    Returns:
+        A matching provider state, or ``None`` when no other provider uses the issuer.
+    """
+    normalized = idp_utils.normalize_issuer_url(issuer_url)
+    query = select(identity_provider_models.IdentityProvider).where(
+        identity_provider_models.IdentityProvider.issuer_url.in_([normalized, f"{normalized}/"])
+    )
+    if exclude_id is not None:
+        query = query.where(identity_provider_models.IdentityProvider.id != exclude_id)
+    row = db.execute(query.limit(1)).scalar_one_or_none()
     return identity_provider_serializers.to_state(row) if row is not None else None
 
 

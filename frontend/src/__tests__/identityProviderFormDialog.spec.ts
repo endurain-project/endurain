@@ -105,6 +105,20 @@ describe('IdentityProviderFormDialog save errors', () => {
     ])
   })
 
+  it.each([
+    [409, null, 'slugConflict'],
+    [409, 'urn:endurain:error:issuer-in-use', 'issuerInUse'],
+    [409, 'urn:endurain:error:issuer-locked', 'issuerLocked'],
+  ])('maps a %i answer of type %s to %s', async (status, type, key) => {
+    vi.mocked(apiFetch).mockRejectedValue(new HttpError(status, 'Conflict', null, type))
+
+    const wrapper = mountDialog()
+    await submitValidForm(wrapper)
+    await confirmStepUp(wrapper)
+
+    expect(wrapper.emitted('error')).toEqual([[i18n.global.t(`settings.idp.form.${key}`)]])
+  })
+
   it('keeps the generic save error for other failures', async () => {
     vi.mocked(apiFetch).mockRejectedValue(new HttpError(500, 'Internal Server Error'))
 

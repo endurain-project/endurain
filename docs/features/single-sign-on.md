@@ -140,7 +140,7 @@ Save the generated **Client ID** and **Client Secret**.
 | **Provider Name** | Display name shown on login button | `Google`, `GitHub`, etc. |
 | **Slug** | URL-safe identifier (lowercase, hyphens) | `google`, `github` |
 | **Provider Type** | Protocol type: `OIDC` (the default) or `OAuth2`. An `OAuth2` provider whose scopes include `openid` issues an ID token, so its sign-in must carry a verified ID token and needs an issuer URL, like an `OIDC` one. Without `openid` the provider is identified by its userinfo endpoint alone | `OIDC` or `OAuth2` |
-| **Issuer URL** | Provider's issuer URL, exactly as the `issuer` in its `/.well-known/openid-configuration` document; a trailing slash is ignored | `https://accounts.google.com` |
+| **Issuer URL** | Provider's issuer URL, exactly as the `issuer` in its `/.well-known/openid-configuration` document; a trailing slash is ignored. Another provider cannot use the same issuer, and the issuer cannot change while any user is linked to the provider | `https://accounts.google.com` |
 | **Client ID** | OAuth client identifier | From Step 1 |
 | **Client Secret** | OAuth client secret | From Step 1 |
 | **Scopes** | Space-separated OAuth scopes | `openid profile email` |
@@ -149,6 +149,15 @@ Save the generated **Client ID** and **Client Secret**.
 | **Link by email** | Join an unlinked sign-in to the existing account whose email equals the provider's verified email. Off refuses that sign-in and the user links the provider from **Settings → Security** | Off for a new provider |
 | **Sync user info** | At each sign-in, copy the mapped name from the provider. It does not include the email | On by default |
 | **Sync email** | At each sign-in, copy the email the provider verified onto the account | Off for a new provider |
+
+#### Changing a provider's issuer
+
+A user's link names the provider and the user's identifier at it, so the issuer is what keeps a link pointing at the same identity provider. For that reason:
+
+- The issuer URL cannot be changed, set or cleared while any user is linked to the provider. Unlink those users first, or add a new provider for the new issuer. Adding or removing only a trailing slash is not a change.
+- Two providers cannot use the same issuer URL (a trailing slash is ignored). A provider with no issuer URL never conflicts.
+
+Both refusals are answered with `409` and nothing is saved.
 
 #### Linking by email and syncing the email
 

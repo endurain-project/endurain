@@ -20,11 +20,34 @@ import modules.auth.identity_providers.icon_service as idp_icon_service
 import modules.auth.identity_providers.oidc_client_service as oidc_client_service
 import modules.auth.identity_providers.schema as identity_provider_schema
 import modules.auth.identity_providers.serializers as identity_provider_serializers
+import modules.auth.identity_providers.utils as idp_utils
 import modules.auth.schema as auth_schema
 
 logger = core_logger.get_logger(__name__)
 
 _URL_FIELDS = ("issuer_url", "authorization_endpoint", "token_endpoint", "userinfo_endpoint", "jwks_uri")
+
+
+def _issuer_changes(current: str | None, new: str | None) -> bool:
+    """Return whether an issuer URL edit names a different issuer, ignoring a trailing slash."""
+    if current is None or new is None:
+        return current != new
+    return idp_utils.normalize_issuer_url(current) != idp_utils.normalize_issuer_url(new)
+
+
+def _refuse_shared_issuer(issuer_url: str | None, exclude_id: int | None, db: Session) -> None:
+    """Refuse an issuer URL another provider already uses.
+
+    Args:
+        issuer_url: The issuer URL being set; ``None`` is never shared.
+        exclude_id: The provider being edited, left out of the lookup.
+        db: Database session.
+
+    Raises:
+        IssuerInUseError: If another provider already uses the issuer.
+    """
+    if issuer_url and idp_crud.get_identity_provider_by_issuer(issuer_url, db, exclude_id=exclude_id) is not None:
+        raise core_exceptions.IssuerInUseError()
 
 
 def list_identity_providers(
@@ -173,12 +196,14 @@ def create_identity_provider(
         InvalidInputError: If a URL field is plain http to a host outside SSRF_ALLOWED_HOSTS, or resolves to a
             non-public address.
         ConflictError: If the slug is already in use.
+        IssuerInUseError: If another provider already uses the issuer.
     """
     verify_step_up(step_up, identity_provider_constants.StepUpAction.ADMIN_IDP_CREATE)
     _reject_unsafe_urls(data.model_dump())
     slug = data.slug.lower()
     if idp_crud.get_identity_provider_by_slug(slug, db) is not None:
         raise core_exceptions.ConflictError(f"Identity provider with slug '{slug}' already exists")
+    _refuse_shared_issuer(data.issuer_url, None, db)
     state = idp_crud.create_identity_provider(data, db)
     jasil_audit.stage(
         db,
@@ -226,6 +251,8 @@ def update_identity_provider(
         NotFoundError: When the provider is missing or removed during the update.
         PreconditionFailedError: When the provider changed since the client read it.
         ConflictError: When the new slug is already in use.
+        IssuerInUseError: When another provider already uses the new issuer.
+        IssuerLockedError: When the issuer changes while users are linked to the provider.
     """
     verify_step_up(step_up, identity_provider_constants.StepUpAction.ADMIN_IDP_EDIT)
     values = data.model_dump(exclude_unset=True)
@@ -236,6 +263,10 @@ def update_identity_provider(
     slug = values.get("slug")
     if slug and slug.lower() != current.slug and idp_crud.get_identity_provider_by_slug(slug.lower(), db):
         raise core_exceptions.ConflictError(f"Identity provider with slug '{slug.lower()}' already exists")
+    if "issuer_url" in values and _issuer_changes(current.issuer_url, values["issuer_url"]):
+        if identity_provider_links_integration.check_user_identity_providers_by_idp_id(idp_id, db):
+            raise core_exceptions.IssuerLockedError()
+        _refuse_shared_issuer(values["issuer_url"], idp_id, db)
     with core_etag.refuse_stale_write(
         db,
         "identity provider",

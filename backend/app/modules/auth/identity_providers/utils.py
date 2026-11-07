@@ -15,6 +15,18 @@ def _custom_scheme(value: str) -> str | None:
     return value.split("://", 1)[0].lower()
 
 
+def normalize_issuer_url(issuer_url: str) -> str:
+    """Return an issuer URL without a trailing slash, the form in which two issuers are compared.
+
+    Args:
+        issuer_url: An issuer URL.
+
+    Returns:
+        The URL with one trailing slash removed.
+    """
+    return issuer_url.removesuffix("/")
+
+
 def requires_id_token(idp: identity_provider_contracts.IdentityProviderState) -> bool:
     """Return whether a sign-in through a provider must carry a verified ID token, and so its nonce.
 

@@ -23,6 +23,10 @@ import PasswordInput from '@/features/security/components/PasswordInput.vue'
 import StepUpDialog from '@/features/security/components/StepUpDialog.vue'
 import { isStepUpFailed, useIdpReauthChallenge } from '@/features/security/composables/useIdpStepUp'
 import { useAdminStepUp, useResumeOnce } from '@/features/security/composables/useAdminStepUp'
+import {
+  IDP_ISSUER_IN_USE_TYPE,
+  IDP_ISSUER_LOCKED_TYPE,
+} from '@/features/identityProviders/services/identityProviders'
 import { HttpError } from '@/services/http'
 import { isStaleWrite } from '@/services/ifMatch'
 import {
@@ -255,6 +259,10 @@ async function submitForm(
     if (isStaleWrite(error)) {
       open.value = false
       emit('error', t('app.staleError'))
+    } else if (error instanceof HttpError && error.type === IDP_ISSUER_IN_USE_TYPE) {
+      emit('error', t('settings.idp.form.issuerInUse'))
+    } else if (error instanceof HttpError && error.type === IDP_ISSUER_LOCKED_TYPE) {
+      emit('error', t('settings.idp.form.issuerLocked'))
     } else if (error instanceof HttpError && error.status === 409) {
       emit('error', t('settings.idp.form.slugConflict'))
     } else if (error instanceof HttpError && error.status === 400) {

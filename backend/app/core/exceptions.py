@@ -251,6 +251,28 @@ class ConflictError(DomainError):
     default_detail = "Conflict"
 
 
+class IssuerInUseError(ConflictError):
+    """Another identity provider already uses the issuer URL being set.
+
+    Renders as ``409``. Clients branch on the ``issuer-in-use`` problem type to tell the administrator to pick a
+    different issuer URL.
+    """
+
+    code = "issuer-in-use"
+    default_detail = "Another identity provider already uses this issuer"
+
+
+class IssuerLockedError(ConflictError):
+    """An identity provider's issuer URL cannot change while users are linked to it.
+
+    Renders as ``409``. Clients branch on the ``issuer-locked`` problem type to tell the administrator to unlink the
+    users or add a new provider instead.
+    """
+
+    code = "issuer-locked"
+    default_detail = "The issuer cannot change while users are linked to this provider"
+
+
 class JobAlreadyRunningError(ConflictError):
     """A start route refused a second run of work that is still running.
 

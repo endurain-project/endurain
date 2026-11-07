@@ -14,6 +14,12 @@ import { fetchAllPages } from '@/services/pagination'
 import { ifMatchHeaders, rowVersion } from '@/services/ifMatch'
 import { toStepUpWire } from '@/features/security/services/security'
 
+/** Problem type of a save refused because another provider already uses the issuer URL. */
+export const IDP_ISSUER_IN_USE_TYPE = 'urn:endurain:error:issuer-in-use'
+
+/** Problem type of a save refused because the issuer URL cannot change while users are linked. */
+export const IDP_ISSUER_LOCKED_TYPE = 'urn:endurain:error:issuer-locked'
+
 /**
  * Maps a raw `IdentityProvider` payload to the clean {@link IdentityProvider}
  * model — the single boundary where the backend wire format (snake_case) is
