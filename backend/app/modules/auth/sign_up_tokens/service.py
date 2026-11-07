@@ -42,9 +42,15 @@ SIGN_UP_TOKEN_TTL = timedelta(hours=24)
 
 
 def _stage_sign_up_token(
-    user_id: int, email: str, previous_email: str | None, db: Session, *, token: str | None = None
-) -> str:
-    """Stage a user's new verification token, using up their earlier ones, and return its raw value.
+    user_id: int,
+    email: str,
+    previous_email: str | None,
+    db: Session,
+    *,
+    token: str | None = None,
+    used: bool = False,
+) -> sign_up_contracts.SignUpTokenState:
+    """Stage a user's new verification token, using up their earlier ones, and return its row.
 
     Args:
         user_id: The user the token belongs to.
@@ -52,9 +58,10 @@ def _stage_sign_up_token(
         previous_email: The account's address when an email change was requested.
         db: Database session.
         token: The raw token to store the hash of; a random one is generated when omitted.
+        used: Whether the row is stored already used, as the record of a change that was applied.
 
     Returns:
-        The raw token.
+        The staged token row.
     """
     if token is None:
         token, token_hash = token_hashing.generate_token_and_hash()
@@ -67,13 +74,12 @@ def _stage_sign_up_token(
         token_hash=token_hash,
         created_at=now,
         expires_at=now + SIGN_UP_TOKEN_TTL,
-        used=False,
+        used=used,
         email=email,
         previous_email=previous_email,
     )
     sign_up_crud.mark_user_sign_up_tokens_used(user_id, db)
-    sign_up_crud.create_sign_up_token(sign_up_token, db)
-    return token
+    return sign_up_crud.create_sign_up_token(sign_up_token, db)
 
 
 def create_sign_up_token(
@@ -135,6 +141,25 @@ def request_email_change(user_id: int, email: str, previous_email: str, db: Sess
     _stage_sign_up_token(user_id, email, previous_email, db)
     sign_up_event_publishers.publish_email_change_verification_requested(user_id, db)
     return True
+
+
+def stage_email_changed_notice(user_id: int, email: str, previous_email: str, db: Session) -> None:
+    """Stage the notice, to the previous address, that an email change already applied to the account.
+
+    The change was applied by a writer that confirms the address itself, such as an identity-provider sync, so no
+    confirmation link is involved: the row records both addresses already used, because the notice is built from
+    them after the address is gone from the account. A link issued for the old address or a pending one is used
+    up, so it cannot confirm over the address just applied. The caller owns the transaction, so the row, the
+    event and the change commit together.
+
+    Args:
+        user_id: The user whose address changed.
+        email: The address the account now uses.
+        previous_email: The address the account had, which receives the notice.
+        db: Database session.
+    """
+    token = _stage_sign_up_token(user_id, email, previous_email, db, used=True)
+    sign_up_event_publishers.publish_email_changed(user_id, token.id, db)
 
 
 def _holder_of(email: str, user_id: int, db: Session) -> users_schema.UserRead | None:

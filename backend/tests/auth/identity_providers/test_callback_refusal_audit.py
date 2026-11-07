@@ -29,6 +29,7 @@ def _idp(**overrides):
         "name": "Test",
         "enabled": True,
         "provider_type": "oauth2",
+        "scopes": "profile email",
         "issuer_url": None,
         "userinfo_endpoint": "https://x/userinfo",
     }

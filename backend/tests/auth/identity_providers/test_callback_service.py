@@ -1,6 +1,7 @@
 """The end of an SSO flow: accepting the provider callback, matching the user and creating the session."""
 
 import logging
+from contextlib import ExitStack
 from datetime import UTC, datetime
 from types import SimpleNamespace
 from unittest.mock import MagicMock, patch
@@ -287,6 +288,8 @@ class TestHandleCallback:
             userinfo_endpoint="https://idp.example.com/userinfo",
             slug="idp",
             sync_user_info=False,
+            sync_email=False,
+            link_by_email=False,
         )
         idp.name = "Pocket ID"
         oauth_state = MagicMock(user_id=7, purpose=_LINK, nonce="nonce", redirect_path="/", client_type="web")
@@ -530,6 +533,88 @@ class TestOidcLoginFailsClosed:
         assert kwargs["jwks_uri"] == "https://idp.example.com/jwks"
         assert kwargs["expected_issuer"] == "https://idp.example.com"
         assert kwargs["expected_nonce"] == "nonce"
+
+
+class TestOauth2WithOpenidScopeRequiresIdToken:
+    """An OAuth 2.0 provider asked for ``openid`` issues an ID token, so the sign-in must verify it and its nonce."""
+
+    def _handle(self, service, *, scopes, config=None, token_response=None, purpose=_LOGIN):
+        idp = MagicMock(
+            issuer_url="https://idp.example.com",
+            userinfo_endpoint="https://idp.example.com/userinfo",
+            slug="idp",
+            provider_type="oauth2",
+            scopes=scopes,
+        )
+        idp.name = "Generic"
+        oauth_state = MagicMock(user_id=7, purpose=purpose, nonce="nonce", redirect_path="/", client_type="web")
+        oauth_client = MagicMock()
+        oauth_client.fetch_token.return_value = token_response or {"access_token": "at", "id_token": "idt"}
+        get_userinfo = MagicMock(return_value={"sub": "user-1"})
+        with (
+            patch.object(service._oidc, "decrypt_client_id", return_value=AUD),
+            patch.object(service._oidc, "decrypt_client_secret", return_value="secret"),
+            patch.object(service._oidc, "resolve_token_endpoint", return_value="https://idp.example.com/token"),
+            patch.object(service._oidc, "create_oauth_client", return_value=oauth_client),
+            patch.object(service._oidc, "get_oidc_configuration", return_value=config),
+            patch.object(service._oidc, "get_userinfo", get_userinfo),
+            patch.object(
+                callback_service.user_provisioning_service,
+                "find_or_create_user",
+                return_value=MagicMock(id=1, username="alice"),
+            ),
+        ):
+            service.handle_callback(idp, "code", "state", oauth_state, MagicMock())
+        return get_userinfo
+
+    def test_the_id_token_and_nonce_are_required_and_verified(self, service):
+        config = {"issuer": "https://idp.example.com", "jwks_uri": "https://idp.example.com/jwks"}
+
+        get_userinfo = self._handle(service, scopes="openid profile", config=config)
+
+        kwargs = get_userinfo.call_args.kwargs
+        assert kwargs["require_id_token"] is True
+        assert kwargs["jwks_uri"] == "https://idp.example.com/jwks"
+        assert kwargs["expected_issuer"] == "https://idp.example.com"
+        assert kwargs["expected_nonce"] == "nonce"
+
+    def test_discovery_without_keys_refuses_the_sign_in(self, service):
+        with pytest.raises(core_exceptions.UpstreamError, match="publishes no issuer or signing keys"):
+            self._handle(service, scopes="openid", config={})
+
+    def test_without_the_openid_scope_the_id_token_stays_optional(self, service):
+        config = {"issuer": "https://idp.example.com", "jwks_uri": "https://idp.example.com/jwks"}
+
+        get_userinfo = self._handle(service, scopes="read:user user:email", config=config)
+
+        assert get_userinfo.call_args.kwargs["require_id_token"] is False
+
+    def test_a_link_follows_the_same_rule(self, service):
+        config = {"issuer": "https://idp.example.com", "jwks_uri": "https://idp.example.com/jwks"}
+        with ExitStack() as stack:
+            linking_user = MagicMock(id=7, username="a")
+            stack.enter_context(patch.object(callback_service.users_integration, "get_user", return_value=linking_user))
+            stack.enter_context(
+                patch.object(
+                    callback_service.user_provisioning_service, "update_user_from_idp", return_value=linking_user
+                )
+            )
+            stack.enter_context(
+                patch.object(
+                    callback_service.identity_provider_links_integration,
+                    "get_user_identity_provider_by_subject_and_idp_id",
+                    return_value=None,
+                )
+            )
+            for target, name in (
+                (callback_service.identity_provider_links_integration, "create_user_identity_provider"),
+                (callback_service.user_provisioning_service, "stage_identity_link"),
+                (callback_service.idp_event_publishers, "publish_idp_linked"),
+            ):
+                stack.enter_context(patch.object(target, name))
+            get_userinfo = self._handle(service, scopes="openid", config=config, purpose=_LINK)
+
+        assert get_userinfo.call_args.kwargs["require_id_token"] is True
 
 
 class TestOauth2LoginKeepsUserinfo:

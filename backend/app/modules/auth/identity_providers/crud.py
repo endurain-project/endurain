@@ -92,7 +92,9 @@ def create_identity_provider(
         icon=data.icon,
         icon_uploaded=False,
         auto_create_users=data.auto_create_users,
+        link_by_email=data.link_by_email,
         sync_user_info=data.sync_user_info,
+        sync_email=data.sync_email,
         user_mapping=data.user_mapping,
     )
     db.add(row)

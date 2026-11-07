@@ -59,6 +59,7 @@
   "ssoAccountDisabled": "This account is disabled",
   "ssoAutoCreateDisabled": "Automatic account creation is disabled",
   "ssoEmailMissing": "The identity provider did not share an email address, so no account could be created. Ask your administrator to check the provider's email settings.",
+  "ssoLinkByEmailDisabled": "An account with this email already exists, and this identity provider does not link accounts by email. Sign in with your password, then link the provider from Settings → Security.",
   "ssoErrorUndefined": "Single sign-on failed",
   "noLoginMethods": "No login methods are enabled on this server",
   "imageAlt": "Endurain login illustration",

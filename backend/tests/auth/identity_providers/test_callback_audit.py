@@ -20,6 +20,7 @@ def test_linking_a_provider_is_audited_with_the_provider_id(mock_db):
     idp = MagicMock(id=3, slug="idp", provider_type="oauth2", issuer_url=None, userinfo_endpoint="https://x/userinfo")
     idp.name = "GitHub"
     idp.sync_user_info = False
+    idp.sync_email = False
     oauth_state = MagicMock(
         user_id=7, purpose=oauth_state_constants.OAuthStatePurpose.LINK, nonce="n", redirect_path="/", client_type="web"
     )

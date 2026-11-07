@@ -151,10 +151,9 @@ def find_or_create_user(
 
     This method attempts to:
     1. Find a user by their identity provider (IdP) link using the subject identifier.
-    2. If not found, find a user by email and link their account to the IdP,
-       but only when the IdP asserts the email is verified (account-takeover
-       prevention via the OIDC ``email_verified`` claim) and the local account's
-       email is verified too.
+    2. If not found, find a user by email and link their account to the IdP, but only when the IdP has
+       ``link_by_email`` on, asserts the email is verified (account-takeover prevention via the OIDC
+       ``email_verified`` claim) and the local account's email is verified too.
     3. If still not found and auto-creation is enabled, create a new user from the IdP information.
 
     Args:
@@ -169,6 +168,7 @@ def find_or_create_user(
 
     Raises:
         PermissionDeniedError: If the existing account is inactive. Nothing is written for it.
+        SsoSignInRefusedError: If an existing account matches the email and the IdP does not link by email.
         domain error: If an existing account matches the email but the IdP
             did not assert a verified email or the account's email is not verified (403), or if user creation is
             disabled for the identity provider and no existing user is found.
@@ -187,10 +187,7 @@ def find_or_create_user(
         # Update last login timestamp
         identity_provider_links_integration.update_user_identity_provider_last_login(link.user_id, idp.id, db)
 
-        # Update user info if sync is enabled
-        if idp.sync_user_info:
-            user = update_user_from_idp(user, idp, userinfo, db)
-        return user
+        return update_user_from_idp(user, idp, userinfo, db)
 
     # Try to find by email (for linking existing accounts).
     #
@@ -208,6 +205,22 @@ def find_or_create_user(
     if email:
         user = users_integration.get_user_by_email(email, db)
         if user:
+            if not idp.link_by_email:
+                record_identity_link_refused(
+                    user.id, idp.id, idp_audit_actions.IdentityLinkRefusal.LINK_BY_EMAIL_DISABLED
+                )
+                logger.warning(
+                    "Refusing to link IdP <name> to account <username_log_id>: the provider does not link by email",
+                    extra=core_logger.context(
+                        name=idp.name, username_log_id=lockout_integration.username_log_identifier(user.username)
+                    ),
+                )
+                raise SsoSignInRefusedError(
+                    "Cannot link this identity provider to an existing account because the provider does not "
+                    "link by email. Sign in with your password and link the provider from your settings.",
+                    login_error="sso_link_by_email_disabled",
+                )
+
             if not claim_mapping.is_email_verified(idp, userinfo):
                 record_identity_link_refused(
                     user.id, idp.id, idp_audit_actions.IdentityLinkRefusal.PROVIDER_EMAIL_UNVERIFIED
@@ -256,10 +269,7 @@ def find_or_create_user(
                 ),
             )
 
-            # Update user info if sync is enabled
-            if idp.sync_user_info:
-                user = update_user_from_idp(user, idp, userinfo, db)
-            return user
+            return update_user_from_idp(user, idp, userinfo, db)
 
     # Create new user if auto-creation is enabled
     if not idp.auto_create_users:
@@ -355,13 +365,11 @@ def update_user_from_idp(
 ) -> users_schema.UserRead:
     """Updates the user's information based on claims received from an identity provider (IdP).
 
-    This method syncs user profile information from the IdP to the local user account when
-    IdP sync is enabled. It performs the following steps:
-    1. Maps claims from IdP userinfo to standard user fields (email, name)
-    2. Validates email changes - skips an email the IdP did not verify, and one already in use by another user
-    3. Logs the conflict when the new email is already in use
-    4. Builds an updated copy of the user schema with the changed fields
-    5. Delegates persistence to the CRUD layer (edit_user)
+    ``sync_user_info`` syncs the mapped name; ``sync_email`` syncs the email, and nothing else does. The name is
+    written as the identity provider's, which is the source of truth, so it overwrites whatever version is stored.
+    An email the IdP did not verify, or one already in use by another user, is never copied. A synced email goes
+    through the users module's synced email change: the account's address becomes verified, its unused
+    password-reset tokens are voided, the change is audited and the previous address is sent a notice.
 
     Args:
         user (users_schema.UserRead): The user schema instance to update.
@@ -373,53 +381,81 @@ def update_user_from_idp(
     Returns:
         users_schema.UserRead: The updated user schema instance from database.
     """
+    if not (idp.sync_user_info or idp.sync_email):
+        return user
+
     mapped_data = claim_mapping.map_user_claims(idp, userinfo)
+    updated_fields: list[str] = []
 
-    # Build updates
-    updates = {}
-
-    # Check email - verify not already in use. An email the IdP did not verify is never copied onto
-    # the account, since it carries the account's own verified flag with it.
-    if "email" in mapped_data and mapped_data["email"] != user.email and claim_mapping.is_email_verified(idp, userinfo):
-        existing_user = users_integration.get_user_by_email(mapped_data["email"], db)
-        if existing_user and existing_user.id != user.id:
-            logger.warning(
-                "Cannot sync email from IdP <name>: it is already in use by another user",
-                extra=core_logger.context(name=idp.name),
-            )
-        else:
-            logger.debug(
-                "Syncing email for user <username_log_id> from IdP <name>",
-                extra=core_logger.context(
-                    username_log_id=lockout_integration.username_log_identifier(user.username), name=idp.name
-                ),
-            )
-            updates["email"] = mapped_data["email"].strip()
-
-    # Check name
-    if "name" in mapped_data and mapped_data["name"] != user.name:
+    if idp.sync_user_info and "name" in mapped_data and mapped_data["name"] != user.name:
         logger.debug(
-            "Syncing name for user <username_log_id> from IdP <name>: <name_2> -> <value_4>",
+            "Syncing name for user <username_log_id> from IdP <name>",
             extra=core_logger.context(
-                username_log_id=lockout_integration.username_log_identifier(user.username),
-                name=idp.name,
-                name_2=user.name,
-                value_4=mapped_data["name"],
+                username_log_id=lockout_integration.username_log_identifier(user.username), name=idp.name
             ),
         )
-        updates["name"] = mapped_data["name"].strip()
+        updated_user = user.model_copy(update={"name": mapped_data["name"].strip()})
+        # The identity provider is the source of truth for the name, so it overwrites whatever version is stored.
+        user = users_integration.edit_user(user.id, users_schema.UserEdit.from_read(updated_user), db, if_match="*")
+        updated_fields.append("name")
 
-    # Only call CRUD if there are updates
-    if updates:
+    new_email = _synced_email(user, idp, mapped_data, userinfo, db)
+    if new_email is not None:
+        users_integration.stage_synced_email_change(user.id, new_email, db)
+        user = users_integration.get_user(user.id, db) or user
+        updated_fields.append("email")
+
+    if updated_fields:
         logger.info(
             "Applying updates to user <username_log_id>: <updated_fields>",
             extra=core_logger.context(
                 username_log_id=lockout_integration.username_log_identifier(user.username),
-                updated_fields=sorted(updates),
+                updated_fields=sorted(updated_fields),
             ),
         )
-        updated_user = user.model_copy(update=updates)
-        user = users_integration.edit_user(user.id, users_schema.UserEdit.from_read(updated_user), db, if_match="*")
         db.commit()
 
     return user
+
+
+def _synced_email(
+    user: users_schema.UserRead,
+    idp: identity_provider_contracts.IdentityProviderState,
+    mapped_data: dict[str, Any],
+    userinfo: dict[str, Any],
+    db: Session,
+) -> str | None:
+    """Return the email to sync onto a user, or None when the account keeps its own.
+
+    Args:
+        user: The user the claims belong to.
+        idp: The identity provider.
+        mapped_data: The claims mapped to user fields.
+        userinfo: The raw claims, which say whether the provider verified the email.
+        db: Database session.
+
+    Returns:
+        The email, when ``sync_email`` is on and the provider verified an address the account does not have and
+        no other account uses.
+    """
+    email = mapped_data.get("email")
+    # An email the IdP did not verify is never copied onto the account, since it becomes the verified address.
+    if not (idp.sync_email and email and claim_mapping.is_email_verified(idp, userinfo)):
+        return None
+    email = email.strip()
+    if email.lower() == user.email.lower():
+        return None
+    holder = users_integration.get_user_by_email(email, db)
+    if holder and holder.id != user.id:
+        logger.warning(
+            "Cannot sync email from IdP <name>: it is already in use by another user",
+            extra=core_logger.context(name=idp.name),
+        )
+        return None
+    logger.debug(
+        "Syncing email for user <username_log_id> from IdP <name>",
+        extra=core_logger.context(
+            username_log_id=lockout_integration.username_log_identifier(user.username), name=idp.name
+        ),
+    )
+    return email

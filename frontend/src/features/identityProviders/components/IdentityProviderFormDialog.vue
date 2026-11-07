@@ -6,6 +6,7 @@ import type {
   IdentityProvider,
   IdentityProviderInput,
   IdentityProviderTemplate,
+  ProviderType,
 } from '@/features/identityProviders/types'
 import type { IdpReauth, StepUpInput } from '@/features/security/types'
 import type { IdpStepUpResume } from '@/features/security/composables/useIdpStepUp'
@@ -77,7 +78,7 @@ const DEFAULT_SCOPES = 'openid profile email'
 interface ProviderFormValues {
   name: string
   slug: string
-  providerType: string
+  providerType: ProviderType
   enabled: boolean
   issuerUrl: string
   clientId: string
@@ -85,7 +86,9 @@ interface ProviderFormValues {
   scopes: string
   icon: string
   autoCreateUsers: boolean
+  linkByEmail: boolean
   syncUserInfo: boolean
+  syncEmail: boolean
 }
 
 /** The pristine values used for "add" and as the reset baseline. */
@@ -101,7 +104,9 @@ function defaultValues(): ProviderFormValues {
     scopes: DEFAULT_SCOPES,
     icon: '',
     autoCreateUsers: true,
+    linkByEmail: false,
     syncUserInfo: true,
+    syncEmail: false,
   }
 }
 
@@ -141,7 +146,9 @@ function buildInput(values: ProviderFormValues): IdentityProviderInput {
     scopes: values.scopes.trim() || DEFAULT_SCOPES,
     icon,
     autoCreateUsers: values.autoCreateUsers,
+    linkByEmail: values.linkByEmail,
     syncUserInfo: values.syncUserInfo,
+    syncEmail: values.syncEmail,
   }
 }
 
@@ -351,6 +358,8 @@ function applyTemplate(id: string): void {
   values.slug = slugify(template.name)
   values.providerType = template.providerType
   values.issuerUrl = template.issuerUrl ?? ''
+  values.linkByEmail = template.linkByEmail
+  values.syncEmail = template.syncEmail
   values.scopes = template.scopes || DEFAULT_SCOPES
   values.icon = template.icon ?? ''
 }
@@ -377,7 +386,9 @@ function populate(): void {
   values.clientSecret = ''
   values.scopes = provider.scopes || DEFAULT_SCOPES
   values.autoCreateUsers = provider.autoCreateUsers
+  values.linkByEmail = provider.linkByEmail
   values.syncUserInfo = provider.syncUserInfo
+  values.syncEmail = provider.syncEmail
   if (provider.iconUploaded) {
     values.icon = UPLOADED_ICON
   } else if (isBuiltinProviderIcon(provider.icon)) {
@@ -605,9 +616,18 @@ watch(
         <Switch v-model="values.autoCreateUsers" :disabled="isSubmitting">
           {{ t('settings.idp.form.autoCreateUsers') }}
         </Switch>
+        <Switch v-model="values.linkByEmail" :disabled="isSubmitting">
+          {{ t('settings.idp.form.linkByEmail') }}
+        </Switch>
+        <p class="text-hint">{{ t('settings.idp.form.linkByEmailHint') }}</p>
         <Switch v-model="values.syncUserInfo" :disabled="isSubmitting">
           {{ t('settings.idp.form.syncUserInfo') }}
         </Switch>
+        <p class="text-hint">{{ t('settings.idp.form.syncUserInfoHint') }}</p>
+        <Switch v-model="values.syncEmail" :disabled="isSubmitting">
+          {{ t('settings.idp.form.syncEmail') }}
+        </Switch>
+        <p class="text-hint">{{ t('settings.idp.form.syncEmailHint') }}</p>
       </div>
 
       <Alert v-if="selectedTemplate?.configurationNotes" kind="info" class="sm:col-span-2">

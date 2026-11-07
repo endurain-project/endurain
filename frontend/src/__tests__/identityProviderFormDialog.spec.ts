@@ -34,7 +34,9 @@ const provider: IdentityProvider = {
   icon: null,
   iconUploaded: false,
   autoCreateUsers: true,
+  linkByEmail: false,
   syncUserInfo: true,
+  syncEmail: false,
   authorizationEndpoint: null,
   tokenEndpoint: null,
   userinfoEndpoint: null,
@@ -149,6 +151,66 @@ describe('IdentityProviderFormDialog step-up', () => {
       method: 'POST',
       body: { client_secret: 'secret', step_up: { current_password: 'admin-pw', mfa_code: null } },
     })
+  })
+
+  it('offers the two protocols and creates a new provider with link by email and email sync off', async () => {
+    vi.mocked(apiFetch).mockResolvedValue({ ...provider })
+
+    const wrapper = mountDialog()
+    const options = wrapper.findAll('select option').map((option) => option.attributes('value'))
+    expect(options).toContain('oidc')
+    expect(options).toContain('oauth2')
+    expect(options).not.toContain('saml')
+    expect(wrapper.text()).toContain(i18n.global.t('settings.idp.form.linkByEmailHint'))
+    expect(wrapper.text()).toContain(i18n.global.t('settings.idp.form.syncUserInfoHint'))
+    expect(wrapper.text()).toContain(i18n.global.t('settings.idp.form.syncEmailHint'))
+
+    await submitValidForm(wrapper)
+    await confirmStepUp(wrapper)
+
+    expect(sentBody().body).toMatchObject({
+      provider_type: 'oidc',
+      link_by_email: false,
+      sync_user_info: true,
+      sync_email: false,
+    })
+  })
+
+  it('sends the switches an administrator turns on', async () => {
+    vi.mocked(apiFetch).mockResolvedValue({ ...provider })
+
+    const wrapper = mountDialog()
+    const typeSelect = wrapper
+      .findAll('select')
+      .find((select) => select.find('option[value="oauth2"]').exists())
+    await typeSelect!.setValue('oauth2')
+    const labels = wrapper.findAll('label')
+    for (const key of ['linkByEmail', 'syncEmail'] as const) {
+      const label = labels.find((l) => l.text() === i18n.global.t(`settings.idp.form.${key}`))
+      await label!.find('input[role="switch"]').setValue(true)
+    }
+    await submitValidForm(wrapper)
+    await confirmStepUp(wrapper)
+
+    expect(sentBody().body).toMatchObject({
+      provider_type: 'oauth2',
+      link_by_email: true,
+      sync_email: true,
+    })
+  })
+
+  it('shows the switches of the provider being edited', async () => {
+    const wrapper = mountDialog({ provider: { ...provider, linkByEmail: true, syncEmail: true } })
+    await flushPromises()
+
+    const checked = (key: string) => {
+      const label = wrapper
+        .findAll('label')
+        .find((l) => l.text() === i18n.global.t(`settings.idp.form.${key}`))
+      return (label!.find('input[role="switch"]').element as HTMLInputElement).checked
+    }
+    expect(checked('linkByEmail')).toBe(true)
+    expect(checked('syncEmail')).toBe(true)
   })
 
   it('asks for the step-up on every edit and keeps a blank secret out of the request', async () => {

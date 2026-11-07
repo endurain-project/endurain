@@ -10,7 +10,7 @@ import jasil.audit as jasil_audit
 from jasil.event_versioning import VersionedPayload
 from pydantic import ConfigDict
 
-import modules.auth.identity_providers.contracts as identity_providers_contracts
+import modules.auth.identity_providers.constants as identity_providers_constants
 
 
 class IdentityLinkRefusal(StrEnum):
@@ -20,11 +20,13 @@ class IdentityLinkRefusal(StrEnum):
         PROVIDER_EMAIL_UNVERIFIED: The provider did not assert the email as verified.
         ACCOUNT_EMAIL_UNVERIFIED: The account's own email is not verified.
         LINKED_TO_ANOTHER_ACCOUNT: The provider identity is already linked to a different account.
+        LINK_BY_EMAIL_DISABLED: The provider does not link a sign-in to the account that has its email.
     """
 
     PROVIDER_EMAIL_UNVERIFIED = "provider_email_unverified"
     ACCOUNT_EMAIL_UNVERIFIED = "account_email_unverified"
     LINKED_TO_ANOTHER_ACCOUNT = "linked_to_another_account"
+    LINK_BY_EMAIL_DISABLED = "link_by_email_disabled"
 
 
 class IdentityProviderDetails(VersionedPayload):
@@ -38,7 +40,7 @@ class IdentityProviderDetails(VersionedPayload):
 
     SCHEMA_VERSION: ClassVar[int] = 1
 
-    provider_type: identity_providers_contracts.ProviderType
+    provider_type: identity_providers_constants.ProviderType
 
 
 class IdentityProviderUpdateDetails(VersionedPayload):

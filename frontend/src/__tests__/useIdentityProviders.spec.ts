@@ -29,7 +29,9 @@ const input: IdentityProviderInput = {
   scopes: 'openid profile email',
   icon: null,
   autoCreateUsers: true,
+  linkByEmail: false,
   syncUserInfo: true,
+  syncEmail: false,
 }
 
 let wrapper: ReturnType<typeof mount> | undefined

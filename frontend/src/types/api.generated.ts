@@ -8170,16 +8170,21 @@ export interface components {
              */
             jwks_uri?: string | null;
             /**
+             * Link By Email
+             * @description Link a sign-in that has no link yet to the local account with the same verified email. When off, that sign-in is refused and the user links the provider from their settings
+             * @default false
+             */
+            link_by_email: boolean;
+            /**
              * Name
              * @description Display name of the IdP
              */
             name: string;
             /**
-             * Provider Type
-             * @description Provider type: oidc, oauth2, or saml
+             * @description Protocol of the provider: oidc, or oauth2. With the openid scope an oauth2 provider's sign-in must carry a verified ID token too
              * @default oidc
              */
-            provider_type: string;
+            provider_type: components["schemas"]["ProviderType"];
             /**
              * Scopes
              * @description OAuth2/OIDC scopes
@@ -8194,8 +8199,14 @@ export interface components {
             /** @description The administrator's step-up verification, required to add an identity provider */
             step_up: components["schemas"]["StepUpVerification"];
             /**
+             * Sync Email
+             * @description Sync the email the provider verified onto the local account on each login
+             * @default false
+             */
+            sync_email: boolean;
+            /**
              * Sync User Info
-             * @description Sync user info on each login
+             * @description Sync the mapped profile fields, except the email, on each login
              * @default true
              */
             sync_user_info: boolean;
@@ -8420,16 +8431,21 @@ export interface components {
              */
             jwks_uri?: string | null;
             /**
+             * Link By Email
+             * @description Link a sign-in that has no link yet to the local account with the same verified email. When off, that sign-in is refused and the user links the provider from their settings
+             * @default false
+             */
+            link_by_email: boolean;
+            /**
              * Name
              * @description Display name of the IdP
              */
             name: string;
             /**
-             * Provider Type
-             * @description Provider type: oidc, oauth2, or saml
+             * @description Protocol of the provider: oidc, or oauth2. With the openid scope an oauth2 provider's sign-in must carry a verified ID token too
              * @default oidc
              */
-            provider_type: string;
+            provider_type: components["schemas"]["ProviderType"];
             /**
              * Scopes
              * @description OAuth2/OIDC scopes
@@ -8442,8 +8458,14 @@ export interface components {
              */
             slug: string;
             /**
+             * Sync Email
+             * @description Sync the email the provider verified onto the local account on each login
+             * @default false
+             */
+            sync_email: boolean;
+            /**
              * Sync User Info
-             * @description Sync user info on each login
+             * @description Sync the mapped profile fields, except the email, on each login
              * @default true
              */
             sync_user_info: boolean;
@@ -8483,7 +8505,9 @@ export interface components {
          *     Attributes:
          *         template_id (str): Template identifier (e.g., 'keycloak', 'authentik').
          *         name (str): Human-readable name of the identity provider template.
-         *         provider_type (str): Type of the identity provider (e.g., 'oidc', 'saml').
+         *         provider_type (ProviderType): Protocol of the identity provider ('oidc' or 'oauth2').
+         *         link_by_email (bool): Whether a sign-in links to the local account with the same email.
+         *         sync_email (bool): Whether the verified email is synced on each login.
          *         issuer_url (str | None): URL of the identity provider's issuer, if applicable.
          *         scopes (str): Scopes required for authentication.
          *         icon (str | None): URL or path to the icon representing the identity provider.
@@ -8506,12 +8530,21 @@ export interface components {
             icon?: string | null;
             /** Issuer Url */
             issuer_url?: string | null;
+            /**
+             * Link By Email
+             * @default false
+             */
+            link_by_email: boolean;
             /** Name */
             name: string;
-            /** Provider Type */
-            provider_type: string;
+            provider_type: components["schemas"]["ProviderType"];
             /** Scopes */
             scopes: string;
+            /**
+             * Sync Email
+             * @default false
+             */
+            sync_email: boolean;
             /**
              * Template Id
              * @description Template identifier (e.g., 'keycloak', 'authentik')
@@ -8567,16 +8600,21 @@ export interface components {
              */
             jwks_uri?: string | null;
             /**
+             * Link By Email
+             * @description Link a sign-in that has no link yet to the local account with the same verified email. When off, that sign-in is refused and the user links the provider from their settings
+             * @default false
+             */
+            link_by_email: boolean;
+            /**
              * Name
              * @description Display name of the IdP
              */
             name: string;
             /**
-             * Provider Type
-             * @description Provider type: oidc, oauth2, or saml
+             * @description Protocol of the provider: oidc, or oauth2. With the openid scope an oauth2 provider's sign-in must carry a verified ID token too
              * @default oidc
              */
-            provider_type: string;
+            provider_type: components["schemas"]["ProviderType"];
             /**
              * Scopes
              * @description OAuth2/OIDC scopes
@@ -8591,8 +8629,14 @@ export interface components {
             /** @description The administrator's step-up verification, required to edit an identity provider */
             step_up: components["schemas"]["StepUpVerification"];
             /**
+             * Sync Email
+             * @description Sync the email the provider verified onto the local account on each login
+             * @default false
+             */
+            sync_email: boolean;
+            /**
              * Sync User Info
-             * @description Sync user info on each login
+             * @description Sync the mapped profile fields, except the email, on each login
              * @default true
              */
             sync_user_info: boolean;
@@ -10171,6 +10215,17 @@ export interface components {
             username?: string | null;
             weight_units?: components["schemas"]["Units"] | null;
         };
+        /**
+         * ProviderType
+         * @description The protocol a provider speaks.
+         *
+         *     Attributes:
+         *         OIDC: OpenID Connect: the sign-in is identified by a verified ID token.
+         *         OAUTH2: Plain OAuth 2.0: the sign-in is identified by the userinfo endpoint, and by a verified ID token
+         *             when the scopes include ``openid``.
+         * @enum {string}
+         */
+        ProviderType: "oidc" | "oauth2";
         /**
          * RelationshipRead
          * @description The authenticated user's relationship with another user, both directions.

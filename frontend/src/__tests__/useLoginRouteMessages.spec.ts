@@ -24,6 +24,15 @@ describe('useLoginRouteMessages', () => {
     })
   })
 
+  it('tells the user to sign in locally when the provider does not link by email', () => {
+    mocks.route.query = { error: 'sso_link_by_email_disabled' }
+
+    expect(useLoginRouteMessages().resolveInitialAlert()).toEqual({
+      kind: 'error',
+      message: 'login.ssoLinkByEmailDisabled',
+    })
+  })
+
   it('falls back to the generic message for an unknown SSO error', () => {
     mocks.route.query = { error: 'something_else' }
 

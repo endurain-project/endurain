@@ -5,7 +5,7 @@ Endurain supports Single Sign-On (SSO) integration through OAuth 2.0 and OpenID 
 ## Important Notes
 
 !!! warning "Email Address Matching"
-    If you already have an existing Endurain account, the email address in your SSO provider **must match** your Endurain account email. If the email addresses don't match, Endurain will create a new user account with the SSO email address.
+    A provider signs a user in to an existing Endurain account only through a link. Switch on **Link by email** on the provider and an unlinked sign-in joins the account whose email matches the provider's verified email. With it off (the default for a new provider), that sign-in is refused: the user signs in locally and links the provider from **Settings → Security**. If no account has the provider's email, Endurain creates a new user (when **Auto-create users** is on).
 
 !!! tip "Requirements"
     You'll need:
@@ -139,12 +139,24 @@ Save the generated **Client ID** and **Client Secret**.
 | ----- | ----------- | ------- |
 | **Provider Name** | Display name shown on login button | `Google`, `GitHub`, etc. |
 | **Slug** | URL-safe identifier (lowercase, hyphens) | `google`, `github` |
-| **Provider Type** | Protocol type | `OIDC` or `OAuth2` |
+| **Provider Type** | Protocol type: `OIDC` (the default) or `OAuth2`. An `OAuth2` provider whose scopes include `openid` issues an ID token, so its sign-in must carry a verified ID token and needs an issuer URL, like an `OIDC` one. Without `openid` the provider is identified by its userinfo endpoint alone | `OIDC` or `OAuth2` |
 | **Issuer URL** | Provider's issuer URL, exactly as the `issuer` in its `/.well-known/openid-configuration` document; a trailing slash is ignored | `https://accounts.google.com` |
 | **Client ID** | OAuth client identifier | From Step 1 |
 | **Client Secret** | OAuth client secret | From Step 1 |
 | **Scopes** | Space-separated OAuth scopes | `openid profile email` |
 | **Icon** | Logo on the login button: a built-in logo or an uploaded image | `Keycloak`, `Upload an image` |
+| **Auto-create users** | Create an account at the first sign-in of someone no account matches. Off refuses that sign-in | On by default |
+| **Link by email** | Join an unlinked sign-in to the existing account whose email equals the provider's verified email. Off refuses that sign-in and the user links the provider from **Settings → Security** | Off for a new provider |
+| **Sync user info** | At each sign-in, copy the mapped name from the provider. It does not include the email | On by default |
+| **Sync email** | At each sign-in, copy the email the provider verified onto the account | Off for a new provider |
+
+#### Linking by email and syncing the email
+
+Both switches act on an email address, so both are off for a new provider: turn them on only for a provider whose email addresses you trust.
+
+- **Link by email** needs the provider to assert the email as verified (the standard `email_verified` claim on the `email` claim) and the existing account's email to be verified too. A sign-in refused because the switch is off is recorded in the audit trail and the login page tells the user to sign in locally and link the provider from their settings.
+- **Sync email** replaces the account's email with the one the provider verified, unless another account already uses it. The new address counts as verified, unused password-reset links are voided, the change is recorded in the audit trail and the previous address is sent a notice.
+- **Upgrading.** A provider that existed before this setting keeps what it did: **Link by email** is on, and **Sync email** is on exactly when **Sync user info** was on.
 
 #### HTTPS and private networks
 
@@ -233,9 +245,14 @@ If **Allow local username and password login** is enabled, the auto-redirect is 
 
 - **Solution**: Update your existing Endurain account email to match your SSO provider email, or link the identity provider to your existing account
 
+**Problem**: A sign-in is refused with "Cannot link this identity provider to an existing account because the provider does not link by email" (HTTP 403, the login page shows a message)
+
+- **Cause**: An account already has the provider's email, and **Link by email** is off for this provider.
+- **Solution**: Sign in with your password, link the provider from **Settings → Security**, or ask an administrator to switch on **Link by email** for the provider.
+
 **Problem**: "Cannot link this identity provider to an existing account because the provider did not verify the email address" (HTTP 403)
 
-- **Cause**: For security (account-takeover prevention), Endurain auto-links an SSO identity to an **existing** local account by email only when the identity provider asserts the email is verified via the standard OIDC `email_verified` claim. `email_verified` describes only the standard `email` claim, so an address taken from `mail` (the Authentik and Keycloak templates map `email` first and fall back to `mail`, so they link only when the provider sends `email`) or from a custom claim mapping is never treated as verified and is refused too. Providers that omit the flag, or report the email as unverified, are refused.
+- **Cause**: For security (account-takeover prevention), Endurain, for a provider with **Link by email** on, auto-links an SSO identity to an **existing** local account by email only when the identity provider asserts the email is verified via the standard OIDC `email_verified` claim. `email_verified` describes only the standard `email` claim, so an address taken from `mail` (the Authentik and Keycloak templates map `email` first and fall back to `mail`, so they link only when the provider sends `email`) or from a custom claim mapping is never treated as verified and is refused too. Providers that omit the flag, or report the email as unverified, are refused.
 - **Solution**: Configure the identity provider to verify email addresses and send the address in the `email` claim with `email_verified: true` in the userinfo/ID token (request the `email` scope), or link the provider from **Settings → Security** while signed in to the existing account.
 
 **Problem**: "Cannot link this identity provider to an existing account because the account email is not verified" (HTTP 403)

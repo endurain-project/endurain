@@ -27,7 +27,7 @@ class IdentityProviderBase(BaseModel):
     Attributes:
         name (str): Display name of the IdP (1-100 characters).
         slug (str): URL-safe identifier (1-50 characters, lowercase alphanumeric and hyphens only).
-        provider_type (str): Type of provider; must be one of 'oidc', 'oauth2', or 'saml'. Defaults to 'oidc'.
+        provider_type (ProviderType): Protocol of the provider, 'oidc' or 'oauth2'. Defaults to 'oidc'.
         enabled (bool): Whether this provider is enabled. Defaults to False.
         issuer_url (str | None): OIDC issuer/discovery URL (max 500 characters).
         authorization_endpoint (str | None): OAuth2/OIDC authorization endpoint (max 500 characters).
@@ -37,19 +37,28 @@ class IdentityProviderBase(BaseModel):
         scopes (str): OAuth2/OIDC scopes (max 500 characters). Defaults to "openid profile email".
         icon (str | None): Built-in icon key; any other logo is uploaded instead.
         auto_create_users (bool): Whether to auto-create users on first login. Defaults to True.
-        sync_user_info (bool): Whether to sync user info on each login. Defaults to True.
+        link_by_email (bool): Whether a sign-in with no link joins the local account that has the same verified
+            email. Defaults to False.
+        sync_user_info (bool): Whether to sync the mapped profile fields, except the email, on each login.
+            Defaults to True.
+        sync_email (bool): Whether to sync the verified email on each login. Defaults to False.
         user_mapping (Dict[str, Any] | None): Claims mapping configuration.
         client_id (str | None): The client ID for the provider (1-512 characters).
 
     Validators:
         - slug: Ensures the slug contains only lowercase letters, numbers, and hyphens.
-        - provider_type: Ensures the provider type is one of the allowed values.
         - icon: Ensures the icon is a built-in icon key.
     """
 
     name: StrictStr = Field(..., max_length=100, min_length=1, description="Display name of the IdP")
     slug: StrictStr = Field(..., max_length=50, min_length=1, description="URL-safe identifier")
-    provider_type: StrictStr = Field(default="oidc", description="Provider type: oidc, oauth2, or saml")
+    provider_type: idp_constants.ProviderType = Field(
+        default=idp_constants.ProviderType.OIDC,
+        description=(
+            "Protocol of the provider: oidc, or oauth2. With the openid scope an oauth2 provider's sign-in "
+            "must carry a verified ID token too"
+        ),
+    )
     enabled: StrictBool = Field(default=False, description="Whether this provider is enabled")
     issuer_url: StrictStr | None = Field(default=None, max_length=500, description="OIDC issuer/discovery URL")
     authorization_endpoint: StrictStr | None = Field(
@@ -59,13 +68,25 @@ class IdentityProviderBase(BaseModel):
     userinfo_endpoint: StrictStr | None = Field(default=None, max_length=500, description="OIDC userinfo endpoint")
     jwks_uri: StrictStr | None = Field(default=None, max_length=500, description="OIDC JWKS URI")
     scopes: StrictStr = Field(
-        default="openid profile email",
+        default=idp_constants.DEFAULT_SCOPES,
         max_length=500,
         description="OAuth2/OIDC scopes",
     )
     icon: StrictStr | None = Field(default=None, description="Built-in icon key")
     auto_create_users: StrictBool = Field(default=True, description="Auto-create users on first login")
-    sync_user_info: StrictBool = Field(default=True, description="Sync user info on each login")
+    link_by_email: StrictBool = Field(
+        default=False,
+        description=(
+            "Link a sign-in that has no link yet to the local account with the same verified email. "
+            "When off, that sign-in is refused and the user links the provider from their settings"
+        ),
+    )
+    sync_user_info: StrictBool = Field(
+        default=True, description="Sync the mapped profile fields, except the email, on each login"
+    )
+    sync_email: StrictBool = Field(
+        default=False, description="Sync the email the provider verified onto the local account on each login"
+    )
     user_mapping: dict[str, Any] | None = Field(default=None, description="Claims mapping configuration")
     client_id: StrictStr | None = Field(default=None, min_length=1, max_length=512)
 
@@ -103,25 +124,6 @@ class IdentityProviderBase(BaseModel):
         """
         if v is not None and v not in idp_constants.BUILTIN_ICONS:
             raise ValueError(f"Icon must be one of: {', '.join(sorted(idp_constants.BUILTIN_ICONS))}")
-        return v
-
-    @field_validator("provider_type")
-    @classmethod
-    def validate_provider_type(cls, v: str) -> str:
-        """Validates that the given provider type is one of the allowed values.
-
-        Args:
-            v (str): The provider type to validate.
-
-        Returns:
-            str: The validated provider type.
-
-        Raises:
-            ValueError: If the provider type is not one of 'oidc', 'oauth2', or 'saml'.
-        """
-        allowed = ["oidc", "oauth2", "saml"]
-        if v not in allowed:
-            raise ValueError(f"Provider type must be one of: {', '.join(allowed)}")
         return v
 
 
@@ -280,7 +282,9 @@ class IdentityProviderTemplateRead(BaseModel):
     Attributes:
         template_id (str): Template identifier (e.g., 'keycloak', 'authentik').
         name (str): Human-readable name of the identity provider template.
-        provider_type (str): Type of the identity provider (e.g., 'oidc', 'saml').
+        provider_type (ProviderType): Protocol of the identity provider ('oidc' or 'oauth2').
+        link_by_email (bool): Whether a sign-in links to the local account with the same email.
+        sync_email (bool): Whether the verified email is synced on each login.
         issuer_url (str | None): URL of the identity provider's issuer, if applicable.
         scopes (str): Scopes required for authentication.
         icon (str | None): URL or path to the icon representing the identity provider.
@@ -291,8 +295,10 @@ class IdentityProviderTemplateRead(BaseModel):
 
     template_id: StrictStr = Field(..., description="Template identifier (e.g., 'keycloak', 'authentik')")
     name: StrictStr
-    provider_type: StrictStr
+    provider_type: idp_constants.ProviderType
     issuer_url: StrictStr | None = None
+    link_by_email: StrictBool = False
+    sync_email: StrictBool = False
     scopes: StrictStr
     icon: StrictStr | None = None
     user_mapping: dict[str, Any] | None = None

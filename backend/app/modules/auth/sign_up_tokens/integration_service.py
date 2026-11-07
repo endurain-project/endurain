@@ -14,6 +14,18 @@ def revoke_pending_tokens(user_id: int, db: Session) -> None:
     sign_up_service.revoke_user_tokens(user_id, db)
 
 
+def stage_email_changed_notice(user_id: int, email: str, previous_email: str, db: Session) -> None:
+    """Stage the notice to the previous address that an applied email change took effect, with the caller's transaction.
+
+    Args:
+        user_id: The user whose address changed.
+        email: The address the account now uses.
+        previous_email: The address the account had, which receives the notice.
+        db: Database session.
+    """
+    sign_up_service.stage_email_changed_notice(user_id, email, previous_email, db)
+
+
 def request_email_change(user_id: int, email: str, previous_email: str, db: Session) -> bool:
     """Stage a pending email change and its confirmation event with the caller's transaction.
 

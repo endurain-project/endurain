@@ -17,7 +17,7 @@ class IdentityProvider(Base):
         id (int): Primary key.
         name (str): Display name of the IdP.
         slug (str): URL-safe unique identifier for the IdP.
-        provider_type (str): Type of provider (e.g., 'oidc', 'oauth2', 'saml').
+        provider_type (str): Type of provider ('oidc' or 'oauth2').
         enabled (bool): Whether this provider is enabled for authentication.
         client_id (str | None): OAuth2/OIDC client ID (encrypted).
         client_secret (str | None): OAuth2/OIDC client secret (encrypted).
@@ -31,7 +31,9 @@ class IdentityProvider(Base):
         icon (str | None): Icon name (FontAwesome) or custom URL for the provider.
         icon_uploaded (bool): An uploaded icon is stored and takes precedence over ``icon``.
         auto_create_users (bool): Automatically create users on first login.
-        sync_user_info (bool): Sync user info on each login.
+        link_by_email (bool): Link a sign-in with no link to the local account that has the same verified email.
+        sync_user_info (bool): Sync the mapped profile fields, except the email, on each login.
+        sync_email (bool): Sync the verified email on each login.
         user_mapping (dict[str, Any] | None): JSON mapping of IdP claims to user
             fields.
         created_at (datetime): Timestamp when the provider was created.
@@ -61,7 +63,7 @@ class IdentityProvider(Base):
         String(50),
         nullable=False,
         default="oidc",
-        comment="Type: oidc, oauth2, saml",
+        comment="Type: oidc, oauth2",
     )
     enabled: Mapped[bool] = mapped_column(
         Boolean,
@@ -129,11 +131,25 @@ class IdentityProvider(Base):
         default=True,
         comment="Automatically create users on first login",
     )
+    link_by_email: Mapped[bool] = mapped_column(
+        Boolean,
+        nullable=False,
+        default=False,
+        server_default=text("false"),
+        comment="Link a sign-in with no link to the local account that has the same verified email",
+    )
     sync_user_info: Mapped[bool] = mapped_column(
         Boolean,
         nullable=False,
         default=True,
-        comment="Sync user info on each login",
+        comment="Sync the mapped profile fields, except the email, on each login",
+    )
+    sync_email: Mapped[bool] = mapped_column(
+        Boolean,
+        nullable=False,
+        default=False,
+        server_default=text("false"),
+        comment="Sync the verified email on each login",
     )
     user_mapping: Mapped[dict[str, Any] | None] = mapped_column(
         JSON,

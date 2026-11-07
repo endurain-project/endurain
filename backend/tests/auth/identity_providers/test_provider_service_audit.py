@@ -35,6 +35,8 @@ def _state(**overrides) -> idp_contracts.IdentityProviderState:
         "icon_uploaded": False,
         "auto_create_users": True,
         "sync_user_info": True,
+        "sync_email": False,
+        "link_by_email": False,
         "user_mapping": None,
         "created_at": datetime.now(UTC),
         "updated_at": datetime.now(UTC),

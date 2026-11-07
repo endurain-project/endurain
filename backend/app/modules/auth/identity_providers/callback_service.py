@@ -348,7 +348,8 @@ class CallbackService:
             - In link mode, validates that the IdP account is not already linked to any user
             - In login mode, creates new user accounts if they don't exist (SSO provisioning)
             - In login mode, returns the provider's tokens so the session that signs the user in stores them
-            - OIDC providers must return an ID token that verifies against the discovered issuer and signing keys
+            - A provider that issues an ID token (OIDC, or OAuth 2.0 with the openid scope) must return one that
+              verifies against the discovered issuer and signing keys, with the nonce of the authorization request
             - Cleans up OAuth state from database after successful completion
         """
         oauth_client: OAuth2Client | None = None
@@ -382,10 +383,10 @@ class CallbackService:
             userinfo_endpoint = idp.userinfo_endpoint
             jwks_uri = None
             expected_issuer = None
-            require_id_token = idp.provider_type == "oidc"
+            require_id_token = identity_provider_utils.requires_id_token(idp)
 
             if require_id_token:
-                # An OIDC login is identified by a verified ID token, so discovery must succeed.
+                # A login identified by a verified ID token needs discovery to succeed.
                 config = self._oidc.get_oidc_configuration(idp) or {}
                 jwks_uri, expected_issuer = self._require_signing_keys(idp, config)
                 userinfo_endpoint = userinfo_endpoint or config.get("userinfo_endpoint")
@@ -490,9 +491,7 @@ class CallbackService:
                 user_provisioning_service.stage_identity_link(link_user_id, idp.id, db)
                 idp_event_publishers.publish_idp_linked(link_user_id, idp.id, db)
 
-                # Update user info if sync is enabled
-                if idp.sync_user_info:
-                    user = user_provisioning_service.update_user_from_idp(user, idp, userinfo, db)
+                user = user_provisioning_service.update_user_from_idp(user, idp, userinfo, db)
 
                 logger.info(
                     "User <username_log_id> (id=<link_user_id>) linked IdP <name> (subject=<subject>)",

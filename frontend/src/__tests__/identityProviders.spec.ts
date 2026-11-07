@@ -46,7 +46,9 @@ function makeProviderDto(overrides: Partial<IdentityProviderDto> = {}): Identity
     icon: 'keycloak',
     icon_uploaded: false,
     auto_create_users: true,
+    link_by_email: false,
     sync_user_info: true,
+    sync_email: false,
     client_id: 'endurain',
     user_mapping: null,
     created_at: '2026-01-01T00:00:00Z',
@@ -64,6 +66,8 @@ function makeTemplateDto(
     name: 'Keycloak',
     provider_type: 'oidc',
     issuer_url: 'https://idp.test',
+    link_by_email: false,
+    sync_email: false,
     scopes: 'openid profile email',
     icon: 'keycloak',
     user_mapping: null,
@@ -89,7 +93,9 @@ function makeInput(overrides: Partial<IdentityProviderInput> = {}): IdentityProv
     scopes: 'openid profile email',
     icon: 'keycloak',
     autoCreateUsers: true,
+    linkByEmail: false,
     syncUserInfo: true,
+    syncEmail: false,
     ...overrides,
   }
 }
@@ -109,11 +115,25 @@ describe('mapIdentityProvider', () => {
       icon: 'keycloak',
       iconUploaded: false,
       autoCreateUsers: true,
+      linkByEmail: false,
       syncUserInfo: true,
+      syncEmail: false,
       authorizationEndpoint: 'https://idp.test/auth',
       tokenEndpoint: 'https://idp.test/token',
       userinfoEndpoint: 'https://idp.test/userinfo',
     })
+  })
+
+  it('maps the link-by-email and email-sync switches', () => {
+    expect(
+      mapIdentityProvider(makeProviderDto({ link_by_email: true, sync_email: true })),
+    ).toMatchObject({ linkByEmail: true, syncEmail: true })
+  })
+
+  it('maps an oauth2 provider type', () => {
+    expect(mapIdentityProvider(makeProviderDto({ provider_type: 'oauth2' })).providerType).toBe(
+      'oauth2',
+    )
   })
 
   it('normalizes absent optional fields to null', () => {
@@ -133,6 +153,8 @@ describe('mapIdentityProviderTemplate', () => {
       name: 'Keycloak',
       providerType: 'oidc',
       issuerUrl: 'https://idp.test',
+      linkByEmail: false,
+      syncEmail: false,
       scopes: 'openid profile email',
       icon: 'keycloak',
       description: 'Keycloak OIDC',
@@ -146,6 +168,13 @@ describe('toProviderInput', () => {
     const input = toProviderInput(mapIdentityProvider(makeProviderDto()))
     expect(input.clientSecret).toBeNull()
     expect(input).toMatchObject({ name: 'Keycloak', slug: 'keycloak', enabled: true })
+  })
+
+  it('keeps the two switches of the stored provider', () => {
+    const input = toProviderInput(
+      mapIdentityProvider(makeProviderDto({ link_by_email: true, sync_email: true })),
+    )
+    expect(input).toMatchObject({ linkByEmail: true, syncEmail: true })
   })
 })
 
@@ -197,9 +226,30 @@ describe('identity providers service requests', () => {
       scopes: 'openid profile email',
       icon: 'keycloak',
       auto_create_users: true,
+      link_by_email: false,
       sync_user_info: true,
+      sync_email: false,
       client_secret: 'shh',
       step_up: { current_password: 'admin-pw', mfa_code: null },
+    })
+  })
+
+  it('createIdentityProvider sends the two switches as the form set them', async () => {
+    let body: unknown
+    vi.mocked(apiFetch).mockImplementation((_path, init) => {
+      body = init?.body
+      return Promise.resolve(makeProviderDto())
+    })
+
+    await createIdentityProvider(
+      makeInput({ providerType: 'oauth2', linkByEmail: true, syncEmail: true }),
+      stepUp,
+    )
+
+    expect(JSON.parse(body as string)).toMatchObject({
+      provider_type: 'oauth2',
+      link_by_email: true,
+      sync_email: true,
     })
   })
 

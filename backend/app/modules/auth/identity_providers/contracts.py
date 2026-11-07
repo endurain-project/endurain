@@ -1,16 +1,13 @@
 """Internal contracts for identity-provider persistence and OIDC flows."""
 
 from datetime import datetime
-from typing import Any, Literal, Protocol
+from typing import Any, Protocol
 
 from pydantic import BaseModel, ConfigDict, Field
 
 import modules.auth.identity_providers.constants as idp_constants
 import modules.auth.oauth_state.constants as oauth_state_constants
 import modules.auth.schema as auth_schema
-
-#: The protocols a provider can speak, as the provider's schema validates them.
-ProviderType = Literal["oidc", "oauth2", "saml"]
 
 
 class IdentityProviderState(BaseModel):
@@ -19,7 +16,7 @@ class IdentityProviderState(BaseModel):
     id: int
     name: str
     slug: str
-    provider_type: ProviderType
+    provider_type: idp_constants.ProviderType
     enabled: bool
     client_id: str | None
     client_secret: str | None
@@ -32,7 +29,9 @@ class IdentityProviderState(BaseModel):
     icon: str | None
     icon_uploaded: bool
     auto_create_users: bool
+    link_by_email: bool
     sync_user_info: bool
+    sync_email: bool
     user_mapping: dict[str, Any] | None
     created_at: datetime
     updated_at: datetime

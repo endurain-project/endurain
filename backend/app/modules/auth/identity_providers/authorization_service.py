@@ -257,7 +257,7 @@ class AuthorizationService:
             )
         core_network.reject_private_url(authorization_endpoint, purpose="oidc_authorization", require_tls=True)
         redirect_uri = identity_provider_utils.build_redirect_uri(self._frontend_host, idp.slug)
-        scopes = idp.scopes or "openid profile email"
+        scopes = idp.scopes or idp_constants.DEFAULT_SCOPES
         with OAuth2Client(
             client_id=self._oidc.decrypt_client_id(idp),
             redirect_uri=redirect_uri,

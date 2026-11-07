@@ -50,6 +50,8 @@ def _idp():
         icon_uploaded=False,
         auto_create_users=False,
         sync_user_info=False,
+        sync_email=False,
+        link_by_email=False,
         user_mapping=None,
         created_at=now,
         updated_at=now,

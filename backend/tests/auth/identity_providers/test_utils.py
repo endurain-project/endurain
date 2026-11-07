@@ -1,5 +1,7 @@
 """Tests for identity_providers.utils module."""
 
+from types import SimpleNamespace
+
 import pytest
 
 import core.exceptions as core_exceptions
@@ -442,3 +444,25 @@ class TestBuildRedirectUri:
     def test_builds_expected_callback_url(self):
         uri = idp_utils.build_redirect_uri("https://endurain.example", "my-idp")
         assert uri == "https://endurain.example/api/v1/public/idp/callback/my-idp"
+
+
+class TestRequiresIdToken:
+    """A sign-in must carry a verified ID token when the provider will issue one."""
+
+    @pytest.mark.parametrize(
+        ("provider_type", "scopes", "expected"),
+        [
+            ("oidc", "openid profile email", True),
+            ("oidc", "profile email", True),
+            ("oauth2", "openid profile email", True),
+            ("oauth2", "profile openid", True),
+            ("oauth2", None, True),
+            ("oauth2", "", True),
+            ("oauth2", "read:user user:email", False),
+            ("oauth2", "openid2 profile", False),
+        ],
+    )
+    def test_oidc_always_and_oauth2_only_with_the_openid_scope(self, provider_type, scopes, expected):
+        idp = SimpleNamespace(provider_type=provider_type, scopes=scopes)
+
+        assert idp_utils.requires_id_token(idp) is expected

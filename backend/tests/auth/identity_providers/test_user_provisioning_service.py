@@ -6,13 +6,14 @@ linking: an external identity may only be auto-linked to an EXISTING local
 account when the IdP asserts a verified email (OIDC ``email_verified``).
 """
 
-from unittest.mock import MagicMock, patch
+from unittest.mock import ANY, MagicMock, patch
 
 import pytest
 from pydantic import TypeAdapter
 from sqlalchemy.orm import Session
 
 import core.exceptions as core_exceptions
+import modules.auth.identity_providers.audit_actions as idp_audit_actions
 import modules.auth.identity_providers.user_provisioning_service as user_provisioning_service
 import modules.users.users.schema as users_schema
 
@@ -24,6 +25,8 @@ def _make_idp() -> MagicMock:
     idp.name = "TestIdP"
     idp.user_mapping = None
     idp.sync_user_info = False
+    idp.sync_email = False
+    idp.link_by_email = True
     idp.auto_create_users = True
     return idp
 
@@ -234,67 +237,234 @@ class TestLocalEmailVerificationGate:
         mock_link.assert_not_called()
 
 
-class TestUpdateUserFromIdpEmail:
-    """The IdP email is synced onto a user only when the IdP asserts it is verified."""
+_BASE = "modules.auth.identity_providers.user_provisioning_service"
+
+
+class TestLinkByEmail:
+    """A provider links an unlinked subject to the local account with its email only when ``link_by_email`` is on."""
 
     @staticmethod
-    def _sync(userinfo):
-        user = MagicMock()
-        user.username = "alice"
-        user.email = "old@example.com"
-        user.name = "Same"
-        idp = _make_idp()
+    def _sign_in(idp, userinfo, *, existing_user):
         with (
             patch(
-                "modules.auth.identity_providers.user_provisioning_service.users_integration.get_user_by_email",
+                f"{_BASE}.identity_provider_links_integration.get_user_identity_provider_by_subject_and_idp_id"
+            ) as get_link,
+            patch(f"{_BASE}.users_integration.get_user_by_email", return_value=existing_user),
+            patch(f"{_BASE}.users_integration.create_sso_user") as create_user,
+            patch(f"{_BASE}.identity_provider_links_integration.create_user_identity_provider") as link,
+            patch(f"{_BASE}.record_identity_link_refused") as refused,
+        ):
+            get_link.return_value = None
+            try:
+                result = user_provisioning_service.find_or_create_user(idp, "subject-1", userinfo, MagicMock())
+                error = None
+            except core_exceptions.DomainError as exc:
+                result, error = None, exc
+        return result, error, link, create_user, refused
+
+    def test_off_refuses_an_email_match_and_tells_the_user_to_sign_in_locally(self):
+        idp = _make_idp()
+        idp.link_by_email = False
+        existing = MagicMock(id=7, email_verified=True)
+        existing.username = "alice"
+
+        _, error, link, create_user, refused = self._sign_in(
+            idp, {"email": "alice@example.com", "email_verified": True}, existing_user=existing
+        )
+
+        assert isinstance(error, user_provisioning_service.SsoSignInRefusedError)
+        assert error.status_code == 403
+        assert error.login_error == "sso_link_by_email_disabled"
+        link.assert_not_called()
+        create_user.assert_not_called()
+        refused.assert_called_once_with(7, 1, idp_audit_actions.IdentityLinkRefusal.LINK_BY_EMAIL_DISABLED)
+
+    def test_off_refuses_before_the_verification_checks(self):
+        idp = _make_idp()
+        idp.link_by_email = False
+        existing = MagicMock(id=7, email_verified=False)
+        existing.username = "alice"
+
+        _, error, _, _, refused = self._sign_in(idp, {"email": "alice@example.com"}, existing_user=existing)
+
+        assert error.login_error == "sso_link_by_email_disabled"
+        refused.assert_called_once_with(7, 1, idp_audit_actions.IdentityLinkRefusal.LINK_BY_EMAIL_DISABLED)
+
+    def test_on_links_as_before(self):
+        idp = _make_idp()
+        existing = MagicMock(id=7, email_verified=True)
+        existing.username = "alice"
+
+        result, error, link, _, refused = self._sign_in(
+            idp, {"email": "alice@example.com", "email_verified": True}, existing_user=existing
+        )
+
+        assert error is None
+        assert result is existing
+        link.assert_called_once_with(7, 1, "subject-1", ANY)
+        refused.assert_not_called()
+
+    def test_off_still_creates_a_new_user_when_no_account_has_the_email(self):
+        idp = _make_idp()
+        idp.link_by_email = False
+
+        with (
+            patch(
+                f"{_BASE}.identity_provider_links_integration.get_user_identity_provider_by_subject_and_idp_id",
                 return_value=None,
             ),
-            patch("modules.auth.identity_providers.user_provisioning_service.users_integration.edit_user") as mock_edit,
-            patch("modules.auth.identity_providers.user_provisioning_service.users_schema.UserEdit.from_read"),
+            patch(f"{_BASE}.users_integration.get_user_by_email", return_value=None),
+            patch(f"{_BASE}.users_integration.get_user_by_username", return_value=None),
+            patch(f"{_BASE}.server_settings_integration.get_server_settings"),
+            patch(f"{_BASE}.users_integration.create_sso_user", return_value=MagicMock(id=3, username="new")) as create,
+            patch(f"{_BASE}.identity_provider_links_integration.create_user_identity_provider"),
         ):
-            user_provisioning_service.update_user_from_idp(user, idp, userinfo, MagicMock(spec=Session))
-        return user, mock_edit
+            user_provisioning_service.find_or_create_user(
+                idp, "subject-1", {"email": "new@example.com", "email_verified": True}, MagicMock()
+            )
 
-    def test_unverified_idp_email_is_not_synced(self):
-        user, mock_edit = self._sync({"email": "new@example.com", "name": "Same"})
+        create.assert_called_once()
 
-        user.model_copy.assert_not_called()
-        mock_edit.assert_not_called()
+    def test_off_does_not_affect_a_subject_that_is_already_linked(self):
+        idp = _make_idp()
+        idp.link_by_email = False
+        user = MagicMock(id=7)
 
-    def test_verified_idp_email_is_synced(self):
-        user, mock_edit = self._sync({"email": "new@example.com", "name": "Same", "email_verified": True})
+        with (
+            patch(
+                f"{_BASE}.identity_provider_links_integration.get_user_identity_provider_by_subject_and_idp_id",
+                return_value=MagicMock(user_id=7),
+            ),
+            patch(f"{_BASE}.identity_provider_links_integration.update_user_identity_provider_last_login"),
+            patch(f"{_BASE}.users_integration.get_user", return_value=user),
+            patch(f"{_BASE}.users_integration.require_active_user"),
+        ):
+            result = user_provisioning_service.find_or_create_user(idp, "subject-1", {}, MagicMock())
 
-        user.model_copy.assert_called_once_with(update={"email": "new@example.com"})
-        mock_edit.assert_called_once()
+        assert result is user
 
 
-class TestUpdateUserFromIdpLogging:
-    """Sync logging names the changed fields and a username fingerprint, never the values."""
+class TestUpdateUserFromIdp:
+    """``sync_user_info`` syncs the name; the email follows ``sync_email`` alone."""
+
+    @staticmethod
+    def _user(**overrides):
+        user = MagicMock()
+        user.id = 7
+        user.username = "alice"
+        user.email = "old@example.com"
+        user.name = "Old Name"
+        for key, value in overrides.items():
+            setattr(user, key, value)
+        return user
+
+    @staticmethod
+    def _sync(user, idp, userinfo, *, holder=None):
+        refreshed = MagicMock(name="refreshed", username="alice")
+        with (
+            patch(f"{_BASE}.users_integration.get_user_by_email", return_value=holder),
+            patch(f"{_BASE}.users_integration.edit_user", return_value=user) as edit,
+            patch(f"{_BASE}.users_integration.stage_synced_email_change") as email_change,
+            patch(f"{_BASE}.users_integration.get_user", return_value=refreshed) as get_user,
+            patch(f"{_BASE}.users_schema.UserEdit.from_read"),
+        ):
+            result = user_provisioning_service.update_user_from_idp(user, idp, userinfo, MagicMock(spec=Session))
+        return result, refreshed, edit, email_change, get_user
+
+    def test_with_both_flags_off_nothing_is_written(self):
+        user = self._user()
+
+        result, _, edit, email_change, _ = self._sync(
+            user, _make_idp(), {"email": "new@example.com", "email_verified": True, "name": "New"}
+        )
+
+        assert result is user
+        edit.assert_not_called()
+        email_change.assert_not_called()
+
+    def test_sync_user_info_syncs_the_name_and_keeps_the_email(self):
+        idp = _make_idp()
+        idp.sync_user_info = True
+        user = self._user()
+
+        _, _, edit, email_change, _ = self._sync(
+            user, idp, {"email": "new@example.com", "email_verified": True, "name": "New Name"}
+        )
+
+        user.model_copy.assert_called_once_with(update={"name": "New Name"})
+        edit.assert_called_once()
+        assert edit.call_args.kwargs["if_match"] == "*"
+        email_change.assert_not_called()
+
+    def test_sync_email_changes_the_email_notifies_the_previous_address_and_leaves_the_name(self):
+        idp = _make_idp()
+        idp.sync_email = True
+        user = self._user()
+
+        result, refreshed, edit, email_change, get_user = self._sync(
+            user, idp, {"email": "new@example.com", "email_verified": True, "name": "New Name"}
+        )
+
+        email_change.assert_called_once_with(7, "new@example.com", ANY)
+        edit.assert_not_called()
+        get_user.assert_called_once_with(7, ANY)
+        assert result is refreshed
+
+    def test_both_flags_sync_the_name_and_the_email(self):
+        idp = _make_idp()
+        idp.sync_user_info = True
+        idp.sync_email = True
+        user = self._user()
+
+        _, _, edit, email_change, _ = self._sync(
+            user, idp, {"email": "new@example.com", "email_verified": True, "name": "New Name"}
+        )
+
+        edit.assert_called_once()
+        email_change.assert_called_once()
+
+    def test_an_email_the_provider_did_not_verify_is_not_synced(self):
+        idp = _make_idp()
+        idp.sync_email = True
+
+        _, _, _, email_change, _ = self._sync(self._user(), idp, {"email": "new@example.com"})
+
+        email_change.assert_not_called()
+
+    def test_an_email_another_account_uses_is_not_synced(self):
+        idp = _make_idp()
+        idp.sync_email = True
+
+        _, _, _, email_change, _ = self._sync(
+            self._user(), idp, {"email": "new@example.com", "email_verified": True}, holder=MagicMock(id=8)
+        )
+
+        email_change.assert_not_called()
+
+    def test_the_same_email_is_not_a_change(self):
+        idp = _make_idp()
+        idp.sync_email = True
+
+        _, _, _, email_change, _ = self._sync(self._user(), idp, {"email": "old@example.com", "email_verified": True})
+
+        email_change.assert_not_called()
 
     def test_applied_updates_log_field_names_and_hashed_username(self):
-        user = MagicMock()
-        user.username = "alice"
-        user.email = "old@example.com"
-        user.name = "Same"
+        idp = _make_idp()
+        idp.sync_email = True
+        user = self._user()
         with (
-            patch(
-                "modules.auth.identity_providers.user_provisioning_service.users_integration.get_user_by_email",
-                return_value=None,
-            ),
-            patch("modules.auth.identity_providers.user_provisioning_service.users_integration.edit_user"),
-            patch("modules.auth.identity_providers.user_provisioning_service.users_schema.UserEdit.from_read"),
-            patch("modules.auth.identity_providers.user_provisioning_service.logger") as mock_logger,
+            patch(f"{_BASE}.users_integration.get_user_by_email", return_value=None),
+            patch(f"{_BASE}.users_integration.stage_synced_email_change"),
+            patch(f"{_BASE}.users_integration.get_user", return_value=MagicMock(username="alice")),
+            patch(f"{_BASE}.logger") as mock_logger,
         ):
             user_provisioning_service.update_user_from_idp(
-                user,
-                _make_idp(),
-                {"email": "new@example.com", "name": "Same", "email_verified": True},
-                MagicMock(spec=Session),
+                user, idp, {"email": "new@example.com", "email_verified": True}, MagicMock(spec=Session)
             )
 
         extra = mock_logger.info.call_args.kwargs["extra"]
         assert extra["updated_fields"] == ["email"]
-        assert "updates" not in extra
         assert "alice" not in str(extra)
         assert "new@example.com" not in str(extra)
 

@@ -14,7 +14,9 @@ _USERS = "modules.auth.identity_providers.user_provisioning_service.users_integr
 
 
 def _idp() -> MagicMock:
-    idp = MagicMock(id=3, user_mapping=None, sync_user_info=False, auto_create_users=True)
+    idp = MagicMock(
+        id=3, user_mapping=None, sync_user_info=False, sync_email=False, link_by_email=True, auto_create_users=True
+    )
     idp.name = "Pocket"
     return idp
 
@@ -83,6 +85,31 @@ def test_a_refused_email_link_is_recorded_as_denied_with_its_reason(mock_db, use
         target_owner_id="7",
     )
     assert entry.details == {"idp_id": 3, "reason": reason}
+
+
+def test_a_provider_that_does_not_link_by_email_records_a_denied_link_with_its_reason(mock_db):
+    idp = _idp()
+    idp.link_by_email = False
+    with (
+        patch(f"{_LINKS}.get_user_identity_provider_by_subject_and_idp_id", return_value=None),
+        patch(f"{_LINKS}.create_user_identity_provider") as create_link,
+        patch(f"{_USERS}.get_user_by_email", return_value=_existing_user()),
+        jasil_testing.capture_audit() as audit,
+        pytest.raises(provisioning.SsoSignInRefusedError),
+    ):
+        provisioning.find_or_create_user(
+            idp, "subject-1", {"email": "alice@example.com", "email_verified": True}, mock_db
+        )
+
+    create_link.assert_not_called()
+    entry = audit.assert_audited(
+        idp_audit_actions.IDENTITY_LINK_LINK.id,
+        outcome="denied",
+        target_type="user",
+        target_id="7",
+        target_owner_id="7",
+    )
+    assert entry.details == {"idp_id": 3, "reason": "link_by_email_disabled"}
 
 
 def test_creating_an_account_from_a_provider_audits_its_link(mock_db):

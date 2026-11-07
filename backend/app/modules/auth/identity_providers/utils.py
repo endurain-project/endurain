@@ -4,6 +4,8 @@ from urllib.parse import parse_qsl, urlencode, urlsplit, urlunsplit
 
 import core.exceptions as core_exceptions
 import core.redirect_schemes as core_redirect_schemes
+import modules.auth.identity_providers.constants as idp_constants
+import modules.auth.identity_providers.contracts as identity_provider_contracts
 
 
 def _custom_scheme(value: str) -> str | None:
@@ -11,6 +13,23 @@ def _custom_scheme(value: str) -> str | None:
     if "://" not in value:
         return None
     return value.split("://", 1)[0].lower()
+
+
+def requires_id_token(idp: identity_provider_contracts.IdentityProviderState) -> bool:
+    """Return whether a sign-in through a provider must carry a verified ID token, and so its nonce.
+
+    An OpenID Connect provider always issues one, and so does an OAuth 2.0 provider asked for the ``openid`` scope.
+    A provider with no scopes configured is asked for the default ones, which include ``openid``.
+
+    Args:
+        idp: The provider.
+
+    Returns:
+        Whether the ID token is mandatory.
+    """
+    if idp.provider_type == idp_constants.ProviderType.OIDC:
+        return True
+    return "openid" in (idp.scopes or idp_constants.DEFAULT_SCOPES).split()
 
 
 def validate_redirect_url(redirect: str | None, allowed_schemes: set[str]) -> None:

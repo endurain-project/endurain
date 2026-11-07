@@ -36,7 +36,9 @@ export function mapIdentityProvider(dto: IdentityProviderDto): IdentityProvider 
     icon: dto.icon ?? null,
     iconUploaded: dto.icon_uploaded ?? false,
     autoCreateUsers: dto.auto_create_users,
+    linkByEmail: dto.link_by_email,
     syncUserInfo: dto.sync_user_info,
+    syncEmail: dto.sync_email,
     authorizationEndpoint: dto.authorization_endpoint ?? null,
     tokenEndpoint: dto.token_endpoint ?? null,
     userinfoEndpoint: dto.userinfo_endpoint ?? null,
@@ -57,6 +59,8 @@ export function mapIdentityProviderTemplate(
     name: dto.name,
     providerType: dto.provider_type,
     issuerUrl: dto.issuer_url ?? null,
+    linkByEmail: dto.link_by_email,
+    syncEmail: dto.sync_email,
     scopes: dto.scopes,
     icon: dto.icon ?? null,
     description: dto.description,
@@ -84,7 +88,9 @@ export function toProviderInput(provider: IdentityProvider): IdentityProviderInp
     scopes: provider.scopes,
     icon: provider.icon,
     autoCreateUsers: provider.autoCreateUsers,
+    linkByEmail: provider.linkByEmail,
     syncUserInfo: provider.syncUserInfo,
+    syncEmail: provider.syncEmail,
   }
 }
 
@@ -105,7 +111,9 @@ function toWireBase(input: IdentityProviderInput) {
     scopes: input.scopes,
     icon: input.icon,
     auto_create_users: input.autoCreateUsers,
+    link_by_email: input.linkByEmail,
     sync_user_info: input.syncUserInfo,
+    sync_email: input.syncEmail,
   }
 }
 

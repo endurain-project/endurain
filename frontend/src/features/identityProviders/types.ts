@@ -1,5 +1,8 @@
 import type { Schemas } from '@/types'
 
+/** The protocol a provider speaks. */
+export type ProviderType = Schemas['ProviderType']
+
 /** Raw authenticated identity-provider payload (snake_case wire shape). */
 export type IdentityProviderDto = Schemas['IdentityProviderRead']
 
@@ -21,7 +24,7 @@ export type IdentityProviderTemplateDto = Schemas['IdentityProviderTemplateRead'
  * @property id - Stable unique identifier.
  * @property name - Display name shown to users on the login screen.
  * @property slug - URL-safe identifier used in the SSO login path (immutable after creation).
- * @property providerType - Protocol: `oidc`, `oauth2`, or `saml`.
+ * @property providerType - Protocol: `oidc` or `oauth2`.
  * @property enabled - Whether the provider is offered on the login screen.
  * @property issuerUrl - OIDC issuer / discovery URL, or `null`.
  * @property clientId - OAuth client id (decrypted for admins), or `null`.
@@ -29,7 +32,9 @@ export type IdentityProviderTemplateDto = Schemas['IdentityProviderTemplateRead'
  * @property icon - Built-in icon key or a custom icon URL, or `null`.
  * @property iconUploaded - Whether an uploaded image is shown instead of `icon`.
  * @property autoCreateUsers - Whether first-time logins auto-create an account.
- * @property syncUserInfo - Whether profile info is synced on each login.
+ * @property linkByEmail - Whether an unlinked sign-in joins the local account with the same verified email.
+ * @property syncUserInfo - Whether the mapped profile fields, except the email, are synced on each login.
+ * @property syncEmail - Whether the email the provider verified is synced on each login.
  * @property authorizationEndpoint - Discovered OAuth authorization endpoint, or `null`.
  * @property tokenEndpoint - Discovered OAuth token endpoint, or `null`.
  * @property userinfoEndpoint - Discovered OIDC userinfo endpoint, or `null`.
@@ -40,7 +45,7 @@ export interface IdentityProvider {
   version: number
   name: string
   slug: string
-  providerType: string
+  providerType: ProviderType
   enabled: boolean
   issuerUrl: string | null
   clientId: string | null
@@ -48,7 +53,9 @@ export interface IdentityProvider {
   icon: string | null
   iconUploaded: boolean
   autoCreateUsers: boolean
+  linkByEmail: boolean
   syncUserInfo: boolean
+  syncEmail: boolean
   authorizationEndpoint: string | null
   tokenEndpoint: string | null
   userinfoEndpoint: string | null
@@ -61,6 +68,8 @@ export interface IdentityProvider {
  * @property name - Human-readable preset name.
  * @property providerType - Protocol the preset configures.
  * @property issuerUrl - Issuer URL the preset applies, or `null`.
+ * @property linkByEmail - Whether the preset links an unlinked sign-in by email.
+ * @property syncEmail - Whether the preset syncs the verified email on each login.
  * @property scopes - Scopes the preset applies.
  * @property icon - Icon key the preset applies, or `null`.
  * @property description - Short description shown under the preset selector.
@@ -69,8 +78,10 @@ export interface IdentityProvider {
 export interface IdentityProviderTemplate {
   templateId: string
   name: string
-  providerType: string
+  providerType: ProviderType
   issuerUrl: string | null
+  linkByEmail: boolean
+  syncEmail: boolean
   scopes: string
   icon: string | null
   description: string
@@ -85,7 +96,7 @@ export interface IdentityProviderTemplate {
 export interface IdentityProviderInput {
   name: string
   slug: string
-  providerType: string
+  providerType: ProviderType
   enabled: boolean
   issuerUrl: string | null
   clientId: string | null
@@ -94,5 +105,7 @@ export interface IdentityProviderInput {
   scopes: string
   icon: string | null
   autoCreateUsers: boolean
+  linkByEmail: boolean
   syncUserInfo: boolean
+  syncEmail: boolean
 }

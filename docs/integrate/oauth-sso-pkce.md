@@ -21,16 +21,17 @@ The system is extensible and can be configured to work with:
 ### OAuth Configuration
 Identity providers are configured by an administrator with these parameters:
 
-- `name`, `slug` and `provider_type` (`oidc` by default)
+- `name`, `slug` and `provider_type`: `oidc` (the default) or `oauth2`; any other value, including `saml`, is refused with `422`. An `oauth2` provider whose `scopes` include `openid` (the default scopes do) must return an ID token that verifies, nonce included, like an `oidc` one
 - `client_id` and `client_secret`: OAuth client identifier and secret
 - `issuer_url`: the OIDC issuer. Endurain reads `{issuer_url}/.well-known/openid-configuration` and requires its `issuer` to match. An `oidc` provider needs it: sign-in verifies the ID token against the issuer and the signing keys (`jwks_uri`) the discovery document publishes, and a provider without them is refused. Step-up re-authentication also needs it
 - `authorization_endpoint`, `token_endpoint`, `userinfo_endpoint`: optional. A blank endpoint is discovered from the issuer; a value set here takes precedence
 - `scopes`: `openid profile email` by default
+- `auto_create_users` (`true` by default), `link_by_email` (`false` by default), `sync_user_info` (`true` by default) and `sync_email` (`false` by default). `link_by_email` lets an unlinked sign-in join the local account that has the provider's verified email; when it is `false` that sign-in is refused. `sync_user_info` syncs the mapped name and not the email; `sync_email` syncs the email the provider verified, which marks it verified, voids unused password-reset tokens, is audited and notifies the previous address
 
 The callback URL is not a setting. Endurain always uses `{frontend host}/api/v1/public/idp/callback/{idp_slug}`, so register exactly that URL as the redirect URI at the provider.
 
 ### SSO failures
-The callback always ends in a redirect, never a JSON error, once its state is accepted. When a login fails, the browser lands on the Endurain frontend at `/login?error=<code>`: `sso_email_missing` when the provider did not share an email address for a new account, and `sso_failed` for every other failure (the provider refused the code or answered with an error, or the account could not be created). A failed link returns to the page that started it (`/settings/security` by default) with `idp_link=error`. A failed step-up returns to its `redirect` with `#step_up_error=failed|not_fresh` in the fragment. An unknown, expired, reused or wrong-provider `state` is refused before that with `400`.
+The callback always ends in a redirect, never a JSON error, once its state is accepted. When a login fails, the browser lands on the Endurain frontend at `/login?error=<code>`: `sso_email_missing` when the provider did not share an email address for a new account, `sso_link_by_email_disabled` when an account has the provider's email and the provider does not link by email, and `sso_failed` for every other failure (the provider refused the code or answered with an error, or the account could not be created). A failed link returns to the page that started it (`/settings/security` by default) with `idp_link=error`. A failed step-up returns to its `redirect` with `#step_up_error=failed|not_fresh` in the fragment. An unknown, expired, reused or wrong-provider `state` is refused before that with `400`.
 
 ### Linking Accounts
 Users can link their Endurain account to an OAuth provider:
@@ -322,7 +323,7 @@ The user signs in with the identity provider in the system browser. On success t
 
 The OS invokes the app's deep-link or intent handler with that URL. Extract the `session_id`.
 
-On failure the browser stays on the Endurain login page with an `error` query parameter (`sso_failed`, or `sso_email_missing` when the provider shared no email address for a new account). The app receives no deep link, so it must also handle the user closing the browser or a timeout. The state expires after 10 minutes.
+On failure the browser stays on the Endurain login page with an `error` query parameter (`sso_failed`, `sso_email_missing` when the provider shared no email address for a new account, or `sso_link_by_email_disabled`). The app receives no deep link, so it must also handle the user closing the browser or a timeout. The state expires after 10 minutes.
 
 #### Step 4: Exchange Session for Tokens (PKCE Verification)
 

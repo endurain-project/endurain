@@ -1009,6 +1009,27 @@ def stage_confirmed_email_change(user_id: int, email: str, db: Session) -> None:
     )
 
 
+def stage_synced_email_change(user_id: int, email: str, db: Session) -> None:
+    """Stage an email address that a sign-in provider verified as the user's, and tell the previous address.
+
+    The address is applied as a confirmed one: marked verified, with the user's unused password-reset tokens
+    voided and the change audited, and the previous address is sent the notice a confirmed change sends. The
+    caller owns the transaction.
+
+    Args:
+        user_id: ID of the user whose email changes.
+        email: The address the provider verified.
+        db: Database session.
+
+    Raises:
+        NotFoundError: If the user does not exist.
+        ConflictError: If another account uses the email.
+    """
+    previous_email = require_user(user_id, db).email
+    stage_confirmed_email_change(user_id, email, db)
+    sign_up_tokens_integration.stage_email_changed_notice(user_id, email.lower(), previous_email, db)
+
+
 def approve_user(user_id: int, db: Session) -> None:
     """Approve a user awaiting approval, staging the notice event in the same transaction.
 

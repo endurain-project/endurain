@@ -340,6 +340,21 @@ def stage_confirmed_email_change(user_id: int, email: str, db: Session) -> None:
     users_service.stage_confirmed_email_change(user_id, email, db)
 
 
+def stage_synced_email_change(user_id: int, email: str, db: Session) -> None:
+    """Stage an email address a sign-in provider verified as the user's, and tell the previous address.
+
+    Args:
+        user_id: The user whose email changes.
+        email: The address the provider verified.
+        db: Database session.
+
+    Raises:
+        NotFoundError: If the user does not exist.
+        ConflictError: If another account uses the email.
+    """
+    users_service.stage_synced_email_change(user_id, email, db)
+
+
 def upload_user_photo(
     user_id: int,
     file: UploadFile,

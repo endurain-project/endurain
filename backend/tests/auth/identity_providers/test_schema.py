@@ -5,6 +5,7 @@ from datetime import UTC, datetime
 import pytest
 from pydantic import ValidationError
 
+import modules.auth.identity_providers.constants as idp_constants
 import modules.auth.identity_providers.schema as idp_schema
 import modules.auth.schema as auth_schema
 from modules.auth.identity_providers.schema import (
@@ -158,34 +159,48 @@ class TestIdentityProviderBase:
         # Assert
         assert idp.provider_type == "oauth2"
 
-    def test_provider_type_validation_saml(self):
-        """Test provider_type validation accepts 'saml'.
+    def test_provider_type_is_an_enum_of_oidc_and_oauth2(self):
+        """Test provider_type is a string enum whose members are the two protocols.
 
         Asserts:
-            - 'saml' is accepted as valid provider type
+            - The enum has exactly 'oidc' and 'oauth2'
+            - The parsed value is the enum member
         """
         # Arrange & Act
-        idp = IdentityProviderBase(name="Test", slug="test", provider_type="saml", client_id="client-123")
+        idp = IdentityProviderBase(name="Test", slug="test", provider_type="oauth2", client_id="client-123")
 
         # Assert
-        assert idp.provider_type == "saml"
+        assert {member.value for member in idp_constants.ProviderType} == {"oidc", "oauth2"}
+        assert idp.provider_type is idp_constants.ProviderType.OAUTH2
 
-    def test_provider_type_validation_invalid(self):
-        """Test provider_type validation rejects invalid types.
+    def test_provider_type_defaults_to_oidc(self):
+        idp = IdentityProviderBase(name="Test", slug="test", client_id="client-123")
 
-        Asserts:
-            - ValidationError is raised for invalid provider type
-        """
-        # Arrange & Act & Assert
-        with pytest.raises(ValidationError) as exc_info:
-            IdentityProviderBase(
-                name="Test",
-                slug="test",
-                provider_type="invalid",
-                client_id="client-123",
+        assert idp.provider_type is idp_constants.ProviderType.OIDC
+
+    @pytest.mark.parametrize("provider_type", ["saml", "invalid", "OIDC", ""])
+    def test_provider_type_refuses_any_other_value(self, provider_type):
+        """Test provider_type refuses 'saml' (no SAML code exists) and every other string."""
+        with pytest.raises(ValidationError):
+            IdentityProviderBase(name="Test", slug="test", provider_type=provider_type, client_id="client-123")
+
+    def test_the_two_new_flags_default_to_false(self):
+        idp = IdentityProviderBase(name="Test", slug="test", client_id="client-123")
+
+        assert idp.link_by_email is False
+        assert idp.sync_email is False
+
+    def test_the_two_new_flags_are_strict_booleans(self):
+        with pytest.raises(ValidationError):
+            IdentityProviderBase(name="Test", slug="test", client_id="client-123", link_by_email="yes")
+        with pytest.raises(ValidationError):
+            IdentityProviderBase(name="Test", slug="test", client_id="client-123", sync_email=1)
+
+    def test_a_create_request_with_saml_is_refused(self):
+        with pytest.raises(ValidationError):
+            idp_schema.IdentityProviderCreate(
+                name="P", slug="p", client_id="c", client_secret="s", provider_type="saml"
             )
-
-        assert "Provider type must be one of" in str(exc_info.value)
 
     def test_name_max_length_validation(self):
         """Test name field max length validation.

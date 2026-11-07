@@ -77,12 +77,31 @@ class StepUpAction(StrEnum):
     ADMIN_MAIL_SETTINGS_EDIT = "admin_mail_settings_edit"
 
 
+#: Scopes requested from a provider that configures none.
+DEFAULT_SCOPES = "openid profile email"
+
+
+class ProviderType(StrEnum):
+    """The protocol a provider speaks.
+
+    Attributes:
+        OIDC: OpenID Connect: the sign-in is identified by a verified ID token.
+        OAUTH2: Plain OAuth 2.0: the sign-in is identified by the userinfo endpoint, and by a verified ID token
+            when the scopes include ``openid``.
+    """
+
+    OIDC = "oidc"
+    OAUTH2 = "oauth2"
+
+
 class IdentityProviderTemplate(TypedDict):
     """A built-in identity provider template, keyed by its template id in ``IDP_TEMPLATES``."""
 
     name: str
-    provider_type: str
+    provider_type: ProviderType
     issuer_url: str
+    link_by_email: bool
+    sync_email: bool
     scopes: str
     icon: str
     user_mapping: dict[str, list[str]]
@@ -94,9 +113,11 @@ class IdentityProviderTemplate(TypedDict):
 IDP_TEMPLATES: dict[str, IdentityProviderTemplate] = {
     "authelia": {
         "name": "Authelia",
-        "provider_type": "oidc",
+        "provider_type": ProviderType.OIDC,
+        "link_by_email": False,
+        "sync_email": False,
         "issuer_url": "https://{your-authelia-domain}",
-        "scopes": "openid profile email",
+        "scopes": DEFAULT_SCOPES,
         "icon": "authelia",
         "user_mapping": {
             "username": ["preferred_username", "username", "email"],
@@ -111,9 +132,11 @@ IDP_TEMPLATES: dict[str, IdentityProviderTemplate] = {
     },
     "authentik": {
         "name": "Authentik",
-        "provider_type": "oidc",
+        "provider_type": ProviderType.OIDC,
+        "link_by_email": False,
+        "sync_email": False,
         "issuer_url": "https://{your-authentik-domain}/application/o/{slug}/",
-        "scopes": "openid profile email",
+        "scopes": DEFAULT_SCOPES,
         "icon": "authentik",
         "user_mapping": {
             "username": ["preferred_username", "username", "email"],
@@ -128,9 +151,11 @@ IDP_TEMPLATES: dict[str, IdentityProviderTemplate] = {
     },
     "casdoor": {
         "name": "Casdoor",
-        "provider_type": "oidc",
+        "provider_type": ProviderType.OIDC,
+        "link_by_email": False,
+        "sync_email": False,
         "issuer_url": "https://{your-casdoor-domain}",
-        "scopes": "openid profile email",
+        "scopes": DEFAULT_SCOPES,
         "icon": "casdoor",
         "user_mapping": {
             "username": ["preferred_username", "username", "name"],
@@ -145,9 +170,11 @@ IDP_TEMPLATES: dict[str, IdentityProviderTemplate] = {
     },
     "keycloak": {
         "name": "Keycloak",
-        "provider_type": "oidc",
+        "provider_type": ProviderType.OIDC,
+        "link_by_email": False,
+        "sync_email": False,
         "issuer_url": "https://{your-keycloak-domain}/realms/{realm}",
-        "scopes": "openid profile email",
+        "scopes": DEFAULT_SCOPES,
         "icon": "keycloak",
         "user_mapping": {
             "username": ["preferred_username", "username", "email"],
@@ -162,9 +189,11 @@ IDP_TEMPLATES: dict[str, IdentityProviderTemplate] = {
     },
     "pocketid": {
         "name": "Pocket ID",
-        "provider_type": "oidc",
+        "provider_type": ProviderType.OIDC,
+        "link_by_email": False,
+        "sync_email": False,
         "issuer_url": "https://{your-pocketid-domain}",
-        "scopes": "openid profile email",
+        "scopes": DEFAULT_SCOPES,
         "icon": "pocketid",
         "user_mapping": {
             "username": ["preferred_username", "username", "email"],
