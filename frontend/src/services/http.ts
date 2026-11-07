@@ -181,8 +181,15 @@ let refreshPromise: Promise<AuthTokenResponse> | null = null
 /**
  * Refreshes in-memory auth tokens using the HTTP-only refresh cookie.
  *
+ * Concurrent callers share one in-flight refresh. Only a refusal of the refresh
+ * session (HTTP 401 or 403) clears the tokens and signals session expiry. Any
+ * other failure, such as a network error, a timeout, or a 429 or 5xx response,
+ * is re-thrown unchanged and leaves the tokens in place, so a transient outage
+ * does not log the user out.
+ *
  * @returns The refreshed auth token response.
- * @throws {HttpError} When the refresh session is invalid or expired.
+ * @throws {unknown} The refresh failure. An {@link HttpError} for a non-2xx response,
+ *   or the fetch rejection (TypeError, timeout or abort DOMException) otherwise.
  */
 async function refreshAuthTokens(): Promise<AuthTokenResponse> {
   refreshPromise ??= rawApiFetch<AuthTokenResponse>(REFRESH_PATH, {
@@ -194,8 +201,12 @@ async function refreshAuthTokens(): Promise<AuthTokenResponse> {
       return response
     })
     .catch((error: unknown) => {
-      clearAuthTokens()
-      emitSessionExpired()
+      const sessionRefused =
+        error instanceof HttpError && (error.status === 401 || error.status === 403)
+      if (sessionRefused) {
+        clearAuthTokens()
+        emitSessionExpired()
+      }
       throw error
     })
     .finally(() => {

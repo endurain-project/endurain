@@ -164,6 +164,88 @@ describe('apiFetch', () => {
     expect(onExpired).toHaveBeenCalledTimes(1)
   })
 
+  describe('when the refresh fails for a reason other than a rejected session', () => {
+    /**
+     * Makes the original request return an expired-token 401 and the refresh
+     * answer as `refresh` dictates.
+     *
+     * @param refresh - Produces the outcome of the `/auth/refresh` call.
+     */
+    function expireSessionThenRefreshWith(refresh: () => Promise<Response>): void {
+      fetchMock.mockImplementation((url: string) => {
+        if (url === '/auth/refresh') return refresh()
+        return Promise.resolve(jsonResponse({ type: INVALID_TOKEN, detail: 'expired' }, 401))
+      })
+    }
+
+    it('keeps the tokens and does not signal expiry on a network error', async () => {
+      const onExpired = vi.fn<() => void>()
+      onSessionExpired(onExpired)
+      const networkError = new TypeError('Failed to fetch')
+      expireSessionThenRefreshWith(() => Promise.reject(networkError))
+
+      await expect(apiFetch('/data')).rejects.toBe(networkError)
+      expect(clearAuthTokens).not.toHaveBeenCalled()
+      expect(onExpired).not.toHaveBeenCalled()
+    })
+
+    it('keeps the tokens and does not signal expiry on a 500', async () => {
+      const onExpired = vi.fn<() => void>()
+      onSessionExpired(onExpired)
+      expireSessionThenRefreshWith(() => Promise.resolve(jsonResponse({ detail: 'boom' }, 500)))
+
+      await expect(apiFetch('/data')).rejects.toMatchObject({ status: 500 })
+      expect(clearAuthTokens).not.toHaveBeenCalled()
+      expect(onExpired).not.toHaveBeenCalled()
+    })
+
+    it('keeps the tokens and does not signal expiry on a 429', async () => {
+      const onExpired = vi.fn<() => void>()
+      onSessionExpired(onExpired)
+      expireSessionThenRefreshWith(() =>
+        Promise.resolve(jsonResponse({ detail: 'slow down' }, 429)),
+      )
+
+      await expect(apiFetch('/data')).rejects.toMatchObject({ status: 429 })
+      expect(clearAuthTokens).not.toHaveBeenCalled()
+      expect(onExpired).not.toHaveBeenCalled()
+    })
+
+    it('keeps the tokens and does not signal expiry on a timeout', async () => {
+      const onExpired = vi.fn<() => void>()
+      onSessionExpired(onExpired)
+      const timeout = new DOMException('The operation timed out.', 'TimeoutError')
+      expireSessionThenRefreshWith(() => Promise.reject(timeout))
+
+      await expect(apiFetch('/data')).rejects.toBe(timeout)
+      expect(clearAuthTokens).not.toHaveBeenCalled()
+      expect(onExpired).not.toHaveBeenCalled()
+    })
+
+    it('keeps the tokens and does not signal expiry on an abort', async () => {
+      const onExpired = vi.fn<() => void>()
+      onSessionExpired(onExpired)
+      const abort = new DOMException('The operation was aborted.', 'AbortError')
+      expireSessionThenRefreshWith(() => Promise.reject(abort))
+
+      await expect(apiFetch('/data')).rejects.toBe(abort)
+      expect(clearAuthTokens).not.toHaveBeenCalled()
+      expect(onExpired).not.toHaveBeenCalled()
+    })
+
+    it('clears the tokens and signals expiry once on a 403', async () => {
+      const onExpired = vi.fn<() => void>()
+      onSessionExpired(onExpired)
+      expireSessionThenRefreshWith(() =>
+        Promise.resolve(jsonResponse({ detail: 'User is deactivated' }, 403)),
+      )
+
+      await expect(apiFetch('/data')).rejects.toMatchObject({ status: 403 })
+      expect(clearAuthTokens).toHaveBeenCalledTimes(1)
+      expect(onExpired).toHaveBeenCalledTimes(1)
+    })
+  })
+
   it('sends the CSRF token on writes but never on the refresh request', async () => {
     const csrfByUrl: Record<string, string | null> = {}
     fetchMock.mockImplementation((url: string, init: RequestInit) => {
