@@ -57,6 +57,65 @@ class TestAdministratorPasswordChange:
         mock_db.commit.assert_not_called()
 
 
+def _step_up_request() -> auth_schema.StepUpRequest:
+    return auth_schema.StepUpRequest(step_up={"current_password": "admin-password"})
+
+
+@pytest.mark.parametrize(
+    ("service_function", "integration_function", "action"),
+    [
+        (users_service.reset_user_mfa, "reset_managed_user_mfa", _ACTION.ADMIN_MFA_RESET),
+        (
+            users_service.require_user_password_change,
+            "require_managed_user_password_change",
+            _ACTION.ADMIN_CREDENTIAL_CHANGE_REQUIRE,
+        ),
+    ],
+)
+class TestAdministratorCredentialActions:
+    def test_commits_after_the_step_up_of_the_administrator(
+        self, service_function, integration_function, action, mock_db
+    ):
+        store = MagicMock()
+        request = _step_up_request()
+        with patch(_ACCOUNT_SECURITY) as account_security:
+            order = MagicMock()
+            order.attach_mock(account_security.verify_step_up, "step_up")
+            order.attach_mock(getattr(account_security, integration_function), "change")
+            order.attach_mock(mock_db.commit, "commit")
+
+            service_function(4, request, 9, "sid-9", store, mock_db)
+
+        assert [call[0] for call in order.mock_calls] == ["step_up", "change", "commit"]
+        account_security.verify_step_up.assert_called_once_with(request.step_up, 9, "sid-9", action, store, mock_db)
+        getattr(account_security, integration_function).assert_called_once_with(4, mock_db)
+
+    def test_a_failed_step_up_changes_nothing(self, service_function, integration_function, action, mock_db):
+        with patch(_ACCOUNT_SECURITY) as account_security, pytest.raises(core_exceptions.PermissionDeniedError):
+            _failing_step_up(account_security)
+            service_function(4, _step_up_request(), 9, "sid-9", MagicMock(), mock_db)
+
+        getattr(account_security, integration_function).assert_not_called()
+        mock_db.commit.assert_not_called()
+
+    def test_an_administrator_cannot_target_their_own_account(
+        self, service_function, integration_function, action, mock_db
+    ):
+        with patch(_ACCOUNT_SECURITY) as account_security, pytest.raises(core_exceptions.PermissionDeniedError):
+            service_function(4, _step_up_request(), 4, "sid-4", MagicMock(), mock_db)
+
+        account_security.verify_step_up.assert_not_called()
+        getattr(account_security, integration_function).assert_not_called()
+        mock_db.commit.assert_not_called()
+
+    def test_a_refusal_of_the_change_commits_nothing(self, service_function, integration_function, action, mock_db):
+        with patch(_ACCOUNT_SECURITY) as account_security, pytest.raises(core_exceptions.ConflictError):
+            getattr(account_security, integration_function).side_effect = core_exceptions.ConflictError()
+            service_function(4, _step_up_request(), 9, "sid-9", MagicMock(), mock_db)
+
+        mock_db.commit.assert_not_called()
+
+
 class TestAdministratorUnlink:
     def test_commits_after_the_step_up_of_the_administrator(self, mock_db):
         store = MagicMock()

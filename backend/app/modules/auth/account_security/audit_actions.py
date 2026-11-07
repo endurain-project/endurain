@@ -126,6 +126,24 @@ MFA_DISABLE = jasil_audit.AuditAction(
     details_model=sessions_audit_actions.SessionsRevokedDetails,
 )
 
+MFA_RESET = jasil_audit.AuditAction(
+    id="auth.mfa.reset",
+    category=jasil_audit.Category.CREDENTIAL,
+    severity=jasil_audit.Severity.HIGH,
+    description_key="audit.auth.mfa.reset",
+    description_default="An administrator reset a user's two-factor authentication",
+    details_model=sessions_audit_actions.SessionsRevokedDetails,
+)
+
+PASSWORD_CHANGE_REQUIRE = jasil_audit.AuditAction(
+    id="auth.password.require_change",
+    category=jasil_audit.Category.CREDENTIAL,
+    severity=jasil_audit.Severity.HIGH,
+    description_key="audit.auth.password.require_change",
+    description_default="An administrator required a user to change their password",
+    details_model=sessions_audit_actions.SessionsRevokedDetails,
+)
+
 BACKUP_CODES_GENERATE = jasil_audit.AuditAction(
     id="auth.backup_codes.generate",
     category=jasil_audit.Category.CREDENTIAL,
@@ -184,6 +202,8 @@ ACTIONS: tuple[jasil_audit.AuditAction, ...] = (
     PASSWORD_SET,
     MFA_ENABLE,
     MFA_DISABLE,
+    MFA_RESET,
+    PASSWORD_CHANGE_REQUIRE,
     BACKUP_CODES_GENERATE,
     API_KEY_CREATE,
     API_KEY_REVOKE,

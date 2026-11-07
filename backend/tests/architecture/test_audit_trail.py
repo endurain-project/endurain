@@ -153,6 +153,8 @@ _AUDITED_WRITES: dict[tuple[str, str], tuple[str, ...]] = {
     ("users/users/router.py", "edit_user"): ("auth.session.revoke", "users.user.update"),
     ("users/users/router.py", "edit_user_password"): ("auth.password.set",),
     ("users/users/router.py", "put_user_image"): ("users.user.update",),
+    ("users/users/router.py", "reset_user_mfa"): ("auth.mfa.reset",),
+    ("users/users/router.py", "require_user_password_change"): ("auth.password.require_change",),
     ("users/users_profile/router.py", "delete_my_account"): (
         "auth.backup_codes.use",
         "auth.lockout.apply",

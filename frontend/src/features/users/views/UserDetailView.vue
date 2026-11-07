@@ -2,10 +2,21 @@
 import { computed, onMounted, ref } from 'vue'
 import { RouterLink, useRoute, useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
-import { ArrowLeft, Check, KeyRound, Pencil, Trash2, Upload, X } from '@lucide/vue'
+import {
+  ArrowLeft,
+  Check,
+  KeyRound,
+  Pencil,
+  ShieldOff,
+  Trash2,
+  Upload,
+  RotateCcwKey,
+  X,
+} from '@lucide/vue'
 
 import { IMAGE_ACCEPTED_TYPES } from '@/lib/imageTypes'
 import UserAvatar from '@/components/UserAvatar.vue'
+import UserCredentialActionDialog from '@/features/users/components/UserCredentialActionDialog.vue'
 import UserDeleteDialog from '@/features/users/components/UserDeleteDialog.vue'
 import UserFormDialog from '@/features/users/components/UserFormDialog.vue'
 import UserIdentityProvidersList from '@/features/users/components/UserIdentityProvidersList.vue'
@@ -65,6 +76,8 @@ const { data: user, isPending, isError, refetch } = useUserQuery(userId)
 const isSelf = computed(() => Boolean(user.value && currentUser.value?.id === user.value.id))
 
 const isPasswordOpen = ref(false)
+const isMfaResetOpen = ref(false)
+const isRequirePasswordChangeOpen = ref(false)
 
 function onPasswordSuccess(message: string): void {
   toasts.success(message)
@@ -340,10 +353,24 @@ function approve(): void {
           <h2 class="text-card-heading">{{ t('settings.users.detail.securityTitle') }}</h2>
           <p class="text-hint">{{ t('settings.users.detail.securitySubtitle') }}</p>
         </div>
-        <Button variant="outline" class="self-start" @click="isPasswordOpen = true">
-          <KeyRound class="size-4" aria-hidden="true" />
-          {{ t('settings.users.password.button') }}
-        </Button>
+        <div class="flex flex-wrap gap-2">
+          <Button variant="outline" @click="isPasswordOpen = true">
+            <KeyRound class="size-4" aria-hidden="true" />
+            {{ t('settings.users.password.button') }}
+          </Button>
+          <Button v-if="!isSelf" variant="outline" @click="isRequirePasswordChangeOpen = true">
+            <RotateCcwKey class="size-4" aria-hidden="true" />
+            {{ t('settings.users.requirePasswordChange.button') }}
+          </Button>
+          <Button
+            v-if="!isSelf && user.mfaEnabled"
+            variant="outline"
+            @click="isMfaResetOpen = true"
+          >
+            <ShieldOff class="size-4" aria-hidden="true" />
+            {{ t('settings.users.mfaReset.button') }}
+          </Button>
+        </div>
       </Card>
 
       <UserIdentityProvidersList :user-id="user.id" :resume="resume" />
@@ -358,6 +385,22 @@ function approve(): void {
         :resume="resume"
         @success="onPasswordSuccess"
         @error="onPasswordError"
+      />
+
+      <UserCredentialActionDialog
+        v-model:open="isRequirePasswordChangeOpen"
+        :user-id="user.id"
+        :username="user.username"
+        variant="password-change"
+        :resume="resume"
+      />
+
+      <UserCredentialActionDialog
+        v-model:open="isMfaResetOpen"
+        :user-id="user.id"
+        :username="user.username"
+        variant="mfa-reset"
+        :resume="resume"
       />
 
       <ConfirmDialog

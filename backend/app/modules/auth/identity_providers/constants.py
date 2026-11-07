@@ -47,6 +47,9 @@ class StepUpAction(StrEnum):
         MFA_DISABLE: Disable MFA.
         MFA_BACKUP_CODES: Regenerate MFA backup codes.
         ADMIN_CREDENTIAL_RESET: An administrator sets another user's password.
+        ADMIN_MFA_RESET: An administrator resets another user's MFA.
+        ADMIN_CREDENTIAL_CHANGE_REQUIRE: An administrator requires another user to change their password at the next
+            sign-in.
         ADMIN_USER_EDIT: An administrator changes another user's email, access type or active flag.
         ADMIN_USER_DELETE: An administrator deletes another user's account.
         ADMIN_IDP_UNLINK: An administrator unlinks an identity provider from another user.
@@ -67,6 +70,8 @@ class StepUpAction(StrEnum):
     MFA_DISABLE = "mfa_disable"
     MFA_BACKUP_CODES = "mfa_backup_codes"
     ADMIN_CREDENTIAL_RESET = "admin_credential_reset"
+    ADMIN_MFA_RESET = "admin_mfa_reset"
+    ADMIN_CREDENTIAL_CHANGE_REQUIRE = "admin_credential_change_require"
     ADMIN_USER_EDIT = "admin_user_edit"
     ADMIN_USER_DELETE = "admin_user_delete"
     ADMIN_IDP_UNLINK = "admin_idp_unlink"

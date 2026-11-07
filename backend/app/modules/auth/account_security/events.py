@@ -22,6 +22,8 @@ class AccountSecurityChange(StrEnum):
     PASSWORD_SET_BY_ADMIN = "password_set_by_admin"
     MFA_ENABLED = "mfa_enabled"
     MFA_DISABLED = "mfa_disabled"
+    MFA_RESET_BY_ADMIN = "mfa_reset_by_admin"
+    PASSWORD_CHANGE_REQUIRED_BY_ADMIN = "password_change_required_by_admin"
     BACKUP_CODES_GENERATED = "backup_codes_generated"
     API_KEY_CREATED = "api_key_created"
     IDENTITY_PROVIDER_UNLINKED = "identity_provider_unlinked"

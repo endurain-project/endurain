@@ -56,6 +56,8 @@ class TestPayloadAndPublisher:
             "password_set_by_admin",
             "mfa_enabled",
             "mfa_disabled",
+            "mfa_reset_by_admin",
+            "password_change_required_by_admin",
             "backup_codes_generated",
             "api_key_created",
             "identity_provider_unlinked",
@@ -146,6 +148,89 @@ class TestPasswordAudit:
         )
         assert entry.details == {"sessions_revoked": 2}
         assert_event(published, Change.PASSWORD_SET_BY_ADMIN)
+
+
+class TestAdministratorCredentialAudit:
+    @staticmethod
+    def _sessions(revoked=2):
+        return patch.object(
+            account_security_service.sessions_integration, "delete_sessions_by_user", return_value=revoked
+        )
+
+    def test_admin_resets_mfa(self, mock_db, published):
+        with (
+            patch.object(account_security_service.mfa_integration, "disable_user_mfa") as disable,
+            patch.object(account_security_service.mfa_integration, "clear_pending_mfa_for_user") as clear_pending,
+            self._sessions() as sessions,
+            jasil_testing.capture_audit() as audit,
+        ):
+            account_security_service.reset_managed_user_mfa(7, mock_db)
+
+        disable.assert_called_once_with(7, mock_db)
+        sessions.assert_called_once_with(7, mock_db)
+        clear_pending.assert_called_once_with(7)
+        entry = audit.assert_audited(
+            account_security_audit_actions.MFA_RESET.id, target_type="user", target_id="7", target_owner_id="7"
+        )
+        assert entry.details == {"sessions_revoked": 2}
+        assert_event(published, Change.MFA_RESET_BY_ADMIN)
+
+    def test_resetting_mfa_that_is_off_records_nothing(self, mock_db, published):
+        with (
+            patch.object(
+                account_security_service.mfa_integration,
+                "disable_user_mfa",
+                side_effect=core_exceptions.InvalidInputError("MFA is not enabled for this user"),
+            ),
+            self._sessions() as sessions,
+            jasil_testing.capture_audit() as audit,
+            pytest.raises(core_exceptions.InvalidInputError),
+        ):
+            account_security_service.reset_managed_user_mfa(7, mock_db)
+
+        sessions.assert_not_called()
+        audit.assert_not_audited(account_security_audit_actions.MFA_RESET.id)
+        published.assert_not_called()
+
+    def test_admin_requires_a_password_change(self, mock_db, published):
+        with (
+            patch.object(account_security_service.users_integration, "require_user"),
+            patch.object(account_security_service.credentials_integration, "require_password_change") as require,
+            patch.object(account_security_service.mfa_integration, "clear_pending_mfa_for_user") as clear_pending,
+            self._sessions() as sessions,
+            jasil_testing.capture_audit() as audit,
+        ):
+            account_security_service.require_managed_user_password_change(7, mock_db)
+
+        require.assert_called_once_with(7, mock_db)
+        sessions.assert_called_once_with(7, mock_db)
+        clear_pending.assert_called_once_with(7)
+        entry = audit.assert_audited(
+            account_security_audit_actions.PASSWORD_CHANGE_REQUIRE.id,
+            target_type="user",
+            target_id="7",
+            target_owner_id="7",
+        )
+        assert entry.details == {"sessions_revoked": 2}
+        assert_event(published, Change.PASSWORD_CHANGE_REQUIRED_BY_ADMIN)
+
+    def test_a_user_without_a_local_password_keeps_their_sessions(self, mock_db, published):
+        with (
+            patch.object(account_security_service.users_integration, "require_user"),
+            patch.object(
+                account_security_service.credentials_integration,
+                "require_password_change",
+                side_effect=core_exceptions.ConflictError(),
+            ),
+            self._sessions() as sessions,
+            jasil_testing.capture_audit() as audit,
+            pytest.raises(core_exceptions.ConflictError),
+        ):
+            account_security_service.require_managed_user_password_change(7, mock_db)
+
+        sessions.assert_not_called()
+        audit.assert_not_audited(account_security_audit_actions.PASSWORD_CHANGE_REQUIRE.id)
+        published.assert_not_called()
 
 
 class TestMfaAudit:

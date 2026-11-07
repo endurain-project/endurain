@@ -17,6 +17,8 @@ _CHANGES = frozenset(change.value for change in account_security_events.AccountS
 # The notice that follows the intro, for the changes whose advice is not "reset your password".
 _NOTICE_KEYS = {
     account_security_events.AccountSecurityChange.PASSWORD_SET_BY_ADMIN.value: "security_notice_admin",
+    account_security_events.AccountSecurityChange.MFA_RESET_BY_ADMIN.value: "security_notice_admin",
+    account_security_events.AccountSecurityChange.PASSWORD_CHANGE_REQUIRED_BY_ADMIN.value: "security_notice_admin",
     account_security_events.AccountSecurityChange.ACCOUNT_LOCKED.value: "security_notice_account_locked",
 }
 _PROVIDER_CHANGES = frozenset(

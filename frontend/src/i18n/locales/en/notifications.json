@@ -74,6 +74,14 @@
         "title": "Two-factor authentication turned off",
         "body": "Two-factor authentication was turned off for your account. If this wasn't you, reset your password and review your security settings."
       },
+      "mfaResetByAdmin": {
+        "title": "Two-factor authentication reset by an administrator",
+        "body": "An administrator reset two-factor authentication for your account and signed you out of all devices. Set it up again from your security settings. If you didn't expect this, contact your administrator."
+      },
+      "passwordChangeRequiredByAdmin": {
+        "title": "Password change required by an administrator",
+        "body": "An administrator required you to change your password and signed you out of all devices. You will choose a new password the next time you sign in with your password. If you didn't expect this, contact your administrator."
+      },
       "backupCodesGenerated": {
         "title": "New backup codes generated",
         "body": "New backup codes were generated for your account. If this wasn't you, reset your password and review your security settings."

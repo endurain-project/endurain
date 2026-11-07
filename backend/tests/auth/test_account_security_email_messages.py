@@ -50,6 +50,14 @@ class TestGetAccountSecurityChangedEmail:
         assert "administrator" in html_body
         assert "reset your password" not in html_body
 
+    @pytest.mark.parametrize("change", ["mfa_reset_by_admin", "password_change_required_by_admin"])
+    def test_an_administrator_credential_action_says_to_contact_one(self, change):
+        _, html_body, _ = email_messages.get_account_security_changed_email("Alice", change, None, HOST, "en")
+
+        assert "administrator" in html_body
+        assert "contact your Endurain administrator" in html_body
+        assert "reset your password" not in html_body
+
     def test_a_locked_account_says_what_is_refused_for_how_long_and_how_to_lift_it(self):
         _, html_body, text_body = email_messages.get_account_security_changed_email(
             "Alice", "account_locked", None, HOST, "en"

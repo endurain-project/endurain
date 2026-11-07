@@ -30,6 +30,8 @@ const ACCOUNT_SECURITY_CHANGE_KEY: Record<string, string> = {
   password_set_by_admin: 'passwordSetByAdmin',
   mfa_enabled: 'mfaEnabled',
   mfa_disabled: 'mfaDisabled',
+  mfa_reset_by_admin: 'mfaResetByAdmin',
+  password_change_required_by_admin: 'passwordChangeRequiredByAdmin',
   backup_codes_generated: 'backupCodesGenerated',
   api_key_created: 'apiKeyCreated',
   identity_provider_unlinked: 'identityProviderUnlinked',

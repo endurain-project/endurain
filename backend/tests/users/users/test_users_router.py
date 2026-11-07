@@ -435,6 +435,44 @@ class TestEditUserPassword:
         assert response.status_code == 403
 
 
+class TestAdministratorCredentialActions:
+    @pytest.mark.parametrize(
+        ("path", "service_function"),
+        [
+            ("/users/1/mfa/reset", "reset_user_mfa"),
+            ("/users/1/password/require-change", "require_user_password_change"),
+        ],
+    )
+    def test_runs_with_the_administrators_step_up(self, path, service_function, client, mock_db):
+        with patch(f"{_SERVICE}.{service_function}") as service:
+            response = client.post(path, json={"step_up": _STEP_UP})
+
+        assert response.status_code == 204
+        assert response.content == b""
+        args = service.call_args.args
+        assert args[0] == 1
+        assert args[1].step_up.current_password == "admin-password"
+        assert args[2:] == (9, "sid-9", _STEP_UP_STORE, mock_db)
+
+    @pytest.mark.parametrize(
+        ("path", "service_function", "error", "status_code"),
+        [
+            ("/users/1/mfa/reset", "reset_user_mfa", core_exceptions.PermissionDeniedError("no"), 403),
+            ("/users/1/mfa/reset", "reset_user_mfa", core_exceptions.InvalidInputError("off"), 400),
+            ("/users/1/password/require-change", "require_user_password_change", core_exceptions.ConflictError(), 409),
+        ],
+    )
+    def test_a_refusal_is_the_services_answer(self, path, service_function, error, status_code, client):
+        with patch(f"{_SERVICE}.{service_function}", side_effect=error):
+            response = client.post(path, json={"step_up": _STEP_UP})
+
+        assert response.status_code == status_code
+
+    @pytest.mark.parametrize("path", ["/users/1/mfa/reset", "/users/1/password/require-change"])
+    def test_a_body_without_the_step_up_is_422(self, path, client):
+        assert client.post(path, json={}).status_code == 422
+
+
 class TestDeleteUserPhoto:
     @patch(f"{_PHOTO}.delete_photo")
     def test_success(self, mock_delete, client, mock_db):

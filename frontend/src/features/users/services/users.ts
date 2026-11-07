@@ -253,6 +253,41 @@ export async function changeUserPassword(
 }
 
 /**
+ * Resets a user's two-factor authentication (admin scope `users:write`). The backend removes the user's MFA
+ * secret and backup codes, ends all of their sessions and notifies them.
+ *
+ * @param userId - The target user id.
+ * @param stepUp - The administrator's step-up credentials.
+ * @throws {HttpError} When the request fails (`400` when the user has no MFA, or a refused step-up).
+ */
+export async function resetUserMfa(userId: number, stepUp: StepUpInput): Promise<void> {
+  await apiFetch<void>(`/users/${userId}/mfa/reset`, {
+    method: 'POST',
+    body: JSON.stringify({ step_up: toStepUpWire(stepUp) } satisfies StepUpRequestDto),
+    responseType: 'void',
+  })
+}
+
+/**
+ * Requires a user to choose a new password at their next password sign-in (admin scope `users:write`). The
+ * backend keeps the current password, ends all of the user's sessions and notifies them.
+ *
+ * @param userId - The target user id.
+ * @param stepUp - The administrator's step-up credentials.
+ * @throws {HttpError} When the request fails (`409` when the user has no local password, or a refused step-up).
+ */
+export async function requireUserPasswordChange(
+  userId: number,
+  stepUp: StepUpInput,
+): Promise<void> {
+  await apiFetch<void>(`/users/${userId}/password/require-change`, {
+    method: 'POST',
+    body: JSON.stringify({ step_up: toStepUpWire(stepUp) } satisfies StepUpRequestDto),
+    responseType: 'void',
+  })
+}
+
+/**
  * Uploads a new profile photo for a user (admin scope `users:write`). The image
  * is sent as multipart; the backend validates it and generates the stored
  * filename, returning the new photo path.

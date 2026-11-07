@@ -34,7 +34,7 @@ Endurain always keeps at least one active administrator. You cannot delete, deac
 
 ## Your own account
 
-The administrative actions that change how an account is secured, resetting the password, unlinking an identity provider, deleting the account and changing the email, are refused for your own account (`403`). Use your own account settings instead, which ask for your current password and MFA code first. The same actions on another user's account ask for your own password and MFA code too.
+The administrative actions that change how an account is secured, resetting the password, requiring a password change, resetting MFA, unlinking an identity provider, deleting the account and changing the email, are refused for your own account (`403`). Use your own account settings instead, which ask for your current password and MFA code first. The same actions on another user's account ask for your own password and MFA code too.
 
 ## Approving sign-ups
 
@@ -52,6 +52,14 @@ Approve the user from their row. Endurain activates the account and emails the u
 ### Password set by an administrator
 
 A password an administrator sets, whether with **Reset password** or when adding the user, is known to the administrator, so the user must change it at their next sign-in. After the right password (and the MFA code, if the account has MFA), sign-in asks for a new password and its confirmation. The new password must satisfy the [password policy](accounts-and-sign-in.md#password-rules) and differ from the one the administrator set; a rejected password can be replaced without signing in again. No session exists until the new password is saved, and the user is then signed in. The challenge for choosing the password expires after 10 minutes; after that the user signs in again. Single sign-on does not use the password, so signing in through an identity provider is not affected. A password the user chooses themselves, by changing it in **Settings → Security**, through a reset email or when confirming a sign-up, never asks for another change. The first administrator, who chooses a password during setup, is not asked either.
+
+## Requiring a password change
+
+**Require password change** makes the user choose a new password at their next password sign-in, without setting one for them: the current password stays valid until then, and the sign-in step is the one described under [password set by an administrator](#password-set-by-an-administrator). All of the user's sessions end, so they are signed out of every device, and they are notified by email and in the app. It asks for your own password and MFA code (or a fresh identity-provider sign-in if your account has no password). It is refused for an account that has no local password, and for your own account. Single sign-on does not use the password, so signing in through an identity provider is not affected.
+
+## Resetting MFA
+
+**Reset MFA** turns off two-factor authentication for a user who cannot use their authenticator or backup codes. It removes the user's MFA secret and backup codes, ends all of their sessions and notifies them by email and in the app. The button only shows for a user who has MFA on. The user can set up MFA again from **Settings → Security** after signing in. It asks for your own password and MFA code (or a fresh identity-provider sign-in if your account has no password), and is refused for your own account.
 
 ## Sessions and identity providers
 

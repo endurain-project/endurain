@@ -24,6 +24,8 @@ import {
   deleteUserPhoto,
   fetchUserById,
   fetchUsers,
+  requireUserPasswordChange,
+  resetUserMfa,
   updateUser,
   uploadUserPhoto,
 } from '@/features/users/services/users'
@@ -172,6 +174,32 @@ export function useChangeUserPasswordMutation() {
       password: string
       stepUp: StepUpInput
     }) => changeUserPassword(userId, password, stepUp),
+  })
+}
+
+/**
+ * Admin MFA-reset mutation. Invalidates the users domain on settle: the user's MFA flag changes and their
+ * sessions end.
+ *
+ * @returns The TanStack Query mutation for resetting a user's MFA.
+ */
+export function useResetUserMfaMutation() {
+  return useInvalidatingMutation<void, { userId: number; stepUp: StepUpInput }>({
+    mutationKey: queryKeys.users.all(),
+    mutationFn: ({ userId, stepUp }) => resetUserMfa(userId, stepUp),
+  })
+}
+
+/**
+ * Admin mutation that requires a user to change their password at the next sign-in. Invalidates the users
+ * domain on settle: the user's sessions end.
+ *
+ * @returns The TanStack Query mutation for requiring a password change.
+ */
+export function useRequireUserPasswordChangeMutation() {
+  return useInvalidatingMutation<void, { userId: number; stepUp: StepUpInput }>({
+    mutationKey: queryKeys.users.all(),
+    mutationFn: ({ userId, stepUp }) => requireUserPasswordChange(userId, stepUp),
   })
 }
 

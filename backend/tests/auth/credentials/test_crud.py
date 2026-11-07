@@ -54,3 +54,13 @@ def test_delete_credential_stages_deletion(mock_db):
     mock_db.execute.assert_called_once()
     mock_db.flush.assert_called_once()
     mock_db.commit.assert_not_called()
+
+
+def test_set_password_change_required_stages_the_update_and_flushes(mock_db):
+    credentials_crud.set_password_change_required(3, mock_db)
+
+    statement = mock_db.execute.call_args.args[0]
+    assert statement.is_update
+    assert str(statement.compile().params) == "{'password_change_required': True, 'user_id_1': 3}"
+    mock_db.flush.assert_called_once()
+    mock_db.commit.assert_not_called()

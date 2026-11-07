@@ -35,6 +35,11 @@ def set_local_password_hash(user_id: int, password_hash: str, db: Session, *, ch
     credentials_service.set_local_password_hash(user_id, password_hash, db, change_required=change_required)
 
 
+def require_password_change(user_id: int, db: Session) -> None:
+    """Stage the requirement that a user replace their password at the next sign-in, keeping the current one."""
+    credentials_service.require_password_change(user_id, db)
+
+
 def validate_and_hash_password_for_user(
     server_settings: server_settings_schema.ServerSettingsRead,
     access_type: str,

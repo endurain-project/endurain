@@ -204,6 +204,24 @@
       "success": "Password updated",
       "error": "Couldn't update the password. Please try again."
     },
+    "mfaReset": {
+      "button": "Reset MFA",
+      "title": "Reset two-factor authentication",
+      "description": "This turns off two-factor authentication for {username} and removes their backup codes. All of their sessions end, so they sign out of every device, and they must set up two-factor authentication again after signing in. They are notified. Confirm it is you to continue.",
+      "confirm": "Reset MFA",
+      "success": "Two-factor authentication reset",
+      "refused": "Two-factor authentication is not turned on for this user.",
+      "error": "Couldn't reset two-factor authentication. Please try again."
+    },
+    "requirePasswordChange": {
+      "button": "Require password change",
+      "title": "Require a password change",
+      "description": "{username} keeps their current password but must choose a new one the next time they sign in with it. All of their sessions end, so they sign out of every device. Signing in through a single sign-on provider is not affected. They are notified. Confirm it is you to continue.",
+      "confirm": "Require change",
+      "success": "Password change required",
+      "refused": "This user has no password to change.",
+      "error": "Couldn't require a password change. Please try again."
+    },
     "sessions": {
       "title": "Sessions",
       "subtitle": "Devices currently signed in to this account",

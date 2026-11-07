@@ -18,6 +18,8 @@ const mocks = vi.hoisted(() => ({
   deleteMutate: vi.fn<(...args: unknown[]) => void>(),
   unlinkMutate: vi.fn<(...args: unknown[]) => void>(),
   providers: [] as UserIdentityProvider[],
+  mfaResetMutate: vi.fn<(...args: unknown[]) => void>(),
+  requireChangeMutate: vi.fn<(...args: unknown[]) => void>(),
   revokeMutate: vi.fn<(...args: unknown[]) => void>(),
   revokeOthersMutate: vi.fn<(...args: unknown[]) => void>(),
   sessions: [] as UserSession[],
@@ -43,6 +45,11 @@ vi.mock('@/features/security/composables/useAdminStepUp', async (importOriginal)
 }))
 vi.mock('@/features/users/composables/useUsers', () => ({
   useDeleteUserMutation: () => ({ mutate: mocks.deleteMutate, isPending: ref(false) }),
+  useResetUserMfaMutation: () => ({ mutate: mocks.mfaResetMutate, isPending: ref(false) }),
+  useRequireUserPasswordChangeMutation: () => ({
+    mutate: mocks.requireChangeMutate,
+    isPending: ref(false),
+  }),
   useApproveUserMutation: () => ({ mutate: vi.fn<() => void>(), isPending: ref(false) }),
   useDeleteUserPhotoMutation: () => ({ mutate: vi.fn<() => void>(), isPending: ref(false) }),
   useUploadUserPhotoMutation: () => ({ mutate: vi.fn<() => void>(), isPending: ref(false) }),
@@ -109,6 +116,8 @@ beforeEach(() => {
   mocks.deleteMutate.mockReset()
   mocks.unlinkMutate.mockReset()
   mocks.revokeMutate.mockReset()
+  mocks.mfaResetMutate.mockReset()
+  mocks.requireChangeMutate.mockReset()
   mocks.revokeOthersMutate.mockReset()
   mocks.sessions = []
   mocks.toastError.mockReset()
@@ -347,6 +356,39 @@ describe('UserDetailView identity-provider return', () => {
       })
     }
     expect(window.location.hash).toBe('')
+  })
+
+  it.each([
+    ['another administrator', true, false, false],
+    ['a user with MFA', false, true, true],
+    ['a user without MFA', false, false, false],
+  ])('shows the credential actions for %s as expected', (_label, isSelf, mfaEnabled, showsMfa) => {
+    mocks.user = managedUser({
+      id: isSelf ? 1 : 7,
+      avatarUrl: null,
+      emailVerified: true,
+      mfaEnabled,
+    })
+    const wrapper = mount(UserDetailView, {
+      global: {
+        plugins: plugins(),
+        stubs: {
+          ...stubs,
+          UserDeleteDialog: true,
+          UserFormDialog: true,
+          UserPasswordDialog: true,
+          UserCredentialActionDialog: true,
+          UserIdentityProvidersList: true,
+          UserSessionsList: true,
+        },
+      },
+    })
+    const text = wrapper.text()
+
+    expect(text.includes(i18n.global.t('settings.users.mfaReset.button'))).toBe(showsMfa)
+    expect(text.includes(i18n.global.t('settings.users.requirePasswordChange.button'))).toBe(
+      !isSelf,
+    )
   })
 
   it('reports a return that was not fresh and passes no resume down', async () => {

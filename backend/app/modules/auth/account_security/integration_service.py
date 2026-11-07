@@ -76,6 +76,16 @@ def change_managed_user_password(
     account_security_service.change_managed_user_password(user_id, new_password, db)
 
 
+def reset_managed_user_mfa(user_id: int, db: Session) -> None:
+    """Stage a managed user's MFA reset and the end of all of their sessions."""
+    account_security_service.reset_managed_user_mfa(user_id, db)
+
+
+def require_managed_user_password_change(user_id: int, db: Session) -> None:
+    """Stage the requirement that a managed user replace their password at the next sign-in."""
+    account_security_service.require_managed_user_password_change(user_id, db)
+
+
 def delete_all_user_sessions(user_id: int, db: Session) -> None:
     """Stage the revocation of every session belonging to a user."""
     account_security_service.delete_all_user_sessions(user_id, db)

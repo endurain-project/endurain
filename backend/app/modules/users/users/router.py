@@ -351,6 +351,64 @@ def edit_user_password(
     users_service.change_user_password(user_id, user_attributes, token_user_id, token_session_id, step_up_store, db)
 
 
+@router.post(
+    "/{user_id}/mfa/reset",
+    status_code=status.HTTP_204_NO_CONTENT,
+    response_model=None,
+    dependencies=[Security(auth_dependencies.check_scopes, scopes=["users:write"])],
+)
+@core_rate_limit.limiter.limit(core_rate_limit.SENSITIVE)
+def reset_user_mfa(
+    request: Request,
+    user_id: core_dependencies.PositiveId,
+    body: auth_schema.StepUpRequest,
+    token_user_id: auth_dependencies.CurrentUserId,
+    token_session_id: auth_dependencies.CurrentSessionId,
+    step_up_store: Annotated[
+        auth_dependencies.StepUpStore,
+        Depends(auth_dependencies.get_step_up_attempts),
+    ],
+    db: core_dependencies.DbSession,
+) -> None:
+    """Reset another user's two-factor authentication.
+
+    Requires the administrator's own step-up verification: their current password (or, for an account
+    without one, a fresh identity-provider sign-in), and an MFA code when MFA is enabled. The user's MFA
+    secret and backup codes are removed, all of their sessions end and they are notified. A user without MFA is
+    refused with 400.
+    """
+    users_service.reset_user_mfa(user_id, body, token_user_id, token_session_id, step_up_store, db)
+
+
+@router.post(
+    "/{user_id}/password/require-change",
+    status_code=status.HTTP_204_NO_CONTENT,
+    response_model=None,
+    dependencies=[Security(auth_dependencies.check_scopes, scopes=["users:write"])],
+)
+@core_rate_limit.limiter.limit(core_rate_limit.SENSITIVE)
+def require_user_password_change(
+    request: Request,
+    user_id: core_dependencies.PositiveId,
+    body: auth_schema.StepUpRequest,
+    token_user_id: auth_dependencies.CurrentUserId,
+    token_session_id: auth_dependencies.CurrentSessionId,
+    step_up_store: Annotated[
+        auth_dependencies.StepUpStore,
+        Depends(auth_dependencies.get_step_up_attempts),
+    ],
+    db: core_dependencies.DbSession,
+) -> None:
+    """Require another user to choose a new password at their next sign-in.
+
+    Requires the administrator's own step-up verification: their current password (or, for an account
+    without one, a fresh identity-provider sign-in), and an MFA code when MFA is enabled. The user keeps their
+    current password until then, all of their sessions end and they are notified. A user without a local
+    password is refused with 409; single sign-on sign-ins are unaffected.
+    """
+    users_service.require_user_password_change(user_id, body, token_user_id, token_session_id, step_up_store, db)
+
+
 @router.delete(
     "/{user_id}/photo",
     status_code=status.HTTP_204_NO_CONTENT,

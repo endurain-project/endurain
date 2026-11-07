@@ -90,7 +90,7 @@ Every answer of `POST /auth/login`, `POST /auth/mfa/verify` and `POST /auth/pass
 
 #### Password change at sign-in
 
-When an administrator sets a user's password, or creates the account with one, the administrator knows it, so the account must replace it at its next password sign-in. `POST /auth/login` (and `POST /auth/mfa/verify` for an account with MFA, after the code is verified) then answers `password_change` instead of tokens and creates no session. The `password_change_challenge` is valid for 10 minutes, works once, and names the sign-in, its client type and its PKCE values.
+When an administrator sets a user's password, or creates the account with one, the administrator knows it, so the account must replace it at its next password sign-in. An administrator can also require the change without setting a password, through `POST /users/{user_id}/password/require-change`: the user keeps the current password until the next password sign-in, where the same `password_change` step applies. That route ends all of the user's sessions and answers `409` for an account that has no local password. `POST /auth/login` (and `POST /auth/mfa/verify` for an account with MFA, after the code is verified) then answers `password_change` instead of tokens and creates no session. The `password_change_challenge` is valid for 10 minutes, works once, and names the sign-in, its client type and its PKCE values.
 
 ```http
 POST /api/v1/auth/password-change

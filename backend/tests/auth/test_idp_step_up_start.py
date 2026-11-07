@@ -143,6 +143,8 @@ class TestStartRoute:
     "action",
     [
         "admin_credential_reset",
+        "admin_mfa_reset",
+        "admin_credential_change_require",
         "admin_user_edit",
         "admin_user_delete",
         "admin_idp_unlink",

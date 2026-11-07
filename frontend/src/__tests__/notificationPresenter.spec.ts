@@ -141,6 +141,8 @@ describe('presentNotification', () => {
     ['password_set_by_admin', 'passwordSetByAdmin'],
     ['mfa_enabled', 'mfaEnabled'],
     ['mfa_disabled', 'mfaDisabled'],
+    ['mfa_reset_by_admin', 'mfaResetByAdmin'],
+    ['password_change_required_by_admin', 'passwordChangeRequiredByAdmin'],
     ['backup_codes_generated', 'backupCodesGenerated'],
     ['api_key_created', 'apiKeyCreated'],
     ['account_locked', 'accountLocked'],

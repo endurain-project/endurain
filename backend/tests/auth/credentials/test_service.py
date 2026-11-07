@@ -2,6 +2,9 @@
 
 from unittest.mock import MagicMock, patch
 
+import pytest
+
+import core.exceptions as core_exceptions
 import modules.auth.credentials.service as credentials_service
 
 
@@ -29,3 +32,24 @@ def test_validate_and_hash_for_user_uses_the_admin_minimum():
             settings, "admin", "adminpass-long-1", username="root", email="root@example.com"
         )
     assert check.call_args.args[1] == 16
+
+
+def test_require_password_change_flags_the_credential_without_touching_the_hash(mock_db):
+    with (
+        patch.object(credentials_service, "has_local_password", return_value=True),
+        patch.object(credentials_service.credentials_crud, "set_password_change_required") as mark,
+    ):
+        credentials_service.require_password_change(3, mock_db)
+
+    mark.assert_called_once_with(3, mock_db)
+
+
+def test_require_password_change_refuses_an_account_without_a_local_password(mock_db):
+    with (
+        patch.object(credentials_service, "has_local_password", return_value=False),
+        patch.object(credentials_service.credentials_crud, "set_password_change_required") as mark,
+        pytest.raises(core_exceptions.ConflictError),
+    ):
+        credentials_service.require_password_change(3, mock_db)
+
+    mark.assert_not_called()

@@ -176,19 +176,19 @@ def end_other_sessions(user_id: int, current_session_id: str | None, db: Session
     return revoked
 
 
-def _stage_password_written(
+def _stage_credential_changed(
     action: jasil_audit.AuditAction,
     change: account_security_events.AccountSecurityChange,
     user_id: int,
     revoked: int,
     db: Session,
 ) -> None:
-    """Stage the audit row and the event of a password that was just written.
+    """Stage the audit row and the event of a credential change that ended the user's sessions.
 
     Args:
-        action: The audit action naming who wrote the password.
+        action: The audit action naming the change.
         change: The change the event reports.
-        user_id: ID of the user whose password changed.
+        user_id: ID of the user whose credential changed.
         revoked: How many sessions the change ended.
         db: SQLAlchemy session.
     """
@@ -250,7 +250,7 @@ def stage_required_password_change(user_id: int, new_password: str, db: Session)
             account's details.
     """
     _stage_own_password(user_id, new_password, db)
-    _stage_password_written(
+    _stage_credential_changed(
         account_security_audit_actions.PASSWORD_CHANGE,
         account_security_events.AccountSecurityChange.PASSWORD_CHANGED,
         user_id,
@@ -324,7 +324,7 @@ def stage_change_own_password(
     if revoke_other_sessions:
         revoked = end_other_sessions(user_id, current_session_id, db)
 
-    _stage_password_written(
+    _stage_credential_changed(
         account_security_audit_actions.PASSWORD_CHANGE,
         account_security_events.AccountSecurityChange.PASSWORD_CHANGED,
         user_id,
@@ -373,7 +373,7 @@ def change_managed_user_password(
     revoked = sessions_integration.delete_sessions_by_user(user_id, db)
     mfa_integration.clear_pending_mfa_for_user(user_id)
     authentication_integration.clear_account_login_lockout(db_user.username)
-    _stage_password_written(
+    _stage_credential_changed(
         account_security_audit_actions.PASSWORD_SET,
         account_security_events.AccountSecurityChange.PASSWORD_SET_BY_ADMIN,
         user_id,
@@ -382,6 +382,64 @@ def change_managed_user_password(
     )
     logger.info(
         "Changed a managed user's password and revoked sessions",
+        extra=core_logger.context(user_id=user_id, revoked=revoked),
+    )
+
+
+def reset_managed_user_mfa(user_id: int, db: Session) -> None:
+    """Stage a reset of a managed user's MFA and the end of all of their sessions; the caller commits.
+
+    Args:
+        user_id: ID of the user whose MFA is reset.
+        db: SQLAlchemy session.
+
+    Raises:
+        NotFoundError: If the user does not exist.
+        InvalidInputError: If MFA is not enabled for the user.
+    """
+    mfa_integration.disable_user_mfa(user_id, db)
+    revoked = sessions_integration.delete_sessions_by_user(user_id, db)
+    mfa_integration.clear_pending_mfa_for_user(user_id)
+    _stage_credential_changed(
+        account_security_audit_actions.MFA_RESET,
+        account_security_events.AccountSecurityChange.MFA_RESET_BY_ADMIN,
+        user_id,
+        revoked,
+        db,
+    )
+    logger.info(
+        "Reset a managed user's MFA and revoked sessions",
+        extra=core_logger.context(user_id=user_id, revoked=revoked),
+    )
+
+
+def require_managed_user_password_change(user_id: int, db: Session) -> None:
+    """Stage the requirement that a managed user choose a new password at the next sign-in; the caller commits.
+
+    The current password stays valid until then. The user's sessions end and a pending MFA sign-in is dropped, so the
+    requirement applies at the next sign-in.
+
+    Args:
+        user_id: ID of the user who must replace their password.
+        db: SQLAlchemy session.
+
+    Raises:
+        NotFoundError: If the user does not exist.
+        ConflictError: If the user has no local password.
+    """
+    users_integration.require_user(user_id, db)
+    credentials_integration.require_password_change(user_id, db)
+    revoked = sessions_integration.delete_sessions_by_user(user_id, db)
+    mfa_integration.clear_pending_mfa_for_user(user_id)
+    _stage_credential_changed(
+        account_security_audit_actions.PASSWORD_CHANGE_REQUIRE,
+        account_security_events.AccountSecurityChange.PASSWORD_CHANGE_REQUIRED_BY_ADMIN,
+        user_id,
+        revoked,
+        db,
+    )
+    logger.info(
+        "Required a managed user to change their password and revoked sessions",
         extra=core_logger.context(user_id=user_id, revoked=revoked),
     )
 

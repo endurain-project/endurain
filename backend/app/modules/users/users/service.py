@@ -1240,6 +1240,82 @@ def change_user_password(
     logger.info("Password changed by an administrator", extra=core_logger.context(user_id=user_id))
 
 
+def reset_user_mfa(
+    user_id: int,
+    attributes: auth_schema.StepUpRequest,
+    actor_id: int,
+    session_id: str,
+    step_up_store: account_security_integration.StepUpStore,
+    db: Session,
+) -> None:
+    """Reset another user's MFA as an administrator after their step-up, ending all of the user's sessions.
+
+    Args:
+        user_id: ID of the user whose MFA is reset.
+        attributes: The administrator's step-up verification.
+        actor_id: ID of the administrator making the change.
+        session_id: The administrator's session.
+        step_up_store: Step-up lockout store.
+        db: Database session.
+
+    Raises:
+        PermissionDeniedError: If the administrator targets their own account.
+        StepUpFailedError: If the administrator's step-up verification fails.
+        NotFoundError: If the user does not exist.
+        InvalidInputError: If MFA is not enabled for the user.
+    """
+    require_other_user(user_id, actor_id, "turn off two-factor authentication")
+    account_security_integration.verify_step_up(
+        attributes.step_up,
+        actor_id,
+        session_id,
+        identity_providers_constants.StepUpAction.ADMIN_MFA_RESET,
+        step_up_store,
+        db,
+    )
+    account_security_integration.reset_managed_user_mfa(user_id, db)
+    db.commit()
+    logger.info("MFA reset by an administrator", extra=core_logger.context(user_id=user_id))
+
+
+def require_user_password_change(
+    user_id: int,
+    attributes: auth_schema.StepUpRequest,
+    actor_id: int,
+    session_id: str,
+    step_up_store: account_security_integration.StepUpStore,
+    db: Session,
+) -> None:
+    """Require another user to choose a new password at their next sign-in, after the administrator's step-up.
+
+    Args:
+        user_id: ID of the user who must change their password.
+        attributes: The administrator's step-up verification.
+        actor_id: ID of the administrator making the change.
+        session_id: The administrator's session.
+        step_up_store: Step-up lockout store.
+        db: Database session.
+
+    Raises:
+        PermissionDeniedError: If the administrator targets their own account.
+        StepUpFailedError: If the administrator's step-up verification fails.
+        NotFoundError: If the user does not exist.
+        ConflictError: If the user has no local password.
+    """
+    require_other_user(user_id, actor_id, "change your password")
+    account_security_integration.verify_step_up(
+        attributes.step_up,
+        actor_id,
+        session_id,
+        identity_providers_constants.StepUpAction.ADMIN_CREDENTIAL_CHANGE_REQUIRE,
+        step_up_store,
+        db,
+    )
+    account_security_integration.require_managed_user_password_change(user_id, db)
+    db.commit()
+    logger.info("Password change required by an administrator", extra=core_logger.context(user_id=user_id))
+
+
 def unlink_identity_provider(
     user_id: int,
     idp_id: int,

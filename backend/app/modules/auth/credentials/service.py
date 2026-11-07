@@ -2,6 +2,7 @@
 
 from sqlalchemy.orm import Session
 
+import core.exceptions as core_exceptions
 import modules.auth.credentials.contracts as credentials_contracts
 import modules.auth.credentials.crud as credentials_crud
 import modules.auth.credentials.password_hasher as credentials_password_hasher
@@ -67,6 +68,21 @@ def set_local_password_hash(user_id: int, password_hash: str, db: Session, *, ch
         change_required: Whether the owner must choose a new password at the next sign-in.
     """
     credentials_crud.upsert_password_hash(user_id, password_hash, change_required, db)
+
+
+def require_password_change(user_id: int, db: Session) -> None:
+    """Stage the requirement that a user choose a new password at their next password sign-in.
+
+    Args:
+        user_id: ID of the user who must replace their password.
+        db: SQLAlchemy session.
+
+    Raises:
+        ConflictError: If the user has no local password, because there is nothing to replace.
+    """
+    if not has_local_password(user_id, db):
+        raise core_exceptions.ConflictError("The user has no local password")
+    credentials_crud.set_password_change_required(user_id, db)
 
 
 def clear_local_password(user_id: int, db: Session) -> None:

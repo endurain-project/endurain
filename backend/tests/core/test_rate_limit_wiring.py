@@ -181,6 +181,10 @@ _TIERED_ENDPOINTS = [
     pytest.param(users_router.edit_user, core_rate_limit.WRITE, id="user-edit"),
     pytest.param(users_router.approve_user, core_rate_limit.WRITE, id="user-approve"),
     pytest.param(users_router.edit_user_password, core_rate_limit.SENSITIVE, id="user-password-reset"),
+    pytest.param(users_router.reset_user_mfa, core_rate_limit.SENSITIVE, id="user-mfa-reset"),
+    pytest.param(
+        users_router.require_user_password_change, core_rate_limit.SENSITIVE, id="user-password-change-require"
+    ),
     pytest.param(users_router.lookup_user_by_email, core_rate_limit.SENSITIVE, id="user-email-lookup"),
     pytest.param(users_router.delete_user_photo, core_rate_limit.WRITE, id="user-photo-delete"),
     pytest.param(users_router.delete_user, core_rate_limit.SENSITIVE, id="user-delete"),
