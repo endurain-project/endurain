@@ -2,7 +2,7 @@
 
 from datetime import datetime
 
-from sqlalchemy import DateTime, ForeignKey, String, Text, UniqueConstraint
+from sqlalchemy import DateTime, ForeignKey, Index, String, Text, UniqueConstraint
 from sqlalchemy.orm import Mapped, mapped_column
 from sqlalchemy.sql import func
 
@@ -75,12 +75,15 @@ class IdpSessionToken(Base):
         refresh_token: Encrypted refresh token; ``None`` when the provider issued none.
         id_token: Encrypted ID token the provider issued at sign-in, kept to name the session at RP-initiated
             logout; ``None`` when the provider issued none.
+        idp_sid: The provider's session id (``sid``) from the verified ID token, which a back-channel logout token
+            names; ``None`` when the ID token carried none.
         access_token_expires_at: Access token expiry time.
         refresh_token_updated_at: When the refresh token was last stored.
         created_at: When the session signed in.
     """
 
     __tablename__ = "idp_session_tokens"
+    __table_args__ = (Index("ix_idp_session_tokens_idp_id_idp_sid", "idp_id", "idp_sid"),)
 
     id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
     session_id: Mapped[str] = mapped_column(
@@ -110,6 +113,11 @@ class IdpSessionToken(Base):
         Text,
         nullable=True,
         comment="Encrypted ID token the provider issued at sign-in",
+    )
+    idp_sid: Mapped[str | None] = mapped_column(
+        String(length=255),
+        nullable=True,
+        comment="Provider session id (sid) of the verified ID token, named by back-channel logout",
     )
     access_token_expires_at: Mapped[datetime | None] = mapped_column(
         DateTime(timezone=True),

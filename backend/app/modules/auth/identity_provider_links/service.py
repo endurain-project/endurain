@@ -51,11 +51,47 @@ def end_idp_sessions(user_id: int, idp_id: int, db: Session) -> int:
         How many sessions ended.
     """
     session_ids = identity_links_crud.get_idp_session_token_ids_by_user_and_idp(user_id, idp_id, db)
-    alive = sessions_integration.get_existing_session_ids(session_ids, db)
-    live_ids = [session_id for session_id in session_ids if session_id in alive]
-    for session_id in live_ids:
-        sessions_integration.delete_session(session_id, user_id, db)
-    return len(live_ids)
+    return _end_live_sessions([(session_id, user_id) for session_id in session_ids], db).get(user_id, 0)
+
+
+def end_idp_sessions_by_sid(idp_id: int, idp_sid: str, db: Session, *, user_id: int | None = None) -> dict[int, int]:
+    """Stage the end of every session signed in through the provider under a provider session id; the caller commits.
+
+    The sessions go through the sessions surface, which publishes the revocation, so each sign-in's token is
+    revoked at the provider afterwards.
+
+    Args:
+        idp_id: The provider the sessions signed in through.
+        idp_sid: The provider session id their ID token named.
+        db: SQLAlchemy database session.
+        user_id: End only this user's sessions.
+
+    Returns:
+        How many sessions ended, per user; a user with none ended is absent.
+    """
+    owners = identity_links_crud.get_idp_session_owners_by_sid(idp_id, idp_sid, db, user_id=user_id)
+    return _end_live_sessions(owners, db)
+
+
+def _end_live_sessions(owners: list[tuple[str, int]], db: Session) -> dict[int, int]:
+    """Stage the end of the sessions that still exist among the given ones.
+
+    A sign-in row outlives its session, so a session that already ended is skipped.
+
+    Args:
+        owners: ``(session_id, user_id)`` per session.
+        db: SQLAlchemy database session.
+
+    Returns:
+        How many sessions ended, per user; a user with none ended is absent.
+    """
+    alive = sessions_integration.get_existing_session_ids([session_id for session_id, _ in owners], db)
+    ended: dict[int, int] = {}
+    for session_id, owner_id in owners:
+        if session_id in alive:
+            sessions_integration.delete_session(session_id, owner_id, db)
+            ended[owner_id] = ended.get(owner_id, 0) + 1
+    return ended
 
 
 def enrich_user_identity_providers(

@@ -247,6 +247,8 @@ The API is reachable under `/api/v1`. Below are the authentication-related endpo
 
 The Endurain session is ended and committed before the provider is asked for its endpoint. If the provider cannot be reached for it, logout still succeeds with `idp_logout_url: null` and the provider session stays.
 
+The reverse also holds: signing out at a provider that supports back-channel logout ends the Endurain sessions signed in through it, and the client's next request or refresh is `401`. See [Provider-initiated sign-out](oauth-sso-pkce.md#provider-initiated-sign-out).
+
 ### OAuth/SSO Endpoints
 
 | What | Url | Expected Information | Rate Limit |

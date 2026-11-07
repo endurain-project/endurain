@@ -516,7 +516,7 @@ class TestStoreSessionTokens:
             ) as create,
         ):
             before = datetime.now(UTC)
-            _service().store_session_tokens(SESSION, 7, 3, token_response, MagicMock())
+            _service().store_session_tokens(SESSION, 7, 3, token_response, MagicMock(), idp_sid=None)
             after = datetime.now(UTC)
         return create, before, after
 
@@ -552,10 +552,12 @@ class TestStoreSessionTokens:
                 token_service_module.identity_provider_links_integration, "create_idp_session_token"
             ) as create,
         ):
-            _service().store_session_tokens(SESSION, 7, 3, {"refresh_token": "rt", "id_token": "idt"}, MagicMock())
+            _service().store_session_tokens(
+                SESSION, 7, 3, {"refresh_token": "rt", "id_token": "idt"}, MagicMock(), idp_sid=None
+            )
 
         assert create.call_args.args[3] == "enc:rt"
-        assert create.call_args.kwargs == {"encrypted_id_token": "enc:idt"}
+        assert create.call_args.kwargs == {"encrypted_id_token": "enc:idt", "idp_sid": None}
 
     def test_an_id_token_is_stored_even_when_the_provider_issued_no_refresh_token(self):
         with (
@@ -566,15 +568,23 @@ class TestStoreSessionTokens:
                 token_service_module.identity_provider_links_integration, "create_idp_session_token"
             ) as create,
         ):
-            _service().store_session_tokens(SESSION, 7, 3, {"id_token": "idt"}, MagicMock())
+            _service().store_session_tokens(SESSION, 7, 3, {"id_token": "idt"}, MagicMock(), idp_sid=None)
 
         assert create.call_args.args[3] is None
-        assert create.call_args.kwargs == {"encrypted_id_token": "enc:idt"}
+        assert create.call_args.kwargs == {"encrypted_id_token": "enc:idt", "idp_sid": None}
+
+    def test_the_provider_session_id_is_stored_with_the_sign_in(self):
+        with patch.object(
+            token_service_module.identity_provider_links_integration, "create_idp_session_token"
+        ) as create:
+            _service().store_session_tokens(SESSION, 7, 3, {"access_token": "at"}, MagicMock(), idp_sid="sid-1")
+
+        assert create.call_args.kwargs["idp_sid"] == "sid-1"
 
     def test_a_response_without_an_id_token_stores_none(self):
         create, _, _ = self._store({"refresh_token": "rt"})
 
-        assert create.call_args.kwargs == {"encrypted_id_token": None}
+        assert create.call_args.kwargs == {"encrypted_id_token": None, "idp_sid": None}
 
     def test_an_id_token_that_cannot_be_encrypted_is_dropped_without_its_value_in_the_log(self, caplog):
         import logging
@@ -588,7 +598,7 @@ class TestStoreSessionTokens:
             create, _, _ = self._store({"refresh_token": "rt", "id_token": "idt-secret"}, encrypt=encrypt)
 
         assert create.call_args.args[3] == "ciphertext"
-        assert create.call_args.kwargs == {"encrypted_id_token": None}
+        assert create.call_args.kwargs == {"encrypted_id_token": None, "idp_sid": None}
         assert "idt-secret" not in caplog.text
 
     def test_a_numeric_string_expires_in_is_stored(self):
@@ -611,7 +621,9 @@ class TestStoreSessionTokens:
             ) as create,
             pytest.raises(ValueError),
         ):
-            _service().store_session_tokens(SESSION, 7, 3, {"refresh_token": "rt", "expires_in": "soon"}, MagicMock())
+            _service().store_session_tokens(
+                SESSION, 7, 3, {"refresh_token": "rt", "expires_in": "soon"}, MagicMock(), idp_sid=None
+            )
         create.assert_not_called()
 
     def test_a_database_error_propagates(self):
@@ -624,7 +636,7 @@ class TestStoreSessionTokens:
             ),
             pytest.raises(OperationalError),
         ):
-            _service().store_session_tokens(SESSION, 7, 3, {"refresh_token": "rt"}, MagicMock())
+            _service().store_session_tokens(SESSION, 7, 3, {"refresh_token": "rt"}, MagicMock(), idp_sid=None)
 
 
 class TestStoreRefreshedToken:

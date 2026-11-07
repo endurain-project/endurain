@@ -121,6 +121,7 @@ Create an OAuth 2.0/OIDC client application with the following settings:
 - **Application Name**: `Endurain`
 - **Redirect/Callback URI**: `https://<your-endurain-domain>/api/v1/public/idp/callback/<slug>`
 - **Post-logout redirect URI**: `https://<your-endurain-domain>/login` (the value of `ENDURAIN_HOST` followed by `/login`), so the provider can send the browser back to Endurain after it ends its session. Providers that require registered post-logout URIs refuse the sign-out redirect without it.
+- **Back-channel logout URI** (optional): `https://<your-endurain-domain>/api/v1/public/idp/<slug>/backchannel-logout`, so signing out at the provider also signs out of Endurain. See [Signing out at the provider](#signing-out-at-the-provider). Leave the provider's "session required" option (`backchannel_logout_session_required`) on when it has one, so its logout tokens name the provider session.
 - **Grant Type**: `Authorization Code`
 - **Scopes**: At minimum `openid profile email`
 
@@ -195,10 +196,21 @@ Each time you sign in through a provider, Endurain keeps the refresh token the p
 - **A refused refresh ends that sign-in.** When the provider refuses the refresh token (for example because you were removed from the provider or revoked the application there), Endurain signs out that one session and records it in the audit trail. Your other sessions are not affected. A token that Endurain can no longer decrypt, such as after a lost encryption key, is dropped without ending the session.
 - **Signing out revokes the token.** Signing out, revoking a session, changing or resetting the password, deactivating the account and a detected refresh-token reuse all end Endurain sessions. For each one Endurain asks the provider to revoke the session's refresh token ([RFC 7009](https://datatracker.ietf.org/doc/html/rfc7009)), when the provider advertises a `revocation_endpoint` in its discovery document, and then forgets it. A provider without one is not asked. If the provider cannot be reached, Endurain tries again every 15 minutes. Sessions that simply expire are handled by the same job.
 - **Signing out at Endurain also signs out at the provider.** When the provider advertises an `end_session_endpoint` ([OpenID Connect RP-Initiated Logout](https://openid.net/specs/openid-connect-rpinitiated-1_0.html)), signing out in the web app sends the browser to the provider with the ID token Endurain kept for that sign-in, so the provider ends its own session and returns to the Endurain login page. Endurain stores that ID token encrypted with the session's refresh token and deletes it with the sign-in. A provider without an `end_session_endpoint` is not asked, and if the provider cannot be reached for it, signing out at Endurain still succeeds and the provider session stays. A session from before this behaviour has no ID token and signs out of Endurain only.
+- **Signing out at the provider signs out of Endurain.** See [Signing out at the provider](#signing-out-at-the-provider).
 - **Unlinking a provider signs out its sessions.** Unlinking a provider, yourself or as an administrator, ends every session of that user that signed in through it, including your current one when it did, and revokes their tokens.
 - **Sessions from before the upgrade** are ended by it: upgrading to v0.21 signs everyone out once, so every session after it holds its own provider token.
 
 Deleting an account, or an identity provider, removes the stored tokens with it without asking the provider to revoke them.
+
+## Signing out at the provider
+
+Endurain supports [OpenID Connect Back-Channel Logout](https://openid.net/specs/openid-connect-backchannel-1_0.html). Register `https://<your-endurain-domain>/api/v1/public/idp/<slug>/backchannel-logout` as the client's back-channel logout URI at the provider (Endurain's settings do not show it; replace `<slug>` with the provider's slug). When the user signs out at the provider, or an administrator ends their session there, the provider posts a signed logout token to that URL and Endurain ends the matching sessions:
+
+- **Which sessions end.** At each sign-in Endurain keeps the provider's session id (the `sid` claim of the verified ID token) with the Endurain session it created. A logout token that names a `sid` ends the sessions signed in under it; when it also names the user (`sub`), only that user's. A token that names only the user ends every session that user signed in to through the provider. A token that matches no session is answered as a success: the user is already signed out.
+- **What else happens.** The ended sessions are recorded in the audit trail (`auth.session.revoke`, one row per user) and their provider refresh tokens are revoked as for any other sign-out.
+- **What is checked.** The token must be signed with one of the provider's published keys, name the provider's issuer and Endurain's client ID, be unexpired, carry the back-channel logout event and no `nonce`, and is accepted only once. A refused token is answered with `400` and recorded in the audit trail as `auth.backchannel_logout.refuse`.
+- **Which providers.** Only an enabled provider that issues ID tokens (`OIDC`, or `OAuth2` with the `openid` scope) has the URL; for any other it answers `404`. The provider must reach Endurain over the network, so a provider that cannot reach your server cannot sign anyone out this way.
+- **Sessions from before this behaviour** have no provider session id stored: a logout token that names only a `sid` does not find them, while one that names the user still ends them.
 
 ## Accounts with MFA enabled
 

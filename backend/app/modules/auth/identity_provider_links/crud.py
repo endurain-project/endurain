@@ -164,6 +164,7 @@ def create_idp_session_token(
     db: Session,
     *,
     encrypted_id_token: str | None = None,
+    idp_sid: str | None = None,
 ) -> identity_link_contracts.IdpSessionTokenRead:
     """Stage the identity-provider sign-in behind a session, with the encrypted tokens the provider issued.
 
@@ -175,6 +176,7 @@ def create_idp_session_token(
         access_token_expires_at: When the access token expires, or None when no refresh token was issued.
         db: Database session.
         encrypted_id_token: The encrypted ID token, or None when none was issued.
+        idp_sid: The provider session id of the verified ID token, or None when it named none.
 
     Returns:
         The staged sign-in.
@@ -185,6 +187,7 @@ def create_idp_session_token(
         idp_id=idp_id,
         refresh_token=encrypted_refresh_token,
         id_token=encrypted_id_token,
+        idp_sid=idp_sid,
         access_token_expires_at=access_token_expires_at,
         refresh_token_updated_at=datetime.now(UTC) if encrypted_refresh_token is not None else None,
     )
@@ -205,6 +208,27 @@ def get_idp_session_token_ids_by_user_and_idp(user_id: int, idp_id: int, db: Ses
     """Return the ids of the sessions the user signed in to through the provider."""
     model = identity_link_models.IdpSessionToken
     return list(db.execute(select(model.session_id).where(model.user_id == user_id, model.idp_id == idp_id)).scalars())
+
+
+def get_idp_session_owners_by_sid(
+    idp_id: int, idp_sid: str, db: Session, *, user_id: int | None = None
+) -> list[tuple[str, int]]:
+    """Return the session id and user of each sign-in through the provider that holds a provider session id.
+
+    Args:
+        idp_id: The identity provider.
+        idp_sid: The provider session id.
+        db: Database session.
+        user_id: Restrict the result to one user's sign-ins.
+
+    Returns:
+        ``(session_id, user_id)`` per matching sign-in.
+    """
+    model = identity_link_models.IdpSessionToken
+    stmt = select(model.session_id, model.user_id).where(model.idp_id == idp_id, model.idp_sid == idp_sid)
+    if user_id is not None:
+        stmt = stmt.where(model.user_id == user_id)
+    return [(session_id, owner_id) for session_id, owner_id in db.execute(stmt).all()]
 
 
 def get_idp_session_tokens_page(

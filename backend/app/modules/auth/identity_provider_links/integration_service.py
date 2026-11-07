@@ -71,8 +71,9 @@ def create_idp_session_token(
     db: Session,
     *,
     encrypted_id_token: str | None = None,
+    idp_sid: str | None = None,
 ) -> identity_link_contracts.IdpSessionTokenRead:
-    """Stage the identity-provider sign-in behind a session, with the encrypted tokens the provider issued."""
+    """Stage the identity-provider sign-in behind a session, with the encrypted tokens and provider session id."""
     return identity_link_crud.create_idp_session_token(
         session_id,
         user_id,
@@ -81,6 +82,7 @@ def create_idp_session_token(
         access_token_expires_at,
         db,
         encrypted_id_token=encrypted_id_token,
+        idp_sid=idp_sid,
     )
 
 
@@ -129,6 +131,11 @@ def get_orphaned_idp_session_tokens_page(
 def end_idp_sessions(user_id: int, idp_id: int, db: Session) -> int:
     """Stage the end of every session the user signed in to through the provider; the caller commits."""
     return identity_link_service.end_idp_sessions(user_id, idp_id, db)
+
+
+def end_idp_sessions_by_sid(idp_id: int, idp_sid: str, db: Session, *, user_id: int | None = None) -> dict[int, int]:
+    """Stage the end of the sessions signed in under a provider session id; returns how many ended per user."""
+    return identity_link_service.end_idp_sessions_by_sid(idp_id, idp_sid, db, user_id=user_id)
 
 
 def delete_user_identity_provider(user_id: int, idp_id: int, db: Session) -> bool:

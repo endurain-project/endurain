@@ -86,3 +86,56 @@ class TestEndIdpSessions:
             identity_links_integration.end_idp_sessions(7, 3, db)
 
         assert identity_links_crud.get_idp_session_token("s1", db) is not None
+
+
+class TestEndIdpSessionsBySid:
+    """A back-channel logout that names a provider session ends the sessions signed in under it."""
+
+    @pytest.fixture
+    def sid_db(self):
+        session = create_sqlite_session()
+        for session_id, user_id, idp_id, sid in (
+            ("a1", 7, 3, "sid-1"),
+            ("a2", 7, 3, "sid-1"),
+            ("a3", 8, 3, "sid-1"),
+            ("a4", 7, 3, "sid-2"),
+            ("a5", 7, 4, "sid-1"),
+            ("a6", 7, 3, None),
+        ):
+            identity_links_crud.create_idp_session_token(session_id, user_id, idp_id, None, None, session, idp_sid=sid)
+        session.commit()
+        yield session
+        session.close()
+
+    def test_the_live_sessions_of_that_provider_session_end_counted_per_user(self, sid_db):
+        with (
+            _alive("a1", "a3", "a4", "a5"),
+            patch.object(identity_links_service.sessions_integration, "delete_session") as delete_session,
+        ):
+            ended = identity_links_integration.end_idp_sessions_by_sid(3, "sid-1", sid_db)
+
+        assert ended == {7: 1, 8: 1}
+        assert sorted(call.args[:2] for call in delete_session.call_args_list) == [("a1", 7), ("a3", 8)]
+
+    def test_a_user_restricts_the_match_to_their_own_sessions(self, sid_db):
+        with (
+            _alive("a1", "a2", "a3"),
+            patch.object(identity_links_service.sessions_integration, "delete_session") as delete_session,
+        ):
+            ended = identity_links_integration.end_idp_sessions_by_sid(3, "sid-1", sid_db, user_id=8)
+
+        assert ended == {8: 1}
+        delete_session.assert_called_once_with("a3", 8, sid_db)
+
+    def test_an_unknown_provider_session_ends_nothing(self, sid_db):
+        with (
+            _alive("a1", "a2"),
+            patch.object(identity_links_service.sessions_integration, "delete_session") as delete_session,
+        ):
+            assert identity_links_integration.end_idp_sessions_by_sid(3, "sid-9", sid_db) == {}
+
+        delete_session.assert_not_called()
+
+    def test_the_sid_is_stored_with_the_sign_in(self, sid_db):
+        assert identity_links_crud.get_idp_session_token("a1", sid_db).idp_sid == "sid-1"
+        assert identity_links_crud.get_idp_session_token("a6", sid_db).idp_sid is None

@@ -120,6 +120,23 @@ class TestCompleteCallback:
         values.update(overrides)
         return SimpleNamespace(**values)
 
+    @pytest.mark.parametrize(
+        ("claims", "stored"),
+        [
+            ({"sid": "sid-1"}, "sid-1"),
+            ({}, None),
+            ({"sid": ""}, None),
+            ({"sid": 7}, None),
+            ({"sid": "x" * 256}, None),
+        ],
+    )
+    def test_a_sign_in_keeps_the_provider_session_id_of_its_id_token(self, service, claims, stored):
+        result = callback_service.CallbackResult(user=SimpleNamespace(username="a"), userinfo=claims, mode="login")
+
+        _, create_session = self._complete(service, result, self._state())
+
+        assert create_session.call_args.kwargs == {"idp_sid": stored}
+
     def test_a_link_returns_to_the_originating_page_without_a_session(self, service):
         user = SimpleNamespace(username="alice")
 
@@ -330,7 +347,7 @@ _STATE = SimpleNamespace(id="state-id", expires_at=datetime(2026, 11, 6, 12, 10,
 class TestCreateCallbackSession:
     """The provider's sign-in is stored with the session it creates, in the same transaction."""
 
-    def _create(self, service, *, active=True, token_response=None):
+    def _create(self, service, *, active=True, token_response=None, idp_sid=None):
         user = SimpleNamespace(id=7, username="alice", active=active, email="a@example.com", model_dump=lambda: {})
         db = MagicMock()
         order = MagicMock()
@@ -343,7 +360,15 @@ class TestCreateCallbackSession:
         ):
             order.attach_mock(create_session, "create_session")
             session_id = service.create_callback_session(
-                user, "10.0.0.1", "agent", MagicMock(), _STATE, 3, token_response or {"refresh_token": "rt"}, db
+                user,
+                "10.0.0.1",
+                "agent",
+                MagicMock(),
+                _STATE,
+                3,
+                token_response or {"refresh_token": "rt"},
+                db,
+                idp_sid=idp_sid,
             )
         return session_id, create_session, order
 
@@ -361,7 +386,9 @@ class TestCreateCallbackSession:
             patch.object(callback_service.users_schema.UserRead, "model_validate", return_value=SimpleNamespace(id=7)),
             patch.object(callback_service.sessions_integration, "create_session") as create_session,
         ):
-            service.create_callback_session(user, "10.0.0.1", "agent", MagicMock(), naive, 3, {}, MagicMock())
+            service.create_callback_session(
+                user, "10.0.0.1", "agent", MagicMock(), naive, 3, {}, MagicMock(), idp_sid=None
+            )
 
         assert create_session.call_args.args[7] == datetime(2026, 11, 6, 12, 0, tzinfo=UTC)
 
@@ -374,7 +401,7 @@ class TestCreateCallbackSession:
             patch.object(callback_service.sessions_integration, "create_session") as create_session,
         ):
             service.create_callback_session(
-                SimpleNamespace(id=7), "10.0.0.1", "agent", MagicMock(), state, 3, {}, MagicMock()
+                SimpleNamespace(id=7), "10.0.0.1", "agent", MagicMock(), state, 3, {}, MagicMock(), idp_sid=None
             )
 
         assert create_session.call_args.args[2] is client_type
@@ -386,6 +413,11 @@ class TestCreateCallbackSession:
         service._tokens.store_session_tokens.assert_called_once()
         assert service._tokens.store_session_tokens.call_args.args[:4] == (session_id, 7, 3, {"refresh_token": "rt"})
         assert [call[0] for call in order.mock_calls] == ["create_session", "store", "commit"]
+
+    def test_the_provider_session_id_is_stored_with_the_sign_in(self, service):
+        self._create(service, idp_sid="sid-1")
+
+        assert service._tokens.store_session_tokens.call_args.kwargs == {"idp_sid": "sid-1"}
 
     def test_a_provider_that_issued_no_token_is_still_recorded(self, service):
         session_id, _, _ = self._create(service, token_response={"access_token": "at"})
@@ -404,7 +436,9 @@ class TestCreateCallbackSession:
             patch.object(callback_service.sessions_integration, "create_session") as create_session,
             pytest.raises(core_exceptions.PermissionDeniedError),
         ):
-            service.create_callback_session(user, "10.0.0.1", "agent", MagicMock(), _STATE, 3, {}, MagicMock())
+            service.create_callback_session(
+                user, "10.0.0.1", "agent", MagicMock(), _STATE, 3, {}, MagicMock(), idp_sid=None
+            )
 
         create_session.assert_not_called()
         service._tokens.store_session_tokens.assert_not_called()

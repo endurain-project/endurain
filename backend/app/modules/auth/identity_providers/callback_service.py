@@ -246,7 +246,15 @@ class CallbackService:
 
             # Login: a session without tokens, which the token exchange completes after PKCE.
             session_id = self.create_callback_session(
-                user, ip_address, user_agent, password_hasher, oauth_state, idp.id, result.token_response, db
+                user,
+                ip_address,
+                user_agent,
+                password_hasher,
+                oauth_state,
+                idp.id,
+                result.token_response,
+                db,
+                idp_sid=_provider_session_id(result.userinfo),
             )
             redirect_url = f"{self._frontend_host}/login?sso=success&session_id={session_id}"
             redirect_path = result.redirect_path
@@ -390,7 +398,7 @@ class CallbackService:
             if require_id_token:
                 # A login identified by a verified ID token needs discovery to succeed.
                 config = self._oidc.get_oidc_configuration(idp) or {}
-                jwks_uri, expected_issuer = self._require_signing_keys(idp, config)
+                jwks_uri, expected_issuer = oidc_client_service.require_signing_keys(idp, config)
                 userinfo_endpoint = userinfo_endpoint or config.get("userinfo_endpoint")
             elif idp.issuer_url:
                 # Discovery logs its own failure and returns None; the provider then goes on without it
@@ -715,31 +723,6 @@ class CallbackService:
             )
             raise core_exceptions.ProcessingError("Failed to complete authentication. Please try again.") from err
 
-    def _require_signing_keys(
-        self, idp: identity_provider_contracts.IdentityProviderState, config: dict[str, Any]
-    ) -> tuple[str, str]:
-        """Return the JWKS URI and issuer of a provider's discovery document.
-
-        Args:
-            idp: The provider.
-            config: The provider's discovery document, empty when discovery failed.
-
-        Returns:
-            The ``jwks_uri`` and the ``issuer``.
-
-        Raises:
-            UpstreamError: If the document publishes no issuer or no signing keys.
-        """
-        jwks_uri = config.get("jwks_uri")
-        issuer = config.get("issuer")
-        if not jwks_uri or not issuer:
-            logger.warning(
-                "Sign-in refused: IdP <name> publishes no issuer or signing keys",
-                extra=core_logger.context(name=idp.name),
-            )
-            raise core_exceptions.UpstreamError(f"Identity provider {idp.name} publishes no issuer or signing keys")
-        return jwks_uri, issuer
-
     def _verify_step_up_sign_in(
         self,
         idp: identity_provider_contracts.IdentityProviderState,
@@ -765,7 +748,7 @@ class CallbackService:
             _StaleSignInError: If the ID token does not prove a sign-in within the step-up's limit.
         """
         client_id = self._oidc.decrypt_client_id(idp)
-        jwks_uri, issuer = self._require_signing_keys(idp, self._oidc.get_oidc_configuration(idp) or {})
+        jwks_uri, issuer = oidc_client_service.require_signing_keys(idp, self._oidc.get_oidc_configuration(idp) or {})
         with self._oidc.create_oauth_client(
             client_id=client_id,
             client_secret=self._oidc.decrypt_client_secret(idp),
@@ -801,6 +784,8 @@ class CallbackService:
         idp_id: int,
         token_response: dict[str, Any],
         db: Session,
+        *,
+        idp_sid: str | None,
     ) -> str:
         """Create the token-exchange session for a successful SSO login, with the provider tokens it signed in with.
 
@@ -818,6 +803,7 @@ class CallbackService:
             idp_id: The provider the user signed in through.
             token_response: The provider's token response.
             db: Database session.
+            idp_sid: The provider session id of the verified ID token, or None when it named none.
 
         Returns:
             The new session's id.
@@ -846,10 +832,31 @@ class CallbackService:
             db,
             oauth_state_id=oauth_state.id,
         )
-        self._tokens.store_session_tokens(session_id, user_read.id, idp_id, token_response, db)
+        self._tokens.store_session_tokens(session_id, user_read.id, idp_id, token_response, db, idp_sid=idp_sid)
         db.commit()
         logger.debug("SSO callback session created", extra=core_logger.context(user_id=user_read.id))
         return session_id
+
+
+def _provider_session_id(claims: dict[str, Any]) -> str | None:
+    """Return the provider session id (``sid``) a sign-in's verified ID token named, when it is usable.
+
+    ``OidcClientService.get_userinfo`` takes ``sid`` only from the verified ID token. A value that is not a
+    non-empty string of at most ``MAX_SESSION_ID_LENGTH`` characters is not stored, so a back-channel logout can
+    name that sign-in only by its subject.
+
+    Args:
+        claims: The sign-in's identity claims.
+
+    Returns:
+        The ``sid``, or None when the ID token named none or named an unusable one.
+    """
+    sid = claims.get("sid")
+    if isinstance(sid, str) and 0 < len(sid) <= id_token_service.MAX_SESSION_ID_LENGTH:
+        return sid
+    if sid is not None:
+        logger.warning("ID token sid is not a usable string; the sign-in is stored without it")
+    return None
 
 
 def _stage_other_sessions_ended(user_id: int, keep_session_id: str, db: Session) -> None:

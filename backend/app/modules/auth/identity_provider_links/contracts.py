@@ -62,6 +62,7 @@ class IdpSessionTokenRead(BaseModel):
     idp_id: int
     refresh_token: str | None
     id_token: str | None
+    idp_sid: str | None
     access_token_expires_at: datetime | None
     refresh_token_updated_at: datetime | None
     created_at: datetime

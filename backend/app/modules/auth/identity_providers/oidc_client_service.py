@@ -30,6 +30,32 @@ class UpstreamTimeoutError(core_exceptions.DomainError):
     default_detail = "Identity provider request timed out"
 
 
+def require_signing_keys(
+    idp: identity_provider_contracts.IdentityProviderState, config: dict[str, Any]
+) -> tuple[str, str]:
+    """Return the JWKS URI and issuer of a provider's discovery document.
+
+    Args:
+        idp: The provider.
+        config: The provider's discovery document, empty when discovery failed.
+
+    Returns:
+        The ``jwks_uri`` and the ``issuer``.
+
+    Raises:
+        UpstreamError: If the document publishes no issuer or no signing keys.
+    """
+    jwks_uri = config.get("jwks_uri")
+    issuer = config.get("issuer")
+    if not jwks_uri or not issuer:
+        logger.warning(
+            "IdP <name> publishes no issuer or signing keys; its tokens cannot be verified",
+            extra=core_logger.context(name=idp.name),
+        )
+        raise core_exceptions.UpstreamError(f"Identity provider {idp.name} publishes no issuer or signing keys")
+    return jwks_uri, issuer
+
+
 class OidcClientService:
     """Reach an identity provider's OIDC endpoints: discovery, signing keys, token endpoint and userinfo."""
 
@@ -536,6 +562,7 @@ class OidcClientService:
         only supplements profile fields. Without it (providers that issue no ID token) the userinfo endpoint claims
         are used, and an ID token is verified and merged only when one is present and verifiable. Whenever an
         ID token and userinfo claims are merged, their ``sub`` must match and the ID token claims take precedence.
+        A ``sid`` comes only from the verified ID token: the userinfo endpoint's is dropped.
 
         Args:
             token_response: The OAuth2 token response containing the access token and, for OIDC, the ID token.
@@ -588,6 +615,9 @@ class OidcClientService:
                     )
                     response.raise_for_status()
                     userinfo_claims = response.json()
+                    # ``sid`` is an ID token claim (OIDC Back-Channel Logout 1.0, section 2.1), so only a verified
+                    # ID token may name the provider session a back-channel logout ends.
+                    userinfo_claims.pop("sid", None)
                     logger.debug("Successfully retrieved userinfo from endpoint")
                 else:
                     logger.warning("No access token available for userinfo request")

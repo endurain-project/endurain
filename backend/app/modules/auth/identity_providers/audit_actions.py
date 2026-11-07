@@ -29,6 +29,37 @@ class IdentityLinkRefusal(StrEnum):
     LINK_BY_EMAIL_DISABLED = "link_by_email_disabled"
 
 
+class BackchannelLogoutRefusal(StrEnum):
+    """Why a back-channel logout request from a sign-in provider was refused.
+
+    Attributes:
+        INVALID_TOKEN: The logout token did not verify or is not a logout token.
+        REPLAYED: The logout token was already used.
+        SIGNING_KEYS_UNAVAILABLE: The provider's issuer or signing keys could not be read, so the token could not
+            be verified.
+    """
+
+    INVALID_TOKEN = "invalid_token"
+    REPLAYED = "replayed"
+    SIGNING_KEYS_UNAVAILABLE = "signing_keys_unavailable"
+
+
+class BackchannelLogoutRefusalDetails(VersionedPayload):
+    """Details of ``auth.backchannel_logout.refuse``.
+
+    Attributes:
+        idp_id: The provider the request named.
+        reason: Why it was refused.
+    """
+
+    model_config = ConfigDict(extra="forbid")
+
+    SCHEMA_VERSION: ClassVar[int] = 1
+
+    idp_id: int
+    reason: BackchannelLogoutRefusal
+
+
 class IdentityProviderDetails(VersionedPayload):
     """Details of ``auth.identity_provider.create`` and ``auth.identity_provider.delete``.
 
@@ -82,6 +113,15 @@ IDENTITY_LINK_LINK = jasil_audit.AuditAction(
     details_model=IdentityLinkDetails,
 )
 
+BACKCHANNEL_LOGOUT_REFUSE = jasil_audit.AuditAction(
+    id="auth.backchannel_logout.refuse",
+    category=jasil_audit.Category.AUTHENTICATION,
+    severity=jasil_audit.Severity.MEDIUM,
+    description_key="audit.auth.backchannel_logout.refuse",
+    description_default="A sign-in provider's back-channel logout request was refused",
+    details_model=BackchannelLogoutRefusalDetails,
+)
+
 IDENTITY_PROVIDER_CREATE = jasil_audit.AuditAction(
     id="auth.identity_provider.create",
     category=jasil_audit.Category.ADMIN,
@@ -111,6 +151,7 @@ IDENTITY_PROVIDER_DELETE = jasil_audit.AuditAction(
 
 #: Every action this package writes, registered by the composition root.
 ACTIONS: tuple[jasil_audit.AuditAction, ...] = (
+    BACKCHANNEL_LOGOUT_REFUSE,
     IDENTITY_LINK_LINK,
     IDENTITY_PROVIDER_CREATE,
     IDENTITY_PROVIDER_UPDATE,

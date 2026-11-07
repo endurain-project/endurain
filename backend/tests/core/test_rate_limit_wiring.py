@@ -143,6 +143,8 @@ _TIERED_ENDPOINTS = [
     pytest.param(server_settings_logs_router.clear_logs, core_rate_limit.WRITE, id="server-settings-clear-logs"),
     pytest.param(idp_public_router.initiate_login, core_rate_limit.SENSITIVE, id="oidc-initiate"),
     pytest.param(idp_public_router.handle_callback, core_rate_limit.SENSITIVE, id="oidc-callback"),
+    # The provider's own bucket: a burst of logouts after a sign-out at the provider must not be throttled away.
+    pytest.param(idp_public_router.backchannel_logout, core_rate_limit.DEFAULT, id="oidc-backchannel-logout"),
     pytest.param(
         sso_public_router.exchange_tokens_for_session,
         core_rate_limit.SENSITIVE,

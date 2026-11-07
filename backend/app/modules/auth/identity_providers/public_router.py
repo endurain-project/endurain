@@ -10,6 +10,7 @@ from typing import Annotated
 from fastapi import APIRouter, Depends, Query, Request, Response, status
 from fastapi.responses import RedirectResponse
 
+import core.cache_control as core_cache_control
 import core.config as core_config
 import core.dependencies as core_dependencies
 import core.etag as core_etag
@@ -226,3 +227,35 @@ def read_identity_provider_icon(
         raise core_exceptions.NotFoundError("Identity provider icon not found")
     data, media_type = icon
     return Response(content=data, media_type=media_type, headers=headers)
+
+
+@router.post(
+    "/{idp_slug}/backchannel-logout",
+    response_class=Response,
+    responses={
+        200: {"description": "The sessions the logout token names have ended, or none was signed in."},
+        400: {
+            "description": "The logout token was refused: it does not verify, was already used, or the provider's "
+            "signing keys could not be read."
+        },
+    },
+)
+@core_rate_limit.limiter.limit(core_rate_limit.DEFAULT)
+def backchannel_logout(
+    request: Request,
+    idp_slug: auth_dependencies.IdentityProviderSlug,
+    logout_token: idp_dependencies.LogoutToken,
+    db: core_dependencies.DbSession,
+    service: idp_dependencies.BackchannelLogoutService,
+) -> Response:
+    """Receive an OpenID Connect Back-Channel Logout request from an identity provider.
+
+    Register this URL at the provider as its back-channel logout URI. The provider posts a signed `logout_token`
+    (`application/x-www-form-urlencoded`) when the user signs out there; Endurain verifies it against the provider's
+    signing keys and ends the sessions it names: those signed in under its `sid`, only the user's when a `sub` is
+    named too, or every session the user signed in to through the provider when only a `sub` is named. A token is
+    accepted once. The answer is 200 with no body when the sessions ended or none was signed in, and 400 when the
+    token is refused. Providers that are disabled or issue no ID token answer 404.
+    """
+    service.logout(idp_slug, logout_token, db)
+    return Response(headers=core_cache_control.NO_STORE_HEADERS)

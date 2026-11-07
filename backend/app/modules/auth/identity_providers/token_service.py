@@ -93,6 +93,8 @@ class IdpTokenService:
         idp_id: int,
         token_response: dict[str, Any],
         db: Session,
+        *,
+        idp_sid: str | None,
     ) -> None:
         """Stage the identity-provider sign-in behind a new session, with its refresh and ID tokens when issued.
 
@@ -106,6 +108,8 @@ class IdpTokenService:
             token_response: The OAuth token response from the IdP containing access_token, refresh_token
                 (optional), id_token (optional), and expires_in.
             db: The database session holding the session's transaction.
+            idp_sid: The provider session id (``sid``) of the verified ID token, which a back-channel logout names;
+                None when it named none.
 
         Raises:
             ValueError: If ``expires_in`` is present but not an integer or numeric string.
@@ -125,6 +129,7 @@ class IdpTokenService:
             expires_at,
             db,
             encrypted_id_token=IdpTokenService._encrypt_id_token(user_id, idp_id, token_response),
+            idp_sid=idp_sid,
         )
 
     @staticmethod

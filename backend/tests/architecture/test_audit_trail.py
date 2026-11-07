@@ -117,6 +117,10 @@ _AUDITED_WRITES: dict[tuple[str, str], tuple[str, ...]] = {
         "auth.lockout.apply",
         "auth.session.login",
     ),
+    ("auth/identity_providers/public_router.py", "backchannel_logout"): (
+        "auth.backchannel_logout.refuse",
+        "auth.session.revoke",
+    ),
     ("auth/identity_providers/router.py", "create_identity_provider"): ("auth.identity_provider.create",),
     ("auth/identity_providers/router.py", "delete_identity_provider"): ("auth.identity_provider.delete",),
     ("auth/identity_providers/router.py", "delete_identity_provider_icon"): ("auth.identity_provider.update",),

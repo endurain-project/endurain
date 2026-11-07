@@ -3122,6 +3122,33 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/public/idp/{idp_slug}/backchannel-logout": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Backchannel Logout
+         * @description Receive an OpenID Connect Back-Channel Logout request from an identity provider.
+         *
+         *     Register this URL at the provider as its back-channel logout URI. The provider posts a signed `logout_token`
+         *     (`application/x-www-form-urlencoded`) when the user signs out there; Endurain verifies it against the provider's
+         *     signing keys and ends the sessions it names: those signed in under its `sid`, only the user's when a `sub` is
+         *     named too, or every session the user signed in to through the provider when only a `sub` is named. A token is
+         *     accepted once. The answer is 200 with no body when the sessions ended or none was signed in, and 400 when the
+         *     token is refused. Providers that are disabled or issue no ID token answer 404.
+         */
+        post: operations["backchannel_logout"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/public/idp/{idp_slug}/icon": {
         parameters: {
             query?: never;
@@ -5386,6 +5413,14 @@ export interface components {
             target_value?: number | null;
             /** Weight Display Unit */
             weight_display_unit?: string | null;
+        };
+        /** Body_backchannel_logout */
+        Body_backchannel_logout: {
+            /**
+             * Logout Token
+             * @description The logout token: a JWT the provider signed (OpenID Connect Back-Channel Logout 1.0).
+             */
+            logout_token: string;
         };
         /** Body_create_activity_media */
         Body_create_activity_media: {
@@ -30043,6 +30078,106 @@ export interface operations {
             };
             /** @description The resource does not exist, or is concealed from the caller. */
             404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description The rate limit was reached. */
+            429: {
+                headers: {
+                    /** @description Seconds to wait before the request can succeed. */
+                    "Retry-After"?: number;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description A dependency is unavailable for a moment. */
+            503: {
+                headers: {
+                    /** @description Seconds to wait before the request can succeed. */
+                    "Retry-After"?: number;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Unexpected error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+        };
+    };
+    backchannel_logout: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                idp_slug: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/x-www-form-urlencoded": components["schemas"]["Body_backchannel_logout"];
+            };
+        };
+        responses: {
+            /** @description The sessions the logout token names have ended, or none was signed in. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description The logout token was refused: it does not verify, was already used, or the provider's signing keys could not be read. */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description The resource does not exist, or is concealed from the caller. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description The request conflicts with the current state. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description The body is larger than the route accepts. */
+            413: {
                 headers: {
                     [name: string]: unknown;
                 };

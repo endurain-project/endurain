@@ -168,3 +168,50 @@ class TestReadIcon:
         icon_service.read_icon.return_value = None
 
         assert client.get(f"{PREFIX}/tinyauth/icon").status_code == 404
+
+
+class TestBackchannelLogout:
+    URL = f"{PREFIX}/pocket-id/backchannel-logout"
+
+    @pytest.fixture
+    def logout_service(self, client):
+        logout_service = MagicMock()
+        client.app.dependency_overrides[idp_dependencies.get_backchannel_logout_service] = lambda: logout_service
+        return logout_service
+
+    def test_a_handled_logout_answers_200_with_no_body_and_no_store(self, client, logout_service):
+        response = client.post(self.URL, data={"logout_token": "a.b.c"})
+
+        assert response.status_code == 200
+        assert response.content == b""
+        assert response.headers["cache-control"] == "no-store"
+        assert logout_service.logout.call_args.args[:2] == ("pocket-id", "a.b.c")
+
+    def test_a_refused_token_answers_400(self, client, logout_service):
+        logout_service.logout.side_effect = core_exceptions.InvalidInputError("The logout token was refused")
+
+        response = client.post(self.URL, data={"logout_token": "a.b.c"})
+
+        assert response.status_code == 400
+        assert response.headers["content-type"].startswith("application/problem+json")
+
+    def test_a_provider_without_back_channel_logout_answers_404(self, client, logout_service):
+        logout_service.logout.side_effect = core_exceptions.NotFoundError("Identity provider not found")
+
+        assert client.post(self.URL, data={"logout_token": "a.b.c"}).status_code == 404
+
+    def test_an_unreachable_state_store_answers_503(self, client, logout_service):
+        logout_service.logout.side_effect = core_exceptions.ServiceUnavailableError("unavailable")
+
+        assert client.post(self.URL, data={"logout_token": "a.b.c"}).status_code == 503
+
+    @pytest.mark.parametrize("data", [{}, {"logout_token": ""}, {"logout_token": "x" * 16_385}])
+    def test_a_missing_or_oversized_token_is_a_validation_failure(self, client, logout_service, data):
+        assert client.post(self.URL, data=data).status_code == 422
+        logout_service.logout.assert_not_called()
+
+    def test_a_nul_in_a_multipart_token_is_refused(self, client, logout_service):
+        response = client.post(self.URL, files={"logout_token": (None, "a.b\x00.c")})
+
+        assert response.status_code == 422
+        logout_service.logout.assert_not_called()

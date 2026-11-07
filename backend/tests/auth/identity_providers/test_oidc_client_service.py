@@ -576,6 +576,50 @@ class TestGetUserinfo:
                 require=True,
             )
 
+    def test_only_the_id_token_can_name_the_provider_session(self, service):
+        """``sid`` is an ID token claim; a userinfo ``sid`` is dropped so the stored one is always verified."""
+        client = self._client({"sub": "verified-sub", "sid": "from-userinfo"})
+        with patch.object(
+            oidc_client_service.id_token_service, "verify_id_token", MagicMock(return_value={"sub": "verified-sub"})
+        ):
+            result = self._get(
+                service,
+                token_response={"access_token": "at", "id_token": "idt"},
+                client=client,
+                endpoint="https://idp.example.com/userinfo",
+                require=True,
+            )
+
+        assert "sid" not in result
+
+    def test_the_id_token_session_survives_the_merge(self, service):
+        client = self._client({"sub": "verified-sub", "sid": "from-userinfo"})
+        verified = {"sub": "verified-sub", "sid": "from-id-token"}
+        with patch.object(oidc_client_service.id_token_service, "verify_id_token", MagicMock(return_value=verified)):
+            result = self._get(
+                service,
+                token_response={"access_token": "at", "id_token": "idt"},
+                client=client,
+                endpoint="https://idp.example.com/userinfo",
+                require=True,
+            )
+
+        assert result["sid"] == "from-id-token"
+
+    def test_a_provider_without_id_tokens_names_no_provider_session(self, service):
+        client = self._client({"sub": "user-1", "sid": "from-userinfo"})
+        result = self._get(
+            service,
+            token_response={"access_token": "at"},
+            client=client,
+            endpoint="https://idp.example.com/userinfo",
+            jwks_uri=None,
+            issuer=None,
+            require=False,
+        )
+
+        assert result == {"sub": "user-1"}
+
     def test_id_token_only_returns_verified_claims(self, service):
         verified = {"sub": "verified-sub"}
         with patch.object(oidc_client_service.id_token_service, "verify_id_token", MagicMock(return_value=verified)):

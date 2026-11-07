@@ -2,12 +2,14 @@
 
 from typing import Annotated
 
-from fastapi import Cookie, Depends, Response
+from fastapi import Cookie, Depends, Form, Response
+from fastapi.exceptions import RequestValidationError
 
 import core.config as core_config
 import core.dependencies as core_dependencies
 import modules.auth.computation as auth_computation
 import modules.auth.identity_providers.authorization_service as authorization_service
+import modules.auth.identity_providers.backchannel_logout_service as backchannel_logout_service
 import modules.auth.identity_providers.callback_service as callback_service
 import modules.auth.identity_providers.oidc_client_service as oidc_client_service
 import modules.auth.identity_providers.step_up_ticket_store as step_up_ticket_store
@@ -48,8 +50,56 @@ def get_callback_service(
     )
 
 
+def get_backchannel_logout_service(
+    oidc: OidcClientService, state: core_dependencies.PlatformState
+) -> backchannel_logout_service.BackchannelLogoutService:
+    """Build the service that handles a provider's back-channel logout for this request."""
+    return backchannel_logout_service.BackchannelLogoutService(oidc, state)
+
+
 AuthorizationService = Annotated[authorization_service.AuthorizationService, Depends(get_authorization_service)]
 CallbackService = Annotated[callback_service.CallbackService, Depends(get_callback_service)]
+BackchannelLogoutService = Annotated[
+    backchannel_logout_service.BackchannelLogoutService, Depends(get_backchannel_logout_service)
+]
+
+#: Longest ``logout_token`` accepted. A logout token is a signed JWT of a few claims, well under 2 KB in practice.
+LOGOUT_TOKEN_MAX_LENGTH = 16_384
+
+
+def read_logout_token(
+    logout_token: Annotated[
+        str,
+        Form(
+            min_length=1,
+            max_length=LOGOUT_TOKEN_MAX_LENGTH,
+            description="The logout token: a JWT the provider signed (OpenID Connect Back-Channel Logout 1.0).",
+        ),
+    ],
+) -> str:
+    """Read the ``logout_token`` form field, refusing a NUL character in it.
+
+    The NUL middleware reads urlencoded bodies but leaves multipart ones streaming, and FastAPI parses this form
+    from multipart too, so the field is checked here.
+
+    Args:
+        logout_token: The posted field.
+
+    Returns:
+        The logout token.
+
+    Raises:
+        RequestValidationError: When the field holds a NUL (422).
+    """
+    if "\x00" in logout_token:
+        raise RequestValidationError(
+            [{"type": "value_error", "loc": ("body", "logout_token"), "msg": "NUL characters are not allowed"}]
+        )
+    return logout_token
+
+
+#: The ``logout_token`` form field, with NUL characters refused.
+LogoutToken = Annotated[str, Depends(read_logout_token)]
 
 BrowserBinding = Annotated[str | None, Cookie(alias=BINDING_COOKIE_NAME, include_in_schema=False)]
 
