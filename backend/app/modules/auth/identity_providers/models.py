@@ -3,11 +3,15 @@
 from datetime import datetime
 from typing import Any
 
-from sqlalchemy import JSON, Boolean, DateTime, Integer, String, text
+from sqlalchemy import JSON, Boolean, DateTime, Index, Integer, String, text
 from sqlalchemy.orm import Mapped, mapped_column
 from sqlalchemy.sql import func
 
 from core.database import Base
+
+#: Unique index over the issuer without its trailing slashes, so two providers cannot share an issuer. Rows with no
+#: issuer are not indexed against each other.
+ISSUER_UNIQUE_INDEX = "uq_identity_providers_issuer_url_normalized"
 
 
 class IdentityProvider(Base):
@@ -178,3 +182,6 @@ class IdentityProvider(Base):
     )
 
     __mapper_args__ = {"version_id_col": version}  # noqa: RUF012
+
+
+Index(ISSUER_UNIQUE_INDEX, func.rtrim(IdentityProvider.issuer_url, "/"), unique=True)

@@ -156,9 +156,11 @@ Save the generated **Client ID** and **Client Secret**.
 A user's link names the provider and the user's identifier at it, so the issuer is what keeps a link pointing at the same identity provider. For that reason:
 
 - The issuer URL cannot be changed, set or cleared while any user is linked to the provider. Unlink those users first, or add a new provider for the new issuer. Adding or removing only a trailing slash is not a change.
-- Two providers cannot use the same issuer URL (a trailing slash is ignored). A provider with no issuer URL never conflicts.
+- Two providers cannot use the same issuer URL (trailing slashes are ignored). A provider with no issuer URL never conflicts. The database enforces this, so two administrators saving the same issuer at once cannot both succeed.
 
 Both refusals are answered with `409` and nothing is saved.
+
+Upgrading from a version that allowed it is refused while two providers share an issuer URL. The error names the providers' slugs for each shared issuer: change the issuer URL of, or delete, all but one of them (unlinking their users first if the issuer must change), then start the new version again.
 
 #### Linking by email and syncing the email
 

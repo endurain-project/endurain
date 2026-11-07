@@ -16,15 +16,17 @@ def _custom_scheme(value: str) -> str | None:
 
 
 def normalize_issuer_url(issuer_url: str) -> str:
-    """Return an issuer URL without a trailing slash, the form in which two issuers are compared.
+    """Return an issuer URL without its trailing slashes, the form in which two issuers are compared.
+
+    Equals the SQL ``rtrim(issuer_url, '/')`` behind the unique index on the issuer.
 
     Args:
         issuer_url: An issuer URL.
 
     Returns:
-        The URL with one trailing slash removed.
+        The URL with every trailing slash removed.
     """
-    return issuer_url.removesuffix("/")
+    return issuer_url.rstrip("/")
 
 
 def requires_id_token(idp: identity_provider_contracts.IdentityProviderState) -> bool:

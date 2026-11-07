@@ -1,11 +1,14 @@
 """Persistence operations for identity providers."""
 
 from sqlalchemy import func, select
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 from sqlalchemy.orm.attributes import flag_modified
 
 import core.cryptography as core_cryptography
+import core.database as core_database
 import core.etag as core_etag
+import core.exceptions as core_exceptions
 import core.key_rotation as core_key_rotation
 import modules.auth.identity_providers.contracts as identity_provider_contracts
 import modules.auth.identity_providers.models as identity_provider_models
@@ -33,7 +36,7 @@ def get_identity_provider_by_slug(slug: str, db: Session) -> identity_provider_c
 def get_identity_provider_by_issuer(
     issuer_url: str, db: Session, *, exclude_id: int | None = None
 ) -> identity_provider_contracts.IdentityProviderState | None:
-    """Return a provider whose issuer URL equals the given one, apart from one trailing slash.
+    """Return a provider whose issuer URL equals the given one, apart from trailing slashes.
 
     Args:
         issuer_url: The issuer URL to look up.
@@ -45,7 +48,7 @@ def get_identity_provider_by_issuer(
     """
     normalized = idp_utils.normalize_issuer_url(issuer_url)
     query = select(identity_provider_models.IdentityProvider).where(
-        identity_provider_models.IdentityProvider.issuer_url.in_([normalized, f"{normalized}/"])
+        func.rtrim(identity_provider_models.IdentityProvider.issuer_url, "/") == normalized
     )
     if exclude_id is not None:
         query = query.where(identity_provider_models.IdentityProvider.id != exclude_id)
@@ -96,6 +99,48 @@ def get_identity_providers_by_ids(
     return [identity_provider_serializers.to_state(row) for row in rows]
 
 
+def _flush_refusing_shared_issuer(
+    db: Session, new_row: identity_provider_models.IdentityProvider | None = None
+) -> None:
+    """Flush staged provider changes in a savepoint, turning the issuer unique-index violation into a refusal.
+
+    The service checks for a shared issuer first, but two concurrent writes can both pass that check, so the unique
+    index decides. Rolling the session back is the transaction owner's job.
+
+    Args:
+        db: Database session.
+        new_row: A provider row to add before flushing, or ``None`` when the changes are already staged.
+
+    Raises:
+        IssuerInUseError: When the flush violates the unique index on the issuer.
+    """
+    try:
+        with db.begin_nested():
+            if new_row is not None:
+                db.add(new_row)
+            db.flush()
+    except IntegrityError as err:
+        if _is_shared_issuer(err):
+            raise core_exceptions.IssuerInUseError() from err
+        raise
+
+
+def _is_shared_issuer(err: IntegrityError) -> bool:
+    """Whether an integrity error is the unique index on the normalized issuer.
+
+    Args:
+        err: The integrity error raised by the flush.
+
+    Returns:
+        True for the issuer index violation. SQLite names no constraint, so its error text is searched for the
+        index name instead.
+    """
+    constraint = core_database.violated_constraint(err)
+    if constraint is not None:
+        return constraint == identity_provider_models.ISSUER_UNIQUE_INDEX
+    return identity_provider_models.ISSUER_UNIQUE_INDEX in str(err.orig)
+
+
 def create_identity_provider(
     data: identity_provider_schema.IdentityProviderCreate, db: Session
 ) -> identity_provider_contracts.IdentityProviderState:
@@ -121,8 +166,7 @@ def create_identity_provider(
         sync_email=data.sync_email,
         user_mapping=data.user_mapping,
     )
-    db.add(row)
-    db.flush()
+    _flush_refusing_shared_issuer(db, row)
     return identity_provider_serializers.to_state(row)
 
 
@@ -158,7 +202,7 @@ def update_identity_provider(
             values[field] = core_cryptography.encrypt_token_fernet(values[field])
     for field, value in values.items():
         setattr(row, field, value)
-    db.flush()
+    _flush_refusing_shared_issuer(db)
     return identity_provider_serializers.to_state(row)
 
 

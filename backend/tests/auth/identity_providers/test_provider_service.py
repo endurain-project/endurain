@@ -431,7 +431,7 @@ class TestIssuerBinding:
 
 
 class TestGetIdentityProviderByIssuer:
-    """The issuer lookup is exact apart from one trailing slash and can leave a row out."""
+    """The issuer lookup is exact apart from trailing slashes and can leave a row out."""
 
     @staticmethod
     def _seed(db):
@@ -441,7 +441,7 @@ class TestGetIdentityProviderByIssuer:
             )
         db.flush()
 
-    @pytest.mark.parametrize("lookup", ["https://a.example.com", "https://a.example.com/"])
+    @pytest.mark.parametrize("lookup", ["https://a.example.com", "https://a.example.com/", "https://a.example.com//"])
     def test_matches_with_or_without_a_trailing_slash(self, lookup):
         db = create_sqlite_session()
         try:

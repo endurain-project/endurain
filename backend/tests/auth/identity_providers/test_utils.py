@@ -466,3 +466,19 @@ class TestRequiresIdToken:
         idp = SimpleNamespace(provider_type=provider_type, scopes=scopes)
 
         assert idp_utils.requires_id_token(idp) is expected
+
+
+class TestNormalizeIssuerUrl:
+    """The normalized issuer drops every trailing slash, as the SQL ``rtrim(issuer_url, '/')`` does."""
+
+    @pytest.mark.parametrize(
+        ("value", "expected"),
+        [
+            ("https://a.example.com", "https://a.example.com"),
+            ("https://a.example.com/", "https://a.example.com"),
+            ("https://a.example.com//", "https://a.example.com"),
+            ("https://a.example.com/realm/", "https://a.example.com/realm"),
+        ],
+    )
+    def test_removes_every_trailing_slash(self, value, expected):
+        assert idp_utils.normalize_issuer_url(value) == expected

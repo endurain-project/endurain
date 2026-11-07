@@ -4,6 +4,11 @@ from datetime import UTC, datetime
 from types import SimpleNamespace
 from unittest.mock import patch
 
+import pytest
+from sqlalchemy.exc import IntegrityError
+
+import core.etag as core_etag
+import core.exceptions as core_exceptions
 import modules.auth.identity_providers.crud as idp_crud
 import modules.auth.identity_providers.models as idp_models
 import modules.auth.identity_providers.schema as idp_schema
@@ -205,3 +210,53 @@ def test_enabled_providers_page_leaves_out_disabled_providers():
     assert [state.name for state in page] == ["Keycloak", "Zitadel"]
     assert idp_crud.count_identity_providers(db, enabled_only=True) == 2
     db.close()
+
+
+def _provider(slug, issuer):
+    return idp_schema.IdentityProviderCreate(
+        name=slug, slug=slug, client_id="c", client_secret="s", provider_type="oidc", issuer_url=issuer
+    )
+
+
+@pytest.mark.parametrize("second", ["https://a.example.com", "https://a.example.com/", "https://a.example.com//"])
+def test_create_provider_with_a_shared_issuer_raises_issuer_in_use(second):
+    db = create_sqlite_session()
+    try:
+        idp_crud.create_identity_provider(_provider("one", "https://a.example.com/"), db)
+        with pytest.raises(core_exceptions.IssuerInUseError):
+            idp_crud.create_identity_provider(_provider("two", second), db)
+        assert [row.slug for row in db.query(idp_models.IdentityProvider)] == ["one"]
+    finally:
+        db.close()
+
+
+def test_update_provider_to_a_shared_issuer_raises_issuer_in_use():
+    db = create_sqlite_session()
+    try:
+        idp_crud.create_identity_provider(_provider("one", "https://a.example.com"), db)
+        other = idp_crud.create_identity_provider(_provider("two", "https://b.example.com"), db)
+        data = idp_schema.IdentityProviderUpdate(name="two", slug="two", issuer_url="https://a.example.com/")
+        with pytest.raises(core_exceptions.IssuerInUseError):
+            idp_crud.update_identity_provider(other.id, data, db, if_match=core_etag.format_etag(other.version))
+    finally:
+        db.close()
+
+
+def test_providers_without_an_issuer_do_not_conflict():
+    db = create_sqlite_session()
+    try:
+        idp_crud.create_identity_provider(_provider("one", None), db)
+        idp_crud.create_identity_provider(_provider("two", None), db)
+        assert db.query(idp_models.IdentityProvider).count() == 2
+    finally:
+        db.close()
+
+
+def test_another_integrity_error_is_not_reported_as_a_shared_issuer():
+    db = create_sqlite_session()
+    try:
+        idp_crud.create_identity_provider(_provider("one", "https://a.example.com"), db)
+        with pytest.raises(IntegrityError):
+            idp_crud.create_identity_provider(_provider("one", "https://b.example.com"), db)
+    finally:
+        db.close()
