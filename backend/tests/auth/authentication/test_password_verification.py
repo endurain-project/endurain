@@ -137,3 +137,36 @@ def test_a_refused_mfa_login_commits_nothing(mock_db):
         )
 
     mock_db.commit.assert_not_called()
+
+
+_BCRYPT_HASH = "$2b$12$C6UzMDM.H6dfI/f/IKcEeO5lC7Zq3o1m1u0YF1kXJq8r9eJ8q7y6e"
+
+
+def test_a_bcrypt_hash_is_refused_like_a_wrong_password_and_counts_a_failure(hasher, mock_db):
+    failed_attempts = MagicMock()
+    failed_attempts.is_locked_out.return_value = False
+    failed_attempts.record_failed_attempt.return_value = SimpleNamespace(client_count=1, account_locked_now=False)
+    credential = SimpleNamespace(password_hash=_BCRYPT_HASH, password_change_required=False)
+    with (
+        patch(f"{_SERVICE}.users_integration.get_user_by_username", return_value=SimpleNamespace(id=7)),
+        patch(f"{_SERVICE}.credentials_integration.get_credential", return_value=credential),
+        pytest.raises(core_exceptions.UnauthenticatedError),
+    ):
+        authentication_service.login_for_access_token(
+            "127.0.0.1",
+            "agent",
+            "alice",
+            "x" * 100,
+            "web",
+            failed_attempts,
+            MagicMock(),
+            hasher,
+            MagicMock(),
+            mock_db,
+            code_challenge=None,
+            code_challenge_method=None,
+            password_change_store=MagicMock(),
+            device_id=None,
+        )
+
+    failed_attempts.record_failed_attempt.assert_called_once_with("alice", "127.0.0.1")

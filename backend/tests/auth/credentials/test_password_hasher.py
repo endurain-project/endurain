@@ -1,7 +1,6 @@
 import pytest
 from pwdlib import PasswordHash
 from pwdlib.hashers.argon2 import Argon2Hasher
-from pwdlib.hashers.bcrypt import BcryptHasher
 
 from modules.auth.credentials.password_hasher import PasswordHasher
 
@@ -78,7 +77,7 @@ class TestPasswordHasherSecurity:
         and that password hashing and verification work correctly with this configuration.
         """
         # Pass as a tuple (iterable that's not a list)
-        hasher = PasswordHasher(hasher=(Argon2Hasher(), BcryptHasher()))
+        hasher = PasswordHasher(hasher=(Argon2Hasher(),))
 
         password = "TestPassword123!"
         hashed = hasher.hash_password(password)
@@ -96,7 +95,7 @@ class TestPasswordHasherSecurity:
         # Integers are not iterable and not supported types, so this should raise TypeError
         with pytest.raises(
             TypeError,
-            match=r"Unsupported hasher type.*Must be Argon2Hasher, BcryptHasher, Iterable, PasswordHash, or None",
+            match=r"Unsupported hasher type.*Must be Argon2Hasher, Iterable, PasswordHash, or None",
         ):
             PasswordHasher(hasher=12345)
 
@@ -108,7 +107,7 @@ class TestPasswordHasherSecurity:
         """
         # Use a set (which is iterable but not a list or tuple)
         # This will go through the generic Iterable path and call list(hasher)
-        hasher_set = {Argon2Hasher(), BcryptHasher()}
+        hasher_set = {Argon2Hasher()}
         hasher = PasswordHasher(hasher=hasher_set)
 
         password = "TestPassword123!"
@@ -250,3 +249,24 @@ class TestPasswordHasherSecurity:
             assert password_hasher.verify_password(password, hashed), (
                 f"Special character password '{password}' should work correctly"
             )
+
+
+_BCRYPT_HASH = "$2b$12$C6UzMDM.H6dfI/f/IKcEeO5lC7Zq3o1m1u0YF1kXJq8r9eJ8q7y6e"
+
+
+class TestUnrecognisedStoredHash:
+    """A stored hash no configured hasher recognises never matches and never raises."""
+
+    @pytest.mark.parametrize("stored", [_BCRYPT_HASH, "not-a-hash", ""])
+    def test_verify_password_does_not_match(self, stored):
+        assert PasswordHasher().verify_password("TestPassword123!", stored) is False
+
+    @pytest.mark.parametrize("stored", [_BCRYPT_HASH, "not-a-hash", ""])
+    def test_verify_and_update_does_not_match(self, stored):
+        assert PasswordHasher().verify_and_update("TestPassword123!", stored) == (False, None)
+
+    def test_a_password_over_72_bytes_against_a_bcrypt_hash_does_not_match(self):
+        assert PasswordHasher().verify_and_update("x" * 100, _BCRYPT_HASH) == (False, None)
+
+    def test_a_malformed_argon2_hash_does_not_match(self):
+        assert PasswordHasher().verify_password("TestPassword123!", "$argon2id$garbage") is False

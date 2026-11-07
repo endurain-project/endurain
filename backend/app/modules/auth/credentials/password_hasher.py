@@ -1,23 +1,24 @@
 """Password hashing and verification.
 
-Defines :class:`PasswordHasher` (Argon2-first with bcrypt fallback for legacy
-hashes) and the singleton accessor used as a FastAPI dependency.
+Defines :class:`PasswordHasher` (Argon2 only) and the singleton accessor used as a FastAPI dependency.
 """
 
 import secrets
 from collections.abc import Iterable
 
 from pwdlib import PasswordHash
+from pwdlib.exceptions import UnknownHashError
 from pwdlib.hashers.argon2 import Argon2Hasher
 from pwdlib.hashers.base import HasherProtocol
-from pwdlib.hashers.bcrypt import BcryptHasher
 
 
 class PasswordHasher:
-    """Hashes and verifies secrets with an Argon2-first, bcrypt-fallback scheme.
+    """Hashes and verifies secrets with Argon2.
 
     It hashes whatever it is given: password policy and Unicode normalisation live in
     :mod:`modules.auth.credentials.password_policy`, so the same hasher also serves refresh tokens and backup codes.
+    A stored hash no configured hasher recognises (for example a hash in a scheme that is no longer supported)
+    never matches: it is treated like a wrong secret.
 
     Methods:
         hash_password(password: str) -> str:
@@ -35,16 +36,16 @@ class PasswordHasher:
 
     def __init__(
         self,
-        hasher: (Argon2Hasher | BcryptHasher | Iterable[HasherProtocol] | PasswordHash | None) = None,
+        hasher: (Argon2Hasher | Iterable[HasherProtocol] | PasswordHash | None) = None,
     ):
         """Initialize the password hasher configuration.
 
         Args:
-            hasher (Argon2Hasher | BcryptHasher | Iterable[HasherProtocol] | PasswordHash | None, optional):
+            hasher (Argon2Hasher | Iterable[HasherProtocol] | PasswordHash | None, optional):
                 The hasher(s) to use for password hashing. Can be:
                 - None: Uses the strongest recommended configuration.
                 - PasswordHash: Uses the provided PasswordHash instance.
-                - Argon2Hasher or BcryptHasher: Uses the single hasher instance.
+                - Argon2Hasher: Uses the single hasher instance.
                 - Iterable: Uses a list of hasher instances.
 
         Raises:
@@ -56,7 +57,7 @@ class PasswordHasher:
         elif isinstance(hasher, PasswordHash):
             # Already a PasswordHash instance
             self._password_hash = hasher
-        elif isinstance(hasher, (Argon2Hasher, BcryptHasher)):
+        elif isinstance(hasher, Argon2Hasher):
             # Single hasher instance
             self._password_hash = PasswordHash([hasher])
         elif isinstance(hasher, Iterable):
@@ -64,7 +65,7 @@ class PasswordHasher:
             self._password_hash = PasswordHash(list(hasher))
         else:
             raise TypeError(
-                f"Unsupported hasher type: {type(hasher).__name__}. Must be Argon2Hasher, BcryptHasher, Iterable, PasswordHash, or None."
+                f"Unsupported hasher type: {type(hasher).__name__}. Must be Argon2Hasher, Iterable, PasswordHash, or None."
             )
 
     def hash_password(self, password: str) -> str:
@@ -86,9 +87,13 @@ class PasswordHasher:
             hashed_password (str): The hashed password to compare against.
 
         Returns:
-            bool: True if the plain password matches the hashed password, False otherwise.
+            bool: True if the plain password matches the hashed password, False otherwise. A hash no configured
+            hasher recognises does not match.
         """
-        return self._password_hash.verify(plain_password, hashed_password)
+        try:
+            return self._password_hash.verify(plain_password, hashed_password)
+        except UnknownHashError:
+            return False
 
     def verify_and_update(self, plain_password: str, hashed_password: str) -> tuple[bool, str | None]:
         """Verifies a plain password against a hashed password and updates the hash if necessary.
@@ -100,9 +105,12 @@ class PasswordHasher:
         Returns:
             tuple[bool, str | None]: A tuple where the first element is a boolean indicating
             whether the password is correct, and the second element is the updated hash if
-            the hash algorithm has changed or None otherwise.
+            the hash algorithm has changed or None otherwise. A hash no configured hasher recognises does not match.
         """
-        return self._password_hash.verify_and_update(plain_password, hashed_password)
+        try:
+            return self._password_hash.verify_and_update(plain_password, hashed_password)
+        except UnknownHashError:
+            return False, None
 
     def dummy_verify(self) -> None:
         """Run a constant-time-equivalent password verify against a dummy hash.
@@ -145,6 +153,4 @@ def get_password_hasher() -> PasswordHasher:
     return password_hasher
 
 
-# Initialize the PasswordHasher with both Argon2 and Bcrypt support
-# Argon2 listed first => new hashes use Argon2; bcrypt remains verifiable for legacy rows.
-password_hasher = PasswordHasher(hasher=[Argon2Hasher(), BcryptHasher()])
+password_hasher = PasswordHasher(hasher=[Argon2Hasher()])

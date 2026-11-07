@@ -263,6 +263,25 @@ class TestVerifyStepUpCredentials:
 
         assert exc.value.status_code == 403
 
+    def test_a_bcrypt_hash_fails_like_a_wrong_password(self):
+        stored = "$2b$12$C6UzMDM.H6dfI/f/IKcEeO5lC7Zq3o1m1u0YF1kXJq8r9eJ8q7y6e"
+        store = FakeStepUpStore()
+        with (
+            patch(
+                "modules.auth.account_security.step_up_service.users_integration.require_user",
+                return_value=MagicMock(),
+            ),
+            patch(
+                "modules.auth.account_security.step_up_service.credentials_integration.get_password_hash",
+                return_value=stored,
+            ),
+            pytest.raises(core_exceptions.DomainError) as exc,
+        ):
+            step_up_service.verify_step_up_credentials(1, "x" * 100, None, store, MagicMock(spec=Session))
+
+        assert exc.value.status_code == 403
+        assert store._attempts.get("user:1", 0) == 1
+
     def test_password_wrong_records_failure(self):
         mock_user = MagicMock()
         mock_user.password = "hashed"

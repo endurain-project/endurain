@@ -94,23 +94,12 @@ class TestAuthenticateUser:
             assert exc_info.value.status_code == 401
             assert "Unable to authenticate" in exc_info.value.detail
 
-    def test_authenticate_user_updates_password_hash_if_needed(self, password_hasher, mock_db, sample_user_read):
-        """Test that password hash is updated if algorithm changed."""
-        # Arrange
-        username = "testuser"
-        password = "TestPassword123!"
-
-        # Use a different hasher to simulate old hash
-        from pwdlib.hashers.bcrypt import BcryptHasher
-
-        old_hasher_instance = BcryptHasher()
-        old_hash = old_hasher_instance.hash(password)
-
+    def test_authenticate_user_refuses_a_bcrypt_hash_like_a_wrong_password(self, password_hasher, mock_db):
+        """A leftover bcrypt hash is refused with 401 and the credential is left untouched."""
         mock_user = MagicMock()
-        mock_user.id = sample_user_read.id
-        mock_user.username = username
+        mock_user.id = 1
         mock_credential = MagicMock()
-        mock_credential.password_hash = old_hash
+        mock_credential.password_hash = "$2b$12$C6UzMDM.H6dfI/f/IKcEeO5lC7Zq3o1m1u0YF1kXJq8r9eJ8q7y6e"
 
         with (
             patch("modules.auth.authentication.service.users_integration.get_user_by_username", return_value=mock_user),
@@ -120,13 +109,10 @@ class TestAuthenticateUser:
             ),
             patch("modules.auth.authentication.service.credentials_integration.set_local_password_hash") as mock_edit,
         ):
-            # Act
-            result = auth_utils.authenticate_user(username, password, password_hasher, mock_db)
+            with pytest.raises(core_exceptions.UnauthenticatedError):
+                auth_utils.authenticate_user("testuser", "TestPassword123!", password_hasher, mock_db)
 
-            # Assert
-            assert result == mock_user
-            # Password should be updated since we're using different hasher
-            mock_edit.assert_called_once()
+            mock_edit.assert_not_called()
 
     def test_authenticate_user_sso_account_no_password_raises_401(self, password_hasher, mock_db):
         """SSO-only account (no local password) raises 401."""

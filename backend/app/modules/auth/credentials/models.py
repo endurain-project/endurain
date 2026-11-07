@@ -24,7 +24,7 @@ class LocalCredential(Base):
 
     Attributes:
         user_id: FK to ``users.id`` and primary key (one row per user).
-        password_hash: Argon2/bcrypt password hash.
+        password_hash: Argon2 password hash.
         password_change_required: Whether the owner must choose a new password at the next sign-in; true after
             an administrator wrote the password.
         created_at: Row creation timestamp.
