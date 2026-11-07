@@ -17,7 +17,7 @@ def client():
     def login(form_data: authentication_dependencies.LoginForm):
         return {"username": form_data.username}
 
-    return TestClient(app)
+    return TestClient(app, headers={"X-Client-Type": "web"})
 
 
 def test_a_multipart_form_with_a_nul_is_a_validation_failure(client):

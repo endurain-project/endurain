@@ -78,12 +78,11 @@ export type LoginResponse =
   | Schemas['PasswordChangeRequiredRead']
   | Schemas['MobileSessionRead']
   | Schemas['TokenWebRead']
-  | Schemas['TokenMobileRead']
 
 /** Answer of `POST /auth/mfa/verify`: any login answer except another MFA step. */
 export type MfaVerifyResponse = Exclude<LoginResponse, Schemas['MFARequiredRead']>
 
-/** Answer of `POST /auth/password-change`: the tokens, or the session of a mobile PKCE client. */
+/** Answer of `POST /auth/password-change`: the web tokens, or the session of a mobile client. */
 export type PasswordChangeResponse = Exclude<
   MfaVerifyResponse,
   Schemas['PasswordChangeRequiredRead']
@@ -102,22 +101,22 @@ export type MfaLoginRequest = Schemas['MFALoginRequest']
 export type PasswordChangeLoginRequest = Schemas['PasswordChangeLoginRequest']
 
 /**
- * Sign-up request payload sent to `POST /sign-up/request`. Derived from the
+ * Sign-up request payload sent to `POST /public/sign-up/request`. Derived from the
  * backend's generated `UserSignup` schema so a contract change surfaces as a
  * TypeScript error here instead of a silent runtime mismatch.
  */
 export type SignUpRequest = Schemas['UserSignup']
 
 /**
- * Sign-up response returned by `POST /sign-up/request`, indicating whether the
+ * Sign-up response returned by `POST /public/sign-up/request`, indicating whether the
  * account still needs email verification and/or admin approval before login.
  */
 export type SignUpResponse = Schemas['SignUpRead']
 
-/** Body of `POST /sign-up/confirm`; `password` is only sent for a sign-up link. */
+/** Body of `POST /public/sign-up/confirm`; `password` is only sent for a sign-up link. */
 export type SignUpConfirm = Schemas['SignUpConfirm']
 
-/** Body of `POST /sign-up/resend`. */
+/** Body of `POST /public/sign-up/resend`. */
 export type SignUpResend = Schemas['SignUpResend']
 
 /**

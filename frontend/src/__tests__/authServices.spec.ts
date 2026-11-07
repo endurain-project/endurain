@@ -5,6 +5,7 @@ import { completeOnboarding, fetchOnboardingStatus } from '@/features/auth/servi
 import { refreshSession } from '@/features/auth/services/session'
 import { getAccessToken, getCsrfToken } from '@/services/authTokens'
 import { confirmSignUp } from '@/features/auth/services/signUp'
+import { exchangeSessionForTokens } from '@/services/identityProviders'
 
 vi.mock('@/services/runtime', () => ({
   getApiBaseUrl: () => '',
@@ -49,7 +50,7 @@ describe('passwordReset service', () => {
     fetchMock.mockResolvedValueOnce(new Response(null, { status: 204 }))
     await requestPasswordReset({ email: 'user@example.com' })
     const call = fetchMock.mock.calls[0]
-    expect(call?.[0]).toContain('/password-reset/request')
+    expect(call?.[0]).toContain('/public/password-reset/request')
     expect(call?.[1].method).toBe('POST')
     expect(call?.[1].body).toBe(JSON.stringify({ email: 'user@example.com' }))
   })
@@ -58,7 +59,7 @@ describe('passwordReset service', () => {
     fetchMock.mockResolvedValueOnce(new Response(null, { status: 204 }))
     const result = await confirmPasswordReset({ token: 'tok', new_password: 'supersecret' })
     const call = fetchMock.mock.calls[0]
-    expect(call?.[0]).toContain('/password-reset/confirm')
+    expect(call?.[0]).toContain('/public/password-reset/confirm')
     expect(call?.[1].method).toBe('POST')
     expect(call?.[1].body).toBe(JSON.stringify({ token: 'tok', new_password: 'supersecret' }))
     expect(result).toBeUndefined()
@@ -72,7 +73,7 @@ describe('signUp service', () => {
     )
     const result = await confirmSignUp({ token: 'verify-tok' })
     const call = fetchMock.mock.calls[0]
-    expect(call?.[0]).toContain('/sign-up/confirm')
+    expect(call?.[0]).toContain('/public/sign-up/confirm')
     expect(call?.[1].method).toBe('POST')
     expect(call?.[1].body).toBe(JSON.stringify({ token: 'verify-tok' }))
     expect(result.admin_approval_required).toBe(true)
@@ -83,6 +84,20 @@ describe('signUp service', () => {
     await confirmSignUp({ token: 'verify-tok', password: 'chosen-pass' })
     expect(fetchMock.mock.calls[0]?.[1].body).toBe(
       JSON.stringify({ token: 'verify-tok', password: 'chosen-pass' }),
+    )
+  })
+})
+
+describe('SSO token exchange service', () => {
+  it('posts the verifier to the session exchange under /auth', async () => {
+    fetchMock.mockResolvedValueOnce(jsonResponse({ next_step: 'tokens', session_id: 'sid' }))
+    await exchangeSessionForTokens('sid/1', 'verifier-123', '123456')
+    const call = fetchMock.mock.calls[0]
+    expect(call?.[0]).toContain('/auth/sessions/sid%2F1/tokens')
+    expect(call?.[0]).not.toContain('/public/idp/session')
+    expect(call?.[1].method).toBe('POST')
+    expect(call?.[1].body).toBe(
+      JSON.stringify({ code_verifier: 'verifier-123', mfa_code: '123456' }),
     )
   })
 })

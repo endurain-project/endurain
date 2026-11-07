@@ -13,6 +13,7 @@ import core.database as core_database
 import core.exceptions as core_exceptions
 import modules.auth.account_security.public_router as password_change_router
 import modules.auth.authentication.public_router as auth_router
+import modules.auth.authentication.sso_public_router as exchange_router
 import modules.auth.credentials.integration_service as credentials_integration
 import modules.auth.mfa.crud as mfa_crud
 import modules.auth.mfa_backup_codes.crud as backup_codes_crud
@@ -47,6 +48,7 @@ def _build(session_policy, *, change_required: bool, mfa: bool):
     app.add_exception_handler(core_exceptions.DomainError, core_exceptions.domain_error_handler)
     app.include_router(auth_router.router, prefix="/auth")
     app.include_router(password_change_router.router, prefix="/auth")
+    app.include_router(exchange_router.router, prefix="/auth")
 
     def get_db():
         db = factory()
@@ -89,3 +91,9 @@ def plain_signin(session_policy):
 def mfa_signin(session_policy):
     """The sign-in routes over SQLite for an account with MFA (one backup code) and a must-change password."""
     yield from _stack(session_policy, change_required=True, mfa=True)
+
+
+@pytest.fixture
+def mfa_plain_signin(session_policy):
+    """The sign-in routes over SQLite for an account with MFA (one backup code) and a password it chose itself."""
+    yield from _stack(session_policy, change_required=False, mfa=True)

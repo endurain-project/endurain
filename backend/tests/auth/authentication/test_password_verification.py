@@ -95,6 +95,8 @@ def test_an_mfa_user_whose_hash_was_updated_has_it_committed_before_the_challeng
             hasher,
             MagicMock(),
             mock_db,
+            code_challenge=None,
+            code_challenge_method=None,
             password_change_store=MagicMock(),
             device_id=None,
         )
@@ -128,6 +130,8 @@ def test_a_refused_mfa_login_commits_nothing(mock_db):
             hasher,
             MagicMock(),
             mock_db,
+            code_challenge=None,
+            code_challenge_method=None,
             password_change_store=MagicMock(),
             device_id=None,
         )

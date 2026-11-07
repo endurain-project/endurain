@@ -46,8 +46,9 @@ def _store() -> pending_store.PendingPasswordChanges:
     return pending_store.PendingPasswordChanges(core_dependencies.get_platform_state())
 
 
-def _login(signin, headers=WEB, query=""):
-    return signin.client.post(f"/auth/login{query}", data={"username": USERNAME, "password": PASSWORD}, headers=headers)
+def _login(signin, headers=WEB):
+    pkce = {"code_challenge": CHALLENGE, "code_challenge_method": "S256"} if headers is MOBILE else {}
+    return signin.client.post("/auth/login", data={"username": USERNAME, "password": PASSWORD, **pkce}, headers=headers)
 
 
 def _change(signin, challenge, password=NEW_PASSWORD, headers=WEB):
@@ -58,8 +59,8 @@ def _change(signin, challenge, password=NEW_PASSWORD, headers=WEB):
     )
 
 
-def _start(signin, headers=WEB, query="") -> str:
-    return _login(signin, headers, query).json()["password_change_challenge"]
+def _start(signin, headers=WEB) -> str:
+    return _login(signin, headers).json()["password_change_challenge"]
 
 
 class TestSignInOfAFlaggedAccount:
@@ -86,7 +87,7 @@ class TestSignInOfAFlaggedAccount:
         )
 
     def test_a_mobile_pkce_login_records_the_pkce_values(self, signin):
-        challenge = _start(signin, MOBILE, f"?code_challenge={CHALLENGE}&code_challenge_method=S256")
+        challenge = _start(signin, MOBILE)
 
         record = _store().get(challenge)
         assert record.client_type == auth_constants.ClientType.MOBILE
@@ -210,15 +211,8 @@ class TestPasswordChangeRoute:
         )
         assert _login(signin).status_code == 401
 
-    def test_a_mobile_change_without_pkce_answers_tokens_with_a_refresh_token(self, signin):
-        body = _change(signin, _start(signin, MOBILE), headers=MOBILE).json()
-
-        assert body["next_step"] == "tokens"
-        assert "refresh_token" in body
-        assert body["device_id"]
-
     def test_a_mobile_change_with_a_pkce_record_answers_an_exchange_session(self, signin):
-        challenge = _start(signin, MOBILE, f"?code_challenge={CHALLENGE}&code_challenge_method=S256")
+        challenge = _start(signin, MOBILE)
 
         response = _change(signin, challenge, headers=MOBILE)
 

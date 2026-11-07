@@ -14,7 +14,9 @@ import modules.auth.authentication.failed_login_store as failed_login_store
 import modules.auth.authentication.principal_service as principal_service
 import modules.auth.authentication.refresh_service as authentication_service_refresh_service
 import modules.auth.authentication.service as authentication_service
+import modules.auth.constants as auth_constants
 import modules.auth.login_audit.audit_actions as login_audit_actions
+from tests._helpers.auth import pending_login
 
 _SERVICE = "modules.auth.authentication.service"
 _PRINCIPAL = "modules.auth.authentication.principal_service"
@@ -301,9 +303,9 @@ class TestRefreshRefusal:
 
 
 class TestMfaChallengeRefusal:
-    def _verify(self, db, *, pending_login, claimed):
+    def _verify(self, db, *, pending, claimed):
         store = MagicMock()
-        store.get_pending_login.return_value = pending_login
+        store.get_pending_login.return_value = pending
         store.claim_pending_login.return_value = claimed
         store.is_locked_out.return_value = False
         request = SimpleNamespace(mfa_challenge="challenge-secret", mfa_code="123456")
@@ -327,7 +329,7 @@ class TestMfaChallengeRefusal:
 
     def test_an_expired_challenge_is_a_failure_with_no_target(self, mock_db):
         with jasil_testing.capture_audit() as audit, pytest.raises(core_exceptions.InvalidMfaCodeError):
-            self._verify(mock_db, pending_login=None, claimed=None)
+            self._verify(mock_db, pending=None, claimed=None)
 
         entry = audit.assert_audited(_LOGIN, outcome="failure")
         assert entry.details == {
@@ -339,9 +341,19 @@ class TestMfaChallengeRefusal:
         assert entry.target_id is None
         assert "challenge-secret" not in repr(entry)
 
+    def test_a_challenge_of_the_other_client_type_is_audited_like_an_expired_one(self, mock_db):
+        mobile = pending_login(5, auth_constants.ClientType.MOBILE, "c" * 43, "S256")
+
+        with jasil_testing.capture_audit() as audit, pytest.raises(core_exceptions.InvalidMfaCodeError):
+            self._verify(mock_db, pending=mobile, claimed=mobile)
+
+        entry = audit.assert_audited(_LOGIN, outcome="failure")
+        assert entry.details["reason"] == "mfa_challenge_expired"
+        assert entry.target_id is None
+
     def test_a_challenge_claimed_by_a_concurrent_request_is_a_failure_that_targets_the_user(self, mock_db):
         with jasil_testing.capture_audit() as audit, pytest.raises(core_exceptions.InvalidMfaCodeError):
-            self._verify(mock_db, pending_login=5, claimed=None)
+            self._verify(mock_db, pending=pending_login(5), claimed=None)
 
         entry = audit.assert_audited(_LOGIN, outcome="failure", target_type="user", target_id="5", target_owner_id="5")
         assert entry.details == {
@@ -402,6 +414,8 @@ class TestLockoutAppliedByFailedCodes:
                 MagicMock(),
                 MagicMock(),
                 mock_db,
+                code_challenge=None,
+                code_challenge_method=None,
                 password_change_store=MagicMock(),
                 device_id=None,
             )

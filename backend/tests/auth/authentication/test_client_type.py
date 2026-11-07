@@ -71,7 +71,7 @@ class TestClientTypeHeader:
 
 
 class TestMfaUserAlwaysGetsTheChallenge:
-    @pytest.mark.parametrize("client_type", ["web", "mobile", "ios"])
+    @pytest.mark.parametrize("client_type", ["web", "mobile"])
     def test_the_challenge_is_returned_and_failed_attempts_are_kept(self, mock_db, client_type):
         failed = MagicMock(is_locked_out=MagicMock(return_value=False))
         pending = MagicMock(add_pending_login=MagicMock(return_value="challenge"))
@@ -93,6 +93,8 @@ class TestMfaUserAlwaysGetsTheChallenge:
                 MagicMock(),
                 MagicMock(),
                 mock_db,
+                code_challenge=None,
+                code_challenge_method=None,
                 password_change_store=MagicMock(),
                 device_id=None,
             )

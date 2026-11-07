@@ -1,8 +1,6 @@
-"""Exchange of a single sign-on token for a session."""
+"""Exchange of a sign-in session and its PKCE verifier for tokens."""
 
 from __future__ import annotations
-
-from datetime import UTC, datetime
 
 import jasil.audit as jasil_audit
 from sqlalchemy.orm import Session
@@ -15,6 +13,7 @@ import modules.auth.authentication.schema as auth_schema
 import modules.auth.authentication.service as authentication_service
 import modules.auth.authentication.token_service as authentication_token_service
 import modules.auth.computation as auth_computation
+import modules.auth.constants as auth_constants
 import modules.auth.credentials.integration_service as credentials_integration
 import modules.auth.known_devices.events as known_devices_events
 import modules.auth.known_devices.integration_service as known_devices_integration
@@ -30,6 +29,9 @@ import modules.server_settings.integration_service as server_settings_integratio
 import modules.users.users.integration_service as users_integration
 
 logger = core_logger.get_logger(__name__)
+
+#: The one answer to a verifier that does not match, whether the code or the client type was wrong.
+_INVALID_VERIFIER_MESSAGE = "Invalid code_verifier"
 
 
 def _record_refusal(outcome: jasil_audit.Outcome, reason: login_audit_actions.LoginFailureReason, user_id: int) -> None:
@@ -49,7 +51,7 @@ def exchange_tokens_for_session(
     session_id: str,
     code_verifier: str,
     mfa_code: str | None,
-    header_client_type: str | None,
+    client_type: auth_constants.ClientType,
     ip_address: str,
     user_agent: str,
     pending_mfa_store: mfa_dependencies.PendingMFAStore,
@@ -58,11 +60,13 @@ def exchange_tokens_for_session(
     db: Session,
     *,
     device_id: str | None,
-) -> auth_schema.AuthOutcome[auth_schema.TokenExchangeRead]:
-    """Exchange a PKCE code verifier for the tokens of an SSO session.
+) -> auth_schema.AuthOutcome[auth_schema.TokenRead]:
+    """Exchange a PKCE code verifier for the tokens of a session a sign-in created.
 
-    The session was created by the identity-provider callback and holds no tokens yet. The caller proves it holds the
-    verifier whose challenge the OAuth state stored; the exchange succeeds once per session.
+    The session was created by a mobile password sign-in or the identity-provider callback and holds no tokens yet.
+    The caller proves it holds the verifier whose challenge the OAuth state stored; the exchange succeeds once per
+    session. The client type recorded when the sign-in started is the only one that can redeem it, and a different
+    ``X-Client-Type`` is refused like a wrong verifier.
 
     A session that came from an identity provider also needs an MFA code when the account has MFA enabled, since
     the provider's sign-in does not replace the account's own second factor. The code is checked after the PKCE
@@ -70,10 +74,10 @@ def exchange_tokens_for_session(
     session unused for another attempt. A session from a password login has already passed MFA.
 
     Args:
-        session_id: Session created by the identity-provider callback.
+        session_id: Session created by the sign-in.
         code_verifier: PKCE verifier sent by the client.
         mfa_code: TOTP or backup code, if the client has one.
-        header_client_type: ``X-Client-Type`` header of the exchange request, if any.
+        client_type: ``X-Client-Type`` header of the exchange request.
         ip_address: Client address of the exchange request.
         user_agent: Client user agent of the exchange request.
         pending_mfa_store: Store for the MFA lockout and the TOTP replay guard.
@@ -92,7 +96,7 @@ def exchange_tokens_for_session(
         NotFoundError: If the session does not exist or has no OAuth state.
         ConflictError: If the tokens were already exchanged, or another exchange won the race.
         InvalidInputError: If the OAuth state holds no PKCE data, the verifier does not match, or the client type
-            contradicts the one recorded when the flow started.
+            differs from the one recorded when the sign-in started.
         MfaRequiredError: If the account has MFA enabled and no code was sent.
         InvalidMfaCodeError: If the code does not verify.
         TooManyRequestsError: If the account is locked out from too many failed MFA codes.
@@ -151,25 +155,20 @@ def exchange_tokens_for_session(
         )
         raise
 
-    # The client type recorded when the flow started wins over the header, so an exchange cannot switch between the
-    # cookie-based web response and the body-only mobile response. The header is consulted only for a flow started by
-    # a system browser, which cannot send it.
-    stored_client_type = oauth_state.client_type
-    if header_client_type not in ("web", "mobile"):
-        header_client_type = None
-    if stored_client_type in ("web", "mobile"):
-        if header_client_type is not None and header_client_type != stored_client_type:
-            logger.warning(
-                "Token exchange client_type mismatch for session <value_1>: "
-                "stored=<stored_client_type>, header=<header_client_type>",
-                extra=core_logger.context(
-                    value_1=fingerprint, stored_client_type=stored_client_type, header_client_type=header_client_type
-                ),
-            )
-            raise core_exceptions.InvalidInputError("client_type does not match the OAuth state")
-        client_type = stored_client_type
-    else:
-        client_type = header_client_type or "web"
+    # The client type recorded when the sign-in started decides the response, so an exchange cannot switch between the
+    # cookie-based web response and the body-only mobile response. A mismatch is refused like a wrong verifier.
+    if client_type != oauth_state.client_type:
+        logger.warning(
+            "Token exchange client_type mismatch for session <value_1>: "
+            "stored=<stored_client_type>, header=<header_client_type>",
+            extra=core_logger.context(
+                value_1=fingerprint, stored_client_type=oauth_state.client_type, header_client_type=client_type
+            ),
+        )
+        _record_refusal(
+            jasil_audit.Outcome.FAILURE, login_audit_actions.LoginFailureReason.PKCE_MISMATCH, session_obj.user_id
+        )
+        raise core_exceptions.InvalidInputError(_INVALID_VERIFIER_MESSAGE)
 
     user = users_integration.require_user(session_obj.user_id, db)
     try:
@@ -211,10 +210,6 @@ def exchange_tokens_for_session(
         logger.warning("Token exchange lost race for session <value_1>", extra=core_logger.context(value_1=fingerprint))
         _record_refusal(jasil_audit.Outcome.FAILURE, login_audit_actions.LoginFailureReason.EXCHANGE_REPLAYED, user.id)
         raise core_exceptions.ConflictError("Tokens already exchanged for this session")
-    now = datetime.now(UTC)
-    refresh_token_exp = authentication_token_service.cap_refresh_expiry(refresh_token_exp, session_expires_at)
-    expires_in = int((access_token_exp - now).total_seconds())
-    refresh_token_expires_in = int((refresh_token_exp - now).total_seconds())
     issued_device_id = None
     if oauth_state.idp_id is not None:
         # An SSO sign-in is complete once its tokens are issued; a password sign-in was audited, and its device
@@ -252,27 +247,18 @@ def exchange_tokens_for_session(
         ),
     )
 
-    if client_type == "web":
-        return auth_schema.AuthOutcome(
-            auth_schema.TokenExchangeRead(
-                session_id=session_id,
-                access_token=access_token,
-                csrf_token=csrf_token,
-                expires_in=expires_in,
-                refresh_token_expires_in=refresh_token_expires_in,
-                token_type="Bearer",
-            ),
-            auth_schema.RefreshCookie(refresh_token, refresh_token_exp),
-            device_id=issued_device_id,
+    if client_type == auth_constants.ClientType.WEB:
+        web = authentication_token_service.build_web_token_response(
+            session_id, access_token, access_token_exp, refresh_token, refresh_token_exp, session_expires_at, csrf_token
         )
-    return auth_schema.AuthOutcome(
-        auth_schema.TokenExchangeRead(
-            session_id=session_id,
-            access_token=access_token,
-            refresh_token=refresh_token,
-            expires_in=expires_in,
-            refresh_token_expires_in=refresh_token_expires_in,
-            token_type="Bearer",
-            device_id=issued_device_id,
-        )
+        return auth_schema.AuthOutcome(web.body, web.refresh_cookie, device_id=issued_device_id)
+    mobile = authentication_token_service.build_mobile_token_response(
+        session_id,
+        access_token,
+        access_token_exp,
+        refresh_token,
+        refresh_token_exp,
+        session_expires_at,
+        device_id=issued_device_id,
     )
+    return auth_schema.AuthOutcome(mobile.body)

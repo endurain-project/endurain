@@ -62,16 +62,14 @@ When authenticating via OAuth, the response format matches the standard authenti
 
 ### Overview
 
-Mobile apps can use PKCE (Proof Key for Code Exchange, RFC 7636) for password authentication, so the tokens are never part of a browser or login response. This flow mirrors the OAuth/SSO PKCE flow but for local password authentication.
+A mobile app signs in with a password through PKCE (Proof Key for Code Exchange, RFC 7636), so the tokens are never part of a login response. The flow mirrors the OAuth/SSO PKCE flow for local password authentication, and it is the only way a mobile client signs in with a password: `POST /auth/login` never answers a mobile client with tokens. A web client does not use PKCE: it gets its refresh token as an `HttpOnly` cookie, and `POST /auth/login` refuses `code_challenge` and `code_challenge_method` from it with `422`.
 
-### Why Use PKCE for Password Login?
-
-| Traditional Mobile Password Login | PKCE Password Login |
-| --------------------------------- | ------------------- |
-| Tokens returned in response | Tokens exchanged via secure API |
-| Tokens visible in the login response | Only session_id visible |
-| Potential token interception | No token in response body |
-| Simple but less secure | Secure, requires verifier |
+| Mobile password sign-in |
+| ----------------------- |
+| The login answers only a `session_id` |
+| The app exchanges it with the PKCE verifier it kept |
+| No token is in the login response |
+| A stolen `session_id` is useless without the verifier |
 
 ### Step-by-Step PKCE Password Implementation
 
@@ -83,37 +81,34 @@ Before sending credentials, generate a cryptographically random code verifier an
 code_challenge = BASE64URL(SHA256(code_verifier))
 ```
 
-#### Step 2: Send Login Request with PKCE Parameters
+#### Step 2: Send Login Request with PKCE Fields
 
-Include the code challenge in the login request:
+Include the code challenge in the login form:
 
-**Login Request with PKCE:**
+**Login Request:**
 
 ```http
-POST /api/v1/auth/login?code_challenge={challenge}&code_challenge_method=S256
+POST /api/v1/auth/login
 Content-Type: application/x-www-form-urlencoded
 X-Client-Type: mobile
 
-username=user@example.com&password=userpassword
+username=user@example.com&password=userpassword&code_challenge={challenge}&code_challenge_method=S256
 ```
 
-**Form Parameters:**
+**Form Fields:**
 
-| Parameter | Required | Description |
-| --------- | -------- | ----------- |
+| Field | Required | Description |
+| ----- | -------- | ----------- |
 | `username` | Yes | Username or email |
 | `password` | Yes | User's password |
+| `code_challenge` | Yes (mobile) | Base64url-encoded SHA256 hash of code_verifier, 43 to 128 characters of `A-Z a-z 0-9 - _` |
+| `code_challenge_method` | Yes (mobile) | Must be `S256` |
 
-**Query Parameters:**
-
-| Parameter | Required | Description |
-| --------- | -------- | ----------- |
-| `code_challenge` | Yes (PKCE) | Base64url-encoded SHA256 hash of code_verifier |
-| `code_challenge_method` | Yes (PKCE) | Must be `S256` |
+A missing, malformed or (for a web client) present PKCE field is `422` with the field named in `errors`, and the password is not checked.
 
 **Successful Response (HTTP 200):**
 
-Instead of tokens, receive a session_id for token exchange:
+A session_id to exchange for tokens:
 
 ```json
 {
@@ -130,7 +125,7 @@ Use the code verifier to securely exchange the session for tokens:
 **Token Exchange Request:**
 
 ```http
-POST /api/v1/public/idp/session/{session_id}/tokens
+POST /api/v1/auth/sessions/{session_id}/tokens
 Content-Type: application/json
 X-Client-Type: mobile
 
@@ -143,26 +138,27 @@ X-Client-Type: mobile
 
 ```json
 {
+  "next_step": "tokens",
   "session_id": "550e8400-e29b-41d4-a716-446655440000",
   "access_token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
   "refresh_token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
   "expires_in": 900,
   "refresh_token_expires_in": 604800,
-  "token_type": "Bearer",
-  "device_id": "q3k9...43 characters"
+  "token_type": "bearer",
+  "device_id": null
 }
 ```
 
-Send the device id the app already holds as the `X-Device-Id` header on the exchange of an identity-provider sign-in. `device_id` in the response is the id the app must keep and send on later sign-ins; it is `null` for the exchange of a password sign-in, whose `session_id` response already carried it. See [Authentication](authentication.md#token-delivery-by-client-type).
+This is the mobile token body that `/auth/refresh` answers. Send the device id the app already holds as the `X-Device-Id` header on the exchange of an identity-provider sign-in. `device_id` in the response is the id the app must keep and send on later sign-ins; it is `null` for the exchange of a password sign-in, whose `session_id` response already carried it. See [Authentication](authentication.md#token-delivery-by-client-type).
 
 **Error Responses:**
 
 | Status | Error | Description |
 | ------ | ----- | ----------- |
-| 400 | Invalid code_verifier | Verifier doesn't match the challenge |
-| 400 | `client_type does not match the OAuth state` | `X-Client-Type` at token exchange differs from the value stored on the PKCE/OAuth state |
+| 400 | Invalid code_verifier | Verifier doesn't match the challenge, or `X-Client-Type` differs from the client type that started the sign-in (the same answer for both) |
 | 404 | Session not found | Invalid session_id |
 | 409 | Tokens already exchanged | Replay attack prevention |
+| 422 | Missing or unknown `X-Client-Type` | The header is required |
 | 429 | Rate limit exceeded | Max 10 requests/minute per IP |
 
 #### Step 4: Store Tokens Securely
@@ -176,46 +172,21 @@ Store the received tokens in secure platform storage:
 
 Use the tokens for authenticated API calls (same as [Mobile SSO with PKCE](#step-6-use-tokens-for-api-requests)).
 
-### Backward Compatibility
-
-Mobile clients that don't provide PKCE parameters will receive tokens directly (legacy behavior):
-
-```http
-POST /api/v1/auth/login
-Content-Type: application/x-www-form-urlencoded
-X-Client-Type: mobile
-
-username=user@example.com&password=userpassword
-```
-
-Responds with tokens directly (no PKCE):
-
-```json
-{
-  "session_id": "550e8400-e29b-41d4-a716-446655440000",
-  "access_token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
-  "refresh_token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
-  "token_type": "bearer",
-  "expires_in": 900,
-  "refresh_token_expires_in": 604800
-}
-```
-
 ### With MFA Enabled
 
 If the user has MFA enabled, the flow includes an additional MFA verification step:
 
-1. Client sends login with PKCE parameters
-2. Backend returns `"next_step": "mfa"` with an `mfa_challenge` that names this login
+1. Client sends login with the PKCE fields
+2. Backend returns `"next_step": "mfa"` with an `mfa_challenge` that names this login. The challenge records the client type and the PKCE challenge of the password step
 3. Client collects MFA code from user
-4. Client sends the `mfa_challenge` and the MFA code to `/auth/mfa/verify` with PKCE parameters
-5. Backend verifies MFA and returns `next_step: "exchange"` with a session_id (for PKCE), or `tokens` directly. For an account whose password an administrator set, it returns `next_step: "password_change"` first; the PKCE values are kept with that step, so `/auth/password-change` takes no query parameters and answers `exchange` too (see [Password change at sign-in](authentication.md#password-change-at-sign-in))
+4. Client sends the `mfa_challenge` and the MFA code to `/auth/mfa/verify`. The request carries no PKCE values, and its `X-Client-Type` must be the one of the password step: a challenge presented by the other client type is refused exactly like an unknown one
+5. Backend verifies MFA and returns `next_step: "exchange"` with a session_id. For an account whose password an administrator set, it returns `next_step: "password_change"` first; the PKCE values are kept with that step, so `/auth/password-change` takes no PKCE values and answers `exchange` too (see [Password change at sign-in](authentication.md#password-change-at-sign-in))
 6. Client exchanges session_id for tokens using code_verifier
 
-**MFA Verification with PKCE:**
+**MFA Verification:**
 
 ```http
-POST /api/v1/auth/mfa/verify?code_challenge={challenge}&code_challenge_method=S256
+POST /api/v1/auth/mfa/verify
 Content-Type: application/json
 X-Client-Type: mobile
 
@@ -246,6 +217,7 @@ Then exchange for tokens as in Step 3 above.
 | **10-minute exchange window** | The PKCE/OAuth state expires after 10 minutes; the pending session cannot be exchanged after that window |
 | **Rate limiting** | 10 token exchange requests per minute |
 | **Session binding** | Session is cryptographically bound to PKCE challenge |
+| **Client type binding** | The MFA step and the exchange refuse a client type other than the one that started the sign-in |
 
 ## Mobile SSO with PKCE
 
@@ -355,7 +327,7 @@ After obtaining the `session_id`, exchange it for tokens using the code verifier
 **Token Exchange Request:**
 
 ```http
-POST /api/v1/public/idp/session/{session_id}/tokens
+POST /api/v1/auth/sessions/{session_id}/tokens
 Content-Type: application/json
 X-Client-Type: mobile
 
@@ -368,25 +340,28 @@ X-Client-Type: mobile
 
 ```json
 {
+  "next_step": "tokens",
   "session_id": "550e8400-e29b-41d4-a716-446655440000",
   "access_token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
   "refresh_token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
   "expires_in": 900,
   "refresh_token_expires_in": 604800,
-  "token_type": "Bearer",
-  "device_id": null
+  "token_type": "bearer",
+  "device_id": "q3k9...43 characters"
 }
 ```
 
-`device_id` is the id a mobile app keeps and sends as `X-Device-Id`; the exchange of an identity-provider sign-in sets it, and a password sign-in already returned it with its `session_id`.
+A web client gets the web token body instead (`csrf_token`, no `refresh_token`, the refresh token as a cookie), the same as `/auth/login` answers.
+
+`device_id` is the id a mobile app keeps and sends as `X-Device-Id`; the exchange of an identity-provider sign-in sets it, and a password sign-in already returned it with its `session_id` (it is `null` in that exchange).
 
 **Error Responses:**
 
 | Status | Error | Description |
 | ------ | ----- | ----------- |
-| 400 | Invalid code_verifier | Verifier doesn't match the challenge |
-| 400 | `client_type does not match the OAuth state` | `X-Client-Type` at token exchange differs from the value stored on the PKCE/OAuth state |
+| 400 | Invalid code_verifier | Verifier doesn't match the challenge, or `X-Client-Type` differs from the value stored on the PKCE/OAuth state (the same answer for both) |
 | 404 | Session not found | Invalid session_id or not a PKCE flow |
+| 422 | Missing or unknown `X-Client-Type` | The header is required |
 | 403 | `mfa-required` | The account has MFA enabled and the request had no `mfa_code`; see below |
 | 400 | Invalid MFA code | The `mfa_code` was wrong, expired or an already used backup code |
 | 409 | Tokens already exchanged | Replay attack prevention |

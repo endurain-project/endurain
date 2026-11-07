@@ -44,6 +44,8 @@ def _login(db, store, *, device_id=_DEVICE_ID, username="alice"):
         MagicMock(),
         MagicMock(),
         db,
+        code_challenge=None,
+        code_challenge_method=None,
         password_change_store=MagicMock(),
         device_id=device_id,
     )

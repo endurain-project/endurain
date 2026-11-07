@@ -25,6 +25,7 @@ import modules.auth.known_devices.events as known_devices_events
 import modules.auth.login_audit.audit_actions as login_audit_actions
 import modules.auth.mfa.dependencies as mfa_dependencies
 import modules.auth.oauth_state.constants as oauth_state_constants
+from tests._helpers.auth import pending_login
 
 _SERVICE = "modules.auth.authentication.service"
 _CLAIMED_EXPIRY = datetime(2999, 1, 1, tzinfo=UTC)
@@ -63,6 +64,10 @@ def password_sign_in():
 
 
 def _login(db, *, client_type="web", device_id=_DEVICE_ID, **kwargs):
+    if client_type == "mobile":
+        kwargs = {"code_challenge": "a" * 43, "code_challenge_method": "S256", **kwargs}
+    else:
+        kwargs = {"code_challenge": None, "code_challenge_method": None, **kwargs}
     return authentication_service.login_for_access_token(
         "203.0.113.7",
         "agent",
@@ -113,9 +118,7 @@ class TestPasswordSignIn:
             patch(f"{_SERVICE}.create_mobile_pkce_session_response", return_value=session) as pkce,
             patch(_RECORD, return_value=_signed(_ISSUED)) as record,
         ):
-            outcome = _login(
-                mock_db, client_type="mobile", device_id=None, code_challenge="a" * 43, code_challenge_method="S256"
-            )
+            outcome = _login(mock_db, client_type="mobile", device_id=None)
 
         pkce.assert_called_once()
         record.assert_called_once_with(5, None, "203.0.113.7", "agent", _PASSWORD, mock_db)
@@ -125,16 +128,24 @@ class TestPasswordSignIn:
     def test_a_mobile_sign_in_is_recorded_under_the_header_id_and_returns_it_in_the_body_only(
         self, mock_db, password_sign_in
     ):
-        with patch(_RECORD, return_value=_signed(_DEVICE_ID)) as record:
+        session = auth_schema.MobileSessionRead(next_step="exchange", session_id="sid")
+        with (
+            patch(f"{_SERVICE}.create_mobile_pkce_session_response", return_value=session),
+            patch(_RECORD, return_value=_signed(_DEVICE_ID)) as record,
+        ):
             outcome = _login(mock_db, client_type="mobile")
 
         record.assert_called_once_with(5, _DEVICE_ID, "203.0.113.7", "agent", _PASSWORD, mock_db)
-        assert isinstance(outcome.body, auth_schema.TokenMobileRead)
+        assert isinstance(outcome.body, auth_schema.MobileSessionRead)
         assert outcome.body.device_id == _DEVICE_ID
         assert outcome.device_id is None
 
     def test_a_mobile_sign_in_without_an_id_is_given_a_new_one(self, mock_db, password_sign_in):
-        with patch(_RECORD, return_value=_signed(_ISSUED, True)):
+        session = auth_schema.MobileSessionRead(next_step="exchange", session_id="sid")
+        with (
+            patch(f"{_SERVICE}.create_mobile_pkce_session_response", return_value=session),
+            patch(_RECORD, return_value=_signed(_ISSUED, True)),
+        ):
             outcome = _login(mock_db, client_type="mobile", device_id=None)
 
         assert outcome.body.device_id == _ISSUED
@@ -165,6 +176,8 @@ class TestPasswordSignIn:
                 MagicMock(),
                 MagicMock(),
                 mock_db,
+                code_challenge=None,
+                code_challenge_method=None,
                 password_change_store=MagicMock(),
                 device_id=_DEVICE_ID,
             )
@@ -174,8 +187,8 @@ class TestPasswordSignIn:
 
     def test_a_completed_mfa_sign_in_records_the_device(self, mock_db):
         store = MagicMock()
-        store.get_pending_login.return_value = 5
-        store.claim_pending_login.return_value = 5
+        store.get_pending_login.return_value = pending_login(5)
+        store.claim_pending_login.return_value = pending_login(5)
         store.is_locked_out.return_value = False
         with (
             patch(f"{_SERVICE}.users_integration.get_user", return_value=_USER),
@@ -369,10 +382,19 @@ class TestLoginRoute:
     def test_a_mobile_sign_in_reads_the_header_returns_the_id_in_the_body_and_sets_no_cookie(
         self, mock_db, password_sign_in
     ):
-        with patch(_RECORD, return_value=_signed(_DEVICE_ID)) as record:
+        session = auth_schema.MobileSessionRead(next_step="exchange", session_id="sid")
+        with (
+            patch(f"{_SERVICE}.create_mobile_pkce_session_response", return_value=session),
+            patch(_RECORD, return_value=_signed(_DEVICE_ID)) as record,
+        ):
             response = _login_app(mock_db, "mobile").post(
                 "/api/v1/auth/login",
-                data={"username": "alice", "password": "secret"},
+                data={
+                    "username": "alice",
+                    "password": "secret",
+                    "code_challenge": "a" * 43,
+                    "code_challenge_method": "S256",
+                },
                 headers={"X-Device-Id": _DEVICE_ID},
             )
 
@@ -417,14 +439,19 @@ class TestTokenExchangeRoute:
     def _client(self, mock_db):
         app = FastAPI()
         app.add_exception_handler(core_exceptions.DomainError, core_exceptions.domain_error_handler)
-        app.include_router(sso_public_router.router, prefix="/api/v1/public/idp")
+        app.include_router(sso_public_router.router, prefix="/api/v1/auth")
         app.dependency_overrides[core_database.get_db] = lambda: mock_db
         app.dependency_overrides[mfa_dependencies.get_pending_mfa_store] = lambda: MagicMock()
         return TestClient(app)
 
     def _outcome(self, device_id):
-        body = auth_schema.TokenExchangeRead(
-            session_id="sid", access_token="at", csrf_token="csrf", expires_in=900, refresh_token_expires_in=604800
+        body = auth_schema.TokenWebRead(
+            next_step="tokens",
+            session_id="sid",
+            access_token="at",
+            csrf_token="csrf",
+            expires_in=900,
+            refresh_token_expires_in=604800,
         )
         return auth_schema.AuthOutcome(body, device_id=device_id)
 
@@ -436,7 +463,7 @@ class TestTokenExchangeRoute:
             return_value=self._outcome(_DEVICE_ID),
         ) as exchange:
             response = client.post(
-                "/api/v1/public/idp/session/sid/tokens",
+                "/api/v1/auth/sessions/sid/tokens",
                 json={"code_verifier": "v" * 43},
                 headers={"X-Client-Type": "web", "User-Agent": "agent"},
             )
@@ -447,7 +474,8 @@ class TestTokenExchangeRoute:
         assert _device_cookie(response).startswith(f"{known_devices_dependencies.DEVICE_COOKIE_NAME}={_DEVICE_ID};")
 
     def test_a_mobile_exchange_reads_the_header_returns_the_id_in_the_body_and_sets_no_cookie(self, mock_db):
-        body = auth_schema.TokenExchangeRead(
+        body = auth_schema.TokenMobileRead(
+            next_step="tokens",
             session_id="sid",
             access_token="at",
             refresh_token="rt",
@@ -460,7 +488,7 @@ class TestTokenExchangeRoute:
             return_value=auth_schema.AuthOutcome(body),
         ) as exchange:
             response = self._client(mock_db).post(
-                "/api/v1/public/idp/session/sid/tokens",
+                "/api/v1/auth/sessions/sid/tokens",
                 json={"code_verifier": "v" * 43},
                 headers={"X-Client-Type": "mobile", "X-Device-Id": _DEVICE_ID},
             )

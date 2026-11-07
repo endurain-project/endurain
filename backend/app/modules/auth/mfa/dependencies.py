@@ -6,6 +6,7 @@ import modules.auth.mfa.pending_login_store as pending_login_store
 import modules.auth.mfa.setup_store as setup_store
 
 PendingMFAStore = pending_login_store.PendingMFAStore
+PendingLogin = pending_login_store.PendingLogin
 get_pending_mfa_store = pending_login_store.get_pending_mfa_store
 
 

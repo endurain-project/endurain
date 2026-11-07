@@ -284,19 +284,19 @@ def fast_api_app(password_hasher, token_manager, mock_db) -> FastAPI:
             self.calls = []
             self._store = {}
 
-        def add_pending_login(self, user_id):
+        def add_pending_login(self, pending):
             """
             Adds a pending login and returns the challenge that names it.
 
             Args:
-                user_id (Any): The unique identifier of the user.
+                pending (PendingLogin): The login that waits for its second factor.
 
             Returns:
                 str: The challenge.
             """
             challenge = f"challenge-{len(self.calls)}"
-            self.calls.append(user_id)
-            self._store[challenge] = user_id
+            self.calls.append(pending.user_id)
+            self._store[challenge] = pending
             return challenge
 
         def get_pending_login(self, username: str):

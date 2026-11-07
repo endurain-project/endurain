@@ -6,6 +6,7 @@ from fastapi import FastAPI
 import modules.auth.account_security.public_router as password_change_router
 import modules.auth.authentication.public_router as auth_router
 import modules.auth.authentication.schema as auth_schema
+import modules.auth.authentication.sso_public_router as exchange_router
 from tests.auth.authentication.conftest import BACKUP_CODE, CHALLENGE, MOBILE, PASSWORD, USERNAME, WEB
 
 _BODIES = [
@@ -15,7 +16,7 @@ _BODIES = [
     ("TokenWebRead", "tokens"),
     ("TokenMobileRead", "tokens"),
 ]
-_LOGIN = {"MFARequiredRead", "PasswordChangeRequiredRead", "MobileSessionRead", "TokenWebRead", "TokenMobileRead"}
+_LOGIN = {"MFARequiredRead", "PasswordChangeRequiredRead", "MobileSessionRead", "TokenWebRead"}
 _MFA_VERIFY = _LOGIN - {"MFARequiredRead"}
 _PASSWORD_CHANGE = _MFA_VERIFY - {"PasswordChangeRequiredRead"}
 
@@ -25,6 +26,7 @@ def openapi() -> dict:
     app = FastAPI()
     app.include_router(auth_router.router, prefix="/auth")
     app.include_router(password_change_router.router, prefix="/auth")
+    app.include_router(exchange_router.router, prefix="/auth")
     return app.openapi()
 
 
@@ -93,6 +95,10 @@ class TestRoutes:
     def test_refresh_still_answers_tokens_only(self, openapi):
         assert _refs(_response(openapi, "/auth/refresh")) == {"TokenWebRead", "TokenMobileRead"}
 
+    def test_the_token_exchange_answers_the_login_token_bodies(self, openapi):
+        assert _refs(_response(openapi, "/auth/sessions/{session_id}/tokens")) == {"TokenWebRead", "TokenMobileRead"}
+        assert "TokenExchangeRead" not in openapi["components"]["schemas"]
+
 
 class TestAnswers:
     def test_a_password_login_answers_tokens(self, plain_signin):
@@ -108,8 +114,13 @@ class TestAnswers:
 
     def test_a_mobile_pkce_login_answers_exchange(self, plain_signin):
         response = plain_signin.client.post(
-            f"/auth/login?code_challenge={CHALLENGE}&code_challenge_method=S256",
-            data={"username": USERNAME, "password": PASSWORD},
+            "/auth/login",
+            data={
+                "username": USERNAME,
+                "password": PASSWORD,
+                "code_challenge": CHALLENGE,
+                "code_challenge_method": "S256",
+            },
             headers=MOBILE,
         )
 

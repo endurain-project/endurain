@@ -2,6 +2,8 @@
 
 Most of the API needs a signed-in user. A few endpoints answer without any credentials, for a visitor who is not signed in. This page lists them, what they return and what they refuse. All paths are under `/api/v1`.
 
+Two path prefixes tell the routes that need no credential apart. The routes that obtain, renew or end a session (`/auth/login`, `/auth/mfa/verify`, `/auth/password-change`, `/auth/sessions/{session_id}/tokens`, `/auth/refresh` and `/auth/logout`) live under `/auth`. Every other route a visitor can call without signing in lives under `/public`. The exceptions are the version and health probes (`/about`, `/health`) and the signed media URLs (`/activities/{activity_id}/thumbnail`, `/activities/{activity_id}/media/{media_id}/file`, `/users/{user_id}/photo`), which an image tag follows without a header.
+
 Public endpoints send no `Authorization`, `X-Client-Type` or `X-CSRF-Token` header. They are rate limited per client address with the default limit (see [Errors, concurrency and rate limits](errors-and-limits.md#rate-limits)), so set `TRUSTED_PROXIES` correctly behind a proxy.
 
 ## Shared activities
@@ -82,10 +84,10 @@ These need no credentials because their job is to obtain them. They are document
 
 | Path | Purpose | See |
 | ---- | ------- | --- |
-| `POST /auth/login`, `/auth/mfa/verify`, `/auth/password-change`, `/auth/refresh`, `/auth/logout` | Password login, MFA, the password change an administrator-set password requires, and tokens; every answer but logout's carries a `next_step`; logout answers `204` with no body | [Handling authentication](authentication.md) |
-| `GET /public/idp`, `/public/idp/login/{slug}`, `/public/idp/callback/{slug}`, `POST /public/idp/session/{id}/tokens` | Single sign-on | [OAuth/SSO and PKCE](oauth-sso-pkce.md) |
-| `POST /sign-up/request`, `/sign-up/confirm` | Create an account and verify its email; both answer `200` with what the client does next (`admin_approval_required`, `email_verification_required`) | [Accounts, sign-up and password reset](../features/accounts-and-sign-in.md#signing-up) |
-| `POST /password-reset/request`, `/password-reset/confirm` | Reset a forgotten password; both answer `204` with no body, and the request answers the same for a known and an unknown address | [Accounts, sign-up and password reset](../features/accounts-and-sign-in.md#forgotten-password) |
+| `POST /auth/login`, `/auth/mfa/verify`, `/auth/password-change`, `/auth/sessions/{session_id}/tokens`, `/auth/refresh`, `/auth/logout` | Password login, MFA, the password change an administrator-set password requires, the exchange of a mobile or SSO session for tokens, and token refresh; every answer but logout's carries a `next_step`; logout answers `204` with no body | [Handling authentication](authentication.md) |
+| `GET /public/idp`, `/public/idp/login/{slug}`, `/public/idp/callback/{slug}` | Single sign-on; the session it starts is exchanged at `POST /auth/sessions/{session_id}/tokens` | [OAuth/SSO and PKCE](oauth-sso-pkce.md) |
+| `POST /public/sign-up/request`, `/public/sign-up/confirm`, `/public/sign-up/resend` | Create an account and verify its email; both answer `200` with what the client does next (`admin_approval_required`, `email_verification_required`) | [Accounts, sign-up and password reset](../features/accounts-and-sign-in.md#signing-up) |
+| `POST /public/password-reset/request`, `/public/password-reset/confirm`, `/public/password-reset/validate` | Reset a forgotten password; both answer `204` with no body, and the request answers the same for a known and an unknown address | [Accounts, sign-up and password reset](../features/accounts-and-sign-in.md#forgotten-password) |
 | `GET /public/onboarding`, `POST /public/onboarding` | Create the first administrator of a new installation | [First-run onboarding](#first-run-onboarding) |
 
 The sensitive ones (login, MFA, sign-up, reset, onboarding) have a tighter 10 requests per minute limit.

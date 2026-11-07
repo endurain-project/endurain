@@ -5,9 +5,11 @@ from datetime import datetime
 from typing import NoReturn, Protocol, runtime_checkable
 
 from jasil.providers import StateBackendUnavailableError, StateProvider
+from pydantic import BaseModel, ConfigDict, StrictInt, StrictStr, ValidationError
 
 import core.dependencies as core_dependencies
 import core.hashing as core_hashing
+import modules.auth.constants as auth_constants
 import modules.auth.lockout.contracts as lockout_contracts
 import modules.auth.lockout.integration_service as lockout_integration
 import modules.auth.mfa.totp_replay_store as mfa_totp_replay_store
@@ -18,20 +20,38 @@ _PENDING_MFA_TTL_SECONDS = 300
 AuthSecurityStoreUnavailableError = lockout_contracts.AuthSecurityStoreUnavailableError
 
 
+class PendingLogin(BaseModel):
+    """A password sign-in that has proven the password and waits for its second factor.
+
+    Attributes:
+        user_id: The account that signed in.
+        client_type: The client type of the password step; the MFA step must come from the same kind.
+        code_challenge: The PKCE code challenge of the password step; a mobile sign-in always carries one.
+        code_challenge_method: The PKCE challenge method of the password step.
+    """
+
+    model_config = ConfigDict(extra="forbid", frozen=True)
+
+    user_id: StrictInt
+    client_type: auth_constants.ClientType
+    code_challenge: StrictStr | None
+    code_challenge_method: StrictStr | None
+
+
 @runtime_checkable
 class PendingMFAStore(Protocol):
     """Contract for pending login and MFA lockout state."""
 
-    def add_pending_login(self, user_id: int) -> str:
+    def add_pending_login(self, pending: PendingLogin) -> str:
         """Start a pending login and return the challenge that names it."""
         ...
 
-    def get_pending_login(self, challenge: str) -> int | None:
-        """Return the user a challenge names, if it is still pending."""
+    def get_pending_login(self, challenge: str) -> PendingLogin | None:
+        """Return the pending login a challenge names, if it is still pending."""
         ...
 
-    def claim_pending_login(self, challenge: str) -> int | None:
-        """Atomically end a pending login and return its user."""
+    def claim_pending_login(self, challenge: str) -> PendingLogin | None:
+        """Atomically end a pending login and return it."""
         ...
 
     def delete_pending_login(self, challenge: str) -> None:
@@ -72,6 +92,14 @@ def _raise_store_unavailable(err: StateBackendUnavailableError) -> NoReturn:
     raise AuthSecurityStoreUnavailableError("auth security storage is unavailable") from err
 
 
+def _decode(value: bytes) -> PendingLogin | None:
+    """Return the stored record, or None when it cannot be read."""
+    try:
+        return PendingLogin.model_validate_json(value)
+    except ValidationError:
+        return None
+
+
 class PendingMFALogin:
     """Store pending MFA logins and their progressive failure lockout."""
 
@@ -91,7 +119,7 @@ class PendingMFALogin:
         """Build the key for a pending MFA login from a digest of its challenge, so the store never holds it."""
         return f"{_PENDING_MFA_KEY_PREFIX}:{core_hashing.sha256_hex(challenge)}"
 
-    def add_pending_login(self, user_id: int) -> str:
+    def add_pending_login(self, pending: PendingLogin) -> str:
         """Start a pending login for five minutes and return the unguessable challenge that names it.
 
         The challenge, not the username, names the login, so only the client that signed in can submit its
@@ -99,41 +127,34 @@ class PendingMFALogin:
         """
         challenge = secrets.token_urlsafe(32)
         try:
-            self._state.set(self._pending_key(challenge), str(user_id).encode(), ttl_seconds=_PENDING_MFA_TTL_SECONDS)
+            self._state.set(
+                self._pending_key(challenge), pending.model_dump_json().encode(), ttl_seconds=_PENDING_MFA_TTL_SECONDS
+            )
         except StateBackendUnavailableError as err:
             _raise_store_unavailable(err)
         return challenge
 
-    def get_pending_login(self, challenge: str) -> int | None:
-        """Return the pending user ID, removing a corrupt entry."""
+    def get_pending_login(self, challenge: str) -> PendingLogin | None:
+        """Return the pending login, removing a corrupt entry."""
         key = self._pending_key(challenge)
         try:
             value = self._state.get(key)
+            if value is None:
+                return None
+            pending = _decode(value)
+            if pending is None:
+                self._state.delete(key)
         except StateBackendUnavailableError as err:
             _raise_store_unavailable(err)
-        if value is None:
-            return None
-        try:
-            return int(value.decode())
-        except (TypeError, ValueError):
-            try:
-                self._state.delete(key)
-            except StateBackendUnavailableError as err:
-                _raise_store_unavailable(err)
-            return None
+        return pending
 
-    def claim_pending_login(self, challenge: str) -> int | None:
+    def claim_pending_login(self, challenge: str) -> PendingLogin | None:
         """Atomically retrieve and remove a pending login."""
         try:
             value = self._state.get_and_delete(self._pending_key(challenge))
         except StateBackendUnavailableError as err:
             _raise_store_unavailable(err)
-        if value is None:
-            return None
-        try:
-            return int(value.decode())
-        except (TypeError, ValueError):
-            return None
+        return None if value is None else _decode(value)
 
     def delete_pending_login(self, challenge: str) -> None:
         """Remove a pending login."""
@@ -144,11 +165,12 @@ class PendingMFALogin:
 
     def clear_for_user(self, user_id: int) -> int:
         """Remove pending MFA logins for a user."""
-        target = str(user_id).encode()
         removed = 0
         try:
             for key in list(self._state.iter_keys(f"{_PENDING_MFA_KEY_PREFIX}:")):
-                if self._state.get(key) == target:
+                value = self._state.get(key)
+                pending = None if value is None else _decode(value)
+                if pending is not None and pending.user_id == user_id:
                     self._state.delete(key)
                     removed += 1
         except StateBackendUnavailableError as err:

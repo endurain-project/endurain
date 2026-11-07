@@ -15,6 +15,7 @@ import modules.auth.authentication.service as authentication_service
 import modules.auth.authentication.sso_exchange_service as authentication_service_sso_exchange_service
 import modules.auth.known_devices.contracts as known_devices_contracts
 import modules.auth.login_audit.audit_actions as login_audit_actions
+from tests._helpers.auth import pending_login
 
 _SERVICE = "modules.auth.authentication.service"
 _CLAIMED_EXPIRY = datetime(2999, 1, 1, tzinfo=UTC)
@@ -32,6 +33,7 @@ def _known_device():
 
 
 def _login(db, *, failed_attempts=None, pending_mfa_store=None, username="alice", client_type="web", **kwargs):
+    kwargs = {"code_challenge": None, "code_challenge_method": None, **kwargs}
     return authentication_service.login_for_access_token(
         "127.0.0.1",
         "agent",
@@ -195,8 +197,8 @@ class TestSuccessfulSignIn:
 class TestMfaSignIn:
     def _verify(self, db, *, code_valid, pending_mfa_store=None):
         store = pending_mfa_store or MagicMock()
-        store.get_pending_login.return_value = 5
-        store.claim_pending_login.return_value = 5
+        store.get_pending_login.return_value = pending_login(5)
+        store.claim_pending_login.return_value = pending_login(5)
         store.is_locked_out.return_value = False
         store.record_failed_attempt.return_value = 1
         request = SimpleNamespace(mfa_challenge="challenge", mfa_code="123456")
@@ -239,7 +241,7 @@ class TestMfaSignIn:
         store = MagicMock()
         store.is_locked_out.return_value = True
         store.get_lockout_time.return_value = datetime(2999, 1, 1, tzinfo=UTC)
-        store.get_pending_login.return_value = 5
+        store.get_pending_login.return_value = pending_login(5)
         request = SimpleNamespace(mfa_challenge="challenge", mfa_code="123456")
         with (
             patch(f"{_SERVICE}.users_integration.get_user", return_value=_USER),

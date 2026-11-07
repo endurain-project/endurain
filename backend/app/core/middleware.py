@@ -230,28 +230,31 @@ class CSRFMiddleware(BaseHTTPMiddleware):
     ``/auth/refresh``.
 
     Attributes:
-        exempt_paths: Exact paths skipped by CSRF checks.
-        exempt_path_prefixes: Path prefixes skipped by CSRF checks.
+        EXEMPT_PATHS: Exact paths skipped by CSRF checks.
+        EXEMPT_PATH_PREFIXES: Path prefixes skipped by CSRF checks.
     """
 
-    def __init__(self, app: ASGIApp) -> None:
-        super().__init__(app)
-        # Define paths that don't need CSRF protection
-        self.exempt_paths = [
-            "/api/v1/auth/login",
-            "/api/v1/auth/mfa/verify",
-            "/api/v1/auth/refresh",
-            "/api/v1/password-reset/request",
-            "/api/v1/password-reset/confirm",
-            "/api/v1/password-reset/validate",
-            "/api/v1/sign-up/request",
-            "/api/v1/sign-up/confirm",
-            "/api/v1/sign-up/resend",
-            "/api/v1/public/onboarding",
-        ]
-        self.exempt_path_prefixes = [
-            "/api/v1/public/idp/session/",
-        ]
+    # A web client holds a CSRF token only once it has a session. Every route under /public needs no session, and
+    # these /auth routes run before one exists (the token exchange is under /auth/sessions/).
+    EXEMPT_PATHS: tuple[str, ...] = (
+        "/api/v1/auth/login",
+        "/api/v1/auth/mfa/verify",
+        "/api/v1/auth/password-change",
+        "/api/v1/auth/refresh",
+    )
+    EXEMPT_PATH_PREFIXES: tuple[str, ...] = ("/api/v1/public/", "/api/v1/auth/sessions/")
+
+    @classmethod
+    def is_exempt(cls, path: str) -> bool:
+        """Return whether a request path is skipped by the CSRF check.
+
+        Args:
+            path: The request path, with the ``/api/v1`` prefix.
+
+        Returns:
+            True when the path is exempt.
+        """
+        return path in cls.EXEMPT_PATHS or path.startswith(cls.EXEMPT_PATH_PREFIXES)
 
     async def dispatch(
         self,
@@ -279,14 +282,8 @@ class CSRFMiddleware(BaseHTTPMiddleware):
         if client_type != "web":
             return await call_next(request)
 
-        # Skip CSRF check for exempt paths (exact match)
-        if request.url.path in self.exempt_paths:
+        if self.is_exempt(request.url.path):
             return await call_next(request)
-
-        # Skip CSRF check for exempt path prefixes (dynamic routes)
-        for prefix in self.exempt_path_prefixes:
-            if request.url.path.startswith(prefix):
-                return await call_next(request)
 
         if request.method in _CSRF_METHODS:
             csrf_header = request.headers.get("X-CSRF-Token")

@@ -1,4 +1,4 @@
-"""Public route that completes an SSO login by exchanging the PKCE verifier for tokens."""
+"""Route that completes a sign-in by exchanging its session and PKCE verifier for tokens."""
 
 from typing import Annotated
 
@@ -11,6 +11,7 @@ import modules.auth.access_tokens.integration_service as access_tokens_integrati
 import modules.auth.authentication.dependencies as authentication_dependencies
 import modules.auth.authentication.schema as auth_schema
 import modules.auth.authentication.sso_exchange_service as authentication_sso_exchange_service
+import modules.auth.constants as auth_constants
 import modules.auth.credentials.integration_service as credentials_integration
 import modules.auth.dependencies as auth_dependencies
 import modules.auth.known_devices.dependencies as known_devices_dependencies
@@ -20,14 +21,20 @@ router = APIRouter()
 
 
 @router.post(
-    "/session/{session_id}/tokens",
-    response_model=auth_schema.TokenExchangeRead,
+    "/sessions/{session_id}/tokens",
+    response_model=auth_schema.TokenWebRead | auth_schema.TokenMobileRead,
+    responses={
+        400: {
+            "description": "The verifier does not match, or the client type differs from the one that started the sign-in."
+        }
+    },
 )
 @core_rate_limit.limiter.limit(core_rate_limit.SENSITIVE)
 def exchange_tokens_for_session(
     session_id: auth_dependencies.AuthSessionId,
     request: Request,
     response: Response,
+    client_type: Annotated[auth_constants.ClientType, Depends(authentication_dependencies.get_client_type)],
     token_exchange: auth_schema.TokenExchangeRequest,
     pending_mfa_store: Annotated[
         mfa_dependencies.PendingMFAStore,
@@ -43,18 +50,21 @@ def exchange_tokens_for_session(
     ],
     db: core_dependencies.DbSession,
     device_id: known_devices_dependencies.DeviceId,
-) -> auth_schema.TokenExchangeRead:
-    """Exchange a PKCE code verifier for the JWT tokens of an SSO session.
+) -> auth_schema.TokenRead:
+    """Exchange a PKCE code verifier for the tokens of a session a sign-in created.
 
-    After the identity-provider callback creates a session, the client proves it holds the PKCE code verifier and
-    receives the tokens. The exchange succeeds once per session. An identity-provider session of an account with MFA
-    enabled also needs ``mfa_code``; without it the answer is a ``403`` with the ``mfa-required`` problem type and the
-    session stays usable.
+    A mobile password sign-in and an identity-provider callback create a session that holds no tokens. The client
+    proves it holds the PKCE code verifier and receives the tokens: a web client the access and CSRF tokens in the
+    body and the refresh token as a cookie, a mobile client every token in the body. The exchange succeeds once per
+    session, and only for the client type that started the sign-in. An identity-provider session of an account with
+    MFA enabled also needs ``mfa_code``; without it the answer is a ``403`` with the ``mfa-required`` problem type
+    and the session stays usable.
 
     Args:
-        session_id: Session created by the identity-provider callback.
-        request: Incoming request, read for the ``X-Client-Type`` header, the client address and the user agent.
+        session_id: Session created by the sign-in.
+        request: Incoming request, read for the client address and the user agent.
         response: Response that receives the refresh and device cookies for web clients.
+        client_type: The ``X-Client-Type`` header; it must be the client type that started the sign-in.
         token_exchange: Body carrying the PKCE code verifier and, when MFA applies, the MFA code.
         pending_mfa_store: Store for the MFA lockout and the TOTP replay guard.
         password_hasher: Hasher for the stored refresh token.
@@ -70,7 +80,7 @@ def exchange_tokens_for_session(
         session_id,
         token_exchange.code_verifier,
         token_exchange.mfa_code,
-        request.headers.get("X-Client-Type"),
+        client_type,
         core_network.get_ip_address(request),
         core_network.get_user_agent(request),
         pending_mfa_store,

@@ -202,35 +202,28 @@ def complete_login(
     ip_address: str,
     user_agent: str,
     user: users_schema.UserRead,
-    client_type: auth_constants.ClientType,
     password_hasher: credentials_integration.PasswordHasher,
     token_manager: access_tokens_integration.TokenManager,
     db: Session,
-) -> auth_schema.AuthOutcome[auth_schema.TokenRead]:
-    """Handles the completion of the login process by generating session and authentication tokens,.
+) -> auth_schema.AuthOutcome[auth_schema.TokenWebRead]:
+    """Complete the password sign-in of a web client: create its session and tokens.
 
-    storing the session in the database, and returning tokens in response body.
-
-    OAuth 2.1 compliant: Returns tokens in response body for all clients.
-    - Access token and CSRF token: Returned in body (for in-memory storage)
-    - Refresh token: Set as httpOnly cookie with SameSite=Strict
-
-    This unified model works for both username/password and SSO login flows.
+    The access token and the CSRF token are returned in the body (for in-memory storage) and the refresh token as
+    an ``HttpOnly`` cookie with ``SameSite=Strict``. A mobile client's session is created by
+    :func:`create_mobile_pkce_session_response` and its tokens by the token exchange.
 
     Args:
         ip_address (str): Client address, recorded on the session.
         user_agent (str): Client user agent, recorded on the session.
         user (users_schema.UserRead): The authenticated user object.
-        client_type (auth_constants.ClientType): The type of client.
         password_hasher (credentials_integration.PasswordHasher): Utility for password hashing.
         token_manager (access_tokens_integration.TokenManager): Utility for token generation and management.
         db (Session): Database session for storing session information.
 
     Returns:
-        The token body (session_id, access_token, csrf_token, token_type, expires_in, refresh_token_expires_in) and,
-        for web clients, the refresh cookie.
+        The token body (session_id, access_token, csrf_token, token_type, expires_in, refresh_token_expires_in) and
+        the refresh cookie.
     """
-    # Create the tokens
     (
         session_id,
         access_token_exp,
@@ -242,11 +235,8 @@ def complete_login(
         user, token_manager, server_settings_integration.get_session_policy(db)
     )
 
-    # Create the session and store it in the database
-    # Note: csrf_token is NOT stored on initial login (csrf_token_hash = None).
-    # This enables the OAuth 2.1 bootstrap pattern where the first /refresh call
-    # after page reload establishes the CSRF binding. The httpOnly cookie is
-    # sufficient authentication for the bootstrap refresh.
+    # The CSRF token is not stored on the initial login (csrf_token_hash = None). The first /refresh call after a
+    # page reload establishes the CSRF binding, and the HttpOnly cookie alone authenticates that bootstrap refresh.
     session = sessions_integration.create_session(
         session_id,
         user,
@@ -258,16 +248,9 @@ def complete_login(
         db,
     )
     db.commit()
-    logger.info(
-        "Login completed for user <user_id> (client_type=<client_type>)",
-        extra=core_logger.context(user_id=user.id, client_type=client_type),
-    )
+    logger.info("Login completed for user <user_id>", extra=core_logger.context(user_id=user.id))
 
-    # Token delivery based on client type (web cookie vs mobile body) is
-    # centralised in build_token_response so login, /refresh, and SSO
-    # token exchange share one delivery contract.
-    return authentication_token_service.build_token_response(
-        client_type,
+    return authentication_token_service.build_web_token_response(
         session_id,
         access_token,
         access_token_exp,
@@ -282,19 +265,15 @@ def create_mobile_pkce_session_response(
     ip_address: str,
     user_agent: str,
     user: users_schema.UserRead,
-    code_challenge: str,
-    code_challenge_method: str,
+    code_challenge: str | None,
+    code_challenge_method: str | None,
     password_hasher: credentials_integration.PasswordHasher,
     db: Session,
 ) -> auth_schema.MobileSessionRead:
-    """Create a session for mobile password login with PKCE exchange flow.
+    """Create the session of a mobile sign-in, which the client exchanges for tokens with its PKCE verifier.
 
-    This function is exclusively for mobile clients. Web clients should use
-    complete_login() which provides secure token delivery via httpOnly cookies.
-
-    Similar to SSO flow, but for password authentication.
-    Returns session_id instead of tokens—tokens obtained via
-    POST /public/idp/session/{session_id}/tokens with code_verifier.
+    The end of every verified mobile sign-in. Web clients use ``complete_login``, which delivers the refresh token
+    in an ``HttpOnly`` cookie.
 
     Args:
         ip_address: Client address, recorded on the session
@@ -309,32 +288,22 @@ def create_mobile_pkce_session_response(
         auth_schema.MobileSessionRead: Contains the session_id to exchange for tokens
 
     Raises:
-        InvalidInputError: If PKCE parameters are invalid
-
-    Notes:
-        - Mobile-only: Web clients use complete_login() with httpOnly cookies
-        - Session created without tokens (pending exchange)
-        - OAuth state record stores PKCE challenge
-        - Client must POST to /public/idp/session/{session_id}/tokens
-        - Reuses existing token exchange endpoint from SSO flow
+        InvalidInputError: If the PKCE parameters are missing or invalid
     """
-    # Validate PKCE challenge format
-    if code_challenge_method != "S256":
-        raise core_exceptions.InvalidInputError("Only S256 PKCE method is supported")
-
+    if code_challenge is None or code_challenge_method is None:
+        raise core_exceptions.InvalidInputError("A mobile sign-in needs code_challenge and code_challenge_method")
     auth_computation.validate_pkce_challenge(code_challenge, code_challenge_method)
 
-    # Generate session ID
     session_id = str(uuid4())
 
-    # Create OAuth state record for PKCE (reuse SSO infrastructure)
+    # The OAuth state record holds the PKCE challenge the exchange checks the verifier against.
     state_id, nonce = oauth_state_integration.create_state_id_and_nonce()
 
     oauth_state = oauth_state_integration.create_oauth_state(
         db=db,
         state_id=state_id,
         nonce=nonce,
-        client_type="mobile",  # This function is mobile-only
+        client_type="mobile",
         ip_address=ip_address,
         redirect_path=None,
         code_challenge=code_challenge,
@@ -342,51 +311,22 @@ def create_mobile_pkce_session_response(
         purpose=oauth_state_constants.OAuthStatePurpose.LOGIN,
     )
 
-    # Create session linked to oauth_state (enables PKCE exchange)
+    # The session has no refresh token until the exchange.
     sessions_integration.create_session(
         session_id,
         user,
         ip_address,
         user_agent,
-        None,  # No refresh token yet
+        None,
         password_hasher,
         core_timezone.to_utc_aware(oauth_state.expires_at),
         db,
         oauth_state_id=state_id,
     )
     db.commit()
-    logger.debug("Mobile PKCE session created", extra=core_logger.context(user_id=user.id))
+    logger.debug("Mobile sign-in session created", extra=core_logger.context(user_id=user.id))
 
-    # Return session_id for token exchange (no tokens yet)
     return auth_schema.MobileSessionRead(next_step="exchange", session_id=session_id)
-
-
-def _validate_pkce_query_params(
-    client_type: auth_constants.ClientType,
-    code_challenge: str | None,
-    code_challenge_method: str | None,
-) -> None:
-    """Reject malformed PKCE query-parameter combinations.
-
-    Args:
-        client_type: Client type supplied by the caller.
-        code_challenge: Optional PKCE code challenge.
-        code_challenge_method: Optional PKCE challenge method.
-
-    Returns:
-        None.
-
-    Raises:
-        InvalidInputError: If PKCE parameters are supplied partially.
-    """
-    if client_type != auth_constants.ClientType.MOBILE:
-        return
-
-    has_any_pkce_param = code_challenge is not None or code_challenge_method is not None
-    has_complete_pkce_params = bool(code_challenge and code_challenge_method)
-
-    if has_any_pkce_param and not has_complete_pkce_params:
-        raise core_exceptions.InvalidInputError("code_challenge and code_challenge_method must be provided together")
 
 
 def raise_auth_security_store_unavailable(
@@ -524,7 +464,7 @@ def finish_login(
     mfa: bool,
     device_id: str | None,
 ) -> auth_schema.AuthOutcome[auth_schema.FinishedLoginRead]:
-    """Complete a verified login with tokens or, for a mobile PKCE client, a session to exchange.
+    """Complete a verified login: a web client gets tokens, a mobile client a session to exchange.
 
     The sign-in is recorded against the user's known devices in the same transaction as its audit row and session.
 
@@ -533,8 +473,8 @@ def finish_login(
         user_agent: Client user agent, recorded on the session.
         user: The authenticated user.
         client_type: The client type.
-        code_challenge: PKCE code challenge, if the client sent one.
-        code_challenge_method: PKCE challenge method, if the client sent one.
+        code_challenge: PKCE code challenge of the sign-in; a mobile client always has one.
+        code_challenge_method: PKCE challenge method of the sign-in.
         password_hasher: Hasher for the stored refresh token.
         token_manager: Token manager that signs the tokens.
         db: Database session.
@@ -543,8 +483,8 @@ def finish_login(
             when the client sent no valid one.
 
     Returns:
-        The outcome of :func:`complete_login` with the device id a web browser keeps in its cookie, or the PKCE
-        session body for a mobile PKCE client. A mobile client's body carries the device id it must keep.
+        The outcome of :func:`complete_login` with the device id a web browser keeps in its cookie, or for a mobile
+        client the session body to exchange, which carries the device id it must keep.
     """
     sign_in = known_devices_integration.record_sign_in(
         user.id, device_id, ip_address, user_agent, known_devices_events.SignInMethod.PASSWORD, db
@@ -563,20 +503,15 @@ def finish_login(
             ),
         )
 
-    # Mobile clients with PKCE use secure token exchange flow
-    # Web clients don't need PKCE - they have httpOnly cookies and same-origin protection
-    if client_type == auth_constants.ClientType.MOBILE and code_challenge and code_challenge_method:
-        # Use PKCE exchange flow through the public IdP token exchange endpoint
+    # A mobile client never gets tokens from a sign-in: it exchanges the session with its PKCE verifier.
+    if client_type == auth_constants.ClientType.MOBILE:
         session = create_mobile_pkce_session_response(
             ip_address, user_agent, user, code_challenge, code_challenge_method, password_hasher, db
         )
         return auth_schema.AuthOutcome(session.model_copy(update={"device_id": sign_in.device_id}))
 
-    # Web clients and mobile without PKCE get tokens directly
-    outcome = complete_login(ip_address, user_agent, user, client_type, password_hasher, token_manager, db)
-    if isinstance(outcome.body, auth_schema.TokenMobileRead):
-        return auth_schema.AuthOutcome(outcome.body.model_copy(update={"device_id": sign_in.device_id}))
-    # A web browser keeps its device id in a cookie that the router sets from the outcome.
+    # A web browser gets its refresh token as a cookie, and keeps its device id in a cookie that the router sets.
+    outcome = complete_login(ip_address, user_agent, user, password_hasher, token_manager, db)
     return auth_schema.AuthOutcome(outcome.body, outcome.refresh_cookie, device_id=sign_in.device_id)
 
 
@@ -595,8 +530,8 @@ def _require_password_change(
     Args:
         user: The user whose password and second factor, if any, are verified.
         client_type: The client type of the sign-in.
-        code_challenge: PKCE code challenge, if the client sent one.
-        code_challenge_method: PKCE challenge method, if the client sent one.
+        code_challenge: PKCE code challenge of a mobile sign-in; None for a web sign-in.
+        code_challenge_method: PKCE challenge method of a mobile sign-in; None for a web sign-in.
         store: Store for pending password changes.
         db: Database session.
         mfa: Whether a second factor was verified for this sign-in.
@@ -638,9 +573,9 @@ def login_for_access_token(
     password_hasher: credentials_integration.PasswordHasher,
     token_manager: access_tokens_integration.TokenManager,
     db: Session,
-    code_challenge: str | None = None,
-    code_challenge_method: str | None = None,
     *,
+    code_challenge: str | None,
+    code_challenge_method: str | None,
     password_change_store: pending_password_change_store.PendingPasswordChangeStore,
     device_id: str | None,
 ) -> auth_schema.AuthOutcome[auth_schema.LoginRead]:
@@ -665,11 +600,11 @@ def login_for_access_token(
     password change and returns a password-change response, without a session. Otherwise, it completes
     the login process and returns the required information.
 
-    PKCE Support (Mobile):
-    - Mobile clients can optionally provide code_challenge and code_challenge_method
-    - For mobile clients with PKCE parameters, tokens are not returned directly
-        - Instead, a session_id is returned for secure token exchange via
-            /public/idp/session/{session_id}/tokens
+    PKCE (mobile):
+    - A mobile client always sends code_challenge and code_challenge_method (checked by the login form), and a web
+      client sends neither
+    - A mobile sign-in never returns tokens: it returns a session_id to exchange for tokens at
+      /auth/sessions/{session_id}/tokens with the PKCE verifier
 
     Args:
         ip_address: Client address, recorded on the session
@@ -682,29 +617,23 @@ def login_for_access_token(
         password_hasher: The password hasher instance used for verifying passwords
         token_manager: The token manager instance used for token operations
         db: Database session
-        code_challenge: PKCE code challenge (base64url-encoded SHA256, optional for mobile)
-        code_challenge_method: PKCE method (must be S256 if provided, optional for mobile)
+        code_challenge: PKCE code challenge (base64url-encoded SHA256) of a mobile client; None for a web client
+        code_challenge_method: PKCE method (S256) of a mobile client; None for a web client
         password_change_store: Store for pending password changes
         device_id: Device id from the browser's device cookie or the mobile app's X-Device-Id header, or None when
             the client sent no valid one
 
     Returns:
         The outcome whose body is:
-            - If MFA is required, an MFA-required response (schema or dict depending on client type)
+            - If MFA is required, an MFA-required response
             - If an administrator set the password, a password-change response
-            - If MFA is not required and mobile client with PKCE, the session_id for token exchange
-            - If MFA is not required and no PKCE, the tokens from complete_login(), with the refresh cookie for web
+            - Otherwise, for a mobile client the session_id to exchange for tokens, for a web client the tokens
+              from complete_login() with the refresh cookie
 
     Raises:
         DomainError: If authentication fails (an inactive account included, with the same answer), or the
             account is locked
     """
-    _validate_pkce_query_params(
-        client_type,
-        code_challenge,
-        code_challenge_method,
-    )
-
     # Check if username is locked out from too many failed login attempts. A known device of the account is held
     # by the client-network lockout and the password check but not by the account-wide lock.
     try:
@@ -767,9 +696,16 @@ def login_for_access_token(
 
     # Check if MFA is enabled for this user
     if mfa_integration.is_mfa_enabled_for_user(user.id, db):
-        # Store the user for pending MFA verification
+        # Store the login, with the client type and the PKCE challenge of the password step, for the MFA step
         try:
-            mfa_challenge = pending_mfa_store.add_pending_login(user.id)
+            mfa_challenge = pending_mfa_store.add_pending_login(
+                mfa_dependencies.PendingLogin(
+                    user_id=user.id,
+                    client_type=client_type,
+                    code_challenge=code_challenge,
+                    code_challenge_method=code_challenge_method,
+                )
+            )
         except lockout_contracts.AuthSecurityStoreUnavailableError as err:
             raise_auth_security_store_unavailable(err)
 
@@ -822,8 +758,6 @@ def verify_mfa_and_login(
     password_hasher: credentials_integration.PasswordHasher,
     token_manager: access_tokens_integration.TokenManager,
     db: Session,
-    code_challenge: str | None = None,
-    code_challenge_method: str | None = None,
     *,
     password_change_store: pending_password_change_store.PendingPasswordChangeStore,
     device_id: str | None,
@@ -835,11 +769,9 @@ def verify_mfa_and_login(
     password, it stores the pending password change and answers a password-change
     response instead, without a session.
 
-    PKCE Support (Mobile):
-    - Mobile clients can optionally provide code_challenge and code_challenge_method
-    - For mobile clients with PKCE parameters, tokens are not returned directly
-        - Instead, a session_id is returned for secure token exchange via
-            /public/idp/session/{session_id}/tokens
+    The step carries no PKCE values: the login record holds the client type and the PKCE challenge of the password
+    step, and a challenge presented by the other client type is refused like an unknown one. A mobile client
+    gets a session_id to exchange for tokens at /auth/sessions/{session_id}/tokens, never tokens.
 
     Args:
         ip_address: Client address, recorded on the session
@@ -851,35 +783,28 @@ def verify_mfa_and_login(
         password_hasher: The password hasher instance used for verifying passwords
         token_manager: The token manager instance used for token operations
         db: Database session
-        code_challenge: PKCE code challenge (base64url-encoded SHA256, optional for mobile)
-        code_challenge_method: PKCE method (must be S256 if provided, optional for mobile)
         password_change_store: Store for pending password changes
         device_id: Device id from the browser's device cookie or the mobile app's X-Device-Id header, or None when
             the client sent no valid one
 
     Returns:
-        The outcome of complete_login(), the PKCE session response, or the password-change response
+        The outcome of complete_login() for a web client, the session response to exchange for a mobile client, or
+        the password-change response
 
     Raises:
         DomainError: If the challenge or the MFA code is invalid (answered alike), or the user is not found
     """
-    _validate_pkce_query_params(
-        client_type,
-        code_challenge,
-        code_challenge_method,
-    )
-
-    # The challenge names the login; an unknown one answers exactly like a wrong code and counts against no
-    # account, so neither guessing it nor knowing a username gets anyone further.
+    # The challenge names the login; an unknown one, or one of the other client type, answers exactly like a wrong
+    # code and counts against no account, so neither guessing it nor knowing a username gets anyone further.
     try:
-        user_id = pending_mfa_store.get_pending_login(mfa_request.mfa_challenge)
+        pending = pending_mfa_store.get_pending_login(mfa_request.mfa_challenge)
     except lockout_contracts.AuthSecurityStoreUnavailableError as err:
         raise_auth_security_store_unavailable(err)
-    if not user_id:
+    if pending is None or pending.client_type != client_type:
         # Run a dummy Argon2 verify so the wall-clock latency of the unknown-challenge branch matches the
         # wrong-code branch, where backup-code verification performs an Argon2 verify.
         password_hasher.dummy_verify()
-        logger.warning("MFA verification refused: unknown or expired challenge")
+        logger.warning("MFA verification refused: unknown or expired challenge, or another client type")
         login_audit_integration.record_login_refusal(
             login_audit_actions.LoginMethod.PASSWORD,
             jasil_audit.Outcome.FAILURE,
@@ -888,6 +813,7 @@ def verify_mfa_and_login(
         )
         raise core_exceptions.InvalidMfaCodeError(_INVALID_MFA_CODE_MESSAGE)
 
+    user_id = pending.user_id
     user = users_integration.get_user(user_id, db)
     if not user:
         logger.warning(
@@ -902,10 +828,10 @@ def verify_mfa_and_login(
     )
 
     try:
-        claimed_user_id = pending_mfa_store.claim_pending_login(mfa_request.mfa_challenge)
+        claimed = pending_mfa_store.claim_pending_login(mfa_request.mfa_challenge)
     except lockout_contracts.AuthSecurityStoreUnavailableError as err:
         raise_auth_security_store_unavailable(err)
-    if claimed_user_id != user_id:
+    if claimed is None or claimed.user_id != user_id:
         logger.warning(
             "Pending MFA login for <username_log_id> was already claimed",
             extra=core_logger.context(username_log_id=lockout_integration.username_log_identifier(user.username)),
@@ -932,7 +858,13 @@ def verify_mfa_and_login(
     if credentials_integration.is_password_change_required(user.id, db):
         return auth_schema.AuthOutcome(
             _require_password_change(
-                user, client_type, code_challenge, code_challenge_method, password_change_store, db, mfa=True
+                user,
+                client_type,
+                pending.code_challenge,
+                pending.code_challenge_method,
+                password_change_store,
+                db,
+                mfa=True,
             )
         )
 
@@ -941,8 +873,8 @@ def verify_mfa_and_login(
         user_agent,
         user,
         client_type,
-        code_challenge,
-        code_challenge_method,
+        pending.code_challenge,
+        pending.code_challenge_method,
         password_hasher,
         token_manager,
         db,

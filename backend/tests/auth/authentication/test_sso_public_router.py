@@ -37,11 +37,11 @@ def _pending_mfa_store(*, locked_out: bool = False) -> MagicMock:
 
 def _client(mock_db, pending_mfa_store: MagicMock | None = None) -> TestClient:
     app = FastAPI()
-    app.include_router(sso_public_router.router, prefix="/api/v1/public/idp")
+    app.include_router(sso_public_router.router, prefix="/api/v1/auth")
     app.add_exception_handler(core_exceptions.DomainError, core_exceptions.domain_error_handler)
     app.dependency_overrides[core_db.get_db] = lambda: mock_db
     app.dependency_overrides[mfa_dependencies.get_pending_mfa_store] = lambda: pending_mfa_store or _pending_mfa_store()
-    return TestClient(app)
+    return TestClient(app, headers={"X-Client-Type": "mobile"})
 
 
 def _session_and_state(client_type: str = "mobile", idp_id: int | None = 5) -> tuple[MagicMock, MagicMock]:
@@ -62,7 +62,7 @@ def _session_and_state(client_type: str = "mobile", idp_id: int | None = 5) -> t
 class TestTokenExchange:
     @patch(f"{_SERVICE}.sessions_integration.get_session_with_oauth_state", return_value=None)
     def test_session_not_found(self, _mock_get_session, mock_db):
-        response = _client(mock_db).post("/api/v1/public/idp/session/unknown/tokens", json={"code_verifier": _VERIFIER})
+        response = _client(mock_db).post("/api/v1/auth/sessions/unknown/tokens", json={"code_verifier": _VERIFIER})
 
         assert response.status_code == 404
 
@@ -70,7 +70,7 @@ class TestTokenExchange:
     def test_a_session_without_oauth_state_is_not_eligible(self, mock_get_session, mock_db):
         mock_get_session.return_value = (_session_and_state()[0], None)
 
-        response = _client(mock_db).post("/api/v1/public/idp/session/s/tokens", json={"code_verifier": _VERIFIER})
+        response = _client(mock_db).post("/api/v1/auth/sessions/s/tokens", json={"code_verifier": _VERIFIER})
 
         assert response.status_code == 404
 
@@ -80,7 +80,7 @@ class TestTokenExchange:
         session.tokens_exchanged = True
         mock_get_session.return_value = (session, oauth_state)
 
-        response = _client(mock_db).post("/api/v1/public/idp/session/s/tokens", json={"code_verifier": _VERIFIER})
+        response = _client(mock_db).post("/api/v1/auth/sessions/s/tokens", json={"code_verifier": _VERIFIER})
 
         assert response.status_code == 409
         mock_db.commit.assert_not_called()
@@ -115,7 +115,7 @@ class TestTokenExchange:
         )
 
         response = _client(mock_db).post(
-            "/api/v1/public/idp/session/session-id/tokens",
+            "/api/v1/auth/sessions/session-id/tokens",
             json={"code_verifier": _VERIFIER},
             headers={"X-Client-Type": "mobile"},
         )
@@ -138,13 +138,13 @@ class TestTokenExchange:
         mock_get_session.return_value = _session_and_state("mobile")
 
         response = _client(mock_db).post(
-            "/api/v1/public/idp/session/session-id/tokens",
+            "/api/v1/auth/sessions/session-id/tokens",
             json={"code_verifier": _VERIFIER},
             headers={"X-Client-Type": "web"},
         )
 
         assert response.status_code == 400
-        assert response.json()["detail"] == "client_type does not match the OAuth state"
+        assert response.json()["detail"] == "Invalid code_verifier"
         mock_create_tokens.assert_not_called()
         mock_claim_session.assert_not_called()
 
@@ -174,7 +174,7 @@ class TestTokenExchange:
         mock_claim.return_value = datetime.now(UTC) + timedelta(hours=2)
 
         response = _client(mock_db).post(
-            "/api/v1/public/idp/session/session-id/tokens",
+            "/api/v1/auth/sessions/session-id/tokens",
             json={"code_verifier": _VERIFIER},
             headers={"X-Client-Type": "mobile"},
         )
@@ -202,10 +202,25 @@ class TestTokenExchange:
             "c",
         )
 
-        response = _client(mock_db).post("/api/v1/public/idp/session/s/tokens", json={"code_verifier": _VERIFIER})
+        response = _client(mock_db).post("/api/v1/auth/sessions/s/tokens", json={"code_verifier": _VERIFIER})
 
         assert response.status_code == 409
         mock_db.commit.assert_not_called()
+
+
+class TestTokenExchangeHeader:
+    def test_the_client_type_header_is_required(self, mock_db):
+        client = _client(mock_db)
+        client.headers.pop("X-Client-Type")
+
+        response = client.post("/api/v1/auth/sessions/s/tokens", json={"code_verifier": _VERIFIER})
+
+        assert response.status_code == 422
+
+    def test_the_old_path_is_gone(self, mock_db):
+        response = _client(mock_db).post("/api/v1/public/idp/session/s/tokens", json={"code_verifier": _VERIFIER})
+
+        assert response.status_code == 404
 
 
 class TestTokenExchangeMfa:
@@ -213,7 +228,7 @@ class TestTokenExchangeMfa:
 
     def _post(self, mock_db, store, **body):
         return _client(mock_db, store).post(
-            "/api/v1/public/idp/session/session-id/tokens",
+            "/api/v1/auth/sessions/session-id/tokens",
             json={"code_verifier": _VERIFIER, **body},
             headers={"X-Client-Type": "mobile"},
         )

@@ -17,7 +17,7 @@ interface PasswordResetConfirm {
  * @throws {HttpError} When email delivery is unavailable or the request fails.
  */
 export async function requestPasswordReset(request: PasswordResetRequest): Promise<void> {
-  await apiFetch<void>('/password-reset/request', {
+  await apiFetch<void>('/public/password-reset/request', {
     method: 'POST',
     body: JSON.stringify(request),
     auth: false,
@@ -32,7 +32,7 @@ export async function requestPasswordReset(request: PasswordResetRequest): Promi
  * @throws {HttpError} 400 when the token is invalid or expired.
  */
 export async function confirmPasswordReset(request: PasswordResetConfirm): Promise<void> {
-  await apiFetch<void>('/password-reset/confirm', {
+  await apiFetch<void>('/public/password-reset/confirm', {
     method: 'POST',
     body: JSON.stringify(request),
     auth: false,
@@ -47,7 +47,7 @@ export async function confirmPasswordReset(request: PasswordResetConfirm): Promi
  * @throws {HttpError} 400 when the token is invalid or expired.
  */
 export async function validatePasswordResetToken(token: string): Promise<void> {
-  await apiFetch<void>('/password-reset/validate', {
+  await apiFetch<void>('/public/password-reset/validate', {
     method: 'POST',
     body: JSON.stringify({ token } satisfies Schemas['PasswordResetValidate']),
     auth: false,

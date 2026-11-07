@@ -66,6 +66,8 @@ class TestPasswordLogin:
                     MagicMock(),
                     MagicMock(),
                     MagicMock(),
+                    code_challenge=None,
+                    code_challenge_method=None,
                     password_change_store=MagicMock(),
                     device_id=None,
                 )

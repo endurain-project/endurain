@@ -6,7 +6,6 @@ from typing import Annotated
 from fastapi import (
     APIRouter,
     Depends,
-    Query,
     Request,
     Response,
     status,
@@ -69,8 +68,6 @@ def login_for_access_token(
     ],
     db: core_dependencies.DbSession,
     device_id: known_devices_dependencies.DeviceId,
-    code_challenge: Annotated[str | None, Query()] = None,
-    code_challenge_method: Annotated[str | None, Query()] = None,
 ) -> auth_schema.LoginRead:
     """Handles user login and access token generation, including Multi-Factor Authentication (MFA) flow.
 
@@ -90,16 +87,16 @@ def login_for_access_token(
     and returns an MFA-required response. Otherwise, it completes the login process and returns
     the required information.
 
-    PKCE Support (Mobile):
-    - Mobile clients can optionally provide code_challenge and code_challenge_method
-    - For mobile clients with PKCE parameters, tokens are not returned directly
-        - Instead, a session_id is returned for secure token exchange via
-            /public/idp/session/{session_id}/tokens
+    PKCE (mobile):
+    - A mobile client sends the form fields code_challenge and code_challenge_method (S256), and a web client sends
+      neither (422)
+    - A mobile sign-in never returns tokens: it returns a session_id to exchange for tokens at
+      /auth/sessions/{session_id}/tokens with the PKCE verifier
 
     Args:
         response: The HTTP response object
         request: The HTTP request object
-        form_data: Form data containing username and password
+        form_data: Form data containing username, password and, for a mobile client, the PKCE challenge
         client_type: The type of client making the request ("web" or "mobile")
         failed_attempts: Failed login attempts tracker for progressive lockout
         pending_mfa_store: Store for pending MFA logins
@@ -109,15 +106,12 @@ def login_for_access_token(
         db: Database session
         device_id: Device id from the browser's device cookie or the mobile app's X-Device-Id header, or None when
             the client sent no valid one
-        code_challenge: PKCE code challenge (base64url-encoded SHA256, optional for mobile)
-        code_challenge_method: PKCE method (must be S256 if provided, optional for mobile)
 
     Returns:
-        Union[auth_schema.MFARequiredResponse, dict, str]:
-            - If MFA is required, returns an MFA-required response (schema or dict depending on client type)
-            - If an administrator set the password, returns a password-change response and no session
-            - If MFA is not required and mobile client with PKCE, returns session_id for token exchange
-            - If MFA is not required and no PKCE, proceeds with normal login via auth_utils.complete_login()
+        The next step of the sign-in:
+            - If MFA is required, an MFA-required response
+            - If an administrator set the password, a password-change response and no session
+            - Otherwise, for a mobile client the session_id to exchange for tokens, for a web client the tokens
 
     Raises:
         HTTPException: If authentication fails, user is inactive, or account is locked
@@ -133,8 +127,8 @@ def login_for_access_token(
         password_hasher,
         token_manager,
         db,
-        code_challenge,
-        code_challenge_method,
+        code_challenge=form_data.code_challenge,
+        code_challenge_method=form_data.code_challenge_method,
         password_change_store=password_change_store,
         device_id=device_id,
     )
@@ -176,8 +170,6 @@ def verify_mfa_and_login(
     ],
     db: core_dependencies.DbSession,
     device_id: known_devices_dependencies.DeviceId,
-    code_challenge: Annotated[str | None, Query()] = None,
-    code_challenge_method: Annotated[str | None, Query()] = None,
 ) -> auth_schema.MFAVerifyRead:
     """Verify MFA code and complete login process.
 
@@ -185,11 +177,9 @@ def verify_mfa_and_login(
     the authentication process if the code is valid. When an administrator set the
     account's password, the answer is the password-change step instead of a session.
 
-    PKCE Support (Mobile):
-    - Mobile clients can optionally provide code_challenge and code_challenge_method
-    - For mobile clients with PKCE parameters, tokens are not returned directly
-        - Instead, a session_id is returned for secure token exchange via
-            /public/idp/session/{session_id}/tokens
+    The step carries no PKCE values: the password step recorded them with the login, and a challenge presented by
+    the other client type is refused like an unknown one. A mobile client gets a session_id to exchange for tokens
+    at /auth/sessions/{session_id}/tokens, never tokens.
 
     Args:
         response: The HTTP response object
@@ -204,11 +194,9 @@ def verify_mfa_and_login(
         db: Database session
         device_id: Device id from the browser's device cookie or the mobile app's X-Device-Id header, or None when
             the client sent no valid one
-        code_challenge: PKCE code challenge (base64url-encoded SHA256, optional for mobile)
-        code_challenge_method: PKCE method (must be S256 if provided, optional for mobile)
 
     Returns:
-        Result from auth_utils.complete_login(), the PKCE session response, or the password-change response
+        The tokens of a web client, the session to exchange for a mobile client, or the password-change response
 
     Raises:
         HTTPException: If no pending login found, MFA code is invalid, or user not found
@@ -223,8 +211,6 @@ def verify_mfa_and_login(
         password_hasher,
         token_manager,
         db,
-        code_challenge,
-        code_challenge_method,
         password_change_store=password_change_store,
         device_id=device_id,
     )

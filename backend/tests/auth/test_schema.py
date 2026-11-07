@@ -13,37 +13,9 @@ import pytest
 from pydantic import ValidationError
 
 import core.exceptions as core_exceptions
-import modules.auth.authentication.public_router as auth_router
 import modules.auth.authentication.schema as auth_schema
 import modules.auth.authentication.service as auth_service
-
-
-class TestLoginRequest:
-    """Tests for LoginRequest Pydantic model."""
-
-    def test_login_request_valid(self):
-        """Test valid login request."""
-        request = auth_schema.LoginRequest(username="testuser", password="Password1!")
-        assert request.username == "testuser"
-        assert request.password == "Password1!"
-
-    def test_login_request_username_too_short(self):
-        """Test login request with empty username."""
-        with pytest.raises(ValidationError) as exc_info:
-            auth_schema.LoginRequest(username="", password="Password1!")
-        assert "username" in str(exc_info.value)
-
-    def test_login_request_username_too_long(self):
-        """Test login request with username exceeding max length."""
-        with pytest.raises(ValidationError) as exc_info:
-            auth_schema.LoginRequest(username="a" * 251, password="Password1!")
-        assert "username" in str(exc_info.value)
-
-    def test_login_request_password_too_short(self):
-        """Test login request with password less than 8 characters."""
-        with pytest.raises(ValidationError) as exc_info:
-            auth_schema.LoginRequest(username="testuser", password="Pass1!")
-        assert "password" in str(exc_info.value)
+from tests._helpers.auth import pending_login
 
 
 class TestMFALoginRequest:
@@ -104,70 +76,6 @@ class TestAuthRouterErrors:
     """Tests for auth router error responses."""
 
     @pytest.mark.asyncio
-    async def test_login_rejects_partial_pkce_params(self):
-        """Test login rejects incomplete PKCE query parameters."""
-        endpoint = getattr(
-            auth_router.login_for_access_token,
-            "__wrapped__",
-            auth_router.login_for_access_token,
-        )
-
-        with pytest.raises(core_exceptions.DomainError) as exc_info:
-            await endpoint(
-                response=None,
-                request=SimpleNamespace(client=None, headers={}),
-                form_data=SimpleNamespace(
-                    username="testuser",
-                    password="Password1!",
-                ),
-                client_type="mobile",
-                failed_attempts=object(),
-                pending_mfa_store=object(),
-                password_change_store=object(),
-                password_hasher=object(),
-                token_manager=object(),
-                db=object(),
-                device_id=None,
-                code_challenge="challenge",
-                code_challenge_method=None,
-            )
-
-        assert exc_info.value.status_code == 400
-        assert exc_info.value.detail == ("code_challenge and code_challenge_method must be provided together")
-
-    @pytest.mark.asyncio
-    async def test_mfa_verify_rejects_partial_pkce_params(self):
-        """Test MFA verify rejects incomplete PKCE parameters."""
-        endpoint = getattr(
-            auth_router.verify_mfa_and_login,
-            "__wrapped__",
-            auth_router.verify_mfa_and_login,
-        )
-
-        with pytest.raises(core_exceptions.DomainError) as exc_info:
-            await endpoint(
-                response=None,
-                request=SimpleNamespace(client=None, headers={}),
-                mfa_request=auth_schema.MFALoginRequest(
-                    mfa_challenge="c" * 43,
-                    mfa_code="123456",
-                ),
-                client_type="mobile",
-                failed_attempts=object(),
-                pending_mfa_store=object(),
-                password_change_store=object(),
-                password_hasher=object(),
-                token_manager=object(),
-                db=object(),
-                device_id=None,
-                code_challenge=None,
-                code_challenge_method="S256",
-            )
-
-        assert exc_info.value.status_code == 400
-        assert exc_info.value.detail == ("code_challenge and code_challenge_method must be provided together")
-
-    @pytest.mark.asyncio
     async def test_invalid_mfa_response_hides_attempt_count(
         self,
         monkeypatch,
@@ -184,12 +92,12 @@ class TestAuthRouterErrors:
                 return False
 
             def get_pending_login(self, username):
-                """Return a pending login user ID."""
-                return 123
+                """Return a pending login."""
+                return pending_login(123)
 
             def claim_pending_login(self, username):
-                """Return a claimed pending login user ID."""
-                return 123
+                """Return a claimed pending login."""
+                return pending_login(123)
 
             def record_failed_attempt(self, username):
                 """Return a count that must stay server-side only."""
@@ -254,8 +162,8 @@ class TestAuthRouterErrors:
                 return False
 
             def get_pending_login(self, username):
-                """Return a pending login user ID."""
-                return 123
+                """Return a pending login."""
+                return pending_login(123)
 
             def claim_pending_login(self, username):
                 """Simulate another request already claiming the login."""

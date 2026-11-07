@@ -239,7 +239,6 @@ class TestCompleteLogin:
         """Test complete_login for web client sets cookies and returns tokens."""
         # Arrange
         response = Response()
-        client_type = "web"
 
         with patch(
             "modules.auth.authentication.service.sessions_integration.create_session",
@@ -250,7 +249,6 @@ class TestCompleteLogin:
                 "127.0.0.1",
                 "pytest-agent",
                 sample_user_read,
-                client_type,
                 password_hasher,
                 token_manager,
                 mock_db,
@@ -270,37 +268,19 @@ class TestCompleteLogin:
         # Check that refresh token cookie was set
         assert "endurain_refresh_token" in response.headers.get("set-cookie", "")
 
-    def test_complete_login_for_mobile_client(
-        self, password_hasher, token_manager, mock_db, sample_user_read, mock_request
-    ):
-        """Test complete_login for mobile client returns tokens without CSRF token."""
-        # Arrange
-        response = Response()
-        client_type = "mobile"
+    def test_a_mobile_token_body_carries_every_token_and_no_csrf_token(self):
+        """The mobile body, as the token exchange and a refresh answer it, holds the refresh token."""
+        now = datetime.now(UTC)
 
-        with patch(
-            "modules.auth.authentication.service.sessions_integration.create_session",
-            return_value=MagicMock(expires_at=datetime.now(UTC) + timedelta(days=30)),
-        ):
-            # Act
-            outcome = auth_utils.complete_login(
-                "127.0.0.1",
-                "pytest-agent",
-                sample_user_read,
-                client_type,
-                password_hasher,
-                token_manager,
-                mock_db,
-            )
-            result = authentication_dependencies.deliver_auth_outcome(response, outcome).model_dump()
+        outcome = auth_utils_token_service.build_mobile_token_response(
+            "sid", "at", now + timedelta(minutes=15), "rt", now + timedelta(days=7), now + timedelta(days=30)
+        )
 
-        # Assert
-        assert "session_id" in result
-        assert "access_token" in result
-        assert "refresh_token" in result
+        result = outcome.body.model_dump()
+        assert result["refresh_token"] == "rt"
         assert result["token_type"] == "bearer"
-        # Mobile clients don't need CSRF tokens
         assert "csrf_token" not in result
+        assert outcome.refresh_cookie is None
 
     def test_complete_login_creates_session(
         self, password_hasher, token_manager, mock_db, sample_user_read, mock_request
@@ -308,7 +288,6 @@ class TestCompleteLogin:
         """Test that complete_login creates a session in the database."""
         # Arrange
         response = Response()
-        client_type = "web"
 
         with patch(
             "modules.auth.authentication.service.sessions_integration.create_session",
@@ -319,7 +298,6 @@ class TestCompleteLogin:
                 "127.0.0.1",
                 "pytest-agent",
                 sample_user_read,
-                client_type,
                 password_hasher,
                 token_manager,
                 mock_db,
@@ -358,7 +336,7 @@ class TestCompleteLogin:
             ) as mock_create_session,
         ):
             outcome = auth_utils.complete_login(
-                "127.0.0.1", "pytest-agent", sample_user_read, "web", password_hasher, token_manager, mock_db
+                "127.0.0.1", "pytest-agent", sample_user_read, password_hasher, token_manager, mock_db
             )
             result = authentication_dependencies.deliver_auth_outcome(response, outcome).model_dump()
 
@@ -381,7 +359,7 @@ class TestCompleteLogin:
             return_value=MagicMock(expires_at=session_expiry),
         ):
             outcome = auth_utils.complete_login(
-                "127.0.0.1", "pytest-agent", sample_user_read, "web", password_hasher, token_manager, mock_db
+                "127.0.0.1", "pytest-agent", sample_user_read, password_hasher, token_manager, mock_db
             )
             result = authentication_dependencies.deliver_auth_outcome(response, outcome).model_dump()
 
@@ -403,7 +381,6 @@ class TestCompleteLogin:
         """Test that secure flag is set on cookie when ENVIRONMENT is production."""
         # Arrange
         response = Response()
-        client_type = "web"
 
         with (
             patch(
@@ -417,7 +394,6 @@ class TestCompleteLogin:
                 "127.0.0.1",
                 "pytest-agent",
                 sample_user_read,
-                client_type,
                 password_hasher,
                 token_manager,
                 mock_db,
@@ -435,7 +411,6 @@ class TestCompleteLogin:
         """Test that secure flag is omitted from cookie when ENVIRONMENT is development."""
         # Arrange
         response = Response()
-        client_type = "web"
 
         with (
             patch(
@@ -449,7 +424,6 @@ class TestCompleteLogin:
                 "127.0.0.1",
                 "pytest-agent",
                 sample_user_read,
-                client_type,
                 password_hasher,
                 token_manager,
                 mock_db,
@@ -467,7 +441,6 @@ class TestCompleteLogin:
         """Test that refresh token cookie has correct security attributes."""
         # Arrange
         response = Response()
-        client_type = "web"
 
         with patch(
             "modules.auth.authentication.service.sessions_integration.create_session",
@@ -478,7 +451,6 @@ class TestCompleteLogin:
                 "127.0.0.1",
                 "pytest-agent",
                 sample_user_read,
-                client_type,
                 password_hasher,
                 token_manager,
                 mock_db,
@@ -539,7 +511,6 @@ class TestCompleteLogin:
         # Arrange
         response1 = Response()
         response2 = Response()
-        client_type = "web"
 
         with patch(
             "modules.auth.authentication.service.sessions_integration.create_session",
@@ -550,7 +521,6 @@ class TestCompleteLogin:
                 "127.0.0.1",
                 "pytest-agent",
                 sample_user_read,
-                client_type,
                 password_hasher,
                 token_manager,
                 mock_db,
@@ -561,7 +531,6 @@ class TestCompleteLogin:
                 "127.0.0.1",
                 "pytest-agent",
                 sample_user_read,
-                client_type,
                 password_hasher,
                 token_manager,
                 mock_db,

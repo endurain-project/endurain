@@ -364,7 +364,7 @@ router.include_router(
 )
 router.include_router(
     password_reset_tokens_router.router,
-    prefix=core_config.ROOT_PATH,
+    prefix=core_config.ROOT_PATH + "/public",
     tags=["password_reset_tokens"],
 )
 _PROFILE_SECURITY_DEPENDENCIES = [
@@ -411,7 +411,7 @@ router.include_router(
 )
 router.include_router(
     sign_up_tokens_router.router,
-    prefix=core_config.ROOT_PATH,
+    prefix=core_config.ROOT_PATH + "/public",
     tags=["sign_up_tokens"],
 )
 router.include_router(
@@ -518,8 +518,8 @@ router.include_router(
 )
 router.include_router(
     authentication_sso_public_router.router,
-    prefix=core_config.ROOT_PATH + "/public/idp",
-    tags=["identity_providers_public"],
+    prefix=core_config.ROOT_PATH + "/auth",
+    tags=["auth"],
 )
 router.include_router(
     onboarding_public_router.router,

@@ -58,7 +58,7 @@ def app_with_csrf():
         return {"message": "Login success"}
 
     # Public endpoint for testing
-    @app.post("/api/v1/public/idp/session/test/callback")
+    @app.post("/api/v1/auth/sessions/test/callback")
     async def test_public():
         return {"message": "Public success"}
 
@@ -66,11 +66,11 @@ def app_with_csrf():
     async def test_onboarding():
         return {"message": "Onboarding success"}
 
-    @app.post("/api/v1/sign-up/resend")
+    @app.post("/api/v1/public/sign-up/resend")
     async def test_sign_up_resend():
         return {"message": "Resend success"}
 
-    @app.post("/api/v1/password-reset/validate")
+    @app.post("/api/v1/public/password-reset/validate")
     async def test_password_reset_validate():
         return {"message": "Validate success"}
 
@@ -239,27 +239,27 @@ class TestCSRFMiddlewareExemptPaths:
         assert response.status_code == 200
         assert response.json() == {"message": "Login success"}
 
-    def test_public_idp_route_exempt(self, client):
+    def test_session_exchange_route_exempt(self, client):
         """
         Test that public IdP routes are exempt from CSRF checks.
 
         Verifies:
-            - Routes starting with /api/v1/public/idp/session/ are exempt
+            - Routes starting with /api/v1/auth/sessions/ are exempt
             - Dynamic route segments work correctly
         """
-        response = client.post("/api/v1/public/idp/session/test/callback", headers={"X-Client-Type": "web"})
+        response = client.post("/api/v1/auth/sessions/test/callback", headers={"X-Client-Type": "web"})
         assert response.status_code == 200
         assert response.json() == {"message": "Public success"}
 
     def test_sign_up_resend_exempt_no_csrf_required(self, client):
         """A visitor who is not signed in has no CSRF token, so the sign-up resend route is exempt."""
-        response = client.post("/api/v1/sign-up/resend", headers={"X-Client-Type": "web"})
+        response = client.post("/api/v1/public/sign-up/resend", headers={"X-Client-Type": "web"})
         assert response.status_code == 200
         assert response.json() == {"message": "Resend success"}
 
     def test_password_reset_validate_exempt_no_csrf_required(self, client):
         """A visitor on the logged-out reset page has no CSRF token, so the validate route is exempt."""
-        response = client.post("/api/v1/password-reset/validate", headers={"X-Client-Type": "web"})
+        response = client.post("/api/v1/public/password-reset/validate", headers={"X-Client-Type": "web"})
         assert response.status_code == 200
         assert response.json() == {"message": "Validate success"}
 

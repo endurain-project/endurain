@@ -14,7 +14,7 @@ _LOGIN = "auth.session.login"
 _USER = SimpleNamespace(id=5, username="alice", active=True, access_type="regular")
 
 
-def _exchange(db, *, tokens_exchanged=False, pkce_error=None, inactive=False, claimed=True):
+def _exchange(db, *, tokens_exchanged=False, pkce_error=None, inactive=False, claimed=True, header="web"):
     oauth_state = SimpleNamespace(
         id="state", purpose="login", code_challenge="c", code_challenge_method="S256", client_type="web", idp_id=3
     )
@@ -41,7 +41,7 @@ def _exchange(db, *, tokens_exchanged=False, pkce_error=None, inactive=False, cl
                 "sid",
                 "verifier",
                 None,
-                "web",
+                header,
                 "127.0.0.1",
                 "agent",
                 MagicMock(),
@@ -66,6 +66,14 @@ def test_a_pkce_mismatch_is_audited_and_still_refused(mock_db):
     audit, raised = _exchange(mock_db, pkce_error=error)
 
     assert raised is error
+    _assert_refusal(audit, outcome="failure", reason="pkce_mismatch")
+
+
+def test_a_header_other_than_the_stored_client_type_is_audited_like_a_pkce_mismatch(mock_db):
+    audit, raised = _exchange(mock_db, header="mobile")
+
+    assert isinstance(raised, core_exceptions.InvalidInputError)
+    assert raised.detail == "Invalid code_verifier"
     _assert_refusal(audit, outcome="failure", reason="pkce_mismatch")
 
 

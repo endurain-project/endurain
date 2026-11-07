@@ -56,10 +56,10 @@ vi.mock('@/features/auth/utils/pkce', () => ({
 }))
 
 const tokenExchange = {
+  next_step: 'tokens',
   session_id: 'sso-session',
   access_token: 'sso-access',
   csrf_token: 'sso-csrf',
-  refresh_token: null,
   token_type: 'bearer',
   expires_in: 900,
   refresh_token_expires_in: 604_800,
@@ -124,9 +124,7 @@ describe('processSsoCallback', () => {
 
     expect(result).toEqual({ status: 'completed' })
     expect(mocks.exchangeSessionForTokens).toHaveBeenCalledWith('sso-session', 'verifier-123')
-    expect(mocks.completeTokenLogin).toHaveBeenCalledWith(
-      expect.objectContaining({ access_token: 'sso-access', csrf_token: 'sso-csrf' }),
-    )
+    expect(mocks.completeTokenLogin).toHaveBeenCalledWith(tokenExchange)
     expect(mocks.navigateAfterLogin).toHaveBeenCalled()
     // The single-use verifier is cleared after a successful exchange.
     expect(sessionStorage.getItem('pkce_verifier_acme')).toBeNull()
@@ -158,22 +156,6 @@ describe('processSsoCallback', () => {
     expect(sessionStorage.getItem('pkce_verifier_acme')).toBeNull()
   })
 
-  it('fails when the token exchange omits the CSRF token', async () => {
-    sessionStorage.setItem(
-      'pkce_verifier_acme',
-      JSON.stringify({ verifier: 'verifier-123', createdAt: Date.now() }),
-    )
-    mocks.route.query = { sso: 'success', session_id: 'sso-session' }
-    mocks.exchangeSessionForTokens.mockResolvedValue({ ...tokenExchange, csrf_token: null })
-
-    const { processSsoCallback } = useSsoLogin()
-    const result = await processSsoCallback()
-
-    expect(result).toEqual({ status: 'error', messageKey: 'login.ssoTokenExchangeFailed' })
-    expect(mocks.completeTokenLogin).not.toHaveBeenCalled()
-    expect(sessionStorage.getItem('pkce_verifier_acme')).toBeNull()
-  })
-
   it('does not clear unrelated PKCE verifiers on callback failure', async () => {
     sessionStorage.setItem(
       'pkce_verifier_acme',
@@ -184,13 +166,19 @@ describe('processSsoCallback', () => {
       JSON.stringify({ verifier: 'verifier-beta', createdAt: Date.now() }),
     )
     mocks.route.query = { sso: 'success', session_id: 'sso-session' }
-    mocks.exchangeSessionForTokens.mockResolvedValue({ ...tokenExchange, csrf_token: null })
+    mocks.exchangeSessionForTokens.mockRejectedValue(
+      new HttpError(
+        400,
+        'Bad Request',
+        'Invalid code_verifier',
+        'urn:endurain:error:invalid-input',
+      ),
+    )
 
     const { processSsoCallback } = useSsoLogin()
     const result = await processSsoCallback()
 
     expect(result).toEqual({ status: 'error', messageKey: 'login.ssoTokenExchangeFailed' })
-    expect(sessionStorage.getItem('pkce_verifier_acme')).toBeNull()
     expect(JSON.parse(sessionStorage.getItem('pkce_verifier_beta') ?? '{}')).toMatchObject({
       verifier: 'verifier-beta',
     })

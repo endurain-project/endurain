@@ -35,7 +35,7 @@ A resource has a collection and an item:
 - Filtering and search are query parameters on the collection, never path segments: `<field>_contains` for text,
   `active=<bool>` for a state, and `start_date`/`end_date` for an inclusive range of local dates.
 - A child collection sits under its parent (`/activities/{activity_id}/laps`).
-- A route anyone may call without signing in lives under `/public`.
+- A route that obtains, renews or ends a session (`/auth/login`, `/auth/mfa/verify`, `/auth/password-change`, `/auth/sessions/{session_id}/tokens`, `/auth/refresh`, `/auth/logout`) lives under `/auth`; every other route callable without signing in lives under `/public` **(test)**. The routes that stay outside, with the reason, are listed in the test.
 
 ## Methods
 

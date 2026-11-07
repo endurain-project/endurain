@@ -66,6 +66,16 @@ _PUT_OPTIONAL_FIELDS: dict[str, str] = {
     "PUT /server-settings/email/settings: password": "write-only secret, kept when omitted",
 }
 
+#: Routes callable without signing in that live outside ``/auth`` and ``/public``, as ``"<METHOD> <route>"``.
+#: Permanent; the value is the reason. Remove an entry when the route moves under ``/public``.
+_UNAUTHENTICATED_OUTSIDE_PUBLIC: dict[str, str] = {
+    "GET /about": "the version probe of a reverse proxy or client, kept at the API root",
+    "GET /activities/{activity_id}/media/{media_id}/file": "a signed URL that an image tag follows, no header",
+    "GET /activities/{activity_id}/thumbnail": "a signed URL that an image tag follows, no header",
+    "GET /health": "the liveness probe of the container and the orchestrator, kept at the API root",
+    "GET /users/{user_id}/photo": "a signed URL that an image tag follows, no header",
+}
+
 
 #: Route handlers whose docstring carries a Google section, as ``{path relative to app/: handlers}``. Move the
 #: section's content into ``Field``/``Query`` descriptions or ``responses`` and lower the count (HTTP-10).
@@ -221,6 +231,76 @@ class TestApiContract:
             _NOT_READABLE_ITEMS,
             "Add a GET by id",
         )
+
+    def test_a_route_without_authentication_lives_under_auth_or_public(self):
+        """A route that needs no credential is under ``/auth`` (sessions) or ``/public``.
+
+        ``/auth`` holds the routes that obtain, renew or end a session; every other route a client may call
+        without signing in is under ``/public``, so a client and a proxy tell the two apart by the path.
+        """
+        unauthenticated = {
+            f"{method.upper()} {path}"
+            for method, path, operation in _operations()
+            if not operation.get("security") and not path.startswith(("/auth/", "/public/"))
+        }
+
+        _compare(
+            "A route callable without signing in is outside /auth and /public",
+            unauthenticated,
+            _UNAUTHENTICATED_OUTSIDE_PUBLIC,
+            "Mount it under /public",
+        )
+
+    def test_a_write_without_a_session_is_csrf_exempt(self):
+        """A state-changing route a client calls before it has a session needs no ``X-CSRF-Token``.
+
+        A web client holds a CSRF token only once it has a session, so the CSRF middleware must not refuse a route
+        that needs no credential.
+        """
+        import core.middleware as core_middleware
+
+        refused = {
+            f"{method.upper()} {path}"
+            for method, path, operation in _operations()
+            if method != "get"
+            and not operation.get("security")
+            and not core_middleware.CSRFMiddleware.is_exempt(_API_PREFIX + path)
+        }
+
+        _compare(
+            "A write that needs no credential is refused without a CSRF token",
+            refused,
+            {},
+            "Exempt it in CSRFMiddleware",
+        )
+
+    def test_the_session_routes_live_under_auth(self):
+        """The routes that obtain, renew or end a session are under ``/auth``, and the old paths are gone."""
+        routes = {f"{method.upper()} {path}" for method, path, _ in _operations()}
+
+        assert {
+            "POST /auth/login",
+            "POST /auth/mfa/verify",
+            "POST /auth/password-change",
+            "POST /auth/sessions/{session_id}/tokens",
+            "POST /auth/refresh",
+            "POST /auth/logout",
+        } <= routes
+        assert not {route for route in routes if "/public/idp/session/" in route}
+
+    def test_sign_up_and_password_reset_live_under_public(self):
+        """Sign-up and password reset are public routes, so they sit under ``/public``."""
+        routes = {f"{method.upper()} {path}" for method, path, _ in _operations()}
+
+        assert {
+            f"POST /public/{area}/{action}"
+            for area, actions in (
+                ("sign-up", ("request", "confirm", "resend")),
+                ("password-reset", ("request", "confirm", "validate")),
+            )
+            for action in actions
+        } <= routes
+        assert not {route for route in routes if route.split(" ")[1].startswith(("/sign-up/", "/password-reset/"))}
 
     def test_a_create_sends_location_and_etag(self):
         """A ``POST`` answering 201 sets ``Location`` where the item has a ``GET``, and ``ETag`` when versioned.

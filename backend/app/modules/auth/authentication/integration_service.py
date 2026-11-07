@@ -77,7 +77,7 @@ def finish_login(
     mfa: bool,
     device_id: str | None,
 ) -> authentication_schema.AuthOutcome[authentication_schema.FinishedLoginRead]:
-    """Complete a verified sign-in with tokens or, for a mobile PKCE client, a session to exchange."""
+    """Complete a verified sign-in: a web client gets tokens, a mobile client a session to exchange."""
     return authentication_service.finish_login(
         ip_address,
         user_agent,

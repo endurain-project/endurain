@@ -1,6 +1,6 @@
 import { useRoute, useRouter } from 'vue-router'
 
-import type { AuthTokenResponse, IdentityProviderPublic } from '@/types'
+import type { IdentityProviderPublic } from '@/types'
 import type { PublicServerSettings } from '@/features/config/types'
 
 import { useAuthStore } from '@/features/auth/stores/auth'
@@ -145,19 +145,7 @@ export function useSsoLogin() {
       : await exchangeSessionForTokens(pending.sessionId, pending.verifier)
     sessionStorage.removeItem(pending.storedKey)
 
-    if (!tokenData.csrf_token) {
-      throw new Error('Missing CSRF token')
-    }
-
-    await auth.completeTokenLogin({
-      next_step: 'tokens',
-      session_id: tokenData.session_id,
-      access_token: tokenData.access_token,
-      csrf_token: tokenData.csrf_token,
-      token_type: 'bearer',
-      expires_in: tokenData.expires_in,
-      refresh_token_expires_in: tokenData.refresh_token_expires_in,
-    } satisfies AuthTokenResponse)
+    await auth.completeTokenLogin(tokenData)
     useTelemetry().trackEvent('login_succeeded', { method: 'sso' })
     await navigateAfterLogin()
   }

@@ -8,27 +8,11 @@ from typing import Annotated, Literal
 from pydantic import (
     BaseModel,
     ConfigDict,
-    Discriminator,
     Field,
     StrictInt,
     StrictStr,
-    Tag,
     field_validator,
 )
-
-
-class LoginRequest(BaseModel):
-    """Schema for login requests containing username and password.
-
-    Attributes:
-        username: Username of the user.
-        password: User password.
-    """
-
-    model_config = ConfigDict(extra="forbid", str_strip_whitespace=True)
-
-    username: StrictStr = Field(..., min_length=1, max_length=250)
-    password: StrictStr = Field(..., min_length=8)
 
 
 class MFALoginRequest(BaseModel):
@@ -91,10 +75,10 @@ class PasswordChangeRequiredRead(BaseModel):
 
 
 class MobileSessionRead(BaseModel):
-    """Sign-in answer for a mobile client using PKCE: a session to exchange for tokens.
+    """Sign-in answer for a mobile client: a session to exchange for tokens with its PKCE verifier.
 
     Attributes:
-        next_step: Always ``exchange``; the client exchanges the session at ``/public/idp/session/{session_id}/tokens``.
+        next_step: Always ``exchange``; the client exchanges the session at ``/auth/sessions/{session_id}/tokens``.
         session_id: Session identifier for token exchange.
         device_id: The device id the app keeps and sends as ``X-Device-Id`` on later sign-ins.
     """
@@ -141,8 +125,8 @@ class TokenMobileRead(BaseModel):
         token_type: Always ``bearer``.
         expires_in: Seconds until the access token expires.
         refresh_token_expires_in: Seconds until the refresh token expires.
-        device_id: The device id the app keeps and sends as ``X-Device-Id`` on later sign-ins; set by a sign-in, null
-            on a refresh.
+        device_id: The device id the app keeps and sends as ``X-Device-Id`` on later sign-ins; set by the exchange of a
+            sign-in, null on a refresh.
     """
 
     model_config = ConfigDict(extra="forbid")
@@ -204,38 +188,6 @@ class TokenExchangeRequest(BaseModel):
         return v
 
 
-class TokenExchangeRead(BaseModel):
-    """Response schema for successful PKCE token exchange.
-
-    Returns the actual JWT tokens that clients need for API access.
-    Response format varies by client type:
-    - Web clients: access_token, csrf_token (refresh_token in httpOnly cookie)
-    - Mobile clients: access_token, refresh_token (no CSRF token)
-
-    Attributes:
-        session_id (str): Session identifier.
-        access_token (str): JWT access token (15-minute expiry).
-        refresh_token (str | None): JWT refresh token (7-day expiry). Only for mobile clients.
-        csrf_token (str | None): CSRF protection token. Only for web clients.
-        expires_in (int): Access token lifetime in seconds (900 = 15 minutes).
-        refresh_token_expires_in (int): Refresh token lifetime in seconds (604800 = 7 days).
-        token_type (str): Token type, always "Bearer".
-        device_id (str | None): The device id a mobile app keeps and sends as ``X-Device-Id`` on later sign-ins; set
-            by the exchange of an identity-provider sign-in, null otherwise.
-    """
-
-    session_id: StrictStr = Field(..., description="Session identifier")
-    access_token: StrictStr = Field(..., description="JWT access token")
-    refresh_token: StrictStr | None = Field(default=None, description="JWT refresh token (mobile only)")
-    csrf_token: StrictStr | None = Field(default=None, description="CSRF protection token (web only)")
-    expires_in: StrictInt = Field(default=900, description="Access token lifetime in seconds")
-    refresh_token_expires_in: StrictInt = Field(default=604800, description="Refresh token lifetime in seconds")
-    token_type: StrictStr = Field(default="Bearer", description="Token type")
-    device_id: StrictStr | None = Field(
-        default=None, description="Device id a mobile app keeps and sends as X-Device-Id (identity-provider sign-in)"
-    )
-
-
 @dataclass(frozen=True)
 class RefreshCookie:
     """Refresh token a web client receives as an ``HttpOnly`` cookie.
@@ -249,31 +201,21 @@ class RefreshCookie:
     expires_at: datetime
 
 
-def _next_step(body: object) -> str | None:
-    """Return the ``next_step`` of a sign-in body, whether it is a model or the dict it was parsed from."""
-    if isinstance(body, dict):
-        return body.get("next_step")
-    return getattr(body, "next_step", None)
-
-
-#: The token body of a password login or a refresh, by client type.
+#: The token body of a refresh or a token exchange: a web client's or a mobile client's, by its client type.
 type TokenRead = TokenWebRead | TokenMobileRead
 
-# The two token bodies share the ``tokens`` step, which a pydantic field discriminator cannot map to two models, so
-# the union is tagged by a function and the ``tokens`` step holds both.
-_Mfa = Annotated[MFARequiredRead, Tag("mfa")]
-_PasswordChange = Annotated[PasswordChangeRequiredRead, Tag("password_change")]
-_Exchange = Annotated[MobileSessionRead, Tag("exchange")]
-_Tokens = Annotated[TokenWebRead | TokenMobileRead, Tag("tokens")]
+#: What ends a sign-in with a session: the tokens of a web client, or for a mobile client a session to exchange.
+FinishedLoginRead = Annotated[MobileSessionRead | TokenWebRead, Field(discriminator="next_step")]
 
-#: What ends a sign-in with a session: tokens, or for a mobile PKCE client a session to exchange.
-FinishedLoginRead = Annotated[_Exchange | _Tokens, Discriminator(_next_step)]
-
-#: The answer of ``/auth/mfa/verify``: a password change, a session to exchange, or the tokens.
-MFAVerifyRead = Annotated[_PasswordChange | _Exchange | _Tokens, Discriminator(_next_step)]
+#: The answer of ``/auth/mfa/verify``: a password change, a session to exchange, or the tokens of a web client.
+MFAVerifyRead = Annotated[
+    PasswordChangeRequiredRead | MobileSessionRead | TokenWebRead, Field(discriminator="next_step")
+]
 
 #: The answer of ``/auth/login``, told apart by ``next_step``.
-LoginRead = Annotated[_Mfa | _PasswordChange | _Exchange | _Tokens, Discriminator(_next_step)]
+LoginRead = Annotated[
+    MFARequiredRead | PasswordChangeRequiredRead | MobileSessionRead | TokenWebRead, Field(discriminator="next_step")
+]
 
 
 @dataclass(frozen=True)

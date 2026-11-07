@@ -1,9 +1,10 @@
 """Authentication transport dependencies and refresh-cookie helpers."""
 
+from dataclasses import dataclass
 from datetime import UTC, datetime
-from typing import Annotated, Self
+from typing import Annotated, Any, Self
 
-from fastapi import Depends, Header, Request, Response
+from fastapi import Depends, Form, Header, Request, Response
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
 from fastapi.security import APIKeyCookie, OAuth2PasswordBearer, OAuth2PasswordRequestForm
@@ -29,38 +30,134 @@ LEGACY_REFRESH_TOKEN_COOKIE_PATHS = ("/",)
 REFRESH_TOKEN_COOKIE_CLEAR_PATHS = (*LEGACY_REFRESH_TOKEN_COOKIE_PATHS, REFRESH_TOKEN_COOKIE_PATH)
 
 
-def reject_nul_in_login_form(form_data: Annotated[OAuth2PasswordRequestForm, Depends()]) -> OAuth2PasswordRequestForm:
-    """Refuse a NUL character in any field of the login form and trim the username.
+def get_client_type(
+    client_type: Annotated[
+        auth_constants.ClientType,
+        Header(alias="X-Client-Type", description="The kind of client: `web` or `mobile`."),
+    ],
+) -> auth_constants.ClientType:
+    """Return the request's client type.
+
+    An ordinary header parameter: a missing or unknown value is a ``422``.
+
+    Args:
+        client_type: The ``X-Client-Type`` header.
+
+    Returns:
+        The client type.
+    """
+    return client_type
+
+
+@dataclass(frozen=True)
+class LoginFormData:
+    """The checked fields of the password sign-in form.
+
+    Attributes:
+        username: The username, without surrounding whitespace.
+        password: The password exactly as sent.
+        code_challenge: The PKCE challenge of a mobile sign-in; ``None`` for a web sign-in.
+        code_challenge_method: The PKCE method of a mobile sign-in (``S256``); ``None`` for a web sign-in.
+    """
+
+    username: str
+    password: str
+    code_challenge: str | None
+    code_challenge_method: str | None
+
+
+def _pkce_errors(
+    client_type: auth_constants.ClientType, code_challenge: str | None, code_challenge_method: str | None
+) -> list[dict[str, Any]]:
+    """Return the validation errors of the PKCE fields of a sign-in: required for mobile, refused for web.
+
+    Args:
+        client_type: The client type of the sign-in.
+        code_challenge: The ``code_challenge`` form field, if sent.
+        code_challenge_method: The ``code_challenge_method`` form field, if sent.
+
+    Returns:
+        One entry per field that is missing, refused or malformed.
+    """
+    sent = {"code_challenge": code_challenge, "code_challenge_method": code_challenge_method}
+    if client_type == auth_constants.ClientType.WEB:
+        # A browser gets its refresh token as an HttpOnly cookie and has nothing to exchange.
+        return [
+            {"type": "extra_forbidden", "loc": ("body", name), "msg": "Not accepted from a web client"}
+            for name, value in sent.items()
+            if value is not None
+        ]
+    errors: list[dict[str, Any]] = [
+        {"type": "missing", "loc": ("body", name), "msg": "Required from a mobile client"}
+        for name, value in sent.items()
+        if value is None
+    ]
+    if code_challenge is None or code_challenge_method is None:
+        return errors
+    try:
+        auth_computation.validate_pkce_challenge(code_challenge, code_challenge_method)
+    except core_exceptions.InvalidInputError as err:
+        name = "code_challenge_method" if code_challenge_method != "S256" else "code_challenge"
+        errors.append({"type": "value_error", "loc": ("body", name), "msg": str(err.detail)})
+    return errors
+
+
+def reject_nul_in_login_form(
+    form_data: Annotated[OAuth2PasswordRequestForm, Depends()],
+    client_type: Annotated[auth_constants.ClientType, Depends(get_client_type)],
+    code_challenge: Annotated[
+        str | None,
+        Form(
+            description="PKCE code challenge (base64url SHA-256 of the verifier). Required from a mobile client; "
+            "not accepted from a web client."
+        ),
+    ] = None,
+    code_challenge_method: Annotated[
+        str | None,
+        Form(description="PKCE method, always `S256`. Required from a mobile client; not accepted from a web client."),
+    ] = None,
+) -> LoginFormData:
+    """Check the login form: no NUL character in any field, the PKCE fields that fit the client type.
 
     PostgreSQL text cannot hold NUL. The NUL middleware reads urlencoded and JSON bodies but leaves multipart
     ones streaming, and FastAPI parses this form from multipart too, so the fields are checked here.
+
+    A mobile client must send ``code_challenge`` and ``code_challenge_method`` (``S256``) and a web client must
+    send neither, so a sign-in is valid or refused before the password is looked at.
 
     The username loses surrounding whitespace, as the web form does; the password is kept exactly as sent.
 
     Args:
         form_data: The parsed login form.
+        client_type: The ``X-Client-Type`` header.
+        code_challenge: The PKCE code challenge form field.
+        code_challenge_method: The PKCE method form field.
 
     Returns:
-        The form, with the username trimmed.
+        The username, the password and the PKCE values.
 
     Raises:
-        RequestValidationError: When a field holds a NUL (422).
+        RequestValidationError: When a field holds a NUL, or the PKCE fields do not fit the client type (422).
     """
     errors = [
         {"type": "value_error", "loc": ("body", name), "msg": "NUL characters are not allowed"}
-        for name, value in vars(form_data).items()
+        for name, value in {
+            **vars(form_data),
+            "code_challenge": code_challenge,
+            "code_challenge_method": code_challenge_method,
+        }.items()
         if isinstance(value, str) and "\x00" in value
     ]
     if isinstance(form_data.scopes, list) and any("\x00" in scope for scope in form_data.scopes):
         errors.append({"type": "value_error", "loc": ("body", "scope"), "msg": "NUL characters are not allowed"})
+    errors += _pkce_errors(client_type, code_challenge, code_challenge_method)
     if errors:
         raise RequestValidationError(errors)
-    form_data.username = form_data.username.strip()
-    return form_data
+    return LoginFormData(form_data.username.strip(), form_data.password, code_challenge, code_challenge_method)
 
 
-#: The login form, with NUL characters refused and the username trimmed.
-LoginForm = Annotated[OAuth2PasswordRequestForm, Depends(reject_nul_in_login_form)]
+#: The login form, with NUL characters refused, the username trimmed and the PKCE fields checked.
+LoginForm = Annotated[LoginFormData, Depends(reject_nul_in_login_form)]
 
 
 class ClearRefreshTokenCookieError(core_exceptions.InvalidTokenError):
@@ -166,25 +263,6 @@ oauth2_scheme = OAuth2PasswordBearer(
     scopes=auth_constants.SCOPE_DICT,
     auto_error=False,
 )
-
-
-def get_client_type(
-    client_type: Annotated[
-        auth_constants.ClientType,
-        Header(alias="X-Client-Type", description="The kind of client: `web` or `mobile`."),
-    ],
-) -> auth_constants.ClientType:
-    """Return the request's client type.
-
-    An ordinary header parameter: a missing or unknown value is a ``422``.
-
-    Args:
-        client_type: The ``X-Client-Type`` header.
-
-    Returns:
-        The client type.
-    """
-    return client_type
 
 
 def get_csrf_token(

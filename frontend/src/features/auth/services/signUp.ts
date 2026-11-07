@@ -16,7 +16,7 @@ import { apiFetch } from '@/services/http'
  *   already taken (409), validation fails (400/422), or the request fails.
  */
 export function requestSignUp(request: SignUpRequest): Promise<SignUpResponse> {
-  return apiFetch<SignUpResponse>('/sign-up/request', {
+  return apiFetch<SignUpResponse>('/public/sign-up/request', {
     method: 'POST',
     body: JSON.stringify(request),
     auth: false,
@@ -35,7 +35,7 @@ export function requestSignUp(request: SignUpRequest): Promise<SignUpResponse> {
  *   exists, 422 when the password fails the policy.
  */
 export function confirmSignUp(request: SignUpConfirm): Promise<SignUpResponse> {
-  return apiFetch<SignUpResponse>('/sign-up/confirm', {
+  return apiFetch<SignUpResponse>('/public/sign-up/confirm', {
     method: 'POST',
     body: JSON.stringify(request),
     auth: false,
@@ -52,7 +52,7 @@ export function confirmSignUp(request: SignUpConfirm): Promise<SignUpResponse> {
  * @throws {HttpError} 422 when the address is malformed, 429 when rate limited.
  */
 export function resendSignUpVerification(request: SignUpResend): Promise<SignUpResponse> {
-  return apiFetch<SignUpResponse>('/sign-up/resend', {
+  return apiFetch<SignUpResponse>('/public/sign-up/resend', {
     method: 'POST',
     body: JSON.stringify(request),
     auth: false,

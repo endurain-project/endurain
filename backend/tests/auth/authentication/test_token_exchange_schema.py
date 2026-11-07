@@ -3,7 +3,7 @@
 import pytest
 from pydantic import ValidationError
 
-from modules.auth.authentication.schema import TokenExchangeRead, TokenExchangeRequest
+from modules.auth.authentication.schema import TokenExchangeRequest
 
 
 class TestTokenExchangeRequest:
@@ -98,79 +98,3 @@ class TestTokenExchangeRequest:
             TokenExchangeRequest(code_verifier="a" * 43 + "+")
 
         assert "code_verifier must be valid base64url" in str(exc_info.value)
-
-
-class TestTokenExchangeRead:
-    """Test suite for TokenExchangeRead schema."""
-
-    def test_valid_token_exchange_response(self):
-        """Test creating a valid TokenExchangeRead instance.
-
-        Asserts:
-            - Instance is created successfully with all required fields
-            - Default values are applied
-        """
-        # Arrange & Act
-        response = TokenExchangeRead(
-            session_id="session-123",
-            access_token="access-token-xyz",
-            refresh_token="refresh-token-abc",
-            csrf_token="csrf-token-def",
-        )
-
-        # Assert
-        assert response.session_id == "session-123"
-        assert response.access_token == "access-token-xyz"
-        assert response.refresh_token == "refresh-token-abc"
-        assert response.csrf_token == "csrf-token-def"
-        assert response.expires_in == 900  # Default value
-        assert response.token_type == "Bearer"  # Default value
-
-    def test_token_exchange_response_required_fields(self):
-        """Test required fields for TokenExchangeRead.
-
-        Asserts:
-            - ValidationError is raised when required fields are missing
-        """
-        # Arrange & Act & Assert
-        with pytest.raises(ValidationError) as exc_info:
-            TokenExchangeRead()
-
-        error_str = str(exc_info.value)
-        assert "session_id" in error_str or "access_token" in error_str
-
-    def test_token_exchange_response_custom_expires_in(self):
-        """Test custom expires_in value for TokenExchangeRead.
-
-        Asserts:
-            - Custom expires_in value can be set
-        """
-        # Arrange & Act
-        response = TokenExchangeRead(
-            session_id="session-123",
-            access_token="access-token-xyz",
-            refresh_token="refresh-token-abc",
-            csrf_token="csrf-token-def",
-            expires_in=1800,
-        )
-
-        # Assert
-        assert response.expires_in == 1800
-
-    def test_token_exchange_response_custom_token_type(self):
-        """Test custom token_type value for TokenExchangeRead.
-
-        Asserts:
-            - Custom token_type value can be set
-        """
-        # Arrange & Act
-        response = TokenExchangeRead(
-            session_id="session-123",
-            access_token="access-token-xyz",
-            refresh_token="refresh-token-abc",
-            csrf_token="csrf-token-def",
-            token_type="Custom",
-        )
-
-        # Assert
-        assert response.token_type == "Custom"
