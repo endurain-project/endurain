@@ -6,6 +6,8 @@ from urllib.parse import parse_qs, urlsplit
 
 import pytest
 
+import core.jwt_keys as core_jwt_keys
+
 
 class TestRateLimitConstants:
     """Tests for rate-limit tier constants."""
@@ -144,7 +146,7 @@ class TestGetRateLimitKey:
     @pytest.mark.parametrize(
         ("header", "claims"),
         [
-            (_ACCESS_HEADER, _claims(exp_delta=-60)),
+            (_ACCESS_HEADER, _claims(exp_delta=-core_jwt_keys.CLOCK_LEEWAY_SECONDS - 300)),
             ({"alg": "HS256", "typ": "rt+jwt"}, _claims()),
             (_ACCESS_HEADER, {"sub": "1"}),
             ({"alg": "HS256"}, _claims()),
@@ -161,6 +163,29 @@ class TestGetRateLimitKey:
         token = jwt.encode(header, claims, key)
         with patch("core.rate_limit._jwt_verification_key", return_value=key):
             assert rl._verified_subject(token) is None
+
+    def test_a_token_that_expired_within_the_clock_leeway_still_names_its_user(self):
+        from joserfc import jwt
+        from joserfc.jwk import OctKey
+
+        import core.rate_limit as rl
+
+        key = OctKey.import_key("k" * 32)
+        token = jwt.encode(_ACCESS_HEADER, _claims(exp_delta=-5), key)
+        with patch("core.rate_limit._jwt_verification_key", return_value=key):
+            assert rl._verified_subject(token) == "1"
+
+    def test_a_refresh_token_typed_as_an_access_token_gets_no_user_bucket(self):
+        """Only access keys name a bucket, so a refresh token cannot pass by forging its ``typ``."""
+        from joserfc import jwt
+
+        import core.rate_limit as rl
+
+        refresh_key = core_jwt_keys.REFRESH_SIGNING_KEYS[0]
+        header = {**_ACCESS_HEADER, "kid": core_jwt_keys.key_id(refresh_key)}
+        token = jwt.encode(header, _claims(), core_jwt_keys.import_key(refresh_key))
+
+        assert rl._verified_subject(token) is None
 
     def test_no_auth_header_returns_ip(self):
         from core.rate_limit import _get_rate_limit_key

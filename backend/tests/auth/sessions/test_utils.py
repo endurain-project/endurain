@@ -40,6 +40,7 @@ def _session(*, last_activity_at: datetime, created_at: datetime) -> sessions_co
         rotation_count=0,
         last_rotation_at=None,
         csrf_token_hash=None,
+        client_type="web",
     )
 
 

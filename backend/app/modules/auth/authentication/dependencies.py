@@ -363,7 +363,7 @@ def get_sub_from_refresh_token(
     ],
 ) -> int:
     """Return the decimal subject claim from a refresh token."""
-    sub = token_manager.get_token_claim(refresh_token, "sub")
+    sub = token_manager.get_token_claim(refresh_token, "sub", access_tokens_integration.TokenType.REFRESH)
     if not isinstance(sub, str) or not sub.isascii() or not sub.isdecimal():
         raise core_exceptions.InvalidTokenError("Invalid token: 'sub' claim must be a decimal string")
     return int(sub)
@@ -377,7 +377,7 @@ def get_sid_from_refresh_token(
     ],
 ) -> str:
     """Return the session identifier claim from a refresh token."""
-    sid = token_manager.get_token_claim(refresh_token, "sid")
+    sid = token_manager.get_token_claim(refresh_token, "sid", access_tokens_integration.TokenType.REFRESH)
     if not isinstance(sid, str):
         raise core_exceptions.InvalidTokenError("Invalid token: 'sid' claim must be a string")
     return sid
@@ -391,7 +391,7 @@ def get_exp_from_refresh_token(
     ],
 ) -> datetime:
     """Return the expiry claim of a refresh token as a timezone-aware UTC instant."""
-    exp = token_manager.get_token_claim(refresh_token, "exp")
+    exp = token_manager.get_token_claim(refresh_token, "exp", access_tokens_integration.TokenType.REFRESH)
     if not isinstance(exp, int):
         raise core_exceptions.InvalidTokenError("Invalid token: 'exp' claim must be an integer")
     return datetime.fromtimestamp(exp, UTC)

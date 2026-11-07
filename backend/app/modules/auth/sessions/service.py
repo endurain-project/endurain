@@ -11,6 +11,7 @@ import core.hashing as core_hashing
 import core.logger as core_logger
 import core.pagination as core_pagination
 import modules.auth.access_tokens.integration_service as access_tokens_integration
+import modules.auth.constants as auth_constants
 import modules.auth.credentials.contracts as credentials_contracts
 import modules.auth.oauth_state.integration_service as oauth_state_integration
 import modules.auth.oauth_state.schema as oauth_state_schema
@@ -78,6 +79,7 @@ def _cap_expiry(expires_at: datetime, created_at: datetime, db: Session) -> date
 def create_session(
     session_id: str,
     user: users_schema.UserRead,
+    client_type: auth_constants.ClientType,
     ip_address: str,
     user_agent: str,
     refresh_token: str | None,
@@ -87,7 +89,10 @@ def create_session(
     oauth_state_id: str | None = None,
     csrf_token: str | None = None,
 ) -> sessions_contracts.SessionRead:
-    """Stage a session with hashed tokens and the client's IP address and user agent; the caller commits."""
+    """Stage a session with hashed tokens, its client type and the client's IP address and user agent.
+
+    The caller commits.
+    """
     device = sessions_utils.parse_user_agent(user_agent)
     csrf_hash = _hash_csrf_token(csrf_token) if csrf_token else None
     now = datetime.now(UTC)
@@ -110,6 +115,7 @@ def create_session(
         rotation_count=0,
         last_rotation_at=None,
         csrf_token_hash=csrf_hash,
+        client_type=client_type,
     )
     session = sessions_crud.create_session(session_data, db)
     logger.info(

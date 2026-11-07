@@ -17,6 +17,7 @@ logger = core_logger.get_logger(__name__)
 
 def create_tokens(
     user: users_schema.UserRead,
+    client_type: auth_constants.ClientType,
     token_manager: access_tokens_integration.TokenManager,
     policy: server_settings_contracts.SessionPolicy,
     session_id: str | None = None,
@@ -25,6 +26,7 @@ def create_tokens(
 
     Args:
         user (users_schema.UserRead): The user object for whom the tokens are being created.
+        client_type: The client type of the session, carried by both tokens as ``client_id``.
         token_manager (access_tokens_integration.TokenManager): The token manager responsible for token creation.
         policy (server_settings_contracts.SessionPolicy): The token lifetimes to apply.
         session_id (str | None, optional): An optional session ID. If not provided, a new unique session ID is generated.
@@ -45,11 +47,11 @@ def create_tokens(
 
     # Create the access, refresh tokens and csrf token
     access_token_exp, access_token = token_manager.create_token(
-        session_id, user, access_tokens_integration.TokenType.ACCESS, policy.access_token_ttl
+        session_id, user, client_type, access_tokens_integration.TokenType.ACCESS, policy.access_token_ttl
     )
 
     refresh_token_exp, refresh_token = token_manager.create_token(
-        session_id, user, access_tokens_integration.TokenType.REFRESH, policy.refresh_token_ttl
+        session_id, user, client_type, access_tokens_integration.TokenType.REFRESH, policy.refresh_token_ttl
     )
 
     csrf_token = token_manager.create_csrf_token()
@@ -66,6 +68,7 @@ def create_tokens(
 
 def mint_access_token(
     user: users_schema.UserRead,
+    client_type: auth_constants.ClientType,
     token_manager: access_tokens_integration.TokenManager,
     session_id: str,
     policy: server_settings_contracts.SessionPolicy,
@@ -78,6 +81,7 @@ def mint_access_token(
 
     Args:
         user: The user the token is issued for.
+        client_type: The client type of the session, carried by the token as ``client_id``.
         token_manager: Token manager responsible for token creation.
         session_id: Existing session identifier to bind the token to.
         policy: The token lifetimes to apply.
@@ -86,7 +90,7 @@ def mint_access_token(
         Tuple of (access_token_exp, access_token).
     """
     return token_manager.create_token(
-        session_id, user, access_tokens_integration.TokenType.ACCESS, policy.access_token_ttl
+        session_id, user, client_type, access_tokens_integration.TokenType.ACCESS, policy.access_token_ttl
     )
 
 

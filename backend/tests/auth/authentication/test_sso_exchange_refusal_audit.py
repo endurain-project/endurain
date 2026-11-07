@@ -18,7 +18,9 @@ def _exchange(db, *, tokens_exchanged=False, pkce_error=None, inactive=False, cl
     oauth_state = SimpleNamespace(
         id="state", purpose="login", code_challenge="c", code_challenge_method="S256", client_type="web", idp_id=3
     )
-    session = SimpleNamespace(user_id=5, tokens_exchanged=tokens_exchanged, expires_at=datetime(2027, 1, 1, tzinfo=UTC))
+    session = SimpleNamespace(
+        user_id=5, tokens_exchanged=tokens_exchanged, expires_at=datetime(2027, 1, 1, tzinfo=UTC), client_type="web"
+    )
     inactive_error = core_exceptions.PermissionDeniedError("Inactive user") if inactive else None
     tokens = ("sid", datetime(2026, 11, 1, tzinfo=UTC), "at", datetime(2026, 12, 1, tzinfo=UTC), "rt", "csrf")
     with (

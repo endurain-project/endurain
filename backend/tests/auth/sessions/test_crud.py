@@ -12,6 +12,7 @@ import core.exceptions as core_exceptions
 import modules.auth.sessions.crud as sessions_crud
 import modules.auth.sessions.models as sessions_models
 import modules.auth.sessions.schema as sessions_schema
+from modules.auth.constants import ClientType
 
 
 def _row(**updates):
@@ -34,6 +35,7 @@ def _row(**updates):
         "rotation_count": 0,
         "last_rotation_at": None,
         "csrf_token_hash": None,
+        "client_type": "web",
     }
     values.update(updates)
     return SimpleNamespace(**values)
@@ -179,12 +181,24 @@ def test_existing_session_ids_names_only_the_sessions_that_still_exist():
                 tokens_exchanged=True,
                 token_family_id=session_id,
                 rotation_count=0,
+                client_type="web",
             )
         )
     db.commit()
 
     assert sessions_crud.get_existing_session_ids(["s1", "gone"], db) == {"s1"}
     assert sessions_crud.get_existing_session_ids([], db) == set()
+    db.close()
+
+
+def test_a_stored_session_reads_back_with_its_client_type():
+    from tests._helpers.db import create_sqlite_session
+
+    db = create_sqlite_session()
+    sessions_crud.create_session(sessions_schema.UserSessionsInternal(**vars(_row(client_type="mobile"))), db)
+    db.commit()
+
+    assert sessions_crud.get_session_by_id("session-id", db).client_type is ClientType.MOBILE
     db.close()
 
 

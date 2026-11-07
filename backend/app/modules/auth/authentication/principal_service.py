@@ -13,9 +13,7 @@ import modules.auth.access_tokens.integration_service as access_tokens_integrati
 import modules.auth.api_keys.integration_service as api_keys_integration
 import modules.auth.authentication.audit_actions as authentication_audit_actions
 import modules.auth.authentication.event_publishers as authentication_event_publishers
-import modules.auth.authentication.token_service as authentication_token_service
 import modules.auth.sessions.integration_service as sessions_integration
-import modules.server_settings.contracts as server_settings_contracts
 import modules.users.users.integration_service as users_integration
 import modules.users.users.schema as users_schema
 from modules.auth.contracts import (
@@ -80,12 +78,12 @@ def resolve_from_access_token(
     """
     token_manager.validate_access_expiration_logged(access_token)
 
-    sub = token_manager.get_token_claim(access_token, "sub")
+    sub = token_manager.get_token_claim(access_token, "sub", access_tokens_integration.TokenType.ACCESS)
     if not isinstance(sub, str) or not sub.isascii() or not sub.isdecimal():
         logger.warning("Access token refused: malformed 'sub' claim")
         raise core_exceptions.InvalidTokenError("Invalid token: 'sub' claim must be a decimal string")
 
-    sid = token_manager.get_token_claim(access_token, "sid")
+    sid = token_manager.get_token_claim(access_token, "sid", access_tokens_integration.TokenType.ACCESS)
     if not isinstance(sid, str):
         logger.warning("Access token refused: malformed 'sid' claim")
         raise core_exceptions.InvalidTokenError("Invalid token: 'sid' claim must be a string")
@@ -131,7 +129,7 @@ def _token_scopes(token_manager: access_tokens_integration.TokenManager, access_
     Raises:
         InvalidTokenError: If the claim is not a string.
     """
-    scope = token_manager.get_token_claim(access_token, "scope")
+    scope = token_manager.get_token_claim(access_token, "scope", access_tokens_integration.TokenType.ACCESS)
     if not isinstance(scope, str):
         logger.warning("Access token refused: malformed 'scope' claim")
         raise core_exceptions.InvalidTokenError("Invalid token: 'scope' claim must be a string")
@@ -268,27 +266,3 @@ def resolve_from_api_key(
             key_prefix=db_key.key_prefix,
         ),
     )
-
-
-def issue_token_pair(
-    user: users_schema.UserRead,
-    policy: server_settings_contracts.SessionPolicy,
-    token_manager: access_tokens_integration.TokenManager,
-    session_id: str | None = None,
-) -> tuple[str, datetime, str, datetime, str, str]:
-    """Issue an access/refresh token pair for a user.
-
-    Args:
-        user: The validated user object.
-        policy: The token lifetimes to apply.
-        session_id: Optional existing session
-            identifier; a new UUID is generated
-            when ``None``.
-        token_manager: Token manager that signs and validates the tokens.
-
-    Returns:
-        tuple: ``(session_id, access_token_exp,
-            access_token, refresh_token_exp,
-            refresh_token, csrf_token)``.
-    """
-    return authentication_token_service.create_tokens(user, token_manager, policy, session_id)

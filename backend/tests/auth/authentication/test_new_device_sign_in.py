@@ -231,7 +231,9 @@ class TestSsoSignIn:
             client_type=client_type,
             idp_id=idp_id,
         )
-        session = SimpleNamespace(user_id=5, tokens_exchanged=False, expires_at=datetime(2027, 1, 1, tzinfo=UTC))
+        session = SimpleNamespace(
+            user_id=5, tokens_exchanged=False, expires_at=datetime(2027, 1, 1, tzinfo=UTC), client_type=client_type
+        )
         with (
             patch(f"{_SERVICE}.sessions_integration.get_session_with_oauth_state", return_value=(session, oauth_state)),
             patch(f"{_SERVICE}.auth_computation.validate_pkce_verifier"),

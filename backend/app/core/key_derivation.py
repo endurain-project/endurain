@@ -18,6 +18,10 @@ import core.config as core_config
 #: Signs and verifies access tokens.
 JWT: Final = "jwt"
 
+#: Signs and verifies refresh tokens. A key of its own, so an access token never verifies where a refresh token is
+#: expected and the reverse, whatever its ``typ`` header says.
+REFRESH_JWT: Final = "refresh-jwt"
+
 #: Keys the digests of refresh tokens and CSRF tokens.
 TOKEN_HMAC: Final = "token-hmac"  # noqa: S105 - purpose name, not a credential
 

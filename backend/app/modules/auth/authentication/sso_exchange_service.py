@@ -196,7 +196,11 @@ def exchange_tokens_for_session(
 
     (_, access_token_exp, access_token, refresh_token_exp, refresh_token, csrf_token) = (
         authentication_token_service.create_tokens(
-            user, token_manager, server_settings_integration.get_session_policy(db), session_id
+            user,
+            session_obj.client_type,
+            token_manager,
+            server_settings_integration.get_session_policy(db),
+            session_id,
         )
     )
 

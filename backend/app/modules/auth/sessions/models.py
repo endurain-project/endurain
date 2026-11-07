@@ -2,10 +2,14 @@
 
 from datetime import datetime
 
-from sqlalchemy import DateTime, ForeignKey, String
+from sqlalchemy import CheckConstraint, DateTime, ForeignKey, String
 from sqlalchemy.orm import Mapped, mapped_column
 
+import modules.auth.constants as auth_constants
 from core.database import Base
+
+#: The values ``client_type`` may hold: one per ``ClientType``.
+_CLIENT_TYPE_VALUES = ", ".join(f"'{client_type.value}'" for client_type in auth_constants.ClientType)
 
 
 class UsersSessions(Base):
@@ -35,9 +39,12 @@ class UsersSessions(Base):
         last_rotation_at: Timestamp of last token rotation.
         csrf_token_hash: Hashed CSRF token for refresh
             validation.
+        client_type: The client the session was created for (``ClientType``); its tokens name it as
+            ``client_id`` and a refresh must declare it.
     """
 
     __tablename__ = "users_sessions"
+    __table_args__ = (CheckConstraint(f"client_type IN ({_CLIENT_TYPE_VALUES})", name="ck_users_sessions_client_type"),)
 
     id: Mapped[str] = mapped_column(
         String(36),
@@ -135,4 +142,9 @@ class UsersSessions(Base):
         String(255),
         nullable=True,
         comment="Hashed CSRF token for refresh validation",
+    )
+    client_type: Mapped[str] = mapped_column(
+        String(10),
+        nullable=False,
+        comment="Client type the session was created for: web or mobile",
     )

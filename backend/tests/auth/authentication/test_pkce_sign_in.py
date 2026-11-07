@@ -9,11 +9,14 @@ from uuid import uuid4
 import pytest
 
 import core.timezone as core_timezone
+import modules.auth.access_tokens.integration_service as access_tokens_integration
 import modules.auth.credentials.integration_service as credentials_integration
 import modules.auth.oauth_state.constants as oauth_state_constants
 import modules.auth.oauth_state.integration_service as oauth_state_integration
 import modules.auth.sessions.integration_service as sessions_integration
 import modules.users.users.integration_service as users_integration
+from modules.auth.access_tokens.contracts import TokenType
+from modules.auth.constants import ClientType
 from tests.auth.authentication.conftest import BACKUP_CODE, MOBILE, PASSWORD, USER_ID, USERNAME, WEB
 
 VERIFIER = "v" * 43
@@ -223,6 +226,7 @@ class TestWebExchange:
             sessions_integration.create_session(
                 session_id,
                 users_integration.require_user(USER_ID, db),
+                ClientType.WEB,
                 "127.0.0.1",
                 "agent",
                 None,
@@ -258,3 +262,35 @@ class TestWebExchange:
 
         assert response.status_code == 400
         assert "set-cookie" not in response.headers
+
+
+class TestClientIdClaim:
+    """Every token names the client type of the session it belongs to."""
+
+    @staticmethod
+    def _client_id(token: str, token_type) -> str:
+        manager = access_tokens_integration.get_token_manager()
+        manager.validate_token_expiration(token, token_type)
+        return manager.get_token_claim(token, "client_id", token_type)
+
+    def test_a_web_password_sign_in_issues_web_tokens(self, plain_signin):
+        response = _login(plain_signin, WEB)
+
+        assert self._client_id(response.json()["access_token"], TokenType.ACCESS) == "web"
+        cookies = (cookie.split(";", 1)[0] for cookie in response.headers.get_list("set-cookie"))
+        refresh_token = next(
+            value
+            for name, value in (c.split("=", 1) for c in cookies)
+            if name.endswith("endurain_refresh_token") and value != '""'
+        )
+        assert self._client_id(refresh_token, TokenType.REFRESH) == "web"
+
+    def test_a_mobile_exchange_issues_mobile_tokens(self, plain_signin):
+        session_id = _login(plain_signin, MOBILE, **PKCE).json()["session_id"]
+
+        body = plain_signin.client.post(
+            f"/auth/sessions/{session_id}/tokens", json={"code_verifier": VERIFIER}, headers=MOBILE
+        ).json()
+
+        assert self._client_id(body["access_token"], TokenType.ACCESS) == "mobile"
+        assert self._client_id(body["refresh_token"], TokenType.REFRESH) == "mobile"

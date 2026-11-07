@@ -16,7 +16,6 @@ from joserfc.errors import (
     InsecureClaimError,
     InvalidClaimError,
     InvalidPayloadError,
-    InvalidTokenError,
     JoseError,
     MissingClaimError,
 )
@@ -37,65 +36,79 @@ TokenType = access_tokens_contracts.TokenType
 
 JWT_ALLOWED_ALGORITHMS: Final[frozenset[str]] = core_jwt_keys.ALLOWED_ALGORITHMS
 JWT_ALGORITHM: Final[str] = core_jwt_keys.ALGORITHM
-JWT_SECRET_KEY: Final[str | None] = core_jwt_keys.SIGNING_KEY
 
-if not JWT_SECRET_KEY:
+if not core_jwt_keys.SIGNING_KEYS or not core_jwt_keys.REFRESH_SIGNING_KEYS:
     raise ValueError("SECRET_KEY environment variable is required")
+
+#: The path of the endpoint that redeems a refresh token; with the server's host it is a refresh token's audience.
+REFRESH_ENDPOINT_PATH: Final[str] = core_config.ROOT_PATH + "/auth/refresh"
+
+#: The claims whose invalid value means a time still in the future, beyond the clock leeway.
+_TIME_CLAIMS_NOT_YET_VALID: Final[frozenset[str]] = frozenset({"nbf", "iat"})
+
+
+def token_audience(token_type: TokenType) -> str:
+    """Return the ``aud`` claim a token of a kind carries, and must carry to verify as that kind.
+
+    An access token is for the API as a resource server, named by the server's host (RFC 9068 section 3). A refresh
+    token is for the endpoint that redeems it, named by that endpoint's URL, so neither kind is accepted where the
+    other is expected (RFC 8725 section 3.9). Logging out, which ends the refresh token's session, accepts it too.
+
+    Args:
+        token_type: The kind of token.
+
+    Returns:
+        The audience URL.
+    """
+    host = core_config.settings.ENDURAIN_HOST
+    return host if token_type is TokenType.ACCESS else host + REFRESH_ENDPOINT_PATH
 
 
 class TokenManager:
-    """TokenManager is a utility class for managing JSON Web Tokens (JWT) in user.
+    """Issues and validates Endurain's access and refresh tokens, and mints CSRF tokens.
 
-    sessions.
-
-    This class provides methods for creating, decoding, validating, and
-    extracting claims from JWTs, as well as generating secure CSRF tokens. It
-    supports configurable encryption algorithms and integrates with application
-    logging and exception handling for robust security and error reporting.
+    Each kind of token is signed with keys of its own and carries its own ``typ`` header and ``aud`` claim, so one
+    kind never verifies as the other. Each kind has a list of keys: the first signs, every one verifies, and a token
+    is verified with the key its ``kid`` header names, so a key can rotate without ending the tokens it signed.
 
     Attributes:
-        algorithm (str): The algorithm used for token operations (default: "HS256").
-            _key: The imported key object used for cryptographic operations.
-
-    Methods:
-        __init__(secret_key: str, algorithm: str = "HS256"):
-        get_token_claim(token: str, claim: str) -> str | list[str] | int:
-        decode_token(token: str) -> dict:
-        validate_token_expiration(token: str, expected_type: TokenType) -> None:
-        create_token(session_id: str, user: users_schema.UserRead, token_type: TokenType, ttl: timedelta) -> tuple[datetime, str]:
-        create_csrf_token() -> str:
-            Generates a secure random CSRF (Cross-Site Request Forgery) token.
-        InvalidTokenError: Raised for invalid, expired, or missing claims in JWT tokens.
-        ValueError: Raised for missing or invalid parameters during token creation.
+        algorithm: The one signing algorithm tokens are issued and accepted with.
     """
 
-    def __init__(self, secret_key: str, algorithm: str = "HS256", *, previous_keys: Sequence[str] = ()):
-        """Initializes the TokenManager with the provided secret key and algorithm.
+    def __init__(self, access_keys: Sequence[str], refresh_keys: Sequence[str], algorithm: str = "HS256"):
+        """Initializes the TokenManager with the keys of each kind of token and the algorithm.
 
         Args:
-            secret_key (str): The secret key that signs new tokens.
-            algorithm (str, optional): The algorithm to use for token
-                operations. Defaults to "HS256". Must be a member of
-                :data:`modules.auth.constants.JWT_ALLOWED_ALGORITHMS` so that the
-                allow-list passed to ``jwt.decode`` cannot drift from the
+            access_keys: The access-token keys; the first signs, every one verifies.
+            refresh_keys: The refresh-token keys; the first signs, every one verifies.
+            algorithm: The algorithm to use for token operations. Must be a member of
+                :data:`JWT_ALLOWED_ALGORITHMS` so that the allow-list passed to ``jwt.decode`` cannot drift from the
                 signing algorithm.
-            previous_keys: Keys that no longer sign but still verify, so tokens issued before a key rotation stay
-                valid until they expire. A token is verified with the key its ``kid`` header names.
 
+        Raises:
+            ValueError: If the algorithm is not allowed or a kind of token has no key.
         """
         if algorithm not in JWT_ALLOWED_ALGORITHMS:
             raise ValueError(f"algorithm={algorithm!r} is not in the JWT allow-list {sorted(JWT_ALLOWED_ALGORITHMS)}.")
-        self.secret_key = secret_key
+        if not access_keys or not refresh_keys:
+            raise ValueError("A token manager needs at least one access-token key and one refresh-token key.")
         self.algorithm = algorithm
-        self._key = core_jwt_keys.import_key(secret_key)
-        self._keys = core_jwt_keys.key_set([secret_key, *previous_keys])
+        self._signing_keys = {
+            TokenType.ACCESS: core_jwt_keys.import_key(access_keys[0]),
+            TokenType.REFRESH: core_jwt_keys.import_key(refresh_keys[0]),
+        }
+        self._verification_keys = {
+            TokenType.ACCESS: core_jwt_keys.key_set(access_keys),
+            TokenType.REFRESH: core_jwt_keys.key_set(refresh_keys),
+        }
 
-    def get_token_claim(self, token: str, claim: str) -> str | list[str] | int:
+    def get_token_claim(self, token: str, claim: str, token_type: TokenType) -> str | list[str] | int:
         """Retrieves a specific claim from a decoded JWT token.
 
         Args:
             token (str): The JWT token string to decode.
             claim (str): The name of the claim to retrieve from the token.
+            token_type: The kind of token, which decides the keys its signature is checked with.
 
         Returns:
             str | list[str] | int: The value of the requested claim, which can
@@ -107,7 +120,7 @@ class TokenManager:
         """
         try:
             # Decode the token
-            payload = self.decode_token(token)
+            payload = self.decode_token(token, token_type)
 
             # Get the claim from the payload and return it
             return payload.claims[claim]
@@ -128,11 +141,12 @@ class TokenManager:
             )
             raise core_exceptions.InvalidTokenError("Unable to retrieve claim") from err
 
-    def decode_token(self, token: str) -> Token:
+    def decode_token(self, token: str, token_type: TokenType) -> Token:
         """Decodes a JWT token and returns the parsed Token object.
 
         Args:
             token (str): The JWT token to decode.
+            token_type: The kind of token; its signature is checked only with the keys of that kind.
 
         Returns:
             joserfc.jwt.Token: The decoded token (use ``.claims`` to access
@@ -144,7 +158,7 @@ class TokenManager:
         """
         try:
             # The shared decoder pins the one allowed algorithm; see ``core.jwt_keys.decode``.
-            return core_jwt_keys.decode(token, self._keys, self.algorithm)
+            return core_jwt_keys.decode(token, self._verification_keys[token_type], self.algorithm)
         except InvalidPayloadError as payload_err:
             logger.warning(
                 "Invalid token payload",
@@ -173,10 +187,11 @@ class TokenManager:
     ) -> None:
         """Validates expiration, required claims, and type of a JWT.
 
-        Checks that the token contains all essential claims, is not expired or
-        used before its valid time, and that the ``typ`` header matches the
-        expected token type. This prevents refresh tokens from being used as
-        access tokens and vice versa.
+        Checks that the token is signed with a key of the expected kind, contains all essential claims, names the
+        audience of that kind and a known client, is not expired or used before its valid time, and that the ``typ``
+        header matches the expected token type. This prevents refresh tokens from being used as access tokens and
+        vice versa. Times are judged with :data:`core.jwt_keys.CLOCK_LEEWAY_SECONDS` of leeway, so a replica whose
+        clock is slightly ahead or behind the one that issued the token still accepts it.
 
         Args:
             token: The JWT token to validate.
@@ -191,17 +206,22 @@ class TokenManager:
         try:
             # Define required claims
             claims_requests = jwt.JWTClaimsRegistry(
+                leeway=core_jwt_keys.CLOCK_LEEWAY_SECONDS,
                 sid={"essential": True},
                 iss={
                     "essential": True,
-                    "value": f"{core_config.settings.ENDURAIN_HOST}",
+                    "value": core_config.settings.ENDURAIN_HOST,
                 },
                 aud={
                     "essential": True,
-                    "value": f"{core_config.settings.ENDURAIN_HOST}",
+                    "value": token_audience(expected_type),
                 },
                 sub={"essential": True},
                 scope={"essential": True},
+                client_id={
+                    "essential": True,
+                    "values": [client_type.value for client_type in auth_constants.ClientType],
+                },
                 iat={"essential": True},
                 nbf={"essential": True},
                 exp={"essential": True},
@@ -209,7 +229,7 @@ class TokenManager:
             )
 
             # Decode the token to get the payload
-            payload = self.decode_token(token)
+            payload = self.decode_token(token, expected_type)
 
             # The JOSE ``typ`` header names the kind of token (RFC 8725 section 3.11).
             if payload.header.get("typ") != expected_type.header_type:
@@ -229,12 +249,6 @@ class TokenManager:
             raise core_exceptions.InvalidTokenError("Token is missing required claims.") from missing_err
         except ExpiredTokenError as expired_err:
             raise core_exceptions.InvalidTokenError("Token is expired.") from expired_err
-        except InvalidTokenError as invalid_err:
-            logger.warning(
-                "JWT is not valid yet",
-                extra=core_logger.context(credential="token"),
-            )
-            raise core_exceptions.InvalidTokenError("Token is not valid yet.") from invalid_err
         except InsecureClaimError as insecure_err:
             logger.warning(
                 "JWT contains an insecure claim",
@@ -242,9 +256,16 @@ class TokenManager:
             )
             raise core_exceptions.InvalidTokenError("Token has insecure claims.") from insecure_err
         except InvalidClaimError as claims_err:
+            # joserfc raises the same error for a time in the future and for a wrong value; the claim tells them apart.
+            if claims_err.claim in _TIME_CLAIMS_NOT_YET_VALID:
+                logger.warning(
+                    "JWT is not valid yet",
+                    extra=core_logger.context(credential="token"),
+                )
+                raise core_exceptions.InvalidTokenError("Token is not valid yet.") from claims_err
             logger.warning(
-                "JWT claim validation failed",
-                extra=core_logger.context(credential="token"),
+                "JWT claim <claim> failed validation",
+                extra=core_logger.context(credential="token", claim=claims_err.claim),
             )
             raise core_exceptions.InvalidTokenError("Token has invalid claims.") from claims_err
         except core_exceptions.UnauthenticatedError:
@@ -288,17 +309,21 @@ class TokenManager:
         self,
         session_id: str,
         user: users_schema.UserRead,
+        client_type: auth_constants.ClientType,
         token_type: TokenType,
         ttl: timedelta,
     ) -> tuple[datetime, str]:
-        """Creates a JWT token for a user session with appropriate access scope.
+        """Creates a JWT token for a user session with appropriate access scope and expiration.
 
-        and expiration.
+        The token is signed with the key of its kind and names its kind's audience. Its ``client_id`` claim is the
+        client type of the session (RFC 9068 section 2.2), and ``nbf`` equals ``iat``: a replica whose clock is
+        behind the issuer's still accepts it within the clock leeway.
 
         Args:
             session_id (str): The unique identifier for the session.
             user (users_schema.UserRead): The user object containing user
                 details.
+            client_type: The client type the session was created for.
             token_type (TokenType): The type of token to create (access or
                 refresh).
             ttl (timedelta): How long the token lives, from the session policy.
@@ -320,8 +345,9 @@ class TokenManager:
         scope_dict = {
             "sid": session_id,
             "iss": core_config.settings.ENDURAIN_HOST,
-            "aud": core_config.settings.ENDURAIN_HOST,
+            "aud": token_audience(token_type),
             "sub": str(user.id),
+            "client_id": client_type.value,
             "scope": " ".join(scope),
             "iat": now,
             "nbf": now,
@@ -329,10 +355,11 @@ class TokenManager:
             "jti": str(uuid.uuid4()),
         }
 
+        signing_key = self._signing_keys[token_type]
         encoded_token = jwt.encode(
-            {"alg": self.algorithm, "typ": token_type.header_type, "kid": core_jwt_keys.key_id(self.secret_key)},
+            {"alg": self.algorithm, "typ": token_type.header_type, "kid": signing_key.kid},
             scope_dict.copy(),
-            self._key,
+            signing_key,
         )
 
         # Return the expiration and the encoded token
@@ -376,11 +403,4 @@ def get_token_manager() -> TokenManager:
     return token_manager
 
 
-# Validate required configuration before creating token manager
-if JWT_SECRET_KEY is None:
-    raise ValueError("JWT_SECRET_KEY must be set in environment variables")
-
-if JWT_ALGORITHM is None:
-    raise ValueError("JWT_ALGORITHM must be set in environment variables")
-
-token_manager = TokenManager(JWT_SECRET_KEY, JWT_ALGORITHM, previous_keys=core_jwt_keys.SIGNING_KEYS[1:])
+token_manager = TokenManager(core_jwt_keys.SIGNING_KEYS, core_jwt_keys.REFRESH_SIGNING_KEYS, JWT_ALGORITHM)

@@ -234,7 +234,7 @@ def complete_login(
         refresh_token,
         csrf_token,
     ) = authentication_token_service.create_tokens(
-        user, token_manager, server_settings_integration.get_session_policy(db)
+        user, auth_constants.ClientType.WEB, token_manager, server_settings_integration.get_session_policy(db)
     )
 
     # The CSRF token is not stored on the initial login (csrf_token_hash = None). The first /refresh call after a
@@ -242,6 +242,7 @@ def complete_login(
     session = sessions_integration.create_session(
         session_id,
         user,
+        auth_constants.ClientType.WEB,
         ip_address,
         user_agent,
         refresh_token,
@@ -317,6 +318,7 @@ def create_mobile_pkce_session_response(
     sessions_integration.create_session(
         session_id,
         user,
+        auth_constants.ClientType.MOBILE,
         ip_address,
         user_agent,
         None,

@@ -73,6 +73,7 @@ def _session(key: str, at: datetime, *, column: str) -> Any:
         browser_version="1",
         created_at=at,
         token_family_id=key,
+        client_type="web",
         **times,
     )
 

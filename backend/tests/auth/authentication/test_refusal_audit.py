@@ -109,6 +109,7 @@ def _session(**overrides):
         "refresh_token": "hash",
         "csrf_token_hash": None,
         "rotation_count": 0,
+        "client_type": auth_constants.ClientType.WEB,
     }
     return SimpleNamespace(**{**values, **overrides})
 
@@ -160,6 +161,13 @@ class TestRefreshRefusal:
             _refresh(mock_db, session=_session(user_id=9))
 
         self._assert_refused(audit, "failure", "session_owner_mismatch")
+
+    def test_a_session_of_another_client_type_is_a_failure(self, mock_db):
+        """A web request cannot refresh a mobile session, nor the reverse."""
+        with jasil_testing.capture_audit() as audit, pytest.raises(core_exceptions.InvalidTokenError):
+            _refresh(mock_db, session=_session(client_type=auth_constants.ClientType.MOBILE))
+
+        self._assert_refused(audit, "failure", "client_type_mismatch")
 
     def test_a_timed_out_session_is_a_failure(self, mock_db):
         with (

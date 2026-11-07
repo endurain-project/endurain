@@ -8,6 +8,7 @@ import pytest
 import core.exceptions as core_exceptions
 import modules.auth.authentication.principal_service as principal_service
 import modules.auth.constants as auth_constants
+from modules.auth.access_tokens.contracts import TokenType
 
 _MODULE = "modules.auth.authentication.principal_service"
 
@@ -15,7 +16,12 @@ _MODULE = "modules.auth.authentication.principal_service"
 def _token_manager(scope=None):
     claims = {"sub": "1", "sid": "session-1", "scope": scope or " ".join(auth_constants.ADMIN_ACCESS_SCOPE)}
     manager = MagicMock()
-    manager.get_token_claim.side_effect = lambda _token, name: claims[name]
+
+    def claim(_token, name, token_type):
+        assert token_type is TokenType.ACCESS
+        return claims[name]
+
+    manager.get_token_claim.side_effect = claim
     return manager
 
 

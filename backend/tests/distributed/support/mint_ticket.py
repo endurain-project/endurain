@@ -68,6 +68,7 @@ with SessionLocal() as db:
             tokens_exchanged=True,
             token_family_id=session_id,
             rotation_count=0,
+            client_type="web",
         )
     )
     db.commit()

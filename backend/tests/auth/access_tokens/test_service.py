@@ -4,13 +4,14 @@ from unittest.mock import MagicMock, patch
 import pytest
 from joserfc.errors import (
     InsecureClaimError,
+    InvalidClaimError,
     InvalidPayloadError,
-    InvalidTokenError,
     MissingClaimError,
 )
 
 import core.exceptions as core_exceptions
 import modules.auth.access_tokens.service as auth_token_manager
+from modules.auth.constants import ClientType
 from modules.users.users.schema import UserAccessType, UserRead
 
 
@@ -42,11 +43,11 @@ class TestTokenManagerSecurity:
         """
         session_id = "test-session-123"
         _, token = token_manager.create_token(
-            session_id, sample_user_read, auth_token_manager.TokenType.ACCESS, timedelta(minutes=15)
+            session_id, sample_user_read, ClientType.WEB, auth_token_manager.TokenType.ACCESS, timedelta(minutes=15)
         )
 
-        sub_claim = token_manager.get_token_claim(token, "sub")
-        sid_claim = token_manager.get_token_claim(token, "sid")
+        sub_claim = token_manager.get_token_claim(token, "sub", auth_token_manager.TokenType.ACCESS)
+        sid_claim = token_manager.get_token_claim(token, "sid", auth_token_manager.TokenType.ACCESS)
 
         assert sub_claim == str(sample_user_read.id), "sub claim should match user ID as a decimal string"
         assert sid_claim == session_id, "sid claim should match session ID"
@@ -58,11 +59,11 @@ class TestTokenManagerSecurity:
         """
         session_id = "test-session-id"
         _, token = token_manager.create_token(
-            session_id, sample_user_read, auth_token_manager.TokenType.ACCESS, timedelta(minutes=15)
+            session_id, sample_user_read, ClientType.WEB, auth_token_manager.TokenType.ACCESS, timedelta(minutes=15)
         )
 
         with pytest.raises(core_exceptions.UnauthenticatedError) as exc_info:
-            token_manager.get_token_claim(token, "nonexistent_claim")
+            token_manager.get_token_claim(token, "nonexistent_claim", auth_token_manager.TokenType.ACCESS)
         assert exc_info.value.status_code == 401
         assert "missing" in exc_info.value.detail.lower()
 
@@ -82,10 +83,10 @@ class TestTokenManagerSecurity:
         """
         session_id = "test-session-id"
         _, token = token_manager.create_token(
-            session_id, sample_user_read, auth_token_manager.TokenType.ACCESS, timedelta(minutes=15)
+            session_id, sample_user_read, ClientType.WEB, auth_token_manager.TokenType.ACCESS, timedelta(minutes=15)
         )
 
-        payload = token_manager.decode_token(token)
+        payload = token_manager.decode_token(token, auth_token_manager.TokenType.ACCESS)
         assert payload is not None, "Decoded payload should not be None"
         assert hasattr(payload, "claims"), "Payload should have claims attribute"
         assert payload.claims is not None, "Claims should not be None"
@@ -111,10 +112,10 @@ class TestTokenManagerSecurity:
         """
         session_id = "test-session-id"
         _, token = token_manager.create_token(
-            session_id, sample_user_read, auth_token_manager.TokenType.ACCESS, timedelta(minutes=15)
+            session_id, sample_user_read, ClientType.WEB, auth_token_manager.TokenType.ACCESS, timedelta(minutes=15)
         )
 
-        payload = token_manager.decode_token(token)
+        payload = token_manager.decode_token(token, auth_token_manager.TokenType.ACCESS)
         claims = payload.claims
 
         assert "sub" in claims, "Token should have 'sub' claim (user_id)"
@@ -143,7 +144,7 @@ class TestTokenManagerSecurity:
 
         for invalid_token in invalid_tokens:
             with pytest.raises(core_exceptions.UnauthenticatedError) as exc_info:
-                token_manager.decode_token(invalid_token)
+                token_manager.decode_token(invalid_token, auth_token_manager.TokenType.ACCESS)
             assert exc_info.value.status_code == 401
 
     def test_decode_token_with_wrong_secret(self, sample_user_read):
@@ -153,15 +154,21 @@ class TestTokenManagerSecurity:
         This test creates a token using one instance of TokenManager with a specific secret key, then attempts to decode the token using another TokenManager instance with a different secret key. It asserts that an core_exceptions.UnauthenticatedError with status code 401 is raised, indicating unauthorized access due to the wrong secret.
         """
         # Create token with one manager
-        manager1 = auth_token_manager.TokenManager(secret_key="secret-key-one-min-32-characters-long")
+        manager1 = auth_token_manager.TokenManager(
+            access_keys=["secret-key-one-min-32-characters-long"],
+            refresh_keys=["refresh-secret-key-one-min-32-characters-long"],
+        )
         _, token = manager1.create_token(
-            "session-id", sample_user_read, auth_token_manager.TokenType.ACCESS, timedelta(minutes=15)
+            "session-id", sample_user_read, ClientType.WEB, auth_token_manager.TokenType.ACCESS, timedelta(minutes=15)
         )
 
         # Try to decode with different manager
-        manager2 = auth_token_manager.TokenManager(secret_key="secret-key-two-min-32-characters-long")
+        manager2 = auth_token_manager.TokenManager(
+            access_keys=["secret-key-two-min-32-characters-long"],
+            refresh_keys=["refresh-secret-key-two-min-32-characters-long"],
+        )
         with pytest.raises(core_exceptions.UnauthenticatedError) as exc_info:
-            manager2.decode_token(token)
+            manager2.decode_token(token, auth_token_manager.TokenType.ACCESS)
         assert exc_info.value.status_code == 401
 
     def test_validate_token_expiration_with_valid_token(self, token_manager, sample_user_read):
@@ -174,7 +181,7 @@ class TestTokenManagerSecurity:
         """
         session_id = "test-session-id"
         _, token = token_manager.create_token(
-            session_id, sample_user_read, auth_token_manager.TokenType.ACCESS, timedelta(minutes=15)
+            session_id, sample_user_read, ClientType.WEB, auth_token_manager.TokenType.ACCESS, timedelta(minutes=15)
         )
 
         # Should not raise an exception
@@ -219,7 +226,7 @@ class TestTokenManagerSecurity:
         """
         session_id = "test-session-id"
         exp_time, token = token_manager.create_token(
-            session_id, sample_user_read, auth_token_manager.TokenType.ACCESS, timedelta(minutes=15)
+            session_id, sample_user_read, ClientType.WEB, auth_token_manager.TokenType.ACCESS, timedelta(minutes=15)
         )
 
         assert token is not None, "Token should not be None"
@@ -248,7 +255,7 @@ class TestTokenManagerSecurity:
         """
         session_id = "test-session-id"
         exp_time, token = token_manager.create_token(
-            session_id, sample_user_read, auth_token_manager.TokenType.REFRESH, timedelta(days=7)
+            session_id, sample_user_read, ClientType.WEB, auth_token_manager.TokenType.REFRESH, timedelta(days=7)
         )
 
         assert token is not None, "Token should not be None"
@@ -266,10 +273,10 @@ class TestTokenManagerSecurity:
         """
         session_id = "test-session-id"
         access_exp, _ = token_manager.create_token(
-            session_id, sample_user_read, auth_token_manager.TokenType.ACCESS, timedelta(minutes=15)
+            session_id, sample_user_read, ClientType.WEB, auth_token_manager.TokenType.ACCESS, timedelta(minutes=15)
         )
         refresh_exp, _ = token_manager.create_token(
-            session_id, sample_user_read, auth_token_manager.TokenType.REFRESH, timedelta(days=7)
+            session_id, sample_user_read, ClientType.WEB, auth_token_manager.TokenType.REFRESH, timedelta(days=7)
         )
 
         assert access_exp < refresh_exp, "Access token should expire before refresh token"
@@ -278,11 +285,13 @@ class TestTokenManagerSecurity:
         """The expiry and the exp claim both come from the ttl argument, not from configuration."""
         before = datetime.now(UTC)
         exp_time, token = token_manager.create_token(
-            "session-id", sample_user_read, auth_token_manager.TokenType.ACCESS, timedelta(minutes=45)
+            "session-id", sample_user_read, ClientType.WEB, auth_token_manager.TokenType.ACCESS, timedelta(minutes=45)
         )
 
         assert timedelta(minutes=44, seconds=59) < exp_time - before < timedelta(minutes=45, seconds=1)
-        assert token_manager.get_token_claim(token, "exp") == int(exp_time.timestamp())
+        assert token_manager.get_token_claim(token, "exp", auth_token_manager.TokenType.ACCESS) == int(
+            exp_time.timestamp()
+        )
 
     def test_create_csrf_token_generates_unique_tokens(self, token_manager):
         """
@@ -331,10 +340,10 @@ class TestTokenManagerSecurity:
         """
         session_id = "test-session-id"
         _, token1 = token_manager.create_token(
-            session_id, sample_user_read, auth_token_manager.TokenType.ACCESS, timedelta(minutes=15)
+            session_id, sample_user_read, ClientType.WEB, auth_token_manager.TokenType.ACCESS, timedelta(minutes=15)
         )
         _, token2 = token_manager.create_token(
-            session_id, sample_user_read, auth_token_manager.TokenType.ACCESS, timedelta(minutes=15)
+            session_id, sample_user_read, ClientType.WEB, auth_token_manager.TokenType.ACCESS, timedelta(minutes=15)
         )
 
         assert token1 != token2, "Tokens should be unique even for the same user"
@@ -357,14 +366,14 @@ class TestTokenManagerSecurity:
         """
         session_id = "test-session-id"
         _, token = token_manager.create_token(
-            session_id, sample_user_read, auth_token_manager.TokenType.ACCESS, timedelta(minutes=15)
+            session_id, sample_user_read, ClientType.WEB, auth_token_manager.TokenType.ACCESS, timedelta(minutes=15)
         )
 
         # Tamper with the token
         tampered_token = token[:-5] + "XXXXX"
 
         with pytest.raises(core_exceptions.UnauthenticatedError) as exc_info:
-            token_manager.decode_token(tampered_token)
+            token_manager.decode_token(tampered_token, auth_token_manager.TokenType.ACCESS)
         assert exc_info.value.status_code == 401
 
     def test_empty_token_handling(self, token_manager):
@@ -373,7 +382,7 @@ class TestTokenManagerSecurity:
         when attempting to decode an empty token string.
         """
         with pytest.raises(core_exceptions.UnauthenticatedError) as exc_info:
-            token_manager.decode_token("")
+            token_manager.decode_token("", auth_token_manager.TokenType.ACCESS)
         assert exc_info.value.status_code == 401
 
     def test_none_token_handling(self, token_manager):
@@ -382,7 +391,7 @@ class TestTokenManagerSecurity:
         (core_exceptions.UnauthenticatedError, AttributeError, or TypeError) when called with a None token.
         """
         with pytest.raises((core_exceptions.UnauthenticatedError, AttributeError, TypeError)):
-            token_manager.decode_token(None)
+            token_manager.decode_token(None, auth_token_manager.TokenType.ACCESS)
 
     def test_token_algorithm_is_secure(self, token_manager):
         """
@@ -410,10 +419,10 @@ class TestTokenManagerSecurity:
             The tokens generated for different session IDs are not equal.
         """
         _, token1 = token_manager.create_token(
-            "session-id-1", sample_user_read, auth_token_manager.TokenType.ACCESS, timedelta(minutes=15)
+            "session-id-1", sample_user_read, ClientType.WEB, auth_token_manager.TokenType.ACCESS, timedelta(minutes=15)
         )
         _, token2 = token_manager.create_token(
-            "session-id-2", sample_user_read, auth_token_manager.TokenType.ACCESS, timedelta(minutes=15)
+            "session-id-2", sample_user_read, ClientType.WEB, auth_token_manager.TokenType.ACCESS, timedelta(minutes=15)
         )
 
         assert token1 != token2, "Different session IDs should produce different tokens"
@@ -427,7 +436,7 @@ class TestTokenManagerSecurity:
         """
         session_id = "test-session-id"
         exp_time, _ = token_manager.create_token(
-            session_id, sample_user_read, auth_token_manager.TokenType.ACCESS, timedelta(minutes=15)
+            session_id, sample_user_read, ClientType.WEB, auth_token_manager.TokenType.ACCESS, timedelta(minutes=15)
         )
 
         assert exp_time.tzinfo == UTC, "Expiration time should be in UTC timezone"
@@ -438,13 +447,13 @@ class TestTokenManagerSecurity:
         """
         # Create a token
         _, token = token_manager.create_token(
-            "session-id", sample_user_read, auth_token_manager.TokenType.ACCESS, timedelta(minutes=15)
+            "session-id", sample_user_read, ClientType.WEB, auth_token_manager.TokenType.ACCESS, timedelta(minutes=15)
         )
 
         # Mock decode_token to raise a generic exception
         with patch.object(token_manager, "decode_token", side_effect=RuntimeError("Test error")):
             with pytest.raises(core_exceptions.UnauthenticatedError) as exc_info:
-                token_manager.get_token_claim(token, "sub")
+                token_manager.get_token_claim(token, "sub", auth_token_manager.TokenType.ACCESS)
             assert exc_info.value.status_code == 401
             assert "Unable to retrieve claim" in exc_info.value.detail
 
@@ -456,7 +465,7 @@ class TestTokenManagerSecurity:
         invalid_token = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.e30.invalid"
 
         with pytest.raises(core_exceptions.UnauthenticatedError) as exc_info:
-            token_manager.decode_token(invalid_token)
+            token_manager.decode_token(invalid_token, auth_token_manager.TokenType.ACCESS)
         assert exc_info.value.status_code == 401
 
     def test_validate_token_expiration_insecure_claim(self, token_manager, sample_user_read):
@@ -464,7 +473,7 @@ class TestTokenManagerSecurity:
         Test InsecureClaimError handling in validate_token_expiration.
         """
         _, token = token_manager.create_token(
-            "session-id", sample_user_read, auth_token_manager.TokenType.ACCESS, timedelta(minutes=15)
+            "session-id", sample_user_read, ClientType.WEB, auth_token_manager.TokenType.ACCESS, timedelta(minutes=15)
         )
 
         # Mock the validation to raise InsecureClaimError
@@ -484,7 +493,7 @@ class TestTokenManagerSecurity:
         Test generic exception handling in validate_token_expiration.
         """
         _, token = token_manager.create_token(
-            "session-id", sample_user_read, auth_token_manager.TokenType.ACCESS, timedelta(minutes=15)
+            "session-id", sample_user_read, ClientType.WEB, auth_token_manager.TokenType.ACCESS, timedelta(minutes=15)
         )
 
         with patch.object(token_manager, "decode_token", side_effect=RuntimeError("Test error")):
@@ -498,7 +507,7 @@ class TestTokenManagerSecurity:
         Test MissingClaimError handling in validate_token_expiration.
         """
         _, token = token_manager.create_token(
-            "session-id", sample_user_read, auth_token_manager.TokenType.ACCESS, timedelta(minutes=15)
+            "session-id", sample_user_read, ClientType.WEB, auth_token_manager.TokenType.ACCESS, timedelta(minutes=15)
         )
 
         # Mock to raise MissingClaimError
@@ -512,28 +521,30 @@ class TestTokenManagerSecurity:
             assert exc_info.value.status_code == 401
             assert "missing required claims" in exc_info.value.detail
 
-    def test_validate_token_expiration_invalid_token_error(self, token_manager, sample_user_read):
-        """
-        Test InvalidTokenError handling in validate_token_expiration.
-
-        Note: InvalidClaimError is a subclass of InvalidTokenError,
-        so this test also covers the InvalidClaimError path since
-        both raise the same core_exceptions.UnauthenticatedError for "not valid yet".
-        """
+    @pytest.mark.parametrize(
+        ("error", "detail"),
+        [
+            (InvalidClaimError("nbf", "The token is not yet valid"), "not valid yet"),
+            (InvalidClaimError("iat", "The token was issued in the future"), "not valid yet"),
+            (InvalidClaimError("aud"), "invalid claims"),
+            (InvalidClaimError("client_id"), "invalid claims"),
+        ],
+    )
+    def test_validate_token_expiration_invalid_claim_error(self, token_manager, sample_user_read, error, detail):
+        """A not-before or issued-at in the future reads as not valid yet; any other invalid claim as invalid claims."""
         _, token = token_manager.create_token(
-            "session-id", sample_user_read, auth_token_manager.TokenType.ACCESS, timedelta(minutes=15)
+            "session-id", sample_user_read, ClientType.WEB, auth_token_manager.TokenType.ACCESS, timedelta(minutes=15)
         )
 
-        # Mock to raise InvalidTokenError
         with patch("modules.auth.access_tokens.service.jwt.JWTClaimsRegistry") as mock_registry:
             mock_instance = MagicMock()
-            mock_instance.validate.side_effect = InvalidTokenError("not valid yet")
+            mock_instance.validate.side_effect = error
             mock_registry.return_value = mock_instance
 
             with pytest.raises(core_exceptions.UnauthenticatedError) as exc_info:
                 token_manager.validate_token_expiration(token, auth_token_manager.TokenType.ACCESS)
             assert exc_info.value.status_code == 401
-            assert "not valid yet" in exc_info.value.detail
+            assert detail in exc_info.value.detail
 
     def test_decode_token_invalid_payload_error_mocked(self, token_manager):
         """
@@ -545,7 +556,7 @@ class TestTokenManagerSecurity:
             side_effect=InvalidPayloadError("Invalid payload"),
         ):
             with pytest.raises(core_exceptions.UnauthenticatedError) as exc_info:
-                token_manager.decode_token("invalid_token")
+                token_manager.decode_token("invalid_token", auth_token_manager.TokenType.ACCESS)
             assert exc_info.value.status_code == 401
             assert "Invalid token payload" in exc_info.value.detail
 
@@ -558,7 +569,7 @@ class TestTokenManagerSecurity:
             side_effect=RuntimeError("Unexpected error"),
         ):
             with pytest.raises(core_exceptions.UnauthenticatedError) as exc_info:
-                token_manager.decode_token("invalid_token")
+                token_manager.decode_token("invalid_token", auth_token_manager.TokenType.ACCESS)
             assert exc_info.value.status_code == 401
             assert "Unable to decode token" in exc_info.value.detail
 
@@ -577,10 +588,10 @@ class TestTokenManagerSecurity:
         )
 
         _, token = token_manager.create_token(
-            "session-id", regular_user, auth_token_manager.TokenType.ACCESS, timedelta(minutes=15)
+            "session-id", regular_user, ClientType.WEB, auth_token_manager.TokenType.ACCESS, timedelta(minutes=15)
         )
 
-        scope = token_manager.get_token_claim(token, "scope")
+        scope = token_manager.get_token_claim(token, "scope", auth_token_manager.TokenType.ACCESS)
 
         # RFC 9068 section 2.2.3: a space-delimited string.
         assert isinstance(scope, str)

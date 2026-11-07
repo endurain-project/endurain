@@ -98,7 +98,7 @@ def _replay_rotation(
 
     # Mint a fresh, stateless access token (safe to re-issue every retry).
     replay_access_token_exp, replay_access_token = authentication_token_service.mint_access_token(
-        replay_user, token_manager, session.id, policy
+        replay_user, session.client_type, token_manager, session.id, policy
     )
 
     # Web clients lost their CSRF token along with the rotation response, so
@@ -166,8 +166,8 @@ def refresh_token(
         for web clients, the refresh cookie.
 
     Raises:
-        InvalidTokenError: If the session is gone or expired, the refresh token is invalid or reused, or the
-            user is missing or inactive.
+        InvalidTokenError: If the session is gone or expired, belongs to another kind of client, the refresh token is
+            invalid or reused, or the user is missing or inactive.
         PermissionDeniedError: If the CSRF token is invalid (when provided).
     """
     # Get the session from the database
@@ -198,6 +198,23 @@ def refresh_token(
             token_user_id,
             jasil_audit.Outcome.FAILURE,
             authentication_audit_actions.RefreshRefusalReason.SESSION_OWNER_MISMATCH,
+        )
+        raise core_exceptions.InvalidTokenError("Invalid refresh token")
+
+    # A session is refreshed only by the kind of client it was created for: a web session's refresh token lives in an
+    # HttpOnly cookie, so presenting it as a mobile client (in the Authorization header) means it left the browser.
+    if client_type != session.client_type:
+        logger.warning(
+            "Token refresh refused: session of user <token_user_id> belongs to a <session_client_type> client, "
+            "the request declared <client_type>",
+            extra=core_logger.context(
+                token_user_id=token_user_id, session_client_type=session.client_type, client_type=client_type
+            ),
+        )
+        authentication_refusal_audit.record_refresh_refusal(
+            token_user_id,
+            jasil_audit.Outcome.FAILURE,
+            authentication_audit_actions.RefreshRefusalReason.CLIENT_TYPE_MISMATCH,
         )
         raise core_exceptions.InvalidTokenError("Invalid refresh token")
 
@@ -322,7 +339,7 @@ def refresh_token(
         new_refresh_token_exp,
         new_refresh_token,
         new_csrf_token,
-    ) = authentication_token_service.create_tokens(user, token_manager, policy, session.id)
+    ) = authentication_token_service.create_tokens(user, session.client_type, token_manager, policy, session.id)
 
     # Store the rotated (old) refresh token together with the encrypted
     # replacement so a retry within the grace window can replay it.

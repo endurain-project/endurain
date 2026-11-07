@@ -60,6 +60,8 @@ When authenticating via OAuth, the response format matches the standard authenti
 - **Web clients**: Redirected to the frontend with a `session_id`; the frontend exchanges the session and receives the access token + CSRF token in the response body, while the refresh token is set as an httpOnly cookie
 - **Mobile clients**: Redirected or deep-linked with a `session_id`; the app exchanges the session and receives access + refresh tokens in the response body
 
+The session belongs to the client type recorded when the sign-in started. Its tokens carry it as `client_id`, and `/auth/refresh` refuses a refresh that declares a different `X-Client-Type` (see [Token Refresh Flow](authentication.md#token-refresh-flow)).
+
 !!! info "Mobile OAuth/SSO"
   OAuth/SSO login requires PKCE for all clients. Mobile apps must use the system browser (`ASWebAuthenticationSession` or Custom Tabs), never an embedded WebView, so provider credentials stay outside the app process.
 

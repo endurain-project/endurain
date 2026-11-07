@@ -7,6 +7,7 @@ from typing import Protocol
 
 from pydantic import BaseModel, ConfigDict
 
+import modules.auth.constants as auth_constants
 import modules.auth.schema as auth_schema
 
 
@@ -70,6 +71,7 @@ class SessionRead(BaseModel):
     rotation_count: int
     last_rotation_at: datetime | None
     csrf_token_hash: str | None
+    client_type: auth_constants.ClientType
 
 
 class DeviceType(Enum):

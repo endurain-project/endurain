@@ -12,6 +12,7 @@ import core.exceptions as core_exceptions
 import core.hashing as core_hashing
 import modules.auth.identity_providers.callback_service as callback_service
 import modules.auth.oauth_state.constants as oauth_state_constants
+from modules.auth.constants import ClientType
 
 _LOGIN = oauth_state_constants.OAuthStatePurpose.LOGIN
 _LINK = oauth_state_constants.OAuthStatePurpose.LINK
@@ -323,7 +324,7 @@ class TestHandleCallback:
         service._tokens.store_session_tokens.assert_not_called()
 
 
-_STATE = SimpleNamespace(id="state-id", expires_at=datetime(2026, 11, 6, 12, 10, tzinfo=UTC))
+_STATE = SimpleNamespace(id="state-id", expires_at=datetime(2026, 11, 6, 12, 10, tzinfo=UTC), client_type="mobile")
 
 
 class TestCreateCallbackSession:
@@ -349,11 +350,11 @@ class TestCreateCallbackSession:
     def test_the_session_expires_when_the_exchange_window_does(self, service):
         _, create_session, _ = self._create(service)
 
-        assert create_session.call_args.args[6] == _STATE.expires_at
+        assert create_session.call_args.args[7] == _STATE.expires_at
         assert create_session.call_args.kwargs["oauth_state_id"] == "state-id"
 
     def test_an_exchange_window_without_a_timezone_is_read_as_utc(self, service):
-        naive = SimpleNamespace(id="state-id", expires_at=datetime(2026, 11, 6, 12, 0))
+        naive = SimpleNamespace(id="state-id", expires_at=datetime(2026, 11, 6, 12, 0), client_type="web")
         user = SimpleNamespace(id=7)
         with (
             patch.object(callback_service.users_integration, "require_active_user"),
@@ -362,7 +363,21 @@ class TestCreateCallbackSession:
         ):
             service.create_callback_session(user, "10.0.0.1", "agent", MagicMock(), naive, 3, {}, MagicMock())
 
-        assert create_session.call_args.args[6] == datetime(2026, 11, 6, 12, 0, tzinfo=UTC)
+        assert create_session.call_args.args[7] == datetime(2026, 11, 6, 12, 0, tzinfo=UTC)
+
+    @pytest.mark.parametrize("client_type", list(ClientType))
+    def test_the_session_is_for_the_client_type_the_sign_in_started_with(self, service, client_type):
+        state = SimpleNamespace(id="state-id", expires_at=_STATE.expires_at, client_type=client_type.value)
+        with (
+            patch.object(callback_service.users_integration, "require_active_user"),
+            patch.object(callback_service.users_schema.UserRead, "model_validate", return_value=SimpleNamespace(id=7)),
+            patch.object(callback_service.sessions_integration, "create_session") as create_session,
+        ):
+            service.create_callback_session(
+                SimpleNamespace(id=7), "10.0.0.1", "agent", MagicMock(), state, 3, {}, MagicMock()
+            )
+
+        assert create_session.call_args.args[2] is client_type
 
     def test_the_sign_in_is_stored_for_the_new_session_before_the_commit(self, service):
         session_id, create_session, order = self._create(service)

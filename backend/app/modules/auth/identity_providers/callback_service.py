@@ -17,6 +17,7 @@ import core.exceptions as core_exceptions
 import core.hashing as core_hashing
 import core.logger as core_logger
 import core.timezone as core_timezone
+import modules.auth.constants as auth_constants
 import modules.auth.credentials.integration_service as credentials_integration
 import modules.auth.identity_provider_links.integration_service as identity_provider_links_integration
 import modules.auth.identity_providers.audit_actions as idp_audit_actions
@@ -803,7 +804,8 @@ class CallbackService:
     ) -> str:
         """Create the token-exchange session for a successful SSO login, with the provider tokens it signed in with.
 
-        The session and the provider's sign-in are committed together. Until the token exchange claims the session
+        The session is for the client type the OAuth state recorded when the sign-in started. The session and the
+        provider's sign-in are committed together. Until the token exchange claims the session
         it expires with the OAuth state, which is also when the exchange stops being possible; the exchange then
         gives it its real expiry.
 
@@ -835,6 +837,7 @@ class CallbackService:
         sessions_integration.create_session(
             session_id,
             user_read,
+            auth_constants.ClientType(oauth_state.client_type),
             ip_address,
             user_agent,
             None,

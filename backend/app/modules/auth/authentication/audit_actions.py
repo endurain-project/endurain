@@ -26,6 +26,7 @@ class RefreshRefusalReason(StrEnum):
 
     SESSION_NOT_FOUND = "session_not_found"
     SESSION_OWNER_MISMATCH = "session_owner_mismatch"
+    CLIENT_TYPE_MISMATCH = "client_type_mismatch"
     SESSION_EXPIRED = "session_expired"
     INVALID_CSRF_TOKEN = "invalid_csrf_token"
     TOKENS_NOT_EXCHANGED = "tokens_not_exchanged"

@@ -33,9 +33,12 @@ class TestDeriveKey:
 
     def test_differs_per_purpose_and_from_the_secret(self):
         with patch("core.key_derivation.core_config.read_secret", return_value=_SECRET):
-            keys = {core_key_derivation.derive_key(p) for p in ("jwt", "token-hmac", "email-token", "capability-urls")}
+            keys = {
+                core_key_derivation.derive_key(p)
+                for p in ("jwt", "refresh-jwt", "token-hmac", "email-token", "capability-urls")
+            }
 
-        assert len(keys) == 4
+        assert len(keys) == 5
         assert _SECRET not in keys
 
     def test_is_long_enough_to_key_an_hmac(self):
@@ -98,11 +101,15 @@ class TestPurposesAreIsolated:
     """No two users of ``SECRET_KEY`` hold the same key."""
 
     def test_jwt_signing_key_is_not_the_secret(self):
-        assert core_config.read_secret("SECRET_KEY") != core_jwt_keys.SIGNING_KEY
+        assert core_config.read_secret("SECRET_KEY") != core_jwt_keys.SIGNING_KEYS[0]
+
+    def test_refresh_tokens_are_not_signed_with_the_access_token_key(self):
+        assert core_key_derivation.REFRESH_JWT == "refresh-jwt"
+        assert core_jwt_keys.REFRESH_SIGNING_KEYS[0] != core_jwt_keys.SIGNING_KEYS[0]
 
     def test_token_hmac_does_not_use_the_jwt_key(self):
         assert access_tokens_integration.hmac_sha256("v") != auth_computation.hmac_sha256(
-            "v", core_jwt_keys.SIGNING_KEY
+            "v", core_jwt_keys.SIGNING_KEYS[0]
         )
 
     def test_the_email_token_key_is_not_the_token_digest_key(self):

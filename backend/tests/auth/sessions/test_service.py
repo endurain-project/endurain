@@ -11,6 +11,7 @@ import core.pagination as core_pagination
 import modules.auth.schema as auth_schema
 import modules.auth.sessions.contracts as sessions_contracts
 import modules.auth.sessions.service as sessions_service
+from modules.auth.constants import ClientType
 
 _STEP_UP = auth_schema.StepUpVerification(current_password="admin-password")
 _FIREFOX_UA = "Mozilla/5.0 (X11; Linux x86_64; rv:120.0) Gecko/20100101 Firefox/120.0"
@@ -36,6 +37,7 @@ def _session(**updates):
         "rotation_count": 0,
         "last_rotation_at": None,
         "csrf_token_hash": None,
+        "client_type": "web",
     }
     data.update(updates)
     return sessions_contracts.SessionRead(**data)
@@ -52,6 +54,7 @@ def test_create_session_hashes_secrets_and_stages(mock_db):
         result = sessions_service.create_session(
             "session-id",
             user,
+            ClientType.MOBILE,
             "127.0.0.1",
             _FIREFOX_UA,
             "plain-refresh",
@@ -65,6 +68,7 @@ def test_create_session_hashes_secrets_and_stages(mock_db):
     assert create.call_args.args[0].ip_address == "127.0.0.1"
     assert create.call_args.args[0].browser == "Firefox"
     assert create.call_args.args[0].device_type == "PC"
+    assert create.call_args.args[0].client_type == ClientType.MOBILE
     mock_db.commit.assert_not_called()
 
 
@@ -182,6 +186,7 @@ def test_a_session_created_with_a_refresh_token_needs_no_exchange(refresh_token,
         sessions_service.create_session(
             "session-id",
             SimpleNamespace(id=7),
+            ClientType.WEB,
             "127.0.0.1",
             "agent",
             refresh_token,
@@ -313,6 +318,7 @@ def test_create_session_caps_expiry_at_the_absolute_timeout(mock_db):
         sessions_service.create_session(
             "session-id",
             SimpleNamespace(id=7),
+            ClientType.WEB,
             "127.0.0.1",
             _FIREFOX_UA,
             "r",
@@ -331,7 +337,15 @@ def test_create_session_keeps_an_earlier_expiry(mock_db):
         patch("modules.auth.sessions.service.sessions_crud.create_session", return_value=_session()) as create,
     ):
         sessions_service.create_session(
-            "session-id", SimpleNamespace(id=7), "127.0.0.1", _FIREFOX_UA, "r", _hasher(), requested, mock_db
+            "session-id",
+            SimpleNamespace(id=7),
+            ClientType.WEB,
+            "127.0.0.1",
+            _FIREFOX_UA,
+            "r",
+            _hasher(),
+            requested,
+            mock_db,
         )
     assert create.call_args.args[0].expires_at == requested
 

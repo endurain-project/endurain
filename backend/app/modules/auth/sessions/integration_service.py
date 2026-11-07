@@ -6,6 +6,7 @@ from datetime import datetime
 from sqlalchemy.orm import Session
 
 import core.pagination as core_pagination
+import modules.auth.constants as auth_constants
 import modules.auth.credentials.contracts as credentials_contracts
 import modules.auth.oauth_state.schema as oauth_state_schema
 import modules.auth.sessions.contracts as sessions_contracts
@@ -52,6 +53,7 @@ def get_session_with_oauth_state(
 def create_session(
     session_id: str,
     user: users_schema.UserRead,
+    client_type: auth_constants.ClientType,
     ip_address: str,
     user_agent: str,
     refresh_token: str | None,
@@ -65,6 +67,7 @@ def create_session(
     return sessions_service.create_session(
         session_id,
         user,
+        client_type,
         ip_address,
         user_agent,
         refresh_token,

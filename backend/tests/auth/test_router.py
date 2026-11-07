@@ -939,6 +939,7 @@ class TestRefreshEndpoint:
         mock_session.expires_at = datetime.now(UTC) + timedelta(days=30)
         mock_session.id = "sid-1"
         mock_session.user_id = 1
+        mock_session.client_type = "web"
         mock_session.refresh_token = password_hasher.hash_password("mock_refresh_token")
         mock_session.csrf_token_hash = None
         mock_session.token_family_id = "fam-1"
@@ -1032,6 +1033,38 @@ class TestRefreshEndpoint:
         # The owner check must short-circuit before session-timeout validation.
         mock_validate_timeout.assert_not_called()
 
+    @patch("modules.auth.authentication.service.sessions_integration.validate_session_timeout")
+    @patch("modules.auth.authentication.service.sessions_integration.get_session_by_id_not_expired")
+    def test_refresh_of_a_session_of_another_client_type_returns_401_and_clears_the_cookie(
+        self,
+        mock_get_session,
+        mock_validate_timeout,
+        auth_client,
+        auth_app,
+    ):
+        """A web request presenting a mobile session's refresh token is refused like any invalid token."""
+        mock_session = MagicMock()
+        mock_session.expires_at = datetime.now(UTC) + timedelta(days=30)
+        mock_session.id = "sid-1"
+        mock_session.user_id = 1
+        mock_session.client_type = "mobile"
+        mock_get_session.return_value = mock_session
+
+        app = auth_app
+        app.dependency_overrides[authentication_dependencies.validate_refresh_token] = lambda: None
+        app.dependency_overrides[authentication_dependencies.get_sub_from_refresh_token] = lambda: 1
+        app.dependency_overrides[authentication_dependencies.get_sid_from_refresh_token] = lambda: "sid-1"
+        app.dependency_overrides[authentication_dependencies.get_and_return_refresh_token] = lambda: "rt"
+        app.dependency_overrides[authentication_dependencies.get_csrf_token] = lambda: None
+
+        response = auth_client.post("/auth/refresh")
+
+        assert response.status_code == 401
+        assert response.json()["detail"] == "Invalid refresh token"
+        assert response.json()["type"] == "urn:endurain:error:invalid-token"
+        assert any("endurain_refresh_token=" in cookie for cookie in response.headers.get_list("set-cookie"))
+        mock_validate_timeout.assert_not_called()
+
     @patch("modules.auth.authentication.service.sessions_integration.invalidate_token_family")
     @patch("modules.auth.authentication.refresh_service.rotated_refresh_tokens_integration.check_token_reuse")
     @patch("modules.auth.authentication.service.sessions_integration.validate_session_timeout")
@@ -1050,6 +1083,7 @@ class TestRefreshEndpoint:
         mock_session.expires_at = datetime.now(UTC) + timedelta(days=30)
         mock_session.id = "sid-1"
         mock_session.user_id = 1
+        mock_session.client_type = "web"
         mock_session.refresh_token = "hashed-rt"
         mock_session.csrf_token_hash = None
         mock_session.token_family_id = "fam-1"
@@ -1132,6 +1166,7 @@ class TestRefreshEndpoint:
         mock_session.expires_at = datetime.now(UTC) + timedelta(days=30)
         mock_session.id = "sid-csrf-1"
         mock_session.user_id = 1
+        mock_session.client_type = "web"
         mock_session.refresh_token = password_hasher.hash_password("mock_rt")
         mock_session.csrf_token_hash = "stored-hmac"
         mock_session.token_family_id = "fam-1"
@@ -1202,6 +1237,7 @@ class TestRefreshEndpoint:
         mock_session.expires_at = datetime.now(UTC) + timedelta(days=30)
         mock_session.id = "sid-bad-csrf"
         mock_session.user_id = 1
+        mock_session.client_type = "web"
         mock_session.refresh_token = "some-hashed-token"
         mock_session.csrf_token_hash = "stored-hmac"
         mock_get_session.return_value = mock_session
@@ -1279,6 +1315,7 @@ class TestRefreshEndpoint:
         mock_session.expires_at = datetime.now(UTC) + timedelta(days=30)
         mock_session.id = "sid-reload"
         mock_session.user_id = 1
+        mock_session.client_type = "web"
         mock_session.refresh_token = password_hasher.hash_password("mock_rt")
         mock_session.csrf_token_hash = "stored-hmac"
         mock_session.token_family_id = "fam-1"
@@ -1373,6 +1410,7 @@ class TestRefreshEndpoint:
         mock_session.expires_at = datetime.now(UTC) + timedelta(days=30)
         mock_session.id = "sid-mob-csrf"
         mock_session.user_id = 1
+        mock_session.client_type = "mobile"
         mock_session.refresh_token = password_hasher.hash_password("mock_rt")
         mock_session.csrf_token_hash = "stored-hmac"
         mock_session.token_family_id = "fam-1"
@@ -1435,6 +1473,7 @@ class TestRefreshEndpoint:
         mock_session.expires_at = datetime.now(UTC) + timedelta(days=30)
         mock_session.id = "sid-pkce"
         mock_session.user_id = 1
+        mock_session.client_type = "web"
         mock_session.refresh_token = None
         mock_session.csrf_token_hash = None
         mock_get_session.return_value = mock_session
@@ -1491,6 +1530,7 @@ class TestRefreshEndpoint:
         mock_session.expires_at = datetime.now(UTC) + timedelta(days=30)
         mock_session.id = "sid-bad-rt"
         mock_session.user_id = 1
+        mock_session.client_type = "web"
         mock_session.refresh_token = password_hasher.hash_password("real_token")
         mock_session.csrf_token_hash = None
         mock_session.token_family_id = "fam-1"
@@ -1558,6 +1598,7 @@ class TestRefreshEndpoint:
         mock_session.expires_at = datetime.now(UTC) + timedelta(days=30)
         mock_session.id = "sid-no-user"
         mock_session.user_id = 1
+        mock_session.client_type = "web"
         mock_session.refresh_token = password_hasher.hash_password("mock_rt")
         mock_session.csrf_token_hash = None
         mock_session.token_family_id = "fam-1"
@@ -1637,6 +1678,7 @@ class TestRefreshEndpoint:
         mock_session.expires_at = datetime.now(UTC) + timedelta(days=30)
         mock_session.id = "sid-mob"
         mock_session.user_id = 1
+        mock_session.client_type = "mobile"
         mock_session.refresh_token = password_hasher.hash_password("mock_rt")
         mock_session.csrf_token_hash = None
         mock_session.token_family_id = "fam-1"
@@ -1707,6 +1749,7 @@ class TestRefreshEndpoint:
         mock_session.expires_at = datetime.now(UTC) + timedelta(days=30)
         mock_session.id = "sid-replay-mob"
         mock_session.user_id = 1
+        mock_session.client_type = "mobile"
         mock_session.refresh_token = password_hasher.hash_password("current_rt")
         mock_session.csrf_token_hash = None
         mock_session.token_family_id = "fam-1"
@@ -1774,6 +1817,7 @@ class TestRefreshEndpoint:
         mock_session.expires_at = datetime.now(UTC) + timedelta(days=30)
         mock_session.id = "sid-race"
         mock_session.user_id = 1
+        mock_session.client_type = "mobile"
         mock_session.refresh_token = password_hasher.hash_password("old_rt")
         mock_session.csrf_token_hash = None
         mock_session.token_family_id = "fam-1"
@@ -1841,6 +1885,7 @@ class TestRefreshEndpoint:
         mock_session.expires_at = datetime.now(UTC) + timedelta(days=30)
         mock_session.id = "sid-replay-web"
         mock_session.user_id = 1
+        mock_session.client_type = "web"
         mock_session.refresh_token = password_hasher.hash_password("current_rt")
         mock_session.csrf_token_hash = "stored-hmac"
         mock_session.token_family_id = "fam-1"
@@ -1901,6 +1946,7 @@ class TestRefreshEndpoint:
         mock_session.expires_at = datetime.now(UTC) + timedelta(days=30)
         mock_session.id = "sid-replay-none"
         mock_session.user_id = 1
+        mock_session.client_type = "web"
         mock_session.refresh_token = password_hasher.hash_password("current_rt")
         mock_session.csrf_token_hash = None
         mock_session.token_family_id = "fam-1"

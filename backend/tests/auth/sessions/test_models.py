@@ -1,3 +1,5 @@
+from sqlalchemy import CheckConstraint
+
 import modules.auth.sessions.models as users_session_models
 
 
@@ -156,3 +158,16 @@ class TestUsersSessionsModel:
         # Assert
         assert column.default is not None
         assert column.default.arg == 0
+
+    def test_the_client_type_is_required_and_limited_to_the_client_types(self):
+        """A session records the client it was created for, one of ``ClientType``."""
+        column = users_session_models.UsersSessions.client_type
+        checks = {
+            constraint.name: str(constraint.sqltext)
+            for constraint in users_session_models.UsersSessions.__table__.constraints
+            if isinstance(constraint, CheckConstraint)
+        }
+
+        assert column.nullable is False
+        assert column.type.length == 10
+        assert checks["ck_users_sessions_client_type"] == "client_type IN ('web', 'mobile')"

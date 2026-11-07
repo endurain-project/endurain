@@ -97,12 +97,13 @@ _REDIS_SCHEMES = frozenset({"redis", "rediss", "unix"})
 
 
 #: Expiry a token must carry to name a bucket, next to the ``at+jwt`` header type; a refresh or expired token
-#: would let one client mint buckets from tokens it can no longer use.
-_ACCESS_TOKEN_CLAIMS = jwt.JWTClaimsRegistry(exp={"essential": True})
+#: would let one client mint buckets from tokens it can no longer use. The expiry is judged with the clock leeway
+#: authentication uses, so a token keeps its user's bucket for exactly as long as it authenticates.
+_ACCESS_TOKEN_CLAIMS = jwt.JWTClaimsRegistry(leeway=core_jwt_keys.CLOCK_LEEWAY_SECONDS, exp={"essential": True})
 
 
 def _jwt_verification_key() -> OctKey | KeySet | None:
-    """Return the keys used to check Bearer token signatures, or None if unset."""
+    """Return the keys used to check Bearer token signatures, or None if unset: access-token keys only."""
     return core_jwt_keys.verification_keys()
 
 

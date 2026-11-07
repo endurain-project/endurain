@@ -1,11 +1,12 @@
-"""The JWT signing algorithm, secrets and signature check shared by everything that reads an access token.
+"""The JWT signing algorithm, keys, clock leeway and signature check shared by everything that reads Endurain's tokens.
 
-The authentication module issues and validates access tokens; the rate limiter reads one before
-authentication runs to name a per-user bucket. Both take the algorithm allow-list, the keys and the
-signature check from here, so they cannot drift apart. Each keeps its own claims rules.
+The authentication module issues and validates access and refresh tokens; the rate limiter reads an access token
+before authentication runs to name a per-user bucket. Both take the algorithm allow-list, the keys, the leeway and
+the signature check from here, so they cannot drift apart. Each keeps its own claims rules.
 
-``SECRET_KEY`` may list several secrets, so there are several keys: the first signs and every one verifies.
-Each token names the key that signed it in its ``kid`` header, and the key is picked by that id.
+Access and refresh tokens are signed with keys derived for different purposes, so one kind never verifies as the
+other. ``SECRET_KEY`` may list several secrets, so each kind has several keys: the first signs and every one
+verifies. Each token names the key that signed it in its ``kid`` header, and the key is picked by that id.
 """
 
 import functools
@@ -30,10 +31,18 @@ ACCESS_JWT_TYP: Final[str] = "at+jwt"
 #: The JOSE ``typ`` of a refresh token, so a refresh token cannot pass as an access token and the reverse.
 REFRESH_JWT_TYP: Final[str] = "rt+jwt"
 
-#: The derived keys in ``SECRET_KEY`` order; the first signs, every one verifies. Empty when no secret is set.
+#: Seconds of clock difference forgiven when ``iat``, ``nbf`` and ``exp`` are checked (RFC 7519 sections 4.1.4 and
+#: 4.1.5 allow "some small leeway"). Replicas sign and verify with their own clocks: a token minted by a replica whose
+#: clock runs ahead carries an ``iat`` and ``nbf`` that another replica sees in the future, and without a leeway it is
+#: refused the moment it is issued. A minute covers the drift of hosts kept in time by NTP with a wide margin, as the
+#: leeway for identity-provider ID tokens does. It lengthens no session: an access token is honoured only while its
+#: session is alive and a refresh token only against its session row, whose expiry is checked without a leeway.
+CLOCK_LEEWAY_SECONDS: Final[int] = 60
+
+#: The access-token keys in ``SECRET_KEY`` order; the first signs, every one verifies. Empty when no secret is set.
 SIGNING_KEYS: Final[tuple[str, ...]] = core_key_derivation.derive_keys(core_key_derivation.JWT)
-#: The key that signs, or ``None`` when no secret is set.
-SIGNING_KEY: Final[str | None] = SIGNING_KEYS[0] if SIGNING_KEYS else None
+#: The refresh-token keys in ``SECRET_KEY`` order; the first signs, every one verifies. Empty when no secret is set.
+REFRESH_SIGNING_KEYS: Final[tuple[str, ...]] = core_key_derivation.derive_keys(core_key_derivation.REFRESH_JWT)
 
 
 def key_id(key: str) -> str:
@@ -76,7 +85,7 @@ def key_set(keys: Sequence[str]) -> KeySet:
 
 @functools.cache
 def verification_keys() -> KeySet | None:
-    """Return the keys that verify tokens, or ``None`` when no secret is set."""
+    """Return the keys that verify access tokens, or ``None`` when no secret is set."""
     return key_set(SIGNING_KEYS) if SIGNING_KEYS else None
 
 

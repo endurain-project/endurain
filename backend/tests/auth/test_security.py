@@ -6,8 +6,10 @@ from unittest.mock import MagicMock
 import pytest
 
 import core.exceptions as core_exceptions
+import core.jwt_keys as core_jwt_keys
 import modules.auth.access_tokens.service as access_tokens_service
 import modules.auth.authentication.dependencies as authentication_dependencies
+from modules.auth.constants import ClientType
 
 
 def test_get_token_selects_access_header_and_client_refresh_source():
@@ -33,14 +35,14 @@ def test_get_token_rejects_missing_access_token():
 
 def test_access_expiration_accepts_valid_token(token_manager, sample_user_read):
     _, access_token = token_manager.create_token(
-        "session-id", sample_user_read, access_tokens_service.TokenType.ACCESS, timedelta(minutes=15)
+        "session-id", sample_user_read, ClientType.WEB, access_tokens_service.TokenType.ACCESS, timedelta(minutes=15)
     )
     token_manager.validate_access_expiration_logged(access_token)
 
 
 def test_refresh_claims_are_extracted(token_manager, sample_user_read):
     _, refresh_token = token_manager.create_token(
-        "session-id", sample_user_read, access_tokens_service.TokenType.REFRESH, timedelta(days=1)
+        "session-id", sample_user_read, ClientType.WEB, access_tokens_service.TokenType.REFRESH, timedelta(days=1)
     )
     assert authentication_dependencies.get_sub_from_refresh_token(refresh_token, token_manager) == sample_user_read.id
     assert authentication_dependencies.get_sid_from_refresh_token(refresh_token, token_manager) == "session-id"
@@ -49,7 +51,7 @@ def test_refresh_claims_are_extracted(token_manager, sample_user_read):
 def test_refresh_expiry_is_the_tokens_own_exp_claim(token_manager, sample_user_read):
     """The rotated record is kept until this instant, so it has to be the token's, not the policy's."""
     exp, refresh_token = token_manager.create_token(
-        "session-id", sample_user_read, access_tokens_service.TokenType.REFRESH, timedelta(days=30)
+        "session-id", sample_user_read, ClientType.WEB, access_tokens_service.TokenType.REFRESH, timedelta(days=30)
     )
     assert authentication_dependencies.get_exp_from_refresh_token(refresh_token, token_manager) == exp.replace(
         microsecond=0
@@ -65,17 +67,29 @@ def test_refresh_expiry_must_be_an_integer_claim():
 
 def test_validate_refresh_token_accepts_a_valid_token(token_manager, sample_user_read):
     _, refresh_token = token_manager.create_token(
-        "session-id", sample_user_read, access_tokens_service.TokenType.REFRESH, timedelta(days=1)
+        "session-id", sample_user_read, ClientType.WEB, access_tokens_service.TokenType.REFRESH, timedelta(days=1)
     )
     authentication_dependencies.validate_refresh_token(refresh_token, token_manager)
 
 
 def test_validate_refresh_token_clears_the_cookie_of_an_expired_token(token_manager, sample_user_read):
     _, refresh_token = token_manager.create_token(
-        "session-id", sample_user_read, access_tokens_service.TokenType.REFRESH, timedelta(seconds=-60)
+        "session-id",
+        sample_user_read,
+        ClientType.WEB,
+        access_tokens_service.TokenType.REFRESH,
+        timedelta(seconds=-core_jwt_keys.CLOCK_LEEWAY_SECONDS - 60),
     )
     with pytest.raises(authentication_dependencies.ClearRefreshTokenCookieError):
         authentication_dependencies.validate_refresh_token(refresh_token, token_manager)
+
+
+def test_validate_refresh_token_clears_the_cookie_of_an_access_token(token_manager, sample_user_read):
+    _, access_token = token_manager.create_token(
+        "session-id", sample_user_read, ClientType.WEB, access_tokens_service.TokenType.ACCESS, timedelta(days=1)
+    )
+    with pytest.raises(authentication_dependencies.ClearRefreshTokenCookieError):
+        authentication_dependencies.validate_refresh_token(access_token, token_manager)
 
 
 def test_get_and_return_refresh_token_preserves_value():

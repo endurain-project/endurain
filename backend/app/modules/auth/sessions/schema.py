@@ -12,6 +12,7 @@ from pydantic import (
 )
 
 import core.pagination as core_pagination
+import modules.auth.constants as auth_constants
 
 
 class UserSessionsBase(BaseModel):
@@ -78,6 +79,7 @@ class UserSessionsInternal(UserSessionsBase):
         last_rotation_at: Timestamp of last token rotation.
         csrf_token_hash: Hashed CSRF token for refresh
             validation.
+        client_type: The client the session was created for.
     """
 
     user_id: StrictInt = Field(..., ge=1, description="User ID that owns this session")
@@ -106,6 +108,7 @@ class UserSessionsInternal(UserSessionsBase):
         max_length=255,
         description="Hashed CSRF token for refresh validation",
     )
+    client_type: auth_constants.ClientType = Field(..., description="Client type the session was created for")
 
     model_config = ConfigDict(
         from_attributes=True,

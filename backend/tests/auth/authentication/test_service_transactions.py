@@ -26,13 +26,17 @@ def _session(**overrides):
         "csrf_token_hash": None,
         "rotation_count": 0,
         "id": "sid",
+        "client_type": "web",
     }
     return SimpleNamespace(**{**values, **overrides})
 
 
 def test_a_reused_refresh_token_keeps_the_family_invalidated_although_the_request_is_refused(mock_db):
     with (
-        patch(f"{_SERVICE}.sessions_integration.get_session_by_id_not_expired", return_value=_session()),
+        patch(
+            f"{_SERVICE}.sessions_integration.get_session_by_id_not_expired",
+            return_value=_session(client_type="mobile"),
+        ),
         patch(f"{_SERVICE}.server_settings_integration.get_session_policy"),
         patch(f"{_SERVICE}.sessions_integration.validate_session_timeout"),
         patch(
@@ -56,7 +60,10 @@ def test_a_rotation_records_the_presented_tokens_own_expiry(mock_db):
     hasher.verify_password.return_value = True
     tokens = ("sid", datetime(2026, 11, 1, tzinfo=UTC), "at", datetime(2026, 12, 1, tzinfo=UTC), "rt", "csrf")
     with (
-        patch(f"{_SERVICE}.sessions_integration.get_session_by_id_not_expired", return_value=_session()),
+        patch(
+            f"{_SERVICE}.sessions_integration.get_session_by_id_not_expired",
+            return_value=_session(client_type="mobile"),
+        ),
         patch(f"{_SERVICE}.server_settings_integration.get_session_policy"),
         patch(f"{_SERVICE}.sessions_integration.validate_session_timeout"),
         patch(
@@ -65,7 +72,7 @@ def test_a_rotation_records_the_presented_tokens_own_expiry(mock_db):
         ),
         patch(f"{_SERVICE}.users_integration.get_user", return_value=SimpleNamespace(id=1, active=True)),
         patch(f"{_SERVICE}.users_integration.require_active_user"),
-        patch("modules.auth.authentication.token_service.create_tokens", return_value=tokens),
+        patch("modules.auth.authentication.token_service.create_tokens", return_value=tokens) as create_tokens,
         patch(
             "modules.auth.authentication.refresh_service.rotated_refresh_tokens_integration.store_rotated_token"
         ) as store,
@@ -80,6 +87,8 @@ def test_a_rotation_records_the_presented_tokens_own_expiry(mock_db):
         )
 
     assert store.call_args.kwargs["refresh_token_exp"] == _OLD_EXP
+    # The new tokens name the session's client type.
+    assert create_tokens.call_args.args[1] == "mobile"
 
 
 def test_a_rotation_reports_the_sessions_capped_expiry_for_the_body_and_the_cookie(mock_db):

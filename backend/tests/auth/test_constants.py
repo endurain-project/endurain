@@ -1,5 +1,6 @@
 """Tests for auth.constants module."""
 
+import core.jwt_keys as core_jwt_keys
 import modules.auth.access_tokens.service as access_tokens_service
 import modules.auth.constants as auth_constants
 
@@ -14,10 +15,10 @@ class TestJWTConstants:
         assert access_tokens_service.JWT_ALGORITHM in ["HS256", "HS384", "HS512"]
 
     def test_secret_key_is_set(self):
-        """Test that SECRET_KEY is configured."""
-        assert access_tokens_service.JWT_SECRET_KEY is not None
-        assert isinstance(access_tokens_service.JWT_SECRET_KEY, str)
-        assert len(access_tokens_service.JWT_SECRET_KEY) >= 32
+        """Test that SECRET_KEY is configured, so access and refresh tokens each have a signing key."""
+        assert core_jwt_keys.SIGNING_KEYS
+        assert core_jwt_keys.REFRESH_SIGNING_KEYS
+        assert all(len(key) >= 32 for key in (*core_jwt_keys.SIGNING_KEYS, *core_jwt_keys.REFRESH_SIGNING_KEYS))
 
 
 class TestScopeConstants:
@@ -173,5 +174,5 @@ class TestScopeConstants:
         actually execute it since constants are already initialized.
         """
         # Verify constants are set correctly
-        assert access_tokens_service.JWT_SECRET_KEY is not None
-        assert len(access_tokens_service.JWT_SECRET_KEY) >= 32
+        assert core_jwt_keys.SIGNING_KEYS
+        assert len(core_jwt_keys.SIGNING_KEYS[0]) >= 32

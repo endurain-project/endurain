@@ -14,6 +14,7 @@ import modules.auth.authentication.schema as auth_schema
 import modules.auth.authentication.service as auth_utils
 import modules.auth.authentication.token_service as auth_utils_token_service
 import modules.auth.computation as auth_computation
+from modules.auth.constants import ClientType
 
 
 @pytest.fixture(autouse=True)
@@ -140,7 +141,7 @@ class TestCreateTokens:
             refresh_token_exp,
             refresh_token,
             csrf_token,
-        ) = auth_utils_token_service.create_tokens(sample_user_read, token_manager, session_policy)
+        ) = auth_utils_token_service.create_tokens(sample_user_read, ClientType.WEB, token_manager, session_policy)
 
         # Assert
         assert session_id is not None
@@ -180,7 +181,9 @@ class TestCreateTokens:
             _,
             _,
             _,
-        ) = auth_utils_token_service.create_tokens(sample_user_read, token_manager, session_policy, custom_session_id)
+        ) = auth_utils_token_service.create_tokens(
+            sample_user_read, ClientType.WEB, token_manager, session_policy, custom_session_id
+        )
 
         # Assert
         assert session_id == custom_session_id
@@ -195,7 +198,7 @@ class TestCreateTokens:
             refresh_token_exp,
             _,
             _,
-        ) = auth_utils_token_service.create_tokens(sample_user_read, token_manager, session_policy)
+        ) = auth_utils_token_service.create_tokens(sample_user_read, ClientType.WEB, token_manager, session_policy)
 
         # Assert
         assert refresh_token_exp > access_token_exp
@@ -204,10 +207,10 @@ class TestCreateTokens:
         """Test that multiple calls generate unique tokens."""
         # Act
         (_, _, access_token1, _, refresh_token1, csrf_token1) = auth_utils_token_service.create_tokens(
-            sample_user_read, token_manager, session_policy
+            sample_user_read, ClientType.WEB, token_manager, session_policy
         )
         (_, _, access_token2, _, refresh_token2, csrf_token2) = auth_utils_token_service.create_tokens(
-            sample_user_read, token_manager, session_policy
+            sample_user_read, ClientType.WEB, token_manager, session_policy
         )
 
         # Assert
@@ -298,9 +301,11 @@ class TestCompleteLogin:
         assert call_args[0][0] == result["session_id"]
         # Verify user was passed
         assert call_args[0][1] == sample_user_read
+        # A password sign-in that answers tokens is a web client's
+        assert call_args[0][2] == ClientType.WEB
         # Verify the client address and user agent were passed
-        assert call_args[0][2] == "127.0.0.1"
-        assert call_args[0][3] == "pytest-agent"
+        assert call_args[0][3] == "127.0.0.1"
+        assert call_args[0][4] == "pytest-agent"
 
     def test_complete_login_uses_the_policy_lifetimes_for_tokens_cookie_and_session(
         self, password_hasher, token_manager, mock_db, sample_user_read, mock_request, session_policy
@@ -328,7 +333,7 @@ class TestCompleteLogin:
 
         assert result["expires_in"] == pytest.approx(300, abs=2)
         assert result["refresh_token_expires_in"] == pytest.approx(3 * 86400, abs=2)
-        session_expiry = mock_create_session.call_args.args[6]
+        session_expiry = mock_create_session.call_args.args[7]
         assert session_expiry - datetime.now(UTC) == pytest.approx(timedelta(days=3), abs=timedelta(seconds=2))
         cookie = _set_cookie_headers(response)[-1].lower()
         assert f"{session_expiry:%d %b %Y}".lower() in cookie
@@ -608,7 +613,7 @@ class TestCreateMobilePkceSessionResponse:
             patch(
                 "modules.auth.authentication.service.sessions_integration.create_session",
                 return_value=MagicMock(expires_at=datetime.now(UTC) + timedelta(days=30)),
-            ),
+            ) as create_session,
         ):
             result = auth_utils.create_mobile_pkce_session_response(
                 ip_address="127.0.0.1",
@@ -623,3 +628,4 @@ class TestCreateMobilePkceSessionResponse:
         assert isinstance(result, auth_schema.MobileSessionRead)
         assert result.session_id is not None
         assert result.next_step == "exchange"
+        assert create_session.call_args.args[2] == ClientType.MOBILE

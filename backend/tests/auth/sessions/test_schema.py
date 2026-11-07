@@ -268,6 +268,7 @@ class TestUsersSessionsInternalSchema:
             oauth_state_id=None,
             tokens_exchanged=False,
             token_family_id="family-id",
+            client_type="web",
             rotation_count=0,
             last_rotation_at=None,
             csrf_token_hash=None,
@@ -304,6 +305,7 @@ class TestUsersSessionsInternalSchema:
             user_id=1,
             tokens_exchanged=False,
             token_family_id="family-id",
+            client_type="web",
             rotation_count=0,
         )
 
@@ -332,6 +334,7 @@ class TestUsersSessionsInternalSchema:
             user_id=1,
             refresh_token="hashed-token",
             token_family_id="family-id",
+            client_type="web",
             rotation_count=0,
         )
 
@@ -361,10 +364,36 @@ class TestUsersSessionsInternalSchema:
                 user_id=1,
                 refresh_token="hashed-token",
                 token_family_id="family-id",
+                client_type="web",
                 rotation_count=-1,
             )
 
         assert "rotation_count" in str(exc_info.value)
+
+    @pytest.mark.parametrize("client_type", [None, "desktop"])
+    def test_internal_schema_requires_a_known_client_type(self, client_type):
+        """A session is for a web or a mobile client, and nothing else."""
+        now = datetime.now(UTC)
+        values = {"client_type": client_type} if client_type is not None else {}
+
+        with pytest.raises(ValidationError) as exc_info:
+            users_session_schema.UserSessionsInternal(
+                id="test-session-id",
+                ip_address="192.168.1.1",
+                device_type="PC",
+                operating_system="Windows",
+                operating_system_version="10",
+                browser="Chrome",
+                browser_version="120.0",
+                created_at=now,
+                last_activity_at=now,
+                expires_at=now,
+                user_id=1,
+                token_family_id="family-id",
+                **values,
+            )
+
+        assert "client_type" in str(exc_info.value)
 
     def test_internal_schema_oauth_state_id_max_length(self):
         """
@@ -391,6 +420,7 @@ class TestUsersSessionsInternalSchema:
                 refresh_token="hashed-token",
                 oauth_state_id=long_oauth_state,
                 token_family_id="family-id",
+                client_type="web",
                 rotation_count=0,
             )
 
@@ -430,6 +460,7 @@ class TestUsersSessionsInternalSchema:
             oauth_state_id="oauth-state-123",
             tokens_exchanged=True,
             token_family_id="family-id",
+            client_type="web",
             rotation_count=5,
             last_rotation_at=now,
             csrf_token_hash="csrf-hash",

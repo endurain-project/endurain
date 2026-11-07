@@ -23,6 +23,7 @@ import pytest
 import modules.auth.access_tokens.service as auth_token_manager
 import modules.auth.authentication.principal_service as principal_service
 import modules.users.users.schema as users_schema
+from modules.auth.constants import ClientType
 from modules.auth.contracts import AccessTokenCred
 
 # ---------------------------------------------------------------------------
@@ -43,12 +44,15 @@ ITERATIONS = 100
 
 @pytest.fixture
 def token_manager() -> auth_token_manager.TokenManager:
-    """Real TokenManager with a test secret.
+    """Real TokenManager with test keys.
 
     Returns:
         auth_token_manager.TokenManager: Token manager.
     """
-    return auth_token_manager.TokenManager(secret_key="bench-secret-key-for-testing-only-min-32-chars")
+    return auth_token_manager.TokenManager(
+        access_keys=["bench-access-key-for-testing-only-min-32-chars"],
+        refresh_keys=["bench-refresh-key-for-testing-only-min-32-chars"],
+    )
 
 
 @pytest.fixture
@@ -145,7 +149,11 @@ class TestResolveFromAccessTokenBenchmark:
         This gate confirms that principal resolution stays within the expected hot-path budget.
         """
         _, access_token = token_manager.create_token(
-            "bench-session", sample_user_read, auth_token_manager.TokenType.ACCESS, timedelta(minutes=15)
+            "bench-session",
+            sample_user_read,
+            ClientType.WEB,
+            auth_token_manager.TokenType.ACCESS,
+            timedelta(minutes=15),
         )
 
         start = time.perf_counter()
@@ -178,7 +186,11 @@ class TestResolveFromAccessTokenBenchmark:
         mock_db = MagicMock()
 
         _, access_token = token_manager.create_token(
-            "bench-session", sample_user_read, auth_token_manager.TokenType.ACCESS, timedelta(minutes=15)
+            "bench-session",
+            sample_user_read,
+            ClientType.WEB,
+            auth_token_manager.TokenType.ACCESS,
+            timedelta(minutes=15),
         )
 
         with (

@@ -87,13 +87,11 @@ def session_policy() -> server_settings_contracts.SessionPolicy:
 
 @pytest.fixture
 def token_manager() -> auth_token_manager.TokenManager:
-    """
-    Creates and returns a auth_token_manager.TokenManager instance configured with a test secret key.
-
-    Returns:
-        auth_token_manager.TokenManager: An instance of auth_token_manager.TokenManager initialized with a test secret key for use in testing.
-    """
-    return auth_token_manager.TokenManager(secret_key="test-secret-key-for-testing-only-min-32-chars")
+    """A token manager with one test key for access tokens and another for refresh tokens."""
+    return auth_token_manager.TokenManager(
+        access_keys=["test-access-key-for-testing-only-min-32-chars"],
+        refresh_keys=["test-refresh-key-for-testing-only-min-32-chars"],
+    )
 
 
 @pytest.fixture

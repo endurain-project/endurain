@@ -277,7 +277,13 @@ class TestMfaSignIn:
 class TestLogoutAndReuse:
     def _session(self):
         return SimpleNamespace(
-            id="sid", user_id=1, token_family_id="family", refresh_token="hash", csrf_token_hash=None, rotation_count=0
+            id="sid",
+            user_id=1,
+            token_family_id="family",
+            refresh_token="hash",
+            csrf_token_hash=None,
+            rotation_count=0,
+            client_type="web",
         )
 
     def test_a_logout_is_audited_in_the_transaction_that_deletes_the_session(self, mock_db):
@@ -382,7 +388,9 @@ class TestSsoSignIn:
             client_type="web",
             idp_id=idp_id,
         )
-        session = SimpleNamespace(user_id=5, tokens_exchanged=False, expires_at=datetime(2027, 1, 1, tzinfo=UTC))
+        session = SimpleNamespace(
+            user_id=5, tokens_exchanged=False, expires_at=datetime(2027, 1, 1, tzinfo=UTC), client_type="web"
+        )
         tokens = ("sid", datetime(2999, 1, 1, tzinfo=UTC), "at", datetime(2999, 1, 1, tzinfo=UTC), "rt", "csrf")
         hasher = MagicMock()
         with (
