@@ -5,6 +5,7 @@ from unittest.mock import MagicMock, patch
 import pytest
 
 import module_registry as runtime_module_registry
+import modules.auth.sign_up_tokens.scheduled_jobs as sign_up_jobs
 
 
 def test_auth_runtime_modules_are_registered():
@@ -111,3 +112,24 @@ def test_reencrypt_startup_tasks_hold_distinct_locks():
     assert len(locks) == 6
     assert all(locks)
     assert len(set(locks)) == len(locks)
+
+
+def test_the_unverified_sign_up_purge_is_an_hourly_job_with_its_own_lock_and_startup_task():
+    module = next(module for module in runtime_module_registry.MODULES if module.name == "sign_up_tokens")
+    jobs = {job.func.__name__: job for job in module.recurring_jobs()}
+    purge = jobs["delete_unverified_sign_ups_from_db"]
+
+    assert purge.minutes == 60
+    assert purge.lock_name == "auth_unverified_sign_ups_purge"
+    assert purge.lock_name != jobs["delete_expired_tokens_from_db"].lock_name
+    assert any(
+        task.name == "purge_unverified_sign_ups" and task.lock_name == purge.lock_name for task in module.startup_tasks
+    )
+
+
+@patch("modules.auth.sign_up_tokens.scheduled_jobs.sign_up_service.purge_unverified_sign_ups", return_value=2)
+@patch("modules.auth.sign_up_tokens.scheduled_jobs.core_database.SessionLocal")
+def test_the_unverified_sign_up_purge_job_runs_the_service_in_its_own_session(mock_session_local, mock_purge):
+    sign_up_jobs.delete_unverified_sign_ups_from_db()
+
+    mock_purge.assert_called_once_with(mock_session_local.return_value.__enter__.return_value)

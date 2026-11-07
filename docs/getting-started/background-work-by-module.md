@@ -188,6 +188,7 @@ Recurring jobs are declared by each module and run by the scheduler of the API p
 | Remove staged profile imports and exports | 6 h each | yes | Cleanup |
 | Purge read notifications past retention | 24 h | yes | Retention |
 | Authentication clean-ups (reset and sign-up tokens, OAuth states, sessions, rotated tokens) | 1 to 60 min | no | Delete what has expired |
+| Delete unverified sign-ups whose verification link expired | 60 min | no | Deletes the account row; each one is audited as `users.user.purge` |
 | Revoke identity provider tokens of ended sessions | 15 min | yes | Net for identity provider token revocation |
 | Prune known devices unseen for 400 days | 24 h | yes | Retention, in batches |
 | Refresh trusted-proxy hostnames | 1 min | no | Keeps `TRUSTED_PROXIES` names current |

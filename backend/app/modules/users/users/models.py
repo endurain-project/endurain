@@ -5,6 +5,7 @@ from datetime import datetime
 
 from sqlalchemy import DateTime, String
 from sqlalchemy.orm import Mapped, mapped_column
+from sqlalchemy.sql import func
 
 from core.database import Base
 
@@ -36,6 +37,8 @@ class Users(Base):
             been verified.
         pending_admin_approval: Whether the user is pending
             admin approval for activation.
+        created_at: When the account was created; accounts that
+            existed before the column took the migration time.
         deactivated_at: When the account was deactivated by an
             administrator or by a deletion request, or None. A
             sign-up that is not yet verified or approved has none.
@@ -159,6 +162,12 @@ class Users(Base):
         comment=("Whether the user is pending admin approval for activation (true - yes, false - no)"),
     )
 
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        server_default=func.now(),
+        nullable=False,
+        comment="When the account was created; accounts that predate the column carry the migration time",
+    )
     deactivated_at: Mapped[datetime | None] = mapped_column(
         DateTime(timezone=True),
         nullable=True,

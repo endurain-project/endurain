@@ -16,6 +16,7 @@ import core.logger as core_logger
 import modules.auth.access_tokens.integration_service as access_tokens_integration
 import modules.auth.computation as token_hashing
 import modules.auth.credentials.integration_service as credentials_integration
+import modules.auth.identity_provider_links.integration_service as identity_provider_links_integration
 import modules.auth.mfa.integration_service as mfa_integration
 import modules.auth.password_reset_tokens.integration_service as password_reset_tokens_integration
 import modules.auth.sessions.integration_service as sessions_integration
@@ -298,8 +299,10 @@ def resend_sign_up_verification_email(email: str, state: StateProvider, db: Sess
 
     An email goes out only when mail is configured, the server requires verification, the address belongs to an
     inactive account that was never deactivated and whose address is unverified, and none went out within the
-    cooldown. The answer is the same for every outcome, so it does not reveal which addresses are registered. An
-    unreachable cooldown store skips the resend instead of failing the request.
+    cooldown. The resend stages a live verification token in its own transaction, so the unverified-sign-up purge
+    keeps the account while the mail is still queued. The answer is the same for every outcome, so it does not
+    reveal which addresses are registered. An unreachable cooldown store skips the resend instead of failing the
+    request.
 
     Args:
         email: The address the sign-up used.
@@ -324,6 +327,9 @@ def resend_sign_up_verification_email(email: str, state: StateProvider, db: Sess
     except StateBackendUnavailableError as err:
         logger.error("Sign-up resend cooldown unavailable", exc_info=err, extra=core_logger.context(user_id=user.id))
         return response
+    # The row keeps the account alive from this commit until the delivery subscriber issues the mailed token, which
+    # replaces it; its raw value is discarded.
+    _stage_sign_up_token(user.id, user.email, None, db)
     sign_up_event_publishers.publish_sign_up_verification_requested(user.id, db)
     db.commit()
     return response
@@ -734,3 +740,29 @@ def delete_expired_sign_up_tokens(db: Session) -> int:
     """Delete expired verification tokens, one batch per commit."""
     now = datetime.now(UTC)
     return core_database.delete_in_batches(lambda limit: sign_up_crud.delete_expired_sign_up_tokens(now, limit, db), db)
+
+
+def purge_unverified_sign_ups(db: Session) -> int:
+    """Delete the self sign-ups that never verified their address and whose link has expired, one batch per commit.
+
+    A verification-required sign-up has no password and no sign-in provider until it verifies, so an inactive,
+    unverified account created before ``SIGN_UP_TOKEN_TTL`` with neither, no deactivation or deletion request, and
+    no live verification token is one nobody can still confirm. An account that signed up with a password and awaits
+    an administrator's approval, and one a sign-in provider created, are kept.
+
+    Args:
+        db: Database session.
+
+    Returns:
+        How many accounts were deleted.
+    """
+    now = datetime.now(UTC)
+    held_user_ids = (
+        credentials_integration.select_credentialed_user_ids(),
+        identity_provider_links_integration.select_linked_user_ids(),
+        sign_up_crud.select_users_with_live_token_ids(now),
+    )
+    created_before = now - SIGN_UP_TOKEN_TTL
+    return core_database.delete_in_batches(
+        lambda limit: users_integration.stage_unverified_sign_up_purge(created_before, held_user_ids, limit, db), db
+    )

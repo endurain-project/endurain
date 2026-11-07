@@ -14,10 +14,12 @@ that can fail runs while the row still marks the deletion, so the stalled-deleti
 """
 
 import time
-from datetime import timedelta
+from collections.abc import Sequence
+from datetime import datetime, timedelta
 
 import jasil.audit as jasil_audit
 import jasil.providers as platform_providers
+from sqlalchemy import Select
 from sqlalchemy.orm import Session
 
 import core.config as core_config
@@ -389,10 +391,51 @@ def _delete_user_row(user_id: int) -> None:
         if users_crud.get_user_by_id(user_id, db) is None:
             logger.debug("The user row was already deleted", extra=core_logger.context(user_id=user_id))
             return
-        users_contributor_registry.erasers().delete_notifications(user_id, db)
-        users_crud.delete_user(user_id, db)
+        _stage_user_row_deletion(user_id, db)
         db.commit()
     logger.debug("Deleted the user row", extra=core_logger.context(user_id=user_id))
+
+
+def _stage_user_row_deletion(user_id: int, db: Session) -> None:
+    """Stage the deletion of the user row and of the notifications other users hold that name the user.
+
+    Args:
+        user_id: The user to delete.
+        db: Database session; the caller commits.
+    """
+    users_contributor_registry.erasers().delete_notifications(user_id, db)
+    users_crud.delete_user(user_id, db)
+
+
+def stage_unverified_sign_up_purge(
+    created_before: datetime, held_user_ids: Sequence[Select[tuple[int]]], limit: int, db: Session
+) -> int:
+    """Stage the deletion of up to ``limit`` unverified self sign-ups created before ``created_before``.
+
+    An account that never verified its address has no activities, photo or files, so deleting the row, which
+    removes the rest through the database cascade, is the whole erasure. Each deletion is audited with the
+    system as the actor.
+
+    Args:
+        created_before: Only accounts created before this instant qualify.
+        held_user_ids: Queries for the ids of the users that must be kept, such as those with a credential.
+        limit: The most accounts to delete.
+        db: Database session; the caller commits.
+
+    Returns:
+        How many accounts were staged for deletion.
+    """
+    user_ids = users_crud.lock_unverified_sign_ups(created_before, held_user_ids, limit, db)
+    for user_id in user_ids:
+        _stage_user_row_deletion(user_id, db)
+        jasil_audit.stage(
+            db,
+            users_audit_actions.USER_PURGE,
+            target_type="user",
+            target_id=str(user_id),
+            target_owner_id=str(user_id),
+        )
+    return len(user_ids)
 
 
 def close_dead_lettered_deletion(

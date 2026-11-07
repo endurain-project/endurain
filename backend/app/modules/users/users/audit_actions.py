@@ -92,6 +92,14 @@ USER_DELETE = jasil_audit.AuditAction(
     description_default="An account was deleted",
 )
 
+USER_PURGE = jasil_audit.AuditAction(
+    id="users.user.purge",
+    category=jasil_audit.Category.SYSTEM,
+    severity=jasil_audit.Severity.MEDIUM,
+    description_key="audit.users.user.purge",
+    description_default="An unverified sign-up was removed after its verification link expired",
+)
+
 USER_EMAIL_CHANGE = jasil_audit.AuditAction(
     id="users.email.change",
     category=jasil_audit.Category.IDENTITY,
@@ -106,5 +114,6 @@ ACTIONS: tuple[jasil_audit.AuditAction, ...] = (
     USER_UPDATE,
     USER_APPROVE,
     USER_DELETE,
+    USER_PURGE,
     USER_EMAIL_CHANGE,
 )

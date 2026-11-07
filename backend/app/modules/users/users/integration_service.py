@@ -5,12 +5,13 @@ helpers. Everything here returns schemas or primitives: no ORM row and no intern
 the boundary. Writes stage and the caller commits, except the listed units of work.
 """
 
-from collections.abc import Collection
-from datetime import date
+from collections.abc import Collection, Sequence
+from datetime import date, datetime
 
 import jasil.providers as platform_providers
 from fastapi import UploadFile
 from pydantic import BaseModel
+from sqlalchemy import Select
 from sqlalchemy.orm import Session
 
 import modules.server_settings.schema as server_settings_schema
@@ -447,6 +448,23 @@ def request_user_deletion(
     return users_deletion_job_service.request_deletion(
         user_id, users_deletion_state_store.UserDeletionStateStore(state), storage, db, if_match="*"
     )
+
+
+def stage_unverified_sign_up_purge(
+    created_before: datetime, held_user_ids: Sequence[Select[tuple[int]]], limit: int, db: Session
+) -> int:
+    """Stage the deletion of up to ``limit`` unverified self sign-ups created before ``created_before``.
+
+    Args:
+        created_before: Only accounts created before this instant qualify.
+        held_user_ids: Queries for the ids of the users that must be kept, such as those with a credential.
+        limit: The most accounts to delete.
+        db: Database session; the caller commits.
+
+    Returns:
+        How many accounts were staged for deletion.
+    """
+    return users_deletion_job_service.stage_unverified_sign_up_purge(created_before, held_user_ids, limit, db)
 
 
 def shutdown_deletion_pool() -> None:

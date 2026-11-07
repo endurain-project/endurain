@@ -1,6 +1,6 @@
 """CRUD operations for users."""
 
-from collections.abc import Collection, Mapping
+from collections.abc import Collection, Mapping, Sequence
 from datetime import datetime
 
 from sqlalchemy import Select, exists, func, select, text
@@ -516,6 +516,47 @@ def approve_pending_user(user_id: int, db: Session) -> bool:
     db_user.active = True
     db.flush()
     return True
+
+
+def lock_unverified_sign_ups(
+    created_before: datetime, held_user_ids: Sequence[Select[tuple[int]]], limit: int, db: Session
+) -> list[int]:
+    """Lock up to ``limit`` unverified self sign-ups created before ``created_before`` and return their ids.
+
+    A row qualifies while it is inactive, its address is unverified and no administrator or deletion request
+    deactivated it, and none of the ``held_user_ids`` queries names it. Rows another transaction holds are skipped,
+    so a verification in flight wins. The exclusions are read again once the rows are locked, so a change that
+    committed in between keeps its row out.
+
+    Args:
+        created_before: Only accounts created before this instant qualify.
+        held_user_ids: Queries for the ids of the users that must be kept, such as those with a credential.
+        limit: The most rows to lock.
+        db: Database session.
+
+    Returns:
+        The ids of the locked rows, which stay locked until the transaction ends.
+    """
+    model = users_models.Users
+    stmt = (
+        select(model.id)
+        .where(
+            model.created_at < created_before,
+            model.active.is_(False),
+            model.email_verified.is_(False),
+            model.deactivated_at.is_(None),
+            model.deletion_requested_at.is_(None),
+            *(model.id.not_in(held) for held in held_user_ids),
+        )
+        .order_by(model.id)
+        .limit(limit)
+        .with_for_update(skip_locked=True)
+    )
+    locked = list(db.execute(stmt).scalars().all())
+    if not locked:
+        return []
+    recheck = select(model.id).where(model.id.in_(locked), *(model.id.not_in(held) for held in held_user_ids))
+    return list(db.execute(recheck.order_by(model.id)).scalars().all())
 
 
 def is_deactivated(user_id: int, db: Session) -> bool:

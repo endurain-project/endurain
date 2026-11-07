@@ -1,6 +1,6 @@
 """Persistence operations for local credentials."""
 
-from sqlalchemy import delete, select, update
+from sqlalchemy import Select, delete, select, update
 from sqlalchemy.orm import Session
 
 import modules.auth.credentials.contracts as credentials_contracts
@@ -47,3 +47,12 @@ def delete_credential(user_id: int, db: Session) -> None:
     """Stage deletion of a user's local credential."""
     db.execute(delete(credentials_models.LocalCredential).where(credentials_models.LocalCredential.user_id == user_id))
     db.flush()
+
+
+def select_credentialed_user_ids() -> Select[tuple[int]]:
+    """Return a query for the ids of the users who have a local credential.
+
+    Returns:
+        A select of user ids, for a caller to use in an ``IN`` or ``NOT IN``.
+    """
+    return select(credentials_models.LocalCredential.user_id)

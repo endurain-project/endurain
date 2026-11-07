@@ -7,7 +7,7 @@ Administrators manage accounts in **Settings → Users**. The page lists every a
 Search by username, and filter the list by:
 
 - inactive users,
-- users whose email is unverified,
+- users whose email is unverified (a sign-up that never verified is removed after its 24-hour link expires; see [Accounts and sign-in](accounts-and-sign-in.md)),
 - users pending approval,
 - users who sign in through an external provider,
 - users who sign in with a local password.

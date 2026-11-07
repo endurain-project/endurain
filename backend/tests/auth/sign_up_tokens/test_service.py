@@ -132,20 +132,25 @@ class TestSignUpVerificationResend:
             patch(f"{_MODULE}.server_settings_integration.is_mail_configured", return_value=mail),
             patch(f"{_MODULE}.users_integration") as users,
             patch(f"{_MODULE}.sign_up_event_publishers") as publishers,
+            patch(f"{_MODULE}._stage_sign_up_token") as stage_token,
         ):
             users.get_user_by_email.return_value = user
             users.is_deactivated.return_value = deactivated
             body = sign_up_service.resend_sign_up_verification_email("u@example.com", state, db)
+        self.stage_token = stage_token
         return body, publishers.publish_sign_up_verification_requested
 
     def test_sends_a_new_email_to_an_account_awaiting_verification(self, mock_db, state):
-        _, publish = self._resend(state, mock_db, user=MagicMock(id=7, active=False, email_verified=False))
+        _, publish = self._resend(
+            state, mock_db, user=MagicMock(id=7, active=False, email_verified=False, email="u@example.com")
+        )
 
         publish.assert_called_once_with(7, mock_db)
+        self.stage_token.assert_called_once_with(7, "u@example.com", None, mock_db)
         mock_db.commit.assert_called_once()
 
     def test_a_second_request_within_the_cooldown_sends_nothing(self, mock_db, state):
-        user = MagicMock(id=7, active=False, email_verified=False)
+        user = MagicMock(id=7, active=False, email_verified=False, email="u@example.com")
         self._resend(state, mock_db, user=user)
         _, publish = self._resend(state, mock_db, user=user)
 
@@ -166,7 +171,10 @@ class TestSignUpVerificationResend:
 
     def test_a_deactivated_account_gets_nothing(self, mock_db, state):
         _, publish = self._resend(
-            state, mock_db, user=MagicMock(id=7, active=False, email_verified=False), deactivated=True
+            state,
+            mock_db,
+            user=MagicMock(id=7, active=False, email_verified=False, email="u@example.com"),
+            deactivated=True,
         )
 
         publish.assert_not_called()
@@ -176,7 +184,7 @@ class TestSignUpVerificationResend:
         _, publish = self._resend(
             state,
             mock_db,
-            user=MagicMock(id=7, active=False, email_verified=False),
+            user=MagicMock(id=7, active=False, email_verified=False, email="u@example.com"),
             mail=mail,
             verification=verification,
         )
@@ -186,12 +194,16 @@ class TestSignUpVerificationResend:
     def test_an_unreachable_cooldown_store_skips_the_send(self, mock_db):
         state = MagicMock()
         state.set_if_absent.side_effect = StateBackendUnavailableError("down")
-        _, publish = self._resend(state, mock_db, user=MagicMock(id=7, active=False, email_verified=False))
+        _, publish = self._resend(
+            state, mock_db, user=MagicMock(id=7, active=False, email_verified=False, email="u@example.com")
+        )
 
         publish.assert_not_called()
 
     def test_every_outcome_answers_the_same(self, mock_db, state):
-        sent, _ = self._resend(state, mock_db, user=MagicMock(id=7, active=False, email_verified=False))
+        sent, _ = self._resend(
+            state, mock_db, user=MagicMock(id=7, active=False, email_verified=False, email="u@example.com")
+        )
         unknown, _ = self._resend(MemoryState(), mock_db, user=None)
 
         assert sent == unknown

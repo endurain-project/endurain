@@ -8,6 +8,7 @@ import modules.auth.sign_up_tokens.service as sign_up_service
 logger = core_logger.get_logger(__name__)
 
 PURGE_LOCK_NAME = "auth_sign_up_tokens_purge"
+UNVERIFIED_PURGE_LOCK_NAME = "auth_unverified_sign_ups_purge"
 
 
 def delete_expired_tokens_from_db() -> None:
@@ -18,13 +19,27 @@ def delete_expired_tokens_from_db() -> None:
         logger.info("Deleted expired sign-up tokens", extra=core_logger.context(count=deleted_count))
 
 
+def delete_unverified_sign_ups_from_db() -> None:
+    """Delete the unverified self sign-ups whose verification link has expired, one bounded batch per transaction."""
+    with core_database.SessionLocal() as db:
+        deleted_count = sign_up_service.purge_unverified_sign_ups(db)
+    if deleted_count:
+        logger.info("Deleted unverified sign-ups", extra=core_logger.context(count=deleted_count))
+
+
 def recurring_jobs() -> tuple[core_scheduler.ScheduledJob, ...]:
-    """Return recurring sign-up-token cleanup work."""
+    """Return recurring sign-up-token and unverified-sign-up cleanup work."""
     return (
         core_scheduler.ScheduledJob(
             delete_expired_tokens_from_db,
             60,
             "delete invalid sign-up tokens from the database",
             lock_name=PURGE_LOCK_NAME,
+        ),
+        core_scheduler.ScheduledJob(
+            delete_unverified_sign_ups_from_db,
+            60,
+            "delete unverified sign-ups whose verification link expired",
+            lock_name=UNVERIFIED_PURGE_LOCK_NAME,
         ),
     )

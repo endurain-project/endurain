@@ -437,6 +437,12 @@ MODULES: tuple[RuntimeModule, ...] = (
                 sign_up_tokens_scheduled_jobs.delete_expired_tokens_from_db,
                 lock_name=sign_up_tokens_scheduled_jobs.PURGE_LOCK_NAME,
             ),
+            StartupTask(
+                "purge_unverified_sign_ups",
+                "Purging unverified sign-ups",
+                sign_up_tokens_scheduled_jobs.delete_unverified_sign_ups_from_db,
+                lock_name=sign_up_tokens_scheduled_jobs.UNVERIFIED_PURGE_LOCK_NAME,
+            ),
         ),
     ),
     RuntimeModule(

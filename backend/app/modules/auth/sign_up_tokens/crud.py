@@ -3,8 +3,8 @@
 from collections.abc import Collection
 from datetime import UTC, datetime
 
+from sqlalchemy import Select, select
 from sqlalchemy import delete as sa_delete
-from sqlalchemy import select
 from sqlalchemy import update as sa_update
 from sqlalchemy.orm import Session
 
@@ -118,3 +118,16 @@ def delete_expired_sign_up_tokens(now: datetime, limit: int, db: Session) -> int
     matched = core_database.rowcount(db, sa_delete(model).where(model.id.in_(expired)))
     db.flush()
     return matched
+
+
+def select_users_with_live_token_ids(now: datetime) -> Select[tuple[int]]:
+    """Return a query for the ids of the users who hold a token that is unused and unexpired at ``now``.
+
+    Args:
+        now: The instant a token must still be valid at.
+
+    Returns:
+        A select of user ids, for a caller to use in an ``IN`` or ``NOT IN``.
+    """
+    model = sign_up_models.SignUpToken
+    return select(model.user_id).where(model.used.is_(False), model.expires_at > now)

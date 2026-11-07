@@ -1,8 +1,10 @@
 """Credential operations used by authentication peers."""
 
+from sqlalchemy import Select
 from sqlalchemy.orm import Session
 
 import modules.auth.credentials.contracts as credentials_contracts
+import modules.auth.credentials.crud as credentials_crud
 import modules.auth.credentials.password_hasher as credentials_password_hasher
 import modules.auth.credentials.service as credentials_service
 import modules.server_settings.schema as server_settings_schema
@@ -75,3 +77,8 @@ def allows_password_sign_in(server_settings: server_settings_schema.ServerSettin
 def get_password_hasher() -> credentials_password_hasher.PasswordHasher:
     """Return the configured password hasher."""
     return credentials_password_hasher.get_password_hasher()
+
+
+def select_credentialed_user_ids() -> Select[tuple[int]]:
+    """Return a query for the ids of the users who have a local credential, for a caller to filter with."""
+    return credentials_crud.select_credentialed_user_ids()
