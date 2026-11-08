@@ -175,7 +175,14 @@ class TestFirstPassword:
             pytest.raises(core_exceptions.PermissionDeniedError),
         ):
             account_security_service.stage_change_own_password(
-                7, "anything", "N3w-Passw0rd!", None, MagicMock(), MagicMock(), revoke_other_sessions=True
+                7,
+                "anything",
+                "N3w-Passw0rd!",
+                None,
+                MagicMock(),
+                MagicMock(),
+                revoke_other_sessions=True,
+                current_session_id="sid",
             )
 
         step_up.assert_not_called()

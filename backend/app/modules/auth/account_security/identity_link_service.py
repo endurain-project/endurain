@@ -125,11 +125,11 @@ def start_idp_step_up(
         The provider URL and the browser binding the route sets as a cookie.
 
     Raises:
-        TooManyRequestsError: If the user is locked out of step-up attempts.
+        TooManyRequestsError: If the session is locked out of step-up attempts.
         InvalidInputError: If the account has a local password, or the request or provider is unusable.
         NotFoundError: If the provider is missing, disabled or not linked to the user.
     """
-    step_up_service.require_not_locked_out(token_user_id, step_up_store)
+    step_up_service.require_not_locked_out(token_user_id, session_id, step_up_store)
     if credentials_integration.has_local_password(token_user_id, db):
         logger.warning(
             "Identity-provider step-up refused for user <user_id>: the account has a local password",

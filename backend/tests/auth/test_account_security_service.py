@@ -36,7 +36,14 @@ class TestChangeOwnPassword:
             pytest.raises(credentials_contracts.PasswordUnchangedError),
         ):
             account_security_service.stage_change_own_password(
-                7, "same-pass", "same-pass", None, MagicMock(), mock_db, revoke_other_sessions=True
+                7,
+                "same-pass",
+                "same-pass",
+                None,
+                MagicMock(),
+                mock_db,
+                revoke_other_sessions=True,
+                current_session_id="sid",
             )
 
         verify.assert_called_once()
@@ -98,6 +105,7 @@ class TestChangeOwnPassword:
                 step_up_store=step_up_store,
                 db=mock_db,
                 revoke_other_sessions=False,
+                current_session_id="sid",
             )
 
         mock_verify.assert_called_once_with(
@@ -106,6 +114,7 @@ class TestChangeOwnPassword:
             "123456",
             step_up_store,
             mock_db,
+            session_id="sid",
         )
         mock_hash_password.assert_called_once_with(
             mock_settings, "regular", "new-pass", mock_db, username="alice", email="alice@example.com"
@@ -165,6 +174,7 @@ class TestChangeOwnPassword:
                 step_up_store=step_up_store,
                 db=mock_db,
                 revoke_other_sessions=False,
+                current_session_id="sid",
             )
 
         mock_hash_password.assert_called_once_with(
@@ -297,7 +307,14 @@ class TestChangeOwnPasswordResetTokens:
             patch(_PREFIX + "sessions_integration.delete_sessions_by_user"),
         ):
             account_security_service.stage_change_own_password(
-                7, "old-pass", "new-pass", None, MagicMock(), mock_db, revoke_other_sessions=False
+                7,
+                "old-pass",
+                "new-pass",
+                None,
+                MagicMock(),
+                mock_db,
+                revoke_other_sessions=False,
+                current_session_id="sid",
             )
 
         password_reset_tokens.revoke_unused_tokens.assert_called_once_with(7, mock_db)

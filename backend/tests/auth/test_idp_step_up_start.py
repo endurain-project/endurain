@@ -71,6 +71,22 @@ class TestStartService:
             authorization_url="https://idp.example.com/authorize?prompt=login", browser_binding="binding-secret"
         )
 
+    def test_the_lockout_is_checked_for_the_callers_session(self):
+        store = MagicMock()
+        with (
+            patch.object(identity_link_service.step_up_service, "require_not_locked_out") as locked,
+            patch.object(identity_link_service.credentials_integration, "has_local_password", return_value=False),
+            patch.object(identity_link_service.identity_providers_integration, "stage_step_up", return_value=_staged()),
+            patch.object(
+                identity_link_service.identity_providers_integration,
+                "authorization_url",
+                return_value="https://idp.example.com/authorize?prompt=login",
+            ),
+        ):
+            identity_link_service.start_idp_step_up(3, START, "1.2.3.4", 7, SESSION_ID, store, MagicMock())
+
+        locked.assert_called_once_with(7, SESSION_ID, store)
+
     def test_an_account_with_a_password_steps_up_with_it_instead(self):
         with pytest.raises(core_exceptions.InvalidInputError):
             self._start(has_password=True)

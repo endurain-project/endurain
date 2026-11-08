@@ -215,6 +215,7 @@ def verify_mfa(
     request: Request,
     mfa_request: mfa_schema.MFARequest,
     token_user_id: auth_dependencies.CurrentUserId,
+    token_session_id: auth_dependencies.CurrentSessionId,
     step_up_store: Annotated[
         auth_dependencies.StepUpStore,
         Depends(auth_dependencies.get_step_up_attempts),
@@ -227,13 +228,14 @@ def verify_mfa(
         request: The incoming request, read by the rate limiter.
         mfa_request: MFA request with code to verify.
         token_user_id: User ID from access token.
+        token_session_id: Session ID from access token, which owns the step-up lockout counter.
         step_up_store: Shared state, which records the TOTP step so the code works once.
         db: Database session.
 
     Raises:
         DomainError: If MFA code is invalid.
     """
-    mfa_workflow_service.verify_mfa(mfa_request, token_user_id, step_up_store, db)
+    mfa_workflow_service.verify_mfa(mfa_request, token_user_id, token_session_id, step_up_store, db)
 
 
 @router.post(

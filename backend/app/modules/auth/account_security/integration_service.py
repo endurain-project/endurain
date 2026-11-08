@@ -52,7 +52,7 @@ def change_own_password(
     db: Session,
     *,
     revoke_other_sessions: bool,
-    current_session_id: str | None = None,
+    current_session_id: str,
 ) -> None:
     """Stage a change of a user's password after step-up verification."""
     account_security_service.stage_change_own_password(

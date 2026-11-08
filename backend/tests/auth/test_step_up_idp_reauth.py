@@ -70,7 +70,7 @@ def _verify(store, ticket: str | None, *, verifier: str = VERIFIER, mfa_code: st
 
 def _failures(store) -> int:
     """Return the failures recorded so far (recording one more to read the count)."""
-    return store.record_failed_attempt(f"user:{USER_ID}") - 1
+    return store.record_failed_attempt(f"user:{USER_ID}:session:{SESSION_ID}") - 1
 
 
 class TestChallenge:
@@ -152,7 +152,7 @@ class TestTicket:
         with pytest.raises(core_exceptions.StepUpFailedError):
             _verify(store, ticket)
 
-    def test_without_a_session_or_action_no_ticket_matches(self, state, store, account):
+    def test_without_an_action_no_ticket_matches(self, state, store, account):
         ticket = _issue(state)
 
         with pytest.raises(core_exceptions.StepUpFailedError):
@@ -163,6 +163,7 @@ class TestTicket:
                 store,
                 MagicMock(),
                 idp_reauth=auth_schema.IdpReauthProof(ticket=ticket, code_verifier=VERIFIER),
+                session_id=SESSION_ID,
             )
 
     def test_a_ticket_redeemed_by_a_racing_request_is_refused(self, state, store, account):
@@ -220,10 +221,10 @@ class TestAccountsWithAPassword:
 class TestRequireNotLockedOut:
     def test_a_locked_out_user_cannot_start_a_step_up(self, store):
         for _ in range(5):
-            store.record_failed_attempt(f"user:{USER_ID}")
+            store.record_failed_attempt(f"user:{USER_ID}:session:{SESSION_ID}")
 
         with pytest.raises(core_exceptions.TooManyRequestsError):
-            step_up_service.require_not_locked_out(USER_ID, store)
+            step_up_service.require_not_locked_out(USER_ID, SESSION_ID, store)
 
     def test_a_user_in_good_standing_can_start_one(self, store):
-        step_up_service.require_not_locked_out(USER_ID, store)
+        step_up_service.require_not_locked_out(USER_ID, SESSION_ID, store)

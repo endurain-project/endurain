@@ -154,6 +154,7 @@ class TestWhoFlagsTheAccount:
                 step_up_store.StepUpAttempts(MemoryState()),
                 db,
                 revoke_other_sessions=False,
+                current_session_id="session-1",
             )
             db.commit()
 

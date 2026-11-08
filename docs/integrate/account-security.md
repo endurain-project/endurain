@@ -105,7 +105,7 @@ Native and mobile clients cannot use this flow because the redirect must be a re
 
 ### Step-up Lockout Policy
 
-Failed step-up verifications are tracked per-user with progressive lockout, independent of login lockout counters:
+Failed step-up verifications are tracked per user and session with progressive lockout, independent of login lockout counters. A session that locks itself out does not lock the same user's other sessions, so someone holding only a stolen session cannot block the owner from sensitive changes:
 
 | Failed Attempts | Lockout Duration |
 |-----------------|------------------|
@@ -126,6 +126,8 @@ The lockout check happens **before** any password or MFA comparison, so the numb
 The response also includes a `Retry-After` header indicating how many seconds remain before the lockout expires.
 
 The counter resets automatically on a successful step-up verification.
+
+A locked session can still end the user's other sessions, and the password can still be reset by email. Ending a session discards its counter.
 
 ## Email Change
 

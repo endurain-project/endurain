@@ -269,7 +269,7 @@ def stage_change_own_password(
     db: Session,
     *,
     revoke_other_sessions: bool,
-    current_session_id: str | None = None,
+    current_session_id: str,
 ) -> None:
     """Stage a change of a user's own password after step-up verification; the caller commits.
 
@@ -285,9 +285,8 @@ def stage_change_own_password(
         revoke_other_sessions: When True, delete all of the user's
             other sessions (keeping ``current_session_id``) so a
             password change can evict a suspected attacker.
-        current_session_id: Session ID of the caller, preserved when
-            ``revoke_other_sessions`` is True so the caller is not
-            logged out.
+        current_session_id: Session ID of the caller, which owns the step-up lockout counter and is preserved
+            when ``revoke_other_sessions`` is True so the caller is not logged out.
 
     Returns:
         None.
@@ -314,6 +313,7 @@ def stage_change_own_password(
         mfa_code,
         step_up_store,
         db,
+        session_id=current_session_id,
     )
 
     db_user = _stage_own_password(user_id, new_password, db)

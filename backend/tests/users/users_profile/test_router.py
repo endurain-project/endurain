@@ -1102,6 +1102,7 @@ class TestVerifyMFA:
 
         assert response.status_code == 204
         assert response.content == b""
+        assert mock_auth_services.verify_mfa.call_args.kwargs["session_id"] == "session-1"
 
     def test_invalid_code(self, profile_client, mock_auth_services):
         """Invalid MFA code → 400."""

@@ -52,7 +52,7 @@ def _record_failure(step_up_store: account_security_step_up_store.StepUpStore, k
 
     Args:
         step_up_store: Step-up lockout store.
-        key: Lockout key of the user.
+        key: Lockout key of the user and session.
         user_id: Authenticated user ID, whom a lockout is audited against.
     """
     failed_attempts = step_up_store.record_failed_attempt(key)
@@ -72,7 +72,7 @@ def _refuse_step_up(
 
     Args:
         step_up_store: Step-up lockout store.
-        key: Lockout key of the user.
+        key: Lockout key of the user and session.
         user_id: Authenticated user ID, for the log.
         method: How the re-authentication was attempted.
         reason: Which check failed, for the log only; the client never sees it.
@@ -88,19 +88,19 @@ def _refuse_step_up(
     raise core_exceptions.StepUpFailedError()
 
 
-def _step_up_key(user_id: int) -> str:
-    """Build the lockout key for a user's step-up attempts.
+def _step_up_key(user_id: int, session_id: str) -> str:
+    """Build the lockout key for the step-up attempts of one session of a user.
+
+    The key names the session, so failures made with one session never lock the user's other sessions out.
 
     Args:
         user_id: Authenticated user ID.
+        session_id: The caller's session.
 
     Returns:
         Stable string key for lockout tracking.
-
-    Raises:
-        None.
     """
-    return f"user:{user_id}"
+    return f"user:{user_id}:session:{session_id}"
 
 
 def _raise_if_locked_out(
@@ -109,16 +109,16 @@ def _raise_if_locked_out(
     user_id: int,
     method: login_audit_actions.StepUpMethod,
 ) -> None:
-    """Refuse the attempt while the user is locked out.
+    """Refuse the attempt while the session is locked out.
 
     Args:
         step_up_store: Step-up lockout store.
-        key: Lockout key of the user.
+        key: Lockout key of the user and session.
         user_id: Authenticated user ID, for the log.
         method: How the re-authentication was being attempted.
 
     Raises:
-        TooManyRequestsError: When the user is locked out, with ``Retry-After`` set when the end is known.
+        TooManyRequestsError: When the session is locked out, with ``Retry-After`` set when the end is known.
     """
     if step_up_store.is_locked_out(key):
         lockout_until = step_up_store.get_lockout_time(key)
@@ -129,18 +129,21 @@ def _raise_if_locked_out(
         )
 
 
-def require_not_locked_out(user_id: int, step_up_store: account_security_step_up_store.StepUpStore) -> None:
-    """Refuse to start a step-up while the user is locked out of step-up attempts.
+def require_not_locked_out(
+    user_id: int, session_id: str, step_up_store: account_security_step_up_store.StepUpStore
+) -> None:
+    """Refuse to start a step-up while the session is locked out of step-up attempts.
 
     Args:
         user_id: ID of the authenticated user.
+        session_id: The caller's session.
         step_up_store: Step-up lockout store.
 
     Raises:
-        TooManyRequestsError: When the user is locked out.
+        TooManyRequestsError: When the session is locked out.
     """
     _raise_if_locked_out(
-        step_up_store, _step_up_key(user_id), user_id, login_audit_actions.StepUpMethod.IDENTITY_PROVIDER
+        step_up_store, _step_up_key(user_id, session_id), user_id, login_audit_actions.StepUpMethod.IDENTITY_PROVIDER
     )
 
 
@@ -151,8 +154,8 @@ def verify_step_up_credentials(
     step_up_store: account_security_step_up_store.StepUpStore,
     db: Session,
     *,
+    session_id: str,
     idp_reauth: auth_schema.IdpReauthProof | None = None,
-    session_id: str | None = None,
     action: identity_providers_constants.StepUpAction | None = None,
 ) -> None:
     """Enforce step-up verification for sensitive account operations.
@@ -170,9 +173,10 @@ def verify_step_up_credentials(
     The ticket is checked first and redeemed only after every factor passed, so a wrong MFA code does not cost
     the user another trip through the provider.
 
-    Failed verifications are tracked per-user with progressive lockout: 5 failures → 5 min, 10 → 30 min,
+    Failed verifications are tracked per user and session with progressive lockout: 5 failures → 5 min, 10 → 30 min,
     15 → 2 hours. Lockout is checked before any comparison so that guessing is bounded even when the attacker
-    has a valid access token. A password-less request that carries no ticket at all is the challenge, not a
+    has a valid access token. A session that has failed does not lock the user's other sessions out, so a stolen
+    session cannot lock the owner out. A password-less request that carries no ticket at all is the challenge, not a
     failure, and is not counted.
 
     Args:
@@ -182,18 +186,18 @@ def verify_step_up_credentials(
         step_up_store: Step-up lockout, TOTP replay and ticket store.
         db: SQLAlchemy database session.
         idp_reauth: Proof of a fresh identity-provider sign-in, for an account without a local password.
-        session_id: The caller's session; a ticket is valid only in the session that started it. An operation
-            only an account with a password can perform (a password change) passes none.
+        session_id: The caller's session, which owns the lockout counter; a ticket is valid only in the session
+            that started it.
         action: The operation being authorised; a ticket is valid only for the operation it was issued for.
-            ``None`` likewise for an operation no ticket can authorise.
+            ``None`` for an operation no ticket can authorise (a password change).
 
     Raises:
-        TooManyRequestsError: If the user is currently locked out.
+        TooManyRequestsError: If the session is currently locked out.
         IdpReauthRequiredError: If the account has no local password and the request carried no ticket.
         StepUpFailedError: If the password, the ticket or the MFA code is missing or wrong; the answer is the
             same whichever it was.
     """
-    key = _step_up_key(user_id)
+    key = _step_up_key(user_id, session_id)
 
     _raise_if_locked_out(step_up_store, key, user_id, login_audit_actions.StepUpMethod.UNSPECIFIED)
 
@@ -277,7 +281,7 @@ def _ticket_matches(
     ticket: identity_providers_contracts.StepUpTicket | None,
     code_verifier: str,
     user_id: int,
-    session_id: str | None,
+    session_id: str,
     action: identity_providers_constants.StepUpAction | None,
 ) -> bool:
     """Tell whether a step-up ticket was issued for this user, session and operation, to this browser.
@@ -292,7 +296,7 @@ def _ticket_matches(
     Returns:
         True when the ticket exists, matches all three, and the verifier hashes to its challenge.
     """
-    if session_id is None or action is None:
+    if action is None:
         return False
     if ticket is None or ticket.user_id != user_id or ticket.session_id != session_id or ticket.action != action:
         return False
@@ -305,17 +309,19 @@ def _ticket_matches(
 
 def verify_mfa_code(
     user_id: int,
+    session_id: str,
     mfa_code: str,
     step_up_store: account_security_step_up_store.StepUpStore,
     db: Session,
 ) -> bool:
     """Check an MFA code under the step-up lockout, so a stolen access token cannot guess it freely.
 
-    Failures share the user's step-up budget: a guess here and a guess at a sensitive operation draw from
+    Failures share the session's step-up budget: a guess here and a guess at a sensitive operation draw from
     the same lockout.
 
     Args:
         user_id: ID of the authenticated user.
+        session_id: The caller's session, which owns the lockout counter.
         mfa_code: TOTP or backup code to check.
         step_up_store: Step-up lockout store, which also records the accepted TOTP step.
         db: SQLAlchemy database session.
@@ -324,9 +330,9 @@ def verify_mfa_code(
         True when the code is valid.
 
     Raises:
-        TooManyRequestsError: When the user is locked out.
+        TooManyRequestsError: When the session is locked out.
     """
-    key = _step_up_key(user_id)
+    key = _step_up_key(user_id, session_id)
     _raise_if_locked_out(step_up_store, key, user_id, login_audit_actions.StepUpMethod.MFA_CODE)
     if not mfa_integration.verify_user_mfa(
         user_id, mfa_code, credentials_integration.get_password_hasher(), db, replay_guard=step_up_store

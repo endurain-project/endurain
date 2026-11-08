@@ -589,7 +589,7 @@ class TestStepUpAudit:
             ),
             patch.object(step_up_service.lockout_integration, "report_lockout_applied"),
         ):
-            step_up_service.verify_step_up_credentials(7, password, mfa_code, store, MagicMock())
+            step_up_service.verify_step_up_credentials(7, password, mfa_code, store, MagicMock(), session_id="sid-7")
 
     def _store(self, *, locked=False):
         store = MagicMock()
@@ -632,7 +632,7 @@ class TestStepUpAudit:
             patch.object(step_up_service.lockout_integration, "report_lockout_applied"),
             jasil_testing.capture_audit() as audit,
         ):
-            assert step_up_service.verify_mfa_code(7, "000000", self._store(), MagicMock()) is False
+            assert step_up_service.verify_mfa_code(7, "sid-7", "000000", self._store(), MagicMock()) is False
 
         entry = audit.assert_audited(login_audit_actions.STEP_UP_VERIFY.id, outcome="failure")
         assert entry.details == {"method": Method.MFA_CODE.value, "reason": Reason.INVALID_CREDENTIALS.value}
