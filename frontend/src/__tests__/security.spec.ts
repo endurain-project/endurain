@@ -22,6 +22,7 @@ import {
   resendEmailChange,
   revokeOtherSessions,
   revokeSession,
+  signOutEverywhere,
   setupMfa,
 } from '@/features/security/services/security'
 
@@ -267,6 +268,19 @@ describe('security service requests', () => {
 
     expect(apiFetch).toHaveBeenCalledWith('/profile/sessions', {
       method: 'DELETE',
+      responseType: 'void',
+    })
+  })
+})
+
+describe('signOutEverywhere', () => {
+  it('POSTs the revoke action of the sessions collection', async () => {
+    vi.mocked(apiFetch).mockResolvedValue(undefined)
+
+    await signOutEverywhere()
+
+    expect(apiFetch).toHaveBeenCalledWith('/profile/sessions/revoke', {
+      method: 'POST',
       responseType: 'void',
     })
   })

@@ -644,6 +644,23 @@ class TestDeleteProfileOtherSessions:
 
 
 # ===================================================================
+# POST /profile/sessions/revoke
+# ===================================================================
+
+
+class TestRevokeProfileSessions:
+    """Tests for POST /profile/sessions/revoke — revoke_profile_sessions."""
+
+    def test_ends_every_session_and_clears_the_refresh_cookie(self, profile_client, mock_auth_services):
+        response = profile_client.post(PREFIX + "/sessions/revoke")
+
+        assert response.status_code == 204
+        mock_auth_services.sign_out_everywhere.assert_called_once_with(1)
+        assert "endurain_refresh_token=" in response.headers["set-cookie"]
+        assert "Max-Age=0" in response.headers["set-cookie"]
+
+
+# ===================================================================
 # POST /profile/export, GET /profile/export, GET /profile/export/download
 # ===================================================================
 

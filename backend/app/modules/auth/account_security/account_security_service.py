@@ -102,6 +102,26 @@ def delete_all_user_sessions(user_id: int, db: Session) -> int:
     return revoked
 
 
+def sign_out_everywhere(token_user_id: int, db: Session) -> int:
+    """Revoke every session of the user, the caller's current one included, and commit.
+
+    Args:
+        token_user_id: ID of the authenticated user.
+        db: SQLAlchemy session.
+
+    Returns:
+        Number of sessions revoked.
+    """
+    revoked = sessions_integration.delete_sessions_by_user(token_user_id, db)
+    _stage_sessions_revoked(token_user_id, revoked, db)
+    db.commit()
+    logger.info(
+        "User <token_user_id> signed out everywhere, ending <revoked> session(s)",
+        extra=core_logger.context(token_user_id=token_user_id, revoked=revoked),
+    )
+    return revoked
+
+
 def stage_delete_other_user_sessions(
     token_user_id: int,
     current_session_id: str,

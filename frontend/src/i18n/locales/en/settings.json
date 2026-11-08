@@ -777,7 +777,12 @@
       "revokeOthersBody": "Every device except this one will be signed out and need to sign in again.",
       "revokeOthersConfirm": "Sign out others",
       "revokeOthersSuccess": "Other sessions signed out",
-      "revokeOthersError": "Couldn't sign out the other sessions. Please try again."
+      "revokeOthersError": "Couldn't sign out the other sessions. Please try again.",
+      "signOutEverywhere": "Sign out everywhere",
+      "signOutEverywhereTitle": "Sign out everywhere?",
+      "signOutEverywhereBody": "Every device, including this one, will be signed out and need to sign in again.",
+      "signOutEverywhereConfirm": "Sign out everywhere",
+      "signOutEverywhereError": "Couldn't sign out of every session. Please try again."
     },
     "linked": {
       "title": "Linked accounts",

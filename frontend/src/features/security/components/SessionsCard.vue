@@ -18,6 +18,7 @@ import {
   useRevokeOtherSessionsMutation,
   useRevokeSessionMutation,
   useSessionsQuery,
+  useSignOutEverywhereMutation,
 } from '@/features/security/composables/useSecurity'
 
 /**
@@ -39,6 +40,9 @@ const sessionToRevoke = ref<SecuritySession | null>(null)
 
 const revokeOthersMutation = useRevokeOtherSessionsMutation()
 const isRevokeOthersOpen = ref(false)
+
+const signOutEverywhereMutation = useSignOutEverywhereMutation()
+const isSignOutEverywhereOpen = ref(false)
 
 /** Whether a session is the signed-in user's own current session. */
 function isCurrent(session: SecuritySession): boolean {
@@ -91,6 +95,13 @@ function confirmRevokeOthers(): void {
     onError: () => toasts.error(t('settings.security.sessions.revokeOthersError')),
   })
 }
+
+/** Ends every session including this one; the mutation then leaves for the login page. */
+function confirmSignOutEverywhere(): void {
+  signOutEverywhereMutation.mutate(undefined, {
+    onError: () => toasts.error(t('settings.security.sessions.signOutEverywhereError')),
+  })
+}
 </script>
 
 <template>
@@ -100,14 +111,19 @@ function confirmRevokeOthers(): void {
         <h2 class="text-card-heading">{{ t('settings.security.sessions.title') }}</h2>
         <p class="text-hint">{{ t('settings.security.sessions.subtitle') }}</p>
       </div>
-      <Button
-        v-if="otherSessionsCount > 0"
-        variant="outline"
-        size="sm"
-        @click="isRevokeOthersOpen = true"
-      >
-        {{ t('settings.security.sessions.revokeOthers') }}
-      </Button>
+      <div class="flex flex-wrap gap-2">
+        <Button
+          v-if="otherSessionsCount > 0"
+          variant="outline"
+          size="sm"
+          @click="isRevokeOthersOpen = true"
+        >
+          {{ t('settings.security.sessions.revokeOthers') }}
+        </Button>
+        <Button variant="outline" size="sm" @click="isSignOutEverywhereOpen = true">
+          {{ t('settings.security.sessions.signOutEverywhere') }}
+        </Button>
+      </div>
     </div>
 
     <!-- Loading -->
@@ -186,6 +202,17 @@ function confirmRevokeOthers(): void {
       :close-label="t('settings.security.close')"
       :pending="revokeOthersMutation.isPending.value"
       @confirm="confirmRevokeOthers"
+    />
+
+    <ConfirmDialog
+      v-model:open="isSignOutEverywhereOpen"
+      :title="t('settings.security.sessions.signOutEverywhereTitle')"
+      :description="t('settings.security.sessions.signOutEverywhereBody')"
+      :confirm-label="t('settings.security.sessions.signOutEverywhereConfirm')"
+      :cancel-label="t('settings.security.cancel')"
+      :close-label="t('settings.security.close')"
+      :pending="signOutEverywhereMutation.isPending.value"
+      @confirm="confirmSignOutEverywhere"
     />
   </Card>
 </template>

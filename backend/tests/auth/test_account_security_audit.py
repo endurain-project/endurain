@@ -475,6 +475,23 @@ class TestSessionAudit:
         )
         assert entry.details == {"sessions_revoked": 5}
 
+    def test_sign_out_everywhere(self, mock_db):
+        with (
+            patch.object(
+                account_security_service.sessions_integration, "delete_sessions_by_user", return_value=3
+            ) as end,
+            jasil_testing.capture_audit() as audit,
+        ):
+            revoked = account_security_service.sign_out_everywhere(7, mock_db)
+
+        assert revoked == 3
+        end.assert_called_once_with(7, mock_db)
+        entry = audit.assert_audited(
+            sessions_audit_actions.SESSION_REVOKE.id, target_type="user", target_id="7", target_owner_id="7"
+        )
+        assert entry.details == {"sessions_revoked": 3}
+        mock_db.commit.assert_called_once()
+
 
 class TestIdentityUnlinkAudit:
     def _patches(self):

@@ -286,6 +286,20 @@ export async function revokeOtherSessions(): Promise<void> {
 }
 
 /**
+ * Ends every session of the authenticated user, the current one included — the
+ * self-service "sign out everywhere" action. The server also clears the
+ * browser's refresh-token cookie.
+ *
+ * @throws {HttpError} When the request fails.
+ */
+export async function signOutEverywhere(): Promise<void> {
+  await apiFetch('/profile/sessions/revoke', {
+    method: 'POST',
+    responseType: 'void',
+  })
+}
+
+/**
  * Lists the authenticated user's API keys. Raw keys are never returned here —
  * only the prefix and metadata.
  *

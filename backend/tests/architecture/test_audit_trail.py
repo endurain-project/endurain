@@ -104,6 +104,7 @@ _AUDITED_WRITES: dict[tuple[str, str], tuple[str, ...]] = {
     ),
     ("auth/account_security/sessions_router.py", "delete_profile_other_sessions"): ("auth.session.revoke",),
     ("auth/account_security/sessions_router.py", "delete_profile_session"): ("auth.session.revoke",),
+    ("auth/account_security/sessions_router.py", "revoke_profile_sessions"): ("auth.session.revoke",),
     ("auth/authentication/public_router.py", "login_for_access_token"): ("auth.lockout.apply", "auth.session.login"),
     ("auth/authentication/public_router.py", "logout"): ("auth.session.logout",),
     ("auth/authentication/public_router.py", "refresh_token"): ("auth.session.refresh", "auth.session.refresh_reuse"),

@@ -84,7 +84,7 @@ Under **Settings → Security** you can:
 
 - change your password and email. Both ask you to confirm with your current password, and with a code if two-step verification is on. A new email takes effect when you follow the link sent to it, valid for 24 hours. Until then your current address stays in place, and Settings shows the pending address with buttons to resend the link or cancel the change. Once the change is confirmed, the previous address gets a notice. If the server has no mail configured, a new email takes effect at once, unverified;
 - turn two-step verification (a TOTP authenticator app) on or off, and regenerate its ten one-time backup codes. Each code has the form `XXXX-XXXX` and works once, and generating new ones invalidates the old;
-- see your signed-in sessions and sign out of any of them or all the others;
+- see your signed-in sessions and sign out of any of them, of all the others, or **Sign out everywhere**, which also ends the one you are using and takes you to the sign-in page;
 - link or unlink identity providers;
 - create and revoke [API keys](../integrate/api-keys.md), which can upload activities and always expire, after at most the lifetime the administrator allows (365 days by default);
 - delete your account.

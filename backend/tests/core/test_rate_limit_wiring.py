@@ -211,6 +211,11 @@ _TIERED_ENDPOINTS = [
         id="profile-sessions-revoke-others",
     ),
     pytest.param(
+        auth_sessions_profile_router.revoke_profile_sessions,
+        core_rate_limit.WRITE,
+        id="profile-sessions-revoke-all",
+    ),
+    pytest.param(
         auth_sessions_profile_router.delete_profile_session, core_rate_limit.WRITE, id="profile-session-delete"
     ),
     pytest.param(auth_sessions_router.read_sessions_user, core_rate_limit.EXPENSIVE_READ, id="admin-sessions-read"),

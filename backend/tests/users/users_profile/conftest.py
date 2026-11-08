@@ -158,6 +158,11 @@ def profile_app(
         lambda user_id, session_id, db: mock_auth_services.delete_other_user_sessions(user_id, session_id),
     )
     monkeypatch.setattr(
+        account_security_service,
+        "sign_out_everywhere",
+        lambda user_id, db: mock_auth_services.sign_out_everywhere(user_id),
+    )
+    monkeypatch.setattr(
         mfa_workflow_service,
         "get_mfa_status",
         lambda user_id, db: mock_auth_services.get_mfa_status(user_id),

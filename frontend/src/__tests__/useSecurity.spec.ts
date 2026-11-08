@@ -7,19 +7,33 @@ import {
   useCancelEmailChangeMutation,
   useChangeEmailMutation,
   useResendEmailChangeMutation,
+  useSignOutEverywhereMutation,
 } from '@/features/security/composables/useSecurity'
 import {
   cancelEmailChange,
   changeEmail,
   resendEmailChange,
+  signOutEverywhere,
 } from '@/features/security/services/security'
 import { queryKeys } from '@/services/queryKeys'
+
+const replace = vi.fn<(location: unknown) => Promise<void>>()
+const clearLocalSession = vi.fn<() => void>()
+
+vi.mock('vue-router', () => ({
+  useRouter: () => ({ replace }),
+}))
+
+vi.mock('@/features/auth/stores/auth', () => ({
+  useAuthStore: () => ({ clearLocalSession }),
+}))
 
 vi.mock('@/features/security/services/security', async (importOriginal) => ({
   ...(await importOriginal<typeof import('@/features/security/services/security')>()),
   changeEmail: vi.fn<typeof changeEmail>(),
   resendEmailChange: vi.fn<typeof resendEmailChange>(),
   cancelEmailChange: vi.fn<typeof cancelEmailChange>(),
+  signOutEverywhere: vi.fn<typeof signOutEverywhere>(),
 }))
 
 let wrapper: ReturnType<typeof mount> | undefined
@@ -89,5 +103,32 @@ describe.each([
     expect(invalidateQueries).toHaveBeenCalledWith({ queryKey: queryKeys.profile.all() })
     expect(invalidateQueries).toHaveBeenCalledWith({ queryKey: queryKeys.currentUser() })
     expect(invalidateQueries).toHaveBeenCalledWith({ queryKey: queryKeys.users.all() })
+  })
+})
+
+describe('useSignOutEverywhereMutation', () => {
+  it('shows the login page, then clears the local session', async () => {
+    vi.mocked(signOutEverywhere).mockResolvedValue()
+    replace.mockResolvedValue()
+    const mutation = mountMutation(new QueryClient(), useSignOutEverywhereMutation)
+
+    await mutation.mutateAsync()
+    await flushPromises()
+
+    expect(replace).toHaveBeenCalledWith({ name: 'login', query: { logoutSuccess: 'true' } })
+    expect(clearLocalSession).toHaveBeenCalledOnce()
+    expect(replace.mock.invocationCallOrder[0] ?? Infinity).toBeLessThan(
+      clearLocalSession.mock.invocationCallOrder[0] ?? 0,
+    )
+  })
+
+  it('keeps the session when the request fails', async () => {
+    vi.mocked(signOutEverywhere).mockRejectedValue(new Error('boom'))
+    const mutation = mountMutation(new QueryClient(), useSignOutEverywhereMutation)
+
+    await expect(mutation.mutateAsync()).rejects.toThrow('boom')
+
+    expect(replace).not.toHaveBeenCalled()
+    expect(clearLocalSession).not.toHaveBeenCalled()
   })
 })

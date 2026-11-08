@@ -35,6 +35,7 @@ import {
   revokeOtherSessions,
   revokeSession,
   setupMfa,
+  signOutEverywhere,
 } from '@/features/security/services/security'
 
 /**
@@ -199,6 +200,29 @@ export function useRevokeOtherSessionsMutation() {
     mutationKey: queryKeys.security.all(),
     mutationFn: () => revokeOtherSessions(),
     invalidateKey: queryKeys.security.sessions(),
+  })
+}
+
+/**
+ * Sign-out-everywhere mutation. On success every session, this one included,
+ * no longer exists on the server, so it shows the login page and then clears
+ * only the local session; calling the logout endpoint would just fail.
+ * Navigation comes first because clearing empties the Query cache, which
+ * unmounts the calling view and with it any per-call `mutate` callback.
+ *
+ * @returns The TanStack Query mutation for signing out of every session.
+ */
+export function useSignOutEverywhereMutation() {
+  const authStore = useAuthStore()
+  const router = useRouter()
+
+  return useMutation<void, Error, void>({
+    mutationKey: queryKeys.security.all(),
+    mutationFn: () => signOutEverywhere(),
+    onSuccess: async () => {
+      await router.replace({ name: 'login', query: { logoutSuccess: 'true' } })
+      authStore.clearLocalSession()
+    },
   })
 }
 
