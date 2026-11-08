@@ -537,6 +537,22 @@
       "createSuccess": "Goal added",
       "updateSuccess": "Goal updated",
       "saveError": "Couldn't save the goal. Please try again."
+    },
+    "streak": {
+      "title": "Weekly streak",
+      "subtitle": "Keep your streak alive by reaching a minimum number of activities every week. Weeks follow your first-day-of-week setting.",
+      "minActivities": "Activities per week",
+      "minActivitiesHint": "How many activities a week needs to count toward your streak.",
+      "minActivitiesInvalid": "Enter a whole number between 1 and {max}.",
+      "allTypes": "Count all activity types",
+      "typesLegend": "Counted activity types ({count} selected)",
+      "typesRequired": "Select at least one activity type, or count all types.",
+      "showOnProfile": "Show my streak on my profile",
+      "save": "Save streak settings",
+      "saving": "Saving…",
+      "saveSuccess": "Streak settings saved",
+      "saveError": "Could not save streak settings",
+      "loadError": "Could not load streak settings"
     }
   },
   "security": {

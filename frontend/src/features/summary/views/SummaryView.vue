@@ -55,6 +55,8 @@ import {
   useUserActivityTypeMapQuery,
 } from '@/features/activities/composables/useActivities'
 import { useActivitySummaryQuery } from '@/features/summary/composables/useSummary'
+import WeeklyStreakCard from '@/features/streaks/components/WeeklyStreakCard.vue'
+import { useMyWeeklyStreakQuery } from '@/features/streaks/composables/useStreaks'
 import { SUMMARY_ACTIVITY_SORT_OPTIONS } from '@/features/activities/utils/activitySortOptions'
 import { presentActivityType } from '@/features/activities/utils/activityType'
 import {
@@ -185,6 +187,9 @@ const summaryParams = computed<ActivitySummaryParams>(() => {
 })
 
 const summaryQuery = useActivitySummaryQuery(viewType, summaryParams)
+
+/** The viewer's weekly streak, shown above the period controls. */
+const weeklyStreak = useMyWeeklyStreakQuery()
 const summary = computed(() => summaryQuery.data.value ?? null)
 const isSummaryPending = computed(() => summaryQuery.isPending.value)
 const isSummaryError = computed(() => summaryQuery.isError.value)
@@ -357,6 +362,11 @@ function refetchList(): void {
       <h1 class="text-page-title">{{ t('summary.title') }}</h1>
       <p class="text-body">{{ t('summary.subtitle') }}</p>
     </header>
+
+    <WeeklyStreakCard
+      :streak="weeklyStreak.data.value"
+      :is-loading="weeklyStreak.isLoading.value"
+    />
 
     <!-- Controls: view-type switch, type filter, and period navigation. -->
     <Card class="flex flex-col gap-3">

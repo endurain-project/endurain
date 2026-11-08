@@ -76,5 +76,29 @@
       "title": "No goals set",
       "description": "Set goals in settings to track your progress here."
     }
+  },
+  "streak": {
+    "title": "Weekly streak",
+    "current": "Current streak",
+    "weeks": "{count} week | {count} weeks",
+    "personalBest": "Personal best",
+    "thisWeek": "This week",
+    "unavailable": "Streak unavailable",
+    "status": {
+      "met": "Done for this week ({count} of {target})",
+      "progress": "{count} of {target} this week",
+      "atRisk": "{remaining} more activity this week to keep your streak | {remaining} more activities this week to keep your streak"
+    },
+    "longest": {
+      "none": "No streak yet. Log an activity to start one!",
+      "label": "Longest streak: {weeks}",
+      "range": "Longest streak: {weeks} ({start} – {end})"
+    },
+    "history": {
+      "label": "Recent weeks",
+      "weeksAgo": "{count} weeks ago",
+      "weekMet": "Week of {date}: {count} activity, target met | Week of {date}: {count} activities, target met",
+      "weekMissed": "Week of {date}: {count} activity | Week of {date}: {count} activities"
+    }
   }
 }

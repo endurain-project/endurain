@@ -302,6 +302,43 @@ def get_user_activities(
     )
 
 
+def get_user_activity_starts(
+    user_id: int,
+    db: Session,
+    *,
+    activity_types: Sequence[int] | None = None,
+    user_is_owner: bool,
+) -> list[activity_contracts.ActivityStartRef]:
+    """Get the start time and timezone of a user's non-hidden activities.
+
+    Selects only the two columns the weekly streak reads, so a user's whole
+    history can be scanned without loading or serializing full rows. Hidden
+    activities are skipped so a duplicate import cannot count twice.
+
+    Args:
+        user_id: Owner user ID.
+        db: Database session.
+        activity_types: Activity types to include, or ``None`` for all.
+        user_is_owner: When False, live Strava API activities are excluded,
+            since that data is owner-only.
+
+    Returns:
+        The matching start references, empty when there are none.
+    """
+    stmt = select(activity_models.Activity.start_time, activity_models.Activity.timezone).where(
+        activity_models.Activity.user_id == user_id,
+        activity_models.Activity.is_hidden.is_(False),
+    )
+    if not user_is_owner:
+        stmt = stmt.where(_is_not_live_strava_api_activity())
+    if activity_types is not None:
+        stmt = stmt.where(activity_models.Activity.activity_type.in_(activity_types))
+    return [
+        activity_contracts.ActivityStartRef(start_time=start_time, timezone=timezone)
+        for start_time, timezone in db.execute(stmt).all()
+    ]
+
+
 def count_user_activities(
     user_id: int,
     db: Session,

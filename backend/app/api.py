@@ -48,6 +48,8 @@ import modules.users.users_default_gear.router as user_default_gear_router
 import modules.users.users_goals.router as user_goals_router
 import modules.users.users_profile.browser_redirect_router as profile_browser_redirect_router
 import modules.users.users_profile.router as profile_router
+import modules.users.users_streak_settings.router as user_streak_settings_router
+import modules.users.users_streaks.router as user_streaks_router
 import modules.websocket.router as websocket_router
 from modules.activities.activity_exercise_titles import (
     public_router as activity_exercise_titles_public_router,
@@ -171,6 +173,12 @@ router.include_router(
     dependencies=[
         Depends(auth_dependencies.validate_access_token),
     ],
+)
+router.include_router(
+    user_streaks_router.router,
+    prefix=core_config.ROOT_PATH + "/activities_streaks",
+    tags=["streaks"],
+    dependencies=[Depends(auth_dependencies.validate_access_token)],
 )
 router.include_router(
     auth_router.router,
@@ -321,6 +329,15 @@ router.include_router(
 router.include_router(
     user_goals_router.router,
     prefix=core_config.ROOT_PATH + "/profile/goals",
+    tags=["profile"],
+    dependencies=[
+        Depends(auth_dependencies.validate_access_token),
+        Security(auth_dependencies.check_scopes, scopes=["profile"]),
+    ],
+)
+router.include_router(
+    user_streak_settings_router.router,
+    prefix=core_config.ROOT_PATH + "/profile/streak_settings",
     tags=["profile"],
     dependencies=[
         Depends(auth_dependencies.validate_access_token),
