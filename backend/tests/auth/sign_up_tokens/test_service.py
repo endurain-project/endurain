@@ -122,6 +122,36 @@ class TestSignupCommitsTheAccountAndItsEventTogether:
         assert ("event" in names) is verification
 
 
+class TestSignupAwaitingApproval:
+    @pytest.mark.parametrize(
+        ("verification", "approval", "asked"),
+        [(False, True, True), (True, True, False), (False, False, False), (True, False, False)],
+    )
+    def test_the_administrators_are_asked_once_nothing_is_left_to_verify(
+        self, mock_db, state, verification, approval, asked
+    ):
+        """A sign-up that must verify its email asks for approval when it verifies; one that need not asks now."""
+        with (
+            patch(
+                f"{_MODULE}.server_settings_integration.get_server_settings",
+                return_value=_settings(verification=verification, approval=approval),
+            ),
+            patch(f"{_MODULE}.server_settings_integration.is_mail_configured", return_value=True),
+            patch(f"{_MODULE}.users_integration") as users,
+            patch(f"{_MODULE}.sign_up_event_publishers") as publishers,
+        ):
+            users.stage_signup_user.return_value = MagicMock(id=7, pending_admin_approval=approval)
+            users.require_admin_users.return_value = [MagicMock(id=10)]
+
+            sign_up_service.signup(_signup_user(with_password=not verification), state, mock_db)
+
+        if asked:
+            publishers.publish_sign_up_approval_requested.assert_called_once_with(7, 10, mock_db)
+        else:
+            publishers.publish_sign_up_approval_requested.assert_not_called()
+        mock_db.commit.assert_called_once()
+
+
 class TestSignUpVerificationResend:
     def _resend(self, state, db, *, user, mail=True, verification=True, deactivated=False):
         with (

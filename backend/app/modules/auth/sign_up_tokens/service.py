@@ -594,7 +594,10 @@ def signup(
     state: StateProvider,
     db: Session,
 ) -> sign_up_schema.SignUpRead:
-    """Create a user and its configured verification event in one commit.
+    """Create a user and its configured verification event, or its approval requests, in one commit.
+
+    With email verification required, the administrators are asked for approval once the address is verified;
+    without it, an account awaiting approval asks them now.
 
     A sign-up with an email address that already has an account answers exactly like a new
     account, so the endpoint does not reveal which addresses are registered; the address's owner
@@ -642,6 +645,9 @@ def signup(
 
     if server_settings.signup_require_email_verification:
         request_sign_up_verification_email(created_user.id, db)
+    elif created_user.pending_admin_approval:
+        # Nothing is left to verify, so the administrators are asked now rather than when the email is verified.
+        request_sign_up_admin_approval(created_user.id, db)
     db.commit()
     logger.info("User signed up", extra=core_logger.context(user_id=created_user.id))
     return _signup_response(server_settings)

@@ -117,7 +117,7 @@ class TestSignupEndpoint:
             signup_require_email_verification=False,
             signup_require_admin_approval=False,
         )
-        mock_create_user.return_value = MagicMock(id=1)
+        mock_create_user.return_value = MagicMock(id=1, pending_admin_approval=False)
 
         response = signup_client.post(
             "/sign-up/sign-up/request",
@@ -270,6 +270,7 @@ class TestSignupEndpoint:
 
         assert response.status_code == status.HTTP_409_CONFLICT
 
+    @patch("modules.auth.sign_up_tokens.service.request_sign_up_admin_approval")
     @patch("modules.auth.sign_up_tokens.service.request_sign_up_verification_email")
     @patch("modules.auth.sign_up_tokens.service.users_integration.stage_signup_user")
     @patch("modules.auth.sign_up_tokens.service.server_settings_integration.get_server_settings")
@@ -278,18 +279,19 @@ class TestSignupEndpoint:
         mock_settings,
         mock_create_user,
         mock_send_email,
+        mock_request_approval,
         signup_client,
     ) -> None:
         """
         Returns 200 with admin_approval_required=True when server
-        requires admin approval.
+        requires admin approval, and asks the administrators for it.
         """
         mock_settings.return_value = MagicMock(
             signup_enabled=True,
             signup_require_email_verification=False,
             signup_require_admin_approval=True,
         )
-        mock_create_user.return_value = MagicMock(id=4)
+        mock_create_user.return_value = MagicMock(id=4, pending_admin_approval=True)
 
         response = signup_client.post(
             "/sign-up/sign-up/request",
@@ -305,6 +307,8 @@ class TestSignupEndpoint:
         assert response.status_code == status.HTTP_200_OK
         data = response.json()
         assert data["admin_approval_required"] is True
+        mock_request_approval.assert_called_once()
+        assert mock_request_approval.call_args.args[0] == 4
 
     @patch("modules.auth.sign_up_tokens.service.request_sign_up_verification_email")
     @patch("modules.auth.sign_up_tokens.service.users_integration.stage_signup_user")
