@@ -60,6 +60,8 @@ Authentication and authorization failures use the same shape. Typical causes:
 | `404` | Invalid session ID, user not found |
 | `429` | Too many login or OAuth attempts |
 
+The `/auth/login` form takes a `username` and a `password` of at most 256 characters each; a longer one, like a NUL character, is `422` (`urn:endurain:error:validation-failed`).
+
 ## Concurrent edits with `ETag` and `If-Match`
 
 Two clients that read the same record and then save it would silently overwrite each other: the second save wins and the first edit is gone, with no error. This happens in ordinary use, with the app open on a phone and a laptop. To prevent it, every record you can edit carries a **version**. You tell the API which version you read, and it refuses the edit if the record has moved on.

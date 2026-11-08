@@ -55,3 +55,26 @@ def test_the_username_is_trimmed_and_the_password_is_not(client):
 
     assert response.json() == {"username": "bob"}
     assert client.post("/login", data={"username": "bob", "password": " x "}).status_code == 200
+
+
+@pytest.mark.parametrize("field", ["username", "password"])
+def test_a_field_of_the_longest_allowed_length_reaches_the_route(client, field):
+    fields = {"username": "bob", "password": "x", field: "a" * authentication_dependencies.LOGIN_FIELD_MAX_LENGTH}
+
+    assert client.post("/login", data=fields).status_code == 200
+
+
+@pytest.mark.parametrize("field", ["username", "password"])
+def test_a_field_over_the_limit_is_a_validation_failure_like_a_nul(client, field):
+    fields = {"username": "bob", "password": "x", field: "a" * (authentication_dependencies.LOGIN_FIELD_MAX_LENGTH + 1)}
+
+    response = client.post("/login", data=fields)
+
+    assert response.status_code == 422
+    body = response.json()
+    assert body["type"] == "urn:endurain:error:validation-failed"
+    assert body["errors"][0]["field"] == f"body.{field}"
+
+
+def test_the_login_limit_covers_the_longest_password_a_user_can_set():
+    assert authentication_dependencies.LOGIN_FIELD_MAX_LENGTH == 256

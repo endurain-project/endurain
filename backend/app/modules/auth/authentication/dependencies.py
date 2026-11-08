@@ -102,6 +102,11 @@ def _pkce_errors(
     return errors
 
 
+#: Longest username or password the login form accepts. The longest password any form lets a user set is 256
+#: characters (change and reset), so every valid credential fits; anything longer never reaches Argon2.
+LOGIN_FIELD_MAX_LENGTH = 256
+
+
 def reject_nul_in_login_form(
     form_data: Annotated[OAuth2PasswordRequestForm, Depends()],
     client_type: Annotated[auth_constants.ClientType, Depends(get_client_type)],
@@ -117,7 +122,10 @@ def reject_nul_in_login_form(
         Form(description="PKCE method, always `S256`. Required from a mobile client; not accepted from a web client."),
     ] = None,
 ) -> LoginFormData:
-    """Check the login form: no NUL character in any field, the PKCE fields that fit the client type.
+    """Check the login form: no NUL character in any field, a short enough username and password, the PKCE fields.
+
+    The username and the password are at most ``LOGIN_FIELD_MAX_LENGTH`` characters, so no oversized password
+    reaches the hash.
 
     PostgreSQL text cannot hold NUL. The NUL middleware reads urlencoded and JSON bodies but leaves multipart
     ones streaming, and FastAPI parses this form from multipart too, so the fields are checked here.
@@ -137,7 +145,8 @@ def reject_nul_in_login_form(
         The username, the password and the PKCE values.
 
     Raises:
-        RequestValidationError: When a field holds a NUL, or the PKCE fields do not fit the client type (422).
+        RequestValidationError: When a field holds a NUL, the username or password is too long, or the PKCE fields do
+            not fit the client type (422).
     """
     errors = [
         {"type": "value_error", "loc": ("body", name), "msg": "NUL characters are not allowed"}
@@ -147,6 +156,11 @@ def reject_nul_in_login_form(
             "code_challenge_method": code_challenge_method,
         }.items()
         if isinstance(value, str) and "\x00" in value
+    ]
+    errors += [
+        {"type": "value_error", "loc": ("body", name), "msg": f"At most {LOGIN_FIELD_MAX_LENGTH} characters"}
+        for name, value in (("username", form_data.username), ("password", form_data.password))
+        if len(value) > LOGIN_FIELD_MAX_LENGTH
     ]
     if isinstance(form_data.scopes, list) and any("\x00" in scope for scope in form_data.scopes):
         errors.append({"type": "value_error", "loc": ("body", "scope"), "msg": "NUL characters are not allowed"})

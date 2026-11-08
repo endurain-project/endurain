@@ -11,11 +11,9 @@ Each caller supplies its own ``salt``, which namespaces its tokens: a token mint
 for one salt never validates under another, so an activity-thumbnail token can
 never be replayed against a different feature that happens to use the same id.
 
-Every token carries an embedded issue timestamp, but verification only checks it
-when the caller passes ``max_age`` — omitting it (the default) keeps a token
-valid forever, stable and cacheable, exactly as before. Pass ``max_age`` for a
-value that can be revisited after the access decision it was minted from has
-changed (e.g. an activity's visibility): a bounded token self-heals on every
+Every token carries an embedded issue timestamp, and verification always checks
+it against the caller's ``max_age``. A token can outlive the access decision it was
+minted from (e.g. an activity's visibility) only for that long: a bounded token self-heals on every
 fresh view, because the value is re-serialized and re-signed with the current
 bucket's timestamp, while still tolerating the caller's own HTTP cache window.
 A capability signer rounds that timestamp down to a bucket, so repeated reads
@@ -129,19 +127,17 @@ def sign_token(salt: str, value: object, *, bucket_seconds: int = 1) -> str:
     return _serializer(salt, bucket_seconds).dumps(value)
 
 
-def verify_token(salt: str, value: object, token: str, *, max_age: int | None = None) -> bool:
+def verify_token(salt: str, value: object, token: str, *, max_age: int) -> bool:
     """Return whether ``token`` is an authentic, unexpired signature of ``value``.
 
     Args:
         salt: Namespace the token must have been minted under.
         value: The value the token must be bound to.
         token: The token supplied by the caller.
-        max_age: Oldest acceptable age in seconds. ``None`` (default) skips the
-            age check entirely, matching a token minted with no expiry in mind.
+        max_age: Oldest acceptable age in seconds.
 
     Returns:
-        True when the token is authentic, bound to ``value``, and (when
-        ``max_age`` is given) not older than it.
+        True when the token is authentic, bound to ``value`` and not older than ``max_age``.
     """
     try:
         return _serializer(salt).loads(token, max_age=max_age) == value
