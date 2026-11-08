@@ -43,6 +43,7 @@ def _slow_start_logged(cluster, worker) -> bool:
 
 
 def test_a_job_whose_worker_is_killed_is_finished_by_another_worker(cluster):
+    """A job whose worker dies mid-handler is reclaimed and finished once by another worker."""
     cluster.start_api(distributed=True)
     doomed = cluster.start_worker(distributed=True, slow_seconds=600)
     (job_id,) = cluster.accept_uploads(1, "crash", distributed=True)
