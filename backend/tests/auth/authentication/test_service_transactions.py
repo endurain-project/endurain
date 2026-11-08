@@ -87,6 +87,8 @@ def test_a_rotation_records_the_presented_tokens_own_expiry(mock_db):
         )
 
     assert store.call_args.kwargs["refresh_token_exp"] == _OLD_EXP
+    # The rotated record is bound to the client that rotated.
+    assert (store.call_args.kwargs["ip_address"], store.call_args.kwargs["user_agent"]) == ("127.0.0.1", "agent")
     # The new tokens name the session's client type.
     assert create_tokens.call_args.args[1] == "mobile"
 

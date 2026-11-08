@@ -17,6 +17,7 @@ def _token(**overrides):
         "id": 3,
         "token_family_id": "f" * 36,
         "hashed_token": "a" * 64,
+        "client_fingerprint": "c" * 64,
         "rotation_count": 1,
         "rotated_at": datetime.now(UTC),
         "expires_at": datetime.now(UTC) + timedelta(seconds=30),

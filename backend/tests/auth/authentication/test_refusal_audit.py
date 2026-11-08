@@ -255,7 +255,7 @@ class TestRefreshRefusal:
             pytest.raises(core_exceptions.UnauthenticatedError),
         ):
             authentication_service_refresh_service._replay_rotation(
-                "web", _session(), "old-token", 5, MagicMock(), MagicMock(), mock_db
+                "web", _session(), "old-token", "127.0.0.1", "agent", 5, MagicMock(), MagicMock(), mock_db
             )
 
         self._assert_refused(audit, "failure", "replay_unavailable")
@@ -271,7 +271,7 @@ class TestRefreshRefusal:
             pytest.raises(core_exceptions.UnauthenticatedError),
         ):
             authentication_service_refresh_service._replay_rotation(
-                "web", _session(), "old-token", 5, MagicMock(), MagicMock(), mock_db
+                "web", _session(), "old-token", "127.0.0.1", "agent", 5, MagicMock(), MagicMock(), mock_db
             )
 
         self._assert_refused(audit, "failure", "user_not_found")
@@ -288,7 +288,7 @@ class TestRefreshRefusal:
             pytest.raises(core_exceptions.PermissionDeniedError),
         ):
             authentication_service_refresh_service._replay_rotation(
-                "web", _session(), "old-token", 5, MagicMock(), MagicMock(), mock_db
+                "web", _session(), "old-token", "127.0.0.1", "agent", 5, MagicMock(), MagicMock(), mock_db
             )
 
         self._assert_refused(audit, "denied", "user_inactive")
@@ -308,6 +308,92 @@ class TestRefreshRefusal:
 
         audit.assert_audited(authentication_audit_actions.REFRESH_TOKEN_REUSE.id, outcome="denied")
         audit.assert_not_audited(_REFRESH)
+
+    def _rotate_losing_the_race(self, db, *, reuse_after_conflict):
+        hasher = MagicMock()
+        hasher.verify_password.return_value = True
+        tokens = ("sid", datetime(2999, 1, 1, tzinfo=UTC), "at", datetime(2999, 1, 1, tzinfo=UTC), "rt", "csrf")
+        integration = "modules.auth.authentication.refresh_service.rotated_refresh_tokens_integration"
+        with (
+            patch(f"{_SERVICE}.sessions_integration.validate_session_timeout"),
+            patch(f"{integration}.check_token_reuse", side_effect=[(False, False), reuse_after_conflict]) as check,
+            patch(f"{integration}.store_rotated_token", side_effect=core_exceptions.ConflictError("rotated")),
+            patch(f"{_SERVICE}.users_integration.get_user", return_value=SimpleNamespace(id=5, active=True)),
+            patch("modules.auth.authentication.token_service.create_tokens", return_value=tokens),
+            patch(f"{_SERVICE}.sessions_integration.invalidate_token_family") as invalidate,
+            patch.object(authentication_service_refresh_service, "_replay_rotation") as replay,
+        ):
+            try:
+                _refresh(db, session=_session(), hasher=hasher)
+            finally:
+                self.check, self.invalidate, self.replay = check, invalidate, replay
+
+    def test_a_lost_rotation_race_from_another_client_ends_the_family(self, mock_db):
+        with jasil_testing.capture_audit() as audit, pytest.raises(core_exceptions.UnauthenticatedError):
+            self._rotate_losing_the_race(mock_db, reuse_after_conflict=(True, False))
+
+        audit.assert_audited(authentication_audit_actions.REFRESH_TOKEN_REUSE.id, outcome="denied")
+        self.invalidate.assert_called_once_with("family", mock_db)
+        mock_db.rollback.assert_called_once()
+        mock_db.commit.assert_called_once()
+        self.replay.assert_not_called()
+        assert self.check.call_args.args == ("old-token", mock_db)
+        assert self.check.call_args.kwargs == {"ip_address": "127.0.0.1", "user_agent": "agent"}
+
+    def test_a_lost_rotation_race_from_the_same_client_replays_the_winners_token(self, mock_db):
+        with jasil_testing.capture_audit() as audit:
+            self._rotate_losing_the_race(mock_db, reuse_after_conflict=(True, True))
+
+        self.invalidate.assert_not_called()
+        self.replay.assert_called_once()
+        assert self.replay.call_args.args[3:5] == ("127.0.0.1", "agent")
+        audit.assert_not_audited(authentication_audit_actions.REFRESH_TOKEN_REUSE.id)
+
+    def test_a_retry_in_the_grace_window_from_another_client_ends_the_family(self, mock_db):
+        with (
+            patch(f"{_SERVICE}.sessions_integration.validate_session_timeout"),
+            patch(
+                "modules.auth.authentication.refresh_service.rotated_refresh_tokens_integration.check_token_reuse",
+                return_value=(True, False),
+            ) as check,
+            patch(f"{_SERVICE}.sessions_integration.invalidate_token_family") as invalidate,
+            jasil_testing.capture_audit() as audit,
+            pytest.raises(core_exceptions.UnauthenticatedError),
+        ):
+            _refresh(mock_db, session=_session())
+
+        audit.assert_audited(authentication_audit_actions.REFRESH_TOKEN_REUSE.id, outcome="denied")
+        invalidate.assert_called_once_with("family", mock_db)
+        assert check.call_args.kwargs == {"ip_address": "127.0.0.1", "user_agent": "agent"}
+
+    def test_a_retry_in_the_grace_window_from_the_same_client_is_replayed(self, mock_db):
+        with (
+            patch(f"{_SERVICE}.sessions_integration.validate_session_timeout"),
+            patch(
+                "modules.auth.authentication.refresh_service.rotated_refresh_tokens_integration.check_token_reuse",
+                return_value=(True, True),
+            ),
+            patch(f"{_SERVICE}.sessions_integration.invalidate_token_family") as invalidate,
+            patch.object(authentication_service_refresh_service, "_replay_rotation") as replay,
+        ):
+            _refresh(mock_db, session=_session())
+
+        invalidate.assert_not_called()
+        assert replay.call_args.args[3:5] == ("127.0.0.1", "agent")
+
+    def test_a_replay_asks_for_the_replacement_on_behalf_of_the_presenting_client(self, mock_db):
+        with (
+            patch(
+                "modules.auth.authentication.refresh_service.rotated_refresh_tokens_integration.get_grace_replay_token",
+                return_value=None,
+            ) as get_replay,
+            pytest.raises(core_exceptions.UnauthenticatedError),
+        ):
+            authentication_service_refresh_service._replay_rotation(
+                "web", _session(), "old-token", "127.0.0.1", "agent", 5, MagicMock(), MagicMock(), mock_db
+            )
+
+        get_replay.assert_called_once_with("old-token", mock_db, ip_address="127.0.0.1", user_agent="agent")
 
 
 class TestMfaChallengeRefusal:

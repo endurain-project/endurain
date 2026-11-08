@@ -13,6 +13,8 @@ def store_rotated_token(
     rotation_count: int,
     db: Session,
     *,
+    ip_address: str,
+    user_agent: str,
     refresh_token_exp: datetime,
     replacement_refresh_token: str,
     replacement_refresh_token_exp: datetime,
@@ -23,20 +25,24 @@ def store_rotated_token(
         token_family_id,
         rotation_count,
         db,
+        ip_address=ip_address,
+        user_agent=user_agent,
         refresh_token_exp=refresh_token_exp,
         replacement_refresh_token=replacement_refresh_token,
         replacement_refresh_token_exp=replacement_refresh_token_exp,
     )
 
 
-def check_token_reuse(raw_token: str, db: Session) -> tuple[bool, bool]:
-    """Check whether a refresh token has already been rotated."""
-    return rotated_token_service.check_token_reuse(raw_token, db)
+def check_token_reuse(raw_token: str, db: Session, *, ip_address: str, user_agent: str) -> tuple[bool, bool]:
+    """Check whether a refresh token has already been rotated and whether the rotating client presents it."""
+    return rotated_token_service.check_token_reuse(raw_token, db, ip_address=ip_address, user_agent=user_agent)
 
 
-def get_grace_replay_token(raw_token: str, db: Session) -> tuple[str, datetime] | None:
-    """Return the replacement token for a retry inside the grace period."""
-    return rotated_token_service.get_grace_replay_token(raw_token, db)
+def get_grace_replay_token(
+    raw_token: str, db: Session, *, ip_address: str, user_agent: str
+) -> tuple[str, datetime] | None:
+    """Return the replacement token for a retry inside the grace period from the rotating client."""
+    return rotated_token_service.get_grace_replay_token(raw_token, db, ip_address=ip_address, user_agent=user_agent)
 
 
 def delete_by_family(token_family_id: str, db: Session) -> int:

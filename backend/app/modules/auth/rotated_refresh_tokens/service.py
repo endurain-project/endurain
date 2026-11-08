@@ -1,13 +1,16 @@
 """Utility functions for refresh token reuse detection."""
 
+import hmac
 from datetime import UTC, datetime, timedelta
 
 from sqlalchemy.orm import Session
 
 import core.cryptography as core_cryptography
 import core.database as core_database
+import core.hashing as core_hashing
 import core.key_rotation as core_key_rotation
 import core.logger as core_logger
+import core.network as core_network
 import modules.auth.access_tokens.integration_service as access_tokens_integration
 import modules.auth.rotated_refresh_tokens.crud as rotated_token_crud
 import modules.auth.rotated_refresh_tokens.schema as rotated_token_schema
@@ -53,12 +56,37 @@ def hmac_hash_token_candidates(token: str) -> tuple[str, ...]:
     return access_tokens_integration.hmac_sha256_under_every_key(token)
 
 
+def _client_fingerprint(ip_address: str, user_agent: str) -> str:
+    """Fingerprint the client behind a request: its network and its exact ``User-Agent``.
+
+    The network is the IPv4 address or the IPv6 /64, so an IPv6 client rotating through its prefix keeps
+    one fingerprint. A newline joins the parts; it cannot occur in either.
+
+    Args:
+        ip_address: The client address of the request.
+        user_agent: The ``User-Agent`` of the request.
+
+    Returns:
+        SHA-256 hex digest of the network and the user agent.
+    """
+    return core_hashing.sha256_hex(f"{core_network.client_network(ip_address)}\n{user_agent}")
+
+
+def _is_rotating_client(
+    rotated_token: rotated_token_schema.RotatedRefreshTokenRead, ip_address: str, user_agent: str
+) -> bool:
+    """Whether the request comes from the client that rotated the token."""
+    return hmac.compare_digest(rotated_token.client_fingerprint, _client_fingerprint(ip_address, user_agent))
+
+
 def store_rotated_token(
     raw_token: str,
     token_family_id: str,
     rotation_count: int,
     db: Session,
     *,
+    ip_address: str,
+    user_agent: str,
     refresh_token_exp: datetime,
     replacement_refresh_token: str,
     replacement_refresh_token_exp: datetime,
@@ -68,13 +96,16 @@ def store_rotated_token(
     Uses HMAC-SHA256 with the server secret to hash the rotated
     token for deterministic lookups, and stores the replacement
     refresh token encrypted at rest so a legitimate retry inside
-    the grace window can be replayed idempotently.
+    the grace window can be replayed idempotently. The record carries a fingerprint of the rotating
+    client, so only that client is answered with the replacement.
 
     Args:
         raw_token: The raw refresh token being rotated out.
         token_family_id: UUID of the token family.
         rotation_count: Current rotation count for this token.
         db: SQLAlchemy database session.
+        ip_address: Client address of the rotating request.
+        user_agent: ``User-Agent`` of the rotating request.
         refresh_token_exp: Expiry of ``raw_token``; the record is kept until
             then, so a replay of the old token is recognised as reuse.
         replacement_refresh_token: The new refresh token minted
@@ -95,6 +126,7 @@ def store_rotated_token(
     rotated_token = rotated_token_schema.RotatedRefreshTokenCreate(
         token_family_id=token_family_id,
         hashed_token=hashed_token,
+        client_fingerprint=_client_fingerprint(ip_address, user_agent),
         rotation_count=rotation_count,
         rotated_at=now,
         expires_at=expires_at,
@@ -106,21 +138,25 @@ def store_rotated_token(
     rotated_token_crud.create_rotated_token(rotated_token, db)
 
 
-def check_token_reuse(raw_token: str, db: Session) -> tuple[bool, bool]:
+def check_token_reuse(raw_token: str, db: Session, *, ip_address: str, user_agent: str) -> tuple[bool, bool]:
     """Check if a refresh token has been reused (already rotated).
 
     Uses HMAC-SHA256 with the server secret to hash the token
-    for lookup, ensuring deterministic matching.
+    for lookup, ensuring deterministic matching. Inside the grace
+    window the reuse is a retry only when it comes from the client
+    that rotated the token; from another client it is treated as theft.
 
     Args:
         raw_token: The raw refresh token to check.
         db: SQLAlchemy database session.
+        ip_address: Client address of the presenting request.
+        user_agent: ``User-Agent`` of the presenting request.
 
     Returns:
         Tuple of (is_reused, in_grace_period):
             - (False, False): Token is valid, not reused.
-            - (True, True): Reused but within the grace period.
-            - (True, False): Reused after grace period - THEFT!
+            - (True, True): Reused within the grace period by the rotating client.
+            - (True, False): Reused after the grace period, or within it by another client - THEFT!
 
     Raises:
         ProcessingError: If lookup fails.
@@ -135,7 +171,16 @@ def check_token_reuse(raw_token: str, db: Session) -> tuple[bool, bool]:
     now = datetime.now(UTC)
 
     if now <= rotated_token.expires_at:
-        # Within grace period - might be legitimate retry
+        if not _is_rotating_client(rotated_token, ip_address, user_agent):
+            logger.warning(
+                "Token reuse within grace period came from another client",
+                extra=core_logger.context(
+                    token_family_id=rotated_token.token_family_id, rotation_count=rotated_token.rotation_count
+                ),
+            )
+            return (True, False)
+
+        # Within grace period from the rotating client - a legitimate retry
         logger.warning(
             "Token reuse within grace period",
             extra=core_logger.context(
@@ -156,22 +201,28 @@ def check_token_reuse(raw_token: str, db: Session) -> tuple[bool, bool]:
     return (True, False)
 
 
-def get_grace_replay_token(raw_token: str, db: Session) -> tuple[str, datetime] | None:
+def get_grace_replay_token(
+    raw_token: str, db: Session, *, ip_address: str, user_agent: str
+) -> tuple[str, datetime] | None:
     """Return the replacement refresh token for an in-grace retry.
 
     When a refresh token is presented again while still inside the
     grace window (a lost rotation response or a racing retry), the
     replacement minted on the original rotation is replayed instead
     of issuing a brand-new token, so duplicate/concurrent refreshes
-    converge on a single outcome.
+    converge on a single outcome. Only the client that rotated the
+    token is answered.
 
     Args:
         raw_token: The raw refresh token being replayed.
         db: SQLAlchemy database session.
+        ip_address: Client address of the presenting request.
+        user_agent: ``User-Agent`` of the presenting request.
 
     Returns:
         Tuple of (replacement_refresh_token, expiry) when a live
-        in-grace record with a stored replacement exists, else None.
+        in-grace record with a stored replacement exists and the
+        request comes from the rotating client, else None.
 
     Raises:
         ProcessingError: If lookup or decryption fails.
@@ -183,6 +234,9 @@ def get_grace_replay_token(raw_token: str, db: Session) -> tuple[str, datetime] 
 
     # Only replay inside the grace window; past it, reuse is theft.
     if datetime.now(UTC) > rotated_token.expires_at:
+        return None
+
+    if not _is_rotating_client(rotated_token, ip_address, user_agent):
         return None
 
     if not rotated_token.replacement_refresh_token or rotated_token.replacement_refresh_token_exp is None:

@@ -22,6 +22,7 @@ class TestRotatedRefreshTokenCreateSchema:
         token = rotated_token_schema.RotatedRefreshTokenCreate(
             token_family_id="test-family-id",
             hashed_token="hashed-token-value",
+            client_fingerprint="c" * 64,
             rotation_count=0,
             rotated_at=now,
             expires_at=now,
@@ -47,6 +48,7 @@ class TestRotatedRefreshTokenCreateSchema:
         with pytest.raises(ValidationError) as exc_info:
             rotated_token_schema.RotatedRefreshTokenCreate(
                 hashed_token="hashed-token-value",
+                client_fingerprint="c" * 64,
                 rotation_count=0,
                 rotated_at=now,
                 expires_at=now,
@@ -86,6 +88,7 @@ class TestRotatedRefreshTokenCreateSchema:
             rotated_token_schema.RotatedRefreshTokenCreate(
                 token_family_id="test-family-id",
                 hashed_token="hashed-token-value",
+                client_fingerprint="c" * 64,
                 rotation_count=-1,
                 rotated_at=now,
                 expires_at=now,
@@ -107,6 +110,7 @@ class TestRotatedRefreshTokenCreateSchema:
             rotated_token_schema.RotatedRefreshTokenCreate(
                 token_family_id=long_family_id,
                 hashed_token="hashed-token-value",
+                client_fingerprint="c" * 64,
                 rotation_count=0,
                 rotated_at=now,
                 expires_at=now,
@@ -128,6 +132,7 @@ class TestRotatedRefreshTokenCreateSchema:
             rotated_token_schema.RotatedRefreshTokenCreate(
                 token_family_id="test-family-id",
                 hashed_token=long_token,
+                client_fingerprint="c" * 64,
                 rotation_count=0,
                 rotated_at=now,
                 expires_at=now,
@@ -148,6 +153,7 @@ class TestRotatedRefreshTokenCreateSchema:
             rotated_token_schema.RotatedRefreshTokenCreate(
                 token_family_id="test-family-id",
                 hashed_token="hashed-token-value",
+                client_fingerprint="c" * 64,
                 rotation_count=0,
                 rotated_at=now,
                 expires_at=now,
@@ -176,6 +182,7 @@ class TestRotatedRefreshTokenCreateSchema:
             rotated_token_schema.RotatedRefreshTokenCreate(
                 token_family_id="test-family-id",
                 hashed_token="hashed-token-value",
+                client_fingerprint="c" * 64,
                 rotation_count="not-an-int",
                 rotated_at=now,
                 expires_at=now,
@@ -202,6 +209,7 @@ class TestRotatedRefreshTokenReadSchema:
             id=1,
             token_family_id="test-family-id",
             hashed_token="hashed-token-value",
+            client_fingerprint="c" * 64,
             rotation_count=0,
             rotated_at=now,
             expires_at=now,
@@ -223,6 +231,7 @@ class TestRotatedRefreshTokenReadSchema:
             rotated_token_schema.RotatedRefreshTokenRead(
                 token_family_id="test-family-id",
                 hashed_token="hashed-token-value",
+                client_fingerprint="c" * 64,
                 rotation_count=0,
                 rotated_at=now,
                 expires_at=now,
@@ -244,6 +253,7 @@ class TestRotatedRefreshTokenReadSchema:
                 id=0,
                 token_family_id="test-family-id",
                 hashed_token="hashed-token-value",
+                client_fingerprint="c" * 64,
                 rotation_count=0,
                 rotated_at=now,
                 expires_at=now,

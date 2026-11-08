@@ -82,6 +82,7 @@ def _rotated(key: str, refresh_token_exp: datetime) -> Any:
     return rotated_token_models.RotatedRefreshToken(
         token_family_id=key,
         hashed_token=key,
+        client_fingerprint="c" * 64,
         rotation_count=0,
         rotated_at=refresh_token_exp,
         expires_at=refresh_token_exp,

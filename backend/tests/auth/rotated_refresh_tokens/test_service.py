@@ -3,9 +3,15 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
+import core.hashing as hashing
+import core.network as network
 import modules.auth.rotated_refresh_tokens.models as rotated_token_models
 import modules.auth.rotated_refresh_tokens.scheduled_jobs as rotated_token_jobs
 import modules.auth.rotated_refresh_tokens.service as rotated_token_utils
+
+_IP = "203.0.113.7"
+_UA = "Endurain/1.0"
+_FINGERPRINT = hashing.sha256_hex(f"{_IP}\n{_UA}")
 
 
 class TestHmacHashToken:
@@ -68,6 +74,8 @@ class TestStoreRotatedToken:
             "family-id",
             0,
             mock_db,
+            ip_address=_IP,
+            user_agent=_UA,
             refresh_token_exp=rotated_exp,
             replacement_refresh_token="new-refresh-token",
             replacement_refresh_token_exp=replacement_exp,
@@ -81,6 +89,7 @@ class TestStoreRotatedToken:
         assert stored_schema.replacement_refresh_token == "encrypted-replacement"
         assert stored_schema.replacement_refresh_token_exp == replacement_exp
         assert stored_schema.refresh_token_exp == rotated_exp
+        assert stored_schema.client_fingerprint == _FINGERPRINT
 
 
 class TestCheckTokenReuse:
@@ -100,7 +109,9 @@ class TestCheckTokenReuse:
         mock_db = MagicMock()
 
         # Act
-        is_reused, in_grace = rotated_token_utils.check_token_reuse("raw-token", mock_db)
+        is_reused, in_grace = rotated_token_utils.check_token_reuse(
+            "raw-token", mock_db, ip_address=_IP, user_agent=_UA
+        )
 
         # Assert
         assert is_reused is False
@@ -117,13 +128,16 @@ class TestCheckTokenReuse:
         now = datetime.now(UTC)
         mock_rotated_token = MagicMock(spec=rotated_token_models.RotatedRefreshToken)
         mock_rotated_token.expires_at = now + timedelta(seconds=30)
+        mock_rotated_token.client_fingerprint = _FINGERPRINT
         mock_rotated_token.token_family_id = "family-id"
         mock_rotated_token.rotation_count = 1
         mock_crud.get_rotated_token_by_hashes.return_value = mock_rotated_token
         mock_db = MagicMock()
 
         # Act
-        is_reused, in_grace = rotated_token_utils.check_token_reuse("raw-token", mock_db)
+        is_reused, in_grace = rotated_token_utils.check_token_reuse(
+            "raw-token", mock_db, ip_address=_IP, user_agent=_UA
+        )
 
         # Assert
         assert is_reused is True
@@ -147,7 +161,9 @@ class TestCheckTokenReuse:
         mock_db = MagicMock()
 
         # Act
-        is_reused, in_grace = rotated_token_utils.check_token_reuse("raw-token", mock_db)
+        is_reused, in_grace = rotated_token_utils.check_token_reuse(
+            "raw-token", mock_db, ip_address=_IP, user_agent=_UA
+        )
 
         # Assert
         assert is_reused is True
@@ -172,6 +188,7 @@ class TestGetGraceReplayToken:
         replacement_exp = now + timedelta(days=7)
         mock_rotated_token = MagicMock(spec=rotated_token_models.RotatedRefreshToken)
         mock_rotated_token.expires_at = now + timedelta(seconds=30)
+        mock_rotated_token.client_fingerprint = _FINGERPRINT
         mock_rotated_token.replacement_refresh_token = "encrypted-replacement"
         mock_rotated_token.replacement_refresh_token_exp = replacement_exp
         mock_crud.get_rotated_token_by_hashes.return_value = mock_rotated_token
@@ -179,7 +196,7 @@ class TestGetGraceReplayToken:
         mock_db = MagicMock()
 
         # Act
-        result = rotated_token_utils.get_grace_replay_token("raw-token", mock_db)
+        result = rotated_token_utils.get_grace_replay_token("raw-token", mock_db, ip_address=_IP, user_agent=_UA)
 
         # Assert
         assert result == ("decrypted-replacement", replacement_exp)
@@ -197,7 +214,7 @@ class TestGetGraceReplayToken:
         mock_db = MagicMock()
 
         # Act
-        result = rotated_token_utils.get_grace_replay_token("raw-token", mock_db)
+        result = rotated_token_utils.get_grace_replay_token("raw-token", mock_db, ip_address=_IP, user_agent=_UA)
 
         # Assert
         assert result is None
@@ -219,7 +236,7 @@ class TestGetGraceReplayToken:
         mock_db = MagicMock()
 
         # Act
-        result = rotated_token_utils.get_grace_replay_token("raw-token", mock_db)
+        result = rotated_token_utils.get_grace_replay_token("raw-token", mock_db, ip_address=_IP, user_agent=_UA)
 
         # Assert
         assert result is None
@@ -235,16 +252,99 @@ class TestGetGraceReplayToken:
         now = datetime.now(UTC)
         mock_rotated_token = MagicMock(spec=rotated_token_models.RotatedRefreshToken)
         mock_rotated_token.expires_at = now + timedelta(seconds=30)
+        mock_rotated_token.client_fingerprint = _FINGERPRINT
         mock_rotated_token.replacement_refresh_token = None
         mock_rotated_token.replacement_refresh_token_exp = None
         mock_crud.get_rotated_token_by_hashes.return_value = mock_rotated_token
         mock_db = MagicMock()
 
         # Act
-        result = rotated_token_utils.get_grace_replay_token("raw-token", mock_db)
+        result = rotated_token_utils.get_grace_replay_token("raw-token", mock_db, ip_address=_IP, user_agent=_UA)
 
         # Assert
         assert result is None
+
+
+def _record(**overrides):
+    values = {
+        "expires_at": datetime.now(UTC) + timedelta(seconds=30),
+        "token_family_id": "family-id",
+        "rotation_count": 1,
+        "rotated_at": datetime.now(UTC),
+        "client_fingerprint": _FINGERPRINT,
+        "replacement_refresh_token": "encrypted-replacement",
+        "replacement_refresh_token_exp": datetime.now(UTC) + timedelta(days=7),
+    }
+    values.update(overrides)
+    return MagicMock(spec=rotated_token_models.RotatedRefreshToken, **values)
+
+
+class TestClientBinding:
+    """An in-grace retry is the rotating client's only when its network and User-Agent match."""
+
+    @pytest.fixture(autouse=True)
+    def _patched(self):
+        with (
+            patch("modules.auth.rotated_refresh_tokens.service.rotated_token_crud") as crud,
+            patch("modules.auth.rotated_refresh_tokens.service.hmac_hash_token_candidates", return_value=("h",)),
+            patch("modules.auth.rotated_refresh_tokens.service.core_cryptography") as crypto,
+        ):
+            crypto.decrypt_token_fernet.return_value = "decrypted-replacement"
+            self.crud = crud
+            yield
+
+    def _fingerprint_of(self, ip, ua):
+        return hashing.sha256_hex(f"{network.client_network(ip)}\n{ua}")
+
+    def _present(self, ip, ua, *, stored_ip="203.0.113.7", stored_ua="Endurain/1.0"):
+        self.crud.get_rotated_token_by_hashes.return_value = _record(
+            client_fingerprint=self._fingerprint_of(stored_ip, stored_ua)
+        )
+        reuse = rotated_token_utils.check_token_reuse("raw", MagicMock(), ip_address=ip, user_agent=ua)
+        replay = rotated_token_utils.get_grace_replay_token("raw", MagicMock(), ip_address=ip, user_agent=ua)
+        return reuse, replay
+
+    def test_the_same_client_is_in_grace_and_gets_the_replay(self):
+        reuse, replay = self._present("203.0.113.7", "Endurain/1.0")
+
+        assert reuse == (True, True)
+        assert replay is not None and replay[0] == "decrypted-replacement"
+
+    @pytest.mark.parametrize(
+        ("ip", "ua"),
+        [
+            ("203.0.113.8", "Endurain/1.0"),
+            ("203.0.113.7", "Endurain/1.1"),
+        ],
+    )
+    def test_another_ipv4_address_or_user_agent_is_theft(self, ip, ua):
+        reuse, replay = self._present(ip, ua)
+
+        assert reuse == (True, False)
+        assert replay is None
+
+    def test_another_ipv6_64_is_theft(self):
+        reuse, replay = self._present(
+            "2001:db8:0:2::1", "Endurain/1.0", stored_ip="2001:db8:0:1::1", stored_ua="Endurain/1.0"
+        )
+
+        assert reuse == (True, False)
+        assert replay is None
+
+    def test_the_same_ipv6_64_with_another_host_part_matches(self):
+        reuse, replay = self._present(
+            "2001:db8:0:1::ffff", "Endurain/1.0", stored_ip="2001:db8:0:1::1", stored_ua="Endurain/1.0"
+        )
+
+        assert reuse == (True, True)
+        assert replay is not None
+
+    def test_a_mismatch_warns_that_the_replay_came_from_another_client(self):
+        self.crud.get_rotated_token_by_hashes.return_value = _record()
+        with patch("modules.auth.rotated_refresh_tokens.service.logger") as logger:
+            rotated_token_utils.check_token_reuse("raw", MagicMock(), ip_address="198.51.100.1", user_agent=_UA)
+
+        assert "another client" in logger.warning.call_args.args[0]
 
 
 class TestDeleteTokenFamily:
@@ -330,6 +430,8 @@ class TestGraceWindowTiming:
             "family-id",
             0,
             MagicMock(),
+            ip_address=_IP,
+            user_agent=_UA,
             refresh_token_exp=self.ROTATED_AT + timedelta(days=6),
             replacement_refresh_token="new-refresh-token",
             replacement_refresh_token_exp=replacement_exp,
@@ -340,6 +442,7 @@ class TestGraceWindowTiming:
         record.rotated_at = stored.rotated_at
         record.token_family_id = "family-id"
         record.rotation_count = 0
+        record.client_fingerprint = stored.client_fingerprint
         record.replacement_refresh_token = "encrypted-replacement"
         record.replacement_refresh_token_exp = replacement_exp
         mock_crud.get_rotated_token_by_hashes.return_value = record
@@ -362,8 +465,13 @@ class TestGraceWindowTiming:
     def test_token_presented_11_seconds_after_rotation_is_theft(self, mock_hash, mock_crud, mock_crypto):
         self._rotate_and_present(11, mock_hash, mock_crud, mock_crypto)
 
-        assert rotated_token_utils.check_token_reuse("raw-token", MagicMock()) == (True, False)
-        assert rotated_token_utils.get_grace_replay_token("raw-token", MagicMock()) is None
+        assert rotated_token_utils.check_token_reuse("raw-token", MagicMock(), ip_address=_IP, user_agent=_UA) == (
+            True,
+            False,
+        )
+        assert (
+            rotated_token_utils.get_grace_replay_token("raw-token", MagicMock(), ip_address=_IP, user_agent=_UA) is None
+        )
 
     @patch("modules.auth.rotated_refresh_tokens.service.datetime", _FixedClock)
     @patch("modules.auth.rotated_refresh_tokens.service.core_cryptography")
@@ -372,8 +480,11 @@ class TestGraceWindowTiming:
     def test_token_presented_9_seconds_after_rotation_is_in_grace(self, mock_hash, mock_crud, mock_crypto):
         self._rotate_and_present(9, mock_hash, mock_crud, mock_crypto)
 
-        assert rotated_token_utils.check_token_reuse("raw-token", MagicMock()) == (True, True)
-        replay = rotated_token_utils.get_grace_replay_token("raw-token", MagicMock())
+        assert rotated_token_utils.check_token_reuse("raw-token", MagicMock(), ip_address=_IP, user_agent=_UA) == (
+            True,
+            True,
+        )
+        replay = rotated_token_utils.get_grace_replay_token("raw-token", MagicMock(), ip_address=_IP, user_agent=_UA)
         assert replay is not None
         assert replay[0] == "decrypted-replacement"
 
@@ -413,6 +524,8 @@ class TestKeyRotation:
                 "f" * 36,
                 1,
                 db,
+                ip_address=_IP,
+                user_agent=_UA,
                 refresh_token_exp=now + timedelta(days=1),
                 replacement_refresh_token="new-token",
                 replacement_refresh_token_exp=now + timedelta(days=1),

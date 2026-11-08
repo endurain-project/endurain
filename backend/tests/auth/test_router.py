@@ -1828,8 +1828,9 @@ class TestRefreshEndpoint:
         mock_session.rotation_count = 1
         mock_get_session.return_value = mock_session
         mock_validate_timeout.return_value = None
-        # Nothing is recorded when this request checks, because the winner has not committed yet.
-        mock_check_reuse.return_value = (False, False)
+        # Nothing is recorded when this request first checks, because the winner has not committed yet; once
+        # it has, the same client is inside the grace window.
+        mock_check_reuse.side_effect = [(False, False), (True, True)]
         mock_create_tokens.return_value = ("sid-race", now, "loser-at", now, "loser-rt", None)
         mock_store_rotated.side_effect = core_exceptions.ConflictError("already rotated")
         mock_get_replay.return_value = ("winner-rt", now + timedelta(days=7))

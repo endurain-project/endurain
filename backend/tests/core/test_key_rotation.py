@@ -221,6 +221,7 @@ class TestModuleWiring:
                 id=1,
                 token_family_id="family",
                 hashed_token="hash",
+                client_fingerprint="c" * 64,
                 rotation_count=1,
                 rotated_at=now,
                 expires_at=now,

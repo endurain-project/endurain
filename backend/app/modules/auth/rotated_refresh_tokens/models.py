@@ -15,6 +15,8 @@ class RotatedRefreshToken(Base):
         id: Primary key.
         token_family_id: UUID of the token family.
         hashed_token: Hashed old refresh token.
+        client_fingerprint: SHA-256 hex of the rotating client's network and ``User-Agent``; an in-grace
+            retry is answered only when it comes from the same client.
         rotation_count: Which rotation this token belonged to.
         rotated_at: When this token was rotated.
         expires_at: End of the replay grace window.
@@ -44,6 +46,11 @@ class RotatedRefreshToken(Base):
         nullable=False,
         unique=True,
         comment="Hashed old refresh token",
+    )
+    client_fingerprint: Mapped[str] = mapped_column(
+        String(64),
+        nullable=False,
+        comment="SHA-256 hex of the rotating client's network and User-Agent, joined by a newline",
     )
     rotation_count: Mapped[int] = mapped_column(
         nullable=False,

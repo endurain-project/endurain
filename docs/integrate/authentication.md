@@ -140,10 +140,11 @@ The token refresh flow rotates the refresh token on every call:
     - **Mobile clients:** Include refresh token in request
 2. Backend validates refresh token and session, checks for token reuse
     - **If token reuse detected:** Entire token family is invalidated (security breach response)
+    - **Retry within the grace period:** an already rotated refresh token presented again within 10 seconds is answered with the same replacement refresh token only for the client that rotated it (same IPv4 address or IPv6 /64, and same `User-Agent`). From any other client it counts as reuse and ends the session
     - **Client type:** a session is refreshed only with the `X-Client-Type` it was created for. A web session's refresh token presented as `mobile`, or a mobile one as `web`, is refused like an invalid token
     - **Every refusal** (the session ended or expired, belongs to the other client type, the token is invalid, expired or reused, or the user was deleted or deactivated) is `401` with `urn:endurain:error:invalid-token`, and the response clears the web client's refresh cookie. Sign in again. A CSRF header that does not match is `403` and keeps the cookie.
 3. New tokens are generated (access, refresh, CSRF) with refresh token rotation
-4. Old refresh token is stored for reuse detection (grace period: 10 seconds; the record is kept for the refresh token lifetime)
+4. Old refresh token is stored for reuse detection, with a fingerprint of the rotating client's network and `User-Agent` (grace period: 10 seconds; the record is kept for the refresh token lifetime)
 5. Response includes new tokens; web clients receive new httpOnly cookie
 
 **Token Refresh Request (Web):**
@@ -192,7 +193,7 @@ Endurain implements automatic refresh token rotation with reuse detection to pre
 | **Automatic Rotation** | New refresh token issued on every `/auth/refresh` call |
 | **Token Family Tracking** | All tokens in a session share a `token_family_id` |
 | **Reuse Detection** | Old tokens are stored for the refresh token lifetime (`REFRESH_TOKEN_EXPIRE_DAYS`) and monitored for reuse |
-| **Grace Period** | A retry within 10 seconds of a rotation is answered with the replacement token; after that, presenting the old token counts as reuse |
+| **Grace Period** | A retry within 10 seconds of a rotation is answered with the replacement token only for the client that rotated it (same IPv4 address or IPv6 /64, and same `User-Agent`). From any other client, or after 10 seconds, presenting the old token counts as reuse and ends the session |
 | **Family Invalidation** | If reuse detected, ALL tokens in family are invalidated |
 | **Rotation Count** | Tracks number of rotations for audit purposes |
 

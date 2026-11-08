@@ -11,6 +11,8 @@ class RotatedRefreshTokenCreate(BaseModel):
     Attributes:
         token_family_id: UUID of the token family.
         hashed_token: Hashed old refresh token.
+        client_fingerprint: SHA-256 hex of the rotating client's network and
+            ``User-Agent``.
         rotation_count: Sequential rotation number for this
             token.
         rotated_at: Timestamp when this token was rotated.
@@ -31,6 +33,11 @@ class RotatedRefreshTokenCreate(BaseModel):
         ...,
         max_length=255,
         description="Hashed old refresh token",
+    )
+    client_fingerprint: StrictStr = Field(
+        ...,
+        max_length=64,
+        description="SHA-256 hex of the rotating client's network and User-Agent",
     )
     rotation_count: StrictInt = Field(
         ...,

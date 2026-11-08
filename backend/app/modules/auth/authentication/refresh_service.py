@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from datetime import datetime
+from typing import NoReturn
 
 import jasil.audit as jasil_audit
 from sqlalchemy.orm import Session
@@ -28,10 +29,40 @@ import modules.users.users.integration_service as users_integration
 logger = core_logger.get_logger(__name__)
 
 
+def _end_session_on_reuse(token_user_id: int, token_family_id: str, db: Session) -> NoReturn:
+    """End the session of a refresh token that was reused outside its rotating client or its grace window.
+
+    Args:
+        token_user_id: User ID extracted from the refresh token.
+        token_family_id: UUID of the token family to invalidate.
+        db: Database session.
+
+    Raises:
+        InvalidTokenError: Always, once the family is invalidated and the refusal audited.
+    """
+    sessions_integration.invalidate_token_family(token_family_id, db)
+    # The family stays invalidated although this request is refused.
+    with authentication_refusal_audit.refresh_token_context(token_user_id):
+        jasil_audit.stage(
+            db,
+            authentication_audit_actions.REFRESH_TOKEN_REUSE,
+            outcome=jasil_audit.Outcome.DENIED,
+            **login_audit_integration.user_target(token_user_id),
+        )
+    db.commit()
+    logger.warning(
+        "Refresh token reuse detected for user <token_user_id>; token family invalidated",
+        extra=core_logger.context(token_user_id=token_user_id),
+    )
+    raise core_exceptions.InvalidTokenError("Refresh token reuse detected. The session was ended.")
+
+
 def _replay_rotation(
     client_type: auth_constants.ClientType,
     session: sessions_contracts.SessionRead,
     refresh_token_value: str,
+    ip_address: str,
+    user_agent: str,
     token_user_id: int,
     token_manager: access_tokens_integration.TokenManager,
     policy: server_settings_contracts.SessionPolicy,
@@ -40,12 +71,15 @@ def _replay_rotation(
     """Answer a refresh whose token was already rotated with the replacement minted by that rotation.
 
     The session is not rotated again (no new rotated record, no ``rotation_count`` bump), so duplicate
-    and concurrent refreshes converge on one live refresh token.
+    and concurrent refreshes converge on one live refresh token. Only the client that rotated the token is
+    answered.
 
     Args:
         client_type: Client type (``"web"`` or ``"mobile"``).
         session: The session the token belongs to.
         refresh_token_value: The raw refresh token that was already rotated.
+        ip_address: Client address of the presenting request.
+        user_agent: ``User-Agent`` of the presenting request.
         token_user_id: User ID extracted from the refresh token.
         token_manager: Utility for creating tokens.
         policy: The server's session policy.
@@ -57,7 +91,9 @@ def _replay_rotation(
     Raises:
         InvalidTokenError: If the replacement is gone or the user cannot authenticate.
     """
-    replay = rotated_refresh_tokens_integration.get_grace_replay_token(refresh_token_value, db)
+    replay = rotated_refresh_tokens_integration.get_grace_replay_token(
+        refresh_token_value, db, ip_address=ip_address, user_agent=user_agent
+    )
 
     if replay is None:
         # Replacement was cleaned up (or never stored); fall back to the
@@ -148,8 +184,10 @@ def refresh_token(
         - CSRF validation adds defense-in-depth but is not the primary protection
 
     Args:
-        ip_address: Client address, recorded on the session.
-        user_agent: Client user agent, recorded on the session.
+        ip_address: Client address, recorded on the session. A retry of an already rotated token inside the
+            grace window is answered only when its network (IPv4 address or IPv6 /64) matches the rotating request.
+        user_agent: Client user agent, recorded on the session. A retry inside the grace window must also match
+            the rotating request's.
         token_user_id: User ID extracted from the refresh token.
         token_session_id: Session ID extracted from the refresh token.
         refresh_token_value: The raw refresh token value.
@@ -167,7 +205,8 @@ def refresh_token(
 
     Raises:
         InvalidTokenError: If the session is gone or expired, belongs to another kind of client, the refresh token is
-            invalid or reused, or the user is missing or inactive.
+            invalid or reused (after the grace window, or inside it from another client), or the user is missing or
+            inactive.
         PermissionDeniedError: If the CSRF token is invalid (when provided).
     """
     # Get the session from the database
@@ -273,30 +312,21 @@ def refresh_token(
 
     # Check for token reuse BEFORE validating token
     # Uses HMAC-SHA256 internally for deterministic, secure lookup
-    is_reused, in_grace = rotated_refresh_tokens_integration.check_token_reuse(refresh_token_value, db)
+    is_reused, in_grace = rotated_refresh_tokens_integration.check_token_reuse(
+        refresh_token_value, db, ip_address=ip_address, user_agent=user_agent
+    )
 
     if is_reused and not in_grace:
-        # Token theft detected - invalidate entire family
-        sessions_integration.invalidate_token_family(session.token_family_id, db)
-        # The family stays invalidated although this request is refused.
-        with authentication_refusal_audit.refresh_token_context(token_user_id):
-            jasil_audit.stage(
-                db,
-                authentication_audit_actions.REFRESH_TOKEN_REUSE,
-                outcome=jasil_audit.Outcome.DENIED,
-                **login_audit_integration.user_target(token_user_id),
-            )
-        db.commit()
-        logger.warning(
-            "Refresh token reuse detected for user <token_user_id>; token family invalidated",
-            extra=core_logger.context(token_user_id=token_user_id),
-        )
-        raise core_exceptions.InvalidTokenError("Refresh token reuse detected. The session was ended.")
+        # Token theft detected (reuse after the grace window, or inside it from another client)
+        _end_session_on_reuse(token_user_id, session.token_family_id, db)
 
     if is_reused and in_grace:
-        # A retry inside the grace window (a lost rotation response, or a duplicate refresh) is answered
-        # with the replacement minted on the original rotation; the session is not rotated again.
-        return _replay_rotation(client_type, session, refresh_token_value, token_user_id, token_manager, policy, db)
+        # A retry inside the grace window (a lost rotation response, or a duplicate refresh) from the rotating
+        # client is answered with the replacement minted on the original rotation; the session is not
+        # rotated again.
+        return _replay_rotation(
+            client_type, session, refresh_token_value, ip_address, user_agent, token_user_id, token_manager, policy, db
+        )
 
     is_valid = password_hasher.verify_password(refresh_token_value, session.refresh_token)
 
@@ -351,15 +381,25 @@ def refresh_token(
             session.token_family_id,
             session.rotation_count,
             db,
+            ip_address=ip_address,
+            user_agent=user_agent,
             refresh_token_exp=refresh_token_exp,
             replacement_refresh_token=new_refresh_token,
             replacement_refresh_token_exp=new_refresh_token_exp,
         )
     except core_exceptions.ConflictError:
         # A concurrent request presenting the same token recorded its rotation first and wins; this one
-        # answers with the winner's replacement instead of rotating the session a second time.
+        # answers with the winner's replacement instead of rotating the session a second time, but only to
+        # the client the winner rotated for; any other client holding the token is a thief.
         db.rollback()
-        return _replay_rotation(client_type, session, refresh_token_value, token_user_id, token_manager, policy, db)
+        is_reused, in_grace = rotated_refresh_tokens_integration.check_token_reuse(
+            refresh_token_value, db, ip_address=ip_address, user_agent=user_agent
+        )
+        if is_reused and not in_grace:
+            _end_session_on_reuse(token_user_id, session.token_family_id, db)
+        return _replay_rotation(
+            client_type, session, refresh_token_value, ip_address, user_agent, token_user_id, token_manager, policy, db
+        )
 
     # Edit session and store in database
     # Note: edit_session automatically increments rotation_count
