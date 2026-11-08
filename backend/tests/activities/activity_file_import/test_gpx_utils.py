@@ -705,6 +705,48 @@ class TestParseGpxFile:
         assert [wp["cad"] for wp in result["cad_waypoints"]] == [80, 90]
         assert result["activity"].average_cad == 85
 
+    def test_parse_gpx_file_doubles_running_cadence_to_spm(
+        self,
+        tmp_path,
+        monkeypatch,
+    ):
+        """
+        Test running GPX cadence (per-leg) is stored as steps per minute.
+        """
+        _patch_parser_side_effects(monkeypatch)
+        gpx_path = _write_gpx(
+            tmp_path,
+            """
+            <gpx version="1.1" creator="pytest">
+              <trk>
+                <name>Cadence run</name>
+                <type>running</type>
+                <trkseg>
+                  <trkpt lat="0.0" lon="0.0">
+                    <time>2025-01-01T00:00:00Z</time>
+                    <extensions>
+                      <TrackPointExtension><cad>85</cad></TrackPointExtension>
+                    </extensions>
+                  </trkpt>
+                  <trkpt lat="0.0" lon="0.001">
+                    <time>2025-01-01T00:00:10Z</time>
+                    <extensions>
+                      <TrackPointExtension><cad>95</cad></TrackPointExtension>
+                    </extensions>
+                  </trkpt>
+                </trkseg>
+              </trk>
+            </gpx>
+            """.strip(),
+        )
+
+        result = gpx_utils.parse_gpx_file(gpx_path, user_id=1, default_timezone=_SERVER_TZ)
+
+        assert result["activity"].activity_type == 1
+        assert [wp["cad"] for wp in result["cad_waypoints"]] == [170, 190]
+        assert result["activity"].average_cad == 180
+        assert result["activity"].max_cad == 190
+
     def test_parse_gpx_file_with_all_zero_hr_creates_no_hr_stream(
         self,
         tmp_path,

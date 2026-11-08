@@ -27,7 +27,6 @@ import {
   formatPaceClock,
   formatSpeed,
   paceToDisplaySeconds,
-  presentCadence,
   speedToDisplay,
   speedUnitLabel,
   type Units,
@@ -160,10 +159,8 @@ function extractValue(
       return num(waypoint.hr)
     case 'power':
       return num(waypoint.power)
-    case 'cadence': {
-      const cad = num(waypoint.cad)
-      return Number.isNaN(cad) ? Number.NaN : presentCadence(cad, activityType)
-    }
+    case 'cadence':
+      return num(waypoint.cad)
     case 'elevation': {
       const ele = num(waypoint.ele)
       return Number.isNaN(ele) ? Number.NaN : elevationToDisplay(ele, units)
@@ -360,14 +357,14 @@ function buildStreamStats(metric: StreamMetric, activity: Activity, units: Units
       if (statPresent(activity.averageCadence)) {
         stats.push({
           labelKey: 'activities.metrics.avgCadence',
-          value: String(Math.round(presentCadence(activity.averageCadence, type))),
+          value: String(Math.round(activity.averageCadence)),
           unit: cadenceUnitLabel(type),
         })
       }
       if (statPresent(activity.maxCadence)) {
         stats.push({
           labelKey: 'activities.metrics.maxCadence',
-          value: String(Math.round(presentCadence(activity.maxCadence, type))),
+          value: String(Math.round(activity.maxCadence)),
           unit: cadenceUnitLabel(type),
         })
       }

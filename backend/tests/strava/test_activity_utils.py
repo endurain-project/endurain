@@ -288,3 +288,24 @@ class TestFetchAndProcessActivityLapsElevation:
 
         assert lap["total_ascent"] == 0
         assert lap["total_descent"] == 0
+
+
+class TestRunningCadenceToSpm:
+    """Strava running cadence is per-leg by format and stored as steps per minute."""
+
+    def test_doubles_running_stream_even_without_an_average(self):
+        waypoints = [{"time": "t0", "cad": 85}, {"time": "t1", "cad": None}]
+
+        avg, max_ = activity_utils._running_cadence_to_spm(1, 0, None, waypoints)
+
+        assert (avg, max_) == (0, None)
+        assert waypoints == [{"time": "t0", "cad": 170}, {"time": "t1", "cad": None}]
+
+    def test_doubles_running_avg_and_max(self):
+        assert activity_utils._running_cadence_to_spm(1, 85.4, 93, []) == (171, 186)
+
+    def test_keeps_other_sports_as_rpm(self):
+        waypoints = [{"time": "t0", "cad": 88}]
+
+        assert activity_utils._running_cadence_to_spm(4, 88, 110, waypoints) == (88, 110)
+        assert waypoints == [{"time": "t0", "cad": 88}]

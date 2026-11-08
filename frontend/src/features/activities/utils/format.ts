@@ -306,19 +306,6 @@ export function temperatureToDisplay(celsius: number, units: Units): number {
 }
 
 /**
- * Presents a cadence value. Running cadence is doubled to total steps per
- * minute (SPM); other sports keep the raw revolutions per minute (RPM),
- * mirroring v1.
- *
- * @param raw - Raw cadence reading.
- * @param activityType - Numeric activity type.
- * @returns The presentation-ready cadence.
- */
-export function presentCadence(raw: number, activityType: number): number {
-  return activityTypeIsRunning(activityType) ? raw * 2 : raw
-}
-
-/**
  * Resolves the cadence unit label (SPM for running, RPM otherwise).
  *
  * @param activityType - Numeric activity type.
