@@ -153,6 +153,10 @@ class Settings(BaseSettings):
     # (bare "*", scheme-only "https:") are dropped at startup
     # because they would defeat the connect-src protection.
     CSP_ADDITIONAL_CONNECT_SRC: Annotated[list[str], NoDecode] = []
+    # Adds ``preload`` to the Strict-Transport-Security header sent in
+    # deployed environments. It only matters once the operator submits the
+    # domain to hstspreload.org, and removal from the list is slow.
+    HSTS_PRELOAD: bool = False
 
     # --- Internal caches (populated at startup) ---
     # Hostnames from TRUSTED_PROXIES, resolved to IPs at startup and cached.

@@ -24,9 +24,9 @@ const CONTENT_SECURITY_POLICY = [
   "base-uri 'self'",
   "object-src 'none'",
   "script-src 'self'",
-  // Reka UI / Vue write inline `style` attributes for positioning and
-  // transitions, which require 'unsafe-inline' for styles only.
-  "style-src 'self' 'unsafe-inline'",
+  // Vue `:style` bindings and Reka UI positioning write through the CSSOM,
+  // which style-src does not block, so no inline style is allowed.
+  "style-src 'self'",
   // Avatars and the login image are served by the (possibly cross-origin)
   // backend over HTTPS; data:/blob: cover bundled and generated images.
   "img-src 'self' data: blob: https:",

@@ -121,11 +121,13 @@ class SecurityHeadersMiddleware(BaseHTTPMiddleware):
         """
         response = await call_next(request)
 
-        core_security_headers.apply(response, request.url.path)
+        core_security_headers.apply(response)
 
-        # An HTML page gets the policy of the app shell; a JSON response got its own from ``apply``.
-        content_type = response.headers.get("content-type", "")
-        if "text/html" in content_type:
+        # An HTML page gets the policy of the app shell unless its route set its own (the API docs pages); a JSON
+        # response got its policy from ``apply``.
+        if core_security_headers.is_html(response.headers.get("content-type")) and (
+            "Content-Security-Policy" not in response.headers
+        ):
             _refresh_allowed_tile_domains(request)
             allowed_tile_domains = getattr(request.app.state, "allowed_tile_domains", ())
             tile_domains_str = " ".join(allowed_tile_domains)
@@ -143,15 +145,17 @@ class SecurityHeadersMiddleware(BaseHTTPMiddleware):
             if extra_connect_src:
                 connect_src = f"{connect_src} {' '.join(extra_connect_src)}"
 
-            # Accepted risk (docs/integrate/authentication.md): inline scripts and styles are allowed.
+            # No inline script or style is allowed; the SPA writes styles through the CSSOM, which style-src does not block.
             response.headers["Content-Security-Policy"] = (
                 "default-src 'self'; "
                 f"img-src 'self' data: {tile_domains_str}{blob_src} "
                 "https://fastapi.tiangolo.com; "
-                "style-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net; "
-                "script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net; "
+                "style-src 'self' https://cdn.jsdelivr.net; "
+                "script-src 'self' https://cdn.jsdelivr.net; "
                 f"connect-src {connect_src}; "
                 f"media-src 'self' data:{blob_src}; "
+                "base-uri 'self'; "
+                "object-src 'none'; "
                 "frame-ancestors 'none'"
             )
 

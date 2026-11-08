@@ -407,9 +407,11 @@ class TestSecurityHeadersMiddleware:
         assert "Strict-Transport-Security" not in response.headers
         assert "Server" not in response.headers
 
-    @pytest.mark.parametrize("path", ["/login", "/reset-password", "/verify-email"])
-    def test_pages_whose_url_carries_a_credential_send_no_referrer(self, path):
-        """A reset token, verification token or SSO session id in the URL never reaches another page as a Referer."""
+    @pytest.mark.parametrize("path", ["/login", "/reset-password", "/verify-email", "/activities/1", "/"])
+    def test_every_html_page_sends_no_referrer(self, path):
+        """A credential in a page URL never reaches another page as a Referer, and no other page leaks its path."""
+        from fastapi.responses import HTMLResponse
+
         from core.middleware import SecurityHeadersMiddleware
 
         app = FastAPI()
@@ -417,11 +419,25 @@ class TestSecurityHeadersMiddleware:
 
         @app.get(path)
         async def page():
-            return {"message": "ok"}
+            return HTMLResponse("<html></html>")
 
         response = TestClient(app).get(path)
 
         assert response.headers["Referrer-Policy"] == "no-referrer"
+
+    def test_json_response_keeps_the_origin_only_referrer_policy(self):
+        from core.middleware import SecurityHeadersMiddleware
+
+        app = FastAPI()
+        app.add_middleware(SecurityHeadersMiddleware)
+
+        @app.get("/login")
+        async def endpoint():
+            return {"message": "ok"}
+
+        response = TestClient(app).get("/login")
+
+        assert response.headers["Referrer-Policy"] == "strict-origin-when-cross-origin"
 
     def test_hsts_header_present_in_production(self):
         from fastapi import FastAPI
@@ -443,6 +459,49 @@ class TestSecurityHeadersMiddleware:
 
         assert response.status_code == 200
         assert response.headers["Strict-Transport-Security"] == "max-age=31536000; includeSubDomains"
+
+    @pytest.mark.parametrize(
+        ("preload", "expected"),
+        [
+            (False, "max-age=31536000; includeSubDomains"),
+            (True, "max-age=31536000; includeSubDomains; preload"),
+        ],
+    )
+    def test_hsts_preload_directive_follows_the_setting(self, preload, expected):
+        from core.middleware import SecurityHeadersMiddleware
+
+        app = FastAPI()
+        app.add_middleware(SecurityHeadersMiddleware)
+
+        @app.get("/test")
+        async def test_endpoint():
+            return {"message": "ok"}
+
+        with (
+            patch("core.middleware.core_config.settings.ENVIRONMENT", "production"),
+            patch("core.middleware.core_config.settings.HSTS_PRELOAD", preload),
+        ):
+            response = TestClient(app).get("/test")
+
+        assert response.headers["Strict-Transport-Security"] == expected
+
+    def test_hsts_preload_is_not_sent_outside_deployed_environments(self):
+        from core.middleware import SecurityHeadersMiddleware
+
+        app = FastAPI()
+        app.add_middleware(SecurityHeadersMiddleware)
+
+        @app.get("/test")
+        async def test_endpoint():
+            return {"message": "ok"}
+
+        with (
+            patch("core.middleware.core_config.settings.ENVIRONMENT", "development"),
+            patch("core.middleware.core_config.settings.HSTS_PRELOAD", True),
+        ):
+            response = TestClient(app).get("/test")
+
+        assert "Strict-Transport-Security" not in response.headers
 
     def test_hsts_header_present_in_demo(self):
         from fastapi import FastAPI
@@ -524,6 +583,73 @@ class TestSecurityHeadersMiddleware:
         response = client.get("/with-server")
 
         assert "Server" not in response.headers
+
+    def test_html_csp_restricts_base_uri_and_plugins(self):
+        from fastapi.responses import HTMLResponse
+
+        from core.middleware import SecurityHeadersMiddleware
+
+        app = FastAPI()
+        app.add_middleware(SecurityHeadersMiddleware)
+
+        @app.get("/html")
+        async def html_endpoint():
+            return HTMLResponse("<html></html>")
+
+        directives = TestClient(app).get("/html").headers["Content-Security-Policy"].split("; ")
+
+        assert "base-uri 'self'" in directives
+        assert "object-src 'none'" in directives
+
+    def test_html_csp_allows_no_inline_style(self):
+        from fastapi.responses import HTMLResponse
+
+        from core.middleware import SecurityHeadersMiddleware
+
+        app = FastAPI()
+        app.add_middleware(SecurityHeadersMiddleware)
+
+        @app.get("/html")
+        async def html_endpoint():
+            return HTMLResponse("<html></html>")
+
+        csp = TestClient(app).get("/html").headers["Content-Security-Policy"]
+        style_src = next(d for d in csp.split("; ") if d.startswith("style-src "))
+
+        assert "'unsafe-inline'" not in style_src
+
+    def test_html_csp_allows_no_inline_script(self):
+        from fastapi.responses import HTMLResponse
+
+        from core.middleware import SecurityHeadersMiddleware
+
+        app = FastAPI()
+        app.add_middleware(SecurityHeadersMiddleware)
+
+        @app.get("/html")
+        async def html_endpoint():
+            return HTMLResponse("<html></html>")
+
+        csp = TestClient(app).get("/html").headers["Content-Security-Policy"]
+        script_src = next(d for d in csp.split("; ") if d.startswith("script-src "))
+
+        assert "'unsafe-inline'" not in script_src
+
+    def test_a_route_policy_is_kept(self):
+        from fastapi.responses import HTMLResponse
+
+        from core.middleware import SecurityHeadersMiddleware
+
+        app = FastAPI()
+        app.add_middleware(SecurityHeadersMiddleware)
+
+        @app.get("/html")
+        async def html_endpoint():
+            return HTMLResponse("<html></html>", headers={"Content-Security-Policy": "default-src 'none'"})
+
+        response = TestClient(app).get("/html")
+
+        assert response.headers["Content-Security-Policy"] == "default-src 'none'"
 
     def test_csp_has_no_tile_domains_until_the_app_seeds_them(self):
         from fastapi import FastAPI

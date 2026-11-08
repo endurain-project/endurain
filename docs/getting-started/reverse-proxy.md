@@ -104,6 +104,9 @@ server {
 }
 ```
 
+!!! note
+    The `preload` in the example `Strict-Transport-Security` header only takes effect after you submit your domain to [hstspreload.org](https://hstspreload.org), and removal from the preload list takes months. Endurain sends its own `Strict-Transport-Security` header in deployed environments and adds `preload` only when `HSTS_PRELOAD` is `true` (see [Advanced setup](advanced-setup.md)); keep the two consistent.
+
 ## Access your instance
 
 Open `https://endurain.yourdomain.com`. On a new installation, complete the onboarding with the setup token from the server log, as described in [First sign-in](quick-start.md#first-sign-in). Afterwards, sign in with the administrator account you created.

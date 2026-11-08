@@ -636,7 +636,7 @@ async def unhandled_error_handler(request: Request, exc: Exception) -> JSONRespo
         detail=ProcessingError.default_detail,
         headers={"X-Request-ID": request_id} if request_id else None,
     )
-    core_security_headers.apply(response, request.url.path)
+    core_security_headers.apply(response)
     return response
 
 

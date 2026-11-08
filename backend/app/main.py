@@ -24,6 +24,7 @@ from sqlalchemy.exc import SQLAlchemyError
 import core.async_bridge as core_async_bridge
 import core.config as core_config
 import core.database as core_database
+import core.docs_pages as core_docs_pages
 import core.exceptions as core_exceptions
 import core.logger as core_logger
 import core.middleware as core_middleware
@@ -346,14 +347,12 @@ def create_app() -> FastAPI:
 
     is_development = core_config.settings.ENVIRONMENT == "development"
     is_development_or_demo = core_config.settings.ENVIRONMENT in {"development", "demo"}
-    docs_url = f"{core_config.ROOT_PATH}/docs" if is_development_or_demo else None
-    redoc_url = f"{core_config.ROOT_PATH}/redoc" if is_development_or_demo else None
 
     # Define the FastAPI object
     fastapi_app = core_problem_details.ProblemDetailsFastAPI(
         lifespan=lifespan,
-        docs_url=docs_url,
-        redoc_url=redoc_url,
+        docs_url=None,
+        redoc_url=None,
         title="Endurain",
         summary="Endurain API for the Endurain app",
         servers=OPENAPI_SERVERS,
@@ -365,6 +364,10 @@ def create_app() -> FastAPI:
             "url": core_config.LICENSE_URL,
         },
     )
+
+    # FastAPI's documentation pages carry an inline script, so they are served by routes that allow it by hash.
+    if is_development_or_demo:
+        core_docs_pages.register_routes(fastapi_app, f"{core_config.ROOT_PATH}/docs", f"{core_config.ROOT_PATH}/redoc")
 
     # The security-headers middleware reads the CSP tile domains from app.state, so
     # seed the built-in providers here; startup replaces them with the configured list.
