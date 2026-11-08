@@ -81,6 +81,28 @@ export function buildChartConfiguration(
 ): ChartConfiguration<'line' | 'bar'> {
   const type: 'line' | 'bar' = options.kind === 'bar' ? 'bar' : 'line'
 
+  // A linear x-axis needs `{x, y}` points; a category axis takes bare y-values
+  // aligned to `labels`. `toPoints` bridges a series' y-values to whichever the
+  // active axis expects.
+  const xValues = options.xValues
+  const toPoints = (data: number[]): number[] | { x: number; y: number }[] =>
+    xValues ? data.map((y, i) => ({ x: xValues[i] ?? i, y })) : data
+
+  // Exact data extremes for the linear x-axis so it ends precisely at the last
+  // sample (e.g. 12.51 km, 48:00) instead of Chart.js padding out to the next
+  // round tick. Computed with a loop, not `Math.max(...xValues)`, since a spread
+  // over thousands of samples can overflow the call stack.
+  let xMin: number | undefined
+  let xMax: number | undefined
+  if (xValues && xValues.length > 0) {
+    xMin = xValues[0]
+    xMax = xValues[0]
+    for (const v of xValues) {
+      if (v < (xMin as number)) xMin = v
+      if (v > (xMax as number)) xMax = v
+    }
+  }
+
   const datasets: ChartDataset<'line' | 'bar'>[] = options.series.map((series, index) => {
     const color = colorFor(index, series.color, palette)
     // A dashed series is a reference/target line: render it as a dashed line
@@ -90,7 +112,7 @@ export function buildChartConfiguration(
       return {
         type: 'line',
         label: series.label,
-        data: series.data,
+        data: toPoints(series.data),
         borderColor: color,
         backgroundColor: color,
         borderWidth: 2,
@@ -105,7 +127,7 @@ export function buildChartConfiguration(
     const filled = type === 'line'
     return {
       label: series.label,
-      data: series.data,
+      data: toPoints(series.data),
       borderColor: color,
       backgroundColor: filled ? hexToRgba(color, AREA_FILL_ALPHA) : color,
       borderWidth: 2,
@@ -129,10 +151,18 @@ export function buildChartConfiguration(
         legend: { display: options.series.length > 1 },
         tooltip: {
           callbacks: {
-            // X value (tooltip title): append the axis unit (e.g. `0.7 km`) so a
-            // hover is self-describing. Distance-less charts pass no unit.
+            // X value (tooltip title): on a linear axis format the raw x
+            // (e.g. `2 km`, `1:23:45`); on a category axis append the unit to the
+            // label (e.g. `0.7 km`). Distance-less category charts pass no unit.
             title: (items) => {
-              const raw = items[0]?.label ?? ''
+              const item = items[0]
+              if (!item) {
+                return ''
+              }
+              if (options.xFormat) {
+                return options.xFormat(Number(item.parsed.x))
+              }
+              const raw = item.label ?? ''
               return options.xUnit && raw ? `${raw} ${options.xUnit}` : raw
             },
             // Y value: `<series>: <formatted>` using the domain formatter.
@@ -160,7 +190,25 @@ export function buildChartConfiguration(
           : undefined,
       },
       scales: {
-        x: { display: true },
+        // Linear axis (proportional ticks + title) when numeric x-values are
+        // supplied; otherwise a plain category axis over `labels`.
+        x: xValues
+          ? {
+              type: 'linear',
+              display: true,
+              // Clamp the axis to the actual data range so it ends exactly at
+              // the last sample (e.g. 12.51 km, 48:00). Chart.js otherwise pads
+              // out to the next round tick (14 km, 50:00); `bounds: 'data'` alone
+              // is not enough in v4, so pin min/max to the data extremes too.
+              bounds: 'data',
+              min: xMin,
+              max: xMax,
+              title: options.xLabel ? { display: true, text: options.xLabel } : undefined,
+              ticks: options.xFormat
+                ? { callback: (value) => options.xFormat?.(Number(value)) ?? String(value) }
+                : {},
+            }
+          : { display: true },
         y: {
           display: true,
           reverse: options.invertY ?? false,
@@ -188,23 +236,19 @@ export function createChartJsChartProvider(config: ChartJsChartProviderConfig = 
       const canvas = document.createElement('canvas')
       target.replaceChildren(canvas)
 
-      const initialConfig = buildChartConfiguration(options, palette)
-      let currentType = initialConfig.type
-      let chart = new Chart(canvas, initialConfig)
+      let chart = new Chart(canvas, buildChartConfiguration(options, palette))
 
       return {
+        // Recreate the chart on every update rather than patching in place.
+        // Updates fire only on real changes (x-axis basis toggle, data load,
+        // locale) — never per frame — so the cost is negligible, and a fresh
+        // chart guarantees the scale title, tick/tooltip formatters, geometry
+        // and the zoom plugin's cached x-range all track the new options.
+        // Patching only `data` left the axis title/labels stale and the old
+        // basis's x-range zoomed in (the graph ran off-screen after toggling).
         update(next: ChartRenderOptions): void {
-          const nextConfig = buildChartConfiguration(next, palette)
-          // Chart.js can't swap a chart's geometry in place, so recreate when
-          // the kind changes; otherwise patch the data and re-render.
-          if (currentType !== nextConfig.type) {
-            chart.destroy()
-            chart = new Chart(canvas, nextConfig)
-            currentType = nextConfig.type
-            return
-          }
-          chart.data = nextConfig.data
-          chart.update()
+          chart.destroy()
+          chart = new Chart(canvas, buildChartConfiguration(next, palette))
         },
         destroy(): void {
           chart.destroy()
