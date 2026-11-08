@@ -170,3 +170,28 @@ def test_a_bcrypt_hash_is_refused_like_a_wrong_password_and_counts_a_failure(has
         )
 
     failed_attempts.record_failed_attempt.assert_called_once_with("alice", "127.0.0.1")
+
+
+_NFC = "café"
+_NFD = "café"
+
+
+def _dummy_verifies(hasher, mock_db, typed: str, *, user, credential) -> int:
+    with (
+        patch(f"{_SERVICE}.users_integration.get_user_by_username", return_value=user),
+        patch(f"{_SERVICE}.credentials_integration.get_credential", return_value=credential),
+        patch.object(hasher, "dummy_verify") as dummy,
+        pytest.raises(core_exceptions.UnauthenticatedError),
+    ):
+        authentication_service.authenticate_user("alice", typed, hasher, mock_db)
+    return dummy.call_count
+
+
+@pytest.mark.parametrize(("typed", "verifies"), [(_NFC, 1), (_NFD, 2)])
+def test_an_unknown_user_costs_the_verifies_of_a_known_user_with_a_wrong_password(hasher, mock_db, typed, verifies):
+    assert _dummy_verifies(hasher, mock_db, typed, user=None, credential=None) == verifies
+
+
+@pytest.mark.parametrize(("typed", "verifies"), [(_NFC, 1), (_NFD, 2)])
+def test_an_account_without_a_local_credential_costs_the_verifies_of_a_wrong_password(hasher, mock_db, typed, verifies):
+    assert _dummy_verifies(hasher, mock_db, typed, user=SimpleNamespace(id=7), credential=None) == verifies

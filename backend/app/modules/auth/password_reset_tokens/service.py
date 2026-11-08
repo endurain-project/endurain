@@ -1,4 +1,4 @@
-"""Password-reset token workflows and email preparation."""
+"""Password-reset request, token and email workflows."""
 
 from datetime import UTC, datetime, timedelta
 from uuid import uuid4
@@ -21,6 +21,7 @@ import modules.auth.password_reset_tokens.audit_actions as password_reset_audit_
 import modules.auth.password_reset_tokens.crud as password_reset_crud
 import modules.auth.password_reset_tokens.email_messages as password_reset_email_messages
 import modules.auth.password_reset_tokens.event_publishers as password_reset_event_publishers
+import modules.auth.password_reset_tokens.events as password_reset_events
 import modules.auth.password_reset_tokens.schema as password_reset_schema
 import modules.auth.sessions.integration_service as sessions_integration
 import modules.server_settings.integration_service as server_settings_integration
@@ -33,24 +34,14 @@ RESET_EMAIL_COOLDOWN_SECONDS = 300
 UNUSABLE_RESET_MESSAGE = "Invalid or expired password reset token"
 
 
-def create_password_reset_token(user_id: int, event_id: str, db: Session) -> str:
-    """Return the reset token for a reset-request event, minting and committing it on first use.
-
-    The token is derived from the event id with the server secret, so redelivering the event yields the
-    same token and leaves the link already mailed working; a later request is a new event and replaces it.
+def _stage_password_reset_token(user_id: int, token_hash: str, db: Session) -> None:
+    """Stage a new reset token for a user, replacing their unused ones; the caller commits.
 
     Args:
         user_id: The user the token belongs to.
-        event_id: The id of the ``auth.password_reset_requested`` event, stable across its retries.
+        token_hash: The hash of the raw token, which is not stored.
         db: Database session.
-
-    Returns:
-        The raw token, which is not stored.
     """
-    token = access_tokens_integration.derive_email_token(f"password-reset:{event_id}")
-    token_hash = token_hashing.sha256_hex(token)
-    if password_reset_crud.password_reset_token_exists(token_hash, db):
-        return token
     now = datetime.now(UTC)
     reset_token = password_reset_schema.PasswordResetToken(
         id=str(uuid4()),
@@ -62,9 +53,6 @@ def create_password_reset_token(user_id: int, event_id: str, db: Session) -> str
     )
     password_reset_crud.mark_user_password_reset_tokens_used(user_id, db)
     password_reset_crud.create_password_reset_token(reset_token, db)
-    db.commit()
-    logger.info("Password-reset token created", extra=core_logger.context(user_id=user_id))
-    return token
 
 
 def _may_reset_password(user: users_schema.UserRead, db: Session) -> bool:
@@ -88,7 +76,7 @@ def _can_reset_password(user: users_schema.UserRead, db: Session) -> bool:
 
 
 def _record_reset_request_denied(user_id: int) -> None:
-    """Record a reset request for an account that may not reset its password; the caller answers as usual.
+    """Record a reset request for an account that may not reset its password; the requester gets no signal.
 
     Args:
         user_id: The account the request named.
@@ -102,19 +90,26 @@ def _record_reset_request_denied(user_id: int) -> None:
     )
 
 
-def request_password_reset_email(email: str, state: StateProvider, db: Session) -> None:
-    """Stage and commit a reset-email request without revealing account existence.
+def _claim_reset_cooldown(user_id: int, state: StateProvider) -> bool:
+    """Claim the account's reset-email cooldown; False when one went out recently or the store is unreachable."""
+    try:
+        return core_email_cooldown.claim_email(state, "password_reset", user_id, RESET_EMAIL_COOLDOWN_SECONDS)
+    except StateBackendUnavailableError as err:
+        logger.error("Password-reset cooldown unavailable", exc_info=err, extra=core_logger.context(user_id=user_id))
+        return False
 
-    An account is mailed at most once per cooldown, so the endpoint cannot flood an inbox. A request inside
-    the cooldown, or one the cooldown store cannot answer, sends nothing and still gets the same answer: the
-    reply must not tell a registered address from an unregistered one. Nor is anything sent to an account that
-    signs in through an identity provider and has no local password (a reset would give it one, so whoever
-    controls its address would bypass the provider), or, while local sign-in is turned off, to an account that
-    is not an administrator's.
+
+def request_password_reset_email(email: str, ip_address: str, user_agent: str, db: Session) -> None:
+    """Stage and commit a reset request for an address, doing the same work whether or not an account has it.
+
+    The request looks the address up once and stages one event naming the account, or nobody. Everything that
+    depends on the account (its state, the cooldown, the audit row) happens in the event's subscriber, so the
+    answer and its timing do not tell a registered address from an unregistered one.
 
     Args:
         email: The address the reset was requested for.
-        state: The platform state provider, for the cooldown.
+        ip_address: The requester's client address, which the subscriber records on its audit rows.
+        user_agent: The requester's ``User-Agent``, for the same rows.
         db: Database session.
 
     Raises:
@@ -123,61 +118,76 @@ def request_password_reset_email(email: str, state: StateProvider, db: Session) 
     if not server_settings_integration.is_mail_configured(db):
         raise core_exceptions.ServiceUnavailableError("Email service is not configured")
     user = users_integration.get_user_by_email(email, db)
-    if user is None:
-        jasil_audit.record_detached(
-            password_reset_audit_actions.PASSWORD_RESET_REQUEST, outcome=jasil_audit.Outcome.FAILURE
-        )
-        return
-    if not user.active:
-        _record_reset_request_denied(user.id)
-        return
-    if not _may_reset_password(user, db):
-        _record_reset_request_denied(user.id)
-        logger.warning(
-            "Password-reset email not sent to user <user_id>: the account may not use a local password",
-            extra=core_logger.context(user_id=user.id),
-        )
-        return
-    try:
-        if not core_email_cooldown.claim_email(state, "password_reset", user.id, RESET_EMAIL_COOLDOWN_SECONDS):
-            return
-    except StateBackendUnavailableError as err:
-        logger.error("Password-reset cooldown unavailable", exc_info=err, extra=core_logger.context(user_id=user.id))
-        return
-    password_reset_event_publishers.publish_password_reset_requested(user.id, db)
-    jasil_audit.stage(
-        db,
-        password_reset_audit_actions.PASSWORD_RESET_REQUEST,
-        target_type="user",
-        target_id=str(user.id),
-        target_owner_id=str(user.id),
+    password_reset_event_publishers.publish_password_reset_requested(
+        None if user is None else user.id, ip_address, user_agent, db
     )
     db.commit()
-    logger.info("Password-reset email requested", extra=core_logger.context(user_id=user.id))
+    logger.debug("Password-reset request queued")
 
 
 def prepare_password_reset_email(
-    user_id: int,
+    payload: password_reset_events.PasswordResetRequestedPayload,
     event_id: str,
     frontend_host: str,
+    state: StateProvider,
     db: Session,
 ) -> tuple[str, str, str, str] | None:
-    """Create a durable reset link and return its email content for delivery after the session closes.
+    """Decide on a reset request and return the email to send, for delivery after the session closes.
+
+    An account is mailed at most once per cooldown, so the endpoint cannot flood an inbox. Nothing is sent to
+    an unknown address, an inactive account, or an account that may not use a local password (a reset would
+    give an identity-provider account one, so whoever controls its address would bypass the provider; while
+    local sign-in is off only administrators keep it). Each refusal and each admitted request is audited with
+    the requester's client data.
+
+    The reset token derives from the event id, so a redelivery of an admitted event finds its token, skips the
+    cooldown and the audit row, and returns the same link. A later request is a new event and replaces it.
 
     Args:
-        user_id: The user who asked for the reset.
-        event_id: The id of the request event; a retry of the event gets the same link.
+        payload: The request event's payload.
+        event_id: The id of the request event, stable across its retries.
         frontend_host: Base URL the link points at.
+        state: The platform state provider, for the cooldown.
         db: Database session.
 
     Returns:
-        The recipient, subject, HTML and text, or None when the user is missing or inactive.
+        The recipient, subject, HTML and text, or None when nothing is to be sent.
     """
-    user = users_integration.get_user(user_id, db)
-    if not user or not user.active:
-        return None
-
-    token = create_password_reset_token(user.id, event_id, db)
+    with jasil_audit.audit_context(ip_address=payload.ip_address, user_agent=payload.user_agent):
+        if payload.user_id is None:
+            jasil_audit.record_detached(
+                password_reset_audit_actions.PASSWORD_RESET_REQUEST, outcome=jasil_audit.Outcome.FAILURE
+            )
+            return None
+        user = users_integration.get_user(payload.user_id, db)
+        if user is None:
+            logger.debug("Password-reset request skipped: the user no longer exists")
+            return None
+        if not user.active:
+            _record_reset_request_denied(user.id)
+            return None
+        if not _may_reset_password(user, db):
+            _record_reset_request_denied(user.id)
+            logger.warning(
+                "Password-reset email not sent to user <user_id>: the account may not use a local password",
+                extra=core_logger.context(user_id=user.id),
+            )
+            return None
+        token = access_tokens_integration.derive_email_token(f"password-reset:{event_id}")
+        token_hash = token_hashing.sha256_hex(token)
+        if not password_reset_crud.password_reset_token_exists(token_hash, db):
+            if not _claim_reset_cooldown(user.id, state):
+                return None
+            _stage_password_reset_token(user.id, token_hash, db)
+            jasil_audit.stage(
+                db,
+                password_reset_audit_actions.PASSWORD_RESET_REQUEST,
+                target_type="user",
+                target_id=str(user.id),
+                target_owner_id=str(user.id),
+            )
+            db.commit()
+            logger.info("Password-reset email requested", extra=core_logger.context(user_id=user.id))
     reset_link = f"{frontend_host}/reset-password?token={token}"
     locale = core_i18n.normalize_locale(user.preferred_language)
     subject, html_content, text_content = password_reset_email_messages.get_password_reset_email(

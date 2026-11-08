@@ -121,6 +121,21 @@ def verify_and_update_password(
     return False, None
 
 
+def dummy_verify_password(password: str, password_hasher: credentials_password_hasher.PasswordHasher) -> None:
+    """Spend the Argon2 work of a failed :func:`verify_and_update_password` when there is no hash to verify against.
+
+    A wrong password costs one verify of its NFC form, plus one of the raw input when that differs. Running the same
+    number of dummy verifies keeps a missing or credential-less account indistinguishable by response time.
+
+    Args:
+        password: The password as typed.
+        password_hasher: The hasher that runs the dummy verifies.
+    """
+    password_hasher.dummy_verify()
+    if credentials_password_policy.hash_form(password) != password:
+        password_hasher.dummy_verify()
+
+
 def validate_and_hash_password_for_user(
     server_settings: server_settings_schema.ServerSettingsRead,
     access_type: str,

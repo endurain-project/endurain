@@ -6,12 +6,13 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 from jasil.backends.state_memory import MemoryState
-from jasil.providers import StateBackendUnavailableError
 
 import core.exceptions as core_exceptions
+import core.i18n as core_i18n
 import modules.auth.computation as token_hashing
 import modules.auth.credentials.contracts as credentials_contracts
 import modules.auth.password_reset_tokens.crud as password_reset_crud
+import modules.auth.password_reset_tokens.events as password_reset_events
 import modules.auth.password_reset_tokens.schema as password_reset_schema
 import modules.auth.password_reset_tokens.service as password_reset_service
 from tests._helpers.db import create_sqlite_session_factory, ensure_user
@@ -168,145 +169,17 @@ class TestUsePasswordResetToken:
         mock_db.commit.assert_not_called()
 
 
-class TestCreatePasswordResetToken:
+class TestStagePasswordResetToken:
     @patch("modules.auth.password_reset_tokens.service.password_reset_crud.create_password_reset_token")
     @patch("modules.auth.password_reset_tokens.service.password_reset_crud.mark_user_password_reset_tokens_used")
-    @patch(
-        "modules.auth.password_reset_tokens.service.password_reset_crud.password_reset_token_exists", return_value=False
-    )
-    @patch(
-        "modules.auth.password_reset_tokens.service.access_tokens_integration.derive_email_token", return_value="plain"
-    )
-    def test_stages_replacement_and_commits(self, _derive, _exists, invalidate, create, mock_db):
-
-        assert password_reset_service.create_password_reset_token(7, "event-1", mock_db) == "plain"
+    def test_stages_replacement_without_committing(self, invalidate, create, mock_db):
+        password_reset_service._stage_password_reset_token(7, token_hashing.sha256_hex("plain"), mock_db)
 
         invalidate.assert_called_once_with(7, mock_db)
         token = create.call_args.args[0]
         assert token.user_id == 7
         assert token.token_hash == token_hashing.sha256_hex("plain")
-        mock_db.commit.assert_called_once()
-
-
-class TestRequestPasswordReset:
-    @patch(
-        "modules.auth.password_reset_tokens.service.server_settings_integration.is_mail_configured", return_value=False
-    )
-    def test_mail_unavailable_is_a_domain_error(self, _configured, mock_db):
-        with pytest.raises(core_exceptions.ServiceUnavailableError):
-            password_reset_service.request_password_reset_email("user@example.com", MemoryState(), mock_db)
-
-    @patch(
-        "modules.auth.password_reset_tokens.service.password_reset_event_publishers.publish_password_reset_requested"
-    )
-    @patch("modules.auth.password_reset_tokens.service.users_integration.get_user_by_email")
-    @patch(
-        "modules.auth.password_reset_tokens.service.server_settings_integration.is_mail_configured", return_value=True
-    )
-    def test_unknown_or_inactive_users_are_not_disclosed(self, _configured, get_user, publish, mock_db):
-        get_user.return_value = None
-        password_reset_service.request_password_reset_email("nobody@example.com", MemoryState(), mock_db)
-        get_user.return_value = MagicMock(active=False)
-        password_reset_service.request_password_reset_email("inactive@example.com", MemoryState(), mock_db)
-        publish.assert_not_called()
         mock_db.commit.assert_not_called()
-
-    @patch(
-        "modules.auth.password_reset_tokens.service.password_reset_event_publishers.publish_password_reset_requested"
-    )
-    @patch("modules.auth.password_reset_tokens.service.credentials_integration.has_local_password", return_value=True)
-    @patch(
-        "modules.auth.password_reset_tokens.service.server_settings_integration.get_server_settings",
-        return_value=MagicMock(local_login_enabled=True),
-    )
-    @patch(
-        "modules.auth.password_reset_tokens.service.users_integration.get_user_by_email",
-        return_value=MagicMock(id=9, active=True, access_type="regular"),
-    )
-    @patch(
-        "modules.auth.password_reset_tokens.service.server_settings_integration.is_mail_configured", return_value=True
-    )
-    def test_active_user_event_is_committed(self, _configured, _user, _settings, _local, publish, mock_db):
-        password_reset_service.request_password_reset_email("user@example.com", MemoryState(), mock_db)
-        publish.assert_called_once_with(9, mock_db)
-        mock_db.commit.assert_called_once()
-
-
-class TestPasswordResetCooldown:
-    @pytest.fixture(autouse=True)
-    def _mail_and_user(self):
-        with (
-            patch(
-                "modules.auth.password_reset_tokens.service.server_settings_integration.is_mail_configured",
-                return_value=True,
-            ),
-            patch(
-                "modules.auth.password_reset_tokens.service.users_integration.get_user_by_email",
-                side_effect=lambda email, db: MagicMock(
-                    id=9 if email == "a@example.com" else 10, active=True, access_type="regular"
-                ),
-            ),
-            patch(
-                "modules.auth.password_reset_tokens.service.credentials_integration.has_local_password",
-                return_value=True,
-            ),
-            patch(
-                "modules.auth.password_reset_tokens.service.server_settings_integration.get_server_settings",
-                return_value=MagicMock(local_login_enabled=True),
-            ),
-            patch(
-                "modules.auth.password_reset_tokens.service.password_reset_event_publishers"
-                ".publish_password_reset_requested"
-            ) as publish,
-        ):
-            self.publish = publish
-            yield
-
-    def test_an_address_is_mailed_once_per_cooldown(self, mock_db):
-        state = MemoryState()
-
-        password_reset_service.request_password_reset_email("a@example.com", state, mock_db)
-        password_reset_service.request_password_reset_email("a@example.com", state, mock_db)
-
-        self.publish.assert_called_once_with(9, mock_db)
-
-    def test_each_account_has_its_own_cooldown(self, mock_db):
-        state = MemoryState()
-
-        password_reset_service.request_password_reset_email("a@example.com", state, mock_db)
-        password_reset_service.request_password_reset_email("b@example.com", state, mock_db)
-
-        assert self.publish.call_count == 2
-
-    def test_an_unreachable_state_store_skips_the_email_without_failing_the_request(self, mock_db):
-        broken = MagicMock()
-        broken.set_if_absent.side_effect = StateBackendUnavailableError("down")
-
-        password_reset_service.request_password_reset_email("a@example.com", broken, mock_db)
-
-        self.publish.assert_not_called()
-
-
-class TestPreparePasswordResetEmail:
-    @patch("modules.auth.password_reset_tokens.service.users_integration.get_user", return_value=None)
-    def test_missing_user_is_skipped(self, _user, mock_db):
-        assert (
-            password_reset_service.prepare_password_reset_email(5, "event-1", "https://example.test", mock_db) is None
-        )
-
-    @patch("modules.auth.password_reset_tokens.service.password_reset_email_messages.get_password_reset_email")
-    @patch("modules.auth.password_reset_tokens.service.create_password_reset_token", return_value="plain-token")
-    @patch(
-        "modules.auth.password_reset_tokens.service.users_integration.get_user",
-        return_value=MagicMock(id=5, active=True, preferred_language="en", name="Test", email="test@example.test"),
-    )
-    def test_prepares_localized_content_with_reset_link(self, _user, _token, build_email, mock_db):
-        build_email.return_value = ("subject", "html", "text")
-
-        result = password_reset_service.prepare_password_reset_email(5, "event-1", "https://example.test", mock_db)
-
-        assert result == ("test@example.test", "subject", "html", "text")
-        assert "reset-password?token=plain-token" in build_email.call_args.args[1]
 
 
 class TestRetriedResetEvent:
@@ -321,15 +194,20 @@ class TestRetriedResetEvent:
 
     def _prepare(self, factory, event_id: str) -> str:
         user = MagicMock(id=5, active=True, preferred_language="en", email="test@example.test")
+        payload = password_reset_events.PasswordResetRequestedPayload(user_id=5, ip_address=None, user_agent=None)
         with (
             patch("modules.auth.password_reset_tokens.service.users_integration.get_user", return_value=user),
+            patch("modules.auth.password_reset_tokens.service._may_reset_password", return_value=True),
             patch(
                 "modules.auth.password_reset_tokens.service.password_reset_email_messages.get_password_reset_email",
                 return_value=("subject", "html", "text"),
             ) as build_email,
             factory() as db,
         ):
-            password_reset_service.prepare_password_reset_email(5, event_id, "https://example.test", db)
+            # A fresh store per call: the cooldown belongs to the request that admits the event, not the retry.
+            password_reset_service.prepare_password_reset_email(
+                payload, event_id, "https://example.test", MemoryState(), db
+            )
         return build_email.call_args.args[1].split("token=")[1]
 
     def _claim(self, factory, token: str) -> int | None:
@@ -337,6 +215,31 @@ class TestRetriedResetEvent:
             claimed = password_reset_crud.claim_password_reset_token(token_hashing.sha256_hex(token), db)
             db.commit()
         return claimed
+
+    def test_the_email_carries_the_reset_link_in_the_users_language(self, factory):
+        user = MagicMock(id=5, active=True, preferred_language="pt", email="test@example.test")
+        user.name = "Ana"
+        payload = password_reset_events.PasswordResetRequestedPayload(user_id=5, ip_address=None, user_agent=None)
+        with (
+            patch("modules.auth.password_reset_tokens.service.users_integration.get_user", return_value=user),
+            patch("modules.auth.password_reset_tokens.service._may_reset_password", return_value=True),
+            patch(
+                "modules.auth.password_reset_tokens.service.password_reset_email_messages.get_password_reset_email",
+                return_value=("subject", "html", "text"),
+            ) as build_email,
+            factory() as db,
+        ):
+            result = password_reset_service.prepare_password_reset_email(
+                payload, "event-1", "https://example.test", MemoryState(), db
+            )
+
+        assert result == ("test@example.test", "subject", "html", "text")
+        name, link, host, locale = build_email.call_args.args
+        assert name == "Ana"
+        assert link.startswith("https://example.test/reset-password?token=")
+        assert self._claim(factory, link.split("token=")[1]) == 5
+        assert host == "https://example.test"
+        assert locale == core_i18n.normalize_locale("pt")
 
     def test_a_retry_mails_the_same_link_and_it_still_works(self, factory):
         first = self._prepare(factory, "event-1")

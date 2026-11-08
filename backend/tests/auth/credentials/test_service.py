@@ -53,3 +53,26 @@ def test_require_password_change_refuses_an_account_without_a_local_password(moc
         credentials_service.require_password_change(3, mock_db)
 
     mark.assert_not_called()
+
+
+class TestDummyVerifyPassword:
+    def test_an_nfc_password_costs_one_dummy_verify(self):
+        hasher = MagicMock()
+        credentials_service.dummy_verify_password("caf\u00e9", hasher)
+        assert hasher.dummy_verify.call_count == 1
+
+    def test_a_password_that_normalises_differently_costs_two_dummy_verifies(self):
+        hasher = MagicMock()
+        credentials_service.dummy_verify_password("cafe\u0301", hasher)
+        assert hasher.dummy_verify.call_count == 2
+
+    def test_it_costs_what_a_failed_verify_and_update_costs(self):
+        real = MagicMock()
+        real.verify_and_update.return_value = (False, None)
+        dummy = MagicMock()
+        for typed in ("plain", "caf\u00e9", "cafe\u0301"):
+            real.reset_mock()
+            dummy.reset_mock()
+            credentials_service.verify_and_update_password(typed, "$argon2id$stored", real)
+            credentials_service.dummy_verify_password(typed, dummy)
+            assert dummy.dummy_verify.call_count == real.verify_and_update.call_count

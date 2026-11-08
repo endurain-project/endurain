@@ -7,19 +7,25 @@ import core.event_metadata as core_event_metadata
 import modules.auth.password_reset_tokens.events as password_reset_tokens_events
 
 
-def publish_password_reset_requested(user_id: int, db: Session) -> None:
+def publish_password_reset_requested(
+    user_id: int | None, ip_address: str | None, user_agent: str | None, db: Session
+) -> None:
     """Stage ``auth.password_reset_requested`` in the caller's transaction.
 
     Args:
-        user_id: The user who should receive the reset email.
+        user_id: The account registered for the requested address, or ``None`` when there is none.
+        ip_address: The requester's client address.
+        user_agent: The requester's ``User-Agent``.
         db: The producer's DB session; the caller commits it.
     """
-    payload = password_reset_tokens_events.PasswordResetRequestedPayload(user_id=user_id)
+    payload = password_reset_tokens_events.PasswordResetRequestedPayload(
+        user_id=user_id, ip_address=ip_address, user_agent=user_agent
+    )
     platform_publisher.publish_on_commit(
         password_reset_tokens_events.PASSWORD_RESET_REQUESTED,
         payload.model_dump(),
         source="api:request_password_reset",
-        metadata={core_event_metadata.META_USER_ID: user_id},
+        metadata={} if user_id is None else {core_event_metadata.META_USER_ID: user_id},
         db=db,
         schema_version=payload.SCHEMA_VERSION,
     )

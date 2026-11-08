@@ -19,16 +19,15 @@ PASSWORD_RESET_EMAIL_SUBSCRIBER_ID = "auth.send_password_reset_email"  # noqa: S
 
 
 def send_password_reset_email_for_event(event: Event) -> None:
-    """Prepare and deliver the email for a password-reset request event."""
+    """Decide on a password-reset request event and deliver its email when it is admitted."""
     payload = platform_event_versioning.parse_payload(password_reset_events.PasswordResetRequestedPayload, event)
     mail = platform_runtime.get_active_platform().mail
+    state = platform_runtime.get_state()
     frontend_host = core_config.settings.ENDURAIN_HOST
     with core_database.SessionLocal() as db:
-        message = password_reset_service.prepare_password_reset_email(
-            payload.user_id, event.event_id, frontend_host, db
-        )
+        message = password_reset_service.prepare_password_reset_email(payload, event.event_id, frontend_host, state, db)
     if message is None:
-        logger.debug("Skipped password-reset email because the user is missing or inactive")
+        logger.debug("No password-reset email to send for this request")
         return
     recipient, subject, html_content, text_content = message
     try:

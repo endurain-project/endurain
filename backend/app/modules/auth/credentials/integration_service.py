@@ -69,6 +69,11 @@ def verify_and_update_password(
     return credentials_service.verify_and_update_password(password, stored_hash, password_hasher)
 
 
+def dummy_verify_password(password: str, password_hasher: credentials_password_hasher.PasswordHasher) -> None:
+    """Spend the Argon2 work of a failed password verify when there is no hash to verify against."""
+    credentials_service.dummy_verify_password(password, password_hasher)
+
+
 def allows_password_sign_in(server_settings: server_settings_schema.ServerSettingsRead, access_type: str) -> bool:
     """Return whether an account type may sign in with a local password under the server's settings."""
     return credentials_service.allows_password_sign_in(server_settings, access_type)

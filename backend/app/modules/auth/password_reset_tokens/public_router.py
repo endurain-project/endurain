@@ -3,6 +3,7 @@
 from fastapi import APIRouter, Request, status
 
 import core.dependencies as core_dependencies
+import core.network as core_network
 import core.rate_limit as core_rate_limit
 import modules.auth.password_reset_tokens.schema as password_reset_schema
 import modules.auth.password_reset_tokens.service as password_reset_service
@@ -19,11 +20,12 @@ router = APIRouter()
 def request_password_reset(
     request: Request,
     request_data: password_reset_schema.PasswordResetRequest,
-    state: core_dependencies.PlatformState,
     db: core_dependencies.DbSession,
 ) -> None:
     """Request a password reset without revealing whether the email exists."""
-    password_reset_service.request_password_reset_email(request_data.email, state, db)
+    password_reset_service.request_password_reset_email(
+        request_data.email, core_network.get_ip_address(request), core_network.get_user_agent(request), db
+    )
 
 
 @router.post(

@@ -12,6 +12,7 @@ import modules.auth.authentication.service as authentication_service
 import modules.auth.authentication.sso_exchange_service as authentication_service_sso_exchange_service
 import modules.auth.credentials.service as credentials_service
 import modules.auth.oauth_state.constants as oauth_state_constants
+import modules.auth.password_reset_tokens.events as password_reset_events
 import modules.auth.password_reset_tokens.service as password_reset_service
 
 
@@ -98,47 +99,55 @@ class TestPasswordReset:
     @pytest.fixture
     def policy(self):
         with (
-            patch.object(password_reset_service.server_settings_integration, "is_mail_configured", return_value=True),
             patch.object(password_reset_service.server_settings_integration, "get_server_settings") as settings,
             patch.object(password_reset_service.credentials_integration, "has_local_password") as has_password,
             patch.object(password_reset_service.core_email_cooldown, "claim_email", return_value=True),
+            patch.object(password_reset_service.access_tokens_integration, "derive_email_token", return_value="tok"),
+            patch.object(password_reset_service.password_reset_crud, "password_reset_token_exists", return_value=False),
+            patch.object(password_reset_service, "_stage_password_reset_token") as stage,
             patch.object(
-                password_reset_service.password_reset_event_publishers, "publish_password_reset_requested"
-            ) as publish,
+                password_reset_service.password_reset_email_messages,
+                "get_password_reset_email",
+                return_value=("subject", "html", "text"),
+            ),
         ):
             settings.return_value = _settings(True)
             has_password.return_value = True
-            yield SimpleNamespace(settings=settings, has_password=has_password, publish=publish)
+            yield SimpleNamespace(settings=settings, has_password=has_password, stage=stage)
 
     def _request(self, user):
-        with patch.object(password_reset_service.users_integration, "get_user_by_email", return_value=user):
-            password_reset_service.request_password_reset_email("alice@example.com", MagicMock(), MagicMock())
+        user.name, user.email, user.preferred_language = "Alice", "alice@example.com", "en"
+        payload = password_reset_events.PasswordResetRequestedPayload(user_id=user.id, ip_address=None, user_agent=None)
+        with patch.object(password_reset_service.users_integration, "get_user", return_value=user):
+            return password_reset_service.prepare_password_reset_email(
+                payload, "event-1", "https://example.test", MagicMock(), MagicMock()
+            )
 
     def test_an_account_with_a_password_gets_the_email(self, policy):
-        self._request(_user())
+        assert self._request(_user()) is not None
 
-        policy.publish.assert_called_once()
+        policy.stage.assert_called_once()
 
     def test_an_account_without_a_password_gets_nothing(self, policy):
         policy.has_password.return_value = False
 
-        self._request(_user())
+        assert self._request(_user()) is None
 
-        policy.publish.assert_not_called()
+        policy.stage.assert_not_called()
 
     def test_a_regular_user_gets_nothing_while_local_sign_in_is_off(self, policy):
         policy.settings.return_value = _settings(False)
 
-        self._request(_user())
+        assert self._request(_user()) is None
 
-        policy.publish.assert_not_called()
+        policy.stage.assert_not_called()
 
     def test_an_administrator_still_gets_it_while_local_sign_in_is_off(self, policy):
         policy.settings.return_value = _settings(False)
 
-        self._request(_user("admin"))
+        assert self._request(_user("admin")) is not None
 
-        policy.publish.assert_called_once()
+        policy.stage.assert_called_once()
 
     @pytest.mark.parametrize(
         ("has_password", "local_login_enabled"), [(False, True), (True, False)], ids=["no-password", "local-off"]

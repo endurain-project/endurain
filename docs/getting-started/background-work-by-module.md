@@ -247,7 +247,7 @@ Each section says what triggers the work, what happens locally and when distribu
 | Triggers | A sign-up verification, an approval request to administrators, an approved notice, a password reset request, an email-change confirmation, a notice to the previous address after an email change |
 | Local | The email is sent from the subscriber pool. A failed send is logged and not retried |
 | Distributed | Durable job. A failed send is retried with backoff, which is why [email retries](advanced-setup.md#supported-environment-variables) need `JOBS_ENABLED=true` |
-| If dropped | Nothing repairs it. A lost reset email is recovered by requesting another, a lost verification email by signing up again or an administrator, a lost email-change confirmation by resending it from Settings. The user and token rows stay the source of truth |
+| If dropped | Nothing repairs it. A lost reset email is recovered by requesting another, a lost verification email by signing up again or an administrator, a lost email-change confirmation by resending it from Settings. The user and token rows stay the source of truth. A password reset request answers the same for every address and only stages the event; the subscriber decides (account state, the five-minute cooldown, the audit row), so a dropped event leaves no cooldown or audit row behind |
 
 ### Activity uploads, provider refreshes and bulk imports
 

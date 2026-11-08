@@ -1,3 +1,5 @@
+from unittest.mock import patch
+
 import pytest
 from pwdlib import PasswordHash
 from pwdlib.hashers.argon2 import Argon2Hasher
@@ -270,3 +272,35 @@ class TestUnrecognisedStoredHash:
 
     def test_a_malformed_argon2_hash_does_not_match(self):
         assert PasswordHasher().verify_password("TestPassword123!", "$argon2id$garbage") is False
+
+
+class TestDummyVerifyCost:
+    """A request that finds nothing to verify against still pays for the Argon2 work a real verify does."""
+
+    def test_the_dummy_hash_exists_right_after_construction(self):
+        assert PasswordHasher()._dummy_hash.startswith("$argon2")
+
+    @pytest.mark.parametrize("stored", [_BCRYPT_HASH, "not-a-hash", ""])
+    def test_verify_password_runs_a_dummy_verify_for_an_unrecognised_hash(self, stored):
+        hasher = PasswordHasher()
+        with patch.object(hasher, "dummy_verify") as dummy:
+            hasher.verify_password("TestPassword123!", stored)
+
+        dummy.assert_called_once_with()
+
+    @pytest.mark.parametrize("stored", [_BCRYPT_HASH, "not-a-hash", ""])
+    def test_verify_and_update_runs_a_dummy_verify_for_an_unrecognised_hash(self, stored):
+        hasher = PasswordHasher()
+        with patch.object(hasher, "dummy_verify") as dummy:
+            hasher.verify_and_update("TestPassword123!", stored)
+
+        dummy.assert_called_once_with()
+
+    def test_a_recognised_hash_runs_no_dummy_verify(self):
+        hasher = PasswordHasher()
+        stored = hasher.hash_password("TestPassword123!")
+        with patch.object(hasher, "dummy_verify") as dummy:
+            hasher.verify_password("wrong", stored)
+            hasher.verify_and_update("wrong", stored)
+
+        dummy.assert_not_called()

@@ -30,6 +30,21 @@ class TestRequestPasswordReset:
         assert response.status_code == status.HTTP_204_NO_CONTENT
         assert response.content == b""
 
+    @patch("modules.auth.password_reset_tokens.public_router.core_network.get_ip_address", return_value="203.0.113.7")
+    @patch("modules.auth.password_reset_tokens.public_router.password_reset_service.request_password_reset_email")
+    def test_request_passes_the_clients_address_and_user_agent(
+        self, mock_send: MagicMock, _ip: MagicMock, fast_api_client
+    ) -> None:
+        """Hands the service the caller's network address and user agent for the worker's audit rows."""
+        fast_api_client.post(
+            "/password-reset/request", json={"email": "user@example.com"}, headers={"User-Agent": "reset-agent/1.0"}
+        )
+
+        email, ip_address, user_agent, _db = mock_send.call_args.args
+        assert email == "user@example.com"
+        assert ip_address == "203.0.113.7"
+        assert user_agent == "reset-agent/1.0"
+
     def test_request_password_reset_invalid_email_format(
         self,
         fast_api_client,

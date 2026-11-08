@@ -157,6 +157,8 @@ The setup token is valid for 24 hours and can be used once. Restarting the conta
 
 Anyone who can reach a fresh instance before it is onboarded needs the setup token, so the token protects an exposed fresh install. Still, complete onboarding before you expose the instance publicly.
 
+The token is written to the server log, so anyone who can read that log, including any service you ship logs to, can complete onboarding until the first administrator exists. Once that account exists, every setup token stops working, so a token left in old logs is harmless.
+
 !!! note "Existing installations"
     Installations that already have accounts are not affected by this change. An `admin` account created by an older version may still use the default password `admin`. If you still use it, change the password now.
 

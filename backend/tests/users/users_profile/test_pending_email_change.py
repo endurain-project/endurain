@@ -251,15 +251,13 @@ class TestResendAndCancel:
 class TestPasswordResetWhilePending:
     def test_the_reset_still_targets_the_old_address(self, db, mail, publish):
         _change_email(db, "new@example.com")
-        state = MemoryState()
         reset = "modules.auth.password_reset_tokens.service.password_reset_event_publishers.publish_password_reset_requested"
 
-        with patch.object(password_reset_service, "_may_reset_password", return_value=True), patch(reset) as requested:
-            password_reset_service.request_password_reset_email("new@example.com", state, db)
-            requested.assert_not_called()
-            password_reset_service.request_password_reset_email("user7@example.com", state, db)
+        with patch(reset) as requested:
+            password_reset_service.request_password_reset_email("new@example.com", "203.0.113.7", "agent", db)
+            password_reset_service.request_password_reset_email("user7@example.com", "203.0.113.7", "agent", db)
 
-        requested.assert_called_once_with(7, db)
+        assert [call.args[0] for call in requested.call_args_list] == [None, 7]
 
 
 class TestAdminEmailEdit:
