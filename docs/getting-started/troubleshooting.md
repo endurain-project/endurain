@@ -18,7 +18,7 @@ Endurain refuses to start on an inconsistent configuration and names the setting
 - `distributed` with local storage.
 - A job worker with `JOBS_LEASE_SECONDS` below 45.
 
-A missing `SECRET_KEY` or `FERNET_KEY`, a `FERNET_KEY` with an invalid or empty entry in its comma-separated list, a `SECRET_KEY` with an empty entry in its comma-separated list or an entry shorter than 32 characters, an `ENVIRONMENT` other than `production`, `demo` or `development`, or a non-positive token lifetime, also stops the start.
+A missing `SECRET_KEY` or `FERNET_KEY`, a `FERNET_KEY` with an invalid or empty entry in its comma-separated list, a `SECRET_KEY` with an empty entry in its comma-separated list or an entry shorter than 32 characters, an `ENVIRONMENT` other than `production`, `demo` or `development`, or a non-positive token lifetime, also stops the start. So does a `SECRET_KEY`, `FERNET_KEY` or `DB_PASSWORD` that is still the example value published in `.env.example`; generate a new one with `openssl rand -hex 32` (`SECRET_KEY`, `DB_PASSWORD`) or `openssl rand -base64 32` (`FERNET_KEY`).
 
 ## You cannot sign in
 

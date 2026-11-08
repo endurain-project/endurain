@@ -74,7 +74,7 @@ Here is an explanation of what you can set in the `.env`:
 Environment variable  | How to set it |
 | --- | --- |
 | LOCAL_PATH | Root directory for Docker volume mounts (activity files, images, logs, database data). Defaults to `/var/opt/endurain`. Set to any absolute path. |
-| DB_PASSWORD | Run `openssl rand -hex 32` on a terminal to get a secret, or use the [Secret Generators](../tools.md#secret-generators) tool |
+| DB_PASSWORD | Run `openssl rand -hex 32` on a terminal to get a secret, or use the [Secret Generators](../tools.md#secret-generators) tool. Example output is `aee5c0d342f5a88dfe657bff3d21ddb31643cdbedd21177e20ec8524b15e3648`. |
 | POSTGRES_PASSWORD | Set the same value as DB_PASSWORD.|
 | SECRET_KEY | Run `openssl rand -hex 32` on a terminal to get a secret, or use the [Secret Generators](../tools.md#secret-generators) tool. Example output is `69b85208190c96821050d4ba980a8a95d928ab7e0ebf1a40b8ef6d09fd8367d3`. |
 | FERNET_KEY | Run `openssl rand -base64 32` on a terminal to get a secret, or use the base64 tool in the [Secret Generators](../tools.md#secret-generators). Example output is `7NfMMRSCWcoNDSjqBX8WoYH9nTFk1VdQOdZY13po53Y=`. |

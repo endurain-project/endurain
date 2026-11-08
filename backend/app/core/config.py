@@ -45,6 +45,20 @@ ROOT_PATH = "/api/v1"
 #: The shortest ``SECRET_KEY`` accepted; ``openssl rand -hex 32``, which the docs prescribe, gives 64.
 MIN_SECRET_KEY_LENGTH = 32
 
+# Secrets published in ``.env.example``. A deployment that keeps one runs with a value anyone can read, so startup
+# refuses it. Each maps to the command that generates a replacement.
+PUBLISHED_EXAMPLE_SECRETS: dict[str, tuple[frozenset[str], str]] = {
+    "SECRET_KEY": (
+        frozenset({"69b85208190c96821050d4ba980a8a95d928ab7e0ebf1a40b8ef6d09fd8367d3"}),
+        "openssl rand -hex 32",
+    ),
+    "FERNET_KEY": (frozenset({"7NfMMRSCWcoNDSjqBX8WoYH9nTFk1VdQOdZY13po53Y="}), "openssl rand -base64 32"),
+    "DB_PASSWORD": (
+        frozenset({"aee5c0d342f5a88dfe657bff3d21ddb31643cdbedd21177e20ec8524b15e3648"}),
+        "openssl rand -hex 32",
+    ),
+}
+
 #: The youngest audit-trail partition the database lets anyone drop. Baked into the guard function when the
 #: substrate's audit migration first runs; a later change here does not alter an existing database.
 AUDIT_RETENTION_FLOOR_DAYS = 30
@@ -1080,6 +1094,16 @@ def check_required_env_vars() -> None:
             message = f"Missing required environment variable: {var}"
             logger.error(message, extra=core_logger.context(console=True))
             raise OSError(message)
+
+    for var, (published, command) in PUBLISHED_EXAMPLE_SECRETS.items():
+        value = read_secret(var)
+        if value is not None and not published.isdisjoint(key.strip() for key in value.split(",")):
+            message = (
+                f"{var} is the example value published in .env.example, which anyone can read. "
+                f"Generate a new value with '{command}'."
+            )
+            logger.error(message, extra=core_logger.context(console=True))
+            raise ValueError(message)
 
     # Validate FERNET_KEY if it's available
     fernet_key = read_secret("FERNET_KEY")

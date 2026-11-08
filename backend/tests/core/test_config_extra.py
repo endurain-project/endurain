@@ -1076,3 +1076,57 @@ class TestSecretKeyLength:
             pytest.raises(ValueError, match="SECRET_KEY contains an empty entry"),
         ):
             check_required_env_vars()
+
+
+class TestPublishedExampleSecrets:
+    """The secrets shipped in .env.example are public, so a deployment that keeps one must not start."""
+
+    _SECRET_KEY = "69b85208190c96821050d4ba980a8a95d928ab7e0ebf1a40b8ef6d09fd8367d3"
+    _FERNET_KEY = "7NfMMRSCWcoNDSjqBX8WoYH9nTFk1VdQOdZY13po53Y="
+    _DB_PASSWORD = "aee5c0d342f5a88dfe657bff3d21ddb31643cdbedd21177e20ec8524b15e3648"
+
+    @pytest.mark.parametrize(
+        ("name", "value", "hint"),
+        [
+            ("SECRET_KEY", _SECRET_KEY, "openssl rand -hex 32"),
+            ("SECRET_KEY", f"{'x' * 32}, {_SECRET_KEY}", "openssl rand -hex 32"),
+            ("FERNET_KEY", _FERNET_KEY, "openssl rand -base64 32"),
+            ("FERNET_KEY", f"{Fernet.generate_key().decode()},{_FERNET_KEY}", "openssl rand -base64 32"),
+            ("DB_PASSWORD", _DB_PASSWORD, "openssl rand -hex 32"),
+        ],
+    )
+    def test_a_published_value_stops_startup(self, name, value, hint):
+        from core.config import check_required_env_vars
+
+        env = TestCheckRequiredEnvVars()._minimal_env(**{name: value})
+        with (
+            patch.dict(os.environ, env, clear=True),
+            patch("core.config.logger"),
+            pytest.raises(ValueError, match=name) as raised,
+        ):
+            check_required_env_vars()
+        assert hint in str(raised.value)
+
+    def test_a_published_value_read_from_a_file_stops_startup(self, tmp_path):
+        from core.config import check_required_env_vars
+
+        secret_file = tmp_path / "db_password"
+        secret_file.write_text(self._DB_PASSWORD)
+        secret_file.chmod(0o400)
+        env = TestCheckRequiredEnvVars()._minimal_env()
+        del env["DB_PASSWORD"]
+        env["DB_PASSWORD_FILE"] = str(secret_file)
+        with (
+            patch.dict(os.environ, env, clear=True),
+            patch("core.config.logger"),
+            patch("core.config._is_safe_path", return_value=True),
+            pytest.raises(ValueError, match="DB_PASSWORD"),
+        ):
+            check_required_env_vars()
+
+    def test_other_values_start(self):
+        from core.config import check_required_env_vars
+
+        env = TestCheckRequiredEnvVars()._minimal_env()
+        with patch.dict(os.environ, env, clear=True), patch("core.config.logger"):
+            check_required_env_vars()
