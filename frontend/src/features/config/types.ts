@@ -75,6 +75,7 @@ export interface AppConfig {
  * @property tileserver_url - URL template used by frontend maps to request tiles.
  * @property tileserver_attribution - Attribution shown on frontend maps.
  * @property allowed_redirect_schemes - Custom URI schemes SSO redirects may target.
+ * @property allowed_redirect_uris - Exact addresses SSO redirects may target; when not empty they replace the schemes.
  */
 export type PublicServerSettings = Pick<
   Schemas['ServerSettingsReadPublic'],
@@ -92,4 +93,5 @@ export type PublicServerSettings = Pick<
   | 'tileserver_url'
   | 'tileserver_attribution'
   | 'allowed_redirect_schemes'
+  | 'allowed_redirect_uris'
 >

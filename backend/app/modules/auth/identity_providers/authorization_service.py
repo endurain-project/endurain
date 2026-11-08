@@ -85,6 +85,7 @@ class AuthorizationService:
         redirect: str | None,
         client_ip: str | None,
         allowed_schemes: set[str],
+        allowed_uris: set[str],
         keep_session_id: str | None,
         db: Session,
     ) -> identity_provider_contracts.StagedBrowserFlow:
@@ -99,6 +100,7 @@ class AuthorizationService:
             redirect: Frontend path or custom scheme to return to.
             client_ip: Address of the client that started the link.
             allowed_schemes: Custom URI schemes a redirect may use.
+            allowed_uris: Exact custom-scheme addresses a redirect may use; when not empty, they replace the schemes.
             keep_session_id: The session that started the link, kept when the callback ends the user's other
                 sessions; None when the link ends none.
             db: Database session.
@@ -110,7 +112,7 @@ class AuthorizationService:
             InvalidInputError: If the redirect is not allowed.
             NotFoundError: If the provider does not exist or is disabled.
         """
-        identity_provider_utils.validate_redirect_url(redirect, allowed_schemes)
+        identity_provider_utils.validate_redirect_url(redirect, allowed_schemes, allowed_uris)
         idp = idp_crud.get_identity_provider(idp_id, db)
         if idp is None or not idp.enabled:
             raise core_exceptions.NotFoundError("Identity provider not found or disabled")
@@ -165,7 +167,7 @@ class AuthorizationService:
             NotFoundError: If the provider does not exist, is disabled or is not linked to the user.
         """
         # No custom scheme is allowed, and a blank value, which the validator lets through, is no path either.
-        identity_provider_utils.validate_redirect_url(redirect, set())
+        identity_provider_utils.validate_redirect_url(redirect, set(), set())
         if not redirect.startswith("/"):
             raise core_exceptions.InvalidInputError("Redirect must be a relative path starting with '/'.")
         auth_computation.validate_pkce_challenge(code_challenge, "S256")
@@ -333,6 +335,7 @@ class AuthorizationService:
         client_ip: str | None,
         header_client_type: str | None,
         allowed_redirect_schemes: set[str],
+        allowed_redirect_uris: set[str],
         db: Session,
     ) -> str:
         """Validate a login request and return the provider's authorization URL.
@@ -349,6 +352,8 @@ class AuthorizationService:
             client_ip: Address of the client that started the flow.
             header_client_type: The ``X-Client-Type`` header, if any.
             allowed_redirect_schemes: Custom URI schemes a redirect may use.
+            allowed_redirect_uris: Exact custom-scheme addresses a redirect may use; when not empty, they replace
+                the schemes.
             db: Database session.
 
         Returns:
@@ -367,7 +372,7 @@ class AuthorizationService:
             raise core_exceptions.InvalidInputError("code_challenge_method must be S256")
         auth_computation.validate_pkce_challenge(code_challenge, code_challenge_method)
         # Refused before anything is stored, so a login cannot be turned into an open redirect.
-        identity_provider_utils.validate_redirect_url(redirect, allowed_redirect_schemes)
+        identity_provider_utils.validate_redirect_url(redirect, allowed_redirect_schemes, allowed_redirect_uris)
 
         if identity_provider_utils.is_custom_scheme_redirect(redirect):
             client_type = "mobile"

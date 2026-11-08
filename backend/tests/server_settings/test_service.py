@@ -1412,6 +1412,18 @@ class TestGetServerSettingsForPublic:
 
         assert result.allowed_redirect_schemes == ["endurain", "gadgetbridge"]
 
+    @patch("modules.server_settings.service.core_config.settings")
+    @patch("modules.server_settings.service.server_settings_crud.get_server_settings")
+    def test_reflects_configured_uris_sorted(self, mock_get, mock_config, mock_db):
+        """Test the redirect addresses mirror ALLOWED_REDIRECT_URIS, sorted."""
+        mock_get.return_value = self._stored_settings()
+        mock_config.ALLOWED_REDIRECT_SCHEMES = {"endurain"}
+        mock_config.ALLOWED_REDIRECT_URIS = {"gadgetbridge://auth", "endurain://cb"}
+
+        result = server_settings_service.get_server_settings_for_public(mock_db)
+
+        assert result.allowed_redirect_uris == ["endurain://cb", "gadgetbridge://auth"]
+
     @patch("modules.server_settings.service.server_settings_crud.get_server_settings")
     def test_excludes_admin_only_fields(self, mock_get, mock_db):
         """Test sign-up policy and the tile API key never reach the public shape."""

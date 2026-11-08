@@ -1,6 +1,7 @@
 """Tests for identity_providers.utils module."""
 
 from types import SimpleNamespace
+from typing import ClassVar
 
 import pytest
 
@@ -14,10 +15,10 @@ from modules.auth.identity_providers.utils import (
 HOST = "https://app.example.com"
 
 
-def validate_redirect_url(redirect, allowed_schemes=None):
+def validate_redirect_url(redirect, allowed_schemes=None, allowed_uris=None):
     if allowed_schemes is None:
         allowed_schemes = {"endurain"}
-    return _validate_redirect_url(redirect, allowed_schemes)
+    return _validate_redirect_url(redirect, allowed_schemes, allowed_uris or set())
 
 
 class TestValidatePkceChallenge:
@@ -482,3 +483,50 @@ class TestNormalizeIssuerUrl:
     )
     def test_removes_every_trailing_slash(self, value, expected):
         assert idp_utils.normalize_issuer_url(value) == expected
+
+
+class TestValidateRedirectUrlWithExactAddresses:
+    """When ALLOWED_REDIRECT_URIS is set, only those exact addresses are allowed and the schemes are ignored."""
+
+    URIS: ClassVar[set[str]] = {"endurain://oauth/callback", "gadgetbridge://auth"}
+
+    def test_an_exact_address_is_allowed(self):
+        validate_redirect_url("endurain://oauth/callback", {"endurain"}, self.URIS)
+        validate_redirect_url("gadgetbridge://auth", set(), self.URIS)
+
+    def test_the_scheme_matches_in_any_letter_case(self):
+        validate_redirect_url("ENDURAIN://oauth/callback", set(), self.URIS)
+
+    def test_the_rest_of_the_address_matches_exactly(self):
+        validate_redirect_url("endurain://oauth/callback", set(), self.URIS)
+        with pytest.raises(core_exceptions.InvalidInputError, match="ALLOWED_REDIRECT_URIS"):
+            validate_redirect_url("endurain://oauth/Callback", set(), self.URIS)
+
+    @pytest.mark.parametrize(
+        "redirect",
+        [
+            "endurain://other",
+            "endurain://oauth/callback/extra",
+            "endurain://oauth/callback?x=1",
+            "endurain://oauth/callback#frag",
+        ],
+    )
+    def test_another_address_under_a_listed_scheme_is_refused(self, redirect):
+        with pytest.raises(core_exceptions.InvalidInputError, match="ALLOWED_REDIRECT_URIS"):
+            validate_redirect_url(redirect, {"endurain"}, self.URIS)
+
+    def test_a_scheme_only_in_the_schemes_is_refused(self):
+        with pytest.raises(core_exceptions.InvalidInputError):
+            validate_redirect_url("myapp://callback", {"myapp"}, self.URIS)
+
+    def test_relative_paths_stay_allowed(self):
+        validate_redirect_url("/dashboard", set(), self.URIS)
+
+    def test_an_unsafe_scheme_is_refused_even_when_listed(self):
+        with pytest.raises(core_exceptions.InvalidInputError):
+            validate_redirect_url("javascript://x", set(), {"javascript://x"})
+
+    def test_without_addresses_the_schemes_decide(self):
+        validate_redirect_url("endurain://anything/at/all", {"endurain"}, set())
+        with pytest.raises(core_exceptions.InvalidInputError):
+            validate_redirect_url("myapp://callback", {"endurain"}, set())

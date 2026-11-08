@@ -4,6 +4,7 @@ import {
   getSafeRedirect,
   isCustomSchemeRedirect,
   setAllowedRedirectSchemes,
+  setAllowedRedirectUris,
 } from '@/composables/useSafeRedirect'
 
 describe('getSafeRedirect', () => {
@@ -136,4 +137,55 @@ describe('setAllowedRedirectSchemes', () => {
     expect(isCustomSchemeRedirect('good://x')).toBe(true)
     expect(isCustomSchemeRedirect('1abc://x')).toBe(false)
   })
+})
+
+describe('setAllowedRedirectUris', () => {
+  afterEach(() => {
+    setAllowedRedirectSchemes(['endurain'])
+    setAllowedRedirectUris([])
+  })
+
+  it('allows an exact address', () => {
+    setAllowedRedirectUris(['endurain://oauth/callback'])
+    expect(isCustomSchemeRedirect('endurain://oauth/callback')).toBe(true)
+    expect(getSafeRedirect('endurain://oauth/callback')).toBe('endurain://oauth/callback')
+  })
+
+  it('matches the scheme case-insensitively and the rest exactly', () => {
+    setAllowedRedirectUris(['endurain://oauth/Callback'])
+    expect(isCustomSchemeRedirect('ENDURAIN://oauth/Callback')).toBe(true)
+    expect(isCustomSchemeRedirect('endurain://oauth/callback')).toBe(false)
+  })
+
+  it.each([
+    'endurain://other',
+    'endurain://oauth/callback/extra',
+    'endurain://oauth/callback?x=1',
+    'endurain://oauth/callback#frag',
+  ])('refuses %s, another address under a listed scheme', (redirect) => {
+    setAllowedRedirectUris(['endurain://oauth/callback'])
+    expect(isCustomSchemeRedirect(redirect)).toBe(false)
+    expect(getSafeRedirect(redirect)).toBe('/')
+  })
+
+  it('ignores the schemes while addresses are set', () => {
+    setAllowedRedirectSchemes(['endurain', 'myapp'])
+    setAllowedRedirectUris(['gadgetbridge://auth'])
+    expect(isCustomSchemeRedirect('myapp://callback')).toBe(false)
+    expect(isCustomSchemeRedirect('gadgetbridge://auth')).toBe(true)
+  })
+
+  it('falls back to the schemes when no address is set', () => {
+    setAllowedRedirectUris([])
+    expect(isCustomSchemeRedirect('endurain://anything')).toBe(true)
+  })
+
+  it.each(['http://x', 'https://x', 'javascript://x', 'DATA://x', 'vbscript://x', 'file://x'])(
+    'never allows the unsafe address %s even when configured',
+    (uri) => {
+      setAllowedRedirectUris([uri, 'good://x'])
+      expect(isCustomSchemeRedirect(uri)).toBe(false)
+      expect(isCustomSchemeRedirect('good://x')).toBe(true)
+    },
+  )
 })

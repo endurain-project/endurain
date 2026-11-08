@@ -130,6 +130,7 @@ def get_server_settings_for_public(db: Session) -> server_settings_schema.Server
     return server_settings_schema.ServerSettingsReadPublic(
         **public_fields,
         allowed_redirect_schemes=sorted(core_config.settings.ALLOWED_REDIRECT_SCHEMES),
+        allowed_redirect_uris=sorted(core_config.settings.ALLOWED_REDIRECT_URIS),
     )
 
 

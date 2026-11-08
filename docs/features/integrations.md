@@ -10,7 +10,7 @@ RunnerUp currently **does not** support login with MFA.
 
 ## Gadgetbridge
 
-[Gadgetbridge](https://gadgetbridge.org/) is an Android app for wearables. It signs in to Endurain through the system browser using SSO and a custom redirect scheme. An administrator must allow that scheme by adding `gadgetbridge` to `ALLOWED_REDIRECT_SCHEMES` (for example `endurain,gadgetbridge`); see [advanced setup](../getting-started/advanced-setup.md) and [OAuth/SSO and PKCE](../integrate/oauth-sso-pkce.md).
+[Gadgetbridge](https://gadgetbridge.org/) is an Android app for wearables. It signs in to Endurain through the system browser using SSO and a custom redirect scheme. An administrator must allow its redirect address by adding it to `ALLOWED_REDIRECT_URIS` (for example `gadgetbridge://auth`); see [advanced setup](../getting-started/advanced-setup.md) and [OAuth/SSO and PKCE](../integrate/oauth-sso-pkce.md).
 
 ## Garmin Connect
 

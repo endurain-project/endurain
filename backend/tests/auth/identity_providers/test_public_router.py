@@ -78,6 +78,7 @@ class TestInitiateLogin:
         assert args[0] == "pocket-id"
         assert args[1:4] == (CHALLENGE, "S256", "/dashboard")
         assert args[6] == core_config.settings.ALLOWED_REDIRECT_SCHEMES
+        assert args[7] == core_config.settings.ALLOWED_REDIRECT_URIS
 
     def test_a_refusal_is_a_problem_document(self, client, service):
         service.begin_login.side_effect = core_exceptions.NotFoundError("Identity provider not found or disabled")

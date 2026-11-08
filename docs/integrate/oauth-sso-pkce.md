@@ -399,7 +399,9 @@ X-Client-Type: mobile
 
 ### Redirect schemes
 
-The `redirect` scheme must be listed in `ALLOWED_REDIRECT_SCHEMES` (see [Configuration](auth-reference.md#configuration)). It is a comma-separated list, matched case-insensitively. The default is `endurain` only, and setting the variable replaces the default instead of adding to it. An operator who runs an app that uses another scheme must set it, for example `ALLOWED_REDIRECT_SCHEMES=org.endurain.app`, and restart Endurain. A redirect with a scheme that is not listed is refused with `400`.
+The `redirect` address must be listed in `ALLOWED_REDIRECT_URIS` (see [Configuration](auth-reference.md#configuration)), a comma-separated list of exact addresses such as `ALLOWED_REDIRECT_URIS=org.endurain.app://oauth/callback`. The scheme is matched case-insensitively and the rest of the address exactly. The app registers one fixed callback address and Endurain adds `session_id` to it, so a redirect with a different path, or with a query string or fragment the entry does not have, is refused with `400`. While `ALLOWED_REDIRECT_URIS` is set, `ALLOWED_REDIRECT_SCHEMES` is ignored.
+
+`ALLOWED_REDIRECT_SCHEMES` is deprecated, logs a warning at startup when set and will be removed in v0.22. Until then, when `ALLOWED_REDIRECT_URIS` is not set, the scheme of the `redirect` must be listed in `ALLOWED_REDIRECT_SCHEMES` (see [Configuration](auth-reference.md#configuration)). It is a comma-separated list, matched case-insensitively. The default is `endurain` only, and setting the variable replaces the default instead of adding to it. An operator who runs an app that uses another scheme must set it, for example `ALLOWED_REDIRECT_SCHEMES=org.endurain.app`, and restart Endurain. A redirect with a scheme that is not listed is refused with `400`.
 
 App authors should register a reverse-DNS scheme based on a domain they control, such as `org.endurain.app`, as RFC 8252 section 7.1 recommends. A short word such as `endurain` or `gadgetbridge` can be claimed by any other app on the device, which could then receive the `session_id` (the PKCE verifier still stops it from getting tokens). `http`, `https`, `javascript`, `data`, `file`, `vbscript` and `blob` are never allowed, and Endurain refuses to start if one is listed.
 
@@ -409,8 +411,8 @@ App authors should register a reverse-DNS scheme based on a domain they control,
 | -------------- | ------- | ----- |
 | `/dashboard` | ✅ | Relative paths always allowed |
 | `/settings?tab=devices` | ✅ | Query strings OK in relative paths |
-| `org.endurain.app://callback` | ✅ | If `org.endurain.app` is in `ALLOWED_REDIRECT_SCHEMES`; recorded as a mobile flow |
-| `myapp://callback` | ❌ | If `myapp` is not configured — 400 returned |
+| `org.endurain.app://callback` | ✅ | If it is listed in `ALLOWED_REDIRECT_URIS`, or, with that unset, if `org.endurain.app` is in `ALLOWED_REDIRECT_SCHEMES`; recorded as a mobile flow |
+| `myapp://callback` | ❌ | If the address (or, with `ALLOWED_REDIRECT_URIS` unset, the scheme) is not configured — 400 returned |
 | `https://evil.com` | ❌ | External HTTP URLs always rejected |
 | `http://localhost` | ❌ | External HTTP URLs always rejected |
 | `/../etc/passwd` | ❌ | Path traversal rejected |

@@ -9,10 +9,17 @@ export { getQueryString } from '@/composables/useRouteQuery'
  * pseudo-schemes such as `javascript:`, `data:`, and `vbscript:` that would
  * otherwise execute when a redirect value is assigned to `window.location.href`.
  * It starts with the app's own native deep-link scheme and is replaced by the
- * server's `ALLOWED_REDIRECT_SCHEMES` once the public server settings load.
+ * server's `ALLOWED_REDIRECT_SCHEMES` once the public server settings load, unless the
+ * server lists exact addresses (`ALLOWED_REDIRECT_URIS`).
  */
 const DEFAULT_CUSTOM_SCHEMES = ['endurain']
 let allowedCustomSchemes = new Set(DEFAULT_CUSTOM_SCHEMES)
+
+/**
+ * Exact redirect addresses, from the server's `ALLOWED_REDIRECT_URIS`. While any is set,
+ * only these are accepted and the schemes are ignored.
+ */
+let allowedRedirectUris = new Set<string>()
 
 /**
  * Schemes that never become redirect targets, whatever the server configures:
@@ -42,10 +49,42 @@ export function setAllowedRedirectSchemes(schemes: readonly string[]): void {
 }
 
 /**
+ * Lower-cases the scheme of a `scheme://rest` address and keeps the rest as written,
+ * the form in which the server compares addresses.
+ *
+ * @param uri - Address to normalise.
+ * @returns The address with its scheme in lower case.
+ */
+function normaliseRedirectUri(uri: string): string {
+  const index = uri.indexOf('://')
+  return index < 0 ? uri : uri.slice(0, index).toLowerCase() + uri.slice(index)
+}
+
+/**
+ * Replaces the allowed exact redirect addresses with the server's configured
+ * list. While the list is not empty, only these addresses are accepted.
+ *
+ * Entries whose scheme is not well-formed or is in {@link UNSAFE_REDIRECT_SCHEMES}
+ * are ignored.
+ *
+ * @param uris - Addresses from the public server settings.
+ */
+export function setAllowedRedirectUris(uris: readonly string[]): void {
+  allowedRedirectUris = new Set(
+    uris.map(normaliseRedirectUri).filter((uri) => {
+      const scheme = /^([a-z][a-z0-9+.-]*):\/\/./.exec(uri)?.[1]
+      return scheme !== undefined && !UNSAFE_REDIRECT_SCHEMES.has(scheme)
+    }),
+  )
+}
+
+/**
  * Checks whether a redirect is an allowed native-app custom-scheme deep link
  * (e.g. `endurain://`).
  *
- * Only schemes configured on the server pass. `http(s)` URLs are intentionally
+ * When the server lists exact addresses, only those pass (scheme in any letter case,
+ * the rest exactly, query and fragment included). Otherwise only schemes configured
+ * on the server pass. `http(s)` URLs are intentionally
  * rejected here (they are treated as external redirects and blocked), and
  * script-bearing pseudo-schemes such as `javascript://...` are rejected because
  * they are not on the allow-list — preventing the open-redirect check from being
@@ -55,6 +94,9 @@ export function setAllowedRedirectSchemes(schemes: readonly string[]): void {
  * @returns Whether the redirect is an allowed custom-scheme URL.
  */
 export function isCustomSchemeRedirect(value: string): boolean {
+  if (allowedRedirectUris.size > 0) {
+    return allowedRedirectUris.has(normaliseRedirectUri(value))
+  }
   const scheme = /^([a-z][a-z0-9+.-]*):\/\//i.exec(value)?.[1]?.toLowerCase()
   return scheme !== undefined && allowedCustomSchemes.has(scheme)
 }

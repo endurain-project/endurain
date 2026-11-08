@@ -16,6 +16,7 @@ working unchanged.
 
 import ipaddress
 import os
+import re
 import stat
 from collections.abc import Iterable
 from pathlib import Path
@@ -129,7 +130,10 @@ class Settings(BaseSettings):
     # comma-separated env value (e.g. "a,b,c") rather than
     # JSON. Without this pydantic-settings would attempt
     # ``json.loads`` first and raise on plain strings.
+    # Deprecated: removed in v0.22.0 in favour of ALLOWED_REDIRECT_URIS.
     ALLOWED_REDIRECT_SCHEMES: Annotated[set[str], NoDecode] = {"endurain"}
+    # Exact redirect addresses mobile apps may use. When set, only these are allowed and the schemes are ignored.
+    ALLOWED_REDIRECT_URIS: Annotated[set[str], NoDecode] = set()
     TRUSTED_PROXIES: Annotated[list[str], NoDecode] = []
     # Narrow SSRF exception list for admin-configured
     # outbound calls (currently OIDC discovery / JWKS).
@@ -385,6 +389,35 @@ class Settings(BaseSettings):
         if unsafe:
             raise ValueError(f"ALLOWED_REDIRECT_SCHEMES must not contain unsafe schemes: {', '.join(unsafe)}")
         return schemes
+
+    @field_validator("ALLOWED_REDIRECT_URIS", mode="before")
+    @classmethod
+    def _parse_allowed_redirect_uris(cls, v: str | Iterable[object] | None) -> set[str]:
+        """Accept comma-separated env value or already-parsed iterable.
+
+        Each entry is a ``scheme://target`` address; its scheme is lower-cased and the rest is kept as written.
+
+        Raises:
+            ValueError: If an entry has a control character, is not ``scheme://target``, or has an unsafe scheme
+                (``core.redirect_schemes``).
+        """
+        if v is None or v == "":
+            return set()
+        entries = v.split(",") if isinstance(v, str) else [str(entry) for entry in v]
+        uris: set[str] = set()
+        for entry in (e.strip() for e in entries):
+            if not entry:
+                continue
+            if any(ord(char) < 0x20 or ord(char) == 0x7F for char in entry):
+                raise ValueError("ALLOWED_REDIRECT_URIS must not contain control characters")
+            uri = core_redirect_schemes.normalise_redirect_uri(entry)
+            scheme, _, target = uri.partition("://")
+            if not re.fullmatch(r"[a-z][a-z0-9+.-]*", scheme) or not target:
+                raise ValueError(f"ALLOWED_REDIRECT_URIS entry '{entry}' must look like scheme://target")
+            if scheme in core_redirect_schemes.UNSAFE_REDIRECT_SCHEMES:
+                raise ValueError(f"ALLOWED_REDIRECT_URIS must not contain unsafe schemes: {scheme}")
+            uris.add(uri)
+        return uris
 
     @field_validator("TRUSTED_PROXIES", mode="before")
     @classmethod
@@ -1184,6 +1217,13 @@ def check_deprecated_env_vars() -> None:
         EnvironmentError: If any deprecated variable is present in the
             process environment.
     """
+    if "ALLOWED_REDIRECT_SCHEMES" in settings.model_fields_set:
+        logger.warning(
+            "ALLOWED_REDIRECT_SCHEMES is deprecated and will be removed in v0.22. "
+            "Use ALLOWED_REDIRECT_URIS to list the exact redirect addresses instead.",
+            extra=core_logger.context(console=True),
+        )
+
     found = [name for name in DEPRECATED_ENV_VARS if name in os.environ]
     if not found:
         return

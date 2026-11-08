@@ -46,11 +46,14 @@ def requires_id_token(idp: identity_provider_contracts.IdentityProviderState) ->
     return "openid" in (idp.scopes or idp_constants.DEFAULT_SCOPES).split()
 
 
-def validate_redirect_url(redirect: str | None, allowed_schemes: set[str]) -> None:
+def validate_redirect_url(redirect: str | None, allowed_schemes: set[str], allowed_uris: set[str]) -> None:
     """Validate the redirect URL to prevent open redirect vulnerabilities.
 
     Allows only relative paths (starting with '/') and custom URI
-    schemes explicitly configured via ALLOWED_REDIRECT_SCHEMES.
+    schemes explicitly configured via ALLOWED_REDIRECT_SCHEMES. When
+    ALLOWED_REDIRECT_URIS is set, a custom-scheme redirect must instead
+    equal one of those addresses (the scheme in any letter case, the rest
+    exactly, query and fragment included) and the schemes are ignored.
     External HTTP/HTTPS URLs are always rejected, in any letter case,
     and so are the unsafe schemes in ``UNSAFE_REDIRECT_SCHEMES``, even
     when they are listed in ``allowed_schemes``.
@@ -58,6 +61,7 @@ def validate_redirect_url(redirect: str | None, allowed_schemes: set[str]) -> No
     Args:
         redirect: The redirect URL string to validate, or None.
         allowed_schemes: Custom URI schemes a redirect may use.
+        allowed_uris: Exact custom-scheme addresses a redirect may use; when not empty, they replace the schemes.
 
     Raises:
         InvalidInputError: If the redirect URL is
@@ -87,12 +91,17 @@ def validate_redirect_url(redirect: str | None, allowed_schemes: set[str]) -> No
     if scheme is not None:
         if scheme in core_redirect_schemes.UNSAFE_REDIRECT_SCHEMES:
             raise core_exceptions.InvalidInputError(f"Redirect scheme '{scheme}' is not allowed.")
-        if scheme not in allowed_schemes:
+        if allowed_uris:
+            if core_redirect_schemes.normalise_redirect_uri(value) not in allowed_uris:
+                raise core_exceptions.InvalidInputError(
+                    "Redirect address is not allowed. Configure ALLOWED_REDIRECT_URIS to permit it."
+                )
+        elif scheme not in allowed_schemes:
             raise core_exceptions.InvalidInputError(
                 f"Redirect scheme '{scheme}' is not allowed. "
                 "Configure ALLOWED_REDIRECT_SCHEMES to permit custom URI schemes."
             )
-        # Custom scheme is allowed — no further checks needed
+        # Custom redirect is allowed — no further checks needed
         return
 
     # Relative paths must start with '/'

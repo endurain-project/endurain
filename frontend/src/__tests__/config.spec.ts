@@ -21,6 +21,7 @@ const publicSettings: PublicServerSettings = {
   tileserver_url: 'https://tiles.test/{z}/{x}/{y}.png',
   tileserver_attribution: '&copy; Test tiles',
   allowed_redirect_schemes: ['endurain'],
+  allowed_redirect_uris: [],
 }
 
 describe('default map configuration', () => {

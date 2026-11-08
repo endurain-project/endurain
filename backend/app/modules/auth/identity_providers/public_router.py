@@ -108,6 +108,7 @@ def initiate_login(
         core_network.get_ip_address(request),
         request.headers.get("X-Client-Type"),
         core_config.settings.ALLOWED_REDIRECT_SCHEMES,
+        core_config.settings.ALLOWED_REDIRECT_URIS,
         db,
     )
     return RedirectResponse(url=authorization_url, status_code=status.HTTP_307_TEMPORARY_REDIRECT)

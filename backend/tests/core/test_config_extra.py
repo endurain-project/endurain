@@ -117,6 +117,67 @@ class TestSettings:
         s = Settings(_env_file=None, ALLOWED_REDIRECT_SCHEMES=None)
         assert set() == s.ALLOWED_REDIRECT_SCHEMES
 
+    def test_allowed_redirect_uris_default_empty(self):
+        s = Settings(_env_file=None)
+        assert set() == s.ALLOWED_REDIRECT_URIS
+
+    def test_allowed_redirect_uris_comma_separated_with_lowercased_scheme(self):
+        s = Settings(_env_file=None, ALLOWED_REDIRECT_URIS="Endurain://oauth/Callback, gadgetbridge://auth ,")
+        assert {"endurain://oauth/Callback", "gadgetbridge://auth"} == s.ALLOWED_REDIRECT_URIS
+
+    @pytest.mark.parametrize("value", ["", None])
+    def test_allowed_redirect_uris_empty(self, value):
+        s = Settings(_env_file=None, ALLOWED_REDIRECT_URIS=value)
+        assert set() == s.ALLOWED_REDIRECT_URIS
+
+    @pytest.mark.parametrize(
+        "uri",
+        [
+            "https://evil.example/cb",
+            "HTTP://evil.example/cb",
+            "javascript://x",
+            "data://x",
+            "file://etc/passwd",
+            "vbscript://x",
+            "blob://x",
+        ],
+    )
+    def test_allowed_redirect_uris_refuses_unsafe_scheme(self, uri):
+        with pytest.raises(ValidationError, match="unsafe scheme"):
+            Settings(_env_file=None, ALLOWED_REDIRECT_URIS=f"endurain://cb,{uri}")
+
+    @pytest.mark.parametrize("uri", ["/relative", "cb", "endurain:cb", "1app://cb", "my app://cb", "endurain://"])
+    def test_allowed_redirect_uris_refuses_an_address_that_is_not_scheme_and_target(self, uri):
+        with pytest.raises(ValidationError, match="ALLOWED_REDIRECT_URIS"):
+            Settings(_env_file=None, ALLOWED_REDIRECT_URIS=uri)
+
+    @pytest.mark.parametrize("char", ["\n", "\t", "\x00", "\x7f"])
+    def test_allowed_redirect_uris_refuses_control_characters(self, char):
+        with pytest.raises(ValidationError, match="control characters"):
+            Settings(_env_file=None, ALLOWED_REDIRECT_URIS=f"endurain://cb{char}x")
+
+    def test_setting_the_deprecated_schemes_warns(self):
+        settings = Settings(_env_file=None, ALLOWED_REDIRECT_SCHEMES="endurain")
+        with (
+            patch.dict(os.environ, {}, clear=True),
+            patch("core.config.settings", settings),
+            patch("core.config.logger") as logger,
+        ):
+            core_config.check_deprecated_env_vars()
+        message = logger.warning.call_args.args[0]
+        assert "ALLOWED_REDIRECT_SCHEMES" in message
+        assert "v0.22" in message
+        assert "ALLOWED_REDIRECT_URIS" in message
+
+    def test_the_default_schemes_do_not_warn(self):
+        with (
+            patch.dict(os.environ, {}, clear=True),
+            patch("core.config.settings", Settings(_env_file=None)),
+            patch("core.config.logger") as logger,
+        ):
+            core_config.check_deprecated_env_vars()
+        logger.warning.assert_not_called()
+
     def test_trusted_proxies_comma_separated(self):
         from core.config import Settings
 

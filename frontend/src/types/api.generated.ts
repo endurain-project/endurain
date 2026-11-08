@@ -10756,6 +10756,8 @@ export interface components {
          *         allowed_redirect_schemes: Custom URI schemes (ALLOWED_REDIRECT_SCHEMES) that
          *             SSO redirects may target, so the frontend validates the same allow-list
          *             as the backend.
+         *         allowed_redirect_uris: Exact redirect addresses (ALLOWED_REDIRECT_URIS) that
+         *             SSO redirects may target; when not empty they replace the schemes.
          */
         ServerSettingsReadPublic: {
             /**
@@ -10763,6 +10765,11 @@ export interface components {
              * @description Custom URI schemes SSO redirects may target
              */
             allowed_redirect_schemes: string[];
+            /**
+             * Allowed Redirect Uris
+             * @description Exact addresses SSO redirects may target; when not empty they replace the schemes
+             */
+            allowed_redirect_uris: string[];
             /** @description Currency (euro, dollar, pound) */
             currency: components["schemas"]["Currency"];
             /**

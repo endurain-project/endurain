@@ -37,6 +37,7 @@ class TestReadPublicServerSettings:
             password_length_regular_users=8,
             password_length_admin_users=12,
             allowed_redirect_schemes=["endurain"],
+            allowed_redirect_uris=["endurain://cb"],
         )
 
         mock_get_settings.return_value = mock_settings
@@ -53,6 +54,7 @@ class TestReadPublicServerSettings:
         assert "signup_require_admin_approval" not in data
         assert data["signup_require_email_verification"] is True
         assert data["allowed_redirect_schemes"] == ["endurain"]
+        assert data["allowed_redirect_uris"] == ["endurain://cb"]
 
     @patch("modules.server_settings.public_router.server_settings_service.get_server_settings_for_public")
     def test_read_public_server_settings_not_found(
