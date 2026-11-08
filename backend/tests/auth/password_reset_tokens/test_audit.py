@@ -8,6 +8,7 @@ import jasil.testing as jasil_testing
 import pytest
 from jasil.backends.state_memory import MemoryState
 from jasil.providers import StateBackendUnavailableError
+from sqlalchemy.orm import Session
 
 import core.email_cooldown as core_email_cooldown
 import core.exceptions as core_exceptions
@@ -198,6 +199,26 @@ class TestResetWorkerAudit:
         assert first is not None
         assert second is None
         assert len(self._requests(audit)) == 1
+
+    def test_a_retry_after_the_commit_failed_still_sends_with_one_row(self, factory):
+        state = MemoryState()
+        real_commit = Session.commit
+        staged_at_commit = []
+
+        def commit_failing_once(session):
+            staged_at_commit.append(len(self._requests(audit)))
+            if len(staged_at_commit) == 1:
+                raise RuntimeError("commit failed")
+            real_commit(session)
+
+        with jasil_testing.capture_audit() as audit, patch.object(Session, "commit", commit_failing_once):
+            with pytest.raises(RuntimeError):
+                self._run(factory, _payload(9), state=state, user=_active_user())
+            retry = self._run(factory, _payload(9), state=state, user=_active_user())
+
+        assert retry == ("ana@x.test", "subject", "html", "text")
+        # One row staged by the failed attempt (rolled back with it) and one by the retry that committed.
+        assert staged_at_commit == [1, 2]
 
     def test_a_cooldown_store_that_is_down_sends_nothing_and_adds_no_row(self, factory):
         broken = MagicMock()

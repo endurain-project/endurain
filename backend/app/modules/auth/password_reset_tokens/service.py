@@ -90,10 +90,12 @@ def _record_reset_request_denied(user_id: int) -> None:
     )
 
 
-def _claim_reset_cooldown(user_id: int, state: StateProvider) -> bool:
-    """Claim the account's reset-email cooldown; False when one went out recently or the store is unreachable."""
+def _claim_reset_cooldown(user_id: int, event_id: str, state: StateProvider) -> bool:
+    """Claim the account's reset-email cooldown for an event; False when another went out recently or the store is unreachable."""
     try:
-        return core_email_cooldown.claim_email(state, "password_reset", user_id, RESET_EMAIL_COOLDOWN_SECONDS)
+        return core_email_cooldown.claim_email(
+            state, "password_reset", user_id, RESET_EMAIL_COOLDOWN_SECONDS, claimant=event_id
+        )
     except StateBackendUnavailableError as err:
         logger.error("Password-reset cooldown unavailable", exc_info=err, extra=core_logger.context(user_id=user_id))
         return False
@@ -140,8 +142,10 @@ def prepare_password_reset_email(
     local sign-in is off only administrators keep it). Each refusal and each admitted request is audited with
     the requester's client data.
 
-    The reset token derives from the event id, so a redelivery of an admitted event finds its token, skips the
-    cooldown and the audit row, and returns the same link. A later request is a new event and replaces it.
+    The reset token derives from the event id and the cooldown claim is held by the event, so a redelivery of an
+    admitted event finds its token, skips the cooldown and the audit row, and returns the same link. A retry
+    after a failed commit finds no token but its own claim, and stages the token and row again. A later request
+    is a new event and replaces it.
 
     Args:
         payload: The request event's payload.
@@ -176,7 +180,7 @@ def prepare_password_reset_email(
         token = access_tokens_integration.derive_email_token(f"password-reset:{event_id}")
         token_hash = token_hashing.sha256_hex(token)
         if not password_reset_crud.password_reset_token_exists(token_hash, db):
-            if not _claim_reset_cooldown(user.id, state):
+            if not _claim_reset_cooldown(user.id, event_id, state):
                 return None
             _stage_password_reset_token(user.id, token_hash, db)
             jasil_audit.stage(
