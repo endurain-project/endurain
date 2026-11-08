@@ -157,14 +157,14 @@ Endurain gzip-compresses its responses (the API's JSON and the web app's files) 
 
 ## Session Timeout Configuration (Optional)
 
-By default, a session ends 720 hours (30 days) after sign-in, and no idle timeout is enforced. These defaults meet NIST SP 800-63B AAL1. For AAL2, or a shorter exposure on shared devices, shorten the absolute timeout and enforce an idle timeout. See [Sessions in the server settings](../features/server-settings.md#sessions).
+By default, a session ends 720 hours (30 days) after sign-in, and a new install also ends a session after 72 hours of inactivity (an existing install keeps its idle timeout setting). An unused session also ends after the refresh token lifetime (7 days by default). These defaults meet NIST SP 800-63B AAL1. For AAL2, or a shorter exposure on shared devices, shorten the absolute timeout and enforce an idle timeout. See [Sessions in the server settings](../features/server-settings.md#sessions).
 
 These settings are edited in Settings > Server > Sessions. The environment variables below are deprecated: they are imported into the settings on startup only when set, and removed in v0.22.
 
 **Environment Variables (deprecated):**
 
-- `SESSION_IDLE_TIMEOUT_ENABLED`: Enforce the idle timeout (setting default: `false`)
-- `SESSION_IDLE_TIMEOUT_HOURS`: Logout after inactivity (setting default: `1`)
+- `SESSION_IDLE_TIMEOUT_ENABLED`: Enforce the idle timeout (setting default: on for new installs; an existing install keeps its setting)
+- `SESSION_IDLE_TIMEOUT_HOURS`: Logout after inactivity (setting default: `72` for new installs; an existing install keeps its setting)
 - `SESSION_ABSOLUTE_TIMEOUT_HOURS`: Force re-login after duration (setting default: `720`)
 
 **Example:**

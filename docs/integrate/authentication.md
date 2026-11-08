@@ -26,7 +26,7 @@ Endurain supports integration with other apps through an authentication system t
 - Upgrading to v0.21 signs everyone out once: refresh tokens issued before it are signed with the old key, carry no `client_id` and are refused, and the sessions they belong to are ended. Web and mobile users sign in again.
 - A `csrf_token` is generated for CSRF protection on state-changing requests.
 - Token and session lifetimes are set by an administrator in Settings > Server > Sessions (see [Configuration, scopes and best practices](auth-reference.md#configuration) for the deprecated environment variables).
-- A session ends at the absolute session timeout whatever its activity: 720 hours (30 days) by default. An optional idle timeout (off by default, 1 hour when enabled) also ends a session after inactivity. Administrators change the access token, refresh token, idle and absolute settings in Settings > Server > Sessions. A client should read `refresh_token_expires_in` rather than assume a lifetime.
+- A session ends at the absolute session timeout whatever its activity: 720 hours (30 days) by default. An idle timeout (on for new installs at 72 hours; an existing install keeps its setting) also ends a session after inactivity, and an unused session ends after the refresh token lifetime (7 days by default). Administrators change the access token, refresh token, idle and absolute settings in Settings > Server > Sessions. A client should read `refresh_token_expires_in` rather than assume a lifetime.
 
 ### Token storage model (hybrid approach)
 
