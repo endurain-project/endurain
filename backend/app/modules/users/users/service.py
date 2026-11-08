@@ -330,7 +330,7 @@ def list_users(
 
         records.append(user)
 
-    return core_pagination.Page.build(records, total, page_number, num_records)
+    return core_pagination.Page[users_schema.UserRead].build(records, total, page_number, num_records)
 
 
 def _stage_default_data(user_id: int, db: Session) -> None:

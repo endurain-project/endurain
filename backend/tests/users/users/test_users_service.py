@@ -4,6 +4,7 @@ from datetime import UTC, datetime
 from unittest.mock import MagicMock, patch
 
 import pytest
+from pydantic import TypeAdapter
 
 import core.exceptions as core_exceptions
 import core.pagination as core_pagination
@@ -15,6 +16,7 @@ import modules.auth.identity_providers.constants as identity_providers_constants
 import modules.auth.mfa.integration_service as mfa_integration
 import modules.auth.schema as auth_schema
 import modules.auth.sign_up_tokens.contracts as sign_up_contracts
+import modules.users.users.router as users_router
 import modules.users.users.schema as users_schema
 import modules.users.users.service as users_service
 
@@ -329,6 +331,18 @@ class TestListUsers:
             ("Alice", 2, False),
             ("Bob", 0, True),
         ]
+
+    @patch(_CRUD)
+    def test_the_page_keeps_the_full_records_through_the_routes_response_model(self, mock_crud, mock_db):
+        mock_crud.get_users_number.return_value = 1
+        mock_crud.get_users_with_pagination.return_value = [_user(1)]
+        _identity()
+        list_route = next(r for r in users_router.router.routes if r.path == "" and "GET" in r.methods)
+        adapter = TypeAdapter(list_route.response_model)
+
+        page = adapter.dump_python(adapter.validate_python(users_service.list_users(mock_db)))
+
+        assert page["items"][0]["email"] == _user(1).email
 
 
 class TestPendingEmailChanges:
