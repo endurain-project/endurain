@@ -267,7 +267,7 @@ class CallbackService:
                 redirect_url += f"&redirect={quote(redirect_path, safe='/:')}"
                 # A custom scheme tells the frontend to skip its own token exchange and pass the session id on
                 # to the native app.
-                if "://" in redirect_path and not redirect_path.startswith("http"):
+                if identity_provider_utils.is_custom_scheme_redirect(redirect_path):
                     redirect_url += "&external_redirect=true"
 
             # The session id is the handle exchanged for tokens, so only a one-way fingerprint is logged.

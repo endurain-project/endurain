@@ -32,10 +32,10 @@ vi.mock('@/composables/useSafeRedirect', () => ({
     Array.isArray(value) ? String(value[0] ?? '') : typeof value === 'string' ? value : '',
   useSafeRedirect: () => ({
     getSafeRedirect: (value: unknown) =>
-      typeof value === 'string' && (value.startsWith('/') || value.startsWith('endurain://'))
+      typeof value === 'string' && (value.startsWith('/') || value.startsWith('endurain:'))
         ? value
         : '/',
-    isCustomSchemeRedirect: (value: string) => value.startsWith('endurain://'),
+    isCustomSchemeRedirect: (value: string) => value.startsWith('endurain:'),
     getSsoRedirect: () => '',
     navigateAfterLogin: mocks.navigateAfterLogin,
   }),
@@ -290,6 +290,8 @@ describe('processSsoCallback', () => {
       ['endurain://cb#frag', 'endurain://cb?session_id=sso-session#frag'],
       ['endurain://cb?a=1#frag', 'endurain://cb?a=1&session_id=sso-session#frag'],
       ['endurain://cb#frag?x=1', 'endurain://cb?session_id=sso-session#frag?x=1'],
+      ['endurain:/cb', 'endurain:/cb?session_id=sso-session'],
+      ['endurain:cb#frag', 'endurain:cb?session_id=sso-session#frag'],
     ])(
       'puts the session_id of %s in the query, before any fragment',
       async (redirect, expected) => {

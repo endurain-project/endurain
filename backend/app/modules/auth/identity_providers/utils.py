@@ -8,13 +8,6 @@ import modules.auth.identity_providers.constants as idp_constants
 import modules.auth.identity_providers.contracts as identity_provider_contracts
 
 
-def _custom_scheme(value: str) -> str | None:
-    """Return the lower-cased scheme of a ``scheme://`` value, or None when it has none."""
-    if "://" not in value:
-        return None
-    return value.split("://", 1)[0].lower()
-
-
 def normalize_issuer_url(issuer_url: str) -> str:
     """Return an issuer URL without its trailing slashes, the form in which two issuers are compared.
 
@@ -80,14 +73,16 @@ def validate_redirect_url(redirect: str | None, allowed_schemes: set[str], allow
 
     value = redirect.strip()
 
+    # The scheme runs up to the first ":" (RFC 3986), so "app:/callback" is a custom scheme like "app://callback".
+    scheme = core_redirect_schemes.uri_scheme(value)
+
     # Reject external HTTP/HTTPS URLs (open redirect prevention)
-    if value.lower().startswith(("http://", "https://")):
+    if scheme in ("http", "https"):
         raise core_exceptions.InvalidInputError(
             "External HTTP redirects are not allowed. Use a relative path or a configured custom scheme."
         )
 
     # Handle custom URI schemes (e.g., gadgetbridge://callback)
-    scheme = _custom_scheme(value)
     if scheme is not None:
         if scheme in core_redirect_schemes.UNSAFE_REDIRECT_SCHEMES:
             raise core_exceptions.InvalidInputError(f"Redirect scheme '{scheme}' is not allowed.")
@@ -127,7 +122,7 @@ def is_custom_scheme_redirect(redirect: str | None) -> bool:
     if not redirect or not redirect.strip():
         return False
 
-    scheme = _custom_scheme(redirect.strip())
+    scheme = core_redirect_schemes.uri_scheme(redirect.strip())
     return scheme is not None and scheme not in core_redirect_schemes.UNSAFE_REDIRECT_SCHEMES
 
 

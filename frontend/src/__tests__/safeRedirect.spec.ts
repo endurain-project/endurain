@@ -67,6 +67,11 @@ describe('getSafeRedirect', () => {
     expect(getSafeRedirect('endurain://callback')).toBe('endurain://callback')
   })
 
+  it('allows a deep link without an authority, as RFC 3986 ends the scheme at the first colon', () => {
+    expect(getSafeRedirect('endurain:/oauth2redirect')).toBe('endurain:/oauth2redirect')
+    expect(getSafeRedirect('Endurain:callback')).toBe('Endurain:callback')
+  })
+
   it('blocks script-bearing pseudo-scheme redirects', () => {
     // `javascript://` smuggles code past a naive "is it a custom scheme" check;
     // the `//` starts a JS comment and the newline runs the payload when the
@@ -76,6 +81,8 @@ describe('getSafeRedirect', () => {
     expect(getSafeRedirect('data://text/html,<script>alert(1)</script>')).toBe('/')
     expect(getSafeRedirect('vbscript://msgbox(1)')).toBe('/')
     expect(getSafeRedirect('file:///etc/passwd')).toBe('/')
+    expect(getSafeRedirect('blob:https://app.example/uuid')).toBe('/')
+    expect(getSafeRedirect('data:text/html,<script>alert(1)</script>')).toBe('/')
   })
 
   it('falls back to root for empty or non-string values', () => {
@@ -89,6 +96,13 @@ describe('isCustomSchemeRedirect', () => {
     expect(isCustomSchemeRedirect('endurain://x')).toBe(true)
     expect(isCustomSchemeRedirect('https://x')).toBe(false)
     expect(isCustomSchemeRedirect('/x')).toBe(false)
+    expect(isCustomSchemeRedirect('https:x')).toBe(false)
+  })
+
+  it('reads the scheme up to the first colon only from a well-formed scheme', () => {
+    expect(isCustomSchemeRedirect('endurain:/x')).toBe(true)
+    expect(isCustomSchemeRedirect('/endurain:/x')).toBe(false)
+    expect(isCustomSchemeRedirect('end urain:/x')).toBe(false)
   })
 
   it('rejects dangerous pseudo-schemes', () => {
@@ -122,11 +136,12 @@ describe('setAllowedRedirectSchemes', () => {
     expect(isCustomSchemeRedirect('endurain://callback')).toBe(false)
   })
 
-  it.each(['http', 'https', 'javascript', 'DATA', 'vbscript', 'file'])(
+  it.each(['http', 'https', 'javascript', 'DATA', 'vbscript', 'file', 'blob'])(
     'never allows the unsafe scheme %s even when configured',
     (scheme) => {
       setAllowedRedirectSchemes([scheme, 'good'])
       expect(isCustomSchemeRedirect(`${scheme}://x`)).toBe(false)
+      expect(isCustomSchemeRedirect(`${scheme}:x`)).toBe(false)
       expect(getSafeRedirect(`${scheme}://x`)).toBe('/')
       expect(isCustomSchemeRedirect('good://x')).toBe(true)
     },
@@ -157,6 +172,13 @@ describe('setAllowedRedirectUris', () => {
     expect(isCustomSchemeRedirect('endurain://oauth/callback')).toBe(false)
   })
 
+  it('matches an address without an authority, its path case kept', () => {
+    setAllowedRedirectUris(['Com.Example.App:/Callback'])
+    expect(isCustomSchemeRedirect('com.example.app:/Callback')).toBe(true)
+    expect(isCustomSchemeRedirect('COM.EXAMPLE.APP:/Callback')).toBe(true)
+    expect(isCustomSchemeRedirect('com.example.app:/callback')).toBe(false)
+  })
+
   it.each([
     'endurain://other',
     'endurain://oauth/callback/extra',
@@ -180,12 +202,18 @@ describe('setAllowedRedirectUris', () => {
     expect(isCustomSchemeRedirect('endurain://anything')).toBe(true)
   })
 
-  it.each(['http://x', 'https://x', 'javascript://x', 'DATA://x', 'vbscript://x', 'file://x'])(
-    'never allows the unsafe address %s even when configured',
-    (uri) => {
-      setAllowedRedirectUris([uri, 'good://x'])
-      expect(isCustomSchemeRedirect(uri)).toBe(false)
-      expect(isCustomSchemeRedirect('good://x')).toBe(true)
-    },
-  )
+  it.each([
+    'http://x',
+    'https://x',
+    'javascript://x',
+    'DATA://x',
+    'vbscript://x',
+    'file://x',
+    'blob://x',
+    'javascript:alert(1)',
+  ])('never allows the unsafe address %s even when configured', (uri) => {
+    setAllowedRedirectUris([uri, 'good://x'])
+    expect(isCustomSchemeRedirect(uri)).toBe(false)
+    expect(isCustomSchemeRedirect('good://x')).toBe(true)
+  })
 })

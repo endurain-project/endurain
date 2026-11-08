@@ -180,6 +180,16 @@ class TestCompleteCallback:
 
         assert url.endswith("&external_redirect=true")
 
+    def test_a_custom_scheme_return_path_without_an_authority_is_flagged_for_the_native_client(self, service):
+        url, _ = self._complete(service, _login(redirect_path="com.example.app:/done"), self._state())
+
+        assert url.endswith("&redirect=com.example.app:/done&external_redirect=true")
+
+    def test_a_relative_return_path_with_a_scheme_like_segment_is_not_flagged(self, service):
+        url, _ = self._complete(service, _login(redirect_path="/x://y"), self._state())
+
+        assert "external_redirect" not in url
+
     def test_the_session_id_is_not_logged_in_the_clear(self, service, caplog):
         with caplog.at_level(logging.DEBUG):
             self._complete(service, _login(), self._state(), session_id="secret-session")

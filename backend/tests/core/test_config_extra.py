@@ -117,13 +117,28 @@ class TestSettings:
         s = Settings(_env_file=None, ALLOWED_REDIRECT_SCHEMES=None)
         assert set() == s.ALLOWED_REDIRECT_SCHEMES
 
-    def test_allowed_redirect_uris_default_empty(self):
+    def test_allowed_redirect_uris_default_is_the_mobile_app_callback(self):
         s = Settings(_env_file=None)
+        assert {"endurain://auth/sso/callback"} == s.ALLOWED_REDIRECT_URIS
+
+    def test_the_deprecated_schemes_decide_when_they_are_set_and_the_addresses_are_not(self):
+        """An operator still on ALLOWED_REDIRECT_SCHEMES keeps their schemes until v0.22."""
+        s = Settings(_env_file=None, ALLOWED_REDIRECT_SCHEMES="endurain,gadgetbridge")
+        assert {"endurain", "gadgetbridge"} == s.ALLOWED_REDIRECT_SCHEMES
         assert set() == s.ALLOWED_REDIRECT_URIS
+
+    def test_the_addresses_win_when_both_are_set(self):
+        s = Settings(_env_file=None, ALLOWED_REDIRECT_SCHEMES="endurain", ALLOWED_REDIRECT_URIS="gadgetbridge://auth")
+        assert {"gadgetbridge://auth"} == s.ALLOWED_REDIRECT_URIS
 
     def test_allowed_redirect_uris_comma_separated_with_lowercased_scheme(self):
         s = Settings(_env_file=None, ALLOWED_REDIRECT_URIS="Endurain://oauth/Callback, gadgetbridge://auth ,")
         assert {"endurain://oauth/Callback", "gadgetbridge://auth"} == s.ALLOWED_REDIRECT_URIS
+
+    def test_allowed_redirect_uris_accepts_an_address_without_an_authority(self):
+        """RFC 3986 ends the scheme at the first ':'; only the scheme is lower-cased (RFC 8252 7.1 callbacks)."""
+        s = Settings(_env_file=None, ALLOWED_REDIRECT_URIS="Com.Example.App:/OAuth2Redirect,endurain:Callback")
+        assert {"com.example.app:/OAuth2Redirect", "endurain:Callback"} == s.ALLOWED_REDIRECT_URIS
 
     @pytest.mark.parametrize("value", ["", None])
     def test_allowed_redirect_uris_empty(self, value):
@@ -140,13 +155,18 @@ class TestSettings:
             "file://etc/passwd",
             "vbscript://x",
             "blob://x",
+            "javascript:alert(1)",
+            "data:text/html,x",
+            "http:evil.example",
         ],
     )
     def test_allowed_redirect_uris_refuses_unsafe_scheme(self, uri):
         with pytest.raises(ValidationError, match="unsafe scheme"):
             Settings(_env_file=None, ALLOWED_REDIRECT_URIS=f"endurain://cb,{uri}")
 
-    @pytest.mark.parametrize("uri", ["/relative", "cb", "endurain:cb", "1app://cb", "my app://cb", "endurain://"])
+    @pytest.mark.parametrize(
+        "uri", ["/relative", "cb", "endurain:", "1app://cb", "my app://cb", "my_app:/cb", "endurain://"]
+    )
     def test_allowed_redirect_uris_refuses_an_address_that_is_not_scheme_and_target(self, uri):
         with pytest.raises(ValidationError, match="ALLOWED_REDIRECT_URIS"):
             Settings(_env_file=None, ALLOWED_REDIRECT_URIS=uri)

@@ -26,7 +26,32 @@ let allowedRedirectUris = new Set<string>()
  * `http(s)` would be an external redirect and the rest execute or embed content
  * when assigned to `window.location.href`.
  */
-const UNSAFE_REDIRECT_SCHEMES = new Set(['http', 'https', 'javascript', 'data', 'vbscript', 'file'])
+const UNSAFE_REDIRECT_SCHEMES = new Set([
+  'http',
+  'https',
+  'javascript',
+  'data',
+  'vbscript',
+  'file',
+  'blob',
+])
+
+/** RFC 3986 3.1: `scheme = ALPHA *( ALPHA / DIGIT / "+" / "-" / "." )`. */
+const SCHEME_PATTERN = /^[a-z][a-z0-9+.-]*$/i
+
+/**
+ * Reads the scheme of an absolute URI. It runs up to the first `:` (RFC 3986 3.1),
+ * so `app:/callback` and `app://callback` both have the scheme `app`; a value
+ * starting with `/` never has one, because a scheme starts with a letter.
+ *
+ * @param uri - Value to read.
+ * @returns The scheme in lower case, or `undefined` when the value has none.
+ */
+function uriScheme(uri: string): string | undefined {
+  const index = uri.indexOf(':')
+  const scheme = index < 0 ? '' : uri.slice(0, index)
+  return SCHEME_PATTERN.test(scheme) ? scheme.toLowerCase() : undefined
+}
 
 /**
  * Replaces the allowed custom redirect schemes with the server's configured
@@ -42,45 +67,46 @@ export function setAllowedRedirectSchemes(schemes: readonly string[]): void {
   allowedCustomSchemes = new Set(
     schemes
       .map((scheme) => scheme.toLowerCase())
-      .filter(
-        (scheme) => /^[a-z][a-z0-9+.-]*$/.test(scheme) && !UNSAFE_REDIRECT_SCHEMES.has(scheme),
-      ),
+      .filter((scheme) => SCHEME_PATTERN.test(scheme) && !UNSAFE_REDIRECT_SCHEMES.has(scheme)),
   )
 }
 
 /**
- * Lower-cases the scheme of a `scheme://rest` address and keeps the rest as written,
- * the form in which the server compares addresses.
+ * Lower-cases the scheme of an address and keeps the rest as written, the form in
+ * which the server compares addresses.
  *
  * @param uri - Address to normalise.
- * @returns The address with its scheme in lower case.
+ * @returns The address with its scheme in lower case, or unchanged when it has none.
  */
 function normaliseRedirectUri(uri: string): string {
-  const index = uri.indexOf('://')
-  return index < 0 ? uri : uri.slice(0, index).toLowerCase() + uri.slice(index)
+  const scheme = uriScheme(uri)
+  return scheme === undefined ? uri : scheme + uri.slice(scheme.length)
 }
 
 /**
  * Replaces the allowed exact redirect addresses with the server's configured
  * list. While the list is not empty, only these addresses are accepted.
  *
- * Entries whose scheme is not well-formed or is in {@link UNSAFE_REDIRECT_SCHEMES}
- * are ignored.
+ * Entries without a well-formed scheme or a target after it (`scheme:target`, the
+ * `//` optional), or whose scheme is in {@link UNSAFE_REDIRECT_SCHEMES}, are ignored.
  *
  * @param uris - Addresses from the public server settings.
  */
 export function setAllowedRedirectUris(uris: readonly string[]): void {
   allowedRedirectUris = new Set(
     uris.map(normaliseRedirectUri).filter((uri) => {
-      const scheme = /^([a-z][a-z0-9+.-]*):\/\/./.exec(uri)?.[1]
-      return scheme !== undefined && !UNSAFE_REDIRECT_SCHEMES.has(scheme)
+      const scheme = uriScheme(uri)
+      if (scheme === undefined || UNSAFE_REDIRECT_SCHEMES.has(scheme)) {
+        return false
+      }
+      return uri.slice(scheme.length + 1).replace(/^\/\//, '') !== ''
     }),
   )
 }
 
 /**
  * Checks whether a redirect is an allowed native-app custom-scheme deep link
- * (e.g. `endurain://`).
+ * (e.g. `endurain://callback` or `endurain:/callback`).
  *
  * When the server lists exact addresses, only those pass (scheme in any letter case,
  * the rest exactly, query and fragment included). Otherwise only schemes configured
@@ -97,7 +123,7 @@ export function isCustomSchemeRedirect(value: string): boolean {
   if (allowedRedirectUris.size > 0) {
     return allowedRedirectUris.has(normaliseRedirectUri(value))
   }
-  const scheme = /^([a-z][a-z0-9+.-]*):\/\//i.exec(value)?.[1]?.toLowerCase()
+  const scheme = uriScheme(value)
   return scheme !== undefined && allowedCustomSchemes.has(scheme)
 }
 

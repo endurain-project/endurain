@@ -16,7 +16,6 @@ working unchanged.
 
 import ipaddress
 import os
-import re
 import stat
 from collections.abc import Iterable
 from pathlib import Path
@@ -132,8 +131,10 @@ class Settings(BaseSettings):
     # ``json.loads`` first and raise on plain strings.
     # Deprecated: removed in v0.22.0 in favour of ALLOWED_REDIRECT_URIS.
     ALLOWED_REDIRECT_SCHEMES: Annotated[set[str], NoDecode] = {"endurain"}
-    # Exact redirect addresses mobile apps may use. When set, only these are allowed and the schemes are ignored.
-    ALLOWED_REDIRECT_URIS: Annotated[set[str], NoDecode] = set()
+    # Exact redirect addresses mobile apps may use. While not empty, only these are allowed and the schemes are
+    # ignored. The default is the Endurain mobile app's callback; an operator who sets only the deprecated schemes
+    # keeps deciding by them (see ``_defer_to_deprecated_schemes``).
+    ALLOWED_REDIRECT_URIS: Annotated[set[str], NoDecode] = {"endurain://auth/sso/callback"}
     TRUSTED_PROXIES: Annotated[list[str], NoDecode] = []
     # Narrow SSRF exception list for admin-configured
     # outbound calls (currently OIDC discovery / JWKS).
@@ -399,10 +400,11 @@ class Settings(BaseSettings):
     def _parse_allowed_redirect_uris(cls, v: str | Iterable[object] | None) -> set[str]:
         """Accept comma-separated env value or already-parsed iterable.
 
-        Each entry is a ``scheme://target`` address; its scheme is lower-cased and the rest is kept as written.
+        Each entry is a ``scheme:target`` address, the ``//`` optional (RFC 3986); its scheme is lower-cased and the
+        rest is kept as written.
 
         Raises:
-            ValueError: If an entry has a control character, is not ``scheme://target``, or has an unsafe scheme
+            ValueError: If an entry has a control character, is not ``scheme:target``, or has an unsafe scheme
                 (``core.redirect_schemes``).
         """
         if v is None or v == "":
@@ -414,13 +416,12 @@ class Settings(BaseSettings):
                 continue
             if any(ord(char) < 0x20 or ord(char) == 0x7F for char in entry):
                 raise ValueError("ALLOWED_REDIRECT_URIS must not contain control characters")
-            uri = core_redirect_schemes.normalise_redirect_uri(entry)
-            scheme, _, target = uri.partition("://")
-            if not re.fullmatch(r"[a-z][a-z0-9+.-]*", scheme) or not target:
-                raise ValueError(f"ALLOWED_REDIRECT_URIS entry '{entry}' must look like scheme://target")
+            scheme = core_redirect_schemes.uri_scheme(entry)
+            if scheme is None or not entry[len(scheme) + 1 :].removeprefix("//"):
+                raise ValueError(f"ALLOWED_REDIRECT_URIS entry '{entry}' must look like scheme:target")
             if scheme in core_redirect_schemes.UNSAFE_REDIRECT_SCHEMES:
                 raise ValueError(f"ALLOWED_REDIRECT_URIS must not contain unsafe schemes: {scheme}")
-            uris.add(uri)
+            uris.add(core_redirect_schemes.normalise_redirect_uri(entry))
         return uris
 
     @field_validator("TRUSTED_PROXIES", mode="before")
@@ -628,6 +629,17 @@ class Settings(BaseSettings):
             )
             return 1.0
         return rate
+
+    @model_validator(mode="after")
+    def _defer_to_deprecated_schemes(self) -> Self:
+        """Let ``ALLOWED_REDIRECT_SCHEMES`` decide when it is set and ``ALLOWED_REDIRECT_URIS`` is not.
+
+        The default addresses would otherwise override the schemes of an operator who has not moved to
+        ``ALLOWED_REDIRECT_URIS`` yet. Removed with ``ALLOWED_REDIRECT_SCHEMES`` in v0.22.
+        """
+        if "ALLOWED_REDIRECT_SCHEMES" in self.model_fields_set and "ALLOWED_REDIRECT_URIS" not in self.model_fields_set:
+            self.ALLOWED_REDIRECT_URIS = set()
+        return self
 
     @model_validator(mode="after")
     def _fill_filesystem_defaults(self) -> Self:

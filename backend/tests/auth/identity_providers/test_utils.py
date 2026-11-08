@@ -213,6 +213,17 @@ class TestValidateRedirectUrl:
         """
         validate_redirect_url("Endurain://callback", {"endurain"})
 
+    @pytest.mark.parametrize(
+        "redirect", ["com.example.app:/oauth2redirect", "Com.Example.App:/cb", "endurain:callback"]
+    )
+    def test_a_custom_scheme_without_an_authority_is_allowed_when_configured(self, redirect):
+        """RFC 3986 ends the scheme at the first ':'; the '//' authority is optional (RFC 8252 7.1 callbacks)."""
+        validate_redirect_url(redirect, {"endurain", "com.example.app"})
+
+    def test_a_relative_path_with_a_colon_is_a_path(self):
+        """A scheme starts with a letter, so a value starting with '/' never has one."""
+        validate_redirect_url("/activities/a:b", set())
+
     # ------------------------------------------------------------------
     # Inputs that MUST raise HTTPException(400)
     # ------------------------------------------------------------------
@@ -228,7 +239,16 @@ class TestValidateRedirectUrl:
             validate_redirect_url(redirect)
         assert "External HTTP redirects are not allowed" in exc_info.value.detail
 
-    @pytest.mark.parametrize("redirect", ["JavaScript://x", "data://x", "file://x"])
+    @pytest.mark.parametrize("redirect", ["http:evil.example", "HTTPS:evil.example/cb"])
+    def test_external_http_scheme_without_slashes_is_rejected(self, redirect):
+        """A browser reads "http:evil.example" as "http://evil.example/", so it is an external redirect too."""
+        with pytest.raises(core_exceptions.InvalidInputError) as exc_info:
+            validate_redirect_url(redirect, {"endurain", "http", "https"})
+        assert "External HTTP redirects are not allowed" in exc_info.value.detail
+
+    @pytest.mark.parametrize(
+        "redirect", ["JavaScript://x", "data://x", "file://x", "JavaScript:alert(1)", "data:text/html,x", "blob:x"]
+    )
     def test_unsafe_scheme_is_rejected_even_when_allowed(self, redirect):
         """Unsafe schemes must be refused even when listed in allowed_schemes.
 
@@ -385,7 +405,16 @@ class TestIsCustomSchemeRedirect:
         """
         assert idp_utils.is_custom_scheme_redirect("HTTPS://x") is False
 
-    @pytest.mark.parametrize("redirect", ["JavaScript://x", "data://x", "file://x"])
+    def test_custom_scheme_without_an_authority_is_true(self):
+        """RFC 3986 ends the scheme at the first ':', so an RFC 8252 7.1 callback is a custom scheme."""
+        assert idp_utils.is_custom_scheme_redirect("com.example.app:/oauth2redirect") is True
+
+    @pytest.mark.parametrize("redirect", ["/activities/a:b", "/x://y", "my app:/cb", "1app:/cb"])
+    def test_a_value_without_a_well_formed_scheme_is_false(self, redirect):
+        """A path or a malformed scheme name is not a custom-scheme redirect."""
+        assert idp_utils.is_custom_scheme_redirect(redirect) is False
+
+    @pytest.mark.parametrize("redirect", ["JavaScript://x", "data://x", "file://x", "javascript:alert(1)", "http:x"])
     def test_unsafe_scheme_is_false(self, redirect):
         """Unsafe schemes are never treated as custom-scheme redirects.
 
@@ -514,6 +543,13 @@ class TestValidateRedirectUrlWithExactAddresses:
     def test_another_address_under_a_listed_scheme_is_refused(self, redirect):
         with pytest.raises(core_exceptions.InvalidInputError, match="ALLOWED_REDIRECT_URIS"):
             validate_redirect_url(redirect, {"endurain"}, self.URIS)
+
+    def test_an_address_without_an_authority_matches_with_its_path_case_kept(self):
+        uris = {"com.example.app:/Callback"}
+        validate_redirect_url("com.example.app:/Callback", set(), uris)
+        validate_redirect_url("COM.Example.App:/Callback", set(), uris)
+        with pytest.raises(core_exceptions.InvalidInputError, match="ALLOWED_REDIRECT_URIS"):
+            validate_redirect_url("com.example.app:/callback", set(), uris)
 
     def test_a_scheme_only_in_the_schemes_is_refused(self):
         with pytest.raises(core_exceptions.InvalidInputError):
