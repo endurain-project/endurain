@@ -241,6 +241,17 @@ def delete_sessions_by_family(token_family_id: str, db: Session) -> int:
     )
 
 
+def list_oauth_state_ids_by_user(user_id: int, db: Session, exclude_session_id: str | None = None) -> list[str]:
+    """Return the OAuth state ids of a user's sessions, optionally leaving out one session."""
+    stmt = select(sessions_models.UsersSessions.oauth_state_id).where(
+        sessions_models.UsersSessions.user_id == user_id,
+        sessions_models.UsersSessions.oauth_state_id.is_not(None),
+    )
+    if exclude_session_id is not None:
+        stmt = stmt.where(sessions_models.UsersSessions.id != exclude_session_id)
+    return [state_id for state_id in db.execute(stmt).scalars() if state_id is not None]
+
+
 def delete_sessions_by_user(user_id: int, db: Session, exclude_session_id: str | None = None) -> int:
     """Stage deletion of a user's sessions, optionally keeping one session."""
     stmt = delete(sessions_models.UsersSessions).where(sessions_models.UsersSessions.user_id == user_id)

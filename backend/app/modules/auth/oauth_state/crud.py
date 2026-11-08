@@ -96,6 +96,13 @@ def delete_oauth_state(oauth_state_id: str, db: Session) -> int:
     )
 
 
+def delete_oauth_states(oauth_state_ids: list[str], db: Session) -> int:
+    """Stage deletion of the OAuth states with the given ids."""
+    return core_database.rowcount(
+        db, delete(oauth_state_models.OAuthState).where(oauth_state_models.OAuthState.id.in_(oauth_state_ids))
+    )
+
+
 def delete_expired_oauth_states(now: datetime, limit: int, db: Session) -> int:
     """Stage deletion of up to ``limit`` OAuth states that expired before ``now``."""
     model = oauth_state_models.OAuthState

@@ -5,6 +5,7 @@ from types import SimpleNamespace
 from unittest.mock import MagicMock, patch
 
 import pytest
+import sqlalchemy as sa
 
 import core.exceptions as core_exceptions
 import core.pagination as core_pagination
@@ -512,3 +513,81 @@ def test_a_refused_step_up_deletes_no_sessions(mock_db):
 
     delete.assert_not_called()
     mock_db.commit.assert_not_called()
+
+
+class TestBulkDeleteRemovesOAuthStates:
+    """A bulk session delete also removes the OAuth state rows of the deleted sessions, and only those."""
+
+    @staticmethod
+    def _seed(db):
+        import modules.auth.oauth_state.constants as oauth_state_constants
+        import modules.auth.oauth_state.models as oauth_state_models
+        import modules.auth.sessions.models as sessions_models
+
+        now = datetime.now(UTC)
+        for user_id, session_id, state_id in (
+            (7, "s-kept", "st-kept"),
+            (7, "s-gone", "st-gone"),
+            (8, "s-other", "st-other"),
+        ):
+            db.add(
+                oauth_state_models.OAuthState(
+                    id=state_id,
+                    nonce="n" * 32,
+                    client_type="web",
+                    purpose=oauth_state_constants.OAuthStatePurpose.LOGIN,
+                    expires_at=now + timedelta(minutes=5),
+                )
+            )
+            db.add(
+                sessions_models.UsersSessions(
+                    id=session_id,
+                    user_id=user_id,
+                    refresh_token="hash",
+                    ip_address="127.0.0.1",
+                    device_type="PC",
+                    operating_system="Linux",
+                    operating_system_version="1",
+                    browser="Firefox",
+                    browser_version="1",
+                    created_at=now,
+                    last_activity_at=now,
+                    expires_at=now + timedelta(days=1),
+                    tokens_exchanged=True,
+                    token_family_id=session_id,
+                    rotation_count=0,
+                    client_type="web",
+                    oauth_state_id=state_id,
+                )
+            )
+        db.commit()
+
+    @staticmethod
+    def _state_ids(db):
+        import modules.auth.oauth_state.models as oauth_state_models
+
+        return set(db.execute(sa.select(oauth_state_models.OAuthState.id)).scalars())
+
+    def test_it_removes_the_states_of_the_deleted_sessions_only(self):
+        from tests._helpers.db import create_sqlite_session
+
+        db = create_sqlite_session()
+        self._seed(db)
+        with patch("modules.auth.sessions.service.sessions_event_publishers.publish_sessions_revoked"):
+            assert sessions_service.delete_sessions_by_user(7, db) == 2
+        db.commit()
+
+        assert self._state_ids(db) == {"st-other"}
+        db.close()
+
+    def test_it_keeps_the_state_of_the_excluded_session(self):
+        from tests._helpers.db import create_sqlite_session
+
+        db = create_sqlite_session()
+        self._seed(db)
+        with patch("modules.auth.sessions.service.sessions_event_publishers.publish_sessions_revoked"):
+            assert sessions_service.delete_sessions_by_user(7, db, "s-kept") == 1
+        db.commit()
+
+        assert self._state_ids(db) == {"st-kept", "st-other"}
+        db.close()

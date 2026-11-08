@@ -297,8 +297,10 @@ def invalidate_token_family(token_family_id: str, db: Session) -> int:
 
 
 def delete_sessions_by_user(user_id: int, db: Session, exclude_session_id: str | None = None) -> int:
-    """Stage deletion of a user's sessions for a larger auth transaction."""
+    """Stage deletion of a user's sessions and their OAuth states for a larger auth transaction."""
+    state_ids = sessions_crud.list_oauth_state_ids_by_user(user_id, db, exclude_session_id)
     deleted_count = sessions_crud.delete_sessions_by_user(user_id, db, exclude_session_id)
+    oauth_state_integration.delete_oauth_states(state_ids, db)
     if deleted_count:
         sessions_event_publishers.publish_sessions_revoked(user_id, db, except_session_id=exclude_session_id)
     return deleted_count

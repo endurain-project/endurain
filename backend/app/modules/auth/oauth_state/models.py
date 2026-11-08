@@ -2,7 +2,7 @@
 
 from datetime import datetime
 
-from sqlalchemy import Boolean, DateTime, ForeignKey, Integer, String
+from sqlalchemy import Boolean, DateTime, ForeignKey, Integer, String, Text
 from sqlalchemy.orm import Mapped, mapped_column
 from sqlalchemy.sql import func
 
@@ -22,7 +22,7 @@ class OAuthState(Base):
         user_id: Foreign key to users (the signed-in user of a link or step-up flow, nullable).
         code_challenge: PKCE challenge (base64url-encoded).
         code_challenge_method: PKCE method (always S256).
-        nonce: OIDC nonce for ID token validation.
+        nonce: Fernet-encrypted OIDC nonce for ID token validation.
         redirect_path: Frontend path after login.
         client_type: web or mobile.
         ip_address: Client IP for optional validation.
@@ -30,7 +30,7 @@ class OAuthState(Base):
         expires_at: Hard expiry at 10 minutes.
         used: Prevents replay attacks.
         browser_binding_hash: SHA-256 of the secret the browser that started a link or step-up holds in a cookie.
-        idp_code_verifier: PKCE verifier this server sends the identity provider at the token exchange.
+        idp_code_verifier: Fernet-encrypted PKCE verifier this server sends the identity provider at the token exchange.
         purpose: The flow the state belongs to (``OAuthStatePurpose``).
         session_id: The session that started a step-up flow, or a link that ends the user's other sessions.
         action: The sensitive operation a step-up flow authorises.
@@ -74,9 +74,9 @@ class OAuthState(Base):
     )
 
     nonce: Mapped[str] = mapped_column(
-        String(64),
+        Text,
         nullable=False,
-        comment="OIDC nonce for ID token validation",
+        comment="Fernet-encrypted OIDC nonce for ID token validation",
     )
 
     redirect_path: Mapped[str | None] = mapped_column(
@@ -144,7 +144,7 @@ class OAuthState(Base):
     )
 
     idp_code_verifier: Mapped[str | None] = mapped_column(
-        String(128),
+        Text,
         nullable=True,
-        comment="PKCE verifier sent to the identity provider at the token exchange",
+        comment="Fernet-encrypted PKCE verifier sent to the identity provider at the token exchange",
     )

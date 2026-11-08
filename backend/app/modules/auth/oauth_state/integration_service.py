@@ -5,6 +5,7 @@ from sqlalchemy.orm import Session
 import modules.auth.oauth_state.constants as oauth_state_constants
 import modules.auth.oauth_state.crud as oauth_state_crud
 import modules.auth.oauth_state.schema as oauth_state_schema
+import modules.auth.oauth_state.service as oauth_state_service
 import modules.auth.oauth_state.utils as oauth_state_utils
 
 
@@ -26,8 +27,8 @@ def create_oauth_state(
     session_id: str | None = None,
     action: str | None = None,
 ) -> oauth_state_schema.OAuthStateRead:
-    """Stage an OAuth-state row."""
-    return oauth_state_crud.create_oauth_state(
+    """Stage an OAuth-state row, its nonce and PKCE verifier stored encrypted."""
+    return oauth_state_service.create_oauth_state(
         state_id,
         nonce,
         client_type,
@@ -48,12 +49,12 @@ def create_oauth_state(
 
 def get_oauth_state_by_id_and_not_used(state_id: str, db: Session) -> oauth_state_schema.OAuthStateRead | None:
     """Return an unused, unexpired OAuth state."""
-    return oauth_state_crud.get_oauth_state_by_id_and_not_used(state_id, db)
+    return oauth_state_service.get_oauth_state_by_id_and_not_used(state_id, db)
 
 
 def get_oauth_state_by_id_not_expired(state_id: str, db: Session) -> oauth_state_schema.OAuthStateRead | None:
     """Return an unexpired OAuth state."""
-    return oauth_state_crud.get_oauth_state_by_id_not_expired(state_id, db)
+    return oauth_state_service.get_oauth_state_by_id_not_expired(state_id, db)
 
 
 def mark_oauth_state_used(state_id: str, db: Session) -> bool:
@@ -64,6 +65,11 @@ def mark_oauth_state_used(state_id: str, db: Session) -> bool:
 def delete_oauth_state(oauth_state_id: str, db: Session) -> int:
     """Stage OAuth-state deletion."""
     return oauth_state_crud.delete_oauth_state(oauth_state_id, db)
+
+
+def delete_oauth_states(oauth_state_ids: list[str], db: Session) -> int:
+    """Stage deletion of several OAuth states."""
+    return oauth_state_crud.delete_oauth_states(oauth_state_ids, db)
 
 
 def create_state_id_and_nonce() -> tuple[str, str]:
