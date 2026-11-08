@@ -20,6 +20,7 @@ function mountAccessTab(idleEnabled: boolean) {
     values: reactive({
       passwordLengthRegularUsers: 15,
       passwordLengthAdminUsers: 15,
+      passwordBreachCheckEnabled: false,
       sessionIdleTimeoutEnabled: idleEnabled,
       sessionIdleTimeoutHours: '24',
       sessionAbsoluteTimeoutHours: '720',
@@ -83,5 +84,11 @@ describe('AccessTab password policy', () => {
       expect(options[0]?.text()).toBe('8')
       expect(options[options.length - 1]?.text()).toBe('128')
     }
+  })
+  it('offers the breached-password check and says what it sends', () => {
+    const wrapper = mountAccessTab(true)
+
+    expect(wrapper.find('[data-setting="password-breach-check"]').exists()).toBe(true)
+    expect(wrapper.get('[data-setting="section-password"]').text()).toContain('haveibeenpwned.com')
   })
 })

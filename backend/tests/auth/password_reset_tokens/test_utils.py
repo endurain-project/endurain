@@ -134,7 +134,13 @@ class TestUsePasswordResetToken:
         "modules.auth.password_reset_tokens.service.password_reset_crud.claim_password_reset_token", return_value=None
     )
     def test_invalid_token_is_a_domain_error(self, _claim, mock_db):
-        with pytest.raises(core_exceptions.InvalidInputError, match="Invalid or expired"):
+        with (
+            patch(
+                "modules.auth.password_reset_tokens.service.server_settings_integration.get_server_settings",
+                return_value=MagicMock(password_breach_check_enabled=False),
+            ),
+            pytest.raises(core_exceptions.InvalidInputError, match="Invalid or expired"),
+        ):
             password_reset_service.use_password_reset_token("invalid", "replacement", mock_db)
         mock_db.commit.assert_not_called()
 

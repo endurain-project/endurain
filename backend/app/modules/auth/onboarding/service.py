@@ -5,8 +5,10 @@ from sqlalchemy.orm import Session
 import core.exceptions as core_exceptions
 import core.logger as core_logger
 import modules.auth.credentials.contracts as credentials_contracts
+import modules.auth.credentials.integration_service as credentials_integration
 import modules.auth.onboarding.schema as onboarding_schema
 import modules.auth.onboarding.token_store as onboarding_token_store
+import modules.server_settings.integration_service as server_settings_integration
 import modules.users.users.integration_service as users_integration
 import modules.users.users.schema as users_schema
 
@@ -47,7 +49,7 @@ def complete_onboarding(
     Raises:
         ConflictError: If an account already exists.
         InvalidInputError: If the setup token is unknown, expired or already used.
-        PasswordPolicyError: If the password fails the administrator policy.
+        PasswordPolicyError: If the password fails the administrator policy or is breached.
         ServiceUnavailableError: If the token store is unavailable.
     """
     if users_integration.any_user_exists(db):
@@ -56,6 +58,10 @@ def complete_onboarding(
     if not store.exists(request.token):
         logger.warning("Onboarding refused: the setup token is unknown, expired or used")
         raise core_exceptions.InvalidInputError("Invalid or expired setup token")
+    # The breach check is a network call, so it runs before the account is staged.
+    credentials_integration.reject_breached_password(
+        server_settings_integration.get_server_settings(db), request.password, db
+    )
 
     try:
         admin = users_integration.stage_first_admin(request, db)

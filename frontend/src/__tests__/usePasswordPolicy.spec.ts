@@ -100,7 +100,14 @@ describe('usePasswordPolicy policyError', () => {
       'This password is too common. Choose one that is harder to guess.',
     )
     expect(policy.policyError(problem('password-matches-account'))).toBe(
-      "Don't use your username or email address as your password.",
+      "Don't use your username or email address in your password.",
+    )
+  })
+
+  it('maps a password found in a known breach', () => {
+    const policy = withSetup(() => usePasswordPolicy('regular'))
+    expect(policy.policyError(problem('password-breached'))).toBe(
+      'This password appeared in a known data breach. Choose a different one.',
     )
   })
 

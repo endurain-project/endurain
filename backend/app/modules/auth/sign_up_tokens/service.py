@@ -630,6 +630,8 @@ def signup(
         raise core_exceptions.InvalidInputError("A password is chosen when the email address is verified")
     if not server_settings.signup_require_email_verification and user.password is None:
         raise core_exceptions.InvalidInputError("A password is required")
+    if user.password is not None:
+        credentials_integration.reject_breached_password(server_settings, user.password, db)
 
     try:
         created_user = users_integration.stage_signup_user(user, server_settings, db)
@@ -692,6 +694,9 @@ def verify_email(token: str, password: str | None, db: Session) -> sign_up_schem
         PreconditionFailedError: If a sign-up is confirmed while email verification is not enabled.
     """
     server_settings = server_settings_integration.get_server_settings(db)
+    if password is not None:
+        # The breach check is a network call, so it runs before the claim opens the write transaction.
+        credentials_integration.reject_breached_password(server_settings, password, db)
     claim = verify_sign_up_token(token, db)
     user_id = claim.user_id
     if isinstance(claim, sign_up_contracts.EmailChangeClaim):

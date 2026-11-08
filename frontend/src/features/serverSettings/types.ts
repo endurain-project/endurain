@@ -74,6 +74,7 @@ export type GeocodingService = Schemas['GeocodingService']
  * @property mapBackgroundColor - Map background colour (`#RRGGBB`).
  * @property passwordLengthRegularUsers - Minimum password length for regular users.
  * @property passwordLengthAdminUsers - Minimum password length for admin users.
+ * @property passwordBreachCheckEnabled - Whether a new password found in a known data breach is refused.
  * @property geocodingService - Reverse-geocoding service.
  * @property geocodingHost - Host (and optional port) of the geocoding service, or null for its default host.
  * @property geocodingUseHttps - Whether the geocoding host is addressed over HTTPS.
@@ -112,6 +113,7 @@ export interface ServerSettings {
   mapBackgroundColor: string
   passwordLengthRegularUsers: number
   passwordLengthAdminUsers: number
+  passwordBreachCheckEnabled: boolean
   geocodingService: GeocodingService
   geocodingHost: string | null
   geocodingUseHttps: boolean

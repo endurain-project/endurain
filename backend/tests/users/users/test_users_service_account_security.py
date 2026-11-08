@@ -14,6 +14,12 @@ _ACCOUNT_SECURITY = "modules.users.users.service.account_security_integration"
 _ACTION = identity_providers_constants.StepUpAction
 
 
+@pytest.fixture(autouse=True)
+def _no_breach_check(monkeypatch):
+    monkeypatch.setattr(users_service.credentials_integration, "reject_breached_password", lambda *_args: None)
+    monkeypatch.setattr(users_service.server_settings_integration, "get_server_settings", lambda db: MagicMock())
+
+
 def _password() -> users_schema.UserAdminEditPassword:
     return users_schema.UserAdminEditPassword(password="new-password-1", step_up={"current_password": "admin-password"})
 

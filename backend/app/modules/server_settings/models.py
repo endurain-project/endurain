@@ -37,6 +37,7 @@ class ServerSettings(Base):
             for regular users.
         password_length_admin_users: Min password length for
             admin users.
+        password_breach_check_enabled: Refuse new passwords found in a known data breach.
         geocoding_service: Reverse-geocoding service.
         geocoding_host: Geocoding service host (NULL - default host).
         geocoding_use_https: Address the geocoding host over HTTPS.
@@ -160,6 +161,12 @@ class ServerSettings(Base):
         server_default=text("15"),
         nullable=False,
         comment="Minimum password length for admin users",
+    )
+    password_breach_check_enabled: Mapped[bool] = mapped_column(
+        default=False,
+        server_default=text("false"),
+        nullable=False,
+        comment="Refuse new passwords found in a known data breach (true - yes, false - no)",
     )
 
     geocoding_service: Mapped[str] = mapped_column(

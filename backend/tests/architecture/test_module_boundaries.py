@@ -406,6 +406,11 @@ def _excepted(importer: str, imported: str) -> bool:
 #: surface write **stages** and its caller commits; what is listed here is
 #: deliberately a self-contained unit of work, with the reason it has to be.
 _SURFACE_UNITS_OF_WORK: dict[str, str] = {
+    "credentials.integration_service.reject_breached_password": (
+        "Ends the caller's open read transaction before the network call to the breach range service, so no "
+        "connection is held across it; the rollback would discard a staged write, so callers invoke it before "
+        "they stage any."
+    ),
     "authentication.integration_service.finish_login": (
         "Creates the session and commits it with the sign-in's audit row and known-device record, so a session never "
         "exists without them; the password-change step stages its new password in the same transaction and has "

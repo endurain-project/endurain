@@ -19,6 +19,7 @@ def _settings(*, verification=False, approval=False):
         signup_enabled=True,
         signup_require_email_verification=verification,
         signup_require_admin_approval=approval,
+        password_breach_check_enabled=False,
     )
 
 

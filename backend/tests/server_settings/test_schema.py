@@ -303,6 +303,7 @@ class TestServerSettingsEdit:
             signup_enabled=True,
             signup_require_admin_approval=True,
             signup_require_email_verification=False,
+            password_breach_check_enabled=False,
             sso_enabled=False,
             local_login_enabled=True,
             sso_auto_redirect=False,
@@ -481,6 +482,22 @@ class TestSessionPolicyFields:
     def test_the_public_settings_do_not_carry_the_session_policy(self):
         public = server_settings_schema.ServerSettingsReadPublic.model_fields
         assert not {"access_token_expire_minutes", "session_idle_timeout_enabled"} & set(public)
+
+
+class TestPasswordBreachCheckField:
+    def test_edit_requires_the_switch(self):
+        values = TestServerSettingsEdit._values()
+        del values["password_breach_check_enabled"]
+        with pytest.raises(ValidationError):
+            server_settings_schema.ServerSettingsEdit(**values)
+
+    def test_edit_rejects_a_non_boolean(self):
+        with pytest.raises(ValidationError):
+            server_settings_schema.ServerSettingsEdit(**TestServerSettingsEdit._values(password_breach_check_enabled=1))
+
+    def test_the_admin_read_carries_it_and_the_public_read_does_not(self):
+        assert "password_breach_check_enabled" in server_settings_schema.ServerSettingsAdminRead.model_fields
+        assert "password_breach_check_enabled" not in server_settings_schema.ServerSettingsReadPublic.model_fields
 
 
 class TestRetentionField:

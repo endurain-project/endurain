@@ -2,10 +2,21 @@
 
 from unittest.mock import MagicMock, patch
 
+import pytest
+
 import modules.users.users.schema as users_schema
 import modules.users.users_profile.service as profile_service
 
 _ACCOUNT_SECURITY = "modules.users.users_profile.service.account_security_integration"
+
+
+@pytest.fixture(autouse=True)
+def _breach_check_off():
+    with patch(
+        "modules.users.users_profile.service.server_settings_integration.get_server_settings",
+        return_value=MagicMock(password_breach_check_enabled=False),
+    ):
+        yield
 
 
 def test_changing_the_password_stages_through_account_security_then_commits(mock_db):

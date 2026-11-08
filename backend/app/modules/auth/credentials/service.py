@@ -5,6 +5,7 @@ from sqlalchemy.orm import Session
 import core.exceptions as core_exceptions
 import modules.auth.credentials.contracts as credentials_contracts
 import modules.auth.credentials.crud as credentials_crud
+import modules.auth.credentials.password_breach as credentials_password_breach
 import modules.auth.credentials.password_hasher as credentials_password_hasher
 import modules.auth.credentials.password_policy as credentials_password_policy
 import modules.server_settings.schema as server_settings_schema
@@ -160,13 +161,37 @@ def validate_and_hash_password_for_user(
         PasswordBlankError: If the password is only whitespace.
         PasswordTooShortError: If the password is shorter than the account type's minimum.
         PasswordTooCommonError: If the password is on the blocklist.
-        PasswordMatchesAccountError: If the password is the username, the email or the application name.
+        PasswordMatchesAccountError: If the password is or contains the username, the email or the application
+            name.
     """
     min_length = resolve_password_min_length(server_settings, access_type)
     credentials_password_policy.check_password(password, min_length, username, email)
     return credentials_password_hasher.get_password_hasher().hash_password(
         credentials_password_policy.hash_form(password)
     )
+
+
+def reject_breached_password(
+    server_settings: server_settings_schema.ServerSettingsRead, password: str, db: Session
+) -> None:
+    """Refuse a password found in a known data breach when the administrator turned the check on.
+
+    The check is a network call, so the open read transaction ends first: call this before the flow stages
+    any write, as a rollback discards them.
+
+    Args:
+        server_settings: The server settings holding the breach-check switch.
+        password: The password as typed.
+        db: SQLAlchemy session whose open transaction ends before the call.
+
+    Raises:
+        PasswordBreachedError: If the check is on and the password appears in a known breach.
+    """
+    if not server_settings.password_breach_check_enabled:
+        return
+    db.rollback()
+    if credentials_password_breach.is_breached(password):
+        raise credentials_contracts.PasswordBreachedError()
 
 
 def ensure_password_differs_from_current(user_id: int, new_password: str, db: Session) -> None:

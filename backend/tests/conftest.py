@@ -3,6 +3,7 @@ from datetime import UTC, datetime, timedelta
 from importlib import import_module
 from unittest.mock import MagicMock
 
+import httpx2
 import pytest
 from fastapi import FastAPI, Request
 from fastapi.testclient import TestClient
@@ -32,6 +33,19 @@ DEFAULT_ROUTER_MODULES = [
 PUBLIC_ROUTER_MODULES = [
     "modules.server_settings.public_router",
 ]
+
+
+@pytest.fixture(autouse=True)
+def _no_breach_range_requests(monkeypatch):
+    """Keep a test from reaching the real breach range API: every range request answers with no matches.
+
+    A test of the breached-password check patches ``httpx2.get`` itself.
+    """
+
+    def no_matches(url, *_args, **_kwargs):
+        return httpx2.Response(200, text="", request=httpx2.Request("GET", url))
+
+    monkeypatch.setattr(httpx2, "get", no_matches)
 
 
 @pytest.fixture(autouse=True)

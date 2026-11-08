@@ -49,6 +49,11 @@ def test_a_reset_is_audited_and_announced(mock_db):
 
 def test_an_invalid_token_is_recorded_without_a_target(mock_db):
     with (
+        patch.object(
+            password_reset_service.server_settings_integration,
+            "get_server_settings",
+            return_value=MagicMock(password_breach_check_enabled=False),
+        ),
         patch.object(password_reset_service.password_reset_crud, "claim_password_reset_token", return_value=None),
         jasil_testing.capture_audit() as audit,
         pytest.raises(core_exceptions.InvalidInputError),

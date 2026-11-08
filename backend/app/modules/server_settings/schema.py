@@ -370,6 +370,8 @@ class ServerSettingsEdit(
             (true - yes, false - no).
         signup_require_email_verification: Require email verification for new
             sign-ups (true - yes, false - no).
+        password_breach_check_enabled: Refuse a new password found in a known data breach, checked against
+            the Have I Been Pwned range API (true - yes, false - no).
         geocoding_api_key: Plain-text API key for the geocoding service; same
             write-only semantics as ``tileserver_api_key``.
     """
@@ -392,6 +394,13 @@ class ServerSettingsEdit(
     signup_require_email_verification: StrictBool = Field(
         ...,
         description="Require email verification for new sign-ups (true - yes, false - no)",
+    )
+    password_breach_check_enabled: StrictBool = Field(
+        ...,
+        description=(
+            "Refuse a new password found in a known data breach, checked against the Have I Been Pwned range API "
+            "with a 5-character hash prefix; allowed when the service is unreachable (true - yes, false - no)"
+        ),
     )
 
 
@@ -438,6 +447,7 @@ class ServerSettingsAdminRead(
             fields cannot be edited while the variable is set.
         signup_require_admin_approval: Require admin approval for new sign-ups.
         signup_require_email_verification: Require email verification for new sign-ups.
+        password_breach_check_enabled: Refuse a new password found in a known data breach.
     """
 
     id: StrictInt = Field(..., description="Unique identifier for server settings (always 1)")
@@ -457,6 +467,13 @@ class ServerSettingsAdminRead(
     signup_require_email_verification: StrictBool = Field(
         ...,
         description="Require email verification for new sign-ups (true - yes, false - no)",
+    )
+    password_breach_check_enabled: StrictBool = Field(
+        ...,
+        description=(
+            "Refuse a new password found in a known data breach, checked against the Have I Been Pwned range API "
+            "with a 5-character hash prefix; allowed when the service is unreachable (true - yes, false - no)"
+        ),
     )
 
 

@@ -57,6 +57,13 @@ def validate_and_hash_password_for_user(
     )
 
 
+def reject_breached_password(
+    server_settings: server_settings_schema.ServerSettingsRead, password: str, db: Session
+) -> None:
+    """Refuse a known-breached password when the check is on; ends the open transaction before the network call."""
+    credentials_service.reject_breached_password(server_settings, password, db)
+
+
 def ensure_password_differs_from_current(user_id: int, new_password: str, db: Session) -> None:
     """Refuse a new password that is the user's current one."""
     credentials_service.ensure_password_differs_from_current(user_id, new_password, db)

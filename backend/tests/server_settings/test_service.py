@@ -48,6 +48,7 @@ def _stored(**overrides) -> server_settings_schema.ServerSettingsRead:
         signup_enabled=False,
         signup_require_admin_approval=True,
         signup_require_email_verification=True,
+        password_breach_check_enabled=False,
         sso_enabled=False,
         local_login_enabled=True,
         sso_auto_redirect=False,
@@ -1375,6 +1376,7 @@ class TestGetServerSettingsForPublic:
             signup_enabled=False,
             signup_require_admin_approval=True,
             signup_require_email_verification=True,
+            password_breach_check_enabled=False,
             sso_enabled=False,
             local_login_enabled=True,
             sso_auto_redirect=False,
@@ -1475,6 +1477,15 @@ class TestSettingsAudit:
 
         entry = audit.assert_audited(server_settings_audit_actions.SETTINGS_UPDATE.id)
         assert entry.details == {"changed_fields": ["currency", "tileserver_api_key"]}
+
+    def test_turning_the_breach_check_on_is_audited_by_field_name_only(self, edit_env):
+        with jasil_testing.capture_audit() as audit:
+            server_settings_service.edit_server_settings(
+                _full_edit(edit_env.stored, password_breach_check_enabled=True), MagicMock(), if_match="*"
+            )
+
+        entry = audit.assert_audited(server_settings_audit_actions.SETTINGS_UPDATE.id)
+        assert entry.details == {"changed_fields": ["password_breach_check_enabled"]}
 
     def test_the_row_is_staged_before_the_commit_of_a_tile_change(self, edit_env):
         db = MagicMock()

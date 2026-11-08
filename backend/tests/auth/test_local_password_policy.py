@@ -17,7 +17,7 @@ import modules.auth.password_reset_tokens.service as password_reset_service
 
 
 def _settings(local_login_enabled: bool) -> SimpleNamespace:
-    return SimpleNamespace(local_login_enabled=local_login_enabled)
+    return SimpleNamespace(local_login_enabled=local_login_enabled, password_breach_check_enabled=False)
 
 
 def _user(access_type: str = "regular") -> SimpleNamespace:

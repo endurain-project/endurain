@@ -42,6 +42,7 @@ class TestPolicyErrors:
             (credentials_contracts.PasswordTooShortError, "password-too-short"),
             (credentials_contracts.PasswordTooCommonError, "password-too-common"),
             (credentials_contracts.PasswordMatchesAccountError, "password-matches-account"),
+            (credentials_contracts.PasswordBreachedError, "password-breached"),
             (credentials_contracts.PasswordBlankError, "password-blank"),
             (credentials_contracts.PasswordUnchangedError, "password-unchanged"),
         ):
@@ -179,8 +180,38 @@ class TestAccountDetails:
                 _settings(8, 8), "regular", "josé-the-user", username="josé-the-user", email="x@example.com"
             )
 
-    def test_substring_is_accepted(self):
-        assert _validate("myusername-is-long-enough", username="myusername")
+    def test_username_substring_is_refused(self):
+        with pytest.raises(credentials_contracts.PasswordMatchesAccountError):
+            _validate("my-MyUserName-is-long-enough", username="myusername")
+
+    def test_email_local_part_substring_is_refused(self):
+        with pytest.raises(credentials_contracts.PasswordMatchesAccountError):
+            credentials_service.validate_and_hash_password_for_user(
+                _settings(8, 8), "regular", "x-Jane.Doe.Long-x", username="jd", email="jane.doe.long@example.com"
+            )
+
+    def test_full_email_substring_is_refused(self):
+        with pytest.raises(credentials_contracts.PasswordMatchesAccountError):
+            credentials_service.validate_and_hash_password_for_user(
+                _settings(8, 8), "regular", "xx-Jane.Doe@Example.com-xx", username="jd", email="jane.doe@example.com"
+            )
+
+    def test_application_name_substring_is_refused(self):
+        with pytest.raises(credentials_contracts.PasswordMatchesAccountError):
+            _validate("my-ENDURAIN-rocks-hard", username="jd")
+
+    def test_nfc_equivalent_substring_is_refused(self):
+        with pytest.raises(credentials_contracts.PasswordMatchesAccountError):
+            _validate("xx-" + _DECOMPOSED + "-xx", username=_COMPOSED)
+
+    def test_short_username_substring_is_accepted(self):
+        assert _validate("a-fine-eve-passphrase", username="eve")
+
+    def test_short_username_equality_is_refused(self):
+        with pytest.raises(credentials_contracts.PasswordMatchesAccountError):
+            credentials_service.validate_and_hash_password_for_user(
+                _settings(3, 3), "regular", "Eve", username="eve", email="x@example.com"
+            )
 
 
 class TestHashForm:

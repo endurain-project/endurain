@@ -548,6 +548,14 @@ class TestEditProfilePrivacySettings:
 class TestEditProfilePassword:
     """Tests for POST /profile/password/change — edit_profile_password."""
 
+    @pytest.fixture(autouse=True)
+    def _breach_check_off(self):
+        with patch(
+            "modules.users.users_profile.service.server_settings_integration.get_server_settings",
+            return_value=MagicMock(password_breach_check_enabled=False),
+        ):
+            yield
+
     def test_success(
         self,
         profile_client,

@@ -66,6 +66,7 @@ function toFormValues(settings: ServerSettings): ServerSettingsFormValues {
     mapBackgroundColor: settings.mapBackgroundColor,
     passwordLengthRegularUsers: settings.passwordLengthRegularUsers,
     passwordLengthAdminUsers: settings.passwordLengthAdminUsers,
+    passwordBreachCheckEnabled: settings.passwordBreachCheckEnabled,
     geocodingService: settings.geocodingService,
     geocodingHost: settings.geocodingHost ?? '',
     geocodingUseHttps: settings.geocodingUseHttps,

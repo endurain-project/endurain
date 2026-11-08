@@ -52,6 +52,7 @@ function makeSettingsDto(overrides: Partial<ServerSettingsDto> = {}): ServerSett
     map_background_color: '#dddddd',
     password_length_regular_users: 8,
     password_length_admin_users: 12,
+    password_breach_check_enabled: false,
     geocoding_service: 'nominatim',
     geocoding_host: null,
     geocoding_use_https: true,
@@ -125,6 +126,7 @@ describe('mapServerSettings', () => {
       mapBackgroundColor: '#dddddd',
       passwordLengthRegularUsers: 8,
       passwordLengthAdminUsers: 12,
+      passwordBreachCheckEnabled: false,
       geocodingService: 'nominatim',
       geocodingHost: null,
       geocodingUseHttps: true,
@@ -228,6 +230,13 @@ describe('toServerSettingsWire', () => {
       api_key_max_lifetime_days: 365,
       read_notification_retention_days: 90,
     })
+  })
+
+  it('sends the breached-password check switch', () => {
+    const wire = toServerSettingsWire(
+      mapServerSettings(makeSettingsDto({ password_breach_check_enabled: true })),
+    )
+    expect(wire).toHaveProperty('password_breach_check_enabled', true)
   })
 
   it('sends the audit trail retention and legal hold', () => {

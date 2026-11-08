@@ -21,6 +21,7 @@ import modules.auth.credentials.integration_service as credentials_integration
 import modules.auth.identity_providers.constants as identity_providers_constants
 import modules.auth.schema as auth_schema
 import modules.auth.sign_up_tokens.integration_service as sign_up_tokens_integration
+import modules.server_settings.integration_service as server_settings_integration
 import modules.users.contributor_registry as users_contributor_registry
 import modules.users.users.integration_service as users_integration
 import modules.users.users.schema as users_schema
@@ -481,6 +482,10 @@ def change_password(
         StepUpFailedError: If step-up verification fails.
         PasswordPolicyError: If the new password fails the configured policy.
     """
+    # The breach check is a network call, so it runs before the step-up stages any write.
+    credentials_integration.reject_breached_password(
+        server_settings_integration.get_server_settings(db), change.password, db
+    )
     account_security_integration.change_own_password(
         user_id,
         change.step_up.current_password,

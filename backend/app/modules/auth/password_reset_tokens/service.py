@@ -232,15 +232,17 @@ def use_password_reset_token(token: str, new_password: str, db: Session) -> None
 
     Raises:
         InvalidInputError: If the token is invalid or expired, or the account is inactive or may not reset its password.
-        PasswordPolicyError: If the password is the current one, blank, too short, too common or matches the
-            account's details.
+        PasswordPolicyError: If the password is the current one, blank, too short, too common, breached or matches
+            the account's details.
     """
+    server_settings = server_settings_integration.get_server_settings(db)
+    # The breach check is a network call, so it runs before the claim opens the write transaction.
+    credentials_integration.reject_breached_password(server_settings, new_password, db)
     token_user_id = password_reset_crud.claim_password_reset_token(token_hashing.sha256_hex(token), db)
     if token_user_id is None:
         jasil_audit.record_detached(password_reset_audit_actions.PASSWORD_RESET, outcome=jasil_audit.Outcome.FAILURE)
         raise core_exceptions.InvalidInputError(UNUSABLE_RESET_MESSAGE)
 
-    server_settings = server_settings_integration.get_server_settings(db)
     user = users_integration.require_user(token_user_id, db)
     if not _can_reset_password(user, db):
         logger.warning(

@@ -5,6 +5,7 @@ from unittest.mock import MagicMock, patch
 import modules.auth.account_security.integration_service as account_security_integration
 import modules.users.users.router as users_router
 import modules.users.users.schema as users_schema
+import modules.users.users.service as users_service
 
 
 class TestEditUserPassword:
@@ -24,6 +25,8 @@ class TestEditUserPassword:
         db = MagicMock()
 
         with (
+            patch.object(users_service.server_settings_integration, "get_server_settings"),
+            patch.object(users_service.credentials_integration, "reject_breached_password"),
             patch.object(account_security_integration, "verify_step_up"),
             patch.object(account_security_integration, "change_managed_user_password") as change_password,
         ):

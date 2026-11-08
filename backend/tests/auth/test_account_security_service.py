@@ -27,6 +27,10 @@ class TestChangeOwnPassword:
             patch(prefix + "step_up_service.verify_step_up_credentials") as verify,
             patch(prefix + "credentials_integration.has_local_password", return_value=True),
             patch(
+                prefix + "server_settings_integration.get_server_settings",
+                return_value=MagicMock(password_breach_check_enabled=False),
+            ),
+            patch(
                 prefix + "credentials_integration.ensure_password_differs_from_current",
                 side_effect=credentials_contracts.PasswordUnchangedError(),
             ) as differs,

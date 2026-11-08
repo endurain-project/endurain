@@ -47,6 +47,7 @@ function makeSettings(overrides: Partial<ServerSettings> = {}): ServerSettings {
     mapBackgroundColor: '#dddddd',
     passwordLengthRegularUsers: 15,
     passwordLengthAdminUsers: 15,
+    passwordBreachCheckEnabled: false,
     geocodingService: 'nominatim',
     geocodingHost: null,
     geocodingUseHttps: true,

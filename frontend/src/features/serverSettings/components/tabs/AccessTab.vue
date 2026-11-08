@@ -113,6 +113,15 @@ const SESSION_ENV_FIELDS = [
           </template>
         </FormField>
       </div>
+
+      <Switch
+        v-model="values.passwordBreachCheckEnabled"
+        data-setting="password-breach-check"
+        :disabled="isSubmitting"
+      >
+        {{ t('settings.server.password.breachCheck') }}
+      </Switch>
+      <p class="text-body">{{ t('settings.server.password.breachCheckHint') }}</p>
     </Card>
 
     <Card class="flex flex-col gap-3" data-setting="section-session">

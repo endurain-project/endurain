@@ -35,11 +35,18 @@ class PasswordTooCommonError(PasswordPolicyError):
     default_detail = "The password is too common; choose a different one"
 
 
+class PasswordBreachedError(PasswordPolicyError):
+    """The password appears in a known data breach."""
+
+    code = "password-breached"
+    default_detail = "The password appears in a known data breach; choose a different one"
+
+
 class PasswordMatchesAccountError(PasswordPolicyError):
-    """The password is the account's username, email address or the application name."""
+    """The password is, or contains, the account's username, email address or the application name."""
 
     code = "password-matches-account"
-    default_detail = "The password must not be your username, your email address or the application name"
+    default_detail = "The password must not contain your username, your email address or the application name"
 
 
 class PasswordBlankError(PasswordPolicyError):

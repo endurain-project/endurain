@@ -533,6 +533,10 @@ def complete_password_change(
     with jasil_audit.audit_context(
         actor_type=jasil_audit.ActorType.USER, actor_id=str(user.id), credential_type="password"
     ):
+        # The breach check is a network call, so it runs before anything is staged.
+        credentials_integration.reject_breached_password(
+            server_settings_integration.get_server_settings(db), change_request.password, db
+        )
         stage_required_password_change(user.id, change_request.password, db)
 
     try:

@@ -47,6 +47,10 @@ How these work together is in [Accounts, sign-up and password reset](accounts-an
 
 A minimum length for regular users and for administrators, from 8 to 128 characters, 15 by default. It applies when a password is set or changed. See [password rules](accounts-and-sign-in.md#password-rules).
 
+| Setting | Notes |
+| --- | --- |
+| Refuse passwords found in known data breaches | Off by default. When on, each new or changed password is checked against the [Have I Been Pwned](https://haveibeenpwned.com/Passwords) range service. Only the first 5 characters of the password's SHA-1 hash are sent to `api.pwnedpasswords.com`, never the password or the full hash. The check waits at most 2 seconds; if the service cannot be reached or answers with an error, the password is accepted and a warning is logged. The server needs outbound HTTPS access to that host |
+
 ### Sessions
 
 | Setting | Range |

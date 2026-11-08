@@ -66,6 +66,13 @@ class TestServerSettingsModel:
         assert server_settings_models.ServerSettings.password_length_regular_users.default.arg == 15
         assert server_settings_models.ServerSettings.password_length_admin_users.default.arg == 15
 
+    def test_breach_check_is_off_by_default(self):
+        """Hash prefixes go to a third party only after an administrator opts in (docs/features/server-settings.md)."""
+        column = server_settings_models.ServerSettings.password_breach_check_enabled
+        assert column.default.arg is False
+        assert str(column.server_default.arg) == "false"
+        assert column.nullable is False
+
     def test_server_settings_nullable_fields(self):
         """Test ServerSettings model nullable configuration."""
         # All fields should be non-nullable

@@ -345,7 +345,9 @@
     "password": {
       "title": "Password policy",
       "lengthRegular": "Minimum length regular users",
-      "lengthAdmin": "Minimum length admin users"
+      "lengthAdmin": "Minimum length admin users",
+      "breachCheck": "Refuse passwords found in known data breaches",
+      "breachCheckHint": "Checks each new or changed password with haveibeenpwned.com. Only the first 5 characters of the password's SHA-1 hash are sent, never the password. If the service cannot be reached, the password is accepted."
     },
     "session": {
       "title": "Sessions",

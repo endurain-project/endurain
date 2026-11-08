@@ -35,6 +35,14 @@ class TestStatus:
 
 
 class TestCompleteOnboarding:
+    @pytest.fixture(autouse=True)
+    def _breach_check_off(self):
+        with patch(
+            "modules.auth.onboarding.service.server_settings_integration.get_server_settings",
+            return_value=MagicMock(password_breach_check_enabled=False),
+        ):
+            yield
+
     @patch(_USERS)
     def test_an_existing_account_is_refused_before_the_token_or_the_password_is_touched(self, users, store, mock_db):
         users.any_user_exists.return_value = True

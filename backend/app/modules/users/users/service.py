@@ -436,6 +436,10 @@ def create_user(
         ConflictError: If the username or email is already taken.
         PasswordPolicyError: If the password fails the configured policy.
     """
+    # The breach check is a network call, so it runs before the step-up and the account stage any write.
+    credentials_integration.reject_breached_password(
+        server_settings_integration.get_server_settings(db), user.password, db
+    )
     if users_schema.normalize_access_type(user.access_type) == users_schema.UserAccessType.ADMIN.value:
         account_security_integration.verify_step_up(
             step_up or auth_schema.StepUpVerification(),
@@ -1238,6 +1242,10 @@ def change_user_password(
         PasswordPolicyError: If the password fails the configured policy.
     """
     require_other_user(user_id, actor_id, "change your password")
+    # The breach check is a network call, so it runs before the step-up stages any write.
+    credentials_integration.reject_breached_password(
+        server_settings_integration.get_server_settings(db), attributes.password, db
+    )
     account_security_integration.verify_step_up(
         attributes.step_up,
         actor_id,

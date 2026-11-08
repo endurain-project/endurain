@@ -13,6 +13,8 @@ import modules.auth.credentials.contracts as credentials_contracts
 
 _BLOCKLIST_PATH = Path(__file__).parent / "data" / "password_blocklist.txt.gz"
 _APPLICATION_NAME = "endurain"
+# Shorter details such as "al" or "eve" would refuse unrelated passwords, so they only count on equality.
+MIN_CONTAINED_DETAIL_LENGTH = 4
 
 
 def hash_form(password: str) -> str:
@@ -53,7 +55,7 @@ def load_blocklist() -> frozenset[str]:
 
 
 def check_password(password: str, min_length: int, username: str, email: str) -> None:
-    """Refuse a password that is blank, too short, too common or equal to an account detail.
+    """Refuse a password that is blank, too short, too common, equal to an account detail or containing one.
 
     Args:
         password: The password as typed.
@@ -65,8 +67,9 @@ def check_password(password: str, min_length: int, username: str, email: str) ->
         PasswordBlankError: If the password is only whitespace.
         PasswordTooShortError: If the NFC form is shorter than ``min_length``.
         PasswordTooCommonError: If the password is on the blocklist.
-        PasswordMatchesAccountError: If the whole password equals the username, the email, the email's local
-            part or the application name.
+        PasswordMatchesAccountError: If the password equals the username, the email, the email's local part or
+            the application name, or contains one of them that is at least ``MIN_CONTAINED_DETAIL_LENGTH``
+            characters long.
     """
     if not password.strip():
         raise credentials_contracts.PasswordBlankError()
@@ -77,5 +80,7 @@ def check_password(password: str, min_length: int, username: str, email: str) ->
         raise credentials_contracts.PasswordTooCommonError()
     account_details = {compare_form(username), compare_form(email), compare_form(email.partition("@")[0])}
     account_details.add(_APPLICATION_NAME)
-    if candidate in account_details:
+    if candidate in account_details or any(
+        len(detail) >= MIN_CONTAINED_DETAIL_LENGTH and detail in candidate for detail in account_details
+    ):
         raise credentials_contracts.PasswordMatchesAccountError()

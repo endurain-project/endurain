@@ -38,6 +38,7 @@ export const FIELD_TABS: Record<keyof ServerSettingsFormValues, SettingsTab> = {
   ssoAutoRedirect: 'access',
   passwordLengthRegularUsers: 'access',
   passwordLengthAdminUsers: 'access',
+  passwordBreachCheckEnabled: 'access',
   sessionIdleTimeoutEnabled: 'access',
   sessionIdleTimeoutHours: 'access',
   sessionAbsoluteTimeoutHours: 'access',

@@ -127,6 +127,7 @@ def _auth_integration_mocks(monkeypatch):
         "create_users_mfa_row",
         lambda user_id, db: mock_call("initialize_user_mfa", user_id),
     )
+    monkeypatch.setattr(credentials_integration, "reject_breached_password", lambda settings, password, db: None)
     monkeypatch.setattr(
         credentials_integration,
         "validate_and_hash_password_for_user",

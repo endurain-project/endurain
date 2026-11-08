@@ -8,6 +8,7 @@ import { isValidPassword, resolvePasswordMinLength } from '@/utils/validation'
 /** Problem types the server answers (HTTP 422) for a password it refuses. */
 const PASSWORD_TOO_SHORT_TYPE = 'urn:endurain:error:password-too-short'
 const PASSWORD_TOO_COMMON_TYPE = 'urn:endurain:error:password-too-common'
+const PASSWORD_BREACHED_TYPE = 'urn:endurain:error:password-breached'
 const PASSWORD_MATCHES_ACCOUNT_TYPE = 'urn:endurain:error:password-matches-account'
 const PASSWORD_BLANK_TYPE = 'urn:endurain:error:password-blank'
 const PASSWORD_UNCHANGED_TYPE = 'urn:endurain:error:password-unchanged'
@@ -72,6 +73,8 @@ export function usePasswordPolicy(accessType: MaybeRefOrGetter<string>) {
         return t('app.password.tooShort', { min: minLength.value })
       case PASSWORD_TOO_COMMON_TYPE:
         return t('app.password.tooCommon')
+      case PASSWORD_BREACHED_TYPE:
+        return t('app.password.breached')
       case PASSWORD_MATCHES_ACCOUNT_TYPE:
         return t('app.password.matchesAccount')
       case PASSWORD_BLANK_TYPE:
