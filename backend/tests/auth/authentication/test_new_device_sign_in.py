@@ -22,10 +22,13 @@ import modules.auth.credentials.password_hasher as auth_password_hasher
 import modules.auth.known_devices.contracts as known_devices_contracts
 import modules.auth.known_devices.dependencies as known_devices_dependencies
 import modules.auth.known_devices.events as known_devices_events
+import modules.auth.known_devices.integration_service as known_devices_integration
 import modules.auth.login_audit.audit_actions as login_audit_actions
 import modules.auth.mfa.dependencies as mfa_dependencies
 import modules.auth.oauth_state.constants as oauth_state_constants
+import modules.users.users.models as users_models
 from tests._helpers.auth import pending_login
+from tests._helpers.db import create_sqlite_session
 
 _SERVICE = "modules.auth.authentication.service"
 _CLAIMED_EXPIRY = datetime(2999, 1, 1, tzinfo=UTC)
@@ -303,6 +306,71 @@ class TestSsoSignIn:
         record.assert_not_called()
         assert outcome.device_id is None
         assert outcome.body.device_id is None
+
+
+# --------------------------------------------------------------------------------------------------------------------
+# The first device of an account: announced unless the account is under a day old.
+# --------------------------------------------------------------------------------------------------------------------
+
+_PUBLISH = "modules.auth.known_devices.event_publishers.platform_publisher.publish_on_commit"
+
+
+@pytest.fixture
+def sqlite_db():
+    """A real session holding the signing-in user (id 5) with no known device."""
+    session = create_sqlite_session()
+    yield session
+    session.close()
+
+
+def _account(db, age):
+    db.add(
+        users_models.Users(
+            id=5,
+            name="Alice",
+            username="alice",
+            email="alice@example.com",
+            preferred_language="en",
+            access_type="regular",
+            created_at=datetime.now(UTC) - age,
+        )
+    )
+    db.flush()
+
+
+@pytest.mark.parametrize(("age", "announced"), [(timedelta(hours=1), False), (timedelta(days=30), True)])
+class TestFirstDeviceAnnouncement:
+    def test_a_password_sign_in(self, sqlite_db, password_sign_in, age, announced):
+        _account(sqlite_db, age)
+        with jasil_testing.capture_audit() as audit, patch(_PUBLISH) as publish:
+            outcome = _login(sqlite_db)
+
+        assert publish.called is announced
+        assert audit.assert_audited(_LOGIN, outcome="success").details["new_device"] is announced
+        assert outcome.device_id == _DEVICE_ID
+
+    def test_a_mobile_sign_in_under_the_header_id(self, sqlite_db, password_sign_in, age, announced):
+        _account(sqlite_db, age)
+        session = auth_schema.MobileSessionRead(next_step="exchange", session_id="sid")
+        with (
+            patch(f"{_SERVICE}.create_mobile_pkce_session_response", return_value=session),
+            patch(_PUBLISH) as publish,
+        ):
+            outcome = _login(sqlite_db, client_type="mobile")
+
+        assert publish.called is announced
+        assert outcome.body.device_id == _DEVICE_ID
+
+    def test_an_sso_sign_in(self, sqlite_db, age, announced):
+        _account(sqlite_db, age)
+        with jasil_testing.capture_audit() as audit, patch(_PUBLISH) as publish:
+            outcome, _ = TestSsoSignIn()._exchange(
+                sqlite_db, idp_id=3, record_returns=known_devices_integration.record_sign_in
+            )
+
+        assert publish.called is announced
+        assert audit.assert_audited(_LOGIN, outcome="success").details["new_device"] is announced
+        assert outcome.device_id == _DEVICE_ID
 
 
 # --------------------------------------------------------------------------------------------------------------------

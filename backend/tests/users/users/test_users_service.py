@@ -1011,11 +1011,14 @@ class TestEdits:
         mock_crud.update_user.return_value = _user(1, email="other@example.com", email_verified=True)
         _identity()
 
-        result = _admin_edit(1, _edit(1, email="other@example.com", email_verified=True), 9, mock_db)
+        with patch(_SETTINGS) as mock_settings:
+            mock_settings.is_mail_configured.return_value = True
+            result = _admin_edit(1, _edit(1, email="Other@Example.com", email_verified=True), 9, mock_db)
 
         changes = mock_crud.update_user.call_args.args[1]
         assert (changes["email"], changes["email_verified"]) == ("other@example.com", True)
-        sign_up.revoke_pending_tokens.assert_called_once_with(1, mock_db)
+        sign_up.stage_email_changed_notice.assert_called_once_with(1, "other@example.com", "user1@example.com", mock_db)
+        sign_up.revoke_pending_tokens.assert_not_called()
         sign_up.request_email_change.assert_not_called()
         assert result.email == "other@example.com"
         _delete_all_sessions_mock.assert_called_once_with(1, mock_db)
@@ -1029,12 +1032,15 @@ class TestEdits:
         sign_up.request_email_change.return_value = False
         _identity()
 
-        result = _admin_edit(1, _edit(1, email="other@example.com"), 9, mock_db)
+        with patch(_SETTINGS) as mock_settings:
+            mock_settings.is_mail_configured.return_value = False
+            result = _admin_edit(1, _edit(1, email="other@example.com"), 9, mock_db)
 
         mock_crud.update_user.assert_called_once()
         changes = mock_crud.update_user.call_args.args[1]
         assert (changes["email"], changes["email_verified"]) == ("other@example.com", False)
         sign_up.revoke_pending_tokens.assert_called_once_with(1, mock_db)
+        sign_up.stage_email_changed_notice.assert_not_called()
         assert (result.email, result.email_verified) == ("other@example.com", False)
         mock_db.commit.assert_called_once()
         _delete_all_sessions_mock.assert_called_once_with(1, mock_db)
@@ -1044,7 +1050,9 @@ class TestEdits:
         mock_crud.update_user.return_value = _user(1, email="other@example.com", email_verified=True)
         _identity()
 
-        _admin_edit(1, _edit(1, email="other@example.com", email_verified=True), 9, mock_db)
+        with patch(_SETTINGS) as mock_settings:
+            mock_settings.is_mail_configured.return_value = True
+            _admin_edit(1, _edit(1, email="other@example.com", email_verified=True), 9, mock_db)
 
         password_reset.revoke_unused_tokens.assert_called_once_with(1, mock_db)
 

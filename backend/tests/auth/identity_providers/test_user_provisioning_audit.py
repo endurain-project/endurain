@@ -48,6 +48,8 @@ def test_linking_an_existing_account_by_email_is_audited(mock_db):
         target_owner_id="7",
     )
     assert entry.details == {"idp_id": 3, "reason": None}
+    assert entry.actor_type != "user"
+    assert entry.actor_id is None
 
 
 def test_a_sign_in_through_an_existing_link_writes_no_link_row(mock_db):
@@ -85,6 +87,8 @@ def test_a_refused_email_link_is_recorded_as_denied_with_its_reason(mock_db, use
         target_owner_id="7",
     )
     assert entry.details == {"idp_id": 3, "reason": reason}
+    assert entry.actor_type != "user"
+    assert entry.actor_id is None
 
 
 def test_a_provider_that_does_not_link_by_email_records_a_denied_link_with_its_reason(mock_db):

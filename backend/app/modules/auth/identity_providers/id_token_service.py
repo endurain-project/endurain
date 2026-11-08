@@ -4,7 +4,7 @@ import base64
 import json
 from collections.abc import Generator
 from contextlib import contextmanager
-from typing import Any, Protocol
+from typing import Any, NoReturn, Protocol
 
 from joserfc import jwt
 from joserfc.errors import (
@@ -313,14 +313,55 @@ def _read_header(token: str, kind: str) -> dict[str, Any]:
     return header
 
 
+def _import_key(jwk: dict[str, Any]) -> RSAKey | ECKey:
+    """Import a JWKS entry as a key, accepting only RSA and EC.
+
+    Args:
+        jwk: The JWKS entry.
+
+    Returns:
+        The key.
+
+    Raises:
+        UnauthenticatedError: If the entry is of another key type.
+    """
+    key_type = jwk.get("kty")
+    if key_type == "RSA":
+        return RSAKey.import_key(jwk)
+    if key_type == "EC":
+        return ECKey.import_key(jwk)
+    logger.warning("Unsupported key type in JWKS: <key_type>", extra=core_logger.context(key_type=key_type))
+    raise core_exceptions.UnauthenticatedError(f"Unsupported key type: {key_type}")
+
+
+def _refuse_unknown_key(kid: Any, alg: Any, kind: str) -> NoReturn:
+    """Refuse a token whose JWKS names no single key for it.
+
+    Args:
+        kid: The token header's ``kid``, if any.
+        alg: The token header's ``alg``.
+        kind: What the token is, for messages ("ID token").
+
+    Raises:
+        UnauthenticatedError: Always.
+    """
+    logger.warning(
+        "No single matching key found in JWKS for kid=<kid>, alg=<alg>", extra=core_logger.context(kid=kid, alg=alg)
+    )
+    raise core_exceptions.UnauthenticatedError(f"{kind} signed with unknown key")
+
+
 def _decode_signed(fetch_jwks: FetchJwks, token: str, jwks_uri: str, kind: str) -> jwt.Token:
     """Verify a provider-signed JWT's signature against the provider's JWKS and return its header and claims.
 
     1. The header must name an ``alg`` from ``ID_TOKEN_ALLOWED_ALGORITHMS``; the JWKS is fetched only then.
     2. The key is the one with the header's ``kid``, or, for a token without one, the only key usable for its
-       ``alg``; when the cached set has none, it is fetched afresh once.
+       ``alg``; when the cached set has none, it is fetched afresh.
     3. Only an RSA or EC key is imported, and joserfc verifies the signature with the allow-list pinned, so a
        forged ``alg`` cannot bypass verification.
+    4. When the signature does not verify with a key from the cached set, the provider may have rotated that key
+       under the same ``kid``, so the set is fetched afresh and the signature verified once more with the key it
+       gives. The set is fetched afresh at most once per verification.
 
     No claim is checked here.
 
@@ -335,6 +376,7 @@ def _decode_signed(fetch_jwks: FetchJwks, token: str, jwks_uri: str, kind: str) 
 
     Raises:
         UnauthenticatedError: If the token is malformed, uses a refused algorithm or names no usable key.
+        BadSignatureError: If the signature does not verify with the key of the freshly fetched set.
     """
     header = _read_header(token, kind)
     kid = header.get("kid")
@@ -355,28 +397,26 @@ def _decode_signed(fetch_jwks: FetchJwks, token: str, jwks_uri: str, kind: str) 
 
     # A key the cached set lacks (or, without a kid, a set that does not single one out) may have changed since, so
     # the set is fetched afresh once before the token is refused.
+    refreshed = False
     matching_key = _find_key(fetch_jwks(jwks_uri), kid, alg)
     if matching_key is None:
         matching_key = _find_key(fetch_jwks(jwks_uri, refresh=True), kid, alg)
+        refreshed = True
 
     if not matching_key:
-        logger.warning(
-            "No single matching key found in JWKS for kid=<kid>, alg=<alg>",
-            extra=core_logger.context(kid=kid, alg=alg),
-        )
-        raise core_exceptions.UnauthenticatedError(f"{kind} signed with unknown key")
+        _refuse_unknown_key(kid, alg, kind)
 
-    key_type = matching_key.get("kty")
-    key: RSAKey | ECKey
-    if key_type == "RSA":
-        key = RSAKey.import_key(matching_key)
-    elif key_type == "EC":
-        key = ECKey.import_key(matching_key)
-    else:
-        logger.warning("Unsupported key type in JWKS: <key_type>", extra=core_logger.context(key_type=key_type))
-        raise core_exceptions.UnauthenticatedError(f"Unsupported key type: {key_type}")
+    try:
+        return jwt.decode(token, _import_key(matching_key), algorithms=list(ID_TOKEN_ALLOWED_ALGORITHMS))
+    except BadSignatureError:
+        if refreshed:
+            raise
 
-    return jwt.decode(token, key, algorithms=list(ID_TOKEN_ALLOWED_ALGORITHMS))
+    # The provider may have rotated the key's material under the cached kid; verify once more with the fresh one.
+    matching_key = _find_key(fetch_jwks(jwks_uri, refresh=True), kid, alg)
+    if not matching_key:
+        _refuse_unknown_key(kid, alg, kind)
+    return jwt.decode(token, _import_key(matching_key), algorithms=list(ID_TOKEN_ALLOWED_ALGORITHMS))
 
 
 @contextmanager

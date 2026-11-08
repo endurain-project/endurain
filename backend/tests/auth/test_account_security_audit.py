@@ -18,13 +18,14 @@ import modules.auth.account_security.integration_service as account_security_int
 import modules.auth.account_security.mfa_workflow_service as mfa_workflow
 import modules.auth.account_security.step_up_service as step_up_service
 import modules.auth.api_keys.schema as api_keys_schema
+import modules.auth.login_audit.audit_actions as login_audit_actions
 import modules.auth.mfa.schema as mfa_schema
 import modules.auth.schema as auth_schema
 import modules.auth.sessions.audit_actions as sessions_audit_actions
 
 Change = account_security_events.AccountSecurityChange
-Reason = account_security_audit_actions.StepUpFailureReason
-Method = account_security_audit_actions.StepUpMethod
+Reason = login_audit_actions.StepUpFailureReason
+Method = login_audit_actions.StepUpMethod
 
 
 @pytest.fixture
@@ -601,7 +602,7 @@ class TestStepUpAudit:
             self._verify(self._store(), password="pw")
 
         entry = audit.assert_audited(
-            account_security_audit_actions.STEP_UP_VERIFY.id,
+            login_audit_actions.STEP_UP_VERIFY.id,
             outcome="failure",
             target_type="user",
             target_id="7",
@@ -615,14 +616,14 @@ class TestStepUpAudit:
                 self._store(), password="pw", password_valid=True, mfa=True, mfa_valid=False, mfa_code="000000"
             )
 
-        entry = audit.assert_audited(account_security_audit_actions.STEP_UP_VERIFY.id, outcome="failure")
+        entry = audit.assert_audited(login_audit_actions.STEP_UP_VERIFY.id, outcome="failure")
         assert entry.details == {"method": Method.MFA_CODE.value, "reason": Reason.INVALID_CREDENTIALS.value}
 
     def test_a_lockout_is_denied(self):
         with jasil_testing.capture_audit() as audit, pytest.raises(core_exceptions.TooManyRequestsError):
             self._verify(self._store(locked=True), password="pw")
 
-        entry = audit.assert_audited(account_security_audit_actions.STEP_UP_VERIFY.id, outcome="denied")
+        entry = audit.assert_audited(login_audit_actions.STEP_UP_VERIFY.id, outcome="denied")
         assert entry.details["reason"] == Reason.LOCKED_OUT.value
 
     def test_the_mfa_code_check_records_failure_and_lockout(self):
@@ -633,11 +634,11 @@ class TestStepUpAudit:
         ):
             assert step_up_service.verify_mfa_code(7, "000000", self._store(), MagicMock()) is False
 
-        entry = audit.assert_audited(account_security_audit_actions.STEP_UP_VERIFY.id, outcome="failure")
+        entry = audit.assert_audited(login_audit_actions.STEP_UP_VERIFY.id, outcome="failure")
         assert entry.details == {"method": Method.MFA_CODE.value, "reason": Reason.INVALID_CREDENTIALS.value}
 
     def test_success_writes_no_row(self):
         with jasil_testing.capture_audit() as audit:
             self._verify(self._store(), password="pw", password_valid=True)
 
-        audit.assert_not_audited(account_security_audit_actions.STEP_UP_VERIFY.id)
+        audit.assert_not_audited(login_audit_actions.STEP_UP_VERIFY.id)

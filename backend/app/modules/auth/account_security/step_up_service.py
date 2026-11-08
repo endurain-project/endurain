@@ -9,7 +9,6 @@ from sqlalchemy.orm import Session
 
 import core.exceptions as core_exceptions
 import core.logger as core_logger
-import modules.auth.account_security.audit_actions as account_security_audit_actions
 import modules.auth.account_security.step_up_store as account_security_step_up_store
 import modules.auth.computation as auth_computation
 import modules.auth.credentials.integration_service as credentials_integration
@@ -17,6 +16,7 @@ import modules.auth.identity_providers.constants as identity_providers_constants
 import modules.auth.identity_providers.contracts as identity_providers_contracts
 import modules.auth.lockout.contracts as lockout_contracts
 import modules.auth.lockout.integration_service as lockout_integration
+import modules.auth.login_audit.audit_actions as login_audit_actions
 import modules.auth.mfa.integration_service as mfa_integration
 import modules.auth.schema as auth_schema
 import modules.users.users.integration_service as users_integration
@@ -26,8 +26,8 @@ logger = core_logger.get_logger(__name__)
 
 def _record_refusal(
     user_id: int,
-    method: account_security_audit_actions.StepUpMethod,
-    reason: account_security_audit_actions.StepUpFailureReason,
+    method: login_audit_actions.StepUpMethod,
+    reason: login_audit_actions.StepUpFailureReason,
 ) -> None:
     """Record a refused step-up on a session of its own, since the request answers with an error.
 
@@ -36,14 +36,14 @@ def _record_refusal(
         method: How the re-authentication was attempted.
         reason: Why it was refused.
     """
-    locked_out = reason == account_security_audit_actions.StepUpFailureReason.LOCKED_OUT
+    locked_out = reason == login_audit_actions.StepUpFailureReason.LOCKED_OUT
     jasil_audit.record_detached(
-        account_security_audit_actions.STEP_UP_VERIFY,
+        login_audit_actions.STEP_UP_VERIFY,
         outcome=jasil_audit.Outcome.DENIED if locked_out else jasil_audit.Outcome.FAILURE,
         target_type="user",
         target_id=str(user_id),
         target_owner_id=str(user_id),
-        details=account_security_audit_actions.StepUpDetails(method=method, reason=reason),
+        details=login_audit_actions.StepUpDetails(method=method, reason=reason),
     )
 
 
@@ -65,7 +65,7 @@ def _refuse_step_up(
     step_up_store: account_security_step_up_store.StepUpStore,
     key: str,
     user_id: int,
-    method: account_security_audit_actions.StepUpMethod,
+    method: login_audit_actions.StepUpMethod,
     reason: str,
 ) -> NoReturn:
     """Record a failed step-up attempt, log it and refuse it with the one answer every failure gets.
@@ -81,7 +81,7 @@ def _refuse_step_up(
         StepUpFailedError: Always raised.
     """
     _record_failure(step_up_store, key, user_id)
-    _record_refusal(user_id, method, account_security_audit_actions.StepUpFailureReason.INVALID_CREDENTIALS)
+    _record_refusal(user_id, method, login_audit_actions.StepUpFailureReason.INVALID_CREDENTIALS)
     logger.warning(
         "Step-up refused for user <user_id>: <reason>", extra=core_logger.context(user_id=user_id, reason=reason)
     )
@@ -107,7 +107,7 @@ def _raise_if_locked_out(
     step_up_store: account_security_step_up_store.StepUpStore,
     key: str,
     user_id: int,
-    method: account_security_audit_actions.StepUpMethod,
+    method: login_audit_actions.StepUpMethod,
 ) -> None:
     """Refuse the attempt while the user is locked out.
 
@@ -123,7 +123,7 @@ def _raise_if_locked_out(
     if step_up_store.is_locked_out(key):
         lockout_until = step_up_store.get_lockout_time(key)
         logger.warning("Step-up blocked for user <user_id>: locked out", extra=core_logger.context(user_id=user_id))
-        _record_refusal(user_id, method, account_security_audit_actions.StepUpFailureReason.LOCKED_OUT)
+        _record_refusal(user_id, method, login_audit_actions.StepUpFailureReason.LOCKED_OUT)
         raise core_exceptions.TooManyRequestsError(
             "Too many failed step-up attempts. Try again later.", retry_at=lockout_until
         )
@@ -140,7 +140,7 @@ def require_not_locked_out(user_id: int, step_up_store: account_security_step_up
         TooManyRequestsError: When the user is locked out.
     """
     _raise_if_locked_out(
-        step_up_store, _step_up_key(user_id), user_id, account_security_audit_actions.StepUpMethod.IDENTITY_PROVIDER
+        step_up_store, _step_up_key(user_id), user_id, login_audit_actions.StepUpMethod.IDENTITY_PROVIDER
     )
 
 
@@ -195,7 +195,7 @@ def verify_step_up_credentials(
     """
     key = _step_up_key(user_id)
 
-    _raise_if_locked_out(step_up_store, key, user_id, account_security_audit_actions.StepUpMethod.UNSPECIFIED)
+    _raise_if_locked_out(step_up_store, key, user_id, login_audit_actions.StepUpMethod.UNSPECIFIED)
 
     # Guard: ensure the user exists (raises 404 otherwise).
     users_integration.require_user(user_id, db)
@@ -208,7 +208,7 @@ def verify_step_up_credentials(
                 step_up_store,
                 key,
                 user_id,
-                account_security_audit_actions.StepUpMethod.PASSWORD,
+                login_audit_actions.StepUpMethod.PASSWORD,
                 "no password sent",
             )
         password_verified, _ = credentials_integration.verify_and_update_password(
@@ -219,7 +219,7 @@ def verify_step_up_credentials(
                 step_up_store,
                 key,
                 user_id,
-                account_security_audit_actions.StepUpMethod.PASSWORD,
+                login_audit_actions.StepUpMethod.PASSWORD,
                 "wrong password",
             )
     else:
@@ -235,7 +235,7 @@ def verify_step_up_credentials(
                 step_up_store,
                 key,
                 user_id,
-                account_security_audit_actions.StepUpMethod.IDENTITY_PROVIDER,
+                login_audit_actions.StepUpMethod.IDENTITY_PROVIDER,
                 "ticket does not match",
             )
 
@@ -245,7 +245,7 @@ def verify_step_up_credentials(
                 step_up_store,
                 key,
                 user_id,
-                account_security_audit_actions.StepUpMethod.MFA_CODE,
+                login_audit_actions.StepUpMethod.MFA_CODE,
                 "no MFA code sent",
             )
         if not mfa_integration.verify_user_mfa(
@@ -255,7 +255,7 @@ def verify_step_up_credentials(
                 step_up_store,
                 key,
                 user_id,
-                account_security_audit_actions.StepUpMethod.MFA_CODE,
+                login_audit_actions.StepUpMethod.MFA_CODE,
                 "wrong MFA code",
             )
 
@@ -265,7 +265,7 @@ def verify_step_up_credentials(
             step_up_store,
             key,
             user_id,
-            account_security_audit_actions.StepUpMethod.IDENTITY_PROVIDER,
+            login_audit_actions.StepUpMethod.IDENTITY_PROVIDER,
             "ticket already redeemed",
         )
 
@@ -327,15 +327,15 @@ def verify_mfa_code(
         TooManyRequestsError: When the user is locked out.
     """
     key = _step_up_key(user_id)
-    _raise_if_locked_out(step_up_store, key, user_id, account_security_audit_actions.StepUpMethod.MFA_CODE)
+    _raise_if_locked_out(step_up_store, key, user_id, login_audit_actions.StepUpMethod.MFA_CODE)
     if not mfa_integration.verify_user_mfa(
         user_id, mfa_code, credentials_integration.get_password_hasher(), db, replay_guard=step_up_store
     ):
         _record_failure(step_up_store, key, user_id)
         _record_refusal(
             user_id,
-            account_security_audit_actions.StepUpMethod.MFA_CODE,
-            account_security_audit_actions.StepUpFailureReason.INVALID_CREDENTIALS,
+            login_audit_actions.StepUpMethod.MFA_CODE,
+            login_audit_actions.StepUpFailureReason.INVALID_CREDENTIALS,
         )
         logger.warning("MFA code refused for user <user_id>", extra=core_logger.context(user_id=user_id))
         return False

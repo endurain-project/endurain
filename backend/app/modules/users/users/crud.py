@@ -576,6 +576,23 @@ def is_deactivated(user_id: int, db: Session) -> bool:
     return _get_user_model_by_id(user_id, db).deactivated_at is not None
 
 
+def was_created_after(user_id: int, moment: datetime, db: Session) -> bool:
+    """Tell whether a user's account was created after a moment.
+
+    Args:
+        user_id: ID of the user.
+        moment: The instant to compare the creation time with.
+        db: Database session.
+
+    Returns:
+        True when the account was created after the moment. False when it was created at or before it, and when
+        the user does not exist.
+    """
+    model = users_models.Users
+    stmt = select(exists().where(model.id == user_id, model.created_at > moment))
+    return bool(db.execute(stmt).scalar_one())
+
+
 def stage_deletion_request(user_id: int, db: Session) -> None:
     """Stage the deactivation of a user and the marker that its deletion is queued (flushed, not committed).
 

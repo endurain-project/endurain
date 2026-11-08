@@ -1,5 +1,7 @@
 """Sign-in audit rows other auth packages write: the refusals and the target of a row about a user."""
 
+from collections.abc import Iterator
+from contextlib import contextmanager
 from typing import TypedDict
 
 import jasil.audit as jasil_audit
@@ -27,6 +29,25 @@ def user_target(user_id: int | None) -> AuditTarget:
     if user_id is None:
         return {}
     return {"target_type": "user", "target_id": str(user_id), "target_owner_id": str(user_id)}
+
+
+@contextmanager
+def acting_as_user(user_id: int) -> Iterator[None]:
+    """Attribute the audit rows written inside the block to a user who signed in with an OAuth provider.
+
+    For a route that is not behind an auth dependency, so its request audit context is anonymous, when the
+    flow has already proven who the user is.
+
+    Args:
+        user_id: The user who acts.
+
+    Yields:
+        Nothing; the rows written inside the block name the user as the actor.
+    """
+    with jasil_audit.audit_context(
+        actor_type=jasil_audit.ActorType.USER, actor_id=str(user_id), credential_type="oauth"
+    ):
+        yield
 
 
 def record_login_refusal(

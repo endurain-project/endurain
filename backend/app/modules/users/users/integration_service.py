@@ -234,6 +234,20 @@ def is_deactivated(user_id: int, db: Session) -> bool:
     return users_service.is_deactivated(user_id, db)
 
 
+def was_created_after(user_id: int, moment: datetime, db: Session) -> bool:
+    """Tell whether a user's account was created after a moment.
+
+    Args:
+        user_id: The user to check.
+        moment: The instant to compare the creation time with.
+        db: Database session.
+
+    Returns:
+        True when the account was created after the moment; False when it was not and when the user does not exist.
+    """
+    return users_crud.was_created_after(user_id, moment, db)
+
+
 def stage_email_verification(
     user_id: int,
     server_settings: server_settings_schema.ServerSettingsRead,

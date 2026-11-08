@@ -59,17 +59,23 @@ def stage_identity_link(user_id: int, idp_id: int, db: Session) -> None:
     )
 
 
-def record_identity_link_refused(user_id: int, idp_id: int, reason: idp_audit_actions.IdentityLinkRefusal) -> None:
+def record_identity_link_refused(
+    user_id: int,
+    idp_id: int,
+    reason: idp_audit_actions.IdentityLinkRefusal,
+    outcome: jasil_audit.Outcome = jasil_audit.Outcome.DENIED,
+) -> None:
     """Record a refused link in its own transaction, since the refused request rolls back.
 
     Args:
         user_id: The account the provider was to be linked to.
         idp_id: The provider that was to be linked.
         reason: Why the link was refused.
+        outcome: ``DENIED`` for a refusal by policy, ``FAILURE`` for a link that could not be completed.
     """
     jasil_audit.record_detached(
         idp_audit_actions.IDENTITY_LINK_LINK,
-        outcome=jasil_audit.Outcome.DENIED,
+        outcome=outcome,
         target_type="user",
         target_id=str(user_id),
         target_owner_id=str(user_id),

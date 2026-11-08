@@ -8,9 +8,9 @@ from fastapi.testclient import TestClient
 
 import core.database as core_database
 import core.exceptions as core_exceptions
-import modules.auth.account_security.audit_actions as account_security_audit_actions
 import modules.auth.account_security.step_up_service as step_up_service
 import modules.auth.dependencies as auth_dependencies
+import modules.auth.login_audit.audit_actions as login_audit_actions
 
 INVALID_TOKEN = "urn:endurain:error:invalid-token"
 STEP_UP_FAILED = "urn:endurain:error:step-up-failed"
@@ -49,7 +49,7 @@ def client():
     @app.post("/step-up")
     def _step_up():
         step_up_service._refuse_step_up(
-            _Store(), "user:1", 1, account_security_audit_actions.StepUpMethod.PASSWORD, "wrong password"
+            _Store(), "user:1", 1, login_audit_actions.StepUpMethod.PASSWORD, "wrong password"
         )
 
     return TestClient(app, headers={"X-Client-Type": "web"})

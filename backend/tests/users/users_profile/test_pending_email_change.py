@@ -289,6 +289,7 @@ class TestAdminEmailEdit:
         assert updated.pending_email == "new@example.com"
         assert updated.pending_email_expires_at is not None
         publish.assert_called_once()
+        assert publish.call_args.args[0] == _EVENT
         sessions.assert_called_once_with(7, db)
 
     def test_a_changed_email_marked_verified_applies_at_once_and_cancels_a_pending_change(self, db, mail, publish):
@@ -301,8 +302,27 @@ class TestAdminEmailEdit:
         assert (user.email, user.email_verified) == ("new@example.com", True)
         assert updated.pending_email is None
         assert _unused_tokens(db) == []
-        publish.assert_not_called()
         sessions.assert_called_once_with(7, db)
+
+    def test_an_applied_address_tells_the_previous_one(self, db, mail, publish):
+        self._edit(db, email="New@Example.com", email_verified=True)
+
+        notice = db.query(sign_up_models.SignUpToken).filter_by(user_id=7).one()
+        assert (notice.previous_email, notice.email, notice.used) == ("user7@example.com", "new@example.com", True)
+        publish.assert_called_once()
+        assert publish.call_args.args[0] == "auth.email_changed"
+        assert publish.call_args.args[1] == {"user_id": 7, "token_id": notice.id}
+
+    def test_without_mail_an_applied_address_stages_no_notice_and_voids_pending_links(self, db, no_mail, publish):
+        with patch(_MAIL, return_value=True):
+            _change_email(db, "pending@example.com")
+        publish.reset_mock()
+
+        self._edit(db, email="new@example.com", email_verified=True)
+
+        assert _user(db).email == "new@example.com"
+        assert _unused_tokens(db) == []
+        publish.assert_not_called()
 
     def test_without_mail_a_changed_email_applies_unverified(self, db, no_mail, publish):
         updated, sessions = self._edit(db, email="new@example.com", email_verified=False)

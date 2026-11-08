@@ -21,12 +21,26 @@ class IdentityLinkRefusal(StrEnum):
         ACCOUNT_EMAIL_UNVERIFIED: The account's own email is not verified.
         LINKED_TO_ANOTHER_ACCOUNT: The provider identity is already linked to a different account.
         LINK_BY_EMAIL_DISABLED: The provider does not link a sign-in to the account that has its email.
+        INVALID_STATE: The link's OAuth state was unknown, bound to another provider or already used.
+        BROWSER_MISMATCH: The callback came from a browser other than the one that started the link.
+        PROVIDER_ERROR: The provider answered with an error instead of a code.
+        TOKEN_EXCHANGE_FAILED: The provider's token endpoint refused or failed the code exchange.
+        NO_SUBJECT: The provider's claims named no subject.
+        USER_NOT_FOUND: The account the link was started for no longer exists.
+        ALREADY_LINKED_TO_THIS_ACCOUNT: The provider identity is already linked to this same account.
     """
 
     PROVIDER_EMAIL_UNVERIFIED = "provider_email_unverified"
     ACCOUNT_EMAIL_UNVERIFIED = "account_email_unverified"
     LINKED_TO_ANOTHER_ACCOUNT = "linked_to_another_account"
     LINK_BY_EMAIL_DISABLED = "link_by_email_disabled"
+    INVALID_STATE = "invalid_state"
+    BROWSER_MISMATCH = "browser_mismatch"
+    PROVIDER_ERROR = "provider_error"
+    TOKEN_EXCHANGE_FAILED = "token_exchange_failed"
+    NO_SUBJECT = "no_subject"
+    USER_NOT_FOUND = "user_not_found"
+    ALREADY_LINKED_TO_THIS_ACCOUNT = "already_linked_to_this_account"
 
 
 class BackchannelLogoutRefusal(StrEnum):
@@ -98,7 +112,7 @@ class IdentityLinkDetails(VersionedPayload):
 
     model_config = ConfigDict(extra="forbid")
 
-    SCHEMA_VERSION: ClassVar[int] = 2
+    SCHEMA_VERSION: ClassVar[int] = 3
 
     idp_id: int
     reason: IdentityLinkRefusal | None = None

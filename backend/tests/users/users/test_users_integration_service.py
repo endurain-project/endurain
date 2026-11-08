@@ -1,5 +1,6 @@
 """The users surface delegates to the owning service and CRUD."""
 
+from datetime import UTC, datetime
 from unittest.mock import MagicMock, patch
 
 import modules.users.users.integration_service as users_integration
@@ -20,6 +21,15 @@ def test_reads_reach_the_crud():
     by_id.assert_called_once_with(1, db)
     by_email.assert_called_once_with("a@b.c", db)
     by_name.assert_called_once_with("a", db)
+
+
+def test_creation_time_check_reaches_the_crud():
+    db = MagicMock()
+    moment = datetime(2026, 1, 1, tzinfo=UTC)
+    with patch.object(users_integration.users_crud, "was_created_after", return_value=True) as created_after:
+        assert users_integration.was_created_after(3, moment, db) is True
+
+    created_after.assert_called_once_with(3, moment, db)
 
 
 def test_public_profiles_reach_the_service():

@@ -12,6 +12,7 @@ import modules.auth.known_devices.crud as known_devices_crud
 import modules.auth.known_devices.events as known_devices_events
 import modules.auth.known_devices.models as known_devices_models
 import modules.auth.known_devices.service as known_devices_service
+import modules.users.users.models as users_models
 from tests._helpers.db import create_sqlite_session
 
 _PUBLISH = "modules.auth.known_devices.event_publishers.platform_publisher.publish_on_commit"
@@ -32,6 +33,22 @@ def db():
 def publish():
     with patch(_PUBLISH) as publish_on_commit:
         yield publish_on_commit
+
+
+def _account(db, *, user_id=1, age=timedelta(hours=1)):
+    """Create a user row whose account is ``age`` old."""
+    db.add(
+        users_models.Users(
+            id=user_id,
+            name=f"User {user_id}",
+            username=f"user{user_id}",
+            email=f"user{user_id}@example.com",
+            preferred_language="en",
+            access_type="regular",
+            created_at=datetime.now(UTC) - age,
+        )
+    )
+    db.flush()
 
 
 def _record(db, *, user_id=1, device_id=None, method=_PASSWORD):
@@ -100,15 +117,49 @@ class TestWebSignIn:
         publish.assert_called_once()
 
     def test_each_browser_without_a_cookie_gets_its_own_id(self, db, publish):
+        _account(db)
+
         assert _record(db) != _record(db)
 
-    def test_the_first_device_of_a_user_is_registered_without_an_event(self, db, publish):
+    def test_the_first_device_of_a_new_account_is_registered_without_an_event(self, db, publish):
+        _account(db, age=timedelta(hours=23))
         _known(db, 2, _DEVICE_ID)
 
         record = _sign_in(db, device_id=_DEVICE_ID)
 
         assert record.device_id == _DEVICE_ID
         assert _hashes(db, 1) == {core_hashing.sha256_hex(_DEVICE_ID)}
+        publish.assert_not_called()
+        assert record.new_device is False
+
+    def test_the_first_device_of_an_account_older_than_a_day_is_announced(self, db, publish):
+        _account(db, age=timedelta(hours=25))
+
+        record = _sign_in(db, device_id=_DEVICE_ID)
+
+        assert _hashes(db, 1) == {core_hashing.sha256_hex(_DEVICE_ID)}
+        publish.assert_called_once()
+        assert record.new_device is True
+
+    def test_a_user_whose_devices_were_all_forgotten_is_announced_on_the_next_device(self, db, publish):
+        _account(db, age=timedelta(days=500))
+        _known(db, 1, _OTHER_DEVICE_ID)
+        known_devices_service.delete_unseen_devices(datetime.now(UTC) + timedelta(days=401), db)
+        assert _hashes(db, 1) == set()
+
+        record = _sign_in(db, device_id=_DEVICE_ID)
+
+        publish.assert_called_once()
+        assert record.new_device is True
+
+    def test_a_concurrent_first_sign_in_of_an_old_account_announces_it_once(self, db, publish):
+        _account(db, age=timedelta(days=30))
+
+        with patch.object(
+            known_devices_service.known_devices_crud, "create_device", side_effect=core_exceptions.ConflictError("x")
+        ):
+            record = _sign_in(db, device_id=_DEVICE_ID)
+
         publish.assert_not_called()
         assert record.new_device is False
 

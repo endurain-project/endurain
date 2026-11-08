@@ -15,7 +15,7 @@ Notifications tell you that something happened that you did not do yourself on t
 | Strava data deleted | The account owner | Your Strava-synced activities and gear were deleted because you withdrew Endurain's access on Strava and did not connect again in time |
 | Identity provider linked | The account owner | An identity provider was linked to your account |
 | Account security changed | The account owner | Your password was changed, reset by an emailed link or set by an administrator; two-step verification was turned on or off; new backup codes were generated; an API key was created; an identity provider was unlinked; or repeated wrong passwords locked the account. See [Security notifications](accounts-and-sign-in.md#security-notifications) |
-| Sign-in from a new device | The account owner | You signed in from a browser or app that was not seen before. The first device of an account does not send it |
+| Sign-in from a new device | The account owner | You signed in from a browser or app that was not seen before. The first device of an account created in the last 24 hours does not send it; any other first device does |
 | Sign-up waiting for approval | Every administrator | A new user verified their email and needs [approval](user-management.md#approving-sign-ups) |
 
 If someone withdraws a follow request, the "new follower request" notification it left behind is removed.

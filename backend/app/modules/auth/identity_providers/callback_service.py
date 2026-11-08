@@ -1,6 +1,7 @@
 """The end of an SSO login, link or step-up flow: the provider's callback, user matching and session creation."""
 
 import hmac
+from contextlib import AbstractContextManager, nullcontext
 from dataclasses import dataclass, field
 from datetime import UTC, datetime, timedelta
 from typing import Any, Literal
@@ -150,7 +151,7 @@ class CallbackService:
                 "OAuth state not found in database: <value_1>",
                 extra=core_logger.context(value_1=core_hashing.log_fingerprint(state)),
             )
-            _record_state_refusal(None)
+            _record_state_refusal(idp.id, None)
             raise core_exceptions.InvalidInputError("Invalid or expired OAuth state")
         if oauth_state.idp_id is not None and oauth_state.idp_id != idp.id:
             logger.warning(
@@ -159,7 +160,7 @@ class CallbackService:
                     value_1=core_hashing.log_fingerprint(state), idp_id=oauth_state.idp_id, id=idp.id
                 ),
             )
-            _record_state_refusal(oauth_state)
+            _record_state_refusal(idp.id, oauth_state)
             raise core_exceptions.InvalidInputError("Invalid or expired OAuth state")
         if oauth_state.purpose != oauth_state_constants.OAuthStatePurpose.LOGIN and not _is_bound_browser(
             browser_binding, oauth_state.browser_binding_hash
@@ -172,13 +173,14 @@ class CallbackService:
                     user_id=oauth_state.user_id,
                 ),
             )
+            _record_browser_mismatch(idp.id, oauth_state)
             raise core_exceptions.InvalidInputError("Invalid or expired OAuth state")
         if not self.claim_oauth_state(state, db):
             logger.warning(
                 "OAuth state replay/race rejected: <value_1>",
                 extra=core_logger.context(value_1=core_hashing.log_fingerprint(state)),
             )
-            _record_state_refusal(oauth_state)
+            _record_state_refusal(idp.id, oauth_state)
             raise core_exceptions.InvalidInputError("Invalid or expired OAuth state")
 
         logger.debug(
@@ -225,6 +227,7 @@ class CallbackService:
                 "IdP <name> answered a <purpose> callback with an error instead of a code: <error>",
                 extra=core_logger.context(name=idp.name, purpose=oauth_state.purpose, error=(error or "")[:128]),
             )
+            _record_provider_refusal(idp.id, oauth_state, _PROVIDER_ERROR)
             return self._failure_url(oauth_state)
         if oauth_state.purpose == oauth_state_constants.OAuthStatePurpose.STEP_UP:
             step_up_state = oauth_state_schema.StepUpOAuthStateRead.model_validate(oauth_state, from_attributes=True)
@@ -433,7 +436,13 @@ class CallbackService:
                 client_secret=client_secret,
                 redirect_uri=redirect_uri,
             )
-            token_response = self._exchange_code(idp, oauth_client, token_endpoint, code, oauth_state.idp_code_verifier)
+            try:
+                token_response = self._exchange_code(
+                    idp, oauth_client, token_endpoint, code, oauth_state.idp_code_verifier
+                )
+            except core_exceptions.DomainError:
+                _record_provider_refusal(idp.id, oauth_state, _TOKEN_EXCHANGE_FAILED)
+                raise
 
             # Get user information with ID token verification
             try:
@@ -457,6 +466,7 @@ class CallbackService:
             # Extract subject (unique user identifier)
             subject = userinfo.get("sub") or userinfo.get("id")
             if not subject:
+                _record_provider_refusal(idp.id, oauth_state, _NO_SUBJECT)
                 logger.debug(
                     "IdP <name> did not provide 'sub' or 'id' claim in userinfo: <value_2>",
                     extra=core_logger.context(name=idp.name, value_2=list(userinfo.keys())),
@@ -473,50 +483,65 @@ class CallbackService:
                 # Verify user exists
                 user = users_integration.get_user(link_user_id, db)
                 if not user:
+                    user_provisioning_service.record_identity_link_refused(
+                        link_user_id,
+                        idp.id,
+                        idp_audit_actions.IdentityLinkRefusal.USER_NOT_FOUND,
+                        jasil_audit.Outcome.FAILURE,
+                    )
                     raise core_exceptions.NotFoundError("User not found")
 
-                # Check if this IdP subject is already linked to ANY user
-                existing_link = identity_provider_links_integration.get_user_identity_provider_by_subject_and_idp_id(
-                    idp.id, subject, db
-                )
-                if existing_link:
-                    # Check if it's already linked to THIS user
-                    if existing_link.user_id == link_user_id:
-                        raise core_exceptions.ConflictError(
-                            f"This {idp.name} account is already linked to your account"
+                # The browser binding proved the user started this link, so the rows below name them as actor.
+                with login_audit_integration.acting_as_user(link_user_id):
+                    # Check if this IdP subject is already linked to ANY user
+                    existing_link = (
+                        identity_provider_links_integration.get_user_identity_provider_by_subject_and_idp_id(
+                            idp.id, subject, db
                         )
-                    else:
-                        # Linked to a DIFFERENT user - security issue
-                        user_provisioning_service.record_identity_link_refused(
-                            link_user_id, idp.id, idp_audit_actions.IdentityLinkRefusal.LINKED_TO_ANOTHER_ACCOUNT
-                        )
-                        raise core_exceptions.ConflictError(
-                            f"This {idp.name} account is already linked to another user"
-                        )
+                    )
+                    if existing_link:
+                        # Check if it's already linked to THIS user
+                        if existing_link.user_id == link_user_id:
+                            user_provisioning_service.record_identity_link_refused(
+                                link_user_id,
+                                idp.id,
+                                idp_audit_actions.IdentityLinkRefusal.ALREADY_LINKED_TO_THIS_ACCOUNT,
+                            )
+                            raise core_exceptions.ConflictError(
+                                f"This {idp.name} account is already linked to your account"
+                            )
+                        else:
+                            # Linked to a DIFFERENT user - security issue
+                            user_provisioning_service.record_identity_link_refused(
+                                link_user_id, idp.id, idp_audit_actions.IdentityLinkRefusal.LINKED_TO_ANOTHER_ACCOUNT
+                            )
+                            raise core_exceptions.ConflictError(
+                                f"This {idp.name} account is already linked to another user"
+                            )
 
-                # Create the link
-                identity_provider_links_integration.create_user_identity_provider(
-                    user_id=link_user_id, idp_id=idp.id, idp_subject=subject, db=db
-                )
-                user_provisioning_service.stage_identity_link(link_user_id, idp.id, db)
-                idp_event_publishers.publish_idp_linked(link_user_id, idp.id, db)
-                # The state records the session that started the link only when the user asked to end the others.
-                if oauth_state.session_id is not None:
-                    _stage_other_sessions_ended(link_user_id, oauth_state.session_id, db)
+                    # Create the link
+                    identity_provider_links_integration.create_user_identity_provider(
+                        user_id=link_user_id, idp_id=idp.id, idp_subject=subject, db=db
+                    )
+                    user_provisioning_service.stage_identity_link(link_user_id, idp.id, db)
+                    idp_event_publishers.publish_idp_linked(link_user_id, idp.id, db)
+                    # The state records the session that started the link only when the user asked to end the others.
+                    if oauth_state.session_id is not None:
+                        _stage_other_sessions_ended(link_user_id, oauth_state.session_id, db)
 
-                user = user_provisioning_service.update_user_from_idp(user, idp, userinfo, db)
+                    user = user_provisioning_service.update_user_from_idp(user, idp, userinfo, db)
 
-                logger.info(
-                    "User <username_log_id> (id=<link_user_id>) linked IdP <name> (subject=<subject>)",
-                    extra=core_logger.context(
-                        username_log_id=lockout_integration.username_log_identifier(user.username),
-                        link_user_id=link_user_id,
-                        name=idp.name,
-                        subject=subject,
-                    ),
-                )
+                    logger.info(
+                        "User <username_log_id> (id=<link_user_id>) linked IdP <name> (subject=<subject>)",
+                        extra=core_logger.context(
+                            username_log_id=lockout_integration.username_log_identifier(user.username),
+                            link_user_id=link_user_id,
+                            name=idp.name,
+                            subject=subject,
+                        ),
+                    )
 
-                db.commit()
+                    db.commit()
 
                 # Return special structure for link mode (no new session created)
                 return CallbackResult(user=user, userinfo=userinfo, mode="link")
@@ -599,6 +624,9 @@ class CallbackService:
                     "Step-up refused for user <user_id>: IdP <name> signed in an account not linked to them",
                     extra=core_logger.context(user_id=oauth_state.user_id, name=idp.name),
                 )
+                _record_step_up_refusal(
+                    oauth_state, jasil_audit.Outcome.DENIED, login_audit_actions.StepUpFailureReason.NOT_LINKED
+                )
                 return self._failure_url(oauth_state)
             ticket = self._step_up_tickets.issue(
                 identity_provider_contracts.StepUpTicket(
@@ -614,6 +642,9 @@ class CallbackService:
                 "Step-up refused for user <user_id>: IdP <name> did not prove a fresh sign-in (<reason>)",
                 extra=core_logger.context(user_id=oauth_state.user_id, name=idp.name, reason=str(err)),
             )
+            _record_step_up_refusal(
+                oauth_state, jasil_audit.Outcome.FAILURE, login_audit_actions.StepUpFailureReason.NOT_FRESH
+            )
             return identity_provider_utils.build_step_up_result_url(
                 self._frontend_host, oauth_state.redirect_path, {"step_up_error": "not_fresh"}
             )
@@ -623,6 +654,7 @@ class CallbackService:
                 exc_info=err,
                 extra=core_logger.context(user_id=oauth_state.user_id, name=idp.name),
             )
+            _record_step_up_refusal(oauth_state, jasil_audit.Outcome.FAILURE, _PROVIDER_ERROR.step_up)
             return self._failure_url(oauth_state)
         except Exception as err:
             # The browser leg always ends in a redirect, so a bug still lands on the failure page, without a ticket.
@@ -631,6 +663,7 @@ class CallbackService:
                 exc_info=err,
                 extra=core_logger.context(user_id=oauth_state.user_id, name=idp.name),
             )
+            _record_step_up_refusal(oauth_state, jasil_audit.Outcome.FAILURE, _PROVIDER_ERROR.step_up)
             return self._failure_url(oauth_state)
         logger.info(
             "User <user_id> re-authenticated with IdP <name> for <action>",
@@ -919,17 +952,158 @@ def _record_login_refusal(
     )
 
 
-def _record_state_refusal(oauth_state: oauth_state_schema.OAuthStateRead | None) -> None:
-    """Audit a callback whose OAuth state was refused, unless the state is known to belong to a link or step-up.
+@dataclass(frozen=True)
+class _ProviderFailure:
+    """A refusal caused by the provider, in the reason each flow's audit action names it.
 
-    A state nobody can find could have started a sign-in, so it is recorded; one that is found and belongs to a
-    link or a step-up is not a sign-in attempt.
+    Attributes:
+        login: The reason of an ``auth.session.login`` row.
+        link: The reason of an ``auth.identity_link.link`` row.
+        step_up: The reason of an ``auth.step_up.verify`` row.
+    """
+
+    login: login_audit_actions.LoginFailureReason
+    link: idp_audit_actions.IdentityLinkRefusal
+    step_up: login_audit_actions.StepUpFailureReason
+
+
+_PROVIDER_ERROR = _ProviderFailure(
+    login_audit_actions.LoginFailureReason.PROVIDER_ERROR,
+    idp_audit_actions.IdentityLinkRefusal.PROVIDER_ERROR,
+    login_audit_actions.StepUpFailureReason.PROVIDER_FAILURE,
+)
+_TOKEN_EXCHANGE_FAILED = _ProviderFailure(
+    login_audit_actions.LoginFailureReason.TOKEN_EXCHANGE_FAILED,
+    idp_audit_actions.IdentityLinkRefusal.TOKEN_EXCHANGE_FAILED,
+    login_audit_actions.StepUpFailureReason.PROVIDER_FAILURE,
+)
+_NO_SUBJECT = _ProviderFailure(
+    login_audit_actions.LoginFailureReason.NO_SUBJECT,
+    idp_audit_actions.IdentityLinkRefusal.NO_SUBJECT,
+    login_audit_actions.StepUpFailureReason.PROVIDER_FAILURE,
+)
+
+
+def _proven_actor(oauth_state: oauth_state_schema.OAuthStateRead) -> AbstractContextManager[None]:
+    """Return the audit context for rows about a link or step-up whose browser the callback has proven.
 
     Args:
+        oauth_state: The claimed state, whose user started the flow.
+
+    Returns:
+        A context that names the state's user as the actor, or one that changes nothing when it names none.
+    """
+    if oauth_state.user_id is None:
+        return nullcontext()
+    return login_audit_integration.acting_as_user(oauth_state.user_id)
+
+
+def _record_step_up_refusal(
+    oauth_state: oauth_state_schema.OAuthStateRead,
+    outcome: jasil_audit.Outcome,
+    reason: login_audit_actions.StepUpFailureReason,
+    *,
+    browser_proven: bool = True,
+) -> None:
+    """Audit a refused identity-provider step-up, on its own transaction because the callback redirects.
+
+    Args:
+        oauth_state: The step-up state, whose user is the target.
+        outcome: ``FAILURE`` for a provider, freshness or state failure, ``DENIED`` for a refusal by policy.
+        reason: Why the step-up was refused.
+        browser_proven: Whether the callback came from the browser that started the step-up. When it did not,
+            the user is only the target: they are the victim, not the actor.
+    """
+    with _proven_actor(oauth_state) if browser_proven else nullcontext():
+        jasil_audit.record_detached(
+            login_audit_actions.STEP_UP_VERIFY,
+            outcome=outcome,
+            **login_audit_integration.user_target(oauth_state.user_id),
+            details=login_audit_actions.StepUpDetails(
+                method=login_audit_actions.StepUpMethod.IDENTITY_PROVIDER, reason=reason
+            ),
+        )
+
+
+def _is_account_flow(oauth_state: oauth_state_schema.OAuthStateRead) -> bool:
+    """Tell whether a state belongs to a link or step-up of a known user; one that names no user is a sign-in."""
+    return oauth_state.purpose != oauth_state_constants.OAuthStatePurpose.LOGIN and oauth_state.user_id is not None
+
+
+def _record_state_refusal(idp_id: int, oauth_state: oauth_state_schema.OAuthStateRead | None) -> None:
+    """Audit a callback whose OAuth state was refused, as the flow the state belongs to.
+
+    A state nobody can find could have started a sign-in, so it is recorded as one. The row is anonymous: the
+    refusal does not prove the callback comes from the browser that started the flow.
+
+    Args:
+        idp_id: The provider the callback came to.
         oauth_state: The state the callback named, or None when none was found.
     """
-    if oauth_state is None or oauth_state.purpose == oauth_state_constants.OAuthStatePurpose.LOGIN:
+    if oauth_state is None or not _is_account_flow(oauth_state):
         _record_login_refusal(jasil_audit.Outcome.FAILURE, login_audit_actions.LoginFailureReason.INVALID_STATE)
+    elif oauth_state.purpose == oauth_state_constants.OAuthStatePurpose.LINK and oauth_state.user_id is not None:
+        user_provisioning_service.record_identity_link_refused(
+            oauth_state.user_id,
+            idp_id,
+            idp_audit_actions.IdentityLinkRefusal.INVALID_STATE,
+            jasil_audit.Outcome.FAILURE,
+        )
+    else:
+        _record_step_up_refusal(
+            oauth_state,
+            jasil_audit.Outcome.FAILURE,
+            login_audit_actions.StepUpFailureReason.INVALID_STATE,
+            browser_proven=False,
+        )
+
+
+def _record_browser_mismatch(idp_id: int, oauth_state: oauth_state_schema.OAuthStateRead) -> None:
+    """Audit a link or step-up callback that came from a browser other than the one that started it.
+
+    The user is only the target: that browser is not theirs, so they are not named as the actor.
+
+    Args:
+        idp_id: The provider the callback came to.
+        oauth_state: The link or step-up state.
+    """
+    if oauth_state.user_id is None:
+        return
+    if oauth_state.purpose == oauth_state_constants.OAuthStatePurpose.LINK:
+        user_provisioning_service.record_identity_link_refused(
+            oauth_state.user_id, idp_id, idp_audit_actions.IdentityLinkRefusal.BROWSER_MISMATCH
+        )
+    else:
+        _record_step_up_refusal(
+            oauth_state,
+            jasil_audit.Outcome.DENIED,
+            login_audit_actions.StepUpFailureReason.BROWSER_MISMATCH,
+            browser_proven=False,
+        )
+
+
+def _record_provider_refusal(
+    idp_id: int, oauth_state: oauth_state_schema.OAuthStateRead, failure: _ProviderFailure
+) -> None:
+    """Audit a callback the provider's answer made fail, as the flow the state belongs to.
+
+    The state was claimed in the browser that started the flow, so a link or step-up row names its user as the
+    actor.
+
+    Args:
+        idp_id: The provider that failed.
+        oauth_state: The claimed state.
+        failure: The provider failure.
+    """
+    if not _is_account_flow(oauth_state):
+        _record_login_refusal(jasil_audit.Outcome.FAILURE, failure.login)
+    elif oauth_state.purpose == oauth_state_constants.OAuthStatePurpose.LINK and oauth_state.user_id is not None:
+        with _proven_actor(oauth_state):
+            user_provisioning_service.record_identity_link_refused(
+                oauth_state.user_id, idp_id, failure.link, jasil_audit.Outcome.FAILURE
+            )
+    else:
+        _record_step_up_refusal(oauth_state, jasil_audit.Outcome.FAILURE, failure.step_up)
 
 
 class _StaleSignInError(Exception):

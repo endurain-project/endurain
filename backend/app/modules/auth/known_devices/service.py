@@ -15,6 +15,7 @@ import modules.auth.known_devices.crud as known_devices_crud
 import modules.auth.known_devices.event_publishers as known_devices_event_publishers
 import modules.auth.known_devices.events as known_devices_events
 import modules.auth.sessions.integration_service as sessions_integration
+import modules.users.users.integration_service as users_integration
 
 logger = core_logger.get_logger(__name__)
 
@@ -70,8 +71,10 @@ def record_sign_in(
     A client is known by the device id it sends: the web app's cookie or the mobile app's ``X-Device-Id`` header. A
     device the user signed in from before is only seen again; any other is registered under the id the client
     already holds, or a new one when it holds none, and announced with ``auth.new_device_sign_in``. The first device
-    of a user who has none is registered without the announcement, so neither a new account nor the first sign-in
-    after this feature arrived sends one.
+    of a user who has none is registered without the announcement only while the account is younger than
+    ``FIRST_DEVICE_GRACE``, so a new account, or the first sign-in just after this feature arrived, sends none. The
+    first device of an older account, such as one that never signed in or whose devices were all forgotten, is
+    announced.
 
     Args:
         user_id: The user who signed in.
@@ -91,16 +94,18 @@ def record_sign_in(
     if known_devices_crud.touch_device(user_id, device_hash, signed_in_at, db):
         return known_devices_contracts.SignInRecord(device_id=device_id, new_device=False)
 
-    first_device = not known_devices_crud.has_devices(user_id, db)
+    silent = not known_devices_crud.has_devices(user_id, db) and users_integration.was_created_after(
+        user_id, signed_in_at - known_devices_constants.FIRST_DEVICE_GRACE, db
+    )
     try:
         known_devices_crud.create_device(user_id, device_hash, signed_in_at, db)
     except core_exceptions.ConflictError:
         # A concurrent sign-in from the same client registered the device first and announces it.
         return known_devices_contracts.SignInRecord(device_id=device_id, new_device=False)
     logger.debug("Registered a new device for user <user_id>", extra=core_logger.context(user_id=user_id))
-    if not first_device:
+    if not silent:
         _publish_new_device_sign_in(user_id, ip_address, user_agent, method, signed_in_at, db)
-    return known_devices_contracts.SignInRecord(device_id=device_id, new_device=not first_device)
+    return known_devices_contracts.SignInRecord(device_id=device_id, new_device=not silent)
 
 
 def delete_unseen_devices(now: datetime, db: Session) -> int:

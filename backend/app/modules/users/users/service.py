@@ -787,7 +787,8 @@ def _stage_edit_with_email_change(
     edit keeps the stored ``email`` and ``email_verified`` and a confirmation link goes to the new
     address, which replaces the stored one once confirmed. Without outgoing mail nothing can be
     confirmed, so the address is applied now, unverified. An address applied now also voids the user's
-    unused verification tokens, and, through :func:`stage_user_edit`, their unused password-reset tokens.
+    unused verification tokens, and, through :func:`stage_user_edit`, their unused password-reset tokens. With
+    outgoing mail the previous address is sent the notice a confirmed change sends.
 
     Args:
         existing: The user as stored.
@@ -812,8 +813,12 @@ def _stage_edit_with_email_change(
             return stage_user_edit(existing.id, kept, db, if_match=if_match), False
 
     updated = stage_user_edit(existing.id, user, db, if_match=if_match)
-    # A link issued for the old address or a pending one must not confirm over the address just applied.
-    sign_up_tokens_integration.revoke_pending_tokens(existing.id, db)
+    if server_settings_integration.is_mail_configured(db):
+        # The notice row also uses up every earlier link, so no link for the old or a pending address can confirm
+        # over the address just applied.
+        sign_up_tokens_integration.stage_email_changed_notice(existing.id, user.email.lower(), existing.email, db)
+    else:
+        sign_up_tokens_integration.revoke_pending_tokens(existing.id, db)
     return updated, not user.email_verified
 
 

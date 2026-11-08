@@ -379,6 +379,30 @@ class TestGetPhotoKeysByUserIds:
         db.close()
 
 
+class TestWasCreatedAfter:
+    def test_compares_the_creation_time_with_the_moment(self):
+        db = create_sqlite_session()
+        created = datetime(2026, 1, 1, 12, tzinfo=UTC)
+        db.add(
+            users_models.Users(
+                id=1,
+                name="User 1",
+                username="user1",
+                email="user1@example.com",
+                preferred_language="us",
+                access_type="regular",
+                created_at=created,
+            )
+        )
+        db.commit()
+
+        assert users_crud.was_created_after(1, datetime(2026, 1, 1, 11, tzinfo=UTC), db) is True
+        assert users_crud.was_created_after(1, created, db) is False
+        assert users_crud.was_created_after(1, datetime(2026, 1, 1, 13, tzinfo=UTC), db) is False
+        assert users_crud.was_created_after(2, datetime(2026, 1, 1, 11, tzinfo=UTC), db) is False
+        db.close()
+
+
 class TestListStalledDeletionIds:
     def test_returns_the_ids_the_query_found(self, mock_db):
         mock_db.scalars.return_value.all.return_value = [3, 5]

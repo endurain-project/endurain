@@ -1,4 +1,4 @@
-"""Audit actions written by the login_audit package: sign-ins and the sign-ins that were refused.
+"""Audit actions written by the login_audit package: sign-ins, the sign-ins that were refused and step-ups.
 
 Ids are stable forever: rows outlive the code. ``details`` carry ids and enumerated reasons only, never a
 username that was not matched, a token, an OAuth state, a provider subject or a password.
@@ -37,6 +37,41 @@ class LoginFailureReason(StrEnum):
     PROVISIONING_REFUSED = "provisioning_refused"
     PKCE_MISMATCH = "pkce_mismatch"
     EXCHANGE_REPLAYED = "exchange_replayed"
+    TOKEN_EXCHANGE_FAILED = "token_exchange_failed"
+    NO_SUBJECT = "no_subject"
+    PROVIDER_ERROR = "provider_error"
+
+
+class StepUpMethod(StrEnum):
+    """How a step-up re-authentication was attempted; ``UNSPECIFIED`` when a lockout refused it before any method."""
+
+    PASSWORD = "password"
+    MFA_CODE = "mfa_code"
+    IDENTITY_PROVIDER = "identity_provider"
+    UNSPECIFIED = "unspecified"
+
+
+class StepUpFailureReason(StrEnum):
+    """Why a step-up re-authentication was refused.
+
+    Attributes:
+        INVALID_CREDENTIALS: The password or second factor was wrong.
+        LOCKED_OUT: Too many failed attempts locked the step-up.
+        NOT_LINKED: The provider signed in an account that is not linked to the user.
+        NOT_FRESH: The provider's ID token did not prove a recent enough sign-in.
+        PROVIDER_FAILURE: The provider failed, refused the code, sent no usable ID token or subject, or the
+            callback failed unexpectedly.
+        BROWSER_MISMATCH: The callback came from a browser other than the one that started the step-up.
+        INVALID_STATE: The step-up's OAuth state was unknown, bound to another provider or already used.
+    """
+
+    INVALID_CREDENTIALS = "invalid_credentials"
+    LOCKED_OUT = "locked_out"
+    NOT_LINKED = "not_linked"
+    NOT_FRESH = "not_fresh"
+    PROVIDER_FAILURE = "provider_failure"
+    BROWSER_MISMATCH = "browser_mismatch"
+    INVALID_STATE = "invalid_state"
 
 
 class LoginDetails(VersionedPayload):
@@ -51,12 +86,28 @@ class LoginDetails(VersionedPayload):
 
     model_config = ConfigDict(extra="forbid")
 
-    SCHEMA_VERSION: ClassVar[int] = 4
+    SCHEMA_VERSION: ClassVar[int] = 5
 
     method: LoginMethod
     mfa: bool = False
     reason: LoginFailureReason | None = None
     new_device: bool = False
+
+
+class StepUpDetails(VersionedPayload):
+    """Details of ``auth.step_up.verify``.
+
+    Attributes:
+        method: How the re-authentication was attempted.
+        reason: Why it was refused; None on success.
+    """
+
+    model_config = ConfigDict(extra="forbid")
+
+    SCHEMA_VERSION: ClassVar[int] = 2
+
+    method: StepUpMethod
+    reason: StepUpFailureReason | None = None
 
 
 LOGIN = jasil_audit.AuditAction(
@@ -68,5 +119,14 @@ LOGIN = jasil_audit.AuditAction(
     details_model=LoginDetails,
 )
 
+STEP_UP_VERIFY = jasil_audit.AuditAction(
+    id="auth.step_up.verify",
+    category=jasil_audit.Category.AUTHENTICATION,
+    severity=jasil_audit.Severity.MEDIUM,
+    description_key="audit.auth.step_up.verify",
+    description_default="A sensitive action asked the user to confirm who they are",
+    details_model=StepUpDetails,
+)
+
 #: Every action this package writes, registered by the composition root.
-ACTIONS: tuple[jasil_audit.AuditAction, ...] = (LOGIN,)
+ACTIONS: tuple[jasil_audit.AuditAction, ...] = (LOGIN, STEP_UP_VERIFY)

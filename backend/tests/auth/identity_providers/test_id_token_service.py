@@ -192,6 +192,63 @@ class TestVerifyIdTokenKeyResolution:
         assert "unknown key" in exc_info.value.detail.lower()
         assert fetch.call_count == 2
 
+    def test_a_key_rotated_under_a_cached_kid_is_verified_with_a_fresh_set(self, service, rsa_key, other_rsa_key):
+        token = _sign(rsa_key, _valid_claims())
+        fetch = MagicMock(side_effect=[_public_jwks(other_rsa_key), _public_jwks(rsa_key)])
+        with patch.object(service, "fetch_jwks", fetch):
+            claims = _verify(service, token, JWKS_URI, ISS, AUD)
+        assert claims["sub"] == "user-1"
+        assert fetch.call_count == 2
+        assert fetch.call_args_list[0].args == (JWKS_URI,)
+        assert fetch.call_args_list[0].kwargs == {}
+        assert fetch.call_args_list[1].args == (JWKS_URI,)
+        assert fetch.call_args_list[1].kwargs == {"refresh": True}
+
+    def test_a_signature_that_fails_with_the_fresh_key_too_is_refused_after_one_refresh(
+        self, service, rsa_key, other_rsa_key
+    ):
+        token = _sign(rsa_key, _valid_claims())
+        fetch = MagicMock(return_value=_public_jwks(other_rsa_key))
+        with (
+            patch.object(service, "fetch_jwks", fetch),
+            pytest.raises(core_exceptions.DomainError) as exc_info,
+        ):
+            _verify(service, token, JWKS_URI, ISS, AUD)
+        assert exc_info.value.status_code == status.HTTP_401_UNAUTHORIZED
+        assert "signature" in exc_info.value.detail.lower()
+        assert fetch.call_count == 2
+        assert fetch.call_args_list[1].kwargs == {"refresh": True}
+
+    def test_a_bad_signature_after_the_kid_lookup_refreshed_does_not_refresh_again(
+        self, service, rsa_key, other_rsa_key
+    ):
+        token = _sign(rsa_key, _valid_claims())
+        stale = {"keys": [{**rsa_key.as_dict(private=False), "kid": "older-kid"}]}
+        fetch = MagicMock(side_effect=[stale, _public_jwks(other_rsa_key)])
+        with (
+            patch.object(service, "fetch_jwks", fetch),
+            pytest.raises(core_exceptions.DomainError) as exc_info,
+        ):
+            _verify(service, token, JWKS_URI, ISS, AUD)
+        assert exc_info.value.status_code == status.HTTP_401_UNAUTHORIZED
+        assert "signature" in exc_info.value.detail.lower()
+        assert fetch.call_count == 2
+
+    def test_a_key_gone_from_the_fresh_set_after_a_bad_signature_is_an_unknown_key(
+        self, service, rsa_key, other_rsa_key
+    ):
+        token = _sign(rsa_key, _valid_claims())
+        gone = {"keys": [{**rsa_key.as_dict(private=False), "kid": "older-kid"}]}
+        fetch = MagicMock(side_effect=[_public_jwks(other_rsa_key), gone])
+        with (
+            patch.object(service, "fetch_jwks", fetch),
+            pytest.raises(core_exceptions.DomainError) as exc_info,
+        ):
+            _verify(service, token, JWKS_URI, ISS, AUD)
+        assert exc_info.value.status_code == status.HTTP_401_UNAUTHORIZED
+        assert "unknown key" in exc_info.value.detail.lower()
+        assert fetch.call_count == 2
+
     def test_a_known_kid_does_not_refetch(self, service, rsa_key):
         token = _sign(rsa_key, _valid_claims())
         fetch = MagicMock(return_value=_public_jwks(rsa_key))

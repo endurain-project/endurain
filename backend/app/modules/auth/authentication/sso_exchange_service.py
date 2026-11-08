@@ -227,9 +227,7 @@ def exchange_tokens_for_session(
             db,
         )
         issued_device_id = sign_in.device_id
-        with jasil_audit.audit_context(
-            actor_type=jasil_audit.ActorType.USER, actor_id=str(user.id), credential_type="oauth"
-        ):
+        with login_audit_integration.acting_as_user(user.id):
             jasil_audit.stage(
                 db,
                 login_audit_actions.LOGIN,

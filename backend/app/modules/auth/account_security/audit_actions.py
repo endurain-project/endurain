@@ -1,10 +1,9 @@
-"""Audit actions written by the account-security package: credential and session changes, and step-up checks.
+"""Audit actions written by the account-security package: credential and session changes.
 
 Ids are stable forever: rows outlive the code. ``details`` carry ids, counts and enumerated values only, never a
 password, a code or a key.
 """
 
-from enum import StrEnum
 from typing import ClassVar
 
 import jasil.audit as jasil_audit
@@ -12,22 +11,6 @@ from jasil.event_versioning import VersionedPayload
 from pydantic import ConfigDict
 
 import modules.auth.sessions.audit_actions as sessions_audit_actions
-
-
-class StepUpMethod(StrEnum):
-    """How a step-up re-authentication was attempted; ``UNSPECIFIED`` when a lockout refused it before any method."""
-
-    PASSWORD = "password"
-    MFA_CODE = "mfa_code"
-    IDENTITY_PROVIDER = "identity_provider"
-    UNSPECIFIED = "unspecified"
-
-
-class StepUpFailureReason(StrEnum):
-    """Why a step-up re-authentication was refused."""
-
-    INVALID_CREDENTIALS = "invalid_credentials"
-    LOCKED_OUT = "locked_out"
 
 
 class BackupCodesDetails(VersionedPayload):
@@ -72,22 +55,6 @@ class IdentityLinkDetails(VersionedPayload):
     SCHEMA_VERSION: ClassVar[int] = 1
 
     idp_id: int
-
-
-class StepUpDetails(VersionedPayload):
-    """Details of ``auth.step_up.verify``.
-
-    Attributes:
-        method: How the re-authentication was attempted.
-        reason: Why it was refused; None on success.
-    """
-
-    model_config = ConfigDict(extra="forbid")
-
-    SCHEMA_VERSION: ClassVar[int] = 1
-
-    method: StepUpMethod
-    reason: StepUpFailureReason | None = None
 
 
 PASSWORD_CHANGE = jasil_audit.AuditAction(
@@ -187,15 +154,6 @@ IDENTITY_LINK_UNLINK = jasil_audit.AuditAction(
     details_model=IdentityLinkDetails,
 )
 
-STEP_UP_VERIFY = jasil_audit.AuditAction(
-    id="auth.step_up.verify",
-    category=jasil_audit.Category.AUTHENTICATION,
-    severity=jasil_audit.Severity.MEDIUM,
-    description_key="audit.auth.step_up.verify",
-    description_default="A sensitive action asked the user to confirm who they are",
-    details_model=StepUpDetails,
-)
-
 #: Every action this package writes, registered by the composition root.
 ACTIONS: tuple[jasil_audit.AuditAction, ...] = (
     PASSWORD_CHANGE,
@@ -209,5 +167,4 @@ ACTIONS: tuple[jasil_audit.AuditAction, ...] = (
     API_KEY_REVOKE,
     API_KEY_DELETE,
     IDENTITY_LINK_UNLINK,
-    STEP_UP_VERIFY,
 )
