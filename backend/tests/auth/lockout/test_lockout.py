@@ -2,16 +2,18 @@
 
 import hashlib
 from datetime import UTC, datetime, timedelta
-from unittest.mock import MagicMock
+from unittest.mock import MagicMock, patch
 
 import pytest
 from jasil.backends.state_memory import MemoryState
 from jasil.providers import StateBackendUnavailableError
 
+import core.key_derivation as core_key_derivation
 import modules.auth.account_security.step_up_store as step_up_store_module
 import modules.auth.authentication.failed_login_store as failed_login_store
 import modules.auth.lockout.contracts as lockout_contracts
 import modules.auth.lockout.integration_service as lockout_integration
+import modules.auth.lockout.lockout_store as lockout_store
 
 
 class TestNormalizeUsernameKey:
@@ -59,9 +61,29 @@ class TestUsernameLogIdentifier:
         assert "supersensitive" not in identifier
         assert "example.com" not in identifier
 
-    def test_hash_matches_sha256_of_normalized_username(self):
-        expected = hashlib.sha256(b"alice@example.com").hexdigest()
-        assert lockout_integration.username_log_identifier(" Alice%40Example.COM ") == f"username_hash={expected}"
+    def test_identifier_is_not_the_plain_sha256_of_the_username(self):
+        plain = hashlib.sha256(b"alice@example.com").hexdigest()
+        identifier = lockout_integration.username_log_identifier(" Alice%40Example.COM ")
+        assert identifier != f"username_hash={plain}"
+        assert plain not in identifier
+
+    def test_identifier_is_stable_and_as_long_as_the_plain_digest(self):
+        identifier = lockout_integration.username_log_identifier("alice")
+        assert identifier == lockout_integration.username_log_identifier("alice")
+        assert len(identifier.removeprefix("username_hash=")) == 64
+
+    def test_refuses_to_fingerprint_without_a_secret_key(self):
+        with patch("core.key_derivation.core_config.read_secret", return_value=""):
+            core_key_derivation.derive_keys.cache_clear()
+            try:
+                with pytest.raises(ValueError, match="SECRET_KEY"):
+                    lockout_integration.username_log_identifier("alice")
+            finally:
+                core_key_derivation.derive_keys.cache_clear()
+
+    def test_lockout_state_key_still_uses_the_plain_digest(self):
+        plain = hashlib.sha256(b"alice@example.com").hexdigest()
+        assert lockout_store._username_digest(" Alice%40Example.COM ") == plain
 
     def test_same_canonical_form_same_identifier(self):
         assert lockout_integration.username_log_identifier(

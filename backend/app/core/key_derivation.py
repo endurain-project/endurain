@@ -33,6 +33,10 @@ EMAIL_TOKEN: Final = "email-token"  # noqa: S105 - purpose name, not a credentia
 CAPABILITY_URLS: Final = "capability-urls"
 
 
+#: Keys the username fingerprint written to security logs, so a log reader cannot confirm a guessed username.
+USERNAME_LOG: Final = "username-log"
+
+
 @functools.cache
 def derive_keys(purpose: str) -> tuple[str, ...]:
     """Return the keys for a purpose, one per ``SECRET_KEY`` entry.

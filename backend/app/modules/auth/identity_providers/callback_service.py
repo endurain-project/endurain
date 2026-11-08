@@ -532,12 +532,11 @@ class CallbackService:
                     user = user_provisioning_service.update_user_from_idp(user, idp, userinfo, db)
 
                     logger.info(
-                        "User <username_log_id> (id=<link_user_id>) linked IdP <name> (subject=<subject>)",
+                        "User <username_log_id> (id=<link_user_id>) linked IdP <name>",
                         extra=core_logger.context(
                             username_log_id=lockout_integration.username_log_identifier(user.username),
                             link_user_id=link_user_id,
                             name=idp.name,
-                            subject=subject,
                         ),
                     )
 

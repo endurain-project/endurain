@@ -1,5 +1,7 @@
 """Shared-state implementation of progressive authentication lockout."""
 
+import hashlib
+import hmac
 from collections.abc import Callable
 from datetime import UTC, datetime
 from typing import NoReturn
@@ -8,6 +10,7 @@ from urllib.parse import unquote
 from jasil.providers import StateBackendUnavailableError, StateProvider
 
 import core.hashing as core_hashing
+import core.key_derivation as core_key_derivation
 import modules.auth.lockout.contracts as lockout_contracts
 
 _AUTH_KEY_PREFIX = "endurain:auth"
@@ -23,8 +26,26 @@ def _username_digest(username: str) -> str:
 
 
 def username_log_identifier(username: str) -> str:
-    """Return a non-reversible identifier suitable for security logs."""
-    return f"username_hash={_username_digest(username)}"
+    """Return a keyed, non-reversible identifier suitable for security logs.
+
+    The identifier is the HMAC-SHA256 of the normalized username under a key derived from ``SECRET_KEY``, in full
+    (64 hex characters, the length of the plain digest it replaces), so a reader of the logs cannot confirm a guessed
+    username and two entries about one username still match.
+
+    Args:
+        username: The username as submitted.
+
+    Returns:
+        ``username_hash=`` followed by the keyed digest.
+
+    Raises:
+        ValueError: If ``SECRET_KEY`` is not configured.
+    """
+    key = core_key_derivation.derive_key(core_key_derivation.USERNAME_LOG)
+    if key is None:
+        raise ValueError("SECRET_KEY is not configured")
+    digest = hmac.new(key.encode(), normalize_username_key(username).encode(), hashlib.sha256).hexdigest()
+    return f"username_hash={digest}"
 
 
 def _raise_store_unavailable(err: StateBackendUnavailableError) -> NoReturn:
