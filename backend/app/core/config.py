@@ -56,6 +56,10 @@ SUPPORTED_FILE_FORMATS = [
 ]  # used to screen bulk import files
 
 
+# RFC 3986 URI scheme, lower-cased: a letter, then letters, digits, "+", "-" or ".".
+# Must match the frontend check in src/composables/useSafeRedirect.ts.
+URI_SCHEME_PATTERN = re.compile(r"[a-z][a-z0-9+.-]*")
+
 # Settings — every value driven by an environment variable.
 # RFC 1123 hostname: dot-separated labels of letters, digits and inner hyphens.
 _HOSTNAME_PATTERN = re.compile(
@@ -351,12 +355,23 @@ class Settings(BaseSettings):
     @field_validator("ALLOWED_REDIRECT_SCHEMES", mode="before")
     @classmethod
     def _parse_allowed_schemes(cls, v):
-        """Accept comma-separated env value or already-parsed iterable."""
+        """Accept comma-separated env value or already-parsed iterable.
+
+        Entries are lower-cased. An entry that is not a valid URI scheme is dropped with a warning:
+        a browser cannot open a redirect that uses it.
+        """
         if v is None or v == "":
             return set()
-        if isinstance(v, str):
-            return {s.strip().lower() for s in v.split(",") if s.strip()}
-        return {str(s).strip().lower() for s in v if str(s).strip()}
+        entries = v.split(",") if isinstance(v, str) else (str(s) for s in v)
+        schemes = {s.strip().lower() for s in entries if s.strip()}
+        invalid = sorted(s for s in schemes if not URI_SCHEME_PATTERN.fullmatch(s))
+        if invalid:
+            logger.warning(
+                "Ignoring ALLOWED_REDIRECT_SCHEMES entries that are not valid URI schemes "
+                f"(letters, digits, '+', '-' and '.' only, starting with a letter): {', '.join(invalid)}",
+                extra=core_logger.context(console=True),
+            )
+        return schemes.difference(invalid)
 
     @field_validator("TRUSTED_PROXIES", mode="before")
     @classmethod

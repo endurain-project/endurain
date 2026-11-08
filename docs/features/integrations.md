@@ -10,7 +10,17 @@ RunnerUp currently **does not** support login with MFA.
 
 ## Gadgetbridge
 
-[Gadgetbridge](https://gadgetbridge.org/) is an Android app for wearables. It signs in to Endurain through the system browser using SSO and a custom redirect scheme. An administrator must allow that scheme by adding `gadgetbridge` to `ALLOWED_REDIRECT_SCHEMES` (for example `endurain,gadgetbridge`); see [advanced setup](../getting-started/advanced-setup.md) and [OAuth/SSO and PKCE](../integrate/oauth-sso-pkce.md).
+[Gadgetbridge](https://gadgetbridge.org/) is an Android app for wearables. It signs in to Endurain through the system browser using SSO, with a custom redirect scheme equal to the Android package name of the installed build. An administrator must add that scheme to `ALLOWED_REDIRECT_SCHEMES` (for example `endurain,nodomain.freeyourgadget.gadgetbridge`); see [advanced setup](../getting-started/advanced-setup.md) and [OAuth/SSO and PKCE](../integrate/oauth-sso-pkce.md).
+
+| Gadgetbridge build | Redirect scheme |
+| --- | --- |
+| Release (F-Droid) | `nodomain.freeyourgadget.gadgetbridge` |
+| Nightly | `nodomain.freeyourgadget.gadgetbridge.nightly` |
+| Nightly without Pebble | `nodomain.freeyourgadget.gadgetbridge.nightly-nopebble` |
+| Bangle.js | `com.espruino.gadgetbridge.banglejs` |
+| Bangle.js nightly | `com.espruino.gadgetbridge.banglejs.nightly` |
+
+A scheme may only contain letters, digits, `+`, `-` and `.`, so the nightly without Pebble build uses `nightly-nopebble`, not its package name `nightly_nopebble`. Entries with other characters are ignored with a warning at startup.
 
 ## Garmin Connect
 

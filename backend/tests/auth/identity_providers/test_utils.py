@@ -10,6 +10,7 @@ from modules.auth.identity_providers.utils import (
     _secure_compare,
     get_idp_template,
     get_idp_templates,
+    is_custom_scheme_redirect,
     validate_pkce_challenge,
     validate_pkce_verifier,
     validate_redirect_url,
@@ -732,3 +733,69 @@ class TestValidateRedirectUrl:
         with pytest.raises(HTTPException) as exc_info:
             validate_redirect_url("javascript:alert(1)")
         assert exc_info.value.status_code == 400
+
+    def test_dotted_and_dashed_scheme_allowed_when_configured(self):
+        """An application-id scheme with dots and dashes is a valid URI scheme.
+
+        Asserts:
+            - No exception for a configured Gadgetbridge nopebble callback
+        """
+        scheme = "nodomain.freeyourgadget.gadgetbridge.nightly-nopebble"
+        with patch(
+            "modules.auth.identity_providers.utils.core_config.settings.ALLOWED_REDIRECT_SCHEMES",
+            {scheme},
+        ):
+            validate_redirect_url(f"{scheme}://endurain/oauth/callback")
+
+    def test_invalid_scheme_syntax_is_rejected_even_when_configured(self):
+        """A scheme outside RFC 3986 syntax must be rejected, configured or not.
+
+        Browsers do not treat ``a_b://x`` as a custom-scheme URL, so the frontend
+        could never hand the session over to it.
+
+        Asserts:
+            - HTTPException 400 naming the scheme as invalid
+        """
+        scheme = "nodomain.freeyourgadget.gadgetbridge.nightly_nopebble"
+        with (
+            patch(
+                "modules.auth.identity_providers.utils.core_config.settings.ALLOWED_REDIRECT_SCHEMES",
+                {scheme},
+            ),
+            pytest.raises(HTTPException) as exc_info,
+        ):
+            validate_redirect_url(f"{scheme}://endurain/oauth/callback")
+        assert exc_info.value.status_code == 400
+        assert "not a valid uri scheme" in exc_info.value.detail.lower()
+
+
+class TestIsCustomSchemeRedirect:
+    """Test suite for is_custom_scheme_redirect function."""
+
+    @pytest.mark.parametrize(
+        "redirect",
+        [
+            "endurain://callback",
+            "nodomain.freeyourgadget.gadgetbridge.nightly-nopebble://endurain/oauth/callback",
+            "com.espruino.gadgetbridge.banglejs.nightly://endurain/oauth/callback",
+        ],
+    )
+    def test_valid_custom_scheme(self, redirect):
+        """A syntactically valid custom scheme is a custom-scheme redirect."""
+        assert is_custom_scheme_redirect(redirect) is True
+
+    @pytest.mark.parametrize(
+        "redirect",
+        [
+            None,
+            "",
+            "/dashboard",
+            "https://evil.com",
+            "a_b://callback",
+            "1app://callback",
+            "://callback",
+        ],
+    )
+    def test_not_custom_scheme(self, redirect):
+        """Paths, HTTP(S) URLs and invalid scheme syntax are not custom-scheme redirects."""
+        assert is_custom_scheme_redirect(redirect) is False
