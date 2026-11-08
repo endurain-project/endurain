@@ -59,6 +59,14 @@ def validate_redirect_url(redirect: str | None) -> None:
     # Handle custom URI schemes (e.g., gadgetbridge://callback)
     if "://" in value:
         scheme = value.split("://", 1)[0].lower()
+        if not core_config.URI_SCHEME_PATTERN.fullmatch(scheme):
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=(
+                    f"Redirect scheme '{scheme}' is not a valid URI scheme: use only letters, digits, "
+                    "'+', '-' and '.', starting with a letter."
+                ),
+            )
         allowed = core_config.settings.ALLOWED_REDIRECT_SCHEMES
         if scheme not in allowed:
             raise HTTPException(
@@ -102,7 +110,10 @@ def is_custom_scheme_redirect(redirect: str | None) -> bool:
     if value.startswith("http://") or value.startswith("https://"):
         return False
 
-    return "://" in value
+    if "://" not in value:
+        return False
+
+    return core_config.URI_SCHEME_PATTERN.fullmatch(value.split("://", 1)[0].lower()) is not None
 
 
 def validate_pkce_challenge(code_challenge: str, code_challenge_method: str) -> None:

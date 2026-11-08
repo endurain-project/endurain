@@ -465,7 +465,7 @@ X-Client-Type: mobile
 ```
 
 !!! note "Custom Scheme Auto-Detection"
-    When using a custom URI scheme redirect (e.g., `gadgetbridge://callback`), the backend automatically detects this as a mobile flow and sets the client type to `mobile`. This means the `X-Client-Type: mobile` header is optional for custom scheme redirects. However, including it is still recommended for clarity and consistency.
+    When using a custom URI scheme redirect (e.g., `myapp://callback`), the backend automatically detects this as a mobile flow and sets the client type to `mobile`. This means the `X-Client-Type: mobile` header is optional for custom scheme redirects. However, including it is still recommended for clarity and consistency.
 
     If your mobile platform cannot attach custom headers when directly opening a browser URL, you can still use the direct URL without the header and rely on the custom scheme for auto-detection:
     ```http
@@ -478,7 +478,7 @@ X-Client-Type: mobile
 https://your-endurain-instance.com/api/v1/public/idp/login/{idp_slug}?code_challenge={challenge}&code_challenge_method=S256&redirect={custom_scheme}://callback
 ```
 
-The `{custom_scheme}` (e.g., `endurain,gadgetbridge`) must be configured by the Endurain
+The `{custom_scheme}` (e.g., `endurain` or `myapp`) must be configured by the Endurain
 administrator via `ALLOWED_REDIRECT_SCHEMES` (see [Configuration](auth-reference.md#configuration)).
 
 **Step 3:** User completes SSO. The system browser is redirected to:
@@ -512,8 +512,9 @@ X-Client-Type: mobile
 | -------------- | ------- | ----- |
 | `/dashboard` | ✅ | Relative paths always allowed |
 | `/settings?tab=devices` | ✅ | Query strings OK in relative paths |
-| `gadgetbridge://callback` | ✅ | If `gadgetbridge` in `ALLOWED_REDIRECT_SCHEMES`; automatically detected as mobile client type |
-| `myapp://callback` | ❌ | If `myapp` not configured — 400 returned |
+| `myapp://callback` | ✅ | If `myapp` in `ALLOWED_REDIRECT_SCHEMES`; automatically detected as mobile client type |
+| `otherapp://callback` | ❌ | If `otherapp` not configured, 400 returned |
+| `my_app://callback` | ❌ | Not a valid URI scheme (`_`), 400 returned even if configured |
 | `https://evil.com` | ❌ | External HTTP URLs always rejected |
 | `http://localhost` | ❌ | External HTTP URLs always rejected |
 | `/../etc/passwd` | ❌ | Path traversal rejected |
