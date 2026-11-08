@@ -6,6 +6,7 @@ import { HttpError } from '@/services/http'
 const mocks = vi.hoisted(() => ({
   route: { query: {} as Record<string, unknown> },
   isAuthenticated: false,
+  verifier: 'verifier-123',
   completeTokenLogin: vi.fn<(...args: unknown[]) => Promise<void>>(),
   navigateAfterLogin: vi.fn<(...args: unknown[]) => void>(),
   exchangeSessionForTokens: vi.fn<(...args: unknown[]) => Promise<unknown>>(),
@@ -51,7 +52,7 @@ vi.mock('@/services/identityProviders', () => ({
 }))
 
 vi.mock('@/features/auth/utils/pkce', () => ({
-  generateCodeVerifier: () => 'verifier-123',
+  generateCodeVerifier: () => mocks.verifier,
   generateCodeChallenge: () => Promise.resolve('challenge-xyz'),
 }))
 
@@ -71,6 +72,7 @@ const originalLocation = window.location
 beforeEach(() => {
   mocks.route.query = {}
   mocks.isAuthenticated = false
+  mocks.verifier = 'verifier-123'
   vi.clearAllMocks()
   sessionStorage.clear()
   // jsdom's window.location.assign isn't spyable; replace the whole location.
@@ -93,7 +95,7 @@ describe('startSsoLogin', () => {
     const result = await startSsoLogin('acme')
 
     expect(result).toEqual({ status: 'redirecting' })
-    expect(JSON.parse(sessionStorage.getItem('pkce_verifier_acme') ?? '{}')).toMatchObject({
+    expect(JSON.parse(sessionStorage.getItem('pkce_verifier') ?? '{}')).toMatchObject({
       verifier: 'verifier-123',
     })
     expect(assignMock).toHaveBeenCalledTimes(1)
@@ -113,7 +115,7 @@ describe('processSsoCallback', () => {
 
   it('exchanges the session + stored verifier for tokens and completes login', async () => {
     sessionStorage.setItem(
-      'pkce_verifier_acme',
+      'pkce_verifier',
       JSON.stringify({ verifier: 'verifier-123', createdAt: Date.now() }),
     )
     mocks.route.query = { sso: 'success', session_id: 'sso-session' }
@@ -127,7 +129,7 @@ describe('processSsoCallback', () => {
     expect(mocks.completeTokenLogin).toHaveBeenCalledWith(tokenExchange)
     expect(mocks.navigateAfterLogin).toHaveBeenCalled()
     // The single-use verifier is cleared after a successful exchange.
-    expect(sessionStorage.getItem('pkce_verifier_acme')).toBeNull()
+    expect(sessionStorage.getItem('pkce_verifier')).toBeNull()
   })
 
   it('fails when no PKCE verifier is stored', async () => {
@@ -143,7 +145,7 @@ describe('processSsoCallback', () => {
 
   it('fails and removes expired PKCE verifiers', async () => {
     sessionStorage.setItem(
-      'pkce_verifier_acme',
+      'pkce_verifier',
       JSON.stringify({ verifier: 'verifier-123', createdAt: Date.now() - 10 * 60 * 1000 - 1 }),
     )
     mocks.route.query = { sso: 'success', session_id: 'sso-session' }
@@ -153,35 +155,23 @@ describe('processSsoCallback', () => {
 
     expect(result).toEqual({ status: 'error', messageKey: 'login.ssoTokenExchangeFailed' })
     expect(mocks.exchangeSessionForTokens).not.toHaveBeenCalled()
-    expect(sessionStorage.getItem('pkce_verifier_acme')).toBeNull()
+    expect(sessionStorage.getItem('pkce_verifier')).toBeNull()
   })
 
-  it('does not clear unrelated PKCE verifiers on callback failure', async () => {
-    sessionStorage.setItem(
-      'pkce_verifier_acme',
-      JSON.stringify({ verifier: 'verifier-123', createdAt: Date.now() }),
-    )
-    sessionStorage.setItem(
-      'pkce_verifier_beta',
-      JSON.stringify({ verifier: 'verifier-beta', createdAt: Date.now() }),
-    )
+  it('uses the verifier of the latest start when a second start overwrites the first', async () => {
+    const { startSsoLogin, processSsoCallback } = useSsoLogin()
+    mocks.verifier = 'verifier-first'
+    await startSsoLogin('acme')
+    mocks.verifier = 'verifier-second'
+    await startSsoLogin('beta')
     mocks.route.query = { sso: 'success', session_id: 'sso-session' }
-    mocks.exchangeSessionForTokens.mockRejectedValue(
-      new HttpError(
-        400,
-        'Bad Request',
-        'Invalid code_verifier',
-        'urn:endurain:error:invalid-input',
-      ),
-    )
+    mocks.exchangeSessionForTokens.mockResolvedValue(tokenExchange)
 
-    const { processSsoCallback } = useSsoLogin()
     const result = await processSsoCallback()
 
-    expect(result).toEqual({ status: 'error', messageKey: 'login.ssoTokenExchangeFailed' })
-    expect(JSON.parse(sessionStorage.getItem('pkce_verifier_beta') ?? '{}')).toMatchObject({
-      verifier: 'verifier-beta',
-    })
+    expect(result).toEqual({ status: 'completed' })
+    expect(mocks.exchangeSessionForTokens).toHaveBeenCalledWith('sso-session', 'verifier-second')
+    expect(sessionStorage.getItem('pkce_verifier')).toBeNull()
   })
 
   describe('an account with MFA enabled', () => {
@@ -194,7 +184,7 @@ describe('processSsoCallback', () => {
 
     function storeVerifier(): void {
       sessionStorage.setItem(
-        'pkce_verifier_acme',
+        'pkce_verifier',
         JSON.stringify({ verifier: 'verifier-123', createdAt: Date.now() }),
       )
       mocks.route.query = { sso: 'success', session_id: 'sso-session' }
@@ -209,7 +199,7 @@ describe('processSsoCallback', () => {
 
       expect(result).toEqual({ status: 'mfa-required' })
       expect(mocks.completeTokenLogin).not.toHaveBeenCalled()
-      expect(sessionStorage.getItem('pkce_verifier_acme')).not.toBeNull()
+      expect(sessionStorage.getItem('pkce_verifier')).not.toBeNull()
     })
 
     it('exchanges the same session with the code and signs in', async () => {
@@ -230,7 +220,7 @@ describe('processSsoCallback', () => {
         expect.objectContaining({ access_token: 'sso-access' }),
       )
       expect(mocks.navigateAfterLogin).toHaveBeenCalled()
-      expect(sessionStorage.getItem('pkce_verifier_acme')).toBeNull()
+      expect(sessionStorage.getItem('pkce_verifier')).toBeNull()
     })
 
     it('lets the user retry after a wrong code', async () => {
@@ -293,6 +283,29 @@ describe('processSsoCallback', () => {
       expect(mocks.completeTokenLogin).not.toHaveBeenCalled()
       expect(mocks.routerReplace).not.toHaveBeenCalledWith({ name: 'home' })
     })
+
+    it.each([
+      ['endurain://native-callback', 'endurain://native-callback?session_id=sso-session'],
+      ['endurain://cb?a=1', 'endurain://cb?a=1&session_id=sso-session'],
+      ['endurain://cb#frag', 'endurain://cb?session_id=sso-session#frag'],
+      ['endurain://cb?a=1#frag', 'endurain://cb?a=1&session_id=sso-session#frag'],
+      ['endurain://cb#frag?x=1', 'endurain://cb?session_id=sso-session#frag?x=1'],
+    ])(
+      'puts the session_id of %s in the query, before any fragment',
+      async (redirect, expected) => {
+        mocks.route.query = {
+          sso: 'success',
+          session_id: 'sso-session',
+          external_redirect: 'true',
+          redirect,
+        }
+
+        const { processSsoCallback } = useSsoLogin()
+        await processSsoCallback()
+
+        expect(window.location.href).toBe(expected)
+      },
+    )
 
     it('never navigates the browser to an internal path just because the URL says external_redirect', async () => {
       // The flag is attacker-controllable; with no matching deep link and no stored

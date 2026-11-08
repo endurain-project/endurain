@@ -11,7 +11,7 @@ import { dropQueryParam } from '@/composables/useRouteQuery'
 import { getQueryString, useSafeRedirect } from '@/composables/useSafeRedirect'
 import { useTelemetry } from '@/composables/useTelemetry'
 
-const PKCE_PREFIX = 'pkce_verifier_'
+const PKCE_KEY = 'pkce_verifier'
 const PKCE_VERIFIER_TTL_MS = 10 * 60 * 1000
 const MFA_REQUIRED_PROBLEM = 'urn:endurain:error:mfa-required'
 
@@ -33,39 +33,17 @@ export type SsoCallbackResult =
 /** An SSO session whose exchange waits for the account's MFA code. */
 interface PendingSsoMfa {
   sessionId: string
-  storedKey: string
   verifier: string
 }
 
 /**
- * Finds the PKCE verifier stored before redirecting to the IdP.
+ * Reads the stored PKCE verifier and removes it when expired or malformed.
  *
- * @returns Verifier plus storage key, or `null` when absent.
- */
-function findStoredPkceVerifier(): { key: string; verifier: string } | null {
-  const now = Date.now()
-  for (let index = 0; index < sessionStorage.length; index += 1) {
-    const key = sessionStorage.key(index)
-    if (key?.startsWith(PKCE_PREFIX)) {
-      const stored = readStoredPkceVerifier(key, now)
-      if (stored) {
-        return { key, verifier: stored.verifier }
-      }
-    }
-  }
-  return null
-}
-
-/**
- * Reads a stored PKCE verifier and removes it when expired or malformed.
- *
- * @param key - Storage key to read.
- * @param now - Current timestamp used for TTL validation.
  * @returns Stored verifier, or `null` when unavailable.
  */
-function readStoredPkceVerifier(key: string, now = Date.now()): StoredPkceVerifier | null {
+function readStoredPkceVerifier(): StoredPkceVerifier | null {
   try {
-    const raw = sessionStorage.getItem(key)
+    const raw = sessionStorage.getItem(PKCE_KEY)
     if (!raw) {
       return null
     }
@@ -75,45 +53,31 @@ function readStoredPkceVerifier(key: string, now = Date.now()): StoredPkceVerifi
       typeof parsed.verifier !== 'string' ||
       parsed.verifier.length === 0 ||
       typeof parsed.createdAt !== 'number' ||
-      now - parsed.createdAt > PKCE_VERIFIER_TTL_MS
+      Date.now() - parsed.createdAt > PKCE_VERIFIER_TTL_MS
     ) {
-      sessionStorage.removeItem(key)
+      sessionStorage.removeItem(PKCE_KEY)
       return null
     }
 
     return { verifier: parsed.verifier, createdAt: parsed.createdAt }
   } catch {
-    sessionStorage.removeItem(key)
+    sessionStorage.removeItem(PKCE_KEY)
     return null
   }
 }
 
 /**
  * Stores a verifier with a short TTL so abandoned redirects cannot linger for
- * the lifetime of the browser tab.
+ * the lifetime of the browser tab. A later start replaces an earlier one, so the
+ * callback always uses the verifier of the latest sign-in.
  *
- * @param slug - Provider slug.
  * @param verifier - PKCE verifier to store.
  */
-function storePkceVerifier(slug: string, verifier: string): void {
-  cleanupExpiredPkceVerifiers()
+function storePkceVerifier(verifier: string): void {
   sessionStorage.setItem(
-    `${PKCE_PREFIX}${slug}`,
+    PKCE_KEY,
     JSON.stringify({ verifier, createdAt: Date.now() } satisfies StoredPkceVerifier),
   )
-}
-
-/**
- * Removes expired or malformed PKCE verifier records only.
- */
-function cleanupExpiredPkceVerifiers(): void {
-  const now = Date.now()
-  for (let index = sessionStorage.length - 1; index >= 0; index -= 1) {
-    const key = sessionStorage.key(index)
-    if (key?.startsWith(PKCE_PREFIX)) {
-      readStoredPkceVerifier(key, now)
-    }
-  }
 }
 
 /**
@@ -143,7 +107,7 @@ export function useSsoLogin() {
     const tokenData = mfaCode
       ? await exchangeSessionForTokens(pending.sessionId, pending.verifier, mfaCode)
       : await exchangeSessionForTokens(pending.sessionId, pending.verifier)
-    sessionStorage.removeItem(pending.storedKey)
+    sessionStorage.removeItem(PKCE_KEY)
 
     await auth.completeTokenLogin(tokenData)
     useTelemetry().trackEvent('login_succeeded', { method: 'sso' })
@@ -161,7 +125,7 @@ export function useSsoLogin() {
     try {
       const verifier = generateCodeVerifier()
       const challenge = await generateCodeChallenge(verifier)
-      storePkceVerifier(slug, verifier)
+      storePkceVerifier(verifier)
 
       const params = new URLSearchParams({
         code_challenge: challenge,
@@ -191,7 +155,6 @@ export function useSsoLogin() {
     }
 
     try {
-      cleanupExpiredPkceVerifiers()
       const sessionId = getQueryString(route.query.session_id)
       if (!sessionId) {
         throw new Error('Invalid session ID')
@@ -204,8 +167,9 @@ export function useSsoLogin() {
       // takes the normal token exchange below, which needs the stored PKCE verifier.
       const redirect = getSafeRedirect(route.query.redirect)
       if (route.query.external_redirect === 'true' && isCustomSchemeRedirect(redirect)) {
-        const separator = redirect.includes('?') ? '&' : '?'
-        window.location.href = `${redirect}${separator}session_id=${encodeURIComponent(sessionId)}`
+        const target = new URL(redirect)
+        target.searchParams.set('session_id', sessionId)
+        window.location.href = target.href
         // Custom schemes don't actually navigate the tab away, so this document
         // stays loaded. When the browser already has its own authenticated
         // session, fall back to the dashboard instead of leaving a stale login
@@ -217,12 +181,12 @@ export function useSsoLogin() {
         return { status: 'completed' }
       }
 
-      const stored = findStoredPkceVerifier()
+      const stored = readStoredPkceVerifier()
       if (!stored) {
         throw new Error('Missing PKCE verifier')
       }
 
-      const pending = { sessionId, storedKey: stored.key, verifier: stored.verifier }
+      const pending = { sessionId, verifier: stored.verifier }
       try {
         await exchangeAndSignIn(pending)
       } catch (error) {
