@@ -188,7 +188,9 @@ export const useAuthStore = defineStore('auth', () => {
    * @param challenge - The challenge the password step returned.
    * @param mfaCode - TOTP or backup code.
    * @returns Authenticated result, or the password-change step when the account needs one.
-   * @throws {HttpError} When the MFA code or the challenge is invalid or expired.
+   * @throws {HttpError} 400 when the MFA code is wrong and the challenge is still live; 401 when the challenge is
+   * unknown, expired, ended after three wrong codes, or presented from another network or client type, so the
+   * sign-in starts again.
    */
   async function verifyMfa(challenge: string, mfaCode: string): Promise<LoginResult> {
     return continueLogin(

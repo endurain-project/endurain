@@ -202,6 +202,7 @@ class TestMfaSignIn:
         store.claim_pending_login.return_value = pending_login(5)
         store.is_locked_out.return_value = False
         store.record_failed_attempt.return_value = 1
+        store.record_wrong_code.return_value = False
         request = SimpleNamespace(mfa_challenge="challenge", mfa_code="123456")
         tokens = ("sid", datetime(2999, 1, 1, tzinfo=UTC), "at", datetime(2999, 1, 1, tzinfo=UTC), "rt", "csrf")
         with (

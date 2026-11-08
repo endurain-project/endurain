@@ -187,8 +187,8 @@ class TestPasswordSignIn:
 
     def test_a_completed_mfa_sign_in_records_the_device(self, mock_db):
         store = MagicMock()
-        store.get_pending_login.return_value = pending_login(5)
-        store.claim_pending_login.return_value = pending_login(5)
+        store.get_pending_login.return_value = pending_login(5, client_network="203.0.113.7")
+        store.claim_pending_login.return_value = pending_login(5, client_network="203.0.113.7")
         store.is_locked_out.return_value = False
         with (
             patch(f"{_SERVICE}.users_integration.get_user", return_value=_USER),

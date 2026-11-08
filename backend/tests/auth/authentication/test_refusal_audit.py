@@ -336,7 +336,7 @@ class TestMfaChallengeRefusal:
             )
 
     def test_an_expired_challenge_is_a_failure_with_no_target(self, mock_db):
-        with jasil_testing.capture_audit() as audit, pytest.raises(core_exceptions.InvalidMfaCodeError):
+        with jasil_testing.capture_audit() as audit, pytest.raises(core_exceptions.UnauthenticatedError):
             self._verify(mock_db, pending=None, claimed=None)
 
         entry = audit.assert_audited(_LOGIN, outcome="failure")
@@ -352,7 +352,7 @@ class TestMfaChallengeRefusal:
     def test_a_challenge_of_the_other_client_type_is_audited_like_an_expired_one(self, mock_db):
         mobile = pending_login(5, auth_constants.ClientType.MOBILE, "c" * 43, "S256")
 
-        with jasil_testing.capture_audit() as audit, pytest.raises(core_exceptions.InvalidMfaCodeError):
+        with jasil_testing.capture_audit() as audit, pytest.raises(core_exceptions.UnauthenticatedError):
             self._verify(mock_db, pending=mobile, claimed=mobile)
 
         entry = audit.assert_audited(_LOGIN, outcome="failure")
@@ -360,7 +360,7 @@ class TestMfaChallengeRefusal:
         assert entry.target_id is None
 
     def test_a_challenge_claimed_by_a_concurrent_request_is_a_failure_that_targets_the_user(self, mock_db):
-        with jasil_testing.capture_audit() as audit, pytest.raises(core_exceptions.InvalidMfaCodeError):
+        with jasil_testing.capture_audit() as audit, pytest.raises(core_exceptions.UnauthenticatedError):
             self._verify(mock_db, pending=pending_login(5), claimed=None)
 
         entry = audit.assert_audited(_LOGIN, outcome="failure", target_type="user", target_id="5", target_owner_id="5")

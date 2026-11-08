@@ -21,6 +21,16 @@ def test_pending_login_lifecycle_and_atomic_claim():
     assert store.get_pending_login(challenge) is None
 
 
+def test_the_record_keeps_the_client_network_of_the_password_step():
+    store = pending_mfa.PendingMFALogin(MemoryState())
+    challenge = store.add_pending_login(pending_login(12, client_network="2001:db8:1:2::/64"))
+
+    record = store.get_pending_login(challenge)
+
+    assert record is not None
+    assert record.client_network == "2001:db8:1:2::/64"
+
+
 def test_the_record_keeps_the_client_type_and_the_pkce_values_of_the_password_step():
     store = pending_mfa.PendingMFALogin(MemoryState())
     challenge = store.add_pending_login(pending_login(12, auth_constants.ClientType.MOBILE, "c" * 43, "S256"))
@@ -79,6 +89,65 @@ def test_clear_for_user_removes_only_matching_user_entries():
     assert store.get_pending_login(bob) == pending_login(34)
 
 
+class TestWrongCodes:
+    def test_the_challenge_ends_on_the_last_allowed_wrong_code(self):
+        state = MemoryState()
+        store = pending_mfa.PendingMFALogin(state)
+        challenge = store.add_pending_login(pending_login(12))
+
+        ended = [store.record_wrong_code(challenge) for _ in range(pending_mfa.MFA_CHALLENGE_MAX_ATTEMPTS)]
+
+        assert ended == [False] * (pending_mfa.MFA_CHALLENGE_MAX_ATTEMPTS - 1) + [True]
+        assert pending_mfa.MFA_CHALLENGE_MAX_ATTEMPTS == 3
+        assert store.get_pending_login(challenge) is None
+        assert state.get(store._attempts_key(challenge)) is None
+
+    def test_a_challenge_below_the_cap_stays_pending(self):
+        store = pending_mfa.PendingMFALogin(MemoryState())
+        challenge = store.add_pending_login(pending_login(12))
+
+        store.record_wrong_code(challenge)
+
+        assert store.get_pending_login(challenge) == pending_login(12)
+
+    def test_the_count_is_kept_under_its_own_prefix_with_the_pending_ttl(self):
+        state = MagicMock()
+        state.incr.return_value = 1
+        store = pending_mfa.PendingMFALogin(state)
+
+        store.record_wrong_code("challenge")
+
+        key = state.incr.call_args.args[0]
+        assert key.startswith("endurain:auth:mfa:challenge-attempts:")
+        assert not key.startswith("endurain:auth:mfa:pending")
+        assert "challenge" not in key.removeprefix("endurain:auth:mfa:challenge-attempts:")
+        assert state.incr.call_args.kwargs == {"ttl_seconds": 300}
+
+    def test_a_claim_removes_the_count(self):
+        state = MemoryState()
+        store = pending_mfa.PendingMFALogin(state)
+        challenge = store.add_pending_login(pending_login(12))
+        store.record_wrong_code(challenge)
+
+        assert store.claim_pending_login(challenge) == pending_login(12)
+
+        assert state.get(store._attempts_key(challenge)) is None
+
+    def test_clear_all_removes_the_counts_and_clear_for_user_still_works_beside_them(self):
+        state = MemoryState()
+        store = pending_mfa.PendingMFALogin(state)
+        challenge = store.add_pending_login(pending_login(12))
+        store.record_wrong_code(challenge)
+
+        assert store.clear_for_user(12) == 1
+
+        other = store.add_pending_login(pending_login(34))
+        store.record_wrong_code(other)
+        store.clear_all()
+        assert state.get(store._attempts_key(other)) is None
+        assert store.get_pending_login(other) is None
+
+
 @pytest.mark.parametrize(
     ("method", "operation"),
     [
@@ -88,6 +157,7 @@ def test_clear_for_user_removes_only_matching_user_entries():
         ("delete", "delete_corrupt"),
         ("iter_keys", "clear_for_user"),
         ("delete_prefix", "clear_all"),
+        ("incr", "wrong_code"),
     ],
 )
 def test_provider_failures_become_auth_store_errors(method, operation):
@@ -105,6 +175,8 @@ def test_provider_failures_become_auth_store_errors(method, operation):
         elif operation == "delete_corrupt":
             state.get.return_value = b"invalid-record"
             store.get_pending_login("challenge")
+        elif operation == "wrong_code":
+            store.record_wrong_code("challenge")
         elif operation == "clear_for_user":
             store.clear_for_user(12)
         else:

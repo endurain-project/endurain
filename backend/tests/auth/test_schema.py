@@ -103,6 +103,10 @@ class TestAuthRouterErrors:
                 """Return a count that must stay server-side only."""
                 return 4
 
+            def record_wrong_code(self, challenge):
+                """Leave the challenge live."""
+                return False
+
         def capture_log(message, *args, **kwargs):
             """Capture warning log messages for assertions."""
             log_messages.append(f"{message} {kwargs.get('extra', {})}")
@@ -152,7 +156,7 @@ class TestAuthRouterErrors:
         self,
         monkeypatch,
     ):
-        """Test valid MFA cannot complete if pending login was claimed."""
+        """Test valid MFA cannot complete if pending login was claimed; the challenge is dead, so the answer is 401."""
 
         class PendingMFAStore:
             """Minimal pending MFA store for claim testing."""
@@ -198,5 +202,5 @@ class TestAuthRouterErrors:
                 device_id=None,
             )
 
-        assert exc_info.value.status_code == 400
-        assert exc_info.value.detail == "Invalid MFA code, backup code or backup code already used."
+        assert exc_info.value.status_code == 401
+        assert exc_info.value.detail == "Unable to authenticate with provided credentials"

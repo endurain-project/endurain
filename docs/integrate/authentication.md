@@ -81,7 +81,7 @@ Every answer of `POST /auth/login`, `POST /auth/mfa/verify` and `POST /auth/pass
 
 | `next_step` | Meaning | Body members | The client |
 | ----------- | ------- | ------------ | ---------- |
-| `mfa` | A second factor must be verified | `mfa_challenge` | Asks for the MFA code and sends it with the challenge to `POST /auth/mfa/verify` |
+| `mfa` | A second factor must be verified | `mfa_challenge` | Asks for the MFA code and sends it with the challenge to `POST /auth/mfa/verify`. The challenge lives 5 minutes, ends after 3 wrong codes (`400` each, then `401`), and is accepted only from the client network (an IPv4 address or an IPv6 /64) and client type of the password step; a dead challenge is `401` and the client restarts at `POST /auth/login` |
 | `password_change` | An administrator set the account's password, so the user must choose a new one before a session exists | `password_change_challenge` | Asks for a new password and sends it with the challenge to `POST /auth/password-change` |
 | `exchange` | A mobile client gets a session to exchange | `session_id`, `device_id` | Exchanges the session at `/auth/sessions/{session_id}/tokens` with its PKCE verifier |
 | `tokens` | The client is signed in | `session_id`, `access_token`, `expires_in`, `refresh_token_expires_in`, `token_type`, and `csrf_token` (web) or `refresh_token` and `device_id` (mobile) | Stores the tokens |

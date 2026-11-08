@@ -28,6 +28,7 @@ class LoginFailureReason(StrEnum):
     PASSWORD_SIGN_IN_DISABLED = "password_sign_in_disabled"
     INVALID_MFA_CODE = "invalid_mfa_code"
     MFA_CHALLENGE_EXPIRED = "mfa_challenge_expired"
+    MFA_CHALLENGE_NETWORK_MISMATCH = "mfa_challenge_network_mismatch"
     MFA_CHALLENGE_CLAIMED = "mfa_challenge_claimed"
     PASSWORD_CHANGE_CHALLENGE_INVALID = "password_change_challenge_invalid"
     PASSWORD_CHANGE_CHALLENGE_CLAIMED = "password_change_challenge_claimed"
@@ -50,7 +51,7 @@ class LoginDetails(VersionedPayload):
 
     model_config = ConfigDict(extra="forbid")
 
-    SCHEMA_VERSION: ClassVar[int] = 3
+    SCHEMA_VERSION: ClassVar[int] = 4
 
     method: LoginMethod
     mfa: bool = False

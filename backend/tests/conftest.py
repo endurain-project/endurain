@@ -334,6 +334,18 @@ def fast_api_app(password_hasher, token_manager, mock_db) -> FastAPI:
             if username in self._store:
                 del self._store[username]
 
+        def record_wrong_code(self, challenge: str) -> bool:
+            """
+            Leave the challenge live; the cap is covered against the real store.
+
+            Args:
+                challenge (str): The challenge the wrong code was presented with.
+
+            Returns:
+                bool: Always False.
+            """
+            return False
+
         def clear_all(self):
             """
             Clears all pending login entries from the internal store.

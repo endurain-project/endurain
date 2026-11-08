@@ -135,6 +135,42 @@ describe('LoginView MFA step', () => {
 
     expect(wrapper.text()).toContain(i18n.global.t('login.invalidMfa'))
   })
+
+  it('keeps the MFA step and reports an invalid code on a 400', async () => {
+    auth.verifyMfa.mockRejectedValue(new HttpError(400, 'Bad Request'))
+    const wrapper = mountView()
+    await toMfaStep(wrapper)
+
+    await submitCode(wrapper, '123456')
+
+    expect(wrapper.text()).toContain(i18n.global.t('login.invalidMfa'))
+    expect(wrapper.find('input[name="mfaCode"]').exists()).toBe(true)
+  })
+
+  it('returns to the sign-in form with an expiry message on a 401', async () => {
+    auth.verifyMfa.mockRejectedValue(new HttpError(401, 'Unauthorized'))
+    const wrapper = mountView()
+    await toMfaStep(wrapper)
+
+    await submitCode(wrapper, '123456')
+
+    expect(wrapper.text()).toContain(i18n.global.t('login.mfaChallengeExpired'))
+    expect(wrapper.text()).not.toContain(i18n.global.t('login.invalidMfa'))
+    expect(wrapper.find('input[name="mfaCode"]').exists()).toBe(false)
+    expect(wrapper.find('input[name="username"]').exists()).toBe(true)
+  })
+
+  it('keeps a 401 on the SSO MFA step an invalid code', async () => {
+    sso.processSsoCallback.mockResolvedValue({ status: 'mfa-required' })
+    sso.completeSsoMfa.mockRejectedValue(new HttpError(401, 'Unauthorized'))
+    const wrapper = mountView()
+    await flushPromises()
+
+    await submitCode(wrapper, '123456')
+
+    expect(wrapper.text()).toContain(i18n.global.t('login.invalidMfa'))
+    expect(wrapper.text()).not.toContain(i18n.global.t('login.mfaChallengeExpired'))
+  })
 })
 
 describe('LoginView password step errors', () => {

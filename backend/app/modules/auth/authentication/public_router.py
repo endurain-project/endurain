@@ -139,7 +139,12 @@ def login_for_access_token(
     "/mfa/verify",
     response_model=auth_schema.MFAVerifyRead,
     responses={
-        401: {"description": "The sign-in challenge is unknown or expired, or its account can no longer sign in."}
+        400: {"description": "The MFA code is wrong and the sign-in challenge is still live."},
+        401: {
+            "description": "The sign-in challenge is unknown, expired, ended after three wrong codes, or presented "
+            "from another client network or client type, so the client signs in again at `POST /auth/login`; "
+            "or its account can no longer sign in."
+        },
     },
 )
 @core_rate_limit.limiter.limit(core_rate_limit.SENSITIVE)
@@ -177,9 +182,11 @@ def verify_mfa_and_login(
     the authentication process if the code is valid. When an administrator set the
     account's password, the answer is the password-change step instead of a session.
 
-    The step carries no PKCE values: the password step recorded them with the login, and a challenge presented by
-    the other client type is refused like an unknown one. A mobile client gets a session_id to exchange for tokens
-    at /auth/sessions/{session_id}/tokens, never tokens.
+    The step carries no PKCE values: the password step recorded them with the login. The challenge lives five
+    minutes, is accepted only from the client network (an IPv4 address or an IPv6 /64) and client type of the
+    password step, and ends after three wrong codes. A wrong code is answered 400; a challenge that is unknown,
+    expired, ended or presented from another network or client type is answered 401 and the client signs in again.
+    A mobile client gets a session_id to exchange for tokens at /auth/sessions/{session_id}/tokens, never tokens.
 
     Args:
         response: The HTTP response object
@@ -199,7 +206,7 @@ def verify_mfa_and_login(
         The tokens of a web client, the session to exchange for a mobile client, or the password-change response
 
     Raises:
-        HTTPException: If no pending login found, MFA code is invalid, or user not found
+        HTTPException: If the challenge is dead, MFA code is invalid, or user not found
     """
     outcome = auth_service.verify_mfa_and_login(
         core_network.get_ip_address(request),

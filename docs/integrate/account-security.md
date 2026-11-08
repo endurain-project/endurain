@@ -215,6 +215,8 @@ X-Client-Type: web|mobile
 }
 ```
 
+The challenge lives 5 minutes. The server accepts it only from the network of the password step (the same IPv4 address, or an address in the same IPv6 /64) and from the same client type, and it ends after 3 wrong codes. A wrong code on a live challenge is `400`. An unknown, expired, ended or mismatched challenge is `401`: start again at `POST /auth/login`.
+
 !!! note "A TOTP code works once"
     The server accepts each authenticator code a single time. Submitting the same code again, on this endpoint or on any other that asks for an MFA code, fails like an invalid code until the next 30-second code appears.
 
@@ -255,11 +257,19 @@ X-Client-Type: web|mobile
 
 The bodies below show only the `detail` member. Every error is an RFC 9457 problem document with more members (`type`, `title`, `status`, `request_id`); see [Errors, concurrency and rate limits](errors-and-limits.md).
 
-- **Invalid MFA code**: HTTP 400 Bad Request. The same answer covers a wrong code, a used backup code, and an unknown or expired `mfa_challenge`, so a client cannot tell them apart
+- **Invalid MFA code**: HTTP 400 Bad Request. The same answer covers a wrong code and a used backup code on a challenge that is still live
 
 ```json
 {
   "detail": "Invalid MFA code, backup code or backup code already used."
+}
+```
+
+- **Dead `mfa_challenge`**: HTTP 401 Unauthorized with `WWW-Authenticate: Bearer`. The challenge is unknown, expired (5 minutes), ended after 3 wrong codes, or presented from another client network or client type. The answer is the same for each cause. Do not refresh or retry: send the user back to `POST /auth/login`
+
+```json
+{
+  "detail": "Unable to authenticate with provided credentials"
 }
 ```
 
@@ -272,7 +282,7 @@ The bodies below show only the `detail` member. Every error is an RFC 9457 probl
 ```
 
 ### Important Notes
-- The pending MFA login session is temporary and expires after 5 minutes
+- The pending MFA login is temporary and expires after 5 minutes. It is accepted only from the client network and client type of the password step, and ends after 3 wrong codes
 - After successful MFA verification, the pending login is automatically cleaned up
 - The user must still be active at the time of MFA verification
 - If no MFA is enabled for the user, the standard single-step authentication flow applies

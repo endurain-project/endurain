@@ -15,7 +15,11 @@ import modules.auth.lockout.integration_service as lockout_integration
 import modules.auth.mfa.totp_replay_store as mfa_totp_replay_store
 
 _PENDING_MFA_KEY_PREFIX = "endurain:auth:mfa:pending"
+_CHALLENGE_ATTEMPTS_KEY_PREFIX = "endurain:auth:mfa:challenge-attempts"
 _PENDING_MFA_TTL_SECONDS = 300
+
+#: Wrong codes one challenge takes before it ends and the client must sign in again.
+MFA_CHALLENGE_MAX_ATTEMPTS = 3
 
 AuthSecurityStoreUnavailableError = lockout_contracts.AuthSecurityStoreUnavailableError
 
@@ -28,6 +32,8 @@ class PendingLogin(BaseModel):
         client_type: The client type of the password step; the MFA step must come from the same kind.
         code_challenge: The PKCE code challenge of the password step; a mobile sign-in always carries one.
         code_challenge_method: The PKCE challenge method of the password step.
+        client_network: The client network of the password step (an IPv4 address or an IPv6 /64); the MFA step is
+            accepted only from it.
     """
 
     model_config = ConfigDict(extra="forbid", frozen=True)
@@ -36,6 +42,7 @@ class PendingLogin(BaseModel):
     client_type: auth_constants.ClientType
     code_challenge: StrictStr | None
     code_challenge_method: StrictStr | None
+    client_network: StrictStr
 
 
 @runtime_checkable
@@ -56,6 +63,10 @@ class PendingMFAStore(Protocol):
 
     def delete_pending_login(self, challenge: str) -> None:
         """Abandon a pending login."""
+        ...
+
+    def record_wrong_code(self, challenge: str) -> bool:
+        """Count a wrong code against a challenge; True when it was the last one the challenge allows."""
         ...
 
     def clear_for_user(self, user_id: int) -> int:
@@ -119,6 +130,11 @@ class PendingMFALogin:
         """Build the key for a pending MFA login from a digest of its challenge, so the store never holds it."""
         return f"{_PENDING_MFA_KEY_PREFIX}:{core_hashing.sha256_hex(challenge)}"
 
+    @staticmethod
+    def _attempts_key(challenge: str) -> str:
+        """Build the key for a challenge's wrong-code count from a digest of the challenge."""
+        return f"{_CHALLENGE_ATTEMPTS_KEY_PREFIX}:{core_hashing.sha256_hex(challenge)}"
+
     def add_pending_login(self, pending: PendingLogin) -> str:
         """Start a pending login for five minutes and return the unguessable challenge that names it.
 
@@ -149,9 +165,10 @@ class PendingMFALogin:
         return pending
 
     def claim_pending_login(self, challenge: str) -> PendingLogin | None:
-        """Atomically retrieve and remove a pending login."""
+        """Atomically retrieve and remove a pending login, and the wrong-code count of its challenge."""
         try:
             value = self._state.get_and_delete(self._pending_key(challenge))
+            self._state.delete(self._attempts_key(challenge))
         except StateBackendUnavailableError as err:
             _raise_store_unavailable(err)
         return None if value is None else _decode(value)
@@ -162,6 +179,31 @@ class PendingMFALogin:
             self._state.delete(self._pending_key(challenge))
         except StateBackendUnavailableError as err:
             _raise_store_unavailable(err)
+
+    def record_wrong_code(self, challenge: str) -> bool:
+        """Count a wrong code against a challenge and end the challenge once it has taken the allowed number.
+
+        The count lives under its own key prefix, so it never mixes with the pending logins that
+        :meth:`clear_for_user` walks, and it expires with the challenge.
+
+        Args:
+            challenge: The challenge the wrong code was presented with.
+
+        Returns:
+            True when this was the last wrong code the challenge allows and the challenge has ended.
+
+        Raises:
+            AuthSecurityStoreUnavailableError: If the state provider is unavailable.
+        """
+        try:
+            attempts = self._state.incr(self._attempts_key(challenge), ttl_seconds=_PENDING_MFA_TTL_SECONDS)
+            if attempts < MFA_CHALLENGE_MAX_ATTEMPTS:
+                return False
+            self._state.delete(self._pending_key(challenge))
+            self._state.delete(self._attempts_key(challenge))
+        except StateBackendUnavailableError as err:
+            _raise_store_unavailable(err)
+        return True
 
     def clear_for_user(self, user_id: int) -> int:
         """Remove pending MFA logins for a user."""
@@ -198,9 +240,10 @@ class PendingMFALogin:
         self._lockout.reset_attempts(username)
 
     def clear_all(self) -> None:
-        """Clear pending challenges and MFA failure counters."""
+        """Clear pending challenges, their wrong-code counts and MFA failure counters."""
         try:
             self._state.delete_prefix(f"{_PENDING_MFA_KEY_PREFIX}:")
+            self._state.delete_prefix(f"{_CHALLENGE_ATTEMPTS_KEY_PREFIX}:")
         except StateBackendUnavailableError as err:
             _raise_store_unavailable(err)
         self._lockout.clear_all()

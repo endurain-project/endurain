@@ -99,6 +99,10 @@ class FakePendingMFAStore:
         """Claim pending login."""
         return self._store.pop(challenge, None)
 
+    def record_wrong_code(self, challenge: str) -> bool:
+        """Leave the challenge live."""
+        return False
+
     def record_failed_attempt(self, username: str) -> int:
         """Record failed MFA attempt."""
         return 1
@@ -554,7 +558,7 @@ class TestMFAVerifyEndpoint:
         fake_pending_mfa_store,
     ):
         """Valid MFA code completes login."""
-        challenge = fake_pending_mfa_store.add_pending_login(pending_login(1))
+        challenge = fake_pending_mfa_store.add_pending_login(pending_login(1, client_network="testclient"))
         mock_verify_mfa.return_value = True
         mock_user = MagicMock()
         mock_user.id = 1
@@ -584,7 +588,7 @@ class TestMFAVerifyEndpoint:
         assert response.status_code == 200
         assert response.json()["access_token"] == "at-mfa"
         replay = auth_client.post("/auth/mfa/verify", json={"mfa_challenge": challenge, "mfa_code": "123456"})
-        assert replay.status_code == 400
+        assert replay.status_code == 401
 
     @patch("modules.auth.authentication.service.mfa_integration.verify_user_mfa")
     def test_mfa_verify_invalid_code_returns_400(
@@ -595,7 +599,7 @@ class TestMFAVerifyEndpoint:
         fake_pending_mfa_store,
     ):
         """Invalid MFA code returns 400."""
-        challenge = fake_pending_mfa_store.add_pending_login(pending_login(1))
+        challenge = fake_pending_mfa_store.add_pending_login(pending_login(1, client_network="testclient"))
         mock_verify_mfa.return_value = False
 
         response = auth_client.post(
@@ -625,7 +629,7 @@ class TestMFAVerifyEndpoint:
         mock_db,
     ):
         """Backup-code MFA login calls mfa_backup_codes.utils directly (through the credentials integration)."""
-        challenge = fake_pending_mfa_store.add_pending_login(pending_login(1))
+        challenge = fake_pending_mfa_store.add_pending_login(pending_login(1, client_network="testclient"))
         mock_mfa = MagicMock()
         mock_mfa.mfa_enabled = True
         mock_mfa.mfa_secret = "encrypted-secret"
@@ -675,13 +679,13 @@ class TestMFAVerifyEndpoint:
             mock_db,
         )
 
-    def test_mfa_verify_unknown_challenge_answers_like_a_wrong_code(
+    def test_mfa_verify_unknown_challenge_is_401_and_counts_against_no_account(
         self,
         auth_client,
         auth_app,
         fake_pending_mfa_store,
     ):
-        """Nothing tells an unknown challenge from a wrong code, and it counts against no account."""
+        """An unknown challenge is a dead sign-in, not a wrong code, and counts against no account."""
         fake_pending_mfa_store.record_failed_attempt = MagicMock(return_value=1)
 
         response = auth_client.post(
@@ -689,8 +693,8 @@ class TestMFAVerifyEndpoint:
             json={"mfa_challenge": UNKNOWN_CHALLENGE, "mfa_code": "123456"},
         )
 
-        assert response.status_code == 400
-        assert response.json()["detail"] == "Invalid MFA code, backup code or backup code already used."
+        assert response.status_code == 401
+        assert response.json()["detail"] == "Unable to authenticate with provided credentials"
         fake_pending_mfa_store.record_failed_attempt.assert_not_called()
 
     def test_mfa_verify_requires_the_challenge(self, auth_client, auth_app):
@@ -707,7 +711,7 @@ class TestMFAVerifyEndpoint:
         """MFA lockout returns 429."""
         from datetime import datetime, timedelta
 
-        challenge = fake_pending_mfa_store.add_pending_login(pending_login(1))
+        challenge = fake_pending_mfa_store.add_pending_login(pending_login(1, client_network="testclient"))
         fake_pending_mfa_store._locked = True
         fake_pending_mfa_store._lockout_time = datetime.now(UTC) + timedelta(minutes=5)
 
@@ -760,7 +764,7 @@ class TestMFAVerifyEndpoint:
         fake_pending_mfa_store,
     ):
         """503 when is_locked_out raises AuthSecurityStoreUnavailableError."""
-        challenge = fake_pending_mfa_store.add_pending_login(pending_login(1))
+        challenge = fake_pending_mfa_store.add_pending_login(pending_login(1, client_network="testclient"))
         fake_pending_mfa_store.is_locked_out = MagicMock(
             side_effect=lockout_contracts.AuthSecurityStoreUnavailableError("Redis down"),
         )
@@ -780,7 +784,7 @@ class TestMFAVerifyEndpoint:
         fake_pending_mfa_store,
     ):
         """503 when record_failed_attempt raises after invalid MFA code."""
-        challenge = fake_pending_mfa_store.add_pending_login(pending_login(1))
+        challenge = fake_pending_mfa_store.add_pending_login(pending_login(1, client_network="testclient"))
         mock_verify_mfa.return_value = False
         fake_pending_mfa_store.record_failed_attempt = MagicMock(
             side_effect=lockout_contracts.AuthSecurityStoreUnavailableError("Redis down"),
@@ -801,7 +805,7 @@ class TestMFAVerifyEndpoint:
         fake_pending_mfa_store,
     ):
         """503 when claim_pending_login raises after valid MFA code."""
-        challenge = fake_pending_mfa_store.add_pending_login(pending_login(1))
+        challenge = fake_pending_mfa_store.add_pending_login(pending_login(1, client_network="testclient"))
         mock_verify_mfa.return_value = True
         fake_pending_mfa_store.claim_pending_login = MagicMock(
             side_effect=lockout_contracts.AuthSecurityStoreUnavailableError("Redis down"),
@@ -824,7 +828,7 @@ class TestMFAVerifyEndpoint:
         fake_pending_mfa_store,
     ):
         """401 when user is not found after MFA verification."""
-        challenge = fake_pending_mfa_store.add_pending_login(pending_login(1))
+        challenge = fake_pending_mfa_store.add_pending_login(pending_login(1, client_network="testclient"))
         mock_verify_mfa.return_value = True
         mock_get_user.return_value = None
         response = auth_client.post(
@@ -847,7 +851,7 @@ class TestMFAVerifyEndpoint:
         fake_pending_mfa_store,
     ):
         """503 when reset_attempts raises after successful MFA."""
-        challenge = fake_pending_mfa_store.add_pending_login(pending_login(1))
+        challenge = fake_pending_mfa_store.add_pending_login(pending_login(1, client_network="testclient"))
         mock_verify_mfa.return_value = True
         mock_user = MagicMock()
         mock_user.id = 1
@@ -882,7 +886,7 @@ class TestMFAVerifyEndpoint:
         auth_app.state._client_type = "mobile"
         pkce_challenge = "E9Melhoa2OwvFrEMTJguCHaoeK1t8URWbuGJSstw-cM"
         challenge = fake_pending_mfa_store.add_pending_login(
-            pending_login(1, auth_constants.ClientType.MOBILE, pkce_challenge, "S256")
+            pending_login(1, auth_constants.ClientType.MOBILE, pkce_challenge, "S256", client_network="testclient")
         )
         mock_verify_mfa.return_value = True
         mock_user = MagicMock()

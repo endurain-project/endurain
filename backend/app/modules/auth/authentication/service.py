@@ -12,6 +12,7 @@ from sqlalchemy.orm import Session
 import core.config as core_config
 import core.exceptions as core_exceptions
 import core.logger as core_logger
+import core.network as core_network
 import core.timezone as core_timezone
 import modules.auth.access_tokens.integration_service as access_tokens_integration
 import modules.auth.authentication.audit_actions as authentication_audit_actions
@@ -43,8 +44,10 @@ import modules.users.users.schema as users_schema
 logger = core_logger.get_logger(__name__)
 
 
-#: The one answer to an MFA step that fails, whether the code or the challenge was wrong.
+#: The answer to a wrong MFA code; on the password MFA step, the challenge is still live.
 _INVALID_MFA_CODE_MESSAGE = "Invalid MFA code, backup code or backup code already used."
+#: The answer to a dead MFA challenge (unknown, expired, ended, mismatched or claimed); the client signs in again.
+_DEAD_MFA_CHALLENGE_MESSAGE = "Unable to authenticate with provided credentials"
 
 
 def _refuse_credentials(
@@ -407,7 +410,8 @@ def require_valid_mfa_code(
 ) -> None:
     """Check a TOTP or backup code, counting a failure toward the MFA lockout.
 
-    A backup code the check consumes stays consumed: the commit happens before the caller finishes the login.
+    A backup code the check accepts is consumed in the caller's transaction, not committed here: the caller commits
+    it together with the sign-in it completes, so a sign-in that is refused afterwards leaves the code usable.
 
     Args:
         username: The account's username.
@@ -451,7 +455,52 @@ def require_valid_mfa_code(
             user_id=user_id,
         )
         raise core_exceptions.InvalidMfaCodeError(_INVALID_MFA_CODE_MESSAGE)
-    db.commit()
+
+
+def _refuse_mfa_challenge(reason: login_audit_actions.LoginFailureReason, user_id: int | None = None) -> NoReturn:
+    """Audit and log a dead MFA challenge, then answer with the one message every dead challenge shares.
+
+    Args:
+        reason: Why the challenge was refused.
+        user_id: The account the challenge named, or None when it named none.
+
+    Raises:
+        UnauthenticatedError: Always, so the client signs in again.
+    """
+    logger.warning(
+        "MFA verification refused: <reason>", extra=core_logger.context(reason=reason.value, user_id=user_id)
+    )
+    login_audit_integration.record_login_refusal(
+        login_audit_actions.LoginMethod.PASSWORD,
+        jasil_audit.Outcome.FAILURE,
+        reason,
+        mfa=True,
+        user_id=user_id,
+    )
+    raise core_exceptions.UnauthenticatedError(_DEAD_MFA_CHALLENGE_MESSAGE, scheme="Bearer")
+
+
+def _end_challenge_after_wrong_code(
+    challenge: str, user_id: int, pending_mfa_store: mfa_dependencies.PendingMFAStore
+) -> None:
+    """Count a wrong code against its challenge and answer that the challenge is dead when it was the last allowed.
+
+    Args:
+        challenge: The challenge the wrong code was presented with.
+        user_id: The account the challenge belongs to.
+        pending_mfa_store: Store for pending MFA logins.
+
+    Raises:
+        UnauthenticatedError: If the wrong code ended the challenge.
+        ServiceUnavailableError: If the store is down.
+    """
+    try:
+        ended = pending_mfa_store.record_wrong_code(challenge)
+    except lockout_contracts.AuthSecurityStoreUnavailableError as err:
+        raise_auth_security_store_unavailable(err)
+    if ended:
+        logger.warning("MFA challenge ended after too many wrong codes", extra=core_logger.context(user_id=user_id))
+        raise core_exceptions.UnauthenticatedError(_DEAD_MFA_CHALLENGE_MESSAGE, scheme="Bearer")
 
 
 def finish_login(
@@ -700,7 +749,7 @@ def login_for_access_token(
 
     # Check if MFA is enabled for this user
     if mfa_integration.is_mfa_enabled_for_user(user.id, db):
-        # Store the login, with the client type and the PKCE challenge of the password step, for the MFA step
+        # Store the login, with the client type, client network and PKCE challenge of the password step, for the MFA step
         try:
             mfa_challenge = pending_mfa_store.add_pending_login(
                 mfa_dependencies.PendingLogin(
@@ -708,6 +757,7 @@ def login_for_access_token(
                     client_type=client_type,
                     code_challenge=code_challenge,
                     code_challenge_method=code_challenge_method,
+                    client_network=core_network.client_network(ip_address),
                 )
             )
         except lockout_contracts.AuthSecurityStoreUnavailableError as err:
@@ -773,9 +823,12 @@ def verify_mfa_and_login(
     password, it stores the pending password change and answers a password-change
     response instead, without a session.
 
-    The step carries no PKCE values: the login record holds the client type and the PKCE challenge of the password
-    step, and a challenge presented by the other client type is refused like an unknown one. A mobile client
-    gets a session_id to exchange for tokens at /auth/sessions/{session_id}/tokens, never tokens.
+    The step carries no PKCE values: the login record holds the client type, the client network and the PKCE
+    challenge of the password step. A challenge that is unknown, expired, ended by three wrong codes, presented by
+    the other client type or from another client network (an IPv4 address or an IPv6 /64), or claimed by a
+    concurrent request is answered 401 and the client signs in again; a wrong code on a live challenge is answered
+    400. A mobile client gets a session_id to exchange for tokens at /auth/sessions/{session_id}/tokens, never
+    tokens.
 
     Args:
         ip_address: Client address, recorded on the session
@@ -796,26 +849,20 @@ def verify_mfa_and_login(
         the password-change response
 
     Raises:
-        DomainError: If the challenge or the MFA code is invalid (answered alike), or the user is not found
+        UnauthenticatedError: If the challenge is dead, as described above, or the user is not found
+        InvalidMfaCodeError: If the MFA code is wrong and the challenge is still live
+        TooManyRequestsError: If the account is locked out from too many wrong codes
     """
-    # The challenge names the login; an unknown one, or one of the other client type, answers exactly like a wrong
-    # code and counts against no account, so neither guessing it nor knowing a username gets anyone further.
+    # The challenge names the login and counts against no account until it is found, so neither guessing it nor
+    # knowing a username gets anyone further.
     try:
         pending = pending_mfa_store.get_pending_login(mfa_request.mfa_challenge)
     except lockout_contracts.AuthSecurityStoreUnavailableError as err:
         raise_auth_security_store_unavailable(err)
     if pending is None or pending.client_type != client_type:
-        # Run a dummy Argon2 verify so the wall-clock latency of the unknown-challenge branch matches the
-        # wrong-code branch, where backup-code verification performs an Argon2 verify.
-        password_hasher.dummy_verify()
-        logger.warning("MFA verification refused: unknown or expired challenge, or another client type")
-        login_audit_integration.record_login_refusal(
-            login_audit_actions.LoginMethod.PASSWORD,
-            jasil_audit.Outcome.FAILURE,
-            login_audit_actions.LoginFailureReason.MFA_CHALLENGE_EXPIRED,
-            mfa=True,
-        )
-        raise core_exceptions.InvalidMfaCodeError(_INVALID_MFA_CODE_MESSAGE)
+        _refuse_mfa_challenge(login_audit_actions.LoginFailureReason.MFA_CHALLENGE_EXPIRED)
+    if pending.client_network != core_network.client_network(ip_address):
+        _refuse_mfa_challenge(login_audit_actions.LoginFailureReason.MFA_CHALLENGE_NETWORK_MISMATCH, pending.user_id)
 
     user_id = pending.user_id
     user = users_integration.get_user(user_id, db)
@@ -827,27 +874,20 @@ def verify_mfa_and_login(
 
     password_method = login_audit_actions.LoginMethod.PASSWORD
     refuse_while_mfa_locked_out(user.username, user_id, password_method, pending_mfa_store)
-    require_valid_mfa_code(
-        user.username, user_id, password_method, mfa_request.mfa_code, pending_mfa_store, password_hasher, db
-    )
+    try:
+        require_valid_mfa_code(
+            user.username, user_id, password_method, mfa_request.mfa_code, pending_mfa_store, password_hasher, db
+        )
+    except core_exceptions.InvalidMfaCodeError:
+        _end_challenge_after_wrong_code(mfa_request.mfa_challenge, user_id, pending_mfa_store)
+        raise
 
     try:
         claimed = pending_mfa_store.claim_pending_login(mfa_request.mfa_challenge)
     except lockout_contracts.AuthSecurityStoreUnavailableError as err:
         raise_auth_security_store_unavailable(err)
     if claimed is None or claimed.user_id != user_id:
-        logger.warning(
-            "Pending MFA login for <username_log_id> was already claimed",
-            extra=core_logger.context(username_log_id=lockout_integration.username_log_identifier(user.username)),
-        )
-        login_audit_integration.record_login_refusal(
-            password_method,
-            jasil_audit.Outcome.FAILURE,
-            login_audit_actions.LoginFailureReason.MFA_CHALLENGE_CLAIMED,
-            mfa=True,
-            user_id=user_id,
-        )
-        raise core_exceptions.InvalidMfaCodeError(_INVALID_MFA_CODE_MESSAGE)
+        _refuse_mfa_challenge(login_audit_actions.LoginFailureReason.MFA_CHALLENGE_CLAIMED, user_id)
 
     # Check if the user is still active
     users_integration.require_active_user(user)

@@ -230,6 +230,11 @@ async function submitForm(): Promise<void> {
       return
     }
     if (step === 'mfa') {
+      if (!isSsoMfaPending.value && error instanceof HttpError && error.status === 401) {
+        resetToSignIn()
+        alert.value = { kind: 'error', message: t('login.mfaChallengeExpired') }
+        return
+      }
       mfaCode.value = ''
     } else {
       password.value = ''
