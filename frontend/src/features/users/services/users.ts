@@ -2,6 +2,7 @@ import type {
   CreateUserInput,
   EditUserFields,
   ManagedUser,
+  UserDeletionStatus,
   UserDto,
   UserEditDto,
   UsersListParams,
@@ -36,6 +37,7 @@ export function mapManagedUser(dto: UserDto): ManagedUser {
     emailVerified: dto.email_verified ?? false,
     pendingEmail: dto.pending_email ?? null,
     pendingEmailExpiresAt: dto.pending_email_expires_at ?? null,
+    deletionRequestedAt: dto.deletion_requested_at ?? null,
     pendingAdminApproval: dto.pending_admin_approval ?? false,
     mfaEnabled: dto.mfa_enabled ?? false,
     externalAuthCount: dto.external_auth_count ?? 0,
@@ -335,6 +337,21 @@ export async function deleteUser(id: number, version: number, stepUp: StepUpInpu
     body: JSON.stringify({ step_up: toStepUpWire(stepUp) } satisfies StepUpRequestDto),
     responseType: 'void',
   })
+}
+
+/**
+ * Fetches where a user's queued account deletion is (admin scope `users:read_all`).
+ *
+ * @param id - The user whose deletion to read.
+ * @param signal - Optional abort signal for cancellation.
+ * @returns The deletion's state, or `null` when none is recorded.
+ * @throws {HttpError} When the request fails.
+ */
+export function fetchUserDeletion(
+  id: number,
+  signal?: AbortSignal,
+): Promise<UserDeletionStatus | null> {
+  return apiFetch<UserDeletionStatus | null>(`/users/${id}/deletion`, { signal })
 }
 
 /**

@@ -331,6 +331,11 @@ export const queryKeys = {
      */
     detail: (id: number) => ['users', 'detail', id] as const,
     /**
+     * @param id - The user id.
+     * @returns A query key for the state of the user's queued account deletion.
+     */
+    deletion: (id: number) => ['users', 'deletion', id] as const,
+    /**
      * A user's public-facing profile (name/username/city/avatar), as shown on
      * the `/user/:id` page and in follower/following lists. Distinct from
      * {@link detail} (the admin `ManagedUser` shape) so the two never collide in

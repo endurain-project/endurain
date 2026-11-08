@@ -50,6 +50,16 @@ def test_a_queued_deletion_deactivates_the_user_and_is_found_once_stalled(factor
     assert _stalled(factory, requested_before=datetime.now(UTC) - timedelta(hours=1)) == []
 
 
+def test_a_queued_deletion_shows_on_the_user_read(factory):
+    with factory() as db:
+        assert users_crud.get_user_by_id(1, db).deletion_requested_at is None
+
+    _stage_and_commit(factory)
+
+    with factory() as db:
+        assert users_crud.get_user_by_id(1, db).deletion_requested_at is not None
+
+
 def test_a_user_past_the_attempt_cap_is_left_alone(factory):
     _stage_and_commit(factory)
 

@@ -9,6 +9,9 @@ export type UserEditDto = Schemas['UserAdminEdit']
 /** Raw `UserPublicRead` payload: what any signed-in or anonymous viewer may learn about a user. */
 export type PublicUserDto = Schemas['UserPublicRead']
 
+/** Where a user's queued account deletion is, as the backend reports it. */
+export type UserDeletionStatus = Schemas['UserDeletionStatus']
+
 /** Raw paginated users list payload. */
 export type UsersListResponseDto = Schemas['Page_UserRead_']
 
@@ -31,6 +34,7 @@ export type UserAccessType = Schemas['UserAccessType']
  * @property emailVerified - Whether the email has been verified.
  * @property pendingEmail - Address awaiting confirmation, or `null` when no change is pending.
  * @property pendingEmailExpiresAt - When the pending address's confirmation link expires, or `null`.
+ * @property deletionRequestedAt - When the account was queued for deletion, or `null` when it is not being deleted.
  * @property pendingAdminApproval - Whether the sign-up awaits admin approval.
  * @property mfaEnabled - Whether MFA is enabled.
  * @property externalAuthCount - Number of linked external identity providers.
@@ -59,6 +63,7 @@ export interface ManagedUser {
   emailVerified: boolean
   pendingEmail: string | null
   pendingEmailExpiresAt: string | null
+  deletionRequestedAt: string | null
   pendingAdminApproval: boolean
   mfaEnabled: boolean
   externalAuthCount: number

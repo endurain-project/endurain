@@ -17,6 +17,7 @@ const base: ManagedUser = {
   emailVerified: true,
   pendingEmail: null,
   pendingEmailExpiresAt: null,
+  deletionRequestedAt: null,
   pendingAdminApproval: true,
   mfaEnabled: false,
   externalAuthCount: 0,
@@ -39,7 +40,7 @@ function mountItem(user: ManagedUser) {
     props: { user, isSelf: false },
     global: {
       plugins: [i18n],
-      stubs: { RouterLink: { template: '<a><slot /></a>' } },
+      stubs: { RouterLink: { template: '<a><slot /></a>' }, UserDeletionBadge: true },
     },
   })
 }
@@ -79,5 +80,19 @@ describe('UserListItem name', () => {
     const wrapper = mountItem({ ...base, name: 'Ada ‮evil' })
 
     expect(wrapper.find('bdi').text()).toBe('Ada ‮evil')
+  })
+})
+
+describe('UserListItem deletion badge', () => {
+  it('marks a user whose deletion is queued', () => {
+    const wrapper = mountItem({ ...base, deletionRequestedAt: '2026-11-08T10:00:00Z' })
+
+    expect(wrapper.findComponent({ name: 'UserDeletionBadge' }).props('userId')).toBe(2)
+  })
+
+  it('leaves the mark off a user who is not being deleted', () => {
+    const wrapper = mountItem(base)
+
+    expect(wrapper.findComponent({ name: 'UserDeletionBadge' }).exists()).toBe(false)
   })
 })

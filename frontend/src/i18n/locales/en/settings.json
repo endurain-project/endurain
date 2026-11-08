@@ -33,6 +33,7 @@
       "unverified": "Unverified email",
       "pendingEmail": "Pending email change",
       "pending": "Pending approval",
+      "deleting": "Being deleted",
       "externalAuth": "External auth"
     },
     "actions": {

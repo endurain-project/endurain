@@ -392,6 +392,7 @@ class UserRead(User):
         external_auth_count: Number of external auth providers.
         pending_email: Address awaiting confirmation, which replaces ``email`` once confirmed.
         pending_email_expires_at: When the confirmation link for ``pending_email`` expires.
+        deletion_requested_at: When the account was queued for deletion, ``None`` when no deletion is queued.
     """
 
     id: StrictInt = Field(
@@ -415,6 +416,9 @@ class UserRead(User):
     )
     pending_email_expires_at: datetime | None = Field(
         default=None, description="When the confirmation link for the pending email address expires"
+    )
+    deletion_requested_at: datetime | None = Field(
+        default=None, description="When the account was queued for deletion; null when no deletion is queued"
     )
 
 
@@ -476,6 +480,7 @@ class UserEdit(User):
                     "version",
                     "pending_email",
                     "pending_email_expires_at",
+                    "deletion_requested_at",
                 }
             ),
             context={core_types.STORED_CONTEXT: True},

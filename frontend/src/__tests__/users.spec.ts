@@ -10,6 +10,7 @@ import {
   deleteUser,
   deleteUserPhoto,
   fetchUserById,
+  fetchUserDeletion,
   fetchUsers,
   mapManagedUser,
   updateUser,
@@ -83,11 +84,27 @@ describe('mapManagedUser', () => {
   it('leaves the weight units override null when the user follows units', () => {
     expect(mapManagedUser(makeUserDto({ weight_units: null })).weightUnits).toBeNull()
   })
+
+  it('carries when the account was queued for deletion, and null when it is not being deleted', () => {
+    expect(
+      mapManagedUser(makeUserDto({ deletion_requested_at: '2026-11-08T10:00:00Z' }))
+        .deletionRequestedAt,
+    ).toBe('2026-11-08T10:00:00Z')
+    expect(mapManagedUser(makeUserDto()).deletionRequestedAt).toBeNull()
+  })
 })
 
 describe('users service requests', () => {
   beforeEach(() => {
     vi.clearAllMocks()
+  })
+
+  it("reads the state of a user's queued deletion", async () => {
+    vi.mocked(apiFetch).mockResolvedValue({ status: 'queued' })
+
+    await expect(fetchUserDeletion(7)).resolves.toEqual({ status: 'queued' })
+
+    expect(apiFetch).toHaveBeenCalledWith('/users/7/deletion', { signal: undefined })
   })
 
   it('fetchUsers calls the paginated endpoint and maps records', async () => {

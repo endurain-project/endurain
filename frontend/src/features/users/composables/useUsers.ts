@@ -1,4 +1,4 @@
-import { computed, type MaybeRefOrGetter, toValue } from 'vue'
+import { computed, type MaybeRefOrGetter, toValue, watch } from 'vue'
 import { storeToRefs } from 'pinia'
 import { keepPreviousData, useMutation, useQuery, useQueryClient } from '@tanstack/vue-query'
 
@@ -8,10 +8,12 @@ import type {
   CreateUserInput,
   EditUserFields,
   ManagedUser,
+  UserDeletionStatus,
   UserFilters,
 } from '@/features/users/types'
 
 import { queryKeys } from '@/services/queryKeys'
+import { isTerminalJobState } from '@/services/jobStatus'
 import { bumpAvatarCacheToken } from '@/lib/avatarCache'
 import { useInvalidatingMutation } from '@/composables/useInvalidatingMutation'
 import { useAuthStore } from '@/features/auth/stores/auth'
@@ -23,6 +25,7 @@ import {
   deleteUser,
   deleteUserPhoto,
   fetchUserById,
+  fetchUserDeletion,
   fetchUsers,
   requireUserPasswordChange,
   resetUserMfa,
@@ -125,6 +128,43 @@ export function useDeleteUserMutation() {
     mutationKey: queryKeys.users.all(),
     mutationFn: ({ id, version, stepUp }) => deleteUser(id, version, stepUp),
   })
+}
+
+/** How often a queued account deletion is read again; the backend asks for 10 seconds. */
+const DELETION_POLL_MS = 10_000
+
+/**
+ * Follows a user's queued account deletion until it reaches a terminal state. Once it has succeeded,
+ * the users lists and details are refetched, so the erased account leaves the screen.
+ *
+ * @param userId - The user queued for deletion.
+ * @returns The query; `data` is the deletion's state, or `null` when none is recorded.
+ */
+export function useUserDeletionQuery(userId: MaybeRefOrGetter<number>) {
+  const client = useQueryClient()
+  const { isAuthenticated } = storeToRefs(useAuthStore())
+
+  const query = useQuery<UserDeletionStatus | null, Error>({
+    queryKey: computed(() => queryKeys.users.deletion(toValue(userId))),
+    queryFn: ({ signal }) => fetchUserDeletion(toValue(userId), signal),
+    enabled: isAuthenticated,
+    refetchInterval: (state) => {
+      const deletion = state.state.data
+      return deletion && !isTerminalJobState(deletion.status) ? DELETION_POLL_MS : false
+    },
+  })
+
+  watch(
+    () => query.data.value?.status,
+    (status) => {
+      if (status === 'succeeded') {
+        void client.invalidateQueries({ queryKey: queryKeys.users.lists() })
+        void client.invalidateQueries({ queryKey: queryKeys.users.details() })
+      }
+    },
+  )
+
+  return query
 }
 
 /**

@@ -33,6 +33,7 @@ const user: ManagedUser = {
   emailVerified: true,
   pendingEmail: null,
   pendingEmailExpiresAt: null,
+  deletionRequestedAt: null,
   pendingAdminApproval: false,
   mfaEnabled: false,
   externalAuthCount: 0,

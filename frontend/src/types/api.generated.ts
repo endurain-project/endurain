@@ -12416,6 +12416,11 @@ export interface components {
             /** @description Default activity visibility */
             default_activity_visibility?: components["schemas"]["ActivityVisibility"] | null;
             /**
+             * Deletion Requested At
+             * @description When the account was queued for deletion; null when no deletion is queued
+             */
+            deletion_requested_at?: string | null;
+            /**
              * Discoverable
              * @description Appear in other users' username search
              */
@@ -12908,6 +12913,7 @@ export interface components {
          *         external_auth_count: Number of external auth providers.
          *         pending_email: Address awaiting confirmation, which replaces ``email`` once confirmed.
          *         pending_email_expires_at: When the confirmation link for ``pending_email`` expires.
+         *         deletion_requested_at: When the account was queued for deletion, ``None`` when no deletion is queued.
          */
         UserRead: {
             /** @description User access level */
@@ -12932,6 +12938,11 @@ export interface components {
              * @default euro
              */
             currency: components["schemas"]["Currency"];
+            /**
+             * Deletion Requested At
+             * @description When the account was queued for deletion; null when no deletion is queued
+             */
+            deletion_requested_at?: string | null;
             /**
              * Email
              * Format: email

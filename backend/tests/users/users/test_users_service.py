@@ -390,6 +390,13 @@ class TestPendingEmailChanges:
         assert "pending_email" not in edit.model_dump()
         assert "pending_email_expires_at" not in edit.model_dump()
 
+    def test_an_edit_built_from_a_read_leaves_the_deletion_marker_out(self):
+        read = _user(1, deletion_requested_at=datetime(2030, 1, 1, tzinfo=UTC))
+
+        edit = users_schema.UserEdit.from_read(read)
+
+        assert "deletion_requested_at" not in edit.model_dump()
+
 
 class TestRequireEmailAvailable:
     @patch(_CRUD)
