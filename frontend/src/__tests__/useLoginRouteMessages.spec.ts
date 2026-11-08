@@ -33,6 +33,33 @@ describe('useLoginRouteMessages', () => {
     })
   })
 
+  it('tells a new SSO account to wait for administrator approval, as information', () => {
+    mocks.route.query = { error: 'sso_approval_pending' }
+
+    expect(useLoginRouteMessages().resolveInitialAlert()).toEqual({
+      kind: 'info',
+      message: 'login.adminApprovalRequired',
+    })
+  })
+
+  it('names an inactive account instead of a generic SSO failure', () => {
+    mocks.route.query = { error: 'sso_account_disabled' }
+
+    expect(useLoginRouteMessages().resolveInitialAlert()).toEqual({
+      kind: 'error',
+      message: 'login.ssoAccountDisabled',
+    })
+  })
+
+  it('names an address the provider did not verify', () => {
+    mocks.route.query = { error: 'sso_email_unverified' }
+
+    expect(useLoginRouteMessages().resolveInitialAlert()).toEqual({
+      kind: 'error',
+      message: 'login.ssoEmailUnverified',
+    })
+  })
+
   it('falls back to the generic message for an unknown SSO error', () => {
     mocks.route.query = { error: 'something_else' }
 

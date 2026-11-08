@@ -238,6 +238,15 @@ If your provider cannot prove a fresh sign-in, an administrator sets a local pas
 
 Linking an identity provider asks you to confirm with your password (or a fresh provider sign-in) and MFA code first, then sends you to the provider; the browser that started the link must be the one that finishes it. When the link completes, Endurain signs you out of your other devices and keeps the one that started the link, unless you turned off **Sign out of all other devices** in that form. It sends a notification to the account.
 
+## Sign-up rules for new accounts
+
+An account Endurain creates at the first sign-in follows the server's sign-up settings:
+
+- **Email verification required.** Only the provider can meet it: the account is created when the provider asserts the address as verified (the standard `email_verified` claim on the `email` claim), and the sign-in is refused otherwise. Endurain sends no verification link for such an account, because the provider identity is already bound to it: a link opened by the address's owner would give that address to whoever signed in. The login page tells the user to verify the address with the provider. To accept addresses a provider does not verify, turn email verification off; the account is then created with an unverified email, which is never used to link a provider by email.
+- **Admin approval required.** The account is created inactive and waits for an administrator to approve it in [user management](user-management.md#approving-sign-ups). Until then, each sign-in through the provider is refused and the login page says the account is waiting for approval.
+
+A sign-in to a deactivated account, or one queued for deletion, is refused and the login page says the account cannot sign in.
+
 ## Usernames of new accounts
 
 When Endurain creates an account at the first sign-in, it never builds the username from the email address, because usernames are visible to other signed-in users. A username claim from the provider (`preferred_username` or `username` by default) is used when it only has letters, digits, dots, hyphens and underscores. A claim that contains `@`, such as an email address or an Entra ID user principal name, is not used. Any other claim has each run of unsupported characters replaced by `_` and leading and trailing `.`, `-` and `_` removed. When nothing usable is left, as with Google, which sends no `preferred_username`, the username is `user_` followed by the first eight characters of the provider's subject identifier. If the name is already taken, Endurain appends `_` and six digits. Users can change their username afterwards, and later sign-ins never change it.

@@ -148,11 +148,14 @@ class TestFindOrCreateUserEmailLinking:
 class TestCreatedAccountEmailVerification:
     """A new SSO account's email is verified only when the provider asserted it as verified."""
 
-    @pytest.mark.parametrize("asserted", [True, False])
-    def test_the_flag_follows_the_provider(self, asserted):
+    def _create(self, *, asserted: bool, verification_required: bool) -> MagicMock:
         with (
             patch.object(user_provisioning_service.users_integration, "get_user_by_username", return_value=None),
-            patch.object(user_provisioning_service.server_settings_integration, "get_server_settings"),
+            patch.object(
+                user_provisioning_service.server_settings_integration,
+                "get_server_settings",
+                return_value=MagicMock(signup_require_email_verification=verification_required),
+            ),
             patch.object(user_provisioning_service.users_integration, "create_sso_user") as create_sso_user,
             patch.object(
                 user_provisioning_service.identity_provider_links_integration, "create_user_identity_provider"
@@ -166,8 +169,41 @@ class TestCreatedAccountEmailVerification:
                 MagicMock(),
                 email_verified=asserted,
             )
+        return create_sso_user
+
+    @pytest.mark.parametrize("asserted", [True, False])
+    def test_the_flag_follows_the_provider(self, asserted):
+        create_sso_user = self._create(asserted=asserted, verification_required=False)
 
         assert create_sso_user.call_args.kwargs["email_verified"] is asserted
+
+    def test_an_address_the_provider_verified_is_accepted_when_the_server_requires_verification(self):
+        create_sso_user = self._create(asserted=True, verification_required=True)
+
+        create_sso_user.assert_called_once()
+
+    def test_an_unverified_address_is_refused_when_the_server_requires_verification(self):
+        """The provider identity is already bound to the account, so a link clicked by the address's owner would
+        hand that address to whoever signed in; only the provider's own verification proves it."""
+        with (
+            patch.object(
+                user_provisioning_service.server_settings_integration,
+                "get_server_settings",
+                return_value=MagicMock(signup_require_email_verification=True),
+            ),
+            patch.object(user_provisioning_service.users_integration, "create_sso_user") as create_sso_user,
+            pytest.raises(user_provisioning_service.SsoSignInRefusedError) as exc_info,
+        ):
+            user_provisioning_service.create_user_from_idp(
+                _make_idp(),
+                "subject-123",
+                {"username": "new", "email": "new@example.com"},
+                MagicMock(),
+                email_verified=False,
+            )
+
+        assert exc_info.value.login_error == "sso_email_unverified"
+        create_sso_user.assert_not_called()
 
     def test_the_account_carries_the_mapped_profile(self):
         with (

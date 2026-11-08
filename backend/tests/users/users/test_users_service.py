@@ -729,6 +729,28 @@ class TestCreateSignupUser:
         assert fields["access_type"] == "regular"
         assert fields["username"] == "newuser"
 
+    @pytest.mark.parametrize(
+        ("verification", "approval", "active", "pending"),
+        [
+            (False, False, True, False),
+            (True, False, True, False),
+            (False, True, False, True),
+            (True, True, False, True),
+        ],
+    )
+    @patch("modules.users.users.service._stage_default_data")
+    @patch(_CRUD)
+    def test_an_address_the_provider_verified_meets_the_verification_policy(
+        self, mock_crud, _defaults, verification, approval, active, pending, mock_db
+    ):
+        """No verification link is sent for a proven address, so only approval can keep the account inactive."""
+        mock_crud.create_user.return_value = _user(3)
+
+        users_service.create_sso_user(_profile(), self._settings(verification, approval), mock_db, email_verified=True)
+
+        fields = mock_crud.create_user.call_args.args[0]
+        assert (fields["active"], fields["email_verified"], fields["pending_admin_approval"]) == (active, True, pending)
+
     @patch("modules.users.users.service._stage_default_data")
     @patch(_CRUD)
     def test_sso_account_gets_no_credential(self, mock_crud, _defaults, mock_db):

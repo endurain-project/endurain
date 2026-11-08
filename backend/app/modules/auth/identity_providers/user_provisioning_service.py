@@ -301,6 +301,10 @@ def create_user_from_idp(
     ``has_local_password`` reports ``False``. Units and currency are the server's defaults. The user's
     email is verified only when the IdP asserted it as verified.
 
+    When the server requires email verification, only the IdP's assertion can meet it. The IdP identity is bound
+    to the account from its creation, so a link that the address's owner clicks would hand the address to whoever
+    signed in; that sign-in is refused instead.
+
     Args:
         idp (identity_provider_contracts.IdentityProviderState): The identity provider instance.
         subject (str): The unique subject identifier from the IdP.
@@ -312,7 +316,8 @@ def create_user_from_idp(
         users_schema.UserRead: The newly created user instance.
 
     Raises:
-        SsoSignInRefusedError: If the IdP did not share an email address; every account needs a real one.
+        SsoSignInRefusedError: If the IdP did not share an email address, as every account needs a real one, or
+            did not verify it while the server requires a verified address.
         domain error: If user creation fails (e.g., duplicate username/email).
     """
     email = mapped_data.get("email")
@@ -320,6 +325,13 @@ def create_user_from_idp(
         raise SsoSignInRefusedError(
             f"{idp.name} did not share an email address, so no account can be created",
             login_error="sso_email_missing",
+        )
+
+    server_settings = server_settings_integration.get_server_settings(db)
+    if server_settings.signup_require_email_verification and not email_verified:
+        raise SsoSignInRefusedError(
+            f"{idp.name} did not verify the email address, and new accounts need a verified one",
+            login_error="sso_email_unverified",
         )
 
     # Ensure username is unique; the base leaves room for the suffix
@@ -338,8 +350,6 @@ def create_user_from_idp(
         height=mapped_data.get("height"),
         max_heart_rate=mapped_data.get("max_heart_rate"),
     )
-
-    server_settings = server_settings_integration.get_server_settings(db)
 
     created_user = users_integration.create_sso_user(profile, server_settings, db, email_verified=email_verified)
 

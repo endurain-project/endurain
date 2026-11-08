@@ -506,9 +506,10 @@ def _stage_signup_user(
     """Stage a user through sign-up or SSO, with their default data.
 
     The account's units and currency are the server's defaults. Its state follows the server's sign-up
-    policy: it starts inactive when email verification or admin approval is required. Whether the email
-    is verified does not follow the policy: it records whether the address was proven, because an
-    unproven address marked verified could be pre-claimed and receive its owner's later SSO sign-in.
+    policy: it starts inactive when admin approval is required, or when email verification is required and
+    the address is not proven yet. Whether the email is verified does not follow the policy: it records
+    whether the address was proven, because an unproven address marked verified could be pre-claimed and
+    receive its owner's later SSO sign-in.
 
     Args:
         profile: The account's profile.
@@ -525,7 +526,7 @@ def _stage_signup_user(
         ConflictError: If the username or email is already taken.
         PasswordPolicyError: If the password fails the configured policy.
     """
-    needs_verification = server_settings.signup_require_email_verification
+    needs_verification = server_settings.signup_require_email_verification and not email_verified
     needs_approval = server_settings.signup_require_admin_approval
 
     fields = profile.model_dump(exclude={"username", "email"})

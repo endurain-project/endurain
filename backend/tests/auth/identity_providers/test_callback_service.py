@@ -424,22 +424,42 @@ class TestCreateCallbackSession:
 
         assert service._tokens.store_session_tokens.call_args.args[:4] == (session_id, 7, 3, {"access_token": "at"})
 
-    def test_an_inactive_account_gets_no_session_and_stores_nothing(self, service):
-        user = SimpleNamespace(id=7, active=False)
+    @pytest.mark.parametrize(
+        ("pending_approval", "deactivated", "login_error"),
+        [
+            (True, False, "sso_approval_pending"),
+            (True, True, "sso_account_disabled"),
+            (False, True, "sso_account_disabled"),
+            (False, False, "sso_account_disabled"),
+        ],
+    )
+    def test_an_inactive_account_gets_no_session_and_is_told_why(
+        self, service, pending_approval, deactivated, login_error
+    ):
+        """The user has just proven who they are to the provider, so naming their own account's state leaks
+        nothing; only an account awaiting approval is told to wait."""
+        user = SimpleNamespace(id=7, active=False, pending_admin_approval=pending_approval)
         with (
             patch.object(
                 callback_service.users_integration,
                 "require_active_user",
-                side_effect=core_exceptions.PermissionDeniedError("inactive"),
+                side_effect=core_exceptions.PermissionDeniedError("Inactive user"),
             ),
-            patch.object(callback_service, "_record_login_refusal"),
+            patch.object(callback_service.users_integration, "is_deactivated", return_value=deactivated),
+            patch.object(callback_service, "_record_login_refusal") as record_refusal,
             patch.object(callback_service.sessions_integration, "create_session") as create_session,
-            pytest.raises(core_exceptions.PermissionDeniedError),
+            pytest.raises(callback_service.user_provisioning_service.SsoSignInRefusedError) as exc_info,
         ):
             service.create_callback_session(
                 user, "10.0.0.1", "agent", MagicMock(), _STATE, 3, {}, MagicMock(), idp_sid=None
             )
 
+        assert exc_info.value.login_error == login_error
+        record_refusal.assert_called_once_with(
+            callback_service.jasil_audit.Outcome.DENIED,
+            callback_service.login_audit_actions.LoginFailureReason.INACTIVE,
+            user_id=7,
+        )
         create_session.assert_not_called()
         service._tokens.store_session_tokens.assert_not_called()
 

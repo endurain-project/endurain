@@ -31,7 +31,7 @@ Identity providers are configured by an administrator with these parameters:
 The callback URL is not a setting. Endurain always uses `{frontend host}/api/v1/public/idp/callback/{idp_slug}`, so register exactly that URL as the redirect URI at the provider.
 
 ### SSO failures
-The callback always ends in a redirect, never a JSON error, once its state is accepted. When a login fails, the browser lands on the Endurain frontend at `/login?error=<code>`: `sso_email_missing` when the provider did not share an email address for a new account, `sso_link_by_email_disabled` when an account has the provider's email and the provider does not link by email, and `sso_failed` for every other failure (the provider refused the code or answered with an error, or the account could not be created). A failed link returns to the page that started it (`/settings/security` by default) with `idp_link=error`. A failed step-up returns to its `redirect` with `#step_up_error=failed|not_fresh` in the fragment. An unknown, expired, reused or wrong-provider `state` is refused before that with `400`.
+The callback always ends in a redirect, never a JSON error, once its state is accepted. When a login fails, the browser lands on the Endurain frontend at `/login?error=<code>`: `sso_email_missing` when the provider did not share an email address for a new account, `sso_email_unverified` when the server requires a verified address for a new account and the provider did not verify it, `sso_link_by_email_disabled` when an account has the provider's email and the provider does not link by email, `sso_approval_pending` when the account waits for an administrator's approval, `sso_account_disabled` when the account is otherwise inactive (deactivated or queued for deletion), and `sso_failed` for every other failure (the provider refused the code or answered with an error, or the account could not be created). A failed link returns to the page that started it (`/settings/security` by default) with `idp_link=error`. A failed step-up returns to its `redirect` with `#step_up_error=failed|not_fresh` in the fragment. An unknown, expired, reused or wrong-provider `state` is refused before that with `400`.
 
 ### Linking Accounts
 Users can link their Endurain account to an OAuth provider:
@@ -329,7 +329,7 @@ The user signs in with the identity provider in the system browser. On success t
 
 The OS invokes the app's deep-link or intent handler with that URL. Extract the `session_id`.
 
-On failure the browser stays on the Endurain login page with an `error` query parameter (`sso_failed`, `sso_email_missing` when the provider shared no email address for a new account, or `sso_link_by_email_disabled`). The app receives no deep link, so it must also handle the user closing the browser or a timeout. The state expires after 10 minutes.
+On failure the browser stays on the Endurain login page with an `error` query parameter (`sso_failed`, `sso_email_missing`, `sso_email_unverified`, `sso_link_by_email_disabled`, `sso_approval_pending` or `sso_account_disabled`; see [SSO failures](#sso-failures)). The app receives no deep link, so it must also handle the user closing the browser or a timeout. The state expires after 10 minutes.
 
 #### Step 4: Exchange Session for Tokens (PKCE Verification)
 

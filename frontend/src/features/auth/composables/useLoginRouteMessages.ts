@@ -29,10 +29,15 @@ const SSO_ERROR_KEYS: Record<string, string> = {
   sso_cancelled: 'login.ssoCancelled',
   sso_account_not_found: 'login.ssoAccountNotFound',
   sso_account_disabled: 'login.ssoAccountDisabled',
+  sso_approval_pending: 'login.adminApprovalRequired',
   sso_auto_create_disabled: 'login.ssoAutoCreateDisabled',
   sso_email_missing: 'login.ssoEmailMissing',
+  sso_email_unverified: 'login.ssoEmailUnverified',
   sso_link_by_email_disabled: 'login.ssoLinkByEmailDisabled',
 }
+
+/** SSO outcomes that are not failures: the user cancelled, or the account waits for an administrator. */
+const SSO_INFO_ERRORS: ReadonlySet<string> = new Set(['sso_cancelled', 'sso_approval_pending'])
 
 /**
  * Translates the login screen's status/error query parameters into a single
@@ -80,7 +85,7 @@ export function useLoginRouteMessages() {
     const error = getQueryString(route.query.error)
     if (error) {
       return {
-        kind: error === 'sso_cancelled' ? 'info' : 'error',
+        kind: SSO_INFO_ERRORS.has(error) ? 'info' : 'error',
         message: t(SSO_ERROR_KEYS[error] ?? 'login.ssoErrorUndefined'),
       }
     }

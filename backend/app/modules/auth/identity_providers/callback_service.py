@@ -809,15 +809,15 @@ class CallbackService:
             The new session's id.
 
         Raises:
-            PermissionDeniedError: If the account is not active.
+            SsoSignInRefusedError: If the account is not active, with the login page's code for why.
         """
         try:
             users_integration.require_active_user(user)
-        except core_exceptions.PermissionDeniedError:
+        except core_exceptions.PermissionDeniedError as err:
             _record_login_refusal(
                 jasil_audit.Outcome.DENIED, login_audit_actions.LoginFailureReason.INACTIVE, user_id=user.id
             )
-            raise
+            raise _inactive_account_refusal(user, db) from err
         user_read = users_schema.UserRead.model_validate(user)
         session_id = str(uuid4())
         sessions_integration.create_session(
@@ -836,6 +836,31 @@ class CallbackService:
         db.commit()
         logger.debug("SSO callback session created", extra=core_logger.context(user_id=user_read.id))
         return session_id
+
+
+def _inactive_account_refusal(
+    user: users_schema.UserRead, db: Session
+) -> user_provisioning_service.SsoSignInRefusedError:
+    """Return the refusal of an inactive account's sign-in, with the login page's code for what the user can do.
+
+    The user has just proven their identity to the provider, so naming their own account's state reveals nothing
+    to anyone else. An account awaiting an administrator's approval is told to wait; one an administrator
+    deactivated or a deletion request ended, and any other inactive account, cannot sign in.
+
+    Args:
+        user: The inactive account.
+        db: Database session.
+
+    Returns:
+        The refusal to raise.
+    """
+    if user.pending_admin_approval and not users_integration.is_deactivated(user.id, db):
+        return user_provisioning_service.SsoSignInRefusedError(
+            "The account is awaiting administrator approval", login_error="sso_approval_pending"
+        )
+    return user_provisioning_service.SsoSignInRefusedError(
+        "The account is not active", login_error="sso_account_disabled"
+    )
 
 
 def _provider_session_id(claims: dict[str, Any]) -> str | None:
