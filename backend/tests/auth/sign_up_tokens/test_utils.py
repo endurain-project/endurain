@@ -71,6 +71,25 @@ class TestEmailRequests:
         sign_up_service.request_sign_up_admin_approval_emails(5, mock_db)
         assert [call.args for call in publish.call_args_list] == [(5, 10, mock_db), (5, 11, mock_db)]
 
+    @patch("modules.auth.sign_up_tokens.service.sign_up_event_publishers.publish_sign_up_approval_requested")
+    @patch(
+        "modules.auth.sign_up_tokens.service.users_integration.require_admin_users",
+        return_value=[MagicMock(id=10), MagicMock(id=11)],
+    )
+    @patch("modules.auth.sign_up_tokens.service.server_settings_integration.is_mail_configured", return_value=True)
+    def test_another_module_asks_the_admins_for_approval_in_its_transaction(
+        self, _configured, _admins, publish, mock_db
+    ):
+        assert sign_up_integration.request_sign_up_admin_approval(5, mock_db) is True
+        assert [call.args for call in publish.call_args_list] == [(5, 10, mock_db), (5, 11, mock_db)]
+        mock_db.commit.assert_not_called()
+
+    @patch("modules.auth.sign_up_tokens.service.sign_up_event_publishers.publish_sign_up_approval_requested")
+    @patch("modules.auth.sign_up_tokens.service.server_settings_integration.is_mail_configured", return_value=False)
+    def test_without_mail_no_approval_request_is_staged(self, _configured, publish, mock_db):
+        assert sign_up_integration.request_sign_up_admin_approval(5, mock_db) is False
+        publish.assert_not_called()
+
     @patch("modules.auth.sign_up_tokens.service.sign_up_event_publishers.publish_sign_up_approved")
     @patch("modules.auth.sign_up_tokens.service.server_settings_integration.is_mail_configured", return_value=True)
     def test_approval_event_stages_in_caller_transaction(self, _configured, publish, mock_db):

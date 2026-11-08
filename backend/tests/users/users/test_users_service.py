@@ -751,6 +751,25 @@ class TestCreateSignupUser:
         fields = mock_crud.create_user.call_args.args[0]
         assert (fields["active"], fields["email_verified"], fields["pending_admin_approval"]) == (active, True, pending)
 
+    @pytest.mark.parametrize("pending", [True, False])
+    @patch("modules.users.users.service._stage_default_data")
+    @patch(_CRUD)
+    def test_an_sso_account_awaiting_approval_asks_the_administrators_for_it(
+        self, mock_crud, _defaults, pending, sign_up, mock_db
+    ):
+        """It has nothing left to verify, so the administrators are asked now, as a verified sign-up's are."""
+        mock_crud.create_user.return_value = _user(
+            3, active=not pending, email_verified=True, pending_admin_approval=pending
+        )
+
+        users_service.create_sso_user(_profile(), self._settings(False, pending), mock_db, email_verified=True)
+
+        if pending:
+            sign_up.request_sign_up_admin_approval.assert_called_once_with(3, mock_db)
+        else:
+            sign_up.request_sign_up_admin_approval.assert_not_called()
+        mock_db.commit.assert_not_called()
+
     @patch("modules.users.users.service._stage_default_data")
     @patch(_CRUD)
     def test_sso_account_gets_no_credential(self, mock_crud, _defaults, mock_db):

@@ -601,6 +601,9 @@ def create_sso_user(
 ) -> users_schema.UserRead:
     """Stage an SSO-only user with the defaults used by regular sign-up.
 
+    An account created awaiting approval has nothing left to verify, so the administrators are asked to approve it
+    now, by email and in-app notification, when mail is configured. Nothing is committed.
+
     Args:
         profile: The account's profile mapped from the provider. No local credential is stored.
         server_settings: Server config for sign-up requirements.
@@ -624,6 +627,8 @@ def create_sso_user(
         )
     except core_exceptions.ConflictError as err:
         raise core_exceptions.ConflictError("Unable to create user.") from err
+    if created.pending_admin_approval:
+        sign_up_tokens_integration.request_sign_up_admin_approval(created.id, db)
     logger.info("SSO user staged", extra=core_logger.context(user_id=created.id))
     return created
 

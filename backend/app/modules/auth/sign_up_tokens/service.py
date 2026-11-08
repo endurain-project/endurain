@@ -343,6 +343,24 @@ def request_sign_up_admin_approval_emails(user_id: int, db: Session) -> None:
         sign_up_event_publishers.publish_sign_up_approval_requested(user_id, admin.id, db)
 
 
+def request_sign_up_admin_approval(user_id: int, db: Session) -> bool:
+    """Stage the administrators' approval requests for a new account awaiting approval, when mail is configured.
+
+    Each request emails one administrator and adds an in-app notification for them. The caller commits.
+
+    Args:
+        user_id: The account awaiting approval.
+        db: Database session.
+
+    Returns:
+        True when the requests were staged, False when mail is not configured and nothing was staged.
+    """
+    if not server_settings_integration.is_mail_configured(db):
+        return False
+    request_sign_up_admin_approval_emails(user_id, db)
+    return True
+
+
 def request_sign_up_existing_account_notice(user_id: int, state: StateProvider, db: Session) -> None:
     """Stage a notice event for the owner of an email address a sign-up reused.
 
@@ -724,11 +742,8 @@ def verify_email(token: str, password: str | None, db: Session) -> sign_up_schem
         _commit_sign_up(user_id, db)
         return sign_up_schema.SignUpRead(message="Email verified successfully. You can now log in.")
 
-    if server_settings_integration.is_mail_configured(db):
-        request_sign_up_admin_approval_emails(user.id, db)
-        _commit_sign_up(user_id, db)
-    else:
-        _commit_sign_up(user_id, db)
+    request_sign_up_admin_approval(user.id, db)
+    _commit_sign_up(user_id, db)
 
     return sign_up_schema.SignUpRead(
         message="Email verified successfully. Your account is now pending admin approval.",

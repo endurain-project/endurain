@@ -74,6 +74,19 @@ def request_email_change_resend(user_id: int, state: StateProvider, db: Session)
     sign_up_service.request_email_change_resend(user_id, state, db)
 
 
+def request_sign_up_admin_approval(user_id: int, db: Session) -> bool:
+    """Stage the administrators' approval requests for a new account with the caller's transaction.
+
+    Args:
+        user_id: The account awaiting approval.
+        db: Database session.
+
+    Returns:
+        True when the requests were staged, False when mail is not configured and nothing was staged.
+    """
+    return sign_up_service.request_sign_up_admin_approval(user_id, db)
+
+
 def request_sign_up_approved_email(user_id: int, db: Session) -> bool:
     """Stage an approval notice event with the caller's pending user update."""
     return sign_up_service.request_sign_up_approved_email(user_id, db)
