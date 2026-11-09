@@ -88,3 +88,18 @@ def test_the_route_passes_the_session_choice_on(client, extra, expected):
 
     assert response.status_code == 200
     assert start.call_args.args[1].revoke_other_sessions is expected
+
+
+def test_unlinking_the_last_sign_in_method_is_a_conflict_problem(client):
+    with patch.object(
+        identity_link_service,
+        "delete_identity_provider_link",
+        side_effect=core_exceptions.LastSignInMethodError("Cannot unlink last authentication method."),
+    ):
+        response = client.post(
+            core_config.ROOT_PATH + "/profile/identity-providers/3/unlink",
+            json={"step_up": {"current_password": "pw"}},
+        )
+
+    assert response.status_code == 409
+    assert response.json()["type"] == "urn:endurain:error:last-sign-in-method"

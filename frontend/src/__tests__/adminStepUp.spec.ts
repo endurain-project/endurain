@@ -216,6 +216,24 @@ describe('UserIdentityProvidersList unlink', () => {
     )
   })
 
+  it('explains that the last sign-in method cannot be unlinked', async () => {
+    mocks.providers = [provider]
+    const wrapper = mount(UserIdentityProvidersList, {
+      props: { userId: 7, resume: null },
+      global: { plugins: plugins(), stubs },
+    })
+    await wrapper.get('button[aria-label]').trigger('click')
+    await wrapper.get('#stepup-password').setValue('admin-pw')
+    await wrapper.get('form').trigger('submit')
+    const { onError } = mocks.unlinkMutate.mock.calls[0]![1] as { onError: (e: unknown) => void }
+
+    onError(new HttpError(409, 'Conflict', null, 'urn:endurain:error:last-sign-in-method'))
+
+    expect(mocks.toastError).toHaveBeenCalledWith(
+      i18n.global.t('settings.users.identityProviders.unlinkLastError'),
+    )
+  })
+
   it('reopens the unlink dialog for the provider the return was started for', async () => {
     mocks.providers = [provider]
     const wrapper = mount(UserIdentityProvidersList, {

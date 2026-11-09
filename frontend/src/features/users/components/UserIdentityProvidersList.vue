@@ -15,6 +15,7 @@ import { Skeleton } from '@/components/ui/skeleton'
 import { useToasts } from '@/composables/useToasts'
 import { HttpError } from '@/services/http'
 import { formatMediumDate } from '@/utils/datetime'
+import { LAST_SIGN_IN_METHOD_TYPE } from '@/features/security/services/linkedAccounts'
 import { isStepUpFailed, useIdpReauthChallenge } from '@/features/security/composables/useIdpStepUp'
 import { useAdminStepUp, useResumeOnce } from '@/features/security/composables/useAdminStepUp'
 import {
@@ -101,7 +102,7 @@ function confirmUnlink(stepUp: StepUpInput): void {
         }
         // 400 = the backend guard against removing the user's last auth method.
         toasts.error(
-          error instanceof HttpError && error.status === 400
+          error instanceof HttpError && error.type === LAST_SIGN_IN_METHOD_TYPE
             ? t('settings.users.identityProviders.unlinkLastError')
             : t('settings.users.identityProviders.unlinkError'),
         )

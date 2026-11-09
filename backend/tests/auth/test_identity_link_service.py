@@ -300,7 +300,8 @@ class TestDeleteIdentityProviderLink:
         ):
             identity_link_service.delete_identity_provider_link(1, MagicMock(), 10, "sid", MagicMock(), mock_db)
 
-        assert exc.value.status_code == 400
+        assert isinstance(exc.value, core_exceptions.LastSignInMethodError)
+        assert exc.value.status_code == 409
         assert "Cannot unlink last authentication method" in exc.value.detail
         verify_step_up.assert_not_called()
 
@@ -395,7 +396,8 @@ class TestAdminDeleteIdentityProviderLink:
         ):
             identity_link_service.admin_delete_identity_provider_link(5, 1, mock_db)
 
-        assert exc.value.status_code == 400
+        assert isinstance(exc.value, core_exceptions.LastSignInMethodError)
+        assert exc.value.status_code == 409
         assert "Cannot unlink last authentication method" in exc.value.detail
         mock_delete.assert_not_called()
 

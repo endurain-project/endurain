@@ -263,6 +263,17 @@ class ConflictError(DomainError):
     default_detail = "Conflict"
 
 
+class LastSignInMethodError(ConflictError):
+    """Unlinking an identity provider would leave the account with no way to sign in.
+
+    Renders as ``409``. Clients branch on the ``last-sign-in-method`` problem type to tell the user to set a
+    password or link another provider first.
+    """
+
+    code = "last-sign-in-method"
+    default_detail = "This is the account's only sign-in method"
+
+
 class IssuerInUseError(ConflictError):
     """Another identity provider already uses the issuer URL being set.
 

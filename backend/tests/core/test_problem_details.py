@@ -166,6 +166,7 @@ class TestErrorCodesAreStable:
             (core_exceptions.InvalidInputError, "urn:endurain:error:invalid-input", 400),
             (core_exceptions.InvalidMfaCodeError, "urn:endurain:error:invalid-mfa-code", 400),
             (core_exceptions.EmailVerificationDisabledError, "urn:endurain:error:email-verification-disabled", 403),
+            (core_exceptions.LastSignInMethodError, "urn:endurain:error:last-sign-in-method", 409),
             (core_exceptions.ConflictError, "urn:endurain:error:conflict", 409),
             (core_exceptions.UnsupportedFormatError, "urn:endurain:error:unsupported-format", 415),
             (core_exceptions.UnsupportedMediaTypeError, "urn:endurain:error:unsupported-media-type", 415),

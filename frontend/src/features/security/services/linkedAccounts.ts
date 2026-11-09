@@ -11,6 +11,9 @@ import { apiFetch } from '@/services/http'
 import { fetchAllPages } from '@/services/pagination'
 import { toStepUpWire } from '@/features/security/services/security'
 
+/** Problem type of the refusal to unlink an account's only way to sign in. */
+export const LAST_SIGN_IN_METHOD_TYPE = 'urn:endurain:error:last-sign-in-method'
+
 /**
  * Maps a raw linked-provider payload to the clean {@link LinkedProvider} model
  * — the single boundary where the snake_case wire shape is normalized.

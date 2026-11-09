@@ -213,7 +213,7 @@ def delete_identity_provider_link(
     remaining_idp_count = len(all_idp_links) - 1
 
     if not credentials_integration.has_local_password(token_user_id, db) and remaining_idp_count == 0:
-        raise core_exceptions.InvalidInputError(
+        raise core_exceptions.LastSignInMethodError(
             "Cannot unlink last authentication method. Link another identity provider first."
         )
 
@@ -267,7 +267,7 @@ def admin_delete_identity_provider_link(
 
     Raises:
         DomainError: 404 if the IdP or the user-IdP link does not
-            exist, 400 if unlinking would remove the user's last
+            exist, 409 if unlinking would remove the user's last
             authentication method, 500 if the deletion fails at the
             database level.
     """
@@ -291,7 +291,9 @@ def admin_delete_identity_provider_link(
 
     has_local_password = credentials_integration.has_local_password(user_id, db)
     if not has_local_password and remaining_idp_count == 0:
-        raise core_exceptions.InvalidInputError("Cannot unlink last authentication method. User has no password set.")
+        raise core_exceptions.LastSignInMethodError(
+            "Cannot unlink last authentication method. User has no password set."
+        )
 
     success = identity_provider_links_integration.delete_user_identity_provider(user_id, idp_id, db)
     if not success:

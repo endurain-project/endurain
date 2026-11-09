@@ -194,7 +194,7 @@ def delete_my_identity_provider(
         DomainError (401): If step-up verification fails.
         DomainError (404): If the identity provider doesn't exist or
             is not linked to the user's account.
-        DomainError (400): If attempting to unlink the last authentication method
+        DomainError (409): If attempting to unlink the last authentication method
             without having a password set (prevents account lockout).
         DomainError (500): If the deletion operation fails at the database level.
 

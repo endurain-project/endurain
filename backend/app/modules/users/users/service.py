@@ -1358,7 +1358,7 @@ def unlink_identity_provider(
         PermissionDeniedError: If the administrator targets their own account.
         StepUpFailedError: If the administrator's step-up verification fails.
         NotFoundError: If the provider or the link does not exist.
-        InvalidInputError: If unlinking would remove the user's last way to sign in.
+        LastSignInMethodError: If unlinking would remove the user's last way to sign in.
     """
     require_other_user(user_id, actor_id, "unlink an identity provider")
     account_security_integration.verify_step_up(

@@ -24,6 +24,7 @@ import { formatMediumDate } from '@/utils/datetime'
 import { queryKeys } from '@/services/queryKeys'
 import { HttpError } from '@/services/http'
 import { isStepUpFailed, useIdpReauthChallenge } from '@/features/security/composables/useIdpStepUp'
+import { LAST_SIGN_IN_METHOD_TYPE } from '@/features/security/services/linkedAccounts'
 import {
   useAvailableProvidersQuery,
   useStartProviderLinkMutation,
@@ -148,7 +149,7 @@ function confirmUnlink(idpId: number, input: StepUpInput): void {
         if (handleIdpChallenge(error)) {
           return
         }
-        if (error instanceof HttpError && error.status === 400) {
+        if (error instanceof HttpError && error.type === LAST_SIGN_IN_METHOD_TYPE) {
           toasts.error(t('settings.security.linked.lastMethodError'))
         } else if (isStepUpFailed(error)) {
           toasts.error(t('settings.security.linked.invalidCredentials'))
