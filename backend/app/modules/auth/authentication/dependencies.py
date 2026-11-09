@@ -7,7 +7,7 @@ from typing import Annotated, Any, Self
 from fastapi import Depends, Form, Header, Request, Response
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
-from fastapi.security import APIKeyCookie, OAuth2PasswordBearer, OAuth2PasswordRequestForm
+from fastapi.security import APIKeyCookie, HTTPAuthorizationCredentials, HTTPBearer
 from pydantic import BaseModel
 
 import core.cache_control as core_cache_control
@@ -108,8 +108,17 @@ LOGIN_FIELD_MAX_LENGTH = 256
 
 
 def reject_nul_in_login_form(
-    form_data: Annotated[OAuth2PasswordRequestForm, Depends()],
+    username: Annotated[str, Form(description="The account username.")],
+    password: Annotated[str, Form(description="The account password.", json_schema_extra={"format": "password"})],
     client_type: Annotated[auth_constants.ClientType, Depends(get_client_type)],
+    grant_type: Annotated[
+        str | None,
+        Form(
+            pattern="^password$",
+            description="Accepted so OAuth 2 password-grant clients keep working; the only value is `password` and "
+            "it is ignored.",
+        ),
+    ] = None,
     code_challenge: Annotated[
         str | None,
         Form(
@@ -136,8 +145,10 @@ def reject_nul_in_login_form(
     The username loses surrounding whitespace, as the web form does; the password is kept exactly as sent.
 
     Args:
-        form_data: The parsed login form.
+        username: The username form field.
+        password: The password form field.
         client_type: The ``X-Client-Type`` header.
+        grant_type: The ``grant_type`` form field, which is checked and then ignored.
         code_challenge: The PKCE code challenge form field.
         code_challenge_method: The PKCE method form field.
 
@@ -151,7 +162,9 @@ def reject_nul_in_login_form(
     errors = [
         {"type": "value_error", "loc": ("body", name), "msg": "NUL characters are not allowed"}
         for name, value in {
-            **vars(form_data),
+            "username": username,
+            "password": password,
+            "grant_type": grant_type,
             "code_challenge": code_challenge,
             "code_challenge_method": code_challenge_method,
         }.items()
@@ -159,15 +172,13 @@ def reject_nul_in_login_form(
     ]
     errors += [
         {"type": "value_error", "loc": ("body", name), "msg": f"At most {LOGIN_FIELD_MAX_LENGTH} characters"}
-        for name, value in (("username", form_data.username), ("password", form_data.password))
+        for name, value in (("username", username), ("password", password))
         if len(value) > LOGIN_FIELD_MAX_LENGTH
     ]
-    if isinstance(form_data.scopes, list) and any("\x00" in scope for scope in form_data.scopes):
-        errors.append({"type": "value_error", "loc": ("body", "scope"), "msg": "NUL characters are not allowed"})
     errors += _pkce_errors(client_type, code_challenge, code_challenge_method)
     if errors:
         raise RequestValidationError(errors)
-    return LoginFormData(form_data.username.strip(), form_data.password, code_challenge, code_challenge_method)
+    return LoginFormData(username.strip(), password, code_challenge, code_challenge_method)
 
 
 #: The login form, with NUL characters refused, the username trimmed and the PKCE fields checked.
@@ -272,11 +283,27 @@ async def clear_refresh_token_cookie_exception_handler(
 
 
 logger = core_logger.get_logger(__name__)
-oauth2_scheme = OAuth2PasswordBearer(
-    tokenUrl="/api/v1/auth/login",
-    scopes=auth_constants.SCOPE_DICT,
+bearer_scheme = HTTPBearer(
+    bearerFormat="JWT",
+    description="A JWT in the `Authorization: Bearer` header: the access token, or a mobile client's refresh token on "
+    "`/auth/refresh` and `/auth/logout`. The scopes an access token can carry:\n\n"
+    + "\n".join(f"- `{scope}`: {description}" for scope, description in auth_constants.SCOPE_DICT.items()),
     auto_error=False,
 )
+
+
+def get_bearer_token(
+    credentials: Annotated[HTTPAuthorizationCredentials | None, Depends(bearer_scheme)],
+) -> str | None:
+    """Return the token of an ``Authorization: Bearer`` header.
+
+    Args:
+        credentials: The parsed header.
+
+    Returns:
+        The token, or ``None`` when the header is missing, is not a bearer one or has no token.
+    """
+    return credentials.credentials if credentials is not None else None
 
 
 def get_csrf_token(
@@ -327,7 +354,7 @@ def get_token(
 
 
 def get_refresh_token(
-    non_cookie_refresh_token: Annotated[str | None, Depends(oauth2_scheme)],
+    non_cookie_refresh_token: Annotated[str | None, Depends(get_bearer_token)],
     cookie_refresh_token: Annotated[str | None, Depends(cookie_refresh_token_scheme)],
     client_type: Annotated[auth_constants.ClientType, Depends(get_client_type)],
 ) -> str | None:

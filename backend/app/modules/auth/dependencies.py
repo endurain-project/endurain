@@ -30,7 +30,7 @@ import modules.auth.sessions.contracts as sessions_contracts
 
 logger = core_logger.get_logger(__name__)
 
-oauth2_scheme = authentication_dependencies.oauth2_scheme
+get_bearer_token = authentication_dependencies.get_bearer_token
 header_api_key_scheme = APIKeyHeader(name="X-API-Key", scheme_name="ApiKey", auto_error=False)
 AuthContext = auth_contracts.AuthContext
 ApiKeyId = Annotated[str, Path(min_length=1)]
@@ -40,7 +40,7 @@ set_idp_browser_binding_cookie = identity_providers_dependencies.set_browser_bin
 
 
 def get_access_token(
-    access_token: Annotated[str | None, Depends(oauth2_scheme)],
+    access_token: Annotated[str | None, Depends(get_bearer_token)],
 ) -> str:
     """Require an access token from the Authorization header."""
     if access_token is None:
@@ -149,7 +149,7 @@ def get_sid_from_access_token(
 def validate_access_token_or_api_key(
     request: Request,
     db: core_dependencies.DbSession,
-    access_token: str | None = Depends(oauth2_scheme),
+    access_token: str | None = Depends(get_bearer_token),
     api_key_header: str | None = Depends(header_api_key_scheme),
     api_key_query: str | None = Query(None, alias="api_key", include_in_schema=False),
 ) -> AuthContext:

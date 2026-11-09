@@ -112,6 +112,7 @@ username=user@example.com&password=userpassword&code_challenge={challenge}&code_
 | ----- | -------- | ----------- |
 | `username` | Yes | Username or email |
 | `password` | Yes | User's password |
+| `grant_type` | No | Only `password`; accepted for OAuth 2 password-grant clients and ignored |
 | `code_challenge` | Yes (mobile) | Base64url-encoded SHA256 hash of code_verifier, 43 to 128 characters of `A-Z a-z 0-9 - _` |
 | `code_challenge_method` | Yes (mobile) | Must be `S256` |
 

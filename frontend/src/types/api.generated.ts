@@ -5480,13 +5480,6 @@ export interface components {
         };
         /** Body_login_for_access_token */
         Body_login_for_access_token: {
-            /** Client Id */
-            client_id?: string | null;
-            /**
-             * Client Secret
-             * Format: password
-             */
-            client_secret?: string | null;
             /**
              * Code Challenge
              * @description PKCE code challenge (base64url SHA-256 of the verifier). Required from a mobile client; not accepted from a web client.
@@ -5497,19 +5490,21 @@ export interface components {
              * @description PKCE method, always `S256`. Required from a mobile client; not accepted from a web client.
              */
             code_challenge_method?: string | null;
-            /** Grant Type */
+            /**
+             * Grant Type
+             * @description Accepted so OAuth 2 password-grant clients keep working; the only value is `password` and it is ignored.
+             */
             grant_type?: string | null;
             /**
              * Password
              * Format: password
+             * @description The account password.
              */
             password: string;
             /**
-             * Scope
-             * @default
+             * Username
+             * @description The account username.
              */
-            scope: string;
-            /** Username */
             username: string;
         };
         /** Body_put_identity_provider_icon */

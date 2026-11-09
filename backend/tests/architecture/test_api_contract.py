@@ -646,7 +646,7 @@ class TestApiContract:
         """Each operation lists its credentials, and request headers and the ``api_key`` query are not among them."""
         document = _openapi()
         assert set(document["components"]["securitySchemes"]) == {
-            "OAuth2PasswordBearer",
+            "HTTPBearer",
             "ApiKey",
             "RefreshTokenCookie",
         }
@@ -661,6 +661,23 @@ class TestApiContract:
 
         _compare("An operation lists the wrong credentials", wrong, {}, "Fix the dependency that declares it")
 
+    def test_the_bearer_scheme_is_http_bearer_and_lists_the_scope_catalogue(self):
+        """The access token is a plain HTTP bearer JWT, not an OAuth2 flow, and its description names every scope."""
+        import modules.auth.constants as auth_constants
+
+        schemes = _openapi()["components"]["securitySchemes"]
+
+        assert {name for name, scheme in schemes.items() if scheme["type"] == "oauth2"} == set()
+        bearer = schemes["HTTPBearer"]
+        assert (bearer["type"], bearer["scheme"], bearer["bearerFormat"]) == ("http", "bearer", "JWT")
+        assert all(f"`{scope}`" in bearer["description"] for scope in auth_constants.SCOPE_DICT)
+
+    def test_a_protected_route_lists_its_required_scopes_under_the_bearer_scheme(self):
+        """A route that needs a scope names it in its ``HTTPBearer`` requirement."""
+        operation = _openapi()["paths"][f"{_API_PREFIX}/profile/password/change"]["post"]
+
+        assert {"HTTPBearer": ["profile:security"]} in operation["security"]
+
     def test_the_profile_scopes_split_by_what_a_route_changes(self):
         """Export and import need ``profile:export``; credentials, sessions and account closure ``profile:security``."""
         security = (
@@ -674,9 +691,7 @@ class TestApiContract:
         )
         wrong: set[str] = set()
         for method, path, operation in _operations():
-            requirement = next(
-                (r["OAuth2PasswordBearer"] for r in operation.get("security", []) if "OAuth2PasswordBearer" in r), []
-            )
+            requirement = next((r["HTTPBearer"] for r in operation.get("security", []) if "HTTPBearer" in r), [])
             if path.startswith(("/profile/export", "/profile/import")):
                 wanted = {"profile:export"}
             elif path.startswith(security):

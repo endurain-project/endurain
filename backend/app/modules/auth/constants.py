@@ -103,10 +103,10 @@ ADMIN_ACCESS_SCOPE: Final[tuple[str, ...]] = (
 )
 
 # Startup invariant: every scope advertised in SCOPE_DICT (which feeds the
-# Swagger UI scope picker for OAuth2PasswordBearer) MUST be one that the
+# scope catalogue in the HTTPBearer scheme's OpenAPI description) MUST be one that the
 # server actually mints into a token, and every scope minted into a token
 # MUST be advertised. A drift between the two surfaces means either:
-#   - The UI offers a scope that is never enforced (false sense of
+#   - The docs offer a scope that is never enforced (false sense of
 #     authorisation granularity — the original `idp:read`/`idp:write` bug).
 #   - A token carries a scope that the OpenAPI doc never describes
 #     (silent privilege, harder to audit).
