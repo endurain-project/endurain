@@ -2,7 +2,7 @@
 
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, Request, Response, Security, status
+from fastapi import APIRouter, Depends, Query, Request, Response, Security, status
 
 import core.config as core_config
 import core.dependencies as core_dependencies
@@ -39,42 +39,6 @@ def read_sessions_me(
     return account_security_service.list_user_sessions(token_user_id, page, db)
 
 
-@router.delete(
-    "",
-    status_code=status.HTTP_204_NO_CONTENT,
-    response_model=None,
-    dependencies=[Security(auth_dependencies.check_scopes, scopes=["profile:security"])],
-)
-@core_rate_limit.limiter.limit(core_rate_limit.WRITE)
-def delete_profile_other_sessions(
-    request: Request,
-    token_user_id: auth_dependencies.CurrentUserId,
-    token_session_id: Annotated[
-        str,
-        Depends(auth_dependencies.get_sid_from_access_token),
-    ],
-    db: core_dependencies.DbSession,
-) -> None:
-    """Revoke all of the authenticated user's other sessions.
-
-    Signs out every device except the caller's current session
-    (identified from the access token), so a user can end all
-    other sessions without logging themselves out. This is the
-    standalone form of the password change's
-    ``revoke_other_sessions`` option.
-
-    Args:
-        request: The incoming request, read by the rate limiter.
-        token_user_id: User ID from access token.
-        token_session_id: The caller's current session, preserved.
-        db: Database session.
-
-    Returns:
-        None.
-    """
-    account_security_service.delete_other_user_sessions(token_user_id, token_session_id, db)
-
-
 @router.post(
     "/revoke",
     status_code=status.HTTP_204_NO_CONTENT,
@@ -86,14 +50,36 @@ def revoke_profile_sessions(
     request: Request,
     response: Response,
     token_user_id: auth_dependencies.CurrentUserId,
+    token_session_id: Annotated[
+        str,
+        Depends(auth_dependencies.get_sid_from_access_token),
+    ],
     db: core_dependencies.DbSession,
+    keep_current: Annotated[
+        bool,
+        Query(description="Keep the caller's current session and end only the others"),
+    ] = False,
 ) -> None:
-    """Sign out everywhere: end every session of the authenticated user, the current one included.
+    """Sign out everywhere, or only on the other devices.
 
-    Every device is signed out, this one too, so the client must discard its tokens and send the user to the
-    login page. The browser's refresh-token cookie is cleared on the response. Unlike ending the other sessions,
-    which keeps the caller signed in, this leaves no session behind.
+    By default every session of the authenticated user ends, the current one included, so the client must discard
+    its tokens and send the user to the login page; the browser's refresh-token cookie is cleared on the response.
+    With `keep_current=true` every other session ends and the caller stays signed in, so the cookie is left alone.
+
+    Args:
+        request: The incoming request, read by the rate limiter.
+        response: The response, on which the refresh-token cookie is cleared.
+        token_user_id: User ID from access token.
+        token_session_id: The caller's current session, preserved when `keep_current` is set.
+        db: Database session.
+        keep_current: Whether to keep the caller's current session.
+
+    Returns:
+        None.
     """
+    if keep_current:
+        account_security_service.delete_other_user_sessions(token_user_id, token_session_id, db)
+        return
     account_security_service.sign_out_everywhere(token_user_id, db)
     authentication_dependencies.clear_refresh_token_cookies(response, environment=core_config.settings.ENVIRONMENT)
 

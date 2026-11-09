@@ -279,8 +279,8 @@ export async function revokeSession(sessionId: string): Promise<void> {
  * @throws {HttpError} When the request fails.
  */
 export async function revokeOtherSessions(): Promise<void> {
-  await apiFetch('/profile/sessions', {
-    method: 'DELETE',
+  await apiFetch('/profile/sessions/revoke?keep_current=true', {
+    method: 'POST',
     responseType: 'void',
   })
 }

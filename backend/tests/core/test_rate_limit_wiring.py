@@ -206,14 +206,9 @@ _TIERED_ENDPOINTS = [
     pytest.param(users_profile_router.edit_profile_password, core_rate_limit.SENSITIVE, id="profile-password-change"),
     pytest.param(users_profile_router.delete_profile_photo, core_rate_limit.WRITE, id="profile-photo-delete"),
     pytest.param(
-        auth_sessions_profile_router.delete_profile_other_sessions,
-        core_rate_limit.WRITE,
-        id="profile-sessions-revoke-others",
-    ),
-    pytest.param(
         auth_sessions_profile_router.revoke_profile_sessions,
         core_rate_limit.WRITE,
-        id="profile-sessions-revoke-all",
+        id="profile-sessions-revoke",
     ),
     pytest.param(
         auth_sessions_profile_router.delete_profile_session, core_rate_limit.WRITE, id="profile-session-delete"

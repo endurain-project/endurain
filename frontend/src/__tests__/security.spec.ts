@@ -261,13 +261,13 @@ describe('security service requests', () => {
     })
   })
 
-  it('revokeOtherSessions DELETEs the bulk sessions path', async () => {
+  it('revokeOtherSessions POSTs the revoke action keeping the current session', async () => {
     vi.mocked(apiFetch).mockResolvedValue(undefined)
 
     await revokeOtherSessions()
 
-    expect(apiFetch).toHaveBeenCalledWith('/profile/sessions', {
-      method: 'DELETE',
+    expect(apiFetch).toHaveBeenCalledWith('/profile/sessions/revoke?keep_current=true', {
+      method: 'POST',
       responseType: 'void',
     })
   })

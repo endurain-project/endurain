@@ -628,22 +628,6 @@ class TestDeleteProfileSession:
 
 
 # ===================================================================
-# DELETE /profile/sessions
-# ===================================================================
-
-
-class TestDeleteProfileOtherSessions:
-    """Tests for DELETE /profile/sessions — delete_profile_other_sessions."""
-
-    def test_success(self, profile_client, mock_auth_services):
-        """Happy path: revokes other sessions, keeping the caller's current one."""
-        response = profile_client.delete(PREFIX + "/sessions")
-
-        assert response.status_code == 204
-        mock_auth_services.delete_other_user_sessions.assert_called_once_with(1, "session-1")
-
-
-# ===================================================================
 # POST /profile/sessions/revoke
 # ===================================================================
 
@@ -656,8 +640,30 @@ class TestRevokeProfileSessions:
 
         assert response.status_code == 204
         mock_auth_services.sign_out_everywhere.assert_called_once_with(1)
+        mock_auth_services.delete_other_user_sessions.assert_not_called()
         assert "endurain_refresh_token=" in response.headers["set-cookie"]
         assert "Max-Age=0" in response.headers["set-cookie"]
+
+    def test_keep_current_false_ends_every_session(self, profile_client, mock_auth_services):
+        response = profile_client.post(PREFIX + "/sessions/revoke?keep_current=false")
+
+        assert response.status_code == 204
+        mock_auth_services.sign_out_everywhere.assert_called_once_with(1)
+        assert "Max-Age=0" in response.headers["set-cookie"]
+
+    def test_keep_current_ends_the_other_sessions_and_keeps_the_cookie(self, profile_client, mock_auth_services):
+        response = profile_client.post(PREFIX + "/sessions/revoke?keep_current=true")
+
+        assert response.status_code == 204
+        mock_auth_services.delete_other_user_sessions.assert_called_once_with(1, "session-1")
+        mock_auth_services.sign_out_everywhere.assert_not_called()
+        assert "set-cookie" not in response.headers
+
+    def test_the_bulk_delete_route_is_gone(self, profile_client, mock_auth_services):
+        response = profile_client.delete(PREFIX + "/sessions")
+
+        assert response.status_code == 405
+        mock_auth_services.delete_other_user_sessions.assert_not_called()
 
 
 # ===================================================================

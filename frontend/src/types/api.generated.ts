@@ -2805,17 +2805,7 @@ export interface paths {
         get: operations["read_sessions_me"];
         put?: never;
         post?: never;
-        /**
-         * Delete Profile Other Sessions
-         * @description Revoke all of the authenticated user's other sessions.
-         *
-         *     Signs out every device except the caller's current session
-         *     (identified from the access token), so a user can end all
-         *     other sessions without logging themselves out. This is the
-         *     standalone form of the password change's
-         *     ``revoke_other_sessions`` option.
-         */
-        delete: operations["delete_profile_other_sessions"];
+        delete?: never;
         options?: never;
         head?: never;
         patch?: never;
@@ -2832,11 +2822,11 @@ export interface paths {
         put?: never;
         /**
          * Revoke Profile Sessions
-         * @description Sign out everywhere: end every session of the authenticated user, the current one included.
+         * @description Sign out everywhere, or only on the other devices.
          *
-         *     Every device is signed out, this one too, so the client must discard its tokens and send the user to the
-         *     login page. The browser's refresh-token cookie is cleared on the response. Unlike ending the other sessions,
-         *     which keeps the caller signed in, this leaves no session behind.
+         *     By default every session of the authenticated user ends, the current one included, so the client must discard
+         *     its tokens and send the user to the login page; the browser's refresh-token cookie is cleared on the response.
+         *     With `keep_current=true` every other session ends and the caller stays signed in, so the cookie is left alone.
          */
         post: operations["revoke_profile_sessions"];
         delete?: never;
@@ -29018,87 +29008,12 @@ export interface operations {
             };
         };
     };
-    delete_profile_other_sessions: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            204: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-            /** @description The credential is missing, invalid or no longer valid. */
-            401: {
-                headers: {
-                    /** @description The authentication challenge. */
-                    "WWW-Authenticate"?: string;
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/problem+json": components["schemas"]["ProblemDetail"];
-                };
-            };
-            /** @description The caller is signed in but not allowed, for example a scope is missing. */
-            403: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/problem+json": components["schemas"]["ProblemDetail"];
-                };
-            };
-            /** @description The request conflicts with the current state. */
-            409: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/problem+json": components["schemas"]["ProblemDetail"];
-                };
-            };
-            /** @description The rate limit was reached. */
-            429: {
-                headers: {
-                    /** @description Seconds to wait before the request can succeed. */
-                    "Retry-After"?: number;
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/problem+json": components["schemas"]["ProblemDetail"];
-                };
-            };
-            /** @description A dependency is unavailable for a moment. */
-            503: {
-                headers: {
-                    /** @description Seconds to wait before the request can succeed. */
-                    "Retry-After"?: number;
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/problem+json": components["schemas"]["ProblemDetail"];
-                };
-            };
-            /** @description Unexpected error */
-            default: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/problem+json": components["schemas"]["ProblemDetail"];
-                };
-            };
-        };
-    };
     revoke_profile_sessions: {
         parameters: {
-            query?: never;
+            query?: {
+                /** @description Keep the caller's current session and end only the others */
+                keep_current?: boolean;
+            };
             header?: never;
             path?: never;
             cookie?: never;
@@ -29134,6 +29049,15 @@ export interface operations {
             };
             /** @description The request conflicts with the current state. */
             409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
                 headers: {
                     [name: string]: unknown;
                 };
