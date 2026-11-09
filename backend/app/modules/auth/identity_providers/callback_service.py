@@ -4,6 +4,7 @@ import hmac
 from contextlib import AbstractContextManager, nullcontext
 from dataclasses import dataclass, field
 from datetime import UTC, datetime, timedelta
+from enum import StrEnum
 from typing import Any, Literal
 from urllib.parse import quote
 from uuid import uuid4
@@ -492,6 +493,17 @@ class CallbackService:
                     )
                     raise core_exceptions.NotFoundError("User not found")
 
+                # Nothing commits between this check and the link below, and the generation row stays locked
+                # until that commit, so a security change cannot slip in between.
+                stale = _stale_flow(user, oauth_state, db)
+                if stale is not None:
+                    logger.warning(
+                        "Identity provider link refused for user <link_user_id>: <reason>",
+                        extra=core_logger.context(link_user_id=link_user_id, reason=stale),
+                    )
+                    user_provisioning_service.record_identity_link_refused(link_user_id, idp.id, _LINK_REFUSALS[stale])
+                    raise core_exceptions.PermissionDeniedError("This link request can no longer be completed")
+
                 # The browser binding proved the user started this link, so the rows below name them as actor.
                 with login_audit_integration.acting_as_user(link_user_id):
                     # Check if this IdP subject is already linked to ANY user
@@ -526,8 +538,7 @@ class CallbackService:
                     )
                     user_provisioning_service.stage_identity_link(link_user_id, idp.id, db)
                     idp_event_publishers.publish_idp_linked(link_user_id, idp.id, db)
-                    # The state records the session that started the link only when the user asked to end the others.
-                    if oauth_state.session_id is not None:
+                    if oauth_state.ends_other_sessions and oauth_state.session_id is not None:
                         _stage_other_sessions_ended(link_user_id, oauth_state.session_id, db)
 
                     user = user_provisioning_service.update_user_from_idp(user, idp, userinfo, db)
@@ -628,6 +639,14 @@ class CallbackService:
                     oauth_state, jasil_audit.Outcome.DENIED, login_audit_actions.StepUpFailureReason.NOT_LINKED
                 )
                 return self._failure_url(oauth_state)
+            stale = _stale_flow(users_integration.get_user(oauth_state.user_id, db), oauth_state, db)
+            if stale is not None:
+                logger.warning(
+                    "Step-up refused for user <user_id>: the account or session changed since it started",
+                    extra=core_logger.context(user_id=oauth_state.user_id),
+                )
+                _record_step_up_refusal(oauth_state, jasil_audit.Outcome.DENIED, _STEP_UP_REFUSALS[stale])
+                return self._failure_url(oauth_state)
             ticket = self._step_up_tickets.issue(
                 identity_provider_contracts.StepUpTicket(
                     user_id=link.user_id,
@@ -635,6 +654,7 @@ class CallbackService:
                     idp_id=idp.id,
                     code_challenge=oauth_state.code_challenge,
                     action=oauth_state.action,
+                    security_generation=oauth_state.security_generation,
                 )
             )
         except _StaleSignInError as err:
@@ -918,6 +938,61 @@ def _provider_session_id(claims: dict[str, Any]) -> str | None:
         return sid
     if sid is not None:
         logger.warning("ID token sid is not a usable string; the sign-in is stored without it")
+    return None
+
+
+class _StaleFlow(StrEnum):
+    """Why a link or step-up that a user started can no longer be completed."""
+
+    USER_INACTIVE = "user_inactive"
+    SESSION_ENDED = "session_ended"
+    SECURITY_CHANGED = "security_changed"
+
+
+_LINK_REFUSALS = {
+    _StaleFlow.USER_INACTIVE: idp_audit_actions.IdentityLinkRefusal.USER_INACTIVE,
+    _StaleFlow.SESSION_ENDED: idp_audit_actions.IdentityLinkRefusal.SESSION_ENDED,
+    _StaleFlow.SECURITY_CHANGED: idp_audit_actions.IdentityLinkRefusal.SECURITY_CHANGED,
+}
+
+_STEP_UP_REFUSALS = {
+    _StaleFlow.USER_INACTIVE: login_audit_actions.StepUpFailureReason.USER_INACTIVE,
+    _StaleFlow.SESSION_ENDED: login_audit_actions.StepUpFailureReason.SESSION_ENDED,
+    _StaleFlow.SECURITY_CHANGED: login_audit_actions.StepUpFailureReason.SECURITY_CHANGED,
+}
+
+
+def _stale_flow(
+    user: users_schema.UserRead | None, oauth_state: oauth_state_schema.OAuthStateRead, db: Session
+) -> _StaleFlow | None:
+    """Tell why a link or step-up can no longer be completed, taking the security generation's lock.
+
+    The browser proved the user started the flow, but the account may have changed since: it can be deactivated,
+    the session that started the flow can have ended, and a security change (a password or MFA change, a sign-out
+    everywhere) moves the generation the state recorded. The generation row is locked first and the starting
+    session's row second, and both locks last until the caller's transaction ends, so neither a security change nor
+    the revocation of that session can commit between this check and the completion.
+
+    Args:
+        user: The user the flow was started for, or None when they no longer exist.
+        oauth_state: The claimed state, with the session and security generation it was started under.
+        db: Database session.
+
+    Returns:
+        The reason the flow is stale, or None when the user is active, the session alive and the generation
+        current.
+    """
+    if user is None or not user.active:
+        return _StaleFlow.USER_INACTIVE
+    if not security_generation_integration.matches_locked(user.id, oauth_state.security_generation, db):
+        return _StaleFlow.SECURITY_CHANGED
+    session = (
+        sessions_integration.lock_live_session(oauth_state.session_id, db)
+        if oauth_state.session_id is not None
+        else None
+    )
+    if session is None or session.user_id != user.id:
+        return _StaleFlow.SESSION_ENDED
     return None
 
 

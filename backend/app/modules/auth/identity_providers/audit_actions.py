@@ -28,6 +28,9 @@ class IdentityLinkRefusal(StrEnum):
         NO_SUBJECT: The provider's claims named no subject.
         USER_NOT_FOUND: The account the link was started for no longer exists.
         ALREADY_LINKED_TO_THIS_ACCOUNT: The provider identity is already linked to this same account.
+        USER_INACTIVE: The account the link was started for is no longer active.
+        SESSION_ENDED: The session that started the link has ended.
+        SECURITY_CHANGED: A security change of the account came after the link started.
     """
 
     PROVIDER_EMAIL_UNVERIFIED = "provider_email_unverified"
@@ -41,6 +44,9 @@ class IdentityLinkRefusal(StrEnum):
     NO_SUBJECT = "no_subject"
     USER_NOT_FOUND = "user_not_found"
     ALREADY_LINKED_TO_THIS_ACCOUNT = "already_linked_to_this_account"
+    USER_INACTIVE = "user_inactive"
+    SESSION_ENDED = "session_ended"
+    SECURITY_CHANGED = "security_changed"
 
 
 class BackchannelLogoutRefusal(StrEnum):

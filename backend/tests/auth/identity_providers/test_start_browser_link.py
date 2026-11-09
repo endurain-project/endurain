@@ -43,7 +43,7 @@ def _idp(enabled: bool = True) -> identity_provider_contracts.IdentityProviderSt
     )
 
 
-def _stage(*, redirect=None, provider=_UNSET, keep_session_id=None):
+def _stage(*, redirect=None, provider=_UNSET, session_id="sid", ends_other_sessions=False, generation=0):
     if provider is _UNSET:
         provider = _idp()
     db = MagicMock()
@@ -61,7 +61,9 @@ def _stage(*, redirect=None, provider=_UNSET, keep_session_id=None):
         ),
         patch.object(authorization_service.oauth_state_integration, "create_oauth_state") as create_state,
     ):
-        staged = integration_service.stage_browser_link(7, 1, redirect, "10.0.0.1", keep_session_id, db)
+        staged = integration_service.stage_browser_link(
+            7, 1, redirect, "10.0.0.1", session_id, ends_other_sessions, db, security_generation=generation
+        )
     return staged, service, create_state
 
 
@@ -110,16 +112,20 @@ def test_a_link_state_keeps_a_fresh_pkce_verifier_for_the_provider():
     assert verifier != second.call_args.kwargs["idp_code_verifier"]
 
 
-def test_a_link_state_records_the_session_to_keep_when_other_sessions_end():
-    _, _, create_state = _stage(keep_session_id="sid")
+@pytest.mark.parametrize("ends_other_sessions", [True, False])
+def test_a_link_state_always_records_its_starting_session_and_whether_it_ends_the_others(ends_other_sessions):
+    _, _, create_state = _stage(session_id="sid", ends_other_sessions=ends_other_sessions)
 
     assert create_state.call_args.kwargs["session_id"] == "sid"
+    assert create_state.call_args.kwargs["ends_other_sessions"] is ends_other_sessions
 
 
-def test_a_link_state_records_no_session_when_every_session_stays():
-    _, _, create_state = _stage()
+def test_a_link_state_records_the_generation_the_caller_read(security_generations):
+    security_generations.generations[7] = 9
 
-    assert create_state.call_args.kwargs["session_id"] is None
+    _, _, create_state = _stage(generation=4)
+
+    assert create_state.call_args.kwargs["security_generation"] == 4
 
 
 def test_stage_browser_link_preserves_redirect_and_client_type():

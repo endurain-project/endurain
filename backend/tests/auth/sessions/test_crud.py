@@ -6,6 +6,7 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 from sqlalchemy import CursorResult
+from sqlalchemy.dialects import postgresql
 from sqlalchemy.exc import SQLAlchemyError
 
 import core.exceptions as core_exceptions
@@ -72,6 +73,25 @@ def test_session_lookup_returns_dto_and_none(lookup, mock_db):
     assert result.id == "session-id"
     mock_db.execute.return_value = _result()
     assert lookup("missing", mock_db) is None
+
+
+def test_lock_live_session_returns_dto_and_none(mock_db):
+    mock_db.execute.return_value = _result(_row())
+    result = sessions_crud.lock_live_session("session-id", mock_db)
+    assert result is not None
+    assert result.id == "session-id"
+    mock_db.execute.return_value = _result()
+    assert sessions_crud.lock_live_session("missing", mock_db) is None
+
+
+def test_lock_live_session_takes_a_shared_row_lock_on_the_unexpired_session(mock_db):
+    mock_db.execute.return_value = _result(_row())
+
+    sessions_crud.lock_live_session("session-id", mock_db)
+
+    statement = str(mock_db.execute.call_args.args[0].compile(dialect=postgresql.dialect()))
+    assert "FOR SHARE" in statement
+    assert "expires_at >" in statement
 
 
 def test_session_lookup_lets_database_errors_reach_the_global_handler(mock_db):

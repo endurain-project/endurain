@@ -19,6 +19,7 @@ import modules.auth.lockout.integration_service as lockout_integration
 import modules.auth.login_audit.audit_actions as login_audit_actions
 import modules.auth.mfa.integration_service as mfa_integration
 import modules.auth.schema as auth_schema
+import modules.auth.security_generation.integration_service as security_generation_integration
 import modules.users.users.integration_service as users_integration
 
 logger = core_logger.get_logger(__name__)
@@ -234,7 +235,7 @@ def verify_step_up_credentials(
             )
             raise core_exceptions.IdpReauthRequiredError(identity_providers_constants.STEP_UP_MAX_AGE_SECONDS)
         ticket = step_up_store.read_ticket(idp_reauth.ticket)
-        if not _ticket_matches(ticket, idp_reauth.code_verifier, user_id, session_id, action):
+        if not _ticket_matches(ticket, idp_reauth.code_verifier, user_id, session_id, action, db):
             _refuse_step_up(
                 step_up_store,
                 key,
@@ -283,8 +284,14 @@ def _ticket_matches(
     user_id: int,
     session_id: str,
     action: identity_providers_constants.StepUpAction | None,
+    db: Session,
 ) -> bool:
     """Tell whether a step-up ticket was issued for this user, session and operation, to this browser.
+
+    A ticket also stops matching once the account's security generation moved on since the step-up started, or
+    when it records none. The generation is checked when the ticket is redeemed, and a ticket is single-use, so a
+    security change that commits after the redeem cannot revive it. The row's lock lasts only until the caller's
+    transaction ends: a caller that ends it right after the step-up does not hold it across the operation.
 
     Args:
         ticket: The stored ticket, if it exists.
@@ -292,9 +299,11 @@ def _ticket_matches(
         user_id: The authenticated user.
         session_id: The caller's session.
         action: The operation being authorised.
+        db: SQLAlchemy database session.
 
     Returns:
-        True when the ticket exists, matches all three, and the verifier hashes to its challenge.
+        True when the ticket exists, matches all three, the verifier hashes to its challenge and its security
+        generation is still current.
     """
     if action is None:
         return False
@@ -304,4 +313,4 @@ def _ticket_matches(
         auth_computation.validate_pkce_verifier(code_verifier, ticket.code_challenge, "S256")
     except core_exceptions.InvalidInputError:
         return False
-    return True
+    return security_generation_integration.matches_locked(user_id, ticket.security_generation, db)

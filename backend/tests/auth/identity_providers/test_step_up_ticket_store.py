@@ -25,6 +25,18 @@ class TestStepUpTicketStore:
 
         assert store.read(value) == _TICKET
 
+    def test_a_ticket_carries_the_security_generation_it_was_started_under(self):
+        store = StepUpTicketStore(MemoryState())
+
+        value = store.issue(_TICKET.model_copy(update={"security_generation": 5}))
+
+        assert store.read(value).security_generation == 5
+
+    def test_a_ticket_without_a_stamp_reads_back_without_one(self):
+        store = StepUpTicketStore(MemoryState())
+
+        assert store.read(store.issue(_TICKET)).security_generation is None
+
     def test_reading_does_not_redeem(self):
         store = StepUpTicketStore(MemoryState())
         value = store.issue(_TICKET)

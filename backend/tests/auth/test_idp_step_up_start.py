@@ -71,6 +71,27 @@ class TestStartService:
             authorization_url="https://idp.example.com/authorize?prompt=login", browser_binding="binding-secret"
         )
 
+    def test_the_generation_is_read_before_the_lockout_check_and_is_the_one_staged(self, security_generations):
+        security_generations.generations[7] = 4
+        order = MagicMock()
+        with (
+            patch.object(identity_link_service.step_up_service, "require_not_locked_out") as locked,
+            patch.object(identity_link_service.credentials_integration, "has_local_password", return_value=False),
+            patch.object(
+                identity_link_service.identity_providers_integration, "stage_step_up", return_value=_staged()
+            ) as stage,
+            patch.object(identity_link_service.identity_providers_integration, "authorization_url", return_value="u"),
+            patch.object(
+                identity_link_service.security_generation_integration, "current_generation", return_value=4
+            ) as read,
+        ):
+            order.attach_mock(read, "read_generation")
+            order.attach_mock(locked, "lockout_check")
+            identity_link_service.start_idp_step_up(3, START, "1.2.3.4", 7, SESSION_ID, MagicMock(), MagicMock())
+
+        assert [call[0] for call in order.mock_calls] == ["read_generation", "lockout_check"]
+        assert stage.call_args.kwargs["security_generation"] == 4
+
     def test_the_lockout_is_checked_for_the_callers_session(self):
         store = MagicMock()
         with (

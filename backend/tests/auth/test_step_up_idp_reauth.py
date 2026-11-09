@@ -50,6 +50,7 @@ def _issue(state, **overrides) -> str:
         "idp_id": 3,
         "code_challenge": CHALLENGE,
         "action": StepUpAction.API_KEY_CREATE,
+        "security_generation": 0,
     } | overrides
     return StepUpTicketStore(state).issue(idp_contracts.StepUpTicket(**fields))
 
@@ -140,6 +141,48 @@ class TestTicket:
         assert _failures(store) == 1
         # Refused before redemption: the ticket is still there for its rightful request.
         assert StepUpTicketStore(state).read(ticket) is not None
+
+    def test_a_ticket_stamped_with_the_current_generation_passes(self, state, store, account, security_generations):
+        security_generations.generations[USER_ID] = 3
+        ticket = _issue(state, security_generation=3)
+
+        _verify(store, ticket)
+
+        assert StepUpTicketStore(state).read(ticket) is None
+
+    def test_a_security_change_after_the_step_up_refuses_the_ticket_like_any_other_mismatch(
+        self, state, store, account, security_generations
+    ):
+        ticket = _issue(state, security_generation=security_generations.current_generation(USER_ID, MagicMock()))
+        security_generations.stage_bump(USER_ID, MagicMock())
+
+        with pytest.raises(core_exceptions.StepUpFailedError) as stale:
+            _verify(store, ticket)
+        with pytest.raises(core_exceptions.StepUpFailedError) as wrong_verifier:
+            _verify(store, _issue(state), verifier="w" * 43)
+
+        assert not isinstance(stale.value, core_exceptions.IdpReauthRequiredError)
+        assert type(stale.value) is type(wrong_verifier.value)
+        assert str(stale.value) == str(wrong_verifier.value)
+        assert _failures(store) == 2
+        # Refused before redemption, so nothing is learned from whether the ticket survived.
+        assert StepUpTicketStore(state).read(ticket) is not None
+
+    def test_a_ticket_without_a_stamp_is_refused(self, state, store, account):
+        ticket = _issue(state, security_generation=None)
+
+        with pytest.raises(core_exceptions.StepUpFailedError):
+            _verify(store, ticket)
+
+        assert _failures(store) == 1
+        assert StepUpTicketStore(state).read(ticket) is not None
+
+    def test_a_ticket_of_a_signed_out_everywhere_account_is_refused(self, state, store, account, security_generations):
+        ticket = _issue(state)
+        security_generations.stage_bump(USER_ID, MagicMock())
+
+        with pytest.raises(core_exceptions.StepUpFailedError):
+            _verify(store, ticket)
 
     def test_an_unknown_ticket_is_refused(self, store, account):
         with pytest.raises(core_exceptions.StepUpFailedError):

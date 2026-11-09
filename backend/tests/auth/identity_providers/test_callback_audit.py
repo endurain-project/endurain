@@ -1,5 +1,6 @@
 """The SSO callback audits a new identity link."""
 
+from types import SimpleNamespace
 from unittest.mock import MagicMock, patch
 
 import jasil.testing as jasil_testing
@@ -10,6 +11,8 @@ import modules.auth.identity_providers.audit_actions as idp_audit_actions
 import modules.auth.identity_providers.callback_service as callback_service
 import modules.auth.oauth_state.constants as oauth_state_constants
 import modules.auth.sessions.audit_actions as sessions_audit_actions
+
+_SESSION = SimpleNamespace(user_id=7)
 
 
 def _service():
@@ -28,12 +31,15 @@ def test_linking_a_provider_is_audited_with_the_provider_id(mock_db):
         nonce="n",
         redirect_path="/",
         client_type="web",
-        session_id=None,
+        session_id="sid",
+        ends_other_sessions=False,
+        security_generation=0,
     )
     oauth_client = MagicMock()
     oauth_client.fetch_token.return_value = {"access_token": "at"}
     user = MagicMock(id=7, username="alice")
     with (
+        patch.object(callback_service.sessions_integration, "lock_live_session", return_value=_SESSION),
         patch.object(service._oidc, "decrypt_client_id", return_value="cid"),
         patch.object(service._oidc, "decrypt_client_secret", return_value="secret"),
         patch.object(service._oidc, "resolve_token_endpoint", return_value="https://x/token"),
@@ -66,11 +72,18 @@ def test_linking_an_identity_that_belongs_to_another_account_is_denied(mock_db):
     idp = MagicMock(id=3, slug="idp", provider_type="oauth2", issuer_url=None, userinfo_endpoint="https://x/userinfo")
     idp.name = "GitHub"
     oauth_state = MagicMock(
-        user_id=7, purpose=oauth_state_constants.OAuthStatePurpose.LINK, nonce="n", redirect_path="/", client_type="web"
+        user_id=7,
+        purpose=oauth_state_constants.OAuthStatePurpose.LINK,
+        nonce="n",
+        redirect_path="/",
+        client_type="web",
+        session_id="sid",
+        security_generation=0,
     )
     oauth_client = MagicMock()
     oauth_client.fetch_token.return_value = {"access_token": "at"}
     with (
+        patch.object(callback_service.sessions_integration, "lock_live_session", return_value=_SESSION),
         patch.object(service._oidc, "decrypt_client_id", return_value="cid"),
         patch.object(service._oidc, "decrypt_client_secret", return_value="secret"),
         patch.object(service._oidc, "resolve_token_endpoint", return_value="https://x/token"),
@@ -97,8 +110,8 @@ def test_linking_an_identity_that_belongs_to_another_account_is_denied(mock_db):
     assert entry.details == {"idp_id": 3, "reason": "linked_to_another_account"}
 
 
-def _complete_link(mock_db, *, session_id, ended=2):
-    """Run the callback of a link whose state records ``session_id`` as the session to keep; return the audit."""
+def _complete_link(mock_db, *, ends_other_sessions, ended=2):
+    """Run the callback of a link started from session ``sid``; return the audit and the session deletion."""
     service = _service()
     idp = MagicMock(id=3, slug="idp", provider_type="oauth2", issuer_url=None, userinfo_endpoint="https://x/userinfo")
     idp.name = "GitHub"
@@ -110,12 +123,15 @@ def _complete_link(mock_db, *, session_id, ended=2):
         nonce="n",
         redirect_path="/",
         client_type="web",
-        session_id=session_id,
+        session_id="sid",
+        ends_other_sessions=ends_other_sessions,
+        security_generation=0,
     )
     oauth_client = MagicMock()
     oauth_client.fetch_token.return_value = {"access_token": "at"}
     user = MagicMock(id=7, username="alice")
     with (
+        patch.object(callback_service.sessions_integration, "lock_live_session", return_value=_SESSION),
         patch.object(service._oidc, "decrypt_client_id", return_value="cid"),
         patch.object(service._oidc, "decrypt_client_secret", return_value="secret"),
         patch.object(service._oidc, "resolve_token_endpoint", return_value="https://x/token"),
@@ -137,7 +153,7 @@ def _complete_link(mock_db, *, session_id, ended=2):
 
 
 def test_a_link_ends_the_other_sessions_except_the_one_that_started_it(mock_db):
-    audit, delete = _complete_link(mock_db, session_id="sid")
+    audit, delete = _complete_link(mock_db, ends_other_sessions=True)
 
     delete.assert_called_once_with(7, mock_db, exclude_session_id="sid")
     entry = audit.assert_audited(
@@ -148,14 +164,14 @@ def test_a_link_ends_the_other_sessions_except_the_one_that_started_it(mock_db):
 
 
 def test_a_link_that_asked_to_keep_every_session_ends_none(mock_db):
-    audit, delete = _complete_link(mock_db, session_id=None)
+    audit, delete = _complete_link(mock_db, ends_other_sessions=False)
 
     delete.assert_not_called()
     audit.assert_not_audited(sessions_audit_actions.SESSION_REVOKE.id)
 
 
 def test_a_link_with_no_other_session_records_no_revocation(mock_db):
-    audit, delete = _complete_link(mock_db, session_id="sid", ended=0)
+    audit, delete = _complete_link(mock_db, ends_other_sessions=True, ended=0)
 
     delete.assert_called_once()
     audit.assert_not_audited(sessions_audit_actions.SESSION_REVOKE.id)

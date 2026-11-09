@@ -97,13 +97,43 @@ class TestStartIdpLink:
 
         verify.assert_called_once()
         assert verify.call_args.kwargs["action"] == identity_providers_constants.StepUpAction.IDP_LINK
-        stage.assert_called_once_with(10, 1, "/settings/security", "127.0.0.1", "sid", mock_db)
+        stage.assert_called_once_with(
+            10, 1, "/settings/security", "127.0.0.1", "sid", True, mock_db, security_generation=0
+        )
         assert [call[0] for call in order.mock_calls] == ["commit", "build_url"]
         assert flow.authorization_url == "https://idp.example.com/auth"
         assert flow.browser_binding == "binding"
 
-    @pytest.mark.parametrize(("revoke", "kept_session"), [(True, "sid"), (False, None)])
-    def test_the_choice_to_end_other_sessions_travels_with_the_state(self, mock_db, revoke, kept_session):
+    def test_the_generation_is_read_before_the_step_up_and_is_the_one_stamped(self, mock_db, security_generations):
+        security_generations.generations[10] = 3
+        order = MagicMock()
+        with (
+            patch(f"{self._MODULE}.step_up_service.verify_step_up_credentials") as verify,
+            patch(
+                f"{self._MODULE}.identity_providers_integration.get_identity_provider", return_value=self._make_idp()
+            ),
+            patch(
+                f"{self._MODULE}.identity_provider_links_integration.get_user_identity_provider_by_user_id_and_idp_id",
+                return_value=None,
+            ),
+            patch(
+                f"{self._MODULE}.identity_providers_integration.stage_browser_link",
+                return_value=MagicMock(browser_binding="binding"),
+            ) as stage,
+            patch(f"{self._MODULE}.identity_providers_integration.authorization_url", return_value="https://x"),
+            patch(f"{self._MODULE}.security_generation_integration.current_generation", return_value=3) as read,
+        ):
+            order.attach_mock(read, "read_generation")
+            order.attach_mock(verify, "step_up")
+            # A security change that commits during the step-up must not reach the stamp.
+            verify.side_effect = lambda *args, **kwargs: security_generations.stage_bump(10, mock_db)
+            identity_link_service.start_idp_link(1, self._link(), "127.0.0.1", 10, "sid", MagicMock(), mock_db)
+
+        assert [call[0] for call in order.mock_calls][:2] == ["read_generation", "step_up"]
+        assert stage.call_args.kwargs["security_generation"] == 3
+
+    @pytest.mark.parametrize("revoke", [True, False])
+    def test_the_starting_session_and_the_choice_to_end_the_others_travel_with_the_state(self, mock_db, revoke):
         link = users_schema.IdentityProviderLinkStart(
             step_up={"current_password": "pass"}, redirect="/settings/security", revoke_other_sessions=revoke
         )
@@ -124,7 +154,7 @@ class TestStartIdpLink:
         ):
             identity_link_service.start_idp_link(1, link, "127.0.0.1", 10, "sid", MagicMock(), mock_db)
 
-        assert stage.call_args.args[4] == kept_session
+        assert stage.call_args.args[4:6] == ("sid", revoke)
 
     def test_a_bad_redirect_is_refused_before_step_up_runs(self, mock_db):
         with (

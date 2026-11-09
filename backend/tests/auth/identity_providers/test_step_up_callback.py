@@ -7,6 +7,7 @@ from unittest.mock import MagicMock, patch
 from urllib.parse import parse_qs, urlsplit
 
 import httpx2
+import jasil.testing as jasil_testing
 import pytest
 from authlib.integrations.base_client import OAuthError
 from jasil.backends.state_memory import MemoryState
@@ -45,6 +46,22 @@ def oidc():
     return client
 
 
+@pytest.fixture(autouse=True)
+def active_user_and_session():
+    """The user is active and the session that started the step-up is alive and theirs."""
+    with (
+        patch.object(
+            callback_service.users_integration, "get_user", return_value=SimpleNamespace(id=USER_ID, active=True)
+        ),
+        patch.object(
+            callback_service.sessions_integration,
+            "lock_live_session",
+            return_value=SimpleNamespace(user_id=USER_ID),
+        ),
+    ):
+        yield
+
+
 @pytest.fixture
 def service(oidc, state):
     return callback_service.CallbackService(oidc, MagicMock(), StepUpTicketStore(state), HOST)
@@ -69,6 +86,7 @@ def _oauth_state(started_at=NOW, **overrides):
         "created_at": started_at,
         "expires_at": started_at + timedelta(seconds=oauth_state_constants.STATE_TTL_SECONDS),
         "used": True,
+        "security_generation": 0,
     }
     values.update(overrides)
     return oauth_state_schema.StepUpOAuthStateRead(**values)
@@ -108,6 +126,7 @@ class TestFreshSignIn:
         assert issued.idp_id == 3
         assert issued.action == "account_delete"
         assert issued.code_challenge == "c" * 43
+        assert issued.security_generation == 0
 
     def test_the_code_is_redeemed_with_pkce_and_the_id_token_checked_against_the_nonce(self, service, oidc):
         _, verify, _ = _complete(service)
@@ -132,6 +151,63 @@ class TestFreshSignIn:
         _, _, find_link = _complete(service)
 
         assert find_link.call_args.args[:2] == (3, "subject-1")
+
+
+class TestStaleFlow:
+    """A step-up whose account or session changed after it started issues no ticket."""
+
+    def _assert_refused(self, url, audit, reason):
+        assert _fragment(url) == {"step_up_error": ["failed"]}
+        entry = audit.assert_audited(
+            "auth.step_up.verify",
+            outcome="denied",
+            target_type="user",
+            target_id=str(USER_ID),
+            target_owner_id=str(USER_ID),
+        )
+        assert entry.details == {"method": "identity_provider", "reason": reason}
+
+    def test_a_security_change_after_the_step_up_started_issues_no_ticket(self, service, security_generations):
+        started = _oauth_state(security_generation=security_generations.current_generation(USER_ID, MagicMock()))
+        security_generations.stage_bump(USER_ID, MagicMock())
+
+        with jasil_testing.capture_audit() as audit:
+            url, _, _ = _complete(service, oauth_state=started)
+
+        self._assert_refused(url, audit, "security_changed")
+
+    def test_a_state_without_a_stamp_issues_no_ticket(self, service):
+        with jasil_testing.capture_audit() as audit:
+            url, _, _ = _complete(service, oauth_state=_oauth_state(security_generation=None))
+
+        self._assert_refused(url, audit, "security_changed")
+
+    @pytest.mark.parametrize("user", [SimpleNamespace(id=USER_ID, active=False), None], ids=["inactive", "deleted"])
+    def test_an_inactive_or_missing_user_issues_no_ticket(self, service, user):
+        with (
+            patch.object(callback_service.users_integration, "get_user", return_value=user),
+            jasil_testing.capture_audit() as audit,
+        ):
+            url, _, _ = _complete(service)
+
+        self._assert_refused(url, audit, "user_inactive")
+
+    @pytest.mark.parametrize("session", [None, SimpleNamespace(user_id=USER_ID + 1)], ids=["ended", "another-users"])
+    def test_a_session_that_ended_issues_no_ticket(self, service, session):
+        with (
+            patch.object(callback_service.sessions_integration, "lock_live_session", return_value=session),
+            jasil_testing.capture_audit() as audit,
+        ):
+            url, _, _ = _complete(service)
+
+        self._assert_refused(url, audit, "session_ended")
+
+    def test_the_ticket_is_stamped_with_the_generation_of_the_state(self, service, state, security_generations):
+        security_generations.generations[USER_ID] = 9
+
+        url, _, _ = _complete(service, oauth_state=_oauth_state(security_generation=9))
+
+        assert StepUpTicketStore(state).read(_fragment(url)["step_up_ticket"][0]).security_generation == 9
 
 
 class TestRefusals:

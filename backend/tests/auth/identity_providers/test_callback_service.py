@@ -321,7 +321,14 @@ class TestHandleCallback:
         )
         idp.name = "Pocket ID"
         oauth_state = MagicMock(
-            user_id=7, purpose=_LINK, nonce="nonce", redirect_path="/", client_type="web", session_id=None
+            user_id=7,
+            purpose=_LINK,
+            nonce="nonce",
+            redirect_path="/",
+            client_type="web",
+            session_id="sid",
+            ends_other_sessions=False,
+            security_generation=0,
         )
         oauth_client = MagicMock()
         oauth_client.fetch_token.return_value = {"access_token": "at", "refresh_token": "rt"}
@@ -335,6 +342,11 @@ class TestHandleCallback:
             patch.object(service._oidc, "create_oauth_client", return_value=oauth_client),
             patch.object(service._oidc, "get_userinfo", return_value={"sub": "user-1"}),
             patch.object(callback_service.users_integration, "get_user", return_value=user),
+            patch.object(
+                callback_service.sessions_integration,
+                "lock_live_session",
+                return_value=MagicMock(user_id=7),
+            ),
             patch.object(
                 callback_service.identity_provider_links_integration,
                 "get_user_identity_provider_by_subject_and_idp_id",
@@ -644,7 +656,14 @@ class TestOauth2WithOpenidScopeRequiresIdToken:
         )
         idp.name = "Generic"
         oauth_state = MagicMock(
-            user_id=7, purpose=purpose, nonce="nonce", redirect_path="/", client_type="web", session_id=None
+            user_id=7,
+            purpose=purpose,
+            nonce="nonce",
+            redirect_path="/",
+            client_type="web",
+            session_id="sid",
+            ends_other_sessions=False,
+            security_generation=0,
         )
         oauth_client = MagicMock()
         oauth_client.fetch_token.return_value = token_response or {"access_token": "at", "id_token": "idt"}
@@ -692,6 +711,13 @@ class TestOauth2WithOpenidScopeRequiresIdToken:
         with ExitStack() as stack:
             linking_user = MagicMock(id=7, username="a")
             stack.enter_context(patch.object(callback_service.users_integration, "get_user", return_value=linking_user))
+            stack.enter_context(
+                patch.object(
+                    callback_service.sessions_integration,
+                    "lock_live_session",
+                    return_value=MagicMock(user_id=7),
+                )
+            )
             stack.enter_context(
                 patch.object(
                     callback_service.user_provisioning_service, "update_user_from_idp", return_value=linking_user

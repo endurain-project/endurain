@@ -84,6 +84,29 @@ def get_session_by_id_not_expired(session_id: str, db: Session) -> sessions_cont
     return sessions_serializers.to_read_schema(row) if row is not None else None
 
 
+def lock_live_session(session_id: str, db: Session) -> sessions_contracts.SessionRead | None:
+    """Return an unexpired session by ID and hold a shared row lock on it until the transaction ends.
+
+    The lock keeps a revocation of the session from committing before the caller's transaction does.
+
+    Args:
+        session_id: ID of the session.
+        db: Database session.
+
+    Returns:
+        The session, or None when it does not exist or has expired.
+    """
+    row = db.execute(
+        select(sessions_models.UsersSessions)
+        .where(
+            sessions_models.UsersSessions.id == session_id,
+            sessions_models.UsersSessions.expires_at > datetime.now(UTC),
+        )
+        .with_for_update(read=True)
+    ).scalar_one_or_none()
+    return sessions_serializers.to_read_schema(row) if row is not None else None
+
+
 def create_session(
     session: sessions_schema.UserSessionsInternal,
     db: Session,

@@ -61,6 +61,9 @@ def start_idp_link(
         InvalidInputError: If the return path is not allowed.
     """
     identity_providers_integration.validate_redirect(link.redirect)
+    # Read before the step-up is verified: a security change that commits during the verification must outdate the
+    # state this link starts.
+    security_generation = security_generation_integration.current_generation(token_user_id, db)
     idp = identity_providers_integration.get_identity_provider(idp_id, db)
     if not idp or not idp.enabled:
         raise core_exceptions.NotFoundError("Identity provider not found or disabled")
@@ -84,9 +87,17 @@ def start_idp_link(
         action=identity_providers_constants.StepUpAction.IDP_LINK,
     )
 
-    # The callback runs without the caller's session, so the state carries the session to keep, or none to end nothing.
+    # The callback runs without the caller's session, so the state carries the session that started the link and
+    # whether the callback ends the others.
     staged = identity_providers_integration.stage_browser_link(
-        token_user_id, idp_id, link.redirect, client_ip, session_id if link.revoke_other_sessions else None, db
+        token_user_id,
+        idp_id,
+        link.redirect,
+        client_ip,
+        session_id,
+        link.revoke_other_sessions,
+        db,
+        security_generation=security_generation,
     )
     db.commit()
     logger.info(
@@ -131,6 +142,7 @@ def start_idp_step_up(
         InvalidInputError: If the request or provider is unusable.
         NotFoundError: If the provider is missing, disabled or not linked to the user.
     """
+    security_generation = security_generation_integration.current_generation(token_user_id, db)
     step_up_service.require_not_locked_out(token_user_id, session_id, step_up_store)
     if credentials_integration.has_local_password(token_user_id, db):
         logger.warning(
@@ -139,7 +151,15 @@ def start_idp_step_up(
         )
         raise core_exceptions.ConflictError("This account confirms sensitive changes with its password")
     staged = identity_providers_integration.stage_step_up(
-        token_user_id, session_id, idp_id, start.action, start.code_challenge, start.redirect, client_ip, db
+        token_user_id,
+        session_id,
+        idp_id,
+        start.action,
+        start.code_challenge,
+        start.redirect,
+        client_ip,
+        db,
+        security_generation=security_generation,
     )
     db.commit()
     logger.debug("Identity-provider step-up state committed", extra=core_logger.context(user_id=token_user_id))

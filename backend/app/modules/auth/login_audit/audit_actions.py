@@ -64,6 +64,9 @@ class StepUpFailureReason(StrEnum):
             callback failed unexpectedly.
         BROWSER_MISMATCH: The callback came from a browser other than the one that started the step-up.
         INVALID_STATE: The step-up's OAuth state was unknown, bound to another provider or already used.
+        USER_INACTIVE: The account the step-up was started for is no longer active.
+        SESSION_ENDED: The session that started the step-up has ended.
+        SECURITY_CHANGED: A security change of the account came after the step-up started.
     """
 
     INVALID_CREDENTIALS = "invalid_credentials"
@@ -73,6 +76,9 @@ class StepUpFailureReason(StrEnum):
     PROVIDER_FAILURE = "provider_failure"
     BROWSER_MISMATCH = "browser_mismatch"
     INVALID_STATE = "invalid_state"
+    USER_INACTIVE = "user_inactive"
+    SESSION_ENDED = "session_ended"
+    SECURITY_CHANGED = "security_changed"
 
 
 class LoginDetails(VersionedPayload):

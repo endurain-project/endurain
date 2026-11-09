@@ -39,7 +39,7 @@ def service():
     return authorization_service.AuthorizationService(oidc, HOST)
 
 
-def _stage(service, *, idp=None, linked=True, redirect="/settings/security", challenge=CHALLENGE):
+def _stage(service, *, idp=None, linked=True, redirect="/settings/security", challenge=CHALLENGE, generation=0):
     with (
         patch.object(authorization_service.idp_crud, "get_identity_provider", return_value=idp or _idp()),
         patch.object(
@@ -50,7 +50,15 @@ def _stage(service, *, idp=None, linked=True, redirect="/settings/security", cha
         patch.object(authorization_service.oauth_state_integration, "create_oauth_state") as create,
     ):
         staged = service.stage_step_up(
-            7, SESSION_ID, 3, StepUpAction.ACCOUNT_DELETE, challenge, redirect, "1.2.3.4", MagicMock()
+            7,
+            SESSION_ID,
+            3,
+            StepUpAction.ACCOUNT_DELETE,
+            challenge,
+            redirect,
+            "1.2.3.4",
+            MagicMock(),
+            security_generation=generation,
         )
     return staged, create
 
@@ -72,6 +80,13 @@ class TestStageStepUp:
         assert kwargs["idp_code_verifier"] == staged.idp_code_verifier
         assert staged.purpose == oauth_state_constants.OAuthStatePurpose.STEP_UP
 
+    def test_the_state_records_the_generation_the_caller_read(self, service, security_generations):
+        security_generations.generations[7] = 5
+
+        _, create = _stage(service, generation=2)
+
+        assert create.call_args.kwargs["security_generation"] == 2
+
     def test_staging_does_not_commit(self, service):
         db = MagicMock()
         with (
@@ -83,7 +98,9 @@ class TestStageStepUp:
             ),
             patch.object(authorization_service.oauth_state_integration, "create_oauth_state"),
         ):
-            service.stage_step_up(7, SESSION_ID, 3, StepUpAction.ACCOUNT_DELETE, CHALLENGE, "/", None, db)
+            service.stage_step_up(
+                7, SESSION_ID, 3, StepUpAction.ACCOUNT_DELETE, CHALLENGE, "/", None, db, security_generation=0
+            )
 
         db.commit.assert_not_called()
 
@@ -105,7 +122,9 @@ class TestStageStepUp:
             patch.object(authorization_service.idp_crud, "get_identity_provider", return_value=idp),
             pytest.raises(core_exceptions.NotFoundError),
         ):
-            service.stage_step_up(7, SESSION_ID, 3, StepUpAction.ACCOUNT_DELETE, CHALLENGE, "/", None, MagicMock())
+            service.stage_step_up(
+                7, SESSION_ID, 3, StepUpAction.ACCOUNT_DELETE, CHALLENGE, "/", None, MagicMock(), security_generation=0
+            )
 
     def test_a_provider_the_user_has_not_linked_is_not_found(self, service):
         with pytest.raises(core_exceptions.NotFoundError):

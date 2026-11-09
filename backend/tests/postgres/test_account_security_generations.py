@@ -169,3 +169,25 @@ def test_a_bump_then_delete_leaves_no_session_a_concurrent_redeem_could_add(pg_f
         change.execute(text("DELETE FROM users_sessions WHERE user_id = 1"))
         change.commit()
     assert _session_ids(pg_factory) == set()
+
+
+def test_a_locked_live_session_cannot_be_revoked_until_the_transaction_ends(pg_factory):
+    import modules.auth.sessions.integration_service as sessions_integration
+
+    ensure_user(pg_factory, 1)
+    with pg_factory() as db:
+        _add_session(db, "start")
+        db.commit()
+
+    with pg_factory() as link, pg_factory() as revoke:
+        assert sessions_integration.lock_live_session("start", link) is not None
+        revoke.execute(text("SET lock_timeout = '200ms'"))
+        with pytest.raises(OperationalError):
+            revoke.execute(text("DELETE FROM users_sessions WHERE id = 'start'"))
+        revoke.rollback()
+        link.commit()
+    with pg_factory() as revoke:
+        revoke.execute(text("DELETE FROM users_sessions WHERE id = 'start'"))
+        revoke.commit()
+    with pg_factory() as db:
+        assert sessions_integration.lock_live_session("start", db) is None

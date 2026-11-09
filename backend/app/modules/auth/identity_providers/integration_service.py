@@ -58,13 +58,17 @@ def stage_browser_link(
     idp_id: int,
     redirect: str | None,
     client_ip: str | None,
-    keep_session_id: str | None,
+    session_id: str,
+    ends_other_sessions: bool,
     db: Session,
+    *,
+    security_generation: int,
 ) -> identity_providers_contracts.StagedBrowserFlow:
     """Stage the OAuth state of a user linking a provider from the browser; the caller commits, then builds the URL.
 
-    ``keep_session_id`` is the session the link keeps when the callback ends the user's other sessions, or None
-    when the link ends none.
+    ``session_id`` is the session that started the link; ``ends_other_sessions`` says whether the callback ends the
+    user's other sessions, all but that one. ``security_generation`` is what the caller read before it verified the
+    step-up.
     """
     return _authorization_service().stage_browser_link(
         user_id,
@@ -73,8 +77,10 @@ def stage_browser_link(
         client_ip,
         core_config.settings.ALLOWED_REDIRECT_SCHEMES,
         core_config.settings.ALLOWED_REDIRECT_URIS,
-        keep_session_id,
+        session_id,
+        ends_other_sessions,
         db,
+        security_generation=security_generation,
     )
 
 
@@ -87,10 +93,23 @@ def stage_step_up(
     redirect: str,
     client_ip: str | None,
     db: Session,
+    *,
+    security_generation: int,
 ) -> identity_providers_contracts.StagedBrowserFlow:
-    """Stage a step-up re-authentication's OAuth state; the caller commits, then builds the URL."""
+    """Stage a step-up re-authentication's OAuth state; the caller commits, then builds the URL.
+
+    ``security_generation`` is what the caller read before it started the step-up.
+    """
     return _authorization_service().stage_step_up(
-        user_id, session_id, idp_id, action, code_challenge, redirect, client_ip, db
+        user_id,
+        session_id,
+        idp_id,
+        action,
+        code_challenge,
+        redirect,
+        client_ip,
+        db,
+        security_generation=security_generation,
     )
 
 

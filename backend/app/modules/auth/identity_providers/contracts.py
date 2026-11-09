@@ -105,6 +105,8 @@ class StepUpTicket(BaseModel):
         idp_id: The provider the user signed in with again.
         code_challenge: S256 challenge of the verifier the starting browser keeps; the redeeming request sends it.
         action: The sensitive operation the ticket pays for.
+        security_generation: The account's security generation the step-up was started under; a ticket without one,
+            or whose generation is no longer current, pays for nothing.
     """
 
     user_id: int
@@ -112,6 +114,7 @@ class StepUpTicket(BaseModel):
     idp_id: int
     code_challenge: str
     action: str
+    security_generation: int | None = None
 
     model_config = ConfigDict(frozen=True)
 

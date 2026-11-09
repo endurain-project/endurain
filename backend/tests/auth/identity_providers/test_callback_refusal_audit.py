@@ -21,6 +21,15 @@ _HOST = "https://app.example.com"
 _STATE_MESSAGE = "Invalid or expired OAuth state"
 
 
+@pytest.fixture(autouse=True)
+def alive_session():
+    """The session that started a link or step-up is alive and the user's."""
+    with patch.object(
+        callback_service.sessions_integration, "lock_live_session", return_value=SimpleNamespace(user_id=7)
+    ):
+        yield
+
+
 @pytest.fixture
 def service():
     return callback_service.CallbackService(MagicMock(), MagicMock(), MagicMock(), _HOST)
@@ -52,6 +61,9 @@ def _state(**overrides):
         "nonce": "n",
         "redirect_path": None,
         "idp_code_verifier": None,
+        "session_id": "sid",
+        "ends_other_sessions": False,
+        "security_generation": 0,
     }
     values.update(overrides)
     return SimpleNamespace(**values)
@@ -323,7 +335,7 @@ class TestCompleteLinkRefusals:
             patch.object(
                 callback_service.users_integration,
                 "get_user",
-                return_value=SimpleNamespace(id=7, username="alice") if user else None,
+                return_value=SimpleNamespace(id=7, username="alice", active=True) if user else None,
             ),
             patch.object(
                 callback_service.identity_provider_links_integration,
@@ -412,6 +424,9 @@ class TestCompleteStepUpRefusals:
                 "get_user_identity_provider_by_subject_and_idp_id",
                 return_value=link,
             ),
+            patch.object(
+                callback_service.users_integration, "get_user", return_value=SimpleNamespace(id=7, active=True)
+            ),
             jasil_testing.capture_audit() as audit,
         ):
             service.complete_callback(
@@ -469,8 +484,8 @@ class TestLinkSuccessActor:
         oauth_client = MagicMock()
         oauth_client.fetch_token.return_value = {"access_token": "at"}
         idp = _idp(sync_user_info=False, sync_email=False)
-        oauth_state = _state(purpose=_PURPOSE.LINK, user_id=7, session_id="sid")
-        user = SimpleNamespace(id=7, username="alice")
+        oauth_state = _state(purpose=_PURPOSE.LINK, user_id=7, session_id="sid", ends_other_sessions=True)
+        user = SimpleNamespace(id=7, username="alice", active=True)
         with (
             patch.object(service._oidc, "decrypt_client_id", return_value="cid"),
             patch.object(service._oidc, "decrypt_client_secret", return_value="secret"),
