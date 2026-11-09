@@ -164,6 +164,7 @@ class TestErrorCodesAreStable:
             (core_exceptions.NotFoundError, "urn:endurain:error:not-found", 404),
             (core_exceptions.PermissionDeniedError, "urn:endurain:error:permission-denied", 403),
             (core_exceptions.InvalidInputError, "urn:endurain:error:invalid-input", 400),
+            (core_exceptions.InvalidMfaCodeError, "urn:endurain:error:invalid-mfa-code", 400),
             (core_exceptions.ConflictError, "urn:endurain:error:conflict", 409),
             (core_exceptions.UnsupportedFormatError, "urn:endurain:error:unsupported-format", 415),
             (core_exceptions.UnsupportedMediaTypeError, "urn:endurain:error:unsupported-media-type", 415),

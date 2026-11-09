@@ -180,10 +180,11 @@ class InvalidInputError(DomainError):
 class InvalidMfaCodeError(InvalidInputError):
     """A submitted MFA code did not verify.
 
-    Renders as the same ``400`` and ``invalid-input`` problem as :class:`InvalidInputError`; callers branch on the
-    type to tell a wrong code from other input failures.
+    Renders as a ``400`` with the ``invalid-mfa-code`` problem type, so a client can tell a wrong code from other
+    input failures; code that catches :class:`InvalidInputError` still catches it.
     """
 
+    code = "invalid-mfa-code"
     default_detail = "Invalid MFA code"
 
 

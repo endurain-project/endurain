@@ -279,6 +279,7 @@ class TestTokenExchangeMfa:
         response = self._post(mock_db, store, mfa_code="123456")
 
         assert response.status_code == 400
+        assert response.json()["type"] == "urn:endurain:error:invalid-mfa-code"
         store.record_failed_attempt.assert_called_once_with("testuser")
         exchange.claim.assert_not_called()
 
@@ -309,6 +310,7 @@ class TestTokenExchangeMfa:
         response = self._post(mock_db, _pending_mfa_store(), mfa_code="123456")
 
         assert response.status_code == 400
+        assert response.json()["type"] == "urn:endurain:error:invalid-input"
         exchange.verify.assert_not_called()
 
     def test_a_session_from_a_password_login_has_already_passed_mfa(self, mock_db, exchange):

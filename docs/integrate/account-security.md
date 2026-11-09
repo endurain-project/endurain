@@ -259,7 +259,7 @@ The challenge lives 5 minutes. The server accepts it only from the network of th
 
 The bodies below show only the `detail` member. Every error is an RFC 9457 problem document with more members (`type`, `title`, `status`, `request_id`); see [Errors, concurrency and rate limits](errors-and-limits.md).
 
-- **Invalid MFA code**: HTTP 400 Bad Request. The same answer covers a wrong code and a used backup code on a challenge that is still live
+- **Invalid MFA code**: HTTP 400 Bad Request with `urn:endurain:error:invalid-mfa-code`. The same answer covers a wrong code and a used backup code on a challenge that is still live
 
 ```json
 {

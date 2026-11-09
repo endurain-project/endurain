@@ -611,6 +611,7 @@ class TestMFAVerifyEndpoint:
         )
 
         assert response.status_code == 400
+        assert response.json()["type"] == "urn:endurain:error:invalid-mfa-code"
         assert "Invalid MFA code" in response.json()["detail"]
 
     @patch("modules.auth.authentication.service.complete_login")

@@ -1054,16 +1054,14 @@ class TestEnableMFA:
 
     def test_invalid_mfa_code(self, profile_client, mock_auth_services):
         """Invalid MFA code → 400."""
-        mock_auth_services.enable_mfa.side_effect = HTTPException(
-            status_code=400,
-            detail="Invalid MFA code",
-        )
+        mock_auth_services.enable_mfa.side_effect = core_exceptions.InvalidMfaCodeError()
 
         response = profile_client.post(
             PREFIX + "/mfa/enable",
             json={"mfa_code": "000000", "step_up": {"current_password": "pass123"}},
         )
 
+        assert response.json()["type"] == "urn:endurain:error:invalid-mfa-code"
         assert response.status_code == 400
 
     def test_other_http_exception(self, profile_client, mock_auth_services):

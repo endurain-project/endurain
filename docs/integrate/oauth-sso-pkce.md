@@ -167,7 +167,7 @@ This is the mobile token body that `/auth/refresh` answers. Send the device id t
 
 | Status | Error | Description |
 | ------ | ----- | ----------- |
-| 400 | Invalid code_verifier | Verifier doesn't match the challenge, or `X-Client-Type` differs from the client type that started the sign-in (the same answer for both) |
+| 400 | `invalid-input` (Invalid code_verifier) | Verifier doesn't match the challenge, or `X-Client-Type` differs from the client type that started the sign-in (the same answer for both) |
 | 404 | Session not found | Invalid session_id |
 | 409 | Tokens already exchanged | Replay attack prevention |
 | 422 | Missing or unknown `X-Client-Type` | The header is required |
@@ -371,11 +371,11 @@ A web client gets the web token body instead (`csrf_token`, no `refresh_token`, 
 
 | Status | Error | Description |
 | ------ | ----- | ----------- |
-| 400 | Invalid code_verifier | Verifier doesn't match the challenge, or `X-Client-Type` differs from the value stored on the PKCE/OAuth state (the same answer for both) |
+| 400 | `invalid-input` (Invalid code_verifier) | Verifier doesn't match the challenge, or `X-Client-Type` differs from the value stored on the PKCE/OAuth state (the same answer for both) |
 | 404 | Session not found | Invalid session_id or not a PKCE flow |
 | 422 | Missing or unknown `X-Client-Type` | The header is required |
 | 403 | `mfa-required` | The account has MFA enabled and the request had no `mfa_code`; see below |
-| 400 | Invalid MFA code | The `mfa_code` was wrong, expired or an already used backup code |
+| 400 | `invalid-mfa-code` | The `mfa_code` was wrong, expired or an already used backup code |
 | 409 | Tokens already exchanged | Replay attack prevention |
 | 429 | Rate limit exceeded | Max 10 requests/minute per IP, or the account is locked out after too many wrong MFA codes |
 
