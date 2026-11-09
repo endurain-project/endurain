@@ -75,6 +75,11 @@ describe('ChangeEmailCard', () => {
     expect(start).toHaveBeenCalledWith(11, 'email_change', { revokeOtherSessions: true })
   })
 
+  it('signs the other sessions out by default', () => {
+    const wrapper = mountCard()
+    expect(wrapper.find<HTMLInputElement>('[role="switch"]').element.checked).toBe(true)
+  })
+
   it('restores the choice when the sign-in returns, but never a new address', async () => {
     const wrapper = mountCard({
       action: 'email_change',

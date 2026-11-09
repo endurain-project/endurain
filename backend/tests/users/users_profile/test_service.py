@@ -52,13 +52,13 @@ class TestEdits:
 
 class TestChangeEmail:
     @staticmethod
-    def _change(identity, store, mock_db, *, revoke_other_sessions=True, state=None):
+    def _change(identity, store, mock_db, *, state=None, **fields):
         import modules.users.users.schema as users_schema
 
         change = users_schema.EmailChange(
             email="New@Example.com",
             step_up={"current_password": "pw", "mfa_code": "123456"},
-            revoke_other_sessions=revoke_other_sessions,
+            **fields,
         )
         with (
             patch(
@@ -121,7 +121,17 @@ class TestChangeEmail:
         mock_db.commit.assert_not_called()
 
     @patch(f"{_MODULE}.users_integration")
-    def test_other_sessions_stay_signed_in_unless_asked(self, mock_users, mock_db):
+    def test_other_sessions_end_when_the_request_omits_the_flag(self, mock_users, mock_db):
+        self._users(mock_users)
+        identity = MagicMock()
+
+        with patch(f"{_MODULE}.sign_up_tokens_integration", MagicMock()):
+            self._change(identity, MagicMock(), mock_db)
+
+        identity.delete_other_user_sessions.assert_called_once_with(1, "sid-1")
+
+    @patch(f"{_MODULE}.users_integration")
+    def test_other_sessions_stay_signed_in_when_the_client_sends_false(self, mock_users, mock_db):
         self._users(mock_users)
         identity = MagicMock()
 

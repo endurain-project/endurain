@@ -62,7 +62,7 @@ Account deletion, profile export and identity provider unlink send exactly this 
 
 ### Ending other sessions after a change of an authentication factor
 
-Changing a factor ends the caller's other sessions, and keeps the session that made the change. `revoke_other_sessions` is a boolean that defaults to `true` on these operations: the password change, MFA enable, MFA disable, backup-code regeneration and the identity provider link. Send `false` to keep the other sessions. The email change takes the same field but defaults to `false`. Unlinking a provider ends the sessions that signed in through it, whatever the body says.
+Changing a factor ends the caller's other sessions, and keeps the session that made the change. `revoke_other_sessions` is a boolean that defaults to `true` on these operations: the password change, the email change, MFA enable, MFA disable, backup-code regeneration and the identity provider link. Send `false` to keep the other sessions. Unlinking a provider ends the sessions that signed in through it, whatever the body says.
 
 The sessions end in the same transaction as the change. A request whose step-up is refused changes nothing and ends no session. The audit row of the change carries `sessions_revoked`, the number of sessions it ended (`0` when the client sent `false`); this applies to `auth.password.change`, `auth.mfa.enable`, `auth.mfa.disable` and `auth.backup_codes.generate`. A link completes in the provider callback, which ends the sessions then and records them as an `auth.session.revoke` row next to the link's own row.
 

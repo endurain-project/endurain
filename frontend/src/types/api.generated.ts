@@ -5725,8 +5725,8 @@ export interface components {
             email: string;
             /**
              * Revoke Other Sessions
-             * @description When true, revoke all of the user's other sessions (keeping the current one) after the change
-             * @default false
+             * @description After the email change, all of the user's other sessions (keeping the current one) are revoked unless the client sends false.
+             * @default true
              */
             revoke_other_sessions: boolean;
             /** @description Step-up verification, required to change the email address */

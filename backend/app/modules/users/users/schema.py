@@ -790,8 +790,11 @@ class EmailChange(BaseModel):
 
     email: EmailStr = Field(..., max_length=250, description="The new email address")
     revoke_other_sessions: StrictBool = Field(
-        default=False,
-        description="When true, revoke all of the user's other sessions (keeping the current one) after the change",
+        default=True,
+        description=(
+            "After the email change, all of the user's other sessions "
+            "(keeping the current one) are revoked unless the client sends false."
+        ),
     )
     step_up: auth_schema.StepUpVerification = Field(
         ..., description="Step-up verification, required to change the email address"

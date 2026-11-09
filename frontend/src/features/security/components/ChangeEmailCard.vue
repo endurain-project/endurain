@@ -50,7 +50,7 @@ const handleIdpChallenge = useIdpReauthChallenge()
 const newEmail = ref('')
 const currentPassword = ref('')
 const mfaCode = ref('')
-const revokeOtherSessions = ref(false)
+const revokeOtherSessions = ref(true)
 
 // The new address is typed after the identity-provider sign-in and never stored; the sessions switch is not
 // a secret, so it survives the round-trip.
@@ -86,7 +86,7 @@ function resetForm(): void {
   newEmail.value = ''
   currentPassword.value = ''
   mfaCode.value = ''
-  revokeOtherSessions.value = false
+  revokeOtherSessions.value = true
   idpReauth.value = null
 }
 
