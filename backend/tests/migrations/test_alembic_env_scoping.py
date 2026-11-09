@@ -45,6 +45,9 @@ class TestIncludeObject:
     def test_excludes_every_substrate_table(self, include_object, table):
         assert include_object(None, table, "table", True, None) is False
 
+    def test_excludes_migration_bookkeeping_table(self, include_object):
+        assert include_object(None, "cadence_spm_migration_rows", "table", True, None) is False
+
     def test_keeps_application_tables(self, include_object):
         assert include_object(None, "users", "table", True, None) is True
 

@@ -384,6 +384,12 @@ def parse_activity(
         if detailed_activity.average_cadence is not None:
             avg_cadence = detailed_activity.average_cadence
 
+    activity_type = activity_constants.define_activity_type(sport_type)
+    if activity_constants.is_running_cadence_type(activity_type):
+        avg_cadence = activities_computation.double_running_cadence(avg_cadence)
+        max_cadence = activities_computation.double_running_cadence(max_cadence)
+        cad_waypoints = [{**point, "cad": round(point["cad"] * 2)} for point in cad_waypoints]
+
     # Get average and max power
     avg_power = None
     if detailed_activity.average_watts is not None:
@@ -419,9 +425,6 @@ def parse_activity(
         # set the gear id for the activity
         if gear is not None:
             gear_id = gear.id
-
-    # Activity type
-    activity_type = activity_constants.define_activity_type(sport_type)
 
     if gear_id is None:
         with core_database.SessionLocal() as db:

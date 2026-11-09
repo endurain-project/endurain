@@ -210,14 +210,15 @@ describe('buildStreamChart', () => {
     expect(chart?.render.valueFormat?.(300)).toBe('5:00')
   })
 
-  it('doubles running cadence to SPM', () => {
+  it('plots stored cadence as-is (backend already normalizes running to SPM)', () => {
     const chart = buildStreamChart(
-      stream('cadence', [{ cad: 85 }]),
+      stream('cadence', [{ cad: 170 }]),
       makeActivity({ activityType: 'run' }),
       'metric',
       unitLabel,
     )
     expect(chart?.render.series[0]?.data).toEqual([170])
+    expect(chart?.render.valueFormat?.(170)).toBe('170 spm')
   })
 
   it('returns null for unknown stream types, empty or all-missing samples', () => {

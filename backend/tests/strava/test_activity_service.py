@@ -672,7 +672,14 @@ class TestParseActivity:
     def test_a_fractional_max_cadence_is_rounded(self, rate_limits):
         parsed = self._parse(rate_limits, streams={"time": [0, 1, 2], "cadence": [80, 87.6, 85]})
 
-        assert parsed["activity_to_store"].max_cad == 88
+        assert parsed["activity_to_store"].max_cad == 175
+        cadence = next(points for _, kind, points in parsed["stream_data"] if kind == 3)
+        assert [point["cad"] for point in cadence] == [160, 175, 170]
+
+    def test_cycling_cadence_stays_in_rpm(self, rate_limits):
+        parsed = self._parse(rate_limits, sport_type="Ride", streams={"time": [0, 1], "cadence": [80, 90]})
+
+        assert parsed["activity_to_store"].max_cad == 90
 
 
 class TestIncompleteLaps:

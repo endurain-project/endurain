@@ -105,6 +105,18 @@ class TestSettings:
         with pytest.raises(ValidationError, match="https"):
             Settings(_env_file=None, ALLOWED_REDIRECT_SCHEMES="endurain,HTTPS")
 
+    def test_allowed_redirect_schemes_drops_invalid_scheme_syntax(self):
+        from core.config import Settings
+
+        s = Settings(
+            _env_file=None,
+            ALLOWED_REDIRECT_SCHEMES=(
+                "endurain,nodomain.freeyourgadget.gadgetbridge.nightly_nopebble,"
+                "nodomain.freeyourgadget.gadgetbridge.nightly-nopebble,1app,my app"
+            ),
+        )
+        assert {"endurain", "nodomain.freeyourgadget.gadgetbridge.nightly-nopebble"} == s.ALLOWED_REDIRECT_SCHEMES
+
     def test_allowed_redirect_schemes_empty(self):
         from core.config import Settings
 

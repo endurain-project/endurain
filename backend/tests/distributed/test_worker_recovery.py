@@ -20,6 +20,24 @@ def _upload_attempts(cluster) -> list[tuple[str, str]]:
     )
 
 
+def _wait_for_upload_job_completed(cluster) -> bool:
+    """Wait for JASIL to record the upload job's completion.
+
+    The handler commits the ingestion job's ``completed`` status in its own transaction; the runner closes the
+    ``processing_jobs`` row and its attempt in a later one, so the attempts are only final after that.
+    """
+    return cluster.wait_for(
+        lambda: (
+            cluster.scalar(
+                "SELECT count(*) FROM processing_jobs WHERE subscriber_id = :subscriber AND status = 'completed'",
+                subscriber=_UPLOAD_SUBSCRIBER,
+            )
+            == 1
+        ),
+        30,
+    )
+
+
 def _slow_start_logged(cluster, worker) -> bool:
     return "SLOW-START" in cluster.log(worker)
 
@@ -37,6 +55,7 @@ def test_a_job_whose_worker_is_killed_is_finished_by_another_worker(cluster):
     # The lease has to expire and the reaper (every 60 s) has to notice before the survivor can claim it.
     assert cluster.wait_for_uploads([job_id], timeout=LEASE_SECONDS * 4)
     assert cluster.job_status(job_id) == "completed"
+    assert _wait_for_upload_job_completed(cluster)
 
     attempts = _upload_attempts(cluster)
     assert [outcome for outcome, _worker in attempts] == ["lease_expired", "completed"]
@@ -57,6 +76,7 @@ def test_a_handler_that_outlives_its_lease_is_not_taken_over(cluster):
     assert cluster.wait_for_uploads([job_id], timeout=LEASE_SECONDS * 5)
 
     assert cluster.job_status(job_id) == "completed"
+    assert _wait_for_upload_job_completed(cluster)
     attempts = _upload_attempts(cluster)
     assert [outcome for outcome, _worker in attempts] == ["completed"], attempts
     assert cluster.scalar("SELECT count(*) FROM activities") == 1

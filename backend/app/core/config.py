@@ -390,6 +390,14 @@ class Settings(BaseSettings):
             schemes = {s.strip().lower() for s in v.split(",") if s.strip()}
         else:
             schemes = {str(s).strip().lower() for s in v if str(s).strip()}
+        invalid = sorted(s for s in schemes if core_redirect_schemes.uri_scheme(f"{s}:") is None)
+        if invalid:
+            logger.warning(
+                "Ignoring ALLOWED_REDIRECT_SCHEMES entries that are not valid URI schemes: %s",
+                ", ".join(invalid),
+                extra=core_logger.context(console=True),
+            )
+        schemes.difference_update(invalid)
         unsafe = sorted(schemes & core_redirect_schemes.UNSAFE_REDIRECT_SCHEMES)
         if unsafe:
             raise ValueError(f"ALLOWED_REDIRECT_SCHEMES must not contain unsafe schemes: {', '.join(unsafe)}")

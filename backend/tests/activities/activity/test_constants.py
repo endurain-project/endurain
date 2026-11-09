@@ -8,6 +8,7 @@ from modules.activities.activity.constants import (
     ACTIVITY_ID_TO_NAME,
     ACTIVITY_NAME_TO_ID,
     define_activity_type,
+    is_running_cadence_type,
     set_activity_name_based_on_activity_type,
 )
 
@@ -71,3 +72,13 @@ class TestActivityNameToId:
 
     def test_unknown_name_not_in_mapping(self):
         assert "skydiving" not in ACTIVITY_NAME_TO_ID
+
+
+class TestIsRunningCadenceType:
+    def test_running_types(self):
+        for type_id in (1, 2, 3, 34, 40):
+            assert is_running_cadence_type(type_id) is True
+
+    def test_non_running_types(self):
+        for type_id in (4, 8, 11, 13, None):
+            assert is_running_cadence_type(type_id) is False

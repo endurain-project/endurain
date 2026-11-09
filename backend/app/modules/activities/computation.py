@@ -21,6 +21,8 @@ from typing import Any
 
 from geopy.distance import geodesic
 
+import modules.activities.activity_streams.contracts as activity_streams_contracts
+
 
 def _elapsed_seconds(start: datetime, end: datetime) -> float:
     """Return real elapsed seconds between two timestamps.
@@ -373,3 +375,37 @@ def calculate_np(data: Sequence[Mapping[str, Any]]) -> float:
     normalized_power = avg_fourth_power ** (1 / 4)
 
     return normalized_power
+
+
+def double_running_cadence(cadence: float | None, fractional: float | None = 0.0) -> int | None:
+    """Convert a single-leg running cadence (rpm) to steps per minute (spm).
+
+    Importers call this for running activity types when the source format
+    reports a per-leg rate (FIT, Strava, TCX, GPX).
+
+    Args:
+        cadence: Single-leg cadence, or ``None``.
+        fractional: FIT ``fractional_cadence`` to fold in before doubling.
+
+    Returns:
+        ``round((cadence + fractional) * 2)``, or ``None`` when ``cadence`` is ``None``.
+    """
+    if cadence is None:
+        return None
+    return round((float(cadence) + float(fractional or 0.0)) * 2)
+
+
+def double_cadence_waypoints(
+    waypoints: list[activity_streams_contracts.CadenceWaypoint],
+) -> list[activity_streams_contracts.CadenceWaypoint]:
+    """Return cadence waypoints with every ``cad`` converted from rpm to spm.
+
+    Waypoints whose ``cad`` is ``None`` are kept unchanged.
+
+    Args:
+        waypoints: Cadence waypoints (dicts with a ``cad`` key).
+
+    Returns:
+        New waypoint dicts with ``cad`` doubled and rounded.
+    """
+    return [{**wp, "cad": round(wp["cad"] * 2)} if wp.get("cad") is not None else wp for wp in waypoints]
