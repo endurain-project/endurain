@@ -33,7 +33,7 @@ from collections.abc import Awaitable, Callable, Coroutine, Iterable
 from dataclasses import dataclass
 from enum import StrEnum
 from pathlib import Path, PurePosixPath, PureWindowsPath
-from typing import Any
+from typing import Any, BinaryIO
 
 import aiofiles
 import aiofiles.os
@@ -225,6 +225,79 @@ async def validate_upload(file: UploadFile, *, kind: UploadKind) -> None:
     except FileSecurityError as err:
         logger.warning(f"Upload validation failed: kind={kind.value} type={type(err).__name__}", exc_info=err)
         raise _to_domain_error(err) from err
+
+
+_UTF8_BOM = b"\xef\xbb\xbf"
+_XML_DECLARATION = b"<?xml"
+_XML_WHITESPACE = b" \t\r\n"
+
+
+def _strip_xml_prefix_whitespace(file: BinaryIO) -> int:
+    """Remove the whitespace between an optional UTF-8 BOM and ``<?xml``, in place.
+
+    libmagic sniffs an XML file with leading whitespace as ``text/plain``, and
+    XML parsers reject a declaration that is not at the start, so such a file
+    would otherwise fail validation and parsing. Anything else, including a
+    ``.fit`` file or an oversized file the validator rejects anyway, is left
+    untouched.
+
+    Args:
+        file: Seekable binary file opened for reading and writing.
+
+    Returns:
+        The number of bytes removed.
+    """
+    size = file.seek(0, os.SEEK_END)
+    file.seek(0)
+    if size > _MAX_ACTIVITY_BYTES:
+        return 0
+    start = len(_UTF8_BOM) if file.read(len(_UTF8_BOM)) == _UTF8_BOM else 0
+    file.seek(start)
+    end = start
+    while chunk := file.read(_STREAM_CHUNK_BYTES):
+        rest = chunk.lstrip(_XML_WHITESPACE)
+        end += len(chunk) - len(rest)
+        if rest:
+            break
+    file.seek(end)
+    if end == start or file.read(len(_XML_DECLARATION)) != _XML_DECLARATION:
+        file.seek(0)
+        return 0
+
+    # Shift the content left over the whitespace; writes stay behind the reads.
+    write_pos = start
+    file.seek(end)
+    while chunk := file.read(_STREAM_CHUNK_BYTES):
+        read_pos = file.tell()
+        file.seek(write_pos)
+        file.write(chunk)
+        write_pos += len(chunk)
+        file.seek(read_pos)
+    file.truncate(write_pos)
+    file.seek(0)
+    return end - start
+
+
+def strip_xml_prefix_whitespace_sync(path: str | os.PathLike) -> None:
+    """Remove the whitespace in front of an activity file's ``<?xml`` declaration.
+
+    Rewrites the file in place, so it keeps its inode and permissions; call it
+    only on the server's own working copy, before validating it.
+
+    Args:
+        path: Activity file to inspect and rewrite if needed.
+
+    Raises:
+        DomainError: 500 when the file cannot be read or rewritten.
+    """
+    try:
+        with open(path, "r+b") as file:
+            removed = _strip_xml_prefix_whitespace(file)
+    except OSError as err:
+        logger.error(f"Error in strip_xml_prefix_whitespace_sync: {type(err).__name__}", exc_info=err)
+        raise core_exceptions.ProcessingError("Failed to prepare activity file") from err
+    if removed:
+        logger.info(f"Stripped {removed} byte(s) of whitespace before the XML declaration of {os.path.basename(path)}")
 
 
 async def validate_local_file(
@@ -647,6 +720,9 @@ def save_validated_upload_sync(
     so this must be called from a thread with **no** running loop. Use
     :func:`save_validated_upload` from async code.
 
+    An activity upload first has any whitespace in front of its ``<?xml``
+    declaration removed from the request's buffer, so it validates and parses.
+
     Args:
         file: Incoming FastAPI UploadFile.
         kind: Logical content type, drives validator + size cap.
@@ -660,6 +736,8 @@ def save_validated_upload_sync(
     Raises:
         DomainError: 400/413/500 depending on the failure mode.
     """
+    if kind is UploadKind.ACTIVITY:
+        _strip_xml_prefix_whitespace(file.file)
     # Validate first; safeuploads rewinds the stream on success.
     _run_validator_sync(validate_upload(file, kind=kind))
 

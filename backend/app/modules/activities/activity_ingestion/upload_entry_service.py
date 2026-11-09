@@ -249,6 +249,7 @@ def process_staged_upload(
             # still matches one of the supported activity formats.
             if file_extension.lower() not in core_config.SUPPORTED_FILE_FORMATS or file_extension.lower() == ".gz":
                 raise core_exceptions.InvalidInputError("Decompressed file extension is not supported")
+            core_file_uploads.strip_xml_prefix_whitespace_sync(file_path)
             # Defense in depth: signature-check the inner payload
             # via the same safeuploads validator used for direct
             # activity uploads.
