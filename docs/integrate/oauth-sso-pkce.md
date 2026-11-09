@@ -318,7 +318,7 @@ https://your-endurain-instance.com/api/v1/public/idp/login/{idp_slug}?code_chall
 | `redirect` | Yes for mobile | The app's custom-scheme URL, for example `org.endurain.app://callback`. The scheme must be allowed by the administrator (see [Redirect schemes](#redirect-schemes)) |
 
 !!! note "What marks the flow as mobile"
-    A browser cannot attach custom headers, so Endurain decides the client type from the `redirect`: a validated custom-scheme redirect always records the flow as `mobile`, whatever `X-Client-Type` says. Without a custom-scheme redirect the backend uses the `X-Client-Type` header (`web` or `mobile`) and falls back to `web` when it is absent or invalid. An app that sends the request itself may still include `X-Client-Type: mobile`.
+    A browser cannot attach custom headers, so Endurain decides the client type from the `redirect` alone and never reads `X-Client-Type` on this route: a validated custom-scheme redirect records the flow as `mobile`, and any other redirect, or none, records `web`.
 
 #### Step 3: Receive the Deep Link
 

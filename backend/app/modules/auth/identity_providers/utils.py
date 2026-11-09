@@ -114,8 +114,8 @@ def is_custom_scheme_redirect(redirect: str | None) -> bool:
     """Return ``True`` when the redirect is a validated custom URI scheme.
 
     This preserves mobile intent across the browser-based OAuth round trip.
-    The browser leg cannot reliably carry ``X-Client-Type``, so the validated
-    redirect target becomes the authoritative signal. An unsafe scheme
+    The browser leg cannot carry ``X-Client-Type``, so the validated
+    redirect target is the only signal. An unsafe scheme
     (``UNSAFE_REDIRECT_SCHEMES``), including HTTP/HTTPS in any letter case, is
     never a custom-scheme redirect.
     """
@@ -124,6 +124,18 @@ def is_custom_scheme_redirect(redirect: str | None) -> bool:
 
     scheme = core_redirect_schemes.uri_scheme(redirect.strip())
     return scheme is not None and scheme not in core_redirect_schemes.UNSAFE_REDIRECT_SCHEMES
+
+
+def client_type_for_redirect(redirect: str | None) -> str:
+    """Return the client type a flow's redirect stands for.
+
+    Args:
+        redirect: The validated redirect the flow returns to.
+
+    Returns:
+        ``"mobile"`` for a custom-scheme redirect, ``"web"`` otherwise.
+    """
+    return "mobile" if is_custom_scheme_redirect(redirect) else "web"
 
 
 def append_query_params(url: str, params: dict[str, str]) -> str:

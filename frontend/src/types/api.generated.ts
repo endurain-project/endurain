@@ -3107,6 +3107,9 @@ export interface paths {
          *     PKCE (Proof Key for Code Exchange) is REQUIRED for all clients (OAuth 2.1 compliance).
          *     Both code_challenge and code_challenge_method=S256 must be provided.
          *
+         *     The client type comes from the redirect alone: a custom-scheme redirect starts a mobile flow, anything else
+         *     a web flow. The request needs no `X-Client-Type` header and ignores one.
+         *
          *     Rate Limit: 10 requests per minute per IP
          */
         get: operations["initiate_login"];

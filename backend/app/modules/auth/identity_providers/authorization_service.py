@@ -116,7 +116,7 @@ class AuthorizationService:
         idp = idp_crud.get_identity_provider(idp_id, db)
         if idp is None or not idp.enabled:
             raise core_exceptions.NotFoundError("Identity provider not found or disabled")
-        client_type = "mobile" if identity_provider_utils.is_custom_scheme_redirect(redirect) else "web"
+        client_type = identity_provider_utils.client_type_for_redirect(redirect)
         staged = _stage_bound_flow(
             idp,
             oauth_state_constants.OAuthStatePurpose.LINK,
@@ -333,16 +333,15 @@ class AuthorizationService:
         code_challenge_method: str,
         redirect: str | None,
         client_ip: str | None,
-        header_client_type: str | None,
         allowed_redirect_schemes: set[str],
         allowed_redirect_uris: set[str],
         db: Session,
     ) -> str:
         """Validate a login request and return the provider's authorization URL.
 
-        PKCE is required of every client (OAuth 2.1). The client type comes from ``X-Client-Type`` unless the
-        redirect is a custom scheme, which marks a native app: the browser leg of the flow cannot carry the
-        header, so the validated redirect is the authoritative signal.
+        PKCE is required of every client (OAuth 2.1). The client type comes only from the validated redirect: a
+        custom scheme marks a native app (``mobile``) and anything else is ``web``, because the browser leg of the
+        flow cannot carry a header.
 
         Args:
             idp_slug: Slug of the provider to log in through.
@@ -350,7 +349,6 @@ class AuthorizationService:
             code_challenge_method: PKCE method, which must be ``S256``.
             redirect: Frontend path to return to after login.
             client_ip: Address of the client that started the flow.
-            header_client_type: The ``X-Client-Type`` header, if any.
             allowed_redirect_schemes: Custom URI schemes a redirect may use.
             allowed_redirect_uris: Exact custom-scheme addresses a redirect may use; when not empty, they replace
                 the schemes.
@@ -374,11 +372,7 @@ class AuthorizationService:
         # Refused before anything is stored, so a login cannot be turned into an open redirect.
         identity_provider_utils.validate_redirect_url(redirect, allowed_redirect_schemes, allowed_redirect_uris)
 
-        if identity_provider_utils.is_custom_scheme_redirect(redirect):
-            client_type = "mobile"
-        else:
-            client_type = header_client_type if header_client_type in ("web", "mobile") else "web"
-
+        client_type = identity_provider_utils.client_type_for_redirect(redirect)
         state_id = self.create_login_oauth_state(
             idp.id,
             client_type=client_type,

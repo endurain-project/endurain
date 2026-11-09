@@ -84,6 +84,9 @@ def initiate_login(
     PKCE (Proof Key for Code Exchange) is REQUIRED for all clients (OAuth 2.1 compliance).
     Both code_challenge and code_challenge_method=S256 must be provided.
 
+    The client type comes from the redirect alone: a custom-scheme redirect starts a mobile flow, anything else
+    a web flow. The request needs no `X-Client-Type` header and ignores one.
+
     Rate Limit: 10 requests per minute per IP
     Args:
         idp_slug (str): The slug identifier for the identity provider.
@@ -106,7 +109,6 @@ def initiate_login(
         code_challenge_method,
         redirect,
         core_network.get_ip_address(request),
-        request.headers.get("X-Client-Type"),
         core_config.settings.ALLOWED_REDIRECT_SCHEMES,
         core_config.settings.ALLOWED_REDIRECT_URIS,
         db,

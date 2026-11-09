@@ -29,15 +29,13 @@ def _idp(enabled=True, **overrides):
 
 
 class TestBeginLogin:
-    def _begin(self, service, *, idp=None, challenge=CHALLENGE, method="S256", redirect=None, header=None, uris=None):
+    def _begin(self, service, *, idp=None, challenge=CHALLENGE, method="S256", redirect=None, uris=None):
         with (
             patch.object(authorization_service.idp_crud, "get_identity_provider_by_slug", return_value=idp),
             patch.object(service, "create_login_oauth_state", return_value="state-id") as create_state,
             patch.object(service, "initiate_login", return_value="https://provider.example/auth") as initiate,
         ):
-            url = service.begin_login(
-                "test", challenge, method, redirect, "10.0.0.1", header, ALLOWED, uris, MagicMock()
-            )
+            url = service.begin_login("test", challenge, method, redirect, "10.0.0.1", ALLOWED, uris, MagicMock())
         return url, create_state, initiate
 
     def test_an_unknown_provider_is_not_found(self, service):
@@ -75,14 +73,14 @@ class TestBeginLogin:
         assert create_state.call_args.kwargs["ip_address"] == "10.0.0.1"
         assert initiate.call_args.kwargs["oauth_state_id"] == "state-id"
 
-    @pytest.mark.parametrize(("header", "expected"), [(None, "web"), ("mobile", "mobile"), ("desktop", "web")])
-    def test_the_client_type_comes_from_the_header_and_defaults_to_web(self, service, header, expected):
-        _, create_state, _ = self._begin(service, idp=_idp(), header=header)
+    @pytest.mark.parametrize("redirect", [None, "/dashboard"])
+    def test_a_path_redirect_or_none_means_a_web_client(self, service, redirect):
+        _, create_state, _ = self._begin(service, idp=_idp(), redirect=redirect)
 
-        assert create_state.call_args.kwargs["client_type"] == expected
+        assert create_state.call_args.kwargs["client_type"] == "web"
 
     def test_a_custom_scheme_redirect_means_a_mobile_client(self, service):
-        _, create_state, _ = self._begin(service, idp=_idp(), redirect="gadgetbridge://done", header="web")
+        _, create_state, _ = self._begin(service, idp=_idp(), redirect="gadgetbridge://done")
 
         assert create_state.call_args.kwargs["client_type"] == "mobile"
 

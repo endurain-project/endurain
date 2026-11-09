@@ -3,7 +3,7 @@
 The decisions behind each route are covered where they live, in ``test_service_sso_flow.py``.
 """
 
-from unittest.mock import MagicMock
+from unittest.mock import MagicMock, patch
 
 import pytest
 from fastapi import FastAPI
@@ -14,6 +14,7 @@ import core.database as core_db
 import core.exceptions as core_exceptions
 import core.pagination as core_pagination
 import modules.auth.credentials.integration_service as credentials_integration
+import modules.auth.identity_providers.authorization_service as authorization_service
 import modules.auth.identity_providers.dependencies as idp_dependencies
 import modules.auth.identity_providers.public_router as public_router
 import modules.auth.identity_providers.schema as idp_schema
@@ -77,8 +78,26 @@ class TestInitiateLogin:
         args = service.begin_login.call_args.args
         assert args[0] == "pocket-id"
         assert args[1:4] == (CHALLENGE, "S256", "/dashboard")
-        assert args[6] == core_config.settings.ALLOWED_REDIRECT_SCHEMES
-        assert args[7] == core_config.settings.ALLOWED_REDIRECT_URIS
+        assert args[5] == core_config.settings.ALLOWED_REDIRECT_SCHEMES
+        assert args[6] == core_config.settings.ALLOWED_REDIRECT_URIS
+
+    def test_the_client_type_header_does_not_choose_the_client_type(self, client):
+        real = authorization_service.AuthorizationService(MagicMock(), "https://app.example.com")
+        client.app.dependency_overrides[idp_dependencies.get_authorization_service] = lambda: real
+        with (
+            patch.object(authorization_service.idp_crud, "get_identity_provider_by_slug", return_value=MagicMock()),
+            patch.object(real, "create_login_oauth_state", return_value="state-id") as create_state,
+            patch.object(real, "initiate_login", return_value="https://provider.example/auth"),
+        ):
+            response = client.get(
+                f"{PREFIX}/login/pocket-id",
+                params={"code_challenge": CHALLENGE, "code_challenge_method": "S256", "redirect": "/dashboard"},
+                headers={"X-Client-Type": "mobile"},
+                follow_redirects=False,
+            )
+
+        assert response.status_code == 307
+        assert create_state.call_args.kwargs["client_type"] == "web"
 
     def test_a_refusal_is_a_problem_document(self, client, service):
         service.begin_login.side_effect = core_exceptions.NotFoundError("Identity provider not found or disabled")
