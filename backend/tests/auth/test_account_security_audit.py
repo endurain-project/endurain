@@ -181,11 +181,11 @@ class TestAdministratorCredentialAudit:
             patch.object(
                 account_security_service.mfa_integration,
                 "disable_user_mfa",
-                side_effect=core_exceptions.InvalidInputError("MFA is not enabled for this user"),
+                side_effect=core_exceptions.ConflictError("MFA is not enabled for this user"),
             ),
             self._sessions() as sessions,
             jasil_testing.capture_audit() as audit,
-            pytest.raises(core_exceptions.InvalidInputError),
+            pytest.raises(core_exceptions.ConflictError),
         ):
             account_security_service.reset_managed_user_mfa(7, mock_db)
 

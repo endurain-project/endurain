@@ -3944,7 +3944,8 @@ export interface paths {
          * Approve User
          * @description Approve pending user account.
          *
-         *     A user who is not awaiting approval, is deactivated or is queued for deletion is refused with 409.
+         *     A user who is not awaiting approval, is deactivated or is queued for deletion, or whose email is not verified
+         *     while sign-up requires verification, is refused with 409.
          */
         post: operations["approve_user"];
         delete?: never;
@@ -4138,7 +4139,7 @@ export interface paths {
          *     Requires the administrator's own step-up verification: their current password (or, for an account
          *     without one, a fresh identity-provider sign-in), and an MFA code when MFA is enabled. The user's MFA
          *     secret and backup codes are removed, all of their sessions end and they are notified. A user without MFA is
-         *     refused with 400.
+         *     refused with 409.
          */
         post: operations["reset_user_mfa"];
         delete?: never;

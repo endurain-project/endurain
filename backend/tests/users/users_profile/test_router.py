@@ -1025,9 +1025,8 @@ class TestEnableMFA:
 
     def test_no_setup_in_progress(self, profile_client, mock_auth_services):
         """No setup in progress → 400."""
-        mock_auth_services.enable_mfa.side_effect = HTTPException(
-            status_code=400,
-            detail="No MFA setup in progress. Please run setup first.",
+        mock_auth_services.enable_mfa.side_effect = core_exceptions.ConflictError(
+            "No MFA setup in progress. Please run setup first."
         )
 
         response = profile_client.post(
@@ -1035,7 +1034,8 @@ class TestEnableMFA:
             json={"totp_code": "123456", "step_up": {"current_password": "pass123"}},
         )
 
-        assert response.status_code == 400
+        assert response.status_code == 409
+        assert response.json()["type"] == "urn:endurain:error:conflict"
         assert "No MFA setup in progress" in response.json()["detail"]
 
     def test_get_secret_store_unavailable(self, profile_client, mock_auth_services):
@@ -1163,9 +1163,8 @@ class TestGenerateMFABackupCodes:
 
     def test_mfa_not_enabled(self, profile_client, mock_auth_services):
         """MFA not enabled → 400."""
-        mock_auth_services.generate_backup_codes.side_effect = HTTPException(
-            status_code=400,
-            detail="MFA must be enabled to generate backup codes",
+        mock_auth_services.generate_backup_codes.side_effect = core_exceptions.ConflictError(
+            "MFA must be enabled to generate backup codes"
         )
 
         response = profile_client.post(
@@ -1173,7 +1172,8 @@ class TestGenerateMFABackupCodes:
             json={"step_up": {"current_password": "pass123"}},
         )
 
-        assert response.status_code == 400
+        assert response.status_code == 409
+        assert response.json()["type"] == "urn:endurain:error:conflict"
         assert "MFA must be enabled" in response.json()["detail"]
 
     def test_step_up_fails(self, profile_client, mock_auth_services):

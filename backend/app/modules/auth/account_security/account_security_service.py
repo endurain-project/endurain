@@ -415,7 +415,7 @@ def reset_managed_user_mfa(user_id: int, db: Session) -> None:
 
     Raises:
         NotFoundError: If the user does not exist.
-        InvalidInputError: If MFA is not enabled for the user.
+        ConflictError: If MFA is not enabled for the user.
     """
     mfa_integration.disable_user_mfa(user_id, db)
     revoked = sessions_integration.delete_sessions_by_user(user_id, db)

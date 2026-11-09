@@ -58,6 +58,7 @@ Authentication and authorization failures use the same shape. Typical causes:
 | `401` | Invalid credentials, an unknown, expired, used or mismatched sign-in challenge (an `mfa_challenge` also ends after 3 wrong codes and is accepted only from the client network and client type of the password step; a `password_change_challenge` is accepted only for its client type), expired or invalid token |
 | `403` | Insufficient permissions, missing required scope, a web write without `X-CSRF-Token` |
 | `404` | Invalid session ID, user not found |
+| `409` | A conflict with the current state: an MFA operation that does not fit the account's MFA state (already enabled, not enabled, no setup in progress), a user approval while the user's email is not verified, a username already taken |
 | `429` | Too many login or OAuth attempts |
 
 The `/auth/login` form takes a `username` and a `password` of at most 256 characters each; a longer one, like a NUL character, is `422` (`urn:endurain:error:validation-failed`).

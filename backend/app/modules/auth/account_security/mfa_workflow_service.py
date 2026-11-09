@@ -156,7 +156,7 @@ def enable_mfa(
     """
     secret = mfa_secret_store.get_secret(token_user_id)
     if not secret:
-        raise core_exceptions.InvalidInputError("No MFA setup in progress. Please run setup first.")
+        raise core_exceptions.ConflictError("No MFA setup in progress. Please run setup first.")
 
     step_up_service.verify_step_up_credentials(
         token_user_id,
@@ -251,7 +251,7 @@ def generate_backup_codes(
         raise core_exceptions.NotFoundError("User not found")
 
     if not mfa_integration.is_mfa_enabled_for_user(token_user_id, db):
-        raise core_exceptions.InvalidInputError("MFA must be enabled to generate backup codes")
+        raise core_exceptions.ConflictError("MFA must be enabled to generate backup codes")
 
     step_up_service.verify_step_up_credentials(
         token_user_id,

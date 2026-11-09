@@ -1059,8 +1059,8 @@ def approve_user(user_id: int, db: Session) -> None:
 
     Raises:
         NotFoundError: If the user does not exist.
-        InvalidInputError: If verification is required and the user's email is not verified.
-        ConflictError: If the user is not awaiting approval, is deactivated or is queued for deletion.
+        ConflictError: If verification is required and the user's email is not verified, or the user is not
+            awaiting approval, is deactivated or is queued for deletion.
     """
     user = require_user(user_id, db)
     if (
@@ -1068,7 +1068,7 @@ def approve_user(user_id: int, db: Session) -> None:
         and not user.email_verified
     ):
         logger.debug("Refused to approve a user with an unverified email", extra=core_logger.context(user_id=user_id))
-        raise core_exceptions.InvalidInputError("User email is not verified")
+        raise core_exceptions.ConflictError("User email is not verified")
 
     if not users_crud.approve_pending_user(user_id, db):
         logger.debug("Refused to approve a user not awaiting approval", extra=core_logger.context(user_id=user_id))
@@ -1280,7 +1280,7 @@ def reset_user_mfa(
         PermissionDeniedError: If the administrator targets their own account.
         StepUpFailedError: If the administrator's step-up verification fails.
         NotFoundError: If the user does not exist.
-        InvalidInputError: If MFA is not enabled for the user.
+        ConflictError: If MFA is not enabled for the user.
     """
     require_other_user(user_id, actor_id, "turn off two-factor authentication")
     account_security_integration.verify_step_up(

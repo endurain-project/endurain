@@ -126,7 +126,8 @@ def start_idp_step_up(
 
     Raises:
         TooManyRequestsError: If the session is locked out of step-up attempts.
-        InvalidInputError: If the account has a local password, or the request or provider is unusable.
+        ConflictError: If the account has a local password.
+        InvalidInputError: If the request or provider is unusable.
         NotFoundError: If the provider is missing, disabled or not linked to the user.
     """
     step_up_service.require_not_locked_out(token_user_id, session_id, step_up_store)
@@ -135,7 +136,7 @@ def start_idp_step_up(
             "Identity-provider step-up refused for user <user_id>: the account has a local password",
             extra=core_logger.context(user_id=token_user_id),
         )
-        raise core_exceptions.InvalidInputError("This account confirms sensitive changes with its password")
+        raise core_exceptions.ConflictError("This account confirms sensitive changes with its password")
     staged = identity_providers_integration.stage_step_up(
         token_user_id, session_id, idp_id, start.action, start.code_challenge, start.redirect, client_ip, db
     )

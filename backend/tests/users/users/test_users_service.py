@@ -1335,9 +1335,10 @@ class TestApproveAndVerify:
     def test_approve_refuses_an_unverified_email_while_verification_is_required(self, mock_crud, mock_db):
         mock_crud.get_user_by_id.return_value = _user(1, email_verified=False)
 
-        with pytest.raises(core_exceptions.InvalidInputError):
+        with pytest.raises(core_exceptions.ConflictError, match="User email is not verified") as refused:
             users_service.approve_user(1, mock_db)
 
+        assert refused.value.status_code == 409
         mock_crud.approve_pending_user.assert_not_called()
 
     def test_approve_needs_no_verified_email_when_verification_is_off(self, mock_crud, mock_db, settings):

@@ -89,7 +89,7 @@ class TestSetupUserMFAReadSwitch:
         """
         user = _make_user(mfa_enabled=True, mfa_secret="enc")
 
-        with _patch_get_user(user), pytest.raises(core_exceptions.InvalidInputError) as exc:
+        with _patch_get_user(user), pytest.raises(core_exceptions.ConflictError) as exc:
             mfa_service.setup_user_mfa(1, mock_db)
 
         assert "already enabled" in exc.value.detail
@@ -138,7 +138,7 @@ class TestEnableUserMFAReadSwitch:
         with (
             _patch_get_user(user),
             patch("modules.auth.mfa.service.is_mfa_enabled_for_user", return_value=True),
-            pytest.raises(core_exceptions.InvalidInputError) as exc,
+            pytest.raises(core_exceptions.ConflictError) as exc,
         ):
             mfa_service.enable_user_mfa(1, "secret", "123456", MagicMock(), mock_db, replay_guard=MagicMock())
 
@@ -159,7 +159,7 @@ class TestDisableUserMFAReadSwitch:
         """
         user = _make_user(mfa_enabled=False)
 
-        with _patch_get_user(user), pytest.raises(core_exceptions.InvalidInputError) as exc:
+        with _patch_get_user(user), pytest.raises(core_exceptions.ConflictError) as exc:
             mfa_service.disable_user_mfa(1, mock_db)
 
         assert "not enabled" in exc.value.detail
@@ -171,7 +171,7 @@ class TestDisableUserMFAReadSwitch:
         user = _make_user()
         user.auth_mfa = None
 
-        with _patch_get_user(user), pytest.raises(core_exceptions.InvalidInputError):
+        with _patch_get_user(user), pytest.raises(core_exceptions.ConflictError):
             mfa_service.disable_user_mfa(1, mock_db)
 
 

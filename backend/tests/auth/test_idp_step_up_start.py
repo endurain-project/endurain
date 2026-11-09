@@ -88,8 +88,11 @@ class TestStartService:
         locked.assert_called_once_with(7, SESSION_ID, store)
 
     def test_an_account_with_a_password_steps_up_with_it_instead(self):
-        with pytest.raises(core_exceptions.InvalidInputError):
+        with pytest.raises(core_exceptions.ConflictError) as refused:
             self._start(has_password=True)
+
+        assert refused.value.status_code == 409
+        assert refused.value.detail == "This account confirms sensitive changes with its password"
 
     def test_a_locked_out_user_is_refused_before_anything_is_staged(self):
         with (

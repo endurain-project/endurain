@@ -164,9 +164,12 @@ class TestSetupUserMFA:
 
         with (
             patch("modules.auth.mfa.service.is_mfa_enabled_for_user", return_value=True),
-            pytest.raises(core_exceptions.InvalidInputError),
+            pytest.raises(core_exceptions.ConflictError) as refused,
         ):
             mfa_service.setup_user_mfa(1, MagicMock())
+
+        assert refused.value.status_code == 409
+        assert refused.value.detail == "MFA is already enabled for this user"
 
 
 class TestEnableUserMFA:
@@ -216,9 +219,12 @@ class TestEnableUserMFA:
 
         with (
             patch("modules.auth.mfa.service.is_mfa_enabled_for_user", return_value=True),
-            pytest.raises(core_exceptions.InvalidInputError),
+            pytest.raises(core_exceptions.ConflictError) as refused,
         ):
             mfa_service.enable_user_mfa(1, "secret", "123456", MagicMock(), MagicMock(), replay_guard=MagicMock())
+
+        assert refused.value.status_code == 409
+        assert refused.value.detail == "MFA is already enabled for this user"
 
     @patch("modules.auth.mfa.service.mfa_totp_replay_store.matching_totp_step")
     @patch("modules.auth.mfa.service.users_integration.require_user")
@@ -298,9 +304,12 @@ class TestDisableUserMFA:
 
         with (
             patch("modules.auth.mfa.service.is_mfa_enabled_for_user", return_value=False),
-            pytest.raises(core_exceptions.InvalidInputError),
+            pytest.raises(core_exceptions.ConflictError) as refused,
         ):
             mfa_service.disable_user_mfa(1, MagicMock())
+
+        assert refused.value.status_code == 409
+        assert refused.value.detail == "MFA is not enabled for this user"
 
 
 class TestVerifyUserMFA:

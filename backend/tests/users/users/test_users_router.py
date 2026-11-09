@@ -455,11 +455,12 @@ class TestApproveUser:
 
     @patch(f"{_SERVICE}.approve_user")
     def test_unverified_email_is_refused(self, mock_approve, client):
-        mock_approve.side_effect = core_exceptions.InvalidInputError("User email is not verified")
+        mock_approve.side_effect = core_exceptions.ConflictError("User email is not verified")
 
         response = client.post("/users/1/approve")
 
-        assert response.status_code == 400
+        assert response.status_code == 409
+        assert response.json()["type"] == "urn:endurain:error:conflict"
 
 
 class TestEditUserPassword:
@@ -509,7 +510,7 @@ class TestAdministratorCredentialActions:
         ("path", "service_function", "error", "status_code"),
         [
             ("/users/1/mfa/reset", "reset_user_mfa", core_exceptions.PermissionDeniedError("no"), 403),
-            ("/users/1/mfa/reset", "reset_user_mfa", core_exceptions.InvalidInputError("off"), 400),
+            ("/users/1/mfa/reset", "reset_user_mfa", core_exceptions.ConflictError("off"), 409),
             ("/users/1/password/require-change", "require_user_password_change", core_exceptions.ConflictError(), 409),
         ],
     )

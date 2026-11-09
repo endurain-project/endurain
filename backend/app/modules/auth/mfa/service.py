@@ -102,12 +102,12 @@ def setup_user_mfa(user_id: int, db: Session) -> mfa_schema.MFASetupRead:
         MFA setup response with secret and QR code.
 
     Raises:
-        InvalidInputError: If MFA is already enabled.
+        ConflictError: If MFA is already enabled.
     """
     user = users_integration.require_user(user_id, db)
 
     if is_mfa_enabled_for_user(user_id, db):
-        raise core_exceptions.InvalidInputError("MFA is already enabled for this user")
+        raise core_exceptions.ConflictError("MFA is already enabled for this user")
 
     secret = generate_totp_secret()
     qr_code = generate_qr_code(secret, user.username)
@@ -138,7 +138,8 @@ def enable_user_mfa(
         List of generated backup codes.
 
     Raises:
-        InvalidInputError: If MFA is already enabled or the code is invalid.
+        ConflictError: If MFA is already enabled.
+        InvalidMfaCodeError: If the code is invalid or was already used.
         ProcessingError: If the secret cannot be encrypted.
 
     Notes:
@@ -147,7 +148,7 @@ def enable_user_mfa(
     users_integration.require_user(user_id, db)
 
     if is_mfa_enabled_for_user(user_id, db):
-        raise core_exceptions.InvalidInputError("MFA is already enabled for this user")
+        raise core_exceptions.ConflictError("MFA is already enabled for this user")
 
     step = mfa_totp_replay_store.matching_totp_step(secret, mfa_code, datetime.now(UTC))
     if step is None or not replay_guard.claim_totp_step(user_id, step):
@@ -179,8 +180,8 @@ def disable_user_mfa(user_id: int, db: Session) -> None:
         db: Database session.
 
     Raises:
-        NotFoundError if the user is not found, InvalidInputError if MFA
-            is not currently enabled.
+        NotFoundError: If the user is not found.
+        ConflictError: If MFA is not currently enabled.
 
     Notes:
         Stages the change; the caller commits.
@@ -188,7 +189,7 @@ def disable_user_mfa(user_id: int, db: Session) -> None:
     users_integration.require_user(user_id, db)
 
     if not is_mfa_enabled_for_user(user_id, db):
-        raise core_exceptions.InvalidInputError("MFA is not enabled for this user")
+        raise core_exceptions.ConflictError("MFA is not enabled for this user")
 
     auth_mfa_crud.update_user_mfa(user_id, db)
     mfa_backup_codes_integration.delete_user_backup_codes(user_id, db)

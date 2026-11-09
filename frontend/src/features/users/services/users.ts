@@ -256,7 +256,7 @@ export async function changeUserPassword(
  *
  * @param userId - The target user id.
  * @param stepUp - The administrator's step-up credentials.
- * @throws {HttpError} When the request fails (`400` when the user has no MFA, or a refused step-up).
+ * @throws {HttpError} When the request fails (`409` when the user has no MFA, `403` for a refused step-up).
  */
 export async function resetUserMfa(userId: number, stepUp: StepUpInput): Promise<void> {
   await apiFetch<void>(`/users/${userId}/mfa/reset`, {

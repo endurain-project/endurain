@@ -213,7 +213,7 @@ class TestEnableMfa:
         mock_enable.assert_not_called()
         mfa_secret_store.delete_secret.assert_not_called()
 
-    def test_no_pending_secret_raises_400(self, mock_db, step_up_store, mfa_secret_store):
+    def test_no_pending_secret_raises_409(self, mock_db, step_up_store, mfa_secret_store):
         mfa_secret_store.get_secret.return_value = None
         with (
             patch(
@@ -231,7 +231,8 @@ class TestEnableMfa:
                 mock_db,
             )
 
-        assert exc_info.value.status_code == status.HTTP_400_BAD_REQUEST
+        assert isinstance(exc_info.value, core_exceptions.ConflictError)
+        assert exc_info.value.status_code == status.HTTP_409_CONFLICT
         mock_verify.assert_not_called()
         mock_enable.assert_not_called()
         mfa_secret_store.delete_secret.assert_not_called()
@@ -445,7 +446,7 @@ class TestGenerateBackupCodes:
         assert exc_info.value.status_code == status.HTTP_404_NOT_FOUND
         mock_verify.assert_not_called()
 
-    def test_mfa_disabled_raises_400(self, mock_db, step_up_store):
+    def test_mfa_disabled_raises_409(self, mock_db, step_up_store):
         user = MagicMock()
         with (
             patch("modules.auth.account_security.mfa_workflow_service.users_integration.get_user", return_value=user),
@@ -467,7 +468,8 @@ class TestGenerateBackupCodes:
                 revoke_other_sessions=False,
             )
 
-        assert exc_info.value.status_code == status.HTTP_400_BAD_REQUEST
+        assert isinstance(exc_info.value, core_exceptions.ConflictError)
+        assert exc_info.value.status_code == status.HTTP_409_CONFLICT
         mock_verify.assert_not_called()
 
     def test_step_up_failure_does_not_create_codes(self, mock_db, step_up_store):
