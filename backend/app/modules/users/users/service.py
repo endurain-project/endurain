@@ -491,7 +491,6 @@ def stage_first_admin(admin: users_schema.FirstAdminCreate, db: Session) -> user
             access_type=users_schema.UserAccessType.ADMIN,
             active=True,
             email_verified=True,
-            pending_admin_approval=False,
         ),
         users_audit_actions.UserCreateMethod.ONBOARDING,
         db,
@@ -680,8 +679,8 @@ def _refuse_to_remove_last_admin(user: users_schema.UserRead, action: str, db: S
 def stage_user_edit(user_id: int, user: users_schema.UserEdit, db: Session, *, if_match: str) -> users_schema.UserRead:
     """Stage an administrative edit of a user.
 
-    Intended for admin endpoints that legitimately set fields like ``access_type``, ``active``
-    or ``pending_admin_approval``. Self-service updates go through :func:`stage_profile_edit`,
+    Intended for admin endpoints that legitimately set fields like ``access_type`` or ``active``.
+    Approval goes only through :func:`approve_user`. Self-service updates go through :func:`stage_profile_edit`,
     whose allow-list prevents privilege escalation through mass assignment. A changed email also
     voids the user's unused password-reset tokens, so this covers every writer of this edit,
     such as the identity-provider sync.

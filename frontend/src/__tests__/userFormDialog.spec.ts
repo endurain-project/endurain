@@ -129,7 +129,7 @@ describe('UserFormDialog email verification switches', () => {
   it('shows a single editable verified switch while the email is unchanged', async () => {
     const wrapper = await mountDialog(false)
 
-    expect(switches(wrapper)).toHaveLength(3)
+    expect(switches(wrapper)).toHaveLength(2)
     expect(wrapper.text()).not.toContain('Mark the new address as verified')
   })
 
@@ -138,14 +138,14 @@ describe('UserFormDialog email verification switches', () => {
     await wrapper.find('input[name="email"]').setValue('new@example.com')
 
     const all = switches(wrapper)
-    expect(all).toHaveLength(4)
+    expect(all).toHaveLength(3)
     expect(all[1]!.element.disabled).toBe(true)
     expect(all[1]!.element.checked).toBe(true)
     expect(all[2]!.element.checked).toBe(false)
     expect(wrapper.text()).toContain('Mark the new address as verified')
 
     await wrapper.find('input[name="email"]').setValue('admin@example.com')
-    expect(switches(wrapper)).toHaveLength(3)
+    expect(switches(wrapper)).toHaveLength(2)
   })
 
   it('sends the new-address switch as the payload emailVerified', async () => {

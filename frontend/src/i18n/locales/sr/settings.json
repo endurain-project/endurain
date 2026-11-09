@@ -153,7 +153,6 @@
       "emailVerified": "Email verifikovan",
       "emailVerifiedCurrentHint": "Ovo je status trenutne adrese.",
       "newEmailVerified": "Označi novu adresu kao verifikovanu",
-      "pendingAdminApproval": "Čeka odobrenje administratora",
       "requiredField": "Obavezno polje",
       "create": "Dodaj korisnika",
       "save": "Sačuvaj izmene",

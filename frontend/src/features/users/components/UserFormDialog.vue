@@ -91,7 +91,6 @@ interface UserFormValues {
   accessType: UserAccessType
   active: boolean
   emailVerified: boolean
-  pendingAdminApproval: boolean
   preferredLanguage: Schemas['Language']
   gender: Schemas['Gender']
   units: Schemas['Units']
@@ -117,7 +116,6 @@ function defaultValues(): UserFormValues {
     accessType: 'regular',
     active: true,
     emailVerified: true,
-    pendingAdminApproval: false,
     preferredLanguage: 'en',
     gender: 'unspecified',
     units: 'metric',
@@ -175,7 +173,6 @@ async function submitForm(
           accessType: formValues.accessType,
           active: formValues.active,
           emailVerified: formValues.emailVerified,
-          pendingAdminApproval: formValues.pendingAdminApproval,
           preferredLanguage: formValues.preferredLanguage,
           gender: formValues.gender,
           units: formValues.units,
@@ -200,7 +197,6 @@ async function submitForm(
           accessType: formValues.accessType,
           active: formValues.active,
           emailVerified: formValues.emailVerified,
-          pendingAdminApproval: formValues.pendingAdminApproval,
           preferredLanguage: formValues.preferredLanguage,
           gender: formValues.gender,
           units: formValues.units,
@@ -455,7 +451,6 @@ function populate(): void {
   values.accessType = user.accessType
   values.active = user.active
   values.emailVerified = user.emailVerified
-  values.pendingAdminApproval = user.pendingAdminApproval
   values.preferredLanguage = user.preferredLanguage
   values.gender = user.gender
   values.units = user.units
@@ -874,9 +869,6 @@ watch(
         </template>
         <Switch v-else v-model="values.emailVerified" :disabled="isSubmitting">
           {{ t('settings.users.form.emailVerified') }}
-        </Switch>
-        <Switch v-model="values.pendingAdminApproval" :disabled="isSubmitting">
-          {{ t('settings.users.form.pendingAdminApproval') }}
         </Switch>
       </fieldset>
 

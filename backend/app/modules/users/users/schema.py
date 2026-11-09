@@ -350,7 +350,6 @@ class User(UserBase):
         access_type: User access level.
         active: Whether the user is active.
         email_verified: Whether email is verified.
-        pending_admin_approval: Whether pending admin approval.
     """
 
     access_type: UserAccessType = Field(
@@ -364,10 +363,6 @@ class User(UserBase):
     email_verified: StrictBool = Field(
         default=False,
         description="Whether email is verified",
-    )
-    pending_admin_approval: StrictBool = Field(
-        default=False,
-        description="Whether pending admin approval",
     )
 
     model_config = ConfigDict(
@@ -383,6 +378,7 @@ class UserRead(User):
 
     Attributes:
         mfa_enabled: Whether MFA is enabled.
+        pending_admin_approval: Whether pending admin approval.
         id: User ID.
         photo_path: Servable URL of the user's photo, resolved from the stored storage key.
         external_auth_count: Number of external auth providers.
@@ -394,6 +390,10 @@ class UserRead(User):
     mfa_enabled: StrictBool = Field(
         default=False,
         description="Whether MFA is enabled",
+    )
+    pending_admin_approval: StrictBool = Field(
+        default=False,
+        description="Whether pending admin approval",
     )
     id: StrictInt = Field(
         ...,
@@ -453,9 +453,9 @@ class UserEdit(User):
     """Users schema for an administrative edit.
 
     The stored columns of a user and nothing a read adds: ``id`` is the path, and
-    ``external_auth_count``, the photo URL and the pending email change are derived. ``mfa_enabled`` is a read-only
-    projection and is not a field. A name already stored is re-applied as it is, even if it would not pass as
-    new input.
+    ``external_auth_count``, the photo URL and the pending email change are derived. ``mfa_enabled`` and
+    ``pending_admin_approval`` are read-only projections and are not fields. A name already stored is re-applied
+    as it is, even if it would not pass as new input.
     """
 
     name: UserRequestName
@@ -476,6 +476,7 @@ class UserEdit(User):
                 exclude={
                     "id",
                     "mfa_enabled",
+                    "pending_admin_approval",
                     "photo_path",
                     "external_auth_count",
                     "version",

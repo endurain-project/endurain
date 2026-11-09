@@ -16,6 +16,7 @@ import modules.auth.identity_providers.constants as identity_providers_constants
 import modules.auth.mfa.integration_service as mfa_integration
 import modules.auth.schema as auth_schema
 import modules.auth.sign_up_tokens.contracts as sign_up_contracts
+import modules.users.users.models as users_models
 import modules.users.users.router as users_router
 import modules.users.users.schema as users_schema
 import modules.users.users.service as users_service
@@ -595,7 +596,7 @@ class TestStageFirstAdmin:
         assert fields["access_type"] == "admin"
         assert fields["active"] is True
         assert fields["email_verified"] is True
-        assert fields["pending_admin_approval"] is False
+        assert "pending_admin_approval" not in fields
         assert "deactivated_at" not in fields
         assert (fields["preferred_language"], fields["gender"], fields["units"]) == ("en", "unspecified", "metric")
         assert fields["username"] == "owner" and fields["email"] == "owner@example.com"
@@ -625,6 +626,9 @@ class TestStageFirstAdmin:
             users_service.stage_first_admin(self._admin(), mock_db)
 
         mock_crud.create_user.assert_not_called()
+
+    def test_an_account_created_without_the_flag_is_not_pending(self):
+        assert users_models.Users.__table__.c.pending_admin_approval.default.arg is False
 
     def test_the_request_shape_carries_no_access_type_or_account_state(self):
         for field in ("access_type", "active", "email_verified", "pending_admin_approval"):

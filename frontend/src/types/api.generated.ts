@@ -11545,12 +11545,6 @@ export interface components {
              */
             password: string;
             /**
-             * Pending Admin Approval
-             * @description Whether pending admin approval
-             * @default false
-             */
-            pending_admin_approval: boolean;
-            /**
              * @description Preferred language
              * @default en
              */
@@ -11640,12 +11634,6 @@ export interface components {
              * @description User's full name
              */
             name: string;
-            /**
-             * Pending Admin Approval
-             * @description Whether pending admin approval
-             * @default false
-             */
-            pending_admin_approval: boolean;
             /**
              * @description Preferred language
              * @default en
@@ -12905,6 +12893,7 @@ export interface components {
          *
          *     Attributes:
          *         mfa_enabled: Whether MFA is enabled.
+         *         pending_admin_approval: Whether pending admin approval.
          *         id: User ID.
          *         photo_path: Servable URL of the user's photo, resolved from the stored storage key.
          *         external_auth_count: Number of external auth providers.

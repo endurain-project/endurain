@@ -60,7 +60,7 @@ export function mapManagedUser(dto: UserDto): ManagedUser {
  * Rebuilds the `UserEdit` wire payload from a {@link ManagedUser}.
  * Every stored column is sent so fields the admin form doesn't expose round-trip
  * untouched, but the derived, read-only fields are omitted: `id` is the path,
- * `mfa_enabled` and `external_auth_count` are computed per request, and the edit body rejects both.
+ * `mfa_enabled`, `pending_admin_approval` and `external_auth_count` are not editable, and the edit body rejects them.
  *
  * @param user - The managed user (already merged with any edits).
  * @returns The snake-cased editable body (without the read-only fields).
@@ -73,7 +73,6 @@ function toUserWire(user: ManagedUser): UserEditDto {
     access_type: user.accessType,
     active: user.active,
     email_verified: user.emailVerified,
-    pending_admin_approval: user.pendingAdminApproval,
     preferred_language: user.preferredLanguage,
     gender: user.gender,
     units: user.units,
@@ -166,7 +165,6 @@ export async function createUser(
     access_type: input.accessType,
     active: input.active,
     email_verified: input.emailVerified,
-    pending_admin_approval: input.pendingAdminApproval,
     units: input.units,
     weight_units: input.weightUnits,
     currency: input.currency,

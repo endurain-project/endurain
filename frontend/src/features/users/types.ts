@@ -169,7 +169,6 @@ export interface EditUserFields {
   accessType: UserAccessType
   active: boolean
   emailVerified: boolean
-  pendingAdminApproval: boolean
   preferredLanguage: Schemas['Language']
   gender: Schemas['Gender']
   units: Schemas['Units']
@@ -194,7 +193,6 @@ export interface CreateUserInput {
   accessType: UserAccessType
   active: boolean
   emailVerified: boolean
-  pendingAdminApproval: boolean
   preferredLanguage: Schemas['Language']
   gender: Schemas['Gender']
   units: Schemas['Units']

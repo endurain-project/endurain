@@ -153,7 +153,6 @@
       "emailVerified": "E-mail zweryfikowany",
       "emailVerifiedCurrentHint": "To jest status obecnego adresu.",
       "newEmailVerified": "Oznacz nowy adres jako zweryfikowany",
-      "pendingAdminApproval": "Oczekuje na zatwierdzenie administratora",
       "requiredField": "Pole wymagane",
       "create": "Dodaj użytkownika",
       "save": "Zapisz zmiany",

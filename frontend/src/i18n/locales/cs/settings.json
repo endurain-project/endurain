@@ -153,7 +153,6 @@
       "emailVerified": "E-mail ověřen",
       "emailVerifiedCurrentHint": "Toto je stav aktuální adresy.",
       "newEmailVerified": "Označit novou adresu jako ověřenou",
-      "pendingAdminApproval": "Čeká na schválení administrátorem",
       "requiredField": "Povinné pole",
       "create": "Přidat uživatele",
       "save": "Uložit změny",

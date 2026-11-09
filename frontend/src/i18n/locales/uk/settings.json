@@ -153,7 +153,6 @@
       "emailVerified": "Пошту підтверджено",
       "emailVerifiedCurrentHint": "Це статус поточної адреси.",
       "newEmailVerified": "Позначити нову адресу як підтверджену",
-      "pendingAdminApproval": "Очікує схвалення адміністратора",
       "requiredField": "Обов'язкове поле",
       "create": "Додати користувача",
       "save": "Зберегти зміни",

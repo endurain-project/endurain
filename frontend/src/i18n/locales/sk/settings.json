@@ -153,7 +153,6 @@
       "emailVerified": "E-mail overený",
       "emailVerifiedCurrentHint": "Toto je stav aktuálnej adresy.",
       "newEmailVerified": "Označiť novú adresu ako overenú",
-      "pendingAdminApproval": "Čaká na schválenie administrátorom",
       "requiredField": "Povinné pole",
       "create": "Pridať používateľa",
       "save": "Uložiť zmeny",

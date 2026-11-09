@@ -153,7 +153,6 @@
       "emailVerified": "E-mail bekræftet",
       "emailVerifiedCurrentHint": "Dette er status for den nuværende adresse.",
       "newEmailVerified": "Markér den nye adresse som bekræftet",
-      "pendingAdminApproval": "Afventer administratorgodkendelse",
       "requiredField": "Påkrævet felt",
       "create": "Tilføj bruger",
       "save": "Gem ændringer",

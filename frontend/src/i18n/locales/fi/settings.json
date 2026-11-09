@@ -153,7 +153,6 @@
       "emailVerified": "Sähköposti vahvistettu",
       "emailVerifiedCurrentHint": "Tämä on nykyisen osoitteen tila.",
       "newEmailVerified": "Merkitse uusi osoite vahvistetuksi",
-      "pendingAdminApproval": "Odottaa ylläpitäjän hyväksyntää",
       "requiredField": "Pakollinen kenttä",
       "create": "Lisää käyttäjä",
       "save": "Tallenna muutokset",

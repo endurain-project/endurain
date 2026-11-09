@@ -153,7 +153,6 @@
       "emailVerified": "電子郵件已驗證",
       "emailVerifiedCurrentHint": "這是目前信箱的狀態。",
       "newEmailVerified": "將新信箱標示為已驗證",
-      "pendingAdminApproval": "待管理員審核",
       "requiredField": "必填欄位",
       "create": "新增使用者",
       "save": "儲存變更",

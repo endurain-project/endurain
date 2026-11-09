@@ -155,7 +155,6 @@
       "emailVerified": "Email verified",
       "emailVerifiedCurrentHint": "This is the status of the current address.",
       "newEmailVerified": "Mark the new address as verified",
-      "pendingAdminApproval": "Pending admin approval",
       "requiredField": "Required field",
       "create": "Add user",
       "save": "Save changes",

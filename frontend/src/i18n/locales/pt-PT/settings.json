@@ -153,7 +153,6 @@
       "emailVerified": "Email verificado",
       "emailVerifiedCurrentHint": "Este é o estado do endereço atual.",
       "newEmailVerified": "Marcar o novo endereço como verificado",
-      "pendingAdminApproval": "Aprovação de admin pendente",
       "requiredField": "Campo obrigatório",
       "create": "Adicionar utilizador",
       "save": "Guardar alterações",

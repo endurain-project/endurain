@@ -153,7 +153,6 @@
       "emailVerified": "E-mail megerősítve",
       "emailVerifiedCurrentHint": "Ez a jelenlegi cím állapota.",
       "newEmailVerified": "Az új cím megerősítettként jelölése",
-      "pendingAdminApproval": "Rendszergazdai jóváhagyásra vár",
       "requiredField": "Kötelező mező",
       "create": "Felhasználó hozzáadása",
       "save": "Módosítások mentése",
