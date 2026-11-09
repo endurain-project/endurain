@@ -11,6 +11,7 @@
   "invalidTitle": "Preverjanje ni uspelo",
   "errorInvalidToken": "Ta potrditvena povezava je neveljavna ali je potekla.",
   "errorEmailTaken": "Ta e-poštni naslov zdaj uporablja drug račun, zato ga ni mogoče potrditi.",
+  "errorVerificationDisabled": "Potrditev e-pošte na tem strežniku ni vklopljena.",
   "errorNotFound": "Nismo mogli najti računa za to povezavo.",
   "errorGeneral": "Tvoje e-pošte ni bilo mogoče preveriti. Prosim, poskusi znova.",
   "retry": "Poskusi znova",

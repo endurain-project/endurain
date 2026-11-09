@@ -11,6 +11,7 @@
   "invalidTitle": "Overenie zlyhalo",
   "errorInvalidToken": "Tento overovací odkaz je neplatný alebo vypršal.",
   "errorEmailTaken": "Táto e-mailová adresa je teraz používaná iným účtom, takže ju nie je možné potvrdiť.",
+  "errorVerificationDisabled": "Overovanie e-mailu nie je na tomto serveri zapnuté.",
   "errorNotFound": "Pre tento odkaz sme nenašli žiadny účet.",
   "errorGeneral": "Váš e-mail sa nepodarilo overiť. Skúste to znova.",
   "retry": "Skúsiť znova",

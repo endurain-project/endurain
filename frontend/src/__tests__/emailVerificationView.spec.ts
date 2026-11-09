@@ -227,6 +227,16 @@ describe('EmailVerificationView', () => {
     expect(wrapper.text()).not.toContain(i18n.global.t('verifyEmail.retry'))
   })
 
+  it('says email verification is off, without a retry, when the server has it disabled', async () => {
+    confirmSignUp.mockRejectedValue(
+      new HttpError(403, 'Forbidden', null, 'urn:endurain:error:email-verification-disabled'),
+    )
+    const wrapper = await mountView()
+
+    expect(wrapper.text()).toContain(i18n.global.t('verifyEmail.errorVerificationDisabled'))
+    expect(wrapper.text()).not.toContain(i18n.global.t('verifyEmail.retry'))
+  })
+
   it('offers a retry when the failure may be temporary', async () => {
     confirmSignUp.mockRejectedValue(new HttpError(500, 'Server Error'))
     const wrapper = await mountView()

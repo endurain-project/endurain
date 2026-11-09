@@ -11,6 +11,7 @@
   "invalidTitle": "Weryfikacja nie powiodła się",
   "errorInvalidToken": "Ten link weryfikacyjny jest nieprawidłowy lub wygasł.",
   "errorEmailTaken": "Ten adres e-mail jest już używany przez inne konto, więc nie można go potwierdzić.",
+  "errorVerificationDisabled": "Weryfikacja adresu e-mail nie jest włączona na tym serwerze.",
   "errorNotFound": "Nie udało się znaleźć konta dla tego linku.",
   "errorGeneral": "Nie udało się zweryfikować Twojego e-maila. Spróbuj ponownie.",
   "retry": "Spróbuj ponownie",

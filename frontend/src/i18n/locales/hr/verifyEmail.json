@@ -11,6 +11,7 @@
   "invalidTitle": "Potvrda nije uspjela",
   "errorInvalidToken": "Ovaj link za potvrdu nije valjan ili je istekao.",
   "errorEmailTaken": "Ovu adresu e-pošte sada koristi drugi račun, pa se ne može potvrditi.",
+  "errorVerificationDisabled": "Potvrda e-pošte nije uključena na ovom poslužitelju.",
   "errorNotFound": "Nismo mogli pronaći račun za ovaj link.",
   "errorGeneral": "Nismo mogli potvrditi vašu e-poštu. Pokušajte ponovno.",
   "retry": "Pokušaj ponovno",

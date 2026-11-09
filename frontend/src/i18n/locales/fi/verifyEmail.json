@@ -11,6 +11,7 @@
   "invalidTitle": "Vahvistus epäonnistui",
   "errorInvalidToken": "Tämä vahvistuslinkki on virheellinen tai vanhentunut.",
   "errorEmailTaken": "Tätä sähköpostiosoitetta käyttää nyt toinen tili, joten sitä ei voi vahvistaa.",
+  "errorVerificationDisabled": "Sähköpostin vahvistus ei ole käytössä tällä palvelimella.",
   "errorNotFound": "Tälle linkille ei löytynyt tiliä.",
   "errorGeneral": "Sähköpostiasi ei voitu vahvistaa. Yritä uudelleen.",
   "retry": "Yritä uudelleen",

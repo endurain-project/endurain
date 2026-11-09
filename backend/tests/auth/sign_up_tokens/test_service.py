@@ -463,9 +463,9 @@ class TestVerifyEmailPassword:
         mock_db.commit.assert_called_once()
         assert "verified" in result.message.lower()
 
-    def test_a_sign_up_token_with_verification_disabled_stays_a_precondition_failure(self, deps, mock_db):
+    def test_a_sign_up_token_with_verification_disabled_is_refused(self, deps, mock_db):
         with (
             patch(f"{_MODULE}.server_settings_integration.get_server_settings", return_value=_settings()),
-            pytest.raises(core_exceptions.PreconditionFailedError),
+            pytest.raises(core_exceptions.EmailVerificationDisabledError),
         ):
             sign_up_service.verify_email("tok", "ChosenPass1!", mock_db)

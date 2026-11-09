@@ -209,6 +209,17 @@ class MfaRequiredError(PermissionDeniedError):
     default_detail = "MFA verification required"
 
 
+class EmailVerificationDisabledError(PermissionDeniedError):
+    """A sign-up confirmation arrived while email verification is turned off on this server.
+
+    Renders as ``403``. Clients branch on the ``email-verification-disabled`` problem type to tell the user the
+    link cannot be used here; retrying never succeeds.
+    """
+
+    code = "email-verification-disabled"
+    default_detail = "Email verification is not enabled on this server"
+
+
 class PasswordRequiredError(InvalidInputError):
     """A sign-up confirmation arrived without the password the account is still missing.
 

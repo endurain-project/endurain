@@ -691,7 +691,7 @@ def verify_email(token: str, password: str | None, db: Session) -> sign_up_schem
             sign-up confirmation.
         PasswordRequiredError: If a sign-up confirmation carries no password.
         PasswordPolicyError: If the password fails the configured policy.
-        PreconditionFailedError: If a sign-up is confirmed while email verification is not enabled.
+        EmailVerificationDisabledError: If a sign-up is confirmed while email verification is not enabled.
     """
     server_settings = server_settings_integration.get_server_settings(db)
     if password is not None:
@@ -710,7 +710,7 @@ def verify_email(token: str, password: str | None, db: Session) -> sign_up_schem
     # address of a deactivated account but never activates it or asks the administrators to approve it.
     is_sign_up = not user.active and not users_integration.is_deactivated(user_id, db)
     if is_sign_up and not server_settings.signup_require_email_verification:
-        raise core_exceptions.PreconditionFailedError("Email verification is not enabled")
+        raise core_exceptions.EmailVerificationDisabledError()
 
     # A sign-up confirmation chooses the password. An account an administrator activated before it was
     # confirmed has none yet either, and without one it could neither sign in nor reset its password.

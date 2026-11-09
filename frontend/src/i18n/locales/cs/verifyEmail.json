@@ -11,6 +11,7 @@
   "invalidTitle": "Ověření selhalo",
   "errorInvalidToken": "Tento ověřovací odkaz je neplatný nebo vypršel.",
   "errorEmailTaken": "Tato e-mailová adresa je nyní používána jiným účtem, a proto ji nelze potvrdit.",
+  "errorVerificationDisabled": "Ověřování e-mailu není na tomto serveru zapnuto.",
   "errorNotFound": "Pro tento odkaz se nepodařilo najít účet.",
   "errorGeneral": "Váš e-mail se nepodařilo ověřit. Zkuste to prosím znovu.",
   "retry": "Zkusit znovu",

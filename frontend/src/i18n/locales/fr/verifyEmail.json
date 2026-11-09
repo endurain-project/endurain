@@ -11,6 +11,7 @@
   "invalidTitle": "Échec de la vérification",
   "errorInvalidToken": "Ce lien de vérification est invalide ou expiré.",
   "errorEmailTaken": "Cette adresse e-mail est désormais utilisée par un autre compte, elle ne peut donc pas être confirmée.",
+  "errorVerificationDisabled": "La vérification de l'e-mail n'est pas activée sur ce serveur.",
   "errorNotFound": "Impossible de trouver un compte pour ce lien.",
   "errorGeneral": "Impossible de vérifier votre e-mail. Veuillez réessayer.",
   "retry": "Réessayer",

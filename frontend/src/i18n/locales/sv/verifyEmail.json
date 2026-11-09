@@ -11,6 +11,7 @@
   "invalidTitle": "Verifiering misslyckades",
   "errorInvalidToken": "Den här verifieringslänken är ogiltig eller har gått ut.",
   "errorEmailTaken": "Den här e-postadressen används nu av ett annat konto, så den kan inte bekräftas.",
+  "errorVerificationDisabled": "E-postverifiering är inte aktiverad på den här servern.",
   "errorNotFound": "Vi kunde inte hitta ett konto för den här länken.",
   "errorGeneral": "Vi kunde inte verifiera din e-post. Försök igen.",
   "retry": "Försök igen",

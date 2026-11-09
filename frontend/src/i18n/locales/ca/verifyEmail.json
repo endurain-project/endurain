@@ -11,6 +11,7 @@
   "invalidTitle": "La verificació ha fallat",
   "errorInvalidToken": "Aquest enllaç de verificació no és vàlid o ha caducat.",
   "errorEmailTaken": "Aquesta adreça de correu ara la fa servir un altre compte, així que no es pot confirmar.",
+  "errorVerificationDisabled": "La verificació del correu electrònic no està activada en aquest servidor.",
   "errorNotFound": "No hem trobat cap compte per a aquest enllaç.",
   "errorGeneral": "No hem pogut verificar el teu correu. Torna-ho a intentar.",
   "retry": "Torna-ho a intentar",

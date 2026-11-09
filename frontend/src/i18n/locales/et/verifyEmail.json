@@ -11,6 +11,7 @@
   "invalidTitle": "Kinnitamine ebaõnnestus",
   "errorInvalidToken": "See kinnituslink on kehtetu või aegunud.",
   "errorEmailTaken": "See e-posti aadress on nüüd teise konto kasutuses, seetõttu ei saa seda kinnitada.",
+  "errorVerificationDisabled": "E-posti kinnitamine ei ole selles serveris sisse lülitatud.",
   "errorNotFound": "Me ei leidnud sellele lingile vastavat kontot.",
   "errorGeneral": "Sinu e-posti ei õnnestunud kinnitada. Palun proovi uuesti.",
   "retry": "Proovi uuesti",

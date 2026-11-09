@@ -30,7 +30,8 @@ export function requestSignUp(request: SignUpRequest): Promise<SignUpResponse> {
  * @param request - The email verification token and, for a sign-up link, the chosen password
  *   (sent after the backend answered `urn:endurain:error:password-required`).
  * @returns The backend response, including any admin-approval flag.
- * @throws {HttpError} 412 when verification is disabled, 400 when the token is
+ * @throws {HttpError} 403 (`urn:endurain:error:email-verification-disabled`) when verification is
+ *   disabled, 400 when the token is
  *   invalid or expired or a password is required, 404 when no matching user
  *   exists, 422 when the password fails the policy.
  */

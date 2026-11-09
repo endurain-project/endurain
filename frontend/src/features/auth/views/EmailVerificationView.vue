@@ -27,6 +27,7 @@ type Status = 'pending' | 'password' | 'success' | 'error' | 'resend'
 
 /** Problem type the backend answers for a sign-up link confirmed without a password. */
 const PASSWORD_REQUIRED_TYPE = 'urn:endurain:error:password-required'
+const EMAIL_VERIFICATION_DISABLED_TYPE = 'urn:endurain:error:email-verification-disabled'
 
 /** Form field shape backing the choose-password form. */
 interface ChoosePasswordValues {
@@ -123,6 +124,9 @@ async function verify(): Promise<void> {
   } catch (error) {
     if (error instanceof HttpError && error.type === PASSWORD_REQUIRED_TYPE) {
       status.value = 'password'
+    } else if (error instanceof HttpError && error.type === EMAIL_VERIFICATION_DISABLED_TYPE) {
+      verifyCredential.clear()
+      showError(t('verifyEmail.errorVerificationDisabled'))
     } else if (error instanceof HttpError && error.status === 404) {
       verifyCredential.clear()
       showError(t('verifyEmail.errorNotFound'))

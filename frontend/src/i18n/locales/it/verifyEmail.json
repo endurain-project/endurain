@@ -11,6 +11,7 @@
   "invalidTitle": "Verifica non riuscita",
   "errorInvalidToken": "Questo link di verifica non è valido o è scaduto.",
   "errorEmailTaken": "Questo indirizzo email è ora utilizzato da un altro account, quindi non può essere confermato.",
+  "errorVerificationDisabled": "La verifica dell'e-mail non è attiva su questo server.",
   "errorNotFound": "Non abbiamo trovato un account per questo link.",
   "errorGeneral": "Impossibile verificare la tua email. Riprova.",
   "retry": "Riprova",

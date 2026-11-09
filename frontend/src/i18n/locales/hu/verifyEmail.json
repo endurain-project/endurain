@@ -11,6 +11,7 @@
   "invalidTitle": "Az ellenőrzés sikertelen",
   "errorInvalidToken": "Ez az ellenőrző hivatkozás érvénytelen vagy lejárt.",
   "errorEmailTaken": "Ezt az e-mail-címet mostantól egy másik fiók használja, ezért nem lehet megerősíteni.",
+  "errorVerificationDisabled": "Az e-mail-cím megerősítése nincs bekapcsolva ezen a kiszolgálón.",
   "errorNotFound": "Nem találtunk fiókot ehhez a hivatkozáshoz.",
   "errorGeneral": "Nem sikerült megerősíteni az e-mail-címedet. Kérjük, próbáld újra.",
   "retry": "Próbáld újra",

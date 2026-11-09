@@ -11,6 +11,7 @@
   "invalidTitle": "Verificatie mislukt",
   "errorInvalidToken": "Deze verificatielink is ongeldig of verlopen.",
   "errorEmailTaken": "Dit e-mailadres wordt nu door een ander account gebruikt, dus het kan niet worden bevestigd.",
+  "errorVerificationDisabled": "E-mailverificatie is niet ingeschakeld op deze server.",
   "errorNotFound": "We konden geen account vinden voor deze link.",
   "errorGeneral": "We konden je e-mailadres niet verifiëren. Probeer het opnieuw.",
   "retry": "Opnieuw proberen",

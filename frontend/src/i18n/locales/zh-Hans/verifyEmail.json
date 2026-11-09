@@ -11,6 +11,7 @@
   "invalidTitle": "Verification failed",
   "errorInvalidToken": "This verification link is invalid or expired.",
   "errorEmailTaken": "该邮箱地址现已被其他账户使用，因此无法确认。",
+  "errorVerificationDisabled": "此服务器未启用电子邮件验证。",
   "errorNotFound": "We couldn't find an account for this link.",
   "errorGeneral": "We couldn't verify your email. Please try again.",
   "retry": "Try again",

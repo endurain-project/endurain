@@ -478,7 +478,7 @@ class TestVerifyEmailEndpoint:
     @patch("modules.auth.sign_up_tokens.service.users_integration.get_user")
     @patch("modules.auth.sign_up_tokens.service.verify_sign_up_token")
     @patch("modules.auth.sign_up_tokens.service.server_settings_integration.get_server_settings")
-    def test_verify_email_not_enabled_returns_412(
+    def test_verify_email_not_enabled_returns_403(
         self,
         mock_settings,
         mock_use_token,
@@ -486,7 +486,7 @@ class TestVerifyEmailEndpoint:
         signup_client,
     ) -> None:
         """
-        Returns 412 when a sign-up is verified but email verification is not enabled on
+        Returns 403 with its own problem type when a sign-up is verified but email verification is not enabled on
         the server.
         """
         mock_settings.return_value = MagicMock(
@@ -500,7 +500,8 @@ class TestVerifyEmailEndpoint:
             json={"token": "any-token"},
         )
 
-        assert response.status_code == status.HTTP_412_PRECONDITION_FAILED
+        assert response.status_code == status.HTTP_403_FORBIDDEN
+        assert response.json()["type"] == "urn:endurain:error:email-verification-disabled"
 
     @patch("modules.auth.sign_up_tokens.service.server_settings_integration.get_server_settings")
     def test_verify_email_missing_token_returns_422(

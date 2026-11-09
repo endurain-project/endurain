@@ -11,6 +11,7 @@
   "invalidTitle": "Verificación fallida",
   "errorInvalidToken": "Este enlace de verificación no es válido o ha caducado.",
   "errorEmailTaken": "Esta dirección de correo ya la usa otra cuenta, por lo que no se puede confirmar.",
+  "errorVerificationDisabled": "La verificación del correo electrónico no está activada en este servidor.",
   "errorNotFound": "No pudimos encontrar una cuenta para este enlace.",
   "errorGeneral": "No pudimos verificar tu correo. Inténtalo de nuevo.",
   "retry": "Intentar de nuevo",

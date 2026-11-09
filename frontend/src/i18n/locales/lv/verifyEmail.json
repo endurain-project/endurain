@@ -11,6 +11,7 @@
   "invalidTitle": "Verifikācija neizdevās",
   "errorInvalidToken": "Šī verifikācijas saite ir nederīga vai tai beidzies derīgums.",
   "errorEmailTaken": "Šo e-pasta adresi tagad izmanto cits konts, tāpēc to nevar apstiprināt.",
+  "errorVerificationDisabled": "E-pasta apstiprināšana šajā serverī nav ieslēgta.",
   "errorNotFound": "Mēs nevarējām atrast kontu šai saitei.",
   "errorGeneral": "Mēs nevarējām verificēt jūsu e-pastu. Lūdzu, mēģiniet vēlreiz.",
   "retry": "Mēģināt vēlreiz",

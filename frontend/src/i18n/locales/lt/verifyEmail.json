@@ -11,6 +11,7 @@
   "invalidTitle": "Patvirtinimas nepavyko",
   "errorInvalidToken": "Ši patvirtinimo nuoroda negalioja arba baigė galioti.",
   "errorEmailTaken": "Šį el. pašto adresą dabar naudoja kita paskyra, todėl jo patvirtinti negalima.",
+  "errorVerificationDisabled": "El. pašto patvirtinimas šiame serveryje neįjungtas.",
   "errorNotFound": "Nepavyko rasti paskyros pagal šią nuorodą.",
   "errorGeneral": "Nepavyko patvirtinti jūsų el. pašto. Bandykite dar kartą.",
   "retry": "Bandyti dar kartą",

@@ -11,6 +11,7 @@
   "invalidTitle": "Verificarea a eșuat",
   "errorInvalidToken": "Acest link de verificare este invalid sau a expirat.",
   "errorEmailTaken": "Această adresă de e-mail este acum folosită de alt cont, așa că nu poate fi confirmată.",
+  "errorVerificationDisabled": "Verificarea e-mailului nu este activată pe acest server.",
   "errorNotFound": "Nu am putut găsi un cont pentru acest link.",
   "errorGeneral": "Nu am putut verifica adresa ta de e-mail. Te rugăm să încerci din nou.",
   "retry": "Încearcă din nou",
