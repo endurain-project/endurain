@@ -70,7 +70,7 @@ async function submitForm(): Promise<void> {
   alert.value = null
 
   try {
-    await confirmPasswordReset({ token: token.value, new_password: password.value })
+    await confirmPasswordReset({ token: token.value, password: password.value })
     resetCredential.clear()
     await router.replace({ name: 'login', query: { passwordResetSuccess: 'true' } })
   } catch (error) {

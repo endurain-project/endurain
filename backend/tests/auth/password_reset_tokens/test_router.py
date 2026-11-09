@@ -140,7 +140,7 @@ class TestConfirmPasswordReset:
             "/password-reset/confirm",
             json={
                 "token": "valid-reset-token-value",
-                "new_password": "new-secure-pass",
+                "password": "new-secure-pass",
             },
         )
 
@@ -165,7 +165,7 @@ class TestConfirmPasswordReset:
             "/password-reset/confirm",
             json={
                 "token": "expired-or-invalid-token",
-                "new_password": "new-secure-pass",
+                "password": "new-secure-pass",
             },
         )
 
@@ -191,7 +191,7 @@ class TestConfirmPasswordReset:
             "/password-reset/confirm",
             json={
                 "token": "valid-reset-token-value",
-                "new_password": "8-chars!",
+                "password": "8-chars!",
             },
         )
 
@@ -201,13 +201,25 @@ class TestConfirmPasswordReset:
         self,
         fast_api_client,
     ) -> None:
-        """Returns 422 when new_password is shorter than 8 chars."""
+        """Returns 422 when password is shorter than 8 chars."""
         response = fast_api_client.post(
             "/password-reset/confirm",
             json={
                 "token": "some-token-value",
-                "new_password": "short",
+                "password": "short",
             },
+        )
+
+        assert response.status_code == status.HTTP_422_UNPROCESSABLE_CONTENT
+
+    def test_confirm_password_reset_refuses_the_old_new_password_key(
+        self,
+        fast_api_client,
+    ) -> None:
+        """Returns 422 when the body still uses the retired new_password key."""
+        response = fast_api_client.post(
+            "/password-reset/confirm",
+            json={"token": "some-token-value", "new_password": "new-secure-pass"},
         )
 
         assert response.status_code == status.HTTP_422_UNPROCESSABLE_CONTENT
@@ -219,7 +231,7 @@ class TestConfirmPasswordReset:
         """Returns 422 when the token field is absent from the body."""
         response = fast_api_client.post(
             "/password-reset/confirm",
-            json={"new_password": "new-secure-pass"},
+            json={"password": "new-secure-pass"},
         )
 
         assert response.status_code == status.HTTP_422_UNPROCESSABLE_CONTENT
@@ -245,7 +257,7 @@ class TestConfirmPasswordReset:
             "/password-reset/confirm",
             json={
                 "token": "some-valid-token",
-                "new_password": "new-secure-pass",
+                "password": "new-secure-pass",
             },
         )
 

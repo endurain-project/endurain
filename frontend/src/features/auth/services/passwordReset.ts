@@ -5,10 +5,7 @@ interface PasswordResetRequest {
   email: string
 }
 
-interface PasswordResetConfirm {
-  token: string
-  new_password: string
-}
+type PasswordResetConfirm = Schemas['PasswordResetConfirm']
 
 /**
  * Requests a password reset email.

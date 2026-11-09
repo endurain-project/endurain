@@ -57,11 +57,11 @@ describe('passwordReset service', () => {
 
   it('confirms a reset with the token and new password', async () => {
     fetchMock.mockResolvedValueOnce(new Response(null, { status: 204 }))
-    const result = await confirmPasswordReset({ token: 'tok', new_password: 'supersecret' })
+    const result = await confirmPasswordReset({ token: 'tok', password: 'supersecret' })
     const call = fetchMock.mock.calls[0]
     expect(call?.[0]).toContain('/public/password-reset/confirm')
     expect(call?.[1].method).toBe('POST')
-    expect(call?.[1].body).toBe(JSON.stringify({ token: 'tok', new_password: 'supersecret' }))
+    expect(call?.[1].body).toBe(JSON.stringify({ token: 'tok', password: 'supersecret' }))
     expect(result).toBeUndefined()
   })
 })

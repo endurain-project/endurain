@@ -10065,14 +10065,14 @@ export interface components {
          *
          *     Attributes:
          *         token: The reset token received by the user.
-         *         new_password: The new password to set.
+         *         password: The new password to set.
          */
         PasswordResetConfirm: {
             /**
-             * New Password
+             * Password
              * @description The new password to set
              */
-            new_password: string;
+            password: string;
             /**
              * Token
              * @description The reset token received by the user

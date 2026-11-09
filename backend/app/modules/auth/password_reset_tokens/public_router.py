@@ -40,7 +40,7 @@ def confirm_password_reset(
     db: core_dependencies.DbSession,
 ) -> None:
     """Confirm a password reset using a token and replacement password."""
-    password_reset_service.use_password_reset_token(confirm_data.token, confirm_data.new_password, db)
+    password_reset_service.use_password_reset_token(confirm_data.token, confirm_data.password, db)
 
 
 @router.post(

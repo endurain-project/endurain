@@ -88,7 +88,7 @@ class PasswordResetConfirm(BaseModel):
 
     Attributes:
         token: The reset token received by the user.
-        new_password: The new password to set.
+        password: The new password to set.
     """
 
     token: StrictStr = Field(
@@ -97,7 +97,7 @@ class PasswordResetConfirm(BaseModel):
         min_length=1,
         max_length=256,
     )
-    new_password: StrictStr = Field(
+    password: StrictStr = Field(
         ...,
         description="The new password to set",
         min_length=8,
