@@ -91,6 +91,13 @@ def sign_up():
 
 
 @pytest.fixture(autouse=True)
+def generation():
+    """Replace the security-generation boundary."""
+    with patch("modules.users.users.service.security_generation_integration") as integration:
+        yield integration
+
+
+@pytest.fixture(autouse=True)
 def password_reset():
     """Replace the password-reset-token boundary."""
     with patch("modules.users.users.service.password_reset_tokens_integration") as integration:
@@ -995,6 +1002,23 @@ class TestEdits:
         sign_up.request_email_change.assert_called_once_with(1, "other@example.com", "user1@example.com", mock_db)
         _delete_all_sessions_mock.assert_called_once_with(1, mock_db)
 
+    def test_a_requested_email_with_a_deactivation_bumps_before_the_token_is_written(
+        self, mock_crud, mock_weight, mock_db, sign_up, generation
+    ):
+        mock_crud.get_user_by_id.return_value = _user(1, email_verified=True)
+        mock_crud.get_user_by_email.return_value = None
+        mock_crud.update_user.return_value = _user(1, email_verified=True, active=False)
+        mock_crud.lock_active_admin_ids.return_value = [1, 2]
+        _identity()
+        order = MagicMock()
+        order.attach_mock(generation.stage_bump, "bump")
+        order.attach_mock(sign_up.request_email_change, "request")
+
+        _admin_edit(1, _edit(1, email="Other@example.com", email_verified=False, active=False), 9, mock_db)
+
+        names = [call[0] for call in order.mock_calls]
+        assert names.index("bump") < names.index("request")
+
     def test_a_requested_email_is_checked_for_another_account_before_it_is_staged(
         self, mock_crud, mock_weight, mock_db, sign_up
     ):
@@ -1494,6 +1518,149 @@ class TestTimezone:
 
         mock_tz.today_in.assert_called_once_with("Pacific/Auckland")
         assert result == mock_tz.today_in.return_value
+
+
+@patch("modules.users.users.service.users_contributor_registry")
+@patch(_CRUD)
+class TestSecurityGenerationBump:
+    """A change that takes effect on the account's email or active flag advances its security generation."""
+
+    def test_an_admin_edit_that_changes_the_email_bumps(self, mock_crud, mock_weight, mock_db, generation):
+        mock_crud.get_user_by_id.return_value = _user(1)
+        mock_crud.update_user.return_value = _user(1, email="other@example.com")
+
+        users_service.stage_user_edit(1, _edit(1, email="other@example.com"), mock_db, if_match="*")
+
+        generation.stage_bump.assert_called_once_with(1, mock_db)
+
+    def test_an_admin_edit_that_deactivates_bumps(self, mock_crud, mock_weight, mock_db, generation):
+        mock_crud.get_user_by_id.return_value = _user(1)
+        mock_crud.update_user.return_value = _user(1, active=False)
+        mock_crud.lock_active_admin_ids.return_value = [1, 2]
+
+        users_service.stage_user_edit(1, _edit(1, active=False), mock_db, if_match="*")
+
+        generation.stage_bump.assert_called_once_with(1, mock_db)
+
+    def test_an_edit_changing_both_bumps_once(self, mock_crud, mock_weight, mock_db, generation):
+        mock_crud.get_user_by_id.return_value = _user(1)
+        mock_crud.update_user.return_value = _user(1, email="other@example.com", active=False)
+        mock_crud.lock_active_admin_ids.return_value = [1, 2]
+
+        users_service.stage_user_edit(1, _edit(1, email="other@example.com", active=False), mock_db, if_match="*")
+
+        generation.stage_bump.assert_called_once_with(1, mock_db)
+
+    def test_an_edit_that_changes_neither_does_not_bump(self, mock_crud, mock_weight, mock_db, generation):
+        mock_crud.get_user_by_id.return_value = _user(1)
+        mock_crud.update_user.return_value = _user(1, name="Renamed")
+
+        users_service.stage_user_edit(1, _edit(1, name="Renamed"), mock_db, if_match="*")
+
+        generation.stage_bump.assert_not_called()
+
+    def test_an_edit_that_reactivates_does_not_bump(self, mock_crud, mock_weight, mock_db, generation):
+        mock_crud.get_user_by_id.return_value = _user(1, active=False)
+        mock_crud.update_user.return_value = _user(1, active=True)
+
+        users_service.stage_user_edit(1, _edit(1, active=True), mock_db, if_match="*")
+
+        generation.stage_bump.assert_not_called()
+
+    def test_an_email_only_requested_does_not_bump(self, mock_crud, mock_weight, mock_db, generation):
+        mock_crud.get_user_by_id.return_value = _user(1)
+        mock_crud.get_user_by_email.return_value = None
+        mock_crud.update_user.return_value = _user(1)
+
+        _admin_edit(1, _edit(1, email="other@example.com"), 9, mock_db)
+
+        generation.stage_bump.assert_not_called()
+
+    def test_an_email_applied_without_mail_bumps(self, mock_crud, mock_weight, mock_db, generation):
+        mock_crud.get_user_by_id.return_value = _user(1, email="old@example.com")
+
+        users_service.stage_email_change(1, "new@example.com", mock_db)
+
+        generation.stage_bump.assert_called_once_with(1, mock_db)
+
+    def test_resubmitting_the_current_address_does_not_bump(self, mock_crud, mock_weight, mock_db, generation):
+        mock_crud.get_user_by_id.return_value = _user(1, email="same@example.com")
+
+        users_service.stage_email_change(1, "same@example.com", mock_db)
+
+        generation.stage_bump.assert_not_called()
+
+    def test_a_confirmed_new_address_bumps(self, mock_crud, mock_weight, mock_db, generation):
+        mock_crud.get_user_by_id.return_value = _user(1, email="old@example.com")
+        mock_crud.get_user_by_email.return_value = None
+
+        users_service.stage_confirmed_email_change(1, "New@Example.com", mock_db)
+
+        generation.stage_bump.assert_called_once_with(1, mock_db)
+
+    def test_confirming_the_current_address_does_not_bump(self, mock_crud, mock_weight, mock_db, generation):
+        mock_crud.get_user_by_id.return_value = _user(1, email="same@example.com")
+        mock_crud.get_user_by_email.return_value = _user(1, email="same@example.com")
+
+        users_service.stage_confirmed_email_change(1, "Same@Example.com", mock_db)
+
+        generation.stage_bump.assert_not_called()
+
+    def test_an_edit_bumps_before_the_administrator_lock_and_the_user_write(
+        self, mock_crud, mock_weight, mock_db, generation
+    ):
+        mock_crud.get_user_by_id.return_value = _user(1, access_type="admin")
+        mock_crud.update_user.return_value = _user(1, access_type="admin", email="other@example.com", active=False)
+        mock_crud.lock_active_admin_ids.return_value = [1, 2]
+        order = MagicMock()
+        order.attach_mock(generation.stage_bump, "bump")
+        order.attach_mock(mock_crud.lock_active_admin_ids, "lock_admins")
+        order.attach_mock(mock_crud.update_user, "update_user")
+
+        users_service.stage_user_edit(
+            1, _edit(1, access_type="admin", email="other@example.com", active=False), mock_db, if_match="*"
+        )
+
+        assert [call[0] for call in order.mock_calls][:3] == ["bump", "lock_admins", "update_user"]
+
+    def test_an_edit_that_changes_the_email_with_different_case_bumps_only_for_a_new_address(
+        self, mock_crud, mock_weight, mock_db, generation
+    ):
+        mock_crud.get_user_by_id.return_value = _user(1, email="same@example.com")
+        mock_crud.update_user.return_value = _user(1, email="same@example.com")
+
+        users_service.stage_user_edit(1, _edit(1, email="Same@Example.com"), mock_db, if_match="*")
+
+        generation.stage_bump.assert_not_called()
+
+    def test_a_new_address_bumps_before_the_user_write(self, mock_crud, mock_weight, mock_db, generation):
+        mock_crud.get_user_by_id.return_value = _user(1, email="old@example.com")
+        order = MagicMock()
+        order.attach_mock(generation.stage_bump, "bump")
+        order.attach_mock(mock_crud.update_user, "update_user")
+
+        users_service.stage_email_change(1, "new@example.com", mock_db)
+
+        assert [call[0] for call in order.mock_calls][:2] == ["bump", "update_user"]
+
+    def test_a_confirmed_new_address_bumps_before_the_user_write(self, mock_crud, mock_weight, mock_db, generation):
+        mock_crud.get_user_by_id.return_value = _user(1, email="old@example.com")
+        mock_crud.get_user_by_email.return_value = None
+        order = MagicMock()
+        order.attach_mock(generation.stage_bump, "bump")
+        order.attach_mock(mock_crud.update_user, "update_user")
+
+        users_service.stage_confirmed_email_change(1, "new@example.com", mock_db)
+
+        assert [call[0] for call in order.mock_calls][:2] == ["bump", "update_user"]
+
+    def test_a_synced_address_bumps_through_the_confirmed_change(self, mock_crud, mock_weight, mock_db, generation):
+        mock_crud.get_user_by_id.return_value = _user(1, email="old@example.com")
+        mock_crud.get_user_by_email.return_value = None
+
+        users_service.stage_synced_email_change(1, "new@example.com", mock_db)
+
+        generation.stage_bump.assert_called_once_with(1, mock_db)
 
 
 class TestStageEmailChange:

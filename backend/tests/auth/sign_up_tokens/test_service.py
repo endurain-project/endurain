@@ -1,5 +1,6 @@
 """Tests for the sign-up workflow: a taken email gets the same answer as a new one."""
 
+import contextlib
 from unittest.mock import MagicMock, patch
 
 import pytest
@@ -8,6 +9,7 @@ from jasil.providers import StateBackendUnavailableError
 
 import core.exceptions as core_exceptions
 import modules.auth.credentials.contracts as credentials_contracts
+import modules.auth.sign_up_tokens.contracts as sign_up_contracts
 import modules.auth.sign_up_tokens.service as sign_up_service
 import modules.users.users.schema as users_schema
 
@@ -370,9 +372,9 @@ class TestVerifyEmailPassword:
         names = [
             "credentials_integration",
             "sessions_integration",
-            "mfa_integration",
             "users_integration",
             "password_reset_tokens_integration",
+            "security_generation_integration",
         ]
         mocks = {name: MagicMock() for name in names}
         with (
@@ -410,9 +412,18 @@ class TestVerifyEmailPassword:
         creds.set_local_password_hash.assert_called_once_with(7, "hashed", mock_db, change_required=False)
         deps["sessions_integration"].delete_sessions_by_user.assert_called_once_with(7, mock_db)
         deps["password_reset_tokens_integration"].revoke_unused_tokens.assert_called_once_with(7, mock_db)
-        deps["mfa_integration"].clear_pending_mfa_for_user.assert_called_once_with(7)
         deps["users_integration"].stage_email_verification.assert_called_once()
         assert "log in" in result.message
+
+    def test_the_token_is_verified_knowing_whether_a_password_comes_with_it(self, deps, mock_db):
+        sign_up_service.verify_email("tok", "ChosenPass1!", mock_db)
+        deps["verify_token"].assert_called_once_with("tok", mock_db, with_password=True)
+
+        deps["verify_token"].reset_mock()
+        deps["users_integration"].get_user.return_value = MagicMock(id=7, active=True, access_type="regular")
+        deps["credentials_integration"].has_local_password.return_value = True
+        sign_up_service.verify_email("tok", None, mock_db)
+        deps["verify_token"].assert_called_once_with("tok", mock_db, with_password=False)
 
     def test_a_password_failing_the_policy_is_a_policy_error(self, deps, mock_db):
         deps[
@@ -472,3 +483,52 @@ class TestVerifyEmailPassword:
             pytest.raises(core_exceptions.EmailVerificationDisabledError),
         ):
             sign_up_service.verify_email("tok", "ChosenPass1!", mock_db)
+
+
+class TestVerifySignUpTokenBump:
+    """A confirmation that sets a password or moves the address bumps the generation before the claim writes."""
+
+    @staticmethod
+    def _plain():
+        return sign_up_contracts.SignUpTokenClaim(id="t", user_id=7, email="u@example.com", previous_email=None)
+
+    @staticmethod
+    def _verify(claim, *, with_password, usable=True):
+        mocks = MagicMock()
+        with (
+            patch(f"{_MODULE}.sign_up_crud.get_usable_sign_up_token", return_value=claim if usable else None),
+            patch(f"{_MODULE}.sign_up_crud.claim_sign_up_token", return_value=claim if usable else None) as claim_token,
+            patch(f"{_MODULE}.security_generation_integration.stage_bump") as bump,
+            patch(f"{_MODULE}.jasil_audit.record_detached"),
+        ):
+            mocks.attach_mock(bump, "bump")
+            mocks.attach_mock(claim_token, "claim")
+            with contextlib.suppress(core_exceptions.InvalidInputError):
+                sign_up_service.verify_sign_up_token("tok", MagicMock(), with_password=with_password)
+        return [call[0] for call in mocks.mock_calls], bump
+
+    def test_a_password_confirmation_bumps_before_the_claim(self):
+        names, bump = self._verify(self._plain(), with_password=True)
+
+        assert names == ["bump", "claim"]
+        bump.assert_called_once()
+        assert bump.call_args.args[0] == 7
+
+    def test_an_email_change_bumps_before_the_claim(self):
+        change = sign_up_contracts.EmailChangeClaim(
+            id="t", user_id=7, email="new@example.com", previous_email="old@example.com"
+        )
+
+        names, _ = self._verify(change, with_password=False)
+
+        assert names == ["bump", "claim"]
+
+    def test_a_plain_verification_does_not_bump(self):
+        names, _ = self._verify(self._plain(), with_password=False)
+
+        assert names == ["claim"]
+
+    def test_an_unusable_token_does_not_bump(self):
+        names, _ = self._verify(self._plain(), with_password=True, usable=False)
+
+        assert names == ["claim"]

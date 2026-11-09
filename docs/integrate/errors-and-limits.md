@@ -55,7 +55,7 @@ Authentication and authorization failures use the same shape. Typical causes:
 | Status | Common causes |
 | ------ | ------------- |
 | `400` | Missing required fields, invalid client type, a wrong MFA or backup code (problem type `urn:endurain:error:invalid-mfa-code`, on a live sign-in challenge, the SSO token exchange and `POST /profile/mfa/enable`) |
-| `401` | Invalid credentials, an unknown, expired, used or mismatched sign-in challenge (an `mfa_challenge` also ends after 3 wrong codes and is accepted only from the client network and client type of the password step; a `password_change_challenge` is accepted only for its client type), expired or invalid token |
+| `401` | Invalid credentials, an unknown, expired, used or mismatched sign-in challenge, or one started before a security change on the account such as a password, MFA or email change or a sign-out everywhere (an `mfa_challenge` also ends after 3 wrong codes and is accepted only from the client network and client type of the password step; a `password_change_challenge` is accepted only for its client type), expired or invalid token |
 | `403` | Insufficient permissions, missing required scope, a web write without `X-CSRF-Token` |
 | `404` | Invalid session ID, user not found |
 | `409` | A conflict with the current state: an MFA operation that does not fit the account's MFA state (already enabled, not enabled, no setup in progress), a user approval while the user's email is not verified, a username already taken |

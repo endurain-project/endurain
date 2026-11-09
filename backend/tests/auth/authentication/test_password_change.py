@@ -84,6 +84,7 @@ class TestSignInOfAFlaggedAccount:
             code_challenge=None,
             code_challenge_method=None,
             mfa=False,
+            security_generation=0,
         )
 
     def test_a_mobile_pkce_login_records_the_pkce_values(self, signin):
@@ -361,3 +362,68 @@ class TestPasswordChangeRoute:
         )
 
         assert response.status_code == 422
+
+
+class TestSecurityGeneration:
+    """The challenge is redeemed only while the account's security is as it was when the challenge was issued."""
+
+    @staticmethod
+    def _assert_refused_and_nothing_created(signin, response, audit, challenge):
+        unknown = _change(signin, "u" * 43)
+        assert (response.status_code, response.json()) == (unknown.status_code, unknown.json())
+        assert _credential(signin).password_change_required is True
+        assert _sessions(signin) == 0
+        assert _store().get(challenge) is None
+        entry = audit.assert_audited(_LOGIN, outcome="failure")
+        assert entry.details["reason"] == login_audit_actions.LoginFailureReason.SECURITY_CHANGED
+
+    def test_the_challenge_carries_the_generation_it_was_issued_under(self, signin, security_generations):
+        security_generations.generations[USER_ID] = 4
+
+        assert _store().get(_start(signin)).security_generation == 4
+
+    def test_an_unchanged_account_completes_the_change(self, signin, security_generations):
+        security_generations.generations[USER_ID] = 4
+        challenge = _start(signin)
+
+        assert _change(signin, challenge).status_code == 200
+        assert _sessions(signin) == 1
+
+    def test_a_security_change_after_the_challenge_refuses_it(self, signin, security_generations):
+        challenge = _start(signin)
+        security_generations.stage_bump(USER_ID, None)
+
+        with jasil_testing.capture_audit() as audit:
+            response = _change(signin, challenge)
+
+        assert response.status_code == 401
+        self._assert_refused_and_nothing_created(signin, response, audit, challenge)
+
+    def test_a_challenge_without_a_stamp_is_refused(self, signin):
+        challenge = _store().add(
+            pending_store.PendingPasswordChange(
+                user_id=USER_ID,
+                client_type=auth_constants.ClientType.WEB,
+                code_challenge=None,
+                code_challenge_method=None,
+                mfa=False,
+            )
+        )
+
+        with jasil_testing.capture_audit() as audit:
+            response = _change(signin, challenge)
+
+        assert response.status_code == 401
+        self._assert_refused_and_nothing_created(signin, response, audit, challenge)
+
+    def test_an_administrator_setting_the_password_after_the_challenge_refuses_it(self, signin):
+        challenge = _start(signin)
+        with signin.factory() as db:
+            account_security_service.change_managed_user_password(USER_ID, "set by an administrator 9", db)
+            db.commit()
+
+        with jasil_testing.capture_audit() as audit:
+            response = _change(signin, challenge)
+
+        assert response.status_code == 401
+        self._assert_refused_and_nothing_created(signin, response, audit, challenge)

@@ -76,6 +76,7 @@ def finish_login(
     *,
     mfa: bool,
     device_id: str | None,
+    security_generation: int | None,
 ) -> authentication_schema.AuthOutcome[authentication_schema.FinishedLoginRead]:
     """Complete a verified sign-in: a web client gets tokens, a mobile client a session to exchange."""
     return authentication_service.finish_login(
@@ -90,4 +91,5 @@ def finish_login(
         db,
         mfa=mfa,
         device_id=device_id,
+        security_generation=security_generation,
     )

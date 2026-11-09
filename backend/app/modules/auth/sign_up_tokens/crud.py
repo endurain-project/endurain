@@ -15,6 +15,26 @@ import modules.auth.sign_up_tokens.schema as sign_up_schema
 import modules.auth.sign_up_tokens.serializers as sign_up_serializers
 
 
+def get_usable_sign_up_token(token_hash: str, db: Session) -> sign_up_contracts.SignUpTokenClaim | None:
+    """Return what an unused, unexpired token proves, without consuming it.
+
+    Args:
+        token_hash: SHA-256 hash of the presented token.
+        db: Database session.
+
+    Returns:
+        The token's id, user and addresses, or None when it is unknown, used or expired.
+    """
+    model = sign_up_models.SignUpToken
+    stmt = select(model.id, model.user_id, model.email, model.previous_email).where(
+        model.token_hash == token_hash,
+        model.used.is_(False),
+        model.expires_at > datetime.now(UTC),
+    )
+    row = db.execute(stmt).one_or_none()
+    return sign_up_serializers.to_claim(row) if row is not None else None
+
+
 def claim_sign_up_token(token_hash: str, db: Session) -> sign_up_contracts.SignUpTokenClaim | None:
     """Stage an atomic claim of an unused, unexpired token and return what it proves.
 

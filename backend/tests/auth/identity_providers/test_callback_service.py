@@ -357,6 +357,19 @@ _STATE = SimpleNamespace(id="state-id", expires_at=datetime(2026, 11, 6, 12, 10,
 class TestCreateCallbackSession:
     """The provider's sign-in is stored with the session it creates, in the same transaction."""
 
+    @pytest.fixture(autouse=True)
+    def stamp(self):
+        with patch.object(callback_service.oauth_state_integration, "stamp_security_generation") as stamp:
+            yield stamp
+
+    def test_the_state_is_stamped_with_the_generation_current_for_the_user(self, service, stamp, security_generations):
+        security_generations.generations[7] = 4
+
+        self._create(service)
+
+        stamp.assert_called_once()
+        assert stamp.call_args.args[:2] == ("state-id", 4)
+
     def _create(self, service, *, active=True, token_response=None, idp_sid=None):
         user = SimpleNamespace(id=7, username="alice", active=active, email="a@example.com", model_dump=lambda: {})
         db = MagicMock()

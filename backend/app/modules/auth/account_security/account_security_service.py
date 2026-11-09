@@ -31,6 +31,7 @@ import modules.auth.login_audit.audit_actions as login_audit_actions
 import modules.auth.login_audit.integration_service as login_audit_integration
 import modules.auth.mfa.integration_service as mfa_integration
 import modules.auth.password_reset_tokens.integration_service as password_reset_tokens_integration
+import modules.auth.security_generation.integration_service as security_generation_integration
 import modules.auth.sessions.audit_actions as sessions_audit_actions
 import modules.auth.sessions.integration_service as sessions_integration
 import modules.auth.sessions.schema as auth_sessions_schema
@@ -112,6 +113,7 @@ def sign_out_everywhere(token_user_id: int, db: Session) -> int:
     Returns:
         Number of sessions revoked.
     """
+    security_generation_integration.stage_bump(token_user_id, db)
     revoked = sessions_integration.delete_sessions_by_user(token_user_id, db)
     _stage_sessions_revoked(token_user_id, revoked, db)
     db.commit()
@@ -249,6 +251,7 @@ def _stage_own_password(user_id: int, new_password: str, db: Session) -> users_s
         username=db_user.username,
         email=db_user.email,
     )
+    security_generation_integration.stage_bump(user_id, db)
     credentials_integration.set_local_password_hash(user_id, hashed_password, db, change_required=False)
     password_reset_tokens_integration.revoke_unused_tokens(user_id, db)
     return db_user
@@ -337,7 +340,6 @@ def stage_change_own_password(
     )
 
     db_user = _stage_own_password(user_id, new_password, db)
-    mfa_integration.clear_pending_mfa_for_user(user_id)
     authentication_integration.clear_account_login_lockout(db_user.username)
 
     revoked = 0
@@ -388,10 +390,10 @@ def change_managed_user_password(
         email=db_user.email,
     )
     # The administrator knows this password, so its owner must choose a new one at the next sign-in.
+    security_generation_integration.stage_bump(user_id, db)
     credentials_integration.set_local_password_hash(user_id, hashed_password, db, change_required=True)
     password_reset_tokens_integration.revoke_unused_tokens(user_id, db)
     revoked = sessions_integration.delete_sessions_by_user(user_id, db)
-    mfa_integration.clear_pending_mfa_for_user(user_id)
     authentication_integration.clear_account_login_lockout(db_user.username)
     _stage_credential_changed(
         account_security_audit_actions.PASSWORD_SET,
@@ -419,7 +421,6 @@ def reset_managed_user_mfa(user_id: int, db: Session) -> None:
     """
     mfa_integration.disable_user_mfa(user_id, db)
     revoked = sessions_integration.delete_sessions_by_user(user_id, db)
-    mfa_integration.clear_pending_mfa_for_user(user_id)
     _stage_credential_changed(
         account_security_audit_actions.MFA_RESET,
         account_security_events.AccountSecurityChange.MFA_RESET_BY_ADMIN,
@@ -448,9 +449,9 @@ def require_managed_user_password_change(user_id: int, db: Session) -> None:
         ConflictError: If the user has no local password.
     """
     users_integration.require_user(user_id, db)
+    security_generation_integration.stage_bump(user_id, db)
     credentials_integration.require_password_change(user_id, db)
     revoked = sessions_integration.delete_sessions_by_user(user_id, db)
-    mfa_integration.clear_pending_mfa_for_user(user_id)
     _stage_credential_changed(
         account_security_audit_actions.PASSWORD_CHANGE_REQUIRE,
         account_security_events.AccountSecurityChange.PASSWORD_CHANGE_REQUIRED_BY_ADMIN,
@@ -485,6 +486,29 @@ def _refuse_password_change(
         user_id=pending.user_id if pending else None,
     )
     raise core_exceptions.UnauthenticatedError("Unable to authenticate with provided credentials", scheme="Bearer")
+
+
+def _end_outdated_password_change(
+    challenge: str,
+    pending: authentication_integration.PendingPasswordChange,
+    password_change_store: authentication_integration.PendingPasswordChangeStore,
+) -> NoReturn:
+    """End a password-change challenge that a security change outdated, then refuse it like a dead one.
+
+    Args:
+        challenge: The outdated challenge.
+        pending: The pending password change the challenge named.
+        password_change_store: Store for pending password changes.
+
+    Raises:
+        UnauthenticatedError: Always.
+        ServiceUnavailableError: If the shared state is unavailable.
+    """
+    try:
+        password_change_store.claim(challenge)
+    except lockout_contracts.AuthSecurityStoreUnavailableError as err:
+        authentication_integration.raise_auth_security_store_unavailable(err)
+    _refuse_password_change(login_audit_actions.LoginFailureReason.SECURITY_CHANGED, pending)
 
 
 def complete_password_change(
@@ -522,8 +546,9 @@ def complete_password_change(
         The outcome of the finished sign-in: the tokens or, for a mobile PKCE client, the session to exchange.
 
     Raises:
-        UnauthenticatedError: If the challenge is unknown, expired, claimed, from another client type, or no longer
-            needed because the password was changed meanwhile (answered alike).
+        UnauthenticatedError: If the challenge is unknown, expired, claimed, from another client type, outdated by a
+            security change of the account, or no longer needed because the password was changed meanwhile
+            (answered alike).
         PermissionDeniedError: If the account is no longer active.
         PasswordPolicyError: If the new password is the current one, blank, too short, too common or matches the
             account's details.
@@ -557,6 +582,10 @@ def complete_password_change(
         credentials_integration.reject_breached_password(
             server_settings_integration.get_server_settings(db), change_request.password, db
         )
+        # Checked after the network call and right before the password is staged, so the lock it takes lasts until
+        # the sign-in below commits without spanning the call.
+        if not security_generation_integration.matches_locked(user.id, pending.security_generation, db):
+            _end_outdated_password_change(challenge, pending, password_change_store)
         stage_required_password_change(user.id, change_request.password, db)
 
     try:
@@ -580,6 +609,9 @@ def complete_password_change(
         db,
         mfa=pending.mfa,
         device_id=device_id,
+        # Read after the password change bumped the generation, under the lock the redeem holds, so the sign-in's
+        # proof matches the generation the change produced.
+        security_generation=security_generation_integration.current_generation(user.id, db),
     )
 
 

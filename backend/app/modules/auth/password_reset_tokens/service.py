@@ -16,13 +16,13 @@ import modules.auth.access_tokens.integration_service as access_tokens_integrati
 import modules.auth.authentication.integration_service as authentication_integration
 import modules.auth.computation as token_hashing
 import modules.auth.credentials.integration_service as credentials_integration
-import modules.auth.mfa.integration_service as mfa_integration
 import modules.auth.password_reset_tokens.audit_actions as password_reset_audit_actions
 import modules.auth.password_reset_tokens.crud as password_reset_crud
 import modules.auth.password_reset_tokens.email_messages as password_reset_email_messages
 import modules.auth.password_reset_tokens.event_publishers as password_reset_event_publishers
 import modules.auth.password_reset_tokens.events as password_reset_events
 import modules.auth.password_reset_tokens.schema as password_reset_schema
+import modules.auth.security_generation.integration_service as security_generation_integration
 import modules.auth.sessions.integration_service as sessions_integration
 import modules.server_settings.integration_service as server_settings_integration
 import modules.users.users.integration_service as users_integration
@@ -238,7 +238,12 @@ def use_password_reset_token(token: str, new_password: str, db: Session) -> None
     server_settings = server_settings_integration.get_server_settings(db)
     # The breach check is a network call, so it runs before the claim opens the write transaction.
     credentials_integration.reject_breached_password(server_settings, new_password, db)
-    token_user_id = password_reset_crud.claim_password_reset_token(token_hashing.sha256_hex(token), db)
+    token_hash = token_hashing.sha256_hex(token)
+    token_user_id = password_reset_crud.get_usable_password_reset_token_user_id(token_hash, db)
+    if token_user_id is not None:
+        # The generation row is the first lock taken; the claim below writes the token row.
+        security_generation_integration.stage_bump(token_user_id, db)
+        token_user_id = password_reset_crud.claim_password_reset_token(token_hash, db)
     if token_user_id is None:
         jasil_audit.record_detached(password_reset_audit_actions.PASSWORD_RESET, outcome=jasil_audit.Outcome.FAILURE)
         raise core_exceptions.InvalidInputError(UNUSABLE_RESET_MESSAGE)
@@ -279,7 +284,6 @@ def use_password_reset_token(token: str, new_password: str, db: Session) -> None
     )
     password_reset_event_publishers.publish_password_reset_completed(token_user_id, db)
     db.commit()
-    mfa_integration.clear_pending_mfa_for_user(token_user_id)
     authentication_integration.clear_account_login_lockout(user.username)
     logger.info("Password reset completed", extra=core_logger.context(user_id=token_user_id))
 

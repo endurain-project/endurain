@@ -64,7 +64,7 @@ class TestFailedPasswordSignIn:
             patch(f"{_SERVICE}.credentials_integration.verify_and_update_password", return_value=(valid, None)),
             pytest.raises(core_exceptions.UnauthenticatedError),
         ):
-            authentication_service.authenticate_user("alice", "secret", MagicMock(), db)
+            authentication_service.authenticate_user(user, "alice", "secret", MagicMock(), db)
 
     def test_a_wrong_password_is_a_failure_that_targets_the_user(self, mock_db):
         with jasil_testing.capture_audit() as audit:
@@ -110,6 +110,7 @@ class TestRefusedPasswordSignIn:
     def test_an_inactive_account_is_denied_and_targets_the_user(self, mock_db):
         user = SimpleNamespace(id=5, username="alice", active=False, access_type="regular")
         with (
+            patch(f"{_SERVICE}.users_integration.get_user_by_username", return_value=user),
             patch(f"{_SERVICE}.authenticate_user", return_value=user),
             patch(f"{_SERVICE}.lockout_integration.report_lockout_applied"),
             jasil_testing.capture_audit() as audit,
@@ -123,6 +124,7 @@ class TestRefusedPasswordSignIn:
 
     def test_disabled_password_sign_in_is_denied_and_targets_the_user(self, mock_db):
         with (
+            patch(f"{_SERVICE}.users_integration.get_user_by_username", return_value=_USER),
             patch(f"{_SERVICE}.authenticate_user", return_value=_USER),
             patch(f"{_SERVICE}.server_settings_integration.get_server_settings"),
             patch(f"{_SERVICE}.credentials_integration.allows_password_sign_in", return_value=False),
@@ -137,6 +139,7 @@ class TestRefusedPasswordSignIn:
 
     def test_a_password_that_needs_mfa_is_not_a_sign_in(self, mock_db):
         with (
+            patch(f"{_SERVICE}.users_integration.get_user_by_username", return_value=_USER),
             patch(f"{_SERVICE}.authenticate_user", return_value=_USER),
             patch(f"{_SERVICE}.server_settings_integration.get_server_settings"),
             patch(f"{_SERVICE}.credentials_integration.allows_password_sign_in", return_value=True),
@@ -153,6 +156,7 @@ class TestSuccessfulSignIn:
     def _login_without_mfa(self, db, **kwargs):
         tokens = ("sid", datetime(2999, 1, 1, tzinfo=UTC), "at", datetime(2999, 1, 1, tzinfo=UTC), "rt", "csrf")
         with (
+            patch(f"{_SERVICE}.users_integration.get_user_by_username", return_value=_USER),
             patch(f"{_SERVICE}.authenticate_user", return_value=_USER),
             patch(f"{_SERVICE}.server_settings_integration.get_server_settings"),
             patch(f"{_SERVICE}.server_settings_integration.get_session_policy"),
@@ -182,6 +186,7 @@ class TestSuccessfulSignIn:
         challenge = "a" * 43
         with (
             patch(f"{_SERVICE}.create_mobile_pkce_session_response") as pkce,
+            patch(f"{_SERVICE}.users_integration.get_user_by_username", return_value=_USER),
             patch(f"{_SERVICE}.authenticate_user", return_value=_USER),
             patch(f"{_SERVICE}.server_settings_integration.get_server_settings"),
             patch(f"{_SERVICE}.credentials_integration.allows_password_sign_in", return_value=True),
@@ -388,6 +393,7 @@ class TestSsoSignIn:
             code_challenge_method="S256",
             client_type="web",
             idp_id=idp_id,
+            security_generation=0,
         )
         session = SimpleNamespace(
             user_id=5, tokens_exchanged=False, expires_at=datetime(2027, 1, 1, tzinfo=UTC), client_type="web"

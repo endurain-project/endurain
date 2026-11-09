@@ -182,6 +182,18 @@ class TestSelfServiceEmailChange:
         assert _unused_tokens(db) == []
         publish.assert_not_called()
 
+    def test_a_requested_address_leaves_the_security_generation_alone(self, db, mail, publish, security_generations):
+        _change_email(db, "new@example.com")
+
+        assert security_generations.bumps == []
+
+    def test_an_address_applied_at_once_advances_the_security_generation(
+        self, db, no_mail, publish, security_generations
+    ):
+        _change_email(db, "new@example.com")
+
+        assert security_generations.bumps == [7]
+
     def test_other_sessions_are_revoked_when_asked(self, db, mail, publish):
         other_sessions = _change_email(db, "new@example.com", revoke_other_sessions=True)
 

@@ -185,6 +185,7 @@ class TestLoginEndpoint:
                 "modules.auth.authentication.service.credentials_integration.is_password_change_required",
                 return_value=False,
             ),
+            patch("modules.auth.authentication.service.users_integration.get_user_by_username", return_value=None),
         ):
             yield
 

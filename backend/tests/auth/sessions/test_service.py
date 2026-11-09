@@ -515,6 +515,67 @@ def test_a_refused_step_up_deletes_no_sessions(mock_db):
     mock_db.commit.assert_not_called()
 
 
+def test_an_administrator_revoking_all_sessions_bumps_before_the_commit(mock_db):
+    order = MagicMock()
+    order.attach_mock(mock_db.commit, "commit")
+    with (
+        patch("modules.auth.sessions.service.sessions_crud.delete_sessions_by_user", return_value=2) as delete,
+        patch("modules.auth.sessions.service.sessions_event_publishers.publish_sessions_revoked"),
+        patch("modules.auth.sessions.service.security_generation_integration.stage_bump") as bump,
+    ):
+        order.attach_mock(bump, "bump")
+        order.attach_mock(delete, "delete_sessions")
+        sessions_service.delete_sessions_by_user_and_commit(7, _STEP_UP, MagicMock(), mock_db)
+
+    bump.assert_called_once_with(7, mock_db)
+    assert [call[0] for call in order.mock_calls] == ["bump", "delete_sessions", "commit"]
+
+
+def test_an_administrator_revoking_all_sessions_bumps_when_none_were_open(mock_db):
+    with (
+        patch("modules.auth.sessions.service.sessions_crud.delete_sessions_by_user", return_value=0),
+        patch("modules.auth.sessions.service.security_generation_integration.stage_bump") as bump,
+    ):
+        sessions_service.delete_sessions_by_user_and_commit(7, _STEP_UP, MagicMock(), mock_db)
+
+    bump.assert_called_once_with(7, mock_db)
+
+
+def test_revoking_all_but_one_session_does_not_bump(mock_db):
+    with (
+        patch("modules.auth.sessions.service.sessions_crud.delete_sessions_by_user", return_value=1),
+        patch("modules.auth.sessions.service.sessions_event_publishers.publish_sessions_revoked"),
+        patch("modules.auth.sessions.service.security_generation_integration.stage_bump") as bump,
+    ):
+        sessions_service.delete_sessions_by_user_and_commit(
+            7, _STEP_UP, MagicMock(), mock_db, exclude_session_id="keep"
+        )
+
+    bump.assert_not_called()
+
+
+def test_a_refused_step_up_does_not_bump(mock_db):
+    with (
+        patch("modules.auth.sessions.service.security_generation_integration.stage_bump") as bump,
+        pytest.raises(core_exceptions.StepUpFailedError),
+    ):
+        sessions_service.delete_sessions_by_user_and_commit(7, _STEP_UP, _refusing(), mock_db)
+
+    bump.assert_not_called()
+
+
+def test_revoking_one_session_does_not_bump(mock_db):
+    with (
+        patch("modules.auth.sessions.service.sessions_crud.delete_session", return_value=_session()),
+        patch("modules.auth.sessions.service.rotated_refresh_tokens_integration.delete_by_family"),
+        patch("modules.auth.sessions.service.sessions_event_publishers.publish_sessions_revoked"),
+        patch("modules.auth.sessions.service.security_generation_integration.stage_bump") as bump,
+    ):
+        sessions_service.stage_delete_session("sid", 7, mock_db)
+
+    bump.assert_not_called()
+
+
 class TestBulkDeleteRemovesOAuthStates:
     """A bulk session delete also removes the OAuth state rows of the deleted sessions, and only those."""
 

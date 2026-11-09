@@ -3,13 +3,15 @@
 import base64
 import hashlib
 from datetime import UTC, datetime, timedelta
-from unittest.mock import patch
+from unittest.mock import MagicMock, patch
 from uuid import uuid4
 
+import jasil.testing as jasil_testing
 import pytest
 
 import core.timezone as core_timezone
 import modules.auth.access_tokens.integration_service as access_tokens_integration
+import modules.auth.account_security.account_security_service as account_security_service
 import modules.auth.credentials.integration_service as credentials_integration
 import modules.auth.oauth_state.constants as oauth_state_constants
 import modules.auth.oauth_state.integration_service as oauth_state_integration
@@ -206,9 +208,80 @@ class TestExchangeRoute:
         assert response.status_code == 200
 
 
+class TestSecurityGeneration:
+    """A pending exchange is redeemed only while the account's security is as it was when it was created."""
+
+    @staticmethod
+    def _state(stack, session_id):
+        with stack.factory() as db:
+            return sessions_integration.get_session_with_oauth_state(session_id, db)[1]
+
+    @staticmethod
+    def _exchange(stack, session_id):
+        return stack.client.post(
+            f"/auth/sessions/{session_id}/tokens", json={"code_verifier": VERIFIER}, headers=MOBILE
+        )
+
+    def test_the_sign_in_stamps_the_state_with_the_current_generation(self, plain_signin, security_generations):
+        security_generations.generations[USER_ID] = 8
+
+        session_id = _login(plain_signin, MOBILE, **PKCE).json()["session_id"]
+
+        assert self._state(plain_signin, session_id).security_generation == 8
+
+    def test_an_unchanged_account_exchanges(self, plain_signin, security_generations):
+        security_generations.generations[USER_ID] = 8
+        session_id = _login(plain_signin, MOBILE, **PKCE).json()["session_id"]
+
+        assert self._exchange(plain_signin, session_id).status_code == 200
+
+    def test_an_mfa_sign_in_stamps_the_state_with_the_generation_it_verified_under(
+        self, mfa_plain_signin, security_generations
+    ):
+        security_generations.generations[USER_ID] = 8
+        challenge = _login(mfa_plain_signin, MOBILE, **PKCE).json()["mfa_challenge"]
+
+        session_id = mfa_plain_signin.client.post(
+            "/auth/mfa/verify", json={"mfa_challenge": challenge, "mfa_code": BACKUP_CODE}, headers=MOBILE
+        ).json()["session_id"]
+
+        assert self._state(mfa_plain_signin, session_id).security_generation == 8
+
+    def test_the_owner_changing_the_password_without_revoking_other_sessions_refuses_the_exchange(self, plain_signin):
+        session_id = _login(plain_signin, MOBILE, **PKCE).json()["session_id"]
+        with (
+            plain_signin.factory() as db,
+            patch.object(account_security_service.step_up_service, "verify_step_up_credentials"),
+        ):
+            account_security_service.stage_change_own_password(
+                USER_ID,
+                PASSWORD,
+                "a brand new passphrase 42",
+                None,
+                MagicMock(),
+                db,
+                revoke_other_sessions=False,
+                current_session_id="session-1",
+            )
+            db.commit()
+
+        with jasil_testing.capture_audit() as audit:
+            response = self._exchange(plain_signin, session_id)
+
+        assert response.status_code == 404
+        assert "refresh_token" not in response.text
+        entry = audit.assert_audited("auth.session.login", outcome="failure")
+        assert entry.details["reason"] == "security_changed"
+
+    def test_a_session_whose_state_has_no_stamp_is_refused(self, plain_signin):
+        session_id = TestWebExchange()._web_session(plain_signin, ClientType.MOBILE, security_generation=None)
+
+        assert self._exchange(plain_signin, session_id).status_code == 404
+
+
 class TestWebExchange:
-    def _web_session(self, stack) -> str:
-        """Create the session an identity-provider callback leaves for a browser."""
+    def _web_session(self, stack, client_type=ClientType.WEB, security_generation=0) -> str:
+        """Create the session an identity-provider callback leaves for a client, stamped as the callback stamps it."""
         session_id = str(uuid4())
         state_id, nonce = oauth_state_integration.create_state_id_and_nonce()
         with stack.factory() as db:
@@ -216,17 +289,18 @@ class TestWebExchange:
                 db=db,
                 state_id=state_id,
                 nonce=nonce,
-                client_type="web",
+                client_type=client_type.value,
                 ip_address="127.0.0.1",
                 redirect_path=None,
                 code_challenge=CHALLENGE,
                 code_challenge_method="S256",
                 purpose=oauth_state_constants.OAuthStatePurpose.LOGIN,
+                security_generation=security_generation,
             )
             sessions_integration.create_session(
                 session_id,
                 users_integration.require_user(USER_ID, db),
-                ClientType.WEB,
+                client_type,
                 "127.0.0.1",
                 "agent",
                 None,

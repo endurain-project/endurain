@@ -38,6 +38,7 @@ import modules.auth.login_audit.integration_service as login_audit_integration
 import modules.auth.oauth_state.constants as oauth_state_constants
 import modules.auth.oauth_state.integration_service as oauth_state_integration
 import modules.auth.oauth_state.schema as oauth_state_schema
+import modules.auth.security_generation.integration_service as security_generation_integration
 import modules.auth.sessions.audit_actions as sessions_audit_actions
 import modules.auth.sessions.integration_service as sessions_integration
 import modules.users.users.integration_service as users_integration
@@ -852,6 +853,10 @@ class CallbackService:
             raise _inactive_account_refusal(user, db) from err
         user_read = users_schema.UserRead.model_validate(user)
         session_id = str(uuid4())
+        # The exchange redeems the session only while the account's security generation is still this one.
+        oauth_state_integration.stamp_security_generation(
+            oauth_state.id, security_generation_integration.current_generation(user_read.id, db), db
+        )
         sessions_integration.create_session(
             session_id,
             user_read,

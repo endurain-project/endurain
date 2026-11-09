@@ -61,9 +61,11 @@ class TestRequestDeletion:
             patch(f"{_MODULE}.users_crud") as users_crud,
             patch(f"{_MODULE}.users_event_publishers") as publishers,
             patch(f"{_MODULE}._deletion_pool") as pool,
+            patch(f"{_MODULE}.security_generation_integration.stage_bump") as bump,
         ):
             result = job_service.request_deletion(1, states, MagicMock(), db, if_match='"1"')
         self.revoke_tokens = revoke_tokens
+        self.bump = bump
         return result, identity, users_service, users_crud, publishers, pool
 
     def test_a_durable_deletion_signs_out_deactivates_and_publishes(self, states, mock_db):
@@ -82,6 +84,34 @@ class TestRequestDeletion:
         )
         pool.submit.assert_not_called()
         assert states.get(1, _Kind).status == _Status.QUEUED
+
+    def test_the_deletion_request_advances_the_security_generation(self, states, mock_db):
+        self._request(states, mock_db, jobs_enabled=True)
+
+        # A proof started before the account was deactivated must not be redeemed after it.
+        self.bump.assert_called_once_with(1, mock_db)
+
+    def test_the_bump_comes_before_every_other_write_and_lock(self, states, mock_db):
+        order = MagicMock()
+
+        def _record(name, result=None):
+            return lambda *args, **kwargs: order.record(name) or result
+
+        with (
+            patch(f"{_MODULE}.core_config.settings", MagicMock(JOBS_ENABLED=True)),
+            patch(f"{_MODULE}.account_security_integration.delete_all_user_sessions", side_effect=_record("sessions")),
+            patch(f"{_MODULE}.sign_up_tokens_integration.revoke_pending_tokens", side_effect=_record("tokens")),
+            patch(f"{_MODULE}.users_service.require_user", side_effect=_record("require_user")),
+            patch(f"{_MODULE}.users_service.require_deletable_user", side_effect=_record("lock_admins")),
+            patch(f"{_MODULE}.users_crud.stage_deletion_request", side_effect=_record("deactivate")),
+            patch(f"{_MODULE}.users_event_publishers"),
+            patch(f"{_MODULE}.security_generation_integration.stage_bump", side_effect=_record("bump")),
+        ):
+            job_service.request_deletion(1, states, MagicMock(), mock_db, if_match='"1"')
+
+        names = [call.args[0] for call in order.record.call_args_list]
+        assert names[:3] == ["require_user", "bump", "lock_admins"]
+        assert names.index("bump") < names.index("sessions") < names.index("deactivate")
 
     def test_without_durable_jobs_the_commit_precedes_the_pool_submit(self, states, mock_db):
         _, _, _, _, publishers, pool = self._request(states, mock_db, jobs_enabled=False)

@@ -490,6 +490,7 @@ class TestLockoutAppliedByFailedCodes:
         failed_attempts = MagicMock(is_locked_out=MagicMock(return_value=False))
         failed_attempts.record_failed_attempt.return_value = failed_login_store.FailedLoginRecord(5, False)
         with (
+            patch(f"{_SERVICE}.users_integration.get_user_by_username", return_value=None),
             patch(
                 f"{_SERVICE}.authenticate_user",
                 side_effect=core_exceptions.UnauthenticatedError("no", scheme="Bearer"),

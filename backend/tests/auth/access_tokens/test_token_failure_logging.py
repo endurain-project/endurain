@@ -92,7 +92,7 @@ class TestFailedLoginIsLogged:
             patch.object(auth_service.credentials_integration, "get_credential", return_value=credential),
             pytest.raises(core_exceptions.UnauthenticatedError),
         ):
-            auth_service.authenticate_user(username, "wrong", hasher, MagicMock())
+            auth_service.authenticate_user(user, username, "wrong", hasher, MagicMock())
 
     @pytest.mark.parametrize(
         ("user", "credential"),

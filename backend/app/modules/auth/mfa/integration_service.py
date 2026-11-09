@@ -3,11 +3,9 @@
 from jasil.providers import StateProvider
 from sqlalchemy.orm import Session
 
-import core.dependencies as core_dependencies
 import modules.auth.credentials.contracts as credentials_contracts
 import modules.auth.mfa.contracts as mfa_contracts
 import modules.auth.mfa.crud as mfa_crud
-import modules.auth.mfa.pending_login_store as pending_login_store
 import modules.auth.mfa.schema as mfa_schema
 import modules.auth.mfa.service as mfa_service
 import modules.auth.mfa.totp_replay_store as mfa_totp_replay_store
@@ -66,8 +64,3 @@ def get_mfa_enabled_for_users(user_ids: list[int], db: Session) -> dict[int, boo
 def create_users_mfa_row(user_id: int, db: Session) -> mfa_contracts.MFAStateRead:
     """Stage the default disabled MFA state for a new user."""
     return mfa_crud.create_users_mfa_row(user_id, db)
-
-
-def clear_pending_mfa_for_user(user_id: int) -> int:
-    """Clear pending MFA login challenges after a credential change."""
-    return pending_login_store.clear_pending_mfa_for_user(core_dependencies.get_platform_state(), user_id)

@@ -566,3 +566,73 @@ class TestIsMFAEnabledForUser:
 
         result = mfa_service.is_mfa_enabled_for_user(1, MagicMock())
         assert result is False
+
+
+class TestSecurityGenerationBump:
+    """Enabling or disabling MFA advances the account's security generation in the caller's transaction."""
+
+    _PREFIX = "modules.auth.mfa.service."
+
+    def test_enabling_bumps(self):
+        guard = MagicMock()
+        guard.claim_totp_step.return_value = True
+        db = MagicMock()
+        with (
+            patch(self._PREFIX + "users_integration.require_user"),
+            patch(self._PREFIX + "is_mfa_enabled_for_user", return_value=False),
+            patch(self._PREFIX + "mfa_totp_replay_store.matching_totp_step", return_value=7),
+            patch(self._PREFIX + "core_cryptography.encrypt_token_fernet", return_value="encrypted"),
+            patch(self._PREFIX + "auth_mfa_crud.update_user_mfa") as update_mfa,
+            patch(self._PREFIX + "mfa_backup_codes_integration.create_backup_codes", return_value=["C1"]) as create,
+            patch(self._PREFIX + "security_generation_integration.stage_bump") as bump,
+        ):
+            order = MagicMock()
+            order.attach_mock(bump, "bump")
+            order.attach_mock(update_mfa, "update_mfa")
+            order.attach_mock(create, "create_backup_codes")
+            mfa_service.enable_user_mfa(1, "secret", "123456", MagicMock(), db, replay_guard=guard)
+
+        bump.assert_called_once_with(1, db)
+        assert [call[0] for call in order.mock_calls] == ["bump", "update_mfa", "create_backup_codes"]
+        db.commit.assert_not_called()
+
+    def test_a_refused_enable_does_not_bump(self):
+        with (
+            patch(self._PREFIX + "users_integration.require_user"),
+            patch(self._PREFIX + "is_mfa_enabled_for_user", return_value=True),
+            patch(self._PREFIX + "security_generation_integration.stage_bump") as bump,
+            pytest.raises(core_exceptions.ConflictError),
+        ):
+            mfa_service.enable_user_mfa(1, "secret", "123456", MagicMock(), MagicMock(), replay_guard=MagicMock())
+
+        bump.assert_not_called()
+
+    def test_disabling_bumps(self):
+        db = MagicMock()
+        with (
+            patch(self._PREFIX + "users_integration.require_user"),
+            patch(self._PREFIX + "is_mfa_enabled_for_user", return_value=True),
+            patch(self._PREFIX + "auth_mfa_crud.update_user_mfa") as update_mfa,
+            patch(self._PREFIX + "mfa_backup_codes_integration.delete_user_backup_codes") as delete_codes,
+            patch(self._PREFIX + "security_generation_integration.stage_bump") as bump,
+        ):
+            order = MagicMock()
+            order.attach_mock(bump, "bump")
+            order.attach_mock(update_mfa, "update_mfa")
+            order.attach_mock(delete_codes, "delete_backup_codes")
+            mfa_service.disable_user_mfa(1, db)
+
+        bump.assert_called_once_with(1, db)
+        assert [call[0] for call in order.mock_calls] == ["bump", "update_mfa", "delete_backup_codes"]
+        db.commit.assert_not_called()
+
+    def test_a_refused_disable_does_not_bump(self):
+        with (
+            patch(self._PREFIX + "users_integration.require_user"),
+            patch(self._PREFIX + "is_mfa_enabled_for_user", return_value=False),
+            patch(self._PREFIX + "security_generation_integration.stage_bump") as bump,
+            pytest.raises(core_exceptions.ConflictError),
+        ):
+            mfa_service.disable_user_mfa(1, MagicMock())
+
+        bump.assert_not_called()

@@ -597,7 +597,6 @@ class TestSignUpPrehijack:
         with (
             patch(f"{_SERVICE}.server_settings_integration.get_server_settings", return_value=settings),
             patch(f"{_SERVICE}.sessions_integration") as sessions,
-            patch(f"{_SERVICE}.mfa_integration") as mfa,
         ):
             sign_up_service.verify_email("plain", "OwnerChosen1!", db)
 
@@ -608,7 +607,6 @@ class TestSignUpPrehijack:
         assert not credentials_integration.verify_and_update_password("AttackerPass1!", stored, hasher)[0]
         assert db.get(users_models.Users, 7).active is True
         sessions.delete_sessions_by_user.assert_called_once_with(7, db)
-        mfa.clear_pending_mfa_for_user.assert_called_once_with(7)
 
 
 _VERIFY_EVENT = "auth.email_change_verification_requested"

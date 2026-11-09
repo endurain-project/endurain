@@ -17,8 +17,8 @@ import modules.auth.access_tokens.integration_service as access_tokens_integrati
 import modules.auth.computation as token_hashing
 import modules.auth.credentials.integration_service as credentials_integration
 import modules.auth.identity_provider_links.integration_service as identity_provider_links_integration
-import modules.auth.mfa.integration_service as mfa_integration
 import modules.auth.password_reset_tokens.integration_service as password_reset_tokens_integration
+import modules.auth.security_generation.integration_service as security_generation_integration
 import modules.auth.sessions.integration_service as sessions_integration
 import modules.auth.sign_up_tokens.audit_actions as sign_up_audit_actions
 import modules.auth.sign_up_tokens.contracts as sign_up_contracts
@@ -557,9 +557,28 @@ def revoke_user_tokens(user_id: int, db: Session) -> None:
     sign_up_crud.mark_user_sign_up_tokens_used(user_id, db)
 
 
-def verify_sign_up_token(token: str, db: Session) -> sign_up_contracts.SignUpTokenClaim:
-    """Stage consumption of a valid verification token and return what it proves."""
-    claim = sign_up_crud.claim_sign_up_token(token_hashing.sha256_hex(token), db)
+def verify_sign_up_token(token: str, db: Session, *, with_password: bool) -> sign_up_contracts.SignUpTokenClaim:
+    """Stage consumption of a valid verification token and return what it proves.
+
+    A confirmation that sets a password or moves the address bumps the account's security generation before the
+    claim writes the token row, so the generation row is the first lock taken.
+
+    Args:
+        token: The raw verification token.
+        with_password: Whether the confirmation carries a password.
+        db: Database session.
+
+    Returns:
+        What the token proves.
+
+    Raises:
+        InvalidInputError: If the token is unknown, used or expired.
+    """
+    token_hash = token_hashing.sha256_hex(token)
+    usable = sign_up_crud.get_usable_sign_up_token(token_hash, db)
+    if usable is not None and (with_password or isinstance(usable, sign_up_contracts.EmailChangeClaim)):
+        security_generation_integration.stage_bump(usable.user_id, db)
+    claim = sign_up_crud.claim_sign_up_token(token_hash, db)
     if claim is None:
         jasil_audit.record_detached(
             sign_up_audit_actions.SIGN_UP_CONFIRM,
@@ -657,9 +676,8 @@ def signup(
 
 
 def _commit_sign_up(user_id: int, db: Session) -> None:
-    """Commit a confirmed sign-up, then drop the account's pending MFA state, as its password was just set."""
+    """Commit a confirmed sign-up."""
     db.commit()
-    mfa_integration.clear_pending_mfa_for_user(user_id)
     logger.info("Email verification completed", extra=core_logger.context(user_id=user_id))
 
 
@@ -698,7 +716,7 @@ def verify_email(token: str, password: str | None, db: Session) -> sign_up_schem
     if password is not None:
         # The breach check is a network call, so it runs before the claim opens the write transaction.
         credentials_integration.reject_breached_password(server_settings, password, db)
-    claim = verify_sign_up_token(token, db)
+    claim = verify_sign_up_token(token, db, with_password=password is not None)
     user_id = claim.user_id
     if isinstance(claim, sign_up_contracts.EmailChangeClaim):
         users_integration.stage_confirmed_email_change(user_id, claim.email, db)

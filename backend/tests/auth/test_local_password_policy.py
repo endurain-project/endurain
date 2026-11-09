@@ -39,6 +39,7 @@ class TestPasswordLogin:
         failed_attempts.is_locked_out.return_value = False
         failed_attempts.record_failed_attempt.return_value = failed_login_store.FailedLoginRecord(1, False)
         with (
+            patch.object(authentication_service.users_integration, "get_user_by_username", return_value=user),
             patch.object(authentication_service, "authenticate_user", return_value=user),
             patch.object(
                 authentication_service.server_settings_integration,

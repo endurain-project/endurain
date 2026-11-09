@@ -51,6 +51,7 @@ def _signed(device_id, new_device=False):
 def password_sign_in():
     """Let a password sign-in through to session creation, with no MFA."""
     with (
+        patch(f"{_SERVICE}.users_integration.get_user_by_username", return_value=_USER),
         patch(f"{_SERVICE}.authenticate_user", return_value=_USER),
         patch(f"{_SERVICE}.server_settings_integration.get_server_settings"),
         patch(f"{_SERVICE}.server_settings_integration.get_session_policy"),
@@ -233,6 +234,7 @@ class TestSsoSignIn:
             code_challenge_method="S256",
             client_type=client_type,
             idp_id=idp_id,
+            security_generation=0,
         )
         session = SimpleNamespace(
             user_id=5, tokens_exchanged=False, expires_at=datetime(2027, 1, 1, tzinfo=UTC), client_type=client_type

@@ -31,6 +31,7 @@ import core.logger as core_logger
 import modules.auth.account_security.integration_service as account_security_integration
 import modules.auth.identity_providers.constants as identity_providers_constants
 import modules.auth.schema as auth_schema
+import modules.auth.security_generation.integration_service as security_generation_integration
 import modules.auth.sign_up_tokens.integration_service as sign_up_tokens_integration
 import modules.users.contributor_registry as users_contributor_registry
 import modules.users.users.audit_actions as users_audit_actions
@@ -101,6 +102,9 @@ def request_deletion(
         ConflictError: If a deletion is already pending.
         PoolFullError: When there is no durable worker and the in-process pool is full.
     """
+    users_service.require_user(user_id, db)
+    # The generation row is locked before the administrator rows that the deletable check locks.
+    security_generation_integration.stage_bump(user_id, db)
     users_service.require_deletable_user(user_id, db, if_match=if_match)
     if not core_config.settings.JOBS_ENABLED:
         _deletion_pool.require_capacity()

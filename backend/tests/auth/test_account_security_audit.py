@@ -83,7 +83,6 @@ class TestPasswordAudit:
             patch.object(account_security_service.users_integration, "require_user") as require_user,
             patch.object(account_security_service.credentials_integration, "validate_and_hash_password_for_user"),
             patch.object(account_security_service.credentials_integration, "set_local_password_hash"),
-            patch.object(account_security_service.mfa_integration, "clear_pending_mfa_for_user"),
             patch.object(account_security_service.sessions_integration, "delete_sessions_by_user", return_value=3),
             patch.object(
                 account_security_service.authentication_integration, "clear_account_login_lockout"
@@ -132,7 +131,6 @@ class TestPasswordAudit:
             patch.object(account_security_service.credentials_integration, "validate_and_hash_password_for_user"),
             patch.object(account_security_service.credentials_integration, "set_local_password_hash"),
             patch.object(account_security_service.sessions_integration, "delete_sessions_by_user", return_value=2),
-            patch.object(account_security_service.mfa_integration, "clear_pending_mfa_for_user"),
             patch.object(
                 account_security_service.authentication_integration, "clear_account_login_lockout"
             ) as clear_lock,
@@ -161,7 +159,6 @@ class TestAdministratorCredentialAudit:
     def test_admin_resets_mfa(self, mock_db, published):
         with (
             patch.object(account_security_service.mfa_integration, "disable_user_mfa") as disable,
-            patch.object(account_security_service.mfa_integration, "clear_pending_mfa_for_user") as clear_pending,
             self._sessions() as sessions,
             jasil_testing.capture_audit() as audit,
         ):
@@ -169,7 +166,6 @@ class TestAdministratorCredentialAudit:
 
         disable.assert_called_once_with(7, mock_db)
         sessions.assert_called_once_with(7, mock_db)
-        clear_pending.assert_called_once_with(7)
         entry = audit.assert_audited(
             account_security_audit_actions.MFA_RESET.id, target_type="user", target_id="7", target_owner_id="7"
         )
@@ -197,7 +193,6 @@ class TestAdministratorCredentialAudit:
         with (
             patch.object(account_security_service.users_integration, "require_user"),
             patch.object(account_security_service.credentials_integration, "require_password_change") as require,
-            patch.object(account_security_service.mfa_integration, "clear_pending_mfa_for_user") as clear_pending,
             self._sessions() as sessions,
             jasil_testing.capture_audit() as audit,
         ):
@@ -205,7 +200,6 @@ class TestAdministratorCredentialAudit:
 
         require.assert_called_once_with(7, mock_db)
         sessions.assert_called_once_with(7, mock_db)
-        clear_pending.assert_called_once_with(7)
         entry = audit.assert_audited(
             account_security_audit_actions.PASSWORD_CHANGE_REQUIRE.id,
             target_type="user",

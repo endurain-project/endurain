@@ -76,6 +76,7 @@ class TestMfaUserAlwaysGetsTheChallenge:
         failed = MagicMock(is_locked_out=MagicMock(return_value=False))
         pending = MagicMock(add_pending_login=MagicMock(return_value="challenge"))
         with (
+            patch(f"{_SERVICE}.users_integration.get_user_by_username", return_value=_USER),
             patch(f"{_SERVICE}.authenticate_user", return_value=_USER),
             patch(f"{_SERVICE}.server_settings_integration.get_server_settings"),
             patch(f"{_SERVICE}.credentials_integration.allows_password_sign_in", return_value=True),

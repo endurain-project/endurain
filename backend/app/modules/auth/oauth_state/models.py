@@ -4,7 +4,7 @@ from datetime import datetime
 
 from sqlalchemy import Boolean, DateTime, ForeignKey, Integer, String, Text
 from sqlalchemy.orm import Mapped, mapped_column
-from sqlalchemy.sql import func
+from sqlalchemy.sql import expression, func
 
 from core.database import Base
 
@@ -32,7 +32,8 @@ class OAuthState(Base):
         browser_binding_hash: SHA-256 of the secret the browser that started a link or step-up holds in a cookie.
         idp_code_verifier: Fernet-encrypted PKCE verifier this server sends the identity provider at the token exchange.
         purpose: The flow the state belongs to (``OAuthStatePurpose``).
-        session_id: The session that started a step-up flow, or a link that ends the user's other sessions.
+        session_id: The session that started a link or step-up flow.
+        ends_other_sessions: Whether a link's callback ends the user's other sessions.
         action: The sensitive operation a step-up flow authorises.
     """
 
@@ -134,7 +135,15 @@ class OAuthState(Base):
     session_id: Mapped[str | None] = mapped_column(
         String(36),
         nullable=True,
-        comment="Session that started a step-up flow, or a link that ends the user's other sessions",
+        comment="Session that started a link or step-up flow",
+    )
+
+    ends_other_sessions: Mapped[bool] = mapped_column(
+        Boolean,
+        nullable=False,
+        default=False,
+        server_default=expression.false(),
+        comment="Whether the callback of a link ends the user's other sessions",
     )
 
     action: Mapped[str | None] = mapped_column(
@@ -147,4 +156,10 @@ class OAuthState(Base):
         Text,
         nullable=True,
         comment="Fernet-encrypted PKCE verifier sent to the identity provider at the token exchange",
+    )
+
+    security_generation: Mapped[int | None] = mapped_column(
+        Integer,
+        nullable=True,
+        comment="Account security generation the flow was started under; it is redeemed only while still current",
     )

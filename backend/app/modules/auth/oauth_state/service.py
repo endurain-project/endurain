@@ -28,6 +28,8 @@ def create_oauth_state(
     purpose: oauth_state_constants.OAuthStatePurpose,
     session_id: str | None = None,
     action: str | None = None,
+    ends_other_sessions: bool = False,
+    security_generation: int | None = None,
 ) -> oauth_state_schema.OAuthStateRead:
     """Stage an OAuth state whose nonce and PKCE verifier are stored encrypted.
 
@@ -53,6 +55,8 @@ def create_oauth_state(
         purpose=purpose,
         session_id=session_id,
         action=action,
+        ends_other_sessions=ends_other_sessions,
+        security_generation=security_generation,
     )
     return _decrypted(stored)
 

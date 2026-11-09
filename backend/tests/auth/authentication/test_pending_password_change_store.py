@@ -1,5 +1,6 @@
 """The shared-state store of pending password changes."""
 
+import json
 from unittest.mock import MagicMock
 
 import pytest
@@ -17,6 +18,7 @@ def _record(**overrides) -> pending_store.PendingPasswordChange:
         "code_challenge": "c" * 43,
         "code_challenge_method": "S256",
         "mfa": True,
+        "security_generation": 3,
     }
     return pending_store.PendingPasswordChange(**(fields | overrides))
 
@@ -36,6 +38,19 @@ def test_a_record_may_carry_no_pkce_values():
     record = _record(client_type=auth_constants.ClientType.WEB, code_challenge=None, code_challenge_method=None)
 
     assert store.get(store.add(record)) == record
+
+
+def test_the_generation_is_stored_and_an_entry_written_without_one_reads_back_unstamped():
+    state = MemoryState()
+    store = pending_store.PendingPasswordChanges(state)
+    challenge = store.add(_record())
+    assert store.get(challenge).security_generation == 3
+
+    (key,) = list(state.iter_keys(""))
+    legacy = _record().model_dump(exclude={"security_generation"})
+    state.set(key, json.dumps(legacy).encode(), ttl_seconds=60)
+
+    assert store.get(challenge).security_generation is None
 
 
 def test_each_change_gets_its_own_256_bit_challenge():

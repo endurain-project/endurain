@@ -217,7 +217,7 @@ X-Client-Type: web|mobile
 }
 ```
 
-The challenge lives 5 minutes. The server accepts it only from the network of the password step (the same IPv4 address, or an address in the same IPv6 /64) and from the same client type, and it ends after 3 wrong codes. A wrong code on a live challenge is `400`. An unknown, expired, ended or mismatched challenge is `401`: start again at `POST /auth/login`.
+The challenge lives 5 minutes. The server accepts it only from the network of the password step (the same IPv4 address, or an address in the same IPv6 /64) and from the same client type, and it ends after 3 wrong codes or when the account's security changes before it is used (a password, MFA or email change, a sign-out everywhere, a deactivation). A wrong code on a live challenge is `400`. An unknown, expired, ended or mismatched challenge is `401`: start again at `POST /auth/login`.
 
 !!! note "A TOTP code works once"
     The server accepts each authenticator code a single time. Submitting the same code again, on this endpoint or on any other that asks for an MFA code, fails like an invalid code until the next 30-second code appears.

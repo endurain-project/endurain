@@ -14,9 +14,17 @@ _LOGIN = "auth.session.login"
 _USER = SimpleNamespace(id=5, username="alice", active=True, access_type="regular")
 
 
-def _exchange(db, *, tokens_exchanged=False, pkce_error=None, inactive=False, claimed=True, header="web"):
+def _exchange(
+    db, *, tokens_exchanged=False, pkce_error=None, inactive=False, claimed=True, header="web", stamp=0, between=None
+):
     oauth_state = SimpleNamespace(
-        id="state", purpose="login", code_challenge="c", code_challenge_method="S256", client_type="web", idp_id=3
+        id="state",
+        purpose="login",
+        code_challenge="c",
+        code_challenge_method="S256",
+        client_type="web",
+        idp_id=3,
+        security_generation=stamp,
     )
     session = SimpleNamespace(
         user_id=5, tokens_exchanged=tokens_exchanged, expires_at=datetime(2027, 1, 1, tzinfo=UTC), client_type="web"
@@ -38,6 +46,8 @@ def _exchange(db, *, tokens_exchanged=False, pkce_error=None, inactive=False, cl
         patch(f"{_SERVICE}.known_devices_integration.record_sign_in", return_value=MagicMock(new_device=False)),
         jasil_testing.capture_audit() as audit,
     ):
+        if between is not None:
+            between()
         try:
             sso_exchange_service.exchange_tokens_for_session(
                 "sid",
@@ -107,3 +117,29 @@ def test_a_successful_exchange_writes_only_its_success_row(mock_db):
     entry = audit.assert_audited(_LOGIN, outcome="success")
     assert entry.details["reason"] is None
     assert len([e for e in audit.entries if e.action_id == _LOGIN]) == 1
+
+
+def test_a_security_change_since_the_session_was_created_refuses_the_exchange_and_issues_nothing(
+    mock_db, security_generations
+):
+    audit, raised = _exchange(mock_db, between=lambda: security_generations.stage_bump(5, mock_db))
+
+    assert isinstance(raised, core_exceptions.NotFoundError)
+    assert raised.detail == "Session not found or not eligible for token exchange"
+    _assert_refusal(audit, outcome="failure", reason="security_changed")
+
+
+def test_a_session_whose_state_has_no_stamp_is_refused(mock_db):
+    audit, raised = _exchange(mock_db, stamp=None)
+
+    assert isinstance(raised, core_exceptions.NotFoundError)
+    _assert_refusal(audit, outcome="failure", reason="security_changed")
+
+
+def test_a_session_under_the_current_generation_still_exchanges(mock_db, security_generations):
+    security_generations.generations[5] = 3
+
+    audit, raised = _exchange(mock_db, stamp=3)
+
+    assert raised is None
+    audit.assert_audited(_LOGIN, outcome="success")

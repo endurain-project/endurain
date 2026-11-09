@@ -34,6 +34,8 @@ class PendingLogin(BaseModel):
         code_challenge_method: The PKCE challenge method of the password step.
         client_network: The client network of the password step (an IPv4 address or an IPv6 /64); the MFA step is
             accepted only from it.
+        security_generation: The account's security generation when the password step succeeded; the MFA step is
+            accepted only while it is still current. An entry written without one is refused.
     """
 
     model_config = ConfigDict(extra="forbid", frozen=True)
@@ -43,6 +45,7 @@ class PendingLogin(BaseModel):
     code_challenge: StrictStr | None
     code_challenge_method: StrictStr | None
     client_network: StrictStr
+    security_generation: StrictInt | None = None
 
 
 @runtime_checkable
@@ -67,10 +70,6 @@ class PendingMFAStore(Protocol):
 
     def record_wrong_code(self, challenge: str) -> bool:
         """Count a wrong code against a challenge; True when it was the last one the challenge allows."""
-        ...
-
-    def clear_for_user(self, user_id: int) -> int:
-        """Implement the clear for user operation."""
         ...
 
     def claim_totp_step(self, user_id: int, step: int) -> bool:
@@ -183,8 +182,7 @@ class PendingMFALogin:
     def record_wrong_code(self, challenge: str) -> bool:
         """Count a wrong code against a challenge and end the challenge once it has taken the allowed number.
 
-        The count lives under its own key prefix, so it never mixes with the pending logins that
-        :meth:`clear_for_user` walks, and it expires with the challenge.
+        The count lives under its own key prefix and expires with the challenge.
 
         Args:
             challenge: The challenge the wrong code was presented with.
@@ -204,20 +202,6 @@ class PendingMFALogin:
         except StateBackendUnavailableError as err:
             _raise_store_unavailable(err)
         return True
-
-    def clear_for_user(self, user_id: int) -> int:
-        """Remove pending MFA logins for a user."""
-        removed = 0
-        try:
-            for key in list(self._state.iter_keys(f"{_PENDING_MFA_KEY_PREFIX}:")):
-                value = self._state.get(key)
-                pending = None if value is None else _decode(value)
-                if pending is not None and pending.user_id == user_id:
-                    self._state.delete(key)
-                    removed += 1
-        except StateBackendUnavailableError as err:
-            _raise_store_unavailable(err)
-        return removed
 
     def claim_totp_step(self, user_id: int, step: int) -> bool:
         """Record an accepted TOTP step as used; False when it already was."""
@@ -254,11 +238,3 @@ def get_pending_mfa_store(
 ) -> PendingMFAStore:
     """Build the pending-MFA store from the active platform state provider."""
     return PendingMFALogin(state)
-
-
-def clear_pending_mfa_for_user(state: StateProvider, user_id: int) -> int:
-    """Remove pending MFA logins after credential changes, tolerating provider outages."""
-    try:
-        return PendingMFALogin(state).clear_for_user(user_id)
-    except AuthSecurityStoreUnavailableError:
-        return 0

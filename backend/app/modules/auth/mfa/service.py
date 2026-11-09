@@ -35,6 +35,7 @@ import modules.auth.mfa.crud as auth_mfa_crud
 import modules.auth.mfa.schema as mfa_schema
 import modules.auth.mfa.totp_replay_store as mfa_totp_replay_store
 import modules.auth.mfa_backup_codes.integration_service as mfa_backup_codes_integration
+import modules.auth.security_generation.integration_service as security_generation_integration
 import modules.users.users.integration_service as users_integration
 
 logger = core_logger.get_logger(__name__)
@@ -159,6 +160,7 @@ def enable_user_mfa(
     if not encrypted_secret:
         raise core_exceptions.ProcessingError("Failed to encrypt MFA secret")
 
+    security_generation_integration.stage_bump(user_id, db)
     auth_mfa_crud.update_user_mfa(user_id, db, encrypted_secret=encrypted_secret)
 
     return mfa_backup_codes_integration.create_backup_codes(user_id, password_hasher, db)
@@ -191,6 +193,7 @@ def disable_user_mfa(user_id: int, db: Session) -> None:
     if not is_mfa_enabled_for_user(user_id, db):
         raise core_exceptions.ConflictError("MFA is not enabled for this user")
 
+    security_generation_integration.stage_bump(user_id, db)
     auth_mfa_crud.update_user_mfa(user_id, db)
     mfa_backup_codes_integration.delete_user_backup_codes(user_id, db)
 

@@ -29,7 +29,6 @@ def test_a_reset_is_audited_and_announced(mock_db):
         patch.object(password_reset_service.credentials_integration, "set_local_password_hash"),
         patch.object(password_reset_service.password_reset_crud, "mark_user_password_reset_tokens_used"),
         patch.object(password_reset_service.sessions_integration, "delete_sessions_by_user"),
-        patch.object(password_reset_service.mfa_integration, "clear_pending_mfa_for_user"),
         patch.object(password_reset_service.authentication_integration, "clear_account_login_lockout") as clear_lock,
         patch.object(platform_publisher, "publish_on_commit") as publish,
         jasil_testing.capture_audit() as audit,

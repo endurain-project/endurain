@@ -20,7 +20,7 @@ class LoginMethod(StrEnum):
 
 
 class LoginFailureReason(StrEnum):
-    """Why a sign-in was refused."""
+    """Why a sign-in was refused; ``SECURITY_CHANGED`` is a step refused because the account's security changed."""
 
     INVALID_CREDENTIALS = "invalid_credentials"
     LOCKED_OUT = "locked_out"
@@ -40,6 +40,7 @@ class LoginFailureReason(StrEnum):
     TOKEN_EXCHANGE_FAILED = "token_exchange_failed"
     NO_SUBJECT = "no_subject"
     PROVIDER_ERROR = "provider_error"
+    SECURITY_CHANGED = "security_changed"
 
 
 class StepUpMethod(StrEnum):

@@ -1,6 +1,7 @@
 """Tests for password-reset workflows after their move to service.py."""
 
 import hashlib
+from contextlib import ExitStack
 from datetime import UTC, datetime, timedelta
 from unittest.mock import MagicMock, patch
 
@@ -22,13 +23,12 @@ class TestUsePasswordResetToken:
     @patch(
         "modules.auth.password_reset_tokens.service.password_reset_event_publishers.publish_password_reset_completed"
     )
-    @patch("modules.auth.password_reset_tokens.service.mfa_integration.clear_pending_mfa_for_user")
     @patch("modules.auth.password_reset_tokens.service.sessions_integration.delete_sessions_by_user")
     @patch("modules.auth.password_reset_tokens.service.password_reset_crud.mark_user_password_reset_tokens_used")
     @patch("modules.auth.password_reset_tokens.service.credentials_integration.set_local_password_hash")
     @patch("modules.auth.password_reset_tokens.service.password_reset_crud.claim_password_reset_token")
-    def test_password_and_sessions_commit_before_pending_mfa_is_cleared(
-        self, claim, set_password, mark_tokens, delete_sessions, clear_pending, publish_completed, mock_db
+    def test_password_and_sessions_are_written_before_the_commit(
+        self, claim, set_password, mark_tokens, delete_sessions, publish_completed, mock_db
     ):
         user = MagicMock(active=True, access_type="regular", username="alice", email="alice@example.com")
         settings = MagicMock(local_login_enabled=True)
@@ -38,7 +38,6 @@ class TestUsePasswordResetToken:
         order.attach_mock(mark_tokens, "tokens")
         order.attach_mock(delete_sessions, "sessions")
         order.attach_mock(mock_db.commit, "commit")
-        order.attach_mock(clear_pending, "clear_pending")
         with (
             patch(
                 "modules.auth.password_reset_tokens.service.server_settings_integration.get_server_settings",
@@ -68,9 +67,7 @@ class TestUsePasswordResetToken:
             "tokens",
             "sessions",
             "commit",
-            "clear_pending",
         ]
-        clear_pending.assert_called_once_with(42)
         set_password.assert_called_once_with(42, "hashed", mock_db, change_required=False)
         publish_completed.assert_called_once_with(42, mock_db)
 
@@ -357,3 +354,62 @@ class TestValidateToken:
             password_reset_service.validate_password_reset_token("nope", db)
 
         record.assert_not_called()
+
+
+class TestSecurityGenerationBump:
+    """Confirming a reset advances the account's security generation in the same transaction as the password."""
+
+    _PREFIX = "modules.auth.password_reset_tokens.service."
+
+    def _patches(self, stack, *, differs_error=None) -> dict[str, MagicMock]:
+        """Patch the reset's collaborators and return the patches by target."""
+        mocks: dict[str, MagicMock] = {}
+        user = MagicMock(active=True, access_type="regular", username="alice", email="alice@example.com")
+        for target, kwargs in (
+            ("server_settings_integration.get_server_settings", {"return_value": MagicMock(local_login_enabled=True)}),
+            ("credentials_integration.reject_breached_password", {}),
+            ("password_reset_crud.get_usable_password_reset_token_user_id", {"return_value": 42}),
+            ("password_reset_crud.claim_password_reset_token", {"return_value": 42}),
+            ("users_integration.require_user", {"return_value": user}),
+            ("credentials_integration.has_local_password", {"return_value": True}),
+            ("credentials_integration.ensure_password_differs_from_current", {"side_effect": differs_error}),
+            ("credentials_integration.validate_and_hash_password_for_user", {"return_value": "hashed"}),
+            ("credentials_integration.set_local_password_hash", {}),
+            ("password_reset_crud.mark_user_password_reset_tokens_used", {}),
+            ("sessions_integration.delete_sessions_by_user", {}),
+            ("password_reset_event_publishers.publish_password_reset_completed", {}),
+            ("authentication_integration.clear_account_login_lockout", {}),
+            ("jasil_audit.stage", {}),
+        ):
+            mocks[target] = stack.enter_context(patch(self._PREFIX + target, **kwargs))
+        return mocks
+
+    def test_the_bump_is_the_first_write_and_the_commit_the_last(self, mock_db):
+        order = MagicMock()
+        with ExitStack() as stack:
+            mocks = self._patches(stack)
+            bump = stack.enter_context(patch(self._PREFIX + "security_generation_integration.stage_bump"))
+            order.attach_mock(bump, "bump")
+            order.attach_mock(mocks["password_reset_crud.claim_password_reset_token"], "claim")
+            order.attach_mock(mocks["credentials_integration.set_local_password_hash"], "set_password")
+            order.attach_mock(mocks["password_reset_crud.mark_user_password_reset_tokens_used"], "void_tokens")
+            order.attach_mock(mocks["sessions_integration.delete_sessions_by_user"], "delete_sessions")
+            order.attach_mock(mock_db.commit, "commit")
+            password_reset_service.use_password_reset_token("plain", "new password", mock_db)
+
+        bump.assert_called_once_with(42, mock_db)
+        names = [call[0] for call in order.mock_calls]
+        assert names[0] == "bump"
+        assert names[-1] == "commit"
+        assert {"claim", "set_password", "void_tokens", "delete_sessions"} <= set(names)
+
+    def test_a_refused_reset_commits_nothing(self, mock_db):
+        with ExitStack() as stack:
+            self._patches(stack, differs_error=credentials_contracts.PasswordUnchangedError())
+            bump = stack.enter_context(patch(self._PREFIX + "security_generation_integration.stage_bump"))
+            with pytest.raises(credentials_contracts.PasswordUnchangedError):
+                password_reset_service.use_password_reset_token("plain", "same password", mock_db)
+
+        # The bump was staged first and the refusal discards it with the transaction.
+        bump.assert_called_once_with(42, mock_db)
+        mock_db.commit.assert_not_called()

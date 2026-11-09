@@ -26,6 +26,7 @@ import modules.auth.identity_providers.constants as identity_providers_constants
 import modules.auth.mfa.integration_service as mfa_integration
 import modules.auth.password_reset_tokens.integration_service as password_reset_tokens_integration
 import modules.auth.schema as auth_schema
+import modules.auth.security_generation.integration_service as security_generation_integration
 import modules.auth.sign_up_tokens.integration_service as sign_up_tokens_integration
 import modules.server_settings.integration_service as server_settings_integration
 import modules.server_settings.schema as server_settings_schema
@@ -701,6 +702,11 @@ def stage_user_edit(user_id: int, user: users_schema.UserEdit, db: Session, *, i
         PreconditionFailedError: When ``if_match`` does not name the row's version.
     """
     existing = require_user(user_id, db)
+    email = user.email.lower()
+    if existing.email != email or (existing.active and not user.active):
+        # A proof started before the address moved or the account was deactivated must not be redeemed after it. The
+        # generation row is locked before the administrator rows and the user row.
+        security_generation_integration.stage_bump(user_id, db)
     if not user.active:
         _refuse_to_remove_last_admin(existing, "deactivated", db)
     if users_schema.normalize_access_type(user.access_type) != users_schema.UserAccessType.ADMIN.value:
@@ -708,13 +714,15 @@ def stage_user_edit(user_id: int, user: users_schema.UserEdit, db: Session, *, i
 
     changes = user.model_dump(exclude_unset=True)
     changes["username"] = user.username.lower()
-    changes["email"] = user.email.lower()
+    changes["email"] = email
 
     updated = users_crud.update_user(user_id, changes, db, if_match=if_match)
-    if existing.email != updated.email:
+    email_changed = existing.email != updated.email
+    deactivated = existing.active and not updated.active
+    if email_changed:
         # A reset link mailed to the old address must not set a password once the recovery address moved.
         password_reset_tokens_integration.revoke_unused_tokens(user_id, db)
-    if existing.active and not updated.active:
+    if deactivated:
         # Verifying an email activates the account, so a link issued before the deactivation must not work.
         sign_up_tokens_integration.revoke_pending_tokens(user_id, db)
     _recalculate_bmi_if_height_changed(existing, updated, db)
@@ -810,6 +818,9 @@ def _stage_edit_with_email_change(
     if not user.email_verified:
         requested = user.email.lower()
         require_email_available(existing.id, requested, db)
+        if existing.active and not user.active:
+            # The edit bumps the generation too; this is taken first because the token write below comes before it.
+            security_generation_integration.stage_bump(existing.id, db)
         # Staged before the edit, so an edit that also deactivates the user revokes the new link with the old ones.
         if sign_up_tokens_integration.request_email_change(existing.id, requested, existing.email, db):
             kept = user.model_copy(update={"email": existing.email, "email_verified": existing.email_verified})
@@ -972,6 +983,7 @@ def stage_email_change(user_id: int, email: str, db: Session) -> bool:
     if existing.email == normalized:
         return False
 
+    security_generation_integration.stage_bump(user_id, db)
     users_crud.update_user(user_id, {"email": normalized, "email_verified": False}, db)
     # A link issued for the old address or a pending one must not confirm over the address just applied.
     sign_up_tokens_integration.revoke_pending_tokens(user_id, db)
@@ -1011,7 +1023,10 @@ def stage_confirmed_email_change(user_id: int, email: str, db: Session) -> None:
         ConflictError: If another account uses the email.
     """
     normalized = email.lower()
+    previous_email = require_user(user_id, db).email
     require_email_available(user_id, normalized, db)
+    if previous_email != normalized:
+        security_generation_integration.stage_bump(user_id, db)
     users_crud.update_user(user_id, {"email": normalized, "email_verified": True}, db)
     password_reset_tokens_integration.revoke_unused_tokens(user_id, db)
     jasil_audit.stage(

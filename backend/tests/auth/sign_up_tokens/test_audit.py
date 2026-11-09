@@ -23,7 +23,7 @@ def _claim(*, previous_email=None):
 
 @pytest.fixture
 def deps(request):
-    names = ["credentials_integration", "sessions_integration", "mfa_integration", "users_integration"]
+    names = ["credentials_integration", "sessions_integration", "users_integration"]
     mocks = {name: MagicMock() for name in names}
     with (
         patch(f"{_MODULE}.server_settings_integration.get_server_settings", return_value=_settings()),
@@ -100,6 +100,7 @@ def test_a_missing_password_is_not_audited(deps, mock_db):
 def test_an_invalid_token_is_recorded_as_a_failure_without_a_target(mock_db):
     with (
         patch(f"{_MODULE}.server_settings_integration.get_server_settings", return_value=_settings()),
+        patch(f"{_MODULE}.sign_up_crud.get_usable_sign_up_token", return_value=None),
         patch(f"{_MODULE}.sign_up_crud.claim_sign_up_token", return_value=None),
         jasil_testing.capture_audit() as audit,
         pytest.raises(core_exceptions.InvalidInputError),

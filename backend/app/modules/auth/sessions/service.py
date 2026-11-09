@@ -17,6 +17,7 @@ import modules.auth.oauth_state.integration_service as oauth_state_integration
 import modules.auth.oauth_state.schema as oauth_state_schema
 import modules.auth.rotated_refresh_tokens.integration_service as rotated_refresh_tokens_integration
 import modules.auth.schema as auth_schema
+import modules.auth.security_generation.integration_service as security_generation_integration
 import modules.auth.sessions.audit_actions as sessions_audit_actions
 import modules.auth.sessions.contracts as sessions_contracts
 import modules.auth.sessions.crud as sessions_crud
@@ -329,6 +330,8 @@ def delete_sessions_by_user_and_commit(
         StepUpFailedError: When the step-up does not verify.
     """
     verify_step_up(step_up)
+    if exclude_session_id is None:
+        security_generation_integration.stage_bump(user_id, db)
     deleted_count = delete_sessions_by_user(user_id, db, exclude_session_id)
     if deleted_count:
         jasil_audit.stage(

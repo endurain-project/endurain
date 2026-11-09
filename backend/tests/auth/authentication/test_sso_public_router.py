@@ -55,6 +55,7 @@ def _session_and_state(client_type: str = "mobile", idp_id: int | None = 5) -> t
     oauth_state.code_challenge_method = "S256"
     oauth_state.client_type = client_type
     oauth_state.idp_id = idp_id
+    oauth_state.security_generation = 0
     oauth_state.purpose = oauth_state_constants.OAuthStatePurpose.LOGIN
     return session, oauth_state
 

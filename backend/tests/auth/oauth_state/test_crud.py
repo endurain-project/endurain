@@ -82,6 +82,37 @@ def test_a_link_state_keeps_the_digest_of_its_browser_binding():
     db.close()
 
 
+def test_a_state_is_stamped_after_creation_and_a_missing_one_is_reported():
+    db = create_sqlite_session()
+    created = oauth_state_crud.create_oauth_state(
+        "s" * 32, "n" * 32, "web", None, db, purpose=oauth_state_constants.OAuthStatePurpose.LOGIN
+    )
+    assert created.security_generation is None
+
+    assert oauth_state_crud.stamp_security_generation("s" * 32, 5, db) is True
+
+    assert oauth_state_crud.get_oauth_state_by_id_and_not_used("s" * 32, db).security_generation == 5
+    assert oauth_state_crud.stamp_security_generation("x" * 32, 5, db) is False
+    db.close()
+
+
+def test_a_state_created_with_a_generation_keeps_it():
+    db = create_sqlite_session()
+
+    created = oauth_state_crud.create_oauth_state(
+        "s" * 32,
+        "n" * 32,
+        "mobile",
+        None,
+        db,
+        purpose=oauth_state_constants.OAuthStatePurpose.LOGIN,
+        security_generation=0,
+    )
+
+    assert created.security_generation == 0
+    db.close()
+
+
 def test_mark_state_used_is_conditional_and_staged(mock_db):
     mock_db.execute.return_value.rowcount = 1
     assert oauth_state_crud.mark_oauth_state_used("a" * 32, mock_db) is True

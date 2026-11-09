@@ -50,6 +50,8 @@ def create_oauth_state(
     purpose: oauth_state_constants.OAuthStatePurpose,
     session_id: str | None = None,
     action: str | None = None,
+    ends_other_sessions: bool = False,
+    security_generation: int | None = None,
 ) -> oauth_state_schema.OAuthStateRead:
     """Stage a new OAuth state with its fixed ten-minute expiry."""
     row = oauth_state_models.OAuthState(
@@ -67,6 +69,8 @@ def create_oauth_state(
         purpose=purpose,
         session_id=session_id,
         action=action,
+        ends_other_sessions=ends_other_sessions,
+        security_generation=security_generation,
         expires_at=datetime.now(UTC) + timedelta(seconds=oauth_state_constants.STATE_TTL_SECONDS),
         used=False,
     )
@@ -85,6 +89,16 @@ def mark_oauth_state_used(state_id: str, db: Session) -> bool:
             oauth_state_models.OAuthState.expires_at > datetime.now(UTC),
         )
         .values(used=True)
+    )
+    return core_database.rowcount(db, stmt) == 1
+
+
+def stamp_security_generation(state_id: str, generation: int, db: Session) -> bool:
+    """Stage the account security generation an OAuth state is redeemed under; False when no state matched."""
+    stmt = (
+        update(oauth_state_models.OAuthState)
+        .where(oauth_state_models.OAuthState.id == state_id)
+        .values(security_generation=generation)
     )
     return core_database.rowcount(db, stmt) == 1
 

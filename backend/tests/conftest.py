@@ -16,8 +16,10 @@ import modules.auth.authentication.dependencies as authentication_dependencies
 import modules.auth.credentials.integration_service as auth_password_hasher
 import modules.auth.dependencies as auth_dependencies
 import modules.auth.mfa.dependencies as auth_mfa_dependencies
+import modules.auth.security_generation.integration_service as security_generation_integration
 import modules.server_settings.contracts as server_settings_contracts
 import modules.users.users.schema as user_schema
+from tests._helpers.security_generation import FakeSecurityGenerations
 
 # Variables and constants
 DEFAULT_ROUTER_MODULES = [
@@ -74,6 +76,19 @@ def _publish_local_platform(tmp_path):
     runtime_module_registry.configure_audit()
     yield platform
     jasil_testing.reset_all()
+
+
+@pytest.fixture(autouse=True)
+def security_generations(monkeypatch) -> FakeSecurityGenerations:
+    """Replace the account security generations with an in-memory store, so a mocked session can stamp and check.
+
+    The tests of the generations themselves and the PostgreSQL tests override this fixture to use the real ones.
+    """
+    fake = FakeSecurityGenerations()
+    monkeypatch.setattr(security_generation_integration, "current_generation", fake.current_generation)
+    monkeypatch.setattr(security_generation_integration, "stage_bump", fake.stage_bump)
+    monkeypatch.setattr(security_generation_integration, "matches_locked", fake.matches_locked)
+    return fake
 
 
 @pytest.fixture
@@ -366,21 +381,6 @@ def fast_api_app(password_hasher, token_manager, mock_db) -> FastAPI:
             """
             self._store.clear()
             self.calls.clear()
-
-        def clear_for_user(self, user_id: int) -> int:
-            """
-            Remove pending login entries for the given user ID.
-
-            Args:
-                user_id (int): The user ID to remove pending logins for.
-
-            Returns:
-                int: Number of entries removed.
-            """
-            matching = [username for username, entry_user_id in self._store.items() if entry_user_id == user_id]
-            for username in matching:
-                del self._store[username]
-            return len(matching)
 
     fake_store = FakePendingMFAStore()
     app.state.fake_store = fake_store

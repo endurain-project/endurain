@@ -1,5 +1,6 @@
 """Tests for the provider-backed pending-MFA login store."""
 
+import json
 from unittest.mock import MagicMock
 
 import pytest
@@ -78,15 +79,16 @@ def test_only_a_digest_of_the_challenge_is_kept():
     )
 
 
-def test_clear_for_user_removes_only_matching_user_entries():
+def test_the_record_keeps_the_security_generation_and_an_entry_without_one_reads_back_unstamped():
     state = MemoryState()
     store = pending_mfa.PendingMFALogin(state)
-    alice = store.add_pending_login(pending_login(12))
-    bob = store.add_pending_login(pending_login(34))
+    challenge = store.add_pending_login(pending_login(12, security_generation=5))
+    assert store.get_pending_login(challenge).security_generation == 5
 
-    assert store.clear_for_user(12) == 1
-    assert store.get_pending_login(alice) is None
-    assert store.get_pending_login(bob) == pending_login(34)
+    legacy = pending_login(12).model_dump(exclude={"security_generation"})
+    state.set(store._pending_key(challenge), json.dumps(legacy).encode(), ttl_seconds=60)
+
+    assert store.get_pending_login(challenge).security_generation is None
 
 
 class TestWrongCodes:
@@ -133,19 +135,16 @@ class TestWrongCodes:
 
         assert state.get(store._attempts_key(challenge)) is None
 
-    def test_clear_all_removes_the_counts_and_clear_for_user_still_works_beside_them(self):
+    def test_clear_all_removes_the_pending_logins_and_their_counts(self):
         state = MemoryState()
         store = pending_mfa.PendingMFALogin(state)
         challenge = store.add_pending_login(pending_login(12))
         store.record_wrong_code(challenge)
 
-        assert store.clear_for_user(12) == 1
-
-        other = store.add_pending_login(pending_login(34))
-        store.record_wrong_code(other)
         store.clear_all()
-        assert state.get(store._attempts_key(other)) is None
-        assert store.get_pending_login(other) is None
+
+        assert state.get(store._attempts_key(challenge)) is None
+        assert store.get_pending_login(challenge) is None
 
 
 @pytest.mark.parametrize(
@@ -155,7 +154,6 @@ class TestWrongCodes:
         ("get", "get"),
         ("get_and_delete", "claim"),
         ("delete", "delete_corrupt"),
-        ("iter_keys", "clear_for_user"),
         ("delete_prefix", "clear_all"),
         ("incr", "wrong_code"),
     ],
@@ -177,17 +175,8 @@ def test_provider_failures_become_auth_store_errors(method, operation):
             store.get_pending_login("challenge")
         elif operation == "wrong_code":
             store.record_wrong_code("challenge")
-        elif operation == "clear_for_user":
-            store.clear_for_user(12)
         else:
             store.clear_all()
-
-
-def test_clear_pending_mfa_for_user_tolerates_state_outage():
-    state = MagicMock()
-    state.iter_keys.side_effect = StateBackendUnavailableError("down")
-
-    assert pending_mfa.clear_pending_mfa_for_user(state, 12) == 0
 
 
 def test_dependency_builds_store_from_provided_state():

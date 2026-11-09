@@ -53,9 +53,15 @@ class OAuthStateCreate(BaseModel):
     session_id: StrictStr | None = Field(
         None,
         max_length=36,
-        description="Session that started a step-up flow, or a link that ends the user's other sessions",
+        description="Session that started a link or step-up flow",
+    )
+    ends_other_sessions: StrictBool = Field(
+        False, description="Whether the callback of a link ends the user's other sessions"
     )
     action: StrictStr | None = Field(None, max_length=32, description="Operation a step-up flow authorises")
+    security_generation: StrictInt | None = Field(
+        None, ge=0, description="Account security generation the flow was started under"
+    )
 
 
 class OAuthStateRead(BaseModel):
@@ -81,10 +87,14 @@ class OAuthStateRead(BaseModel):
     browser_binding_hash: StrictStr | None = Field(None, description="SHA-256 of the browser binding")
     idp_code_verifier: StrictStr | None = Field(None, description="PKCE verifier sent to the identity provider")
     purpose: oauth_state_constants.OAuthStatePurpose = Field(..., description="Flow the state belongs to")
-    session_id: StrictStr | None = Field(
-        None, description="Session that started a step-up flow, or a link that ends the user's other sessions"
+    session_id: StrictStr | None = Field(None, description="Session that started a link or step-up flow")
+    ends_other_sessions: StrictBool = Field(
+        False, description="Whether the callback of a link ends the user's other sessions"
     )
     action: StrictStr | None = Field(None, description="Operation a step-up flow authorises")
+    security_generation: StrictInt | None = Field(
+        None, description="Account security generation the flow was started under; null when none was recorded"
+    )
 
 
 class StepUpOAuthStateRead(OAuthStateRead):

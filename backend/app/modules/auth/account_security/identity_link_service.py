@@ -21,6 +21,7 @@ import modules.auth.identity_providers.contracts as identity_providers_contracts
 import modules.auth.identity_providers.integration_service as identity_providers_integration
 import modules.auth.identity_providers.schema as identity_providers_schema
 import modules.auth.schema as auth_schema
+import modules.auth.security_generation.integration_service as security_generation_integration
 import modules.auth.sessions.audit_actions as sessions_audit_actions
 import modules.users.users.schema as users_schema
 
@@ -229,6 +230,7 @@ def delete_identity_provider_link(
         action=identity_providers_constants.StepUpAction.IDP_UNLINK,
     )
 
+    security_generation_integration.stage_bump(token_user_id, db)
     success = identity_provider_links_integration.delete_user_identity_provider(
         token_user_id,
         idp_id,
@@ -296,6 +298,7 @@ def admin_delete_identity_provider_link(
             "Cannot unlink last authentication method. User has no password set."
         )
 
+    security_generation_integration.stage_bump(user_id, db)
     success = identity_provider_links_integration.delete_user_identity_provider(user_id, idp_id, db)
     if not success:
         raise core_exceptions.ProcessingError("Failed to unlink identity provider")

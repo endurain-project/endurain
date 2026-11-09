@@ -456,3 +456,96 @@ class TestAdminDeleteIdentityProviderLink:
             identity_link_service.admin_delete_identity_provider_link(5, 1, mock_db)
 
         assert exc.value.status_code == 500
+
+
+_P = "modules.auth.account_security.identity_link_service."
+
+
+class TestUnlinkBumpsTheSecurityGeneration:
+    """Unlinking a provider, by the owner or an administrator, advances the security generation."""
+
+    def _unlink_patches(self):
+        return (
+            patch(_P + "identity_providers_integration.get_identity_provider", return_value=MagicMock()),
+            patch(
+                _P + "identity_provider_links_integration.get_user_identity_provider_by_user_id_and_idp_id",
+                return_value=MagicMock(),
+            ),
+            patch(
+                _P + "identity_provider_links_integration.get_user_identity_providers_by_user_id",
+                return_value=[MagicMock(), MagicMock()],
+            ),
+            patch(_P + "identity_provider_links_integration.delete_user_identity_provider", return_value=True),
+            patch(_P + "credentials_integration.has_local_password", return_value=True),
+        )
+
+    def test_the_owner_unlinking_stages_through_the_shared_step(self, mock_db):
+        get_idp, get_link, get_links, delete, has_password = self._unlink_patches()
+        with (
+            patch(_P + "step_up_service.verify_step_up_credentials"),
+            get_idp,
+            get_link,
+            get_links,
+            delete,
+            has_password,
+            patch(_P + "_stage_unlink") as stage_unlink,
+        ):
+            identity_link_service.delete_identity_provider_link(1, MagicMock(), 10, "sid", MagicMock(), mock_db)
+
+        stage_unlink.assert_called_once_with(10, 1, mock_db)
+
+    def test_the_owner_unlinking_bumps_before_the_link_is_deleted(self, mock_db):
+        get_idp, get_link, get_links, delete, has_password = self._unlink_patches()
+        order = MagicMock()
+        with (
+            patch(_P + "step_up_service.verify_step_up_credentials"),
+            get_idp,
+            get_link,
+            get_links,
+            delete as delete_link,
+            has_password,
+            patch(_P + "_stage_unlink"),
+            patch(_P + "security_generation_integration.stage_bump") as bump,
+        ):
+            order.attach_mock(bump, "bump")
+            order.attach_mock(delete_link, "delete_link")
+            identity_link_service.delete_identity_provider_link(1, MagicMock(), 10, "sid", MagicMock(), mock_db)
+
+        bump.assert_called_once_with(10, mock_db)
+        assert [call[0] for call in order.mock_calls] == ["bump", "delete_link"]
+
+    def test_an_administrator_unlinking_bumps_before_the_link_is_deleted(self, mock_db):
+        get_idp, get_link, get_links, delete, has_password = self._unlink_patches()
+        order = MagicMock()
+        with (
+            get_idp,
+            get_link,
+            get_links,
+            delete as delete_link,
+            has_password,
+            patch(_P + "_stage_unlink"),
+            patch(_P + "security_generation_integration.stage_bump") as bump,
+        ):
+            order.attach_mock(bump, "bump")
+            order.attach_mock(delete_link, "delete_link")
+            identity_link_service.admin_delete_identity_provider_link(5, 1, mock_db)
+
+        bump.assert_called_once_with(5, mock_db)
+        assert [call[0] for call in order.mock_calls] == ["bump", "delete_link"]
+
+    def test_an_administrator_unlinking_stages_through_the_shared_step(self, mock_db):
+        get_idp, get_link, get_links, delete, has_password = self._unlink_patches()
+        with get_idp, get_link, get_links, delete, has_password, patch(_P + "_stage_unlink") as stage_unlink:
+            identity_link_service.admin_delete_identity_provider_link(5, 1, mock_db)
+
+        stage_unlink.assert_called_once_with(5, 1, mock_db)
+
+    def test_a_refused_unlink_does_not_bump(self, mock_db):
+        with (
+            patch(_P + "identity_providers_integration.get_identity_provider", return_value=None),
+            patch(_P + "security_generation_integration.stage_bump") as bump,
+            pytest.raises(core_exceptions.NotFoundError),
+        ):
+            identity_link_service.admin_delete_identity_provider_link(5, 1, mock_db)
+
+        bump.assert_not_called()

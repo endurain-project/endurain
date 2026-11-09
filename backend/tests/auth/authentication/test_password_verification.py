@@ -22,11 +22,10 @@ def hasher():
 def _authenticate(stored_hash: str, typed: str, hasher, mock_db):
     credential = SimpleNamespace(password_hash=stored_hash, password_change_required=True)
     with (
-        patch(f"{_SERVICE}.users_integration.get_user_by_username", return_value=SimpleNamespace(id=7)),
         patch(f"{_SERVICE}.credentials_integration.get_credential", return_value=credential),
         patch(f"{_SERVICE}.credentials_integration.set_local_password_hash") as set_hash,
     ):
-        user = authentication_service.authenticate_user("alice", typed, hasher, mock_db)
+        user = authentication_service.authenticate_user(SimpleNamespace(id=7), "alice", typed, hasher, mock_db)
     return user, set_hash
 
 
@@ -178,12 +177,11 @@ _NFD = "café"
 
 def _dummy_verifies(hasher, mock_db, typed: str, *, user, credential) -> int:
     with (
-        patch(f"{_SERVICE}.users_integration.get_user_by_username", return_value=user),
         patch(f"{_SERVICE}.credentials_integration.get_credential", return_value=credential),
         patch.object(hasher, "dummy_verify") as dummy,
         pytest.raises(core_exceptions.UnauthenticatedError),
     ):
-        authentication_service.authenticate_user("alice", typed, hasher, mock_db)
+        authentication_service.authenticate_user(user, "alice", typed, hasher, mock_db)
     return dummy.call_count
 
 

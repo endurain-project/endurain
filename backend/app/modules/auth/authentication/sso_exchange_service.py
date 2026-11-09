@@ -24,6 +24,7 @@ import modules.auth.login_audit.integration_service as login_audit_integration
 import modules.auth.mfa.dependencies as mfa_dependencies
 import modules.auth.mfa.integration_service as mfa_integration
 import modules.auth.oauth_state.constants as oauth_state_constants
+import modules.auth.security_generation.integration_service as security_generation_integration
 import modules.auth.sessions.integration_service as sessions_integration
 import modules.server_settings.integration_service as server_settings_integration
 import modules.users.users.integration_service as users_integration
@@ -93,7 +94,8 @@ def exchange_tokens_for_session(
         the mobile app.
 
     Raises:
-        NotFoundError: If the session does not exist or has no OAuth state.
+        NotFoundError: If the session does not exist, has no OAuth state, or was created before a security change of
+            the account.
         ConflictError: If the tokens were already exchanged, or another exchange won the race.
         InvalidInputError: If the OAuth state holds no PKCE data, the verifier does not match, or the client type
             differs from the one recorded when the sign-in started.
@@ -176,6 +178,16 @@ def exchange_tokens_for_session(
     except core_exceptions.PermissionDeniedError:
         _record_refusal(jasil_audit.Outcome.DENIED, login_audit_actions.LoginFailureReason.INACTIVE, user.id)
         raise
+
+    # Checked before an MFA code is tried, so a session that a security change outdated cannot be used to guess codes.
+    # The lock it takes lasts until the exchange commits.
+    if not security_generation_integration.matches_locked(user.id, oauth_state.security_generation, db):
+        logger.warning(
+            "Token exchange refused: the account's security changed after session <value_1> was created",
+            extra=core_logger.context(value_1=fingerprint),
+        )
+        _record_refusal(jasil_audit.Outcome.FAILURE, login_audit_actions.LoginFailureReason.SECURITY_CHANGED, user.id)
+        raise core_exceptions.NotFoundError("Session not found or not eligible for token exchange")
 
     mfa_verified = oauth_state.idp_id is not None and mfa_integration.is_mfa_enabled_for_user(user.id, db)
     if mfa_verified:

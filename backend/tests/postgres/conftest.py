@@ -39,6 +39,11 @@ def _user_contributors():
     users_contributor_registry.clear()
 
 
+@pytest.fixture(autouse=True)
+def security_generations() -> None:
+    """Keep the real security-generation functions: these tests run against PostgreSQL."""
+
+
 @pytest.fixture
 def pg_factory():
     if postgres_test_url() is None:

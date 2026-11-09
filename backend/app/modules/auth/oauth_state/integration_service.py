@@ -26,6 +26,8 @@ def create_oauth_state(
     purpose: oauth_state_constants.OAuthStatePurpose,
     session_id: str | None = None,
     action: str | None = None,
+    ends_other_sessions: bool = False,
+    security_generation: int | None = None,
 ) -> oauth_state_schema.OAuthStateRead:
     """Stage an OAuth-state row, its nonce and PKCE verifier stored encrypted."""
     return oauth_state_service.create_oauth_state(
@@ -44,6 +46,8 @@ def create_oauth_state(
         purpose=purpose,
         session_id=session_id,
         action=action,
+        ends_other_sessions=ends_other_sessions,
+        security_generation=security_generation,
     )
 
 
@@ -60,6 +64,11 @@ def get_oauth_state_by_id_not_expired(state_id: str, db: Session) -> oauth_state
 def mark_oauth_state_used(state_id: str, db: Session) -> bool:
     """Stage an OAuth-state claim."""
     return oauth_state_crud.mark_oauth_state_used(state_id, db)
+
+
+def stamp_security_generation(state_id: str, generation: int, db: Session) -> bool:
+    """Stage the account security generation a login flow is redeemed under; False when no state matched."""
+    return oauth_state_crud.stamp_security_generation(state_id, generation, db)
 
 
 def delete_oauth_state(oauth_state_id: str, db: Session) -> int:

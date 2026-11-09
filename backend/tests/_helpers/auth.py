@@ -10,6 +10,7 @@ def pending_login(
     code_challenge: str | None = None,
     code_challenge_method: str | None = None,
     client_network: str = "127.0.0.1",
+    security_generation: int | None = 0,
 ) -> mfa_dependencies.PendingLogin:
     """Return a pending MFA login; a web login by default, which carries no PKCE challenge."""
     return mfa_dependencies.PendingLogin(
@@ -18,4 +19,5 @@ def pending_login(
         code_challenge=code_challenge,
         code_challenge_method=code_challenge_method,
         client_network=client_network,
+        security_generation=security_generation,
     )

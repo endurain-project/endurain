@@ -426,6 +426,22 @@ class TestGenerateBackupCodes:
         assert result.codes == ["a", "b", "c"]
         assert result.created_at is not None
 
+    def test_regenerating_backup_codes_does_not_bump_the_security_generation(self, mock_db, step_up_store):
+        prefix = "modules.auth.account_security.mfa_workflow_service."
+        with (
+            patch(prefix + "users_integration.get_user", return_value=MagicMock(id=7)),
+            patch(prefix + "mfa_integration.is_mfa_enabled_for_user", return_value=True),
+            patch(prefix + "step_up_service.verify_step_up_credentials"),
+            patch(prefix + "mfa_backup_codes_integration.create_backup_codes", return_value=["a"]),
+            patch(prefix + "logger"),
+            patch("modules.auth.security_generation.crud.bump") as bump,
+        ):
+            mfa_workflow.generate_backup_codes(
+                self._step_up(), 7, "sid", step_up_store, mock_db, revoke_other_sessions=False
+            )
+
+        bump.assert_not_called()
+
     def test_user_not_found_raises_404(self, mock_db, step_up_store):
         with (
             patch("modules.auth.account_security.mfa_workflow_service.users_integration.get_user", return_value=None),

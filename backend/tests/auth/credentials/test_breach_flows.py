@@ -113,7 +113,7 @@ def _own_change(settings, db):
 
 def _required_change(settings, db):
     store = MagicMock()
-    store.get.return_value = MagicMock(user_id=7, client_type="web")
+    store.get.return_value = MagicMock(user_id=7, client_type="web", security_generation=0)
     request = authentication_schema.PasswordChangeLoginRequest(password_change_challenge="c" * 43, password=_PASSWORD)
     with (
         patch.object(account_security_service.users_integration, "get_user", return_value=MagicMock(id=7)),

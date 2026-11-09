@@ -36,6 +36,7 @@ import modules.auth.mfa.dependencies as mfa_dependencies
 import modules.auth.mfa.integration_service as mfa_integration
 import modules.auth.oauth_state.constants as oauth_state_constants
 import modules.auth.oauth_state.integration_service as oauth_state_integration
+import modules.auth.security_generation.integration_service as security_generation_integration
 import modules.auth.sessions.integration_service as sessions_integration
 import modules.server_settings.integration_service as server_settings_integration
 import modules.users.users.integration_service as users_integration
@@ -138,6 +139,7 @@ def _record_failed_login(
 
 
 def authenticate_user(
+    user: users_schema.UserRead | None,
     username: str,
     password: str,
     password_hasher: credentials_integration.PasswordHasher,
@@ -146,6 +148,8 @@ def authenticate_user(
     """Authenticates a user by verifying the provided username and password.
 
     Args:
+        user (users_schema.UserRead | None): The account the username names, already looked up, or None when there is
+            none; the caller reads whatever it must stamp before the credential is verified.
         username (str): The username of the user attempting to authenticate.
         password (str): The plaintext password provided by the user.
         password_hasher (credentials_integration.PasswordHasher): An instance of the password hasher for verifying and updating password hashes.
@@ -157,9 +161,6 @@ def authenticate_user(
     Raises:
         UnauthenticatedError: If the username does not exist or the password is invalid.
     """
-    # Get the user from the database
-    user = users_integration.get_user_by_username(username, db)
-
     # Check if the user exists and if the password is correct
     if not user:
         # Run the dummy Argon2 verifies a wrong password would cost (one, or two for a password that is not NFC) so
@@ -272,6 +273,8 @@ def create_mobile_pkce_session_response(
     code_challenge_method: str | None,
     password_hasher: credentials_integration.PasswordHasher,
     db: Session,
+    *,
+    security_generation: int | None,
 ) -> auth_schema.MobileSessionRead:
     """Create the session of a mobile sign-in, which the client exchanges for tokens with its PKCE verifier.
 
@@ -286,6 +289,8 @@ def create_mobile_pkce_session_response(
         code_challenge_method: PKCE method (must be S256)
         password_hasher: Password hasher instance
         db: Database session
+        security_generation: The generation the exchange must still find; read before the credential that justifies
+            this sign-in was verified, or the one the sign-in's MFA or password-change challenge carries.
 
     Returns:
         auth_schema.MobileSessionRead: Contains the session_id to exchange for tokens
@@ -312,6 +317,7 @@ def create_mobile_pkce_session_response(
         code_challenge=code_challenge,
         code_challenge_method=code_challenge_method,
         purpose=oauth_state_constants.OAuthStatePurpose.LOGIN,
+        security_generation=security_generation,
     )
 
     # The session has no refresh token until the exchange.
@@ -477,6 +483,27 @@ def _refuse_mfa_challenge(reason: login_audit_actions.LoginFailureReason, user_i
     raise core_exceptions.UnauthenticatedError(_DEAD_MFA_CHALLENGE_MESSAGE, scheme="Bearer")
 
 
+def _end_outdated_mfa_challenge(
+    challenge: str, user_id: int, pending_mfa_store: mfa_dependencies.PendingMFAStore
+) -> NoReturn:
+    """End an MFA challenge that a security change outdated, then refuse it like any dead challenge.
+
+    Args:
+        challenge: The outdated challenge.
+        user_id: The account the challenge belongs to.
+        pending_mfa_store: Store for pending MFA logins.
+
+    Raises:
+        UnauthenticatedError: Always, so the client signs in again.
+        ServiceUnavailableError: If the store is down.
+    """
+    try:
+        pending_mfa_store.claim_pending_login(challenge)
+    except lockout_contracts.AuthSecurityStoreUnavailableError as err:
+        raise_auth_security_store_unavailable(err)
+    _refuse_mfa_challenge(login_audit_actions.LoginFailureReason.SECURITY_CHANGED, user_id)
+
+
 def _end_challenge_after_wrong_code(
     challenge: str, user_id: int, pending_mfa_store: mfa_dependencies.PendingMFAStore
 ) -> None:
@@ -513,6 +540,7 @@ def finish_login(
     *,
     mfa: bool,
     device_id: str | None,
+    security_generation: int | None,
 ) -> auth_schema.AuthOutcome[auth_schema.FinishedLoginRead]:
     """Complete a verified login: a web client gets tokens, a mobile client a session to exchange.
 
@@ -531,6 +559,8 @@ def finish_login(
         mfa: Whether a second factor was verified for this sign-in.
         device_id: Device id from the browser's device cookie or the mobile app's ``X-Device-Id`` header, or None
             when the client sent no valid one.
+        security_generation: The generation a mobile client's exchange must still find; see
+            :func:`create_mobile_pkce_session_response`.
 
     Returns:
         The outcome of :func:`complete_login` with the device id a web browser keeps in its cookie, or for a mobile
@@ -556,7 +586,14 @@ def finish_login(
     # A mobile client never gets tokens from a sign-in: it exchanges the session with its PKCE verifier.
     if client_type == auth_constants.ClientType.MOBILE:
         session = create_mobile_pkce_session_response(
-            ip_address, user_agent, user, code_challenge, code_challenge_method, password_hasher, db
+            ip_address,
+            user_agent,
+            user,
+            code_challenge,
+            code_challenge_method,
+            password_hasher,
+            db,
+            security_generation=security_generation,
         )
         return auth_schema.AuthOutcome(session.model_copy(update={"device_id": sign_in.device_id}))
 
@@ -574,6 +611,7 @@ def _require_password_change(
     db: Session,
     *,
     mfa: bool,
+    security_generation: int | None,
 ) -> auth_schema.PasswordChangeRequiredRead:
     """Answer a verified sign-in with the step that makes the owner choose a new password; no session is created.
 
@@ -585,6 +623,8 @@ def _require_password_change(
         store: Store for pending password changes.
         db: Database session.
         mfa: Whether a second factor was verified for this sign-in.
+        security_generation: The generation the challenge is stamped with; read before the credential was verified,
+            or the one the sign-in's MFA challenge carries.
 
     Returns:
         The body that carries the challenge the password-change step must send back.
@@ -598,6 +638,7 @@ def _require_password_change(
         code_challenge=code_challenge,
         code_challenge_method=code_challenge_method,
         mfa=mfa,
+        security_generation=security_generation,
     )
     try:
         challenge = store.add(pending)
@@ -713,7 +754,11 @@ def login_for_access_token(
 
     # Authenticate user
     try:
-        user = authenticate_user(username, password, password_hasher, db)
+        # Read before the password is verified, so a security change that commits while the hash runs outdates the
+        # proof this sign-in creates. An unknown username is refused by the verification, so its 0 is never stamped.
+        known = users_integration.get_user_by_username(username, db)
+        security_generation = security_generation_integration.current_generation(known.id, db) if known else 0
+        user = authenticate_user(known, username, password, password_hasher, db)
         if not user.active:
             # Answered and counted exactly like a wrong password, so the response never confirms that the
             # password of a deactivated or pending account is right.
@@ -755,6 +800,7 @@ def login_for_access_token(
                     code_challenge=code_challenge,
                     code_challenge_method=code_challenge_method,
                     client_network=core_network.client_network(ip_address),
+                    security_generation=security_generation,
                 )
             )
         except lockout_contracts.AuthSecurityStoreUnavailableError as err:
@@ -779,7 +825,14 @@ def login_for_access_token(
     if credentials_integration.is_password_change_required(user.id, db):
         return auth_schema.AuthOutcome(
             _require_password_change(
-                user, client_type, code_challenge, code_challenge_method, password_change_store, db, mfa=False
+                user,
+                client_type,
+                code_challenge,
+                code_challenge_method,
+                password_change_store,
+                db,
+                mfa=False,
+                security_generation=security_generation,
             )
         )
 
@@ -795,6 +848,7 @@ def login_for_access_token(
         db,
         mfa=False,
         device_id=device_id,
+        security_generation=security_generation,
     )
     return auth_schema.AuthOutcome(finished.body, finished.refresh_cookie, finished.device_id)
 
@@ -862,12 +916,18 @@ def verify_mfa_and_login(
         _refuse_mfa_challenge(login_audit_actions.LoginFailureReason.MFA_CHALLENGE_NETWORK_MISMATCH, pending.user_id)
 
     user_id = pending.user_id
+    # Looked up before the generation is locked: a deleted user's generation row went with it, so locking would
+    # have to create one for a user that no longer exists.
     user = users_integration.get_user(user_id, db)
     if not user:
         logger.warning(
             "User ID <user_id> not found during MFA verification", extra=core_logger.context(user_id=user_id)
         )
         raise core_exceptions.UnauthenticatedError("Unable to authenticate", scheme="Bearer")
+    # Checked before any code is tried, so a challenge that a security change outdated cannot be used to guess codes.
+    # The lock it takes lasts until the sign-in below commits.
+    if not security_generation_integration.matches_locked(user_id, pending.security_generation, db):
+        _end_outdated_mfa_challenge(mfa_request.mfa_challenge, user_id, pending_mfa_store)
 
     password_method = login_audit_actions.LoginMethod.PASSWORD
     refuse_while_mfa_locked_out(user.username, user_id, password_method, pending_mfa_store)
@@ -906,6 +966,7 @@ def verify_mfa_and_login(
                 password_change_store,
                 db,
                 mfa=True,
+                security_generation=pending.security_generation,
             )
         )
 
@@ -921,6 +982,7 @@ def verify_mfa_and_login(
         db,
         mfa=True,
         device_id=device_id,
+        security_generation=pending.security_generation,
     )
     return auth_schema.AuthOutcome(finished.body, finished.refresh_cookie, finished.device_id)
 

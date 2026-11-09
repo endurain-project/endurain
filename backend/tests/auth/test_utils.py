@@ -58,7 +58,7 @@ class TestAuthenticateUser:
             ),
         ):
             # Act
-            result = auth_utils.authenticate_user(username, password, password_hasher, mock_db)
+            result = auth_utils.authenticate_user(mock_user, username, password, password_hasher, mock_db)
 
             # Assert
             assert result == mock_user
@@ -67,7 +67,7 @@ class TestAuthenticateUser:
         """Test authentication with invalid username raises 401."""
         with patch("modules.auth.authentication.service.users_integration.get_user_by_username", return_value=None):
             with pytest.raises(core_exceptions.DomainError) as exc_info:
-                auth_utils.authenticate_user("nonexistent", "password", password_hasher, mock_db)
+                auth_utils.authenticate_user(None, "nonexistent", "password", password_hasher, mock_db)
             assert exc_info.value.status_code == 401
             assert "Unable to authenticate" in exc_info.value.detail
 
@@ -91,7 +91,7 @@ class TestAuthenticateUser:
             ),
         ):
             with pytest.raises(core_exceptions.DomainError) as exc_info:
-                auth_utils.authenticate_user(username, wrong_password, password_hasher, mock_db)
+                auth_utils.authenticate_user(mock_user, username, wrong_password, password_hasher, mock_db)
             assert exc_info.value.status_code == 401
             assert "Unable to authenticate" in exc_info.value.detail
 
@@ -111,7 +111,7 @@ class TestAuthenticateUser:
             patch("modules.auth.authentication.service.credentials_integration.set_local_password_hash") as mock_edit,
         ):
             with pytest.raises(core_exceptions.UnauthenticatedError):
-                auth_utils.authenticate_user("testuser", "TestPassword123!", password_hasher, mock_db)
+                auth_utils.authenticate_user(mock_user, "testuser", "TestPassword123!", password_hasher, mock_db)
 
             mock_edit.assert_not_called()
 
@@ -123,7 +123,7 @@ class TestAuthenticateUser:
             patch("modules.auth.authentication.service.credentials_integration.get_credential", return_value=None),
         ):
             with pytest.raises(core_exceptions.DomainError) as exc_info:
-                auth_utils.authenticate_user("ssouser", "anypass", password_hasher, mock_db)
+                auth_utils.authenticate_user(mock_user, "ssouser", "anypass", password_hasher, mock_db)
             assert exc_info.value.status_code == 401
             assert "Unable to authenticate" in exc_info.value.detail
 
@@ -600,6 +600,7 @@ class TestCreateMobilePkceSessionResponse:
                 code_challenge_method="plain",
                 password_hasher=password_hasher,
                 db=mock_db,
+                security_generation=0,
             )
         assert exc_info.value.status_code == 400
 
@@ -623,6 +624,7 @@ class TestCreateMobilePkceSessionResponse:
                 code_challenge_method="S256",
                 password_hasher=password_hasher,
                 db=mock_db,
+                security_generation=0,
             )
 
         assert isinstance(result, auth_schema.MobileSessionRead)

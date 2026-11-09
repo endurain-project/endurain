@@ -26,6 +26,8 @@ class PendingPasswordChange(BaseModel):
         code_challenge: The PKCE code challenge the sign-in carried, if any.
         code_challenge_method: The PKCE challenge method the sign-in carried, if any.
         mfa: Whether a second factor was verified for the sign-in, for its audit row.
+        security_generation: The account's security generation when the challenge was issued; the change is accepted
+            only while it is still current. An entry written without one is refused.
     """
 
     model_config = ConfigDict(extra="forbid", frozen=True)
@@ -35,6 +37,7 @@ class PendingPasswordChange(BaseModel):
     code_challenge: StrictStr | None
     code_challenge_method: StrictStr | None
     mfa: StrictBool
+    security_generation: StrictInt | None = None
 
 
 @runtime_checkable
