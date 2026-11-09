@@ -161,6 +161,7 @@
       "createSuccess": "Användare tillagd",
       "updateSuccess": "Användare uppdaterad",
       "conflict": "Det användarnamnet eller den e-postadressen används redan",
+      "lastAdministrator": "Den enda administratören kan inte degraderas eller inaktiveras",
       "saveError": "Kunde inte spara användaren. Försök igen."
     },
     "delete": {
@@ -793,7 +794,8 @@
       "dialogDescription": "Det här raderar ditt konto och alla dina data permanent. Bekräfta din identitet för att fortsätta.",
       "confirm": "Radera mitt konto",
       "error": "Kunde inte radera ditt konto. Försök igen.",
-      "onlyAdminError": "Du är den enda administratören. Gör en annan användare till administratör innan du raderar ditt konto."
+      "onlyAdminError": "Du är den enda administratören. Gör en annan användare till administratör innan du raderar ditt konto.",
+      "pendingError": "Radering av det här kontot pågår redan."
     },
     "apiKeys": {
       "title": "API-nycklar",

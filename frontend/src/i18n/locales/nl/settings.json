@@ -161,6 +161,7 @@
       "createSuccess": "Gebruiker toegevoegd",
       "updateSuccess": "Gebruiker bijgewerkt",
       "conflict": "Die gebruikersnaam of dat e-mailadres is al in gebruik",
+      "lastAdministrator": "De enige beheerder kan niet worden gedegradeerd of gedeactiveerd",
       "saveError": "Gebruiker kon niet worden opgeslagen. Probeer het opnieuw."
     },
     "delete": {
@@ -793,7 +794,8 @@
       "dialogDescription": "Dit verwijdert je account en al je gegevens definitief. Bevestig je identiteit om door te gaan.",
       "confirm": "Mijn account verwijderen",
       "error": "Je account kon niet worden verwijderd. Probeer het opnieuw.",
-      "onlyAdminError": "Je bent de enige beheerder. Maak eerst een andere gebruiker beheerder voordat je je account verwijdert."
+      "onlyAdminError": "Je bent de enige beheerder. Maak eerst een andere gebruiker beheerder voordat je je account verwijdert.",
+      "pendingError": "Het verwijderen van dit account is al bezig."
     },
     "apiKeys": {
       "title": "API-sleutels",

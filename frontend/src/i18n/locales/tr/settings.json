@@ -161,6 +161,7 @@
       "createSuccess": "Kullanıcı eklendi",
       "updateSuccess": "Kullanıcı güncellendi",
       "conflict": "Bu kullanıcı adı veya e-posta zaten kullanılıyor",
+      "lastAdministrator": "Tek yönetici düşürülemez veya devre dışı bırakılamaz",
       "saveError": "Kullanıcı kaydedilemedi. Lütfen tekrar deneyin."
     },
     "delete": {
@@ -793,7 +794,8 @@
       "dialogDescription": "Bu işlem hesabınızı ve tüm verilerinizi kalıcı olarak siler. Devam etmek için kimliğinizi doğrulayın.",
       "confirm": "Hesabımı sil",
       "error": "Hesabınız silinemedi. Lütfen tekrar deneyin.",
-      "onlyAdminError": "Tek yönetici sizsiniz. Hesabınızı silmeden önce başka bir kullanıcıyı yönetici yapın."
+      "onlyAdminError": "Tek yönetici sizsiniz. Hesabınızı silmeden önce başka bir kullanıcıyı yönetici yapın.",
+      "pendingError": "Bu hesabın silinmesi zaten devam ediyor."
     },
     "apiKeys": {
       "title": "API anahtarları",

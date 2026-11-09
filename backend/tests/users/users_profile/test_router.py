@@ -1366,13 +1366,14 @@ class TestDeleteMyAccount:
 
     @patch("modules.users.users_profile.router.profile_service.delete_account")
     def test_the_only_administrator_is_refused(self, mock_delete, profile_client, mock_auth_services):
-        mock_delete.side_effect = core_exceptions.ConflictError("The only administrator cannot be deleted")
+        mock_delete.side_effect = core_exceptions.LastAdministratorError("The only administrator cannot be deleted")
 
         response = profile_client.post(
             PREFIX + "/delete-account", json={"step_up": {"current_password": "secret-password"}}
         )
 
         assert response.status_code == 409
+        assert response.json()["type"] == "urn:endurain:error:last-administrator"
 
     @patch("modules.users.users_profile.router.profile_service.delete_account")
     def test_step_up_failure_is_returned(self, mock_delete, profile_client):

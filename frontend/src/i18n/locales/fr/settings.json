@@ -161,6 +161,7 @@
       "createSuccess": "Utilisateur ajouté",
       "updateSuccess": "Utilisateur mis à jour",
       "conflict": "Ce nom d'utilisateur ou cet e-mail est déjà utilisé",
+      "lastAdministrator": "Le seul administrateur ne peut pas être rétrogradé ni désactivé",
       "saveError": "Impossible d'enregistrer l'utilisateur. Veuillez réessayer."
     },
     "delete": {
@@ -793,7 +794,8 @@
       "dialogDescription": "Cela supprime définitivement votre compte et toutes vos données. Confirmez votre identité pour continuer.",
       "confirm": "Supprimer mon compte",
       "error": "Impossible de supprimer votre compte. Veuillez réessayer.",
-      "onlyAdminError": "Vous êtes le seul administrateur. Nommez un autre utilisateur administrateur avant de supprimer votre compte."
+      "onlyAdminError": "Vous êtes le seul administrateur. Nommez un autre utilisateur administrateur avant de supprimer votre compte.",
+      "pendingError": "La suppression de ce compte est déjà en cours."
     },
     "apiKeys": {
       "title": "Clés API",

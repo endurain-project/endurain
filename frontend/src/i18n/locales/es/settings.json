@@ -161,6 +161,7 @@
       "createSuccess": "Usuario añadido",
       "updateSuccess": "Usuario actualizado",
       "conflict": "Ese nombre de usuario o correo ya está en uso",
+      "lastAdministrator": "El único administrador no puede ser degradado ni desactivado",
       "saveError": "No se pudo guardar el usuario. Inténtalo de nuevo."
     },
     "delete": {
@@ -793,7 +794,8 @@
       "dialogDescription": "Esto elimina de forma permanente tu cuenta y todos tus datos. Confirma tu identidad para continuar.",
       "confirm": "Eliminar mi cuenta",
       "error": "No se pudo eliminar tu cuenta. Inténtalo de nuevo.",
-      "onlyAdminError": "Eres el único administrador. Haz administrador a otro usuario antes de eliminar tu cuenta."
+      "onlyAdminError": "Eres el único administrador. Haz administrador a otro usuario antes de eliminar tu cuenta.",
+      "pendingError": "Ya hay una eliminación de esta cuenta en curso."
     },
     "apiKeys": {
       "title": "Claves API",

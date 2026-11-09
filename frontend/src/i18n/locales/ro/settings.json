@@ -161,6 +161,7 @@
       "createSuccess": "Utilizator adăugat",
       "updateSuccess": "Utilizator actualizat",
       "conflict": "Acel nume de utilizator sau e-mail este deja folosit",
+      "lastAdministrator": "Singurul administrator nu poate fi retrogradat sau dezactivat",
       "saveError": "Nu am putut salva utilizatorul. Te rugăm să încerci din nou."
     },
     "delete": {
@@ -793,7 +794,8 @@
       "dialogDescription": "Aceasta șterge definitiv contul și toate datele tale. Confirmă-ți identitatea pentru a continua.",
       "confirm": "Șterge-mi contul",
       "error": "Nu am putut șterge contul. Te rugăm să încerci din nou.",
-      "onlyAdminError": "Ești singurul administrator. Fă un alt utilizator administrator înainte de a-ți șterge contul."
+      "onlyAdminError": "Ești singurul administrator. Fă un alt utilizator administrator înainte de a-ți șterge contul.",
+      "pendingError": "Ștergerea acestui cont este deja în curs."
     },
     "apiKeys": {
       "title": "Chei API",

@@ -1427,7 +1427,7 @@ class TestLastAdminIsProtected:
         mock_crud.get_user_by_id.return_value = admin
         mock_crud.lock_active_admin_ids.return_value = [1]
 
-        with pytest.raises(core_exceptions.ConflictError, match=action):
+        with pytest.raises(core_exceptions.LastAdministratorError, match=action):
             users_service.stage_user_edit(1, _edit(1, **{"access_type": "admin", **edit}), mock_db, if_match="*")
 
         mock_crud.update_user.assert_not_called()

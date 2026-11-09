@@ -161,6 +161,7 @@
       "createSuccess": "Felhasználó hozzáadva",
       "updateSuccess": "Felhasználó frissítve",
       "conflict": "Ez a felhasználónév vagy e-mail-cím már használatban van",
+      "lastAdministrator": "Az egyetlen rendszergazda nem fokozható le és nem inaktiválható",
       "saveError": "Nem sikerült menteni a felhasználót. Kérjük, próbáld újra."
     },
     "delete": {
@@ -793,7 +794,8 @@
       "dialogDescription": "Ez véglegesen törli a fiókodat és az összes adatodat. A folytatáshoz erősítsd meg a személyazonosságodat.",
       "confirm": "Fiókom törlése",
       "error": "Nem sikerült törölni a fiókodat. Kérjük, próbáld újra.",
-      "onlyAdminError": "Te vagy az egyetlen rendszergazda. A fiókod törlése előtt tegyél rendszergazdává egy másik felhasználót."
+      "onlyAdminError": "Te vagy az egyetlen rendszergazda. A fiókod törlése előtt tegyél rendszergazdává egy másik felhasználót.",
+      "pendingError": "A fiók törlése már folyamatban van."
     },
     "apiKeys": {
       "title": "API-kulcsok",

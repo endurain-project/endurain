@@ -161,6 +161,7 @@
       "createSuccess": "Uporabnik dodan",
       "updateSuccess": "Uporabnik posodobljen",
       "conflict": "To uporabniško ime ali e-pošta je že zasedena",
+      "lastAdministrator": "Edinega skrbnika ni mogoče degradirati ali deaktivirati",
       "saveError": "Uporabnika ni bilo mogoče shraniti. Prosim, poskusi znova."
     },
     "delete": {
@@ -793,7 +794,8 @@
       "dialogDescription": "S tem se trajno izbrišeta tvoj račun in vsi podatki. Za nadaljevanje potrdi svojo identiteto.",
       "confirm": "Izbriši moj račun",
       "error": "Tvojega računa ni bilo mogoče izbrisati. Poskusi znova.",
-      "onlyAdminError": "Si edini skrbnik. Pred brisanjem računa naredi drugega uporabnika za skrbnika."
+      "onlyAdminError": "Si edini skrbnik. Pred brisanjem računa naredi drugega uporabnika za skrbnika.",
+      "pendingError": "Brisanje tega računa je že v teku."
     },
     "apiKeys": {
       "title": "API ključi",

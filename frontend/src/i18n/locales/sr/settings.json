@@ -161,6 +161,7 @@
       "createSuccess": "Korisnik je dodat",
       "updateSuccess": "Korisnik je ažuriran",
       "conflict": "To korisničko ime ili email su već u upotrebi",
+      "lastAdministrator": "Jedini administrator ne može biti degradiran ili deaktiviran",
       "saveError": "Nije moguće sačuvati korisnika. Pokušajte ponovo."
     },
     "delete": {
@@ -793,7 +794,8 @@
       "dialogDescription": "Ovo trajno briše vaš nalog i sve vaše podatke. Potvrdite svoj identitet za nastavak.",
       "confirm": "Obriši moj nalog",
       "error": "Nalog nije mogao da se obriše. Pokušajte ponovo.",
-      "onlyAdminError": "Vi ste jedini administrator. Pre brisanja naloga postavite drugog korisnika za administratora."
+      "onlyAdminError": "Vi ste jedini administrator. Pre brisanja naloga postavite drugog korisnika za administratora.",
+      "pendingError": "Brisanje ovog naloga je već u toku."
     },
     "apiKeys": {
       "title": "API ključevi",

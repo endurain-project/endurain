@@ -161,6 +161,7 @@
       "createSuccess": "Käyttäjä lisätty",
       "updateSuccess": "Käyttäjä päivitetty",
       "conflict": "Tämä käyttäjänimi tai sähköposti on jo käytössä",
+      "lastAdministrator": "Ainoaa ylläpitäjää ei voi alentaa tai poistaa käytöstä",
       "saveError": "Käyttäjää ei voitu tallentaa. Yritä uudelleen."
     },
     "delete": {
@@ -793,7 +794,8 @@
       "dialogDescription": "Tämä poistaa tilisi ja kaikki tietosi pysyvästi. Vahvista henkilöllisyytesi jatkaaksesi.",
       "confirm": "Poista tilini",
       "error": "Tilin poistaminen epäonnistui. Yritä uudelleen.",
-      "onlyAdminError": "Olet ainoa ylläpitäjä. Tee toisesta käyttäjästä ylläpitäjä ennen tilisi poistamista."
+      "onlyAdminError": "Olet ainoa ylläpitäjä. Tee toisesta käyttäjästä ylläpitäjä ennen tilisi poistamista.",
+      "pendingError": "Tämän tilin poistaminen on jo käynnissä."
     },
     "apiKeys": {
       "title": "API-avaimet",

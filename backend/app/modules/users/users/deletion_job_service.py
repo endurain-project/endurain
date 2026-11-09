@@ -97,7 +97,8 @@ def request_deletion(
     Raises:
         NotFoundError: If the user does not exist.
         PreconditionFailedError: If the user changed since the client read it.
-        ConflictError: If the user is the only administrator, or a deletion is already pending.
+        LastAdministratorError: If the user is the only administrator.
+        ConflictError: If a deletion is already pending.
         PoolFullError: When there is no durable worker and the in-process pool is full.
     """
     users_service.require_deletable_user(user_id, db, if_match=if_match)
@@ -163,7 +164,8 @@ def request_deletion_by_administrator(
         StepUpFailedError: If the administrator's step-up verification fails.
         NotFoundError: If the user does not exist.
         PreconditionFailedError: If the user changed since the client read it.
-        ConflictError: If the user is the only administrator, or a deletion is already pending.
+        LastAdministratorError: If the user is the only administrator.
+        ConflictError: If a deletion is already pending.
         PoolFullError: When there is no durable worker and the in-process pool is full.
     """
     users_service.require_other_user(user_id, actor_id, "delete your account")

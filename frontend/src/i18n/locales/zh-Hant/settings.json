@@ -161,6 +161,7 @@
       "createSuccess": "使用者已新增",
       "updateSuccess": "使用者已更新",
       "conflict": "該使用者名稱或電子郵件已被使用",
+      "lastAdministrator": "唯一的管理員無法被降級或停用",
       "saveError": "無法儲存使用者，請再試一次。"
     },
     "delete": {
@@ -793,7 +794,8 @@
       "dialogDescription": "這將永久刪除您的帳號及所有資料。請確認您的身分以繼續。",
       "confirm": "刪除我的帳號",
       "error": "無法刪除您的帳號，請再試一次。",
-      "onlyAdminError": "您是唯一的管理員。刪除帳號前，請先將其他使用者設為管理員。"
+      "onlyAdminError": "您是唯一的管理員。刪除帳號前，請先將其他使用者設為管理員。",
+      "pendingError": "此帳號的刪除已在進行中。"
     },
     "apiKeys": {
       "title": "API 金鑰",

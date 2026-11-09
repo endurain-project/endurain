@@ -162,7 +162,8 @@
       "close": "Close",
       "createSuccess": "User added",
       "updateSuccess": "User updated",
-      "conflict": "That username is already in use",
+      "conflict": "That username or email is already in use",
+      "lastAdministrator": "The only administrator cannot be demoted or deactivated",
       "saveError": "Couldn't save the user. Please try again.",
       "stepUpTitle": "Confirm your identity",
       "stepUpDescription": "Changing the email, access type or active status of {username} signs them out everywhere. Confirm it is you to continue.",
@@ -835,7 +836,8 @@
       "dialogDescription": "This permanently deletes your account and all of your data. Confirm your identity to continue.",
       "confirm": "Delete my account",
       "error": "Couldn't delete your account. Please try again.",
-      "onlyAdminError": "You are the only administrator. Make another user an administrator before deleting your account."
+      "onlyAdminError": "You are the only administrator. Make another user an administrator before deleting your account.",
+      "pendingError": "A deletion of this account is already in progress."
     },
     "apiKeys": {
       "title": "API keys",

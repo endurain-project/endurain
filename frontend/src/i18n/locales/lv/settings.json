@@ -161,6 +161,7 @@
       "createSuccess": "Lietotājs pievienots",
       "updateSuccess": "Lietotājs atjaunināts",
       "conflict": "Šis lietotājvārds vai e-pasts jau tiek izmantots",
+      "lastAdministrator": "Vienīgo administratoru nevar pazemināt vai deaktivizēt",
       "saveError": "Neizdevās saglabāt lietotāju. Lūdzu, mēģiniet vēlreiz."
     },
     "delete": {
@@ -793,7 +794,8 @@
       "dialogDescription": "Tas neatgriezeniski izdzēš jūsu kontu un visus datus. Lai turpinātu, apstipriniet savu identitāti.",
       "confirm": "Dzēst manu kontu",
       "error": "Neizdevās izdzēst jūsu kontu. Lūdzu, mēģiniet vēlreiz.",
-      "onlyAdminError": "Jūs esat vienīgais administrators. Pirms konta dzēšanas piešķiriet administratora tiesības citam lietotājam."
+      "onlyAdminError": "Jūs esat vienīgais administrators. Pirms konta dzēšanas piešķiriet administratora tiesības citam lietotājam.",
+      "pendingError": "Šī konta dzēšana jau norisinās."
     },
     "apiKeys": {
       "title": "API atslēgas",

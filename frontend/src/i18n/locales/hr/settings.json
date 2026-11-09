@@ -161,6 +161,7 @@
       "createSuccess": "Korisnik je dodan",
       "updateSuccess": "Korisnik je ažuriran",
       "conflict": "To korisničko ime ili e-pošta se već koristi",
+      "lastAdministrator": "Jedini administrator ne može biti degradiran ni deaktiviran",
       "saveError": "Nije moguće spremiti korisnika. Pokušajte ponovno."
     },
     "delete": {
@@ -793,7 +794,8 @@
       "dialogDescription": "Ovo trajno briše vaš račun i sve vaše podatke. Potvrdite svoj identitet za nastavak.",
       "confirm": "Izbriši moj račun",
       "error": "Račun nije bilo moguće izbrisati. Pokušajte ponovno.",
-      "onlyAdminError": "Vi ste jedini administrator. Prije brisanja računa postavite drugog korisnika za administratora."
+      "onlyAdminError": "Vi ste jedini administrator. Prije brisanja računa postavite drugog korisnika za administratora.",
+      "pendingError": "Brisanje ovog računa već je u tijeku."
     },
     "apiKeys": {
       "title": "API ključevi",

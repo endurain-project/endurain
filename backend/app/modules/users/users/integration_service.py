@@ -456,7 +456,8 @@ def request_user_deletion(
 
     Raises:
         NotFoundError: If the user does not exist.
-        ConflictError: If the user is the only administrator, or a deletion is already pending.
+        LastAdministratorError: If the user is the only administrator.
+        ConflictError: If a deletion is already pending.
     """
     # The account owner confirmed with step-up and names no version, so the wildcard overwrites whatever is there.
     return users_deletion_job_service.request_deletion(

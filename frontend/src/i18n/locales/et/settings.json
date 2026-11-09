@@ -161,6 +161,7 @@
       "createSuccess": "Kasutaja lisatud",
       "updateSuccess": "Kasutaja uuendatud",
       "conflict": "See kasutajanimi või e-post on juba kasutusel",
+      "lastAdministrator": "Ainsat administraatorit ei saa alandada ega deaktiveerida",
       "saveError": "Kasutajat ei õnnestunud salvestada. Palun proovi uuesti."
     },
     "delete": {
@@ -793,7 +794,8 @@
       "dialogDescription": "See kustutab jäädavalt sinu konto ja kõik andmed. Jätkamiseks kinnita oma identiteet.",
       "confirm": "Kustuta minu konto",
       "error": "Konto kustutamine ebaõnnestus. Palun proovi uuesti.",
-      "onlyAdminError": "Sa oled ainus administraator. Enne konto kustutamist tee mõni teine kasutaja administraatoriks."
+      "onlyAdminError": "Sa oled ainus administraator. Enne konto kustutamist tee mõni teine kasutaja administraatoriks.",
+      "pendingError": "Selle konto kustutamine on juba pooleli."
     },
     "apiKeys": {
       "title": "API-võtmed",

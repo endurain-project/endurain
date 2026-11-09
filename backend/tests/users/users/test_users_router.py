@@ -385,6 +385,19 @@ class TestEditUserNeedsIfMatch:
 
 
 class TestEditUser:
+    @patch(f"{_SERVICE}.edit_user")
+    def test_demoting_the_only_administrator_is_a_last_administrator_conflict(self, mock_edit, client):
+        mock_edit.side_effect = core_exceptions.LastAdministratorError("The only administrator cannot be demoted")
+
+        response = client.patch(
+            "/users/1",
+            json={"name": "U", "username": "u", "email": "u@example.com", "active": True, "access_type": "regular"},
+            headers={"If-Match": '"1"'},
+        )
+
+        assert response.status_code == 409
+        assert response.json()["type"] == "urn:endurain:error:last-administrator"
+
     @pytest.mark.parametrize(
         "read_only",
         [{"id": 1}, {"external_auth_count": 2}, {"mfa_enabled": True}, {"pending_admin_approval": True}],
@@ -582,11 +595,12 @@ class TestDeleteUser:
 
     @patch("modules.users.users.router.users_deletion_job_service.request_deletion_by_administrator")
     def test_the_only_administrator_is_refused(self, mock_request, client):
-        mock_request.side_effect = core_exceptions.ConflictError("The only administrator cannot be deleted")
+        mock_request.side_effect = core_exceptions.LastAdministratorError("The only administrator cannot be deleted")
 
-        assert (
-            client.post("/users/1/delete", json={"step_up": _STEP_UP}, headers={"If-Match": '"1"'}).status_code == 409
-        )
+        response = client.post("/users/1/delete", json={"step_up": _STEP_UP}, headers={"If-Match": '"1"'})
+
+        assert response.status_code == 409
+        assert response.json()["type"] == "urn:endurain:error:last-administrator"
 
     def test_the_delete_verb_is_gone(self, client):
         assert client.delete("/users/1", headers={"If-Match": '"1"'}).status_code == 405

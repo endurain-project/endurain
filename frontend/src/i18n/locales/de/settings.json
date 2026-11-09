@@ -161,6 +161,7 @@
       "createSuccess": "Benutzer hinzugefügt",
       "updateSuccess": "Benutzer aktualisiert",
       "conflict": "Dieser Benutzername oder diese E-Mail wird bereits verwendet",
+      "lastAdministrator": "Der einzige Administrator kann nicht herabgestuft oder deaktiviert werden",
       "saveError": "Benutzer konnte nicht gespeichert werden. Bitte versuche es erneut."
     },
     "delete": {
@@ -793,7 +794,8 @@
       "dialogDescription": "Dadurch werden dein Konto und alle deine Daten dauerhaft gelöscht. Bestätige deine Identität, um fortzufahren.",
       "confirm": "Mein Konto löschen",
       "error": "Dein Konto konnte nicht gelöscht werden. Bitte versuche es erneut.",
-      "onlyAdminError": "Du bist der einzige Administrator. Mache einen anderen Benutzer zum Administrator, bevor du dein Konto löschst."
+      "onlyAdminError": "Du bist der einzige Administrator. Mache einen anderen Benutzer zum Administrator, bevor du dein Konto löschst.",
+      "pendingError": "Das Löschen dieses Kontos läuft bereits."
     },
     "apiKeys": {
       "title": "API-Schlüssel",

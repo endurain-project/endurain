@@ -161,6 +161,7 @@
       "createSuccess": "Bruker lagt til",
       "updateSuccess": "Bruker oppdatert",
       "conflict": "Det brukernavnet eller den e-posten er allerede i bruk",
+      "lastAdministrator": "Den eneste administratoren kan ikke degraderes eller deaktiveres",
       "saveError": "Kunne ikke lagre brukeren. Vennligst prøv igjen."
     },
     "delete": {
@@ -793,7 +794,8 @@
       "dialogDescription": "Dette sletter kontoen din og alle dataene dine permanent. Bekreft identiteten din for å fortsette.",
       "confirm": "Slett kontoen min",
       "error": "Kunne ikke slette kontoen din. Vennligst prøv igjen.",
-      "onlyAdminError": "Du er den eneste administratoren. Gjør en annen bruker til administrator før du sletter kontoen din."
+      "onlyAdminError": "Du er den eneste administratoren. Gjør en annen bruker til administrator før du sletter kontoen din.",
+      "pendingError": "Sletting av denne kontoen pågår allerede."
     },
     "apiKeys": {
       "title": "API-nøkler",

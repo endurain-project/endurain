@@ -161,6 +161,7 @@
       "createSuccess": "Naudotojas pridėtas",
       "updateSuccess": "Naudotojas atnaujintas",
       "conflict": "Šis naudotojo vardas arba el. paštas jau naudojamas",
+      "lastAdministrator": "Vienintelio administratoriaus negalima pažeminti ar išjungti",
       "saveError": "Nepavyko išsaugoti naudotojo. Bandykite dar kartą."
     },
     "delete": {
@@ -793,7 +794,8 @@
       "dialogDescription": "Tai visam laikui ištrins jūsų paskyrą ir visus duomenis. Norėdami tęsti, patvirtinkite savo tapatybę.",
       "confirm": "Ištrinti mano paskyrą",
       "error": "Nepavyko ištrinti paskyros. Bandykite dar kartą.",
-      "onlyAdminError": "Esate vienintelis administratorius. Prieš ištrindami paskyrą, paskirkite administratoriumi kitą naudotoją."
+      "onlyAdminError": "Esate vienintelis administratorius. Prieš ištrindami paskyrą, paskirkite administratoriumi kitą naudotoją.",
+      "pendingError": "Šios paskyros ištrynimas jau vykdomas."
     },
     "apiKeys": {
       "title": "API raktai",

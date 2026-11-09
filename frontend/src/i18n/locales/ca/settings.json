@@ -161,6 +161,7 @@
       "createSuccess": "Usuari afegit",
       "updateSuccess": "Usuari actualitzat",
       "conflict": "Aquest nom d'usuari o correu ja està en ús",
+      "lastAdministrator": "L'únic administrador no es pot degradar ni desactivar",
       "saveError": "No s'ha pogut desar l'usuari. Torna-ho a intentar."
     },
     "delete": {
@@ -793,7 +794,8 @@
       "dialogDescription": "Això elimina de manera permanent el teu compte i totes les teves dades. Confirma la teva identitat per continuar.",
       "confirm": "Elimina el meu compte",
       "error": "No s'ha pogut eliminar el teu compte. Torna-ho a intentar.",
-      "onlyAdminError": "Ets l'únic administrador. Fes administrador un altre usuari abans d'eliminar el teu compte."
+      "onlyAdminError": "Ets l'únic administrador. Fes administrador un altre usuari abans d'eliminar el teu compte.",
+      "pendingError": "Ja hi ha una eliminació d'aquest compte en curs."
     },
     "apiKeys": {
       "title": "Claus API",

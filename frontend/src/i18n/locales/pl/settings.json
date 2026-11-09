@@ -161,6 +161,7 @@
       "createSuccess": "Dodano użytkownika",
       "updateSuccess": "Zaktualizowano użytkownika",
       "conflict": "Ta nazwa użytkownika lub e-mail są już używane",
+      "lastAdministrator": "Jedynego administratora nie można zdegradować ani dezaktywować",
       "saveError": "Nie udało się zapisać użytkownika. Spróbuj ponownie."
     },
     "delete": {
@@ -793,7 +794,8 @@
       "dialogDescription": "To trwale usuwa Twoje konto i wszystkie dane. Potwierdź swoją tożsamość, aby kontynuować.",
       "confirm": "Usuń moje konto",
       "error": "Nie udało się usunąć Twojego konta. Spróbuj ponownie.",
-      "onlyAdminError": "Jesteś jedynym administratorem. Przed usunięciem konta nadaj uprawnienia administratora innemu użytkownikowi."
+      "onlyAdminError": "Jesteś jedynym administratorem. Przed usunięciem konta nadaj uprawnienia administratora innemu użytkownikowi.",
+      "pendingError": "Usuwanie tego konta jest już w toku."
     },
     "apiKeys": {
       "title": "Klucze API",

@@ -161,6 +161,7 @@
       "createSuccess": "Uživatel přidán",
       "updateSuccess": "Uživatel aktualizován",
       "conflict": "Toto uživatelské jméno nebo e-mail se již používá",
+      "lastAdministrator": "Jediného správce nelze degradovat ani deaktivovat",
       "saveError": "Nepodařilo se uložit uživatele. Zkuste to prosím znovu."
     },
     "delete": {
@@ -793,7 +794,8 @@
       "dialogDescription": "Tím se trvale smaže váš účet a všechna data. Pro pokračování potvrďte svou totožnost.",
       "confirm": "Smazat můj účet",
       "error": "Váš účet se nepodařilo smazat. Zkuste to prosím znovu.",
-      "onlyAdminError": "Jste jediný správce. Před smazáním účtu udělte práva správce jinému uživateli."
+      "onlyAdminError": "Jste jediný správce. Před smazáním účtu udělte práva správce jinému uživateli.",
+      "pendingError": "Smazání tohoto účtu již probíhá."
     },
     "apiKeys": {
       "title": "API klíče",

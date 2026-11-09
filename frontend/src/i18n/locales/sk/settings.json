@@ -161,6 +161,7 @@
       "createSuccess": "Používateľ pridaný",
       "updateSuccess": "Používateľ aktualizovaný",
       "conflict": "Toto používateľské meno alebo e-mail sa už používa",
+      "lastAdministrator": "Jediného správcu nemožno degradovať ani deaktivovať",
       "saveError": "Používateľa sa nepodarilo uložiť. Skúste to znova."
     },
     "delete": {
@@ -793,7 +794,8 @@
       "dialogDescription": "Tým sa natrvalo odstráni váš účet a všetky údaje. Ak chcete pokračovať, potvrďte svoju totožnosť.",
       "confirm": "Odstrániť môj účet",
       "error": "Váš účet sa nepodarilo odstrániť. Skúste to prosím znova.",
-      "onlyAdminError": "Ste jediný správca. Pred odstránením účtu udeľte práva správcu inému používateľovi."
+      "onlyAdminError": "Ste jediný správca. Pred odstránením účtu udeľte práva správcu inému používateľovi.",
+      "pendingError": "Odstránenie tohto účtu už prebieha."
     },
     "apiKeys": {
       "title": "API kľúče",

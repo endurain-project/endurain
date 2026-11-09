@@ -488,7 +488,8 @@ def delete_user(
         PermissionDeniedError: If the administrator targets their own account.
         NotFoundError: If the user does not exist.
         PreconditionFailedError: If the user changed since the client read it.
-        ConflictError: If the user is the only administrator, or a deletion is already pending.
+        LastAdministratorError: If the user is the only administrator.
+        ConflictError: If a deletion is already pending.
     """
     deletion = users_deletion_job_service.request_deletion_by_administrator(
         user_id, token_user_id, token_session_id, body.step_up, step_up_store, states, storage, db, if_match=if_match

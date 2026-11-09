@@ -161,6 +161,7 @@
       "createSuccess": "Usuario engadido",
       "updateSuccess": "Usuario actualizado",
       "conflict": "Ese nome de usuario ou correo electrónico xa está en uso",
+      "lastAdministrator": "O único administrador non pode ser degradado nin desactivado",
       "saveError": "Non se puido gardar o usuario. Por favor, téntao de novo."
     },
     "delete": {
@@ -793,7 +794,8 @@
       "dialogDescription": "Isto elimina de forma permanente a túa conta e todos os teus datos. Confirma a túa identidade para continuar.",
       "confirm": "Eliminar a miña conta",
       "error": "Non se puido eliminar a túa conta. Por favor, téntao de novo.",
-      "onlyAdminError": "Es o único administrador. Converte a outro usuario en administrador antes de eliminar a túa conta."
+      "onlyAdminError": "Es o único administrador. Converte a outro usuario en administrador antes de eliminar a túa conta.",
+      "pendingError": "Xa hai unha eliminación desta conta en curso."
     },
     "apiKeys": {
       "title": "Claves de API",

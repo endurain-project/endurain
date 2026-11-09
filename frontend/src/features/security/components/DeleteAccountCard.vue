@@ -13,6 +13,7 @@ import { useToasts } from '@/composables/useToasts'
 import { HttpError } from '@/services/http'
 import { isStepUpFailed, useIdpReauthChallenge } from '@/features/security/composables/useIdpStepUp'
 import { useDeleteAccountMutation } from '@/features/security/composables/useSecurity'
+import { LAST_ADMINISTRATOR_TYPE } from '@/features/security/services/security'
 
 const props = defineProps<{
   /** The account's username; the user types it to confirm the deletion. */
@@ -48,8 +49,10 @@ function onConfirm(input: StepUpInput): void {
       if (handleIdpChallenge(error)) {
         return
       }
-      if (error instanceof HttpError && error.status === 409) {
+      if (error instanceof HttpError && error.type === LAST_ADMINISTRATOR_TYPE) {
         toasts.error(t('settings.security.deleteAccount.onlyAdminError'))
+      } else if (error instanceof HttpError && error.status === 409) {
+        toasts.error(t('settings.security.deleteAccount.pendingError'))
       } else if (isStepUpFailed(error)) {
         toasts.error(t('settings.security.linked.invalidCredentials'))
       } else {

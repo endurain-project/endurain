@@ -161,6 +161,7 @@
       "createSuccess": "Utente aggiunto",
       "updateSuccess": "Utente aggiornato",
       "conflict": "Quel nome utente o email è già in uso",
+      "lastAdministrator": "L'unico amministratore non può essere retrocesso o disattivato",
       "saveError": "Impossibile salvare l'utente. Riprova."
     },
     "delete": {
@@ -793,7 +794,8 @@
       "dialogDescription": "Questo elimina definitivamente il tuo account e tutti i tuoi dati. Conferma la tua identità per continuare.",
       "confirm": "Elimina il mio account",
       "error": "Impossibile eliminare il tuo account. Riprova.",
-      "onlyAdminError": "Sei l'unico amministratore. Rendi amministratore un altro utente prima di eliminare il tuo account."
+      "onlyAdminError": "Sei l'unico amministratore. Rendi amministratore un altro utente prima di eliminare il tuo account.",
+      "pendingError": "L'eliminazione di questo account è già in corso."
     },
     "apiKeys": {
       "title": "Chiavi API",

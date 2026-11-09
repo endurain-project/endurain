@@ -661,7 +661,7 @@ def _refuse_to_remove_last_admin(user: users_schema.UserRead, action: str, db: S
         db: Database session.
 
     Raises:
-        ConflictError: If the user is the only active administrator.
+        LastAdministratorError: If the user is the only active administrator.
     """
     if not (
         user.active and users_schema.normalize_access_type(user.access_type) == users_schema.UserAccessType.ADMIN.value
@@ -673,7 +673,7 @@ def _refuse_to_remove_last_admin(user: users_schema.UserRead, action: str, db: S
         logger.debug(
             "Refused to remove the only administrator", extra=core_logger.context(user_id=user.id, action=action)
         )
-        raise core_exceptions.ConflictError(f"The only administrator cannot be {action}")
+        raise core_exceptions.LastAdministratorError(f"The only administrator cannot be {action}")
 
 
 def stage_user_edit(user_id: int, user: users_schema.UserEdit, db: Session, *, if_match: str) -> users_schema.UserRead:
@@ -696,8 +696,8 @@ def stage_user_edit(user_id: int, user: users_schema.UserEdit, db: Session, *, i
 
     Raises:
         NotFoundError: If the user does not exist.
-        ConflictError: If the username or email is already taken, or the edit would demote or
-            deactivate the only administrator.
+        ConflictError: If the username or email is already taken.
+        LastAdministratorError: If the edit would demote or deactivate the only administrator.
         PreconditionFailedError: When ``if_match`` does not name the row's version.
     """
     existing = require_user(user_id, db)
@@ -803,8 +803,8 @@ def _stage_edit_with_email_change(
         The edited user and whether the address was applied without being verifiable.
 
     Raises:
-        ConflictError: If another account uses the address, or the edit would demote or deactivate the
-            only administrator.
+        ConflictError: If another account uses the address.
+        LastAdministratorError: If the edit would demote or deactivate the only administrator.
         PreconditionFailedError: When ``if_match`` does not name the row's version.
     """
     if not user.email_verified:
@@ -1140,7 +1140,7 @@ def require_deletable_user(user_id: int, db: Session, *, if_match: str) -> None:
     Raises:
         NotFoundError: If the user does not exist.
         PreconditionFailedError: If the user changed since the client read it.
-        ConflictError: If the user is the only administrator.
+        LastAdministratorError: If the user is the only administrator.
     """
     user = require_user(user_id, db)
     core_etag.require_if_match(if_match, user.version, "user")

@@ -134,7 +134,7 @@ A provider that answers with a rate limit makes the job `failed` (gear and healt
 
 `POST /users/{user_id}/delete` needs `users:write`, the user's `ETag` in `If-Match` (see [Errors, concurrency and rate limits](errors-and-limits.md#concurrent-edits-with-etag-and-if-match)) and the administrator's own [step-up](account-security.md#step-up-authentication) in the body's `step_up` object (`current_password`, or `idp_reauth` for an administrator without a password, and `mfa_code` when MFA is on). It signs the user out everywhere, deactivates the account and answers `202` with the envelope. A background job then erases the data. An administrator polls `GET /users/{user_id}/deletion` (needs `users:read_all`); the record is kept for 2 hours. Until the account is gone, the administrator's user reads (`GET /users` and `GET /users/{user_id}`) carry `deletion_requested_at`, when the deletion was queued. It is `null` for an account that is not being deleted, and no client can set it.
 
-- `409` when the user is the only administrator, or when a deletion is already pending.
+- `409` with `urn:endurain:error:last-administrator` when the user is the only administrator; make another user an administrator first. A plain `409` (`urn:endurain:error:conflict`) when a deletion is already pending.
 - `403` when an administrator targets their own account. Use `POST /profile/delete-account` for that.
 - `403` with `urn:endurain:error:step-up-failed` (or `401` `idp-reauth-required`) when the administrator's step-up does not verify; nothing is deleted.
 - `412` and `428` as for any versioned write.
@@ -148,7 +148,7 @@ A provider that answers with a rate limit makes the job `failed` (gear and healt
 - **There is nothing for the user to poll.** `GET /users/{user_id}/deletion` needs an administrator scope, and the user can no longer sign in to call anything. A client should treat the `202` as final: sign the user out locally and show that the account is being deleted.
 - **How long the erasure takes is not fixed.** The data is removed in batches, so a large account takes longer. The job's record lives for 2 hours. There is no completion message.
 - **It cannot be undone.** Export the profile first to keep a copy.
-- `409` when the user is the only administrator, or a deletion is already pending. `403` with `urn:endurain:error:step-up-failed` when the step-up does not verify (or `401` `idp-reauth-required` when an account without a password sends no `idp_reauth`); nothing is deleted.
+- `409` with `urn:endurain:error:last-administrator` when the user is the only administrator, and a plain `409` (`urn:endurain:error:conflict`) when a deletion is already pending. `403` with `urn:endurain:error:step-up-failed` when the step-up does not verify (or `401` `idp-reauth-required` when an account without a password sends no `idp_reauth`); nothing is deleted.
 
 ## Conflicts (`409`)
 

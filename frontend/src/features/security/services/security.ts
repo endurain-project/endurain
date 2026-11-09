@@ -32,6 +32,9 @@ import type {
 import { apiFetch } from '@/services/http'
 import { fetchAllPages } from '@/services/pagination'
 
+/** Problem type of a change refused because it would leave the server without an administrator. */
+export const LAST_ADMINISTRATOR_TYPE = 'urn:endurain:error:last-administrator'
+
 /** The scopes an API key can be granted (mirrors the backend allow-list). */
 export const API_KEY_SCOPES = ['activities:upload'] as const
 
@@ -373,7 +376,7 @@ export async function deleteApiKey(id: string): Promise<void> {
  * user is the server's only administrator.
  *
  * @param input - The step-up credentials.
- * @throws {HttpError} When the request fails (403 step-up, 409 only administrator).
+ * @throws {HttpError} When the request fails (403 step-up, 409 `last-administrator` for the only administrator).
  */
 export async function deleteAccount(input: StepUpInput): Promise<void> {
   await apiFetch('/profile/delete-account', {

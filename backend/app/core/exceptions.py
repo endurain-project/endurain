@@ -275,6 +275,17 @@ class LastSignInMethodError(ConflictError):
     default_detail = "This is the account's only sign-in method"
 
 
+class LastAdministratorError(ConflictError):
+    """A change would leave the server without an active administrator.
+
+    Renders as ``409``. Clients branch on the ``last-administrator`` problem type to tell the user to make
+    another user an administrator first.
+    """
+
+    code = "last-administrator"
+    default_detail = "The only administrator cannot be changed"
+
+
 class IssuerInUseError(ConflictError):
     """Another identity provider already uses the issuer URL being set.
 

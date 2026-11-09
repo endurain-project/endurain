@@ -411,7 +411,8 @@ def delete_account(
 
     Raises:
         StepUpFailedError: If step-up verification fails.
-        ConflictError: If the user is the only administrator, or a deletion is already pending.
+        LastAdministratorError: If the user is the only administrator.
+        ConflictError: If a deletion is already pending.
     """
     account_security_integration.verify_step_up(
         step_up, user_id, session_id, identity_providers_constants.StepUpAction.ACCOUNT_DELETE, step_up_store, db
