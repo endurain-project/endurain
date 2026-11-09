@@ -815,6 +815,7 @@
       "createError": "Der API-Schlüssel konnte nicht erstellt werden. Bitte versuche es erneut.",
       "expiryTooLate": "Dieses Ablaufdatum liegt später, als der Server erlaubt. Wähle ein früheres Datum oder lass das Feld leer.",
       "invalidCredentials": "Dein Passwort oder Code ist falsch.",
+      "expiryNotFuture": "Dieses Ablaufdatum liegt nicht in der Zukunft. Wähle ein späteres Datum.",
       "invalidScopes": "Diese Berechtigungen sind für API-Schlüssel nicht erlaubt.",
       "revealTitle": "Deinen API-Schlüssel kopieren",
       "revealDescription": "Dies ist das einzige Mal, dass der vollständige Schlüssel angezeigt wird.",

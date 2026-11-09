@@ -815,6 +815,7 @@
       "createError": "無法建立 API 金鑰，請再試一次。",
       "expiryTooLate": "該過期時間晚於伺服器允許的範圍。請選擇更早的日期，或留空。",
       "invalidCredentials": "您的密碼或驗證碼不正確。",
+      "expiryNotFuture": "該到期時間不在未來，請選擇更晚的日期。",
       "invalidScopes": "API 金鑰不允許這些權限。",
       "revealTitle": "複製您的 API 金鑰",
       "revealDescription": "這是唯一顯示完整金鑰的時機。",

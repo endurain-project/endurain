@@ -815,6 +815,7 @@
       "createError": "Impossible de créer la clé API. Veuillez réessayer.",
       "expiryTooLate": "Cette expiration est postérieure à ce que le serveur autorise. Choisissez une date antérieure ou laissez vide.",
       "invalidCredentials": "Votre mot de passe ou code est incorrect.",
+      "expiryNotFuture": "Cette expiration n'est pas dans le futur. Choisissez une date ultérieure.",
       "invalidScopes": "Ces permissions ne sont pas autorisées pour les clés API.",
       "revealTitle": "Copiez votre clé API",
       "revealDescription": "C'est la seule fois que la clé complète est affichée.",

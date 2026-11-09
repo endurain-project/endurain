@@ -815,6 +815,7 @@
       "createError": "Neizdevās izveidot API atslēgu. Lūdzu, mēģiniet vēlreiz.",
       "expiryTooLate": "Šis derīguma beigu datums ir vēlāks, nekā atļauj serveris. Izvēlieties agrāku datumu vai atstājiet tukšu.",
       "invalidCredentials": "Jūsu parole vai kods ir nepareizs.",
+      "expiryNotFuture": "Šis derīguma termiņš nav nākotnē. Izvēlieties vēlāku datumu.",
       "invalidScopes": "Šīs atļaujas nav atļautas API atslēgām.",
       "revealTitle": "Kopējiet savu API atslēgu",
       "revealDescription": "Šī ir vienīgā reize, kad tiek rādīta pilnā atslēga.",

@@ -815,6 +815,7 @@
       "createError": "API-võtit ei õnnestunud luua. Palun proovi uuesti.",
       "expiryTooLate": "See aegumiskuupäev on hilisem, kui server lubab. Vali varasem kuupäev või jäta väli tühjaks.",
       "invalidCredentials": "Sinu parool või kood on vale.",
+      "expiryNotFuture": "See aegumiskuupäev ei ole tulevikus. Vali hilisem kuupäev.",
       "invalidScopes": "Need õigused pole API-võtmete jaoks lubatud.",
       "revealTitle": "Kopeeri oma API-võti",
       "revealDescription": "See on ainus kord, kui täisvõtit näidatakse.",

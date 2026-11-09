@@ -857,6 +857,7 @@
       "createError": "Couldn't create the API key. Please try again.",
       "expiryTooLate": "That expiry is later than the server allows. Choose an earlier date or leave it empty.",
       "invalidCredentials": "Your password or code is incorrect.",
+      "expiryNotFuture": "That expiry is not in the future. Choose a later date.",
       "invalidScopes": "Those permissions aren't allowed for API keys.",
       "revealTitle": "Copy your API key",
       "revealDescription": "This is the only time the full key is shown.",

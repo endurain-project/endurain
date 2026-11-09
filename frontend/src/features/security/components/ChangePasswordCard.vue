@@ -11,7 +11,6 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Switch } from '@/components/ui/switch'
 import { useToasts } from '@/composables/useToasts'
-import { HttpError } from '@/services/http'
 import { normalizeMfaCode } from '@/features/auth/utils/mfaCode'
 import { isStepUpFailed } from '@/features/security/composables/useIdpStepUp'
 import { useChangePasswordMutation } from '@/features/security/composables/useSecurity'
@@ -89,7 +88,7 @@ async function submit(): Promise<void> {
     const passwordProblem = policyError(error)
     if (passwordProblem) {
       toasts.error(passwordProblem)
-    } else if (isStepUpFailed(error) || (error instanceof HttpError && error.status === 400)) {
+    } else if (isStepUpFailed(error)) {
       toasts.error(t('settings.security.password.invalidCredentials'))
     } else {
       toasts.error(t('settings.security.password.error'))

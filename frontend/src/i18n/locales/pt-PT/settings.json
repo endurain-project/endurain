@@ -815,6 +815,7 @@
       "createError": "Não foi possível criar a chave de API. Tenta novamente.",
       "expiryTooLate": "Essa expiração é posterior à que o servidor permite. Escolhe uma data anterior ou deixa em branco.",
       "invalidCredentials": "A tua palavra-passe ou código está incorreto.",
+      "expiryNotFuture": "Essa expiração não está no futuro. Escolhe uma data posterior.",
       "invalidScopes": "Essas permissões não são permitidas para chaves de API.",
       "revealTitle": "Copia a tua chave de API",
       "revealDescription": "Esta é a única vez que a chave completa é mostrada.",

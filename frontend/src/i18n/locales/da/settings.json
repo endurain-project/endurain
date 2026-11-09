@@ -815,6 +815,7 @@
       "createError": "Kunne ikke oprette API-nøglen. Prøv venligst igen.",
       "expiryTooLate": "Denne udløbsdato ligger senere, end serveren tillader. Vælg en tidligere dato, eller lad feltet stå tomt.",
       "invalidCredentials": "Din adgangskode eller kode er forkert.",
+      "expiryNotFuture": "Den udløbsdato ligger ikke i fremtiden. Vælg en senere dato.",
       "invalidScopes": "De tilladelser er ikke tilladt for API-nøgler.",
       "revealTitle": "Kopiér din API-nøgle",
       "revealDescription": "Dette er den eneste gang, den fulde nøgle vises.",

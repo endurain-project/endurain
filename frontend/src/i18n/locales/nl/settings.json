@@ -815,6 +815,7 @@
       "createError": "API-sleutel kon niet worden aangemaakt. Probeer het opnieuw.",
       "expiryTooLate": "Deze vervaldatum ligt later dan de server toestaat. Kies een eerdere datum of laat het veld leeg.",
       "invalidCredentials": "Je wachtwoord of code is onjuist.",
+      "expiryNotFuture": "Die vervaldatum ligt niet in de toekomst. Kies een latere datum.",
       "invalidScopes": "Die machtigingen zijn niet toegestaan voor API-sleutels.",
       "revealTitle": "Kopieer je API-sleutel",
       "revealDescription": "Dit is de enige keer dat de volledige sleutel wordt getoond.",

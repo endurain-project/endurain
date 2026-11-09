@@ -70,6 +70,7 @@ export function mapProfileDetails(dto: ProfileDto): ProfileDetails {
     timezone: dto.timezone ?? null,
     accessType: dto.access_type,
     hasLocalPassword: dto.has_local_password,
+    mfaEnabled: dto.mfa_enabled,
     integrationsVersion: rowVersion(dto.integrations_version),
     stravaLinked: dto.is_strava_linked ?? false,
     stravaRevokedAt: dto.strava_revoked_at ?? null,

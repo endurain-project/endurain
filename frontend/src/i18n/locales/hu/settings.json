@@ -815,6 +815,7 @@
       "createError": "Nem sikerült létrehozni az API-kulcsot. Kérjük, próbáld újra.",
       "expiryTooLate": "Ez a lejárat későbbi, mint amit a szerver megenged. Válassz korábbi dátumot, vagy hagyd üresen.",
       "invalidCredentials": "A jelszavad vagy a kódod helytelen.",
+      "expiryNotFuture": "Ez a lejárat nem a jövőben van. Válassz egy későbbi dátumot.",
       "invalidScopes": "Ezek a jogosultságok nem engedélyezettek API-kulcsokhoz.",
       "revealTitle": "Másold ki az API-kulcsodat",
       "revealDescription": "Ez az egyetlen alkalom, amikor a teljes kulcs megjelenik.",

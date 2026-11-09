@@ -139,6 +139,7 @@ export interface ProfileDetails {
   timezone: string | null
   accessType: Schemas['UserAccessType']
   hasLocalPassword: boolean
+  mfaEnabled: boolean
   integrationsVersion: number
   stravaLinked: boolean
   stravaRevokedAt: string | null

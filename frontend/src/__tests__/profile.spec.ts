@@ -90,6 +90,11 @@ describe('mapProfileDetails', () => {
     expect(profile.privacy.hideGear).toBe(true)
   })
 
+  it('maps whether MFA is enabled', () => {
+    expect(mapProfileDetails(makeProfileDto({ mfa_enabled: true })).mfaEnabled).toBe(true)
+    expect(mapProfileDetails(makeProfileDto({ mfa_enabled: false })).mfaEnabled).toBe(false)
+  })
+
   it('maps the athlete timezone, defaulting to null when unset', () => {
     expect(mapProfileDetails(makeProfileDto({ timezone: 'America/Los_Angeles' })).timezone).toBe(
       'America/Los_Angeles',

@@ -6,12 +6,16 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 import {
   useCancelEmailChangeMutation,
   useChangeEmailMutation,
+  useDisableMfaMutation,
+  useEnableMfaMutation,
   useResendEmailChangeMutation,
   useSignOutEverywhereMutation,
 } from '@/features/security/composables/useSecurity'
 import {
   cancelEmailChange,
   changeEmail,
+  disableMfa,
+  enableMfa,
   resendEmailChange,
   signOutEverywhere,
 } from '@/features/security/services/security'
@@ -31,6 +35,8 @@ vi.mock('@/features/auth/stores/auth', () => ({
 vi.mock('@/features/security/services/security', async (importOriginal) => ({
   ...(await importOriginal<typeof import('@/features/security/services/security')>()),
   changeEmail: vi.fn<typeof changeEmail>(),
+  enableMfa: vi.fn<typeof enableMfa>(),
+  disableMfa: vi.fn<typeof disableMfa>(),
   resendEmailChange: vi.fn<typeof resendEmailChange>(),
   cancelEmailChange: vi.fn<typeof cancelEmailChange>(),
   signOutEverywhere: vi.fn<typeof signOutEverywhere>(),
@@ -103,6 +109,40 @@ describe.each([
     expect(invalidateQueries).toHaveBeenCalledWith({ queryKey: queryKeys.profile.all() })
     expect(invalidateQueries).toHaveBeenCalledWith({ queryKey: queryKeys.currentUser() })
     expect(invalidateQueries).toHaveBeenCalledWith({ queryKey: queryKeys.users.all() })
+  })
+})
+
+describe('MFA mutations', () => {
+  it('refreshes the profile, which carries mfa_enabled, after MFA is enabled', async () => {
+    const queryClient = new QueryClient()
+    const invalidateQueries = vi.spyOn(queryClient, 'invalidateQueries')
+    vi.mocked(enableMfa).mockResolvedValue(['code'])
+    const mutation = mountMutation(queryClient, useEnableMfaMutation)
+
+    await mutation.mutateAsync({
+      mfaCode: '123456',
+      currentPassword: 'secret',
+      idpReauth: null,
+      revokeOtherSessions: false,
+    })
+    await flushPromises()
+
+    expect(invalidateQueries).toHaveBeenCalledWith({ queryKey: queryKeys.profile.all() })
+  })
+
+  it('refreshes the profile, which carries mfa_enabled, after MFA is disabled', async () => {
+    const queryClient = new QueryClient()
+    const invalidateQueries = vi.spyOn(queryClient, 'invalidateQueries')
+    vi.mocked(disableMfa).mockResolvedValue()
+    const mutation = mountMutation(queryClient, useDisableMfaMutation)
+
+    await mutation.mutateAsync({
+      input: { currentPassword: 'secret', mfaCode: '123456' },
+      revokeOtherSessions: false,
+    })
+    await flushPromises()
+
+    expect(invalidateQueries).toHaveBeenCalledWith({ queryKey: queryKeys.profile.all() })
   })
 })
 

@@ -815,6 +815,7 @@
       "createError": "API-avainta ei voitu luoda. Yritä uudelleen.",
       "expiryTooLate": "Tämä vanhenemispäivä on myöhempi kuin palvelin sallii. Valitse aikaisempi päivämäärä tai jätä kenttä tyhjäksi.",
       "invalidCredentials": "Salasanasi tai koodisi on virheellinen.",
+      "expiryNotFuture": "Tämä vanhenemispäivä ei ole tulevaisuudessa. Valitse myöhempi päivämäärä.",
       "invalidScopes": "Nämä käyttöoikeudet eivät ole sallittuja API-avaimille.",
       "revealTitle": "Kopioi API-avaimesi",
       "revealDescription": "Tämä on ainoa kerta, kun koko avain näytetään.",

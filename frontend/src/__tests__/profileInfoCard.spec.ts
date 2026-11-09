@@ -53,6 +53,7 @@ function makeProfile(overrides: Partial<ProfileDetails> = {}): ProfileDetails {
     timezone: null,
     accessType: 'regular',
     hasLocalPassword: true,
+    mfaEnabled: false,
     integrationsVersion: 1,
     stravaLinked: false,
     stravaRevokedAt: null,

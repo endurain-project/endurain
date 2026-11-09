@@ -14,7 +14,6 @@ import {
   usePasswordConfirmation,
   usePasswordPolicy,
 } from '@/features/security/composables/usePasswordPolicy'
-import { HttpError } from '@/services/http'
 import { compose, required } from '@/utils/validators'
 import { isStepUpFailed, useIdpReauthChallenge } from '@/features/security/composables/useIdpStepUp'
 import { useAdminStepUp, useResumeOnce } from '@/features/security/composables/useAdminStepUp'
@@ -101,8 +100,6 @@ async function submitForm(formValues: PasswordFormValues): Promise<void> {
       emit('error', t('settings.security.linked.invalidCredentials'))
     } else if (passwordProblem) {
       emit('error', passwordProblem)
-    } else if (error instanceof HttpError && (error.status === 400 || error.status === 422)) {
-      emit('error', t('app.password.invalid'))
     } else {
       emit('error', t('settings.users.password.error'))
     }

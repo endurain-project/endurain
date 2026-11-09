@@ -815,6 +815,7 @@
       "createError": "No s'ha pogut crear la clau API. Torna-ho a intentar.",
       "expiryTooLate": "Aquesta caducitat és posterior a la que permet el servidor. Tria una data anterior o deixa-ho buit.",
       "invalidCredentials": "La teva contrasenya o codi no és correcte.",
+      "expiryNotFuture": "Aquesta caducitat no és futura. Tria una data posterior.",
       "invalidScopes": "Aquests permisos no estan permesos per a les claus API.",
       "revealTitle": "Copia la teva clau API",
       "revealDescription": "Aquesta és l'única vegada que es mostra la clau completa.",

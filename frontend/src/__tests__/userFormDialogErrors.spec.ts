@@ -97,4 +97,12 @@ describe('UserFormDialog refusals', () => {
 
     expect(wrapper.emitted('error')?.[0]).toEqual([i18n.global.t('settings.users.form.conflict')])
   })
+
+  it('shows the generic error for a 400, which no user route raises for a password', async () => {
+    const wrapper = await saveRefusedWith(
+      new HttpError(400, 'Bad Request', null, 'urn:endurain:error:invalid-input'),
+    )
+
+    expect(wrapper.emitted('error')?.[0]).toEqual([i18n.global.t('settings.users.form.saveError')])
+  })
 })

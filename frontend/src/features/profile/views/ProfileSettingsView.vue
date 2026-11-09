@@ -14,7 +14,6 @@ import { Skeleton } from '@/components/ui/skeleton'
 import { useProfileQuery } from '@/features/profile/composables/useProfile'
 import { useToasts } from '@/composables/useToasts'
 import { consumeIdpStepUpReturn } from '@/features/security/composables/useIdpStepUp'
-import { useMfaStatusQuery } from '@/features/security/composables/useSecurity'
 
 const { t } = useI18n()
 const toasts = useToasts()
@@ -34,8 +33,7 @@ onMounted(() => {
 
 const profileQuery = useProfileQuery()
 const profile = computed(() => profileQuery.data.value ?? null)
-const mfaStatusQuery = useMfaStatusQuery()
-const mfaEnabled = computed(() => mfaStatusQuery.data.value?.enabled ?? false)
+const mfaEnabled = computed(() => profile.value?.mfaEnabled ?? false)
 </script>
 
 <template>

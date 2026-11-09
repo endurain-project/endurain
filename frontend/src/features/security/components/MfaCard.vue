@@ -15,7 +15,7 @@ import { Card } from '@/components/ui/card'
 import { Skeleton } from '@/components/ui/skeleton'
 import { Switch } from '@/components/ui/switch'
 import { useToasts } from '@/composables/useToasts'
-import { useIdpReauthChallenge } from '@/features/security/composables/useIdpStepUp'
+import { isStepUpFailed, useIdpReauthChallenge } from '@/features/security/composables/useIdpStepUp'
 import {
   useBackupCodeStatusQuery,
   useDisableMfaMutation,
@@ -109,9 +109,14 @@ function confirmDisable(input: StepUpInput): void {
         toasts.success(t('settings.security.mfa.disableSuccess'))
       },
       onError: (error) => {
-        if (!handleIdpChallenge(error)) {
-          toasts.error(t('settings.security.mfa.disableError'))
+        if (handleIdpChallenge(error)) {
+          return
         }
+        toasts.error(
+          isStepUpFailed(error)
+            ? t('settings.security.linked.invalidCredentials')
+            : t('settings.security.mfa.disableError'),
+        )
       },
     },
   )
@@ -130,9 +135,14 @@ function confirmRegenerate(input: StepUpInput): void {
         toasts.success(t('settings.security.mfa.regenerateSuccess'))
       },
       onError: (error) => {
-        if (!handleIdpChallenge(error)) {
-          toasts.error(t('settings.security.mfa.regenerateError'))
+        if (handleIdpChallenge(error)) {
+          return
         }
+        toasts.error(
+          isStepUpFailed(error)
+            ? t('settings.security.linked.invalidCredentials')
+            : t('settings.security.mfa.regenerateError'),
+        )
       },
     },
   )

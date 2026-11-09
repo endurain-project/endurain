@@ -815,6 +815,7 @@
       "createError": "Non se puido crear a clave de API. Por favor, téntao de novo.",
       "expiryTooLate": "Esa caducidade é posterior á que permite o servidor. Escolle unha data anterior ou déixao en branco.",
       "invalidCredentials": "O teu contrasinal ou código é incorrecto.",
+      "expiryNotFuture": "Esa caducidade non está no futuro. Escolle unha data posterior.",
       "invalidScopes": "Eses permisos non están permitidos para as claves de API.",
       "revealTitle": "Copia a túa clave de API",
       "revealDescription": "Esta é a única vez que se mostra a clave completa.",

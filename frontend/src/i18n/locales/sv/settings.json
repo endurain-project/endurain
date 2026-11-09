@@ -815,6 +815,7 @@
       "createError": "Kunde inte skapa API-nyckeln. Försök igen.",
       "expiryTooLate": "Det här utgångsdatumet ligger senare än servern tillåter. Välj ett tidigare datum eller lämna fältet tomt.",
       "invalidCredentials": "Ditt lösenord eller din kod är felaktig.",
+      "expiryNotFuture": "Det utgångsdatumet ligger inte i framtiden. Välj ett senare datum.",
       "invalidScopes": "De behörigheterna är inte tillåtna för API-nycklar.",
       "revealTitle": "Kopiera din API-nyckel",
       "revealDescription": "Det här är enda gången hela nyckeln visas.",

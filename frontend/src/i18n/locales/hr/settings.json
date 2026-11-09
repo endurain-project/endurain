@@ -815,6 +815,7 @@
       "createError": "Nije moguće stvoriti API ključ. Pokušajte ponovno.",
       "expiryTooLate": "Ovaj istek je kasniji nego što poslužitelj dopušta. Odaberite raniji datum ili ostavite prazno.",
       "invalidCredentials": "Vaša lozinka ili kod su netočni.",
+      "expiryNotFuture": "Taj rok isteka nije u budućnosti. Odaberite kasniji datum.",
       "invalidScopes": "Te dozvole nisu dopuštene za API ključeve.",
       "revealTitle": "Kopirajte svoj API ključ",
       "revealDescription": "Ovo je jedini put da se prikazuje cijeli ključ.",

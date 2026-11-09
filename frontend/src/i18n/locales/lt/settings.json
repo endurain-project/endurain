@@ -815,6 +815,7 @@
       "createError": "Nepavyko sukurti API rakto. Bandykite dar kartą.",
       "expiryTooLate": "Šis galiojimo pabaigos laikas vėlesnis, nei leidžia serveris. Pasirinkite ankstesnę datą arba palikite tuščią.",
       "invalidCredentials": "Jūsų slaptažodis arba kodas neteisingas.",
+      "expiryNotFuture": "Šis galiojimo pabaigos laikas nėra ateityje. Pasirinkite vėlesnę datą.",
       "invalidScopes": "Šie leidimai neleidžiami API raktams.",
       "revealTitle": "Nukopijuokite savo API raktą",
       "revealDescription": "Tai vienintelis kartas, kai rodomas visas raktas.",

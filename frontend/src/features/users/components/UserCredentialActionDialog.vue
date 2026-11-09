@@ -76,7 +76,8 @@ function onConfirm(stepUp: StepUpInput): void {
           toasts.error(t('settings.security.linked.invalidCredentials'))
           return
         }
-        const refused = error instanceof HttpError && [400, 409].includes(error.status)
+        // The only 409 on either route is the fixed cause: MFA is not on, or there is no local password.
+        const refused = error instanceof HttpError && error.status === 409
         toasts.error(t(refused ? `${copyKey.value}.refused` : `${copyKey.value}.error`))
       },
     },

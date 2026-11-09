@@ -35,6 +35,7 @@ const profile: ProfileDetails = {
   timezone: 'UTC',
   accessType: 'regular',
   hasLocalPassword: true,
+  mfaEnabled: false,
   integrationsVersion: 1,
   stravaLinked: false,
   stravaRevokedAt: null,

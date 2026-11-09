@@ -815,6 +815,7 @@
       "createError": "无法创建 API 密钥，请重试。",
       "expiryTooLate": "该过期时间晚于服务器允许的范围。请选择更早的日期，或留空。",
       "invalidCredentials": "密码或验证码不正确。",
+      "expiryNotFuture": "该到期时间不在未来，请选择更晚的日期。",
       "invalidScopes": "这些权限不允许用于 API 密钥。",
       "revealTitle": "复制您的 API 密钥",
       "revealDescription": "这是唯一一次显示完整密钥。",

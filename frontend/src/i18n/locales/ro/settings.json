@@ -815,6 +815,7 @@
       "createError": "Nu am putut crea cheia API. Te rugăm să încerci din nou.",
       "expiryTooLate": "Această expirare este ulterioară celei permise de server. Alege o dată anterioară sau lasă gol.",
       "invalidCredentials": "Parola sau codul tău este incorect.",
+      "expiryNotFuture": "Acea expirare nu este în viitor. Alege o dată ulterioară.",
       "invalidScopes": "Acele permisiuni nu sunt permise pentru cheile API.",
       "revealTitle": "Copiază cheia ta API",
       "revealDescription": "Aceasta este singura dată când este afișată cheia completă.",

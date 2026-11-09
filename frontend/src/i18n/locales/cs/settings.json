@@ -815,6 +815,7 @@
       "createError": "Nepodařilo se vytvořit API klíč. Zkuste to prosím znovu.",
       "expiryTooLate": "Toto datum vypršení je pozdější, než server povoluje. Zvolte dřívější datum nebo pole ponechte prázdné.",
       "invalidCredentials": "Vaše heslo nebo kód je nesprávný.",
+      "expiryNotFuture": "Toto datum vypršení není v budoucnosti. Zvolte pozdější datum.",
       "invalidScopes": "Tato oprávnění nejsou pro API klíče povolena.",
       "revealTitle": "Zkopírujte svůj API klíč",
       "revealDescription": "Toto je jediná chvíle, kdy se zobrazí celý klíč.",

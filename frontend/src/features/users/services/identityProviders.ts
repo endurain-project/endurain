@@ -48,8 +48,8 @@ export async function fetchUserIdentityProviders(
 
 /**
  * Unlinks an identity provider from a user (admin scope `users:write`). The
- * backend rejects the request (400) when this is the user's last authentication
- * method and they have no password set.
+ * backend rejects the request (409 `last-sign-in-method`) when this is the user's
+ * last authentication method and they have no password set.
  *
  * @param userId - The target user id.
  * @param idpId - The identity provider id to unlink.

@@ -16,7 +16,7 @@ import { Skeleton } from '@/components/ui/skeleton'
 import { HttpError } from '@/services/http'
 import { useToasts } from '@/composables/useToasts'
 import { formatMediumDate } from '@/utils/datetime'
-import { API_KEY_SCOPES } from '@/features/security/services/security'
+import { API_KEY_SCOPES, apiKeyExpiryInstant } from '@/features/security/services/security'
 import { isStepUpFailed, useIdpReauthChallenge } from '@/features/security/composables/useIdpStepUp'
 import {
   useApiKeysQuery,
@@ -83,6 +83,15 @@ function formatDate(iso: string): string {
   return formatMediumDate(iso, locale.value)
 }
 
+/** Whether the server refused the request with a 422 on the given field. */
+function refusedField(error: unknown, field: string): boolean {
+  return (
+    error instanceof HttpError &&
+    error.status === 422 &&
+    error.errors.some((fieldError) => fieldError.field === field)
+  )
+}
+
 /** Creates the key, then opens the one-time reveal dialog with the raw key. */
 function onCreate(input: ApiKeyCreateInput): void {
   createMutation.mutate(input, {
@@ -100,13 +109,18 @@ function onCreate(input: ApiKeyCreateInput): void {
       }
       if (isStepUpFailed(error)) {
         toasts.error(t('settings.security.apiKeys.invalidCredentials'))
-      } else if (
-        error instanceof HttpError &&
-        error.status === 422 &&
-        error.errors.some((fieldError) => fieldError.field === 'body.expires_at')
-      ) {
-        toasts.error(t('settings.security.apiKeys.expiryTooLate'))
-      } else if (error instanceof HttpError && error.status === 400) {
+      } else if (refusedField(error, 'body.expires_at')) {
+        // Both expiry refusals share the field and the error type, so the chosen date tells them apart.
+        const isPast =
+          input.expiresAt !== null && apiKeyExpiryInstant(input.expiresAt) <= new Date()
+        toasts.error(
+          t(
+            isPast
+              ? 'settings.security.apiKeys.expiryNotFuture'
+              : 'settings.security.apiKeys.expiryTooLate',
+          ),
+        )
+      } else if (refusedField(error, 'body.scopes')) {
         toasts.error(t('settings.security.apiKeys.invalidScopes'))
       } else {
         toasts.error(t('settings.security.apiKeys.createError'))

@@ -4,7 +4,6 @@ import type { StepUpAction } from '@/features/security/types'
 import type { IdpStepUpResume, StepUpPending } from '@/features/security/composables/useIdpStepUp'
 
 import { useProfileQuery } from '@/features/profile/composables/useProfile'
-import { useMfaStatusQuery } from '@/features/security/composables/useSecurity'
 
 /**
  * What the step-up dialog of an admin operation asks for: the signed-in administrator's own
@@ -15,11 +14,10 @@ import { useMfaStatusQuery } from '@/features/security/composables/useSecurity'
  */
 export function useAdminStepUp() {
   const profileQuery = useProfileQuery()
-  const mfaStatusQuery = useMfaStatusQuery()
 
   return {
     requirePassword: computed(() => profileQuery.data.value?.hasLocalPassword ?? true),
-    requireMfa: computed(() => mfaStatusQuery.data.value?.enabled ?? false),
+    requireMfa: computed(() => profileQuery.data.value?.mfaEnabled ?? false),
   }
 }
 

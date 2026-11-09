@@ -87,12 +87,12 @@ export async function startProviderLink(
 
 /**
  * Unlinks an identity provider after step-up verification. The backend rejects
- * the request (400) when this is the user's last authentication method and they
+ * the request (409 `last-sign-in-method`) when this is the user's last authentication method and they
  * have no password set.
  *
  * @param idpId - The identity-provider id to unlink.
  * @param input - The step-up credentials.
- * @throws {HttpError} When the request fails (403 step-up, 400 last method).
+ * @throws {HttpError} When the request fails (403 step-up, 409 last method).
  */
 export async function unlinkProvider(idpId: number, input: StepUpInput): Promise<void> {
   await apiFetch(`/profile/identity-providers/${idpId}/unlink`, {

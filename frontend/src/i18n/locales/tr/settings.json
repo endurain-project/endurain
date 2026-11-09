@@ -815,6 +815,7 @@
       "createError": "API anahtarı oluşturulamadı. Lütfen tekrar deneyin.",
       "expiryTooLate": "Bu bitiş tarihi sunucunun izin verdiğinden daha geç. Daha erken bir tarih seçin veya boş bırakın.",
       "invalidCredentials": "Parolanız veya kodunuz yanlış.",
+      "expiryNotFuture": "Bu son kullanma tarihi gelecekte değil. Daha ileri bir tarih seçin.",
       "invalidScopes": "Bu izinlere API anahtarları için izin verilmiyor.",
       "revealTitle": "API anahtarınızı kopyalayın",
       "revealDescription": "Tam anahtarın gösterildiği tek seferdir.",

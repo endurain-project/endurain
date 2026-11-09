@@ -133,6 +133,26 @@ describe('UserCredentialActionDialog', () => {
     )
   })
 
+  it('says MFA is not on when the MFA reset answers 409', async () => {
+    const wrapper = mountDialog({ open: true, variant: 'mfa-reset' })
+    await submit(wrapper)
+    const { onError } = mocks.mfaMutate.mock.calls[0]![1] as { onError: (e: unknown) => void }
+
+    onError(new HttpError(409, 'Conflict', null, 'urn:endurain:error:conflict'))
+
+    expect(mocks.toastError).toHaveBeenCalledWith(i18n.global.t('settings.users.mfaReset.refused'))
+  })
+
+  it('shows the generic error for a 400, which neither route raises', async () => {
+    const wrapper = mountDialog({ open: true, variant: 'mfa-reset' })
+    await submit(wrapper)
+    const { onError } = mocks.mfaMutate.mock.calls[0]![1] as { onError: (e: unknown) => void }
+
+    onError(new HttpError(400, 'Bad Request', null, 'urn:endurain:error:invalid-input'))
+
+    expect(mocks.toastError).toHaveBeenCalledWith(i18n.global.t('settings.users.mfaReset.error'))
+  })
+
   it('reopens after the identity-provider return that was started for its action and user', async () => {
     const resume = {
       action: 'admin_mfa_reset',

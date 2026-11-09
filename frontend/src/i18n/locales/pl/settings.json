@@ -815,6 +815,7 @@
       "createError": "Nie udało się utworzyć klucza API. Spróbuj ponownie.",
       "expiryTooLate": "Ta data wygaśnięcia jest późniejsza, niż pozwala serwer. Wybierz wcześniejszą datę lub pozostaw pole puste.",
       "invalidCredentials": "Twoje hasło lub kod są nieprawidłowe.",
+      "expiryNotFuture": "Ta data wygaśnięcia nie jest w przyszłości. Wybierz późniejszą datę.",
       "invalidScopes": "Te uprawnienia nie są dozwolone dla kluczy API.",
       "revealTitle": "Skopiuj swój klucz API",
       "revealDescription": "To jedyny raz, kiedy wyświetlany jest pełny klucz.",

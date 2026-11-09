@@ -100,7 +100,7 @@ function confirmUnlink(stepUp: StepUpInput): void {
           toasts.error(t('settings.security.linked.invalidCredentials'))
           return
         }
-        // 400 = the backend guard against removing the user's last auth method.
+        // `last-sign-in-method` (409) is the backend guard against removing the user's last auth method.
         toasts.error(
           error instanceof HttpError && error.type === LAST_SIGN_IN_METHOD_TYPE
             ? t('settings.users.identityProviders.unlinkLastError')

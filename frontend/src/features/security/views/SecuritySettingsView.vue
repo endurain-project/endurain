@@ -16,7 +16,6 @@ import { Skeleton } from '@/components/ui/skeleton'
 import { useProfileQuery } from '@/features/profile/composables/useProfile'
 import { useToasts } from '@/composables/useToasts'
 import { consumeIdpStepUpReturn } from '@/features/security/composables/useIdpStepUp'
-import { useMfaStatusQuery } from '@/features/security/composables/useSecurity'
 
 const { t } = useI18n()
 const toasts = useToasts()
@@ -35,12 +34,11 @@ onMounted(() => {
 })
 
 // The profile carries `hasLocalPassword`, which gates the change-password card
-// and the step-up password fields. MFA status (shared cache key with MfaCard)
-// drives whether the change-password form asks for an MFA code.
+// and the step-up password fields, and `mfaEnabled`, which decides whether the
+// step-up forms ask for an MFA code.
 const profileQuery = useProfileQuery()
 const profile = computed(() => profileQuery.data.value ?? null)
-const mfaStatusQuery = useMfaStatusQuery()
-const mfaEnabled = computed(() => mfaStatusQuery.data.value?.enabled ?? false)
+const mfaEnabled = computed(() => profile.value?.mfaEnabled ?? false)
 </script>
 
 <template>

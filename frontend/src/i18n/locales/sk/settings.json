@@ -815,6 +815,7 @@
       "createError": "API kľúč sa nepodarilo vytvoriť. Skúste to znova.",
       "expiryTooLate": "Tento dátum vypršania je neskorší, než server povoľuje. Zvoľte skorší dátum alebo pole ponechajte prázdne.",
       "invalidCredentials": "Vaše heslo alebo kód je nesprávne.",
+      "expiryNotFuture": "Tento dátum platnosti nie je v budúcnosti. Vyberte neskorší dátum.",
       "invalidScopes": "Tieto oprávnenia nie sú pre API kľúče povolené.",
       "revealTitle": "Skopírujte svoj API kľúč",
       "revealDescription": "Toto je jediný raz, kedy sa zobrazí celý kľúč.",

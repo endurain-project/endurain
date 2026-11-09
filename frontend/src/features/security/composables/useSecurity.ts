@@ -118,8 +118,8 @@ export function useSetupMfaMutation() {
 }
 
 /**
- * Completes MFA enrolment. Invalidates the MFA and backup-code status so both
- * cards reflect the newly enabled state.
+ * Completes MFA enrolment. Invalidates the MFA and backup-code status, and the profile, so
+ * every card and step-up dialog reflect the newly enabled state.
  *
  * @returns The TanStack Query mutation for enabling MFA (resolves to backup codes).
  */
@@ -131,12 +131,14 @@ export function useEnableMfaMutation() {
     mutationFn: (input) => enableMfa(input),
     onSuccess: () => {
       void client.invalidateQueries({ queryKey: queryKeys.security.all() })
+      // The profile carries `mfa_enabled`, which the step-up dialogs read.
+      void client.invalidateQueries({ queryKey: queryKeys.profile.all() })
     },
   })
 }
 
 /**
- * Disables MFA. Invalidates the MFA and backup-code status on success.
+ * Disables MFA. Invalidates the MFA and backup-code status, and the profile, on success.
  *
  * @returns The TanStack Query mutation for disabling MFA.
  */
@@ -148,6 +150,8 @@ export function useDisableMfaMutation() {
     mutationFn: ({ input, revokeOtherSessions }) => disableMfa(input, revokeOtherSessions),
     onSuccess: () => {
       void client.invalidateQueries({ queryKey: queryKeys.security.all() })
+      // The profile carries `mfa_enabled`, which the step-up dialogs read.
+      void client.invalidateQueries({ queryKey: queryKeys.profile.all() })
     },
   })
 }

@@ -241,11 +241,6 @@ async function submitForm(
     } else if (error instanceof HttpError && error.status === 409) {
       // Any other conflict is a username or email another account already uses.
       emit('error', t('settings.users.form.conflict'))
-    } else if (!props.user && error instanceof HttpError && error.status === 400) {
-      // Create-only: the backend's own password-policy check is the only
-      // documented 400 this endpoint raises, so it's safe to surface a
-      // password-specific message here (edits never send a password).
-      emit('error', t('app.password.invalid'))
     } else {
       emit('error', t('settings.users.form.saveError'))
     }

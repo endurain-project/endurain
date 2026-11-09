@@ -168,4 +168,13 @@ describe('ChangePasswordCard server refusals', () => {
 
     expect(toastError).toHaveBeenCalledWith(i18n.global.t('settings.security.password.error'))
   })
+
+  it('does not read a bare 400 as a wrong current password', async () => {
+    mutateAsync.mockRejectedValue(
+      new HttpError(400, 'Bad Request', null, 'urn:endurain:error:invalid-input'),
+    )
+    await submitFilled()
+
+    expect(toastError).toHaveBeenCalledWith(i18n.global.t('settings.security.password.error'))
+  })
 })

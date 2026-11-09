@@ -96,12 +96,18 @@ describe('UserPasswordDialog weak password', () => {
     expect(wrapper.emitted('update:open')).toBeUndefined()
   })
 
-  it('keeps the generic message for any other 422', async () => {
-    mutateAsync.mockRejectedValue(
-      new HttpError(422, 'Unprocessable', null, 'urn:endurain:error:invalid-input'),
-    )
-    const wrapper = await submitFilled()
+  it.each([
+    [400, 'urn:endurain:error:invalid-input'],
+    [422, 'urn:endurain:error:validation-failed'],
+  ])(
+    'shows the generic error for a %i that is not a password policy problem',
+    async (status, type) => {
+      mutateAsync.mockRejectedValue(new HttpError(status, 'Refused', null, type))
+      const wrapper = await submitFilled()
 
-    expect(wrapper.emitted('error')?.[0]).toEqual([i18n.global.t('app.password.invalid')])
-  })
+      expect(wrapper.emitted('error')?.[0]).toEqual([
+        i18n.global.t('settings.users.password.error'),
+      ])
+    },
+  )
 })

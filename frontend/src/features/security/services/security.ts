@@ -35,6 +35,19 @@ import { fetchAllPages } from '@/services/pagination'
 /** Problem type of a change refused because it would leave the server without an administrator. */
 export const LAST_ADMINISTRATOR_TYPE = 'urn:endurain:error:last-administrator'
 
+/**
+ * Starts an API key expiry at midnight of the chosen day in the viewer's timezone.
+ *
+ * A bare date would be read as UTC midnight, which west of UTC can already be past for the earliest date the
+ * picker offers.
+ *
+ * @param date - A `YYYY-MM-DD` date.
+ * @returns The instant the key expires.
+ */
+export function apiKeyExpiryInstant(date: string): Date {
+  return new Date(`${date}T00:00`)
+}
+
 /** The scopes an API key can be granted (mirrors the backend allow-list). */
 export const API_KEY_SCOPES = ['activities:upload'] as const
 
@@ -129,7 +142,7 @@ export function mapApiKey(dto: ApiKeyDto): ApiKey {
  * MFA code when MFA is enabled). Optionally signs out every other session.
  *
  * @param input - The clean change-password input.
- * @throws {HttpError} When the request fails (e.g. 400 wrong current password).
+ * @throws {HttpError} When the request fails (e.g. 403 `step-up-failed` for a wrong current password or MFA code).
  */
 export async function changePassword(input: PasswordChangeInput): Promise<void> {
   const payload: PasswordChangeDto = {
@@ -322,15 +335,13 @@ export async function fetchApiKeys(signal?: AbortSignal): Promise<ApiKey[]> {
  *
  * @param input - The clean create-API-key input.
  * @returns The full raw API key, shown once.
- * @throws {HttpError} When the request fails (e.g. 403 step-up, 400 invalid scopes).
+ * @throws {HttpError} When the request fails (e.g. 403 step-up, 422 on `body.scopes` or `body.expires_at`).
  */
 export async function createApiKey(input: ApiKeyCreateInput): Promise<string> {
   const payload: ApiKeyCreateDto = {
     name: input.name,
     scopes: input.scopes,
-    // The chosen day starts the expiry in the viewer's timezone; a bare date would be read as UTC midnight,
-    // which west of UTC can already be past for the earliest date the picker offers.
-    expires_at: input.expiresAt ? new Date(`${input.expiresAt}T00:00`).toISOString() : null,
+    expires_at: input.expiresAt ? apiKeyExpiryInstant(input.expiresAt).toISOString() : null,
     step_up: toStepUpWire(input),
   }
   const dto = await apiFetch<ApiKeyCreatedDto>('/profile/api-keys', {
