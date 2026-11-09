@@ -391,7 +391,7 @@ def _stage_user(
         server_settings, access_type, user.password, db, username=user.username, email=user.email
     )
 
-    fields = user.model_dump(exclude={"password", "access_type", "mfa_enabled"})
+    fields = user.model_dump(exclude={"password", "access_type"})
     fields.update(username=user.username.lower(), email=user.email.lower(), access_type=access_type)
     if not user.active:
         fields["deactivated_at"] = datetime.now(UTC)
@@ -707,7 +707,7 @@ def stage_user_edit(user_id: int, user: users_schema.UserEdit, db: Session, *, i
     if users_schema.normalize_access_type(user.access_type) != users_schema.UserAccessType.ADMIN.value:
         _refuse_to_remove_last_admin(existing, "demoted", db)
 
-    changes = user.model_dump(exclude_unset=True, exclude={"mfa_enabled"})
+    changes = user.model_dump(exclude_unset=True)
     changes["username"] = user.username.lower()
     changes["email"] = user.email.lower()
 
@@ -750,7 +750,7 @@ def _stage_user_update_audit(
         requested: The edit as the administrator submitted it.
         db: Database session.
     """
-    submitted = requested.model_dump(exclude_unset=True, exclude={"mfa_enabled"})
+    submitted = requested.model_dump(exclude_unset=True)
     changed_fields = changed_field_names(before, after, submitted)
     if changed_fields:
         jasil_audit.stage(

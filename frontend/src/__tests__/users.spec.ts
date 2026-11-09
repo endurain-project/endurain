@@ -235,7 +235,6 @@ describe('users service requests', () => {
         active: true,
         email_verified: true,
         pending_admin_approval: false,
-        mfa_enabled: false,
         units: 'metric',
         weight_units: 'imperial',
         currency: 'euro',

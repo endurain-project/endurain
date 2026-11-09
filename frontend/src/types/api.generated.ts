@@ -11546,12 +11546,6 @@ export interface components {
              */
             max_heart_rate?: number | null;
             /**
-             * Mfa Enabled
-             * @description Whether MFA is enabled
-             * @default false
-             */
-            mfa_enabled: boolean;
-            /**
              * Name
              * @description User's full name
              */
@@ -11652,12 +11646,6 @@ export interface components {
              * @description Maximum heart rate in bpm
              */
             max_heart_rate?: number | null;
-            /**
-             * Mfa Enabled
-             * @description Whether MFA is enabled
-             * @default false
-             */
-            mfa_enabled: boolean;
             /**
              * Name
              * @description User's full name
@@ -12927,6 +12915,7 @@ export interface components {
          * @description Users schema for read operations.
          *
          *     Attributes:
+         *         mfa_enabled: Whether MFA is enabled.
          *         id: User ID.
          *         photo_path: Servable URL of the user's photo, resolved from the stored storage key.
          *         external_auth_count: Number of external auth providers.

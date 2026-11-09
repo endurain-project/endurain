@@ -205,6 +205,12 @@ class TestReadUsers:
         assert response.json()["email"] == "user42@example.com"
         assert response.headers["ETag"] == '"7"'
 
+    @patch(f"{_SERVICE}.require_user_with_pending_email")
+    def test_a_read_carries_mfa_enabled(self, mock_get, client):
+        mock_get.return_value = _user(42, mfa_enabled=True)
+
+        assert client.get("/users/42").json()["mfa_enabled"] is True
+
     @patch(f"{_SERVICE}.get_public_profile")
     def test_a_regular_token_reads_the_public_projection(self, mock_get, regular_client):
         mock_get.return_value = users_schema.UserPublicRead(id=42, name="ID User", username="u42")
@@ -226,6 +232,24 @@ class TestReadUsers:
 
 
 class TestCreateUser:
+    @patch(f"{_SERVICE}.create_user")
+    def test_mfa_enabled_is_not_accepted_in_the_body(self, mock_create, client):
+        response = client.post(
+            "/users",
+            json={
+                "name": "New User",
+                "username": "newuser",
+                "email": "new@example.com",
+                "active": True,
+                "access_type": "regular",
+                "password": "testpass123",
+                "mfa_enabled": True,
+            },
+        )
+
+        assert response.status_code == 422
+        mock_create.assert_not_called()
+
     @patch(f"{_SERVICE}.create_user")
     def test_creates_through_the_service(self, mock_create, client, mock_db):
         mock_create.return_value = _user(1, name="New User", username="newuser", email="new@example.com")
@@ -337,7 +361,7 @@ class TestEditUserNeedsIfMatch:
 
 
 class TestEditUser:
-    @pytest.mark.parametrize("read_only", [{"id": 1}, {"external_auth_count": 2}])
+    @pytest.mark.parametrize("read_only", [{"id": 1}, {"external_auth_count": 2}, {"mfa_enabled": True}])
     def test_a_read_only_field_is_not_accepted_in_the_body(self, read_only, client):
         response = client.patch(
             "/users/1",

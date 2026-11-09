@@ -349,7 +349,6 @@ class User(UserBase):
     Attributes:
         access_type: User access level.
         active: Whether the user is active.
-        mfa_enabled: Whether MFA is enabled.
         email_verified: Whether email is verified.
         pending_admin_approval: Whether pending admin approval.
     """
@@ -361,10 +360,6 @@ class User(UserBase):
     active: StrictBool = Field(
         ...,
         description="Whether the user is active",
-    )
-    mfa_enabled: StrictBool = Field(
-        default=False,
-        description="Whether MFA is enabled",
     )
     email_verified: StrictBool = Field(
         default=False,
@@ -387,6 +382,7 @@ class UserRead(User):
     """Users schema for read operations.
 
     Attributes:
+        mfa_enabled: Whether MFA is enabled.
         id: User ID.
         photo_path: Servable URL of the user's photo, resolved from the stored storage key.
         external_auth_count: Number of external auth providers.
@@ -395,6 +391,10 @@ class UserRead(User):
         deletion_requested_at: When the account was queued for deletion, ``None`` when no deletion is queued.
     """
 
+    mfa_enabled: StrictBool = Field(
+        default=False,
+        description="Whether MFA is enabled",
+    )
     id: StrictInt = Field(
         ...,
         ge=1,
@@ -454,7 +454,7 @@ class UserEdit(User):
 
     The stored columns of a user and nothing a read adds: ``id`` is the path, and
     ``external_auth_count``, the photo URL and the pending email change are derived. ``mfa_enabled`` is a read-only
-    projection, so a write ignores it. A name already stored is re-applied as it is, even if it would not pass as
+    projection and is not a field. A name already stored is re-applied as it is, even if it would not pass as
     new input.
     """
 
@@ -475,6 +475,7 @@ class UserEdit(User):
             user.model_dump(
                 exclude={
                     "id",
+                    "mfa_enabled",
                     "photo_path",
                     "external_auth_count",
                     "version",

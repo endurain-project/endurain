@@ -60,13 +60,12 @@ export function mapManagedUser(dto: UserDto): ManagedUser {
  * Rebuilds the `UserEdit` wire payload from a {@link ManagedUser}.
  * Every stored column is sent so fields the admin form doesn't expose round-trip
  * untouched, but the derived, read-only fields are omitted: `id` is the path,
- * `mfa_enabled` is a model property with no setter and `external_auth_count` is
- * computed per request, and the edit body rejects the latter.
+ * `mfa_enabled` and `external_auth_count` are computed per request, and the edit body rejects both.
  *
  * @param user - The managed user (already merged with any edits).
  * @returns The snake-cased editable body (without the read-only fields).
  */
-function toUserWire(user: ManagedUser): Omit<UserEditDto, 'mfa_enabled'> {
+function toUserWire(user: ManagedUser): UserEditDto {
   return {
     name: user.name,
     username: user.username,
@@ -168,7 +167,6 @@ export async function createUser(
     active: input.active,
     email_verified: input.emailVerified,
     pending_admin_approval: input.pendingAdminApproval,
-    mfa_enabled: false,
     units: input.units,
     weight_units: input.weightUnits,
     currency: input.currency,
@@ -191,8 +189,8 @@ export async function createUser(
 /**
  * Updates a user's admin-editable fields (scope `users:write`). The edits are
  * merged onto the existing record and the editable columns are sent; the
- * derived read-only fields (`mfa_enabled`, `external_auth_count`) are omitted so
- * the endpoint's mass-assignment never tries to write a non-writable attribute.
+ * derived read-only fields (`mfa_enabled`, `external_auth_count`) are omitted
+ * because the edit body rejects them.
  * An edit that changes the email, access type or active flag carries the
  * administrator's own step-up; any other edit sends none.
  *
