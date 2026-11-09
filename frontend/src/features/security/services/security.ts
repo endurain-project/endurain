@@ -174,7 +174,7 @@ export async function setupMfa(): Promise<MfaSetup> {
  */
 export async function enableMfa(input: MfaEnableInput): Promise<string[]> {
   const payload: MfaEnableDto = {
-    mfa_code: input.mfaCode,
+    totp_code: input.mfaCode,
     step_up: toStepUpWire({
       currentPassword: input.currentPassword,
       mfaCode: null,
@@ -182,11 +182,11 @@ export async function enableMfa(input: MfaEnableInput): Promise<string[]> {
     }),
     revoke_other_sessions: input.revokeOtherSessions,
   }
-  const response = await apiFetch<{ backup_codes: string[] }>('/profile/mfa/enable', {
+  const dto = await apiFetch<BackupCodesDto>('/profile/mfa/enable', {
     method: 'POST',
     body: JSON.stringify(payload),
   })
-  return response.backup_codes ?? []
+  return mapBackupCodes(dto).codes
 }
 
 /**

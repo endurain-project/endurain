@@ -11,7 +11,6 @@ import core.database as core_database
 import core.exceptions as core_exceptions
 import modules.auth.account_security.mfa_router as mfa_router
 import modules.auth.dependencies as auth_dependencies
-import modules.auth.mfa.schema as mfa_schema
 import modules.auth.mfa_backup_codes.schema as mfa_backup_codes_schema
 
 _WORKFLOW = "modules.auth.account_security.mfa_router.mfa_workflow_service"
@@ -34,7 +33,10 @@ def client() -> TestClient:
 
 def _post(client, path, body):
     with (
-        patch(f"{_WORKFLOW}.enable_mfa", return_value=mfa_schema.MFAEnableRead(message="ok", backup_codes=["a"])) as e,
+        patch(
+            f"{_WORKFLOW}.enable_mfa",
+            return_value=mfa_backup_codes_schema.MFABackupCodesRead(codes=["a"], created_at=datetime.now(UTC)),
+        ) as e,
         patch(f"{_WORKFLOW}.disable_mfa") as d,
         patch(
             f"{_WORKFLOW}.generate_backup_codes",
@@ -59,7 +61,7 @@ def test_the_step_up_routes_pass_the_choice_on(client, path, extra, expected):
 
 @pytest.mark.parametrize(("extra", "expected"), [({}, True), ({"revoke_other_sessions": False}, False)])
 def test_enable_carries_the_choice_in_its_request(client, extra, expected):
-    response, workflow = _post(client, "enable", {"mfa_code": "123456", **_STEP_UP, **extra})
+    response, workflow = _post(client, "enable", {"totp_code": "123456", **_STEP_UP, **extra})
 
     assert response.status_code == 200
     assert workflow.call_args.args[0].revoke_other_sessions is expected
@@ -68,6 +70,20 @@ def test_enable_carries_the_choice_in_its_request(client, extra, expected):
 @pytest.mark.parametrize("path", ["disable", "backup-codes"])
 def test_an_unknown_key_is_refused(client, path):
     response, workflow = _post(client, path, {**_STEP_UP, "unexpected": 1})
+
+    assert response.status_code == 422
+    workflow.assert_not_called()
+
+
+def test_enable_answers_with_the_backup_codes_body(client):
+    response, _ = _post(client, "enable", {"totp_code": "123456", **_STEP_UP})
+
+    assert response.status_code == 200
+    assert set(response.json()) == {"codes", "created_at"}
+
+
+def test_enable_refuses_the_old_mfa_code_field(client):
+    response, workflow = _post(client, "enable", {"mfa_code": "123456", **_STEP_UP})
 
     assert response.status_code == 422
     workflow.assert_not_called()

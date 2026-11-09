@@ -999,19 +999,18 @@ class TestEnableMFA:
     def test_success(self, profile_client, mock_auth_services):
         """Happy path: enable MFA."""
         mock_auth_services.enable_mfa.return_value = {
-            "message": "MFA enabled successfully",
-            "backup_codes": ["code1", "code2"],
+            "codes": ["code1", "code2"],
+            "created_at": datetime(2026, 1, 1, tzinfo=UTC),
         }
 
         response = profile_client.post(
             PREFIX + "/mfa/enable",
-            json={"mfa_code": "123456", "step_up": {"current_password": "pass123"}},
+            json={"totp_code": "123456", "step_up": {"current_password": "pass123"}},
         )
 
         assert response.status_code == 200
         data = response.json()
-        assert data["message"] == "MFA enabled successfully"
-        assert data["backup_codes"] == ["code1", "code2"]
+        assert data["codes"] == ["code1", "code2"]
 
     def test_step_up_fails(self, profile_client, mock_auth_services):
         """Step-up fails before enabling."""
@@ -1019,7 +1018,7 @@ class TestEnableMFA:
 
         response = profile_client.post(
             PREFIX + "/mfa/enable",
-            json={"mfa_code": "123456", "step_up": {"current_password": "wrong"}},
+            json={"totp_code": "123456", "step_up": {"current_password": "wrong"}},
         )
 
         assert response.status_code == 401
@@ -1033,7 +1032,7 @@ class TestEnableMFA:
 
         response = profile_client.post(
             PREFIX + "/mfa/enable",
-            json={"mfa_code": "123456", "step_up": {"current_password": "pass123"}},
+            json={"totp_code": "123456", "step_up": {"current_password": "pass123"}},
         )
 
         assert response.status_code == 400
@@ -1047,7 +1046,7 @@ class TestEnableMFA:
 
         response = profile_client.post(
             PREFIX + "/mfa/enable",
-            json={"mfa_code": "123456", "step_up": {"current_password": "pass123"}},
+            json={"totp_code": "123456", "step_up": {"current_password": "pass123"}},
         )
 
         assert response.status_code == 503
@@ -1058,11 +1057,11 @@ class TestEnableMFA:
 
         response = profile_client.post(
             PREFIX + "/mfa/enable",
-            json={"mfa_code": "000000", "step_up": {"current_password": "pass123"}},
+            json={"totp_code": "000000", "step_up": {"current_password": "pass123"}},
         )
 
-        assert response.json()["type"] == "urn:endurain:error:invalid-mfa-code"
         assert response.status_code == 400
+        assert response.json()["type"] == "urn:endurain:error:invalid-mfa-code"
 
     def test_other_http_exception(self, profile_client, mock_auth_services):
         """Other HTTPException (not wrong code) → re-raised."""
@@ -1073,7 +1072,7 @@ class TestEnableMFA:
 
         response = profile_client.post(
             PREFIX + "/mfa/enable",
-            json={"mfa_code": "123456", "step_up": {"current_password": "pass123"}},
+            json={"totp_code": "123456", "step_up": {"current_password": "pass123"}},
         )
 
         assert response.status_code == 409

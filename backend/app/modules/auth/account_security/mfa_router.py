@@ -93,7 +93,7 @@ def setup_mfa(
 
 @router.post(
     "/enable",
-    response_model=mfa_schema.MFAEnableRead,
+    response_model=mfa_backup_codes_schema.MFABackupCodesRead,
     dependencies=[Security(auth_dependencies.check_scopes, scopes=["profile:security"])],
 )
 @core_rate_limit.limiter.limit(core_rate_limit.SENSITIVE)
@@ -112,7 +112,7 @@ def enable_mfa(
         Depends(auth_dependencies.get_mfa_secret_store),
     ],
     db: core_dependencies.DbSession,
-) -> mfa_schema.MFAEnableRead:
+) -> mfa_backup_codes_schema.MFABackupCodesRead:
     """Enable MFA for authenticated user after step-up verification.
 
     A stolen access token alone must not be sufficient to enrol a
@@ -122,7 +122,7 @@ def enable_mfa(
     current password before the binding is committed. The step-up
     verification is the ``step_up`` object (see
     :func:`modules.auth.account_security.step_up_service.verify_step_up_credentials`).
-    The ``mfa_code`` in the request body is the fresh enrolment code from the
+    The ``totp_code`` in the request body is the fresh enrolment code from the
     user's authenticator app and is verified separately by
     :func:`modules.auth.mfa.service.enable_user_mfa` against the secret
     issued by ``POST /profile/mfa/setup``. The user's other sessions end with the
@@ -139,7 +139,7 @@ def enable_mfa(
         db: Database session.
 
     Returns:
-        Success message and the freshly issued backup codes.
+        The freshly issued backup codes and when they were created.
 
     Raises:
         DomainError: 400 if no setup is in progress or the TOTP

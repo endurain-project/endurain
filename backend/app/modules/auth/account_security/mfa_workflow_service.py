@@ -148,8 +148,8 @@ def enable_mfa(
     step_up_store: account_security_step_up_store.StepUpStore,
     mfa_secret_store: MFASecretStoreBackend,
     db: Session,
-) -> mfa_schema.MFAEnableRead:
-    """Enable MFA using pending secret and verification code.
+) -> mfa_backup_codes_schema.MFABackupCodesRead:
+    """Enable MFA using pending secret and verification code, returning the first backup codes.
 
     The pending setup is checked before step-up, so a request without one does not spend an identity-provider
     step-up ticket.
@@ -173,7 +173,7 @@ def enable_mfa(
         backup_codes = mfa_integration.enable_user_mfa(
             token_user_id,
             secret,
-            request.mfa_code,
+            request.totp_code,
             credentials_integration.get_password_hasher(),
             db,
             replay_guard=step_up_store,
@@ -192,7 +192,7 @@ def enable_mfa(
             "User <token_user_id> enabled MFA (step-up verified)",
             extra=core_logger.context(token_user_id=token_user_id),
         )
-        return mfa_schema.MFAEnableRead(message="MFA enabled successfully", backup_codes=backup_codes)
+        return mfa_backup_codes_schema.MFABackupCodesRead(codes=backup_codes, created_at=datetime.now(UTC))
     except core_exceptions.InvalidMfaCodeError:
         raise
     except core_exceptions.DomainError:

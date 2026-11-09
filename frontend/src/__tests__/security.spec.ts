@@ -134,7 +134,7 @@ describe('security service requests', () => {
   })
 
   it('enableMfa POSTs the code and returns the backup codes', async () => {
-    vi.mocked(apiFetch).mockResolvedValue({ backup_codes: ['a', 'b'] })
+    vi.mocked(apiFetch).mockResolvedValue({ codes: ['a', 'b'], created_at: '2026-01-01T00:00:00Z' })
 
     const codes = await enableMfa({
       mfaCode: '123456',
@@ -145,7 +145,7 @@ describe('security service requests', () => {
     expect(apiFetch).toHaveBeenCalledWith('/profile/mfa/enable', {
       method: 'POST',
       body: JSON.stringify({
-        mfa_code: '123456',
+        totp_code: '123456',
         step_up: { current_password: 'pw', mfa_code: null },
         revoke_other_sessions: true,
       }),
@@ -154,7 +154,7 @@ describe('security service requests', () => {
   })
 
   it('enableMfa sends false when the user keeps their other sessions', async () => {
-    vi.mocked(apiFetch).mockResolvedValue({ backup_codes: [] })
+    vi.mocked(apiFetch).mockResolvedValue({ codes: [], created_at: '2026-01-01T00:00:00Z' })
 
     await enableMfa({ mfaCode: '123456', currentPassword: 'pw', revokeOtherSessions: false })
 

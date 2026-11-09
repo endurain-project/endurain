@@ -39,7 +39,7 @@ describe('MfaSetupDialog', () => {
       Promise.resolve(
         path === '/profile/mfa/setup'
           ? { secret: 'SEC', qr_code: 'data:image/png;base64,AAA', app_name: 'Endurain' }
-          : { backup_codes: ['A'] },
+          : { codes: ['A'], created_at: '2026-01-01T00:00:00Z' },
       ),
     )
   })
@@ -53,7 +53,7 @@ describe('MfaSetupDialog', () => {
     await flushPromises()
 
     const enable = vi.mocked(apiFetch).mock.calls.find(([path]) => path === '/profile/mfa/enable')!
-    expect(JSON.parse(String(enable[1]?.body)).mfa_code).toBe('022643')
+    expect(JSON.parse(String(enable[1]?.body)).totp_code).toBe('022643')
   })
 
   it('sends the other-devices choice, signing them out by default', async () => {

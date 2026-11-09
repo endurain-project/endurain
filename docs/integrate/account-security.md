@@ -58,7 +58,7 @@ Every step-up operation takes the credentials in a `step_up` object of its JSON 
 }
 ```
 
-Account deletion, profile export and identity provider unlink send exactly this body. The other operations add their own fields next to `step_up`: `password` and `revoke_other_sessions` for the password change, `email` and `revoke_other_sessions` for the email change, `mfa_code` (the code of the authenticator being enrolled) and `revoke_other_sessions` for MFA enable, `revoke_other_sessions` for MFA disable and backup-code regeneration, `redirect` and `revoke_other_sessions` for an identity provider link, and `name`, `scopes` and `expires_at` for an API key. MFA disable sends the code in `step_up.mfa_code`. Password change (`POST /profile/password/change`) needs a local password and is answered `403` for an account without one; an administrator sets the first password through `POST /users/{user_id}/password/change`, which refuses the administrator's own account and takes the administrator's `step_up` next to `password`.
+Account deletion, profile export and identity provider unlink send exactly this body. The other operations add their own fields next to `step_up`: `password` and `revoke_other_sessions` for the password change, `email` and `revoke_other_sessions` for the email change, `totp_code` (the code of the authenticator being enrolled) and `revoke_other_sessions` for MFA enable, `revoke_other_sessions` for MFA disable and backup-code regeneration, `redirect` and `revoke_other_sessions` for an identity provider link, and `name`, `scopes` and `expires_at` for an API key. MFA disable sends the code in `step_up.mfa_code`. Password change (`POST /profile/password/change`) needs a local password and is answered `403` for an account without one; an administrator sets the first password through `POST /users/{user_id}/password/change`, which refuses the administrator's own account and takes the administrator's `step_up` next to `password`.
 
 ### Ending other sessions after a change of an authentication factor
 
@@ -302,7 +302,7 @@ Backup codes provide a recovery mechanism when users lose access to their authen
 
 ### When Backup Codes Are Generated
 
-1. **Automatically on MFA Enable**: When a user enables MFA, 10 backup codes are generated and returned in the response
+1. **Automatically on MFA Enable**: When a user enables MFA, 10 backup codes are generated and returned in the response, in the same `{"codes": [...], "created_at": "..."}` body as `POST /profile/mfa/backup-codes`
 2. **Manual Regeneration**: Users can regenerate all backup codes via `POST /profile/mfa/backup-codes` (invalidates all previous codes). This endpoint requires step-up verification and MFA must already be enabled on the account.
 
 ### API Endpoints

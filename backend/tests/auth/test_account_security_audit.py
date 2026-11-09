@@ -245,7 +245,7 @@ class TestMfaAudit:
         store = MagicMock()
         store.get_secret.return_value = "secret"
         request = mfa_schema.MFASetupRequest(
-            mfa_code="123456",
+            totp_code="123456",
             step_up=auth_schema.StepUpVerification(current_password="pw"),
             revoke_other_sessions=revoke,
         )

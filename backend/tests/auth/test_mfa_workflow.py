@@ -11,7 +11,7 @@ behaviour: delegation arguments, step-up enforcement, the pending-secret
 store lifecycle, error propagation, and response/schema shaping.
 """
 
-from datetime import datetime
+from datetime import UTC, datetime, timedelta
 from unittest.mock import MagicMock, patch
 
 import pytest
@@ -22,6 +22,7 @@ import modules.auth.account_security.mfa_workflow_service as mfa_workflow
 import modules.auth.credentials.integration_service as credentials_integration
 import modules.auth.identity_providers.constants as identity_providers_constants
 import modules.auth.mfa.schema as mfa_schema
+import modules.auth.mfa_backup_codes.schema as mfa_backup_codes_schema
 import modules.auth.schema as auth_schema
 
 
@@ -140,7 +141,7 @@ class TestEnableMfa:
 
     def _request(self) -> mfa_schema.MFASetupRequest:
         return mfa_schema.MFASetupRequest(
-            mfa_code="123456", step_up=auth_schema.StepUpVerification(current_password="old-pass")
+            totp_code="123456", step_up=auth_schema.StepUpVerification(current_password="old-pass")
         )
 
     def test_happy_path_enables_and_clears_pending_secret(self, mock_db, step_up_store, mfa_secret_store):
@@ -184,8 +185,10 @@ class TestEnableMfa:
         )
         mfa_secret_store.delete_secret.assert_called_once_with(7)
         assert len(mock_log.method_calls) == 1
-        assert isinstance(result, mfa_schema.MFAEnableRead)
-        assert result.model_dump() == {"message": "MFA enabled successfully", "backup_codes": ["code-1", "code-2"]}
+        assert isinstance(result, mfa_backup_codes_schema.MFABackupCodesRead)
+        assert set(result.model_dump()) == {"codes", "created_at"}
+        assert result.codes == ["code-1", "code-2"]
+        assert abs(datetime.now(UTC) - result.created_at) < timedelta(seconds=5)
 
     def test_step_up_failure_propagates_before_enabling(self, mock_db, step_up_store, mfa_secret_store):
         mfa_secret_store.get_secret.return_value = "pending-secret"
