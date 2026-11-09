@@ -201,13 +201,6 @@ def profile_app(
     )
     monkeypatch.setattr(
         mfa_workflow_service,
-        "verify_mfa",
-        lambda request, user_id, session_id, store, db: mock_auth_services.verify_mfa(
-            request=request, user_id=user_id, session_id=session_id, step_up_store=store
-        ),
-    )
-    monkeypatch.setattr(
-        mfa_workflow_service,
         "generate_backup_codes",
         lambda step_up, user_id, session_id, store, db, *, revoke_other_sessions: (
             mock_auth_services.generate_backup_codes(

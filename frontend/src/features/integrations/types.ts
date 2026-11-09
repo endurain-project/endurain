@@ -14,7 +14,7 @@ export type StravaSyncStatus = Schemas['StravaSyncStatus']
 export type GarminLoginDto = Schemas['GarminLogin']
 
 /** Garmin Connect MFA-code body. */
-export type GarminMfaDto = Schemas['modules__garmin__schema__MFARequest']
+export type GarminMfaDto = Schemas['MFARequest']
 
 /** Where a Garmin Connect link attempt is, as the status endpoint reports it. */
 export type GarminLinkStatus = Schemas['GarminLinkStatus']

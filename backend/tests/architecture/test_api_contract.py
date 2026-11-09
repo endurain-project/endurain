@@ -85,7 +85,7 @@ _DOCSTRING_SECTIONS: dict[str, int] = {
     "modules/activities/activity_exercise_titles/router.py": 1,
     "modules/auth/account_security/api_keys_router.py": 1,
     "modules/auth/account_security/identity_links_router.py": 4,
-    "modules/auth/account_security/mfa_router.py": 7,
+    "modules/auth/account_security/mfa_router.py": 6,
     "modules/auth/account_security/sessions_router.py": 3,
     "modules/auth/authentication/public_router.py": 4,
     "modules/auth/authentication/sso_public_router.py": 1,

@@ -226,7 +226,6 @@ _TIERED_ENDPOINTS = [
     pytest.param(auth_mfa_profile_router.setup_mfa, core_rate_limit.SENSITIVE, id="mfa-setup"),
     pytest.param(auth_mfa_profile_router.enable_mfa, core_rate_limit.SENSITIVE, id="mfa-enable"),
     pytest.param(auth_mfa_profile_router.disable_mfa, core_rate_limit.SENSITIVE, id="mfa-disable"),
-    pytest.param(auth_mfa_profile_router.verify_mfa, core_rate_limit.SENSITIVE, id="profile-mfa-verify"),
     pytest.param(users_goals_router.create_user_goal, core_rate_limit.WRITE, id="goal-create"),
     pytest.param(users_goals_router.update_user_goal, core_rate_limit.WRITE, id="goal-update"),
     pytest.param(users_goals_router.delete_user_goal, core_rate_limit.WRITE, id="goal-delete"),

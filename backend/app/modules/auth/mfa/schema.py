@@ -6,54 +6,9 @@ from pydantic import (
     Field,
     StrictBool,
     StrictStr,
-    field_validator,
 )
 
 import modules.auth.schema as auth_schema
-
-
-class MFARequest(BaseModel):
-    """Request model for MFA verification.
-
-    Attributes:
-        mfa_code: The MFA code to verify (6-digit TOTP or
-            9-char backup code).
-    """
-
-    mfa_code: StrictStr = Field(
-        ...,
-        min_length=6,
-        max_length=9,
-        description="MFA code (6-digit TOTP or XXXX-XXXX)",
-    )
-
-    model_config = ConfigDict(
-        extra="forbid",
-        validate_assignment=True,
-    )
-
-    @field_validator("mfa_code")
-    @classmethod
-    def validate_mfa_code_format(cls, v: str) -> str:
-        """Validate MFA code format.
-
-        Args:
-            v: MFA code to validate.
-
-        Returns:
-            Validated MFA code.
-
-        Raises:
-            ValueError: If code format is invalid.
-        """
-        normalized = v.strip().upper()
-        # 6-digit TOTP
-        if len(normalized) == 6 and normalized.isascii() and normalized.isdecimal():
-            return normalized
-        # 9-char backup code (XXXX-XXXX)
-        if len(normalized) == 9 and normalized[4] == "-":
-            return normalized
-        raise ValueError("MFA code must be 6-digit TOTP or XXXX-XXXX")
 
 
 class MFAChangeRequest(BaseModel):

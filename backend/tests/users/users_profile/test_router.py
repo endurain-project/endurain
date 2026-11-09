@@ -1109,37 +1109,17 @@ class TestDisableMFA:
 
 
 # ===================================================================
-# POST /profile/mfa/verify
+# POST /profile/mfa/verify (removed)
 # ===================================================================
 
 
-class TestVerifyMFA:
-    """Tests for POST /profile/mfa/verify — verify_mfa."""
+class TestVerifyMFARemoved:
+    """POST /profile/mfa/verify grants nothing, so it is not a route."""
 
-    def test_valid_code(self, profile_client, mock_auth_services):
-        """Valid MFA code → success."""
-        mock_auth_services.verify_mfa.return_value = None
+    def test_route_is_gone(self, profile_client):
+        response = profile_client.post(PREFIX + "/mfa/verify", json={"mfa_code": "123456"})
 
-        response = profile_client.post(
-            PREFIX + "/mfa/verify",
-            json={"mfa_code": "123456"},
-        )
-
-        assert response.status_code == 204
-        assert response.content == b""
-        assert mock_auth_services.verify_mfa.call_args.kwargs["session_id"] == "session-1"
-
-    def test_invalid_code(self, profile_client, mock_auth_services):
-        """Invalid MFA code → 400."""
-        mock_auth_services.verify_mfa.side_effect = HTTPException(status_code=400, detail="Invalid MFA code")
-
-        response = profile_client.post(
-            PREFIX + "/mfa/verify",
-            json={"mfa_code": "000000"},
-        )
-
-        assert response.status_code == 400
-        assert response.json()["detail"] == "Invalid MFA code"
+        assert response.status_code == 404
 
 
 # ===================================================================

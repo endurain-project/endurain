@@ -643,17 +643,6 @@ class TestStepUpAudit:
         entry = audit.assert_audited(login_audit_actions.STEP_UP_VERIFY.id, outcome="denied")
         assert entry.details["reason"] == Reason.LOCKED_OUT.value
 
-    def test_the_mfa_code_check_records_failure_and_lockout(self):
-        with (
-            patch.object(step_up_service.mfa_integration, "verify_user_mfa", return_value=False),
-            patch.object(step_up_service.lockout_integration, "report_lockout_applied"),
-            jasil_testing.capture_audit() as audit,
-        ):
-            assert step_up_service.verify_mfa_code(7, "sid-7", "000000", self._store(), MagicMock()) is False
-
-        entry = audit.assert_audited(login_audit_actions.STEP_UP_VERIFY.id, outcome="failure")
-        assert entry.details == {"method": Method.MFA_CODE.value, "reason": Reason.INVALID_CREDENTIALS.value}
-
     def test_success_writes_no_row(self):
         with jasil_testing.capture_audit() as audit:
             self._verify(self._store(), password="pw", password_valid=True)

@@ -62,14 +62,6 @@ class TestBackupCodeAtSignIn:
 
 
 class TestBackupCodeAtStepUp:
-    def test_a_backup_code_passes_the_mfa_code_check_and_is_consumed(self, session_factory):
-        store = step_up_store.StepUpAttempts(MemoryState())
-        with session_factory() as db:
-            assert step_up_service.verify_mfa_code(_USER_ID, "sid", _BACKUP_CODE, store, db) is True
-            db.commit()
-
-        assert _unused_codes(session_factory) == 0
-
     def test_a_backup_code_passes_step_up_with_the_password(self, session_factory):
         store = step_up_store.StepUpAttempts(MemoryState())
         with session_factory() as db:

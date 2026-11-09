@@ -6,57 +6,6 @@ from pydantic import ValidationError
 import modules.auth.mfa.schema as mfa_schema
 
 
-class TestMFARequest:
-    """Test suite for MFARequest schema."""
-
-    def test_valid_6_digit_code(self):
-        data = mfa_schema.MFARequest(mfa_code="123456")
-        assert data.mfa_code == "123456"
-
-    def test_valid_9_char_backup_code(self):
-        data = mfa_schema.MFARequest(mfa_code="ABCD-EFGH")
-        assert data.mfa_code == "ABCD-EFGH"
-
-    def test_normalizes_lowercase_to_uppercase(self):
-        data = mfa_schema.MFARequest(mfa_code="abcd-efgh")
-        assert data.mfa_code == "ABCD-EFGH"
-
-    def test_strips_whitespace(self):
-        data = mfa_schema.MFARequest(mfa_code="123456  ")
-        assert data.mfa_code == "123456"
-
-    def test_rejects_5_digit_code(self):
-        with pytest.raises(ValidationError):
-            mfa_schema.MFARequest(mfa_code="12345")
-
-    def test_rejects_10_char_code(self):
-        with pytest.raises(ValidationError):
-            mfa_schema.MFARequest(mfa_code="ABCD-EFGHI")
-
-    @pytest.mark.parametrize("code", ["12345\u00b2", "\u0661\u0662\u0663\u0664\u0665\u0666"])
-    def test_rejects_non_ascii_digits(self, code):
-        with pytest.raises(ValidationError, match="MFA code must be"):
-            mfa_schema.MFARequest(mfa_code=code)
-
-    def test_rejects_code_without_dash_at_position_4(self):
-        with pytest.raises(ValidationError, match="MFA code must be"):
-            mfa_schema.MFARequest(mfa_code="ABCDEFGHI")
-
-    def test_rejects_empty_string(self):
-        with pytest.raises(ValidationError):
-            mfa_schema.MFARequest(mfa_code="")
-
-    def test_rejects_extra_fields(self):
-        with pytest.raises(ValidationError):
-            mfa_schema.MFARequest(mfa_code="123456", extra_field="test")
-
-    def test_has_extra_forbid_config(self):
-        assert mfa_schema.MFARequest.model_config.get("extra") == "forbid"
-
-    def test_has_validate_assignment_config(self):
-        assert mfa_schema.MFARequest.model_config.get("validate_assignment") is True
-
-
 class TestMFASetupRequest:
     """Test suite for MFASetupRequest schema."""
 

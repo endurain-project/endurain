@@ -93,11 +93,6 @@ _AUDITED_WRITES: dict[tuple[str, str], tuple[str, ...]] = {
         "auth.lockout.apply",
         "auth.step_up.verify",
     ),
-    ("auth/account_security/mfa_router.py", "verify_mfa"): (
-        "auth.backup_codes.use",
-        "auth.lockout.apply",
-        "auth.step_up.verify",
-    ),
     ("auth/account_security/public_router.py", "complete_password_change"): (
         "auth.password.change",
         "auth.session.login",

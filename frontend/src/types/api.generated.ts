@@ -2708,26 +2708,6 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/v1/profile/mfa/verify": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /**
-         * Verify Mfa
-         * @description Verify MFA code for authenticated user.
-         */
-        post: operations["verify_mfa"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
     "/api/v1/profile/password/change": {
         parameters: {
             query?: never;
@@ -9190,6 +9170,14 @@ export interface components {
             mfa_code: string;
         };
         /**
+         * MFARequest
+         * @description The MFA code a user submits to finish a link attempt.
+         */
+        MFARequest: {
+            /** Mfa Code */
+            mfa_code: string;
+        };
+        /**
          * MFARequiredRead
          * @description Sign-in answer: a second factor must be verified next.
          *
@@ -13467,34 +13455,11 @@ export interface components {
             type_breakdown?: components["schemas"]["TypeBreakdownItem"][] | null;
         };
         /**
-         * MFARequest
-         * @description Request model for MFA verification.
-         *
-         *     Attributes:
-         *         mfa_code: The MFA code to verify (6-digit TOTP or
-         *             9-char backup code).
-         */
-        modules__auth__mfa__schema__MFARequest: {
-            /**
-             * Mfa Code
-             * @description MFA code (6-digit TOTP or XXXX-XXXX)
-             */
-            mfa_code: string;
-        };
-        /**
          * SyncKind
          * @description What a queued Garmin Connect sync pulls.
          * @enum {string}
          */
         modules__garmin__constants__SyncKind: "gear" | "health";
-        /**
-         * MFARequest
-         * @description The MFA code a user submits to finish a link attempt.
-         */
-        modules__garmin__schema__MFARequest: {
-            /** Mfa Code */
-            mfa_code: string;
-        };
         /**
          * Interval
          * @description Enumeration of time intervals for health weight data queries.
@@ -17282,7 +17247,7 @@ export interface operations {
         };
         requestBody: {
             content: {
-                "application/json": components["schemas"]["modules__garmin__schema__MFARequest"];
+                "application/json": components["schemas"]["MFARequest"];
             };
         };
         responses: {
@@ -28426,106 +28391,6 @@ export interface operations {
             };
             /** @description The caller is signed in but not allowed, for example a scope is missing. */
             403: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/problem+json": components["schemas"]["ProblemDetail"];
-                };
-            };
-            /** @description The rate limit was reached. */
-            429: {
-                headers: {
-                    /** @description Seconds to wait before the request can succeed. */
-                    "Retry-After"?: number;
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/problem+json": components["schemas"]["ProblemDetail"];
-                };
-            };
-            /** @description A dependency is unavailable for a moment. */
-            503: {
-                headers: {
-                    /** @description Seconds to wait before the request can succeed. */
-                    "Retry-After"?: number;
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/problem+json": components["schemas"]["ProblemDetail"];
-                };
-            };
-            /** @description Unexpected error */
-            default: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/problem+json": components["schemas"]["ProblemDetail"];
-                };
-            };
-        };
-    };
-    verify_mfa: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["modules__auth__mfa__schema__MFARequest"];
-            };
-        };
-        responses: {
-            /** @description Successful Response */
-            204: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-            /** @description The credential is missing, invalid or no longer valid. */
-            401: {
-                headers: {
-                    /** @description The authentication challenge. */
-                    "WWW-Authenticate"?: string;
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/problem+json": components["schemas"]["ProblemDetail"];
-                };
-            };
-            /** @description The caller is signed in but not allowed, for example a scope is missing. */
-            403: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/problem+json": components["schemas"]["ProblemDetail"];
-                };
-            };
-            /** @description The request conflicts with the current state. */
-            409: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/problem+json": components["schemas"]["ProblemDetail"];
-                };
-            };
-            /** @description The body is larger than the route accepts. */
-            413: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/problem+json": components["schemas"]["ProblemDetail"];
-                };
-            };
-            /** @description Validation Error */
-            422: {
                 headers: {
                     [name: string]: unknown;
                 };
