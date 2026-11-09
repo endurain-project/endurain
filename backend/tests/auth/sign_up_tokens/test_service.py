@@ -328,9 +328,12 @@ class TestSignupPasswordPolicy:
         with (
             patch(f"{_MODULE}.server_settings_integration.get_server_settings", return_value=_settings()),
             patch(f"{_MODULE}.users_integration") as users,
-            pytest.raises(core_exceptions.InvalidInputError),
+            pytest.raises(core_exceptions.PasswordRequiredError) as refused,
         ):
             sign_up_service.signup(_signup_user(with_password=False), state, mock_db)
+
+        assert refused.value.status_code == 400
+        assert refused.value.code == "password-required"
 
         users.stage_signup_user.assert_not_called()
 

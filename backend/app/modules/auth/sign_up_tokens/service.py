@@ -619,8 +619,9 @@ def signup(
     Raises:
         PermissionDeniedError: If registration is disabled.
         ConflictError: If the username is taken.
-        InvalidInputError: If a password is sent while email verification is required, is missing while it is
-            not, or fails the configured policy.
+        PasswordRequiredError: If the password is missing while email verification is off.
+        InvalidInputError: If a password is sent while email verification is required, or fails the configured
+            policy.
     """
     server_settings = server_settings_integration.get_server_settings(db)
     if not server_settings.signup_enabled:
@@ -629,7 +630,7 @@ def signup(
     if server_settings.signup_require_email_verification and user.password is not None:
         raise core_exceptions.InvalidInputError("A password is chosen when the email address is verified")
     if not server_settings.signup_require_email_verification and user.password is None:
-        raise core_exceptions.InvalidInputError("A password is required")
+        raise core_exceptions.PasswordRequiredError("A password is required")
     if user.password is not None:
         credentials_integration.reject_breached_password(server_settings, user.password, db)
 
