@@ -123,6 +123,7 @@ nav:
     - OAuth/SSO and PKCE: integrate/oauth-sso-pkce.md
     - Configuration, scopes and best practices: integrate/auth-reference.md
     - Errors, concurrency and rate limits: integrate/errors-and-limits.md
+    - Compatibility between releases: integrate/compatibility.md
     - Public endpoints: integrate/public-endpoints.md
     - Health data and activity streams: integrate/health-and-streams.md
     - Data conventions: integrate/data-conventions.md

@@ -19,7 +19,7 @@ Every error the API returns is an [RFC 9457](https://www.rfc-editor.org/rfc/rfc9
 
 | Member | Meaning |
 | ------ | ------- |
-| `type` | Stable URN for the kind of error. **Branch on this.** It is not a URL and it does not change between releases. `about:blank` means the status code says everything. |
+| `type` | Stable URN for the kind of error. **Branch on this.** It is not a URL. A `type` keeps its URN and its meaning between releases, and a later release may give a case its own more specific `type` with the same status; see [Compatibility between releases](compatibility.md#refusals). `about:blank` means the status code says everything. |
 | `title` | Short summary of the kind. The same for every occurrence of a `type`. |
 | `status` | The HTTP status code, repeated in the body. |
 | `detail` | Explanation of this occurrence. Safe to show to a user and never contains internal diagnostics. |
