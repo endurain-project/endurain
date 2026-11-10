@@ -353,6 +353,7 @@
     "signup": {
       "title": "Reģistrācija",
       "enabled": "Atļaut jaunu lietotāju reģistrāciju",
+      "ssoEnabled": "Allow new user sign-ups through single sign-on",
       "adminApproval": "Pieprasīt administratora apstiprinājumu jaunām reģistrācijām",
       "emailVerification": "Pieprasīt e-pasta verifikāciju jaunām reģistrācijām"
     },

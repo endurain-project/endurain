@@ -132,6 +132,7 @@ class TestFindOrCreateUserEmailLinking:
                 "modules.auth.identity_providers.user_provisioning_service.users_integration.get_user_by_email",
                 return_value=None,
             ),
+            patch(f"{_BASE}.server_settings_integration.get_server_settings"),
             patch.object(
                 user_provisioning_service,
                 "create_user_from_idp",
@@ -143,6 +144,63 @@ class TestFindOrCreateUserEmailLinking:
         assert result is created_user
         mock_create.assert_called_once()
         assert mock_create.call_args.kwargs["email_verified"] is False
+
+
+class TestSsoSignUpGate:
+    """A new account is created only when the server allows SSO sign-up and the provider allows account creation."""
+
+    def _sign_in(self, *, server_allows: bool, provider_allows: bool, existing_user=None):
+        idp = _make_idp()
+        idp.auto_create_users = provider_allows
+        with (
+            patch(
+                f"{_BASE}.identity_provider_links_integration.get_user_identity_provider_by_subject_and_idp_id",
+                return_value=None,
+            ),
+            patch(f"{_BASE}.users_integration.get_user_by_email", return_value=existing_user),
+            patch(f"{_BASE}.users_integration.require_active_user"),
+            patch(f"{_BASE}.identity_provider_links_integration.create_user_identity_provider"),
+            patch(f"{_BASE}.stage_identity_link"),
+            patch(f"{_BASE}.update_user_from_idp", side_effect=lambda user, *_: user),
+            patch(
+                f"{_BASE}.server_settings_integration.get_server_settings",
+                return_value=MagicMock(signup_sso_enabled=server_allows),
+            ),
+            patch.object(user_provisioning_service, "create_user_from_idp") as create,
+        ):
+            create.return_value = MagicMock()
+            try:
+                result = user_provisioning_service.find_or_create_user(
+                    idp, "subject-1", {"email": "new@example.com", "email_verified": True}, MagicMock()
+                )
+            except user_provisioning_service.SsoSignInRefusedError as err:
+                return create, None, err
+        return create, result, None
+
+    def test_both_allowing_creates_the_account(self):
+        create, result, error = self._sign_in(server_allows=True, provider_allows=True)
+
+        assert error is None
+        create.assert_called_once()
+        assert result is create.return_value
+
+    @pytest.mark.parametrize(("server_allows", "provider_allows"), [(False, True), (True, False), (False, False)])
+    def test_either_switch_off_refuses_with_its_login_error(self, server_allows, provider_allows):
+        create, result, error = self._sign_in(server_allows=server_allows, provider_allows=provider_allows)
+
+        assert result is None
+        assert error is not None
+        assert error.login_error == "sso_auto_create_disabled"
+        assert error.status_code == 403
+        create.assert_not_called()
+
+    def test_the_server_switch_off_still_links_an_account_by_email(self):
+        existing = MagicMock(id=7, username="alice", email_verified=True)
+        create, result, error = self._sign_in(server_allows=False, provider_allows=True, existing_user=existing)
+
+        assert error is None
+        assert result is existing
+        create.assert_not_called()
 
 
 class TestCreatedAccountEmailVerification:

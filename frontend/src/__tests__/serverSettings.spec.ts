@@ -40,6 +40,7 @@ function makeSettingsDto(overrides: Partial<ServerSettingsDto> = {}): ServerSett
     public_shareable_links_user_info: false,
     login_photo_set: true,
     signup_enabled: false,
+    signup_sso_enabled: false,
     signup_require_admin_approval: true,
     signup_require_email_verification: true,
     sso_enabled: false,
@@ -114,6 +115,7 @@ describe('mapServerSettings', () => {
       publicShareableLinksUserInfo: false,
       loginPhotoSet: true,
       signupEnabled: false,
+      signupSsoEnabled: false,
       signupRequireAdminApproval: true,
       signupRequireEmailVerification: true,
       ssoEnabled: false,
@@ -237,6 +239,13 @@ describe('toServerSettingsWire', () => {
       mapServerSettings(makeSettingsDto({ password_breach_check_enabled: true })),
     )
     expect(wire).toHaveProperty('password_breach_check_enabled', true)
+  })
+
+  it('sends the single sign-on sign-up switch', () => {
+    const wire = toServerSettingsWire(
+      mapServerSettings(makeSettingsDto({ signup_sso_enabled: true })),
+    )
+    expect(wire).toHaveProperty('signup_sso_enabled', true)
   })
 
   it('sends the audit trail retention and legal hold', () => {

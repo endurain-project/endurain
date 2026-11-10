@@ -35,6 +35,7 @@ function makeSettings(overrides: Partial<ServerSettings> = {}): ServerSettings {
     publicShareableLinksUserInfo: false,
     loginPhotoSet: false,
     signupEnabled: false,
+    signupSsoEnabled: false,
     signupRequireAdminApproval: true,
     signupRequireEmailVerification: true,
     ssoEnabled: false,

@@ -353,6 +353,7 @@
     "signup": {
       "title": "Registrering",
       "enabled": "Tillad nye brugertilmeldinger",
+      "ssoEnabled": "Allow new user sign-ups through single sign-on",
       "adminApproval": "Kræv administratorgodkendelse for nye tilmeldinger",
       "emailVerification": "Kræv e-mailbekræftelse for nye tilmeldinger"
     },

@@ -353,6 +353,7 @@
     "signup": {
       "title": "Registratie",
       "enabled": "Nieuwe gebruikersregistraties toestaan",
+      "ssoEnabled": "Allow new user sign-ups through single sign-on",
       "adminApproval": "Beheerdersgoedkeuring vereisen voor nieuwe registraties",
       "emailVerification": "E-mailverificatie vereisen voor nieuwe registraties"
     },

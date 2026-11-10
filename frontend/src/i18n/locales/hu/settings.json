@@ -353,6 +353,7 @@
     "signup": {
       "title": "Regisztráció",
       "enabled": "Új felhasználói regisztrációk engedélyezése",
+      "ssoEnabled": "Allow new user sign-ups through single sign-on",
       "adminApproval": "Rendszergazdai jóváhagyás megkövetelése új regisztrációkhoz",
       "emailVerification": "E-mail-ellenőrzés megkövetelése új regisztrációkhoz"
     },

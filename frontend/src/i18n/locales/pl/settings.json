@@ -353,6 +353,7 @@
     "signup": {
       "title": "Rejestracja",
       "enabled": "Zezwalaj na rejestrację nowych użytkowników",
+      "ssoEnabled": "Allow new user sign-ups through single sign-on",
       "adminApproval": "Wymagaj zatwierdzenia administratora dla nowych rejestracji",
       "emailVerification": "Wymagaj weryfikacji e-maila dla nowych rejestracji"
     },

@@ -353,6 +353,7 @@
     "signup": {
       "title": "註冊",
       "enabled": "允許新使用者註冊",
+      "ssoEnabled": "Allow new user sign-ups through single sign-on",
       "adminApproval": "新申請須經管理員審核",
       "emailVerification": "新申請須驗證電子郵件"
     },

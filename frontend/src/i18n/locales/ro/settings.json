@@ -353,6 +353,7 @@
     "signup": {
       "title": "Înregistrare",
       "enabled": "Permite înscrierea de noi utilizatori",
+      "ssoEnabled": "Allow new user sign-ups through single sign-on",
       "adminApproval": "Necesită aprobarea administratorului pentru noile înscrieri",
       "emailVerification": "Necesită verificarea e-mailului pentru noile înscrieri"
     },

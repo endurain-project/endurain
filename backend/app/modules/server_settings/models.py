@@ -20,6 +20,7 @@ class ServerSettings(Base):
         currency: Currency type (euro, dollar, pound).
         num_records_per_page: Default pagination size.
         signup_enabled: Allow user registration.
+        signup_sso_enabled: Allow identity providers to create accounts at first sign-in.
         signup_require_admin_approval: Require approval for
             new signups.
         signup_require_email_verification: Require email
@@ -98,6 +99,12 @@ class ServerSettings(Base):
         default=False,
         nullable=False,
         comment="Allow user sign-up registration (true - yes, false - no)",
+    )
+    signup_sso_enabled: Mapped[bool] = mapped_column(
+        default=False,
+        server_default=text("false"),
+        nullable=False,
+        comment="Allow identity providers to create accounts at first sign-in (true - yes, false - no)",
     )
     signup_require_admin_approval: Mapped[bool] = mapped_column(
         default=True,

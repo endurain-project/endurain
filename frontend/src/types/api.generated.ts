@@ -10375,6 +10375,7 @@ export interface components {
          *         geocoding_api_key_set: Whether a geocoding API key is stored.
          *         env_managed: Field name to the environment variable that sets it; those
          *             fields cannot be edited while the variable is set.
+         *         signup_sso_enabled: Allow identity providers to create accounts at first sign-in.
          *         signup_require_admin_approval: Require admin approval for new sign-ups.
          *         signup_require_email_verification: Require email verification for new sign-ups.
          *         password_breach_check_enabled: Refuse a new password found in a known data breach.
@@ -10522,6 +10523,11 @@ export interface components {
              */
             signup_require_email_verification: boolean;
             /**
+             * Signup Sso Enabled
+             * @description Allow identity providers to create accounts at first sign-in; a provider must also allow it (true - yes, false - no)
+             */
+            signup_sso_enabled: boolean;
+            /**
              * Sso Auto Redirect
              * @description Auto-redirect to SSO if only one IdP (true - yes, false - no)
              */
@@ -10572,6 +10578,8 @@ export interface components {
          *         tileserver_api_key: Plain-text API key for the tile server; stored encrypted
          *             and never returned. Omit it to keep the stored key; send null or an
          *             empty string to remove it.
+         *         signup_sso_enabled: Allow identity providers to create accounts at first sign-in
+         *             (true - yes, false - no).
          *         signup_require_admin_approval: Require admin approval for new sign-ups
          *             (true - yes, false - no).
          *         signup_require_email_verification: Require email verification for new
@@ -10706,6 +10714,11 @@ export interface components {
              * @description Require email verification for new sign-ups (true - yes, false - no)
              */
             signup_require_email_verification: boolean;
+            /**
+             * Signup Sso Enabled
+             * @description Allow identity providers to create accounts at first sign-in; a provider must also allow it (true - yes, false - no)
+             */
+            signup_sso_enabled: boolean;
             /**
              * Sso Auto Redirect
              * @description Auto-redirect to SSO if only one IdP (true - yes, false - no)

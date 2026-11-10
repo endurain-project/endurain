@@ -353,6 +353,7 @@
     "signup": {
       "title": "Rekisteröityminen",
       "enabled": "Salli uusien käyttäjien rekisteröityminen",
+      "ssoEnabled": "Allow new user sign-ups through single sign-on",
       "adminApproval": "Vaadi ylläpitäjän hyväksyntä uusille rekisteröitymisille",
       "emailVerification": "Vaadi sähköpostin vahvistus uusille rekisteröitymisille"
     },

@@ -353,6 +353,7 @@
     "signup": {
       "title": "Реєстрація",
       "enabled": "Дозволити реєстрацію нових користувачів",
+      "ssoEnabled": "Allow new user sign-ups through single sign-on",
       "adminApproval": "Вимагати схвалення адміністратора для нових реєстрацій",
       "emailVerification": "Вимагати підтвердження електронної пошти для нових реєстрацій"
     },

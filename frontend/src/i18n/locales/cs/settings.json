@@ -353,6 +353,7 @@
     "signup": {
       "title": "Registrace",
       "enabled": "Povolit registrace nových uživatelů",
+      "ssoEnabled": "Allow new user sign-ups through single sign-on",
       "adminApproval": "Vyžadovat schválení administrátorem pro nové registrace",
       "emailVerification": "Vyžadovat ověření e-mailu pro nové registrace"
     },

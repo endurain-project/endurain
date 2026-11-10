@@ -304,6 +304,7 @@ class TestServerSettingsEdit:
             signup_require_admin_approval=True,
             signup_require_email_verification=False,
             password_breach_check_enabled=False,
+            signup_sso_enabled=False,
             sso_enabled=False,
             local_login_enabled=True,
             sso_auto_redirect=False,
@@ -597,3 +598,19 @@ class TestMailSettingsEditRequest:
         assert "step_up" not in edit.model_dump()
         assert edit.model_fields_set == set(self._BODY)
         assert "password" not in edit.model_fields_set
+
+
+class TestSsoSignUpField:
+    def test_edit_requires_the_switch(self):
+        values = TestServerSettingsEdit._values()
+        del values["signup_sso_enabled"]
+        with pytest.raises(ValidationError):
+            server_settings_schema.ServerSettingsEdit(**values)
+
+    def test_edit_rejects_a_non_boolean(self):
+        with pytest.raises(ValidationError):
+            server_settings_schema.ServerSettingsEdit(**TestServerSettingsEdit._values(signup_sso_enabled=1))
+
+    def test_the_admin_read_carries_it_and_the_public_read_does_not(self):
+        assert "signup_sso_enabled" in server_settings_schema.ServerSettingsAdminRead.model_fields
+        assert "signup_sso_enabled" not in server_settings_schema.ServerSettingsReadPublic.model_fields

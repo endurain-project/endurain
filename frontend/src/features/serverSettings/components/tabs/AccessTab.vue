@@ -61,6 +61,13 @@ const SESSION_ENV_FIELDS = [
         {{ t('settings.server.signup.enabled') }}
       </Switch>
       <Switch
+        v-model="values.signupSsoEnabled"
+        data-setting="signup-sso-enabled"
+        :disabled="isSubmitting"
+      >
+        {{ t('settings.server.signup.ssoEnabled') }}
+      </Switch>
+      <Switch
         v-model="values.signupRequireAdminApproval"
         data-setting="signup-admin-approval"
         :disabled="isSubmitting"

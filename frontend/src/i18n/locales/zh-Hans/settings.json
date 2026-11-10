@@ -353,6 +353,7 @@
     "signup": {
       "title": "注册",
       "enabled": "允许新用户注册",
+      "ssoEnabled": "Allow new user sign-ups through single sign-on",
       "adminApproval": "新注册需要管理员审核",
       "emailVerification": "新注册需要邮箱验证"
     },

@@ -13,6 +13,8 @@ Sign-up is available only when an administrator has enabled it. The rules for ne
 
 With neither switch on, the new account is active at once. With either on, it starts inactive.
 
+Accounts created by [single sign-on](single-sign-on.md#sign-up-rules-for-new-accounts) have their own switch, **Allow new user sign-ups through single sign-on**, and follow the same two switches. Turning it on does not open the sign-up form.
+
 ```mermaid
 flowchart TD
     A[User submits the sign-up form] --> B[Account created, inactive if any switch is on]

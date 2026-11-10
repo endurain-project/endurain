@@ -277,12 +277,18 @@ def find_or_create_user(
 
             return update_user_from_idp(user, idp, userinfo, db)
 
-    # Create new user if auto-creation is enabled
-    if not idp.auto_create_users:
+    # A new account needs the server to allow sign-up through SSO and the provider to allow account creation.
+    server_allows = server_settings_integration.get_server_settings(db).signup_sso_enabled
+    if not (server_allows and idp.auto_create_users):
         logger.warning(
-            "SSO sign-in refused: account creation is disabled for IdP <name>", extra=core_logger.context(name=idp.name)
+            "SSO sign-in refused: account creation is disabled for IdP <name>",
+            extra=core_logger.context(
+                name=idp.name, server_allows=server_allows, provider_allows=idp.auto_create_users
+            ),
         )
-        raise core_exceptions.PermissionDeniedError("User account creation is disabled for this identity provider")
+        raise SsoSignInRefusedError(
+            "User account creation through SSO is disabled", login_error="sso_auto_create_disabled"
+        )
 
     user = create_user_from_idp(
         idp, subject, mapped_data, db, email_verified=claim_mapping.is_email_verified(idp, userinfo)

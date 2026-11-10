@@ -353,6 +353,7 @@
     "signup": {
       "title": "Kayıt",
       "enabled": "Yeni kullanıcı kayıtlarına izin ver",
+      "ssoEnabled": "Allow new user sign-ups through single sign-on",
       "adminApproval": "Yeni kayıtlar için yönetici onayı iste",
       "emailVerification": "Yeni kayıtlar için e-posta doğrulaması iste"
     },

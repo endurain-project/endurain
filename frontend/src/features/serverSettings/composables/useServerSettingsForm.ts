@@ -53,6 +53,7 @@ function toFormValues(settings: ServerSettings): ServerSettingsFormValues {
     publicShareableLinks: settings.publicShareableLinks,
     publicShareableLinksUserInfo: settings.publicShareableLinksUserInfo,
     signupEnabled: settings.signupEnabled,
+    signupSsoEnabled: settings.signupSsoEnabled,
     signupRequireAdminApproval: settings.signupRequireAdminApproval,
     signupRequireEmailVerification: settings.signupRequireEmailVerification,
     ssoEnabled: settings.ssoEnabled,

@@ -353,6 +353,7 @@
     "signup": {
       "title": "Εγγραφή",
       "enabled": "Να επιτρέπονται νέες εγγραφές χρηστών",
+      "ssoEnabled": "Allow new user sign-ups through single sign-on",
       "adminApproval": "Να απαιτείται έγκριση διαχειριστή για νέες εγγραφές",
       "emailVerification": "Να απαιτείται επαλήθευση email για νέες εγγραφές"
     },

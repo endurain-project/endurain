@@ -73,6 +73,14 @@ class TestServerSettingsModel:
         assert str(column.server_default.arg) == "false"
         assert column.nullable is False
 
+    def test_sso_sign_up_is_off_by_default(self):
+        """A public identity provider must not open registration until an administrator opts in
+        (docs/features/single-sign-on.md)."""
+        column = server_settings_models.ServerSettings.signup_sso_enabled
+        assert column.default.arg is False
+        assert str(column.server_default.arg) == "false"
+        assert column.nullable is False
+
     def test_server_settings_nullable_fields(self):
         """Test ServerSettings model nullable configuration."""
         # All fields should be non-nullable

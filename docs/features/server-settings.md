@@ -30,6 +30,7 @@ The variables are listed, with their removal date, in [Advanced setup](../gettin
 | Setting | Meaning |
 | ------- | ------- |
 | Allow sign-up | Whether the sign-up form is available |
+| Allow new user sign-ups through single sign-on | Whether an identity provider may create an account at the first sign-in of someone no account matches (off by default). The provider must also have **Auto-create users** on. Independent of **Allow sign-up** |
 | Require email verification | New users must open an emailed link first |
 | Require admin approval | An administrator must approve new users |
 

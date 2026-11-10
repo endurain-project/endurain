@@ -366,6 +366,8 @@ class ServerSettingsEdit(
         tileserver_api_key: Plain-text API key for the tile server; stored encrypted
             and never returned. Omit it to keep the stored key; send null or an
             empty string to remove it.
+        signup_sso_enabled: Allow identity providers to create accounts at first sign-in
+            (true - yes, false - no).
         signup_require_admin_approval: Require admin approval for new sign-ups
             (true - yes, false - no).
         signup_require_email_verification: Require email verification for new
@@ -386,6 +388,13 @@ class ServerSettingsEdit(
         default=None,
         max_length=256,
         description="API key for the geocoding service (write-only); omit to keep, null or empty to remove",
+    )
+    signup_sso_enabled: StrictBool = Field(
+        ...,
+        description=(
+            "Allow identity providers to create accounts at first sign-in; a provider must also allow it "
+            "(true - yes, false - no)"
+        ),
     )
     signup_require_admin_approval: StrictBool = Field(
         ...,
@@ -445,6 +454,7 @@ class ServerSettingsAdminRead(
         geocoding_api_key_set: Whether a geocoding API key is stored.
         env_managed: Field name to the environment variable that sets it; those
             fields cannot be edited while the variable is set.
+        signup_sso_enabled: Allow identity providers to create accounts at first sign-in.
         signup_require_admin_approval: Require admin approval for new sign-ups.
         signup_require_email_verification: Require email verification for new sign-ups.
         password_breach_check_enabled: Refuse a new password found in a known data breach.
@@ -459,6 +469,13 @@ class ServerSettingsAdminRead(
     geocoding_api_key_set: StrictBool = Field(..., description="Is a geocoding API key stored (true - yes, false - no)")
     env_managed: dict[str, str] = Field(
         ..., description="Field name to the environment variable that sets it (not editable while set)"
+    )
+    signup_sso_enabled: StrictBool = Field(
+        ...,
+        description=(
+            "Allow identity providers to create accounts at first sign-in; a provider must also allow it "
+            "(true - yes, false - no)"
+        ),
     )
     signup_require_admin_approval: StrictBool = Field(
         ...,

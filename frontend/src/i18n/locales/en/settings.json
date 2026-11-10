@@ -377,6 +377,7 @@
     "signup": {
       "title": "Registration",
       "enabled": "Allow new user sign-ups",
+      "ssoEnabled": "Allow new user sign-ups through single sign-on",
       "adminApproval": "Require admin approval for new sign-ups",
       "emailVerification": "Require email verification for new sign-ups"
     },
@@ -594,7 +595,7 @@
       "iconFileTooLarge": "The icon must be 1 MB or smaller",
       "iconSaveError": "The provider was saved, but its icon could not be updated. Edit the provider to try again.",
       "enabled": "Enabled",
-      "autoCreateUsers": "Auto-create users on first login",
+      "autoCreateUsers": "Auto-create users on first login (also needs sign-ups through single sign-on in Server settings)",
       "linkByEmail": "Link to an existing account by email",
       "linkByEmailHint": "Lets a first sign-in join the account that has the same verified email. Off, that sign-in is refused and the user links the provider from their settings. Off by default for a new provider.",
       "syncUserInfo": "Sync profile info on each login",

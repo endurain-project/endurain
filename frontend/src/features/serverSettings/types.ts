@@ -62,6 +62,7 @@ export type GeocodingService = Schemas['GeocodingService']
  * @property publicShareableLinksUserInfo - Whether public links reveal the owner's info.
  * @property loginPhotoSet - Whether a custom login photo is configured (managed via upload/delete).
  * @property signupEnabled - Whether self-service sign-up is allowed.
+ * @property signupSsoEnabled - Whether identity providers may create accounts at first sign-in.
  * @property signupRequireAdminApproval - Whether new sign-ups await admin approval.
  * @property signupRequireEmailVerification - Whether new sign-ups must verify email.
  * @property ssoEnabled - Whether SSO/IdP login is enabled.
@@ -101,6 +102,7 @@ export interface ServerSettings {
   publicShareableLinksUserInfo: boolean
   loginPhotoSet: boolean
   signupEnabled: boolean
+  signupSsoEnabled: boolean
   signupRequireAdminApproval: boolean
   signupRequireEmailVerification: boolean
   ssoEnabled: boolean

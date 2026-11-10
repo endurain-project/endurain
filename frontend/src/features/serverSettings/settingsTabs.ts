@@ -31,6 +31,7 @@ export const FIELD_TABS: Record<keyof ServerSettingsFormValues, SettingsTab> = {
   auditRetentionDays: 'general',
   auditLegalHold: 'general',
   signupEnabled: 'access',
+  signupSsoEnabled: 'access',
   signupRequireAdminApproval: 'access',
   signupRequireEmailVerification: 'access',
   ssoEnabled: 'access',

@@ -353,6 +353,7 @@
     "signup": {
       "title": "Registre",
       "enabled": "Permet nous registres d'usuaris",
+      "ssoEnabled": "Allow new user sign-ups through single sign-on",
       "adminApproval": "Requereix aprovació de l'admin per als nous registres",
       "emailVerification": "Requereix verificació de correu per als nous registres"
     },

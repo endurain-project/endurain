@@ -5,7 +5,7 @@ Endurain supports Single Sign-On (SSO) integration through OAuth 2.0 and OpenID 
 ## Important Notes
 
 !!! warning "Email Address Matching"
-    A provider signs a user in to an existing Endurain account only through a link. Switch on **Link by email** on the provider and an unlinked sign-in joins the account whose email matches the provider's verified email. With it off (the default for a new provider), that sign-in is refused: the user signs in locally and links the provider from **Settings → Security**. If no account has the provider's email, Endurain creates a new user (when **Auto-create users** is on).
+    A provider signs a user in to an existing Endurain account only through a link. Switch on **Link by email** on the provider and an unlinked sign-in joins the account whose email matches the provider's verified email. With it off (the default for a new provider), that sign-in is refused: the user signs in locally and links the provider from **Settings → Security**. If no account has the provider's email, Endurain creates a new user, when **Allow new user sign-ups through single sign-on** is on in [Server settings](server-settings.md#registration) and **Auto-create users** is on for the provider.
 
 !!! tip "Requirements"
     You'll need:
@@ -146,7 +146,7 @@ Save the generated **Client ID** and **Client Secret**.
 | **Client Secret** | OAuth client secret | From Step 1 |
 | **Scopes** | Space-separated OAuth scopes | `openid profile email` |
 | **Icon** | Logo on the login button: a built-in logo or an uploaded image | `Keycloak`, `Upload an image` |
-| **Auto-create users** | Create an account at the first sign-in of someone no account matches. Off refuses that sign-in | On by default |
+| **Auto-create users** | Create an account at the first sign-in of someone no account matches. Off refuses that sign-in. It also needs **Allow new user sign-ups through single sign-on** in [Server settings](server-settings.md#registration) | On by default |
 | **Link by email** | Join an unlinked sign-in to the existing account whose email equals the provider's verified email. Off refuses that sign-in and the user links the provider from **Settings → Security** | Off for a new provider |
 | **Sync user info** | At each sign-in, copy the mapped name from the provider. It does not include the email | On by default |
 | **Sync email** | At each sign-in, copy the email the provider verified onto the account | Off for a new provider |
@@ -240,7 +240,9 @@ Linking an identity provider asks you to confirm with your password (or a fresh 
 
 ## Sign-up rules for new accounts
 
-An account Endurain creates at the first sign-in follows the server's sign-up settings:
+Endurain creates an account at the first sign-in only when both switches allow it: **Allow new user sign-ups through single sign-on** in [Server settings](server-settings.md#registration) (off by default, and independent of **Allow sign-up**, which controls only the sign-up form) and **Auto-create users** on the provider. With either off, the sign-in is refused and the login page says automatic account creation is disabled. Signing in to an existing account, and linking by email, do not need them. To let a public provider such as Google or GitHub register people, turn the server switch on; to limit it to one provider, turn **Auto-create users** off on the others.
+
+The account follows the server's other sign-up settings:
 
 - **Email verification required.** Only the provider can meet it: the account is created when the provider asserts the address as verified (the standard `email_verified` claim on the `email` claim), and the sign-in is refused otherwise. Endurain sends no verification link for such an account, because the provider identity is already bound to it: a link opened by the address's owner would give that address to whoever signed in. The login page tells the user to verify the address with the provider. To accept addresses a provider does not verify, turn email verification off; the account is then created with an unverified email, which is never used to link a provider by email.
 - **Admin approval required.** The account is created inactive and waits for an administrator to approve it in [user management](user-management.md#approving-sign-ups). The administrators get an email and a notification, when the server has mail configured. Until then, each sign-in through the provider is refused and the login page says the account is waiting for approval.
