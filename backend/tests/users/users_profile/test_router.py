@@ -98,6 +98,7 @@ def _make_session_mock(session_id: str = "session-1") -> MagicMock:
     s.last_activity_at = datetime.now(UTC)
     s.expires_at = datetime.now(UTC)
     s.user_id = 1
+    s.app_redirect_uri = None
     return s
 
 
