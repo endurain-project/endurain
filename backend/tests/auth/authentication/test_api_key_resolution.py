@@ -65,6 +65,18 @@ class TestResolveFromApiKey:
         assert principal.credential.api_key_id == stored.id
         assert principal.scopes == frozenset({"activities:upload"})
 
+    def test_a_key_holds_no_scope_its_owners_role_lacks(self, session_factory):
+        raw_key = api_keys_utils.generate_api_key()
+        _store_key(session_factory, raw_key)
+
+        with (
+            session_factory() as db,
+            patch.object(principal_service.access_tokens_integration, "scopes_for_access_type", return_value=[]),
+        ):
+            principal = principal_service.resolve_from_api_key(raw_key, "/api/v1/x", "127.0.0.1", db)
+
+        assert principal.scopes == frozenset()
+
     def test_a_key_that_is_not_stored_is_refused(self, session_factory):
         _store_key(session_factory, api_keys_utils.generate_api_key())
 

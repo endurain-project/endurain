@@ -270,9 +270,10 @@ def resolve_from_api_key(
         ),
     )
 
+    # A key holds the scopes it was created with, and no more than its owner's role holds now.
     return _build_principal(
         user,
-        db_key.scopes,
+        sorted(set(db_key.scopes) & set(access_tokens_integration.scopes_for_access_type(user.access_type))),
         ApiKeyCred(
             api_key_id=db_key.id,
             key_prefix=db_key.key_prefix,
