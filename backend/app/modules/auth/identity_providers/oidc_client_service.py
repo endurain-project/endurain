@@ -16,7 +16,6 @@ import core.logger as core_logger
 import core.network as core_network
 import modules.auth.identity_providers.contracts as identity_provider_contracts
 import modules.auth.identity_providers.id_token_service as id_token_service
-import modules.auth.identity_providers.utils as idp_utils
 
 logger = core_logger.get_logger(__name__)
 
@@ -239,7 +238,7 @@ class OidcClientService:
     ) -> bool:
         """Check that a discovery document names the issuer the provider is configured with.
 
-        A trailing slash on either side is ignored.
+        The comparison is exact, as OIDC Discovery 1.0 section 4.3 requires.
 
         Args:
             idp: The provider the document was fetched for.
@@ -250,9 +249,7 @@ class OidcClientService:
             True when the document's ``issuer`` equals the configured issuer URL.
         """
         issuer = config.get("issuer") if isinstance(config, dict) else None
-        if isinstance(issuer, str) and idp_utils.normalize_issuer_url(issuer) == idp_utils.normalize_issuer_url(
-            issuer_url
-        ):
+        if isinstance(issuer, str) and issuer == issuer_url:
             return True
         logger.warning(
             "OIDC discovery document for <name> names issuer <issuer>, expected <expected>",

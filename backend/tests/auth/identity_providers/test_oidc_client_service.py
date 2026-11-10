@@ -219,8 +219,6 @@ class TestDiscoveryIssuer:
         ("configured", "advertised"),
         [
             ("https://idp.example.com", "https://idp.example.com"),
-            ("https://idp.example.com/", "https://idp.example.com"),
-            ("https://idp.example.com", "https://idp.example.com/"),
             ("https://idp.example.com/realm/", "https://idp.example.com/realm/"),
         ],
     )
@@ -232,10 +230,19 @@ class TestDiscoveryIssuer:
         assert service._discovery_key(idp.id) in state_provider.values
 
     @pytest.mark.parametrize(
-        "document", [{"issuer": "https://evil.example.com"}, {"jwks_uri": JWKS_URI}, {"issuer": 3}]
+        ("configured", "document"),
+        [
+            ("https://idp.example.com", {"issuer": "https://evil.example.com"}),
+            ("https://idp.example.com", {"jwks_uri": JWKS_URI}),
+            ("https://idp.example.com", {"issuer": 3}),
+            ("https://idp.example.com/", {"issuer": "https://idp.example.com"}),
+            ("https://idp.example.com", {"issuer": "https://idp.example.com/"}),
+        ],
     )
-    def test_a_different_or_missing_issuer_is_refused_and_not_cached(self, service, state_provider, document):
-        idp = self._idp()
+    def test_a_different_or_missing_issuer_is_refused_and_not_cached(
+        self, service, state_provider, configured, document
+    ):
+        idp = self._idp(configured)
         with (
             patch(self.GUARD),
             patch.object(service, "http_client", return_value=self._client(document)),

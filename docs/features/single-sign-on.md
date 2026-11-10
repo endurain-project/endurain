@@ -141,7 +141,7 @@ Save the generated **Client ID** and **Client Secret**.
 | **Provider Name** | Display name shown on login button | `Google`, `GitHub`, etc. |
 | **Slug** | URL-safe identifier (lowercase, hyphens) | `google`, `github` |
 | **Provider Type** | Protocol type: `OIDC` (the default) or `OAuth2`. An `OAuth2` provider whose scopes include `openid` issues an ID token, so its sign-in must carry a verified ID token and needs an issuer URL, like an `OIDC` one. Without `openid` the provider is identified by its userinfo endpoint alone | `OIDC` or `OAuth2` |
-| **Issuer URL** | Provider's issuer URL, exactly as the `issuer` in its `/.well-known/openid-configuration` document; a trailing slash is ignored. Another provider cannot use the same issuer, and the issuer cannot change while any user is linked to the provider | `https://accounts.google.com` |
+| **Issuer URL** | Provider's issuer URL, exactly as the `issuer` in its `/.well-known/openid-configuration` document, trailing slash included. Another provider cannot use the same issuer, and the issuer cannot change while any user is linked to the provider | `https://accounts.google.com` |
 | **Client ID** | OAuth client identifier | From Step 1 |
 | **Client Secret** | OAuth client secret | From Step 1 |
 | **Scopes** | Space-separated OAuth scopes | `openid profile email` |
