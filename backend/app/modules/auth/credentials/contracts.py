@@ -43,7 +43,7 @@ class PasswordBreachedError(PasswordPolicyError):
 
 
 class PasswordMatchesAccountError(PasswordPolicyError):
-    """The password is, or contains, the account's username, email address or the application name."""
+    """The password equals the account's username, email address or the application name."""
 
     code = "password-matches-account"
     default_detail = "The password must not contain your username, your email address or the application name"

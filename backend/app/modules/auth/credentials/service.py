@@ -161,8 +161,8 @@ def validate_and_hash_password_for_user(
         PasswordBlankError: If the password is only whitespace.
         PasswordTooShortError: If the password is shorter than the account type's minimum.
         PasswordTooCommonError: If the password is on the blocklist.
-        PasswordMatchesAccountError: If the password is or contains the username, the email or the application
-            name.
+        PasswordMatchesAccountError: If the password equals the username, the email, the email's local part
+            or the application name, ignoring case.
     """
     min_length = resolve_password_min_length(server_settings, access_type)
     credentials_password_policy.check_password(password, min_length, username, email)
