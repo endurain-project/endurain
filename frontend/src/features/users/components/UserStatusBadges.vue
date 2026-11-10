@@ -28,7 +28,7 @@ const { t } = useI18n()
       t('settings.users.list.admin')
     }}</Badge>
     <Badge v-if="!user.active" variant="destructive">{{ t('settings.users.list.inactive') }}</Badge>
-    <UserDeletionBadge v-if="user.deletionRequestedAt" :user-id="user.id" />
+    <UserDeletionBadge v-if="user.deletionRequestedAt" />
     <Badge v-if="!user.emailVerified" variant="warning">{{
       t('settings.users.list.unverified')
     }}</Badge>

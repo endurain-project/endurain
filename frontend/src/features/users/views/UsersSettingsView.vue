@@ -7,6 +7,7 @@ import type { ManagedUser, UserFilters } from '@/features/users/types'
 
 import UserDeleteDialog from '@/features/users/components/UserDeleteDialog.vue'
 import UserFormDialog from '@/features/users/components/UserFormDialog.vue'
+import UserDeletionWatcher from '@/features/users/components/UserDeletionWatcher.vue'
 import UserListItem from '@/features/users/components/UserListItem.vue'
 import UserPasswordDialog from '@/features/users/components/UserPasswordDialog.vue'
 import { Button } from '@/components/ui/button'
@@ -18,6 +19,7 @@ import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover
 import { Skeleton } from '@/components/ui/skeleton'
 import { Switch } from '@/components/ui/switch'
 import { useCurrentUser } from '@/features/auth/composables/useCurrentUser'
+import { useUserDeletionsStore } from '@/features/users/stores/userDeletions'
 import { MIN_USER_SEARCH_LENGTH } from '@/features/users/services/publicUsers'
 import { useRecordsPerPage } from '@/features/config/composables/useRecordsPerPage'
 import { useListPagination } from '@/composables/useListPagination'
@@ -46,6 +48,7 @@ onMounted(() => {
   }
 })
 const { data: currentUser } = useCurrentUser()
+const deletions = useUserDeletionsStore()
 
 /**
  * Filter defaults: show everything. An account awaiting approval is inactive until it is approved,
@@ -382,6 +385,7 @@ watch(
       </ul>
     </ListPanel>
 
+    <UserDeletionWatcher v-for="id in deletions.userIds" :key="id" :user-id="id" />
     <UserFormDialog
       v-model:open="isFormOpen"
       :user="editingUser"

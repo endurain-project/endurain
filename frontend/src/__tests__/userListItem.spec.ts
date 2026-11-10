@@ -87,7 +87,7 @@ describe('UserListItem deletion badge', () => {
   it('marks a user whose deletion is queued', () => {
     const wrapper = mountItem({ ...base, deletionRequestedAt: '2026-11-08T10:00:00Z' })
 
-    expect(wrapper.findComponent({ name: 'UserDeletionBadge' }).props('userId')).toBe(2)
+    expect(wrapper.findComponent({ name: 'UserDeletionBadge' }).exists()).toBe(true)
   })
 
   it('leaves the mark off a user who is not being deleted', () => {

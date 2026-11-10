@@ -7,6 +7,8 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import type { UserDeletionStatus } from '@/features/users/types'
 
 import { useAuthStore } from '@/features/auth/stores/auth'
+import UserDeletionWatcher from '@/features/users/components/UserDeletionWatcher.vue'
+import { useUserDeletionsStore } from '@/features/users/stores/userDeletions'
 import { useUserDeletionQuery } from '@/features/users/composables/useUsers'
 import { fetchUserDeletion } from '@/features/users/services/users'
 import { queryKeys } from '@/services/queryKeys'
@@ -111,5 +113,49 @@ describe('useUserDeletionQuery', () => {
 
     await vi.advanceTimersByTimeAsync(60_000)
     expect(fetchUserDeletion).toHaveBeenCalledTimes(2)
+  })
+})
+
+describe('session deletion tracking', () => {
+  const queryClient = new QueryClient()
+
+  function mountWatcher(ids: number[]) {
+    wrapper = mount(
+      defineComponent({
+        setup() {
+          const deletions = useUserDeletionsStore()
+          return () =>
+            deletions.userIds.map((id) => h(UserDeletionWatcher, { key: id, userId: id }))
+        },
+      }),
+      { global: { plugins: [[VueQueryPlugin, { queryClient }]] } },
+    )
+    for (const id of ids) {
+      useUserDeletionsStore().track(id)
+    }
+  }
+
+  it('does not read the deletion of a row marked before this session', async () => {
+    vi.mocked(fetchUserDeletion).mockResolvedValue(queued)
+    mountWatcher([])
+    await flushPromises()
+
+    expect(fetchUserDeletion).not.toHaveBeenCalled()
+  })
+
+  it('follows a deletion queued in this session and drops it once it ends', async () => {
+    vi.mocked(fetchUserDeletion).mockResolvedValue(queued)
+    mountWatcher([7])
+    await flushPromises()
+    expect(fetchUserDeletion).toHaveBeenCalledWith(7, expect.anything())
+    expect(useUserDeletionsStore().userIds).toEqual([7])
+
+    useUserDeletionsStore().track(7)
+    expect(useUserDeletionsStore().userIds).toEqual([7])
+
+    vi.mocked(fetchUserDeletion).mockResolvedValue(failed)
+    queryClient.setQueryData(queryKeys.users.deletion(7), failed)
+    await flushPromises()
+    expect(useUserDeletionsStore().userIds).toEqual([])
   })
 })

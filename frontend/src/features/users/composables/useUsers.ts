@@ -13,6 +13,7 @@ import type {
 } from '@/features/users/types'
 
 import { queryKeys } from '@/services/queryKeys'
+import { useUserDeletionsStore } from '@/features/users/stores/userDeletions'
 import { isTerminalJobState } from '@/services/jobStatus'
 import { bumpAvatarCacheToken } from '@/lib/avatarCache'
 import { useInvalidatingMutation } from '@/composables/useInvalidatingMutation'
@@ -119,14 +120,19 @@ export function useUpdateUserMutation() {
 }
 
 /**
- * Delete mutation. Invalidates the users domain on settle.
+ * Delete mutation. Invalidates the users domain on settle, and follows the queued deletion.
  *
  * @returns The TanStack Query mutation for deleting a user.
  */
 export function useDeleteUserMutation() {
+  const deletions = useUserDeletionsStore()
+
   return useInvalidatingMutation<void, { id: number; version: number; stepUp: StepUpInput }>({
     mutationKey: queryKeys.users.all(),
-    mutationFn: ({ id, version, stepUp }) => deleteUser(id, version, stepUp),
+    mutationFn: async ({ id, version, stepUp }) => {
+      await deleteUser(id, version, stepUp)
+      deletions.track(id)
+    },
   })
 }
 

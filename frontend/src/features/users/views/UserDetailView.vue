@@ -18,6 +18,7 @@ import { IMAGE_ACCEPTED_TYPES } from '@/lib/imageTypes'
 import UserAvatar from '@/components/UserAvatar.vue'
 import UserCredentialActionDialog from '@/features/users/components/UserCredentialActionDialog.vue'
 import UserDeleteDialog from '@/features/users/components/UserDeleteDialog.vue'
+import UserDeletionWatcher from '@/features/users/components/UserDeletionWatcher.vue'
 import UserFormDialog from '@/features/users/components/UserFormDialog.vue'
 import UserIdentityProvidersList from '@/features/users/components/UserIdentityProvidersList.vue'
 import UserPasswordDialog from '@/features/users/components/UserPasswordDialog.vue'
@@ -413,6 +414,8 @@ function approve(): void {
         :pending="deletePhotoMutation.isPending.value"
         @confirm="removePhoto"
       />
+
+      <UserDeletionWatcher v-if="user.deletionRequestedAt" :user-id="user.id" />
 
       <UserDeleteDialog
         v-model:open="isRejectOpen"
