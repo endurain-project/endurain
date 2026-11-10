@@ -49,7 +49,8 @@ export function useAvailableProvidersQuery() {
 
 /**
  * Unlink mutation. Invalidates the linked-providers and public-providers caches
- * on success so both lists reflect the change.
+ * on success so both lists reflect the change, and the known devices, which an
+ * unlink forgets as a security change.
  *
  * @returns The TanStack Query mutation for unlinking a provider.
  */
@@ -62,6 +63,7 @@ export function useUnlinkProviderMutation() {
     onSuccess: () => {
       void client.invalidateQueries({ queryKey: queryKeys.security.linkedProviders() })
       void client.invalidateQueries({ queryKey: queryKeys.public.identityProviders() })
+      void client.invalidateQueries({ queryKey: queryKeys.security.devices() })
     },
   })
 }

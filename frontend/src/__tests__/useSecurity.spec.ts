@@ -19,6 +19,8 @@ import {
   resendEmailChange,
   signOutEverywhere,
 } from '@/features/security/services/security'
+import { useUnlinkProviderMutation } from '@/features/security/composables/useLinkedAccounts'
+import { unlinkProvider } from '@/features/security/services/linkedAccounts'
 import { queryKeys } from '@/services/queryKeys'
 
 const replace = vi.fn<(location: unknown) => Promise<void>>()
@@ -40,6 +42,11 @@ vi.mock('@/features/security/services/security', async (importOriginal) => ({
   resendEmailChange: vi.fn<typeof resendEmailChange>(),
   cancelEmailChange: vi.fn<typeof cancelEmailChange>(),
   signOutEverywhere: vi.fn<typeof signOutEverywhere>(),
+}))
+
+vi.mock('@/features/security/services/linkedAccounts', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('@/features/security/services/linkedAccounts')>()),
+  unlinkProvider: vi.fn<typeof unlinkProvider>(),
 }))
 
 let wrapper: ReturnType<typeof mount> | undefined
@@ -143,6 +150,20 @@ describe('MFA mutations', () => {
     await flushPromises()
 
     expect(invalidateQueries).toHaveBeenCalledWith({ queryKey: queryKeys.profile.all() })
+  })
+})
+
+describe('useUnlinkProviderMutation', () => {
+  it('refreshes the known devices, which an unlink forgets', async () => {
+    const queryClient = new QueryClient()
+    const invalidateQueries = vi.spyOn(queryClient, 'invalidateQueries')
+    vi.mocked(unlinkProvider).mockResolvedValue()
+    const mutation = mountMutation(queryClient, useUnlinkProviderMutation)
+
+    await mutation.mutateAsync({ idpId: 2, input: { currentPassword: 'secret', mfaCode: null } })
+    await flushPromises()
+
+    expect(invalidateQueries).toHaveBeenCalledWith({ queryKey: queryKeys.security.devices() })
   })
 })
 
