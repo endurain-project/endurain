@@ -2,7 +2,7 @@
 
 from datetime import datetime
 
-from sqlalchemy import delete, desc, func, select, update
+from sqlalchemy import delete, desc, func, literal, select, tuple_, update
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
@@ -43,60 +43,61 @@ def get_user_notification_by_id(
     return notifications_serializers.to_read_schema(db_notification) if db_notification else None
 
 
-def get_user_notifications_count(
-    user_id: int,
-    db: Session,
-    unread_only: bool = False,
-) -> int:
-    """Count notifications for a user.
+def count_user_unread_notifications(user_id: int, db: Session) -> int:
+    """Count the notifications of a user that have not been read.
 
     Args:
         user_id: The owning user ID.
         db: Database session.
-        unread_only: Count only the notifications that have not been read.
 
     Returns:
-        Number of notifications for the user.
+        Number of unread notifications for the user.
     """
     stmt = (
         select(func.count())
         .select_from(notifications_models.Notification)
-        .where(notifications_models.Notification.user_id == user_id)
+        .where(
+            notifications_models.Notification.user_id == user_id,
+            notifications_models.Notification.read.is_(False),
+        )
     )
-    if unread_only:
-        stmt = stmt.where(notifications_models.Notification.read.is_(False))
     return db.execute(stmt).scalar_one()
 
 
-def get_user_notifications_with_pagination(
+def get_user_notifications_after(
     user_id: int,
+    after: tuple[datetime, int] | None,
+    num_records: int,
     db: Session,
-    page_number: int = 1,
-    num_records: int = 5,
     unread_only: bool = False,
 ) -> list[notifications_schema.NotificationRead]:
-    """Retrieve paginated notifications for a user, newest first.
+    """Get the next keyset slice of a user's notifications, newest first.
+
+    Ordered by ``(created_at DESC, id DESC)``. ``id`` is part of the key because ``created_at`` is not
+    unique, so two notifications sharing one would otherwise straddle the boundary.
 
     Args:
         user_id: The owning user ID.
+        after: The ``(created_at, id)`` position to resume strictly after, or ``None`` for the first slice.
+        num_records: Maximum records to return.
         db: Database session.
-        page_number: Page number (default 1).
-        num_records: Records per page (default 5).
         unread_only: Keep only the notifications that have not been read.
 
     Returns:
-        The notifications for the page.
+        The slice, newest first (empty when there is nothing more).
     """
-    stmt = select(notifications_models.Notification).where(notifications_models.Notification.user_id == user_id)
+    notification = notifications_models.Notification
+    stmt = select(notification).where(notification.user_id == user_id)
     if unread_only:
-        stmt = stmt.where(notifications_models.Notification.read.is_(False))
-    stmt = (
-        stmt.order_by(desc(notifications_models.Notification.created_at), desc(notifications_models.Notification.id))
-        .offset((page_number - 1) * num_records)
-        .limit(num_records)
-    )
-    db_notifications = db.execute(stmt).scalars().all()
-    return [notifications_serializers.to_read_schema(n) for n in db_notifications]
+        stmt = stmt.where(notification.read.is_(False))
+    if after is not None:
+        last_created_at, last_id = after
+        # Row-value comparison: strictly older, or the same time with a lower id.
+        stmt = stmt.where(
+            tuple_(notification.created_at, notification.id) < tuple_(literal(last_created_at), literal(last_id))
+        )
+    stmt = stmt.order_by(desc(notification.created_at), desc(notification.id)).limit(num_records)
+    return [notifications_serializers.to_read_schema(n) for n in db.execute(stmt).scalars().all()]
 
 
 def get_notification_by_source_event(

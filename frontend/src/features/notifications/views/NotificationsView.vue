@@ -24,8 +24,8 @@ const { data, isPending, isError, refetch, fetchNextPage, hasNextPage, isFetchin
 const markReadMutation = useMarkNotificationReadMutation()
 const markAllReadMutation = useMarkAllNotificationsReadMutation()
 
-/** All loaded pages flattened into a single list for rendering. */
-const notifications = computed(() => data.value?.pages.flat() ?? [])
+/** All loaded slices flattened into a single list for rendering. */
+const notifications = computed(() => data.value?.pages.flatMap((slice) => slice.items) ?? [])
 const isEmpty = computed(
   () => !isPending.value && !isError.value && notifications.value.length === 0,
 )
@@ -33,7 +33,7 @@ const isEmpty = computed(
 /** Whether any loaded notification is still unread. */
 const hasUnread = computed(() => notifications.value.some((item) => !item.read))
 
-// Sentinel for infinite scroll; only mounted while another page is available,
+// Sentinel for infinite scroll; only mounted while another slice is available,
 // so the observer tears down once the list is fully loaded.
 const sentinel = ref<HTMLElement | null>(null)
 useInfiniteScroll(sentinel, () => void fetchNextPage(), {

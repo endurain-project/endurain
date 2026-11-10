@@ -3,10 +3,14 @@ import { flushPromises, mount } from '@vue/test-utils'
 import { QueryClient, VueQueryPlugin } from '@tanstack/vue-query'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 
-import type { Notification } from '@/features/notifications/types'
-
-import { useNotificationsQuery } from '@/features/notifications/composables/useNotifications'
-import { fetchNotifications } from '@/features/notifications/services/notifications'
+import {
+  useInfiniteNotificationsQuery,
+  useNotificationsQuery,
+} from '@/features/notifications/composables/useNotifications'
+import {
+  fetchNotifications,
+  type NotificationsSlice,
+} from '@/features/notifications/services/notifications'
 import { queryKeys } from '@/services/queryKeys'
 
 vi.mock('pinia', async (importOriginal) => ({
@@ -17,7 +21,9 @@ vi.mock('pinia', async (importOriginal) => ({
 vi.mock('@/features/auth/stores/auth', () => ({ useAuthStore: () => ({}) }))
 
 vi.mock('@/features/notifications/services/notifications', () => ({
-  fetchNotifications: vi.fn<() => Promise<Notification[]>>(() => Promise.resolve([])),
+  fetchNotifications: vi.fn<() => Promise<NotificationsSlice>>(() =>
+    Promise.resolve({ items: [], nextCursor: null }),
+  ),
   markAllNotificationsRead: vi.fn<() => Promise<void>>(),
   markNotificationRead: vi.fn<() => Promise<void>>(),
 }))
@@ -86,5 +92,40 @@ describe('notifications preview query gating', () => {
     open.value = true
     await flushPromises()
     expect(fetchNotifications).toHaveBeenCalledTimes(1)
+  })
+})
+
+describe('notifications infinite query', () => {
+  it('requests the second slice with the cursor of the first', async () => {
+    vi.mocked(fetchNotifications)
+      .mockResolvedValueOnce({ items: [], nextCursor: 'cursor-1' })
+      .mockResolvedValueOnce({ items: [], nextCursor: null })
+    let query!: ReturnType<typeof useInfiniteNotificationsQuery>
+    wrapper = mount(
+      defineComponent({
+        setup() {
+          query = useInfiniteNotificationsQuery(10)
+          return () => h('div')
+        },
+      }),
+      { global: { plugins: [[VueQueryPlugin, { queryClient: new QueryClient() }]] } },
+    )
+    await flushPromises()
+
+    expect(fetchNotifications).toHaveBeenNthCalledWith(
+      1,
+      { cursor: null, numRecords: 10 },
+      expect.anything(),
+    )
+    expect(query.hasNextPage.value).toBe(true)
+
+    await query.fetchNextPage()
+
+    expect(fetchNotifications).toHaveBeenNthCalledWith(
+      2,
+      { cursor: 'cursor-1', numRecords: 10 },
+      expect.anything(),
+    )
+    expect(query.hasNextPage.value).toBe(false)
   })
 })

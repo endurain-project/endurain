@@ -60,25 +60,21 @@ def read_notifications_by_id(
 def read_notifications_user_pagination(
     token_user_id: auth_dependencies.CurrentUserId,
     db: core_dependencies.DbSession,
-    page: core_pagination.ListPage,
+    cursor: Annotated[str | None, Query()] = None,
+    num_records: Annotated[int | None, Query(ge=1, le=core_pagination.MAX_NUM_RECORDS)] = None,
     unread_only: Annotated[bool, Query()] = False,
 ) -> notifications_schema.NotificationPage:
-    """Retrieve paginated notifications for the user.
+    """List a keyset slice of the caller's notifications, newest first.
 
-    Args:
-        token_user_id: ID of the user from the access token.
-        db: Database session dependency.
-        page: Resolved page number and size.
-        unread_only: Keep only the notifications that have not been read; ``total`` follows the same filter.
-
-    Returns:
-        The page of notifications with the user's total.
+    Pass the `next_cursor` of a slice as `cursor` to get the following one; it is `null` on the last slice.
+    `unread_only=true` keeps only the notifications that have not been read, and must stay the same across the
+    slices of one walk.
     """
     return notifications_service.list_notifications(
         token_user_id,
         db,
-        page_number=page.page_number,
-        num_records=page.num_records,
+        cursor=cursor,
+        num_records=num_records or core_pagination.DEFAULT_NUM_RECORDS,
         unread_only=unread_only,
     )
 

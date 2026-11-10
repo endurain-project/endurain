@@ -3,12 +3,20 @@ import type { Schemas } from '@/types'
 
 import { apiFetch } from '@/services/http'
 
-/** Pagination input for a notifications list request. */
+/** Input for a notifications list request. */
 export type NotificationsPage = {
-  /** 1-based page number. */
-  page: number
-  /** Page size (records per page). */
+  /** Opaque cursor from the previous slice; omit to start at the newest. */
+  cursor?: string | null
+  /** Slice size (records per request). */
   numRecords: number
+}
+
+/** One keyset slice of the notifications list. */
+export type NotificationsSlice = {
+  /** The notifications in this slice, newest first. */
+  items: Notification[]
+  /** Cursor for the following slice, or `null` on the last one. */
+  nextCursor: string | null
 }
 
 /**
@@ -21,27 +29,30 @@ export type NotificationsPage = {
  */
 export function mapNotification(dto: NotificationDto): Notification {
   const { id, read, created_at: createdAt, user_id: userId, ...typed } = dto
-  return { id, read, createdAt: createdAt ?? null, userId, ...typed }
+  return { id, read, createdAt, userId, ...typed }
 }
 
 /**
- * Fetches one page of the authenticated user's notifications.
+ * Fetches one keyset slice of the authenticated user's notifications.
  *
- * @param page - The page number and size to fetch.
+ * @param page - The cursor to resume after (none for the first slice) and the slice size.
  * @param signal - Optional abort signal so TanStack Query can cancel the
  *   request on unmount or invalidation.
- * @returns The page's notifications, mapped to the clean model.
+ * @returns The slice's notifications, mapped to the clean model, and the next cursor.
  * @throws {HttpError} When the request fails.
  */
 export async function fetchNotifications(
-  { page, numRecords }: NotificationsPage,
+  { cursor, numRecords }: NotificationsPage,
   signal?: AbortSignal,
-): Promise<Notification[]> {
-  const result = await apiFetch<Schemas['NotificationPage']>(
-    `/notifications?page_number=${page}&num_records=${numRecords}`,
-    { signal },
-  )
-  return result.items.map(mapNotification)
+): Promise<NotificationsSlice> {
+  const params = new URLSearchParams({ num_records: String(numRecords) })
+  if (cursor) {
+    params.set('cursor', cursor)
+  }
+  const result = await apiFetch<Schemas['NotificationPage']>(`/notifications?${params}`, {
+    signal,
+  })
+  return { items: result.items.map(mapNotification), nextCursor: result.next_cursor ?? null }
 }
 
 /**

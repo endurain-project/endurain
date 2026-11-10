@@ -51,9 +51,7 @@ const resolvedTo = computed<RouteLocationRaw | null>(() => {
 const title = computed(() => t(presentation.value.titleKey))
 const body = computed(() => t(presentation.value.bodyKey, presentation.value.bodyParams ?? {}))
 const relativeTime = computed(() =>
-  props.notification.createdAt
-    ? formatRelativeTime(props.notification.createdAt, new Date(), locale.value)
-    : '',
+  formatRelativeTime(props.notification.createdAt, new Date(), locale.value),
 )
 
 /** Marks a linked notification read as the viewer navigates into it. */

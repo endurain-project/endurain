@@ -15,6 +15,7 @@ from sqlalchemy.orm import Session
 import core.database as core_database
 import core.exceptions as core_exceptions
 import core.logger as core_logger
+import core.pagination as core_pagination
 import modules.auth.identity_providers.integration_service as idp_integration
 import modules.notifications.constants as notifications_constants
 import modules.notifications.crud as notifications_crud
@@ -48,7 +49,7 @@ def count_unread_notifications(user_id: int, db: Session) -> int:
     Returns:
         Number of unread notifications for the user.
     """
-    return notifications_crud.get_user_notifications_count(user_id, db, unread_only=True)
+    return notifications_crud.count_user_unread_notifications(user_id, db)
 
 
 def get_notification(notification_id: int, user_id: int, db: Session) -> notifications_schema.NotificationRead:
@@ -75,28 +76,31 @@ def list_notifications(
     user_id: int,
     db: Session,
     *,
-    page_number: int,
+    cursor: str | None,
     num_records: int,
     unread_only: bool = False,
 ) -> notifications_schema.NotificationPage:
-    """Return one page of the user's notifications, newest first.
+    """Return one keyset slice of the user's notifications, newest first.
 
     Args:
         user_id: The owning user.
         db: Database session.
-        page_number: 1-based page number.
-        num_records: Page size.
-        unread_only: Keep only the notifications that have not been read; the
-            total follows the same filter.
+        cursor: Opaque cursor from the previous slice, or ``None`` to start.
+        num_records: Slice size.
+        unread_only: Keep only the notifications that have not been read.
 
     Returns:
-        The page envelope with the user's total.
+        The slice and the cursor for the next one.
+
+    Raises:
+        InvalidInputError: When the cursor is not one this server issued.
     """
-    items = notifications_crud.get_user_notifications_with_pagination(
-        user_id, db, page_number, num_records, unread_only=unread_only
-    )
-    total = notifications_crud.get_user_notifications_count(user_id, db, unread_only=unread_only)
-    return notifications_schema.NotificationPage.build(items, total, page_number, num_records)
+    after = core_pagination.decode_cursor(cursor) if cursor else None
+    # Over-fetch by one: the extra row proves another slice exists without a second query.
+    rows = notifications_crud.get_user_notifications_after(user_id, after, num_records + 1, db, unread_only=unread_only)
+    items = rows[:num_records]
+    next_cursor = core_pagination.encode_cursor(items[-1].created_at, items[-1].id) if len(rows) > num_records else None
+    return notifications_schema.NotificationPage(items=items, num_records=num_records, next_cursor=next_cursor)
 
 
 def mark_notification_as_read(notification_id: int, user_id: int, db: Session) -> None:

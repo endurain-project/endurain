@@ -20,6 +20,7 @@ import {
   markAllNotificationsRead,
   markNotificationRead,
   type NotificationsPage,
+  type NotificationsSlice,
 } from '@/features/notifications/services/notifications'
 
 /** Default notifications page size when a caller doesn't specify one. */
@@ -41,37 +42,32 @@ export const UNREAD_CONNECTED_POLL_INTERVAL_MS = 5 * 60_000
  * realtime push. It is always stale, so each time the flag turns on it refetches:
  * a push that was lost never leaves stale rows in front of the user.
  *
- * @param params - Optional reactive page/size; defaults to page 1.
+ * @param params - Optional reactive slice size; always reads the first slice.
  * @param enabled - Reactive gate (e.g. "the preview is open") ANDed with the auth gate.
- * @returns The TanStack Query result for the notifications page.
+ * @returns The TanStack Query result for the first notifications slice.
  */
 export function useNotificationsQuery(
-  params?: MaybeRefOrGetter<Partial<NotificationsPage>>,
+  params?: MaybeRefOrGetter<Partial<Pick<NotificationsPage, 'numRecords'>>>,
   enabled: MaybeRefOrGetter<boolean> = true,
 ) {
   const { isAuthenticated } = storeToRefs(useAuthStore())
 
-  const page = computed<NotificationsPage>(() => {
-    const value = toValue(params)
-    return {
-      page: value?.page ?? 1,
-      numRecords: value?.numRecords ?? DEFAULT_PAGE_SIZE,
-    }
-  })
+  const page = computed<NotificationsPage>(() => ({
+    numRecords: toValue(params)?.numRecords ?? DEFAULT_PAGE_SIZE,
+  }))
 
   return useQuery<Notification[]>({
     queryKey: computed(() => queryKeys.notifications.list(page.value)),
-    queryFn: ({ signal }) => fetchNotifications(page.value, signal),
+    queryFn: async ({ signal }) => (await fetchNotifications(page.value, signal)).items,
     enabled: computed(() => toValue(enabled) && isAuthenticated.value),
     staleTime: 0,
   })
 }
 
 /**
- * Canonical paginated-list pattern: an infinite query that appends one page at
- * a time as the viewer scrolls. Copy this for every list view (activities,
- * gears, health). The query is keyed on the page size only — not the page
- * number — so all pages share one cache entry (`InfiniteData<Notification[]>`),
+ * Canonical keyset-list pattern: an infinite query that appends one slice at
+ * a time as the viewer scrolls, resuming from the previous slice's cursor. The
+ * query is keyed on the slice size only — not the cursor — so all slices share one cache entry (`InfiniteData<NotificationsSlice>`),
  * which is what lets {@link applyOptimisticRead} flip a single row across the
  * whole list. Gated on authentication so it never fires when logged out.
  *
@@ -84,12 +80,10 @@ export function useInfiniteNotificationsQuery(pageSize: number = DEFAULT_PAGE_SI
   return useInfiniteQuery({
     queryKey: queryKeys.notifications.list({ numRecords: pageSize }),
     queryFn: ({ pageParam, signal }) =>
-      fetchNotifications({ page: pageParam, numRecords: pageSize }, signal),
-    initialPageParam: 1,
-    // A short page means the server has no more rows, so stop paging; otherwise
-    // request the next page number.
-    getNextPageParam: (lastPage: Notification[], _allPages, lastPageParam: number) =>
-      lastPage.length < pageSize ? undefined : lastPageParam + 1,
+      fetchNotifications({ cursor: pageParam, numRecords: pageSize }, signal),
+    initialPageParam: null as string | null,
+    // The server hands back the cursor of the next slice, and none on the last one.
+    getNextPageParam: (lastSlice: NotificationsSlice) => lastSlice.nextCursor,
     enabled: isAuthenticated,
   })
 }
@@ -122,12 +116,12 @@ export function useUnreadNotificationsCount() {
 }
 
 /**
- * Either shape the notifications list cache can hold: a flat page (from
- * {@link useNotificationsQuery}) or an infinite query's accumulated pages (from
+ * Either shape the notifications list cache can hold: a flat first slice (from
+ * {@link useNotificationsQuery}) or an infinite query's accumulated slices (from
  * {@link useInfiniteNotificationsQuery}). The optimistic helpers handle both so
  * one mutation keeps every list view consistent.
  */
-type CachedNotifications = Notification[] | InfiniteData<Notification[]>
+type CachedNotifications = Notification[] | InfiniteData<NotificationsSlice>
 
 /**
  * Returns a copy of a cached notifications value with the matching row marked
@@ -150,7 +144,7 @@ function markNotificationReadInCache(
   if (Array.isArray(data)) {
     return data.map(flip)
   }
-  return { ...data, pages: data.pages.map((page) => page.map(flip)) }
+  return { ...data, pages: data.pages.map((slice) => ({ ...slice, items: slice.items.map(flip) })) }
 }
 
 /**
@@ -171,7 +165,7 @@ function markAllNotificationsReadInCache(
   if (Array.isArray(data)) {
     return data.map(flip)
   }
-  return { ...data, pages: data.pages.map((page) => page.map(flip)) }
+  return { ...data, pages: data.pages.map((slice) => ({ ...slice, items: slice.items.map(flip) })) }
 }
 
 /**

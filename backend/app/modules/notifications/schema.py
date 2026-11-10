@@ -177,14 +177,11 @@ class _NotificationReadBase(BaseModel):
         default=False,
         description="Whether notification is read",
     )
-    created_at: datetime | None = Field(
-        default=None,
-        description="Timestamp of creation",
-    )
+    created_at: datetime = Field(..., description="Timestamp of creation")
 
     @field_validator("created_at")
     @classmethod
-    def normalize_created_at(cls, value: datetime | None) -> datetime | None:
+    def normalize_created_at(cls, value: datetime) -> datetime:
         """Normalize created_at to a UTC-aware datetime.
 
         JSON output is then a full ISO 8601 timestamp with a UTC
@@ -194,7 +191,7 @@ class _NotificationReadBase(BaseModel):
             value: The datetime value to normalize.
 
         Returns:
-            UTC-aware datetime or None.
+            UTC-aware datetime.
         """
         return core_timezone.to_utc_aware(value)
 
@@ -268,8 +265,11 @@ NotificationRead = Annotated[
 ]
 
 
-class NotificationPage(core_pagination.Page[NotificationRead]):
-    """One page of the caller's notifications."""
+class NotificationPage(core_pagination.CursorPage[NotificationRead]):
+    """One keyset slice of the caller's notifications.
+
+    The list takes inserts at the head, so offset paging would repeat and skip rows across requests.
+    """
 
 
 NOTIFICATION_READ_ADAPTER: TypeAdapter[NotificationRead] = TypeAdapter(NotificationRead)

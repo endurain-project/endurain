@@ -32,7 +32,9 @@ vi.mock('@/composables/useRealtime', async () => {
 })
 
 vi.mock('@/features/notifications/services/notifications', () => ({
-  fetchNotifications: vi.fn<() => Promise<never[]>>(() => Promise.resolve([])),
+  fetchNotifications: vi.fn<() => Promise<{ items: never[]; nextCursor: null }>>(() =>
+    Promise.resolve({ items: [], nextCursor: null }),
+  ),
   fetchUnreadNotificationsCount: vi.fn<(signal?: AbortSignal) => Promise<number>>(() =>
     Promise.resolve(0),
   ),

@@ -24,8 +24,8 @@ interface NotificationBase {
   id: number
   /** Whether the notification has been read. */
   read: boolean
-  /** ISO creation timestamp, or `null` when absent. */
-  createdAt: string | null
+  /** ISO creation timestamp. */
+  createdAt: string
   /** Owning user's id. */
   userId: number
 }

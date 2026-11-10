@@ -7,45 +7,67 @@ import pytest
 
 import core.database as core_database
 import core.exceptions as core_exceptions
+import core.pagination as core_pagination
 import modules.notifications.constants as notifications_constants
 import modules.notifications.service as notifications_service
+
+
+def _read(notification_id: int):
+    import modules.notifications.schema as notifications_schema
+
+    return notifications_schema.NOTIFICATION_READ_ADAPTER.validate_python(
+        {
+            "id": notification_id,
+            "user_id": 1,
+            "type": "new_activity",
+            "options": {"activity_id": notification_id},
+            "created_at": datetime(2024, 1, notification_id, tzinfo=UTC),
+        }
+    )
 
 
 class TestReadsAndMarks:
     def test_unread_count_counts_only_unread(self, mock_db):
         with patch(
-            "modules.notifications.service.notifications_crud.get_user_notifications_count", return_value=3
+            "modules.notifications.service.notifications_crud.count_user_unread_notifications", return_value=3
         ) as crud_count:
             assert notifications_service.count_unread_notifications(1, mock_db) == 3
-        crud_count.assert_called_once_with(1, mock_db, unread_only=True)
+        crud_count.assert_called_once_with(1, mock_db)
 
-    def test_list_returns_the_page_with_the_total(self, mock_db):
-        with (
-            patch(
-                "modules.notifications.service.notifications_crud.get_user_notifications_with_pagination",
-                return_value=[],
-            ) as crud_list,
-            patch("modules.notifications.service.notifications_crud.get_user_notifications_count", return_value=7),
-        ):
-            page = notifications_service.list_notifications(1, mock_db, page_number=2, num_records=5)
-        crud_list.assert_called_once_with(1, mock_db, 2, 5, unread_only=False)
-        assert page.total == 7
-        assert page.next is None
+    def test_list_returns_a_slice_without_a_cursor_when_nothing_follows(self, mock_db):
+        rows = [_read(1), _read(2)]
+        with patch(
+            "modules.notifications.service.notifications_crud.get_user_notifications_after", return_value=rows
+        ) as crud_list:
+            page = notifications_service.list_notifications(1, mock_db, cursor=None, num_records=5)
+        crud_list.assert_called_once_with(1, None, 6, mock_db, unread_only=False)
+        assert [n.id for n in page.items] == [1, 2]
+        assert page.num_records == 5
+        assert page.next_cursor is None
 
-    def test_list_unread_only_filters_the_page_and_its_total_alike(self, mock_db):
-        with (
-            patch(
-                "modules.notifications.service.notifications_crud.get_user_notifications_with_pagination",
-                return_value=[],
-            ) as crud_list,
-            patch(
-                "modules.notifications.service.notifications_crud.get_user_notifications_count", return_value=3
-            ) as crud_count,
-        ):
-            page = notifications_service.list_notifications(1, mock_db, page_number=1, num_records=1, unread_only=True)
-        crud_list.assert_called_once_with(1, mock_db, 1, 1, unread_only=True)
-        crud_count.assert_called_once_with(1, mock_db, unread_only=True)
-        assert page.total == 3
+    def test_list_over_fetches_one_row_and_cursors_on_the_last_kept_row(self, mock_db):
+        rows = [_read(3), _read(2), _read(1)]
+        with patch(
+            "modules.notifications.service.notifications_crud.get_user_notifications_after", return_value=rows
+        ) as crud_list:
+            page = notifications_service.list_notifications(1, mock_db, cursor=None, num_records=2, unread_only=True)
+        crud_list.assert_called_once_with(1, None, 3, mock_db, unread_only=True)
+        assert [n.id for n in page.items] == [3, 2]
+        assert page.next_cursor is not None
+        assert core_pagination.decode_cursor(page.next_cursor) == (rows[1].created_at, 2)
+
+    def test_list_resumes_after_the_decoded_cursor(self, mock_db):
+        position = (datetime(2024, 1, 2, tzinfo=UTC), 2)
+        cursor = core_pagination.encode_cursor(*position)
+        with patch(
+            "modules.notifications.service.notifications_crud.get_user_notifications_after", return_value=[]
+        ) as crud_list:
+            notifications_service.list_notifications(1, mock_db, cursor=cursor, num_records=2)
+        crud_list.assert_called_once_with(1, position, 3, mock_db, unread_only=False)
+
+    def test_list_rejects_a_cursor_the_server_did_not_issue(self, mock_db):
+        with pytest.raises(core_exceptions.InvalidInputError):
+            notifications_service.list_notifications(1, mock_db, cursor="garbage", num_records=2)
 
     def test_get_missing_notification_raises(self, mock_db):
         with (

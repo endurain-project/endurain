@@ -2,6 +2,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { type InfiniteData, QueryClient } from '@tanstack/vue-query'
 
 import type { Notification, NotificationDto } from '@/features/notifications/types'
+import type { NotificationsSlice } from '@/features/notifications/services/notifications'
 
 import { apiFetch } from '@/services/http'
 import {
@@ -47,25 +48,6 @@ describe('mapNotification', () => {
   it('maps the snake-cased DTO to the clean model', () => {
     expect(mapNotification(dto)).toEqual(notification())
   })
-
-  it('coerces an absent creation time to null', () => {
-    expect(
-      mapNotification({
-        id: 1,
-        type: 'garmin_token_expired',
-        read: true,
-        options: {},
-        user_id: 9,
-      }),
-    ).toEqual({
-      id: 1,
-      type: 'garmin_token_expired',
-      read: true,
-      options: {},
-      createdAt: null,
-      userId: 9,
-    })
-  })
 })
 
 describe('notification service requests', () => {
@@ -73,22 +55,27 @@ describe('notification service requests', () => {
     vi.clearAllMocks()
   })
 
-  it('requests the paginated notifications path and maps the result', async () => {
-    vi.mocked(apiFetch).mockResolvedValue({
-      items: [dto],
-      total: 1,
-      page: 2,
-      num_records: 10,
-      next: null,
-    })
+  it('requests the first slice without a cursor and maps the result', async () => {
+    vi.mocked(apiFetch).mockResolvedValue({ items: [dto], num_records: 10, next_cursor: 'c1' })
 
-    const result = await fetchNotifications({ page: 2, numRecords: 10 })
+    const result = await fetchNotifications({ numRecords: 10 })
 
     expect(apiFetch).toHaveBeenCalledWith(
-      '/notifications?page_number=2&num_records=10',
+      '/notifications?num_records=10',
       expect.objectContaining({ signal: undefined }),
     )
-    expect(result).toEqual([notification()])
+    expect(result).toEqual({ items: [notification()], nextCursor: 'c1' })
+  })
+
+  it('sends the cursor of the previous slice to request the next one', async () => {
+    vi.mocked(apiFetch).mockResolvedValue({ items: [], num_records: 10, next_cursor: null })
+
+    await fetchNotifications({ cursor: 'a+b/c=', numRecords: 10 })
+
+    expect(apiFetch).toHaveBeenCalledWith(
+      '/notifications?num_records=10&cursor=a%2Bb%2Fc%3D',
+      expect.objectContaining({ signal: undefined }),
+    )
   })
 
   it('reads the unread count from the unread-count route', async () => {
@@ -100,15 +87,12 @@ describe('notification service requests', () => {
     expect(apiFetch).toHaveBeenCalledWith('/notifications/unread-count', { signal })
   })
 
-  it('maps an empty page to no notifications', async () => {
-    vi.mocked(apiFetch).mockResolvedValue({
+  it('maps an empty slice to no notifications and no next cursor', async () => {
+    vi.mocked(apiFetch).mockResolvedValue({ items: [], num_records: 25, next_cursor: null })
+    await expect(fetchNotifications({ numRecords: 25 })).resolves.toEqual({
       items: [],
-      total: 0,
-      page: 1,
-      num_records: 25,
-      next: null,
+      nextCursor: null,
     })
-    await expect(fetchNotifications({ page: 1, numRecords: 25 })).resolves.toEqual([])
   })
 
   it('marks a notification read via a void POST', async () => {
@@ -146,7 +130,7 @@ describe('optimistic read cache helpers', () => {
   })
 
   it('flips read to true across every cached list and snapshots the prior state', () => {
-    const listKey = queryKeys.notifications.list({ page: 1, numRecords: 25 })
+    const listKey = queryKeys.notifications.list({ numRecords: 6 })
     const otherKey = queryKeys.notifications.list({ page: 2, numRecords: 25 })
     client.setQueryData(listKey, [notification({ id: 7 }), notification({ id: 8 })])
     client.setQueryData(otherKey, [notification({ id: 7 })])
@@ -165,7 +149,7 @@ describe('optimistic read cache helpers', () => {
   })
 
   it('restores the exact prior state on rollback', () => {
-    const listKey = queryKeys.notifications.list({ page: 1, numRecords: 25 })
+    const listKey = queryKeys.notifications.list({ numRecords: 6 })
     const original = [notification({ id: 7 }), notification({ id: 8 })]
     client.setQueryData(listKey, original)
 
@@ -177,43 +161,49 @@ describe('optimistic read cache helpers', () => {
 
   it('flips read inside an infinite-query cache shape', () => {
     const infiniteKey = queryKeys.notifications.list({ numRecords: 25 })
-    client.setQueryData<InfiniteData<Notification[]>>(infiniteKey, {
-      pages: [[notification({ id: 7 }), notification({ id: 8 })], [notification({ id: 9 })]],
-      pageParams: [1, 2],
+    client.setQueryData<InfiniteData<NotificationsSlice>>(infiniteKey, {
+      pages: [
+        { items: [notification({ id: 7 }), notification({ id: 8 })], nextCursor: 'c1' },
+        { items: [notification({ id: 9 })], nextCursor: null },
+      ],
+      pageParams: [null, 'c1'],
     })
 
     applyOptimisticRead(client, 8)
 
-    expect(client.getQueryData<InfiniteData<Notification[]>>(infiniteKey)).toEqual({
+    expect(client.getQueryData<InfiniteData<NotificationsSlice>>(infiniteKey)).toEqual({
       pages: [
-        [notification({ id: 7 }), notification({ id: 8, read: true })],
-        [notification({ id: 9 })],
+        { items: [notification({ id: 7 }), notification({ id: 8, read: true })], nextCursor: 'c1' },
+        { items: [notification({ id: 9 })], nextCursor: null },
       ],
-      pageParams: [1, 2],
+      pageParams: [null, 'c1'],
     })
   })
 
   it('restores an infinite-query snapshot on rollback', () => {
     const infiniteKey = queryKeys.notifications.list({ numRecords: 25 })
-    const original: InfiniteData<Notification[]> = {
-      pages: [[notification({ id: 7 })]],
-      pageParams: [1],
+    const original: InfiniteData<NotificationsSlice> = {
+      pages: [{ items: [notification({ id: 7 })], nextCursor: null }],
+      pageParams: [null],
     }
     client.setQueryData(infiniteKey, original)
 
     const snapshot = applyOptimisticRead(client, 7)
     restoreNotifications(client, snapshot)
 
-    expect(client.getQueryData<InfiniteData<Notification[]>>(infiniteKey)).toEqual(original)
+    expect(client.getQueryData<InfiniteData<NotificationsSlice>>(infiniteKey)).toEqual(original)
   })
 
   it('flips every row read across all cached lists when marking all read', () => {
-    const listKey = queryKeys.notifications.list({ page: 1, numRecords: 25 })
+    const listKey = queryKeys.notifications.list({ numRecords: 6 })
     const infiniteKey = queryKeys.notifications.list({ numRecords: 25 })
     client.setQueryData(listKey, [notification({ id: 7 }), notification({ id: 8, read: true })])
-    client.setQueryData<InfiniteData<Notification[]>>(infiniteKey, {
-      pages: [[notification({ id: 9 })], [notification({ id: 10 })]],
-      pageParams: [1, 2],
+    client.setQueryData<InfiniteData<NotificationsSlice>>(infiniteKey, {
+      pages: [
+        { items: [notification({ id: 9 })], nextCursor: 'c1' },
+        { items: [notification({ id: 10 })], nextCursor: null },
+      ],
+      pageParams: [null, 'c1'],
     })
 
     const snapshot = applyOptimisticReadAll(client)
@@ -222,9 +212,12 @@ describe('optimistic read cache helpers', () => {
       notification({ id: 7, read: true }),
       notification({ id: 8, read: true }),
     ])
-    expect(client.getQueryData<InfiniteData<Notification[]>>(infiniteKey)).toEqual({
-      pages: [[notification({ id: 9, read: true })], [notification({ id: 10, read: true })]],
-      pageParams: [1, 2],
+    expect(client.getQueryData<InfiniteData<NotificationsSlice>>(infiniteKey)).toEqual({
+      pages: [
+        { items: [notification({ id: 9, read: true })], nextCursor: 'c1' },
+        { items: [notification({ id: 10, read: true })], nextCursor: null },
+      ],
+      pageParams: [null, 'c1'],
     })
     expect(snapshot).toHaveLength(2)
   })

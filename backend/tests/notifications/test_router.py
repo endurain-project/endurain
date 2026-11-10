@@ -7,6 +7,7 @@ from fastapi.testclient import TestClient
 
 import core.exceptions as core_exceptions
 import core.pagination as core_pagination
+import modules.notifications.schema as notifications_schema
 
 
 def _read(**fields):
@@ -14,7 +15,14 @@ def _read(**fields):
     import modules.notifications.schema as notifications_schema
 
     return notifications_schema.NOTIFICATION_READ_ADAPTER.validate_python(
-        {"id": 1, "user_id": 1, "type": "new_activity", "options": {"activity_id": 5}, **fields}
+        {
+            "id": 1,
+            "user_id": 1,
+            "type": "new_activity",
+            "options": {"activity_id": 5},
+            "created_at": datetime(2024, 1, 1),
+            **fields,
+        }
     )
 
 
@@ -89,42 +97,60 @@ class TestReadNotificationById:
 
 class TestReadNotificationsPagination:
     @patch("modules.notifications.router.notifications_service.list_notifications")
-    def test_pagination_success(self, mock_get, mock_db):
+    def test_first_slice_success(self, mock_get, mock_db):
         client = TestClient(_build_app(mock_db))
-        mock_get.return_value = core_pagination.Page.build([_read(read=False)], total=1, page=1, num_records=10)
+        mock_get.return_value = notifications_schema.NotificationPage(
+            items=[_read(read=False)], num_records=10, next_cursor="abc"
+        )
 
-        response = client.get("/notifications?page_number=1&num_records=10", headers={"Authorization": "Bearer x"})
+        response = client.get("/notifications?num_records=10", headers={"Authorization": "Bearer x"})
         assert response.status_code == 200
         body = response.json()
-        assert body["total"] == 1
-        assert body["next"] is None
+        assert body["next_cursor"] == "abc"
+        assert "total" not in body
         assert body["items"][0]["id"] == 1
-        mock_get.assert_called_once_with(1, mock_db, page_number=1, num_records=10, unread_only=False)
+        mock_get.assert_called_once_with(1, mock_db, cursor=None, num_records=10, unread_only=False)
+
+    @patch("modules.notifications.router.notifications_service.list_notifications")
+    def test_cursor_and_default_size_are_forwarded(self, mock_get, mock_db):
+        client = TestClient(_build_app(mock_db))
+        mock_get.return_value = notifications_schema.NotificationPage(items=[], num_records=25)
+
+        response = client.get("/notifications?cursor=abc", headers={"Authorization": "Bearer x"})
+
+        assert response.status_code == 200
+        mock_get.assert_called_once_with(
+            1, mock_db, cursor="abc", num_records=core_pagination.DEFAULT_NUM_RECORDS, unread_only=False
+        )
 
     @patch("modules.notifications.router.notifications_service.list_notifications")
     def test_unread_only_is_forwarded_to_the_service(self, mock_get, mock_db):
         client = TestClient(_build_app(mock_db))
-        mock_get.return_value = core_pagination.Page.build([], total=4, page=1, num_records=1)
+        mock_get.return_value = notifications_schema.NotificationPage(items=[], num_records=1)
 
         response = client.get("/notifications?unread_only=true&num_records=1", headers={"Authorization": "Bearer x"})
 
         assert response.status_code == 200
-        assert response.json()["total"] == 4
-        mock_get.assert_called_once_with(1, mock_db, page_number=1, num_records=1, unread_only=True)
+        mock_get.assert_called_once_with(1, mock_db, cursor=None, num_records=1, unread_only=True)
 
     @patch("modules.notifications.router.notifications_service.list_notifications")
-    def test_pagination_created_at_is_full_utc_iso_timestamp(self, mock_get, mock_db):
+    def test_created_at_is_full_utc_iso_timestamp(self, mock_get, mock_db):
         client = TestClient(_build_app(mock_db))
-        mock_get.return_value = core_pagination.Page.build(
-            [_read(read=False, created_at=datetime(2026, 7, 16, 10, 30))],
-            total=1,
-            page=1,
-            num_records=10,
+        mock_get.return_value = notifications_schema.NotificationPage(
+            items=[_read(read=False, created_at=datetime(2026, 7, 16, 10, 30))], num_records=10
         )
 
-        response = client.get("/notifications?page_number=1&num_records=10", headers={"Authorization": "Bearer x"})
+        response = client.get("/notifications?num_records=10", headers={"Authorization": "Bearer x"})
         assert response.status_code == 200
         assert response.json()["items"][0]["created_at"] == "2026-07-16T10:30:00Z"
+
+    def test_a_bad_cursor_is_a_400(self, mock_db):
+        client = TestClient(_build_app(mock_db))
+        mock_db.execute.return_value.scalars.return_value.all.return_value = []
+
+        response = client.get("/notifications?cursor=garbage", headers={"Authorization": "Bearer x"})
+
+        assert response.status_code == 400
 
 
 class TestMarkNotificationAsRead:
@@ -169,10 +195,10 @@ class TestPathValidation:
         )
         assert response.status_code == 422
 
-    def test_non_positive_page_number_is_rejected(self, mock_db):
+    def test_non_positive_size_is_rejected(self, mock_db):
         client = TestClient(_build_app(mock_db))
 
-        response = client.get("/notifications?page_number=0&num_records=10", headers={"Authorization": "Bearer x"})
+        response = client.get("/notifications?num_records=0", headers={"Authorization": "Bearer x"})
         assert response.status_code == 422
 
 

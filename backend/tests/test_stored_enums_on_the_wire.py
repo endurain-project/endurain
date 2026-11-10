@@ -104,7 +104,7 @@ class TestNotification:
             type=stored_type,
             user_id=1,
             read=False,
-            created_at=None,
+            created_at=datetime(2026, 1, 1, tzinfo=UTC),
             options={"browser": "Firefox", "operating_system": "Linux", "ip_address": "10.0.0.1"},
         )
 

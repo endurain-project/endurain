@@ -109,7 +109,7 @@ _DOCSTRING_SECTIONS: dict[str, int] = {
     "modules/health/health_targets/router.py": 2,
     "modules/health/health_water/router.py": 5,
     "modules/health/health_weight/router.py": 5,
-    "modules/notifications/router.py": 3,
+    "modules/notifications/router.py": 2,
     "modules/server_settings/logs_router.py": 4,
     "modules/server_settings/public_router.py": 3,
     "modules/server_settings/router.py": 8,

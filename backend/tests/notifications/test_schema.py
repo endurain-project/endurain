@@ -53,11 +53,6 @@ class TestNotificationReadCreatedAt:
 
         assert dumped["created_at"] == "2026-07-16T15:19:00Z"
 
-    def test_none_stays_none(self):
-        dumped = self._notification(None).model_dump(mode="json")
-
-        assert dumped["created_at"] is None
-
 
 class TestTypedOptions:
     """Each type carries the options its producer stores, and only those."""
@@ -65,7 +60,13 @@ class TestTypedOptions:
     @staticmethod
     def _read(notification_type, options):
         return notifications_schema.NOTIFICATION_READ_ADAPTER.validate_python(
-            {"id": 1, "user_id": 1, "type": notification_type, "options": options}
+            {
+                "id": 1,
+                "user_id": 1,
+                "type": notification_type,
+                "options": options,
+                "created_at": datetime(2026, 7, 16, tzinfo=UTC),
+            }
         )
 
     @pytest.mark.parametrize(

@@ -34,7 +34,14 @@ function make<Type extends NotificationType>(
   type: Type,
   options: NotificationOptionsOf<Type>,
 ): Notification {
-  return { id: 1, type, read: false, options, createdAt: null, userId: 5 } as Notification
+  return {
+    id: 1,
+    type,
+    read: false,
+    options,
+    createdAt: '2026-06-19T10:00:00Z',
+    userId: 5,
+  } as Notification
 }
 
 const USER = { user_id: 3, user_name: 'Ada', user_username: 'ada' }

@@ -41,18 +41,18 @@ class TestGetUserNotificationsCount:
         import modules.notifications.crud as crud
 
         mock_db.execute.return_value.scalar_one.return_value = 7
-        r = crud.get_user_notifications_count(user_id=1, db=mock_db)
+        r = crud.count_user_unread_notifications(user_id=1, db=mock_db)
         assert r == 7
 
     def test_zero(self, mock_db):
         import modules.notifications.crud as crud
 
         mock_db.execute.return_value.scalar_one.return_value = 0
-        r = crud.get_user_notifications_count(user_id=1, db=mock_db)
+        r = crud.count_user_unread_notifications(user_id=1, db=mock_db)
         assert r == 0
 
 
-class TestGetUserNotificationsWithPagination:
+class TestGetUserNotificationsAfter:
     def test_success(self, mock_db):
         import modules.notifications.crud as crud
         import modules.notifications.models as m
@@ -67,24 +67,16 @@ class TestGetUserNotificationsWithPagination:
             created_at=datetime(2024, 1, 1),
         )
         mock_db.execute.return_value.scalars.return_value.all.return_value = [n]
-        r = crud.get_user_notifications_with_pagination(user_id=1, db=mock_db, page_number=1, num_records=5)
+        r = crud.get_user_notifications_after(1, None, 5, mock_db)
         assert len(r) == 1
         assert r[0].id == 1
         assert r[0].user_id == 1
-
-    def test_page_two(self, mock_db):
-        import modules.notifications.crud as crud
-
-        mock_db.execute.return_value.scalars.return_value.all.return_value = []
-        r = crud.get_user_notifications_with_pagination(user_id=1, db=mock_db, page_number=2, num_records=5)
-        assert r == []
 
     def test_empty(self, mock_db):
         import modules.notifications.crud as crud
 
         mock_db.execute.return_value.scalars.return_value.all.return_value = []
-        r = crud.get_user_notifications_with_pagination(user_id=1, db=mock_db)
-        assert r == []
+        assert crud.get_user_notifications_after(1, None, 5, mock_db) == []
 
 
 class TestUnreadOnlyFilter:
@@ -118,46 +110,62 @@ class TestUnreadOnlyFilter:
         yield session
         session.close()
 
-    def test_count_includes_read_notifications_by_default(self, db):
-        import modules.notifications.crud as crud
-
-        assert crud.get_user_notifications_count(user_id=1, db=db) == 5
-
     def test_count_unread_only_skips_read_and_other_users_notifications(self, db):
         import modules.notifications.crud as crud
 
-        assert crud.get_user_notifications_count(user_id=1, db=db, unread_only=True) == 3
+        assert crud.count_user_unread_notifications(user_id=1, db=db) == 3
 
     def test_count_unread_only_is_zero_once_everything_is_read(self, db):
         import modules.notifications.crud as crud
 
         crud.mark_all_notifications_as_read(1, db)
 
-        assert crud.get_user_notifications_count(user_id=1, db=db, unread_only=True) == 0
+        assert crud.count_user_unread_notifications(user_id=1, db=db) == 0
 
-    def test_page_unread_only_returns_the_unread_ones_newest_first(self, db):
+    def test_slice_unread_only_returns_the_unread_ones_newest_first(self, db):
         import modules.notifications.crud as crud
 
-        page = crud.get_user_notifications_with_pagination(user_id=1, db=db, num_records=10, unread_only=True)
+        page = crud.get_user_notifications_after(1, None, 10, db, unread_only=True)
 
         assert [n.id for n in page] == [5, 4, 2]
         assert all(not n.read for n in page)
 
-    def test_page_unread_only_pages_over_the_filtered_rows(self, db):
+    def test_slice_resumes_strictly_after_the_position(self, db):
         import modules.notifications.crud as crud
 
-        second = crud.get_user_notifications_with_pagination(
-            user_id=1, db=db, page_number=2, num_records=2, unread_only=True
-        )
+        second = crud.get_user_notifications_after(1, (datetime(2024, 1, 4), 4), 2, db, unread_only=True)
 
         assert [n.id for n in second] == [2]
 
-    def test_page_includes_read_notifications_by_default(self, db):
+    def test_slice_includes_read_notifications_by_default(self, db):
         import modules.notifications.crud as crud
 
-        page = crud.get_user_notifications_with_pagination(user_id=1, db=db, num_records=10)
+        page = crud.get_user_notifications_after(1, None, 10, db)
 
         assert [n.id for n in page] == [5, 4, 3, 2, 1]
+
+    def test_slice_breaks_a_created_at_tie_on_id(self, db):
+        import modules.notifications.crud as crud
+        import modules.notifications.models as m
+
+        for notification_id in (7, 8):
+            db.add(
+                m.Notification(
+                    id=notification_id,
+                    user_id=1,
+                    type=1,
+                    read=False,
+                    options={"activity_id": 1},
+                    created_at=datetime(2024, 1, 5),
+                )
+            )
+        db.commit()
+
+        first = crud.get_user_notifications_after(1, None, 2, db)
+        rest = crud.get_user_notifications_after(1, (datetime(2024, 1, 5), first[-1].id), 10, db)
+
+        assert [n.id for n in first] == [8, 7]
+        assert [n.id for n in rest] == [5, 4, 3, 2, 1]
 
 
 class TestCreateNotification:
