@@ -63,6 +63,12 @@ _AUDITED_WRITES: dict[tuple[str, str], tuple[str, ...]] = {
     ),
     ("auth/account_security/api_keys_router.py", "delete_user_api_key"): ("auth.api_key.delete",),
     ("auth/account_security/api_keys_router.py", "revoke_user_api_key"): ("auth.api_key.revoke",),
+    ("auth/account_security/devices_router.py", "forget_user_device"): (
+        "auth.device.forget",
+        "auth.backup_codes.use",
+        "auth.lockout.apply",
+        "auth.step_up.verify",
+    ),
     ("auth/account_security/identity_links_router.py", "delete_my_identity_provider"): (
         "auth.backup_codes.use",
         "auth.identity_link.unlink",

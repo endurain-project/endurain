@@ -154,6 +154,14 @@ IDENTITY_LINK_UNLINK = jasil_audit.AuditAction(
     details_model=IdentityLinkDetails,
 )
 
+DEVICE_FORGET = jasil_audit.AuditAction(
+    id="auth.device.forget",
+    category=jasil_audit.Category.IDENTITY,
+    severity=jasil_audit.Severity.MEDIUM,
+    description_key="audit.auth.device.forget",
+    description_default="A known sign-in device was forgotten",
+)
+
 #: Every action this package writes, registered by the composition root.
 ACTIONS: tuple[jasil_audit.AuditAction, ...] = (
     PASSWORD_CHANGE,
@@ -167,4 +175,5 @@ ACTIONS: tuple[jasil_audit.AuditAction, ...] = (
     API_KEY_REVOKE,
     API_KEY_DELETE,
     IDENTITY_LINK_UNLINK,
+    DEVICE_FORGET,
 )

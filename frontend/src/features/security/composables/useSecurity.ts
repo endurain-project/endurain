@@ -27,6 +27,8 @@ import {
   enableMfa,
   fetchApiKeys,
   fetchBackupCodeStatus,
+  fetchKnownDevices,
+  forgetKnownDevice,
   fetchMfaStatus,
   fetchSessions,
   regenerateBackupCodes,
@@ -87,6 +89,39 @@ export function useSessionsQuery() {
 }
 
 /**
+ * The devices the authenticated user is known to sign in from. Gated on authentication.
+ *
+ * @returns The TanStack Query result for the known devices.
+ */
+export function useKnownDevicesQuery() {
+  const { isAuthenticated } = storeToRefs(useAuthStore())
+
+  return useQuery({
+    queryKey: queryKeys.security.devices(),
+    queryFn: ({ signal }) => fetchKnownDevices(signal),
+    enabled: isAuthenticated,
+  })
+}
+
+/**
+ * Forgets a known device (step-up gated). Invalidates the list on settle so it shows the
+ * server-authoritative state, including after a 404 for a device that was already forgotten.
+ *
+ * @returns The TanStack Query mutation for forgetting a device.
+ */
+export function useForgetKnownDeviceMutation() {
+  const client = useQueryClient()
+
+  return useMutation<void, Error, { deviceId: number; input: StepUpInput }>({
+    mutationKey: queryKeys.security.all(),
+    mutationFn: ({ deviceId, input }) => forgetKnownDevice(deviceId, input),
+    onSettled: () => {
+      void client.invalidateQueries({ queryKey: queryKeys.security.devices() })
+    },
+  })
+}
+
+/**
  * Change-password mutation. Invalidates the sessions list on success since
  * `revokeOtherSessions` may have removed other devices.
  *
@@ -100,6 +135,7 @@ export function useChangePasswordMutation() {
     mutationFn: (input) => changePassword(input),
     onSuccess: () => {
       void client.invalidateQueries({ queryKey: queryKeys.security.sessions() })
+      void client.invalidateQueries({ queryKey: queryKeys.security.devices() })
     },
   })
 }
@@ -352,6 +388,7 @@ function useInvalidateEmailViews(): () => void {
     void client.invalidateQueries({ queryKey: queryKeys.profile.all() })
     void client.invalidateQueries({ queryKey: queryKeys.currentUser() })
     void client.invalidateQueries({ queryKey: queryKeys.users.all() })
+    void client.invalidateQueries({ queryKey: queryKeys.security.devices() })
   }
 }
 

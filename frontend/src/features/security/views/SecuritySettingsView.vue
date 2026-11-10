@@ -4,6 +4,7 @@ import { useI18n } from 'vue-i18n'
 
 import ChangeEmailCard from '@/features/security/components/ChangeEmailCard.vue'
 import ChangePasswordCard from '@/features/security/components/ChangePasswordCard.vue'
+import KnownDevicesCard from '@/features/security/components/KnownDevicesCard.vue'
 import LinkedAccountsCard from '@/features/security/components/LinkedAccountsCard.vue'
 import MfaCard from '@/features/security/components/MfaCard.vue'
 import SessionsCard from '@/features/security/components/SessionsCard.vue'
@@ -117,6 +118,11 @@ const mfaEnabled = computed(() => profile.value?.mfaEnabled ?? false)
         :resume="resume"
       />
       <SessionsCard />
+      <KnownDevicesCard
+        :has-local-password="profile.hasLocalPassword"
+        :mfa-enabled="mfaEnabled"
+        :resume="resume"
+      />
       <ApiKeysCard
         :has-local-password="profile.hasLocalPassword"
         :mfa-enabled="mfaEnabled"

@@ -43,6 +43,7 @@ class StepUpAction(StrEnum):
         EMAIL_CHANGE: Change the account's email address.
         ACCOUNT_DELETE: Delete the account.
         PROFILE_EXPORT: Export all of the account's data.
+        PROFILE_DEVICE_FORGET: Forget a device the account is known to sign in from.
         MFA_ENABLE: Enable MFA.
         MFA_DISABLE: Disable MFA.
         MFA_BACKUP_CODES: Regenerate MFA backup codes.
@@ -66,6 +67,7 @@ class StepUpAction(StrEnum):
     EMAIL_CHANGE = "email_change"
     ACCOUNT_DELETE = "account_delete"
     PROFILE_EXPORT = "profile_export"
+    PROFILE_DEVICE_FORGET = "profile_device_forget"
     MFA_ENABLE = "mfa_enable"
     MFA_DISABLE = "mfa_disable"
     MFA_BACKUP_CODES = "mfa_backup_codes"

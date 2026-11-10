@@ -47,6 +47,7 @@ import modules.activities.activity_streams.router as activity_streams_router
 import modules.activities.activity_thumbnail.public_router as activity_thumbnail_public_router
 import modules.activities.activity_workout_steps.public_router as activity_workout_steps_public_router
 import modules.auth.account_security.api_keys_router as auth_api_keys_router
+import modules.auth.account_security.devices_router as auth_devices_router
 import modules.auth.account_security.identity_links_router as auth_idp_profile_router
 import modules.auth.account_security.mfa_router as auth_mfa_profile_router
 import modules.auth.account_security.public_router as password_change_router
@@ -169,6 +170,7 @@ _TIERED_ENDPOINTS = [
     pytest.param(auth_api_keys_router.create_user_api_key, core_rate_limit.SENSITIVE, id="api-key-create"),
     pytest.param(auth_api_keys_router.revoke_user_api_key, core_rate_limit.SENSITIVE, id="api-key-revoke"),
     pytest.param(auth_api_keys_router.delete_user_api_key, core_rate_limit.SENSITIVE, id="api-key-delete"),
+    pytest.param(auth_devices_router.forget_user_device, core_rate_limit.SENSITIVE, id="device-forget"),
     pytest.param(
         auth_idp_profile_router.start_idp_step_up,
         core_rate_limit.SENSITIVE,

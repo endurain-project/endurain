@@ -525,6 +525,8 @@ export const queryKeys = {
     backupCodeStatus: () => ['security', 'backup-code-status'] as const,
     /** The user's active sessions. */
     sessions: () => ['security', 'sessions'] as const,
+    /** The devices the user is known to sign in from. */
+    devices: () => ['security', 'devices'] as const,
     /** The user's linked identity providers. */
     linkedProviders: () => ['security', 'linked-providers'] as const,
     /** The user's API keys. */

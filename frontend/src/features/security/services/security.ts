@@ -18,6 +18,8 @@ import type {
   MfaStatusDto,
   PasswordChangeDto,
   PasswordChangeInput,
+  KnownDevice,
+  KnownDeviceDto,
   SecuritySession,
   SecuritySessionDto,
   EmailChangeDto,
@@ -95,6 +97,24 @@ export function mapSecuritySession(dto: SecuritySessionDto): SecuritySession {
     createdAt: dto.created_at,
     lastActivityAt: dto.last_activity_at,
     expiresAt: dto.expires_at,
+  }
+}
+
+/**
+ * Maps a raw known-device payload to the clean {@link KnownDevice} model.
+ *
+ * @param dto - Raw known-device payload from the backend.
+ * @returns The normalized known-device model.
+ */
+export function mapKnownDevice(dto: KnownDeviceDto): KnownDevice {
+  return {
+    id: dto.id,
+    browser: dto.browser ?? null,
+    operatingSystem: dto.operating_system ?? null,
+    deviceType: dto.device_type ?? null,
+    createdAt: dto.created_at,
+    lastSeenAt: dto.last_seen_at,
+    current: dto.current,
   }
 }
 
@@ -272,6 +292,33 @@ export async function regenerateBackupCodes(
 export async function fetchSessions(signal?: AbortSignal): Promise<SecuritySession[]> {
   const dtos = await fetchAllPages<SecuritySessionDto>('/profile/sessions', undefined, { signal })
   return dtos.map(mapSecuritySession)
+}
+
+/**
+ * Lists the devices the authenticated user is known to sign in from.
+ *
+ * @param signal - Optional abort signal for cancellation.
+ * @returns The known devices, mapped to the clean model.
+ * @throws {HttpError} When the request fails.
+ */
+export async function fetchKnownDevices(signal?: AbortSignal): Promise<KnownDevice[]> {
+  const dtos = await fetchAllPages<KnownDeviceDto>('/profile/devices', undefined, { signal })
+  return dtos.map(mapKnownDevice)
+}
+
+/**
+ * Forgets one of the authenticated user's known devices after step-up verification.
+ *
+ * @param deviceId - The device id to forget.
+ * @param input - The step-up credentials.
+ * @throws {HttpError} When the request fails (403 step-up, 404 no such device).
+ */
+export async function forgetKnownDevice(deviceId: number, input: StepUpInput): Promise<void> {
+  await apiFetch(`/profile/devices/${deviceId}/delete`, {
+    method: 'POST',
+    body: JSON.stringify({ step_up: toStepUpWire(input) } satisfies StepUpRequestDto),
+    responseType: 'void',
+  })
 }
 
 /**

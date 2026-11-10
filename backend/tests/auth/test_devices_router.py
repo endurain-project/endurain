@@ -1,0 +1,90 @@
+"""Tests for the ``/profile/devices`` routes."""
+
+from datetime import UTC, datetime
+from unittest.mock import patch
+
+import pytest
+
+import core.exceptions as core_exceptions
+import modules.auth.known_devices.schema as known_devices_schema
+
+_DEVICE_ID = "d" * 43
+
+
+@pytest.fixture(autouse=True)
+def _session_policy(session_policy):
+    with patch(
+        "modules.auth.account_security.dependencies.server_settings_integration.get_session_policy",
+        return_value=session_policy,
+    ):
+        yield
+
+
+class TestListDevices:
+    @patch("modules.auth.account_security.devices_router.device_service.list_user_devices")
+    def test_lists_the_devices_with_the_one_the_request_names_marked(self, listing, fast_api_client):
+        now = datetime.now(UTC)
+        listing.return_value = known_devices_schema.KnownDevicePage.build(
+            [
+                known_devices_schema.KnownDeviceRead(
+                    id=3,
+                    browser="Firefox",
+                    operating_system="Linux",
+                    device_type="PC",
+                    created_at=now,
+                    last_seen_at=now,
+                    current=True,
+                )
+            ],
+            1,
+            1,
+            25,
+        )
+
+        response = fast_api_client.get(
+            "/devices", headers={"Authorization": "Bearer mock_token", "X-Device-Id": _DEVICE_ID}
+        )
+
+        assert response.status_code == 200
+        item = response.json()["items"][0]
+        assert (item["id"], item["browser"], item["current"]) == (3, "Firefox", True)
+        assert listing.call_args.args[1] == _DEVICE_ID
+
+    @patch("modules.auth.account_security.devices_router.device_service.list_user_devices")
+    def test_a_request_without_a_device_id_passes_none(self, listing, fast_api_client):
+        listing.return_value = known_devices_schema.KnownDevicePage.build([], 0, 1, 25)
+
+        response = fast_api_client.get("/devices", headers={"Authorization": "Bearer mock_token"})
+
+        assert response.status_code == 200
+        assert listing.call_args.args[1] is None
+
+
+class TestForgetDevice:
+    @patch("modules.auth.account_security.devices_router.device_service.forget_user_device")
+    def test_answers_204(self, forget, fast_api_client):
+        response = fast_api_client.post(
+            "/devices/3/delete",
+            json={"step_up": {"current_password": "pw"}},
+            headers={"Authorization": "Bearer mock_token"},
+        )
+
+        assert response.status_code == 204
+        assert forget.call_args.args[0] == 3
+
+    @patch("modules.auth.account_security.devices_router.device_service.forget_user_device")
+    def test_another_users_or_an_unknown_device_is_404(self, forget, fast_api_client):
+        forget.side_effect = core_exceptions.NotFoundError("Device not found")
+
+        response = fast_api_client.post(
+            "/devices/3/delete",
+            json={"step_up": {"current_password": "pw"}},
+            headers={"Authorization": "Bearer mock_token"},
+        )
+
+        assert response.status_code == 404
+
+    def test_a_body_without_step_up_is_refused(self, fast_api_client):
+        response = fast_api_client.post("/devices/3/delete", json={}, headers={"Authorization": "Bearer mock_token"})
+
+        assert response.status_code == 422

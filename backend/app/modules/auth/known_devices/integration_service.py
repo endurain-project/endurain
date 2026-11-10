@@ -2,8 +2,10 @@
 
 from sqlalchemy.orm import Session
 
+import core.pagination as core_pagination
 import modules.auth.known_devices.contracts as known_devices_contracts
 import modules.auth.known_devices.events as known_devices_events
+import modules.auth.known_devices.schema as known_devices_schema
 import modules.auth.known_devices.service as known_devices_service
 
 
@@ -22,3 +24,15 @@ def record_sign_in(
 ) -> known_devices_contracts.SignInRecord:
     """Stage a successful sign-in against the user's known devices, announcing a new one; the caller commits."""
     return known_devices_service.record_sign_in(user_id, device_id, ip_address, user_agent, method, db)
+
+
+def list_devices(
+    user_id: int, device_id: str | None, page: core_pagination.PageParams, db: Session
+) -> known_devices_schema.KnownDevicePage:
+    """Return one page of the user's known devices, marking the one the request's device id names."""
+    return known_devices_service.list_devices(user_id, device_id, page, db)
+
+
+def forget_device(device_id: int, user_id: int, db: Session) -> None:
+    """Stage the deletion of one of the user's known devices; the caller commits."""
+    known_devices_service.forget_device(device_id, user_id, db)

@@ -2174,6 +2174,49 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/profile/devices": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List User Devices
+         * @description List one page of the devices the authenticated user is known to sign in from, latest sign-in first.
+         *
+         *     A device is known until a security change of the account or the user forgets it, and a sign-in from an unknown device is announced by email. `current` marks
+         *     the device the request comes from.
+         */
+        get: operations["list_user_devices"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/profile/devices/{device_id}/delete": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Forget User Device
+         * @description Forget a device after step-up verification, so the next sign-in from it is announced as a new device.
+         */
+        post: operations["forget_user_device"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/profile/email/change": {
         parameters: {
             query?: never;
@@ -8937,6 +8980,59 @@ export interface components {
          */
         JobState: "queued" | "running" | "succeeded" | "failed";
         /**
+         * KnownDeviceRead
+         * @description A device the signed-in user is known to sign in from.
+         *
+         *     Attributes:
+         *         id: Device ID, as the forget route takes it.
+         *         browser: Browser of the last sign-in, or None for a device registered before it was recorded.
+         *         operating_system: Operating system of the last sign-in, or None as above.
+         *         device_type: Type of device (Mobile, Tablet, PC) of the last sign-in, or None as above.
+         *         created_at: When the device was first registered under the current security generation.
+         *         last_seen_at: When the user last signed in from the device.
+         *         current: Whether the request comes from this device.
+         */
+        KnownDeviceRead: {
+            /**
+             * Browser
+             * @description Browser of the last sign-in from the device
+             */
+            browser?: string | null;
+            /**
+             * Created At
+             * Format: date-time
+             * @description When the device was registered
+             */
+            readonly created_at: string;
+            /**
+             * Current
+             * @description Whether the request comes from this device
+             * @default false
+             */
+            current: boolean;
+            /**
+             * Device Type
+             * @description Device type (Mobile, Tablet, PC) of the last sign-in
+             */
+            device_type?: string | null;
+            /**
+             * Id
+             * @description Device ID
+             */
+            readonly id: number;
+            /**
+             * Last Seen At
+             * Format: date-time
+             * @description When the user last signed in from the device
+             */
+            last_seen_at: string;
+            /**
+             * Operating System
+             * @description Operating system of the last sign-in from the device
+             */
+            operating_system?: string | null;
+        };
+        /**
          * Language
          * @description Supported application languages.
          *
@@ -10013,6 +10109,19 @@ export interface components {
             /** Total */
             total: number;
         };
+        /** Page[KnownDeviceRead] */
+        Page_KnownDeviceRead_: {
+            /** Items */
+            items: components["schemas"]["KnownDeviceRead"][];
+            /** Next */
+            next?: number | null;
+            /** Num Records */
+            num_records: number;
+            /** Page */
+            page: number;
+            /** Total */
+            total: number;
+        };
         /** Page[UserApiKeyRead] */
         Page_UserApiKeyRead_: {
             /** Items */
@@ -11058,6 +11167,7 @@ export interface components {
          *         EMAIL_CHANGE: Change the account's email address.
          *         ACCOUNT_DELETE: Delete the account.
          *         PROFILE_EXPORT: Export all of the account's data.
+         *         PROFILE_DEVICE_FORGET: Forget a device the account is known to sign in from.
          *         MFA_ENABLE: Enable MFA.
          *         MFA_DISABLE: Disable MFA.
          *         MFA_BACKUP_CODES: Regenerate MFA backup codes.
@@ -25868,6 +25978,200 @@ export interface operations {
             };
             /** @description The caller is signed in but not allowed, for example a scope is missing. */
             403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description The request conflicts with the current state. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description The body is larger than the route accepts. */
+            413: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description The rate limit was reached. */
+            429: {
+                headers: {
+                    /** @description Seconds to wait before the request can succeed. */
+                    "Retry-After"?: number;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description A dependency is unavailable for a moment. */
+            503: {
+                headers: {
+                    /** @description Seconds to wait before the request can succeed. */
+                    "Retry-After"?: number;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Unexpected error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+        };
+    };
+    list_user_devices: {
+        parameters: {
+            query?: {
+                page_number?: number | null;
+                num_records?: number | null;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Page_KnownDeviceRead_"];
+                };
+            };
+            /** @description The credential is missing, invalid or no longer valid. */
+            401: {
+                headers: {
+                    /** @description The authentication challenge. */
+                    "WWW-Authenticate"?: string;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description The caller is signed in but not allowed, for example a scope is missing. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description The rate limit was reached. */
+            429: {
+                headers: {
+                    /** @description Seconds to wait before the request can succeed. */
+                    "Retry-After"?: number;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description A dependency is unavailable for a moment. */
+            503: {
+                headers: {
+                    /** @description Seconds to wait before the request can succeed. */
+                    "Retry-After"?: number;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Unexpected error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+        };
+    };
+    forget_user_device: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                device_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["StepUpRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description The credential is missing, invalid or no longer valid. */
+            401: {
+                headers: {
+                    /** @description The authentication challenge. */
+                    "WWW-Authenticate"?: string;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description The caller is signed in but not allowed, for example a scope is missing. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description The resource does not exist, or is concealed from the caller. */
+            404: {
                 headers: {
                     [name: string]: unknown;
                 };

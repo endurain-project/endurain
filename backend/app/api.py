@@ -23,6 +23,7 @@ import modules.activities.activity_sets.router as activity_sets_router
 import modules.activities.activity_streams.router as activity_streams_router
 import modules.activities.activity_thumbnail.public_router as activity_thumbnail_public_router
 import modules.auth.account_security.api_keys_router as auth_api_keys_router
+import modules.auth.account_security.devices_router as auth_devices_router
 import modules.auth.account_security.identity_links_router as auth_idp_profile_router
 import modules.auth.account_security.mfa_router as auth_mfa_profile_router
 import modules.auth.account_security.public_router as auth_password_change_router
@@ -431,6 +432,12 @@ router.include_router(
     prefix=core_config.ROOT_PATH + "/profile/goals",
     tags=["profile"],
     dependencies=[Depends(auth_dependencies.validate_access_token)],
+)
+router.include_router(
+    auth_devices_router.router,
+    prefix=core_config.ROOT_PATH + "/profile/devices",
+    tags=["profile"],
+    dependencies=_PROFILE_SECURITY_DEPENDENCIES,
 )
 router.include_router(
     auth_api_keys_router.router,

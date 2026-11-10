@@ -743,6 +743,22 @@
       "revokeOthersSuccess": "Ostatné relácie odhlásené",
       "revokeOthersError": "Ostatné relácie sa nepodarilo odhlásiť. Skúste to znova."
     },
+    "devices": {
+      "title": "Known devices",
+      "subtitle": "Browsers and apps you have signed in from since your last security change. Signing in from any other device sends you a notice.",
+      "empty": "No known devices",
+      "error": "Couldn't load known devices",
+      "current": "This device",
+      "unknown": "Unknown device",
+      "lastSeen": "Last signed in {date}",
+      "forget": "Forget this device",
+      "forgetTitle": "Forget this device?",
+      "forgetDescription": "The next sign-in from this device counts as a new device and sends you a notice.",
+      "forgetConfirm": "Forget device",
+      "forgetSuccess": "Device forgotten",
+      "forgetError": "Couldn't forget the device. Please try again.",
+      "forgetNotFound": "That device is no longer known."
+    },
     "linked": {
       "title": "Prepojené účty",
       "subtitle": "Prihláste sa do svojho účtu pomocou externého poskytovateľa",

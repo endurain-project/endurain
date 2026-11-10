@@ -159,6 +159,30 @@ export interface SecuritySession {
   expiresAt: string
 }
 
+/** Raw known-device payload (snake_case wire shape). */
+export type KnownDeviceDto = Schemas['KnownDeviceRead']
+
+/**
+ * A device the user is known to sign in from, mapped from {@link KnownDeviceDto}.
+ *
+ * @property id - Device id (also the forget key).
+ * @property browser - Browser of the last sign-in, or null for a device registered before it was recorded.
+ * @property operatingSystem - Operating system of the last sign-in, or null as above.
+ * @property deviceType - Device class of the last sign-in, or null as above.
+ * @property createdAt - When the device was registered (ISO).
+ * @property lastSeenAt - When the user last signed in from it (ISO).
+ * @property current - Whether this request comes from the device.
+ */
+export interface KnownDevice {
+  id: number
+  browser: string | null
+  operatingSystem: string | null
+  deviceType: string | null
+  createdAt: string
+  lastSeenAt: string
+  current: boolean
+}
+
 /** Raw linked identity-provider payload (snake_case wire shape). */
 export type LinkedProviderDto = Schemas['IdentityProviderLinkRead']
 

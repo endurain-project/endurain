@@ -14,3 +14,18 @@ class SignInRecord:
 
     device_id: str
     new_device: bool
+
+
+@dataclass(frozen=True)
+class DeviceDescription:
+    """How a sign-in's user agent describes the device, so the user can recognise it.
+
+    Attributes:
+        browser: Browser name.
+        operating_system: Operating system name.
+        device_type: Type of device (Mobile, Tablet, PC).
+    """
+
+    browser: str
+    operating_system: str
+    device_type: str

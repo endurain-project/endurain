@@ -18,6 +18,8 @@ Certain sensitive account operations require the user to re-prove possession of 
 | Remove IdP link | `POST /profile/identity-providers/{idp_id}/unlink` |
 | Delete own account | `POST /profile/delete-account` |
 | Export own profile data | `POST /profile/export` |
+| List own known devices | `GET /profile/devices` |
+| Forget own known device | `POST /profile/devices/{device_id}/delete` |
 | Set another user's password (administrators) | `POST /users/{user_id}/password/change` |
 | Reset another user's MFA (administrators) | `POST /users/{user_id}/mfa/reset` |
 | Require another user to change their password at the next sign-in (administrators) | `POST /users/{user_id}/password/require-change` |
@@ -58,7 +60,13 @@ Every step-up operation takes the credentials in a `step_up` object of its JSON 
 }
 ```
 
-Account deletion, profile export and identity provider unlink send exactly this body. The other operations add their own fields next to `step_up`: `password` and `revoke_other_sessions` for the password change, `email` and `revoke_other_sessions` for the email change, `totp_code` (the code of the authenticator being enrolled) and `revoke_other_sessions` for MFA enable, `revoke_other_sessions` for MFA disable and backup-code regeneration, `redirect` and `revoke_other_sessions` for an identity provider link, and `name`, `scopes` and `expires_at` for an API key. MFA disable sends the code in `step_up.mfa_code`. Password change (`POST /profile/password/change`) needs a local password and is answered `403` for an account without one; an administrator sets the first password through `POST /users/{user_id}/password/change`, which refuses the administrator's own account and takes the administrator's `step_up` next to `password`.
+Account deletion, profile export, identity provider unlink and forgetting a known device send exactly this body. The other operations add their own fields next to `step_up`: `password` and `revoke_other_sessions` for the password change, `email` and `revoke_other_sessions` for the email change, `totp_code` (the code of the authenticator being enrolled) and `revoke_other_sessions` for MFA enable, `revoke_other_sessions` for MFA disable and backup-code regeneration, `redirect` and `revoke_other_sessions` for an identity provider link, and `name`, `scopes` and `expires_at` for an API key. MFA disable sends the code in `step_up.mfa_code`. Password change (`POST /profile/password/change`) needs a local password and is answered `403` for an account without one; an administrator sets the first password through `POST /users/{user_id}/password/change`, which refuses the administrator's own account and takes the administrator's `step_up` next to `password`.
+
+### Known devices
+
+`GET /profile/devices` lists one page of the devices the account is known to sign in from, latest sign-in first, with the same `page` and `num_records` parameters and page envelope as `GET /profile/sessions`. Only devices known now are listed, so a security change empties the list until the devices sign in again. Each item has `id`, `browser`, `operating_system`, `device_type`, `created_at`, `last_seen_at` and `current`, which is true for the device the request names in its `endurain_device` cookie or `X-Device-Id` header. The three descriptions come from the user agent of the last sign-in and are `null` for a device registered before they were recorded. The device id itself is never returned.
+
+`POST /profile/devices/{device_id}/delete` forgets one device. It takes the `{ "step_up": { ... } }` body, verifies the step-up first (`403` when it fails, counted by the [lockout](#step-up-lockout-policy)), answers `204` and writes an `auth.device.forget` audit row. A device of another user, one that is no longer known and an unknown id answer `404`. The next sign-in from a forgotten device is announced as one from a new device. Both routes need the `profile:security` scope.
 
 ### Ending other sessions after a change of an authentication factor
 
@@ -82,7 +90,7 @@ The step-up challenge is the `401` with `WWW-Authenticate: Bearer error="insuffi
 
 ### Step-up for accounts without a password
 
-An account without a local password cannot prove a password, and MFA alone does not pass step-up for it. It must prove a fresh sign-in with an identity provider linked to the account. This covers API key creation, IdP link, IdP unlink, email change, account deletion, profile export, MFA enable, MFA disable, backup-code regeneration and the administrator operations above, where it is the administrator's own account that has no password.
+An account without a local password cannot prove a password, and MFA alone does not pass step-up for it. It must prove a fresh sign-in with an identity provider linked to the account. This covers API key creation, IdP link, IdP unlink, email change, account deletion, profile export, MFA enable, MFA disable, backup-code regeneration, forgetting a known device and the administrator operations above, where it is the administrator's own account that has no password.
 
 1. The sensitive request arrives without `idp_reauth`. The API answers `401` with problem type `urn:endurain:error:idp-reauth-required` and `WWW-Authenticate: Bearer error="insufficient_user_authentication", max_age="60"` ([RFC 9470](https://datatracker.ietf.org/doc/html/rfc9470)). A missing proof is not counted as a failed attempt.
 2. The client generates a PKCE verifier and starts the sign-in with `POST /profile/identity-providers/{idp_id}/step-up`:
@@ -179,7 +187,7 @@ MFA verification failures also count against the account across every address, o
 Password login failures also count against the account across every address. After **100 failed sign-ins in a row** for one username the account is locked for **30 days**:
 
 - The count restarts on a successful sign-in and expires after 30 days without a failure.
-- A sign-in from a **known device** of the account is not refused by this lock. A device is known when the `endurain_device` cookie (web) or the `X-Device-Id` header (mobile) holds an id the account has signed in with before. Such a sign-in still needs the right password, MFA and the per-client lockout above, and its wrong passwords still count.
+- A sign-in from a **known device** of the account is not refused by this lock. A device is known when the `endurain_device` cookie (web) or the `X-Device-Id` header (mobile) holds an id the account has signed in with since its last security change: every security change (a password, email or MFA change, an identity provider unlink, a sign-out everywhere, an administrator setting the password, requiring a password change, ending the sessions or editing the account) advances the account's security generation, and a device registered under an earlier one is unknown until it signs in again, which is announced as a sign-in from a new device. Such a sign-in still needs the right password, MFA and the per-client lockout above, and its wrong passwords still count.
 - The lock and the count are cleared by a successful sign-in, a completed password reset, the user changing their password, or an administrator setting it.
 - When the 100th failure locks the account, its owner gets one email and one in-app notification (`account_security_changed` with the change `account_locked`) and an `auth.lockout.apply` audit row with the counter `login_account`. The audit row holds no username.
 - A locked account and an unknown username are refused with the same `429` answer.

@@ -17,11 +17,14 @@ import {
   mapBackupCodes,
   mapMfaSetup,
   mapMfaStatus,
+  mapKnownDevice,
   mapSecuritySession,
   regenerateBackupCodes,
   resendEmailChange,
   revokeOtherSessions,
   revokeSession,
+  fetchKnownDevices,
+  forgetKnownDevice,
   signOutEverywhere,
   setupMfa,
 } from '@/features/security/services/security'
@@ -403,6 +406,65 @@ describe('pending email change', () => {
 
     expect(apiFetch).toHaveBeenCalledWith('/profile/email/change', {
       method: 'DELETE',
+      responseType: 'void',
+    })
+  })
+})
+
+describe('known devices', () => {
+  beforeEach(() => {
+    vi.mocked(apiFetch).mockReset()
+  })
+
+  it('maps a known device, collapsing missing descriptions to null', () => {
+    expect(
+      mapKnownDevice({
+        id: 4,
+        created_at: '2026-01-01T00:00:00Z',
+        last_seen_at: '2026-01-02T00:00:00Z',
+        current: false,
+      }),
+    ).toEqual({
+      id: 4,
+      browser: null,
+      operatingSystem: null,
+      deviceType: null,
+      createdAt: '2026-01-01T00:00:00Z',
+      lastSeenAt: '2026-01-02T00:00:00Z',
+      current: false,
+    })
+  })
+
+  it('fetchKnownDevices reads every page of /profile/devices', async () => {
+    vi.mocked(apiFetch).mockResolvedValueOnce({
+      items: [
+        {
+          id: 4,
+          browser: 'Firefox',
+          operating_system: 'Linux',
+          device_type: 'PC',
+          created_at: '2026-01-01T00:00:00Z',
+          last_seen_at: '2026-01-02T00:00:00Z',
+          current: true,
+        },
+      ],
+      next: null,
+    })
+
+    const devices = await fetchKnownDevices()
+
+    expect(String(vi.mocked(apiFetch).mock.calls[0]?.[0])).toContain('/profile/devices')
+    expect(devices).toEqual([expect.objectContaining({ id: 4, browser: 'Firefox', current: true })])
+  })
+
+  it('forgetKnownDevice POSTs the step-up body to the delete route', async () => {
+    vi.mocked(apiFetch).mockResolvedValue(undefined)
+
+    await forgetKnownDevice(4, { currentPassword: 'pw', mfaCode: null })
+
+    expect(apiFetch).toHaveBeenCalledWith('/profile/devices/4/delete', {
+      method: 'POST',
+      body: JSON.stringify({ step_up: { current_password: 'pw', mfa_code: null } }),
       responseType: 'void',
     })
   })

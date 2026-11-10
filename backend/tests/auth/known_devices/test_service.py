@@ -8,10 +8,13 @@ from sqlalchemy import select
 
 import core.exceptions as core_exceptions
 import core.hashing as core_hashing
+import core.pagination as core_pagination
+import modules.auth.known_devices.contracts as known_devices_contracts
 import modules.auth.known_devices.crud as known_devices_crud
 import modules.auth.known_devices.events as known_devices_events
 import modules.auth.known_devices.models as known_devices_models
 import modules.auth.known_devices.service as known_devices_service
+import modules.auth.security_generation.integration_service as security_generation_integration
 import modules.users.users.models as users_models
 from tests._helpers.db import create_sqlite_session
 
@@ -20,6 +23,7 @@ _FIREFOX_ON_LINUX = "Mozilla/5.0 (X11; Linux x86_64; rv:128.0) Gecko/20100101 Fi
 _DEVICE_ID = "d" * 43
 _OTHER_DEVICE_ID = "o" * 43
 _PASSWORD = known_devices_events.SignInMethod.PASSWORD
+_DESCRIPTION = known_devices_contracts.DeviceDescription(browser="Firefox", operating_system="Linux", device_type="PC")
 
 
 @pytest.fixture
@@ -66,13 +70,15 @@ def _hashes(db, user_id):
 
 
 def _known(db, user_id, device_id):
-    known_devices_crud.create_device(user_id, core_hashing.sha256_hex(device_id), datetime.now(UTC), db)
+    known_devices_crud.create_device(
+        user_id, core_hashing.sha256_hex(device_id), 0, datetime.now(UTC), _DESCRIPTION, db
+    )
 
 
 class TestWebSignIn:
     def test_a_known_device_is_seen_again_without_an_event(self, db, publish):
         old = datetime.now(UTC) - timedelta(days=30)
-        known_devices_crud.create_device(1, core_hashing.sha256_hex(_DEVICE_ID), old, db)
+        known_devices_crud.create_device(1, core_hashing.sha256_hex(_DEVICE_ID), 0, old, _DESCRIPTION, db)
 
         record = _sign_in(db, device_id=_DEVICE_ID)
 
@@ -202,7 +208,7 @@ class TestKnownDevice:
 
     def test_looking_a_device_up_registers_and_touches_nothing(self, db, publish):
         old = datetime.now(UTC) - timedelta(days=30)
-        known_devices_crud.create_device(1, core_hashing.sha256_hex(_DEVICE_ID), old, db)
+        known_devices_crud.create_device(1, core_hashing.sha256_hex(_DEVICE_ID), 0, old, _DESCRIPTION, db)
 
         known_devices_service.is_known_device(1, _DEVICE_ID, db)
         known_devices_service.is_known_device(1, _OTHER_DEVICE_ID, db)
@@ -239,9 +245,129 @@ class TestEvent:
 class TestPrune:
     def test_devices_unseen_for_400_days_are_deleted(self, db):
         now = datetime(2026, 11, 1, tzinfo=UTC)
-        known_devices_crud.create_device(1, "a" * 64, now - timedelta(days=401), db)
-        known_devices_crud.create_device(1, "b" * 64, now - timedelta(days=399), db)
+        known_devices_crud.create_device(1, "a" * 64, 0, now - timedelta(days=401), _DESCRIPTION, db)
+        known_devices_crud.create_device(1, "b" * 64, 0, now - timedelta(days=399), _DESCRIPTION, db)
         db.commit()
 
         assert known_devices_service.delete_unseen_devices(now, db) == 1
         assert _hashes(db, 1) == {"b" * 64}
+
+
+def _security_change(db, user_id=1):
+    """Advance the account's security generation, as every security change does."""
+    security_generation_integration.stage_bump(user_id, db)
+
+
+class TestSecurityChange:
+    def test_a_device_known_before_a_security_change_is_no_longer_known(self, db, publish):
+        _account(db, age=timedelta(days=30))
+        _record(db, device_id=_DEVICE_ID)
+        assert known_devices_service.is_known_device(1, _DEVICE_ID, db) is True
+
+        _security_change(db)
+
+        assert known_devices_service.is_known_device(1, _DEVICE_ID, db) is False
+
+    def test_a_sign_in_from_a_device_known_before_a_security_change_is_announced_and_restamps_it(self, db, publish):
+        _account(db, age=timedelta(days=30))
+        _record(db, device_id=_DEVICE_ID)
+        publish.reset_mock()
+        _security_change(db)
+
+        record = _sign_in(db, device_id=_DEVICE_ID)
+
+        assert record.new_device is True
+        publish.assert_called_once()
+        assert known_devices_service.is_known_device(1, _DEVICE_ID, db) is True
+        assert len(_hashes(db, 1)) == 1
+        publish.reset_mock()
+        assert _sign_in(db, device_id=_DEVICE_ID).new_device is False
+        publish.assert_not_called()
+
+    def test_a_new_account_announces_a_new_device_after_a_security_change(self, db, publish):
+        _account(db, age=timedelta(hours=1))
+        _record(db, device_id=_DEVICE_ID)
+        publish.reset_mock()
+        _security_change(db)
+
+        record = _sign_in(db, device_id="another-device-id")
+
+        assert record.new_device is True
+        publish.assert_called_once()
+
+
+class TestDescription:
+    def test_a_device_is_described_by_the_user_agent_at_creation_and_at_each_sign_in(self, db, publish):
+        _account(db, age=timedelta(days=30))
+        _record(db, device_id=_DEVICE_ID)
+        model = known_devices_models.KnownDevice
+        row = db.execute(select(model)).scalar_one()
+        assert (row.browser, row.operating_system, row.device_type) == ("Firefox", "Linux", "PC")
+
+        known_devices_service.record_sign_in(
+            1,
+            _DEVICE_ID,
+            "203.0.113.7",
+            "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) "
+            "Version/17.0 Safari/605.1.15",
+            _PASSWORD,
+            db,
+        )
+        db.refresh(row)
+
+        assert (row.browser, row.operating_system) == ("Safari", "Mac OS X")
+
+
+class TestListAndForget:
+    def test_the_list_holds_only_devices_of_the_current_generation_and_marks_the_current_one(self, db, publish):
+        _account(db, age=timedelta(days=30))
+        _record(db, device_id=_OTHER_DEVICE_ID)
+        _security_change(db)
+        _record(db, device_id=_DEVICE_ID)
+
+        page = known_devices_service.list_devices(1, _DEVICE_ID, core_pagination.PageParams(1, 10), db)
+
+        assert page.total == 1
+        assert [item.current for item in page.items] == [True]
+        assert (page.items[0].browser, page.items[0].operating_system, page.items[0].device_type) == (
+            "Firefox",
+            "Linux",
+            "PC",
+        )
+
+    def test_another_device_is_listed_as_not_current(self, db, publish):
+        _account(db, age=timedelta(days=30))
+        _record(db, device_id=_OTHER_DEVICE_ID)
+
+        page = known_devices_service.list_devices(1, _DEVICE_ID, core_pagination.PageParams(1, 10), db)
+
+        assert [item.current for item in page.items] == [False]
+
+    def test_a_forgotten_device_is_no_longer_known(self, db, publish):
+        _account(db, age=timedelta(days=30))
+        _record(db, device_id=_DEVICE_ID)
+        device_id = known_devices_service.list_devices(1, None, core_pagination.PageParams(1, 10), db).items[0].id
+
+        known_devices_service.forget_device(device_id, 1, db)
+
+        assert known_devices_service.is_known_device(1, _DEVICE_ID, db) is False
+
+    def test_another_users_device_and_an_unknown_id_are_not_found(self, db, publish):
+        _account(db, age=timedelta(days=30))
+        _record(db, device_id=_DEVICE_ID)
+        device_id = known_devices_service.list_devices(1, None, core_pagination.PageParams(1, 10), db).items[0].id
+
+        with pytest.raises(core_exceptions.NotFoundError):
+            known_devices_service.forget_device(device_id, 2, db)
+        with pytest.raises(core_exceptions.NotFoundError):
+            known_devices_service.forget_device(device_id + 99, 1, db)
+        assert known_devices_service.is_known_device(1, _DEVICE_ID, db) is True
+
+    def test_a_device_of_an_older_generation_cannot_be_forgotten_through_the_api(self, db, publish):
+        _account(db, age=timedelta(days=30))
+        _record(db, device_id=_DEVICE_ID)
+        device_id = known_devices_service.list_devices(1, None, core_pagination.PageParams(1, 10), db).items[0].id
+        _security_change(db)
+
+        with pytest.raises(core_exceptions.NotFoundError):
+            known_devices_service.forget_device(device_id, 1, db)
