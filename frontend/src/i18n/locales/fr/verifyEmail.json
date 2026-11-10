@@ -6,6 +6,8 @@
   "submittingPassword": "Enregistrement du mot de passe",
   "successTitle": "E-mail vérifié",
   "successBody": "Votre adresse e-mail a été confirmée.",
+  "emailChangeSuccessTitle": "Adresse e-mail modifiée",
+  "emailChangeSuccessBody": "Votre nouvelle adresse e-mail a été confirmée. Vous avez été déconnecté partout, reconnectez-vous donc.",
   "adminApprovalBody": "Votre compte est maintenant en attente d'approbation par un administrateur.",
   "continueButton": "Continuer vers la connexion",
   "invalidTitle": "Échec de la vérification",

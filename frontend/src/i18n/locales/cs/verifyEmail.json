@@ -6,6 +6,8 @@
   "submittingPassword": "Ukládání hesla",
   "successTitle": "E-mail ověřen",
   "successBody": "Vaše e-mailová adresa byla potvrzena.",
+  "emailChangeSuccessTitle": "E-mailová adresa změněna",
+  "emailChangeSuccessBody": "Vaše nová e-mailová adresa byla potvrzena. Byli jste odhlášeni všude, přihlaste se proto znovu.",
   "adminApprovalBody": "Váš účet nyní čeká na schválení administrátorem.",
   "continueButton": "Pokračovat na přihlášení",
   "invalidTitle": "Ověření selhalo",

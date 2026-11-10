@@ -6,6 +6,8 @@
   "submittingPassword": "Saglabā paroli",
   "successTitle": "E-pasts verificēts",
   "successBody": "Jūsu e-pasta adrese ir apstiprināta.",
+  "emailChangeSuccessTitle": "E-pasta adrese nomainīta",
+  "emailChangeSuccessBody": "Jūsu jaunā e-pasta adrese ir apstiprināta. Jūs tikāt izrakstīts visur, tāpēc piesakieties vēlreiz.",
   "adminApprovalBody": "Jūsu konts tagad gaida administratora apstiprinājumu.",
   "continueButton": "Turpināt uz pieteikšanos",
   "invalidTitle": "Verifikācija neizdevās",

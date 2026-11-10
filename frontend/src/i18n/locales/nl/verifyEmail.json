@@ -6,6 +6,8 @@
   "submittingPassword": "Wachtwoord opslaan",
   "successTitle": "E-mailadres geverifieerd",
   "successBody": "Je e-mailadres is bevestigd.",
+  "emailChangeSuccessTitle": "E-mailadres gewijzigd",
+  "emailChangeSuccessBody": "Je nieuwe e-mailadres is bevestigd. Je bent overal uitgelogd, dus log opnieuw in.",
   "adminApprovalBody": "Je account wacht nu op goedkeuring door de beheerder.",
   "continueButton": "Doorgaan naar inloggen",
   "invalidTitle": "Verificatie mislukt",

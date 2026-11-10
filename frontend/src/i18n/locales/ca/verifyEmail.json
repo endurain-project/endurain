@@ -6,6 +6,8 @@
   "submittingPassword": "Desant la contrasenya",
   "successTitle": "Correu verificat",
   "successBody": "La teva adreça de correu ha estat confirmada.",
+  "emailChangeSuccessTitle": "Adreça electrònica canviada",
+  "emailChangeSuccessBody": "S'ha confirmat la teva nova adreça electrònica. S'ha tancat la teva sessió a tot arreu, així que torna a iniciar-la.",
   "adminApprovalBody": "El teu compte ara està esperant l'aprovació de l'administrador.",
   "continueButton": "Continua a l'inici de sessió",
   "invalidTitle": "La verificació ha fallat",

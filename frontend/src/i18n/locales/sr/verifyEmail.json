@@ -6,6 +6,8 @@
   "submittingPassword": "Čuvanje lozinke",
   "successTitle": "Email je verifikovan",
   "successBody": "Vaša email adresa je potvrđena.",
+  "emailChangeSuccessTitle": "Email adresa je promenjena",
+  "emailChangeSuccessBody": "Vaša nova email adresa je potvrđena. Odjavljeni ste svuda, zato se ponovo prijavite.",
   "adminApprovalBody": "Vaš nalog sada čeka odobrenje administratora.",
   "continueButton": "Nastavi na prijavu",
   "invalidTitle": "Verifikacija nije uspela",

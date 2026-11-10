@@ -6,6 +6,8 @@
   "submittingPassword": "正在保存密码",
   "successTitle": "邮箱已验证",
   "successBody": "您的电子邮件地址已确认。",
+  "emailChangeSuccessTitle": "邮箱地址已更改",
+  "emailChangeSuccessBody": "您的新邮箱地址已确认。您已在所有设备上退出登录，请重新登录。",
   "adminApprovalBody": "您的账户现在正在等待管理员审批。",
   "continueButton": "继续登录",
   "invalidTitle": "验证失败",

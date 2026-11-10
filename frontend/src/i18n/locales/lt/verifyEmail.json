@@ -6,6 +6,8 @@
   "submittingPassword": "Slaptažodis išsaugomas",
   "successTitle": "El. paštas patvirtintas",
   "successBody": "Jūsų el. pašto adresas buvo patvirtintas.",
+  "emailChangeSuccessTitle": "El. pašto adresas pakeistas",
+  "emailChangeSuccessBody": "Jūsų naujas el. pašto adresas patvirtintas. Buvote atjungti visur, todėl prisijunkite iš naujo.",
   "adminApprovalBody": "Jūsų paskyra dabar laukia administratoriaus patvirtinimo.",
   "continueButton": "Tęsti į prisijungimą",
   "invalidTitle": "Patvirtinimas nepavyko",

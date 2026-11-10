@@ -6,6 +6,8 @@
   "submittingPassword": "Gemmer adgangskode",
   "successTitle": "E-mail bekræftet",
   "successBody": "Din e-mailadresse er blevet bekræftet.",
+  "emailChangeSuccessTitle": "E-mailadresse ændret",
+  "emailChangeSuccessBody": "Din nye e-mailadresse er bekræftet. Du blev logget ud overalt, så log ind igen.",
   "adminApprovalBody": "Din konto afventer nu administratorgodkendelse.",
   "continueButton": "Fortsæt til login",
   "invalidTitle": "Bekræftelse mislykkedes",

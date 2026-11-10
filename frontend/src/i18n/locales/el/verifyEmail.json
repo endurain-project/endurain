@@ -6,6 +6,8 @@
   "submittingPassword": "Αποθήκευση κωδικού",
   "successTitle": "Το email επαληθεύτηκε",
   "successBody": "Η διεύθυνση email σας επιβεβαιώθηκε.",
+  "emailChangeSuccessTitle": "Η διεύθυνση email άλλαξε",
+  "emailChangeSuccessBody": "Η νέα διεύθυνση email σας επιβεβαιώθηκε. Αποσυνδεθήκατε από παντού, γι' αυτό συνδεθείτε ξανά.",
   "adminApprovalBody": "Ο λογαριασμός σας αναμένει τώρα έγκριση από διαχειριστή.",
   "continueButton": "Συνέχεια στη σύνδεση",
   "invalidTitle": "Η επαλήθευση απέτυχε",

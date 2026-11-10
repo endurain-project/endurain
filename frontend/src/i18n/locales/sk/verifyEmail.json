@@ -6,6 +6,8 @@
   "submittingPassword": "Ukladá sa heslo",
   "successTitle": "E-mail overený",
   "successBody": "Vaša e-mailová adresa bola potvrdená.",
+  "emailChangeSuccessTitle": "E-mailová adresa bola zmenená",
+  "emailChangeSuccessBody": "Vaša nová e-mailová adresa bola potvrdená. Boli ste odhlásení všade, preto sa prihláste znova.",
   "adminApprovalBody": "Váš účet teraz čaká na schválenie administrátorom.",
   "continueButton": "Pokračovať na prihlásenie",
   "invalidTitle": "Overenie zlyhalo",

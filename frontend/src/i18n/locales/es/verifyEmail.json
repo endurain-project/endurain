@@ -6,6 +6,8 @@
   "submittingPassword": "Guardando contraseña",
   "successTitle": "Correo verificado",
   "successBody": "Tu dirección de correo ha sido confirmada.",
+  "emailChangeSuccessTitle": "Correo electrónico cambiado",
+  "emailChangeSuccessBody": "Tu nueva dirección de correo ha sido confirmada. Se cerró tu sesión en todas partes, así que inicia sesión de nuevo.",
   "adminApprovalBody": "Tu cuenta está ahora esperando la aprobación del administrador.",
   "continueButton": "Continuar para iniciar sesión",
   "invalidTitle": "Verificación fallida",

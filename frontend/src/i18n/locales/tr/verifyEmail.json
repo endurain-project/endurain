@@ -6,6 +6,8 @@
   "submittingPassword": "Parola kaydediliyor",
   "successTitle": "E-posta doğrulandı",
   "successBody": "E-posta adresiniz onaylandı.",
+  "emailChangeSuccessTitle": "E-posta adresi değiştirildi",
+  "emailChangeSuccessBody": "Yeni e-posta adresiniz onaylandı. Her yerden oturumunuz kapatıldı, bu yüzden tekrar giriş yapın.",
   "adminApprovalBody": "Hesabınız artık yönetici onayını bekliyor.",
   "continueButton": "Girişe devam et",
   "invalidTitle": "Doğrulama başarısız",

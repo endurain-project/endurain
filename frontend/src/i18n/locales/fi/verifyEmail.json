@@ -6,6 +6,8 @@
   "submittingPassword": "Tallennetaan salasanaa",
   "successTitle": "Sähköposti vahvistettu",
   "successBody": "Sähköpostiosoitteesi on vahvistettu.",
+  "emailChangeSuccessTitle": "Sähköpostiosoite vaihdettu",
+  "emailChangeSuccessBody": "Uusi sähköpostiosoitteesi on vahvistettu. Sinut kirjattiin ulos kaikkialta, joten kirjaudu uudelleen sisään.",
   "adminApprovalBody": "Tilisi odottaa nyt ylläpitäjän hyväksyntää.",
   "continueButton": "Jatka kirjautumiseen",
   "invalidTitle": "Vahvistus epäonnistui",

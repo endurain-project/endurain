@@ -6,6 +6,8 @@
   "submittingPassword": "Sparar lösenord",
   "successTitle": "E-post verifierad",
   "successBody": "Din e-postadress har bekräftats.",
+  "emailChangeSuccessTitle": "E-postadressen har ändrats",
+  "emailChangeSuccessBody": "Din nya e-postadress har bekräftats. Du loggades ut överallt, så logga in igen.",
   "adminApprovalBody": "Ditt konto väntar nu på administratörsgodkännande.",
   "continueButton": "Fortsätt till inloggning",
   "invalidTitle": "Verifiering misslyckades",

@@ -6,6 +6,8 @@
   "submittingPassword": "Spremanje lozinke",
   "successTitle": "E-pošta potvrđena",
   "successBody": "Vaša adresa e-pošte je potvrđena.",
+  "emailChangeSuccessTitle": "Adresa e-pošte promijenjena",
+  "emailChangeSuccessBody": "Vaša nova adresa e-pošte je potvrđena. Odjavljeni ste posvuda, stoga se prijavite ponovno.",
   "adminApprovalBody": "Vaš račun sada čeka odobrenje administratora.",
   "continueButton": "Nastavi na prijavu",
   "invalidTitle": "Potvrda nije uspjela",

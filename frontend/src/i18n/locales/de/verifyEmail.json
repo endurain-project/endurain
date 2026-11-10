@@ -6,6 +6,8 @@
   "submittingPassword": "Passwort wird gespeichert",
   "successTitle": "E-Mail verifiziert",
   "successBody": "Deine E-Mail-Adresse wurde bestätigt.",
+  "emailChangeSuccessTitle": "E-Mail-Adresse geändert",
+  "emailChangeSuccessBody": "Deine neue E-Mail-Adresse wurde bestätigt. Du wurdest überall abgemeldet, melde dich also erneut an.",
   "adminApprovalBody": "Dein Konto wartet jetzt auf Administratorgenehmigung.",
   "continueButton": "Weiter zur Anmeldung",
   "invalidTitle": "Verifizierung fehlgeschlagen",

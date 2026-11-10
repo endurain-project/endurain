@@ -6,6 +6,8 @@
   "submittingPassword": "Jelszó mentése",
   "successTitle": "E-mail-cím megerősítve",
   "successBody": "Az e-mail-címedet megerősítettük.",
+  "emailChangeSuccessTitle": "E-mail-cím módosítva",
+  "emailChangeSuccessBody": "Az új e-mail-címedet megerősítettük. Mindenhol kijelentkeztettünk, ezért jelentkezz be újra.",
   "adminApprovalBody": "A fiókod most a rendszergazda jóváhagyására vár.",
   "continueButton": "Tovább a bejelentkezéshez",
   "invalidTitle": "Az ellenőrzés sikertelen",

@@ -6,6 +6,8 @@
   "submittingPassword": "Zapisywanie hasła",
   "successTitle": "E-mail zweryfikowany",
   "successBody": "Twój adres e-mail został potwierdzony.",
+  "emailChangeSuccessTitle": "Adres e-mail zmieniony",
+  "emailChangeSuccessBody": "Twój nowy adres e-mail został potwierdzony. Zostałeś wylogowany wszędzie, więc zaloguj się ponownie.",
   "adminApprovalBody": "Twoje konto oczekuje teraz na zatwierdzenie przez administratora.",
   "continueButton": "Przejdź do logowania",
   "invalidTitle": "Weryfikacja nie powiodła się",

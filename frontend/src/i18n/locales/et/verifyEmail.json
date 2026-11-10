@@ -6,6 +6,8 @@
   "submittingPassword": "Parooli salvestamine",
   "successTitle": "E-post kinnitatud",
   "successBody": "Sinu e-posti aadress on kinnitatud.",
+  "emailChangeSuccessTitle": "E-posti aadress muudetud",
+  "emailChangeSuccessBody": "Sinu uus e-posti aadress on kinnitatud. Sind logiti kõikjalt välja, nii et logi uuesti sisse.",
   "adminApprovalBody": "Sinu konto ootab nüüd administraatori heakskiitu.",
   "continueButton": "Jätka sisselogimisega",
   "invalidTitle": "Kinnitamine ebaõnnestus",

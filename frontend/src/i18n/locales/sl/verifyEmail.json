@@ -6,6 +6,8 @@
   "submittingPassword": "Shranjevanje gesla",
   "successTitle": "E-pošta potrjena",
   "successBody": "Tvoj e-poštni naslov je bil potrjen.",
+  "emailChangeSuccessTitle": "E-poštni naslov spremenjen",
+  "emailChangeSuccessBody": "Tvoj novi e-poštni naslov je bil potrjen. Povsod si bil odjavljen, zato se znova prijavi.",
   "adminApprovalBody": "Tvoj račun zdaj čaka na odobritev skrbnika.",
   "continueButton": "Nadaljuj na prijavo",
   "invalidTitle": "Preverjanje ni uspelo",

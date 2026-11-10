@@ -6,6 +6,8 @@
   "submittingPassword": "Salvataggio della password",
   "successTitle": "Email verificata",
   "successBody": "Il tuo indirizzo email è stato confermato.",
+  "emailChangeSuccessTitle": "Indirizzo email modificato",
+  "emailChangeSuccessBody": "Il tuo nuovo indirizzo email è stato confermato. Sei stato disconnesso ovunque, quindi accedi di nuovo.",
   "adminApprovalBody": "Il tuo account è ora in attesa di approvazione da parte dell'amministratore.",
   "continueButton": "Continua con l'accesso",
   "invalidTitle": "Verifica non riuscita",

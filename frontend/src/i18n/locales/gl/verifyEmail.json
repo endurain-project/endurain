@@ -6,6 +6,8 @@
   "submittingPassword": "Gardando o contrasinal",
   "successTitle": "Correo electrónico verificado",
   "successBody": "O teu enderezo de correo electrónico foi confirmado.",
+  "emailChangeSuccessTitle": "Enderezo de correo cambiado",
+  "emailChangeSuccessBody": "O teu novo enderezo de correo foi confirmado. Pechouse a túa sesión en todas partes, así que inicia sesión de novo.",
   "adminApprovalBody": "A túa conta está agora agardando a aprobación do administrador.",
   "continueButton": "Continuar para iniciar sesión",
   "invalidTitle": "Verificación fallida",

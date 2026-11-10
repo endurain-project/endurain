@@ -6,6 +6,8 @@
   "submittingPassword": "正在儲存密碼",
   "successTitle": "電子郵件已驗證",
   "successBody": "您的電子郵件地址已確認。",
+  "emailChangeSuccessTitle": "電子郵件地址已變更",
+  "emailChangeSuccessBody": "您的新電子郵件地址已確認。您已在所有裝置上登出，請重新登入。",
   "adminApprovalBody": "您的帳號正在等待管理員核准。",
   "continueButton": "繼續前往登入",
   "invalidTitle": "驗證失敗",

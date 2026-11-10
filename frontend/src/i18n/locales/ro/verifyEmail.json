@@ -6,6 +6,8 @@
   "submittingPassword": "Se salvează parola",
   "successTitle": "E-mail verificat",
   "successBody": "Adresa ta de e-mail a fost confirmată.",
+  "emailChangeSuccessTitle": "Adresa de e-mail a fost schimbată",
+  "emailChangeSuccessBody": "Noua ta adresă de e-mail a fost confirmată. Ai fost deconectat peste tot, așa că autentifică-te din nou.",
   "adminApprovalBody": "Contul tău așteaptă acum aprobarea administratorului.",
   "continueButton": "Continuă către autentificare",
   "invalidTitle": "Verificarea a eșuat",

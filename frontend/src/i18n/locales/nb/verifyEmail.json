@@ -6,6 +6,8 @@
   "submittingPassword": "Lagrer passord",
   "successTitle": "E-post bekreftet",
   "successBody": "E-postadressen din er bekreftet.",
+  "emailChangeSuccessTitle": "E-postadressen er endret",
+  "emailChangeSuccessBody": "Den nye e-postadressen din er bekreftet. Du ble logget ut overalt, så logg inn igjen.",
   "adminApprovalBody": "Kontoen din venter nå på godkjenning fra en administrator.",
   "continueButton": "Fortsett til innlogging",
   "invalidTitle": "Bekreftelse mislyktes",
