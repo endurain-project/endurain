@@ -2,6 +2,7 @@
 
 from contextlib import ExitStack
 from datetime import UTC, datetime, timedelta
+from types import SimpleNamespace
 from unittest.mock import MagicMock, patch
 
 import httpx2
@@ -249,6 +250,80 @@ class TestRefreshIdpSession:
         client.close.assert_called_once()
         self.claims.claim.assert_called_once_with(SESSION)
         self.claims.release.assert_called_once_with(SESSION)
+
+    def _refresh_with_id_token(self, *, verify, link="default", config="default"):
+        """Refresh a session whose response carries an ID token, with the verification as given."""
+        service = _service()
+        response = {"access_token": "new", "id_token": "idt"}
+        _, events, _, patches = self._setup(service, fetch=lambda *a, **k: response)
+        link = SimpleNamespace(idp_subject="sub-1") if link == "default" else link
+        service._oidc.get_oidc_configuration = MagicMock(
+            return_value={"jwks_uri": "https://idp.example/jwks", "issuer": "https://idp.example"}
+            if config == "default"
+            else config
+        )
+        patches += [
+            patch.object(
+                token_service_module.identity_provider_links_integration,
+                "get_user_identity_provider_by_user_id_and_idp_id",
+                return_value=link,
+            ),
+            patch.object(token_service_module.id_token_service, "verify_id_token", verify),
+        ]
+        result = self._refresh(service, patches)
+        return service, result, events
+
+    def test_the_id_token_of_a_refresh_is_verified_like_a_login_without_a_nonce_and_stored(self):
+        verify = MagicMock(return_value={"sub": "sub-1"})
+
+        service, result, _ = self._refresh_with_id_token(verify=verify)
+
+        assert result == {"access_token": "new", "id_token": "idt"}
+        verify.assert_called_once_with(
+            service._oidc.fetch_jwks,
+            "idt",
+            "https://idp.example/jwks",
+            "https://idp.example",
+            "cid",
+            access_token="new",
+        )
+        assert service._store_refreshed_token.call_args.args[3] == {"access_token": "new", "id_token": "idt"}
+
+    def test_an_id_token_that_fails_verification_is_not_stored_and_the_refresh_goes_on(self, caplog):
+        verify = MagicMock(side_effect=core_exceptions.UnauthenticatedError("ID token signature is invalid"))
+
+        service, result, events = self._refresh_with_id_token(verify=verify)
+
+        assert result == {"access_token": "new"}
+        assert service._store_refreshed_token.call_args.args[3] == {"access_token": "new"}
+        assert events == ["store", "commit"]
+
+    def test_an_id_token_of_another_subject_is_not_stored(self):
+        verify = MagicMock(return_value={"sub": "someone-else"})
+
+        service, result, _ = self._refresh_with_id_token(verify=verify)
+
+        assert "id_token" not in result
+        assert "id_token" not in service._store_refreshed_token.call_args.args[3]
+
+    def test_an_id_token_is_not_stored_when_the_account_is_no_longer_linked(self):
+        _, result, _ = self._refresh_with_id_token(verify=MagicMock(return_value={"sub": "sub-1"}), link=None)
+
+        assert "id_token" not in result
+
+    def test_an_id_token_is_not_stored_when_the_provider_publishes_no_signing_keys(self):
+        verify = MagicMock()
+
+        _, result, _ = self._refresh_with_id_token(verify=verify, config={})
+
+        verify.assert_not_called()
+        assert "id_token" not in result
+
+    def test_an_id_token_that_is_not_a_string_is_not_stored(self):
+        service = _service()
+        _, _, _, patches = self._setup(service, fetch=lambda *a, **k: {"access_token": "new", "id_token": 7})
+
+        assert self._refresh(service, patches) == {"access_token": "new"}
 
     def test_a_token_the_provider_revoked_ends_that_session_and_audits_it(self, caplog):
         import logging

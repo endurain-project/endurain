@@ -16,8 +16,10 @@ import core.exceptions as core_exceptions
 import core.hashing as core_hashing
 import core.logger as core_logger
 import modules.auth.identity_provider_links.integration_service as identity_provider_links_integration
+import modules.auth.identity_providers.contracts as identity_provider_contracts
 import modules.auth.identity_providers.crud as idp_crud
 import modules.auth.identity_providers.event_publishers as idp_event_publishers
+import modules.auth.identity_providers.id_token_service as id_token_service
 import modules.auth.identity_providers.oidc_client_service as oidc_client_service
 import modules.auth.identity_providers.refresh_claim_store as idp_refresh_claim_store
 import modules.auth.identity_providers.token_policy as token_policy
@@ -361,6 +363,8 @@ class IdpTokenService:
                 extra=core_logger.context(user_id=user_id, idp_id=idp_id),
             )
 
+            self._drop_unverified_id_token(idp, user_id, client_id, token_response)
+
             # Store the new tokens (they may include a new refresh token)
             with core_database.SessionLocal() as db:
                 self._store_refreshed_token(session_id, user_id, idp_id, token_response, encrypted_refresh_token, db)
@@ -421,6 +425,59 @@ class IdpTokenService:
         finally:
             if client is not None:
                 client.close()
+
+    def _drop_unverified_id_token(
+        self,
+        idp: identity_provider_contracts.IdentityProviderState,
+        user_id: int,
+        client_id: str,
+        token_response: dict[str, Any],
+    ) -> None:
+        """Remove the ID token of a refresh response unless it verifies as the linked account's.
+
+        The ID token is stored as the hint of RP-initiated logout, so it must be one the provider signed for this
+        client and the linked subject. It is checked as at login, except that no nonce is expected (OIDC Core
+        12.2). A token that does not verify is logged and left out of the response, so the stored one stays and
+        the refresh goes on. Called with no database session open: verifying reaches the provider.
+
+        Args:
+            idp: The provider that issued the response.
+            user_id: The session's user.
+            client_id: This server's client id at the provider.
+            token_response: The OAuth token response of the refresh; its ``id_token`` is removed when refused.
+        """
+        if "id_token" not in token_response:
+            return
+        id_token = token_response["id_token"]
+        try:
+            if not isinstance(id_token, str):
+                raise core_exceptions.UnauthenticatedError("ID token is not a string")
+            with core_database.SessionLocal() as db:
+                link = identity_provider_links_integration.get_user_identity_provider_by_user_id_and_idp_id(
+                    user_id, idp.id, db
+                )
+            if link is None:
+                raise core_exceptions.NotFoundError("The account is no longer linked to the provider")
+            jwks_uri, issuer = oidc_client_service.require_signing_keys(
+                idp, self._oidc.get_oidc_configuration(idp) or {}
+            )
+            claims = id_token_service.verify_id_token(
+                self._oidc.fetch_jwks,
+                id_token,
+                jwks_uri,
+                issuer,
+                client_id,
+                access_token=token_response.get("access_token"),
+            )
+            if claims["sub"] != link.idp_subject:
+                raise core_exceptions.UnauthenticatedError("ID token names another subject")
+        except (core_exceptions.DomainError, SQLAlchemyError) as err:
+            logger.warning(
+                "Discarded the unverified ID token of a refresh for user <user_id>, idp <idp_id>",
+                exc_info=err,
+                extra=core_logger.context(user_id=user_id, idp_id=idp.id),
+            )
+            del token_response["id_token"]
 
     @staticmethod
     def _clear_refresh_token(session_id: str, user_id: int, idp_id: int, expected_refresh_token: str) -> bool:

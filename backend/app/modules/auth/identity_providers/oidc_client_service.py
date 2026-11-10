@@ -55,10 +55,42 @@ def require_signing_keys(
     return jwks_uri, issuer
 
 
+def require_matching_response_issuer(
+    idp: identity_provider_contracts.IdentityProviderState, config: dict[str, Any], iss: str | None
+) -> None:
+    """Require an authorization response to carry the provider's own issuer when it should (RFC 9207, section 2.4).
+
+    An ``iss`` parameter must equal the discovered ``issuer`` exactly, and a provider whose discovery document sets
+    ``authorization_response_iss_parameter_supported`` must send one. Both defend against a response from another
+    authorization server (a mix-up attack). A document without an ``issuer`` leaves nothing to compare.
+
+    Args:
+        idp: The provider.
+        config: The provider's discovery document, empty when there is none.
+        iss: The ``iss`` parameter of the callback, if it carried one.
+
+    Raises:
+        UnauthenticatedError: If the parameter is required and missing, or differs from the issuer.
+    """
+    issuer = config.get("issuer")
+    if iss is None and config.get("authorization_response_iss_parameter_supported") is True:
+        logger.warning(
+            "IdP <name> sent no iss parameter though it advertises one", extra=core_logger.context(name=idp.name)
+        )
+        raise core_exceptions.UnauthenticatedError("Authorization response names no issuer")
+    if iss is not None and issuer is not None and iss != issuer:
+        logger.warning("IdP <name> callback names another issuer", extra=core_logger.context(name=idp.name))
+        raise core_exceptions.UnauthenticatedError("Authorization response names another issuer")
+
+
 class OidcClientService:
     """Reach an identity provider's OIDC endpoints: discovery, signing keys, token endpoint and userinfo."""
 
     CACHE_TTL_SECONDS = 3600
+    #: How long a provider's signing keys are downloaded afresh at most once: a token naming a key the cached set
+    #: lacks forces a download, so without it a forged token, or a logout token posted to the unauthenticated
+    #: back-channel route, would make this server fetch the provider's keys on every request.
+    JWKS_REFRESH_COOLDOWN_SECONDS = 60
 
     def __init__(self, state: StateProvider, api_version: str) -> None:
         """Initialize the client with the shared state that caches discovery documents and signing keys."""
@@ -73,6 +105,22 @@ class OidcClientService:
     def _jwks_key(jwks_uri: str) -> str:
         uri_hash = hashlib.sha256(jwks_uri.encode()).hexdigest()
         return f"endurain:idp:jwks:{uri_hash}"
+
+    @staticmethod
+    def _jwks_refresh_key(jwks_uri: str) -> str:
+        uri_hash = hashlib.sha256(jwks_uri.encode()).hexdigest()
+        return f"endurain:idp:jwks-refresh:{uri_hash}"
+
+    def _claim_jwks_refresh(self, jwks_uri: str) -> bool:
+        """Claim the right to download a provider's signing keys afresh, once per cooldown across all replicas.
+
+        A state outage refuses the claim, so the cached set stays in use rather than every request downloading.
+        """
+        try:
+            return self._state.set_if_absent(self._jwks_refresh_key(jwks_uri), b"1", self.JWKS_REFRESH_COOLDOWN_SECONDS)
+        except StateBackendUnavailableError as err:
+            logger.warning("JWKS refresh cooldown unavailable", exc_info=err)
+            return False
 
     def _read_cache(self, key: str) -> dict[str, Any] | None:
         try:
@@ -137,7 +185,9 @@ class OidcClientService:
         Args:
             jwks_uri: The JWKS endpoint URL from OIDC discovery (e.g., https://idp.example.com/jwks)
             refresh: Skip the cached key set, fetch a fresh one and cache that instead; used when a token names
-                a key the cached set lacks, as after the provider rotated its keys.
+                a key the cached set lacks, as after the provider rotated its keys. The set is fetched afresh at
+                most once per ``JWKS_REFRESH_COOLDOWN_SECONDS`` for a JWKS URI; a refresh within it returns the
+                cached set.
 
         Returns:
             A dictionary containing the JWKS response with 'keys' array
@@ -158,7 +208,7 @@ class OidcClientService:
             ]
         }
         """
-        if not refresh:
+        if not refresh or not self._claim_jwks_refresh(jwks_uri):
             cached = self._read_cache(self._jwks_key(jwks_uri))
             if cached is not None:
                 logger.debug("Using cached JWKS")
@@ -653,6 +703,7 @@ class OidcClientService:
                     expected_issuer=expected_issuer,
                     expected_audience=expected_audience,
                     expected_nonce=expected_nonce,
+                    access_token=token_response.get("access_token"),
                 )
 
                 logger.debug(

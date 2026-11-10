@@ -6,6 +6,7 @@ keys, bad signatures, expired tokens, claim mismatches and nonce replay. Only th
 """
 
 import base64
+import hashlib
 import json
 import time
 from unittest.mock import MagicMock, patch
@@ -324,7 +325,7 @@ class TestVerifyIdTokenKeyResolution:
             _verify(service, token, JWKS_URI, ISS, AUD)
         assert "unknown key" in exc_info.value.detail.lower()
 
-    def test_unsupported_key_type_raises_401(self, service, rsa_key):
+    def test_a_key_of_an_unsupported_type_is_an_unknown_key(self, service, rsa_key):
         token = _sign(rsa_key, _valid_claims())
         jwks = {"keys": [{"kid": KID, "kty": "UNKNOWN"}]}
         with (
@@ -333,7 +334,7 @@ class TestVerifyIdTokenKeyResolution:
         ):
             _verify(service, token, JWKS_URI, ISS, AUD)
         assert exc_info.value.status_code == status.HTTP_401_UNAUTHORIZED
-        assert "key type" in exc_info.value.detail.lower()
+        assert "unknown key" in exc_info.value.detail.lower()
 
     @pytest.mark.parametrize(
         "advertised",
@@ -464,3 +465,78 @@ class TestVerifyIdTokenNonce:
         with patch.object(service, "fetch_jwks", MagicMock(return_value=_public_jwks(rsa_key))):
             claims = _verify(service, token, JWKS_URI, ISS, AUD)
             assert claims["sub"] == "user-1"
+
+
+# ---------------------------------------------------------------------------
+# Key selection by kid honours ``use`` and ``alg``
+# ---------------------------------------------------------------------------
+
+
+class TestVerifyIdTokenKeyAttributes:
+    """A key found by ``kid`` must also be a signature key for the token's algorithm."""
+
+    @pytest.mark.parametrize("attributes", [{"use": "enc"}, {"alg": "RS512"}])
+    def test_a_key_named_by_kid_that_cannot_verify_this_token_is_an_unknown_key(self, service, rsa_key, attributes):
+        token = _sign(rsa_key, _valid_claims())
+        jwks = {"keys": [{**_public_jwks(rsa_key)["keys"][0], **attributes}]}
+        with (
+            patch.object(service, "fetch_jwks", MagicMock(return_value=jwks)),
+            pytest.raises(core_exceptions.DomainError) as exc_info,
+        ):
+            _verify(service, token, JWKS_URI, ISS, AUD)
+        assert exc_info.value.status_code == status.HTTP_401_UNAUTHORIZED
+        assert "unknown key" in exc_info.value.detail.lower()
+
+    def test_a_key_that_declares_signature_use_and_the_token_algorithm_verifies(self, service, rsa_key):
+        token = _sign(rsa_key, _valid_claims())
+        jwks = {"keys": [{**_public_jwks(rsa_key)["keys"][0], "use": "sig", "alg": "RS256"}]}
+        with patch.object(service, "fetch_jwks", MagicMock(return_value=jwks)):
+            assert _verify(service, token, JWKS_URI, ISS, AUD)["sub"] == "user-1"
+
+
+# ---------------------------------------------------------------------------
+# at_hash (OIDC Core 3.1.3.6)
+# ---------------------------------------------------------------------------
+
+
+def _at_hash(access_token: str, digest) -> str:
+    half = digest(access_token.encode()).digest()
+    return base64.urlsafe_b64encode(half[: len(half) // 2]).decode().rstrip("=")
+
+
+class TestVerifyIdTokenAccessTokenHash:
+    """An ID token's ``at_hash`` must match the access token issued with it."""
+
+    def _verify_with(self, service, rsa_key, claims, access_token):
+        token = _sign(rsa_key, claims)
+        with patch.object(service, "fetch_jwks", MagicMock(return_value=_public_jwks(rsa_key))):
+            return _verify(service, token, JWKS_URI, ISS, AUD, access_token=access_token)
+
+    def test_a_matching_at_hash_verifies(self, service, rsa_key):
+        claims = _valid_claims(at_hash=_at_hash("access-token", hashlib.sha256))
+        assert self._verify_with(service, rsa_key, claims, "access-token")["sub"] == "user-1"
+
+    @pytest.mark.parametrize(
+        ("alg", "digest"),
+        [("PS256", hashlib.sha256), ("ES384", hashlib.sha384), ("RS512", hashlib.sha512)],
+    )
+    def test_the_hash_is_the_one_of_the_signature_algorithm(self, alg, digest):
+        id_token_service._require_access_token_hash(_at_hash("access-token", digest), "access-token", alg)
+        with pytest.raises(core_exceptions.UnauthenticatedError):
+            id_token_service._require_access_token_hash(_at_hash("access-token", hashlib.sha1), "access-token", alg)
+
+    def test_a_mismatching_at_hash_is_refused(self, service, rsa_key):
+        claims = _valid_claims(at_hash=_at_hash("another-token", hashlib.sha256))
+        with pytest.raises(core_exceptions.UnauthenticatedError, match="at_hash"):
+            self._verify_with(service, rsa_key, claims, "access-token")
+
+    def test_an_at_hash_that_is_not_a_string_is_refused(self, service, rsa_key):
+        with pytest.raises(core_exceptions.UnauthenticatedError, match="at_hash"):
+            self._verify_with(service, rsa_key, _valid_claims(at_hash=7), "access-token")
+
+    def test_an_at_hash_is_not_checked_without_an_access_token(self, service, rsa_key):
+        claims = _valid_claims(at_hash="anything")
+        assert self._verify_with(service, rsa_key, claims, None)["sub"] == "user-1"
+
+    def test_a_token_without_at_hash_verifies_with_an_access_token(self, service, rsa_key):
+        assert self._verify_with(service, rsa_key, _valid_claims(), "access-token")["sub"] == "user-1"

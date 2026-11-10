@@ -562,7 +562,7 @@ class TestCreateCallbackSession:
 class TestOidcLoginFailsClosed:
     """An OIDC login is identified by a verified ID token; nothing weaker is accepted."""
 
-    def _handle(self, service, *, config, token_response, purpose=_LOGIN, userinfo_error=None):
+    def _handle(self, service, *, config, token_response, purpose=_LOGIN, userinfo_error=None, iss=None):
         idp = MagicMock(
             issuer_url="https://idp.example.com",
             userinfo_endpoint="https://idp.example.com/userinfo",
@@ -589,7 +589,7 @@ class TestOidcLoginFailsClosed:
             ) as find_or_create,
         ):
             try:
-                return service.handle_callback(idp, "code", "state", oauth_state, db)
+                return service.handle_callback(idp, "code", "state", oauth_state, db, iss=iss)
             finally:
                 self.find_or_create = find_or_create
                 self.get_userinfo = forged
@@ -658,6 +658,44 @@ class TestOidcLoginFailsClosed:
 
         find_or_create.assert_not_called()
         link.assert_not_called()
+
+    @pytest.mark.parametrize(
+        ("advertised", "iss"),
+        [
+            (True, None),
+            (True, "https://evil.example.com"),
+            (None, "https://evil.example.com"),
+            (False, "https://idp.example.com/"),
+        ],
+        ids=[
+            "required-and-missing",
+            "required-and-mismatching",
+            "unadvertised-but-mismatching",
+            "unrequired-and-inexact",
+        ],
+    )
+    def test_a_callback_whose_iss_parameter_is_missing_or_wrong_is_refused_before_the_code_is_redeemed(
+        self, service, advertised, iss
+    ):
+        config = {"issuer": "https://idp.example.com", "jwks_uri": "https://idp.example.com/jwks"}
+        if advertised is not None:
+            config["authorization_response_iss_parameter_supported"] = advertised
+
+        with pytest.raises(core_exceptions.UnauthenticatedError, match="issuer"):
+            self._handle(service, config=config, token_response={"id_token": "idt"}, iss=iss)
+
+        self.fetch_token.assert_not_called()
+        self.find_or_create.assert_not_called()
+
+    @pytest.mark.parametrize(("advertised", "iss"), [(True, "https://idp.example.com"), (None, None), (False, None)])
+    def test_a_callback_whose_iss_parameter_is_right_or_not_required_goes_on(self, service, advertised, iss):
+        config = {"issuer": "https://idp.example.com", "jwks_uri": "https://idp.example.com/jwks"}
+        if advertised is not None:
+            config["authorization_response_iss_parameter_supported"] = advertised
+
+        self._handle(service, config=config, token_response={"id_token": "idt"}, iss=iss)
+
+        self.fetch_token.assert_called_once()
 
     def test_get_userinfo_is_told_to_require_the_id_token(self, service):
         config = {"issuer": "https://idp.example.com", "jwks_uri": "https://idp.example.com/jwks"}

@@ -30074,6 +30074,8 @@ export interface operations {
                 error?: string | null;
                 /** @description State parameter for CSRF protection */
                 state: string;
+                /** @description Issuer the provider identifies itself with */
+                iss?: string | null;
             };
             header?: never;
             path: {

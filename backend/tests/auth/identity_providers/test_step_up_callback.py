@@ -270,6 +270,24 @@ class TestRefusals:
         oidc.create_oauth_client.assert_not_called()
         verify.assert_not_called()
 
+    @pytest.mark.parametrize("iss", [None, "https://evil.example.com"], ids=["missing", "mismatching"])
+    def test_an_iss_parameter_the_provider_promises_but_gets_wrong_is_refused_without_redeeming_the_code(
+        self, service, oidc, iss
+    ):
+        oidc.get_oidc_configuration.return_value |= {"authorization_response_iss_parameter_supported": True}
+
+        with patch.object(callback_service.id_token_service, "verify_id_token") as verify:
+            url = service.complete_step_up_callback(_idp(), "code", _oauth_state(), MagicMock(), iss=iss)
+
+        assert _fragment(url) == {"step_up_error": ["failed"]}
+        oidc.create_oauth_client.assert_not_called()
+        verify.assert_not_called()
+
+    def test_the_access_token_is_given_to_the_id_token_verification(self, service):
+        _, verify, _ = _complete(service)
+
+        assert verify.call_args.kwargs["access_token"] == "at"
+
     def test_a_token_response_without_an_id_token_is_refused(self, service, oidc):
         oauth_client = oidc.create_oauth_client.return_value.__enter__.return_value
         oauth_client.fetch_token.return_value = {"access_token": "at"}

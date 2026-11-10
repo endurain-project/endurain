@@ -1,6 +1,8 @@
 """Verification of the JWTs an identity provider signs, ID tokens and logout tokens, against its published keys."""
 
 import base64
+import hashlib
+import hmac
 import json
 from collections.abc import Generator
 from contextlib import contextmanager
@@ -82,9 +84,10 @@ def _can_verify(key_data: dict[str, Any], alg: str) -> bool:
 def _find_key(jwks: dict[str, Any], kid: str | None, alg: str) -> dict[str, Any] | None:
     """Return the key that verifies a token from a JWKS, or None.
 
-    A token that names a ``kid`` takes the key with that ``kid``. A token without one is accepted only when the
-    set holds exactly one key usable for ``alg`` (signature use, matching ``kty`` and, when the key declares one,
-    ``alg``), because OIDC requires a ``kid`` only when the set holds several keys.
+    A token that names a ``kid`` takes the key with that ``kid``, provided the key is usable for ``alg`` (signature
+    use, matching ``kty`` and, when the key declares one, ``alg``). A token without one is accepted only when the
+    set holds exactly one key usable for ``alg``, because OIDC requires a ``kid`` only when the set holds several
+    keys.
 
     Args:
         jwks: The provider's JWKS document.
@@ -96,7 +99,7 @@ def _find_key(jwks: dict[str, Any], kid: str | None, alg: str) -> dict[str, Any]
     """
     keys = jwks.get("keys", [])
     if kid is not None:
-        return next((key_data for key_data in keys if key_data.get("kid") == kid), None)
+        return next((key_data for key_data in keys if key_data.get("kid") == kid and _can_verify(key_data, alg)), None)
     candidates = [key_data for key_data in keys if _can_verify(key_data, alg)]
     return candidates[0] if len(candidates) == 1 else None
 
@@ -124,12 +127,15 @@ def verify_id_token(
     expected_issuer: str,
     expected_audience: str,
     expected_nonce: str | None = None,
+    access_token: str | None = None,
 ) -> dict[str, Any]:
     """Verify an ID token's signature and claims against the identity provider's signing keys (OIDC Core 3.1.3.7).
 
     The signature is checked by :func:`_decode_signed`. The claims must then name the expected issuer and audience
     (with the authorized party rule), a subject, an expiry and an issue time, each time allowing
     ``ID_TOKEN_CLOCK_LEEWAY_SECONDS`` of clock skew, and the nonce of the authorization request when one is expected.
+    When the token carries an ``at_hash`` and the access token issued with it is given, the hash must match it
+    (OIDC Core 3.1.3.6).
 
     Args:
         fetch_jwks: Returns the provider's JWKS for a JWKS URI and, called with ``refresh=True``, a freshly fetched
@@ -139,6 +145,7 @@ def verify_id_token(
         expected_issuer: The ``iss`` the provider's discovery document names.
         expected_audience: This server's client id at the provider.
         expected_nonce: The nonce stored with the authorization request, when one must match.
+        access_token: The access token the provider issued with the ID token, when there is one.
 
     Returns:
         The verified claims.
@@ -149,7 +156,8 @@ def verify_id_token(
         ProcessingError: If the verification fails unexpectedly.
     """
     with _verification_errors("ID token"):
-        claims = _decode_signed(fetch_jwks, id_token, jwks_uri, "ID token").claims
+        decoded = _decode_signed(fetch_jwks, id_token, jwks_uri, "ID token")
+        claims = decoded.claims
         jwt.JWTClaimsRegistry(
             leeway=ID_TOKEN_CLOCK_LEEWAY_SECONDS,
             iss={"essential": True, "value": expected_issuer},
@@ -176,6 +184,9 @@ def verify_id_token(
                 # The nonce values are not logged: the expected one is the secret binding this login.
                 logger.warning("ID token nonce does not match the one issued for this login")
                 raise core_exceptions.UnauthenticatedError("ID token nonce mismatch")
+
+        if access_token is not None and "at_hash" in claims:
+            _require_access_token_hash(claims["at_hash"], access_token, decoded.header["alg"])
 
         return claims
 
@@ -465,6 +476,27 @@ def _verification_errors(kind: str) -> Generator[None]:
     except Exception as err:
         logger.debug("Unexpected error verifying a JWT: <err>", exc_info=err, extra=core_logger.context(err=err))
         raise core_exceptions.ProcessingError(f"Failed to verify {kind}") from err
+
+
+def _require_access_token_hash(at_hash: object, access_token: str, alg: str) -> None:
+    """Require an ID token's ``at_hash`` to be the hash of the access token issued with it (OIDC Core 3.1.3.6).
+
+    The hash is the base64url encoding of the left half of the digest of the access token, made with the hash
+    the token's signature algorithm uses (SHA-256, SHA-384 or SHA-512 by the number ending the algorithm name).
+
+    Args:
+        at_hash: The ID token's ``at_hash`` claim.
+        access_token: The access token the provider issued with the ID token.
+        alg: The ``alg`` of the ID token header, already on the allow-list.
+
+    Raises:
+        UnauthenticatedError: If ``at_hash`` is not the hash of the access token.
+    """
+    digest = hashlib.new(f"sha{alg[-3:]}", access_token.encode("ascii", "replace")).digest()
+    expected = base64.urlsafe_b64encode(digest[: len(digest) // 2]).decode().rstrip("=")
+    if not isinstance(at_hash, str) or not hmac.compare_digest(at_hash.encode(), expected.encode()):
+        logger.warning("ID token at_hash does not match the access token")
+        raise core_exceptions.UnauthenticatedError("ID token at_hash does not match the access token")
 
 
 def _require_authorized_party(claims: dict[str, Any], client_id: str) -> None:

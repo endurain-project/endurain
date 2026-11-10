@@ -153,6 +153,7 @@ def handle_callback(
     code: str | None = Query(None, description="Authorization code from IdP"),
     error: str | None = Query(None, max_length=128, description="Error the IdP returned instead of a code"),
     state: str = Query(..., description="State parameter for CSRF protection"),
+    iss: str | None = Query(None, max_length=2048, description="Issuer the provider identifies itself with"),
 ) -> RedirectResponse:
     """Handle OAuth callback from an identity provider.
 
@@ -169,6 +170,8 @@ def handle_callback(
         code: Authorization code received from the identity provider; absent when it returned an error.
         error: The provider's error code, such as ``login_required`` when it could not sign the user in again.
         state: State parameter used for CSRF protection (database state ID).
+        iss: The issuer the provider names in its answer (RFC 9207), which must be its own when it sends one and is
+            required of a provider that advertises it.
 
     Returns:
         RedirectResponse: A redirect response to either:
@@ -200,6 +203,7 @@ def handle_callback(
         core_network.get_user_agent(request),
         password_hasher,
         db,
+        iss=iss,
     )
     response = RedirectResponse(url=redirect_url, status_code=status.HTTP_307_TEMPORARY_REDIRECT)
     idp_dependencies.clear_browser_binding_cookie(response)

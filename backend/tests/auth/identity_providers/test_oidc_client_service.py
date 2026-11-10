@@ -34,6 +34,12 @@ class _MemoryState:
         self.values[key] = value
         self.expiry[key] = time.monotonic() + ttl_seconds
 
+    def set_if_absent(self, key: str, value: bytes, ttl_seconds: int | None = None) -> bool:
+        if self.get(key) is not None:
+            return False
+        self.set(key, value, ttl_seconds=ttl_seconds or 1)
+        return True
+
     def delete(self, key: str) -> None:
         self.values.pop(key, None)
         self.expiry.pop(key, None)
@@ -111,6 +117,52 @@ class TestFetchJwks:
             assert service.fetch_jwks(JWKS_URI, refresh=True) == fresh
             assert service.fetch_jwks(JWKS_URI) == fresh
         client.get.assert_called_once()
+
+    def test_a_refresh_within_the_cooldown_returns_the_cached_set_without_a_download(self, service, state_provider):
+        stale = {"keys": [{"kid": "old", "kty": "RSA"}]}
+        fresh = {"keys": [{"kid": KID, "kty": "RSA"}]}
+        client = self._client_returning(json_value=fresh)
+        with (
+            patch("modules.auth.identity_providers.oidc_client_service.core_network.reject_private_url"),
+            patch.object(service, "http_client", MagicMock(return_value=client)),
+        ):
+            assert service.fetch_jwks(JWKS_URI, refresh=True) == fresh
+            state_provider.values[service._jwks_key(JWKS_URI)] = json.dumps(stale).encode()
+            assert service.fetch_jwks(JWKS_URI, refresh=True) == stale
+        client.get.assert_called_once()
+
+    def test_the_cooldown_is_per_provider(self, service):
+        other_uri = "https://other.example.com/jwks"
+        client = self._client_returning(json_value={"keys": []})
+        with (
+            patch("modules.auth.identity_providers.oidc_client_service.core_network.reject_private_url"),
+            patch.object(service, "http_client", MagicMock(return_value=client)),
+        ):
+            service.fetch_jwks(JWKS_URI, refresh=True)
+            service.fetch_jwks(other_uri, refresh=True)
+        assert client.get.call_count == 2
+
+    def test_a_refresh_after_the_cooldown_downloads_again(self, service, state_provider):
+        client = self._client_returning(json_value={"keys": []})
+        with (
+            patch("modules.auth.identity_providers.oidc_client_service.core_network.reject_private_url"),
+            patch.object(service, "http_client", MagicMock(return_value=client)),
+        ):
+            service.fetch_jwks(JWKS_URI, refresh=True)
+            for key in list(state_provider.expiry):
+                state_provider.expiry[key] = 0
+            service.fetch_jwks(JWKS_URI, refresh=True)
+        assert client.get.call_count == 2
+
+    def test_a_refresh_during_a_state_outage_does_not_download_when_a_cached_set_exists(self):
+        state = MagicMock()
+        state.set_if_absent.side_effect = StateBackendUnavailableError("down")
+        cached = {"keys": [{"kid": KID, "kty": "RSA"}]}
+        state.get.return_value = json.dumps(cached).encode()
+        service = oidc_client_service.OidcClientService(state, "test")
+        with patch.object(service, "http_client") as http_client:
+            assert service.fetch_jwks(JWKS_URI, refresh=True) == cached
+        http_client.assert_not_called()
 
     def test_the_guard_requires_tls(self, service):
         client = self._client_returning(json_value={"keys": []})

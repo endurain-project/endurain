@@ -170,6 +170,16 @@ class TestHandleCallback:
         assert f'{idp_dependencies.BINDING_COOKIE_NAME}=""' in response.headers["set-cookie"]
         assert "Max-Age=0" in response.headers["set-cookie"]
 
+    def test_the_iss_parameter_reaches_the_service(self, client, service):
+        service.prepare_callback.return_value = (MagicMock(), MagicMock())
+        service.complete_callback.return_value = "https://app.example.com/login?sso=success"
+
+        client.get(
+            f"{PREFIX}/callback/pocket-id?code=abc&state=xyz&iss=https://idp.example.com", follow_redirects=False
+        )
+
+        assert service.complete_callback.call_args.kwargs["iss"] == "https://idp.example.com"
+
     def test_the_code_and_state_are_required(self, client):
         response = client.get(f"{PREFIX}/callback/pocket-id", follow_redirects=False)
 

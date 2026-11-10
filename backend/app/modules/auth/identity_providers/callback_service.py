@@ -200,6 +200,8 @@ class CallbackService:
         user_agent: str,
         password_hasher: credentials_integration.PasswordHasher,
         db: Session,
+        *,
+        iss: str | None = None,
     ) -> str:
         """Finish a callback and return where to send the browser, whatever happened.
 
@@ -218,6 +220,7 @@ class CallbackService:
             user_agent: Client user agent, recorded on the new session.
             password_hasher: Hasher for the session's refresh token.
             db: Database session.
+            iss: The ``iss`` parameter of the callback, if it carried one (RFC 9207).
 
         Returns:
             The URL to redirect the browser to.
@@ -231,9 +234,9 @@ class CallbackService:
             return self._failure_url(oauth_state)
         if oauth_state.purpose == oauth_state_constants.OAuthStatePurpose.STEP_UP:
             step_up_state = oauth_state_schema.StepUpOAuthStateRead.model_validate(oauth_state, from_attributes=True)
-            return self.complete_step_up_callback(idp, code, step_up_state, db)
+            return self.complete_step_up_callback(idp, code, step_up_state, db, iss=iss)
         try:
-            result = self.handle_callback(idp, code, state, oauth_state, db)
+            result = self.handle_callback(idp, code, state, oauth_state, db, iss=iss)
             user = result.user
 
             if result.mode == "link":
@@ -327,6 +330,8 @@ class CallbackService:
         state: str,
         oauth_state: oauth_state_schema.OAuthStateRead,
         db: Session,
+        *,
+        iss: str | None = None,
     ) -> CallbackResult:
         """Handle the OAuth2/OIDC callback from an identity provider.
 
@@ -342,6 +347,7 @@ class CallbackService:
             request (Request): The FastAPI/Starlette request object.
             db (Session): SQLAlchemy database session.
             oauth_state (oauth_state_schema.OAuthStateRead): OAuth-state data.
+            iss (str | None): The ``iss`` parameter of the callback, if it carried one (RFC 9207).
 
         Returns:
             CallbackResult: The user, the provider's claims, whether the callback signed in or linked, and the
@@ -396,6 +402,7 @@ class CallbackService:
             userinfo_endpoint = idp.userinfo_endpoint
             jwks_uri = None
             expected_issuer = None
+            config: dict[str, Any] = {}
             require_id_token = identity_provider_utils.requires_id_token(idp)
 
             if require_id_token:
@@ -407,6 +414,7 @@ class CallbackService:
                 # Discovery logs its own failure and returns None; the provider then goes on without it
                 discovered = self._oidc.get_oidc_configuration(idp)
                 if discovered:
+                    config = discovered
                     # Get userinfo endpoint if not manually configured
                     if not userinfo_endpoint:
                         userinfo_endpoint = discovered.get("userinfo_endpoint")
@@ -424,6 +432,9 @@ class CallbackService:
                     value_4=bool(expected_issuer),
                 ),
             )
+
+            # The response must come from the provider it was requested of, before its code is redeemed.
+            oidc_client_service.require_matching_response_issuer(idp, config, iss)
 
             # Retrieve nonce from database state
             expected_nonce = oauth_state.nonce
@@ -606,6 +617,8 @@ class CallbackService:
         code: str,
         oauth_state: oauth_state_schema.StepUpOAuthStateRead,
         db: Session,
+        *,
+        iss: str | None = None,
     ) -> str:
         """Finish a step-up: prove a fresh sign-in of the linked provider account and hand back a ticket.
 
@@ -619,12 +632,13 @@ class CallbackService:
             code: The authorization code.
             oauth_state: The claimed step-up state.
             db: Database session.
+            iss: The ``iss`` parameter of the callback, if it carried one (RFC 9207).
 
         Returns:
             The page that started the step-up, with ``step_up_ticket`` or ``step_up_error`` in the fragment.
         """
         try:
-            subject = self._verify_step_up_sign_in(idp, code, oauth_state)
+            subject = self._verify_step_up_sign_in(idp, code, oauth_state, iss)
             link = identity_provider_links_integration.get_user_identity_provider_by_subject_and_idp_id(
                 idp.id, subject, db
             )
@@ -779,6 +793,7 @@ class CallbackService:
         idp: identity_provider_contracts.IdentityProviderState,
         code: str,
         oauth_state: oauth_state_schema.OAuthStateRead,
+        iss: str | None,
     ) -> str:
         """Redeem the code and return the subject of a verified, fresh ID token.
 
@@ -786,6 +801,7 @@ class CallbackService:
             idp: The provider.
             code: The authorization code.
             oauth_state: The claimed step-up state.
+            iss: The ``iss`` parameter of the callback, if it carried one (RFC 9207).
 
         Returns:
             The ``sub`` claim of the verified ID token.
@@ -795,11 +811,14 @@ class CallbackService:
             UpstreamError: If the provider publishes no issuer or signing keys, cannot be reached, refuses the
                 code or returns no ID token.
             ProcessingError: If the token response is malformed or the token endpoint URL cannot be sent to.
-            UnauthenticatedError: If the ID token does not verify or names no subject.
+            UnauthenticatedError: If the callback's ``iss`` is missing or wrong, or the ID token does not verify or
+                names no subject.
             _StaleSignInError: If the ID token does not prove a sign-in within the step-up's limit.
         """
         client_id = self._oidc.decrypt_client_id(idp)
-        jwks_uri, issuer = oidc_client_service.require_signing_keys(idp, self._oidc.get_oidc_configuration(idp) or {})
+        config = self._oidc.get_oidc_configuration(idp) or {}
+        jwks_uri, issuer = oidc_client_service.require_signing_keys(idp, config)
+        oidc_client_service.require_matching_response_issuer(idp, config, iss)
         with self._oidc.create_oauth_client(
             client_id=client_id,
             client_secret=self._oidc.decrypt_client_secret(idp),
@@ -813,7 +832,13 @@ class CallbackService:
             logger.warning("Step-up refused: IdP <name> returned no ID token", extra=core_logger.context(name=idp.name))
             raise core_exceptions.UpstreamError(f"Identity provider {idp.name} returned no ID token")
         claims = id_token_service.verify_id_token(
-            self._oidc.fetch_jwks, id_token, jwks_uri, issuer, client_id, expected_nonce=oauth_state.nonce
+            self._oidc.fetch_jwks,
+            id_token,
+            jwks_uri,
+            issuer,
+            client_id,
+            expected_nonce=oauth_state.nonce,
+            access_token=token_response.get("access_token"),
         )
         _require_fresh_sign_in(claims, oauth_state)
         subject = claims.get("sub")
