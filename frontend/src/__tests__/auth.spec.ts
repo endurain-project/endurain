@@ -242,34 +242,11 @@ describe('auth store', () => {
     },
   )
 
-  it('clears local state and returns no URL when the backend logout fails', async () => {
-    vi.mocked(loginWithPassword).mockResolvedValue(tokenResponse)
-    vi.mocked(fetchCurrentUser).mockResolvedValue(authUser)
-    vi.mocked(logoutSession).mockRejectedValue(new HttpError(401, 'Unauthorized'))
-
-    const auth = useAuthStore()
-    await auth.login('demo', 'password123')
-
-    await expect(auth.logout()).resolves.toBeNull()
-    expect(auth.isAuthenticated).toBe(false)
-  })
-
-  it.each([401, 403])('clears local state when logout is refused with %i', async (status) => {
-    vi.mocked(loginWithPassword).mockResolvedValue(tokenResponse)
-    vi.mocked(fetchCurrentUser).mockResolvedValue(authUser)
-    vi.mocked(logoutSession).mockRejectedValue(new HttpError(status, 'Refused'))
-
-    const auth = useAuthStore()
-    await auth.login('demo', 'password123')
-
-    await expect(auth.logout()).resolves.toBeNull()
-    expect(auth.isAuthenticated).toBe(false)
-  })
-
   it.each([
     ['a network error', new TypeError('Failed to fetch')],
     ['a 503', new HttpError(503, 'Service Unavailable')],
     ['a 429', new HttpError(429, 'Too Many Requests')],
+    ['a 403', new HttpError(403, 'Forbidden')],
   ])('keeps the session and rethrows when logout fails with %s', async (_label, failure) => {
     vi.mocked(loginWithPassword).mockResolvedValue(tokenResponse)
     vi.mocked(fetchCurrentUser).mockResolvedValue(authUser)

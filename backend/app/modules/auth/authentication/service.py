@@ -1033,6 +1033,9 @@ def logout(
 ) -> str | None:
     """Log out a user by validating and deleting their session, and name where to end it at the identity provider.
 
+    Logout is idempotent: a session that is gone, not yet exchanged, or whose stored refresh token is not the
+    presented one is left as it is.
+
     The provider and ID token of an identity-provider sign-in are read before the session is deleted, because the
     sign-in is deleted with it. The deletion is committed first; only then is the provider's end-session endpoint
     resolved, which may reach the network for discovery, so no transaction spans it. The user-facing operation has
@@ -1050,10 +1053,7 @@ def logout(
 
     Returns:
         The identity provider's end-session URL, or None when the session did not sign in through a provider whose
-        discovery document names an end-session endpoint, or no live session was found.
-
-    Raises:
-        UnauthenticatedError: If the refresh token is invalid.
+        discovery document names an end-session endpoint, or no session was ended.
     """
     # Get the session from the database
     session = sessions_integration.get_session_by_id_not_expired(token_session_id, db)
@@ -1062,22 +1062,14 @@ def logout(
     if session is None:
         return None
 
-    # Verify session has a refresh token (not pending PKCE exchange)
-    if not session.refresh_token:
-        raise core_exceptions.UnauthenticatedError(
-            "Tokens not yet exchanged via PKCE. Cannot logout incomplete session.", scheme="Bearer"
-        )
-
-    # Verify the refresh token
-    is_valid = password_hasher.verify_password(refresh_token_value, session.refresh_token)
-
-    # If the refresh token is not valid, raise an exception
-    if not is_valid:
+    # A session whose tokens are not yet exchanged (pending PKCE), or whose stored token is not the presented one
+    # (the token was rotated or revoked), is not this caller's to end
+    if not session.refresh_token or not password_hasher.verify_password(refresh_token_value, session.refresh_token):
         logger.warning(
-            "Logout refused: refresh token does not match session for user <token_user_id>",
+            "Logout ended nothing: refresh token does not match session for user <token_user_id>",
             extra=core_logger.context(token_user_id=token_user_id),
         )
-        raise core_exceptions.UnauthenticatedError("Invalid refresh token", scheme="Bearer")
+        return None
 
     end_session = identity_providers_integration.read_end_session(session.id, db)
 

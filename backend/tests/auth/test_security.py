@@ -125,4 +125,60 @@ def test_refresh_token_claim_readers_follow_validation():
         validation_index = calls.index(authentication_dependencies.validate_refresh_token)
         for reader in readers.intersection(calls):
             assert validation_index < calls.index(reader), f"{route.path} reads claims before validating"
-    assert checked >= 2
+    assert checked >= 1
+
+
+class TestGetLogoutTarget:
+    """A logout names a session only from a usable refresh token; any other token names none."""
+
+    @staticmethod
+    def _target(token_manager, *, cookie=None, bearer=None, client_type=ClientType.WEB):
+        return authentication_dependencies.get_logout_target(bearer, cookie, client_type, token_manager)
+
+    def test_a_valid_web_token_names_its_session(self, token_manager, sample_user_read):
+        _, token = token_manager.create_token(
+            "session-id", sample_user_read, ClientType.WEB, access_tokens_service.TokenType.REFRESH, timedelta(days=1)
+        )
+
+        assert self._target(token_manager, cookie=token) == authentication_dependencies.LogoutTarget(
+            sample_user_read.id, "session-id", token
+        )
+
+    def test_a_valid_mobile_token_is_read_from_the_authorization_header(self, token_manager, sample_user_read):
+        _, token = token_manager.create_token(
+            "session-id",
+            sample_user_read,
+            ClientType.MOBILE,
+            access_tokens_service.TokenType.REFRESH,
+            timedelta(days=1),
+        )
+
+        target = self._target(token_manager, bearer=token, client_type=ClientType.MOBILE)
+
+        assert target is not None
+        assert target.session_id == "session-id"
+
+    def test_a_missing_token_names_no_session(self, token_manager):
+        assert self._target(token_manager) is None
+        assert self._target(token_manager, client_type=ClientType.MOBILE) is None
+
+    def test_a_malformed_token_names_no_session(self, token_manager):
+        assert self._target(token_manager, cookie="not-a-jwt") is None
+
+    def test_an_expired_token_names_no_session(self, token_manager, sample_user_read):
+        _, token = token_manager.create_token(
+            "session-id",
+            sample_user_read,
+            ClientType.WEB,
+            access_tokens_service.TokenType.REFRESH,
+            timedelta(seconds=-120),
+        )
+
+        assert self._target(token_manager, cookie=token) is None
+
+    def test_an_access_token_names_no_session(self, token_manager, sample_user_read):
+        _, token = token_manager.create_token(
+            "session-id", sample_user_read, ClientType.WEB, access_tokens_service.TokenType.ACCESS, timedelta(days=1)
+        )
+
+        assert self._target(token_manager, cookie=token) is None

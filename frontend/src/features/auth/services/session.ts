@@ -86,10 +86,11 @@ export function refreshSession(): Promise<AuthTokenResponse> {
 }
 
 /**
- * Logs out the current backend session and clears the refresh cookie.
+ * Logs out the current backend session and clears the refresh cookie. A missing, expired or revoked refresh
+ * token is not an error: the answer is the same and the cookie is cleared.
  *
  * @returns The identity provider's end-session URL, or `null` when the session did not sign in through one.
- * @throws {HttpError} When the refresh session cannot be validated.
+ * @throws {HttpError} When the request is refused (a missing CSRF token) or the server fails.
  */
 export function logoutSession(): Promise<LogoutResponse> {
   return apiFetch<LogoutResponse>('/auth/logout', {

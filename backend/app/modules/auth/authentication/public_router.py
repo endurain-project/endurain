@@ -329,20 +329,10 @@ def refresh_token(
 def logout(
     response: Response,
     request: Request,
-    _validate_refresh_token: Annotated[None, Depends(authentication_dependencies.validate_refresh_token)],
-    token_session_id: Annotated[
-        str,
-        Depends(authentication_dependencies.get_sid_from_refresh_token),
-    ],
-    refresh_token_value: Annotated[
-        str,
-        Depends(authentication_dependencies.get_and_return_refresh_token),
+    target: Annotated[
+        authentication_dependencies.LogoutTarget | None, Depends(authentication_dependencies.get_logout_target)
     ],
     client_type: Annotated[auth_constants.ClientType, Depends(authentication_dependencies.get_client_type)],
-    token_user_id: Annotated[
-        int,
-        Depends(authentication_dependencies.get_sub_from_refresh_token),
-    ],
     password_hasher: Annotated[
         credentials_integration.PasswordHasher,
         Depends(credentials_integration.get_password_hasher),
@@ -359,31 +349,31 @@ def logout(
     cached, because the URL carries the ID token. A web client sends the `X-CSRF-Token` header, and without it the
     answer is 403.
 
+    Logout is idempotent. A refresh token that is missing, malformed, expired, revoked or whose session is gone ends
+    nothing and gets the same 200 answer with a null idp_logout_url, and a web client's refresh cookie is cleared
+    all the same.
+
     Args:
         response: The HTTP response object to modify cookies.
         request: The HTTP request object, read by the rate limiter.
-        _validate_refresh_token: Dependency to validate the refresh token.
-        token_session_id: The session ID extracted from the refresh token.
-        refresh_token_value: The refresh token value from the request.
+        target: The session the refresh token names, or None when the token is not usable.
         client_type: The type of client ("web" or "mobile").
-        token_user_id: The user ID extracted from the refresh token.
         password_hasher: Utility for verifying the refresh token.
         db: Database session for CRUD operations.
 
     Returns:
         The identity provider's end-session URL, or None when there is none.
-
-    Raises:
-        HTTPException: If refresh token is invalid (401 Unauthorized).
     """
-    idp_logout_url = auth_service.logout(
-        token_session_id,
-        refresh_token_value,
-        token_user_id,
-        password_hasher,
-        client_type,
-        db,
-    )
+    idp_logout_url = None
+    if target is not None:
+        idp_logout_url = auth_service.logout(
+            target.session_id,
+            target.refresh_token,
+            target.user_id,
+            password_hasher,
+            client_type,
+            db,
+        )
     core_cache_control.set_no_store(response)
     if client_type == auth_constants.ClientType.WEB:
         authentication_dependencies.clear_refresh_token_cookies(response, environment=core_config.settings.ENVIRONMENT)

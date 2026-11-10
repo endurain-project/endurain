@@ -291,24 +291,22 @@ export const useAuthStore = defineStore('auth', () => {
   /**
    * Logs out from the backend, clears local auth state and tells the other tabs.
    *
-   * When the server refuses the request (401 or 403) the session is already gone, so the local
-   * state is cleared as well. Any other failure (network error, 429, 5xx) leaves the server
-   * session alive, and its HTTP-only refresh cookie would restore it on the next page load, so
-   * the local session is kept and the error is thrown for the caller to report.
+   * The server answers a logout with a dead refresh token like any other, so every answer that
+   * reaches here has ended the session. Any failure (network error, 403, 429, 5xx) leaves the
+   * server session alive, and its HTTP-only refresh cookie would restore it on the next page
+   * load, so the local session is kept and the error is thrown for the caller to report.
    *
    * @returns The identity provider's end-session URL when the session signed in
    *   through a provider and the URL is `https:`, otherwise `null`.
    * @throws {unknown} The logout failure when the server may still hold the session.
    */
   async function logout(): Promise<string | null> {
-    let idpLogoutUrl: string | null = null
+    let idpLogoutUrl: string | null
     try {
       idpLogoutUrl = httpsUrlOrNull((await logoutSession()).idp_logout_url)
     } catch (error) {
-      if (!isSessionRefused(error)) {
-        useTelemetry().captureError(error, { scope: 'logout' })
-        throw error
-      }
+      useTelemetry().captureError(error, { scope: 'logout' })
+      throw error
     }
     clearLocalSession()
     isReady.value = true

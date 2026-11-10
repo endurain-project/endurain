@@ -2015,11 +2015,8 @@ class TestLogoutEndpoint:
         mock_delete_session.return_value = None
 
         app = auth_app
-        app.dependency_overrides[authentication_dependencies.validate_refresh_token] = lambda: None
-        app.dependency_overrides[authentication_dependencies.get_sub_from_refresh_token] = lambda: 1
-        app.dependency_overrides[authentication_dependencies.get_sid_from_refresh_token] = lambda: "sid-1"
-        app.dependency_overrides[authentication_dependencies.get_and_return_refresh_token] = lambda: (
-            "mock_refresh_token"
+        app.dependency_overrides[authentication_dependencies.get_logout_target] = lambda: (
+            authentication_dependencies.LogoutTarget(1, "sid-1", "mock_refresh_token")
         )
 
         response = auth_client.post("/auth/logout")
@@ -2029,15 +2026,17 @@ class TestLogoutEndpoint:
         assert response.headers["cache-control"] == "no-store"
         mock_delete_session.assert_called_once()
 
+    @patch("modules.auth.authentication.service.sessions_integration.delete_session")
     @patch("modules.auth.authentication.service.sessions_integration.get_session_by_id_not_expired")
-    def test_logout_invalid_refresh_token_returns_401(
+    def test_logout_with_a_token_the_session_does_not_hold_ends_nothing(
         self,
         mock_get_session,
+        mock_delete_session,
         auth_client,
         auth_app,
         password_hasher,
     ):
-        """Invalid refresh token returns 401."""
+        """A token that is not the session's stored one answers 200 and the session stays."""
         mock_session = MagicMock()
         mock_session.expires_at = datetime.now(UTC) + timedelta(days=30)
         mock_session.id = "sid-1"
@@ -2045,15 +2044,15 @@ class TestLogoutEndpoint:
         mock_get_session.return_value = mock_session
 
         app = auth_app
-        app.dependency_overrides[authentication_dependencies.validate_refresh_token] = lambda: None
-        app.dependency_overrides[authentication_dependencies.get_sub_from_refresh_token] = lambda: 1
-        app.dependency_overrides[authentication_dependencies.get_sid_from_refresh_token] = lambda: "sid-1"
-        app.dependency_overrides[authentication_dependencies.get_and_return_refresh_token] = lambda: "wrong_token"
+        app.dependency_overrides[authentication_dependencies.get_logout_target] = lambda: (
+            authentication_dependencies.LogoutTarget(1, "sid-1", "wrong_token")
+        )
 
         response = auth_client.post("/auth/logout")
 
-        assert response.status_code == 401
-        assert "Invalid refresh token" in response.json()["detail"]
+        assert response.status_code == 200
+        assert response.json() == {"idp_logout_url": None}
+        mock_delete_session.assert_not_called()
 
     @patch("modules.auth.authentication.dependencies.clear_refresh_token_cookies")
     @patch("modules.auth.authentication.service.sessions_integration.delete_session")
@@ -2085,10 +2084,9 @@ class TestLogoutEndpoint:
         mock_get_session.return_value = None
 
         app = auth_app
-        app.dependency_overrides[authentication_dependencies.validate_refresh_token] = lambda: None
-        app.dependency_overrides[authentication_dependencies.get_sub_from_refresh_token] = lambda: 1
-        app.dependency_overrides[authentication_dependencies.get_sid_from_refresh_token] = lambda: "nonexistent"
-        app.dependency_overrides[authentication_dependencies.get_and_return_refresh_token] = lambda: "rt"
+        app.dependency_overrides[authentication_dependencies.get_logout_target] = lambda: (
+            authentication_dependencies.LogoutTarget(1, "nonexistent", "rt")
+        )
 
         response = auth_client.post("/auth/logout")
 
@@ -2096,18 +2094,21 @@ class TestLogoutEndpoint:
         assert response.json() == {"idp_logout_url": None}
         mock_delete_session.assert_not_called()
 
+    @patch("modules.auth.authentication.service.sessions_integration.delete_session")
     @patch("modules.auth.authentication.service.sessions_integration.get_session_by_id_not_expired")
-    def test_logout_pending_pkce_no_refresh_token_returns_401(
+    def test_logout_pending_pkce_no_refresh_token_ends_nothing(
         self,
         mock_get_session,
+        mock_delete_session,
         auth_client,
         auth_app,
     ):
         """
-        Session without refresh_token (pending PKCE) returns 401.
+        Session without refresh_token (pending PKCE) answers 200 and is not deleted.
 
         Args:
             mock_get_session: Mock for get_session_by_id_not_expired.
+            mock_delete_session: Mock for delete_session.
             auth_client: TestClient for the auth app.
             auth_app: FastAPI test application.
 
@@ -2115,7 +2116,7 @@ class TestLogoutEndpoint:
             None.
 
         Raises:
-            AssertionError: If response status is not 401.
+            AssertionError: If response status is not 200 or the session was deleted.
         """
         mock_session = MagicMock()
         mock_session.expires_at = datetime.now(UTC) + timedelta(days=30)
@@ -2124,15 +2125,15 @@ class TestLogoutEndpoint:
         mock_get_session.return_value = mock_session
 
         app = auth_app
-        app.dependency_overrides[authentication_dependencies.validate_refresh_token] = lambda: None
-        app.dependency_overrides[authentication_dependencies.get_sub_from_refresh_token] = lambda: 1
-        app.dependency_overrides[authentication_dependencies.get_sid_from_refresh_token] = lambda: "sid-pkce"
-        app.dependency_overrides[authentication_dependencies.get_and_return_refresh_token] = lambda: "rt"
+        app.dependency_overrides[authentication_dependencies.get_logout_target] = lambda: (
+            authentication_dependencies.LogoutTarget(1, "sid-pkce", "rt")
+        )
 
         response = auth_client.post("/auth/logout")
 
-        assert response.status_code == 401
-        assert "PKCE" in response.json()["detail"]
+        assert response.status_code == 200
+        assert response.json() == {"idp_logout_url": None}
+        mock_delete_session.assert_not_called()
 
     @patch("modules.auth.authentication.dependencies.clear_refresh_token_cookies")
     @patch("modules.auth.authentication.service.sessions_integration.delete_session")
@@ -2171,10 +2172,9 @@ class TestLogoutEndpoint:
         mock_delete_session.return_value = None
 
         app = auth_app
-        app.dependency_overrides[authentication_dependencies.validate_refresh_token] = lambda: None
-        app.dependency_overrides[authentication_dependencies.get_sub_from_refresh_token] = lambda: 1
-        app.dependency_overrides[authentication_dependencies.get_sid_from_refresh_token] = lambda: "sid-web"
-        app.dependency_overrides[authentication_dependencies.get_and_return_refresh_token] = lambda: "mock_rt"
+        app.dependency_overrides[authentication_dependencies.get_logout_target] = lambda: (
+            authentication_dependencies.LogoutTarget(1, "sid-web", "mock_rt")
+        )
 
         response = auth_client.post("/auth/logout")
 
@@ -2220,10 +2220,9 @@ class TestLogoutEndpoint:
         mock_delete_session.return_value = None
 
         app = auth_app
-        app.dependency_overrides[authentication_dependencies.validate_refresh_token] = lambda: None
-        app.dependency_overrides[authentication_dependencies.get_sub_from_refresh_token] = lambda: 1
-        app.dependency_overrides[authentication_dependencies.get_sid_from_refresh_token] = lambda: "sid-mob"
-        app.dependency_overrides[authentication_dependencies.get_and_return_refresh_token] = lambda: "mock_rt"
+        app.dependency_overrides[authentication_dependencies.get_logout_target] = lambda: (
+            authentication_dependencies.LogoutTarget(1, "sid-mob", "mock_rt")
+        )
 
         response = auth_client.post("/auth/logout")
 
@@ -2246,10 +2245,9 @@ class TestLogoutEndpoint:
         mock_get_session.return_value = None
 
         app = auth_app
-        app.dependency_overrides[authentication_dependencies.validate_refresh_token] = lambda: None
-        app.dependency_overrides[authentication_dependencies.get_sub_from_refresh_token] = lambda: 1
-        app.dependency_overrides[authentication_dependencies.get_sid_from_refresh_token] = lambda: "nonexistent"
-        app.dependency_overrides[authentication_dependencies.get_and_return_refresh_token] = lambda: "rt"
+        app.dependency_overrides[authentication_dependencies.get_logout_target] = lambda: (
+            authentication_dependencies.LogoutTarget(1, "nonexistent", "rt")
+        )
 
         response = auth_client.post("/auth/logout")
         assert response.status_code == 200
@@ -2263,10 +2261,9 @@ class TestLogoutEndpoint:
         mock_session.expires_at = datetime.now(UTC) + timedelta(days=30)
         mock_session.id = session_id
         mock_session.refresh_token = password_hasher.hash_password("rt")
-        auth_app.dependency_overrides[authentication_dependencies.validate_refresh_token] = lambda: None
-        auth_app.dependency_overrides[authentication_dependencies.get_sub_from_refresh_token] = lambda: 1
-        auth_app.dependency_overrides[authentication_dependencies.get_sid_from_refresh_token] = lambda: session_id
-        auth_app.dependency_overrides[authentication_dependencies.get_and_return_refresh_token] = lambda: "rt"
+        auth_app.dependency_overrides[authentication_dependencies.get_logout_target] = lambda: (
+            authentication_dependencies.LogoutTarget(1, session_id, "rt")
+        )
         return mock_session
 
     @patch("modules.auth.authentication.service.identity_providers_integration.end_session_url")
@@ -2327,13 +2324,98 @@ class TestLogoutEndpoint:
         self, mock_get_session, mock_read, mock_url, auth_client, auth_app
     ):
         mock_get_session.return_value = None
-        auth_app.dependency_overrides[authentication_dependencies.validate_refresh_token] = lambda: None
-        auth_app.dependency_overrides[authentication_dependencies.get_sub_from_refresh_token] = lambda: 1
-        auth_app.dependency_overrides[authentication_dependencies.get_sid_from_refresh_token] = lambda: "gone"
-        auth_app.dependency_overrides[authentication_dependencies.get_and_return_refresh_token] = lambda: "rt"
+        auth_app.dependency_overrides[authentication_dependencies.get_logout_target] = lambda: (
+            authentication_dependencies.LogoutTarget(1, "gone", "rt")
+        )
 
         response = auth_client.post("/auth/logout")
 
         assert response.json() == {"idp_logout_url": None}
         mock_read.assert_not_called()
         mock_url.assert_not_called()
+
+    # --- idempotent logout: a token problem answers the normal success and ends nothing ---
+
+    @staticmethod
+    def _refresh_token(token_manager, sample_user_read, *, ttl=timedelta(days=1)):
+        return token_manager.create_token(
+            "sid-1",
+            sample_user_read,
+            auth_constants.ClientType.WEB,
+            auth_token_manager.TokenType.REFRESH,
+            ttl,
+        )[1]
+
+    @staticmethod
+    def _cookie_is_cleared(response) -> bool:
+        cleared = [
+            value
+            for value in response.headers.get_list("set-cookie")
+            if value.startswith(f"{authentication_dependencies.REFRESH_TOKEN_COOKIE_NAME}=")
+        ]
+        return len(cleared) == 1 and "Max-Age=0" in cleared[0]
+
+    @pytest.mark.parametrize("problem", ["missing", "malformed", "expired", "wrong_audience"])
+    @patch("modules.auth.authentication.service.sessions_integration.delete_session")
+    @patch("modules.auth.authentication.service.sessions_integration.get_session_by_id_not_expired")
+    def test_web_logout_with_an_unusable_token_succeeds_and_clears_the_cookie(
+        self, mock_get_session, mock_delete_session, problem, auth_client, token_manager, sample_user_read
+    ):
+        tokens = {
+            "missing": None,
+            "malformed": "not-a-jwt",
+            "expired": self._refresh_token(token_manager, sample_user_read, ttl=timedelta(seconds=-120)),
+            "wrong_audience": token_manager.create_token(
+                "sid-1",
+                sample_user_read,
+                auth_constants.ClientType.WEB,
+                auth_token_manager.TokenType.ACCESS,
+                timedelta(days=1),
+            )[1],
+        }
+        headers = {}
+        if tokens[problem] is not None:
+            headers["Cookie"] = f"{authentication_dependencies.REFRESH_TOKEN_COOKIE_NAME}={tokens[problem]}"
+
+        response = auth_client.post("/auth/logout", headers=headers)
+
+        assert response.status_code == 200
+        assert response.json() == {"idp_logout_url": None}
+        assert response.headers["cache-control"] == "no-store"
+        assert self._cookie_is_cleared(response)
+        mock_get_session.assert_not_called()
+        mock_delete_session.assert_not_called()
+
+    @patch("modules.auth.authentication.service.sessions_integration.delete_session")
+    @patch("modules.auth.authentication.service.sessions_integration.get_session_by_id_not_expired")
+    def test_web_logout_of_a_revoked_token_succeeds_and_clears_the_cookie(
+        self, mock_get_session, mock_delete_session, auth_client, token_manager, sample_user_read, password_hasher
+    ):
+        session = MagicMock(id="sid-1", refresh_token=password_hasher.hash_password("a-newer-token"))
+        mock_get_session.return_value = session
+        token = self._refresh_token(token_manager, sample_user_read)
+
+        response = auth_client.post(
+            "/auth/logout", headers={"Cookie": f"{authentication_dependencies.REFRESH_TOKEN_COOKIE_NAME}={token}"}
+        )
+
+        assert response.status_code == 200
+        assert response.json() == {"idp_logout_url": None}
+        assert self._cookie_is_cleared(response)
+        mock_delete_session.assert_not_called()
+
+    @pytest.mark.parametrize("authorization", [None, "Bearer not-a-jwt"])
+    @patch("modules.auth.authentication.service.sessions_integration.delete_session")
+    def test_mobile_logout_with_an_unusable_token_succeeds(
+        self, mock_delete_session, authorization, auth_client, auth_app
+    ):
+        auth_app.state._client_type = "mobile"
+        headers = {"Authorization": authorization} if authorization else {}
+
+        response = auth_client.post("/auth/logout", headers=headers)
+
+        assert response.status_code == 200
+        assert response.json() == {"idp_logout_url": None}
+        assert response.headers["cache-control"] == "no-store"
+        assert not response.headers.get_list("set-cookie")
+        mock_delete_session.assert_not_called()

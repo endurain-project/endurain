@@ -650,6 +650,10 @@ export interface paths {
          *     its endpoint, the session still ends and idp_logout_url is null: the provider session stays. The answer is never
          *     cached, because the URL carries the ID token. A web client sends the `X-CSRF-Token` header, and without it the
          *     answer is 403.
+         *
+         *     Logout is idempotent. A refresh token that is missing, malformed, expired, revoked or whose session is gone ends
+         *     nothing and gets the same 200 answer with a null idp_logout_url, and a web client's refresh cookie is cleared
+         *     all the same.
          */
         post: operations["logout"];
         delete?: never;

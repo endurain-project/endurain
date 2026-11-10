@@ -49,6 +49,21 @@ def get_client_type(
 
 
 @dataclass(frozen=True)
+class LogoutTarget:
+    """The session a logout names, read from a refresh token that is still valid.
+
+    Attributes:
+        user_id: The token's subject.
+        session_id: The session the token belongs to.
+        refresh_token: The raw refresh token.
+    """
+
+    user_id: int
+    session_id: str
+    refresh_token: str
+
+
+@dataclass(frozen=True)
 class LoginFormData:
     """The checked fields of the password sign-in form.
 
@@ -454,3 +469,46 @@ def get_and_return_refresh_token(
 ) -> str:
     """Return the resolved refresh token for downstream dependencies."""
     return refresh_token
+
+
+def get_logout_target(
+    non_cookie_refresh_token: Annotated[str | None, Depends(get_bearer_token)],
+    cookie_refresh_token: Annotated[str | None, Depends(cookie_refresh_token_scheme)],
+    client_type: Annotated[auth_constants.ClientType, Depends(get_client_type)],
+    token_manager: Annotated[
+        access_tokens_integration.TokenManager,
+        Depends(access_tokens_integration.get_token_manager),
+    ],
+) -> LogoutTarget | None:
+    """Read the session a logout names from the client's refresh token.
+
+    Logout is idempotent, so a refresh token that is missing, malformed, expired or of the wrong kind is not a
+    refusal: there is no session to end.
+
+    Args:
+        non_cookie_refresh_token: The refresh token of a mobile client, from the ``Authorization`` header.
+        cookie_refresh_token: The refresh token of a web client, from its cookie.
+        client_type: The client type.
+        token_manager: Utility for validating and reading tokens.
+
+    Returns:
+        The user, session and token the refresh token names, or ``None`` when it is not a usable refresh token.
+    """
+    try:
+        refresh_token = get_token(
+            non_cookie_refresh_token, cookie_refresh_token, client_type, access_tokens_integration.TokenType.REFRESH
+        )
+        if refresh_token is None:
+            return None
+        token_manager.validate_token_expiration(refresh_token, access_tokens_integration.TokenType.REFRESH)
+        return LogoutTarget(
+            get_sub_from_refresh_token(refresh_token, token_manager),
+            get_sid_from_refresh_token(refresh_token, token_manager),
+            refresh_token,
+        )
+    except core_exceptions.UnauthenticatedError as err:
+        logger.debug(
+            "Logout token not usable: <detail>",
+            extra=core_logger.context(credential="refresh_token", detail=err.detail),
+        )
+        return None
